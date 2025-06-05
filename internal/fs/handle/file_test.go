@@ -55,8 +55,7 @@ func TestRangeReaderTestSuite(t *testing.T) {
 func (t *fileTest) SetupTest() {
 	t.ctx = context.TODO()
 	t.clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
-	t.bucket = gcsx.NewSyncerBucket(
-		1, 10, ".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{}))
+	t.bucket = gcsx.NewSyncerBucket(1, 10, ".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{}))
 }
 
 func (t *fileTest) TearDownTest() {
@@ -161,6 +160,9 @@ func (t *fileTest) TestFileHandleWrite() {
 	assert.Equal(t.T(), data, buf)
 }
 
+// Test_Read_Success validates successful read behavior when using either
+// the readManager or the random reader. It verifies that the correct data
+// is returned with no error.
 func (t *fileTest) Test_Read_Success() {
 	type testCase struct {
 		name              string
@@ -202,6 +204,9 @@ func (t *fileTest) Test_Read_Success() {
 	}
 }
 
+// Test_Read_EOFScenarios checks that EOF is correctly handled when the
+// readManager or random reader reaches end-of-file.
+// In both cases, we expect no bytes read and a nil response.
 func (t *fileTest) Test_Read_EOFScenarios() {
 	type testCase struct {
 		name             string
@@ -224,7 +229,6 @@ func (t *fileTest) Test_Read_EOFScenarios() {
 				object := gcs.MinObject{Name: "test_obj", Generation: 1}
 				mockRM.On("Object").Return(&object)
 				mockRM.On("Destroy").Return()
-
 				parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
 				in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, []byte("data"), false)
 				fh := NewFileHandle(in, nil, false, common.NewNoopMetrics(), util.Read, &cfg.ReadConfig{})
@@ -245,7 +249,6 @@ func (t *fileTest) Test_Read_EOFScenarios() {
 				object := gcs.MinObject{Name: "test_obj", Generation: 1}
 				mockR.On("Object").Return(&object)
 				mockR.On("Destroy").Return()
-
 				parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
 				in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, []byte("data"), false)
 				fh := NewFileHandle(in, nil, false, common.NewNoopMetrics(), util.Read, &cfg.ReadConfig{})
@@ -272,6 +275,9 @@ func (t *fileTest) Test_Read_EOFScenarios() {
 	}
 }
 
+// Test_Read_InodeFallback verifies that when either readManager or reader
+// returns EOF, the read operation gracefully falls back to reading from
+// the inode's cached object data.
 func (t *fileTest) Test_Read_InodeFallback() {
 	type testCase struct {
 		name           string
@@ -291,7 +297,6 @@ func (t *fileTest) Test_Read_InodeFallback() {
 				object := gcs.MinObject{Name: "test_obj", Generation: 0}
 				mockR.On("Object").Return(&object)
 				mockR.On("Destroy").Return()
-
 				parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
 				in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, objectData, true)
 				fh := NewFileHandle(in, nil, false, common.NewNoopMetrics(), util.Read, &cfg.ReadConfig{})
@@ -309,7 +314,6 @@ func (t *fileTest) Test_Read_InodeFallback() {
 				object := gcs.MinObject{Name: "test_obj", Generation: 0}
 				mockR.On("Object").Return(&object)
 				mockR.On("Destroy").Return()
-
 				parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
 				in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, objectData, true)
 				fh := NewFileHandle(in, nil, false, common.NewNoopMetrics(), util.Read, &cfg.ReadConfig{})
@@ -327,7 +331,7 @@ func (t *fileTest) Test_Read_InodeFallback() {
 
 			output, n, err := fh.Read(t.ctx, dst, 0, 200, tc.useReadManager)
 
-			assert.Equal(t.T(), io.EOF, err)
+			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), len(objectData), n)
 			assert.Equal(t.T(), objectData, output[:n])
 		})

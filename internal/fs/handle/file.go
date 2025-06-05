@@ -44,10 +44,10 @@ type FileHandle struct {
 	// GUARDED_BY(mu)
 	reader gcsx.RandomReader
 
-	// A read manager configured to some (potentially previous) generation of
+	// A readManager configured to some (potentially previous) generation of
 	// the object backing the inode, or nil.
 	//
-	// INVARIANT: If reader != nil, reader.CheckInvariants() doesn't panic.
+	// INVARIANT: If readManager != nil, readManager.CheckInvariants() doesn't panic.
 	//
 	// GUARDED_BY(mu)
 	readManager gcsx.ReadManager
@@ -119,8 +119,8 @@ func (fh *FileHandle) Unlock() {
 // LOCKS_REQUIRED(fh.inode.mu)
 // UNLOCK_FUNCTION(fh.inode.mu)
 func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequentialReadSizeMb int32, enableReadManager bool) (output []byte, n int, err error) {
-	// fh.inode.mu is already locked to ensure that we have a reader  or readManager for its current
-	// state, or clear fh.reader if it's not possible to create one (probably
+	// fh.inode.mu is already locked to ensure that we have a reader/readManager for its current
+	// state, or clear fh.reader/fh.readManager if it's not possible to create one (probably
 	// because the inode is dirty).
 	// If enableReadManager flag is set, we will take new reader implementation.
 	if enableReadManager {
@@ -137,13 +137,15 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 		}
 	}
 
-	// Attempt to use a reader or readManager if available.
-	// We unlock the inode here to allow concurrent reads.
+	// If we have an appropriate reader/readManager, unlock the inode and use that. This
+	// allows reads to proceed concurrently with other operations; in particular,
+	// multiple reads can run concurrently. It's safe because the user can't tell
+	// if a concurrent write started during or after a read.
 	if fh.readManager != nil {
 		fh.inode.Unlock()
 		readerResponse, readErr := fh.readManager.ReadAt(ctx, dst, offset)
 		if errors.Is(readErr, io.EOF) {
-			logger.Warnf("Unexpected EOF error encountered while reading, err: %v type: %T ", err, err)
+			logger.Warnf("Unexpected EOF error encountered while reading, err: %v type: %T ", readErr, readErr)
 			return nil, 0, io.EOF // Propagate EOF
 		}
 		if readErr != nil {
@@ -154,7 +156,7 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 		fh.inode.Unlock()
 		objectData, readErr := fh.reader.ReadAt(ctx, dst, offset)
 		if errors.Is(readErr, io.EOF) {
-			logger.Warnf("Unexpected EOF error encountered while reading, err: %v type: %T ", err, err)
+			logger.Warnf("Unexpected EOF error encountered while reading, err: %v type: %T ", readErr, readErr)
 			return nil, 0, io.EOF // Propagate EOF
 		}
 		if readErr != nil {
@@ -166,6 +168,9 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	// Otherwise, fall through to the inode.
 	defer fh.inode.Unlock()
 	n, err = fh.inode.Read(ctx, dst, offset)
+	if errors.Is(err, io.EOF) {
+		err = nil
+	}
 	// Setting dst as output since output is used by the caller to read the data.
 	return dst, n, err
 }
