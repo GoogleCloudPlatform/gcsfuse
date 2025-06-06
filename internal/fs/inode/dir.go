@@ -355,7 +355,8 @@ func (d *dirInode) lookUpConflicting(ctx context.Context, name string, readWhile
 func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name, readWhileStat bool) (*Core, error) {
 	// Call the bucket.
 	req := &gcs.StatObjectRequest{
-		Name: name.GcsObjectName(),
+		Name:          name.GcsObjectName(),
+		ReadWhileStat: readWhileStat,
 	}
 
 	m, _, err := bucket.StatObject(ctx, req)
