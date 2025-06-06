@@ -12,19 +12,12 @@ func GetObjectSizeFromZeroByteReader(ctx context.Context, bh *storage.BucketHand
 	obj := bh.Object(objectName)
 
 	// Create a new reader
-	reader, err := obj.NewRangeReader(ctx, 0, 1)
+	reader, err := obj.NewRangeReader(ctx, 0, 0)
 	if err != nil {
 		return 0, fmt.Errorf("failed to create reader: %w", err)
 	}
-	defer func(reader *storage.Reader) {
-		err := reader.Close()
-		if err != nil {
+	err = reader.Close()
 
-		}
-	}(reader)
-
-	// Get the object attributes from the reader
-	attrs := reader.Attrs
 	// Return the size
-	return attrs.Size, nil
+	return reader.Attrs.Size, err
 }
