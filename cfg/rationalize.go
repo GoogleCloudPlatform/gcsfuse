@@ -94,7 +94,8 @@ func resolveStreamingWriteConfig(w *WriteConfig) {
 		w.CreateEmptyFile = false
 	}
 
-	w.BlockSizeMb *= util.MiB
+	//w.BlockSizeMb *= util.MiB
+	w.BlockSizeMb = 1<<19 // 512 KiB
 
 	if w.GlobalMaxBlocks == -1 {
 		w.GlobalMaxBlocks = math.MaxInt64
