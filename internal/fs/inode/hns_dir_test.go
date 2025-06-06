@@ -190,7 +190,7 @@ func (t *HNSDirTest) TestLookUpChildWithConflictMarkerName() {
 	t.mockBucket.On("GetFolder", mock.Anything, dirName).Return(folder, nil)
 	t.mockBucket.On("StatObject", mock.Anything, &statObjectRequest).Return(&object, &gcs.ExtendedObjectAttributes{}, nil)
 
-	c, err := t.in.LookUpChild(t.ctx, name+"\n")
+	c, err := t.in.LookUpChild(t.ctx, name+"\n", false)
 
 	t.mockBucket.AssertExpectations(t.T())
 	assert.NoError(t.T(), err)
@@ -208,7 +208,7 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckOnlyForExplicitHNSDirectory() {
 	t.typeCache.Insert(t.fixedTime.Now().Add(time.Minute), name, metadata.ExplicitDirType)
 
 	// Look up with the proper name.
-	result, err := t.in.LookUpChild(t.ctx, name)
+	result, err := t.in.LookUpChild(t.ctx, name, false)
 
 	t.mockBucket.AssertExpectations(t.T())
 	assert.Nil(t.T(), err)
@@ -229,7 +229,7 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeNotPresent
 	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).Return(nil, nil, notFoundErr)
 	assert.Equal(t.T(), metadata.UnknownType, t.typeCache.Get(t.fixedTime.Now(), name))
 	// Look up with the proper name.
-	result, err := t.in.LookUpChild(t.ctx, name)
+	result, err := t.in.LookUpChild(t.ctx, name, false)
 
 	t.mockBucket.AssertExpectations(t.T())
 	assert.Nil(t.T(), err)
@@ -255,7 +255,7 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsRegularF
 	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).Return(minObject, attrs, nil)
 	t.typeCache.Insert(t.fixedTime.Now().Add(time.Minute), name, metadata.RegularFileType)
 	// Look up with the proper name.
-	result, err := t.in.LookUpChild(t.ctx, name)
+	result, err := t.in.LookUpChild(t.ctx, name, false)
 
 	t.mockBucket.AssertExpectations(t.T())
 	assert.Nil(t.T(), err)
@@ -284,7 +284,7 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsSymlinkT
 	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).Return(minObject, attrs, nil)
 	t.typeCache.Insert(t.fixedTime.Now().Add(time.Minute), name, metadata.SymlinkType)
 	// Look up with the proper name.
-	result, err := t.in.LookUpChild(t.ctx, name)
+	result, err := t.in.LookUpChild(t.ctx, name, false)
 
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), fileName, result.FullName.GcsObjectName())
@@ -298,7 +298,7 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsNonExist
 	const name = "file_type"
 	t.typeCache.Insert(t.fixedTime.Now().Add(time.Minute), name, metadata.NonexistentType)
 	// Look up with the proper name.
-	result, err := t.in.LookUpChild(t.ctx, name)
+	result, err := t.in.LookUpChild(t.ctx, name, false)
 
 	assert.Nil(t.T(), err)
 	assert.Nil(t.T(), result)

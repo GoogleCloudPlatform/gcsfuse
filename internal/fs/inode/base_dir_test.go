@@ -161,7 +161,7 @@ func (t *BaseDirTest) Attributes() {
 }
 
 func (t *BaseDirTest) LookUpChild_NonExistent() {
-	result, err := t.in.LookUpChild(t.ctx, "missing_bucket")
+	result, err := t.in.LookUpChild(t.ctx, "missing_bucket", false)
 
 	ExpectNe(nil, err)
 	ExpectEq(nil, result)
@@ -169,7 +169,7 @@ func (t *BaseDirTest) LookUpChild_NonExistent() {
 }
 
 func (t *BaseDirTest) LookUpChild_BucketFound() {
-	result, err := t.in.LookUpChild(t.ctx, "bucketA")
+	result, err := t.in.LookUpChild(t.ctx, "bucketA", false)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result)
@@ -181,7 +181,7 @@ func (t *BaseDirTest) LookUpChild_BucketFound() {
 	ExpectEq(nil, result.MinObject)
 	ExpectEq(metadata.ImplicitDirType, result.Type())
 
-	result, err = t.in.LookUpChild(t.ctx, "bucketB")
+	result, err = t.in.LookUpChild(t.ctx, "bucketB", false)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result)
@@ -195,15 +195,15 @@ func (t *BaseDirTest) LookUpChild_BucketFound() {
 }
 
 func (t *BaseDirTest) LookUpChild_BucketCached() {
-	_, _ = t.in.LookUpChild(t.ctx, "bucketA")
+	_, _ = t.in.LookUpChild(t.ctx, "bucketA", false)
 	ExpectEq(1, t.bm.SetUpTimes())
-	_, _ = t.in.LookUpChild(t.ctx, "bucketA")
+	_, _ = t.in.LookUpChild(t.ctx, "bucketA", false)
 	ExpectEq(1, t.bm.SetUpTimes())
-	_, _ = t.in.LookUpChild(t.ctx, "bucketB")
+	_, _ = t.in.LookUpChild(t.ctx, "bucketB", false)
 	ExpectEq(2, t.bm.SetUpTimes())
-	_, _ = t.in.LookUpChild(t.ctx, "bucketB")
+	_, _ = t.in.LookUpChild(t.ctx, "bucketB", false)
 	ExpectEq(2, t.bm.SetUpTimes())
-	_, _ = t.in.LookUpChild(t.ctx, "missing_bucket")
+	_, _ = t.in.LookUpChild(t.ctx, "missing_bucket", false)
 	ExpectEq(3, t.bm.SetUpTimes())
 }
 
