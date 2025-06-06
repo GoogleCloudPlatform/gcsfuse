@@ -141,6 +141,12 @@ func (bh *bucketHandle) StatObject(ctx context.Context,
 		err = fmt.Errorf("error in fetching object attributes: %w", err)
 		return
 	}
+	if req.ReadWhileStat {
+		size, err := storageutil.GetObjectSizeFromZeroByteReader(ctx, bh.Name(), req.Name)
+		if err != nil {
+			attrs.Size = size
+		}
+	}
 
 	// Converting attrs to type *Object
 	o := storageutil.ObjectAttrsToBucketObject(attrs)

@@ -156,7 +156,7 @@ func (d *baseDirInode) Attributes(
 }
 
 // LOCKS_REQUIRED(d)
-func (d *baseDirInode) LookUpChild(ctx context.Context, name string) (*Core, error) {
+func (d *baseDirInode) LookUpChild(ctx context.Context, name string, readWhileStat bool) (*Core, error) {
 	var err error
 	bucket, ok := d.buckets[name]
 	if !ok {
