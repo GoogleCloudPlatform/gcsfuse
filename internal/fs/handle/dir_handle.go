@@ -179,7 +179,7 @@ func readAllEntries(
 		// Read a batch.
 		var batch []fuseutil.Dirent
 
-		batch, tok, err = in.ReadEntries(ctx, tok)
+		batch, tok, err = in.ReadEntries(ctx, tok, false)
 		if err != nil {
 			err = fmt.Errorf("ReadEntries: %w", err)
 			return

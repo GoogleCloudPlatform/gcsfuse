@@ -414,6 +414,12 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 		} else {
 			// Converting attrs to *Object type.
 			currMinObject := storageutil.ObjectAttrsToMinObject(attrs)
+			if req.ReadWhileList {
+				size, err := storageutil.GetObjectSizeFromZeroByteReader(ctx, bh.bucket, currMinObject.Name)
+				if err == nil {
+					currMinObject.Size = uint64(size)
+				}
+			}
 			list.MinObjects = append(list.MinObjects, currMinObject)
 		}
 
