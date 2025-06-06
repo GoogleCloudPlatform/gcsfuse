@@ -143,7 +143,7 @@ func (bh *bucketHandle) StatObject(ctx context.Context,
 	}
 	if req.ReadWhileStat {
 		size, err := storageutil.GetObjectSizeFromZeroByteReader(ctx, bh.bucket, req.Name)
-		if err != nil {
+		if err == nil {
 			attrs.Size = size
 		}
 	}
