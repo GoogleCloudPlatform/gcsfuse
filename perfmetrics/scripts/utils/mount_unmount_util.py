@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import subprocess
+import shlex
 
 def unmount_gcs_bucket(gcs_bucket,log) -> None:
   """Unmounts the GCS bucket.
@@ -55,9 +56,17 @@ def mount_gcs_bucket(bucket_name, gcsfuse_flags,log) -> str:
   log.info(f'{bucket_name} {gcs_bucket} {gcsfuse_flags}')
   subprocess.call('mkdir {}'.format(gcs_bucket), shell=True)
 
-  exit_code = subprocess.call(
-      'gcsfuse {} {} {}'.format(
-          gcsfuse_flags, bucket_name, gcs_bucket), shell=True)
+  split_flags = shlex.split(gcsfuse_flags)
+
+  command = [
+      "gcsfuse",
+  ]
+  command.extend(split_flags)
+  command.extend([
+      bucket_name,
+      gcs_bucket
+  ])
+  exit_code = subprocess.call(command)
   if exit_code != 0:
     log.error('Cannot mount the GCS bucket due to exit code %s.\n', exit_code)
     subprocess.call('bash', shell=True)
