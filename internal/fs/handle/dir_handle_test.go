@@ -137,7 +137,7 @@ func (t *DirHandleTest) EnsureEntriesWithLocalAndGCSFiles() {
 	}
 
 	// Ensure entries.
-	err = t.dh.ensureEntries(t.ctx, localFileEntries)
+	err = t.dh.ensureEntries(t.ctx, localFileEntries, false)
 
 	// Validations
 	AssertEq(nil, err)
@@ -160,7 +160,7 @@ func (t *DirHandleTest) EnsureEntriesWithOnlyGCSFiles() {
 	var localFileEntries map[string]fuseutil.Dirent
 
 	// Ensure entries.
-	err = t.dh.ensureEntries(t.ctx, localFileEntries)
+	err = t.dh.ensureEntries(t.ctx, localFileEntries, false)
 
 	// Validations
 	AssertEq(nil, err)
@@ -180,7 +180,7 @@ func (t *DirHandleTest) EnsureEntriesWithOnlyLocalFiles() {
 	}
 
 	// Ensure entries.
-	err = t.dh.ensureEntries(t.ctx, localFileEntries)
+	err = t.dh.ensureEntries(t.ctx, localFileEntries, false)
 
 	// Validations
 	AssertEq(nil, err)
@@ -202,7 +202,7 @@ func (t *DirHandleTest) EnsureEntriesWithSameNameLocalAndGCSFile() {
 	}
 
 	// Ensure entries.
-	err = t.dh.ensureEntries(t.ctx, localFileEntries)
+	err = t.dh.ensureEntries(t.ctx, localFileEntries, false)
 
 	// Validations
 	AssertEq(nil, err)
@@ -223,7 +223,7 @@ func (t *DirHandleTest) EnsureEntriesWithSameNameLocalFileAndGCSDirectory() {
 	}
 
 	// Ensure entries.
-	err = t.dh.ensureEntries(t.ctx, localFileEntries)
+	err = t.dh.ensureEntries(t.ctx, localFileEntries, false)
 
 	// Validations
 	AssertEq(nil, err)
@@ -237,7 +237,7 @@ func (t *DirHandleTest) EnsureEntriesWithNoFiles() {
 	localFileEntries := map[string]fuseutil.Dirent{}
 
 	// Ensure entries.
-	err := t.dh.ensureEntries(t.ctx, localFileEntries)
+	err := t.dh.ensureEntries(t.ctx, localFileEntries, false)
 
 	// Validations
 	AssertEq(nil, err)
@@ -254,7 +254,7 @@ func (t *DirHandleTest) EnsureEntriesWithOneGCSFile() {
 	var localFileEntries map[string]fuseutil.Dirent
 
 	// Ensure entries.
-	err = t.dh.ensureEntries(t.ctx, localFileEntries)
+	err = t.dh.ensureEntries(t.ctx, localFileEntries, false)
 
 	// Validations
 	AssertEq(nil, err)
@@ -271,7 +271,7 @@ func (t *DirHandleTest) EnsureEntriesWithOneLocalFile() {
 	}
 
 	// Ensure entries.
-	err = t.dh.ensureEntries(t.ctx, localFileEntries)
+	err = t.dh.ensureEntries(t.ctx, localFileEntries, false)
 
 	// Validations
 	AssertEq(nil, err)
