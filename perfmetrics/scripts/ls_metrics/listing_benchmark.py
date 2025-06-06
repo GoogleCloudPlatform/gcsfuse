@@ -536,46 +536,46 @@ if __name__ == '__main__':
     config_json = json.load(file)
   directory_structure = ParseDict(config_json, directory_proto.Directory())
 
-#   log.info('Started checking the directory structure in the bucket.\n')
-#   directory_structure_present = _compare_directory_structure(
-#       'gs://{}/'.format(directory_structure.name), directory_structure)
-#
-#   # Removing the already present folder in persistent disk so as to create the
-#   # files from scratch.
-#   persistent_disk = 'persistent_disk'
-#   if os.path.exists('./{}'.format(persistent_disk)):
-#     subprocess.call('rm -rf {}'.format(persistent_disk), shell=True)
-#
-#   # If similar directory structure not found in the GCS bucket then delete all
-#   # the files in the bucket and make it from scratch.
-#   if not directory_structure_present:
-#     log.info(
-#         """Similar directory structure not found in the GCS bucket.
-#         Creating a new one.\n""")
-#     log.info('Deleting previously present directories in the GCS bucket.\n')
-#     subprocess.call(
-#         'gsutil -m rm -r gs://{}/*'.format(directory_structure.name),
-#         shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-#
-#   # Creating a temp directory which will be needed by the generate_files
-#   # method to create files in batches.
-#   temp_dir = generate_files.TEMPORARY_DIRECTORY
-#   if os.path.exists(os.path.dirname(temp_dir)):
-#     subprocess.call('rm -rf {}'.format(os.path.dirname(temp_dir)), shell=True)
-#   subprocess.call('mkdir -p {}'.format(temp_dir), shell=True)
-#
-#   exit_code = _create_directory_structure(
-#       'gs://{}/'.format(directory_structure.name),
-#       './{}/'.format(persistent_disk), directory_structure,
-#       not directory_structure_present)
-#
-#   # Deleting the temp folder after the creation of files is done.
-#   subprocess.call('rm -rf {}'.format(os.path.dirname(temp_dir)), shell=True)
-#
-#   if exit_code != 0:
-#     log.error('Cannot create files in the GCS bucket. Error encountered.\n')
-#     subprocess.call('bash', shell=True)
-#   log.info('Directory Structure Created.\n')
+  log.info('Started checking the directory structure in the bucket.\n')
+  directory_structure_present = _compare_directory_structure(
+      'gs://{}/'.format(directory_structure.name), directory_structure)
+
+  # Removing the already present folder in persistent disk so as to create the
+  # files from scratch.
+  persistent_disk = 'persistent_disk'
+  if os.path.exists('./{}'.format(persistent_disk)):
+    subprocess.call('rm -rf {}'.format(persistent_disk), shell=True)
+
+  # If similar directory structure not found in the GCS bucket then delete all
+  # the files in the bucket and make it from scratch.
+  if not directory_structure_present:
+    log.info(
+        """Similar directory structure not found in the GCS bucket.
+        Creating a new one.\n""")
+    log.info('Deleting previously present directories in the GCS bucket.\n')
+    subprocess.call(
+        'gsutil -m rm -r gs://{}/*'.format(directory_structure.name),
+        shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+
+  # Creating a temp directory which will be needed by the generate_files
+  # method to create files in batches.
+  temp_dir = generate_files.TEMPORARY_DIRECTORY
+  if os.path.exists(os.path.dirname(temp_dir)):
+    subprocess.call('rm -rf {}'.format(os.path.dirname(temp_dir)), shell=True)
+  subprocess.call('mkdir -p {}'.format(temp_dir), shell=True)
+
+  exit_code = _create_directory_structure(
+      'gs://{}/'.format(directory_structure.name),
+      './{}/'.format(persistent_disk), directory_structure,
+      not directory_structure_present)
+
+  # Deleting the temp folder after the creation of files is done.
+  subprocess.call('rm -rf {}'.format(os.path.dirname(temp_dir)), shell=True)
+
+  if exit_code != 0:
+    log.error('Cannot create files in the GCS bucket. Error encountered.\n')
+    subprocess.call('bash', shell=True)
+  log.info('Directory Structure Created.\n')
 
   gcs_bucket = mount_gcs_bucket(directory_structure.name,
                                 args.gcsfuse_flags[0],log)
