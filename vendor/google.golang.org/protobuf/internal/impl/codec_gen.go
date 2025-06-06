@@ -11,7 +11,6 @@ import (
 	"math"
 	"unicode/utf8"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
