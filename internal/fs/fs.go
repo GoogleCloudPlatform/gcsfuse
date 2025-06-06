@@ -978,7 +978,8 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 func (fs *fileSystem) lookUpOrCreateChildInode(
 	ctx context.Context,
 	parent inode.DirInode,
-	childName string) (child inode.Inode, err error) {
+	childName string,
+	readWhileStat bool) (child inode.Inode, err error) {
 	// First check if the requested child is a localFileInode.
 	child, err = fs.lookUpLocalFileInode(parent, childName)
 	if err != nil {
@@ -993,7 +994,7 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 
 	// Set up a function that will find a lookup result for the child with the
 	// given name. Expects no locks to be held.
-	getLookupResult := func() (*inode.Core, error) {
+	getLookupResult := func(readWhileStat bool) (*inode.Core, error) {
 		if fs.newConfig.FileSystem.DisableParallelDirops {
 			parent.Lock()
 			defer parent.Unlock()
@@ -1003,7 +1004,7 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 			parent.LockForChildLookup()
 			defer parent.UnlockForChildLookup()
 		}
-		return parent.LookUpChild(ctx, childName)
+		return parent.LookUpChild(ctx, childName, readWhileStat)
 	}
 
 	// Run a retry loop around lookUpOrCreateInodeIfNotStale.
@@ -1011,7 +1012,7 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 	for n := 0; n < maxTries; n++ {
 		// Create a record.
 		var core *inode.Core
-		core, err = getLookupResult()
+		core, err = getLookupResult(readWhileStat)
 
 		if err != nil {
 			return
@@ -1113,7 +1114,7 @@ func (fs *fileSystem) lookUpOrCreateChildDirInode(
 	ctx context.Context,
 	parent inode.DirInode,
 	childName string) (child inode.BucketOwnedDirInode, err error) {
-	in, err := fs.lookUpOrCreateChildInode(ctx, parent, childName)
+	in, err := fs.lookUpOrCreateChildInode(ctx, parent, childName, fs.newConfig.Write.ExperimentalEnableRapidAppends)
 	if err != nil {
 		return nil, fmt.Errorf("lookup or create %q: %w", childName, err)
 	}
@@ -1489,7 +1490,7 @@ func (fs *fileSystem) LookUpInode(
 	fs.mu.Unlock()
 
 	// Find or create the child inode.
-	child, err := fs.lookUpOrCreateChildInode(ctx, parent, op.Name)
+	child, err := fs.lookUpOrCreateChildInode(ctx, parent, op.Name, fs.newConfig.Write.ExperimentalEnableRapidAppends)
 	if err != nil {
 		return err
 	}
@@ -1950,7 +1951,7 @@ func (fs *fileSystem) RmDir(
 	fs.mu.Unlock()
 
 	// Find or create the child inode, locked.
-	child, err := fs.lookUpOrCreateChildInode(ctx, parent, op.Name)
+	child, err := fs.lookUpOrCreateChildInode(ctx, parent, op.Name, fs.newConfig.Write.ExperimentalEnableRapidAppends)
 	if err != nil {
 		return
 	}
@@ -2071,7 +2072,7 @@ func (fs *fileSystem) Rename(
 		}
 	}
 
-	child, err := fs.lookUpOrCreateChildInode(ctx, oldParent, op.OldName)
+	child, err := fs.lookUpOrCreateChildInode(ctx, oldParent, op.OldName, fs.newConfig.Write.ExperimentalEnableRapidAppends)
 	if err != nil {
 		return err
 	}

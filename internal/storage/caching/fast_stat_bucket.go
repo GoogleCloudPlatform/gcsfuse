@@ -325,6 +325,12 @@ func (b *fastStatBucket) StatObject(
 		if !req.ReturnExtendedObjectAttributes {
 			e = nil
 		}
+		if req.ReadWhileStat {
+			size, err := storageutil.GetObjectSizeFromZeroByteReader(ctx, b.Name(), req.Name)
+			if err != nil {
+				m.Size = uint64(size)
+			}
+		}
 		return
 	}
 
@@ -344,7 +350,14 @@ func (b *fastStatBucket) StatObject(
 		return
 	}
 
-	return b.StatObjectFromGcs(ctx, req)
+	m, e, err = b.StatObjectFromGcs(ctx, req)
+	if req.ReadWhileStat {
+		size, err := storageutil.GetObjectSizeFromZeroByteReader(ctx, b.Name(), req.Name)
+		if err != nil {
+			m.Size = uint64(size)
+		}
+	}
+	return
 }
 
 // LOCKS_EXCLUDED(b.mu)
