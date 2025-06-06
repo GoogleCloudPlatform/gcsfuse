@@ -9,7 +9,7 @@ workloads for the given test setup:
 * Infra: GCP VM
 * OS: ubuntu-20.04
 * Framework: FIO (version 3.39)
-* GCSFuse version: 2.11.1
+* GCSFuse version: master
 
 ## FIO workloads
 Please read the details about the FIO specification [here](https://fio.readthedocs.io/en/latest/).
@@ -89,87 +89,88 @@ to GCS on close/fsync.
 ## GCSFuse Benchmarking on c4 machine-type
 * VM Type: c4-standard-96
 * VM location: us-south1
-* Networking: gVNIC+  tier_1 networking (200Gbps)
-* Disk Type: Hyperdisk balanced 
+* Networking: gVNIC+ tier_1 networking (200Gbps)
+* Disk Type: Hyperdisk balanced
 * GCS Bucket location: us-south1
 
 ### Sequential Reads
-| File Size | BlockSize | nrfiles |Bandwidth in (GiB/sec) | IOPs  |  Avg Latency (msec) |
-|---|---|---|---|---|---|
-| 128K | 128K | 30  | 0.45 |  3650 | 30  |
-| 256K  | 128K  | 30  | 0.81 | 6632 | 16 |
-| 1M | 1M | 30 | 2.83 | 2902  | 38 |
-| 5M | 1M  | 20  | 6.72  | 6874 | 17 |
-| 10M | 1M | 20 | 9.33  | 9548 | 15 |
-| 50M | 1M | 20 | 15.6 |15.9k | 14 |
-| 100M |1M | 10 | 13.2 | 13.5k | 33 |
-| 200M  | 1M | 10  | 12.4 |  12.7k| 38 |
-| 1G | 1M | 10 | 14.5 | 14.8k  | 60 |
-
-
+| File Size | BlockSize | nrfiles | Bandwidth in (GB/sec) | IOPs | IOPs Avg Latency (ms) |
+|---|---|---|---|---|---|---|---|
+| 128K | 128K | 30 | 0.853 | 6.51K | 17.11ms |
+| 256K | 128K | 30 | 1.810 | 13.81K | 8.24ms |
+| 1MB | 1M | 30 | 2.747 | 2.62K | 29.46ms |
+| 5MB | 1M | 20 | 10.176 | 9.70K | 11.60ms |
+| 10MB | 1M | 20 | 14.448 | 13.78K | 9.66ms |
+| 50MB | 1M | 20 | 14.346 | 13.68K | 12.28ms |
+| 100MB | 1M | 10 | 17.449 | 16.64K | 26.29ms |
+| 200MB | 1M | 10 | 13.975 | 13.33K | 34.58ms |
+| 1GB | 1M | 10 | 19.565 | 18.66K | 51.77ms |
 
 ### Random Reads
-| File Size | BlockSize | nrfiles |Bandwidth in (MiB/sec) | IOPs  |  Avg Latency (msec)  |
-|---|---|---|---|---|---|
-| 256K  | 128K  | 30  | 626 | 5009   | 24 |
-| 5M | 1M  | 20  | 4291 | 4290 | 30 |
-| 10M | 1M | 20 | 4138 | 4137 | 37  |
-| 50M | 1M | 20 | 3552 |3552  | 83 |
-| 100M |1M | 10 | 3327 | 3327 | 211 |
-| 200M  | 1M | 10  | 3139 | 3138 | 286 |
-| 1G | 1M | 10 | 3320  | 3320 | 345 |
-
+| File Size | BlockSize | nrfiles | Bandwidth in (MB/sec) | IOPs | IOPs Avg Latency (ms) |
+|---|---|---|---|---|---|---|---|
+| 128K | 128K | 30 | 798.915 | 6.10K | 17.37ms |
+| 256K | 128K | 30 | 1124.730 | 8.58K | 13.44ms |
+| 1MB | 1M | 30 | 5463.408 | 5.21K | 20.38ms |
+| 5MB | 1M | 20 | 5317.660 | 5.07K | 25.89ms |
+| 10MB | 1M | 20 | 4814.122 | 4.59K | 34.13ms |
+| 50MB | 1M | 20 | 4116.856 | 3.93K | 78.18ms |
+| 100MB | 1M | 10 | 3851.850 | 3.67K | 195.23ms |
+| 200MB | 1M | 10 | 3450.904 | 3.29K | 274.62ms |
+| 1GB | 1M | 10 | 2216.132 | 2.11K | 538.78ms |
 
 ### Sequential Writes
-| File Size | BlockSize | nrfiles |Bandwidth in (MiB/sec) | IOPs  |  Avg Latency (msec)  |
-|---|---|---|---|---|---|
-| 256K  | 16K  | 30  | 215 | 13.76k | 0.23 |
-| 1M | 1M  | 30  |  718 | 717 | 1.12 |
-| 50M | 1M | 20 | 3592 | 3592 | 2.35 |
-| 100M |1M | 10 | 4549 | 4549 | 7.04 |
-| 1G | 1M | 2 | 2398 | 2398 | 37.07  |
+| File Size | BlockSize | nrfiles | Bandwidth in (MB/sec) | IOPs | IOPs Avg Latency (ms) |
+|---|---|---|---|---|---|---|---|
+| 256K | 16K | 30 | 264.268 | 16.13K | 2.98ms |
+| 1M | 1M | 30 | 924.001 | 0.88K | 56.43ms |
+| 50M | 1M | 20 | 3911.424 | 3.73K | 14.50ms |
+| 100M | 1M | 10 | 4102.725 | 3.91K | 15.91ms |
+| 1G | 1M | 2 | 2116.958 | 2.02K | 45.31ms |
 
+ 
 ## GCSFuse Benchmarking on n2 machine-type
 * VM Type: n2-standard-96
 * VM location: us-south1
-* Networking: gVNIC+  tier_1 networking (100Gbps)
-* Disk Type: SSD persistent disk  
+* Networking: gVNIC+ tier_1 networking (100Gbps)
+* Disk Type: SSD persistent disk
 * GCS Bucket location: us-south1
+
 ### Sequential Reads
-| File Size | BlockSize | nrfiles |Bandwidth in (MiB/sec) | IOPs |  Avg Latency (msec)  |
-|---|---|---|---|---|---|
-| 128K | 128K | 30  |  443 | 3545 | 29 |
-| 256K  | 128K  | 30  |  821 | 6569 | 16 |
-| 1M | 1M | 30 | 2710 | 2709 | 40 |
-| 5M | 1M  | 20  | 5666 | 5666 | 20 |
-| 10M | 1M | 20 | 5994 | 5993 | 20 |
-| 50M | 1M | 20 | 7986 | 7985 | 28 |
-| 100M |1M | 10 | 6469 | 6468 | 68 |
-| 200M  | 1M | 10  | 6955  | 6954 | 92 |
-| 1G | 1M | 10 | 7470  | 7469 | 131 |
-
-
+| File Size | BlockSize | nrfiles | Bandwidth in (GB/sec) | IOPs | IOPs Avg Latency (ms) |
+|---|---|---|---|---|---|---|---|
+| 128K | 128K | 30 | 0.850 | 6.49K | 16.06ms |
+| 256K | 128K | 30 | 1.394 | 10.64K | 8.67ms |
+| 1MB | 1M | 30 | 3.979 | 3.79K | 21.46ms |
+| 5MB | 1M | 20 | 6.837 | 6.52K | 18.44ms |
+| 10MB | 1M | 20 | 7.179 | 6.85K | 20.30ms |
+| 50MB | 1M | 20 | 7.527 | 7.18K | 33.18ms |
+| 100MB | 1M | 10 | 7.227 | 6.89K | 73.70ms |
+| 200MB | 1M | 10 | 7.279 | 6.94K | 96.41ms |
+| 1GB | 1M | 10 | 7.655 | 7.30K | 127.85ms |
 
 ### Random Reads
-| File Size | BlockSize | nrfiles |Bandwidth in (MiB/sec) | IOPs  |  Avg Latency (msec)  |
-|---|---|---|---|---|---|
-| 256K  | 128K  | 30  | 562  | 4499 | 24  |
-| 5M | 1M  | 20  | 3608 | 3607 | 34 |
-| 10M | 1M | 20 | 3185 | 3184  | 45 |
-| 50M | 1M | 20 | 3386  | 3386 | 84 |
-| 100M |1M | 10 | 3297 | 3297 | 207 |
-| 200M  | 1M | 10  | 3150 | 3150 | 279 |
-| 1G | 1M | 10 | 2730 | 2730  | 457  |
-
+| File Size | BlockSize | nrfiles | Bandwidth in (MB/sec) | IOPs | IOPs Avg Latency (ms) |
+|---|---|---|---|---|---|---|---|
+| 128K | 128K | 30 | 663.131 | 5.06K | 17.66ms |
+| 256K | 128K | 30 | 1095.357 | 8.36K | 13.02ms |
+| 1MB | 1M | 30 | 4225.112 | 4.03K | 22.40ms |
+| 5MB | 1M | 20 | 3701.537 | 3.53K | 31.46ms |
+| 10MB | 1M | 20 | 3587.750 | 3.42K | 42.94ms |
+| 50MB | 1M | 20 | 3797.146 | 3.62K | 84.38ms |
+| 100MB | 1M | 10 | 3669.256 | 3.50K | 206.60ms |
+| 200MB | 1M | 10 | 3450.061 | 3.29K | 282.24ms |
+| 1GB | 1M | 10 | 2257.131 | 2.15K | 545.64ms |
 
 ### Sequential Writes
-| File Size | BlockSize | nrfiles |Bandwidth in (MiB/sec) | IOPs  |  Avg Latency (msec)  |
-|---|---|---|---|---|---|
-| 256K  | 16K  | 30  | 192 | 12.27k | 0.27 |
-| 1M | 1M  | 30  |  683 | 682 | 1.23 |
-| 50M | 1M | 20 | 3429 | 3429 | 2.88 |
-| 100M |1M | 10 | 3519 | 3518 | 11.83 |
-| 1G | 1M | 2 | 1892 | 1891 | 45.40  |
+| File Size | BlockSize | nrfiles | Bandwidth in (MB/sec) | IOPs | IOPs Avg Latency (ms) |
+|---|---|---|---|---|---|---|---|
+| 256K | 16K | 30 | 263.635 | 16.09K | 3.10ms |
+| 1M | 1M | 30 | 946.846 | 0.90K | 55.98ms |
+| 50M | 1M | 20 | 3031.270 | 2.89K | 18.62ms |
+| 100M | 1M | 10 | 2854.794 | 2.72K | 21.54ms |
+| 1G | 1M | 2 | 174.296 | 0.17K | 657.36ms |
+
 
 <!-- Benchmarks end -->
 
