@@ -250,7 +250,7 @@ func (t *DirTest) Attributes() {
 func (t *DirTest) LookUpChild_NonExistent() {
 	const name = "qux"
 
-	result, err := t.in.LookUpChild(t.ctx, name)
+	result, err := t.in.LookUpChild(t.ctx, name, false)
 
 	AssertEq(nil, err)
 	AssertEq(nil, result)
@@ -268,7 +268,7 @@ func (t *DirTest) LookUpChild_FileOnly() {
 	AssertEq(nil, err)
 
 	// Look up with the proper name.
-	result, err := t.in.LookUpChild(t.ctx, name)
+	result, err := t.in.LookUpChild(t.ctx, name, false)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
@@ -280,7 +280,7 @@ func (t *DirTest) LookUpChild_FileOnly() {
 	ExpectEq(createObj.Size, result.MinObject.Size)
 
 	// A conflict marker name shouldn't work.
-	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
+	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix, false)
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
 	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
@@ -297,7 +297,7 @@ func (t *DirTest) LookUpChild_DirOnly() {
 	AssertEq(nil, err)
 
 	// Look up with the proper name.
-	result, err := t.in.LookUpChild(t.ctx, name)
+	result, err := t.in.LookUpChild(t.ctx, name, false)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
@@ -309,7 +309,7 @@ func (t *DirTest) LookUpChild_DirOnly() {
 	ExpectEq(createObj.Size, result.MinObject.Size)
 
 	// A conflict marker name shouldn't work.
-	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
+	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix, false)
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
 	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
@@ -325,13 +325,13 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Disabled() {
 	AssertEq(nil, err)
 
 	// Looking up the name shouldn't work.
-	result, err := t.in.LookUpChild(t.ctx, name)
+	result, err := t.in.LookUpChild(t.ctx, name, false)
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
 	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name))
 
 	// Ditto with a conflict marker.
-	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
+	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix, false)
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
 	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
@@ -352,7 +352,7 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Enabled() {
 	AssertEq(nil, err)
 
 	// Looking up the name should work.
-	result, err := t.in.LookUpChild(t.ctx, name)
+	result, err := t.in.LookUpChild(t.ctx, name, false)
 
 	AssertEq(nil, err)
 	ExpectEq(nil, result.MinObject)
@@ -362,7 +362,7 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Enabled() {
 	ExpectEq(metadata.ImplicitDirType, result.Type())
 
 	// A conflict marker should not work.
-	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
+	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix, false)
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
 	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
@@ -383,7 +383,7 @@ func (t *DirTest) LookUpChild_FileAndDir() {
 	AssertEq(nil, err)
 
 	// Look up with the proper name.
-	result, err := t.in.LookUpChild(t.ctx, name)
+	result, err := t.in.LookUpChild(t.ctx, name, false)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
@@ -395,7 +395,7 @@ func (t *DirTest) LookUpChild_FileAndDir() {
 	ExpectEq(dirObj.Size, result.MinObject.Size)
 
 	// Look up with the conflict marker name.
-	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
+	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix, false)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
@@ -425,7 +425,7 @@ func (t *DirTest) LookUpChild_SymlinkAndDir() {
 	AssertEq(nil, err)
 
 	// Look up with the proper name.
-	result, err := t.in.LookUpChild(t.ctx, name)
+	result, err := t.in.LookUpChild(t.ctx, name, false)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
@@ -444,7 +444,7 @@ func (t *DirTest) LookUpChild_SymlinkAndDir() {
 	ExpectEq(dirObj.Size, result.MinObject.Size)
 
 	// Look up with the conflict marker name.
-	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
+	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix, false)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
@@ -476,7 +476,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Disabled() {
 	AssertEq(nil, err)
 
 	// Look up with the proper name.
-	result, err := t.in.LookUpChild(t.ctx, name)
+	result, err := t.in.LookUpChild(t.ctx, name, false)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
@@ -489,7 +489,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Disabled() {
 	ExpectEq(dirObj.Size, result.MinObject.Size)
 
 	// Look up with the conflict marker name.
-	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
+	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix, false)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
@@ -523,7 +523,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
 	AssertEq(nil, err)
 
 	// Look up with the proper name.
-	result, err := t.in.LookUpChild(t.ctx, name)
+	result, err := t.in.LookUpChild(t.ctx, name, false)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
@@ -536,7 +536,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
 	ExpectEq(dirObj.Size, result.MinObject.Size)
 
 	// Look up with the conflict marker name.
-	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
+	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix, false)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
@@ -560,7 +560,7 @@ func (t *DirTest) LookUpChild_TypeCaching() {
 	AssertEq(nil, err)
 
 	// Look up; we should get the file.
-	result, err := t.in.LookUpChild(t.ctx, name)
+	result, err := t.in.LookUpChild(t.ctx, name, false)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
@@ -574,7 +574,7 @@ func (t *DirTest) LookUpChild_TypeCaching() {
 
 	// Look up again. Even though the directory should shadow the file, because
 	// we've cached only seeing the file that's what we should get back.
-	result, err = t.in.LookUpChild(t.ctx, name)
+	result, err = t.in.LookUpChild(t.ctx, name, false)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
@@ -585,7 +585,7 @@ func (t *DirTest) LookUpChild_TypeCaching() {
 	// But after the TTL expires, the behavior should flip.
 	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
 
-	result, err = t.in.LookUpChild(t.ctx, name)
+	result, err = t.in.LookUpChild(t.ctx, name, false)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
@@ -602,7 +602,7 @@ func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsDisabled() {
 	objName := path.Join(dirInodeName, name) + "/"
 
 	// Look up nonexistent object, return nil
-	result, err := t.in.LookUpChild(t.ctx, name)
+	result, err := t.in.LookUpChild(t.ctx, name, false)
 
 	AssertEq(nil, err)
 	AssertEq(nil, result)
@@ -612,7 +612,7 @@ func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsDisabled() {
 	AssertEq(nil, err)
 
 	// Look up again, should still return nil due to cache
-	result, err = t.in.LookUpChild(t.ctx, name)
+	result, err = t.in.LookUpChild(t.ctx, name, false)
 
 	AssertEq(nil, err)
 	AssertEq(nil, result)
@@ -622,7 +622,7 @@ func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsDisabled() {
 	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
 
 	// Look up again, should return correct object
-	result, err = t.in.LookUpChild(t.ctx, name)
+	result, err = t.in.LookUpChild(t.ctx, name, false)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
@@ -642,7 +642,7 @@ func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsEnabled() {
 	objName := path.Join(dirInodeName, name) + "/"
 
 	// Look up nonexistent object, return nil
-	result, err := t.in.LookUpChild(t.ctx, name)
+	result, err := t.in.LookUpChild(t.ctx, name, false)
 
 	AssertEq(nil, err)
 	AssertEq(nil, result)
@@ -654,7 +654,7 @@ func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsEnabled() {
 	AssertEq(nil, err)
 
 	// Look up again, should still return nil due to cache
-	result, err = t.in.LookUpChild(t.ctx, name)
+	result, err = t.in.LookUpChild(t.ctx, name, false)
 
 	AssertEq(nil, err)
 	AssertEq(nil, result)
@@ -664,7 +664,7 @@ func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsEnabled() {
 	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
 
 	// Look up again, should return correct object
-	result, err = t.in.LookUpChild(t.ctx, name)
+	result, err = t.in.LookUpChild(t.ctx, name, false)
 
 	AssertEq(nil, err)
 	ExpectEq(nil, result.MinObject)
@@ -673,7 +673,7 @@ func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsEnabled() {
 	ExpectEq(metadata.ImplicitDirType, result.Type())
 
 	// A conflict marker should not work.
-	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
+	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix, false)
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
 	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
@@ -704,7 +704,7 @@ func (t *DirTest) LookUpChild_TypeCacheEnabled() {
 		AssertNe(nil, o)
 
 		// Look up nonexistent object, return nil
-		result, err := t.in.LookUpChild(t.ctx, name)
+		result, err := t.in.LookUpChild(t.ctx, name, false)
 
 		AssertEq(nil, err)
 		AssertNe(nil, result)
@@ -737,7 +737,7 @@ func (t *DirTest) LookUpChild_TypeCacheDisabled() {
 		AssertNe(nil, o)
 
 		// Look up nonexistent object, return nil
-		result, err := t.in.LookUpChild(t.ctx, name)
+		result, err := t.in.LookUpChild(t.ctx, name, false)
 
 		AssertEq(nil, err)
 		AssertNe(nil, result)
@@ -937,7 +937,7 @@ func (t *DirTest) ReadEntries_TypeCaching() {
 
 	// Look up the name. Even though the directory should shadow the file,
 	// because we've cached only seeing the file that's what we should get back.
-	result, err := t.in.LookUpChild(t.ctx, name)
+	result, err := t.in.LookUpChild(t.ctx, name, false)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
@@ -948,7 +948,7 @@ func (t *DirTest) ReadEntries_TypeCaching() {
 	// But after the TTL expires, the behavior should flip.
 	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
 
-	result, err = t.in.LookUpChild(t.ctx, name)
+	result, err = t.in.LookUpChild(t.ctx, name, false)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
@@ -1017,7 +1017,7 @@ func (t *DirTest) CreateChildFile_TypeCaching() {
 
 	// Look up the name. Even though the directory should shadow the file,
 	// because we've cached only seeing the file that's what we should get back.
-	result, err := t.in.LookUpChild(t.ctx, name)
+	result, err := t.in.LookUpChild(t.ctx, name, false)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
@@ -1028,7 +1028,7 @@ func (t *DirTest) CreateChildFile_TypeCaching() {
 	// But after the TTL expires, the behavior should flip.
 	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
 
-	result, err = t.in.LookUpChild(t.ctx, name)
+	result, err = t.in.LookUpChild(t.ctx, name, false)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
@@ -1144,7 +1144,7 @@ func (t *DirTest) CloneToChildFile_TypeCaching() {
 
 	// Look up the name. Even though the directory should shadow the file,
 	// because we've cached only seeing the file that's what we should get back.
-	result, err := t.in.LookUpChild(t.ctx, path.Base(dstName))
+	result, err := t.in.LookUpChild(t.ctx, path.Base(dstName), false)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
@@ -1155,7 +1155,7 @@ func (t *DirTest) CloneToChildFile_TypeCaching() {
 	// But after the TTL expires, the behavior should flip.
 	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
 
-	result, err = t.in.LookUpChild(t.ctx, path.Base(dstName))
+	result, err = t.in.LookUpChild(t.ctx, path.Base(dstName), false)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
@@ -1218,7 +1218,7 @@ func (t *DirTest) CreateChildSymlink_TypeCaching() {
 	// Look up the name. Even though the directory should shadow the symlink,
 	// because we've cached only seeing the symlink that's what we should get
 	// back.
-	result, err := t.in.LookUpChild(t.ctx, name)
+	result, err := t.in.LookUpChild(t.ctx, name, false)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
@@ -1229,7 +1229,7 @@ func (t *DirTest) CreateChildSymlink_TypeCaching() {
 	// But after the TTL expires, the behavior should flip.
 	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
 
-	result, err = t.in.LookUpChild(t.ctx, name)
+	result, err = t.in.LookUpChild(t.ctx, name, false)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
@@ -1380,7 +1380,7 @@ func (t *DirTest) DeleteChildFile_TypeCaching() {
 	_, err = storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
 	AssertEq(nil, err)
 
-	result, err := t.in.LookUpChild(t.ctx, name)
+	result, err := t.in.LookUpChild(t.ctx, name, false)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
@@ -1391,7 +1391,7 @@ func (t *DirTest) DeleteChildFile_TypeCaching() {
 	err = t.in.DeleteChildFile(t.ctx, name, 0, nil)
 	AssertEq(nil, err)
 
-	result, err = t.in.LookUpChild(t.ctx, name)
+	result, err = t.in.LookUpChild(t.ctx, name, false)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
@@ -1448,7 +1448,7 @@ func (t *DirTest) LocalChildFileCore() {
 	AssertEq("foo/bar/qux", core.FullName.objectName)
 	AssertTrue(core.Local)
 	AssertEq(nil, core.MinObject)
-	result, err := t.in.LookUpChild(t.ctx, "qux")
+	result, err := t.in.LookUpChild(t.ctx, "qux", false)
 	AssertEq(nil, err)
 	AssertEq(nil, result)
 	ExpectEq(metadata.UnknownType, t.getTypeFromCache("qux"))
