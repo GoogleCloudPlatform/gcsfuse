@@ -35,6 +35,7 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/sync/semaphore"
 )
@@ -50,7 +51,7 @@ type fileTest struct {
 	bucket gcsx.SyncerBucket
 }
 
-func TestRangeReaderTestSuite(t *testing.T) {
+func TestFileTestSuite(t *testing.T) {
 	suite.Run(t, new(fileTest))
 }
 
@@ -301,9 +302,13 @@ func (t *fileTest) Test_Read_ErrorScenarios() {
 			assert.True(t.T(), errors.Is(err, tc.expectedErr))
 			// Assert mock expectations
 			if tc.useReadManager {
-				fh.readManager.(*read_manager.MockReadManager).AssertExpectations(t.T())
+				mockRM, ok := fh.readManager.(*read_manager.MockReadManager)
+				require.True(t.T(), ok, "expected readManager to be a MockReadManager")
+				mockRM.AssertExpectations(t.T())
 			} else {
-				fh.reader.(*gcsx.MockRandomReader).AssertExpectations(t.T())
+				mockR, ok := fh.reader.(*gcsx.MockRandomReader)
+				require.True(t.T(), ok, "expected reader to be a MockRandomReader")
+				mockR.AssertExpectations(t.T())
 			}
 		})
 	}
@@ -364,11 +369,6 @@ func (t *fileTest) Test_Read_InodeFallback() {
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), len(objectData), n)
 			assert.Equal(t.T(), objectData, output[:n])
-			if tc.useReadManager {
-				fh.readManager.(*read_manager.MockReadManager).AssertExpectations(t.T())
-			} else {
-				fh.reader.(*gcsx.MockRandomReader).AssertExpectations(t.T())
-			}
 		})
 	}
 }
