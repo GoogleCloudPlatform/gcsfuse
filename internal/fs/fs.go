@@ -1999,7 +1999,7 @@ func (fs *fileSystem) RmDir(
 	var tok string
 	for {
 		var entries []fuseutil.Dirent
-		entries, tok, err = childDir.ReadEntries(ctx, tok)
+		entries, tok, err = childDir.ReadEntries(ctx, tok, fs.newConfig.Write.ExperimentalEnableRapidAppends)
 		if err != nil {
 			err = fmt.Errorf("ReadEntries: %w", err)
 			return err
