@@ -344,7 +344,8 @@ func (b *fastStatBucket) StatObject(
 		return
 	}
 
-	return b.StatObjectFromGcs(ctx, req)
+	m, e, err = b.StatObjectFromGcs(ctx, req)
+	return
 }
 
 // LOCKS_EXCLUDED(b.mu)

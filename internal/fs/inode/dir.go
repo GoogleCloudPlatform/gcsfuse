@@ -63,7 +63,7 @@ type DirInode interface {
 	// named "foo/bar/baz" and this is the directory "foo", a child directory
 	// named "bar" will be implied. In this case, result.ImplicitDir will be
 	// true.
-	LookUpChild(ctx context.Context, name string) (*Core, error)
+	LookUpChild(ctx context.Context, name string, readWhileStat bool) (*Core, error)
 
 	// Rename the file.
 	RenameFile(ctx context.Context, fileToRename *gcs.MinObject, destinationFileName string) (*gcs.Object, error)
@@ -89,7 +89,8 @@ type DirInode interface {
 	// undefined.
 	ReadEntries(
 		ctx context.Context,
-		tok string) (entries []fuseutil.Dirent, newTok string, err error)
+		tok string,
+		readWhileList bool) (entries []fuseutil.Dirent, newTok string, err error)
 
 	// Create an empty child file with the supplied (relative) name, failing with
 	// *gcs.PreconditionError if a backing object already exists in GCS.
@@ -305,8 +306,8 @@ func (d *dirInode) checkInvariants() {
 	}
 }
 
-func (d *dirInode) lookUpChildFile(ctx context.Context, name string) (*Core, error) {
-	return findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name))
+func (d *dirInode) lookUpChildFile(ctx context.Context, name string, readWhileStat bool) (*Core, error) {
+	return findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), readWhileStat)
 }
 
 func (d *dirInode) lookUpChildDir(ctx context.Context, name string) (*Core, error) {
@@ -318,7 +319,7 @@ func (d *dirInode) lookUpChildDir(ctx context.Context, name string) (*Core, erro
 	if d.implicitDirs {
 		return findDirInode(ctx, d.Bucket(), childName)
 	}
-	return findExplicitInode(ctx, d.Bucket(), childName)
+	return findExplicitInode(ctx, d.Bucket(), childName, false)
 }
 
 // Look up the file for a (file, dir) pair with conflicting names, overriding
@@ -326,7 +327,7 @@ func (d *dirInode) lookUpChildDir(ctx context.Context, name string) (*Core, erro
 // nil error. If the directory doesn't exist, pretend the file doesn't exist.
 //
 // REQUIRES: strings.HasSuffix(name, ConflictingFileNameSuffix)
-func (d *dirInode) lookUpConflicting(ctx context.Context, name string) (*Core, error) {
+func (d *dirInode) lookUpConflicting(ctx context.Context, name string, readWhileStat bool) (*Core, error) {
 	strippedName := strings.TrimSuffix(name, ConflictingFileNameSuffix)
 
 	// In order to a marked name to be accepted, we require the conflicting
@@ -342,7 +343,7 @@ func (d *dirInode) lookUpConflicting(ctx context.Context, name string) (*Core, e
 
 	// The directory name exists. Find the conflicting file.
 	// Overwrite the result.
-	result, err = d.lookUpChildFile(ctx, strippedName)
+	result, err = d.lookUpChildFile(ctx, strippedName, readWhileStat)
 	if err != nil {
 		return nil, fmt.Errorf("lookUpChildFile for stripped name: %w", err)
 	}
@@ -352,10 +353,11 @@ func (d *dirInode) lookUpConflicting(ctx context.Context, name string) (*Core, e
 
 // findExplicitInode finds the file or dir inode core backed by an explicit
 // object in GCS with the given name. Return nil if such object does not exist.
-func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
+func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name, readWhileStat bool) (*Core, error) {
 	// Call the bucket.
 	req := &gcs.StatObjectRequest{
-		Name: name.GcsObjectName(),
+		Name:          name.GcsObjectName(),
+		ReadWhileStat: readWhileStat,
 	}
 
 	m, _, err := bucket.StatObject(ctx, req)
@@ -533,10 +535,10 @@ func (d *dirInode) Bucket() *gcsx.SyncerBucket {
 const ConflictingFileNameSuffix = "\n"
 
 // LOCKS_REQUIRED(d)
-func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) {
+func (d *dirInode) LookUpChild(ctx context.Context, name string, readWhileStat bool) (*Core, error) {
 	// Is this a conflict marker name?
 	if strings.HasSuffix(name, ConflictingFileNameSuffix) {
-		return d.lookUpConflicting(ctx, name)
+		return d.lookUpConflicting(ctx, name, readWhileStat)
 	}
 
 	group, ctx := errgroup.WithContext(ctx)
@@ -544,11 +546,11 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	var fileResult *Core
 	var dirResult *Core
 	lookUpFile := func() (err error) {
-		fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name))
+		fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), readWhileStat)
 		return
 	}
 	lookUpExplicitDir := func() (err error) {
-		dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name))
+		dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), readWhileStat)
 		return
 	}
 	lookUpImplicitOrExplicitDir := func() (err error) {
@@ -662,7 +664,8 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 // LOCKS_REQUIRED(d)
 func (d *dirInode) readObjects(
 	ctx context.Context,
-	tok string) (cores map[Name]*Core, newTok string, err error) {
+	tok string,
+	readWhileList bool) (cores map[Name]*Core, newTok string, err error) {
 	if d.isBucketHierarchical() {
 		d.includeFoldersAsPrefixes = true
 	}
@@ -677,6 +680,7 @@ func (d *dirInode) readObjects(
 		// required.
 		ProjectionVal:            gcs.NoAcl,
 		IncludeFoldersAsPrefixes: d.includeFoldersAsPrefixes,
+		ReadWhileList:            readWhileList,
 	}
 
 	listing, err := d.bucket.ListObjects(ctx, req)
@@ -773,9 +777,10 @@ func (d *dirInode) readObjects(
 
 func (d *dirInode) ReadEntries(
 	ctx context.Context,
-	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
+	tok string,
+	readWhileList bool) (entries []fuseutil.Dirent, newTok string, err error) {
 	var cores map[Name]*Core
-	cores, newTok, err = d.readObjects(ctx, tok)
+	cores, newTok, err = d.readObjects(ctx, tok, readWhileList)
 	if err != nil {
 		err = fmt.Errorf("read objects: %w", err)
 		return

@@ -236,6 +236,8 @@ type StatObjectRequest struct {
 
 	// Controls whether StatObject response includes GCS ExtendedObjectAttributes.
 	ReturnExtendedObjectAttributes bool
+
+	ReadWhileStat bool
 }
 
 type Projection int64
@@ -314,6 +316,8 @@ type ListObjectsRequest struct {
 	// the current flow, default value will be full and callers can override it
 	// using this param.
 	ProjectionVal Projection
+
+	ReadWhileList bool
 }
 
 // Listing contains a set of objects and delimter-based collapsed runs returned
