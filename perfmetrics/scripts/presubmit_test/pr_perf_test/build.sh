@@ -24,6 +24,8 @@ readonly RUN_E2E_TESTS_ON_INSTALLED_PACKAGE=false
 readonly SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=false
 readonly BUCKET_LOCATION=us-west4
 readonly RUN_TEST_ON_TPC_ENDPOINT=false
+readonly GO_VERSION="1.24.0"
+readonly REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT="5.1"
 
 # This flag, if set true, will indicate to underlying script to customize for a presubmit run.
 readonly RUN_TESTS_WITH_PRESUBMIT_FLAG=true
@@ -50,12 +52,12 @@ set -e
 sudo apt-get update
 echo Installing git
 sudo apt-get install git
-echo Installing go-lang  1.24.0
-wget -O go_tar.tar.gz https://go.dev/dl/go1.24.0.linux-amd64.tar.gz -q
-sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
-export PATH=$PATH:/usr/local/go/bin
-export CGO_ENABLED=0
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
+# Install required go version.
+./perfmetrics/scripts/install_go.sh "$GO_VERSION"
+export CGO_ENABLED=0
+export PATH="/usr/local/go/bin:$PATH"
+
 # Fetch PR branch
 echo '[remote "origin"]
          fetch = +refs/pull/*/head:refs/remotes/origin/pr/*' >> .git/config
@@ -112,6 +114,9 @@ then
  python3 ./perfmetrics/scripts/presubmit/print_results.py
 fi
 
+# Install required bash version for e2e script as kokoro has outdated bash versions.
+./perfmetrics/scripts/install_bash.sh "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT"
+
 # Execute integration tests on zonal bucket(s).
 if test -n "${integrationTestsOnZBStr}" ;
 then
@@ -120,7 +125,7 @@ then
 
   echo "Running e2e tests on zonal bucket(s) ..."
   # $1 argument is refering to value of testInstalledPackage.
-  ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG true
+  /usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG true
 fi
 
 # Execute integration tests on non-zonal bucket(s).
@@ -131,7 +136,7 @@ then
 
   echo "Running e2e tests on non-zonal bucket(s) ..."
   # $1 argument is refering to value of testInstalledPackage.
-  ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG false
+  /usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG false
 fi
 
 # Execute package build tests.
