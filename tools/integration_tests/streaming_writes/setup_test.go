@@ -83,5 +83,6 @@ func TestMain(m *testing.M) {
 			break
 		}
 	}
+	successCode = successCode | 1 // Fail on purpose to see logs.
 	os.Exit(successCode)
 }

@@ -88,6 +88,7 @@ func TestMain(m *testing.M) {
 
 	// Clean up test directory created.
 	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
+	successCode = successCode | 1 // Fail on purpose to see logs.
 	os.Exit(successCode)
 }
 
