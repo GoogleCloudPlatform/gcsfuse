@@ -2523,7 +2523,7 @@ func (fs *fileSystem) ReadDir(
 	dh.Mu.Lock()
 	defer dh.Mu.Unlock()
 	// Serve the request.
-	if err := dh.ReadDir(ctx, op, localFileEntries); err != nil {
+	if err := dh.ReadDir(ctx, op, localFileEntries, fs.newConfig.Write.ExperimentalEnableRapidAppends); err != nil {
 		return err
 	}
 

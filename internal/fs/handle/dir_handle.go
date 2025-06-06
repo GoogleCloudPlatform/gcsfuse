@@ -171,7 +171,8 @@ func fixConflictingNames(entries []fuseutil.Dirent, localEntries map[string]fuse
 func readAllEntries(
 	ctx context.Context,
 	in inode.DirInode,
-	localEntries map[string]fuseutil.Dirent) (entries []fuseutil.Dirent, err error) {
+	localEntries map[string]fuseutil.Dirent,
+	readWhileList bool) (entries []fuseutil.Dirent, err error) {
 	// Read entries from GCS.
 	// Read one batch at a time.
 	var tok string
@@ -179,7 +180,7 @@ func readAllEntries(
 		// Read a batch.
 		var batch []fuseutil.Dirent
 
-		batch, tok, err = in.ReadEntries(ctx, tok, false)
+		batch, tok, err = in.ReadEntries(ctx, tok, readWhileList)
 		if err != nil {
 			err = fmt.Errorf("ReadEntries: %w", err)
 			return
@@ -241,13 +242,13 @@ func readAllEntries(
 
 // LOCKS_REQUIRED(dh.Mu)
 // LOCKS_EXCLUDED(dh.in)
-func (dh *DirHandle) ensureEntries(ctx context.Context, localFileEntries map[string]fuseutil.Dirent) (err error) {
+func (dh *DirHandle) ensureEntries(ctx context.Context, localFileEntries map[string]fuseutil.Dirent, readWhileList bool) (err error) {
 	dh.in.Lock()
 	defer dh.in.Unlock()
 
 	// Read entries.
 	var entries []fuseutil.Dirent
-	entries, err = readAllEntries(ctx, dh.in, localFileEntries)
+	entries, err = readAllEntries(ctx, dh.in, localFileEntries, readWhileList)
 	if err != nil {
 		err = fmt.Errorf("readAllEntries: %w", err)
 		return
@@ -275,7 +276,8 @@ func (dh *DirHandle) ensureEntries(ctx context.Context, localFileEntries map[str
 func (dh *DirHandle) ReadDir(
 	ctx context.Context,
 	op *fuseops.ReadDirOp,
-	localFileEntries map[string]fuseutil.Dirent) (err error) {
+	localFileEntries map[string]fuseutil.Dirent,
+	readWhileList bool) (err error) {
 	// If the request is for offset zero, we assume that either this is the first
 	// call or rewinddir has been called. Reset state.
 	if op.Offset == 0 {
@@ -285,7 +287,7 @@ func (dh *DirHandle) ReadDir(
 
 	// Do we need to read entries from GCS?
 	if !dh.entriesValid {
-		err = dh.ensureEntries(ctx, localFileEntries)
+		err = dh.ensureEntries(ctx, localFileEntries, readWhileList)
 		if err != nil {
 			return
 		}
