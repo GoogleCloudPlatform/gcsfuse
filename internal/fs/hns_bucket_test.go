@@ -428,7 +428,7 @@ func (t *HNSCachedBucketMountTest) SetupSuite() {
 		FileCache: defaultFileCacheConfig(),
 		MetadataCache: cfg.MetadataCacheConfig{
 			// Setting default values.
-			StatCacheMaxSizeMb: 32,
+			StatCacheMaxSizeMb: 33,
 			TtlSecs:            60,
 			TypeCacheMaxSizeMb: 4,
 		},

@@ -657,7 +657,7 @@ func TestValidateConfigFile_MetadataCacheConfigSuccessful(t *testing.T) {
 					DeprecatedTypeCacheTtl:              60 * time.Second,
 					EnableNonexistentTypeCache:          false,
 					ExperimentalMetadataPrefetchOnMount: "disabled",
-					StatCacheMaxSizeMb:                  32,
+					StatCacheMaxSizeMb:                  33,
 					TtlSecs:                             60,
 					NegativeTtlSecs:                     5,
 					TypeCacheMaxSizeMb:                  4,
