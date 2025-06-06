@@ -7,24 +7,12 @@ import (
 	"cloud.google.com/go/storage"
 )
 
-func GetObjectSizeFromZeroByteReader(ctx context.Context, bucketName, objectName string) (int64, error) {
-	// Create a new storage client
-	client, err := storage.NewClient(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("failed to create storage client: %w", err)
-	}
-	defer func(client *storage.Client) {
-		err := client.Close()
-		if err != nil {
-
-		}
-	}(client)
-
+func GetObjectSizeFromZeroByteReader(ctx context.Context, bh *storage.BucketHandle, objectName string) (int64, error) {
 	// Get object handle
-	obj := client.Bucket(bucketName).Object(objectName)
+	obj := bh.Object(objectName)
 
 	// Create a new reader
-	reader, err := obj.NewReader(ctx)
+	reader, err := obj.NewRangeReader(ctx, 0, 1)
 	if err != nil {
 		return 0, fmt.Errorf("failed to create reader: %w", err)
 	}
