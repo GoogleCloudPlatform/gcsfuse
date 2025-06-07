@@ -26,6 +26,7 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -190,9 +191,9 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, 
 }
 
 func populateArgs(args []string) (
-	bucketName string,
-	mountPoint string,
-	err error) {
+		bucketName string,
+		mountPoint string,
+		err error) {
 	// Extract arguments.
 	switch len(args) {
 	case 1:
@@ -326,6 +327,8 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 			return fmt.Errorf("init log file: %w", err)
 		}
 	}
+
+	logger.Infof("go max procs set to %d", runtime.GOMAXPROCS(0))
 
 	logger.Infof("Start gcsfuse/%s for app %q using mount point: %s\n", common.GetVersion(), newConfig.AppName, mountPoint)
 
