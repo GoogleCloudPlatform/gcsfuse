@@ -141,6 +141,7 @@ func (bh *bucketHandle) StatObject(ctx context.Context,
 		err = fmt.Errorf("error in fetching object attributes: %w", err)
 		return
 	}
+	// TODO(anushkadhn): read only for unfinalized object. To be done after PR#3365 is merged
 	if req.ReadWhileStat {
 		size, err := storageutil.GetObjectSizeFromZeroByteReader(ctx, bh.bucket, req.Name)
 		if err == nil {
@@ -414,6 +415,7 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 		} else {
 			// Converting attrs to *Object type.
 			currMinObject := storageutil.ObjectAttrsToMinObject(attrs)
+			// TODO(anushkadhn): read only for unfinalized object. To be done after PR#3365 is merged
 			if req.ReadWhileList {
 				size, err := storageutil.GetObjectSizeFromZeroByteReader(ctx, bh.bucket, currMinObject.Name)
 				if err == nil {
