@@ -35,7 +35,6 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/sync/semaphore"
 )
@@ -198,7 +197,7 @@ func (t *fileTest) Test_Read_Success() {
 			buf := make([]byte, len(tc.expectedData))
 			fh.inode.Lock()
 
-			output, n, err := fh.Read(t.ctx, buf, 0, 200, tc.enableReadManager)
+			output, n, err := fh.Read(t.ctx, buf, 0, 200)
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), len(tc.expectedData), n)
@@ -207,8 +206,9 @@ func (t *fileTest) Test_Read_Success() {
 	}
 }
 
-// Test_Read_ErrorsAndEOFScenarios checks that both EOF and error conditions are correctly handled
-// when using either readManager or random reader. It validates bytes read, response data, and returned error.
+// Test_Read_ErrorScenarios verifies that both io.EOF and other error conditions
+// are correctly handled by ReadWithReadManager and Read, returning the right
+// byte count, output, and error values.
 func (t *fileTest) Test_Read_ErrorScenarios() {
 	type testCase struct {
 		name           string
@@ -216,65 +216,63 @@ func (t *fileTest) Test_Read_ErrorScenarios() {
 		returnErr      error
 	}
 
-	dst := make([]byte, 100)
-	mockErr := fmt.Errorf("mock error")
 	object := gcs.MinObject{Name: "test_obj", Generation: 1}
+	mockErr := fmt.Errorf("mock error")
+	dst := make([]byte, 100)
 
-	tests := []testCase{
-		{
-			name:           "EOF via readManager",
-			useReadManager: true,
-			returnErr:      io.EOF,
-		},
-		{
-			name:           "EOF via random reader",
-			useReadManager: false,
-			returnErr:      io.EOF,
-		},
-		{
-			name:           "mock error via readManager",
-			useReadManager: true,
-			returnErr:      mockErr,
-		},
-		{
-			name:           "mock error via random reader",
-			useReadManager: false,
-			returnErr:      mockErr,
-		},
+	testCases := []testCase{
+		{name: "EOF via readManager", useReadManager: true, returnErr: io.EOF},
+		{name: "EOF via random reader", useReadManager: false, returnErr: io.EOF},
+		{name: "mock error via readManager", useReadManager: true, returnErr: mockErr},
+		{name: "mock error via random reader", useReadManager: false, returnErr: mockErr},
 	}
 
-	for _, tc := range tests {
+	for _, tc := range testCases {
 		t.Run(tc.name, func() {
+			t.SetupTest()
 			parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
-			in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, []byte("data"), false)
-			fh := NewFileHandle(in, nil, false, common.NewNoopMetrics(), util.Read, &cfg.ReadConfig{})
+			testInode := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, []byte("data"), false)
+
+			fh := NewFileHandle(testInode, nil, false, common.NewNoopMetrics(), util.Read, &cfg.ReadConfig{})
 			fh.inode.Lock()
+
+			// Inject mocks
 			if tc.useReadManager {
 				mockRM := new(read_manager.MockReadManager)
 				mockRM.On("ReadAt", t.ctx, dst, int64(0)).Return(gcsx.ReaderResponse{}, tc.returnErr)
 				mockRM.On("Object").Return(&object)
 				fh.readManager = mockRM
 			} else {
-				mockR := new(gcsx.MockRandomReader)
-				mockR.On("ReadAt", t.ctx, dst, int64(0)).Return(gcsx.ObjectData{}, tc.returnErr)
-				mockR.On("Object").Return(&object)
-				fh.reader = mockR
+				mockReader := new(gcsx.MockRandomReader)
+				mockReader.On("ReadAt", t.ctx, dst, int64(0)).Return(gcsx.ObjectData{}, tc.returnErr)
+				mockReader.On("Object").Return(&object)
+				fh.reader = mockReader
 			}
 
-			output, n, err := fh.Read(t.ctx, dst, 0, 200, tc.useReadManager)
-
-			assert.Zero(t.T(), n)
-			assert.Nil(t.T(), output)
-			assert.True(t.T(), errors.Is(err, tc.returnErr))
-			// Assert mock expectations
+			// Perform read
+			var (
+				output []byte
+				n      int
+				err    error
+			)
 			if tc.useReadManager {
-				mockRM, ok := fh.readManager.(*read_manager.MockReadManager)
-				require.True(t.T(), ok, "expected readManager to be a MockReadManager")
+				output, n, err = fh.ReadWithReadManager(t.ctx, dst, 0, 200)
+			} else {
+				output, n, err = fh.Read(t.ctx, dst, 0, 200)
+			}
+
+			// Assertions
+			assert.Zero(t.T(), n, "expected 0 bytes read")
+			assert.Nil(t.T(), output, "expected output to be nil")
+			assert.True(t.T(), errors.Is(err, tc.returnErr), "expected error to match")
+
+			// Validate mock expectations
+			if tc.useReadManager {
+				mockRM := fh.readManager.(*read_manager.MockReadManager)
 				mockRM.AssertExpectations(t.T())
 			} else {
-				mockR, ok := fh.reader.(*gcsx.MockRandomReader)
-				require.True(t.T(), ok, "expected reader to be a MockRandomReader")
-				mockR.AssertExpectations(t.T())
+				mockReader := fh.reader.(*gcsx.MockRandomReader)
+				mockReader.AssertExpectations(t.T())
 			}
 		})
 	}
@@ -296,22 +294,22 @@ func (t *fileTest) Test_Read_InodeFallback() {
 
 	tests := []testCase{
 		{
-			name:           "fallback on inode read after no valid readManager",
-			useReadManager: true,
+			name: "fallback on inode read after no valid readManager",
 			setupMock: func(fh *FileHandle) {
 				mockRM := new(read_manager.MockReadManager)
 				mockRM.On("Destroy").Return()
 				fh.readManager = mockRM
 			},
+			useReadManager: true,
 		},
 		{
-			name:           "fallback on inode read after no valid reader",
-			useReadManager: false,
+			name: "fallback on inode read after no valid reader",
 			setupMock: func(fh *FileHandle) {
 				mockR := new(gcsx.MockRandomReader)
 				mockR.On("Destroy").Return()
 				fh.reader = mockR
 			},
+			useReadManager: false,
 		},
 	}
 
@@ -323,8 +321,17 @@ func (t *fileTest) Test_Read_InodeFallback() {
 			fh := NewFileHandle(in, nil, false, common.NewNoopMetrics(), util.Read, &cfg.ReadConfig{})
 			fh.inode.Lock()
 			tc.setupMock(fh)
+			var (
+				output []byte
+				n      int
+				err    error
+			)
 
-			output, n, err := fh.Read(t.ctx, dst, 0, 200, tc.useReadManager)
+			if tc.useReadManager {
+				output, n, err = fh.Read(t.ctx, dst, 0, 200)
+			} else {
+				output, n, err = fh.ReadWithReadManager(t.ctx, dst, 0, 200)
+			}
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), len(objectData), n)

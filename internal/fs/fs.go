@@ -1,4 +1,4 @@
-// Copyright 2015 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -196,7 +196,6 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		metricHandle:               serverCfg.MetricHandle,
 		enableAtomicRenameObject:   serverCfg.NewConfig.EnableAtomicRenameObject,
 		globalMaxWriteBlocksSem:    semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
-		enableNewReader:            serverCfg.NewConfig.EnableNewReader,
 	}
 
 	// Set up root bucket
@@ -493,9 +492,6 @@ type fileSystem struct {
 	// Limits the max number of blocks that can be created across file system when
 	// streaming writes are enabled.
 	globalMaxWriteBlocksSem *semaphore.Weighted
-
-	// If enableNewReader flag is set, we will take new reader implementation for reading file.
-	enableNewReader bool
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -2617,7 +2613,12 @@ func (fs *fileSystem) ReadFile(
 		}
 	}
 	// Serve the read.
-	op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb, fs.enableNewReader)
+
+	if fs.newConfig.EnableNewReader {
+		op.Dst, op.BytesRead, err = fh.ReadWithReadManager(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
+	} else {
+		op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
+	}
 
 	// As required by fuse, we don't treat EOF as an error.
 	if err == io.EOF {
