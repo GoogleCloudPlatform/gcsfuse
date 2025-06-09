@@ -130,6 +130,8 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 	if fc.fileCacheHandle == nil {
 		fc.fileCacheHandle, err = fc.fileCacheHandler.GetCacheHandle(fc.object, fc.bucket, fc.cacheFileForRangeRead, offset)
 		if err != nil {
+			cacheHit = false
+			bytesRead = 0
 			switch {
 			case errors.Is(err, lru.ErrInvalidEntrySize):
 				logger.Warnf("tryReadingFromFileCache: while creating CacheHandle: %v", err)

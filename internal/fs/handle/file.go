@@ -119,28 +119,35 @@ func (fh *FileHandle) Unlock() {
 // LOCKS_REQUIRED(fh.inode.mu)
 // UNLOCK_FUNCTION(fh.inode.mu)
 func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offset int64, sequentialReadSizeMb int32) ([]byte, int, error) {
-	// Attempt to initialize or validate the read manager
+	// fh.inode.mu is already locked to ensure that we have a readManager for its current
+	// state, or clear fh.readManager if it's not possible to create one (probably
+	// because the inode is dirty).
 	err := fh.tryEnsureReadManager(ctx, sequentialReadSizeMb)
 	if err != nil {
 		fh.inode.Unlock()
 		return nil, 0, fmt.Errorf("tryEnsureReadManager: %w", err)
 	}
 
-	// If read manager is available, try reading through it
+	// If we have an appropriate readManager, unlock the inode and use that. This
+	// allows reads to proceed concurrently with other operations; in particular,
+	// multiple reads can run concurrently. It's safe because the user can't tell
+	// if a concurrent write started during or after a read.
 	if fh.readManager != nil {
 		fh.inode.Unlock()
 
-		readerResponse, readErr := fh.readManager.ReadAt(ctx, dst, offset)
-		if errors.Is(readErr, io.EOF) {
-			// Unexpected EOF — log and propagate
-			logger.Warnf("Unexpected EOF error encountered while reading, err: %v type: %T", readErr, readErr)
+		var readerResponse gcsx.ReaderResponse
+		readerResponse, err = fh.readManager.ReadAt(ctx, dst, offset)
+		switch {
+		case errors.Is(err, io.EOF):
+			if err != io.EOF {
+				logger.Warnf("Unexpected EOF error encountered while reading, err: %v type: %T ", err, err)
+			}
 			return nil, 0, io.EOF
-		}
-		if readErr != nil {
-			return nil, 0, fmt.Errorf("fh.readManager.ReadAt: %w", readErr)
+
+		case err != nil:
+			return nil, 0, fmt.Errorf("fh.readManager.ReadAt: %w", err)
 		}
 
-		// Return data buffer (may or may not be the same as dst) and number of bytes read
 		return readerResponse.DataBuf, readerResponse.Size, nil
 	}
 
@@ -200,7 +207,6 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	// Otherwise we must fall through to the inode.
 	defer fh.inode.Unlock()
 	n, err = fh.inode.Read(ctx, dst, offset)
-
 	// Setting dst as output since output is used by the caller to read the data.
 	output = dst
 
@@ -279,8 +285,8 @@ func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb 
 // LOCKS_REQUIRED(fh)
 // LOCKS_REQUIRED(fh.inode)
 func (fh *FileHandle) tryEnsureReadManager(ctx context.Context, sequentialReadSizeMb int32) error {
-	// Ensure inode content is up-to-date. If content caching is enabled,
-	// this might make the inode's source generation non-authoritative.
+	// If content cache enabled, CacheEnsureContent forces the file handler to fall through to the inode
+	// and fh.inode.SourceGenerationIsAuthoritative() will return false
 	if err := fh.inode.CacheEnsureContent(ctx); err != nil {
 		return fmt.Errorf("failed to ensure inode content: %w", err)
 	}
@@ -293,7 +299,7 @@ func (fh *FileHandle) tryEnsureReadManager(ctx context.Context, sequentialReadSi
 		return nil
 	}
 
-	// If a read manager already exists and its object generation matches the inode's
+	// In case of zonal bucket if a read manager already exists and its object generation matches the inode's
 	// source generation, it's still valid. Just update its size and return.
 	if fh.readManager != nil && fh.readManager.Object().Generation == fh.inode.SourceGeneration().Object {
 		fh.readManager.Object().Size = fh.inode.SourceGeneration().Size
