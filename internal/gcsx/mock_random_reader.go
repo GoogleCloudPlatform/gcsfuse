@@ -22,6 +22,7 @@ import (
 )
 
 type MockRandomReader struct {
+	RandomReader
 	mock.Mock
 }
 

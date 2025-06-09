@@ -196,8 +196,17 @@ func (t *fileTest) Test_Read_Success() {
 			fh := NewFileHandle(in, nil, false, common.NewNoopMetrics(), util.Read, &cfg.ReadConfig{})
 			buf := make([]byte, len(tc.expectedData))
 			fh.inode.Lock()
+			var (
+				output []byte
+				n      int
+				err    error
+			)
 
-			output, n, err := fh.Read(t.ctx, buf, 0, 200)
+			if tc.enableReadManager {
+				output, n, err = fh.ReadWithReadManager(t.ctx, buf, 0, 200)
+			} else {
+				output, n, err = fh.Read(t.ctx, buf, 0, 200)
+			}
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), len(tc.expectedData), n)
@@ -232,10 +241,8 @@ func (t *fileTest) Test_Read_ErrorScenarios() {
 			t.SetupTest()
 			parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
 			testInode := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, []byte("data"), false)
-
 			fh := NewFileHandle(testInode, nil, false, common.NewNoopMetrics(), util.Read, &cfg.ReadConfig{})
 			fh.inode.Lock()
-
 			// Inject mocks
 			if tc.useReadManager {
 				mockRM := new(read_manager.MockReadManager)
@@ -248,24 +255,21 @@ func (t *fileTest) Test_Read_ErrorScenarios() {
 				mockReader.On("Object").Return(&object)
 				fh.reader = mockReader
 			}
-
-			// Perform read
 			var (
 				output []byte
 				n      int
 				err    error
 			)
+
 			if tc.useReadManager {
 				output, n, err = fh.ReadWithReadManager(t.ctx, dst, 0, 200)
 			} else {
 				output, n, err = fh.Read(t.ctx, dst, 0, 200)
 			}
 
-			// Assertions
 			assert.Zero(t.T(), n, "expected 0 bytes read")
 			assert.Nil(t.T(), output, "expected output to be nil")
 			assert.True(t.T(), errors.Is(err, tc.returnErr), "expected error to match")
-
 			// Validate mock expectations
 			if tc.useReadManager {
 				mockRM := fh.readManager.(*read_manager.MockReadManager)
@@ -328,12 +332,12 @@ func (t *fileTest) Test_Read_InodeFallback() {
 			)
 
 			if tc.useReadManager {
-				output, n, err = fh.Read(t.ctx, dst, 0, 200)
-			} else {
 				output, n, err = fh.ReadWithReadManager(t.ctx, dst, 0, 200)
+			} else {
+				output, n, err = fh.Read(t.ctx, dst, 0, 200)
 			}
 
-			assert.NoError(t.T(), err)
+			assert.Equal(t.T(), io.EOF, err)
 			assert.Equal(t.T(), len(objectData), n)
 			assert.Equal(t.T(), objectData, output[:n])
 		})

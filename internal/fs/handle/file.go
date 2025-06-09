@@ -149,10 +149,6 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 
 	n, err := fh.inode.Read(ctx, dst, offset)
 
-	if errors.Is(err, io.EOF) {
-		err = nil
-	}
-
 	// Return the original dst buffer and number of bytes read
 	return dst, n, err
 }
@@ -204,9 +200,7 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	// Otherwise we must fall through to the inode.
 	defer fh.inode.Unlock()
 	n, err = fh.inode.Read(ctx, dst, offset)
-	if errors.Is(err, io.EOF) {
-		err = nil
-	}
+
 	// Setting dst as output since output is used by the caller to read the data.
 	output = dst
 
