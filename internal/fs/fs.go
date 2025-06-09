@@ -1498,6 +1498,7 @@ func (fs *fileSystem) LookUpInode(
 	e := &op.Entry
 	e.Child = child.ID()
 	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
+	logger.Debugf("           ----- Returning from lookUpInode of %q: inode-id=%v, size=%v, is_dir=%v -----", op.Name, e.Child, e.Attributes.Size, e.Attributes.Mode.IsDir())
 
 	if err != nil {
 		return err
@@ -1528,6 +1529,7 @@ func (fs *fileSystem) GetInodeAttributes(
 	if err != nil {
 		return err
 	}
+	logger.Debugf("           ----- Returning from GetInodeAttributes of inode-id=%v, size=%v, is_dir=%v -----", op.Inode, op.Attributes.Size, op.Attributes.Mode.IsDir())
 
 	return
 }
@@ -2611,6 +2613,7 @@ func (fs *fileSystem) ReadFile(
 	}
 
 	// As required by fuse, we don't treat EOF as an error.
+	logger.Debugf("           ----- Returning from ReadFile call with error=%v, bytesRead=%v -----", err, op.BytesRead)
 	if err == io.EOF {
 		err = nil
 	}
