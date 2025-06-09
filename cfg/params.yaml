@@ -512,7 +512,7 @@
     flag has been deprecated (starting v2.0) and in favor of
     stat-cache-max-size-mb. For now, the value of stat-cache-capacity will be
     translated to the next higher corresponding value of stat-cache-max-size-mb
-    (assuming stat-cache entry-size ~= 1640 bytes, including 1400 for positive
+    (assuming stat-cache entry-size ~= 1688 bytes, including 1448 for positive
     entry and 240 for corresponding negative entry), if stat-cache-max-size-mb
     is not set."
   deprecated: true
@@ -588,7 +588,7 @@
   usage: >-
     The maximum size of stat-cache in MiBs. It can also be set to -1 for
     no-size-limit, 0 for no cache. Values below -1 are not supported.
-  default: "32"
+  default: "33"
 
 - config-path: "metadata-cache.ttl-secs"
   flag-name: "metadata-cache-ttl-secs"

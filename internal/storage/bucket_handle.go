@@ -367,7 +367,14 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 		IncludeFoldersAsPrefixes: req.IncludeFoldersAsPrefixes,
 		//MaxResults: , (Field not present in storage.Query of Go Storage Library but present in ListObjectsQuery in Jacobsa code.)
 	}
-	err = query.SetAttrSelection([]string{"Name", "Size", "Generation", "Metageneration", "Updated", "Metadata", "ContentEncoding", "CRC32C"})
+	minObjAttrs := []string{"Name", "Size", "Generation", "Metageneration", "Updated", "Metadata", "ContentEncoding", "CRC32C"}
+	if bh.BucketType().Zonal {
+		// For regional buckets, partial response API fails to populate the Finalized field.(b/398916957)
+		// For objects in regional buckets, this field will be *unset*.
+		minObjAttrs = append(minObjAttrs, "Finalized")
+	}
+	err = query.SetAttrSelection(minObjAttrs)
+
 	if err != nil {
 		err = fmt.Errorf("error while setting attribute selection for List Object query :%w", err)
 		return
