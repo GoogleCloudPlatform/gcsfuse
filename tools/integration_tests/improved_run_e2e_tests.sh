@@ -71,6 +71,7 @@ BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR=""
 
 LOG_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_logging_lock.XXXXXX") || { log_error "Unable to create lock file"; exit 1; }
 BUCKET_NAMES=$(mktemp "/tmp/${TMP_PREFIX}_bucket_names.XXXXXX") || { log_error "Unable to create bucket names file"; exit 1; }
+PACKAGE_RUNTIME_STATS=$(mktemp "/tmp/${TMP_PREFIX}_package_stats_runtime.XXXXXX") || { log_error "Unable to create package stats runtime file"; exit 1; }
 
 # Argument Parsing and Assignments
 if [ "$#" -lt 3 ]; then
@@ -403,11 +404,14 @@ test_package() {
   local go_test_cmd=$(printf "%q " "${go_test_cmd_parts[@]}")
   
   # Run the package test command
-  eval "$go_test_cmd"
-  if [[ $? -ne 0 ]]; then
-    return 1
+  local start=$SECONDS exit_code=0 
+  if ! eval "$go_test_cmd"; then
+    exit_code=1
   fi
-  return 0
+  local end=$SECONDS
+  # Add the package stats to the file.
+  echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
+  return "$exit_code"
 }
 
 build_gcsfuse_once() {
@@ -552,6 +556,7 @@ main() {
   elapsed_min=$(((SECONDS + 60) / 60))
   log_info "------ E2E test packages complete run took ${elapsed_min} minutes ------"
   log_info ""
+  ./tools/integration_tests/create_package_runtime_table.sh "$PACKAGE_RUNTIME_STATS"
   exit $overall_exit_code
 }
 
