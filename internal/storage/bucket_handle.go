@@ -149,6 +149,8 @@ func (bh *bucketHandle) StatObject(ctx context.Context,
 		}
 	}
 
+	logger.Debugf("           ------ Returned stat for object %q: Size=%v, Finalized=%v -----", req.Name, attrs.Size, attrs.Finalized)
+
 	// Converting attrs to type *Object
 	o := storageutil.ObjectAttrsToBucketObject(attrs)
 	m = storageutil.ConvertObjToMinObject(o)
