@@ -184,7 +184,6 @@ TEST_DIR_PARALLEL=(
   "explicit_dir"
   "implicit_dir"
   "interrupt"
-  "operations"
   "kernel_list_cache"
   "concurrent_operations"
   "mount_timeout"
@@ -196,10 +195,8 @@ TEST_DIR_PARALLEL=(
 # These tests never become parallel as they are changing bucket permissions.
 TEST_DIR_NON_PARALLEL=(
   "readonly"
-  "managed_folders"
   "readonly_creds"
   "list_large_dir"
-  "read_cache"
   "read_large_files"
 )
 
