@@ -141,8 +141,8 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 		return
 	}
 
-	if offset < 0 || offset >= int64(object.Size) {
-		return 0, false, fmt.Errorf("wrong offset requested: %d, object size: %d", offset, object.Size)
+	if offset < 0 || offset >= int64(object.LatestSize()) {
+		return 0, false, fmt.Errorf("wrong offset requested: %d, object size: %d", offset, object.LatestSize())
 	}
 
 	// Checking before updating the previous offset.
@@ -159,7 +159,7 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 
 	// Also, assuming that dst buffer in read can be more than the remaining object length
 	// left for reading. Hence, making sure requiredOffset should not more than object-length.
-	objSize := int64(object.Size)
+	objSize := int64(object.LatestSize())
 	if requiredOffset > objSize {
 		requiredOffset = objSize
 	}
@@ -205,7 +205,7 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 		// If fileDownloadJob is nil then it means either the job is successfully
 		// completed or failed. The offset must be equal to size of object for job
 		// to be completed.
-		err = fch.validateEntryInFileInfoCache(bucket, object, object.Size, false)
+		err = fch.validateEntryInFileInfoCache(bucket, object, object.LatestSize(), false)
 		if err != nil {
 			return 0, false, err
 		}
