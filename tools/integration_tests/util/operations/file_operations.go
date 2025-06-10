@@ -61,7 +61,7 @@ func copyFile(srcFileName, dstFileName string, allowOverwrite bool) (err error) 
 		}
 	}
 
-	source, err := os.OpenFile(srcFileName, syscall.O_DIRECT, FilePermission_0600)
+	source, err := os.OpenFile(srcFileName, os.O_RDONLY, FilePermission_0600)
 	if err != nil {
 		err = fmt.Errorf("file %s opening error: %v", srcFileName, err)
 		return
@@ -85,11 +85,27 @@ func copyFile(srcFileName, dstFileName string, allowOverwrite bool) (err error) 
 	// Closing file at the end.
 	defer CloseFile(destination)
 
-	// File copying with io.Copy() utility.
-	_, err = io.Copy(destination, source)
-	if err != nil {
-		err = fmt.Errorf("error in file copying: %v", err)
-		return
+	// Create a buffer to improve copy performance.
+	buf := make([]byte, 1024*1024) // 1MB buffer
+
+	for {
+		bytesRead, readErr := source.Read(buf)
+		if bytesRead > 0 {
+			_, writeErr := destination.Write(buf[:bytesRead])
+			if writeErr != nil {
+				return fmt.Errorf("could not write chunk to destination: %w", writeErr)
+			}
+		}
+
+		// If it's EOF, we've successfully reached the end of the file.
+		if readErr == io.EOF {
+			break
+		}
+
+		// If it's any other error, it's a problem.
+		if readErr != nil {
+			return fmt.Errorf("error while reading from source: %w", readErr)
+		}
 	}
 	return
 }
