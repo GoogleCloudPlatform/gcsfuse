@@ -16,7 +16,6 @@ package gcs
 
 import (
 	"crypto/md5"
-	"strings"
 	"time"
 
 	storagev1 "google.golang.org/api/storage/v1"
@@ -126,12 +125,6 @@ func (mo MinObject) IsUnfinalized() bool {
 func (mo *MinObject) LatestSize() uint64 {
 	if mo.IsUnfinalized() {
 		// TODO: Get actual latest size from GCS.
-
-		// tmp code, for now hard-code size = 1048576.
-		if strings.Contains(mo.Name, "unfinalized_object") {
-			return 1048576
-		}
-
 	}
 
 	return mo.Size
