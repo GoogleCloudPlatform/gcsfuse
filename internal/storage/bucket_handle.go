@@ -142,6 +142,12 @@ func (bh *bucketHandle) StatObject(ctx context.Context,
 		err = fmt.Errorf("error in fetching object attributes: %w", err)
 		return
 	}
+	if bh.BucketType().Zonal && bh.enableRapidAppends {
+		size, err := bh.getObjectSizeFromZeroByteReader(ctx, req.Name)
+		if err == nil {
+			attrs.Size = size
+		}
+	}
 
 	// Converting attrs to type *Object
 	o := storageutil.ObjectAttrsToBucketObject(attrs)
@@ -151,6 +157,21 @@ func (bh *bucketHandle) StatObject(ctx context.Context,
 	}
 
 	return
+}
+
+func (bh *bucketHandle) getObjectSizeFromZeroByteReader(ctx context.Context, objectName string) (int64, error) {
+	// Get object handle
+	obj := bh.bucket.Object(objectName)
+
+	// Create a new reader
+	reader, err := obj.NewRangeReader(ctx, 0, 0)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create reader: %w", err)
+	}
+	err = reader.Close()
+
+	// Return the size
+	return reader.Attrs.Size, err
 }
 
 func (bh *bucketHandle) getObjectHandleWithPreconditionsSet(req *gcs.CreateObjectRequest) *storage.ObjectHandle {
@@ -359,10 +380,6 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 		err = gcs.GetGCSError(err)
 	}()
 
-	if bh.enableRapidAppends {
-		logger.Infof("Passed correctly")
-	}
-
 	// Converting *ListObjectsRequest to type *storage.Query as expected by the Go Storage Client.
 	query := &storage.Query{
 		Delimiter:                req.Delimiter,
@@ -396,6 +413,12 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 		var attrs *storage.ObjectAttrs
 
 		attrs, err = itr.Next()
+		if bh.BucketType().Zonal && bh.enableRapidAppends {
+			size, err := bh.getObjectSizeFromZeroByteReader(ctx, attrs.Name)
+			if err == nil {
+				attrs.Size = size
+			}
+		}
 		if err == iterator.Done {
 			err = nil
 			break
