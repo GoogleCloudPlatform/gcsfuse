@@ -117,3 +117,15 @@ func (mo MinObject) HasContentEncodingGzip() bool {
 func (mo MinObject) IsUnfinalized() bool {
 	return mo.Finalized.IsZero()
 }
+
+// LatestSize returns the latest size (in bytes)
+// of this MinObject. This is useful mainly for
+// unfinalized object, whose current size might be higher than what the
+// GCS list/stat call returned.
+func (mo *MinObject) LatestSize() uint64 {
+	if mo.IsUnfinalized() {
+		// TODO: Get actual latest size from GCS.
+	}
+
+	return mo.Size
+}
