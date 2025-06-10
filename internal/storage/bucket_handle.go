@@ -152,16 +152,6 @@ func (bh *bucketHandle) StatObject(ctx context.Context,
 	return
 }
 
-func (bh *bucketHandle) getObjectHandleWithGenerationAndPreconditionSet(ctx context.Context, req *gcs.CreateObjectChunkWriterRequest) (*storage.ObjectHandle, error) {
-	objHandle := bh.getObjectHandleWithPreconditionsSet(&req.CreateObjectRequest)
-	attrs, err := bh.bucket.Object(req.Name).Attrs(ctx)
-	if err != nil {
-		err = fmt.Errorf("error in fetching object attributes: %w", err)
-		return nil, err
-	}
-	return objHandle.Generation(attrs.Generation), nil
-}
-
 func (bh *bucketHandle) getObjectHandleWithPreconditionsSet(req *gcs.CreateObjectRequest) *storage.ObjectHandle {
 	obj := bh.bucket.Object(req.Name)
 
@@ -255,10 +245,7 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 
 func (bh *bucketHandle) CreateAppendableObjectWriter(ctx context.Context,
 	req *gcs.CreateObjectChunkWriterRequest) (gcs.Writer, error) {
-	obj, err := bh.getObjectHandleWithGenerationAndPreconditionSet(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("error while fetching object handle for %s : %v", req.Name, err)
-	}
+	obj := bh.getObjectHandleWithPreconditionsSet(&req.CreateObjectRequest).Generation(req.Generation)
 	callBack := func(bytesUploadedSoFar int64) {
 		logger.Tracef("gcs: Req %#16x: -- UploadBlock(%q): %20v bytes uploaded so far", ctx.Value(gcs.ReqIdField), req.Name, bytesUploadedSoFar)
 	}
