@@ -2558,22 +2558,22 @@ func (fs *fileSystem) ReadDirPlus(
 	dh.Mu.Unlock()
 	var child inode.Inode
 	var attributes fuseops.InodeAttributes
-	var expiration time.Time
+	//var expiration time.Time
 	var entriesPlus []fuseutil.DirentPlus
 	for fullName, core := range cores {
 		child = fs.lookUpOrCreateInodeIfNotStale(*core)
 		if child == nil {
 			continue
 		}
-		attributes, expiration, err = fs.getAttributes(ctx, child)
+		attributes, _, err = fs.getAttributes(ctx, child)
 		if err != nil {
 			continue
 		}
 		childInodeEntry := fuseops.ChildInodeEntry{
 			Child:                child.ID(),
 			Attributes:           attributes,
-			AttributesExpiration: expiration,
-			EntryExpiration:      expiration,
+			AttributesExpiration: time.Now().Add(24 * time.Hour),
+			EntryExpiration:      time.Now().Add(24 * time.Hour),
 		}
 		entry := fuseutil.DirentPlus{
 			Dirent: fuseutil.Dirent{

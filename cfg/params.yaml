@@ -176,11 +176,11 @@
   default: false
   hide-flag: true
 
-- config-path: "file-system.disable-readdirplus"
-  flag-name: "disable-readdirplus"
+- config-path: "file-system.enable-readdirplus"
+  flag-name: "enable-readdirplus"
   type: "bool"
-  usage: "This flag is used to disable ReadDirPlus capability so ReadDir is used instead"
-  default: "true"
+  usage: "This flag is used to enable ReadDirPlus capability"
+  default: false
   hide-flag: true
 
 - config-path: "file-system.file-mode"
