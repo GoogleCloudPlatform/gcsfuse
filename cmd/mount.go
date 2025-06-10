@@ -174,6 +174,6 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 	}
 
 	mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ")
-	mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelTrace, "fuse_debug: ")
+	//mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelTrace, "fuse_debug: ")
 	return mountCfg
 }
