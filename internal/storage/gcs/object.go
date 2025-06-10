@@ -15,7 +15,9 @@
 package gcs
 
 import (
+	"context"
 	"crypto/md5"
+	"fmt"
 	"time"
 
 	storagev1 "google.golang.org/api/storage/v1"
@@ -116,4 +118,25 @@ func (mo MinObject) HasContentEncodingGzip() bool {
 
 func (mo MinObject) IsUnfinalized() bool {
 	return mo.Finalized.IsZero()
+}
+
+// LatestSize returns the latest size (in bytes)
+// of this MinObject. This is useful mainly for
+// unfinalized object, whose current size might be higher than what the
+// GCS list/stat call returned.
+func (mo *MinObject) LatestSize(ctx context.Context, bucket Bucket) uint64 {
+	if mo.IsUnfinalized() {
+		// TODO: Get actual latest size from GCS.
+		if bucket != nil {
+			moReturned, _, err := bucket.StatObject(ctx, &StatObjectRequest{Name: mo.Name, ForceFetchFromGcs: true})
+			if err != nil {
+				panic(fmt.Sprintf("Failed to get latest size of object %q for bucket %q: %v", mo.Name, bucket.Name, err))
+			}
+			return moReturned.Size
+		} else {
+			fmt.Printf("\n\nLatestSize called for object %q with nil bucket\n\n", mo.Name)
+		}
+	}
+
+	return mo.Size
 }

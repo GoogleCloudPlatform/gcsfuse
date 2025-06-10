@@ -154,8 +154,8 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 		return
 	}
 
-	if offset < 0 || offset >= int64(object.Size) {
-		return 0, false, fmt.Errorf("wrong offset requested: %d, object size: %d", offset, object.Size)
+	if offset < 0 || offset >= int64(object.LatestSize(ctx, bucket)) {
+		return 0, false, fmt.Errorf("wrong offset requested: %d, object size: %d", offset, object.LatestSize(ctx, bucket))
 	}
 
 	fileInfoData, errFileInfo := fch.getFileInfoData(bucket, object, false)
@@ -189,7 +189,7 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 
 	// Also, assuming that dst buffer in read can be more than the remaining object length
 	// left for reading. Hence, making sure requiredOffset should not more than object-length.
-	objSize := int64(object.Size)
+	objSize := int64(object.LatestSize(ctx, bucket))
 	if requiredOffset > objSize {
 		requiredOffset = objSize
 	}
