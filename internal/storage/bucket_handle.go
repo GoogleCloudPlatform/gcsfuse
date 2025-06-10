@@ -39,10 +39,11 @@ const FullBucketPathHNS = "projects/_/buckets/%s"
 
 type bucketHandle struct {
 	gcs.Bucket
-	bucket        *storage.BucketHandle
-	bucketName    string
-	bucketType    *gcs.BucketType
-	controlClient StorageControlClient
+	bucket             *storage.BucketHandle
+	bucketName         string
+	bucketType         *gcs.BucketType
+	controlClient      StorageControlClient
+	enableRapidAppends bool
 }
 
 func (bh *bucketHandle) Name() string {
@@ -357,6 +358,10 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 	defer func() {
 		err = gcs.GetGCSError(err)
 	}()
+
+	if bh.enableRapidAppends {
+		logger.Infof("Passed correctly")
+	}
 
 	// Converting *ListObjectsRequest to type *storage.Query as expected by the Go Storage Client.
 	query := &storage.Query{
