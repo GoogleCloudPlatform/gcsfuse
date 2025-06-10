@@ -28,10 +28,12 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"os"
 	"os/exec"
 	"strconv"
 	"syscall"
+	"time"
 )
 
 // The name of an environment variable used to communicate a file descriptor
@@ -205,6 +207,16 @@ func Run(
 	}
 }
 
+func GenerateRandomString(length int) string {
+	Charset := "abcdefghijklmnopqrstuvwxyz0123456789"
+	seededRand := rand.New(rand.NewSource(time.Now().UnixNano()))
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = Charset[seededRand.Intn(len(Charset))]
+	}
+	return string(b)
+}
+
 // Start the daemon process, handing it the supplied pipe for communication. Do
 // not wait for it to return.
 func startProcess(
@@ -218,6 +230,9 @@ func startProcess(
 	cmd.Env = append(cmd.Env, env...)
 	cmd.ExtraFiles = []*os.File{pipeW}
 	cmd.Stderr = stderr
+	filename := "/tmp/gcsfuse" + GenerateRandomString(4) + ".log"
+	fmt.Println("writing to file %v", filename)
+	cmd.Stdout, err = os.OpenFile("/tmp/gcsfuse.log", os.O_WRONLY, 0)
 
 	// Change working directories so that we don't prevent unmounting of the
 	// volume of our current working directory.
