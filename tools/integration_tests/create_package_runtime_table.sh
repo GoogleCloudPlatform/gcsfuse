@@ -39,8 +39,6 @@ fi
 # sort pakages in ascending order.
 sort -o "$PACKAGE_RUNTIME_STATS" "$PACKAGE_RUNTIME_STATS"
 
-
-
 # Print single package stats
 print_package_stats() {
     local package_name="$1"
