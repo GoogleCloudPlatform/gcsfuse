@@ -291,22 +291,22 @@ func (fh *FileHandle) tryEnsureReadManager(ctx context.Context, sequentialReadSi
 		return fmt.Errorf("failed to ensure inode content: %w", err)
 	}
 
-	// If the inode is dirty (its source generation isn't authoritative),
-	// we cannot create a read manager based on the cloud object.
-	// Invalidate any existing read manager and return.
+	// If the inode is dirty, there's nothing we can do. Throw away our readManager if
+	// we have one.
 	if !fh.inode.SourceGenerationIsAuthoritative() {
 		fh.destroyReadManager()
 		return nil
 	}
 
-	// In case of zonal bucket if a read manager already exists and its object generation matches the inode's
-	// source generation, it's still valid. Just update its size and return.
+	// If we already have a readManager, and it's at the appropriate generation, we
+	// can use it otherwise we must throw it away.
 	if fh.readManager != nil && fh.readManager.Object().Generation == fh.inode.SourceGeneration().Object {
+		// Update reader object size to source object size.
 		fh.readManager.Object().Size = fh.inode.SourceGeneration().Size
 		return nil
 	}
 
-	// If we reached here, either no read manager exists, or the existing one is outdated.
+	// If we reached here, either no readManager exists, or the existing one is outdated.
 	// Destroy any old read manager before creating a new one.
 	fh.destroyReadManager()
 
