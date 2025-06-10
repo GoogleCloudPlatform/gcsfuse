@@ -159,6 +159,8 @@ func (bh *bucketHandle) StatObject(ctx context.Context,
 	return
 }
 
+// Note: This code is not production ready and will be removed once StatObject
+// requests return correct object size for unfinalized objects.
 func (bh *bucketHandle) getObjectSizeFromZeroByteReader(ctx context.Context, objectName string) (int64, error) {
 	// Get object handle
 	obj := bh.bucket.Object(objectName)
