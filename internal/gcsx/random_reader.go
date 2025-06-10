@@ -15,6 +15,7 @@
 package gcsx
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -32,7 +33,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/jacobsa/fuse/fuseops"
-	"golang.org/x/net/context"
 )
 
 // Min read size in bytes for random reads.
@@ -308,7 +308,7 @@ func (rr *randomReader) ReadAt(
 		Size:     0,
 	}
 
-	if offset >= int64(rr.object.Size) {
+	if offset >= int64(rr.object.LatestSize(ctx, nil)) {
 		err = io.EOF
 		return
 	}
@@ -323,7 +323,7 @@ func (rr *randomReader) ReadAt(
 		return
 	}
 	// Data was served from cache.
-	if cacheHit || n == len(p) || (n < len(p) && uint64(offset)+uint64(n) == rr.object.Size) {
+	if cacheHit || n == len(p) || (n < len(p) && uint64(offset)+uint64(n) == rr.object.LatestSize(ctx, nil)) {
 		objectData.CacheHit = cacheHit
 		objectData.Size = n
 		return
@@ -351,7 +351,7 @@ func (rr *randomReader) ReadAt(
 	// If we have an existing reader, but it's positioned at the wrong place,
 	// clean it up and throw it away.
 	// We will also clean up the existing reader if it can't serve the entire request.
-	dataToRead := math.Min(float64(offset+int64(len(p))), float64(rr.object.Size))
+	dataToRead := math.Min(float64(offset+int64(len(p))), float64(rr.object.LatestSize(ctx, nil)))
 	if rr.reader != nil && (rr.start != offset || int64(dataToRead) > rr.limit) {
 		rr.closeReader()
 		rr.reader = nil
@@ -521,12 +521,12 @@ func (rr *randomReader) getReadInfo(
 	start int64,
 	size int64) (end int64, err error) {
 	// Make sure start and size are legal.
-	if start < 0 || uint64(start) > rr.object.Size || size < 0 {
+	if start < 0 || uint64(start) > rr.object.LatestSize(context.Background(), nil) || size < 0 {
 		err = fmt.Errorf(
 			"range [%d, %d) is illegal for %d-byte object",
 			start,
 			start+size,
-			rr.object.Size)
+			rr.object.LatestSize(context.Background(), nil))
 		return
 	}
 
@@ -545,7 +545,7 @@ func (rr *randomReader) getReadInfo(
 	// But if we notice random read patterns after a minimum number of seeks,
 	// optimise for random reads. Random reads will read data in chunks of
 	// (average read size in bytes rounded up to the next MiB).
-	end = int64(rr.object.Size)
+	end = int64(rr.object.LatestSize(context.Background(), nil))
 	if rr.seeks >= minSeeksForRandom {
 		rr.readType = util.Random
 		averageReadBytes := rr.totalReadBytes / rr.seeks
@@ -560,8 +560,8 @@ func (rr *randomReader) getReadInfo(
 			end = start + randomReadSize
 		}
 	}
-	if end > int64(rr.object.Size) {
-		end = int64(rr.object.Size)
+	if end > int64(rr.object.LatestSize(context.Background(), nil)) {
+		end = int64(rr.object.LatestSize(context.Background(), nil))
 	}
 
 	// To avoid overloading GCS and to have reasonable latencies, we will only
