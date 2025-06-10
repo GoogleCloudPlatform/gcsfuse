@@ -98,7 +98,7 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 		handleID = uint64(readOp.Handle)
 	}
 	requestID := uuid.New()
-	logger.Tracef("%.13v <- FileCache(%s:/%s, offset: %d, size: %d, handle: %d)", requestID, fc.bucket.Name(), fc.object.Name, offset, len(p), handleID)
+	logger.Tracef("%.13v <- FileCache(%s:/%s, offset: %d, size: %d handle: %d)", requestID, fc.bucket.Name(), fc.object.Name, offset, len(p), handleID)
 
 	startTime := time.Now()
 	var bytesRead int
@@ -130,17 +130,22 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 	if fc.fileCacheHandle == nil {
 		fc.fileCacheHandle, err = fc.fileCacheHandler.GetCacheHandle(fc.object, fc.bucket, fc.cacheFileForRangeRead, offset)
 		if err != nil {
+			cacheHit = false
+			bytesRead = 0
 			switch {
 			case errors.Is(err, lru.ErrInvalidEntrySize):
 				logger.Warnf("tryReadingFromFileCache: while creating CacheHandle: %v", err)
+				err = nil
 				return 0, false, nil
 			case errors.Is(err, cacheUtil.ErrCacheHandleNotRequiredForRandomRead):
 				// Fall back to GCS if it is a random read, cacheFileForRangeRead is
 				// false and there doesn't already exist file in cache.
 				isSequential = false
+				err = nil
 				return 0, false, nil
 			default:
-				return 0, false, fmt.Errorf("tryReadingFromFileCache: GetCacheHandle failed: %w", err)
+				err = fmt.Errorf("tryReadingFromFileCache: GetCacheHandle failed: %w", err)
+				return 0, false, err
 			}
 		}
 	}
@@ -161,7 +166,8 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 		}
 		fc.fileCacheHandle = nil
 	} else if !errors.Is(err, cacheUtil.ErrFallbackToGCS) {
-		return 0, false, fmt.Errorf("tryReadingFromFileCache: while reading via cache: %w", err)
+		err = fmt.Errorf("tryReadingFromFileCache: while reading via cache: %w", err)
+		return 0, false, err
 	}
 	err = nil
 
