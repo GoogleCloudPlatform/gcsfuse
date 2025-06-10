@@ -232,7 +232,7 @@ func startProcess(
 	cmd.Stderr = stderr
 	filename := "/tmp/gcsfuse" + GenerateRandomString(4) + ".log"
 	fmt.Println("writing to file %v", filename)
-	cmd.Stdout, err = os.OpenFile("/tmp/gcsfuse.log", os.O_WRONLY, 0)
+	cmd.Stdout, err = os.OpenFile("/tmp/gcsfuse.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0)
 
 	// Change working directories so that we don't prevent unmounting of the
 	// volume of our current working directory.
