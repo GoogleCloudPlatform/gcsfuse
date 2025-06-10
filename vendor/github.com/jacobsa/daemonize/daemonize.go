@@ -231,8 +231,10 @@ func startProcess(
 	cmd.ExtraFiles = []*os.File{pipeW}
 	cmd.Stderr = stderr
 	filename := "/tmp/gcsfuse" + GenerateRandomString(4) + ".log"
-	fmt.Println("writing to file %v", filename)
-	cmd.Stdout, err = os.OpenFile("/tmp/gcsfuse.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0)
+	fmt.Println("writing to file ", filename)
+	fh, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0)
+	defer fh.Close()
+	cmd.Stdout = fh
 
 	// Change working directories so that we don't prevent unmounting of the
 	// volume of our current working directory.
@@ -250,7 +252,6 @@ func startProcess(
 	// Start. Clean up in the background, ignoring errors.
 	err = cmd.Start()
 	go cmd.Wait()
-
 	return
 }
 
