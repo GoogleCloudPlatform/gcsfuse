@@ -1219,8 +1219,8 @@ func (fs *fileSystem) syncFile(
 //
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(f.mu)
-func (fs *fileSystem) createBufferedWriteHandlerAndSyncOrTempWriter(ctx context.Context, f *inode.FileInode) error {
-	err := fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, f)
+func (fs *fileSystem) createBufferedWriteHandlerAndSyncOrTempWriter(ctx context.Context, f *inode.FileInode, openMode util.OpenMode) error {
+	err := fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, f, openMode)
 	if err != nil {
 		return err
 	}
@@ -1235,8 +1235,8 @@ func (fs *fileSystem) createBufferedWriteHandlerAndSyncOrTempWriter(ctx context.
 //
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(f.mu)
-func (fs *fileSystem) initBufferedWriteHandlerAndSyncFileIfEligible(ctx context.Context, f *inode.FileInode) error {
-	initialized, err := f.InitBufferedWriteHandlerIfEligible(ctx)
+func (fs *fileSystem) initBufferedWriteHandlerAndSyncFileIfEligible(ctx context.Context, f *inode.FileInode, openMode util.OpenMode) error {
+	initialized, err := f.InitBufferedWriteHandlerIfEligible(ctx, openMode)
 	if err != nil {
 		return err
 	}
@@ -1568,7 +1568,7 @@ func (fs *fileSystem) SetInodeAttributes(
 	// Truncate files.
 	if isFile && op.Size != nil {
 		// Initialize BWH if eligible and Sync file inode.
-		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, file)
+		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, file, util.Write)
 		if err != nil {
 			return
 		}
@@ -1800,7 +1800,7 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	fs.mu.Unlock()
 	defer fs.mu.Lock()
 	fileInode.Lock()
-	err = fs.createBufferedWriteHandlerAndSyncOrTempWriter(ctx, fileInode)
+	err = fs.createBufferedWriteHandlerAndSyncOrTempWriter(ctx, fileInode, util.Write)
 	fileInode.Unlock()
 	if err != nil {
 		return
@@ -2661,13 +2661,26 @@ func (fs *fileSystem) WriteFile(
 	if fs.newConfig.Write.ExperimentalEnableRapidAppends {
 		fs.mu.Lock()
 		fh := fs.handles[op.Handle].(*handle.FileHandle)
+		in := fs.fileInodeOrDie(op.Inode)
 		fs.mu.Unlock()
 
-		//TODO: Initialize BWH before invoking write()
-		if _, err := fh.Write(ctx, op.Data, op.Offset); err != nil {
+		in.Lock()
+		fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in, fh.OpenMode())
+		in.Unlock()
+		if err != nil {
+			return
+		}
+		// Serve the request.
+		gcsSynced, err := fh.Write(ctx, op.Data, op.Offset)
+		if err != nil {
 			return err
 		}
-		return
+		// Sync the inode if finalize during write is successful
+		// even if the write operation later resulted in error.
+		if gcsSynced {
+			fs.promoteToGenerationBacked(in)
+		}
+		return err
 	}
 	// Find the inode.
 	fs.mu.Lock()
@@ -2677,7 +2690,7 @@ func (fs *fileSystem) WriteFile(
 	in.Lock()
 	defer in.Unlock()
 
-	err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in)
+	err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in, util.Write)
 	if err != nil {
 		return
 	}
