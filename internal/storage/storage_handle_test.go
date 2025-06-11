@@ -125,7 +125,7 @@ func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithNo
 func (testSuite *StorageHandleTest) TestNewStorageHandleHttp2Disabled() {
 	sc := storageutil.GetDefaultStorageClientConfig() // by default http1 enabled
 
-	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "", false)
+	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "")
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), handleCreated)
@@ -136,7 +136,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleHttp2EnabledAndAuthEnabl
 	sc.ClientProtocol = cfg.HTTP2
 	sc.AnonymousAccess = false
 
-	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "", false)
+	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "")
 
 	assert.NoError(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), handleCreated)
@@ -146,7 +146,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithZeroMaxConnsPerHost(
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.MaxConnsPerHost = 0
 
-	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "", false)
+	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "")
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), handleCreated)
@@ -156,7 +156,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWhenUserAgentIsSet() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.UserAgent = "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) appName (GPN:Gcsfuse-DLC)"
 
-	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "", false)
+	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "")
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), handleCreated)
@@ -169,7 +169,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithCustomEndpointAndAut
 	sc.CustomEndpoint = url.String()
 	sc.AnonymousAccess = false
 
-	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "", false)
+	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "")
 
 	assert.NoError(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), handleCreated)
@@ -181,7 +181,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNilA
 	sc.CustomEndpoint = ""
 	sc.AnonymousAccess = false
 
-	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "", false)
+	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "")
 
 	assert.NoError(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), handleCreated)
@@ -191,7 +191,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWhenKeyFileIsEmpty() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.KeyFile = ""
 
-	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "", false)
+	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "")
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), handleCreated)
@@ -201,7 +201,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWhenReuseTokenUrlFalse()
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ReuseTokenFromUrl = false
 
-	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "", false)
+	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "")
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), handleCreated)
@@ -211,7 +211,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWhenTokenUrlIsSet() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.TokenUrl = storageutil.CustomTokenUrl
 
-	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "", false)
+	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "")
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), handleCreated)
@@ -221,7 +221,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWhenJsonReadEnabled() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ExperimentalEnableJsonRead = true
 
-	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "", false)
+	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "")
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), handleCreated)
@@ -231,7 +231,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithBillingProject() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.EnableHNS = true
 
-	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, projectID, false)
+	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, projectID)
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), handleCreated)
@@ -285,7 +285,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleDirectPathDetector() {
 			sc.ExperimentalEnableJsonRead = true
 			sc.ClientProtocol = tc.clientProtocol
 
-			handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "", false)
+			handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "")
 			assert.Nil(testSuite.T(), err)
 			assert.NotNil(testSuite.T(), handleCreated)
 
@@ -330,7 +330,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientProtocol()
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ClientProtocol = cfg.GRPC
 
-	storageClient, err := NewStorageHandle(testSuite.ctx, sc, "", false)
+	storageClient, err := NewStorageHandle(testSuite.ctx, sc, "")
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), storageClient)
@@ -520,7 +520,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustom
 	sc.AnonymousAccess = false
 	sc.ClientProtocol = cfg.GRPC
 
-	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "", false)
+	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "")
 
 	assert.NoError(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), handleCreated)
@@ -536,7 +536,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustom
 	sc.TokenUrl = storageutil.CustomTokenUrl
 	sc.KeyFile = ""
 
-	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "", false)
+	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "")
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), handleCreated)
@@ -551,7 +551,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustom
 	sc.TokenUrl = storageutil.CustomTokenUrl
 	sc.KeyFile = ""
 
-	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "", false)
+	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "")
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), handleCreated)
@@ -561,7 +561,7 @@ func (testSuite *StorageHandleTest) TestCreateStorageHandleWithEnableHNSTrue() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.EnableHNS = true
 
-	sh, err := NewStorageHandle(testSuite.ctx, sc, "", false)
+	sh, err := NewStorageHandle(testSuite.ctx, sc, "")
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), sh)
@@ -574,7 +574,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithCustomEndpointAndEna
 	sc.CustomEndpoint = url.String()
 	sc.EnableHNS = true
 
-	sh, err := NewStorageHandle(testSuite.ctx, sc, "", false)
+	sh, err := NewStorageHandle(testSuite.ctx, sc, "")
 
 	assert.NoError(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), sh)
@@ -593,7 +593,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithMaxRetryAttemptsNotZ
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.MaxRetryAttempts = 100
 
-	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "", false)
+	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "")
 
 	if assert.NoError(testSuite.T(), err) {
 		assert.NotNil(testSuite.T(), handleCreated)

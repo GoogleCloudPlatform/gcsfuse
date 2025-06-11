@@ -65,7 +65,6 @@ type storageClient struct {
 	clientConfig             storageutil.StorageClientConfig
 	storageControlClient     StorageControlClient
 	directPathDetector       *gRPCDirectPathDetector
-	enableRapidAppends       bool
 }
 
 type gRPCDirectPathDetector struct {
@@ -262,7 +261,7 @@ func (sh *storageClient) getStorageLayout(bucketName string) (*controlpb.Storage
 
 // NewStorageHandle creates control client and stores client config to allow dynamic
 // creation of http or grpc client.
-func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClientConfig, billingProject string, enableRapidAppends bool) (sh StorageHandle, err error) {
+func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClientConfig, billingProject string) (sh StorageHandle, err error) {
 	// The default protocol for the Go Storage control client's folders API is gRPC.
 	// gcsfuse will initially mirror this behavior due to the client's lack of HTTP support.
 	var controlClient StorageControlClient
@@ -289,7 +288,6 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		storageControlClient: controlClient,
 		clientConfig:         clientConfig,
 		directPathDetector:   &gRPCDirectPathDetector{clientOptions: clientOpts},
-		enableRapidAppends:   enableRapidAppends,
 	}
 	return
 }
