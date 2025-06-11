@@ -2665,11 +2665,12 @@ func (fs *fileSystem) WriteFile(
 		fs.mu.Unlock()
 
 		in.Lock()
-		fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in, fh.OpenMode())
+		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in, fh.OpenMode())
 		in.Unlock()
 		if err != nil {
 			return
 		}
+
 		// Serve the request.
 		gcsSynced, err := fh.Write(ctx, op.Data, op.Offset)
 		if err != nil {

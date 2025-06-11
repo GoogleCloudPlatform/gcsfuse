@@ -839,6 +839,8 @@ func (t *FakeBufferedWriteHandler) Truncate(_ int64) error        { return nil }
 func (t *FakeBufferedWriteHandler) Destroy() error                { return nil }
 func (t *FakeBufferedWriteHandler) Unlink()                       {}
 
+func (t *FakeBufferedWriteHandler) SetTotalSize() {}
+
 func (t *FileStreamingWritesTest) TestWriteUsingBufferedWritesFails() {
 	t.createBufferedWriteHandler()
 	assert.True(t.T(), t.in.IsLocal())
