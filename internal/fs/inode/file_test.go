@@ -159,7 +159,7 @@ func (t *FileTest) createInodeWithLocalParam(fileName string, local bool) {
 
 func (t *FileTest) createBufferedWriteHandler(shouldInitialize bool) {
 	// Initialize BWH for local inode created above.
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.Write)
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), shouldInitialize, initialized)
 	if shouldInitialize {
@@ -177,6 +177,80 @@ func (t *FileTest) TestID() {
 
 func (t *FileTest) TestName() {
 	assert.Equal(t.T(), fileName, t.in.Name().GcsObjectName())
+}
+
+func (t *FileTest) TestAreBufferedWritesSupported() {
+	finalizedTime := time.Now()
+	unFinalizedTime := time.Time{}
+	nonNilContents := "taco"
+	testCases := []struct {
+		name       string
+		content    string
+		openMode   util.OpenMode
+		bucketType gcs.BucketType
+		finalized  time.Time
+		supported  bool
+	}{
+		{
+			name:       "AppendToFinalizedObjOnZB",
+			content:    nonNilContents,
+			bucketType: gcs.BucketType{Zonal: true},
+			finalized:  finalizedTime,
+			openMode:   util.Append,
+			supported:  false,
+		},
+		{
+			name:       "AppendToUnfinalizedObjOnZB",
+			content:    nonNilContents,
+			bucketType: gcs.BucketType{Zonal: true},
+			finalized:  unFinalizedTime,
+			openMode:   util.Append,
+			supported:  true,
+		},
+		{
+			name:       "AppendToObjOnNonZB",
+			content:    nonNilContents,
+			bucketType: gcs.BucketType{},
+			finalized:  finalizedTime,
+			openMode:   util.Append,
+			supported:  false,
+		},
+		{
+			name:       "WriteToNonNilObj",
+			content:    nonNilContents,
+			bucketType: gcs.BucketType{},
+			finalized:  finalizedTime,
+			openMode:   util.Write,
+			supported:  false,
+		},
+		{
+			name:       "WriteToNilObj",
+			content:    "",
+			bucketType: gcs.BucketType{},
+			finalized:  finalizedTime,
+			openMode:   util.Write,
+			supported:  true,
+		},
+	}
+	for _, tc := range testCases {
+		t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket", tc.bucketType)
+		// Set up the backing object.
+		var err error
+		t.initialContents = tc.content
+		object, err := storageutil.CreateObject(
+			t.ctx,
+			t.bucket,
+			fileName,
+			[]byte(t.initialContents))
+		assert.Nil(t.T(), err)
+		object.Finalized = tc.finalized
+		t.backingObj = storageutil.ConvertObjToMinObject(object)
+		t.createInode()
+
+		isSupported := t.in.areBufferedWritesSupported(tc.openMode, object)
+
+		assert.Equal(t.T(), tc.supported, isSupported)
+	}
 }
 
 func (t *FileTest) TestInitialSourceGeneration() {
@@ -1499,7 +1573,7 @@ func (t *FileTest) TestInitBufferedWriteHandlerIfEligibleShouldNotCreateBWHNonEm
 	// Enabling buffered writes.
 	t.in.config = &cfg.Config{Write: *getWriteConfig()}
 
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.Write)
 
 	assert.NoError(t.T(), err)
 	assert.Nil(t.T(), t.in.bwh)
@@ -1599,7 +1673,7 @@ func (t *FileTest) TestInitBufferedWriteHandlerWithInvalidConfigWhenStreamingWri
 	t.createInodeWithLocalParam("test", true)
 	t.in.config = &cfg.Config{Write: cfg.WriteConfig{EnableStreamingWrites: true}}
 
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.Write)
 
 	assert.True(t.T(), strings.Contains(err.Error(), "invalid configuration"))
 	assert.False(t.T(), initialized)
