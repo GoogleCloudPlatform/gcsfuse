@@ -1501,8 +1501,9 @@ func (fs *fileSystem) LookUpInode(
 	// Fill out the response.
 	e := &op.Entry
 	e.Child = child.ID()
-	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
-
+	e.Attributes, _ , err = fs.getAttributes(ctx, child)
+        e.EntryExpiration = time.Now().Add(24 * time.Hour)
+	e.AttributesExpiration = e.EntryExpiration
 	if err != nil {
 		return err
 	}

@@ -16,7 +16,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
-SPREADSHEET_ID = '1kvHv1OBCzr9GnFxRu9RTJC7jjQjc9M4rAiDnhyak2Sg'
+SPREADSHEET_ID = '1_iShpPmVQFrgocLjncAaI9kbpg_uiuYl_DA4N-fFClk'
 
 CREDENTIALS_PATH = ('./gsheet/creds.json')
 
@@ -45,7 +45,7 @@ def write_to_google_sheet(worksheet: str, data,
   spreadsheet_response = sheets_client.spreadsheets().values().get(
       spreadsheetId=spreadsheet_id,
       range='{}!A1:A'.format(worksheet)).execute()
-  entries = len(spreadsheet_response['values'])
+  entries = len(spreadsheet_response.get('values', []))
 
   # Clearing the occupied rows
   request = sheets_client.spreadsheets().values().clear(

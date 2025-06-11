@@ -257,7 +257,7 @@ def _perform_testing(
   persistent_disk_results = {}
 
   for testing_folder in folders:
-    if not RUN_1M_TEST and testing_folder.name == "1KB_1000000files_0subdir":
+    if  testing_folder.name != "1KB_1000files_0subdir":
       # Excluding test case with 1m files from HNS in daily periodic tests.
       continue
 
@@ -580,7 +580,7 @@ if __name__ == '__main__':
   gcs_bucket = mount_gcs_bucket(directory_structure.name,
                                 args.gcsfuse_flags[0],log)
 
-  RUN_1M_TEST=args.run_1m_test
+  RUN_1M_TEST=True
   gcs_bucket_results, persistent_disk_results = _perform_testing(
       directory_structure.folders, gcs_bucket, persistent_disk,
       int(args.num_samples[0]), args.command[0])

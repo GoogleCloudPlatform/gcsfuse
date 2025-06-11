@@ -22,8 +22,9 @@ sudo apt-get install pip -y
 echo Installing requirements..
 pip install --require-hashes -r requirements.txt
 echo Running script..
-GCSFUSE_FLAGS="--debug_fuse --debug_gcs --log-format \"text\" --implicit-dirs"
+GCSFUSE_FLAGS="--enable-readdirplus --log-severity=TRACE --debug_fuse --debug_gcs --log-format \"text\" --log-file=./a.txt --implicit-dirs"
 UPLOAD_FLAGS="--upload_gs"
-SPREADSHEET_ID="1Hbt4AUP3LTcl9EklISkvhGDsx3pajtzcB-j62KTPqtY"
+SPREADSHEET_ID="1_iShpPmVQFrgocLjncAaI9kbpg_uiuYl_DA4N-fFClk"
 CONFIG_FILE="config.json"
-python3 listing_benchmark.py $CONFIG_FILE --gcsfuse_flags "$GCSFUSE_FLAGS" $UPLOAD_FLAGS --command "ls -R" --num_samples 3 --message "Testing CT setup." --spreadsheet_id=$SPREADSHEET_ID
+python3 listing_benchmark.py $CONFIG_FILE --gcsfuse_flags "$GCSFUSE_FLAGS" $UPLOAD_FLAGS --command "ls -lR" --num_samples 1 --message "Testing CT setup." --spreadsheet_id=$SPREADSHEET_ID
+
