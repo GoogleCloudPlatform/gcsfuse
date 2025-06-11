@@ -20,7 +20,6 @@ import (
 	"io"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -551,11 +550,6 @@ func (f *FileInode) Read(
 	ctx context.Context,
 	dst []byte,
 	offset int64) (n int, err error) {
-	// It is not nil when streaming writes are enabled and bucket type is Zonal.
-	if f.bwh != nil {
-		err = fmt.Errorf("cannot read a file when upload in progress: %w", syscall.ENOTSUP)
-		return
-	}
 
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
