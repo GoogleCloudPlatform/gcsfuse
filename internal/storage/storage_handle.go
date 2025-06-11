@@ -55,7 +55,7 @@ type StorageHandle interface {
 	// to that project rather than to the bucket's owning project.
 	//
 	// A user-project is required for all operations on Requester Pays buckets.
-	BucketHandle(ctx context.Context, bucketName string, billingProject string) (bh *bucketHandle, err error)
+	BucketHandle(ctx context.Context, bucketName string, billingProject string, enableRapidAppends bool) (bh *bucketHandle, err error)
 }
 
 type storageClient struct {
@@ -320,7 +320,7 @@ func (sh *storageClient) getClient(ctx context.Context, isbucketZonal bool) (*st
 	return nil, fmt.Errorf("invalid client-protocol requested: %s", sh.clientConfig.ClientProtocol)
 }
 
-func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, billingProject string) (bh *bucketHandle, err error) {
+func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, billingProject string, enableRapidAppends bool) (bh *bucketHandle, err error) {
 	var client *storage.Client
 	bucketType, err := sh.lookupBucketType(bucketName)
 	if err != nil {
@@ -353,7 +353,7 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 		bucketName:         bucketName,
 		controlClient:      sh.storageControlClient,
 		bucketType:         bucketType,
-		enableRapidAppends: sh.enableRapidAppends,
+		enableRapidAppends: enableRapidAppends,
 	}
 
 	return
