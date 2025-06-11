@@ -39,10 +39,11 @@ const FullBucketPathHNS = "projects/_/buckets/%s"
 
 type bucketHandle struct {
 	gcs.Bucket
-	bucket        *storage.BucketHandle
-	bucketName    string
-	bucketType    *gcs.BucketType
-	controlClient StorageControlClient
+	bucket             *storage.BucketHandle
+	bucketName         string
+	bucketType         *gcs.BucketType
+	controlClient      StorageControlClient
+	enableRapidAppends bool
 }
 
 func (bh *bucketHandle) Name() string {
