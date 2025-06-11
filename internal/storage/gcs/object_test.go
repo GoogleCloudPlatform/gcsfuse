@@ -16,6 +16,7 @@ package gcs
 
 import (
 	"testing"
+	"time"
 
 	. "github.com/jacobsa/ogletest"
 )
@@ -51,4 +52,16 @@ func (t *ObjectTest) HasContentEncodingGzipNegative() {
 
 		AssertFalse(mo.HasContentEncodingGzip())
 	}
+}
+
+func (t *ObjectTest) IsFinalized() {
+	mo := MinObject{Finalized: time.Now()}
+
+	AssertFalse(mo.IsUnfinalized())
+}
+
+func (t *ObjectTest) IsNotFinalized() {
+	mo := MinObject{}
+
+	AssertTrue(mo.IsUnfinalized())
 }
