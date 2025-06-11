@@ -435,7 +435,4 @@ type CreateObjectChunkWriterRequest struct {
 	// Offset from where write has to start. Used only in case of appends flows.
 	// Default value is zero which means it's a new object write.
 	Offset int64
-
-	// Generation of the appendable object.
-	Generation int64
 }

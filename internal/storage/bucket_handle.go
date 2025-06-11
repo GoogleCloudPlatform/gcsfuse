@@ -245,7 +245,9 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 
 func (bh *bucketHandle) CreateAppendableObjectWriter(ctx context.Context,
 	req *gcs.CreateObjectChunkWriterRequest) (gcs.Writer, error) {
-	obj := bh.getObjectHandleWithPreconditionsSet(&req.CreateObjectRequest).Generation(req.Generation)
+	obj := bh.getObjectHandleWithPreconditionsSet(&req.CreateObjectRequest)
+	// To create the takeover writer, the objectHandle.Generation must be set.
+	obj = obj.Generation(*req.CreateObjectRequest.GenerationPrecondition)
 	callBack := func(bytesUploadedSoFar int64) {
 		logger.Tracef("gcs: Req %#16x: -- UploadBlock(%q): %20v bytes uploaded so far", ctx.Value(gcs.ReqIdField), req.Name, bytesUploadedSoFar)
 	}
