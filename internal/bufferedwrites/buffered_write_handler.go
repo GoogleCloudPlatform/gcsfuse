@@ -58,6 +58,9 @@ type BufferedWriteHandler interface {
 
 	// Unlink cancels the ongoing upload and free up the buffers.
 	Unlink()
+
+	// SetTotalSize sets the totalSize attr of BWH to size of the object.
+	SetTotalSize()
 }
 
 // bufferedWriteHandlerImpl is responsible for filling up the buffers with the data
@@ -312,4 +315,8 @@ func (wh *bufferedWriteHandlerImpl) Unlink() {
 		// Only logging an error in case of resource leak.
 		logger.Errorf("blockPool.ClearFreeBlockChannel() failed: %v", err)
 	}
+}
+
+func (wh *bufferedWriteHandlerImpl) SetTotalSize() {
+	wh.totalSize = int64(wh.uploadHandler.obj.Size)
 }
