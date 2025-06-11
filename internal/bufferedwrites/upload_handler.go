@@ -116,6 +116,7 @@ func (uh *UploadHandler) createAppendableObjectWriter() (err error) {
 	req := gcs.CreateObjectChunkWriterRequest{
 		CreateObjectRequest: *cReq,
 		Offset:              int64(uh.obj.Size),
+		Generation:          uh.obj.Generation,
 	}
 	var ctx context.Context
 	ctx, uh.cancelFunc = context.WithCancel(context.Background())
