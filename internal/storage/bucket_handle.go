@@ -142,6 +142,9 @@ func (bh *bucketHandle) StatObject(ctx context.Context,
 		err = fmt.Errorf("error in fetching object attributes: %w", err)
 		return
 	}
+	if attrs.Finalized.IsZero() {
+		err = bh.updateObjectSizeFromZeroByteReader(ctx, attrs)
+	}
 
 	// Converting attrs to type *Object
 	o := storageutil.ObjectAttrsToBucketObject(attrs)
@@ -151,6 +154,29 @@ func (bh *bucketHandle) StatObject(ctx context.Context,
 	}
 
 	return
+}
+
+// Note: This is not production ready code and will be removed once StatObject
+// requests return correct attr values for appendable objects.
+func (bh *bucketHandle) updateObjectSizeFromZeroByteReader(ctx context.Context, attrs *storage.ObjectAttrs) error {
+	if bh.BucketType().Zonal && bh.enableRapidAppends {
+		// Get object handle
+		obj := bh.bucket.Object(attrs.Name)
+		// Create a new reader
+		reader, err := obj.NewRangeReader(ctx, 0, 0)
+		if err != nil {
+			return fmt.Errorf("failed to create zero byte reader: %w", err)
+		}
+		err = reader.Close()
+		if err != nil {
+			logger.Debugf("Failed to closed zero-byte reader for %s", attrs.Name)
+		}
+
+		// Set the size
+		attrs.Size = reader.Attrs.Size
+		return nil
+	}
+	return nil
 }
 
 func (bh *bucketHandle) getObjectHandleWithPreconditionsSet(req *gcs.CreateObjectRequest) *storage.ObjectHandle {
@@ -394,6 +420,9 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 		var attrs *storage.ObjectAttrs
 
 		attrs, err = itr.Next()
+		if attrs.Finalized.IsZero() {
+			err = bh.updateObjectSizeFromZeroByteReader(ctx, attrs)
+		}
 		if err == iterator.Done {
 			err = nil
 			break
