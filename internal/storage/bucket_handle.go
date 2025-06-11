@@ -165,11 +165,12 @@ func (bh *bucketHandle) updateObjectSizeFromZeroByteReader(ctx context.Context, 
 		// Create a new reader
 		reader, err := obj.NewRangeReader(ctx, 0, 0)
 		if err != nil {
-			return fmt.Errorf("failed to create zero byte reader: %w", err)
+			logger.Debugf("failed to create zero-byte reader for object %q: %v", attrs.Name, err)
+			return err
 		}
 		err = reader.Close()
 		if err != nil {
-			logger.Debugf("Failed to closed zero-byte reader for %s", attrs.Name)
+			logger.Warnf("failed to close zero-byte reader for object %q: %v", attrs.Name, err)
 		}
 
 		// Set the size
@@ -420,9 +421,6 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 		var attrs *storage.ObjectAttrs
 
 		attrs, err = itr.Next()
-		if attrs.Finalized.IsZero() {
-			err = bh.updateObjectSizeFromZeroByteReader(ctx, attrs)
-		}
 		if err == iterator.Done {
 			err = nil
 			break
@@ -430,6 +428,9 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 		if err != nil {
 			err = fmt.Errorf("error in iterating through objects: %w", err)
 			return
+		}
+		if attrs.Finalized.IsZero() {
+			err = bh.updateObjectSizeFromZeroByteReader(ctx, attrs)
 		}
 
 		// Prefix attribute will be set for the objects returned as part of Prefix[] array in list response.
