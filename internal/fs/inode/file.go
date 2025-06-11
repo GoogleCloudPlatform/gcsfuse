@@ -1052,6 +1052,9 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 			return false, fmt.Errorf("failed to create bufferedWriteHandler: %w", err)
 		}
 		f.bwh.SetMtime(f.mtimeClock.Now())
+		if f.config.Write.ExperimentalEnableRapidAppends {
+			f.bwh.SetTotalSize()
+		}
 		return true, nil
 	}
 	return false, nil
