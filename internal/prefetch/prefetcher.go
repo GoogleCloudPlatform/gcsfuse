@@ -60,6 +60,10 @@ type PrefetchReader struct {
 	blockPool  *BlockPool
 	threadPool *ThreadPool
 
+	oldBlock            []byte
+	oldBlockStartOffset int64
+	oldBlockEndOffset   int64
+
 	metricHandle common.MetricHandle
 
 	// Create a cancellable context and cancellable function
@@ -85,6 +89,9 @@ func NewPrefetchReader(object *gcs.MinObject, bucket gcs.Bucket, config *Prefetc
 		blockPool:           blockPool,
 		threadPool:          threadPool,
 		metricHandle:        nil,
+		oldBlock:            make([]byte, blockPool.blockSize),
+		oldBlockStartOffset: -1,
+		oldBlockEndOffset:   -1,
 	}
 
 	prefetchReader.ctx, prefetchReader.cancelFunc = context.WithCancel(context.Background())
@@ -121,10 +128,28 @@ func (p *PrefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset 
 
 	dataRead := int(0)
 	for dataRead < len(inputBuffer) {
+
+		if offset >= p.oldBlockStartOffset && offset < p.oldBlockEndOffset {
+			endOffset := int64(0)
+			if offset+int64(len(inputBuffer)) >= p.oldBlockEndOffset {
+				endOffset = p.oldBlockEndOffset
+			} else {
+				endOffset = offset + int64(len(inputBuffer))
+			}
+
+			rd := copy(inputBuffer[dataRead:], p.oldBlock[offset-p.oldBlockStartOffset:endOffset-p.oldBlockStartOffset])
+			offset += int64(rd)
+			dataRead += rd
+			continue
+		}
+
 		for !p.blockQueue.IsEmpty() {
 			cur := p.blockQueue.Peek()
 			if cur.offset > uint64(offset) || cur.endOffset <= uint64(offset) {
 				cur = p.blockQueue.Pop()
+				copy(p.oldBlock, cur.data)
+				p.oldBlockStartOffset = int64(cur.offset)
+				p.oldBlockEndOffset = int64(cur.endOffset)
 				cur.Cancel()
 				<-cur.status
 				cur.ReUse()
@@ -175,6 +200,9 @@ func (p *PrefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset 
 
 		if dataRead < len(inputBuffer) || (dataRead == len(inputBuffer) && offset == int64(block.endOffset)) {
 			consumedBlock := p.blockQueue.Pop()
+			copy(p.oldBlock, consumedBlock.data)
+			p.oldBlockStartOffset = int64(consumedBlock.offset)
+			p.oldBlockEndOffset = int64(consumedBlock.endOffset)
 			consumedBlock.ReUse()
 			p.blockPool.Release(consumedBlock)
 
