@@ -142,7 +142,7 @@ func (bh *bucketHandle) StatObject(ctx context.Context,
 		err = fmt.Errorf("error in fetching object attributes: %w", err)
 		return
 	}
-	if bh.BucketType().Zonal && bh.enableRapidAppends {
+	if bh.BucketType().Zonal && bh.enableRapidAppends && attrs.Finalized.IsZero() {
 		size, err := bh.getObjectSizeFromZeroByteReader(ctx, req.Name)
 		if err == nil {
 			attrs.Size = size
@@ -415,7 +415,7 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 		var attrs *storage.ObjectAttrs
 
 		attrs, err = itr.Next()
-		if bh.BucketType().Zonal && bh.enableRapidAppends {
+		if bh.BucketType().Zonal && bh.enableRapidAppends && attrs.Finalized.IsZero() {
 			size, err := bh.getObjectSizeFromZeroByteReader(ctx, attrs.Name)
 			if err == nil {
 				attrs.Size = size
