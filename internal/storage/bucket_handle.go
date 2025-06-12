@@ -165,7 +165,7 @@ func (bh *bucketHandle) updateObjectSizeFromZeroByteReader(ctx context.Context, 
 		// Create a new reader
 		reader, err := obj.NewRangeReader(ctx, 0, 0)
 		if err != nil {
-			logger.Debugf("failed to create zero-byte reader for object %q: %v", attrs.Name, err)
+			return fmt.Errorf("failed to create zero-byte reader for object %q: %w", attrs.Name, err)
 			return err
 		}
 		err = reader.Close()
