@@ -191,7 +191,7 @@ If you observe that GCSFuse is still utilizing staged writes despite streaming w
 
 - **Global Max Blocks Limit Reached:** You might encounter warning logs indicating that streaming write blocks cannot be allocated because the global maximum blocks limit has been reached. In such cases, consider increasing the `--write-global-max-blocks` limit if sufficient memory resources are available.
 
-- **Unsupported Write Operations:** Streaming writes only work for sequential writes to new or empty files. GCSFuse will automatically revert to staged writes for the following scenarios:
+- **Unsupported Streaming Write Operations:** Streaming writes only work for sequential writes to new or empty files. GCSFuse will automatically fall back to legacy staged writes for the following scenarios:
   - Modifying existing files (non-zero size).
   - Performing out-of-order writes.
   - Reading from a file while writes are in progress (this action finalizes the object and subsequent writes will fall back).
