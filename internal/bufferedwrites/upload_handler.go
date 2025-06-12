@@ -110,6 +110,7 @@ func (uh *UploadHandler) createObjectWriter() (err error) {
 	if uh.obj != nil && uh.obj.Size != 0 {
 		chunkWriterReq := gcs.CreateObjectChunkWriterRequest{
 			CreateObjectRequest: *req,
+			ChunkSize:           int(uh.blockSize),
 			Offset:              int64(uh.obj.Size),
 		}
 		uh.writer, err = uh.bucket.CreateAppendableObjectWriter(ctx, &chunkWriterReq)
@@ -176,9 +177,7 @@ func (uh *UploadHandler) Finalize() (*gcs.MinObject, error) {
 
 func (uh *UploadHandler) ensureWriter() error {
 	if uh.writer == nil {
-		var err error
-		err = uh.createObjectWriter()
-		if err != nil {
+		if err := uh.createObjectWriter(); err != nil {
 			return fmt.Errorf("createObjectWriter failed for object %s: %w", uh.objectName, err)
 		}
 	}

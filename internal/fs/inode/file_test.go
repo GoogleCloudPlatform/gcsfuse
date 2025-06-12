@@ -180,6 +180,66 @@ func (t *FileTest) TestName() {
 	assert.Equal(t.T(), fileName, t.in.Name().GcsObjectName())
 }
 
+func (t *FileTest) TestAreBufferedWritesSupported() {
+	finalizedTime := time.Now()
+	unFinalizedTime := time.Time{}
+	testCases := []struct {
+		name       string
+		openMode   util.OpenMode
+		bucketType gcs.BucketType
+		finalized  time.Time
+		supported  bool
+	}{
+		{
+			name:       "AppendToFinalizedObjOnZB",
+			bucketType: gcs.BucketType{Zonal: true},
+			finalized:  finalizedTime,
+			openMode:   util.Append,
+			supported:  false,
+		},
+		{
+			name:       "AppendToUnfinalizedObjOnZB",
+			bucketType: gcs.BucketType{Zonal: true},
+			finalized:  unFinalizedTime,
+			openMode:   util.Append,
+			supported:  true,
+		},
+		{
+			name:       "AppendToObjOnNonZB",
+			bucketType: gcs.BucketType{},
+			finalized:  finalizedTime,
+			openMode:   util.Append,
+			supported:  false,
+		},
+		{
+			name:       "NonAppend",
+			bucketType: gcs.BucketType{},
+			finalized:  finalizedTime,
+			openMode:   util.Write,
+			supported:  false,
+		},
+	}
+	for _, tc := range testCases {
+		t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket", tc.bucketType)
+		// Set up the backing object.
+		var err error
+		t.initialContents = "taco"
+		object, err := storageutil.CreateObject(
+			t.ctx,
+			t.bucket,
+			fileName,
+			[]byte(t.initialContents))
+		assert.Nil(t.T(), err)
+		object.Finalized = tc.finalized
+		t.backingObj = storageutil.ConvertObjToMinObject(object)
+		t.createInode()
+
+		isSupported := t.in.areBufferedWritesSupported(tc.openMode, object)
+
+		assert.Equal(t.T(), tc.supported, isSupported)
+	}
+}
+
 func (t *FileTest) TestInitialSourceGeneration() {
 	sg := t.in.SourceGeneration()
 	assert.Equal(t.T(), t.backingObj.Generation, sg.Object)
