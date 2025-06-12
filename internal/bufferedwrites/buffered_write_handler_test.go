@@ -96,6 +96,7 @@ func (testSuite *BufferedWriteTest) TestSetMTime() {
 
 func (testSuite *BufferedWriteTest) TestSetTotalSize() {
 	testSuite.setupTestWithNonZeroSizeObject()
+
 	testSuite.bwh.SetTotalSize()
 
 	assert.Equal(testSuite.T(), nonZeroObjectSize, testSuite.bwh.WriteFileInfo().TotalSize)
