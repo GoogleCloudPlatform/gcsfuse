@@ -432,7 +432,9 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 			return
 		}
 		if attrs.Finalized.IsZero() {
-			err = bh.fetchLatestSizeOfUnfinalizedObject(ctx, attrs)
+			if err = bh.fetchLatestSizeOfUnfinalizedObject(ctx, attrs); err != nil {
+			  err = fmt.Errorf("failed to fetch the latest size of unfinalized object %q: %w", attrs.Name, err)
+			}
 		}
 
 		// Prefix attribute will be set for the objects returned as part of Prefix[] array in list response.
