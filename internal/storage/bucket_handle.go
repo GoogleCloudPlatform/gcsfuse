@@ -143,7 +143,10 @@ func (bh *bucketHandle) StatObject(ctx context.Context,
 		return
 	}
 	if attrs.Finalized.IsZero() {
-		err = bh.updateObjectSizeFromZeroByteReader(ctx, attrs)
+		if err = bh.updateObjectSizeFromZeroByteReader(ctx, attrs); err != nil {
+		  err = fmt.Errorf("failed to fetch the latest size of unfinalized object %q: %w", attrs.Name, err)
+		  return
+		}
 	}
 
 	// Converting attrs to type *Object
