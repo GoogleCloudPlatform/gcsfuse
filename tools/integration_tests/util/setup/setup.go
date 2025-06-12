@@ -658,7 +658,7 @@ func GetGCEZone(ctx context.Context) (string, error) {
 	attrs := detectedAttrs.Set()
 	if zoneValue, exists := attrs.Value("cloud.availability_zone"); exists {
 		zone := zoneValue.AsString()
-		// Confirm that the zone string is in right format e.g. us-central1-a .
+		// Confirm that the zone string is in right format e.g. us-central1-a.
 		if match, err := regexp.MatchString(zoneMatcherRegex, zone); !match || err != nil {
 			return zone, fmt.Errorf("zone %q returned by GCP resource detector is not a valid zone-string: %w", zone, err)
 		}
@@ -668,15 +668,15 @@ func GetGCEZone(ctx context.Context) (string, error) {
 }
 
 // GetGCERegion return the GCE region for a given GCE zone.
-// E.g. from us-central1-a, it returns us-central1 .
+// E.g. from us-central1-a, it returns us-central1.
 func GetGCERegion(gceZone string) (string, error) {
 	indexOfLastHyphen := strings.LastIndex(gceZone, "-")
 	if indexOfLastHyphen < 0 {
-		return "", fmt.Errorf("Input gceZone %q is not proper. It is expected to be of the form <country>-<region>-<zone> e.g. us-central1-a .", gceZone)
+		return "", fmt.Errorf("input gceZone %q is not proper. It is expected to be of the form <country>-<region>-<zone> e.g. us-central1-a.", gceZone)
 	}
 	region := gceZone[:indexOfLastHyphen]
 
-	// Confirm that the region string is in right format e.g. us-central1 .
+	// Confirm that the region string is in right format e.g. us-central1.
 	if match, err := regexp.MatchString(regionMatcherRegex, region); !match || err != nil {
 		return region, fmt.Errorf("zone %q returned by GCE metadata server is not a valid zone-string: %w", region, err)
 	}
