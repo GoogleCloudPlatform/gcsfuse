@@ -183,8 +183,10 @@ func (t *FileTest) TestName() {
 func (t *FileTest) TestAreBufferedWritesSupported() {
 	finalizedTime := time.Now()
 	unFinalizedTime := time.Time{}
+	nonNilContents := "taco"
 	testCases := []struct {
 		name       string
+		content    string
 		openMode   util.OpenMode
 		bucketType gcs.BucketType
 		finalized  time.Time
@@ -192,6 +194,7 @@ func (t *FileTest) TestAreBufferedWritesSupported() {
 	}{
 		{
 			name:       "AppendToFinalizedObjOnZB",
+			content:    nonNilContents,
 			bucketType: gcs.BucketType{Zonal: true},
 			finalized:  finalizedTime,
 			openMode:   util.Append,
@@ -199,6 +202,7 @@ func (t *FileTest) TestAreBufferedWritesSupported() {
 		},
 		{
 			name:       "AppendToUnfinalizedObjOnZB",
+			content:    nonNilContents,
 			bucketType: gcs.BucketType{Zonal: true},
 			finalized:  unFinalizedTime,
 			openMode:   util.Append,
@@ -206,24 +210,34 @@ func (t *FileTest) TestAreBufferedWritesSupported() {
 		},
 		{
 			name:       "AppendToObjOnNonZB",
+			content:    nonNilContents,
 			bucketType: gcs.BucketType{},
 			finalized:  finalizedTime,
 			openMode:   util.Append,
 			supported:  false,
 		},
 		{
-			name:       "NonAppend",
+			name:       "WriteToNonNilObj",
+			content:    nonNilContents,
 			bucketType: gcs.BucketType{},
 			finalized:  finalizedTime,
 			openMode:   util.Write,
 			supported:  false,
+		},
+		{
+			name:       "WriteToNilObj",
+			content:    "",
+			bucketType: gcs.BucketType{},
+			finalized:  finalizedTime,
+			openMode:   util.Write,
+			supported:  true,
 		},
 	}
 	for _, tc := range testCases {
 		t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket", tc.bucketType)
 		// Set up the backing object.
 		var err error
-		t.initialContents = "taco"
+		t.initialContents = tc.content
 		object, err := storageutil.CreateObject(
 			t.ctx,
 			t.bucket,

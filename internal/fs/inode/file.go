@@ -1061,6 +1061,9 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 }
 
 func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, obj *gcs.Object) bool {
+	if f.src.Size == 0 {
+		return true
+	}
 	if openMode == util.Append && f.bucket.BucketType().Zonal && obj.Finalized.IsZero() {
 		return true
 	}
