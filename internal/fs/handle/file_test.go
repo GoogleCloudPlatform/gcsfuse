@@ -313,3 +313,33 @@ func (t *fileTest) Test_Read_FallbackToInode() {
 	assert.Equal(t.T(), objectData, output[:n])
 	mockR.AssertExpectations(t.T())
 }
+
+func (t *fileTest) TestOpenMode() {
+	testCases := []struct {
+		name     string
+		openMode util.OpenMode
+	}{
+		{
+			name:     "OpenModeRead",
+			openMode: util.Read,
+		},
+		{
+			name:     "OpenModeWrite",
+			openMode: util.Write,
+		},
+		{
+			name:     "OpenModeAppend",
+			openMode: util.Append,
+		},
+	}
+	for _, tc := range testCases {
+		parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
+		config := &cfg.Config{Write: cfg.WriteConfig{EnableStreamingWrites: false}}
+		in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj", nil, false)
+		fh := NewFileHandle(in, nil, false, nil, tc.openMode, &cfg.ReadConfig{})
+
+		openMode := fh.OpenMode()
+
+		assert.Equal(t.T(), tc.openMode, openMode)
+	}
+}
