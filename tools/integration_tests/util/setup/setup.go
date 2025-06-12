@@ -18,8 +18,10 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"math/rand"
+	"net/http"
 	"os"
 	"os/exec"
 	"path"
@@ -641,4 +643,38 @@ func CreateProxyServerLogFile(t *testing.T) string {
 
 func AppendProxyEndpointToFlagSet(flagSet *[]string, port int) {
 	*flagSet = append(*flagSet, "--custom-endpoint="+fmt.Sprintf("http://localhost:%d/storage/v1/", port))
+}
+
+func GetGCEZone() (string, error) {
+	// Construct the metadata server URL for the zone.
+	url := "http://metadata.google.internal/computeMetadata/v1/instance/zone"
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Add the required header
+	req.Header.Set("Metadata-Flavor", "Google")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to get metadata: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to get metadata, status code: %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	fullZoneStr := string(body)
+
+	// Extract just the zone from fullZoneStr (e.g., "projects/1234/.../us-central1-a" -> "us-central1-a").
+	return fullZoneStr[strings.LastIndex(fullZoneStr, "/")+1:], nil
 }
