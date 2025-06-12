@@ -56,7 +56,8 @@ const (
 	PathEnvVariable          = "PATH"
 	GCSFuseLogFilePrefix     = "gcsfuse-failed-integration-test-logs-"
 	ProxyServerLogFilePrefix = "proxy-server-failed-integration-test-logs-"
-	zoneMatcherRegex         = "[a-z]+-[a-z0-9]+-[a-z]"
+	zoneMatcherRegex         = "^[a-z]+-[a-z0-9]+-[a-z]$"
+	regionMatcherRegex       = "^[a-z]+-[a-z0-9]+$"
 )
 
 var (
@@ -647,6 +648,8 @@ func AppendProxyEndpointToFlagSet(flagSet *[]string, port int) {
 	*flagSet = append(*flagSet, "--custom-endpoint="+fmt.Sprintf("http://localhost:%d/storage/v1/", port))
 }
 
+// GetGCEZone returns the GCE zone of the current machine from
+// the GCE metadata server.
 func GetGCEZone() (string, error) {
 	// Construct the metadata server URL for the zone.
 	url := "http://metadata.google.internal/computeMetadata/v1/instance/zone"
@@ -683,16 +686,26 @@ func GetGCEZone() (string, error) {
 
 	// Extract just the zone from fullZoneStr (e.g., "projects/1234/.../us-central1-a" -> "us-central1-a").
 	zone := fullZoneStr[strings.LastIndex(fullZoneStr, "/")+1:]
+
+	// Confirm that the zone string is in right format e.g. us-central1-a .
 	if match, err := regexp.MatchString(zoneMatcherRegex, zone); !match || err != nil {
 		return zone, fmt.Errorf("zone %q returned by GCE metadata server is not a valid zone-string: %w", zone, err)
 	}
 	return zone, nil
 }
 
+// GetGCERegion return the GCE region for a given GCE zone.
+// E.g. from us-central1-a, it returns us-central1 .
 func GetGCERegion(gceZone string) (string, error) {
 	indexOfLastHyphen := strings.LastIndex(gceZone, "-")
 	if indexOfLastHyphen < 0 {
 		return "", fmt.Errorf("Input gceZone %q is not proper. It is expected to be of the form <country>-<region>-<zone> e.g. us-central1-a .", gceZone)
 	}
-	return gceZone[0:indexOfLastHyphen], nil
+	region := gceZone[:indexOfLastHyphen]
+
+	// Confirm that the region string is in right format e.g. us-central1 .
+	if match, err := regexp.MatchString(regionMatcherRegex, region); !match || err != nil {
+		return region, fmt.Errorf("zone %q returned by GCE metadata server is not a valid zone-string: %w", region, err)
+	}
+	return region, nil
 }
