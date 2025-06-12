@@ -118,6 +118,7 @@ func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Cli
 		if err != nil {
 			return "", fmt.Errorf("failed to find the GCE region of the VM: %w", err)
 		}
+		log.Printf("Creating dynamic zonal bucket at region=%q, zone=%q ...", gceRegion, gceZone)
 		storageClassAndLocation.Location = gceRegion
 		storageClassAndLocation.CustomPlacementConfig = &storage.CustomPlacementConfig{DataLocations: []string{gceZone}}
 		storageClassAndLocation.HierarchicalNamespace = &storage.HierarchicalNamespace{
@@ -129,6 +130,7 @@ func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Cli
 	}
 
 	bucketName = PrefixBucketForDynamicMountingTest + setup.GenerateRandomString(5)
+	log.Printf("Creating dynamic bucket named %q ...", bucketName)
 	bucket := client.Bucket(bucketName)
 	if err := bucket.Create(ctx, projectID, storageClassAndLocation); err != nil {
 		return "", fmt.Errorf("failed to create bucket: %v", err)
