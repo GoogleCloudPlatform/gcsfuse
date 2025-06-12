@@ -69,31 +69,40 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsSet() {
 
 	mountConfig := &cfg.Config{}
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s AppName (GPN:gcsfuse-DLVM) (Cfg:0:0:0:0)", common.GetVersion()))
+	expectedUserAgentPrefix := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s AppName (GPN:gcsfuse-DLVM) (Cfg:0:0:0:0)", common.GetVersion()))
 
-	assert.Equal(t.T(), expectedUserAgent, userAgent)
+	assert.True(t.T(), strings.HasPrefix(userAgent, expectedUserAgentPrefix), "userAgent Prefix Not Equal to Expected")
+	mountIDPart := strings.TrimPrefix(userAgent, expectedUserAgentPrefix)
+	idStr := strings.TrimSuffix(strings.TrimPrefix(mountIDPart, " (Id:"), ")")
+	assert.Equal(t.T(), 6, len(idStr), "MountID should be 6 digits long. Got: %s", idStr)
 }
 
 func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsNotSet() {
 	mountConfig := &cfg.Config{}
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0)", common.GetVersion()))
+	expectedUserAgentPrefix := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0)", common.GetVersion()))
 
-	assert.Equal(t.T(), expectedUserAgent, userAgent)
+	assert.True(t.T(), strings.HasPrefix(userAgent, expectedUserAgentPrefix), "userAgent Prefix Not Equal to Expected")
+	mountIDPart := strings.TrimPrefix(userAgent, expectedUserAgentPrefix)
+	idStr := strings.TrimSuffix(strings.TrimPrefix(mountIDPart, " (Id:"), ")")
+	assert.Equal(t.T(), 6, len(idStr), "MountID should be 6 digits long. Got: %s", idStr)
 }
 
 func (t *MainTest) TestGetUserAgentConfigWithNoFileCache() {
 	mountConfig := &cfg.Config{}
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0)", common.GetVersion()))
-	assert.Equal(t.T(), expectedUserAgent, userAgent)
+	expectedUserAgentPrefix := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0)", common.GetVersion()))
+	assert.True(t.T(), strings.HasPrefix(userAgent, expectedUserAgentPrefix), "userAgent Prefix Not Equal to Expected")
+	mountIDPart := strings.TrimPrefix(userAgent, expectedUserAgentPrefix)
+	idStr := strings.TrimSuffix(strings.TrimPrefix(mountIDPart, " (Id:"), ")")
+	assert.Equal(t.T(), 6, len(idStr), "MountID should be 6 digits long. Got: %s", idStr)
 }
 
 func (t *MainTest) TestGetUserAgentConfig() {
 	testCases := []struct {
-		name              string
-		mountConfig       *cfg.Config
-		expectedUserAgent string
+		name                    string
+		mountConfig             *cfg.Config
+		expectedUserAgentPrefix string
 	}{
 		{
 			name: "Config with file cache disabled when cache dir is given but maxsize is set 0.",
@@ -103,7 +112,7 @@ func (t *MainTest) TestGetUserAgentConfig() {
 					MaxSizeMb: 0,
 				},
 			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0)", common.GetVersion())),
+			expectedUserAgentPrefix: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0)", common.GetVersion())),
 		},
 		{
 			name: "Config with file cache disabled where maxsize is set but cache dir is not set.",
@@ -112,7 +121,7 @@ func (t *MainTest) TestGetUserAgentConfig() {
 					MaxSizeMb: -1,
 				},
 			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0)", common.GetVersion())),
+			expectedUserAgentPrefix: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0)", common.GetVersion())),
 		},
 		{
 			name: "Config with file cache enabled but random read disabled.",
@@ -122,7 +131,7 @@ func (t *MainTest) TestGetUserAgentConfig() {
 					MaxSizeMb: -1,
 				},
 			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:0:0:0)", common.GetVersion())),
+			expectedUserAgentPrefix: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:0:0:0)", common.GetVersion())),
 		},
 		{
 			name: "Config with file cache and random read enabled.",
@@ -133,7 +142,7 @@ func (t *MainTest) TestGetUserAgentConfig() {
 					CacheFileForRangeRead: true,
 				},
 			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:1:0:0)", common.GetVersion())),
+			expectedUserAgentPrefix: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:1:0:0)", common.GetVersion())),
 		},
 		{
 			name: "Config with file cache disabled and enable parallel downloads set.",
@@ -144,7 +153,7 @@ func (t *MainTest) TestGetUserAgentConfig() {
 					EnableParallelDownloads: true,
 				},
 			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0)", common.GetVersion())),
+			expectedUserAgentPrefix: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0)", common.GetVersion())),
 		},
 		{
 			name: "Config with file cache and parallel downloads enabled.",
@@ -155,7 +164,7 @@ func (t *MainTest) TestGetUserAgentConfig() {
 					EnableParallelDownloads: true,
 				},
 			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:0:1:0)", common.GetVersion())),
+			expectedUserAgentPrefix: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:0:1:0)", common.GetVersion())),
 		},
 		{
 			name: "Config with file cache, random reads and parallel downloads enabled.",
@@ -167,7 +176,7 @@ func (t *MainTest) TestGetUserAgentConfig() {
 					EnableParallelDownloads: true,
 				},
 			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:1:1:0)", common.GetVersion())),
+			expectedUserAgentPrefix: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:1:1:0)", common.GetVersion())),
 		},
 		{
 			name: "streaming_writes_enabled",
@@ -180,7 +189,7 @@ func (t *MainTest) TestGetUserAgentConfig() {
 				},
 				Write: cfg.WriteConfig{EnableStreamingWrites: true},
 			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:0:1:1)", common.GetVersion())),
+			expectedUserAgentPrefix: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:0:1:1)", common.GetVersion())),
 		},
 		{
 			name: "streaming_writes_disabled",
@@ -193,14 +202,17 @@ func (t *MainTest) TestGetUserAgentConfig() {
 				},
 				Write: cfg.WriteConfig{EnableStreamingWrites: false},
 			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:1:0:0)", common.GetVersion())),
+			expectedUserAgentPrefix: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:1:0:0)", common.GetVersion())),
 		},
 	}
 
 	for _, tc := range testCases {
 		t.T().Run(tc.name, func(t *testing.T) {
 			userAgent := getUserAgent("AppName", getConfigForUserAgent(tc.mountConfig))
-			assert.Equal(t, tc.expectedUserAgent, userAgent)
+			assert.True(t, strings.HasPrefix(userAgent, tc.expectedUserAgentPrefix), "userAgent Prefix Not Equal to Expected")
+			mountIDPart := strings.TrimPrefix(userAgent, tc.expectedUserAgentPrefix)
+			idStr := strings.TrimSuffix(strings.TrimPrefix(mountIDPart, " (Id:"), ")")
+			assert.Equal(t, 6, len(idStr), "MountID should be 6 digits long. Got: %s", idStr)
 		})
 	}
 }
@@ -211,9 +223,11 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarSetAndAppNameNotSe
 
 	mountConfig := &cfg.Config{}
 	userAgent := getUserAgent("", getConfigForUserAgent(mountConfig))
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-DLVM) (Cfg:0:0:0:0)", common.GetVersion()))
-
-	assert.Equal(t.T(), expectedUserAgent, userAgent)
+	expectedUserAgentPrefix := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-DLVM) (Cfg:0:0:0:0)", common.GetVersion()))
+	assert.True(t.T(), strings.HasPrefix(userAgent, expectedUserAgentPrefix), "userAgent Prefix Not Equal to Expected")
+	mountIDPart := strings.TrimPrefix(userAgent, expectedUserAgentPrefix)
+	idStr := strings.TrimSuffix(strings.TrimPrefix(mountIDPart, " (Id:"), ")")
+	assert.Equal(t.T(), 6, len(idStr), "MountID should be 6 digits long. Got: %s", idStr)
 }
 
 func (t *MainTest) TestCallListRecursiveOnExistingDirectory() {
