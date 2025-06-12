@@ -424,9 +424,6 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 		var attrs *storage.ObjectAttrs
 
 		attrs, err = itr.Next()
-		if attrs.Finalized.IsZero() {
-			err = bh.updateObjectSizeFromZeroByteReader(ctx, attrs)
-		}
 		if err == iterator.Done {
 			err = nil
 			break
