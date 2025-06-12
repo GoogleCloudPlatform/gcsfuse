@@ -26,6 +26,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -55,6 +56,7 @@ const (
 	PathEnvVariable          = "PATH"
 	GCSFuseLogFilePrefix     = "gcsfuse-failed-integration-test-logs-"
 	ProxyServerLogFilePrefix = "proxy-server-failed-integration-test-logs-"
+	zoneMatcherRegex         = "[a-z]+-[a-z0-9]+-[a-z]"
 )
 
 var (
@@ -673,8 +675,16 @@ func GetGCEZone() (string, error) {
 		return "", fmt.Errorf("failed to read response body: %w", err)
 	}
 
+	if len(body) == 0 {
+		return "", fmt.Errorf("Got an empty response from GCE metadata server for GCE zone")
+	}
+
 	fullZoneStr := string(body)
 
 	// Extract just the zone from fullZoneStr (e.g., "projects/1234/.../us-central1-a" -> "us-central1-a").
-	return fullZoneStr[strings.LastIndex(fullZoneStr, "/")+1:], nil
+	zone := fullZoneStr[strings.LastIndex(fullZoneStr, "/")+1:]
+	if match, err := regexp.MatchString(zoneMatcherRegex, zone); !match || err != nil {
+		return zone, fmt.Errorf("zone %q returned by GCE metadata server is not a valid zone-string: %w", zone, err)
+	}
+	return zone, nil
 }
