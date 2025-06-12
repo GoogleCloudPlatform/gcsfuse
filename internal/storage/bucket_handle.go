@@ -161,7 +161,7 @@ func (bh *bucketHandle) StatObject(ctx context.Context,
 
 // Note: This is not production ready code and will be removed once StatObject
 // requests return correct attr values for appendable objects.
-func (bh *bucketHandle) updateObjectSizeFromZeroByteReader(ctx context.Context, attrs *storage.ObjectAttrs) error {
+func (bh *bucketHandle) fetchLatestSizeOfUnfinalizedObject(ctx context.Context, attrs *storage.ObjectAttrs) error {
 	if bh.BucketType().Zonal && bh.enableRapidAppends {
 		// Get object handle
 		obj := bh.bucket.Object(attrs.Name)
