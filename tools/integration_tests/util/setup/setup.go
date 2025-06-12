@@ -18,10 +18,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"math/rand"
-	"net/http"
 	"os"
 	"os/exec"
 	"path"
@@ -36,6 +34,8 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
+	"go.opentelemetry.io/contrib/detectors/gcp"
+	"go.opentelemetry.io/otel/sdk/resource"
 	"google.golang.org/api/iterator"
 )
 
@@ -649,49 +649,22 @@ func AppendProxyEndpointToFlagSet(flagSet *[]string, port int) {
 }
 
 // GetGCEZone returns the GCE zone of the current machine from
-// the GCE metadata server.
-func GetGCEZone() (string, error) {
-	// Construct the metadata server URL for the zone.
-	url := "http://metadata.google.internal/computeMetadata/v1/instance/zone"
-
-	req, err := http.NewRequest("GET", url, nil)
+// the GCP resource detector.
+func GetGCEZone(ctx context.Context) (string, error) {
+	detectedAttrs, err := resource.New(ctx, resource.WithDetectors(gcp.NewDetector()))
 	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
+		return "", fmt.Errorf("failed to fetch GCP resource detector: %w", err)
 	}
-
-	// Add the required header
-	req.Header.Set("Metadata-Flavor", "Google")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("failed to get metadata: %w", err)
+	attrs := detectedAttrs.Set()
+	if zoneValue, exists := attrs.Value("cloud.availability_zone"); exists {
+		zone := zoneValue.AsString()
+		// Confirm that the zone string is in right format e.g. us-central1-a .
+		if match, err := regexp.MatchString(zoneMatcherRegex, zone); !match || err != nil {
+			return zone, fmt.Errorf("zone %q returned by GCP resource detector is not a valid zone-string: %w", zone, err)
+		}
+		return zone, nil
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to get metadata, status code: %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	if len(body) == 0 {
-		return "", fmt.Errorf("Got an empty response from GCE metadata server for GCE zone")
-	}
-
-	fullZoneStr := string(body)
-
-	// Extract just the zone from fullZoneStr (e.g., "projects/1234/.../us-central1-a" -> "us-central1-a").
-	zone := fullZoneStr[strings.LastIndex(fullZoneStr, "/")+1:]
-
-	// Confirm that the zone string is in right format e.g. us-central1-a .
-	if match, err := regexp.MatchString(zoneMatcherRegex, zone); !match || err != nil {
-		return zone, fmt.Errorf("zone %q returned by GCE metadata server is not a valid zone-string: %w", zone, err)
-	}
-	return zone, nil
+	return "", fmt.Errorf("cloud.availability_zone not found in GCP resource detector")
 }
 
 // GetGCERegion return the GCE region for a given GCE zone.

@@ -110,7 +110,7 @@ func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Cli
 
 	if setup.IsZonalBucketRun() {
 		storageClassAndLocation.StorageClass = "RAPID"
-		gceZone, err := setup.GetGCEZone()
+		gceZone, err := setup.GetGCEZone(ctx)
 		if err != nil {
 			return "", fmt.Errorf("failed to find the GCE zone of the VM: %w", err)
 		}
