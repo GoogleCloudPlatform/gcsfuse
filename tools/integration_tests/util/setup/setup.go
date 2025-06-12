@@ -688,3 +688,11 @@ func GetGCEZone() (string, error) {
 	}
 	return zone, nil
 }
+
+func GetGCERegion(gceZone string) (string, error) {
+	indexOfLastHyphen := strings.LastIndex(gceZone, "-")
+	if indexOfLastHyphen < 0 {
+		return "", fmt.Errorf("Input gceZone %q is not proper. It is expected to be of the form <country>-<region>-<zone> e.g. us-central1-a .", gceZone)
+	}
+	return gceZone[0:indexOfLastHyphen], nil
+}
