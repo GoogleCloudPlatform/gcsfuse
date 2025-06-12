@@ -33,6 +33,7 @@ import (
 )
 
 const chunkTransferTimeoutSecs int64 = 10
+const nonZeroObjectSize int64 = 1024
 
 var errUploadFailure = errors.New("error while uploading object to GCS")
 
@@ -65,6 +66,25 @@ func (testSuite *BufferedWriteTest) setupTestWithBucketType(bucketType gcs.Bucke
 	testSuite.bwh = bwh
 }
 
+func (testSuite *BufferedWriteTest) setupTestWithNonZeroSizeObject() {
+	bucket := fake.NewFakeBucket(timeutil.RealClock(), "FakeBucketName", gcs.BucketType{})
+	object := gcs.Object{
+		Name: "testObject",
+		Size: uint64(nonZeroObjectSize),
+	}
+	bwh, err := NewBWHandler(&CreateBWHandlerRequest{
+		Object:                   &object,
+		ObjectName:               "testObject",
+		Bucket:                   bucket,
+		BlockSize:                blockSize,
+		MaxBlocksPerFile:         10,
+		GlobalMaxBlocksSem:       semaphore.NewWeighted(10),
+		ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
+	})
+	require.Nil(testSuite.T(), err)
+	testSuite.bwh = bwh
+}
+
 func (testSuite *BufferedWriteTest) TestSetMTime() {
 	testTime := time.Now()
 
@@ -72,6 +92,13 @@ func (testSuite *BufferedWriteTest) TestSetMTime() {
 
 	assert.Equal(testSuite.T(), testTime, testSuite.bwh.WriteFileInfo().Mtime)
 	assert.Equal(testSuite.T(), int64(0), testSuite.bwh.WriteFileInfo().TotalSize)
+}
+
+func (testSuite *BufferedWriteTest) TestSetTotalSize() {
+	testSuite.setupTestWithNonZeroSizeObject()
+	testSuite.bwh.SetTotalSize()
+
+	assert.Equal(testSuite.T(), nonZeroObjectSize, testSuite.bwh.WriteFileInfo().TotalSize)
 }
 
 func (testSuite *BufferedWriteTest) TestWrite() {
