@@ -49,7 +49,40 @@ var (
 	fsOpsMeter     = otel.Meter("fs_op")
 	gcsMeter       = otel.Meter("gcs")
 	fileCacheMeter = otel.Meter("file_cache")
+
+	emptyAttributeSet = getAttributeSet()
+
+	// attribute-sets
+	ioMethodOpenedAttributeSet = getAttributeSet(attribute.String(IOMethod, IOMethodOpened))
+
+	ioMethodClosedAttributeSet = getAttributeSet(attribute.String(IOMethod, IOMethodClosed))
+
+	ReadTypeSequentialAttributeSet = getAttributeSet(attribute.String(ReadType, ReadTypeSequential))
+	ReadTypeRandomAttributeSet     = getAttributeSet(attribute.String(ReadType, ReadTypeRandom))
+	ReadTypeParallelAttributeSet   = getAttributeSet(attribute.String(ReadType, ReadTypeParallel))
 )
+
+func getIOMethodAttributeSet(ioMethod string) metric.MeasurementOption {
+	switch ioMethod {
+	case IOMethodOpened:
+		return metric.WithAttributeSet(ioMethodOpenedAttributeSet)
+	case IOMethodClosed:
+		return metric.WithAttributeSet(ioMethodClosedAttributeSet)
+	}
+	return metric.WithAttributeSet(emptyAttributeSet)
+}
+
+func getReadTypeAttributeSet(readType string) metric.MeasurementOption {
+	switch readType {
+	case ReadTypeSequential:
+		return metric.WithAttributeSet(ReadTypeSequentialAttributeSet)
+	case ReadTypeRandom:
+		return metric.WithAttributeSet(ReadTypeRandomAttributeSet)
+	case ReadTypeParallel:
+		return metric.WithAttributeSet(ReadTypeParallelAttributeSet)
+	}
+	return metric.WithAttributeSet(emptyAttributeSet)
+}
 
 // otelMetrics maintains the list of all metrics computed in GCSFuse.
 type otelMetrics struct {
@@ -85,12 +118,18 @@ func attrsToAddOption(attrs []MetricAttr) []metric.AddOption {
 	return otelOptions
 }
 
+func getAttributeSet(attributes ...attribute.KeyValue) attribute.Set {
+	cp := make([]attribute.KeyValue, len(attributes))
+	copy(cp, attributes)
+	return attribute.NewSet(cp...)
+}
+
 func (o *otelMetrics) GCSReadBytesCount(_ context.Context, inc int64) {
 	o.gcsReadBytesCountAtomic.Add(inc)
 }
 
-func (o *otelMetrics) GCSReaderCount(ctx context.Context, inc int64, attrs []MetricAttr) {
-	o.gcsReaderCount.Add(ctx, inc, attrsToAddOption(attrs)...)
+func (o *otelMetrics) GCSReaderCount(ctx context.Context, inc int64, ioMethod string) {
+	o.gcsReaderCount.Add(ctx, inc, getIOMethodAttributeSet(ioMethod))
 }
 
 func (o *otelMetrics) GCSRequestCount(ctx context.Context, inc int64, attrs []MetricAttr) {
@@ -101,12 +140,12 @@ func (o *otelMetrics) GCSRequestLatency(ctx context.Context, latency time.Durati
 	o.gcsRequestLatency.Record(ctx, float64(latency.Milliseconds()), attrsToRecordOption(attrs)...)
 }
 
-func (o *otelMetrics) GCSReadCount(ctx context.Context, inc int64, attrs []MetricAttr) {
-	o.gcsReadCount.Add(ctx, inc, attrsToAddOption(attrs)...)
+func (o *otelMetrics) GCSReadCount(ctx context.Context, inc int64, readType string) {
+	o.gcsReadCount.Add(ctx, inc, getReadTypeAttributeSet(readType))
 }
 
-func (o *otelMetrics) GCSDownloadBytesCount(ctx context.Context, inc int64, attrs []MetricAttr) {
-	o.gcsDownloadBytesCount.Add(ctx, inc, attrsToAddOption(attrs)...)
+func (o *otelMetrics) GCSDownloadBytesCount(ctx context.Context, inc int64, readType string) {
+	o.gcsDownloadBytesCount.Add(ctx, inc, getReadTypeAttributeSet(readType))
 }
 
 func (o *otelMetrics) OpsCount(ctx context.Context, inc int64, attrs []MetricAttr) {

@@ -29,6 +29,15 @@ type ShutdownFn func(ctx context.Context) error
 // The unit can however change for different units i.e. for one metric the unit could be microseconds and for another it could be milliseconds.
 var defaultLatencyDistribution = metric.WithExplicitBucketBoundaries(1, 2, 3, 4, 5, 6, 8, 10, 13, 16, 20, 25, 30, 40, 50, 65, 80, 100, 130, 160, 200, 250, 300, 400, 500, 650, 800, 1000, 2000, 5000, 10000, 20000, 50000, 100000)
 
+const (
+	IOMethodOpened = "opened"
+	IOMethodClosed = "closed"
+
+	ReadTypeSequential = "Sequential"
+	ReadTypeRandom     = "Random"
+	ReadTypeParallel   = "Parallel"
+)
+
 // JoinShutdownFunc combines the provided shutdown functions into a single function.
 func JoinShutdownFunc(shutdownFns ...ShutdownFn) ShutdownFn {
 	return func(ctx context.Context) error {
@@ -54,11 +63,11 @@ func (a *MetricAttr) String() string {
 
 type GCSMetricHandle interface {
 	GCSReadBytesCount(ctx context.Context, inc int64)
-	GCSReaderCount(ctx context.Context, inc int64, attrs []MetricAttr)
+	GCSReaderCount(ctx context.Context, inc int64, ioMethod string)
 	GCSRequestCount(ctx context.Context, inc int64, attrs []MetricAttr)
 	GCSRequestLatency(ctx context.Context, latency time.Duration, attrs []MetricAttr)
-	GCSReadCount(ctx context.Context, inc int64, attrs []MetricAttr)
-	GCSDownloadBytesCount(ctx context.Context, inc int64, attrs []MetricAttr)
+	GCSReadCount(ctx context.Context, inc int64, readType string)
+	GCSDownloadBytesCount(ctx context.Context, inc int64, _ string)
 }
 
 type OpsMetricHandle interface {
@@ -79,6 +88,6 @@ type MetricHandle interface {
 }
 
 func CaptureGCSReadMetrics(ctx context.Context, metricHandle MetricHandle, readType string, requestedDataSize int64) {
-	metricHandle.GCSReadCount(ctx, 1, []MetricAttr{{Key: ReadType, Value: readType}})
-	metricHandle.GCSDownloadBytesCount(ctx, requestedDataSize, []MetricAttr{{Key: ReadType, Value: readType}})
+	metricHandle.GCSReadCount(ctx, 1, readType)
+	metricHandle.GCSDownloadBytesCount(ctx, requestedDataSize, readType)
 }
