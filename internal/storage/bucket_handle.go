@@ -143,9 +143,9 @@ func (bh *bucketHandle) StatObject(ctx context.Context,
 		return
 	}
 	if attrs.Finalized.IsZero() {
-		if err = bh.updateObjectSizeFromZeroByteReader(ctx, attrs); err != nil {
-		  err = fmt.Errorf("failed to fetch the latest size of unfinalized object %q: %w", attrs.Name, err)
-		  return
+		if err = bh.fetchLatestSizeOfUnfinalizedObject(ctx, attrs); err != nil {
+			err = fmt.Errorf("failed to fetch the latest size of unfinalized object %q: %w", attrs.Name, err)
+			return
 		}
 	}
 
@@ -168,8 +168,7 @@ func (bh *bucketHandle) fetchLatestSizeOfUnfinalizedObject(ctx context.Context, 
 		// Create a new reader
 		reader, err := obj.NewRangeReader(ctx, 0, 0)
 		if err != nil {
-			return fmt.Errorf("failed to create zero-byte reader for object %q: %w", attrs.Name, err)
-			return err
+			return fmt.Errorf("failed to create zero-byte reader for object %q: %v", attrs.Name, err)
 		}
 		err = reader.Close()
 		if err != nil {
@@ -433,7 +432,7 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 			return
 		}
 		if attrs.Finalized.IsZero() {
-			err = bh.updateObjectSizeFromZeroByteReader(ctx, attrs)
+			err = bh.fetchLatestSizeOfUnfinalizedObject(ctx, attrs)
 		}
 
 		// Prefix attribute will be set for the objects returned as part of Prefix[] array in list response.
