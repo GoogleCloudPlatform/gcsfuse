@@ -1502,6 +1502,18 @@ func (testSuite *BucketHandleTest) TestBucketHandleWithError() {
 	assert.Contains(testSuite.T(), err.Error(), "mocked error")
 }
 
+func (testSuite *BucketHandleTest) TestBucketHandleWithRapidAppendsEnabled() {
+	var err error
+	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).Return(&controlpb.StorageLayout{}, nil)
+	testSuite.mockClient.On("getClient", mock.Anything, mock.Anything).Return(&storage.Client{}, nil)
+
+	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "", true)
+
+	assert.NotNil(testSuite.T(), testSuite.bucketHandle)
+	assert.True(testSuite.T(), testSuite.bucketHandle.enableRapidAppends)
+	assert.Nil(testSuite.T(), err)
+}
+
 func (testSuite *BucketHandleTest) TestBucketTypeWithHierarchicalNamespaceIsNil() {
 	createBucketHandle(testSuite, &controlpb.StorageLayout{}, nil)
 

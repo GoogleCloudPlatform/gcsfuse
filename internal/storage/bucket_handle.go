@@ -433,7 +433,8 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 		}
 		if attrs.Finalized.IsZero() {
 			if err = bh.fetchLatestSizeOfUnfinalizedObject(ctx, attrs); err != nil {
-			  err = fmt.Errorf("failed to fetch the latest size of unfinalized object %q: %w", attrs.Name, err)
+				err = fmt.Errorf("failed to fetch the latest size of unfinalized object %q: %w", attrs.Name, err)
+				return
 			}
 		}
 
