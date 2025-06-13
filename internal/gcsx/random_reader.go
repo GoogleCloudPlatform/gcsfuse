@@ -24,12 +24,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	prefetch "github.com/googlecloudplatform/gcsfuse/v3/internal/buffered_reader"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	cacheutil "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/prefetch"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/jacobsa/fuse/fuseops"
@@ -105,7 +105,7 @@ const (
 
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper, config *cfg.ReadConfig, prefetcher *prefetch.PrefetchReader) RandomReader {
+func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper, config *cfg.ReadConfig, prefetcher *prefetch.BufferedReader) RandomReader {
 	return &randomReader{
 		object:                o,
 		bucket:                bucket,
@@ -120,7 +120,7 @@ func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb i
 		mrdWrapper:            mrdWrapper,
 		metricHandle:          metricHandle,
 		config:                config,
-		prefetchReader:        prefetcher,
+		bufferedReader:        prefetcher,
 	}
 }
 
@@ -175,14 +175,14 @@ type randomReader struct {
 	// boolean variable to determine if MRD is being used or not.
 	isMRDInUse bool
 
-	metricHandle   common.MetricHandle
+	metricHandle common.MetricHandle
 
 	config *cfg.ReadConfig
 
 	// Specifies the next expected offset for the reads. Used to distinguish between
 	// sequential and random reads.
 	expectedOffset int64
-	prefetchReader *prefetch.PrefetchReader
+	bufferedReader *prefetch.BufferedReader
 }
 
 func (rr *randomReader) CheckInvariants() {
@@ -333,9 +333,9 @@ func (rr *randomReader) ReadAt(
 	}
 
 	// Read from pre-fetcher if enabled.
-	if rr.prefetchReader != nil {
+	if rr.bufferedReader != nil {
 		var nn int64
-		nn, err = rr.prefetchReader.ReadAt(ctx, p, offset)
+		nn, err = rr.bufferedReader.ReadAt(ctx, p, offset)
 		if err != nil && err != io.EOF {
 			err = fmt.Errorf("ReadAt: while reading from pre-fetcher: %w", err)
 			return
@@ -433,10 +433,10 @@ func (rr *randomReader) Destroy() {
 		rr.fileCacheHandle = nil
 	}
 
-	if rr.prefetchReader != nil {
-		rr.prefetchReader.Destroy()
+	if rr.bufferedReader != nil {
+		rr.bufferedReader.Destroy()
 	}
-	rr.prefetchReader = nil
+	rr.bufferedReader = nil
 }
 
 // Like io.ReadFull, but deals with the cancellation issues.

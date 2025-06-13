@@ -32,6 +32,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	prefetch "github.com/googlecloudplatform/gcsfuse/v3/internal/buffered_reader"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
@@ -42,7 +43,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/prefetch"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/jacobsa/fuse"
@@ -220,11 +220,11 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 	root.Unlock()
 
 	// Initialize prefetcher block-pool and thread-pool if prefetch is enabled.
-	if serverCfg.NewConfig.Prefetch.Enable {
-		fs.threadPool = prefetch.NewThreadPool(uint32(serverCfg.NewConfig.Prefetch.MaxParallelism), prefetch.Download)
+	if serverCfg.NewConfig.Read.EnableBufferedRead {
+		fs.threadPool = prefetch.NewThreadPool(uint32(serverCfg.NewConfig.Read.MaxParallelism), prefetch.Download)
 		fs.threadPool.Start()
-		logger.Infof("Prefetch config: max: %d", serverCfg.NewConfig.Prefetch.MaxPrefetchSizeMb)
-		fs.blockPool = prefetch.NewBlockPool(uint64(serverCfg.NewConfig.Prefetch.BlockSizeMb*1024*1024), uint64(serverCfg.NewConfig.Prefetch.MaxPrefetchSizeMb*1024*1024))
+		logger.Infof("Prefetch config: max: %d", serverCfg.NewConfig.Read.GlobalMaxBlocks)
+		fs.blockPool = prefetch.NewBlockPool(uint64(serverCfg.NewConfig.Read.BlockSizeMb*1024*1024), uint64(serverCfg.NewConfig.Read.GlobalMaxBlocks*serverCfg.NewConfig.Read.BlockSizeMb*1024*1024))
 	}
 
 	// Set up invariant checking.
@@ -1861,16 +1861,16 @@ func (fs *fileSystem) CreateFile(
 	fs.nextHandleID++
 
 	// Get prefetch config from the mount config.
-	prefetchConfig := &prefetch.PrefetchConfig{
-		PrefetchCount: fs.newConfig.Prefetch.MaxPrefetchBlocks, 
-		PrefetchChunkSize: fs.newConfig.Prefetch.BlockSizeMb * 1024 * 1024,
-		PrefetchMultiplier: 2,
-		InitialPrefetchBlockCnt: fs.newConfig.Prefetch.InitialPrefetchBlocks,
+	bufferedReadConfig := &prefetch.BufferedReadConfig{
+		PrefetchCount:           fs.newConfig.Read.MaxBlocksPerHandle,
+		PrefetchChunkSize:       fs.newConfig.Read.BlockSizeMb * 1024 * 1024,
+		PrefetchMultiplier:      2,
+		InitialPrefetchBlockCnt: fs.newConfig.Read.StartBlocksPerHandle,
 	}
 
 	// CreateFile() invoked to create new files, can be safely considered as filehandle
 	// opened in append mode.
-	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, util.Append, &fs.newConfig.Read, fs.threadPool, fs.blockPool, prefetchConfig)
+	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, util.Append, &fs.newConfig.Read, fs.threadPool, fs.blockPool, bufferedReadConfig)
 	op.Handle = handleID
 
 	fs.mu.Unlock()
@@ -2594,17 +2594,7 @@ func (fs *fileSystem) OpenFile(
 
 	// Figure out the mode in which the file is being opened.
 	openMode := util.FileOpenMode(op)
-	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, &fs.newConfig.Read, fs.threadPool, fs.blockPool, &prefetch.PrefetchConfig{PrefetchCount: fs.newConfig.Prefetch.MaxPrefetchBlocks, PrefetchChunkSize: fs.newConfig.Prefetch.BlockSizeMb * 1024 * 1024})
-	// Get prefetch config from the mount config.
-	prefetchConfig := &prefetch.PrefetchConfig{
-		PrefetchCount: fs.newConfig.Prefetch.MaxPrefetchBlocks, 
-		PrefetchChunkSize: fs.newConfig.Prefetch.BlockSizeMb * 1024 * 1024,
-		PrefetchMultiplier: 2,
-		InitialPrefetchBlockCnt: fs.newConfig.Prefetch.InitialPrefetchBlocks,
-	}
-
-	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, op.OpenFlags.IsReadOnly(), fs.threadPool, fs.blockPool, prefetchConfig)
-	logger.Info("Handle created with ")
+	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, &fs.newConfig.Read, fs.threadPool, fs.blockPool, &prefetch.BufferedReadConfig{PrefetchCount: fs.newConfig.Read.MaxBlocksPerHandle, PrefetchChunkSize: fs.newConfig.Read.BlockSizeMb * 1024 * 1024})
 	op.Handle = handleID
 
 	// When we observe object generations that we didn't create, we assign them

@@ -705,6 +705,24 @@
   default: false
   hide-flag: true
 
+- config-path: "read.block-size-mb"
+  flag-name: "read-block-size-mb"
+  type: "int"
+  usage: "Part size for the non-file-cache flow."
+  default: 16
+
+- config-path: "read.enable-buffered-read"
+  flag-name: "enable-buffered-read"
+  type: "bool"
+  usage: "Part size for the non-file-cache flow."
+  default: false
+
+- config-path: "read.global-max-blocks"
+  flag-name: "read-global-max-blocks"
+  type: "int"
+  usage: "Per file max number of blocks to be prefetched."
+  default: 60
+
 - config-path: "read.inactive-stream-timeout"
   flag-name: "read-inactive-stream-timeout"
   type: "duration"
@@ -715,41 +733,24 @@
   default: "10s"
   hide-flag: true
 
-- config-path: "prefetch.block-size-mb"
-  flag-name: "prefetch-block-size-mb"
+- config-path: "read.max-blocks-per-handle"
+  flag-name: "read-max-blocks-per-handle"
   type: "int"
-  usage: "Part size for the non-file-cache flow."
-  default: 16
+  usage: "Total cap over memory used for prefetch."
+  default: 20
 
-- config-path: "prefetch.enable"
-  flag-name: "enable-prefetch"
-  type: "bool"
-  usage: "Part size for the non-file-cache flow."
-  default: false
-
-- config-path: "prefetch.initial-prefetch-blocks"
-  flag-name: "prefetch-initial-prefetch-blocks"
-  type: "int"
-  usage: "Per file initial number of blocks to be prefetched."
-  default: 4
-
-- config-path: "prefetch.max-parallelism"
-  flag-name: "prefetch-max-parallelism"
+- config-path: "read.max-parallelism"
+  flag-name: "read-max-parallelism"
   type: "int"
   usage: "Upper limit of overall parallelism."
   default: "100"
 
-- config-path: "prefetch.max-prefetch-blocks"
-  flag-name: "prefetch-max-prefetch-blocks"
+- config-path: "read.start-blocks-per-handle"
+  flag-name: "read-start-blocks-per-handle"
   type: "int"
-  usage: "Per file max number of blocks to be prefetched."
-  default: 20
+  usage: "Per file initial number of blocks to be prefetched."
+  default: 4
 
-- config-path: "prefetch.max-prefetch-size-mb"
-  flag-name: "prefetch-max-prefetch-size-mb"
-  type: "int"
-  usage: "Total cap over memory used for prefetch."
-  default: 1024
 
 - config-path: "write.block-size-mb"
   flag-name: "write-block-size-mb"

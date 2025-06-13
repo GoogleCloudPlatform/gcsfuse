@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package prefetch
+package buffered_reader
 
 import (
 	"sync"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 )
 
 // ThreadPool is a group of workers that can be used to execute a task

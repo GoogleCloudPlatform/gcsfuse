@@ -1,10 +1,10 @@
-package prefetch_test
+package buffered_reader_test
 
 import (
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/prefetch"
+	prefetch "github.com/googlecloudplatform/gcsfuse/v3/internal/buffered_reader"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

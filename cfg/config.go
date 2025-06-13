@@ -70,8 +70,6 @@ type Config struct {
 
 	Read ReadConfig `yaml:"read"`
 
-	Prefetch PrefetchConfig `yaml:"prefetch"`
-
 	Write WriteConfig `yaml:"write"`
 }
 
@@ -252,21 +250,19 @@ type ProfilingConfig struct {
 }
 
 type ReadConfig struct {
-	InactiveStreamTimeout time.Duration `yaml:"inactive-stream-timeout"`
-}
-
-type PrefetchConfig struct {
 	BlockSizeMb int64 `yaml:"block-size-mb"`
 
-	Enable bool `yaml:"enable"`
+	EnableBufferedRead bool `yaml:"enable-buffered-read"`
 
-	InitialPrefetchBlocks int64 `yaml:"initial-prefetch-blocks"`
+	GlobalMaxBlocks int64 `yaml:"global-max-blocks"`
+
+	InactiveStreamTimeout time.Duration `yaml:"inactive-stream-timeout"`
+
+	MaxBlocksPerHandle int64 `yaml:"max-blocks-per-handle"`
 
 	MaxParallelism int64 `yaml:"max-parallelism"`
 
-	MaxPrefetchBlocks int64 `yaml:"max-prefetch-blocks"`
-
-	MaxPrefetchSizeMb int64 `yaml:"max-prefetch-size-mb"`
+	StartBlocksPerHandle int64 `yaml:"start-blocks-per-handle"`
 }
 
 type ReadStallGcsRetriesConfig struct {
@@ -375,6 +371,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.BoolP("enable-buffered-read", "", false, "Part size for the non-file-cache flow.")
+
 	flagSet.BoolP("enable-cloud-profiling", "", false, "Enables cloud profiling, by default disabled.")
 
 	if err := flagSet.MarkHidden("enable-cloud-profiling"); err != nil {
@@ -400,8 +398,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.")
-
-	flagSet.BoolP("enable-prefetch", "", false, "Part size for the non-file-cache flow.")
 
 	flagSet.BoolP("enable-read-stall-retry", "", false, "To turn on/off retries for stalled read requests. This is based on a timeout that changes depending on how long similar requests took in the past.")
 
@@ -549,16 +545,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("prefetch-block-size-mb", "", 16, "Part size for the non-file-cache flow.")
-
-	flagSet.IntP("prefetch-initial-prefetch-blocks", "", 4, "Per file initial number of blocks to be prefetched.")
-
-	flagSet.IntP("prefetch-max-parallelism", "", 100, "Upper limit of overall parallelism.")
-
-	flagSet.IntP("prefetch-max-prefetch-blocks", "", 20, "Per file max number of blocks to be prefetched.")
-
-	flagSet.IntP("prefetch-max-prefetch-size-mb", "", 1024, "Total cap over memory used for prefetch.")
-
 	flagSet.BoolP("profiling-allocated-heap", "", true, "Enables allocated heap (HeapProfileAllocs) profiling. This only works when --enable-cloud-profiling is set to true.")
 
 	if err := flagSet.MarkHidden("profiling-allocated-heap"); err != nil {
@@ -597,11 +583,19 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
 
+	flagSet.IntP("read-block-size-mb", "", 16, "Part size for the non-file-cache flow.")
+
+	flagSet.IntP("read-global-max-blocks", "", 60, "Per file max number of blocks to be prefetched.")
+
 	flagSet.DurationP("read-inactive-stream-timeout", "", 10000000000*time.Nanosecond, "Duration of inactivity after which an open GCS read stream is automatically closed. This helps conserve resources when a file handle remains open without active Read calls. A value of '0s' disables this timeout.")
 
 	if err := flagSet.MarkHidden("read-inactive-stream-timeout"); err != nil {
 		return err
 	}
+
+	flagSet.IntP("read-max-blocks-per-handle", "", 20, "Total cap over memory used for prefetch.")
+
+	flagSet.IntP("read-max-parallelism", "", 100, "Upper limit of overall parallelism.")
 
 	flagSet.DurationP("read-stall-initial-req-timeout", "", 20000000000*time.Nanosecond, "Initial value of the read-request dynamic timeout.")
 
@@ -632,6 +626,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	if err := flagSet.MarkHidden("read-stall-req-target-percentile"); err != nil {
 		return err
 	}
+
+	flagSet.IntP("read-start-blocks-per-handle", "", 4, "Per file initial number of blocks to be prefetched.")
 
 	flagSet.IntP("rename-dir-limit", "", 0, "Allow rename a directory containing fewer descendants than this limit.")
 
@@ -768,6 +764,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("read.enable-buffered-read", flagSet.Lookup("enable-buffered-read")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("profiling.enabled", flagSet.Lookup("enable-cloud-profiling")); err != nil {
 		return err
 	}
@@ -784,15 +784,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("enable-new-reader", flagSet.Lookup("enable-new-reader")); err != nil {
-		return err
-	}
-
 	if err := v.BindPFlag("metadata-cache.enable-nonexistent-type-cache", flagSet.Lookup("enable-nonexistent-type-cache")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("prefetch.enable", flagSet.Lookup("enable-prefetch")); err != nil {
 		return err
 	}
 
@@ -972,26 +964,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("prefetch.block-size-mb", flagSet.Lookup("prefetch-block-size-mb")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("prefetch.initial-prefetch-blocks", flagSet.Lookup("prefetch-initial-prefetch-blocks")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("prefetch.max-parallelism", flagSet.Lookup("prefetch-max-parallelism")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("prefetch.max-prefetch-blocks", flagSet.Lookup("prefetch-max-prefetch-blocks")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("prefetch.max-prefetch-size-mb", flagSet.Lookup("prefetch-max-prefetch-size-mb")); err != nil {
-		return err
-	}
-
 	if err := v.BindPFlag("profiling.allocated-heap", flagSet.Lookup("profiling-allocated-heap")); err != nil {
 		return err
 	}
@@ -1020,7 +992,23 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("read.block-size-mb", flagSet.Lookup("read-block-size-mb")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.global-max-blocks", flagSet.Lookup("read-global-max-blocks")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("read.inactive-stream-timeout", flagSet.Lookup("read-inactive-stream-timeout")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.max-blocks-per-handle", flagSet.Lookup("read-max-blocks-per-handle")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.max-parallelism", flagSet.Lookup("read-max-parallelism")); err != nil {
 		return err
 	}
 
@@ -1041,6 +1029,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-retries.read-stall.req-target-percentile", flagSet.Lookup("read-stall-req-target-percentile")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.start-blocks-per-handle", flagSet.Lookup("read-start-blocks-per-handle")); err != nil {
 		return err
 	}
 

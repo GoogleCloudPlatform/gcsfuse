@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package prefetch
+package buffered_reader
 
 import (
 	"fmt"
@@ -20,21 +20,21 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/googlecloudplatform/gcsfuse/v2/common"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
 
-type PrefetchConfig struct {
+type BufferedReadConfig struct {
 	PrefetchCount           int64
 	PrefetchChunkSize       int64
 	InitialPrefetchBlockCnt int64
 	PrefetchMultiplier      int64
 }
 
-func getDefaultPrefetchConfig() *PrefetchConfig {
-	return &PrefetchConfig{
+func getDefaultBufferedReadConfig() *BufferedReadConfig {
+	return &BufferedReadConfig{
 		PrefetchCount:           6,
 		PrefetchChunkSize:       10 * int64(_1MB),
 		InitialPrefetchBlockCnt: 1,
@@ -42,10 +42,10 @@ func getDefaultPrefetchConfig() *PrefetchConfig {
 	}
 }
 
-type PrefetchReader struct {
+type BufferedReader struct {
 	object              *gcs.MinObject
 	bucket              gcs.Bucket
-	config              *PrefetchConfig
+	config              *BufferedReadConfig
 	lastReadOffset      int64
 	nextBlockToPrefetch int64
 
@@ -67,14 +67,14 @@ type PrefetchReader struct {
 	ctx        context.Context
 }
 
-func (p *PrefetchReader) Close() error {
+func (p *BufferedReader) Close() error {
 	p.Destroy()
 	return nil
 
 }
 
-func NewPrefetchReader(object *gcs.MinObject, bucket gcs.Bucket, config *PrefetchConfig, blockPool *BlockPool, threadPool *ThreadPool) *PrefetchReader {
-	prefetchReader := &PrefetchReader{
+func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *BufferedReadConfig, blockPool *BlockPool, threadPool *ThreadPool) *BufferedReader {
+	bufferedReader := &BufferedReader{
 		object:              object,
 		bucket:              bucket,
 		config:              config,
@@ -87,8 +87,8 @@ func NewPrefetchReader(object *gcs.MinObject, bucket gcs.Bucket, config *Prefetc
 		metricHandle:        nil,
 	}
 
-	prefetchReader.ctx, prefetchReader.cancelFunc = context.WithCancel(context.Background())
-	return prefetchReader
+	bufferedReader.ctx, bufferedReader.cancelFunc = context.WithCancel(context.Background())
+	return bufferedReader
 }
 
 /**
@@ -97,7 +97,7 @@ func NewPrefetchReader(object *gcs.MinObject, bucket gcs.Bucket, config *Prefetc
  * If it is, it reads the data from the block.
  * If it is not, it downloads the block from GCS and then reads the data from the block.
  */
-func (p *PrefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset int64) (n int64, err error) {
+func (p *BufferedReader) ReadAt(ctx context.Context, inputBuffer []byte, offset int64) (n int64, err error) {
 	// Generate an unique id in the request
 	requestId := uuid.New()
 	stime := time.Now()
@@ -192,7 +192,7 @@ func (p *PrefetchReader) ReadAt(ctx context.Context, inputBuffer []byte, offset 
 	return
 }
 
-func (p *PrefetchReader) prefetch() error {
+func (p *BufferedReader) prefetch() error {
 	nextPrefetchCount := p.config.PrefetchMultiplier * p.lastPrefetchCount
 	nextPrefetchCount = min(nextPrefetchCount, p.config.PrefetchCount-int64(p.blockQueue.Len()))
 
@@ -209,7 +209,7 @@ func (p *PrefetchReader) prefetch() error {
 }
 
 // freshStart to start from a given offset.
-func (p *PrefetchReader) freshStart(currentSeek int64) error {
+func (p *BufferedReader) freshStart(currentSeek int64) error {
 	p.resetPrefetcher()
 	blockIndex := currentSeek / p.config.PrefetchChunkSize
 	p.nextBlockToPrefetch = blockIndex
@@ -229,7 +229,7 @@ func (p *PrefetchReader) freshStart(currentSeek int64) error {
 	return nil
 }
 
-func (p *PrefetchReader) scheduleNextBlock(prefetch bool) error {
+func (p *BufferedReader) scheduleNextBlock(prefetch bool) error {
 	block := p.blockPool.MustGet()
 	if block == nil {
 		return fmt.Errorf("unable to allocate block")
@@ -242,7 +242,7 @@ func (p *PrefetchReader) scheduleNextBlock(prefetch bool) error {
 }
 
 // scheduleBlock create a prefetch task for the given block and schedule it to thread-pool.
-func (p *PrefetchReader) scheduleBlockWithIndex(block *Block, blockIndex int64, prefetch bool) {
+func (p *BufferedReader) scheduleBlockWithIndex(block *Block, blockIndex int64, prefetch bool) {
 	blockCtx, cancel := context.WithCancel(p.ctx)
 
 	p.prepareBlock(blockIndex, block)
@@ -264,7 +264,7 @@ func (p *PrefetchReader) scheduleBlockWithIndex(block *Block, blockIndex int64, 
 }
 
 // prepareBlock initializes block-state according to blockIndex.
-func (p *PrefetchReader) prepareBlock(blockIndex int64, block *Block) {
+func (p *BufferedReader) prepareBlock(blockIndex int64, block *Block) {
 	block.id = blockIndex
 	block.offset = uint64(blockIndex * p.config.PrefetchChunkSize)
 	block.writeSeek = 0
@@ -272,7 +272,7 @@ func (p *PrefetchReader) prepareBlock(blockIndex int64, block *Block) {
 }
 
 // Destroy cancels/discards the blocks in the blockQueue.
-func (p *PrefetchReader) Destroy() {
+func (p *BufferedReader) Destroy() {
 	if p.cancelFunc != nil {
 		p.cancelFunc()
 		p.cancelFunc = nil
@@ -292,7 +292,7 @@ func (p *PrefetchReader) Destroy() {
 	p.blockPool = nil
 }
 
-func (p *PrefetchReader) resetPrefetcher() {
+func (p *BufferedReader) resetPrefetcher() {
 	// Cancel all the processed or in process queue in the queue.
 	for !p.blockQueue.IsEmpty() {
 		block := p.blockQueue.Pop()
@@ -305,6 +305,6 @@ func (p *PrefetchReader) resetPrefetcher() {
 	}
 }
 
-func (p *PrefetchReader) maxBlockCount() int64 {
+func (p *BufferedReader) maxBlockCount() int64 {
 	return (int64(p.object.Size) + p.config.PrefetchChunkSize - 1) / p.config.PrefetchChunkSize
 }

@@ -21,14 +21,13 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	prefetch "github.com/googlecloudplatform/gcsfuse/v3/internal/buffered_reader"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/read_manager"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/prefetch"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 )
@@ -68,13 +67,13 @@ type FileHandle struct {
 	// Read related mounting configuration.
 	readConfig *cfg.ReadConfig
 
-	threadPool     *prefetch.ThreadPool
-	blockPool      *prefetch.BlockPool
-	prefetchConfig *prefetch.PrefetchConfig
+	threadPool         *prefetch.ThreadPool
+	blockPool          *prefetch.BlockPool
+	bufferedReadConfig *prefetch.BufferedReadConfig
 }
 
 // LOCKS_REQUIRED(fh.inode.mu)
-func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, openMode util.OpenMode, rc *cfg.ReadConfig, threadPool *prefetch.ThreadPool, blockPool *prefetch.BlockPool, prefetchConfig *prefetch.PrefetchConfig) (fh *FileHandle) {
+func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, openMode util.OpenMode, rc *cfg.ReadConfig, threadPool *prefetch.ThreadPool, blockPool *prefetch.BlockPool, bufferedReadConfig *prefetch.BufferedReadConfig) (fh *FileHandle) {
 	fh = &FileHandle{
 		inode:                 inode,
 		fileCacheHandler:      fileCacheHandler,
@@ -84,7 +83,7 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 		readConfig:            rc,
 		threadPool:            threadPool,
 		blockPool:             blockPool,
-		prefetchConfig:        prefetchConfig,
+		bufferedReadConfig:    bufferedReadConfig,
 	}
 
 	fh.inode.RegisterFileHandle(fh.openMode == util.Read)
@@ -282,10 +281,10 @@ func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb 
 	}
 
 	// Attempt to create an appropriate reader.
-	var prefetcher *prefetch.PrefetchReader
+	var prefetcher *prefetch.BufferedReader
 	if fh.threadPool != nil && fh.blockPool != nil {
-		logger.Infof("Creating the prefetcher with block-size: %d, prefetch-count: %d.", fh.prefetchConfig.PrefetchChunkSize, fh.prefetchConfig.PrefetchCount)
-		prefetcher = prefetch.NewPrefetchReader(fh.inode.Source(), fh.inode.Bucket(), fh.prefetchConfig, fh.blockPool, fh.threadPool)
+		logger.Infof("Creating the prefetcher with block-size: %d, prefetch-count: %d.", fh.bufferedReadConfig.PrefetchChunkSize, fh.bufferedReadConfig.PrefetchCount)
+		prefetcher = prefetch.NewBufferedReader(fh.inode.Source(), fh.inode.Bucket(), fh.bufferedReadConfig, fh.blockPool, fh.threadPool)
 	}
 	rr := gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, &fh.inode.MRDWrapper, fh.readConfig, prefetcher)
 

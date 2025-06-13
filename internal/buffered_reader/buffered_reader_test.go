@@ -1,5 +1,5 @@
 // Write stretchr testify based test for prefetcher.go file
-package prefetch
+package buffered_reader
 
 import (
 	"context"
@@ -9,11 +9,11 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -25,7 +25,7 @@ type prefetchTestSuite struct {
 	assert         *assert.Assertions
 	threadPool     *ThreadPool
 	blockPool      *BlockPool
-	PrefetchReader *PrefetchReader
+	BufferedReader *BufferedReader
 
 	fakeStorage storage.FakeStorage
 	object      gcs.MinObject
@@ -56,7 +56,7 @@ func (ps *prefetchTestSuite) SetupSuite() {
 	ps.threadPool.Start()
 
 	// Block pool.
-	ps.blockPool = NewBlockPool(uint64(getDefaultPrefetchConfig().PrefetchChunkSize), 3024*_1MB)
+	ps.blockPool = NewBlockPool(uint64(getDefaultBufferedReadConfig().PrefetchChunkSize), 3024*_1MB)
 
 	// Storage, bucket and object.
 	mockClient := new(storage.MockStorageControlClient)
@@ -65,7 +65,7 @@ func (ps *prefetchTestSuite) SetupSuite() {
 	mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
 		Return(&controlpb.StorageLayout{}, nil)
 	var err error
-	ps.bucket, err = storageHandle.BucketHandle(context.Background(), storage.TestBucketName, "")
+	ps.bucket, err = storageHandle.BucketHandle(context.Background(), storage.TestBucketName, "", false)
 	ps.assert.NoError(err)
 	_, err = storageutil.CreateObject(context.Background(), ps.bucket, storage.TestObjectName, make([]byte, 200*_1MB))
 	ps.object = getMinObject(storage.TestObjectName, ps.bucket)
@@ -83,39 +83,39 @@ func (ps *prefetchTestSuite) TearDownSuite() {
 	logger.Infof("Total teardown time: %v\n", time.Since(stime))
 }
 
-func (ps *prefetchTestSuite) TestNewPrefetchReader() {
+func (ps *prefetchTestSuite) TestNewBufferedReader() {
 	// Create a prefetch reader
-	PrefetchReader := NewPrefetchReader(&ps.object, ps.bucket, getDefaultPrefetchConfig(), ps.blockPool, ps.threadPool)
+	BufferedReader := NewBufferedReader(&ps.object, ps.bucket, getDefaultBufferedReadConfig(), ps.blockPool, ps.threadPool)
 
 	// Assert that the prefetch reader is not nil
-	ps.assert.NotNil(PrefetchReader)
+	ps.assert.NotNil(BufferedReader)
 
 	// Assert that the object, bucket, and prefetch config are set correctly
-	ps.assert.Equal(PrefetchReader.object, &ps.object)
-	ps.assert.Equal(PrefetchReader.bucket, ps.bucket)
-	ps.assert.NotNil(PrefetchReader.config)
+	ps.assert.Equal(BufferedReader.object, &ps.object)
+	ps.assert.Equal(BufferedReader.bucket, ps.bucket)
+	ps.assert.NotNil(BufferedReader.config)
 
 	// Assert that the other fields are initialized correctly
-	ps.assert.Equal(PrefetchReader.lastReadOffset, int64(-1))
-	ps.assert.Equal(PrefetchReader.nextBlockToPrefetch, int64(0))
-	ps.assert.Equal(PrefetchReader.randomSeekCount, int64(0))
-	ps.assert.Nil(PrefetchReader.readHandle)
-	ps.assert.Equal(PrefetchReader.blockPool, ps.blockPool)
-	ps.assert.Equal(PrefetchReader.threadPool, ps.threadPool)
-	ps.assert.Nil(PrefetchReader.metricHandle)
+	ps.assert.Equal(BufferedReader.lastReadOffset, int64(-1))
+	ps.assert.Equal(BufferedReader.nextBlockToPrefetch, int64(0))
+	ps.assert.Equal(BufferedReader.randomSeekCount, int64(0))
+	ps.assert.Nil(BufferedReader.readHandle)
+	ps.assert.Equal(BufferedReader.blockPool, ps.blockPool)
+	ps.assert.Equal(BufferedReader.threadPool, ps.threadPool)
+	ps.assert.Nil(BufferedReader.metricHandle)
 
 	// Destroy the prefetch reader
-	PrefetchReader.Destroy()
+	BufferedReader.Destroy()
 }
 
 func (ps *prefetchTestSuite) TestSequentialRead() {
-	PrefetchReader := NewPrefetchReader(&ps.object, ps.bucket, getDefaultPrefetchConfig(), ps.blockPool, ps.threadPool)
+	BufferedReader := NewBufferedReader(&ps.object, ps.bucket, getDefaultBufferedReadConfig(), ps.blockPool, ps.threadPool)
 
 	buffer := make([]byte, _1MB)
 	offset := int64(0)
 	timerS := time.Now()
 	for offset = int64(0); offset < int64(200*_1MB); offset += int64(len(buffer)) {
-		n, err := PrefetchReader.ReadAt(context.Background(), buffer, offset)
+		n, err := BufferedReader.ReadAt(context.Background(), buffer, offset)
 		ps.assert.True(err == nil || err == io.EOF)
 		ps.assert.Equal(len(buffer), int(n))
 	}
@@ -124,15 +124,15 @@ func (ps *prefetchTestSuite) TestSequentialRead() {
 }
 
 func (ps *prefetchTestSuite) TestSequentialReadWithHighInitialPrefetch() {
-	defaultConfig := getDefaultPrefetchConfig()
+	defaultConfig := getDefaultBufferedReadConfig()
 	defaultConfig.InitialPrefetchBlockCnt = 100
-	PrefetchReader := NewPrefetchReader(&ps.object, ps.bucket, defaultConfig, ps.blockPool, ps.threadPool)
+	BufferedReader := NewBufferedReader(&ps.object, ps.bucket, defaultConfig, ps.blockPool, ps.threadPool)
 
 	timerS := time.Now()
 	buffer := make([]byte, _1MB)
 	offset := int64(0)
 	for offset = int64(0); offset < int64(200*_1MB); offset += int64(len(buffer)) {
-		n, err := PrefetchReader.ReadAt(context.Background(), buffer, offset)
+		n, err := BufferedReader.ReadAt(context.Background(), buffer, offset)
 		ps.assert.True(err == nil || err == io.EOF)
 		ps.assert.Equal(len(buffer), int(n))
 	}
