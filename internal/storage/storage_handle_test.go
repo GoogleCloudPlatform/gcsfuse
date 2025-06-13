@@ -77,7 +77,7 @@ func (testSuite *StorageHandleTest) mockStorageLayout(bucketType gcs.BucketType)
 func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketExistsWithEmptyBillingProject() {
 	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
 	testSuite.mockStorageLayout(gcs.BucketType{})
-	bucketHandle, err := storageHandle.BucketHandle(testSuite.ctx, TestBucketName, "")
+	bucketHandle, err := storageHandle.BucketHandle(testSuite.ctx, TestBucketName, "", false)
 
 	assert.NotNil(testSuite.T(), bucketHandle)
 	assert.Nil(testSuite.T(), err)
@@ -90,7 +90,7 @@ func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithEm
 	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, fmt.Errorf("bucket does not exist"))
-	bucketHandle, err := storageHandle.BucketHandle(testSuite.ctx, invalidBucketName, "")
+	bucketHandle, err := storageHandle.BucketHandle(testSuite.ctx, invalidBucketName, "", false)
 
 	assert.NotNil(testSuite.T(), err)
 	assert.Nil(testSuite.T(), bucketHandle)
@@ -100,7 +100,7 @@ func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketExistsWithNonEmpty
 	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
 	testSuite.mockStorageLayout(gcs.BucketType{Hierarchical: true})
 
-	bucketHandle, err := storageHandle.BucketHandle(testSuite.ctx, TestBucketName, projectID)
+	bucketHandle, err := storageHandle.BucketHandle(testSuite.ctx, TestBucketName, projectID, false)
 
 	assert.NotNil(testSuite.T(), bucketHandle)
 	assert.Nil(testSuite.T(), err)
@@ -116,7 +116,7 @@ func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithNo
 	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, fmt.Errorf("bucket does not exist"))
-	bucketHandle, err := storageHandle.BucketHandle(testSuite.ctx, invalidBucketName, projectID)
+	bucketHandle, err := storageHandle.BucketHandle(testSuite.ctx, invalidBucketName, projectID, false)
 
 	assert.Nil(testSuite.T(), bucketHandle)
 	assert.NotNil(testSuite.T(), err)
@@ -253,7 +253,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtoco
 	testSuite.mockStorageLayout(gcs.BucketType{})
 	sh := fakeStorage.CreateStorageHandle()
 	assert.NotNil(testSuite.T(), sh)
-	bh, err := sh.BucketHandle(testSuite.ctx, TestBucketName, projectID)
+	bh, err := sh.BucketHandle(testSuite.ctx, TestBucketName, projectID, false)
 
 	assert.Nil(testSuite.T(), bh)
 	assert.NotNil(testSuite.T(), err)

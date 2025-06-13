@@ -39,10 +39,11 @@ const FullBucketPathHNS = "projects/_/buckets/%s"
 
 type bucketHandle struct {
 	gcs.Bucket
-	bucket        *storage.BucketHandle
-	bucketName    string
-	bucketType    *gcs.BucketType
-	controlClient StorageControlClient
+	bucket             *storage.BucketHandle
+	bucketName         string
+	bucketType         *gcs.BucketType
+	controlClient      StorageControlClient
+	enableRapidAppends bool
 }
 
 func (bh *bucketHandle) Name() string {
@@ -141,6 +142,12 @@ func (bh *bucketHandle) StatObject(ctx context.Context,
 		err = fmt.Errorf("error in fetching object attributes: %w", err)
 		return
 	}
+	if attrs.Finalized.IsZero() {
+		if err = bh.fetchLatestSizeOfUnfinalizedObject(ctx, attrs); err != nil {
+			err = fmt.Errorf("failed to fetch the latest size of unfinalized object %q: %w", attrs.Name, err)
+			return
+		}
+	}
 
 	// Converting attrs to type *Object
 	o := storageutil.ObjectAttrsToBucketObject(attrs)
@@ -150,6 +157,29 @@ func (bh *bucketHandle) StatObject(ctx context.Context,
 	}
 
 	return
+}
+
+// Note: This is not production ready code and will be removed once StatObject
+// requests return correct attr values for appendable objects.
+func (bh *bucketHandle) fetchLatestSizeOfUnfinalizedObject(ctx context.Context, attrs *storage.ObjectAttrs) error {
+	if bh.BucketType().Zonal && bh.enableRapidAppends {
+		// Get object handle
+		obj := bh.bucket.Object(attrs.Name)
+		// Create a new reader
+		reader, err := obj.NewRangeReader(ctx, 0, 0)
+		if err != nil {
+			return fmt.Errorf("failed to create zero-byte reader for object %q: %v", attrs.Name, err)
+		}
+		err = reader.Close()
+		if err != nil {
+			logger.Warnf("failed to close zero-byte reader for object %q: %v", attrs.Name, err)
+		}
+
+		// Set the size
+		attrs.Size = reader.Attrs.Size
+		return nil
+	}
+	return nil
 }
 
 func (bh *bucketHandle) getObjectHandleWithPreconditionsSet(req *gcs.CreateObjectRequest) *storage.ObjectHandle {
@@ -400,6 +430,12 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 		if err != nil {
 			err = fmt.Errorf("error in iterating through objects: %w", err)
 			return
+		}
+		if attrs.Finalized.IsZero() {
+			if err = bh.fetchLatestSizeOfUnfinalizedObject(ctx, attrs); err != nil {
+				err = fmt.Errorf("failed to fetch the latest size of unfinalized object %q: %w", attrs.Name, err)
+				return
+			}
 		}
 
 		// Prefix attribute will be set for the objects returned as part of Prefix[] array in list response.
