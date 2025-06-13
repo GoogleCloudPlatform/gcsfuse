@@ -2,7 +2,7 @@ module github.com/googlecloudplatform/gcsfuse/v3
 
 go 1.24.0
 
-replace github.com/jacobsa/fuse => github.com/aditimittal2003/fuse v0.0.0-20250604052508-82fb19e584cc
+replace github.com/jacobsa/fuse => github.com/aditimittal2003/fuse v0.0.0-20250609122155-cd3b8e0bf5a5
 
 require (
 	cloud.google.com/go/compute/metadata v0.7.0

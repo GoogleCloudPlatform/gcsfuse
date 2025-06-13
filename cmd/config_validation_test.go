@@ -509,7 +509,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					DirMode:                0755,
 					DisableParallelDirops:  false,
-					DisableReaddirplus:     true,
+					EnableReaddirplus:      false,
 					FileMode:               0644,
 					FuseOptions:            []string{},
 					Gid:                    -1,
@@ -529,7 +529,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					DirMode:                0755,
 					DisableParallelDirops:  false,
-					DisableReaddirplus:     true,
+					EnableReaddirplus:      false,
 					FileMode:               0644,
 					FuseOptions:            []string{},
 					Gid:                    -1,
@@ -549,7 +549,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					DirMode:                0777,
 					DisableParallelDirops:  true,
-					DisableReaddirplus:     true,
+					EnableReaddirplus:      false,
 					FileMode:               0666,
 					FuseOptions:            []string{"ro"},
 					Gid:                    7,
