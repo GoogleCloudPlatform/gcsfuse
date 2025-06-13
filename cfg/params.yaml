@@ -712,7 +712,7 @@
     Duration of inactivity after which an open GCS read stream is automatically closed.
     This helps conserve resources when a file handle remains open without active Read calls.
     A value of '0s' disables this timeout.
-  default: "0s"
+  default: "10s"
   hide-flag: true
 
 - config-path: "write.block-size-mb"
