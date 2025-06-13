@@ -367,10 +367,10 @@ func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
 //
 // Acquires and releases LOCK(job.mu)
 func (job *Job) cleanUpDownloadAsyncJob() {
-	// Close the job.doneCh, clear the cancelFunc & cancelCtx and call the
+	// Clear the cancelFunc & cancelCtx and call the
 	// remove job callback function.
+	// Finally, close the job.doneCh.
 	job.cancelFunc()
-	close(job.doneCh)
 
 	job.mu.Lock()
 	if job.removeJobCallback != nil {
@@ -379,6 +379,7 @@ func (job *Job) cleanUpDownloadAsyncJob() {
 	}
 	job.cancelCtx, job.cancelFunc = nil, nil
 	job.mu.Unlock()
+	close(job.doneCh)
 }
 
 // createCacheFile is a helper function which creates file in cache using

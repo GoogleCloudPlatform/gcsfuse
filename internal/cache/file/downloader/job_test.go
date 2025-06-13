@@ -582,6 +582,8 @@ func (dt *downloaderTest) Test_Download_WhenAsyncFails() {
 	AssertEq(Failed, jobStatus.Name)
 	AssertGe(jobStatus.Offset, 0)
 	AssertTrue(errors.Is(jobStatus.Err, lru.ErrInvalidUpdateEntrySize))
+	// Wait for the async goroutine to complete its cleanup.
+	<-dt.job.doneCh
 	// Verify callback is executed
 	AssertTrue(callbackExecuted.Load())
 }
