@@ -26,8 +26,11 @@ def read_with_odirect(filepath, buffer_size):
         return content
     except OSError as e:
         print(f"Error reading file with O_DIRECT: {e}")
-        print("Note: O_DIRECT might not be supported on this platform/filesystem or requires root privileges.")
+        print(
+            "Note: O_DIRECT might not be supported on this platform/filesystem or requires root privileges."
+        )
         return None
+
 
 if __name__ == "__main__":
     file_to_read = "/home/princer_google_com/bucket/data.txt"

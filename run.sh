@@ -15,7 +15,7 @@ fusermount -u "$MOUNT_POINT"
 mkdir -p "$MOUNT_POINT"
 
 # Truncate log-file.
-echo "" > "$LOG_FILE"
+echo "" >"$LOG_FILE"
 
 # Mount GCS bucket using gcsfuse
 echo "Mounting GCS bucket: gs://$BUCKET_NAME to $MOUNT_POINT"
@@ -23,26 +23,26 @@ gcsfuse --enable-buffered-read --log-file "$LOG_FILE" --log-severity trace --log
 
 # Check if mount was successful
 if [ $? -eq 0 ]; then
-  echo "GCS bucket mounted successfully."
+    echo "GCS bucket mounted successfully."
 
-#   echo "Generating 1GiB file: $DATA_FILE"
-#   dd if=/dev/zero of="$DATA_FILE" bs=1M count=1024
+    #   echo "Generating 1GiB file: $DATA_FILE"
+    #   dd if=/dev/zero of="$DATA_FILE" bs=1M count=1024
 
-  # Execute the Python script
-  echo "Executing Python script: $PYTHON_SCRIPT"
-  time python3 "$PYTHON_SCRIPT"
+    # Execute the Python script
+    echo "Executing Python script: $PYTHON_SCRIPT"
+    time python3 "$PYTHON_SCRIPT"
 
-  # Unmount GCS bucket
-  echo "Unmounting GCS bucket: $MOUNT_POINT"
-  fusermount -u "$MOUNT_POINT"
+    # Unmount GCS bucket
+    echo "Unmounting GCS bucket: $MOUNT_POINT"
+    fusermount -u "$MOUNT_POINT"
 
-  # Check if unmount was successful
-  if [ $? -eq 0 ]; then
-    echo "GCS bucket unmounted successfully."
-  else
-    echo "Error unmounting GCS bucket."
-  fi
+    # Check if unmount was successful
+    if [ $? -eq 0 ]; then
+        echo "GCS bucket unmounted successfully."
+    else
+        echo "Error unmounting GCS bucket."
+    fi
 
 else
-  echo "Error mounting GCS bucket."
+    echo "Error mounting GCS bucket."
 fi
