@@ -108,7 +108,7 @@ type FileSystemConfig struct {
 
 	DisableParallelDirops bool `yaml:"disable-parallel-dirops"`
 
-	DisableReaddirplus bool `yaml:"disable-readdirplus"`
+	EnableReaddirplus bool `yaml:"enable-readdirplus"`
 
 	FileMode Octal `yaml:"file-mode"`
 
@@ -335,12 +335,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("disable-readdirplus", "", true, "This flag is used to disable ReadDirPlus capability so ReadDir is used instead")
-
-	if err := flagSet.MarkHidden("disable-readdirplus"); err != nil {
-		return err
-	}
-
 	flagSet.BoolP("enable-atomic-rename-object", "", false, "Enables support for atomic rename object operation on HNS bucket.")
 
 	if err := flagSet.MarkHidden("enable-atomic-rename-object"); err != nil {
@@ -370,6 +364,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("enable-read-stall-retry", "", false, "To turn on/off retries for stalled read requests. This is based on a timeout that changes depending on how long similar requests took in the past.")
 
 	if err := flagSet.MarkHidden("enable-read-stall-retry"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("enable-readdirplus", "", false, "This flag is used to enable ReadDirPlus capability")
+
+	if err := flagSet.MarkHidden("enable-readdirplus"); err != nil {
 		return err
 	}
 
@@ -680,10 +680,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("file-system.disable-readdirplus", flagSet.Lookup("disable-readdirplus")); err != nil {
-		return err
-	}
-
 	if err := v.BindPFlag("enable-atomic-rename-object", flagSet.Lookup("enable-atomic-rename-object")); err != nil {
 		return err
 	}
@@ -705,6 +701,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-retries.read-stall.enable", flagSet.Lookup("enable-read-stall-retry")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.enable-readdirplus", flagSet.Lookup("enable-readdirplus")); err != nil {
 		return err
 	}
 

@@ -702,12 +702,12 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 	}{
 		{
 			name: "normal",
-			args: []string{"gcsfuse", "--dir-mode=0777", "--disable-parallel-dirops", "--disable-readdirplus=false", "--file-mode=0666", "--o", "ro", "--gid=7", "--ignore-interrupts=false", "--kernel-list-cache-ttl-secs=300", "--rename-dir-limit=10", "--temp-dir=~/temp", "--uid=8", "--precondition-errors=false", "abc", "pqr"},
+			args: []string{"gcsfuse", "--dir-mode=0777", "--disable-parallel-dirops", "-enable-readdirplus", "--file-mode=0666", "--o", "ro", "--gid=7", "--ignore-interrupts=false", "--kernel-list-cache-ttl-secs=300", "--rename-dir-limit=10", "--temp-dir=~/temp", "--uid=8", "--precondition-errors=false", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
 					DirMode:                0777,
 					DisableParallelDirops:  true,
-					DisableReaddirplus:     false,
+					EnableReaddirplus:      true,
 					FileMode:               0666,
 					FuseOptions:            []string{"ro"},
 					Gid:                    7,
@@ -727,7 +727,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					DirMode:                0777,
 					DisableParallelDirops:  false,
-					DisableReaddirplus:     true,
+					EnableReaddirplus:      false,
 					FileMode:               0666,
 					FuseOptions:            []string{},
 					Gid:                    -1,
@@ -747,7 +747,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					DirMode:                0777,
 					DisableParallelDirops:  false,
-					DisableReaddirplus:     true,
+					EnableReaddirplus:      false,
 					FileMode:               0666,
 					FuseOptions:            []string{},
 					Gid:                    -1,
@@ -767,7 +767,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					DirMode:                0777,
 					DisableParallelDirops:  false,
-					DisableReaddirplus:     true,
+					EnableReaddirplus:      false,
 					FileMode:               0666,
 					FuseOptions:            []string{},
 					Gid:                    -1,
@@ -787,7 +787,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					DirMode:                0777,
 					DisableParallelDirops:  false,
-					DisableReaddirplus:     true,
+					EnableReaddirplus:      false,
 					FileMode:               0666,
 					FuseOptions:            []string{},
 					Gid:                    -1,
@@ -807,7 +807,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					DirMode:                0755,
 					DisableParallelDirops:  false,
-					DisableReaddirplus:     true,
+					EnableReaddirplus:      false,
 					FileMode:               0644,
 					FuseOptions:            []string{},
 					Gid:                    -1,
