@@ -509,21 +509,7 @@ func (f *FileInode) Attributes(
 	// We require only that atime and ctime be "reasonable".
 	attrs.Atime = attrs.Mtime
 	attrs.Ctime = attrs.Mtime
-
-	// If the object has been clobbered, we reflect that as the inode being
-	// unlinked.
-	_, clobbered, err := f.clobbered(ctx, false, false)
-	if err != nil {
-		err = fmt.Errorf("clobbered: %w", err)
-		return
-	}
-
 	attrs.Nlink = 1
-
-	// For local files, also checking if file is unlinked locally.
-	if clobbered || (f.IsLocal() && f.IsUnlinked()) {
-		attrs.Nlink = 0
-	}
 
 	return
 }
