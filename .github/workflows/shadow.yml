@@ -14,7 +14,12 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
     timeout-minutes: 15
+    permissions:
+      pull-requests: write
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
       - name: Add shadow reviewer
         run: echo "PR_URL=\"${PR_URL}\"" && gh pr edit --add-reviewer @GoogleCloudPlatform/gcsfuse-shadow-reviewers "$PR_URL"
         env:
