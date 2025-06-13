@@ -42,7 +42,7 @@ func logPanic() {
 //
 //go:generate go run -C tools/config-gen . --paramsFile=../../cfg/params.yaml --outDir=../../cfg --templateDir=templates
 func main() {
-	logger.Infof("Running gcsfuse/%s", common.GetVersion())
+	logger.Infof("Running gcsfuse version:%s", common.GetVersion())
 	// Common configuration for all commands
 	defer logPanic()
 	// Make logging output better.
