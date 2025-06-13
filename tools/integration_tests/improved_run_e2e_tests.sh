@@ -72,6 +72,8 @@ BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR=""
 LOG_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_logging_lock.XXXXXX") || { log_error "Unable to create lock file"; exit 1; }
 BUCKET_NAMES=$(mktemp "/tmp/${TMP_PREFIX}_bucket_names.XXXXXX") || { log_error "Unable to create bucket names file"; exit 1; }
 PACKAGE_RUNTIME_STATS=$(mktemp "/tmp/${TMP_PREFIX}_package_stats_runtime.XXXXXX") || { log_error "Unable to create package stats runtime file"; exit 1; }
+RESOURCE_USAGE_FILE=$(mktemp "/tmp/${TMP_PREFIX}_system_resource_usage.XXXXXX") || { log_error "Unable to create system resource usage file"; exit 1; }
+RESOURCE_USAGE_PID=-1
 
 # Argument Parsing and Assignments
 if [ "$#" -lt 3 ]; then
@@ -271,6 +273,9 @@ delete_bucket() {
 
 # Cleanup ensures each of the buckets created is destroyed and the temp files are cleaned up.
 clean_up() {
+  if [[ "$RESOURCE_USAGE_PID" -ne "-1" ]]; then
+    kill -9 "$RESOURCE_USAGE_PID"
+  fi
   if [ -n "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}" ] && [ -d "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}" ]; then
     log_info "Cleaning up GCSFuse build directory created by script: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
     rm -rf "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
@@ -530,9 +535,14 @@ main() {
     fi
     log_info "Script built GCSFuse at: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
   fi
-    
+
   # Reset SECONDS to 0
   SECONDS=0
+
+  # Start collecting system resource usage in background.
+  ./tools/integration_tests/resource_usage.sh "COLLECT" "$RESOURCE_USAGE_FILE" &
+  RESOURCE_USAGE_PID=$!
+
   local pids=()
   local overall_exit_code=0
   if [[ "${RUN_TESTS_WITH_ZONAL_BUCKET}" == "true" ]]; then
@@ -556,7 +566,15 @@ main() {
   elapsed_min=$(((SECONDS + 60) / 60))
   log_info "------ E2E test packages complete run took ${elapsed_min} minutes ------"
   log_info ""
+
+  # Print package runtime stats table.
   ./tools/integration_tests/create_package_runtime_table.sh "$PACKAGE_RUNTIME_STATS"
+
+  # Kill resource usage background PID and print resource usage.
+  kill -9 "$RESOURCE_USAGE_PID"
+  RESOURCE_USAGE_PID=-1 # set to not kill again in trap.
+  ./tools/integration_tests/resource_usage.sh "PRINT" "$RESOURCE_USAGE_FILE"
+
   exit $overall_exit_code
 }
 
