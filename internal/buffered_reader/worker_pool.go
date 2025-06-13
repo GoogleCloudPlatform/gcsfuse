@@ -20,8 +20,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 )
 
-// ThreadPool is a group of workers that can be used to execute a task
-type ThreadPool struct {
+// WorkerPool is a group of workers that can be used to execute a task
+type WorkerPool struct {
 	// Number of workers running in this group
 	worker uint32
 
@@ -39,14 +39,14 @@ type ThreadPool struct {
 	download func(*PrefetchTask)
 }
 
-// newThreadPool creates a new thread pool
-func NewThreadPool(count uint32, download func(*PrefetchTask)) *ThreadPool {
-	logger.Infof("Threadpool: creating with worker: %d", count)
+// newWorkerPool creates a new thread pool
+func NewWorkerPool(count uint32, download func(*PrefetchTask)) *WorkerPool {
+	logger.Infof("WorkerPool: creating with worker: %d", count)
 	if count == 0 || download == nil {
 		return nil
 	}
 
-	return &ThreadPool{
+	return &WorkerPool{
 		worker:     count,
 		download:   download,
 		close:      make(chan int, count),
@@ -56,7 +56,7 @@ func NewThreadPool(count uint32, download func(*PrefetchTask)) *ThreadPool {
 }
 
 // Start all the workers and wait till they start receiving requests
-func (t *ThreadPool) Start() {
+func (t *WorkerPool) Start() {
 	// 10% threads will listen only on high priority channel
 	highPriority := (t.worker * 10) / 100
 
@@ -67,7 +67,7 @@ func (t *ThreadPool) Start() {
 }
 
 // Stop all the workers threads
-func (t *ThreadPool) Stop() {
+func (t *WorkerPool) Stop() {
 	for i := uint32(0); i < t.worker; i++ {
 		t.close <- 1
 	}
@@ -80,7 +80,7 @@ func (t *ThreadPool) Stop() {
 }
 
 // Schedule the download of a block
-func (t *ThreadPool) Schedule(urgent bool, item *PrefetchTask) {
+func (t *WorkerPool) Schedule(urgent bool, item *PrefetchTask) {
 	// urgent specifies the priority of this task.
 	// true means high priority and false means low priority
 	if urgent {
@@ -91,7 +91,7 @@ func (t *ThreadPool) Schedule(urgent bool, item *PrefetchTask) {
 }
 
 // Do is the core task to be executed by each worker thread
-func (t *ThreadPool) Do(priority bool) {
+func (t *WorkerPool) Do(priority bool) {
 	defer t.wg.Done()
 
 	if priority {

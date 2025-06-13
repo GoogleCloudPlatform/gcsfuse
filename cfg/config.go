@@ -583,7 +583,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
 
-	flagSet.IntP("read-block-size-mb", "", 16, "Part size for the non-file-cache flow.")
+	flagSet.IntP("read-block-size-mb", "", 4, "Part size for the non-file-cache flow.")
 
 	flagSet.IntP("read-global-max-blocks", "", 60, "Per file max number of blocks to be prefetched.")
 
@@ -627,7 +627,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("read-start-blocks-per-handle", "", 4, "Per file initial number of blocks to be prefetched.")
+	flagSet.IntP("read-start-blocks-per-handle", "", 8, "Per file initial number of blocks to be prefetched.")
 
 	flagSet.IntP("rename-dir-limit", "", 0, "Allow rename a directory containing fewer descendants than this limit.")
 

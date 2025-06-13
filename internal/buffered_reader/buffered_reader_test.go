@@ -23,7 +23,7 @@ import (
 type prefetchTestSuite struct {
 	suite.Suite
 	assert         *assert.Assertions
-	threadPool     *ThreadPool
+	workerPool     *WorkerPool
 	blockPool      *BlockPool
 	BufferedReader *BufferedReader
 
@@ -52,8 +52,8 @@ func (ps *prefetchTestSuite) SetupSuite() {
 	ps.assert = assert.New(ps.T())
 
 	// Thread pool.
-	ps.threadPool = NewThreadPool(20, Download)
-	ps.threadPool.Start()
+	ps.workerPool = NewWorkerPool(20, Download)
+	ps.workerPool.Start()
 
 	// Block pool.
 	ps.blockPool = NewBlockPool(uint64(getDefaultBufferedReadConfig().PrefetchChunkSize), 3024*_1MB)
@@ -77,7 +77,7 @@ func (ps *prefetchTestSuite) SetupSuite() {
 
 func (ps *prefetchTestSuite) TearDownSuite() {
 	stime := time.Now()
-	ps.threadPool.Stop()
+	ps.workerPool.Stop()
 	ps.blockPool.Terminate()
 	ps.fakeStorage.ShutDown()
 	logger.Infof("Total teardown time: %v\n", time.Since(stime))
@@ -85,7 +85,7 @@ func (ps *prefetchTestSuite) TearDownSuite() {
 
 func (ps *prefetchTestSuite) TestNewBufferedReader() {
 	// Create a prefetch reader
-	BufferedReader := NewBufferedReader(&ps.object, ps.bucket, getDefaultBufferedReadConfig(), ps.blockPool, ps.threadPool)
+	BufferedReader := NewBufferedReader(&ps.object, ps.bucket, getDefaultBufferedReadConfig(), ps.blockPool, ps.workerPool)
 
 	// Assert that the prefetch reader is not nil
 	ps.assert.NotNil(BufferedReader)
@@ -101,7 +101,7 @@ func (ps *prefetchTestSuite) TestNewBufferedReader() {
 	ps.assert.Equal(BufferedReader.randomSeekCount, int64(0))
 	ps.assert.Nil(BufferedReader.readHandle)
 	ps.assert.Equal(BufferedReader.blockPool, ps.blockPool)
-	ps.assert.Equal(BufferedReader.threadPool, ps.threadPool)
+	ps.assert.Equal(BufferedReader.workerPool, ps.workerPool)
 	ps.assert.Nil(BufferedReader.metricHandle)
 
 	// Destroy the prefetch reader
@@ -109,7 +109,7 @@ func (ps *prefetchTestSuite) TestNewBufferedReader() {
 }
 
 func (ps *prefetchTestSuite) TestSequentialRead() {
-	BufferedReader := NewBufferedReader(&ps.object, ps.bucket, getDefaultBufferedReadConfig(), ps.blockPool, ps.threadPool)
+	BufferedReader := NewBufferedReader(&ps.object, ps.bucket, getDefaultBufferedReadConfig(), ps.blockPool, ps.workerPool)
 
 	buffer := make([]byte, _1MB)
 	offset := int64(0)
@@ -126,7 +126,7 @@ func (ps *prefetchTestSuite) TestSequentialRead() {
 func (ps *prefetchTestSuite) TestSequentialReadWithHighInitialPrefetch() {
 	defaultConfig := getDefaultBufferedReadConfig()
 	defaultConfig.InitialPrefetchBlockCnt = 100
-	BufferedReader := NewBufferedReader(&ps.object, ps.bucket, defaultConfig, ps.blockPool, ps.threadPool)
+	BufferedReader := NewBufferedReader(&ps.object, ps.bucket, defaultConfig, ps.blockPool, ps.workerPool)
 
 	timerS := time.Now()
 	buffer := make([]byte, _1MB)

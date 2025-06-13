@@ -58,7 +58,7 @@ type BufferedReader struct {
 	readHandle []byte // For zonal bucket.
 
 	blockPool  *BlockPool
-	threadPool *ThreadPool
+	workerPool *WorkerPool
 
 	metricHandle common.MetricHandle
 
@@ -73,7 +73,7 @@ func (p *BufferedReader) Close() error {
 
 }
 
-func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *BufferedReadConfig, blockPool *BlockPool, threadPool *ThreadPool) *BufferedReader {
+func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *BufferedReadConfig, blockPool *BlockPool, workerPool *WorkerPool) *BufferedReader {
 	bufferedReader := &BufferedReader{
 		object:              object,
 		bucket:              bucket,
@@ -83,7 +83,7 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 		randomSeekCount:     0,
 		blockQueue:          NewBlockQueue(),
 		blockPool:           blockPool,
-		threadPool:          threadPool,
+		workerPool:          workerPool,
 		metricHandle:        nil,
 	}
 
@@ -196,6 +196,8 @@ func (p *BufferedReader) prefetch() error {
 	nextPrefetchCount := p.config.PrefetchMultiplier * p.lastPrefetchCount
 	nextPrefetchCount = min(nextPrefetchCount, p.config.PrefetchCount-int64(p.blockQueue.Len()))
 
+	logger.Debugf("Next Prefetch Count: %d", nextPrefetchCount)
+
 	p.lastPrefetchCount = nextPrefetchCount
 
 	for i := 0; i < int(nextPrefetchCount) && p.nextBlockToPrefetch < p.maxBlockCount(); i++ {
@@ -260,7 +262,7 @@ func (p *BufferedReader) scheduleBlockWithIndex(block *Block, blockIndex int64, 
 	block.cancelFunc = cancel
 
 	p.blockQueue.Push(block)
-	p.threadPool.Schedule(!prefetch, task)
+	p.workerPool.Schedule(!prefetch, task)
 }
 
 // prepareBlock initializes block-state according to blockIndex.

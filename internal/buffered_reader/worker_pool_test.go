@@ -23,39 +23,39 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type threadPoolTestSuite struct {
+type workerPoolTestSuite struct {
 	suite.Suite
 	assert *assert.Assertions
 }
 
-func (suite *threadPoolTestSuite) SetupTest() {
+func (suite *workerPoolTestSuite) SetupTest() {
 }
 
-func (suite *threadPoolTestSuite) cleanupTest() {
+func (suite *workerPoolTestSuite) cleanupTest() {
 }
 
-func (suite *threadPoolTestSuite) TestCreate() {
+func (suite *workerPoolTestSuite) TestCreate() {
 	suite.assert = assert.New(suite.T())
 
-	tp := NewThreadPool(0, nil)
+	tp := NewWorkerPool(0, nil)
 	suite.assert.Nil(tp)
 
-	tp = NewThreadPool(1, nil)
+	tp = NewWorkerPool(1, nil)
 	suite.assert.Nil(tp)
 
-	tp = NewThreadPool(1, func(*PrefetchTask) {})
+	tp = NewWorkerPool(1, func(*PrefetchTask) {})
 	suite.assert.NotNil(tp)
 	suite.assert.Equal(tp.worker, uint32(1))
 }
 
-func (suite *threadPoolTestSuite) TestStartStop() {
+func (suite *workerPoolTestSuite) TestStartStop() {
 	suite.assert = assert.New(suite.T())
 
 	r := func(i *PrefetchTask) {
 		suite.assert.Equal(i.failCnt, int32(1))
 	}
 
-	tp := NewThreadPool(2, r)
+	tp := NewWorkerPool(2, r)
 	suite.assert.NotNil(tp)
 	suite.assert.Equal(tp.worker, uint32(2))
 
@@ -66,14 +66,14 @@ func (suite *threadPoolTestSuite) TestStartStop() {
 	tp.Stop()
 }
 
-func (suite *threadPoolTestSuite) TestSchedule() {
+func (suite *workerPoolTestSuite) TestSchedule() {
 	suite.assert = assert.New(suite.T())
 
 	r := func(i *PrefetchTask) {
 		suite.assert.Equal(i.failCnt, int32(1))
 	}
 
-	tp := NewThreadPool(2, r)
+	tp := NewWorkerPool(2, r)
 	suite.assert.NotNil(tp)
 	suite.assert.Equal(tp.worker, uint32(2))
 
@@ -88,7 +88,7 @@ func (suite *threadPoolTestSuite) TestSchedule() {
 	tp.Stop()
 }
 
-func (suite *threadPoolTestSuite) TestPrioritySchedule() {
+func (suite *workerPoolTestSuite) TestPrioritySchedule() {
 	suite.assert = assert.New(suite.T())
 
 	callbackCnt := int32(0)
@@ -97,7 +97,7 @@ func (suite *threadPoolTestSuite) TestPrioritySchedule() {
 		atomic.AddInt32(&callbackCnt, 1)
 	}
 
-	tp := NewThreadPool(10, r)
+	tp := NewWorkerPool(10, r)
 	suite.assert.NotNil(tp)
 	suite.assert.Equal(tp.worker, uint32(10))
 
@@ -114,6 +114,6 @@ func (suite *threadPoolTestSuite) TestPrioritySchedule() {
 	tp.Stop()
 }
 
-func TestThreadPoolSuite(t *testing.T) {
-	suite.Run(t, new(threadPoolTestSuite))
+func TestWorkerPoolSuite(t *testing.T) {
+	suite.Run(t, new(workerPoolTestSuite))
 }

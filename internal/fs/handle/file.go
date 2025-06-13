@@ -67,13 +67,13 @@ type FileHandle struct {
 	// Read related mounting configuration.
 	readConfig *cfg.ReadConfig
 
-	threadPool         *prefetch.ThreadPool
+	workerPool         *prefetch.WorkerPool
 	blockPool          *prefetch.BlockPool
 	bufferedReadConfig *prefetch.BufferedReadConfig
 }
 
 // LOCKS_REQUIRED(fh.inode.mu)
-func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, openMode util.OpenMode, rc *cfg.ReadConfig, threadPool *prefetch.ThreadPool, blockPool *prefetch.BlockPool, bufferedReadConfig *prefetch.BufferedReadConfig) (fh *FileHandle) {
+func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, openMode util.OpenMode, rc *cfg.ReadConfig, workerPool *prefetch.WorkerPool, blockPool *prefetch.BlockPool, bufferedReadConfig *prefetch.BufferedReadConfig) (fh *FileHandle) {
 	fh = &FileHandle{
 		inode:                 inode,
 		fileCacheHandler:      fileCacheHandler,
@@ -81,7 +81,7 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 		metricHandle:          metricHandle,
 		openMode:              openMode,
 		readConfig:            rc,
-		threadPool:            threadPool,
+		workerPool:            workerPool,
 		blockPool:             blockPool,
 		bufferedReadConfig:    bufferedReadConfig,
 	}
@@ -282,9 +282,9 @@ func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb 
 
 	// Attempt to create an appropriate reader.
 	var prefetcher *prefetch.BufferedReader
-	if fh.threadPool != nil && fh.blockPool != nil {
+	if fh.workerPool != nil && fh.blockPool != nil {
 		logger.Infof("Creating the prefetcher with block-size: %d, prefetch-count: %d.", fh.bufferedReadConfig.PrefetchChunkSize, fh.bufferedReadConfig.PrefetchCount)
-		prefetcher = prefetch.NewBufferedReader(fh.inode.Source(), fh.inode.Bucket(), fh.bufferedReadConfig, fh.blockPool, fh.threadPool)
+		prefetcher = prefetch.NewBufferedReader(fh.inode.Source(), fh.inode.Bucket(), fh.bufferedReadConfig, fh.blockPool, fh.workerPool)
 	}
 	rr := gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, &fh.inode.MRDWrapper, fh.readConfig, prefetcher)
 

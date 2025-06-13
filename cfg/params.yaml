@@ -709,7 +709,7 @@
   flag-name: "read-block-size-mb"
   type: "int"
   usage: "Part size for the non-file-cache flow."
-  default: 16
+  default: 4
 
 - config-path: "read.enable-buffered-read"
   flag-name: "enable-buffered-read"
@@ -743,13 +743,13 @@
   flag-name: "read-max-parallelism"
   type: "int"
   usage: "Upper limit of overall parallelism."
-  default: "100"
+  default: 100
 
 - config-path: "read.start-blocks-per-handle"
   flag-name: "read-start-blocks-per-handle"
   type: "int"
   usage: "Per file initial number of blocks to be prefetched."
-  default: 4
+  default: 8
 
 
 - config-path: "write.block-size-mb"
