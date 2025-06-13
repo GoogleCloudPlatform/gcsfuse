@@ -1425,7 +1425,7 @@ func TestArgsParsing_ReadInactiveTimeoutConfig(t *testing.T) {
 		{
 			name:            "default",
 			cfgFile:         "empty.yaml",
-			expectedTimeout: 0,
+			expectedTimeout: 10 * time.Second,
 		},
 		{
 			name:            "override_default",
