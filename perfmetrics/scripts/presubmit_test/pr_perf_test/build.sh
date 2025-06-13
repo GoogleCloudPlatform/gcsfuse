@@ -60,7 +60,7 @@ git fetch origin -q
 function execute_perf_test() {
   mkdir -p gcs
   GCSFUSE_FLAGS="--implicit-dirs --prometheus-port=48341"
-  BUCKET_NAME=presubmit-perf-tests-zonal
+  BUCKET_NAME=presubmit-perf-tests
   MOUNT_POINT=gcs
   # The VM will itself exit if the gcsfuse mount fails.
   go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
