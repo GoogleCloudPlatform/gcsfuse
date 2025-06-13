@@ -110,13 +110,16 @@ func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Cli
 
 	if setup.IsZonalBucketRun() {
 		storageClassAndLocation.StorageClass = "RAPID"
-		if setup.IsPresubmitRun() {
-			storageClassAndLocation.Location = "us-west4"
-			storageClassAndLocation.CustomPlacementConfig = &storage.CustomPlacementConfig{DataLocations: []string{"us-west4-a"}}
-		} else {
-			storageClassAndLocation.Location = "us-central1"
-			storageClassAndLocation.CustomPlacementConfig = &storage.CustomPlacementConfig{DataLocations: []string{"us-central1-a"}}
+		gceZone, err := setup.GetGCEZone(ctx)
+		if err != nil {
+			return "", fmt.Errorf("failed to find the GCE zone of the VM: %w", err)
 		}
+		gceRegion, err := setup.GetGCERegion(gceZone)
+		if err != nil {
+			return "", fmt.Errorf("failed to find the GCE region of the VM: %w", err)
+		}
+		storageClassAndLocation.Location = gceRegion
+		storageClassAndLocation.CustomPlacementConfig = &storage.CustomPlacementConfig{DataLocations: []string{gceZone}}
 		storageClassAndLocation.HierarchicalNamespace = &storage.HierarchicalNamespace{
 			Enabled: true,
 		}
