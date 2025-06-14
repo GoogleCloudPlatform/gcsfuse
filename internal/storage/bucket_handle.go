@@ -64,7 +64,46 @@ func (bh *bucketHandle) BucketType() gcs.BucketType {
 	return *bh.bucketType
 }
 
+type readerResult struct {
+	reader gcs.StorageReader
+	err    error
+}
+
 func (bh *bucketHandle) NewReaderWithReadHandle(
+	ctx context.Context,
+	req *gcs.ReadObjectRequest) (reader gcs.StorageReader, err error) {
+
+	for {
+		newReader := make(chan readerResult)
+		childCtx, cancelFunc := context.WithTimeout(ctx, time.Duration(50*time.Millisecond))
+		gatherReaderResult(bh, childCtx, req, newReader)
+		select {
+		case x := <-newReader:
+			cancelFunc()
+			if x.err == nil {
+				return x.reader, x.err
+			}
+		case <-time.After(50 * time.Millisecond):
+			logger.Error("Retrying stalled request")
+			cancelFunc()
+		}
+
+	}
+}
+
+func gatherReaderResult(bh *bucketHandle,
+	ctx context.Context,
+	req *gcs.ReadObjectRequest,
+	ch chan<- readerResult) {
+	reader, err := newReaderWithReadHandle(bh, ctx, req)
+	ch <- readerResult{
+		reader: reader,
+		err:    err,
+	}
+}
+
+func newReaderWithReadHandle(
+	bh *bucketHandle,
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (reader gcs.StorageReader, err error) {
 
