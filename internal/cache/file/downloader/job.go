@@ -327,7 +327,7 @@ func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
 			if newReader != nil {
 				readHandle = newReader.ReadHandle()
 			}
-			common.CaptureGCSReadMetrics(job.cancelCtx, job.metricsHandle, util.Sequential, newReaderLimit-start)
+			common.CaptureGCSReadMetrics(job.cancelCtx, job.metricsHandle, util.ReadTypeStringMap[util.Sequential], newReaderLimit-start)
 		}
 
 		maxRead := min(ReadChunkSize, newReaderLimit-start)
