@@ -31,11 +31,22 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"go.opentelemetry.io/otel"
 	"google.golang.org/api/iterator"
+
+	"go.opentelemetry.io/otel/metric"
 )
 
 const FullFolderPathHNS = "projects/_/buckets/%s/folders/%s"
 const FullBucketPathHNS = "projects/_/buckets/%s"
+
+var (
+	readerMeter                       = otel.Meter("reader")
+	defaultLatencyDistribution        = metric.WithExplicitBucketBoundaries(1, 2, 3, 4, 5, 6, 8, 10, 13, 16, 20, 25, 30, 40, 50, 65, 80, 100, 130, 160, 200, 250, 300, 400, 500, 650, 800, 1000, 2000, 5000, 10000, 20000, 50000, 100000)
+	newReaderWithReadHandleLatency, _ = readerMeter.Int64Histogram("reader/creation_latency",
+		metric.WithDescription("The cumulative distribution of reader latencies"), metric.WithUnit("ms"), defaultLatencyDistribution,
+	)
+)
 
 type bucketHandle struct {
 	gcs.Bucket
@@ -59,6 +70,10 @@ func (bh *bucketHandle) NewReaderWithReadHandle(
 
 	defer func() {
 		err = gcs.GetGCSError(err)
+	}()
+	startTime := time.Now()
+	defer func() {
+		newReaderWithReadHandleLatency.Record(ctx, time.Since(startTime).Milliseconds())
 	}()
 
 	// Initialising the starting offset and the length to be read by the reader.
