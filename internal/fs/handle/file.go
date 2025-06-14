@@ -42,7 +42,7 @@ type FileHandle struct {
 	// INVARIANT: If reader != nil, reader.CheckInvariants() doesn't panic.
 	//
 	// GUARDED_BY(mu)
-	reader gcsx.RandomReader
+	reader gcsx.ReadManager
 
 	// A readManager configured to some (potentially previous) generation of
 	// the object backing the inode, or nil.
@@ -184,7 +184,7 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	if fh.reader != nil {
 		fh.inode.Unlock()
 
-		var objectData gcsx.ObjectData
+		var objectData gcsx.ReaderResponse
 		objectData, err = fh.reader.ReadAt(ctx, dst, offset)
 		switch {
 		case errors.Is(err, io.EOF):
@@ -273,7 +273,14 @@ func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb 
 	}
 
 	// Attempt to create an appropriate reader.
-	rr := gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, &fh.inode.MRDWrapper, fh.readConfig)
+	rr := read_manager.NewReadManager(fh.inode.Source(), fh.inode.Bucket(), &read_manager.ReadManagerConfig{
+		SequentialReadSizeMB:  sequentialReadSizeMb,
+		FileCacheHandler:      fh.fileCacheHandler,
+		CacheFileForRangeRead: fh.cacheFileForRangeRead,
+		MetricHandle:          fh.metricHandle,
+		MrdWrapper:            &fh.inode.MRDWrapper,
+		ReadConfig:            fh.readConfig,
+	})
 
 	fh.reader = rr
 	return

@@ -134,10 +134,12 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 			bytesRead = 0
 			switch {
 			case errors.Is(err, lru.ErrInvalidEntrySize):
+				err = nil
 				logger.Warnf("tryReadingFromFileCache: while creating CacheHandle: %v", err)
 				err = nil
 				return 0, false, nil
 			case errors.Is(err, cacheUtil.ErrCacheHandleNotRequiredForRandomRead):
+				err = nil
 				// Fall back to GCS if it is a random read, cacheFileForRangeRead is
 				// false and there doesn't already exist file in cache.
 				isSequential = false
