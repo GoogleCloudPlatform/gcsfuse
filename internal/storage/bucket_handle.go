@@ -75,15 +75,13 @@ func (bh *bucketHandle) NewReaderWithReadHandle(
 
 	for {
 		newReader := make(chan readerResult)
-		childCtx, cancelFunc := context.WithTimeout(ctx, time.Duration(50*time.Millisecond))
-		gatherReaderResult(bh, childCtx, req, newReader)
+		childCtx, cancelFunc := context.WithTimeout(ctx, time.Duration(5000*time.Millisecond))
+		go gatherReaderResult(bh, childCtx, req, newReader)
 		select {
 		case x := <-newReader:
 			cancelFunc()
-			if x.err == nil {
-				return x.reader, x.err
-			}
-		case <-time.After(50 * time.Millisecond):
+			return x.reader, x.err
+		case <-time.After(5000 * time.Millisecond):
 			logger.Error("Retrying stalled request")
 			cancelFunc()
 		}
