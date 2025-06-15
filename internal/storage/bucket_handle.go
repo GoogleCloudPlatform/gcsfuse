@@ -46,6 +46,9 @@ var (
 	newReaderWithReadHandleLatency, _ = readerMeter.Int64Histogram("reader/creation_latency",
 		metric.WithDescription("The cumulative distribution of reader latencies"), metric.WithUnit("ms"), defaultLatencyDistribution,
 	)
+	newRangeReaderWithReadHandleLatency, _ = readerMeter.Int64Histogram("reader/range_reader_creation_latency",
+		metric.WithDescription("The cumulative distribution of range reader latencies"), metric.WithUnit("ms"), defaultLatencyDistribution,
+	)
 )
 
 type bucketHandle struct {
@@ -110,7 +113,9 @@ func (bh *bucketHandle) NewReaderWithReadHandle(
 	}
 
 	// NewRangeReader creates a "storage.Reader" object which is also io.ReadCloser since it contains both Read() and Close() methods present in io.ReadCloser interface.
+	sTime := time.Now()
 	storageReader, err := obj.NewRangeReader(ctx, start, length)
+	newReaderWithReadHandleLatency.Record(ctx, time.Since(sTime).Milliseconds())
 	if err == nil {
 		reader = newGCSFullReadCloser(storageReader)
 	}
