@@ -115,7 +115,7 @@ func (bh *bucketHandle) NewReaderWithReadHandle(
 	// NewRangeReader creates a "storage.Reader" object which is also io.ReadCloser since it contains both Read() and Close() methods present in io.ReadCloser interface.
 	sTime := time.Now()
 	storageReader, err := obj.NewRangeReader(ctx, start, length)
-	newReaderWithReadHandleLatency.Record(ctx, time.Since(sTime).Milliseconds())
+	newRangeReaderWithReadHandleLatency.Record(ctx, time.Since(sTime).Milliseconds())
 	if err == nil {
 		reader = newGCSFullReadCloser(storageReader)
 	}
