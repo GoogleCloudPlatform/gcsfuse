@@ -179,12 +179,12 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 	// ERROR         ERROR
 	// WARNING       ERROR
 	// INFO          ERROR
-	// DEBUG         TRACE
+	// DEBUG         ERROR
 	// TRACE         TRACE
 	if newConfig.Logging.Severity.Level() <= cfg.ErrorLogSeverity.Level() {
 		mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ")
 	}
-	if newConfig.Logging.Severity.Level() <= cfg.DebugLogSeverity.Level() {
+	if newConfig.Logging.Severity.Level() <= cfg.TraceLogSeverity.Level() {
 		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelTrace, "fuse_debug: ")
 	}
 	return mountCfg
