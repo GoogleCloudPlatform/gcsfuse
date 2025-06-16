@@ -42,8 +42,8 @@ const (
 	// readTypeKey annotates the read operation with the type - Sequential/Random
 	readTypeKey = "read_type"
 
-	// CacheHitKey annotates the read operation from file cache with true or false.
-	CacheHitKey = "cache_hit"
+	// cacheHitKey annotates the read operation from file cache with true or false.
+	cacheHitKey = "cache_hit"
 )
 
 var (
@@ -100,7 +100,7 @@ func getFsOpsErrorCategoryAttributeOption(attr FSOpsErrorCategory) metric.Measur
 func getCacheHitAttributeOption(cacheHit string) metric.MeasurementOption {
 	return loadOrStoreAttributeOption(&cacheHitAttributeSet, cacheHit,
 		func() attribute.Set {
-			return attribute.NewSet(attribute.String(CacheHitKey, cacheHit))
+			return attribute.NewSet(attribute.String(cacheHitKey, cacheHit))
 		})
 }
 
@@ -113,7 +113,7 @@ func getGCSMethodAttributeOption(gcsMethod string) metric.MeasurementOption {
 
 func getCacheHitReadTypeAttributeOption(attr CacheHitReadType) metric.MeasurementOption {
 	return loadOrStoreAttributeOption(&cacheHitReadTypeAttributeSet, attr, func() attribute.Set {
-		return attribute.NewSet(attribute.String(CacheHitKey, attr.CacheHit), attribute.String(readTypeKey, attr.ReadType))
+		return attribute.NewSet(attribute.String(cacheHitKey, attr.CacheHit), attribute.String(readTypeKey, attr.ReadType))
 	})
 }
 
