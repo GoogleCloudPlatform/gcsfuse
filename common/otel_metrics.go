@@ -143,12 +143,12 @@ func (o *otelMetrics) GCSDownloadBytesCount(ctx context.Context, inc int64, read
 	o.gcsDownloadBytesCount.Add(ctx, inc, getReadTypeAttributeSet(readType))
 }
 
-func (o *otelMetrics) OpsCount(ctx context.Context, inc int64, method string) {
-	o.fsOpsCount.Add(ctx, inc, getFSOpsAttributeSet(method))
+func (o *otelMetrics) OpsCount(ctx context.Context, inc int64, fsOp string) {
+	o.fsOpsCount.Add(ctx, inc, getFSOpsAttributeSet(fsOp))
 }
 
-func (o *otelMetrics) OpsLatency(ctx context.Context, latency time.Duration, method string) {
-	o.fsOpsLatency.Record(ctx, float64(latency.Microseconds()), getFSOpsAttributeSet(method))
+func (o *otelMetrics) OpsLatency(ctx context.Context, latency time.Duration, fsOp string) {
+	o.fsOpsLatency.Record(ctx, float64(latency.Microseconds()), getFSOpsAttributeSet(fsOp))
 }
 
 func (o *otelMetrics) OpsErrorCount(ctx context.Context, inc int64, attrs FSOpsErrorCategory) {
