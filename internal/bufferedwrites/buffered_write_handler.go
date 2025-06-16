@@ -314,5 +314,7 @@ func (wh *bufferedWriteHandlerImpl) Unlink() {
 }
 
 func (wh *bufferedWriteHandlerImpl) SetTotalSize() {
-	wh.totalSize = int64(wh.uploadHandler.obj.Size)
+  if (wh.uploadHandler.obj != nil) {
+  	wh.totalSize = int64(wh.uploadHandler.obj.Size)
+  }
 }
