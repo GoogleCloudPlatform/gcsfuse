@@ -164,8 +164,8 @@ func (o *otelMetrics) OpsCount(ctx context.Context, inc int64, method string) {
 	o.fsOpsCount.Add(ctx, inc, metric.WithAttributeSet(getFSOpsAttributeSet(method)))
 }
 
-func (o *otelMetrics) OpsLatency(ctx context.Context, latency time.Duration, attrs []MetricAttr) {
-	o.fsOpsLatency.Record(ctx, float64(latency.Microseconds()), attrsToRecordOption(attrs)...)
+func (o *otelMetrics) OpsLatency(ctx context.Context, latency time.Duration, method string) {
+	o.fsOpsLatency.Record(ctx, float64(latency.Microseconds()), metric.WithAttributeSet(getFSOpsAttributeSet(method)))
 }
 
 func (o *otelMetrics) OpsErrorCount(ctx context.Context, inc int64, attrs []MetricAttr) {
