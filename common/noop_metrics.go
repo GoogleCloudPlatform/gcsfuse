@@ -37,6 +37,6 @@ func (*noopMetrics) OpsCount(_ context.Context, _ int64, _ string)            {}
 func (*noopMetrics) OpsLatency(_ context.Context, _ time.Duration, _ string)  {}
 func (*noopMetrics) OpsErrorCount(_ context.Context, _ int64, _ []MetricAttr) {}
 
-func (*noopMetrics) FileCacheReadCount(_ context.Context, _ int64, _ []MetricAttr)           {}
+func (*noopMetrics) FileCacheReadCount(_ context.Context, _ int64, attrs CacheHitReadType)   {}
 func (*noopMetrics) FileCacheReadBytesCount(_ context.Context, _ int64, _ []MetricAttr)      {}
 func (*noopMetrics) FileCacheReadLatency(_ context.Context, _ time.Duration, _ []MetricAttr) {}

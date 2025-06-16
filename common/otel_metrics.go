@@ -46,17 +46,21 @@ const (
 	CacheHitKey = "cache_hit"
 )
 
+type CacheHitReadType struct {
+	CacheHit string
+	ReadType string
+}
+
 var (
 	fsOpsMeter     = otel.Meter("fs_op")
 	gcsMeter       = otel.Meter("gcs")
 	fileCacheMeter = otel.Meter("file_cache")
 
-	emptyAttributeSet = getAttributeSet()
-
-	fsOpsAttributeSetMap  sync.Map
-	readTypeAttributeSet  sync.Map
-	ioMethodAttributeSet  sync.Map
-	gcsMethodAttributeSet sync.Map
+	fsOpsAttributeSetMap,
+	readTypeAttributeSet,
+	ioMethodAttributeSet,
+	gcsMethodAttributeSet,
+	cacheHitReadTypeAttributeSet sync.Map
 )
 
 func loadOrStoreAttributeOption[K comparable](mp *sync.Map, key K, attrSetGenFunc func() attribute.Set) metric.MeasurementOption {
@@ -84,6 +88,12 @@ func getFSOpsAttributeSet(fsOps string) metric.MeasurementOption {
 
 func getGCSMethodAttributeSet(gcsMethod string) metric.MeasurementOption {
 	return loadOrStoreAttributeOption(&gcsMethodAttributeSet, gcsMethod, func() attribute.Set { return getAttributeSet(attribute.String(GCSMethodKey, gcsMethod)) })
+}
+
+func getCacheHitReadTypeAttributeSet(attr CacheHitReadType) metric.MeasurementOption {
+	return loadOrStoreAttributeOption(&cacheHitReadTypeAttributeSet, attr, func() attribute.Set {
+		return getAttributeSet(attribute.String(CacheHitKey, attr.CacheHit), attribute.String(ReadTypeKey, attr.ReadType))
+	})
 }
 
 // otelMetrics maintains the list of all metrics computed in GCSFuse.
@@ -162,12 +172,12 @@ func (o *otelMetrics) OpsErrorCount(ctx context.Context, inc int64, attrs []Metr
 	o.fsOpsErrorCount.Add(ctx, inc, attrsToAddOption(attrs)...)
 }
 
-func (o *otelMetrics) FileCacheReadCount(ctx context.Context, inc int64, attrs []MetricAttr) {
-	o.fileCacheReadCount.Add(ctx, inc, attrsToAddOption(attrs)...)
+func (o *otelMetrics) FileCacheReadCount(ctx context.Context, inc int64, attrs CacheHitReadType) {
+	o.fileCacheReadCount.Add(ctx, inc, getCacheHitReadTypeAttributeSet(attrs))
 }
 
-func (o *otelMetrics) FileCacheReadBytesCount(ctx context.Context, inc int64, attrs []MetricAttr) {
-	o.fileCacheReadBytesCount.Add(ctx, inc, attrsToAddOption(attrs)...)
+func (o *otelMetrics) FileCacheReadBytesCount(ctx context.Context, inc int64, readType string) {
+	o.fileCacheReadBytesCount.Add(ctx, inc, getReadTypeAttributeSet(readType))
 }
 
 func (o *otelMetrics) FileCacheReadLatency(ctx context.Context, latency time.Duration, attrs []MetricAttr) {

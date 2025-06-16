@@ -77,8 +77,8 @@ type OpsMetricHandle interface {
 }
 
 type FileCacheMetricHandle interface {
-	FileCacheReadCount(ctx context.Context, inc int64, attrs []MetricAttr)
-	FileCacheReadBytesCount(ctx context.Context, inc int64, attrs []MetricAttr)
+	FileCacheReadCount(ctx context.Context, inc int64, attrs CacheHitReadType)
+	FileCacheReadBytesCount(ctx context.Context, inc int64, readType string)
 	FileCacheReadLatency(ctx context.Context, latency time.Duration, attrs []MetricAttr)
 }
 type MetricHandle interface {
