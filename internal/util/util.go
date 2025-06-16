@@ -28,6 +28,7 @@ import (
 )
 
 const (
+	// TODO: Remove these constants in favor of common.* constants.
 	// Constants for read types - Sequential/Random
 	Sequential = common.ReadTypeSequential
 	Random     = common.ReadTypeRandom
