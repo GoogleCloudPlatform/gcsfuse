@@ -23,7 +23,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"strings"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -151,15 +150,6 @@ func (bh *bucketHandle) StatObject(ctx context.Context,
 	}
 
 	logger.Debugf("           ------ Returned stat for object %q: Size=%v, Finalized=%v -----", req.Name, attrs.Size, attrs.Finalized)
-
-	// hard-coding object-size for "unfinalized_object"
-	defaultTime := time.Time{}
-	if attrs.Finalized == defaultTime && strings.Contains(req.Name, "unfinalized_object") && attrs.Size == 0 {
-		attrs.Size = 524188
-
-		logger.Debugf("           ------ Modified stat for object %q: Size=%v, Finalized=%v -----", req.Name, attrs.Size, attrs.Finalized)
-
-	}
 
 	// Converting attrs to type *Object
 	o := storageutil.ObjectAttrsToBucketObject(attrs)
