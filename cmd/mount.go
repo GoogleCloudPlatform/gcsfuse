@@ -174,7 +174,18 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		DisableWritebackCaching: newConfig.Write.EnableStreamingWrites,
 	}
 
-	mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ")
-	mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelTrace, "fuse_debug: ")
+	// GCSFuse to Jacobsa Fuse Log Level mapping:
+	// OFF           OFF
+	// ERROR         ERROR
+	// WARNING       ERROR
+	// INFO          ERROR
+	// DEBUG         TRACE
+	// TRACE         TRACE
+	if newConfig.Logging.Severity.Level() <= cfg.ErrorLogSeverity.Level() {
+		mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ")
+	}
+	if newConfig.Logging.Severity.Level() <= cfg.DebugLogSeverity.Level() {
+		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelTrace, "fuse_debug: ")
+	}
 	return mountCfg
 }
