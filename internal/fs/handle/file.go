@@ -332,7 +332,3 @@ func (fh *FileHandle) destroyReadManager() {
 	fh.readManager.Destroy()
 	fh.readManager = nil
 }
-
-func (fh *FileHandle) OpenMode() util.OpenMode {
-	return fh.openMode
-}

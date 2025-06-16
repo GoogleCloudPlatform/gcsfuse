@@ -70,7 +70,7 @@ type FileStreamingWritesZonalBucketTest struct {
 
 func (t *FileStreamingWritesCommon) createBufferedWriteHandler() {
 	// Initialize BWH for local inode created above.
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.Write)
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
 	require.NoError(t.T(), err)
 	assert.True(t.T(), initialized)
 	assert.NotNil(t.T(), t.in.bwh)
@@ -180,7 +180,7 @@ func (t *FileStreamingWritesCommon) TestflushUsingBufferedWriteHandlerOnZeroSize
 	require.NoError(t.T(), err)
 	assert.Nil(t.T(), t.in.bwh)
 
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.Write)
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
 
 	require.NoError(t.T(), err)
 	assert.True(t.T(), initialized)
@@ -196,7 +196,7 @@ func (t *FileStreamingWritesCommon) TestflushUsingBufferedWriteHandlerOnNonZeroS
 	require.NoError(t.T(), err)
 	assert.Nil(t.T(), t.in.bwh)
 
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.Write)
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx)
 
 	require.NoError(t.T(), err)
 	assert.False(t.T(), initialized)
@@ -839,8 +839,6 @@ func (t *FakeBufferedWriteHandler) SetMtime(_ time.Time)          {}
 func (t *FakeBufferedWriteHandler) Truncate(_ int64) error        { return nil }
 func (t *FakeBufferedWriteHandler) Destroy() error                { return nil }
 func (t *FakeBufferedWriteHandler) Unlink()                       {}
-
-func (t *FakeBufferedWriteHandler) SetTotalSize() {}
 
 func (t *FileStreamingWritesTest) TestWriteUsingBufferedWritesFails() {
 	t.createBufferedWriteHandler()
