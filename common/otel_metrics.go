@@ -46,16 +46,6 @@ const (
 	CacheHitKey = "cache_hit"
 )
 
-type CacheHitReadType struct {
-	CacheHit string
-	ReadType string
-}
-
-type FSOpsErrorCategory struct {
-	FSOps         string
-	ErrorCategory string
-}
-
 var (
 	fsOpsMeter     = otel.Meter("fs_op")
 	gcsMeter       = otel.Meter("gcs")
