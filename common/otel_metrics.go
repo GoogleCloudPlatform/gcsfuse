@@ -57,9 +57,9 @@ var (
 
 	ioMethodClosedAttributeSet = getAttributeSet(attribute.String(IOMethod, IOMethodClosed))
 
-	ReadTypeSequentialAttributeSet = getAttributeSet(attribute.String(ReadType, ReadTypeSequential))
-	ReadTypeRandomAttributeSet     = getAttributeSet(attribute.String(ReadType, ReadTypeRandom))
-	ReadTypeParallelAttributeSet   = getAttributeSet(attribute.String(ReadType, ReadTypeParallel))
+	readTypeSequentialAttributeSet = getAttributeSet(attribute.String(ReadType, ReadTypeSequential))
+	readTypeRandomAttributeSet     = getAttributeSet(attribute.String(ReadType, ReadTypeRandom))
+	readTypeParallelAttributeSet   = getAttributeSet(attribute.String(ReadType, ReadTypeParallel))
 )
 
 func getIOMethodAttributeSet(ioMethod string) metric.MeasurementOption {
@@ -75,11 +75,11 @@ func getIOMethodAttributeSet(ioMethod string) metric.MeasurementOption {
 func getReadTypeAttributeSet(readType string) metric.MeasurementOption {
 	switch readType {
 	case ReadTypeSequential:
-		return metric.WithAttributeSet(ReadTypeSequentialAttributeSet)
+		return metric.WithAttributeSet(readTypeSequentialAttributeSet)
 	case ReadTypeRandom:
-		return metric.WithAttributeSet(ReadTypeRandomAttributeSet)
+		return metric.WithAttributeSet(readTypeRandomAttributeSet)
 	case ReadTypeParallel:
-		return metric.WithAttributeSet(ReadTypeParallelAttributeSet)
+		return metric.WithAttributeSet(readTypeParallelAttributeSet)
 	}
 	return metric.WithAttributeSet(emptyAttributeSet)
 }
