@@ -71,7 +71,7 @@ type GCSMetricHandle interface {
 }
 
 type OpsMetricHandle interface {
-	OpsCount(ctx context.Context, inc int64, attrs []MetricAttr)
+	OpsCount(ctx context.Context, inc int64, fsOp string)
 	OpsLatency(ctx context.Context, latency time.Duration, attrs []MetricAttr)
 	OpsErrorCount(ctx context.Context, inc int64, attrs []MetricAttr)
 }

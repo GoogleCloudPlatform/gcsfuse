@@ -17,6 +17,7 @@ package common
 import (
 	"context"
 	"errors"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -60,6 +61,8 @@ var (
 	readTypeSequentialAttributeSet = getAttributeSet(attribute.String(ReadType, ReadTypeSequential))
 	readTypeRandomAttributeSet     = getAttributeSet(attribute.String(ReadType, ReadTypeRandom))
 	readTypeParallelAttributeSet   = getAttributeSet(attribute.String(ReadType, ReadTypeParallel))
+
+	fsOpsAttributeSetMap sync.Map
 )
 
 func getIOMethodAttributeSet(ioMethod string) metric.MeasurementOption {
@@ -82,6 +85,15 @@ func getReadTypeAttributeSet(readType string) metric.MeasurementOption {
 		return metric.WithAttributeSet(readTypeParallelAttributeSet)
 	}
 	return metric.WithAttributeSet(emptyAttributeSet)
+}
+
+func getFSOpsAttributeSet(fsOps string) attribute.Set {
+	attrSet, ok := fsOpsAttributeSetMap.Load(fsOps)
+	if ok {
+		return attrSet.(attribute.Set)
+	}
+	v, _ := fsOpsAttributeSetMap.LoadOrStore(fsOps, getAttributeSet(attribute.String(FSOp, fsOps)))
+	return v.(attribute.Set)
 }
 
 // otelMetrics maintains the list of all metrics computed in GCSFuse.
@@ -148,8 +160,8 @@ func (o *otelMetrics) GCSDownloadBytesCount(ctx context.Context, inc int64, read
 	o.gcsDownloadBytesCount.Add(ctx, inc, getReadTypeAttributeSet(readType))
 }
 
-func (o *otelMetrics) OpsCount(ctx context.Context, inc int64, attrs []MetricAttr) {
-	o.fsOpsCount.Add(ctx, inc, attrsToAddOption(attrs)...)
+func (o *otelMetrics) OpsCount(ctx context.Context, inc int64, method string) {
+	o.fsOpsCount.Add(ctx, inc, metric.WithAttributeSet(getFSOpsAttributeSet(method)))
 }
 
 func (o *otelMetrics) OpsLatency(ctx context.Context, latency time.Duration, attrs []MetricAttr) {

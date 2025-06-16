@@ -33,7 +33,7 @@ func (*noopMetrics) GCSRequestLatency(_ context.Context, _ time.Duration, _ []Me
 func (*noopMetrics) GCSReadCount(_ context.Context, _ int64, _ string)                    {}
 func (*noopMetrics) GCSDownloadBytesCount(_ context.Context, _ int64, _ string)           {}
 
-func (*noopMetrics) OpsCount(_ context.Context, _ int64, _ []MetricAttr)           {}
+func (*noopMetrics) OpsCount(_ context.Context, _ int64, _ string)                 {}
 func (*noopMetrics) OpsLatency(_ context.Context, _ time.Duration, _ []MetricAttr) {}
 func (*noopMetrics) OpsErrorCount(_ context.Context, _ int64, _ []MetricAttr)      {}
 
