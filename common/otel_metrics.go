@@ -27,23 +27,23 @@ import (
 )
 
 const (
-	// IOMethod annotates the event that opens or closes a connection or file.
-	IOMethod = "io_method"
+	// IOMethodKey annotates the event that opens or closes a connection or file.
+	IOMethodKey = "io_method"
 
-	// GCSMethod annotates the method called in the GCS client library.
-	GCSMethod = "gcs_method"
+	// GCSMethodKey annotates the method called in the GCS client library.
+	GCSMethodKey = "gcs_method"
 
-	// FSOp annotates the file system op processed.
-	FSOp = "fs_op"
+	// FSOpKey annotates the file system op processed.
+	FSOpKey = "fs_op"
 
-	// FSErrCategory reduces the cardinality of FSError by grouping errors together.
-	FSErrCategory = "fs_error_category"
+	// FSErrCategoryKey reduces the cardinality of FSError by grouping errors together.
+	FSErrCategoryKey = "fs_error_category"
 
-	// ReadType annotates the read operation with the type - Sequential/Random
-	ReadType = "read_type"
+	// ReadTypeKey annotates the read operation with the type - Sequential/Random
+	ReadTypeKey = "read_type"
 
-	// CacheHit annotates the read operation from file cache with true or false.
-	CacheHit = "cache_hit"
+	// CacheHitKey annotates the read operation from file cache with true or false.
+	CacheHitKey = "cache_hit"
 )
 
 var (
@@ -53,47 +53,37 @@ var (
 
 	emptyAttributeSet = getAttributeSet()
 
-	// attribute-sets
-	ioMethodOpenedAttributeSet = getAttributeSet(attribute.String(IOMethod, IOMethodOpened))
-
-	ioMethodClosedAttributeSet = getAttributeSet(attribute.String(IOMethod, IOMethodClosed))
-
-	readTypeSequentialAttributeSet = getAttributeSet(attribute.String(ReadType, ReadTypeSequential))
-	readTypeRandomAttributeSet     = getAttributeSet(attribute.String(ReadType, ReadTypeRandom))
-	readTypeParallelAttributeSet   = getAttributeSet(attribute.String(ReadType, ReadTypeParallel))
-
-	fsOpsAttributeSetMap sync.Map
+	fsOpsAttributeSetMap  sync.Map
+	readTypeAttributeSet  sync.Map
+	ioMethodAttributeSet  sync.Map
+	gcsMethodAttributeSet sync.Map
 )
 
-func getIOMethodAttributeSet(ioMethod string) metric.MeasurementOption {
-	switch ioMethod {
-	case IOMethodOpened:
-		return metric.WithAttributeSet(ioMethodOpenedAttributeSet)
-	case IOMethodClosed:
-		return metric.WithAttributeSet(ioMethodClosedAttributeSet)
+func loadOrStoreAttributeOption[K comparable](mp *sync.Map, key K, attrSetGenFunc func() attribute.Set) metric.MeasurementOption {
+	attrSet, ok := mp.Load(key)
+	if ok {
+		return attrSet.(metric.MeasurementOption)
 	}
-	return metric.WithAttributeSet(emptyAttributeSet)
+	v, _ := fsOpsAttributeSetMap.LoadOrStore(key, metric.WithAttributeSet(attrSetGenFunc()))
+	return v.(metric.MeasurementOption)
+
+}
+
+func getIOMethodAttributeSet(ioMethod string) metric.MeasurementOption {
+	return loadOrStoreAttributeOption(&ioMethodAttributeSet, ioMethod, func() attribute.Set { return getAttributeSet(attribute.String(IOMethodKey, ioMethod)) })
+
 }
 
 func getReadTypeAttributeSet(readType string) metric.MeasurementOption {
-	switch readType {
-	case ReadTypeSequential:
-		return metric.WithAttributeSet(readTypeSequentialAttributeSet)
-	case ReadTypeRandom:
-		return metric.WithAttributeSet(readTypeRandomAttributeSet)
-	case ReadTypeParallel:
-		return metric.WithAttributeSet(readTypeParallelAttributeSet)
-	}
-	return metric.WithAttributeSet(emptyAttributeSet)
+	return loadOrStoreAttributeOption(&readTypeAttributeSet, readType, func() attribute.Set { return getAttributeSet(attribute.String(ReadTypeKey, readType)) })
 }
 
-func getFSOpsAttributeSet(fsOps string) attribute.Set {
-	attrSet, ok := fsOpsAttributeSetMap.Load(fsOps)
-	if ok {
-		return attrSet.(attribute.Set)
-	}
-	v, _ := fsOpsAttributeSetMap.LoadOrStore(fsOps, getAttributeSet(attribute.String(FSOp, fsOps)))
-	return v.(attribute.Set)
+func getFSOpsAttributeSet(fsOps string) metric.MeasurementOption {
+	return loadOrStoreAttributeOption(&fsOpsAttributeSetMap, fsOps, func() attribute.Set { return getAttributeSet(attribute.String(FSOpKey, fsOps)) })
+}
+
+func getGCSMethodAttributeSet(gcsMethod string) metric.MeasurementOption {
+	return loadOrStoreAttributeOption(&gcsMethodAttributeSet, gcsMethod, func() attribute.Set { return getAttributeSet(attribute.String(GCSMethodKey, gcsMethod)) })
 }
 
 // otelMetrics maintains the list of all metrics computed in GCSFuse.
@@ -144,8 +134,8 @@ func (o *otelMetrics) GCSReaderCount(ctx context.Context, inc int64, ioMethod st
 	o.gcsReaderCount.Add(ctx, inc, getIOMethodAttributeSet(ioMethod))
 }
 
-func (o *otelMetrics) GCSRequestCount(ctx context.Context, inc int64, attrs []MetricAttr) {
-	o.gcsRequestCount.Add(ctx, inc, attrsToAddOption(attrs)...)
+func (o *otelMetrics) GCSRequestCount(ctx context.Context, inc int64, gcsMethod string) {
+	o.gcsRequestCount.Add(ctx, inc, getGCSMethodAttributeSet(gcsMethod))
 }
 
 func (o *otelMetrics) GCSRequestLatency(ctx context.Context, latency time.Duration, attrs []MetricAttr) {
@@ -161,11 +151,11 @@ func (o *otelMetrics) GCSDownloadBytesCount(ctx context.Context, inc int64, read
 }
 
 func (o *otelMetrics) OpsCount(ctx context.Context, inc int64, method string) {
-	o.fsOpsCount.Add(ctx, inc, metric.WithAttributeSet(getFSOpsAttributeSet(method)))
+	o.fsOpsCount.Add(ctx, inc, getFSOpsAttributeSet(method))
 }
 
 func (o *otelMetrics) OpsLatency(ctx context.Context, latency time.Duration, method string) {
-	o.fsOpsLatency.Record(ctx, float64(latency.Microseconds()), metric.WithAttributeSet(getFSOpsAttributeSet(method)))
+	o.fsOpsLatency.Record(ctx, float64(latency.Microseconds()), getFSOpsAttributeSet(method))
 }
 
 func (o *otelMetrics) OpsErrorCount(ctx context.Context, inc int64, attrs []MetricAttr) {

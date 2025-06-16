@@ -64,7 +64,7 @@ func (a *MetricAttr) String() string {
 type GCSMetricHandle interface {
 	GCSReadBytesCount(ctx context.Context, inc int64)
 	GCSReaderCount(ctx context.Context, inc int64, ioMethod string)
-	GCSRequestCount(ctx context.Context, inc int64, attrs []MetricAttr)
+	GCSRequestCount(ctx context.Context, inc int64, gcsMethod string)
 	GCSRequestLatency(ctx context.Context, latency time.Duration, attrs []MetricAttr)
 	GCSReadCount(ctx context.Context, inc int64, readType string)
 	GCSDownloadBytesCount(ctx context.Context, inc int64, _ string)

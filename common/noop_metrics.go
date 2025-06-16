@@ -28,7 +28,7 @@ type noopMetrics struct{}
 
 func (*noopMetrics) GCSReadBytesCount(_ context.Context, _ int64)                         {}
 func (*noopMetrics) GCSReaderCount(_ context.Context, _ int64, _ string)                  {}
-func (*noopMetrics) GCSRequestCount(_ context.Context, _ int64, _ []MetricAttr)           {}
+func (*noopMetrics) GCSRequestCount(_ context.Context, _ int64, _ string)                 {}
 func (*noopMetrics) GCSRequestLatency(_ context.Context, _ time.Duration, _ []MetricAttr) {}
 func (*noopMetrics) GCSReadCount(_ context.Context, _ int64, _ string)                    {}
 func (*noopMetrics) GCSDownloadBytesCount(_ context.Context, _ int64, _ string)           {}
