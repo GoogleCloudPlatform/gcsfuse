@@ -65,21 +65,21 @@ type GCSMetricHandle interface {
 	GCSReadBytesCount(ctx context.Context, inc int64)
 	GCSReaderCount(ctx context.Context, inc int64, ioMethod string)
 	GCSRequestCount(ctx context.Context, inc int64, gcsMethod string)
-	GCSRequestLatency(ctx context.Context, latency time.Duration, attrs []MetricAttr)
+	GCSRequestLatency(ctx context.Context, latency time.Duration, gcsMethod string)
 	GCSReadCount(ctx context.Context, inc int64, readType string)
-	GCSDownloadBytesCount(ctx context.Context, inc int64, _ string)
+	GCSDownloadBytesCount(ctx context.Context, inc int64, readType string)
 }
 
 type OpsMetricHandle interface {
 	OpsCount(ctx context.Context, inc int64, fsOp string)
 	OpsLatency(ctx context.Context, latency time.Duration, method string)
-	OpsErrorCount(ctx context.Context, inc int64, attrs []MetricAttr)
+	OpsErrorCount(ctx context.Context, inc int64, attrs FSOpsErrorCategory)
 }
 
 type FileCacheMetricHandle interface {
 	FileCacheReadCount(ctx context.Context, inc int64, attrs CacheHitReadType)
 	FileCacheReadBytesCount(ctx context.Context, inc int64, readType string)
-	FileCacheReadLatency(ctx context.Context, latency time.Duration, attrs []MetricAttr)
+	FileCacheReadLatency(ctx context.Context, latency time.Duration, cacheHit string)
 }
 type MetricHandle interface {
 	GCSMetricHandle

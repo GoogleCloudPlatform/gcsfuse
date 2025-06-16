@@ -231,10 +231,10 @@ func recordOp(ctx context.Context, metricHandle common.MetricHandle, method stri
 	// Recording opErrorCount.
 	if fsErr != nil {
 		errCategory := categorize(fsErr)
-		metricHandle.OpsErrorCount(ctx, 1, []common.MetricAttr{
-			{Key: common.FSOpKey, Value: method},
-			{Key: common.FSErrCategoryKey, Value: errCategory}},
-		)
+		metricHandle.OpsErrorCount(ctx, 1, common.FSOpsErrorCategory{
+			FSOps:         method,
+			ErrorCategory: errCategory,
+		})
 	}
 	metricHandle.OpsLatency(ctx, time.Since(start), method)
 }

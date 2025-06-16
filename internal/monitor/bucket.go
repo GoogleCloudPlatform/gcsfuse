@@ -28,7 +28,7 @@ import (
 func recordRequest(ctx context.Context, metricHandle common.MetricHandle, method string, start time.Time) {
 	metricHandle.GCSRequestCount(ctx, 1, method)
 
-	metricHandle.GCSRequestLatency(ctx, time.Since(start), []common.MetricAttr{{Key: common.GCSMethodKey, Value: method}})
+	metricHandle.GCSRequestLatency(ctx, time.Since(start), method)
 }
 
 func CaptureMultiRangeDownloaderMetrics(ctx context.Context, metricHandle common.MetricHandle, method string, start time.Time) {
