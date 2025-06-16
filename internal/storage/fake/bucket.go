@@ -1252,3 +1252,7 @@ func (b *bucket) NewMultiRangeDownloader(
 
 	return &fakeMultiRangeDownloader{obj: &obj}, nil
 }
+
+func (b *bucket) GCSName(obj *gcs.MinObject) string {
+	return obj.Name
+}

@@ -211,6 +211,10 @@ func (mb *monitoringBucket) NewMultiRangeDownloader(
 	return
 }
 
+func (mb *monitoringBucket) GCSName(obj *gcs.MinObject) string {
+	return mb.wrapped.GCSName(obj)
+}
+
 // recordReader increments the reader count when it's opened or closed.
 func recordReader(ctx context.Context, metricHandle common.MetricHandle, ioMethod string) {
 	metricHandle.GCSReaderCount(ctx, 1, []common.MetricAttr{{Key: common.IOMethod, Value: ioMethod}})

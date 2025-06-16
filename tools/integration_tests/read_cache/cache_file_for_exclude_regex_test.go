@@ -16,16 +16,17 @@ package read_cache
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"path"
 	"testing"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/log_parser/json_parser/read_logs"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/log_parser/json_parser/read_logs"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -54,12 +55,10 @@ func (s *cacheFileForExcludeRegexTest) Teardown(t *testing.T) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *cacheFileForExcludeRegexTest) TestReadWithCacheMiss(t *testing.T) {
+func (s *cacheFileForExcludeRegexTest) TestReadsForExcludedFile(t *testing.T) {
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeForRangeRead, t)
 
-	// Do a random read on file and validate from gcs.
-	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, 0, t)
-	// Read file again from offset 1000 and validate from gcs.
+	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
 	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset1000, t)
 
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
@@ -92,32 +91,78 @@ func TestCacheFileForExcludeRegexTest(t *testing.T) {
 	// Run with cache directory pointing to RAM based dir
 	ramCacheDir := path.Join("/dev/shm", cacheDirName)
 
-	flagsSet := []gcsfuseTestFlags{
+	tests := []struct {
+		flags       gcsfuseTestFlags
+		onlyDirTest bool
+	}{
 		{
-			cliFlags:                []string{"--implicit-dirs", "--file-cache-experimental-exclude-regex=.*"},
-			cacheSize:               cacheCapacityForRangeReadTestInMiB,
-			cacheFileForRangeRead:   false,
-			fileName:                configFileName,
-			enableParallelDownloads: false,
-			enableODirect:           false,
-			cacheDirPath:            getDefaultCacheDirPathForTests(),
+			flags: gcsfuseTestFlags{
+				cliFlags:                []string{"--implicit-dirs", "--file-cache-experimental-exclude-regex=."},
+				cacheSize:               cacheCapacityForRangeReadTestInMiB,
+				cacheFileForRangeRead:   false,
+				fileName:                configFileName,
+				enableParallelDownloads: false,
+				enableODirect:           false,
+				cacheDirPath:            getDefaultCacheDirPathForTests(),
+			},
 		},
 		{
-			cliFlags:                []string{"--file-cache-experimental-exclude-regex=.*"},
-			cacheSize:               cacheCapacityForRangeReadTestInMiB,
-			cacheFileForRangeRead:   false,
-			fileName:                configFileName,
-			enableParallelDownloads: false,
-			enableODirect:           false,
-			cacheDirPath:            ramCacheDir,
+			flags: gcsfuseTestFlags{
+				cliFlags:                []string{"--file-cache-experimental-exclude-regex=."},
+				cacheSize:               cacheCapacityForRangeReadTestInMiB,
+				cacheFileForRangeRead:   false,
+				fileName:                configFileName,
+				enableParallelDownloads: false,
+				enableODirect:           false,
+				cacheDirPath:            ramCacheDir,
+			},
+		},
+		{
+			flags: gcsfuseTestFlags{
+				cliFlags:                []string{"--file-cache-experimental-exclude-regex=."},
+				cacheSize:               cacheCapacityForRangeReadTestInMiB,
+				cacheFileForRangeRead:   true,
+				fileName:                configFileName,
+				enableParallelDownloads: false,
+				enableODirect:           false,
+				cacheDirPath:            ramCacheDir,
+			},
+		},
+		{
+			flags: gcsfuseTestFlags{
+				// Exclude regex is set to bucket name as the prefix of the string, so should exclude all objects.
+				cliFlags:                []string{fmt.Sprintf("--file-cache-experimental-exclude-regex=^%s/", setup.TestBucket())},
+				cacheSize:               cacheCapacityForRangeReadTestInMiB,
+				cacheFileForRangeRead:   true,
+				fileName:                configFileName,
+				enableParallelDownloads: false,
+				enableODirect:           false,
+				cacheDirPath:            ramCacheDir,
+			},
+		},
+		{
+			flags: gcsfuseTestFlags{
+				// Exclude regex is set to the only-dir value which is not present in local paths, but should be present in all cloud paths.
+				cliFlags:                []string{fmt.Sprintf("--file-cache-experimental-exclude-regex=^%s/%s/", setup.TestBucket(), onlyDirMounted)},
+				cacheSize:               cacheCapacityForRangeReadTestInMiB,
+				cacheFileForRangeRead:   true,
+				fileName:                configFileName,
+				enableParallelDownloads: false,
+				enableODirect:           false,
+				cacheDirPath:            ramCacheDir,
+			},
+			onlyDirTest: true,
 		},
 	}
-	flagsSet = appendClientProtocolConfigToFlagSet(flagsSet)
-	for _, flags := range flagsSet {
-		configFilePath := createConfigFile(&flags)
+	for _, test := range tests {
+		test.flags = appendClientProtocolConfigToFlagSet([]gcsfuseTestFlags{test.flags})[0]
+		if test.onlyDirTest && setup.OnlyDirMounted() == "" {
+			continue
+		}
+		configFilePath := createConfigFile(&test.flags)
 		ts.flags = []string{"--config-file=" + configFilePath}
-		if flags.cliFlags != nil {
-			ts.flags = append(ts.flags, flags.cliFlags...)
+		if test.flags.cliFlags != nil {
+			ts.flags = append(ts.flags, test.flags.cliFlags...)
 		}
 		log.Printf("Running tests with flags: %s", ts.flags)
 		test_setup.RunTests(t, ts)

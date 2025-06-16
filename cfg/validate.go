@@ -78,7 +78,7 @@ func isValidFileCacheConfig(config *FileCacheConfig) error {
 	if config.DownloadChunkSizeMb < 1 {
 		return errors.New(DownloadChunkSizeMBInvalidValueError)
 	}
-	if _, err := regexp.CompilePOSIX(config.ExperimentalExcludeRegex); err != nil {
+	if _, err := regexp.Compile(config.ExperimentalExcludeRegex); err != nil {
 		return fmt.Errorf("invalid regex value %q provided for experimental-exclude-regex", config.ExperimentalExcludeRegex)
 	}
 

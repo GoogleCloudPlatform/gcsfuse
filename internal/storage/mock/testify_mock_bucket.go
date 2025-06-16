@@ -156,3 +156,8 @@ func (m *TestifyMockBucket) NewMultiRangeDownloader(
 	}
 	return nil, args.Error(1)
 }
+
+func (m *TestifyMockBucket) GCSName(obj *gcs.MinObject) string {
+	args := m.Called(obj)
+	return args.Get(0).(string)
+}

@@ -17,6 +17,7 @@ package file
 import (
 	"fmt"
 	"os"
+	"path"
 	"regexp"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
@@ -213,12 +214,12 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 // fileInfoCache then no need to create file in cache.
 //
 // Acquires and releases LOCK(CacheHandler.mu)
-func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, cacheForRangeRead bool, initialOffset int64) (cacheHandle *CacheHandle, err error) {
+func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, cacheForRangeRead bool, initialOffset int64) (*CacheHandle, error) {
 	chr.mu.Lock()
 	defer chr.mu.Unlock()
 
 	// Check if file should be excluded from cache
-	if chr.shouldExcludeFromCache(bucket.Name(), object.Name) {
+	if chr.shouldExcludeFromCache(bucket, object) {
 		return nil, util.ErrFileExcludedFromCacheByRegex
 	}
 
@@ -241,7 +242,7 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 		}
 	}
 
-	err = chr.addFileInfoEntryAndCreateDownloadJob(object, bucket)
+	err := chr.addFileInfoEntryAndCreateDownloadJob(object, bucket)
 	if err != nil {
 		return nil, fmt.Errorf("GetCacheHandle: while adding the entry in the cache: %w", err)
 	}
@@ -296,13 +297,13 @@ func (chr *CacheHandler) Destroy() (err error) {
 }
 
 // shouldExcludeFromCache checks if the object should be excluded from cache
-// based on the configured regex pattern
-func (chr *CacheHandler) shouldExcludeFromCache(bucketName, objectName string) bool {
+// based on the configured regex pattern.
+func (chr *CacheHandler) shouldExcludeFromCache(bucket gcs.Bucket, object *gcs.MinObject) bool {
 	if chr.excludeRegex == nil {
 		return false
 	}
 
-	// Create the cloud path in the format bucket/object
-	cloudPath := bucketName + "/" + objectName
+	// Get the GCS name of the object and create the cloud path in the format bucket/object.
+	cloudPath := path.Join(bucket.Name(), bucket.GCSName(object))
 	return chr.excludeRegex.MatchString(cloudPath)
 }

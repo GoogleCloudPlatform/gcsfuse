@@ -557,7 +557,6 @@ func Test_GetCacheHandle_ExcludeFromCache(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Nil(t, cacheHandle.validateCacheHandle())
 
-	// Check that
 }
 
 func Test_GetCacheHandle_CacheForRangeRead(t *testing.T) {

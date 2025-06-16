@@ -443,7 +443,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("file-cache-enable-parallel-downloads", "", false, "Enable parallel downloads.")
 
-	flagSet.StringP("file-cache-experimental-exclude-regex", "", "", "Exclude file prefixes specified by this regex from file caching.")
+	flagSet.StringP("file-cache-experimental-exclude-regex", "", "", "Exclude file paths (in the format bucket_name/object_key) specified by this regex from file caching.")
 
 	if err := flagSet.MarkHidden("file-cache-experimental-exclude-regex"); err != nil {
 		return err

@@ -721,6 +721,10 @@ func (bh *bucketHandle) NewMultiRangeDownloader(
 	return
 }
 
+func (bh *bucketHandle) GCSName(obj *gcs.MinObject) string {
+	return obj.Name
+}
+
 func isStorageConditionsNotEmpty(conditions storage.Conditions) bool {
 	return conditions != (storage.Conditions{})
 }
