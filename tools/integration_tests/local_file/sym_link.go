@@ -21,9 +21,9 @@ import (
 	"strings"
 	"testing"
 
-	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	. "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
 
 func createAndVerifySymLink(t *testing.T) (filePath, symlink string, fh *os.File) {
@@ -42,13 +42,13 @@ func createAndVerifySymLink(t *testing.T) (filePath, symlink string, fh *os.File
 	return
 }
 
-func (t *localFileTestSuite) TestCreateSymlinkForLocalFile() {
+func (t *CommonLocalFileTestSuite) TestCreateSymlinkForLocalFile() {
 	_, _, fh := createAndVerifySymLink(t.T())
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
 		FileName1, FileContents, t.T())
 }
 
-func (t *localFileTestSuite) TestReadSymlinkForDeletedLocalFile() {
+func (t *CommonLocalFileTestSuite) TestReadSymlinkForDeletedLocalFile() {
 	filePath, symlink, fh := createAndVerifySymLink(t.T())
 	// Remove filePath and then close the fileHandle to avoid syncing to GCS.
 	operations.RemoveFile(filePath)

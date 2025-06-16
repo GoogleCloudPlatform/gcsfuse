@@ -24,15 +24,15 @@ import (
 	"reflect"
 	"syscall"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/common"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
-	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
+	cacheutil "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"golang.org/x/net/context"
 	"golang.org/x/sync/semaphore"
 )
@@ -367,10 +367,10 @@ func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
 //
 // Acquires and releases LOCK(job.mu)
 func (job *Job) cleanUpDownloadAsyncJob() {
-	// Close the job.doneCh, clear the cancelFunc & cancelCtx and call the
+	// Clear the cancelFunc & cancelCtx and call the
 	// remove job callback function.
+	// Finally, close the job.doneCh.
 	job.cancelFunc()
-	close(job.doneCh)
 
 	job.mu.Lock()
 	if job.removeJobCallback != nil {
@@ -379,6 +379,7 @@ func (job *Job) cleanUpDownloadAsyncJob() {
 	}
 	job.cancelCtx, job.cancelFunc = nil, nil
 	job.mu.Unlock()
+	close(job.doneCh)
 }
 
 // createCacheFile is a helper function which creates file in cache using

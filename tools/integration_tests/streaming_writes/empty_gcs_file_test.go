@@ -18,26 +18,26 @@ import (
 	"path"
 	"testing"
 
-	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	. "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/suite"
 )
 
-type defaultMountEmptyGCSFile struct {
-	defaultMountCommonTest
+type streamingWritesEmptyGCSFileTestSuite struct {
+	StreamingWritesSuite
 	suite.Suite
 }
 
-func (t *defaultMountEmptyGCSFile) SetupTest() {
+func (t *streamingWritesEmptyGCSFileTestSuite) SetupTest() {
 	t.createEmptyGCSFile()
 }
 
-func (t *defaultMountEmptyGCSFile) SetupSubTest() {
+func (t *streamingWritesEmptyGCSFileTestSuite) SetupSubTest() {
 	t.createEmptyGCSFile()
 }
 
-func (t *defaultMountEmptyGCSFile) createEmptyGCSFile() {
+func (t *streamingWritesEmptyGCSFileTestSuite) createEmptyGCSFile() {
 	t.fileName = FileName1 + setup.GenerateRandomString(5)
 	// Create an empty file on GCS.
 	CreateObjectInGCSTestDir(ctx, storageClient, testDirName, t.fileName, "", t.T())
@@ -47,8 +47,8 @@ func (t *defaultMountEmptyGCSFile) createEmptyGCSFile() {
 }
 
 // Executes all tests that run with single streamingWrites configuration for empty GCS Files.
-func TestDefaultMountEmptyGCSFileTest(t *testing.T) {
-	s := new(defaultMountEmptyGCSFile)
-	s.defaultMountCommonTest.TestifySuite = &s.Suite
+func TestEmptyGCSFileTestSuiteTest(t *testing.T) {
+	s := new(streamingWritesEmptyGCSFileTestSuite)
+	s.StreamingWritesSuite.TestifySuite = &s.Suite
 	suite.Run(t, s)
 }

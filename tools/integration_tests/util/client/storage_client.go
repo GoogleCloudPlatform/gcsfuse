@@ -21,8 +21,10 @@ import (
 	"io"
 	"log"
 	"os"
+	"path"
 	"reflect"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -30,9 +32,9 @@ import (
 	"cloud.google.com/go/storage"
 	"cloud.google.com/go/storage/experimental"
 	"github.com/googleapis/gax-go/v2"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/iterator"
@@ -93,6 +95,9 @@ func getTokenSrc(path string) (tokenSrc oauth2.TokenSource, err error) {
 func ReadObjectFromGCS(ctx context.Context, client *storage.Client, object string) (string, error) {
 	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
 
+	if client == nil {
+		return "", fmt.Errorf("client is nil")
+	}
 	// Create storage reader to read from GCS.
 	rc, err := client.Bucket(bucket).Object(object).NewReader(ctx)
 	if err != nil {
@@ -313,7 +318,7 @@ func UploadGcsObject(ctx context.Context, client *storage.Client, localPath, buc
 	obj := client.Bucket(bucketName).Object(objectName)
 	w, err := NewWriter(ctx, obj, client)
 	if err != nil {
-		return fmt.Errorf("Failed to open writer for GCS object gs://%s/%s: %w", bucketName, objectName, err)
+		return fmt.Errorf("failed to open writer for GCS object gs://%s/%s: %w", bucketName, objectName, err)
 	}
 	defer func() {
 		if err := w.Close(); err != nil {
@@ -426,4 +431,23 @@ func AppendableWriter(ctx context.Context, client *storage.Client, object string
 		return nil, fmt.Errorf("failed to open writer for object %q: %w", o.ObjectName(), err)
 	}
 	return wc, nil
+}
+
+// CreateGcsDir creates a GCS object with trailing slash "/" to simulate a directory.
+func CreateGcsDir(ctx context.Context, client *storage.Client, dirName, bucketName, objectName string) error {
+	// Combine objectName and dirName to form the full GCS object path
+	fullObjectPath := path.Join(objectName, dirName)
+
+	// Ensure fullObjectPath ends with a "/"
+	if !strings.HasSuffix(fullObjectPath, "/") {
+		fullObjectPath += "/"
+	}
+
+	// Create an empty object with the directory path
+	err := WriteToObject(ctx, client, fullObjectPath, "", storage.Conditions{})
+	if err != nil {
+		return fmt.Errorf("failed to create GCS directory object %q in bucket %q: %w", fullObjectPath, bucketName, err)
+	}
+
+	return nil
 }

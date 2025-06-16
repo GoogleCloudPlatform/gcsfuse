@@ -75,14 +75,14 @@
   flag-name: "disable-autoconfig"
   type: "bool"
   usage: "Disable optimizing configuration automatically for a machine"
-  default: true
+  default: false
   hide-flag: true
 
 - config-path: "enable-atomic-rename-object"
   flag-name: "enable-atomic-rename-object"
   type: "bool"
   usage: "Enables support for atomic rename object operation on HNS bucket."
-  default: false
+  default: true
   hide-flag: true
 
 - config-path: "enable-hns"
@@ -519,7 +519,7 @@
     flag has been deprecated (starting v2.0) and in favor of
     stat-cache-max-size-mb. For now, the value of stat-cache-capacity will be
     translated to the next higher corresponding value of stat-cache-max-size-mb
-    (assuming stat-cache entry-size ~= 1640 bytes, including 1400 for positive
+    (assuming stat-cache entry-size ~= 1688 bytes, including 1448 for positive
     entry and 240 for corresponding negative entry), if stat-cache-max-size-mb
     is not set."
   deprecated: true
@@ -595,7 +595,7 @@
   usage: >-
     The maximum size of stat-cache in MiBs. It can also be set to -1 for
     no-size-limit, 0 for no cache. Values below -1 are not supported.
-  default: "32"
+  default: "33"
 
 - config-path: "metadata-cache.ttl-secs"
   flag-name: "metadata-cache-ttl-secs"
@@ -661,6 +661,57 @@
   usage: "Mount only a specific directory within the bucket. See docs/mounting for more information"
   default: ""
 
+- config-path: "profiling.allocated-heap"
+  flag-name: "profiling-allocated-heap"
+  type: "bool"
+  usage: "Enables allocated heap (HeapProfileAllocs) profiling. This only works when --enable-cloud-profiling is set to true."
+  default: true
+  hide-flag: true
+
+- config-path: "profiling.cpu"
+  flag-name: "profiling-cpu"
+  type: "bool"
+  usage: "Enables cpu profiling. This only works when --enable-cloud-profiling is set to true."
+  default: true
+  hide-flag: true
+
+- config-path: "profiling.enabled"
+  flag-name: "enable-cloud-profiling"
+  type: "bool"
+  usage: "Enables cloud profiling, by default disabled."
+  default: false
+  hide-flag: true
+
+- config-path: "profiling.goroutines"
+  flag-name: "profiling-goroutines"
+  type: "bool"
+  usage: "Enables goroutines profiling. This only works when --enable-cloud-profiling is set to true."
+  default: false
+  hide-flag: true
+
+- config-path: "profiling.heap"
+  flag-name: "profiling-heap"
+  type: "bool"
+  usage: "Enables heap profiling. This only works when --enable-cloud-profiling is set to true."
+  default: true
+  hide-flag: true
+
+- config-path: "profiling.label"
+  flag-name: "profiling-label"
+  type: "string"
+  usage: >-
+    Allow setting a profile label to uniquely identify and compare profiling data with other profiles.
+    This only works when --enable-cloud-profiling is set to true.  
+  default: "gcsfuse-0.0.0"
+  hide-flag: true
+
+- config-path: "profiling.mutex"
+  flag-name: "profiling-mutex"
+  type: "bool"
+  usage: "Enables mutex profiling. This only works when --enable-cloud-profiling is set to true."
+  default: false
+  hide-flag: true
+
 - config-path: "read.inactive-stream-timeout"
   flag-name: "read-inactive-stream-timeout"
   type: "duration"
@@ -668,8 +719,7 @@
     Duration of inactivity after which an open GCS read stream is automatically closed.
     This helps conserve resources when a file handle remains open without active Read calls.
     A value of '0s' disables this timeout.
-    Note: Currently only applies when using the 'grpc' client-protocol.
-  default: "0s"
+  default: "10s"
   hide-flag: true
 
 - config-path: "write.block-size-mb"
@@ -691,18 +741,25 @@
   flag-name: "enable-streaming-writes"
   type: "bool"
   usage: "Enables streaming uploads during write file operation."
-  default: false
+  default: true
   hide-flag: false
+
+- config-path: "write.experimental-enable-rapid-appends"
+  flag-name: "write-experimental-enable-rapid-appends"
+  type: "bool"
+  usage: "Enables support for appends to unfinalized object using streaming writes"
+  default: false
+  hide-flag: true
 
 - config-path: "write.global-max-blocks"
   flag-name: "write-global-max-blocks"
   type: "int"
   usage: >-
-    Specifies the maximum number of blocks to be used by all files for
-    streaming writes. The value should be >= 0 (1 block per file is not counted 
-    towards this limit) or -1 (for infinite blocks).
-  default: -1
-  hide-flag: true
+    Specifies the maximum number of blocks available for streaming writes across all files. 
+    The value should be >= 0 or -1 (for infinite blocks).
+    A value of 0 disables streaming writes.
+  default: 4
+  hide-flag: false
 
 - config-path: "write.max-blocks-per-file"
   flag-name: "write-max-blocks-per-file"

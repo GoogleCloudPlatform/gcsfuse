@@ -20,10 +20,10 @@ import (
 	"os"
 
 	"cloud.google.com/go/storage"
-	emulator_tests "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/emulator_tests/util"
-	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	emulator_tests "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/emulator_tests/util"
+	. "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -61,7 +61,7 @@ type gcsObjectValidator interface {
 // //////////////////////////////////////////////////////////////////////
 
 func (t *commonFailureTestSuite) SetupSuite() {
-	t.flags = []string{"--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=1"}
+	t.flags = []string{"--write-block-size-mb=1", "--write-max-blocks-per-file=1"}
 	// Generate 5 MB random data.
 	var err error
 	t.data, err = operations.GenerateRandomData(5 * operations.MiB)

@@ -20,10 +20,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"golang.org/x/net/context"
 
 	"github.com/jacobsa/timeutil"
@@ -241,8 +241,7 @@ func (b *fastStatBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.C
 }
 
 func (b *fastStatBucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.CreateObjectChunkWriterRequest) (gcs.Writer, error) {
-	//TODO: implementation
-	return nil, nil
+	return b.wrapped.CreateAppendableObjectWriter(ctx, req)
 }
 
 func (b *fastStatBucket) FinalizeUpload(ctx context.Context, writer gcs.Writer) (*gcs.MinObject, error) {
@@ -443,8 +442,7 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 	}
 
 	// Put the object in cache.
-	o := storageutil.ConvertMinObjectToObject(m)
-	b.insert(o)
+	b.insertMinObject(m)
 
 	return
 }

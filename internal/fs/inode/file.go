@@ -23,15 +23,16 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/block"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/bufferedwrites"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedwrites"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
@@ -364,6 +365,13 @@ func (f *FileInode) Unlink() {
 	}
 }
 
+// Returns true if the fileInode is using Buffered Write Handler.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) IsUsingBWH() bool {
+	return f.bwh != nil
+}
+
 // Source returns a record for the GCS object from which this inode is branched. The
 // record is guaranteed not to be modified, and users must not modify it.
 //
@@ -543,9 +551,7 @@ func (f *FileInode) Read(
 	ctx context.Context,
 	dst []byte,
 	offset int64) (n int, err error) {
-	// It is not nil when streaming writes are enabled in 2 scenarios:
-	// 1. Local file
-	// 2. Empty GCS files and writes are triggered via buffered flow.
+	// It is not nil when streaming writes are enabled and bucket type is Zonal.
 	if f.bwh != nil {
 		err = fmt.Errorf("cannot read a file when upload in progress: %w", syscall.ENOTSUP)
 		return
@@ -573,17 +579,19 @@ func (f *FileInode) Read(
 }
 
 // Serve a write for this file with semantics matching fuseops.WriteFileOp.
+// It returns true if the file is successfully synced during the write operation.
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Write(
 	ctx context.Context,
 	data []byte,
-	offset int64) error {
+	offset int64,
+	openMode util.OpenMode) (bool, error) {
 	if f.bwh != nil {
 		return f.writeUsingBufferedWrites(ctx, data, offset)
 	}
 
-	return f.writeUsingTempFile(ctx, data, offset)
+	return false, f.writeUsingTempFile(ctx, data, offset)
 }
 
 // Helper function to serve write for file using temp file.
@@ -607,30 +615,28 @@ func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset 
 // Helper function to serve write for file using buffered writes handler.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64) error {
+func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64) (bool, error) {
 	err := f.bwh.Write(data, offset)
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
-		return &gcsfuse_errors.FileClobberedError{
+		return false, &gcsfuse_errors.FileClobberedError{
 			Err: fmt.Errorf("f.bwh.Write(): %w", err),
 		}
 	}
-	if err != nil && !errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
-		return fmt.Errorf("write to buffered write handler failed: %w", err)
-	}
-
 	// Fall back to temp file for Out-Of-Order Writes.
 	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
 		logger.Infof("Falling back to staged writes on disk for file %s (inode %d) due to err: %v.", f.Name(), f.ID(), err.Error())
 		// Finalize the object.
 		err = f.flushUsingBufferedWriteHandler()
 		if err != nil {
-			return fmt.Errorf("could not finalize what has been written so far: %w", err)
+			return false, fmt.Errorf("could not finalize what has been written so far: %w", err)
 		}
-		return f.writeUsingTempFile(ctx, data, offset)
+		return true, f.writeUsingTempFile(ctx, data, offset)
 	}
-
-	return err
+	if err != nil {
+		return false, fmt.Errorf("write to buffered write handler failed: %w", err)
+	}
+	return false, nil
 }
 
 // Helper function to flush buffered writes handler and update inode state with
@@ -919,28 +925,55 @@ func (f *FileInode) updateMRDWrapper() {
 	}
 }
 
+// truncateUsingBufferedWriteHandler attempts to truncate the file using the buffered
+// write handler. If the requested size is smaller than the file's current size,
+// it finalizes the existing writes, falls back to using a temporary file for
+// the truncation, and returns true to indicate the file has been synced.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) truncateUsingBufferedWriteHandler(ctx context.Context, size int64) (bool, error) {
+	err := f.bwh.Truncate(size)
+	// If truncate size is less than the total file size resulting in OutOfOrder write, finalize and fall back to temp file.
+	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
+		logger.Warnf("Falling back to staged writes on disk for file %s (inode %d) due to err: %v.", f.Name(), f.ID(), err.Error())
+		// Finalize the object.
+		err = f.flushUsingBufferedWriteHandler()
+		if err != nil {
+			return false, fmt.Errorf("could not finalize what has been written so far: %w", err)
+		}
+		return true, f.truncateUsingTempFile(ctx, size)
+	}
+	if err != nil {
+		return false, fmt.Errorf("got unexpected error from bwh.Truncate(): %w", err)
+	}
+	return false, nil
+}
+
+// truncateUsingTempFile truncates the file by first ensuring a temporary file
+// is available and then truncating that temporary file to the specified size.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) truncateUsingTempFile(ctx context.Context, size int64) error {
+	// Make sure f.content != nil.
+	err := f.ensureContent(ctx)
+	if err != nil {
+		return fmt.Errorf("ensureContent: %w", err)
+	}
+	// Truncate temp file.
+	return f.content.Truncate(size)
+}
+
 // Truncate the file to the specified size.
+// It returns true if the file has been successfully synced to GCS.
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Truncate(
 	ctx context.Context,
-	size int64) (err error) {
-
-	if f.bwh != nil {
-		return f.bwh.Truncate(size)
+	size int64) (bool, error) {
+	if f.IsUsingBWH() {
+		return f.truncateUsingBufferedWriteHandler(ctx, size)
 	}
-
-	// Make sure f.content != nil.
-	err = f.ensureContent(ctx)
-	if err != nil {
-		err = fmt.Errorf("ensureContent: %w", err)
-		return
-	}
-
-	// Call through.
-	err = f.content.Truncate(size)
-
-	return
+	return false, f.truncateUsingTempFile(ctx, size)
 }
 
 // Ensures cache content on read if content cache enabled

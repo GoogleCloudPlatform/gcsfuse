@@ -30,16 +30,17 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/common"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/canned"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/monitor"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/canned"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/mount"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/profiler"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
 	"github.com/kardianos/osext"
@@ -137,7 +138,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string) (storageHandle
 		ReadStallRetryConfig:       newConfig.GcsRetries.ReadStall,
 	}
 	logger.Infof("UserAgent = %s\n", storageClientConfig.UserAgent)
-	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)
+	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig, newConfig.GcsConnection.BillingProject)
 	return
 }
 
@@ -393,6 +394,11 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	}
 	shutdownTracingFn := monitor.SetupTracing(ctx, newConfig)
 	shutdownFn := common.JoinShutdownFunc(metricExporterShutdownFn, shutdownTracingFn)
+
+	// No-op if profiler is disabled.
+	if err := profiler.SetupCloudProfiler(&newConfig.Profiling); err != nil {
+		logger.Warnf("Failed to setup cloud profiler: %v", err)
+	}
 
 	// Mount, writing information about our progress to the writer that package
 	// daemonize gives us and telling it about the outcome.

@@ -30,20 +30,20 @@ import (
 
 	"golang.org/x/sync/semaphore"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/common"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
-	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/handle"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
+	cacheutil "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/handle"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -1572,7 +1572,12 @@ func (fs *fileSystem) SetInodeAttributes(
 		if err != nil {
 			return
 		}
-		err = file.Truncate(ctx, int64(*op.Size))
+		gcsSynced, err := file.Truncate(ctx, int64(*op.Size))
+		// Sync the inode if finalize during truncate is successful
+		// even if the truncate operation later resulted error.
+		if gcsSynced {
+			fs.promoteToGenerationBacked(file)
+		}
 		if err != nil {
 			err = fmt.Errorf("truncate: %w", err)
 			return err
@@ -1838,8 +1843,9 @@ func (fs *fileSystem) CreateFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	// Creating new file is always a write operation, hence passing readOnly as false.
-	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, util.Write, &fs.newConfig.Read)
+	// CreateFile() invoked to create new files, can be safely considered as filehandle
+	// opened in append mode.
+	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, util.Append, &fs.newConfig.Read)
 	op.Handle = handleID
 
 	fs.mu.Unlock()
@@ -2595,10 +2601,24 @@ func (fs *fileSystem) ReadFile(
 	fs.mu.Unlock()
 
 	fh.Lock()
+	fh.Inode().Lock()
 	defer fh.Unlock()
-
+	// TODO(b/417136852): Remove bucket type check when we start leaving zonal bucket objects unfinalized.
+	// Flush Pending streaming writes file for regional bucket and issue read within same inode lock.
+	if fh.Inode().IsUsingBWH() && !fh.Inode().Bucket().BucketType().Zonal {
+		err = fs.flushFile(ctx, fh.Inode())
+		if err != nil {
+			fh.Inode().Unlock()
+			return err
+		}
+	}
 	// Serve the read.
-	op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
+
+	if fs.newConfig.EnableNewReader {
+		op.Dst, op.BytesRead, err = fh.ReadWithReadManager(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
+	} else {
+		op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
+	}
 
 	// As required by fuse, we don't treat EOF as an error.
 	if err == io.EOF {
@@ -2637,6 +2657,18 @@ func (fs *fileSystem) WriteFile(
 		ctx, cancel = util.IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
+
+	if fs.newConfig.Write.ExperimentalEnableRapidAppends {
+		fs.mu.Lock()
+		fh := fs.handles[op.Handle].(*handle.FileHandle)
+		fs.mu.Unlock()
+
+		//TODO: Initialize BWH before invoking write()
+		if _, err := fh.Write(ctx, op.Data, op.Offset); err != nil {
+			return err
+		}
+		return
+	}
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.fileInodeOrDie(op.Inode)
@@ -2651,7 +2683,12 @@ func (fs *fileSystem) WriteFile(
 	}
 
 	// Serve the request.
-	err = in.Write(ctx, op.Data, op.Offset)
+	gcsSynced, err := in.Write(ctx, op.Data, op.Offset, util.Write)
+	// Sync the inode if finalize during write is successful
+	// even if the write operation later resulted in error.
+	if gcsSynced {
+		fs.promoteToGenerationBacked(in)
+	}
 	return
 }
 

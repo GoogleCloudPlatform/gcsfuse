@@ -29,16 +29,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/common"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/perms"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/perms"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/ogletest"
@@ -159,7 +159,7 @@ func (t *fsTest) SetUpTestSuite() {
 			FileCache: defaultFileCacheConfig(),
 			MetadataCache: cfg.MetadataCacheConfig{
 				// Setting default values.
-				StatCacheMaxSizeMb: 32,
+				StatCacheMaxSizeMb: 33,
 				TtlSecs:            60,
 				TypeCacheMaxSizeMb: 4,
 			},

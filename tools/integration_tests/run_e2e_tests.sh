@@ -52,6 +52,16 @@ if [[ $# -ge 6 ]] ; then
   fi
 fi
 
+# 7th parameter is to determine whether we want to disable build by the script
+# and let every test package build its own GCSFuse binary.
+BUILD_BINARY_IN_SCRIPT=true
+if [[ $# -ge 7 ]] ; then
+  if [[ "$7" == "false" ]]; then
+    BUILD_BINARY_IN_SCRIPT=false
+  fi
+fi
+
+
 if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
   if [ "${BUCKET_LOCATION}" != "us-west4" ] && [ "${BUCKET_LOCATION}" != "us-central1" ]; then
     >&2 echo "For enabling zonal bucket run, BUCKET_LOCATION should be one of: us-west4, us-central1; passed: ${BUCKET_LOCATION}"
@@ -106,6 +116,8 @@ TEST_DIR_PARALLEL=(
   "stale_handle"
   "negative_stat_cache"
   "streaming_writes"
+  "inactive_stream_timeout"
+  "cloud_profiler"
 )
 
 # These tests never become parallel as it is changing bucket permissions.
@@ -155,6 +167,52 @@ TEST_DIR_NON_PARALLEL_FOR_ZB=(
 # Create a temporary file to store the log file name.
 TEST_LOGS_FILE=$(mktemp)
 
+# This variable will store the path if the script builds GCSFuse binaries (gcsfuse, mount.gcsfuse)
+BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR=""
+# This variable will hold flag and its value to be passed to GCSFuse tests (--gcsfuse_prebuilt_dir=...)
+USE_PREBUILT_GCSFUSE_BINARY=""
+
+build_gcsfuse_once() {
+  local build_output_dir # For the final gcsfuse binaries
+  build_output_dir=$(mktemp -d -t gcsfuse_e2e_run_build_XXXXXX)
+  echo "GCSFuse binaries will be built in ${build_output_dir}..."
+
+  local gcsfuse_src_dir
+  # Determine GCSFuse source directory
+  # If this script is in tools/integration_tests, project root is ../../
+  SCRIPT_DIR_REALPATH=$(realpath "$(dirname "${BASH_SOURCE[0]}")")
+  gcsfuse_src_dir=$(realpath "${SCRIPT_DIR_REALPATH}/../../")
+
+  if [[ ! -f "${gcsfuse_src_dir}/go.mod" ]]; then
+    echo "Error: Could not reliably determine GCSFuse project root from ${SCRIPT_DIR_REALPATH}. Expected go.mod at ${gcsfuse_src_dir}" >&2
+    rm -rf "${build_output_dir}"
+    exit 1
+  fi
+  echo "Using GCSFuse source directory: ${gcsfuse_src_dir}"
+
+  echo "Building GCSFuse using 'go run ./tools/build_gcsfuse/main.go'..."
+  (cd "${gcsfuse_src_dir}" && go run ./tools/build_gcsfuse/main.go . "${build_output_dir}" "e2e-$(date +%s)")
+  if [ $? -ne 0 ]; then
+    echo "Error building GCSFuse binaries using 'go run ./tools/build_gcsfuse/main.go'."
+    rm -rf "${build_output_dir}" # Clean up created temp dir
+    return 1
+  fi
+
+  # Set the directory path for use by the script (to form the go test flag)
+  BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR="${build_output_dir}"
+  echo "GCSFuse binaries built by script in: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
+  echo "GCSFuse executable: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}/bin/gcsfuse"
+  return 0
+}
+
+
+cleanup_gcsfuse_once() {
+  if [ -n "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}" ] && [ -d "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}" ]; then
+    echo "Cleaning up GCSFuse build directory created by script: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
+    rm -rf "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
+  fi
+}
+
 # Delete contents of the buckets (and then the buckets themselves) whose names are in the passed file.
 # Args: <bucket-names-file>
 function delete_buckets_listed_in_file() {
@@ -178,27 +236,17 @@ function delete_buckets_listed_in_file() {
 }
 
 function upgrade_gcloud_version() {
-  sudo apt-get update
-  # Upgrade gcloud version.
-  # Kokoro machine's outdated gcloud version prevents the use of the "managed-folders" feature.
-  gcloud version
-  wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
-  sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm -r google-cloud-sdk
-  sudo /usr/local/google-cloud-sdk/install.sh
-  export PATH=/usr/local/google-cloud-sdk/bin:$PATH
-  echo 'export PATH=/usr/local/google-cloud-sdk/bin:$PATH' >> ~/.bashrc
-  gcloud version && rm gcloud.tar.gz
-  sudo /usr/local/google-cloud-sdk/bin/gcloud components update
-  sudo /usr/local/google-cloud-sdk/bin/gcloud components install alpha
+  # Install latest gcloud.
+  ./perfmetrics/scripts/install_latest_gcloud.sh
+  export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
 }
 
 function install_packages() {
-  # e.g. architecture=arm64 or amd64
-  architecture=$(dpkg --print-architecture)
-  echo "Installing go-lang 1.24.0..."
-  wget -O go_tar.tar.gz https://go.dev/dl/go1.24.0.linux-${architecture}.tar.gz -q
-  sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
-  export PATH=$PATH:/usr/local/go/bin
+  # Install required go version.
+  ./perfmetrics/scripts/install_go.sh "1.24.0"
+  export PATH="/usr/local/go/bin:$PATH"
+  
+  sudo apt-get update
   sudo apt-get install -y python3
   # install python3-setuptools tools.
   sudo apt-get install -y gcc python3-dev python3-setuptools
@@ -258,7 +306,7 @@ function run_non_parallel_tests() {
 
     # Executing integration tests
     echo "Running test package in non-parallel (with zonal=${zonal}): ${test_dir_np} ..."
-    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1
+    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE $USE_PREBUILT_GCSFUSE_BINARY -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1
     exit_code_non_parallel=$?
     if [ $exit_code_non_parallel != 0 ]; then
       exit_code=$exit_code_non_parallel
@@ -298,7 +346,7 @@ function run_parallel_tests() {
     echo $log_file >> $TEST_LOGS_FILE
     # Executing integration tests
     echo "Queueing up test package in parallel (with zonal=${zonal}): ${test_dir_p} ..."
-    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} $benchmark_flags -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
+    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} $benchmark_flags -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE $USE_PREBUILT_GCSFUSE_BINARY -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
     pid=$!  # Store the PID of the background process
     echo "Queued up test package in parallel (with zonal=${zonal}): ${test_dir_p} with pid=${pid}"
     pids[${test_dir_p}]=${pid} # Optionally add the PID to an array for later
@@ -438,7 +486,7 @@ function run_e2e_tests_for_tpc() {
   gcloud --verbosity=error storage rm -r gs://"$bucket"/*
 
   # Run Operations e2e tests in TPC to validate all the functionality.
-  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/... --testOnTPCEndPoint=$RUN_TEST_ON_TPC_ENDPOINT $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=false -p 1 --integrationTest -v --testbucket="$bucket" --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/... --testOnTPCEndPoint=$RUN_TEST_ON_TPC_ENDPOINT $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=false -p 1 --integrationTest -v --testbucket="$bucket" --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE $USE_PREBUILT_GCSFUSE_BINARY -timeout $INTEGRATION_TEST_TIMEOUT
   exit_code=$?
 
   set -e
@@ -462,7 +510,8 @@ function main(){
   # buckets to be cleaned-up while exiting this program.
   bucketNamesFile=$(realpath ./bucketNames)"-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
   # Delete all these buckets when the program exits.
-  trap "delete_buckets_listed_in_file ${bucketNamesFile}" EXIT
+  # Cleanup fuse build folder if created
+  trap "cleanup_gcsfuse_once; delete_buckets_listed_in_file ${bucketNamesFile}" EXIT
 
   set -e
 
@@ -471,6 +520,20 @@ function main(){
   install_packages
 
   set +e
+
+  # Decide whether to build GCSFuse based on RUN_E2E_TESTS_ON_PACKAGE
+  if [ "$RUN_E2E_TESTS_ON_PACKAGE" != "true" ] && [ "$BUILD_BINARY_IN_SCRIPT" == "true" ]; then
+    echo "RUN_E2E_TESTS_ON_PACKAGE is not 'true' (value: '${RUN_E2E_TESTS_ON_PACKAGE}') and BUILD_BINARY_IN_SCRIPT is 'true'. Building GCSFuse..."
+    build_gcsfuse_once
+    if [ $? -ne 0 ]; then
+        echo "build_gcsfuse_once failed. Exiting."
+        # The trap will handle cleanup
+        exit 1
+    fi
+
+    USE_PREBUILT_GCSFUSE_BINARY="--gcsfuse_prebuilt_dir=${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
+    echo "Script built GCSFuse at: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
+  fi
 
   #run integration tests
   exit_code=0

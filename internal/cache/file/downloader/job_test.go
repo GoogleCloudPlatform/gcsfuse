@@ -28,13 +28,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/common"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
-	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	testutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/sync/semaphore"
 )
@@ -582,6 +582,8 @@ func (dt *downloaderTest) Test_Download_WhenAsyncFails() {
 	AssertEq(Failed, jobStatus.Name)
 	AssertGe(jobStatus.Offset, 0)
 	AssertTrue(errors.Is(jobStatus.Err, lru.ErrInvalidUpdateEntrySize))
+	// Wait for the async goroutine to complete its cleanup.
+	<-dt.job.doneCh
 	// Verify callback is executed
 	AssertTrue(callbackExecuted.Load())
 }

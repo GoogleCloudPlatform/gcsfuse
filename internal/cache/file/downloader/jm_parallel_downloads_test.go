@@ -23,14 +23,14 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/common"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -145,7 +145,7 @@ func TestParallelDownloads(t *testing.T) {
 			cache, cacheDir := configureCache(t, 2*tc.objectSize)
 			storageHandle := configureFakeStorage(t)
 			ctx := context.Background()
-			bucket, err := storageHandle.BucketHandle(ctx, storage.TestBucketName, "")
+			bucket, err := storageHandle.BucketHandle(ctx, storage.TestBucketName, "", false)
 			assert.Nil(t, err)
 			minObj, content := createObjectInStoreAndInitCache(t, cache, bucket, "path/in/gcs/foo.txt", tc.objectSize)
 			fileCacheConfig := &cfg.FileCacheConfig{
@@ -187,7 +187,7 @@ func TestMultipleConcurrentDownloads(t *testing.T) {
 	storageHandle := configureFakeStorage(t)
 	cache, cacheDir := configureCache(t, 30*util.MiB)
 	ctx := context.Background()
-	bucket, err := storageHandle.BucketHandle(ctx, storage.TestBucketName, "")
+	bucket, err := storageHandle.BucketHandle(ctx, storage.TestBucketName, "", false)
 	assert.Nil(t, err)
 	minObj1, content1 := createObjectInStoreAndInitCache(t, cache, bucket, "path/in/gcs/foo.txt", 10*util.MiB)
 	minObj2, content2 := createObjectInStoreAndInitCache(t, cache, bucket, "path/in/gcs/bar.txt", 5*util.MiB)

@@ -19,9 +19,9 @@ import (
 	"path"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
 )
 
 // Directory Structure
@@ -34,7 +34,7 @@ func TestDeleteNonEmptyImplicitDir(t *testing.T) {
 	testDirPath := setupTestDir(testDirName)
 	// TODO: Remove the condition and keep the storage-client flow for non-ZB too.
 	if setup.IsZonalBucketRun() {
-		implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(ctx, t, storageClient, path.Join(DirForImplicitDirTests, testDirName))
+		implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(testEnv.ctx, t, testEnv.storageClient, path.Join(DirForImplicitDirTests, testDirName))
 	} else {
 		implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(path.Join(DirForImplicitDirTests, testDirName))
 	}
@@ -54,7 +54,7 @@ func TestDeleteNonEmptyImplicitSubDir(t *testing.T) {
 	testDirPath := setupTestDir(testDirName)
 	// TODO: Remove the condition and keep the storage-client flow for non-ZB too.
 	if setup.IsZonalBucketRun() {
-		implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(ctx, t, storageClient, path.Join(DirForImplicitDirTests, testDirName))
+		implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(testEnv.ctx, t, testEnv.storageClient, path.Join(DirForImplicitDirTests, testDirName))
 	} else {
 		implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(path.Join(DirForImplicitDirTests, testDirName))
 	}
@@ -76,7 +76,7 @@ func TestDeleteImplicitDirWithExplicitSubDir(t *testing.T) {
 	testDirPath := setupTestDir(testDirName)
 	// TODO: Remove the condition and keep the storage-client flow for non-ZB too.
 	if setup.IsZonalBucketRun() {
-		implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(ctx, t, storageClient, path.Join(DirForImplicitDirTests, testDirName))
+		implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(testEnv.ctx, t, testEnv.storageClient, path.Join(DirForImplicitDirTests, testDirName))
 	} else {
 		implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(path.Join(DirForImplicitDirTests, testDirName))
 	}
@@ -102,7 +102,7 @@ func TestDeleteImplicitDirWithImplicitSubDirContainingExplicitDir(t *testing.T) 
 	testDirPath := setupTestDir(testDirName)
 	// TODO: Remove the condition and keep the storage-client flow for non-ZB too.
 	if setup.IsZonalBucketRun() {
-		implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(ctx, t, storageClient, path.Join(DirForImplicitDirTests, testDirName))
+		implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(testEnv.ctx, t, testEnv.storageClient, path.Join(DirForImplicitDirTests, testDirName))
 	} else {
 		implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(path.Join(DirForImplicitDirTests, testDirName))
 	}
@@ -129,7 +129,7 @@ func TestDeleteImplicitDirInExplicitDir(t *testing.T) {
 	testDirPath := setupTestDir(testDirName)
 	// TODO: Remove the condition and keep the storage-client flow for non-ZB too.
 	if setup.IsZonalBucketRun() {
-		implicit_and_explicit_dir_setup.CreateImplicitDirectoryInExplicitDirectoryStructureUsingStorageClient(ctx, t, storageClient, path.Join(DirForImplicitDirTests, testDirName))
+		implicit_and_explicit_dir_setup.CreateImplicitDirectoryInExplicitDirectoryStructureUsingStorageClient(testEnv.ctx, t, testEnv.storageClient, path.Join(DirForImplicitDirTests, testDirName))
 	} else {
 		implicit_and_explicit_dir_setup.CreateImplicitDirectoryInExplicitDirectoryStructure(path.Join(DirForImplicitDirTests, testDirName), t)
 	}
@@ -153,7 +153,7 @@ func TestDeleteExplicitDirContainingImplicitSubDir(t *testing.T) {
 	testDirPath := setupTestDir(testDirName)
 	// TODO: Remove the condition and keep the storage-client flow for non-ZB too.
 	if setup.IsZonalBucketRun() {
-		implicit_and_explicit_dir_setup.CreateImplicitDirectoryInExplicitDirectoryStructureUsingStorageClient(ctx, t, storageClient, path.Join(DirForImplicitDirTests, testDirName))
+		implicit_and_explicit_dir_setup.CreateImplicitDirectoryInExplicitDirectoryStructureUsingStorageClient(testEnv.ctx, t, testEnv.storageClient, path.Join(DirForImplicitDirTests, testDirName))
 	} else {
 		implicit_and_explicit_dir_setup.CreateImplicitDirectoryInExplicitDirectoryStructure(path.Join(DirForImplicitDirTests, testDirName), t)
 	}

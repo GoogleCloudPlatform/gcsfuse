@@ -20,9 +20,9 @@ import (
 	"math"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/block"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -260,7 +260,7 @@ func (wh *bufferedWriteHandlerImpl) SetMtime(mtime time.Time) {
 
 func (wh *bufferedWriteHandlerImpl) Truncate(size int64) error {
 	if size < wh.totalSize {
-		return fmt.Errorf("cannot truncate to lesser size when upload is in progress")
+		return ErrOutOfOrderWrite
 	}
 
 	wh.truncatedSize = size

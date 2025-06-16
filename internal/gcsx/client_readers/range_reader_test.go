@@ -24,13 +24,13 @@ import (
 	"testing/iotest"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/common"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	testUtil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	testUtil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -64,7 +64,7 @@ func (t *rangeReaderTest) SetupTest() {
 		Generation: 1234,
 	}
 	t.mockBucket = new(storage.TestifyMockBucket)
-	t.rangeReader = NewRangeReader(t.object, t.mockBucket, common.NewNoopMetrics())
+	t.rangeReader = NewRangeReader(t.object, t.mockBucket, nil, common.NewNoopMetrics())
 	t.ctx = context.Background()
 }
 
@@ -146,7 +146,7 @@ func (t *rangeReaderTest) Test_NewRangeReader() {
 		Generation: 4321,
 	}
 
-	reader := NewRangeReader(object, t.mockBucket, common.NewNoopMetrics())
+	reader := NewRangeReader(object, t.mockBucket, nil, common.NewNoopMetrics())
 
 	assert.Equal(t.T(), object, reader.object)
 	assert.Equal(t.T(), t.mockBucket, reader.bucket)
@@ -338,18 +338,6 @@ func (t *rangeReaderTest) Test_invalidateReaderIfMisalignedOrTooSmall() {
 		expectReaderNil    bool
 	}{
 		{
-			name: "InvalidateReaderDueToWrongOffset",
-			readerSetup: func() {
-				t.rangeReader.reader = &fake.FakeReader{ReadCloser: getReader(100)}
-				t.rangeReader.start = 50 // misaligned
-				t.rangeReader.limit = 1000
-			},
-			offset:             200,
-			bufferSize:         100,
-			expectIncreaseSeek: true,
-			expectReaderNil:    true,
-		},
-		{
 			name: "InvalidateReaderDueToTooSmall",
 			readerSetup: func() {
 				t.rangeReader.reader = &fake.FakeReader{ReadCloser: getReader(100)}
@@ -380,9 +368,8 @@ func (t *rangeReaderTest) Test_invalidateReaderIfMisalignedOrTooSmall() {
 		t.Run(tt.name, func() {
 			tt.readerSetup()
 
-			result := t.rangeReader.invalidateReaderIfMisalignedOrTooSmall(tt.offset, make([]byte, tt.bufferSize))
+			t.rangeReader.invalidateReaderIfMisalignedOrTooSmall(tt.offset, make([]byte, tt.bufferSize))
 
-			assert.Equal(t.T(), tt.expectIncreaseSeek, result, "invalidateReaderIfMisalignedOrTooSmall() result")
 			if tt.expectReaderNil {
 				assert.Nil(t.T(), t.rangeReader.reader, "rangeReader.reader should be nil")
 			} else {

@@ -118,11 +118,11 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 		outputPath string
 	}{
 		{
-			"github.com/googlecloudplatform/gcsfuse/v2",
+			"github.com/googlecloudplatform/gcsfuse/v3",
 			"bin/gcsfuse",
 		},
 		{
-			"github.com/googlecloudplatform/gcsfuse/v2/tools/mount_gcsfuse",
+			"github.com/googlecloudplatform/gcsfuse/v3/tools/mount_gcsfuse",
 			path.Join("sbin", mountHelperName),
 		},
 	}
@@ -143,7 +143,7 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 			cmd.Args = append(
 				cmd.Args,
 				"-ldflags",
-				fmt.Sprintf("-X github.com/googlecloudplatform/gcsfuse/v2/common.gcsfuseVersion=%s", version),
+				fmt.Sprintf("-X github.com/googlecloudplatform/gcsfuse/v3/common.gcsfuseVersion=%s", version),
 			)
 			cmd.Args = append(cmd.Args, buildArgs...)
 		}

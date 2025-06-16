@@ -21,12 +21,13 @@ import (
 	"io"
 	"math"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/common"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
 
 const (
@@ -61,14 +62,16 @@ type RangeReader struct {
 	cancel     func()
 
 	readType     string
+	readConfig   *cfg.ReadConfig
 	metricHandle common.MetricHandle
 }
 
-func NewRangeReader(object *gcs.MinObject, bucket gcs.Bucket, metricHandle common.MetricHandle) *RangeReader {
+func NewRangeReader(object *gcs.MinObject, bucket gcs.Bucket, readConfig *cfg.ReadConfig, metricHandle common.MetricHandle) *RangeReader {
 	return &RangeReader{
 		object:       object,
 		bucket:       bucket,
 		metricHandle: metricHandle,
+		readConfig:   readConfig,
 		start:        -1,
 		limit:        -1,
 	}
@@ -222,22 +225,36 @@ func (rr *RangeReader) readFull(ctx context.Context, p []byte) (int, error) {
 
 // Ensure that rr.reader is set up for a range for which [start, start+size) is
 // a prefix. Irrespective of the size requested, we try to fetch more data
-// from GCS defined by sequentialReadSizeMb flag to serve future read requests.
+// from GCS defined by SequentialReadSizeMb flag to serve future read requests.
 func (rr *RangeReader) startRead(start int64, end int64) error {
 	ctx, cancel := context.WithCancel(context.Background())
+	var err error
 
-	rc, err := rr.bucket.NewReaderWithReadHandle(
-		ctx,
-		&gcs.ReadObjectRequest{
-			Name:       rr.object.Name,
-			Generation: rr.object.Generation,
-			Range: &gcs.ByteRange{
+	if rr.readConfig != nil && rr.readConfig.InactiveStreamTimeout > 0 {
+		rr.reader, err = gcsx.NewInactiveTimeoutReader(
+			ctx,
+			rr.bucket,
+			rr.object,
+			rr.readHandle,
+			gcs.ByteRange{
 				Start: uint64(start),
 				Limit: uint64(end),
 			},
-			ReadCompressed: rr.object.HasContentEncodingGzip(),
-			ReadHandle:     rr.readHandle,
-		})
+			rr.readConfig.InactiveStreamTimeout)
+	} else {
+		rr.reader, err = rr.bucket.NewReaderWithReadHandle(
+			ctx,
+			&gcs.ReadObjectRequest{
+				Name:       rr.object.Name,
+				Generation: rr.object.Generation,
+				Range: &gcs.ByteRange{
+					Start: uint64(start),
+					Limit: uint64(end),
+				},
+				ReadCompressed: rr.object.HasContentEncodingGzip(),
+				ReadHandle:     rr.readHandle,
+			})
+	}
 
 	// If a file handle is open locally, but the corresponding object doesn't exist
 	// in GCS, it indicates a file clobbering scenario. This likely occurred because:
@@ -258,7 +275,6 @@ func (rr *RangeReader) startRead(start int64, end int64) error {
 		return err
 	}
 
-	rr.reader = rc
 	rr.cancel = cancel
 	rr.start = start
 	rr.limit = end
@@ -295,17 +311,12 @@ func (rr *RangeReader) skipBytes(offset int64) {
 // offset) or cannot serve the full request within its limit, it is closed and discarded.
 //
 // It attempts to skip forward to the requested offset if possible to avoid creating
-// a new reader unnecessarily. If the reader is discarded due to misalignment, the method
-// returns true to signal that a seek should be recorded.
+// a new reader unnecessarily.
 //
 // Parameters:
 //   - offset: the starting byte position of the requested read.
 //   - p: the buffer representing the size of the requested read.
-//
-// Returns:
-//   - true if the reader was discarded due to being misaligned (seek should be counted).
-//   - false otherwise.
-func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(offset int64, p []byte) bool {
+func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(offset int64, p []byte) {
 	rr.skipBytes(offset)
 
 	// If we have an existing reader, but it's positioned at the wrong place,
@@ -316,14 +327,7 @@ func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(offset int64, p []
 		rr.closeReader()
 		rr.reader = nil
 		rr.cancel = nil
-		if rr.start != offset {
-			// Return true to increment the seek count when discarding a reader due to incorrect positioning.
-			// Discarding readers that can't fulfill the entire request without this check would prevent
-			// the reader size from growing appropriately in random read scenarios.
-			return true
-		}
 	}
-	return false
 }
 
 // readFromExistingReader attempts to read data from an existing reader if one is available.

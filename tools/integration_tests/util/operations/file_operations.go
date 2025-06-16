@@ -32,7 +32,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
@@ -811,20 +811,6 @@ func ValidateSyncGivenThatFileIsClobbered(t *testing.T, file *os.File, streaming
 	err := file.Sync()
 	if streamingWrites {
 		assert.NoError(t, err)
-	} else {
-		ValidateESTALEError(t, err)
-	}
-}
-
-// This method validates read operation on file which has already been clobbered.
-// 1. With streaming writes read operation is not supported.
-// 2. Without streaming writes read operation returns ESTALE error encountered during reader creation.
-func ValidateReadGivenThatFileIsClobbered(t *testing.T, file *os.File, streamingWrites bool, content string) {
-	t.Helper()
-	buffer := make([]byte, len(content))
-	_, err := file.Read(buffer)
-	if streamingWrites {
-		ValidateEOPNOTSUPPError(t, err)
 	} else {
 		ValidateESTALEError(t, err)
 	}

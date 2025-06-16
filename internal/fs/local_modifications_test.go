@@ -33,9 +33,9 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -1583,6 +1583,8 @@ func (t *FileTest) AppendFileOperation_ShouldNotChangeObjectAttributes() {
 	minObject2, extendedAttr2, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: fileName, ForceFetchFromGcs: true, ReturnExtendedObjectAttributes: true})
 	AssertEq(nil, err)
 	// Validate object attributes are as expected.
+	// TODO: Validate on Finalized attribute once the default behavior on GCSFuse
+	// side is to never finalize object.
 	validateObjectAttributes(extendedAttr1, extendedAttr2, minObject1, minObject2)
 }
 
@@ -1606,6 +1608,8 @@ func (t *FileTest) WriteAtFileOperation_ShouldNotChangeObjectAttributes() {
 	AssertEq(nil, err)
 
 	// Validate object attributes are as expected.
+	// TODO: Validate on Finalized attribute once the default behavior on GCSFuse
+	// side is to never finalize object.
 	validateObjectAttributes(extendedAttr1, extendedAttr2, minObject1, minObject2)
 }
 

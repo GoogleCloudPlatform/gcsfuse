@@ -21,16 +21,16 @@ import (
 	"path"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/common"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/canned"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/monitor"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/ratelimit"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/caching"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/canned"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/ratelimit"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/jacobsa/timeutil"
 )
 
@@ -62,9 +62,10 @@ type BucketConfig struct {
 	// Note that if the process fails or is interrupted the temporary object will
 	// not be cleaned up, so the user must ensure that TmpObjectPrefix is
 	// periodically garbage collected.
-	AppendThreshold          int64
-	ChunkTransferTimeoutSecs int64
-	TmpObjectPrefix          string
+	AppendThreshold                int64
+	ChunkTransferTimeoutSecs       int64
+	TmpObjectPrefix                string
+	ExperimentalEnableRapidAppends bool
 }
 
 // BucketManager manages the lifecycle of buckets.
@@ -167,7 +168,7 @@ func (bm *bucketManager) SetUpBucket(
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
 	} else {
-		b, err = bm.storageHandle.BucketHandle(ctx, name, bm.config.BillingProject)
+		b, err = bm.storageHandle.BucketHandle(ctx, name, bm.config.BillingProject, bm.config.ExperimentalEnableRapidAppends)
 		if err != nil {
 			err = fmt.Errorf("BucketHandle: %w", err)
 			return

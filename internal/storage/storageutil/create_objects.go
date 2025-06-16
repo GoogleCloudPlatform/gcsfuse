@@ -15,7 +15,7 @@
 package storageutil
 
 import (
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 )

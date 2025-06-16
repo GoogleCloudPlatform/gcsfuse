@@ -16,15 +16,15 @@
 package local_file
 
 import (
-	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	. "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *localFileTestSuite) TestReadLocalFile() {
+func (t *CommonLocalFileTestSuite) TestReadLocalFile() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())

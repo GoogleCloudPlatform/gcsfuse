@@ -20,9 +20,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -68,8 +70,13 @@ func (r *readOnlyCredsTest) assertFileSyncFailsWithPermissionError(fh *os.File, 
 func (r *readOnlyCredsTest) TestEmptyCreateFileFails_FailedFileNotInListing(t *testing.T) {
 	filePath := path.Join(r.testDirPath, testFileName)
 
-	fh := operations.CreateFile(filePath, operations.FilePermission_0777, t)
-	r.assertFileSyncFailsWithPermissionError(fh, t)
+	fh, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, operations.FilePermission_0777)
+	if setup.IsZonalBucketRun() {
+		require.Error(t, err)
+		assert.True(t, strings.Contains(err.Error(), permissionDeniedError))
+	} else {
+		r.assertFileSyncFailsWithPermissionError(fh, t)
+	}
 
 	r.assertFailedFileNotInListing(t)
 }
@@ -77,10 +84,15 @@ func (r *readOnlyCredsTest) TestEmptyCreateFileFails_FailedFileNotInListing(t *t
 func (r *readOnlyCredsTest) TestNonEmptyCreateFileFails_FailedFileNotInListing(t *testing.T) {
 	filePath := path.Join(r.testDirPath, testFileName)
 
-	fh := operations.CreateFile(filePath, operations.FilePermission_0777, t)
-	operations.WriteWithoutClose(fh, content, t)
-	operations.WriteWithoutClose(fh, content, t)
-	r.assertFileSyncFailsWithPermissionError(fh, t)
+	fh, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, operations.FilePermission_0777)
+	if setup.IsZonalBucketRun() {
+		require.Error(t, err)
+		assert.True(t, strings.Contains(err.Error(), permissionDeniedError))
+	} else {
+		operations.WriteWithoutClose(fh, content, t)
+		operations.WriteWithoutClose(fh, content, t)
+		r.assertFileSyncFailsWithPermissionError(fh, t)
+	}
 
 	r.assertFailedFileNotInListing(t)
 }

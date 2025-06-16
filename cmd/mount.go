@@ -19,16 +19,16 @@ import (
 	"os"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/common"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/mount"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"golang.org/x/net/context"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/perms"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/perms"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/timeutil"
@@ -98,6 +98,7 @@ be interacting with the file system.`)
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
 		ChunkTransferTimeoutSecs:           newConfig.GcsRetries.ChunkTransferTimeoutSecs,
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
+		ExperimentalEnableRapidAppends:     newConfig.Write.ExperimentalEnableRapidAppends,
 	}
 	bm := gcsx.NewBucketManager(bucketCfg, storageHandle)
 

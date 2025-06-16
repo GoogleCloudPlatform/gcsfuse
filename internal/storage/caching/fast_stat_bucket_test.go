@@ -21,10 +21,10 @@ import (
 	"time"
 
 	gostorage "cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/caching"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/caching/mock_gcscaching"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching/mock_gcscaching"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
@@ -205,6 +205,72 @@ func (t *CreateObjectChunkWriterTest) WrappedSucceeds() {
 
 	// Call
 	gotWr, err := t.bucket.CreateObjectChunkWriter(ctx, req, chunkSize, progressFunc)
+
+	AssertEq(nil, err)
+	ExpectEq(wr, gotWr)
+}
+
+////////////////////////////////////////////////////////////////////////
+// CreateAppendableObjectWriterTest
+////////////////////////////////////////////////////////////////////////
+
+type CreateAppendableObjectWriterTest struct {
+	fastStatBucketTest
+}
+
+func init() { RegisterTestSuite(&CreateAppendableObjectWriterTest{}) }
+
+func (t *CreateAppendableObjectWriterTest) CallsWrappedWithExpectedParameters() {
+	const name = "taco"
+	const offset int64 = 10
+	const chunkSize = 1024
+	ctx := context.TODO()
+	// Wrapped
+	var wrappedReq *gcs.CreateObjectChunkWriterRequest
+	ExpectCall(t.wrapped, "CreateAppendableObjectWriter")(Any(), Any()).
+		WillOnce(DoAll(SaveArg(1, &wrappedReq), Return(nil, errors.New(""))))
+	// Call
+	req := &gcs.CreateObjectChunkWriterRequest{
+		CreateObjectRequest: gcs.CreateObjectRequest{
+			Name: name,
+		},
+		Offset:    offset,
+		ChunkSize: chunkSize,
+	}
+
+	_, _ = t.bucket.CreateAppendableObjectWriter(ctx, req)
+
+	AssertNe(nil, wrappedReq)
+	ExpectEq(req, wrappedReq)
+}
+
+func (t *CreateAppendableObjectWriterTest) WrappedFails() {
+	ctx := context.TODO()
+	req := &gcs.CreateObjectChunkWriterRequest{}
+	var err error
+	// Wrapped
+	ExpectCall(t.wrapped, "CreateAppendableObjectWriter")(Any(), Any()).
+		WillOnce(Return(nil, errors.New("taco")))
+
+	// Call
+	_, err = t.bucket.CreateAppendableObjectWriter(ctx, req)
+
+	ExpectThat(err, Error(HasSubstr("taco")))
+}
+
+func (t *CreateAppendableObjectWriterTest) WrappedSucceeds() {
+	ctx := context.TODO()
+	req := &gcs.CreateObjectChunkWriterRequest{}
+	var err error
+	// Wrapped
+	wr := &storage.ObjectWriter{
+		Writer: &gostorage.Writer{},
+	}
+	ExpectCall(t.wrapped, "CreateAppendableObjectWriter")(Any(), Any()).
+		WillOnce(Return(wr, nil))
+
+	// Call
+	gotWr, err := t.bucket.CreateAppendableObjectWriter(ctx, req)
 
 	AssertEq(nil, err)
 	ExpectEq(wr, gotWr)

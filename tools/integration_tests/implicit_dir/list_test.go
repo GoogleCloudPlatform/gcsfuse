@@ -23,8 +23,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
 )
 
 func TestListImplicitObjectsFromBucket(t *testing.T) {
@@ -42,7 +42,7 @@ func TestListImplicitObjectsFromBucket(t *testing.T) {
 
 	// TODO: Remove the condition and keep the storage-client flow for non-ZB too.
 	if setup.IsZonalBucketRun() {
-		implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(ctx, t, storageClient, path.Join(DirForImplicitDirTests, testDirName))
+		implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(testEnv.ctx, t, testEnv.storageClient, path.Join(DirForImplicitDirTests, testDirName))
 	} else {
 		implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(path.Join(DirForImplicitDirTests, testDirName))
 	}
