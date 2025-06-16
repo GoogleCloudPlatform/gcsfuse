@@ -104,14 +104,14 @@ type fakeMetricHandle struct {
 func (f *fakeMetricHandle) GCSReadCount(ctx context.Context, inc int64, readType string) {
 	f.GCSReadBytesCounter = append(f.GCSReadBytesCounter, int64DataPoint{
 		v:    inc,
-		attr: metric.WithAttributes(attribute.String(ReadTypeKey, readType)),
+		attr: metric.WithAttributes(attribute.String("read_type", readType)),
 	})
 }
 
 func (f *fakeMetricHandle) GCSDownloadBytesCount(ctx context.Context, requestedDataSize int64, readType string) {
 	f.GCSDownloadBytesCounter = append(f.GCSDownloadBytesCounter, int64DataPoint{
 		v:    requestedDataSize,
-		attr: metric.WithAttributes(attribute.String(ReadTypeKey, readType)),
+		attr: metric.WithAttributes(attribute.String("read_type", readType)),
 	})
 }
 

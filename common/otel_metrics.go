@@ -27,20 +27,20 @@ import (
 )
 
 const (
-	// IOMethodKey annotates the event that opens or closes a connection or file.
-	IOMethodKey = "io_method"
+	// ioMethodKey annotates the event that opens or closes a connection or file.
+	ioMethodKey = "io_method"
 
-	// GCSMethodKey annotates the method called in the GCS client library.
-	GCSMethodKey = "gcs_method"
+	// gcsMethodKey annotates the method called in the GCS client library.
+	gcsMethodKey = "gcs_method"
 
-	// FSOpKey annotates the file system op processed.
-	FSOpKey = "fs_op"
+	// fsOpKey annotates the file system op processed.
+	fsOpKey = "fs_op"
 
-	// FSErrCategoryKey reduces the cardinality of FSError by grouping errors together.
-	FSErrCategoryKey = "fs_error_category"
+	// fsErrCategoryKey reduces the cardinality of FSError by grouping errors together.
+	fsErrCategoryKey = "fs_error_category"
 
-	// ReadTypeKey annotates the read operation with the type - Sequential/Random
-	ReadTypeKey = "read_type"
+	// readTypeKey annotates the read operation with the type - Sequential/Random
+	readTypeKey = "read_type"
 
 	// CacheHitKey annotates the read operation from file cache with true or false.
 	CacheHitKey = "cache_hit"
@@ -72,28 +72,28 @@ func loadOrStoreAttributeOption[K comparable](mp *sync.Map, key K, attrSetGenFun
 func getIOMethodAttributeOption(ioMethod string) metric.MeasurementOption {
 	return loadOrStoreAttributeOption(&ioMethodAttributeSet, ioMethod,
 		func() attribute.Set {
-			return attribute.NewSet(attribute.String(IOMethodKey, ioMethod))
+			return attribute.NewSet(attribute.String(ioMethodKey, ioMethod))
 		})
 }
 
 func getReadTypeAttributeOption(readType string) metric.MeasurementOption {
 	return loadOrStoreAttributeOption(&readTypeAttributeSet, readType,
 		func() attribute.Set {
-			return attribute.NewSet(attribute.String(ReadTypeKey, readType))
+			return attribute.NewSet(attribute.String(readTypeKey, readType))
 		})
 }
 
 func getFSOpsAttributeOption(fsOps string) metric.MeasurementOption {
 	return loadOrStoreAttributeOption(&fsOpsAttributeSet, fsOps,
 		func() attribute.Set {
-			return attribute.NewSet(attribute.String(FSOpKey, fsOps))
+			return attribute.NewSet(attribute.String(fsOpKey, fsOps))
 		})
 }
 
 func getFsOpsErrorCategoryAttributeOption(attr FSOpsErrorCategory) metric.MeasurementOption {
 	return loadOrStoreAttributeOption(&fsOpsErrorCategoryAttributeSet, attr,
 		func() attribute.Set {
-			return attribute.NewSet(attribute.String(FSOpKey, attr.FSOps), attribute.String(FSErrCategoryKey, attr.ErrorCategory))
+			return attribute.NewSet(attribute.String(fsOpKey, attr.FSOps), attribute.String(fsErrCategoryKey, attr.ErrorCategory))
 		})
 }
 
@@ -107,13 +107,13 @@ func getCacheHitAttributeOption(cacheHit string) metric.MeasurementOption {
 func getGCSMethodAttributeOption(gcsMethod string) metric.MeasurementOption {
 	return loadOrStoreAttributeOption(&gcsMethodAttributeSet, gcsMethod,
 		func() attribute.Set {
-			return attribute.NewSet(attribute.String(GCSMethodKey, gcsMethod))
+			return attribute.NewSet(attribute.String(gcsMethodKey, gcsMethod))
 		})
 }
 
 func getCacheHitReadTypeAttributeOption(attr CacheHitReadType) metric.MeasurementOption {
 	return loadOrStoreAttributeOption(&cacheHitReadTypeAttributeSet, attr, func() attribute.Set {
-		return attribute.NewSet(attribute.String(CacheHitKey, attr.CacheHit), attribute.String(ReadTypeKey, attr.ReadType))
+		return attribute.NewSet(attribute.String(CacheHitKey, attr.CacheHit), attribute.String(readTypeKey, attr.ReadType))
 	})
 }
 
