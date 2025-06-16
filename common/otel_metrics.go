@@ -69,33 +69,49 @@ func loadOrStoreAttributeOption[K comparable](mp *sync.Map, key K, attrSetGenFun
 	return v.(metric.MeasurementOption)
 }
 
-func getIOMethodAttributeSet(ioMethod string) metric.MeasurementOption {
-	return loadOrStoreAttributeOption(&ioMethodAttributeSet, ioMethod, func() attribute.Set { return attribute.NewSet(attribute.String(IOMethodKey, ioMethod)) })
+func getIOMethodAttributeOption(ioMethod string) metric.MeasurementOption {
+	return loadOrStoreAttributeOption(&ioMethodAttributeSet, ioMethod,
+		func() attribute.Set {
+			return attribute.NewSet(attribute.String(IOMethodKey, ioMethod))
+		})
 }
 
-func getReadTypeAttributeSet(readType string) metric.MeasurementOption {
-	return loadOrStoreAttributeOption(&readTypeAttributeSet, readType, func() attribute.Set { return attribute.NewSet(attribute.String(ReadTypeKey, readType)) })
+func getReadTypeAttributeOption(readType string) metric.MeasurementOption {
+	return loadOrStoreAttributeOption(&readTypeAttributeSet, readType,
+		func() attribute.Set {
+			return attribute.NewSet(attribute.String(ReadTypeKey, readType))
+		})
 }
 
-func getFSOpsAttributeSet(fsOps string) metric.MeasurementOption {
-	return loadOrStoreAttributeOption(&fsOpsAttributeSet, fsOps, func() attribute.Set { return attribute.NewSet(attribute.String(FSOpKey, fsOps)) })
+func getFSOpsAttributeOption(fsOps string) metric.MeasurementOption {
+	return loadOrStoreAttributeOption(&fsOpsAttributeSet, fsOps,
+		func() attribute.Set {
+			return attribute.NewSet(attribute.String(FSOpKey, fsOps))
+		})
 }
 
-func getFsOpsErrorCategoryAttributeSet(attr FSOpsErrorCategory) metric.MeasurementOption {
-	return loadOrStoreAttributeOption(&fsOpsErrorCategoryAttributeSet, attr, func() attribute.Set {
-		return attribute.NewSet(attribute.String(FSOpKey, attr.FSOps), attribute.String(FSErrCategoryKey, attr.ErrorCategory))
-	})
+func getFsOpsErrorCategoryAttributeOption(attr FSOpsErrorCategory) metric.MeasurementOption {
+	return loadOrStoreAttributeOption(&fsOpsErrorCategoryAttributeSet, attr,
+		func() attribute.Set {
+			return attribute.NewSet(attribute.String(FSOpKey, attr.FSOps), attribute.String(FSErrCategoryKey, attr.ErrorCategory))
+		})
 }
 
-func getCacheHitAttributeSet(cacheHit string) metric.MeasurementOption {
-	return loadOrStoreAttributeOption(&cacheHitAttributeSet, cacheHit, func() attribute.Set { return attribute.NewSet(attribute.String(CacheHitKey, cacheHit)) })
+func getCacheHitAttributeOption(cacheHit string) metric.MeasurementOption {
+	return loadOrStoreAttributeOption(&cacheHitAttributeSet, cacheHit,
+		func() attribute.Set {
+			return attribute.NewSet(attribute.String(CacheHitKey, cacheHit))
+		})
 }
 
-func getGCSMethodAttributeSet(gcsMethod string) metric.MeasurementOption {
-	return loadOrStoreAttributeOption(&gcsMethodAttributeSet, gcsMethod, func() attribute.Set { return attribute.NewSet(attribute.String(GCSMethodKey, gcsMethod)) })
+func getGCSMethodAttributeOption(gcsMethod string) metric.MeasurementOption {
+	return loadOrStoreAttributeOption(&gcsMethodAttributeSet, gcsMethod,
+		func() attribute.Set {
+			return attribute.NewSet(attribute.String(GCSMethodKey, gcsMethod))
+		})
 }
 
-func getCacheHitReadTypeAttributeSet(attr CacheHitReadType) metric.MeasurementOption {
+func getCacheHitReadTypeAttributeOption(attr CacheHitReadType) metric.MeasurementOption {
 	return loadOrStoreAttributeOption(&cacheHitReadTypeAttributeSet, attr, func() attribute.Set {
 		return attribute.NewSet(attribute.String(CacheHitKey, attr.CacheHit), attribute.String(ReadTypeKey, attr.ReadType))
 	})
@@ -124,47 +140,47 @@ func (o *otelMetrics) GCSReadBytesCount(_ context.Context, inc int64) {
 }
 
 func (o *otelMetrics) GCSReaderCount(ctx context.Context, inc int64, ioMethod string) {
-	o.gcsReaderCount.Add(ctx, inc, getIOMethodAttributeSet(ioMethod))
+	o.gcsReaderCount.Add(ctx, inc, getIOMethodAttributeOption(ioMethod))
 }
 
 func (o *otelMetrics) GCSRequestCount(ctx context.Context, inc int64, gcsMethod string) {
-	o.gcsRequestCount.Add(ctx, inc, getGCSMethodAttributeSet(gcsMethod))
+	o.gcsRequestCount.Add(ctx, inc, getGCSMethodAttributeOption(gcsMethod))
 }
 
 func (o *otelMetrics) GCSRequestLatency(ctx context.Context, latency time.Duration, gcsMethod string) {
-	o.gcsRequestLatency.Record(ctx, float64(latency.Milliseconds()), getGCSMethodAttributeSet(gcsMethod))
+	o.gcsRequestLatency.Record(ctx, float64(latency.Milliseconds()), getGCSMethodAttributeOption(gcsMethod))
 }
 
 func (o *otelMetrics) GCSReadCount(ctx context.Context, inc int64, readType string) {
-	o.gcsReadCount.Add(ctx, inc, getReadTypeAttributeSet(readType))
+	o.gcsReadCount.Add(ctx, inc, getReadTypeAttributeOption(readType))
 }
 
 func (o *otelMetrics) GCSDownloadBytesCount(ctx context.Context, inc int64, readType string) {
-	o.gcsDownloadBytesCount.Add(ctx, inc, getReadTypeAttributeSet(readType))
+	o.gcsDownloadBytesCount.Add(ctx, inc, getReadTypeAttributeOption(readType))
 }
 
 func (o *otelMetrics) OpsCount(ctx context.Context, inc int64, fsOp string) {
-	o.fsOpsCount.Add(ctx, inc, getFSOpsAttributeSet(fsOp))
+	o.fsOpsCount.Add(ctx, inc, getFSOpsAttributeOption(fsOp))
 }
 
 func (o *otelMetrics) OpsLatency(ctx context.Context, latency time.Duration, fsOp string) {
-	o.fsOpsLatency.Record(ctx, float64(latency.Microseconds()), getFSOpsAttributeSet(fsOp))
+	o.fsOpsLatency.Record(ctx, float64(latency.Microseconds()), getFSOpsAttributeOption(fsOp))
 }
 
 func (o *otelMetrics) OpsErrorCount(ctx context.Context, inc int64, attrs FSOpsErrorCategory) {
-	o.fsOpsErrorCount.Add(ctx, inc, getFsOpsErrorCategoryAttributeSet(attrs))
+	o.fsOpsErrorCount.Add(ctx, inc, getFsOpsErrorCategoryAttributeOption(attrs))
 }
 
 func (o *otelMetrics) FileCacheReadCount(ctx context.Context, inc int64, attrs CacheHitReadType) {
-	o.fileCacheReadCount.Add(ctx, inc, getCacheHitReadTypeAttributeSet(attrs))
+	o.fileCacheReadCount.Add(ctx, inc, getCacheHitReadTypeAttributeOption(attrs))
 }
 
 func (o *otelMetrics) FileCacheReadBytesCount(ctx context.Context, inc int64, readType string) {
-	o.fileCacheReadBytesCount.Add(ctx, inc, getReadTypeAttributeSet(readType))
+	o.fileCacheReadBytesCount.Add(ctx, inc, getReadTypeAttributeOption(readType))
 }
 
 func (o *otelMetrics) FileCacheReadLatency(ctx context.Context, latency time.Duration, cacheHit string) {
-	o.fileCacheReadLatency.Record(ctx, float64(latency.Microseconds()), getCacheHitAttributeSet(cacheHit))
+	o.fileCacheReadLatency.Record(ctx, float64(latency.Microseconds()), getCacheHitAttributeOption(cacheHit))
 }
 
 func NewOTelMetrics() (MetricHandle, error) {
