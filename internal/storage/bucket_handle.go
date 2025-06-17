@@ -74,10 +74,6 @@ func (bh *bucketHandle) NewReaderWithReadHandle(
 	defer func() {
 		err = gcs.GetGCSError(err)
 	}()
-	startTime := time.Now()
-	defer func() {
-		newReaderWithReadHandleLatency.Record(ctx, time.Since(startTime).Milliseconds())
-	}()
 
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64(0)
