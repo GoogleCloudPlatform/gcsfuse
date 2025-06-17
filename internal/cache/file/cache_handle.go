@@ -121,9 +121,9 @@ func (fch *CacheHandle) validateEntryInFileInfoCache(bucket gcs.Bucket, object *
 		return fmt.Errorf("%w: generation of cached object: %v is different from required generation: %v", util.ErrInvalidFileInfoCache, fileInfoData.ObjectGeneration, object.Generation)
 	}
 	if fileInfoData.Offset < requiredOffset {
-		if bucket.BucketType().Zonal && object.IsUnfinalized() {
-			return util.ErrFallbackToGCS
-		}
+		//if bucket.BucketType().Zonal && object.IsUnfinalized() {
+		//return util.ErrFallbackToGCS
+		//}
 		return fmt.Errorf("%w offset of cached object: %v is less than required offset %v", util.ErrInvalidFileInfoCache, fileInfoData.Offset, requiredOffset)
 	}
 
@@ -205,7 +205,12 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 		// If fileDownloadJob is nil then it means either the job is successfully
 		// completed or failed. The offset must be equal to size of object for job
 		// to be completed.
-		err = fch.validateEntryInFileInfoCache(bucket, object, object.Size, false)
+
+		if bucket.BucketType().Zonal && object.IsUnfinalized() {
+			err = fch.validateEntryInFileInfoCache(bucket, object, uint64(requiredOffset), false)
+		} else {
+			err = fch.validateEntryInFileInfoCache(bucket, object, object.Size, false)
+		}
 		if err != nil {
 			return 0, false, err
 		}
