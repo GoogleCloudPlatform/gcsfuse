@@ -19,23 +19,20 @@ import (
 	"os"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	flags := [][]string{{}}
-
 	if setup.MountedDirectory() != "" {
 		log.Print("These tests will not run for mountedDirectory flag.")
 		os.Exit(1)
 	}
 
-	// Run tests for testBucket
 	setup.SetUpTestDirForTestBucketFlag()
 
-	successCode := static_mounting.RunTests(flags, m)
+	successCode := m.Run()
+
 	os.Exit(successCode)
 }

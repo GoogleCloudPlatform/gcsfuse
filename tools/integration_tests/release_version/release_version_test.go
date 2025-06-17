@@ -33,7 +33,7 @@ func TestReleaseVersion(t *testing.T) {
 	t.Logf("gcsfuse --version output:\n%s", output) // Log the output for debugging
 	expectedPattern := `^gcsfuse version (.+) \(Go version (go.+)\)$`
 	r := regexp.MustCompile(expectedPattern)
-	// 4. Match the output against the pattern
+	// Match the output against the pattern
 	matches := r.FindStringSubmatch(output)
 	if len(matches) != 3 { // Expect 3 elements: full match, version, go version
 		t.Errorf("Output did not match expected pattern.\nExpected pattern: %q\nActual output: %q\nMatches: %v", expectedPattern, output, matches)
