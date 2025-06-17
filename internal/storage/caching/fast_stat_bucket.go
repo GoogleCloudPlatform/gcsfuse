@@ -340,25 +340,7 @@ func (b *fastStatBucket) StatObject(
 		}
 
 		// Otherwise, return MinObject and nil ExtendedObjectAttributes.
-		if entry.Finalized.IsZero() {
-			req.ReturnExtendedObjectAttributes = false
-			// Following does two things.
-			// 1. A GCS stat-call (GetObjectMetadata) which takes up about 20ms.
-			// 2. A zero-byte reader creation to get the latest size of the object, which takes about 780 ms.
-			// This is a temporary measure as GCS stat-call doesn't always return the latest size for
-			// unfinalized objects.
-			// 1st is not strictly needed at this point given the 2nd call, so we could skip the 1st call,
-			// and directly call the function for 2nd. Though it will need a lot of interface changes, so keeping that
-			// as an improvement TODO.
-			m, _, err = b.StatObjectFromGcs(ctx, req)
-			if err != nil {
-				err = fmt.Errorf("failed in GCS stat-call for unfinalized object %q to get latest size: %w", req.Name, err)
-				return
-			}
-
-			return
-		}
-
+		m = entry
 		return
 	}
 
