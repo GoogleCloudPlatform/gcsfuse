@@ -118,6 +118,7 @@ TEST_DIR_PARALLEL=(
   "streaming_writes"
   "inactive_stream_timeout"
   "cloud_profiler"
+  "release_version"
 )
 
 # These tests never become parallel as it is changing bucket permissions.
