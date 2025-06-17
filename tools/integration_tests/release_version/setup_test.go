@@ -26,9 +26,6 @@ import (
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	// write-global-max-blocks=2 is for checking multiple file writes in parallel.
-	// concurrent_write_files_test.go- we are writing 3 files in parallel.
-	// with this config, we are giving 2 blocks to 2 files and 1 block to other file.
 	flags := [][]string{{}}
 
 	if setup.MountedDirectory() != "" {
