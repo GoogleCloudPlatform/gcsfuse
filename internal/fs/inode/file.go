@@ -327,6 +327,83 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 	return
 }
 
+func (f *FileInode) populateAttributes(
+	ctx context.Context, checkClobbered bool) (attrs fuseops.InodeAttributes, err error) {
+	attrs = f.attrs
+
+	// Obtain default information from the source object.
+	attrs.Mtime = f.src.Updated
+	attrs.Size = f.src.Size
+
+	// If the source object has an mtime metadata key, use that instead of its
+	// update time.
+	// If the file was copied via gsutil, we'll have goog-reserved-file-mtime
+	if strTimestamp, ok := f.src.Metadata["goog-reserved-file-mtime"]; ok {
+		if timestamp, err := strconv.ParseInt(strTimestamp, 0, 64); err == nil {
+			attrs.Mtime = time.Unix(timestamp, 0)
+		}
+	}
+
+	// Otherwise, if its been synced with gcsfuse before, we'll have gcsfuse_mtime
+	if formatted, ok := f.src.Metadata["gcsfuse_mtime"]; ok {
+		attrs.Mtime, err = time.Parse(time.RFC3339Nano, formatted)
+		if err != nil {
+			err = fmt.Errorf("time.Parse(%q): %w", formatted, err)
+			return
+		}
+	}
+
+	// If we've got local content, its size and (maybe) mtime take precedence.
+	if f.content != nil {
+		var sr gcsx.StatResult
+		sr, err = f.content.Stat()
+		if err != nil {
+			err = fmt.Errorf("stat: %w", err)
+			return
+		}
+
+		attrs.Size = uint64(sr.Size)
+		if sr.Mtime != nil {
+			attrs.Mtime = *sr.Mtime
+		}
+	}
+
+	if f.bwh != nil {
+		writeFileInfo := f.bwh.WriteFileInfo()
+		attrs.Mtime = writeFileInfo.Mtime
+		attrs.Size = uint64(writeFileInfo.TotalSize)
+	}
+
+	// We require only that atime and ctime be "reasonable".
+	attrs.Atime = attrs.Mtime
+	attrs.Ctime = attrs.Mtime
+
+	if checkClobbered {
+		// If the object has been clobbered, we reflect that as the inode being
+		// unlinked.
+		var clobbered bool
+		_, clobbered, err = f.clobbered(ctx, false, false)
+		if err != nil {
+			err = fmt.Errorf("clobbered: %w", err)
+			return
+		}
+
+		if clobbered {
+			attrs.Nlink = 0
+			return
+		}
+	}
+
+	attrs.Nlink = 1
+
+	// For local files, also checking if file is unlinked locally.
+	if f.IsLocal() && f.IsUnlinked() {
+		attrs.Nlink = 0
+	}
+
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
@@ -461,71 +538,13 @@ func (f *FileInode) Destroy() (err error) {
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Attributes(
 	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
-	attrs = f.attrs
+	return f.populateAttributes(ctx, true)
+}
 
-	// Obtain default information from the source object.
-	attrs.Mtime = f.src.Updated
-	attrs.Size = f.src.Size
-
-	// If the source object has an mtime metadata key, use that instead of its
-	// update time.
-	// If the file was copied via gsutil, we'll have goog-reserved-file-mtime
-	if strTimestamp, ok := f.src.Metadata["goog-reserved-file-mtime"]; ok {
-		if timestamp, err := strconv.ParseInt(strTimestamp, 0, 64); err == nil {
-			attrs.Mtime = time.Unix(timestamp, 0)
-		}
-	}
-
-	// Otherwise, if its been synced with gcsfuse before, we'll have gcsfuse_mtime
-	if formatted, ok := f.src.Metadata["gcsfuse_mtime"]; ok {
-		attrs.Mtime, err = time.Parse(time.RFC3339Nano, formatted)
-		if err != nil {
-			err = fmt.Errorf("time.Parse(%q): %w", formatted, err)
-			return
-		}
-	}
-
-	// If we've got local content, its size and (maybe) mtime take precedence.
-	if f.content != nil {
-		var sr gcsx.StatResult
-		sr, err = f.content.Stat()
-		if err != nil {
-			err = fmt.Errorf("stat: %w", err)
-			return
-		}
-
-		attrs.Size = uint64(sr.Size)
-		if sr.Mtime != nil {
-			attrs.Mtime = *sr.Mtime
-		}
-	}
-
-	if f.bwh != nil {
-		writeFileInfo := f.bwh.WriteFileInfo()
-		attrs.Mtime = writeFileInfo.Mtime
-		attrs.Size = uint64(writeFileInfo.TotalSize)
-	}
-
-	// We require only that atime and ctime be "reasonable".
-	attrs.Atime = attrs.Mtime
-	attrs.Ctime = attrs.Mtime
-
-	// If the object has been clobbered, we reflect that as the inode being
-	// unlinked.
-	_, clobbered, err := f.clobbered(ctx, false, false)
-	if err != nil {
-		err = fmt.Errorf("clobbered: %w", err)
-		return
-	}
-
-	attrs.Nlink = 1
-
-	// For local files, also checking if file is unlinked locally.
-	if clobbered || (f.IsLocal() && f.IsUnlinked()) {
-		attrs.Nlink = 0
-	}
-
-	return
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) AttributesPlus(
+	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
+	return f.populateAttributes(ctx, false)
 }
 
 func (f *FileInode) Bucket() *gcsx.SyncerBucket {

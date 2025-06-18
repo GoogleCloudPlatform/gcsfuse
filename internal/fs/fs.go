@@ -2545,6 +2545,13 @@ func (fs *fileSystem) ReadDirPlus(
 	localFileEntriesPlus := in.LocalFileEntriesPlus(fs.localFileInodes)
 	fs.mu.Unlock()
 
+	expiration := time.Now().Add(fs.inodeAttributeCacheTTL)
+	for localEntryName, localEntryPlus := range localFileEntriesPlus {
+		localEntryPlus.Entry.AttributesExpiration = expiration
+		localEntryPlus.Entry.EntryExpiration = expiration
+		localFileEntriesPlus[localEntryName] = localEntryPlus
+	}
+
 	dh.Mu.Lock()
 	// Serve the request.
 	var cores map[inode.Name]*inode.Core
@@ -2558,14 +2565,13 @@ func (fs *fileSystem) ReadDirPlus(
 	dh.Mu.Unlock()
 	var child inode.Inode
 	var attributes fuseops.InodeAttributes
-	var expiration time.Time
 	var entriesPlus []fuseutil.DirentPlus
 	for fullName, core := range cores {
 		child = fs.lookUpOrCreateInodeIfNotStale(*core)
 		if child == nil {
 			continue
 		}
-		attributes, expiration, err = fs.getAttributes(ctx, child)
+		attributes, err = child.AttributesPlus(ctx)
 		if err != nil {
 			continue
 		}

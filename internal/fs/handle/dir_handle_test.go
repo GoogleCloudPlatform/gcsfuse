@@ -16,7 +16,9 @@ package handle
 
 import (
 	"context"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"math"
+	"path"
 	"testing"
 	"time"
 
@@ -114,6 +116,46 @@ func (t *DirHandleTest) createLocalFileInode(name string, id fuseops.InodeID) (i
 func (t *DirHandleTest) validateEntry(entry fuseutil.Dirent, name string, filetype fuseutil.DirentType) {
 	AssertEq(name, entry.Name)
 	AssertEq(filetype, entry.Type)
+}
+
+func (t *DirHandleTest) validateCore(core *inode.Core, name string, filetype metadata.Type, minObjectName string) {
+	AssertNe(nil, core)
+	AssertNe(nil, core.MinObject)
+	AssertEq(name, path.Base(core.FullName.LocalName()))
+	AssertEq(minObjectName, core.MinObject.Name)
+	AssertEq(filetype, core.Type())
+}
+
+func (t *DirHandleTest) createTestDirentPlus(name string, dtype fuseutil.DirentType, childInodeID fuseops.InodeID, size uint64) fuseutil.DirentPlus {
+	attrs := fuseops.InodeAttributes{
+		Size:  size,
+		Mode:  0777,
+		Nlink: 1,
+		Uid:   123,
+		Gid:   456,
+	}
+	if dtype != fuseutil.DT_Directory {
+		attrs.Mode = 0666
+	}
+
+	return fuseutil.DirentPlus{
+		Dirent: fuseutil.Dirent{
+			Name: name,
+			Type: dtype,
+			// Offset and Inode will be set by ReadDirPlus
+		},
+		Entry: fuseops.ChildInodeEntry{
+			Child:      childInodeID,
+			Attributes: attrs,
+			// EntryValid and AttrValid can be set if needed
+		},
+	}
+}
+
+func (t *DirHandleTest) validateEntryPlus(entry fuseutil.DirentPlus, name string, fileType fuseutil.DirentType, childInodeID fuseops.InodeID) {
+	AssertEq(name, entry.Dirent.Name)
+	AssertEq(fileType, entry.Dirent.Type)
+	AssertEq(childInodeID, entry.Entry.Child)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -277,4 +319,143 @@ func (t *DirHandleTest) EnsureEntriesWithOneLocalFile() {
 	AssertEq(nil, err)
 	AssertEq(1, len(t.dh.entries))
 	t.validateEntry(t.dh.entries[0], localFileName1, fuseutil.DT_File)
+}
+
+////////////////////////////////////////////////////////////////////////
+// ensureEntriesPlus Tests (for readAllEntriesPlus)
+////////////////////////////////////////////////////////////////////////
+
+func (t *DirHandleTest) EnsureEntriesPlusWithNoFiles() {
+	cores, err := t.dh.ensureEntriesPlus(t.ctx)
+
+	AssertEq(nil, err)
+	AssertEq(0, len(cores))
+}
+
+func (t *DirHandleTest) EnsureEntriesPlusWithOnlyGCSFiles() {
+	// Setup GCS objects
+	_, err := storageutil.CreateObject(t.ctx, t.bucket, "testDir/gcsObject1", nil)
+	AssertEq(nil, err)
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, "testDir/gcsObject2", nil)
+	AssertEq(nil, err)
+
+	// ensure entries
+	cores, err := t.dh.ensureEntriesPlus(t.ctx)
+
+	// validations
+	AssertEq(nil, err)
+	AssertEq(2, len(cores))
+
+	coreFile1, ok := cores[inode.NewFileName(t.dh.in.Name(), "gcsObject1")]
+	AssertTrue(ok, "Core for gcsObject1 not found")
+	t.validateCore(coreFile1, "gcsObject1", metadata.RegularFileType, "testDir/gcsObject1")
+
+	coreFile2, ok := cores[inode.NewFileName(t.dh.in.Name(), "gcsObject2")]
+	AssertTrue(ok, "Core for gcsObject2 not found")
+	t.validateCore(coreFile2, "gcsObject2", metadata.RegularFileType, "testDir/gcsObject2")
+}
+
+////////////////////////////////////////////////////////////////////////
+// ReadDirPlusHelper Tests
+////////////////////////////////////////////////////////////////////////
+
+func (t *DirHandleTest) ReadDirPlusHelperPopulatesCores() {
+	_, err := storageutil.CreateObject(t.ctx, t.bucket, "testDir/testFile", nil)
+	AssertEq(nil, err)
+	op := &fuseops.ReadDirPlusOp{
+		ReadDirOp: fuseops.ReadDirOp{Offset: 0},
+	}
+	t.dh.entriesPlusValid = false
+
+	cores, err := t.dh.ReadDirPlusHelper(t.ctx, op)
+
+	AssertEq(nil, err)
+	AssertEq(1, len(cores))
+
+	coreFile, ok := cores[inode.NewFileName(t.dh.in.Name(), "testFile")]
+	AssertTrue(ok, "Core for gcsFile1 not found")
+	t.validateCore(coreFile, "testFile", metadata.RegularFileType, "testDir/testFile")
+}
+
+func (t *DirHandleTest) ReadDirPlusHelperNonZeroOffsetNoFetchIfCacheValid() {
+	t.dh.entriesPlus = []fuseutil.DirentPlus{{}}
+	t.dh.entriesPlusValid = true
+	op := &fuseops.ReadDirPlusOp{
+		ReadDirOp: fuseops.ReadDirOp{Offset: 1},
+	}
+
+	cores, err := t.dh.ReadDirPlusHelper(t.ctx, op)
+
+	AssertEq(nil, err)
+	AssertEq(nil, cores)
+	AssertTrue(t.dh.entriesPlusValid)
+}
+
+func (t *DirHandleTest) ReadDirPlusHelperNonZeroOffsetFetchesIfCacheInvalid() {
+	t.dh.entriesPlusValid = false
+	_, err := storageutil.CreateObject(t.ctx, t.bucket, "testDir/fetchThis", nil)
+	AssertEq(nil, err)
+	op := &fuseops.ReadDirPlusOp{
+		ReadDirOp: fuseops.ReadDirOp{Offset: 1},
+	}
+
+	cores, err := t.dh.ReadDirPlusHelper(t.ctx, op)
+
+	AssertEq(nil, err)
+	AssertEq(1, len(cores))
+}
+
+////////////////////////////////////////////////////////////////////////
+// ReadDirPlus Tests
+////////////////////////////////////////////////////////////////////////
+
+func (t *DirHandleTest) ReadDirPlusResponseForNoFile() {
+	op := &fuseops.ReadDirPlusOp{
+		ReadDirOp: fuseops.ReadDirOp{Dst: make([]byte, 1024)},
+	}
+	var gcsEntriesPlus []fuseutil.DirentPlus
+	localFileEntriesPlus := make(map[string]fuseutil.DirentPlus)
+
+	err := t.dh.ReadDirPlus(op, gcsEntriesPlus, localFileEntriesPlus)
+
+	AssertEq(nil, err)
+	AssertEq(0, op.BytesRead)
+	AssertTrue(t.dh.entriesPlusValid)
+	AssertEq(0, len(t.dh.entriesPlus))
+}
+
+func (t *DirHandleTest) ReadDirPlusSameNameLocalAndGCSFile() {
+	op := &fuseops.ReadDirPlusOp{
+		ReadDirOp: fuseops.ReadDirOp{Dst: make([]byte, 1024)},
+	}
+	gcsFile := t.createTestDirentPlus("sameName", fuseutil.DT_File, 1001, 10)
+	localFile := t.createTestDirentPlus("sameName", fuseutil.DT_File, 1002, 0)
+
+	gcsEntriesPlus := []fuseutil.DirentPlus{gcsFile}
+	localFileEntriesPlus := map[string]fuseutil.DirentPlus{"sameName": localFile}
+
+	err := t.dh.ReadDirPlus(op, gcsEntriesPlus, localFileEntriesPlus)
+	AssertEq(nil, err)
+	AssertEq(1, len(t.dh.entriesPlus))
+
+	t.validateEntryPlus(t.dh.entriesPlus[0], "sameName", fuseutil.DT_File, 1001)
+}
+
+func (t *DirHandleTest) ReadDirPlusSameNameLocalFileAndGCSDirectory() {
+	op := &fuseops.ReadDirPlusOp{
+		ReadDirOp: fuseops.ReadDirOp{Dst: make([]byte, 1024)},
+	}
+	gcsDir := t.createTestDirentPlus("sameName", fuseutil.DT_Directory, 1001, 0)
+	gcsEntriesPlus := []fuseutil.DirentPlus{gcsDir}
+
+	localFile := t.createTestDirentPlus("sameName", fuseutil.DT_File, 2001, 20)
+	localFileEntriesPlus := map[string]fuseutil.DirentPlus{"sameName": localFile}
+
+	err := t.dh.ReadDirPlus(op, gcsEntriesPlus, localFileEntriesPlus)
+	AssertEq(nil, err)
+
+	AssertEq(2, len(t.dh.entriesPlus))
+
+	t.validateEntryPlus(t.dh.entriesPlus[0], "sameName", fuseutil.DT_Directory, 1001)
+	t.validateEntryPlus(t.dh.entriesPlus[1], "sameName"+inode.ConflictingFileNameSuffix, fuseutil.DT_File, 2001)
 }

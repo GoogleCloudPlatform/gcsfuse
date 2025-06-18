@@ -145,6 +145,12 @@ func (s *SymlinkInode) Attributes(
 	return
 }
 
+func (s *SymlinkInode) AttributesPlus(
+	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
+	attrs = s.attrs
+	return
+}
+
 // Target returns the target of the symlink.
 func (s *SymlinkInode) Target() (target string) {
 	target = s.target
