@@ -54,7 +54,7 @@ func (t *StreamingWritesSuite) validateReadCall(fh *os.File, content string) {
 	readContent := make([]byte, len(content))
 	n, err := fh.ReadAt(readContent, 0)
 	// TODO(b/417136852): Fix validation once zb reads start working.
-	if setup.IsZonalBucketRun() && !t.fallbackToDiskCase {
+	if false /*setup.IsZonalBucketRun() && !t.fallbackToDiskCase*/ {
 		operations.ValidateEOPNOTSUPPError(t.T(), err)
 	} else {
 		require.NoError(t.T(), err)
