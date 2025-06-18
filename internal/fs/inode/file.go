@@ -1055,7 +1055,7 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 }
 
 func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, obj *gcs.Object) bool {
-	// When the file is local, then buffered writes are supported.
+	// For new files and existing files of size 0, buffered writes are always supported.
 	if f.local || obj.Size == 0 {
 		return true
 	}

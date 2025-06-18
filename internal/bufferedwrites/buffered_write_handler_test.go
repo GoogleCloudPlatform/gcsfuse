@@ -33,7 +33,6 @@ import (
 )
 
 const chunkTransferTimeoutSecs int64 = 10
-const nonZeroObjectSize int64 = 1024
 
 var errUploadFailure = errors.New("error while uploading object to GCS")
 
@@ -55,25 +54,6 @@ func (testSuite *BufferedWriteTest) setupTestWithBucketType(bucketType gcs.Bucke
 	bucket := fake.NewFakeBucket(timeutil.RealClock(), "FakeBucketName", bucketType)
 	bwh, err := NewBWHandler(&CreateBWHandlerRequest{
 		Object:                   nil,
-		ObjectName:               "testObject",
-		Bucket:                   bucket,
-		BlockSize:                blockSize,
-		MaxBlocksPerFile:         10,
-		GlobalMaxBlocksSem:       semaphore.NewWeighted(10),
-		ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
-	})
-	require.Nil(testSuite.T(), err)
-	testSuite.bwh = bwh
-}
-
-func (testSuite *BufferedWriteTest) setupTestWithNonZeroSizeObject() {
-	bucket := fake.NewFakeBucket(timeutil.RealClock(), "FakeBucketName", gcs.BucketType{})
-	object := gcs.Object{
-		Name: "testObject",
-		Size: uint64(nonZeroObjectSize),
-	}
-	bwh, err := NewBWHandler(&CreateBWHandlerRequest{
-		Object:                   &object,
 		ObjectName:               "testObject",
 		Bucket:                   bucket,
 		BlockSize:                blockSize,
