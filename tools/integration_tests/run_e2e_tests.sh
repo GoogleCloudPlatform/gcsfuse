@@ -118,6 +118,7 @@ TEST_DIR_PARALLEL=(
   "streaming_writes"
   "inactive_stream_timeout"
   "cloud_profiler"
+  "release_version"
 )
 
 # These tests never become parallel as it is changing bucket permissions.
@@ -151,6 +152,7 @@ TEST_DIR_PARALLEL_FOR_ZB=(
   "streaming_writes"
   "write_large_files"
   "unfinalized_object"
+   "release_version"
 )
 
 # Subset of TEST_DIR_NON_PARALLEL,

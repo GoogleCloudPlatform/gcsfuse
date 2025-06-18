@@ -134,6 +134,7 @@ TEST_PACKAGES_COMMON=(
   # "grpc_validation"
   "negative_stat_cache"
   "stale_handle"
+   "release_version"
 )
 
 # Test packages for regional buckets.
@@ -433,7 +434,7 @@ build_gcsfuse_once() {
   log_info "Using GCSFuse source directory: ${gcsfuse_src_dir}"
 
   log_info "Building GCSFuse using 'go run ./tools/build_gcsfuse/main.go'..."
-  (cd "${gcsfuse_src_dir}" && go run ./tools/build_gcsfuse/main.go . "${build_output_dir}" "e2e-$(date +%s)")
+  (cd "${gcsfuse_src_dir}" && go run ./tools/build_gcsfuse/main.go . "${build_output_dir}" "0.0.0")
   if [ $? -ne 0 ]; then
     log_error "Building GCSFuse binaries using 'go run ./tools/build_gcsfuse/main.go' failed."
     rm -rf "${build_output_dir}" # Clean up created temp dir
