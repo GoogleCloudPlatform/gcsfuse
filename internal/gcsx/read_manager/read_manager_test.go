@@ -64,7 +64,7 @@ func (t *readManagerTest) readManagerConfig(fileCacheEnable bool) *ReadManagerCo
 		cacheDir := path.Join(os.Getenv("HOME"), "test_cache_dir")
 		lruCache := lru.NewCache(cacheMaxSize)
 		jobManager := downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, sequentialReadSizeInMb, &cfg.FileCacheConfig{EnableCrc: false}, common.NewNoopMetrics())
-		config.FileCacheHandler = file.NewCacheHandler(lruCache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
+		config.FileCacheHandler = file.NewCacheHandler(lruCache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "")
 	} else {
 		config.FileCacheHandler = nil
 	}
