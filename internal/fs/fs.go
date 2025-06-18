@@ -2658,46 +2658,31 @@ func (fs *fileSystem) WriteFile(
 		defer cancel()
 	}
 
-	if fs.newConfig.Write.ExperimentalEnableRapidAppends {
-		fs.mu.Lock()
-		fh := fs.handles[op.Handle].(*handle.FileHandle)
-		in := fs.fileInodeOrDie(op.Inode)
-		fs.mu.Unlock()
-
-		in.Lock()
-		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in, fh.OpenMode())
-		in.Unlock()
-		if err != nil {
-			return
-		}
-
-		// Serve the request.
-		gcsSynced, err := fh.Write(ctx, op.Data, op.Offset)
-		if err != nil {
-			return err
-		}
-		// Sync the inode if finalize during write is successful
-		// even if the write operation later resulted in error.
-		if gcsSynced {
-			fs.promoteToGenerationBacked(in)
-		}
-		return err
-	}
-	// Find the inode.
+	// Find the inode( and file handle in case of appends).
 	fs.mu.Lock()
+	fh := fs.handles[op.Handle].(*handle.FileHandle)
 	in := fs.fileInodeOrDie(op.Inode)
 	fs.mu.Unlock()
 
-	in.Lock()
-	defer in.Unlock()
+	var gcsSynced bool
+	if fs.newConfig.Write.ExperimentalEnableRapidAppends {
+		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in, fh.OpenMode())
+		if err != nil {
+			return
+		}
+		// Serve the request via the file handle.
+		gcsSynced, err = fh.Write(ctx, op.Data, op.Offset)
+	} else {
+		in.Lock()
+		defer in.Unlock()
 
-	err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in, util.Write)
+		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in, util.Write)
+		// Serve the request.
+		gcsSynced, err = in.Write(ctx, op.Data, op.Offset, util.Write)
+	}
 	if err != nil {
 		return
 	}
-
-	// Serve the request.
-	gcsSynced, err := in.Write(ctx, op.Data, op.Offset, util.Write)
 	// Sync the inode if finalize during write is successful
 	// even if the write operation later resulted in error.
 	if gcsSynced {
