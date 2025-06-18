@@ -43,6 +43,9 @@ type Inode interface {
 	// Return up to date attributes for this inode.
 	Attributes(ctx context.Context) (fuseops.InodeAttributes, error)
 
+	// Return up to date attributes for this inode for ReadDirplus operation
+	AttributesPlus(ctx context.Context) (fuseops.InodeAttributes, error)
+
 	// Decrement the lookup count for the inode by the given amount.
 	//
 	// If this method returns true, the lookup count has hit zero and the

@@ -484,6 +484,11 @@ func (dh *DirHandle) ReadDirPlus(
 	op *fuseops.ReadDirPlusOp,
 	entriesPlus []fuseutil.DirentPlus, localFileEntriesPlus map[string]fuseutil.DirentPlus) (err error) {
 
+	// Append local file entries (not synced to GCS).
+	for _, localEntryPlus := range localFileEntriesPlus {
+		entriesPlus = append(entriesPlus, localEntryPlus)
+	}
+
 	// Ensure that the entries are sorted, for use in fixConflictingNames
 	// below.
 	sort.Sort(sortedDirentsPlus(entriesPlus))
@@ -497,11 +502,6 @@ func (dh *DirHandle) ReadDirPlus(
 	if err != nil {
 		err = fmt.Errorf("fixConflictingNames: %w", err)
 		return
-	}
-
-	// Append local file entries (not synced to GCS).
-	for _, localEntryPlus := range localFileEntriesPlus {
-		entriesPlus = append(entriesPlus, localEntryPlus)
 	}
 
 	for i := 0; i < len(entriesPlus); i++ {

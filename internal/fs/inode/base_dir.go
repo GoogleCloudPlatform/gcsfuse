@@ -156,6 +156,16 @@ func (d *baseDirInode) Attributes(
 }
 
 // LOCKS_REQUIRED(d)
+func (d *baseDirInode) AttributesPlus(
+	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
+	// Set up basic attributes.
+	attrs = d.attrs
+	attrs.Nlink = 1
+
+	return
+}
+
+// LOCKS_REQUIRED(d)
 func (d *baseDirInode) LookUpChild(ctx context.Context, name string) (*Core, error) {
 	var err error
 	bucket, ok := d.buckets[name]
