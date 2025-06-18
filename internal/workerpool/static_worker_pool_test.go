@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,9 +16,18 @@ package workerpool
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
+
+type dummyTask struct {
+	executed bool
+}
+
+func (d *dummyTask) Execute() {
+	d.executed = true
+}
 
 func TestNewStaticWorkerPool_Success(t *testing.T) {
 	tests := []struct {
@@ -47,4 +56,71 @@ func TestNewStaticWorkerPool_Failure(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, pool)
 	pool.Stop() // Clean up
+}
+
+func TestStaticWorkerPool_Start(t *testing.T) {
+	pool, err := NewStaticWorkerPool(2, 3)
+	assert.NoError(t, err)
+	assert.NotNil(t, pool)
+
+	pool.Start()
+	defer pool.Stop()
+
+	// Add a task in the channel and later see, that channel will be empty after execution.
+	dt := &dummyTask{}
+	pool.priorityCh <- dt
+	// Wait for the task to be executed.
+	assert.Eventually(t, func() bool {
+		return dt.executed
+	}, 100*time.Millisecond, time.Millisecond, "Task was not executed in time.")
+	assert.Equal(t, 0, len(pool.priorityCh), "Priority channel should be empty after task execution.")
+}
+
+func TestStaticWorkerPool_Schedule(t *testing.T) {
+	pool, err := NewStaticWorkerPool(2, 3)
+	assert.NoError(t, err)
+	assert.NotNil(t, pool)
+	pool.Start()
+	defer pool.Stop()
+
+	dt := &dummyTask{}
+	pool.Schedule(true, dt)
+
+	// Wait for the task to be executed.
+	assert.Eventually(t, func() bool {
+		return dt.executed
+	}, 100*time.Millisecond, time.Millisecond, "Task was not executed in time.")
+}
+
+func TestStaticWorkerPool_Stop(t *testing.T) {
+	pool, err := NewStaticWorkerPool(2, 3)
+	assert.NoError(t, err)
+	assert.NotNil(t, pool)
+	pool.Start()
+
+	// Stop the pool and check if channels are closed.
+	pool.Stop()
+
+	assert.Panics(t, func() { pool.close <- 1 }, "Close channel is not closed.")
+	assert.Panics(t, func() { pool.normalCh <- &dummyTask{} }, "normalCh channel is not closed.")
+	assert.Panics(t, func() { pool.priorityCh <- &dummyTask{} }, "priorityCh channel is not closed.")
+}
+
+func TestStaticWorkerPool_HighNumberOfTasks(t *testing.T) {
+	pool, err := NewStaticWorkerPool(5, 10)
+	assert.NoError(t, err)
+	assert.NotNil(t, pool)
+	pool.Start()
+	defer pool.Stop()
+
+	// Schedule a large number of tasks.
+	for i := 0; i < 10000; i++ {
+		dt := &dummyTask{}
+		pool.Schedule(i%2 == 0, dt) // Alternate between priority and normal tasks
+	}
+
+	// Wait for all tasks to be executed.
+	assert.Eventually(t, func() bool {
+		return len(pool.priorityCh) == 0 && len(pool.normalCh) == 0
+	}, 500*time.Millisecond, 10*time.Millisecond, "Not all tasks were executed in time.")
 }
