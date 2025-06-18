@@ -31,7 +31,8 @@ var (
 	gcsMeter       = otel.Meter("gcs")
 	fileCacheMeter = otel.Meter("file_cache")
 
-	// ioMethodKeyName specifies whether the GCS reader is being opened or closed.
+	// Attribute Keys
+	// ioMethodKey specifies the I/O method attribute (e.g., opened, closed).
 	ioMethodKey = attribute.Key("io_method")
 	// gcsMethodKey specifies the name of the GCS method
 	gcsMethodKey = attribute.Key("gcs_method")
