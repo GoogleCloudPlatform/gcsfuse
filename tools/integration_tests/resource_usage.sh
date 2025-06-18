@@ -66,83 +66,29 @@ fi
 readonly COMMAND="$1"
 readonly FILE_PATH="$2"
 
-# Calculates CPU usage as a ceiling integer percentage from /proc/stat.
+# Calculates CPU usage as integer percentage using top command.
 get_cpu_usage() {
-    # First reading
-    read -r _ user nice system idle iowait irq softirq steal guest guest_nice </proc/stat
-
-    # Default guest values to 0 for older kernels
-    guest=${guest:-0}
-    guest_nice=${guest_nice:-0}
-
-    local prev_total=$((user + nice + system + idle + iowait + irq + softirq + steal + guest + guest_nice))
-    local prev_idle=$((idle + iowait))
-
-    # Wait for a second
-    sleep 1
-
-    # Second reading
-    read -r _ user nice system idle iowait irq softirq steal guest guest_nice </proc/stat
-    guest=${guest:-0}
-    guest_nice=${guest_nice:-0}
-
-    local current_total=$((user + nice + system + idle + iowait + irq + softirq + steal + guest + guest_nice))
-    local current_idle=$((idle + iowait))
-
-    # Calculate the differences in total and idle time
-    local total_diff=$((current_total - prev_total))
-    local idle_diff=$((current_idle - prev_idle))
-
-    # Avoid division by zero
-    if [ "$total_diff" -eq 0 ]; then
-        echo "0"
-        return
-    fi
-
-    # Calculate the numerator and denominator for the usage percentage
-    local busy_diff=$((total_diff - idle_diff))
-
-    # Calculate ceiling of (100 * busy_diff / total_diff) using integer arithmetic
-    local cpu_usage=$(((100 * busy_diff + total_diff - 1) / total_diff))
-
-    echo "$cpu_usage"
+    # 'top -b -n 1 | awk '/^%Cpu/'' returns
+    # %Cpu(s):  1.1 us,  0.0 sy,  0.0 ni, 98.9 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st
+    # 8th entry is idle cpu %
+    top -b -n 1 | awk '/^%Cpu/ { usage = 100 - $8; print int(usage) }' || echo 0
 }
 
-# Calculates memory usage as a ceiling integer percentage from /proc/meminfo.
+# Calculates memory usage as integer percentage using free.
 get_mem_usage() {
-    local line mem_total=0 mem_available=0
-    # Read /proc/meminfo line by line.
-    while read -r line; do
-        case "$line" in
-        MemTotal:*)
-            mem_total=${line//[^0-9]/}
-            ;;
-        MemAvailable:*)
-            mem_available=${line//[^0-9]/}
-            ;;
-        esac
-
-        if [[ "$mem_total" -gt 0 && "$mem_available" -gt 0 ]]; then
-            break
-        fi
-    done </proc/meminfo
-    # Safety check to prevent division by zero if values weren't read.
-    if [[ "$mem_total" -eq 0 ]]; then
-        echo "0"
-        return 1
-    fi
-    # Calculate used memory.
-    local mem_used=$((mem_total - mem_available))
-    # Calculate the ceiling of the percentage.
-    local usage_percent=$(((mem_used * 100 + mem_total - 1) / mem_total))
-    echo "$usage_percent"
+    # 'free' returns
+    #                total        used        free      shared  buff/cache   available
+    # Mem:       371458720     6879376   285303364        9772    81770240   364579344
+    # Swap:              0           0           0
+    free | awk '/Mem:/ {p=($2-$7)*100/$2; print int(p) }' || echo 0
 }
 
-# Calculates disk usage as a ceiling integer percentage from df.
+# Calculates disk usage as integer percentage using df.
 get_disk_usage() {
-    local disk_usage
-    disk_usage=$(df -P / | awk 'END{printf "%.0f", $5}')
-    echo "${disk_usage:-0}"
+    # 'df -P /' returns
+    # Filesystem     1024-blocks     Used Available Capacity Mounted on
+    # /dev/nvme0n1p1   515794480 82928236 411780644      17% /
+    df -P / | tail -n1 | awk '{sub(/%/, ""); printf "%.0f\n", $5}' || echo 0
 }
 
 # Helper function to collect the usage and write to file.
