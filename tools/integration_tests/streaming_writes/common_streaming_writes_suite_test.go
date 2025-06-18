@@ -19,7 +19,6 @@ import (
 	"slices"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 	"github.com/stretchr/testify/assert"
@@ -53,12 +52,7 @@ func (t *StreamingWritesSuite) TearDownSuite() {
 func (t *StreamingWritesSuite) validateReadCall(fh *os.File, content string) {
 	readContent := make([]byte, len(content))
 	n, err := fh.ReadAt(readContent, 0)
-	// TODO(b/417136852): Fix validation once zb reads start working.
-	if false /*setup.IsZonalBucketRun() && !t.fallbackToDiskCase*/ {
-		operations.ValidateEOPNOTSUPPError(t.T(), err)
-	} else {
-		require.NoError(t.T(), err)
-		assert.Equal(t.T(), len(content), n)
-		assert.Equal(t.T(), content, string(readContent))
-	}
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), len(content), n)
+	assert.Equal(t.T(), content, string(readContent))
 }
