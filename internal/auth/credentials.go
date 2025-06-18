@@ -24,6 +24,8 @@ import (
 
 var detectCredentials = credentials.DetectDefault
 
+const scope = storage.ScopeFullControl
+
 // GetCredentials detects default Google Cloud credentials.
 //
 // It prioritizes a service account key file if `keyFile` is provided. If `keyFile` is
@@ -40,7 +42,6 @@ var detectCredentials = credentials.DetectDefault
 //	*auth.Credentials: Discovered authentication credentials.
 //	error: An error if credential detection fails.
 func GetCredentials(keyFile string) (*auth.Credentials, error) {
-	const scope = storage.ScopeFullControl
 	opts := &credentials.DetectOptions{
 		CredentialsFile: keyFile,
 		Scopes:          []string{scope},

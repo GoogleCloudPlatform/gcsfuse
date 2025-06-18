@@ -83,7 +83,7 @@ func (suite *credentialsTestSuite) Test_GetCredentials_Success() {
 
 	for _, tc := range tests {
 		suite.Run(tc.name, func() {
-			suite.mockDetector.On("DetectDefault", mock.AnythingOfType("*credentials.DetectOptions")).Return(&googleAuth.Credentials{}, nil).Once()
+			suite.mockDetector.On("DetectDefault", &credentials.DetectOptions{CredentialsFile: tc.keyFile, Scopes: []string{scope}}).Return(&googleAuth.Credentials{}, nil).Once()
 
 			creds, err := GetCredentials(tc.keyFile)
 
@@ -96,8 +96,8 @@ func (suite *credentialsTestSuite) Test_GetCredentials_Success() {
 
 func (suite *credentialsTestSuite) Test_GetCredentials_Error() {
 	expectedErr := fmt.Errorf("simulated detection error")
-	suite.mockDetector.On("DetectDefault", mock.AnythingOfType("*credentials.DetectOptions")).Return(nil, expectedErr).Once()
 	keyFile := "/path/to/key.json"
+	suite.mockDetector.On("DetectDefault", &credentials.DetectOptions{CredentialsFile: keyFile, Scopes: []string{scope}}).Return(nil, expectedErr).Once()
 
 	creds, err := GetCredentials(keyFile)
 
