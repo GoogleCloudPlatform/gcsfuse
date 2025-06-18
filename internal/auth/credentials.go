@@ -29,13 +29,14 @@ const scope = storage.ScopeFullControl
 // GetCredentials detects default Google Cloud credentials.
 //
 // It prioritizes a service account key file if `keyFile` is provided. If `keyFile` is
-// empty, it automatically attempts to detect Application Default Credentials (ADC)
-// and checks the metadata server for credentials.
+// empty, it attempts to detect Application Default Credentials (ADC) and checks
+// the metadata server for credentials.
 //
 // This method requests `storagev1.DevstorageFullControlScope` for Google Cloud Storage access.
 //
 // Args:
-// keyFile: Path to a service account key file. Pass an empty string if not used.
+//
+//	keyFile: Path to a service account key file. Pass an empty string to use ADC.
 //
 // Returns:
 //
