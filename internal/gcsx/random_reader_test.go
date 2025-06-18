@@ -840,7 +840,7 @@ func (t *RandomReaderTest) Test_ReadAt_CachePopulatedAndThenCacheMissDueToInvali
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, objectSize, rd)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(gcs.BucketType{}))
+	ExpectCall(t.bucket, "BucketType")().WillRepeatedly(Return(gcs.BucketType{}))
 	buf := make([]byte, objectSize)
 	objectData, err := t.rr.ReadAt(buf, 0)
 	AssertEq(nil, err)
@@ -940,7 +940,7 @@ func (t *RandomReaderTest) Test_ReadAt_FailedJobRestartAndCacheHit() {
 	ExpectCall(t.bucket, "NewReaderWithReadHandle")(Any(), Any()).
 		WillOnce(Return(nil, errors.New(""))).WillRepeatedly(Return(rc, nil))
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(gcs.BucketType{}))
+	ExpectCall(t.bucket, "BucketType")().WillRepeatedly(Return(gcs.BucketType{}))
 	buf := make([]byte, objectSize)
 	objectData, err := t.rr.ReadAt(buf, 0)
 	AssertEq(nil, err)
