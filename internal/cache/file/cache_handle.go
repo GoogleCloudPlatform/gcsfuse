@@ -199,6 +199,12 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 		// completed or failed. The offset must be equal to size of object for job
 		// to be completed.
 
+		// For unfinalized objects (supported only in zonal buckets),
+		// it is known that the object size can grow over time, and thus
+		// their object-size can be more than their cached-entry size.
+		// To allow reading from cache for such objects, don't compare
+		// cached-entry size to the object size, but only to what is needed
+		// to be read.
 		if bucket.BucketType().Zonal && object.IsUnfinalized() {
 			err = fch.validateEntryInFileInfoCache(bucket, object, uint64(requiredOffset), false)
 		} else {
