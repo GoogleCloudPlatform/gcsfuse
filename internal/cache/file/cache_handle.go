@@ -185,10 +185,6 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 
 		jobStatus, err = fch.fileDownloadJob.Download(ctx, requiredOffset, waitForDownload)
 		if err != nil {
-			if bucket.BucketType().Zonal && object.IsUnfinalized() {
-				err = util.ErrFallbackToGCS
-				return
-			}
 			n = 0
 			cacheHit = false
 			err = fmt.Errorf("read: while downloading through job: %w", err)
