@@ -32,7 +32,9 @@ const scope = storage.ScopeFullControl
 // empty, it attempts to detect Application Default Credentials (ADC) and checks
 // the metadata server for credentials.
 //
-// This method requests `storagev1.DevstorageFullControlScope` for Google Cloud Storage access.
+// The function requests storagev1.DevstorageFullControlScope to ensure the most comprehensive
+// permissions for GCS. This allows subsequent operations using these credentials to have full read,
+// write, and administrative control over GCS resources.
 //
 // Args:
 //
