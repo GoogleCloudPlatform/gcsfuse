@@ -170,6 +170,14 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	// fh.inode.mu is already locked to ensure that we have a reader for its current
 	// state, or clear fh.reader if it's not possible to create one (probably
 	// because the inode is dirty).
+
+	_, err = fh.inode.SyncPendingBufferedWrites()
+	if err != nil {
+		fh.inode.Unlock()
+		err = fmt.Errorf("fh.inode.SyncPendingBufferedWrites: %w", err)
+		return
+	}
+
 	err = fh.tryEnsureReader(ctx, sequentialReadSizeMb)
 	if err != nil {
 		fh.inode.Unlock()
