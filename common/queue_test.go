@@ -21,6 +21,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestNewQueue(t *testing.T) {
+	q := NewQueue[int]()
+
+	assert.NotNil(t, q, "NewQueue() should return a non-nil queue.")
+	assert.True(t, q.IsEmpty(), "A new queue should be empty.")
+	assert.Equal(t, 0, q.Len(), "A new queue should have a size of 0.")
+}
+
 func TestQueue_Push(t *testing.T) {
 	q := NewQueue[int]()
 
