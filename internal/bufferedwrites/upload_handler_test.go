@@ -38,6 +38,8 @@ const (
 	objectSize uint64 = 1024
 )
 
+var finalized = time.Date(2025, time.June, 18, 23, 30, 0, 0, time.UTC)
+
 type UploadHandlerTest struct {
 	uh         *UploadHandler
 	blockPool  *block.BlockPool
@@ -69,11 +71,12 @@ func (t *UploadHandlerTest) SetupSubTest() {
 	t.SetupTest()
 }
 
-func (t *UploadHandlerTest) createUploadHandlerWithNonNilObjectOfGivenSize(size uint64) {
+func (t *UploadHandlerTest) createUploadHandlerWithNonNilObjectOfGivenSize(size uint64, finalized time.Time) {
 	t.uh = newUploadHandler(&CreateUploadHandlerRequest{
 		Object: &gcs.Object{
-			Name: objectName,
-			Size: size,
+			Name:      objectName,
+			Size:      size,
+			Finalized: finalized,
 		},
 		ObjectName:               "testObject",
 		Bucket:                   t.mockBucket,
@@ -85,7 +88,7 @@ func (t *UploadHandlerTest) createUploadHandlerWithNonNilObjectOfGivenSize(size 
 }
 
 func (t *UploadHandlerTest) TestCreateObjectWriter_CreateAppendableObjectWriterCalled() {
-	t.createUploadHandlerWithNonNilObjectOfGivenSize(objectSize)
+	t.createUploadHandlerWithNonNilObjectOfGivenSize(objectSize, time.Time{})
 	t.mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).Return(&storagemock.Writer{}, nil)
 
 	_ = t.uh.createObjectWriter()
@@ -94,7 +97,7 @@ func (t *UploadHandlerTest) TestCreateObjectWriter_CreateAppendableObjectWriterC
 }
 
 func (t *UploadHandlerTest) TestCreateObjectWriter_CreateObjectChunkWriterCalled() {
-	t.createUploadHandlerWithNonNilObjectOfGivenSize(0)
+	t.createUploadHandlerWithNonNilObjectOfGivenSize(0, finalized)
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything).Return(&storagemock.Writer{}, nil)
 
 	_ = t.uh.createObjectWriter()
@@ -111,7 +114,7 @@ func (t *UploadHandlerTest) TestCreateObjectWriter_CreateObjectChunkWriterCalled
 }
 
 func (t *UploadHandlerTest) TestEnsureWriter_CreateAppendableWriterIsSuccessful() {
-	t.createUploadHandlerWithNonNilObjectOfGivenSize(objectSize)
+	t.createUploadHandlerWithNonNilObjectOfGivenSize(objectSize, time.Time{})
 	writer := &storagemock.Writer{}
 	t.mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 
@@ -121,7 +124,7 @@ func (t *UploadHandlerTest) TestEnsureWriter_CreateAppendableWriterIsSuccessful(
 	assert.NotNil(t.T(), t.uh.writer)
 }
 func (t *UploadHandlerTest) TestEnsureWriter_CreateAppendableWriterReturnsError() {
-	t.createUploadHandlerWithNonNilObjectOfGivenSize(objectSize)
+	t.createUploadHandlerWithNonNilObjectOfGivenSize(objectSize, time.Time{})
 	expectedErr := fmt.Errorf("createAppendableObjectWriter failed")
 	t.mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedErr)
 
@@ -132,7 +135,7 @@ func (t *UploadHandlerTest) TestEnsureWriter_CreateAppendableWriterReturnsError(
 }
 
 func (t *UploadHandlerTest) TestEnsureWriter_CreateObjectChunkWriterIsSuccessful() {
-	t.createUploadHandlerWithNonNilObjectOfGivenSize(0)
+	t.createUploadHandlerWithNonNilObjectOfGivenSize(0, finalized)
 	writer := &storagemock.Writer{}
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 
@@ -142,7 +145,7 @@ func (t *UploadHandlerTest) TestEnsureWriter_CreateObjectChunkWriterIsSuccessful
 	assert.NotNil(t.T(), t.uh.writer)
 }
 func (t *UploadHandlerTest) TestEnsureWriter_CreateObjectChunkWriterReturnsError() {
-	t.createUploadHandlerWithNonNilObjectOfGivenSize(0)
+	t.createUploadHandlerWithNonNilObjectOfGivenSize(0, finalized)
 	expectedErr := fmt.Errorf("createObjectChunkWriter failed")
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedErr)
 
@@ -432,6 +435,7 @@ func (t *UploadHandlerTest) TestCreateObjectChunkWriterIsCalledWithCorrectReques
 		Generation:      10,
 		MetaGeneration:  20,
 		Acl:             nil,
+		Finalized:       finalized,
 	}
 
 	// CreateObjectChunkWriter -- should be called once with correct request parameters.

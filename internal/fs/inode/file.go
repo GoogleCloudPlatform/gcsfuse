@@ -1013,11 +1013,9 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 	}
 
 	tempFileInUse := f.content != nil
-	if !f.config.Write.ExperimentalEnableRapidAppends {
-		if f.src.Size != 0 || !f.config.Write.EnableStreamingWrites || tempFileInUse {
-			// bwh should not be initialized under these conditions.
-			return false, nil
-		}
+	if !f.config.Write.EnableStreamingWrites || tempFileInUse {
+		// bwh should not be initialized under these conditions.
+		return false, nil
 	}
 
 	var latestGcsObj *gcs.Object
@@ -1028,10 +1026,9 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 			return false, err
 		}
 	}
-	if f.config.Write.ExperimentalEnableRapidAppends {
-		if !f.areBufferedWritesSupported(openMode, latestGcsObj) || !f.config.Write.EnableStreamingWrites || tempFileInUse {
-			return false, nil
-		}
+
+	if !f.areBufferedWritesSupported(openMode, latestGcsObj) {
+		return false, nil
 	}
 
 	if f.bwh == nil {
@@ -1052,20 +1049,21 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 			return false, fmt.Errorf("failed to create bufferedWriteHandler: %w", err)
 		}
 		f.bwh.SetMtime(f.mtimeClock.Now())
-		if f.config.Write.ExperimentalEnableRapidAppends {
-			f.bwh.SetTotalSize()
-		}
 		return true, nil
 	}
 	return false, nil
 }
 
 func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, obj *gcs.Object) bool {
-	if f.src.Size == 0 {
+	// When the file is local, then buffered writes are supported.
+	if f.local || obj.Size == 0 {
 		return true
 	}
-	if openMode == util.Append && f.bucket.BucketType().Zonal && obj.Finalized.IsZero() {
-		return true
+
+	if f.config.Write.ExperimentalEnableRapidAppends {
+		if openMode == util.Append && f.bucket.BucketType().Zonal && obj.Finalized.IsZero() {
+			return true
+		}
 	}
 	return false
 }

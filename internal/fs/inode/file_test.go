@@ -181,7 +181,7 @@ func (t *FileTest) TestName() {
 }
 
 func (t *FileTest) TestAreBufferedWritesSupported() {
-	finalizedTime := time.Now()
+	finalizedTime := time.Date(2025, time.June, 18, 23, 30, 0, 0, time.UTC)
 	unFinalizedTime := time.Time{}
 	nonNilContents := "taco"
 	testCases := []struct {
@@ -247,6 +247,7 @@ func (t *FileTest) TestAreBufferedWritesSupported() {
 		object.Finalized = tc.finalized
 		t.backingObj = storageutil.ConvertObjToMinObject(object)
 		t.createInode()
+		t.in.config.Write.ExperimentalEnableRapidAppends = true
 
 		isSupported := t.in.areBufferedWritesSupported(tc.openMode, object)
 
