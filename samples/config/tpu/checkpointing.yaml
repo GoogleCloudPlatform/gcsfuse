@@ -1,0 +1,12 @@
+implicit-dirs: true
+metadata-cache:
+  negative-ttl-secs: 0
+  ttl-secs: -1
+  stat-cache-max-size-mb: -1
+  type-cache-max-size-mb: -1
+file-cache:
+  max-size-mb: -1
+  cache-file-for-range-read: true
+  enable-parallel-downloads: true
+write:
+  enable-streaming-writes: true

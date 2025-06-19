@@ -1,0 +1,10 @@
+implicit-dirs: true
+metadata-cache:
+  negative-ttl-secs: 0
+  ttl-secs: -1
+  stat-cache-max-size-mb: -1
+  type-cache-max-size-mb: -1
+# if enabling the file cache, uncomment out to use #
+# file-cache:
+#  max-size-mb: -1
+#  cache-file-for-range-read: true
