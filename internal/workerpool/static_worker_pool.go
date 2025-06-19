@@ -15,6 +15,7 @@
 package workerpool
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -23,14 +24,15 @@ import (
 
 // staticWorkerPool starts all the workers (goroutines) on startup and keeps them running.
 // It keep two types of workers - priority and normal. Priority workers will only
-// execute tasks that are marked as urgent while scheduling, while normal workers will
-// execute both urgent and normal tasks.
+// execute tasks that are marked as urgent while scheduling. Normal workers will
+// execute both urgent and normal tasks, but gives precedence to urgent task.
 type staticWorkerPool struct {
 	priorityWorker uint32 // Number of priority workers in this pool.
 	normalWorker   uint32 // Number of normal workers in this pool.
 
-	// Channel to close all the workers.
-	close chan int
+	// Context to close all the workers.
+	ctx    context.Context
+	cancel context.CancelFunc
 
 	// Wait group to wait for all workers to finish.
 	wg sync.WaitGroup
@@ -49,10 +51,12 @@ func NewStaticWorkerPool(priorityWorker uint32, normalWorker uint32) (*staticWor
 
 	logger.Infof("staticWorkerPool: creating with %d normal, and %d priority workers.", normalWorker, priorityWorker)
 
+	ctx, cancel := context.WithCancel(context.Background())
 	return &staticWorkerPool{
 		priorityWorker: priorityWorker,
 		normalWorker:   normalWorker,
-		close:          make(chan int, totalWorkers),
+		ctx:            ctx,
+		cancel:         cancel,
 		// Keep the channel capacity large enough to handle burst of tasks.
 		priorityCh: make(chan Task, priorityWorker*200),
 		normalCh:   make(chan Task, normalWorker*5000),
@@ -74,17 +78,10 @@ func (swp *staticWorkerPool) Start() {
 
 // Stop all the workers threads and wait for them to finish processing.
 func (swp *staticWorkerPool) Stop() {
-	for i := uint32(0); i < swp.priorityWorker; i++ {
-		swp.close <- 1
-	}
-
-	for i := uint32(0); i < swp.normalWorker; i++ {
-		swp.close <- 1
-	}
-
+	swp.cancel()
 	swp.wg.Wait()
 
-	close(swp.close)
+	// Close the channel after all workers are done.
 	close(swp.priorityCh)
 	close(swp.normalCh)
 }
@@ -107,25 +104,37 @@ func (swp *staticWorkerPool) do(priority bool) {
 	defer swp.wg.Done()
 
 	if priority {
-		// This thread will work only on high priority channel
+		// Worker only listens to the priority channel.
 		for {
 			select {
-			case task := <-swp.priorityCh:
-				task.Execute()
-			case <-swp.close:
+			case <-swp.ctx.Done():
 				return
+			default:
+				select {
+				case <-swp.ctx.Done():
+					return
+				case task := <-swp.priorityCh:
+					task.Execute()
+				}
 			}
 		}
 	} else {
-		// This thread will work only on both high and low priority channel
+		// Worker listens to both channels but gives priority to the priority channel.
 		for {
 			select {
+			case <-swp.ctx.Done():
+				return
 			case task := <-swp.priorityCh:
 				task.Execute()
-			case task := <-swp.normalCh:
-				task.Execute()
-			case <-swp.close:
-				return
+			default:
+				select {
+				case <-swp.ctx.Done():
+					return
+				case task := <-swp.priorityCh:
+					task.Execute()
+				case task := <-swp.normalCh:
+					task.Execute()
+				}
 			}
 		}
 	}

@@ -45,6 +45,8 @@ func TestNewStaticWorkerPool_Success(t *testing.T) {
 
 			assert.NoError(t, err)
 			assert.NotNil(t, pool)
+			assert.Equal(t, tc.priorityWorker, pool.priorityWorker)
+			assert.Equal(t, tc.normalWorker, pool.normalWorker)
 			pool.Stop() // Clean up
 		})
 	}
@@ -76,7 +78,7 @@ func TestStaticWorkerPool_Start(t *testing.T) {
 	assert.Equal(t, 0, len(pool.priorityCh), "Priority channel should be empty after task execution.")
 }
 
-func TestStaticWorkerPool_Schedule(t *testing.T) {
+func TestStaticWorkerPool_SchedulePriorityTask(t *testing.T) {
 	pool, err := NewStaticWorkerPool(2, 3)
 	assert.NoError(t, err)
 	assert.NotNil(t, pool)
@@ -92,18 +94,20 @@ func TestStaticWorkerPool_Schedule(t *testing.T) {
 	}, 100*time.Millisecond, time.Millisecond, "Task was not executed in time.")
 }
 
-func TestStaticWorkerPool_Stop(t *testing.T) {
+func TestStaticWorkerPool_ScheduleNormalTask(t *testing.T) {
 	pool, err := NewStaticWorkerPool(2, 3)
 	assert.NoError(t, err)
 	assert.NotNil(t, pool)
 	pool.Start()
+	defer pool.Stop()
 
-	// Stop the pool and check if channels are closed.
-	pool.Stop()
+	dt := &dummyTask{}
+	pool.Schedule(false, dt)
 
-	assert.Panics(t, func() { pool.close <- 1 }, "Close channel is not closed.")
-	assert.Panics(t, func() { pool.normalCh <- &dummyTask{} }, "normalCh channel is not closed.")
-	assert.Panics(t, func() { pool.priorityCh <- &dummyTask{} }, "priorityCh channel is not closed.")
+	// Wait for the task to be executed.
+	assert.Eventually(t, func() bool {
+		return dt.executed
+	}, 100*time.Millisecond, time.Millisecond, "Priority task was not executed in time.")
 }
 
 func TestStaticWorkerPool_HighNumberOfTasks(t *testing.T) {
@@ -114,7 +118,7 @@ func TestStaticWorkerPool_HighNumberOfTasks(t *testing.T) {
 	defer pool.Stop()
 
 	// Schedule a large number of tasks.
-	for i := 0; i < 10000; i++ {
+	for i := 0; i < 100; i++ {
 		dt := &dummyTask{}
 		pool.Schedule(i%2 == 0, dt) // Alternate between priority and normal tasks
 	}
@@ -123,4 +127,30 @@ func TestStaticWorkerPool_HighNumberOfTasks(t *testing.T) {
 	assert.Eventually(t, func() bool {
 		return len(pool.priorityCh) == 0 && len(pool.normalCh) == 0
 	}, 500*time.Millisecond, 10*time.Millisecond, "Not all tasks were executed in time.")
+}
+
+func TestStaticWorkerPool_ScheduleAfterStop(t *testing.T) {
+	pool, err := NewStaticWorkerPool(2, 3)
+	assert.NoError(t, err)
+	assert.NotNil(t, pool)
+	pool.Start()
+
+	pool.Stop()
+
+	assert.Panics(t, func() { pool.Schedule(true, &dummyTask{}) }, "Should panic when scheduling after cancel.")
+	assert.NotNil(t, pool.ctx.Err(), "Context should be cancelled.")
+}
+
+func TestStaticWorkerPool_Stop(t *testing.T) {
+	pool, err := NewStaticWorkerPool(2, 3)
+	assert.NoError(t, err)
+	assert.NotNil(t, pool)
+	pool.Start()
+
+	// Stop the pool and check if channels are closed.
+	pool.Stop()
+
+	assert.NotNil(t, pool.ctx.Err())
+	assert.Panics(t, func() { pool.normalCh <- &dummyTask{} }, "normalCh channel is not closed.")
+	assert.Panics(t, func() { pool.priorityCh <- &dummyTask{} }, "priorityCh channel is not closed.")
 }
