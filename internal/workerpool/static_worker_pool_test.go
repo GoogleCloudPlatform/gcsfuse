@@ -55,7 +55,7 @@ func TestNewStaticWorkerPool_Failure(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, pool)
-	pool.Stop() // Clean up
+	assert.Panics(t, pool.Stop, "Stop should panic if pool is nil")
 }
 
 func TestStaticWorkerPool_Start(t *testing.T) {
