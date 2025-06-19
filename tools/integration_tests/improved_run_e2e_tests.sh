@@ -73,7 +73,6 @@ LOG_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_logging_lock.XXXXXX") || { log_error 
 BUCKET_NAMES=$(mktemp "/tmp/${TMP_PREFIX}_bucket_names.XXXXXX") || { log_error "Unable to create bucket names file"; exit 1; }
 PACKAGE_RUNTIME_STATS=$(mktemp "/tmp/${TMP_PREFIX}_package_stats_runtime.XXXXXX") || { log_error "Unable to create package stats runtime file"; exit 1; }
 RESOURCE_USAGE_FILE=$(mktemp "/tmp/${TMP_PREFIX}_system_resource_usage.XXXXXX") || { log_error "Unable to create system resource usage file"; exit 1; }
-RESOURCE_USAGE_PID=""
 
 # Argument Parsing and Assignments
 if [ "$#" -lt 3 ]; then
@@ -272,11 +271,23 @@ delete_bucket() {
   return 0
 }
 
+# Get command of the PID and check if it contains the string. Kill if it does.
+safe_kill() {
+  local pid=$1
+  local str=$2
+  local cmd
+
+  if [[ -n "$pid" && -n "$str" ]] && cmd=$(ps -p "$pid" -o cmd=) && [[ "$cmd" == *"$str"* ]]; then
+    kill "$pid"
+  else
+    return 1
+  fi
+}
+
 # Cleanup ensures each of the buckets created is destroyed and the temp files are cleaned up.
 clean_up() {
-  if [ -n "$RESOURCE_USAGE_PID" ]; then
-    log_info "Killing resource usage collection process: $RESOURCE_USAGE_PID"
-    kill "$RESOURCE_USAGE_PID"
+  if ! safe_kill "$RESOURCE_USAGE_PID" "resource_usage.sh"; then
+    log_error "Failed to stop resource usage collection process (or it's already stopped): $RESOURCE_USAGE_PID"
   fi
   if [ -n "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}" ] && [ -d "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}" ]; then
     log_info "Cleaning up GCSFuse build directory created by script: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
@@ -576,12 +587,11 @@ main() {
 
   # Kill resource usage background PID and print resource usage.
   log_info "Stopping resource usage collection process: $RESOURCE_USAGE_PID"
-  if kill "$RESOURCE_USAGE_PID"; then
+  if safe_kill "$RESOURCE_USAGE_PID" "resource_usage.sh"; then
     log_info "Resource usage collection process stopped."
     ./tools/integration_tests/resource_usage.sh "PRINT" "$RESOURCE_USAGE_FILE"
-    RESOURCE_USAGE_PID="" # set empty to not trigger cleanup in trap.
   else
-    log_error "Failed to stop resource usage collection process."
+    log_error "Failed to stop resource usage collection process (or it's already stopped)"
   fi
   exit $overall_exit_code
 }
