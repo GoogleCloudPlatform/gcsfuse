@@ -159,8 +159,11 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 		shouldInvalidate := (existingJob == nil) && (fileInfoData.Offset < object.Size)
 		// For unfinalized objects (supported only in zonal buckets),
 		// it is known that the object size can grow over time, and thus
-		// their object-size can be more than their cached-entry size.
-		shouldInvalidate = shouldInvalidate && (!(object.IsUnfinalized() && bucket.BucketType().Zonal))
+		// their object-size can be more than their cached-entry size,
+		// so we should not invalidate cache-entry for them because of size-check.
+		if shouldInvalidate && bucket.BucketType().Zonal && object.IsUnfinalized() {
+			shouldInvalidate = false
+		}
 		if (!shouldInvalidate) && (existingJob != nil) {
 			existingJobStatus := existingJob.GetStatus().Name
 			shouldInvalidate = (existingJobStatus == downloader.Failed) || (existingJobStatus == downloader.Invalid)
