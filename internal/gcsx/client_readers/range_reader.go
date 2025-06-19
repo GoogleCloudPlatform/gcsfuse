@@ -280,7 +280,7 @@ func (rr *RangeReader) startRead(start int64, end int64) error {
 	rr.limit = end
 
 	requestedDataSize := end - start
-	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, util.Sequential, requestedDataSize)
+	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, util.ReadTypeStringMap[util.Sequential], requestedDataSize)
 
 	return nil
 }
