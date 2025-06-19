@@ -116,6 +116,7 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.R
 	}
 	defer func() {
 		gr.updateExpectedOffset(offset + int64(readerResponse.Size))
+		gr.totalReadBytes += uint64(readerResponse.Size)
 	}()
 
 	var err error
@@ -138,12 +139,10 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.R
 	readerType := gr.readerType(offset, end, gr.bucket.BucketType())
 	if readerType == RangeReaderType {
 		readerResponse, err = gr.rangeReader.ReadAt(ctx, readReq)
-		gr.totalReadBytes += uint64(readerResponse.Size)
 		return readerResponse, err
 	}
 
 	readerResponse, err = gr.mrr.ReadAt(ctx, readReq)
-	gr.totalReadBytes += uint64(readerResponse.Size)
 
 	return readerResponse, err
 }
