@@ -92,9 +92,9 @@ func (l *LogSeverity) UnmarshalText(text []byte) error {
 	return nil
 }
 
-// Level returns the integer representation of the severity rank.
+// Rank returns the integer representation of the severity rank.
 // Returns -1 if the severity is unknown.
-func (l LogSeverity) Level() int {
+func (l LogSeverity) Rank() int {
 	if rank, ok := severityRanking[l]; ok {
 		return rank
 	}

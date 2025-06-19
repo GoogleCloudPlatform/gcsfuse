@@ -665,48 +665,48 @@ func TestValidateMetrics(t *testing.T) {
 	}
 }
 
-func TestValidateLogSeverityLevels(t *testing.T) {
+func TestValidateLogSeverityRanks(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
-		logSev       string
-		wantLogLevel int
-		wantLogSev   LogSeverity
-		wantErr      bool
+		logSev         string
+		wantLogSevRank int
+		wantLogSev     LogSeverity
+		wantErr        bool
 	}{
 		{
-			logSev:       "off",
-			wantLogLevel: 5,
-			wantLogSev:   OffLogSeverity,
+			logSev:         "off",
+			wantLogSevRank: 5,
+			wantLogSev:     OffLogSeverity,
 		},
 		{
-			logSev:       "error",
-			wantLogLevel: 4,
-			wantLogSev:   ErrorLogSeverity,
+			logSev:         "error",
+			wantLogSevRank: 4,
+			wantLogSev:     ErrorLogSeverity,
 		},
 		{
-			logSev:       "warning",
-			wantLogLevel: 3,
-			wantLogSev:   WarningLogSeverity,
+			logSev:         "warning",
+			wantLogSevRank: 3,
+			wantLogSev:     WarningLogSeverity,
 		},
 		{
-			logSev:       "info",
-			wantLogLevel: 2,
-			wantLogSev:   InfoLogSeverity,
+			logSev:         "info",
+			wantLogSevRank: 2,
+			wantLogSev:     InfoLogSeverity,
 		},
 		{
-			logSev:       "debug",
-			wantLogLevel: 1,
-			wantLogSev:   DebugLogSeverity,
+			logSev:         "debug",
+			wantLogSevRank: 1,
+			wantLogSev:     DebugLogSeverity,
 		},
 		{
-			logSev:       "trace",
-			wantLogLevel: 0,
-			wantLogSev:   TraceLogSeverity,
+			logSev:         "trace",
+			wantLogSevRank: 0,
+			wantLogSev:     TraceLogSeverity,
 		},
 		{
-			logSev:       "invalid",
-			wantLogLevel: -1,
-			wantErr:      true,
+			logSev:         "invalid",
+			wantLogSevRank: -1,
+			wantErr:        true,
 		},
 	}
 	for _, tc := range testCases {
@@ -719,10 +719,10 @@ func TestValidateLogSeverityLevels(t *testing.T) {
 
 			if tc.wantErr {
 				assert.Error(t, err)
-				assert.Equal(t, -1, level.Level())
+				assert.Equal(t, -1, level.Rank())
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, tc.wantLogSev.Level(), level.Level())
+				assert.Equal(t, tc.wantLogSev.Rank(), level.Rank())
 			}
 		})
 	}
