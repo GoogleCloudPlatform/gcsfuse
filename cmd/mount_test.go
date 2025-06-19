@@ -15,16 +15,11 @@
 package cmd
 
 import (
-	"log"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/stretchr/testify/assert"
 )
-
-func isNotNil(logger *log.Logger) bool {
-	return logger != nil
-}
 
 func TestGetFuseMountConfig_MountOptionsFormattedCorrectly(t *testing.T) {
 	testCases := []struct {
@@ -115,7 +110,7 @@ func TestGetFuseMountConfig_LoggerInitializationInFuse(t *testing.T) {
 
 		fuseMountCfg := getFuseMountConfig(fsName, newConfig)
 
-		assert.Equal(t, tc.shouldInitializeError, isNotNil(fuseMountCfg.ErrorLogger))
-		assert.Equal(t, tc.shouldInitializeTrace, isNotNil(fuseMountCfg.DebugLogger))
+		assert.Equal(t, tc.shouldInitializeError, fuseMountCfg.ErrorLogger != nil)
+		assert.Equal(t, tc.shouldInitializeTrace, fuseMountCfg.DebugLogger != nil)
 	}
 }
