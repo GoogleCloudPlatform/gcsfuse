@@ -27,11 +27,16 @@ import (
 )
 
 var (
+	// Meters are used to create instruments.
+	// A new meter should be created when we need to distinguish metrics coming from different components.
+	// I suppose there is no such need here, so we can use a single meter here - needs more investigation.
 	fsOpsMeter     = otel.Meter("fs_op")
 	gcsMeter       = otel.Meter("gcs")
 	fileCacheMeter = otel.Meter("file_cache")
 
-	// Attribute Keys
+	// Attribute Keys - they annotate the metric to add more information about them.
+	// For instance, an fs/fs_ops_count metric can have an fs_op attribute that tells which fs_op the computation is about.
+
 	// ioMethodKey specifies the I/O method attribute (e.g., opened, closed).
 	ioMethodKey = attribute.Key("io_method")
 	// gcsMethodKey specifies the name of the GCS method
@@ -45,6 +50,8 @@ var (
 	// cacheHitKey specifies whether the read operation from file cache resulted in a cache-hit or miss.
 	cacheHitKey = attribute.Key("cache_hit")
 
+	// The following maps cache the attribute.Set value with sets of attribute keys as map keys.
+	// This helps reduce the overhead in doing attribute.NewSet on every metric update.
 	fsOpsOptionCache,
 	readTypeOptionCache,
 	ioMethodOptionCache,
