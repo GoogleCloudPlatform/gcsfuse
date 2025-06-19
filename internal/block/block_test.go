@@ -37,9 +37,11 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockWrite() {
 	mb, err := createBlock(12)
 	require.Nil(testSuite.T(), err)
 	content := []byte("hi")
-	err = mb.Write(content)
+	var n int
+	n, err = mb.Write(content)
 
 	assert.Nil(testSuite.T(), err)
+	assert.Equal(testSuite.T(), len(content), n)
 	output, err := io.ReadAll(mb.Reader())
 	assert.Nil(testSuite.T(), err)
 	assert.Equal(testSuite.T(), content, output)
@@ -50,19 +52,24 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockWriteWithDataGreaterThanCapacit
 	mb, err := createBlock(1)
 	require.Nil(testSuite.T(), err)
 	content := []byte("hi")
-	err = mb.Write(content)
+	var n int
+	n, err = mb.Write(content)
 
 	assert.NotNil(testSuite.T(), err)
+	assert.Equal(testSuite.T(), 0, n)
 	assert.EqualError(testSuite.T(), err, outOfCapacityError)
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockWriteWithMultipleWrites() {
 	mb, err := createBlock(12)
 	require.Nil(testSuite.T(), err)
-	err = mb.Write([]byte("hi"))
+	var n int
+	n, err = mb.Write([]byte("hi"))
 	assert.Nil(testSuite.T(), err)
-	err = mb.Write([]byte("hello"))
+	assert.Equal(testSuite.T(), 2, n)
+	n, err = mb.Write([]byte("hello"))
 	assert.Nil(testSuite.T(), err)
+	assert.Equal(testSuite.T(), 5, n)
 
 	output, err := io.ReadAll(mb.Reader())
 	assert.Nil(testSuite.T(), err)
@@ -74,11 +81,14 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockWriteWith2ndWriteBeyondCapacity
 	mb, err := createBlock(2)
 	require.Nil(testSuite.T(), err)
 	content := []byte("hi")
-	err = mb.Write(content)
+	var n int
+	n, err = mb.Write(content)
 	assert.Nil(testSuite.T(), err)
-	err = mb.Write(content)
+	assert.Equal(testSuite.T(), 2, n)
+	n, err = mb.Write(content)
 
 	assert.NotNil(testSuite.T(), err)
+	assert.Equal(testSuite.T(), 0, n)
 	assert.EqualError(testSuite.T(), err, outOfCapacityError)
 }
 
@@ -86,8 +96,10 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReuse() {
 	mb, err := createBlock(12)
 	require.Nil(testSuite.T(), err)
 	content := []byte("hi")
-	err = mb.Write(content)
+	var n int
+	n, err = mb.Write(content)
 	assert.Nil(testSuite.T(), err)
+	assert.Equal(testSuite.T(), 2, n)
 	output, err := io.ReadAll(mb.Reader())
 	assert.Nil(testSuite.T(), err)
 	assert.Equal(testSuite.T(), content, output)
@@ -124,8 +136,10 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockDeAllocate() {
 	mb, err := createBlock(12)
 	require.Nil(testSuite.T(), err)
 	content := []byte("hi")
-	err = mb.Write(content)
+	var n int
+	n, err = mb.Write(content)
 	require.Nil(testSuite.T(), err)
+	require.Equal(testSuite.T(), 2, n)
 	output, err := io.ReadAll(mb.Reader())
 	require.Nil(testSuite.T(), err)
 	require.Equal(testSuite.T(), content, output)

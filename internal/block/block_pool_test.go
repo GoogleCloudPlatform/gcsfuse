@@ -82,7 +82,9 @@ func (t *BlockPoolTest) TestGetWhenBlockIsAvailableForReuse() {
 	b, err := createBlock(2)
 	require.Nil(t.T(), err)
 	content := []byte("hi")
-	err = b.Write(content)
+	var n int
+	n, err = b.Write(content)
+	require.Equal(t.T(), 2, n)
 	require.Nil(t.T(), err)
 	// Validating the content of the block
 	output, err := io.ReadAll(b.Reader())
