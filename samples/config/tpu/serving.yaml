@@ -1,8 +1,8 @@
 implicit-dirs: true
-cache-dir: /tmp
+cache-dir: /tmp # set to appropriate directory
 metadata-cache:
   negative-ttl-secs: 0
-  ttl-secs: -1
+  ttl-secs: -1 # change as per workload needs
   stat-cache-max-size-mb: -1
   type-cache-max-size-mb: -1
 file-cache:

@@ -1,10 +1,11 @@
 implicit-dirs: true
 metadata-cache:
   negative-ttl-secs: 0
-  ttl-secs: -1
+  ttl-secs: -1 # change as per workload needs
   stat-cache-max-size-mb: -1
   type-cache-max-size-mb: -1
 # if enabling the file cache, uncomment out to use #
+# cache-dir: /tmp
 #file-cache:
 #  max-size-mb: <DATASET_SIZE>
 #  cache-file-for-range-read: true
