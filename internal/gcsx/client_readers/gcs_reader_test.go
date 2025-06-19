@@ -210,6 +210,27 @@ func (t *gcsReaderTest) Test_ReadAt_ExistingReaderLimitIsLessThanRequestedObject
 	assert.Equal(t.T(), []byte(nil), t.gcsReader.rangeReader.readHandle)
 }
 
+func (t *gcsReaderTest) Test_ReadAt_ExistingReaderIsFine() {
+	t.object.Size = 6
+	content := "xxx"
+	// Simulate an existing reader
+	t.gcsReader.rangeReader.reader = &fake.FakeReader{ReadCloser: getReadCloser([]byte(content)), Handle: []byte("fake")}
+	t.gcsReader.rangeReader.cancel = func() {}
+	t.gcsReader.rangeReader.start = 2
+	t.gcsReader.totalReadBytes = 2
+	t.gcsReader.rangeReader.limit = 5
+	requestSize := 3
+
+	readerResponse, err := t.readAt(2, int64(requestSize))
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 3, readerResponse.Size)
+	assert.Equal(t.T(), content, string(readerResponse.DataBuf[:readerResponse.Size]))
+	assert.Equal(t.T(), uint64(5), t.gcsReader.totalReadBytes)
+	assert.Equal(t.T(), int64(5), t.gcsReader.expectedOffset)
+	assert.Equal(t.T(), []byte("fake"), t.gcsReader.rangeReader.readHandle)
+}
+
 func (t *gcsReaderTest) Test_ExistingReader_WrongOffset() {
 	testCases := []struct {
 		name       string
