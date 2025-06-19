@@ -22,9 +22,22 @@ import (
 	"cloud.google.com/go/storage"
 )
 
-var detectCredentials = credentials.DetectDefault
-
 const scope = storage.ScopeFullControl
+
+// getCredentials is a private helper that takes a custom DetectDefault function.
+func getCredentials(keyFile string, detectCredential func(*credentials.DetectOptions) (*auth.Credentials, error)) (*auth.Credentials, error) {
+	opts := &credentials.DetectOptions{
+		CredentialsFile: keyFile,
+		Scopes:          []string{scope},
+	}
+
+	creds, err := detectCredential(opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to detect credentials: %w", err)
+	}
+
+	return creds, nil
+}
 
 // GetCredentials detects default Google Cloud credentials.
 //
@@ -32,7 +45,7 @@ const scope = storage.ScopeFullControl
 // empty, it attempts to detect Application Default Credentials (ADC) and checks
 // the metadata server for credentials.
 //
-// The function requests storagev1.DevstorageFullControlScope to ensure the most comprehensive
+// The function requests storage.ScopeFullControl to ensure the most comprehensive
 // permissions for GCS. This allows subsequent operations using these credentials to have full read,
 // write, and administrative control over GCS resources.
 //
@@ -45,15 +58,5 @@ const scope = storage.ScopeFullControl
 //	*auth.Credentials: Discovered authentication credentials.
 //	error: An error if credential detection fails.
 func GetCredentials(keyFile string) (*auth.Credentials, error) {
-	opts := &credentials.DetectOptions{
-		CredentialsFile: keyFile,
-		Scopes:          []string{scope},
-	}
-
-	creds, err := detectCredentials(opts)
-	if err != nil {
-		return nil, fmt.Errorf("failed to detect credentials: %w", err)
-	}
-
-	return creds, nil
+	return getCredentials(keyFile, credentials.DetectDefault)
 }

@@ -18,55 +18,33 @@ import (
 	"fmt"
 	"testing"
 
-	googleAuth "cloud.google.com/go/auth"
+	"cloud.google.com/go/auth"
+	"cloud.google.com/go/auth/credentials"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
-
-	"cloud.google.com/go/auth/credentials"
 )
 
 ////////////////////////////////////////////////////////////////////////
-// Mocks
+// Mock
 ////////////////////////////////////////////////////////////////////////
 
 type MockDetectCredentials struct {
 	mock.Mock
 }
 
-func (m *MockDetectCredentials) DetectDefault(opts *credentials.DetectOptions) (*googleAuth.Credentials, error) {
+func (m *MockDetectCredentials) DetectDefault(opts *credentials.DetectOptions) (*auth.Credentials, error) {
 	args := m.Called(opts)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*googleAuth.Credentials), args.Error(1)
+	return args.Get(0).(*auth.Credentials), args.Error(1)
 }
 
-// //////////////////////////////////////////////////////////////////////
-// Boilerplate
-// //////////////////////////////////////////////////////////////////////
-type credentialsTestSuite struct {
-	suite.Suite
-	mockDetector *MockDetectCredentials
-}
-
-func TestCredentialsTestSuite(t *testing.T) {
-	suite.Run(t, new(credentialsTestSuite))
-}
-
-func (suite *credentialsTestSuite) SetupTest() {
-	suite.mockDetector = new(MockDetectCredentials)
-	detectCredentials = suite.mockDetector.DetectDefault
-}
-
-func (suite *credentialsTestSuite) TearDownTest() {
-}
-
-// //////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
 // Tests
-// //////////////////////////////////////////////////////////////////////
-func (suite *credentialsTestSuite) Test_GetCredentials_Success() {
+////////////////////////////////////////////////////////////////////////
+
+func Test_getCredentials_Success(t *testing.T) {
 	tests := []struct {
 		name    string
 		keyFile string
@@ -82,27 +60,37 @@ func (suite *credentialsTestSuite) Test_GetCredentials_Success() {
 	}
 
 	for _, tc := range tests {
-		suite.Run(tc.name, func() {
-			suite.mockDetector.On("DetectDefault", &credentials.DetectOptions{CredentialsFile: tc.keyFile, Scopes: []string{scope}}).Return(&googleAuth.Credentials{}, nil).Once()
+		t.Run(tc.name, func(t *testing.T) {
+			mockDetector := new(MockDetectCredentials)
+			opts := &credentials.DetectOptions{
+				CredentialsFile: tc.keyFile,
+				Scopes:          []string{scope},
+			}
+			mockDetector.On("DetectDefault", opts).Return(&auth.Credentials{}, nil).Once()
 
-			creds, err := GetCredentials(tc.keyFile)
+			creds, err := getCredentials(tc.keyFile, mockDetector.DetectDefault)
 
-			assert.NoError(suite.T(), err)
-			assert.NotNil(suite.T(), creds)
-			suite.mockDetector.AssertExpectations(suite.T())
+			assert.NoError(t, err)
+			assert.NotNil(t, creds)
+			mockDetector.AssertExpectations(t)
 		})
 	}
 }
 
-func (suite *credentialsTestSuite) Test_GetCredentials_Error() {
-	expectedErr := fmt.Errorf("simulated detection error")
+func Test_getCredentials_Error(t *testing.T) {
+	mockDetector := new(MockDetectCredentials)
 	keyFile := "/path/to/key.json"
-	suite.mockDetector.On("DetectDefault", &credentials.DetectOptions{CredentialsFile: keyFile, Scopes: []string{scope}}).Return(nil, expectedErr).Once()
+	expectedErr := fmt.Errorf("simulated detection error")
+	opts := &credentials.DetectOptions{
+		CredentialsFile: keyFile,
+		Scopes:          []string{scope},
+	}
+	mockDetector.On("DetectDefault", opts).Return(nil, expectedErr).Once()
 
-	creds, err := GetCredentials(keyFile)
+	creds, err := getCredentials(keyFile, mockDetector.DetectDefault)
 
-	require.Error(suite.T(), err)
-	assert.Nil(suite.T(), creds)
-	assert.ErrorIs(suite.T(), err, expectedErr)
-	suite.mockDetector.AssertExpectations(suite.T())
+	assert.Error(t, err)
+	assert.Nil(t, creds)
+	assert.ErrorIs(t, err, expectedErr)
+	mockDetector.AssertExpectations(t)
 }
