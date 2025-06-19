@@ -178,7 +178,6 @@ TEST_DIR_PARALLEL=(
   "local_file"
   "log_rotation"
   "mounting"
-  "read_cache"
   "gzip"
   "write_large_files"
   "rename_dir_limit"
@@ -202,6 +201,7 @@ TEST_DIR_NON_PARALLEL=(
   "managed_folders"
   "readonly_creds"
   "list_large_dir"
+  "read_cache"
 )
 
 # For Zonal buckets : Test directory arrays
@@ -214,7 +214,6 @@ TEST_DIR_PARALLEL_ZONAL=(
   mounting
   mount_timeout
   negative_stat_cache
-  read_cache
   read_large_files
   rename_dir_limit
   stale_handle
@@ -233,6 +232,7 @@ TEST_DIR_NON_PARALLEL_ZONAL=(
   "managed_folders"
   "readonly"
   "readonly_creds"
+  "read_cache"
 )
 
 # Create a temporary file to store the log file name.

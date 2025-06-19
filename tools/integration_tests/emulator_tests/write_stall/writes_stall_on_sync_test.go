@@ -101,9 +101,10 @@ func TestChunkTransferTimeoutInfinity(t *testing.T) {
 }
 
 func TestChunkTransferTimeout(t *testing.T) {
+	// TODO(b/424091803): Enable streaming writes once chunk transfer timeout issue in resumable uploads is fixed in dependencies.
 	flagSets := [][]string{
-		{},
-		{"--chunk-transfer-timeout-secs=5"},
+		{"--enable-streaming-writes=false"},
+		{"--enable-streaming-writes=false", "--chunk-transfer-timeout-secs=5"},
 	}
 
 	stallScenarios := []struct {
