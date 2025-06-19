@@ -41,11 +41,10 @@ func (q *Queue[T]) IsEmpty() bool {
 }
 
 // Peek returns the front of the queue without removing it.
+// Panics if the queue is empty.
 func (q *Queue[T]) Peek() T {
 	if q.size == 0 {
-		// Returns zero value of type T if the queue is empty.
-		var zero T
-		return zero
+		panic("Pop called on an empty queue.")
 	}
 	return q.start.value
 }
@@ -64,11 +63,10 @@ func (q *Queue[T]) Push(value T) {
 }
 
 // Pop removes and returns the front item from the queue.
+// Panics if the queue is empty.
 func (q *Queue[T]) Pop() T {
 	if q.size == 0 {
-		// Returns zero value of type T if the queue is empty.
-		var zero T
-		return zero
+		panic("Pop called on an empty queue.")
 	}
 
 	n := q.start

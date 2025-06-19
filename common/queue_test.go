@@ -52,23 +52,35 @@ func TestQueue_Pop(t *testing.T) {
 
 	val = q.Pop()
 	assert.Equal(t, 5, val)
-	assert.Zero(t, q.Peek())
-	assert.True(t, q.IsEmpty())
-
-	val = q.Pop()
-	assert.Zero(t, val)
 	assert.True(t, q.IsEmpty())
 }
 
-func TestQueue_Peek(t *testing.T) {
-	// Empty queue.
+func TestQueue_PopNewQueue(t *testing.T) {
 	q := NewQueue[int]()
-	val := q.Peek()
-	assert.Zero(t, val)
+	assert.True(t, q.IsEmpty(), "New queue should be empty.")
 
-	// Non-empty queue.
+	assert.Panics(t, func() {
+		q.Pop()
+	}, "Pop should panic when called on an empty queue.")
+}
+
+func TestQueue_PopEmptyQueue(t *testing.T) {
+	q := NewQueue[int]()
+	q.Push(3)
+	val := q.Pop()
+	assert.Equal(t, 3, val)
+	assert.True(t, q.IsEmpty())
+
+	assert.Panics(t, func() {
+		q.Pop()
+	}, "Pop should panic when called on an empty queue.")
+}
+
+func TestQueue_Peek(t *testing.T) {
+	q := NewQueue[int]()
 	q.Push(4)
-	val = q.Peek()
+
+	val := q.Peek()
 	assert.Equal(t, 4, val)
 
 	// Peek again to ensure it doesn't remove the element.
@@ -76,6 +88,27 @@ func TestQueue_Peek(t *testing.T) {
 	assert.Equal(t, 4, val)
 	assert.False(t, q.IsEmpty())
 	assert.Equal(t, 1, q.Len())
+}
+
+func TestQueue_PeekNewQueue(t *testing.T) {
+	q := NewQueue[int]()
+	assert.True(t, q.IsEmpty(), "New queue should be empty.")
+
+	assert.Panics(t, func() {
+		q.Peek()
+	}, "Peek should panic when called on an empty queue.")
+}
+
+func TestQueue_PeekEmptyQueue(t *testing.T) {
+	q := NewQueue[int]()
+	q.Push(3)
+	val := q.Pop()
+	assert.Equal(t, 3, val)
+	assert.True(t, q.IsEmpty())
+
+	assert.Panics(t, func() {
+		q.Peek()
+	}, "Peek should panic when called on an empty queue.")
 }
 
 func TestQueue_IsEmpty(t *testing.T) {
@@ -90,11 +123,6 @@ func TestQueue_IsEmpty(t *testing.T) {
 	// Make empty by poping the only element.
 	val := q.Pop()
 	assert.Equal(t, 4, val)
-	assert.True(t, q.IsEmpty())
-
-	// Pop from empty queue.
-	val = q.Pop()
-	assert.Zero(t, val)
 	assert.True(t, q.IsEmpty())
 }
 
@@ -121,10 +149,5 @@ func TestQueue_Len(t *testing.T) {
 
 	val = q.Pop()
 	assert.Equal(t, 6, val)
-	assert.Equal(t, 0, q.Len())
-
-	// Check Len after popping from empty
-	val = q.Pop()
-	assert.Zero(t, val)
 	assert.Equal(t, 0, q.Len())
 }
