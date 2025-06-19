@@ -989,6 +989,43 @@ func TestArgsParsing_EnableHNSFlags(t *testing.T) {
 	}
 }
 
+func TestArgsParsing_EnableNewAuthFlag(t *testing.T) {
+	tests := []struct {
+		name                  string
+		args                  []string
+		expectedEnableNewAuth bool
+	}{
+		{
+			name:                  "default",
+			args:                  []string{"gcsfuse", "abc", "pqr"},
+			expectedEnableNewAuth: false,
+		},
+		{
+			name:                  "normal",
+			args:                  []string{"gcsfuse", "--enable-new-auth=true", "abc", "pqr"},
+			expectedEnableNewAuth: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotEnableNewAuth bool
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				gotEnableNewAuth = cfg.EnableNewAuth
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedEnableNewAuth, gotEnableNewAuth)
+			}
+		})
+	}
+}
+
 func TestArgsParsing_EnableAtomicRenameObjectFlag(t *testing.T) {
 	tests := []struct {
 		name                             string

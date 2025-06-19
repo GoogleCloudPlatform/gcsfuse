@@ -92,6 +92,13 @@
   default: true
   hide-flag: true
 
+- flag-name: "enable-new-auth"
+  config-path: "enable-new-auth"
+  type: "bool"
+  usage: "Enable new authentication method to fetch the credentials"
+  default: false
+  hide-flag: true
+
 - config-path: "enable-new-reader"
   flag-name: "enable-new-reader"
   type: "bool"

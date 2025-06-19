@@ -36,6 +36,8 @@ type Config struct {
 
 	EnableHns bool `yaml:"enable-hns"`
 
+	EnableNewAuth bool `yaml:"enable-new-auth"`
+
 	EnableNewReader bool `yaml:"enable-new-reader"`
 
 	FileCache FileCacheConfig `yaml:"file-cache"`
@@ -374,6 +376,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("enable-hns", "", true, "Enables support for HNS buckets")
 
 	if err := flagSet.MarkHidden("enable-hns"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("enable-new-auth", "", false, "Enable new authentication method to fetch the credentials")
+
+	if err := flagSet.MarkHidden("enable-new-auth"); err != nil {
 		return err
 	}
 
@@ -745,6 +753,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("enable-hns", flagSet.Lookup("enable-hns")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("enable-new-auth", flagSet.Lookup("enable-new-auth")); err != nil {
 		return err
 	}
 
