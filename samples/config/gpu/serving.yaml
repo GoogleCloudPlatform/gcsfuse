@@ -1,4 +1,5 @@
 implicit-dirs: true
+cache-dir: /tmp
 metadata-cache:
   negative-ttl-secs: 0
   ttl-secs: -1
