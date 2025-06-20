@@ -121,6 +121,14 @@ func (fch *CacheHandle) validateEntryInFileInfoCache(bucket gcs.Bucket, object *
 		return fmt.Errorf("%w: generation of cached object: %v is different from required generation: %v", util.ErrInvalidFileInfoCache, fileInfoData.ObjectGeneration, object.Generation)
 	}
 	if fileInfoData.Offset < requiredOffset {
+		// For unfinalized objects (supported only in zonal buckets),
+		// it is known that the object size can grow over time, and thus
+		// their object-size can be more than their cached-entry size.
+		// To allow reading from cache for such objects, fllback to GCS if
+		// the cached size is not less than the intended cache entry size.
+		if bucket.BucketType().Zonal && object.IsUnfinalized() && fileInfoData.Offset >= fileInfoData.FileSize {
+			return fmt.Errorf("Unexpected %q was fully downloaded in cache earlier, but is not sufficient to serve this read-request (required=%v, available=%v, to-be-downloaded=%v), so falling back to GCS. %w", object.Name, requiredOffset, fileInfoData.Offset, fileInfoData.FileSize, util.ErrFallbackToGCS)
+		}
 		return fmt.Errorf("%w offset of cached object: %v is less than required offset %v", util.ErrInvalidFileInfoCache, fileInfoData.Offset, requiredOffset)
 	}
 
@@ -198,18 +206,7 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 		// If fileDownloadJob is nil then it means either the job is successfully
 		// completed or failed. The offset must be equal to size of object for job
 		// to be completed.
-
-		// For unfinalized objects (supported only in zonal buckets),
-		// it is known that the object size can grow over time, and thus
-		// their object-size can be more than their cached-entry size.
-		// To allow reading from cache for such objects, don't compare
-		// cached-entry size to the object size, but only to what is needed
-		// to be read.
-		if bucket.BucketType().Zonal && object.IsUnfinalized() {
-			err = fch.validateEntryInFileInfoCache(bucket, object, uint64(requiredOffset), false)
-		} else {
-			err = fch.validateEntryInFileInfoCache(bucket, object, object.Size, false)
-		}
+		err = fch.validateEntryInFileInfoCache(bucket, object, object.Size, false)
 		if err != nil {
 			return 0, false, err
 		}
