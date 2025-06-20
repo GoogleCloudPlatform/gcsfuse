@@ -15,9 +15,6 @@
 package block
 
 import (
-	// "context"
-	// "fmt"
-	// "syscall"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -47,7 +44,6 @@ func (testSuite *prefetchBlockTest) TestPrefetchBlockWrite() {
 	assert.Equal(testSuite.T(), int64(2), pb.Size())
 }
 
-// Write test for Reuse method
 func (testSuite *prefetchBlockTest) TestPrefetchBlockReuse() {
 	pb, err := createPrefetchBlock(12)
 	require.Nil(testSuite.T(), err)
@@ -56,14 +52,14 @@ func (testSuite *prefetchBlockTest) TestPrefetchBlockReuse() {
 	assert.Nil(testSuite.T(), err)
 	assert.Equal(testSuite.T(), len(content), n)
 
-	// Reuse the block
 	pb.Reuse()
 
-	// After reuse, the size should be reset to 0
-	// assert.Equal(testSuite.T(), int64(0), pb.Size())
-	// output, err := io.ReadAll(pb.Reader())
-	// assert.Nil(testSuite.T(), err)
-	// assert.Equal(testSuite.T(), []byte{}, output)
+	assert.Equal(testSuite.T(), int64(0), pb.Size())
+	output, err := io.ReadAll(pb.Reader())
+	assert.Nil(testSuite.T(), err)
+	assert.Equal(testSuite.T(), []byte{}, output)
+	assert.Equal(testSuite.T(), int64(0), pb.GetId())
+	assert.NotNil(testSuite.T(), pb.NotificationChannel())
 }
 
 func (testSuite *prefetchBlockTest) TestCreatePrefetchBlock() {
@@ -72,4 +68,15 @@ func (testSuite *prefetchBlockTest) TestCreatePrefetchBlock() {
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), pb)
 	assert.NotNil(testSuite.T(), pb.NotificationChannel())
+}
+
+func (testSuite *prefetchBlockTest) TestPrefetchBlockWriteWithDataGreaterThanCapacity() {
+	pb, err := createPrefetchBlock(1)
+	require.Nil(testSuite.T(), err)
+	content := []byte("hi")
+	n, err := pb.Write(content)
+
+	assert.NotNil(testSuite.T(), err)
+	assert.Equal(testSuite.T(), 0, n)
+	assert.EqualError(testSuite.T(), err, outOfCapacityError)
 }

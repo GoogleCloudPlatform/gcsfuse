@@ -53,7 +53,7 @@ type prefetchBlock struct {
 }
 
 func (p *prefetchBlock) Reuse() {
-	p.Reuse()
+	p.memoryBlock.Reuse()
 	p.notification = make(chan int, 1)
 	p.cancelFunc = nil
 	p.id = 0
