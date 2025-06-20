@@ -497,7 +497,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_FailedJobNextReadCreatesNewJobAndCache
 	t.mockBucket.AssertExpectations(t.T())
 }
 
-func (t *fileCacheReaderTest) Test_ReadAt_Read_ZonalBucket_UnfinalizedObject_FailedJobNextReadCreatesNewJobAndCacheHit() {
+func (t *fileCacheReaderTest) Test_ReadAt_FailedJobNextReadCreatesNewJobAndCacheHit_UnfinalizedObject() {
 	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
 	// First NewReaderWithReadHandle call fails, simulating a failed attempt to read from GCS.
 	// This triggers a fallback to GCS reader.

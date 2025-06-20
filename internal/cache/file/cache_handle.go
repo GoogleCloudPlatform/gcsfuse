@@ -124,8 +124,9 @@ func (fch *CacheHandle) validateEntryInFileInfoCache(bucket gcs.Bucket, object *
 		// For unfinalized objects (supported only in zonal buckets),
 		// it is known that the object size can grow over time, and thus
 		// their object-size can be more than their cached-entry size.
-		// To allow reading from cache for such objects, fllback to GCS if
-		// the cached size is not less than the intended cache entry size.
+		// To allow reading from cache for such objects without invalidating
+		// their cache entry, fallback to GCS if
+		// the downloaded size at least equals their intended cache entry size.
 		if bucket.BucketType().Zonal && object.IsUnfinalized() && fileInfoData.Offset >= fileInfoData.FileSize {
 			return fmt.Errorf("Unexpected %q was fully downloaded in cache earlier, but is not sufficient to serve this read-request (required=%v, available=%v, to-be-downloaded=%v), so falling back to GCS. %w", object.Name, requiredOffset, fileInfoData.Offset, fileInfoData.FileSize, util.ErrFallbackToGCS)
 		}
