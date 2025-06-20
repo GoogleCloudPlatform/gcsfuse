@@ -21,6 +21,7 @@ import (
 
 	storagev2 "cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
 
@@ -213,6 +214,11 @@ func (mb *monitoringBucket) NewMultiRangeDownloader(
 
 // recordReader increments the reader count when it's opened or closed.
 func recordReader(ctx context.Context, metricHandle common.MetricHandle, ioMethod string) {
+	if ioMethod == "opened" {
+		logger.Info("NewReader opened")
+	} else if ioMethod == "closed" {
+		logger.Info("NewReader closed")
+	}
 	metricHandle.GCSReaderCount(ctx, 1, []common.MetricAttr{{Key: common.IOMethod, Value: ioMethod}})
 }
 
