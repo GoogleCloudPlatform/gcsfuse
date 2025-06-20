@@ -45,7 +45,7 @@ Here is an [example](https://github.com/GoogleCloudPlatform/cluster-toolkit/blob
   * For TPU-based workloads, using a RAM disk for the file cache can provide a significant speed advantage.  
 * **Metadata Cache TTL:**
 
-  * The sample configurations may use a long or infinite Time-to-Live (TTL) for the metadata cache. While this can improve performance for static datasets, be aware of the implications. If the data in your GCS bucket changes frequently, you may need to adjust the `ttl-secs` setting in the configuration file to avoid stale metadata.  
+  * The sample configurations may use a long or infinite Time-to-Live (TTL) for the metadata cache. While this can improve performance for static datasets, be aware of the implications. More details can be found [here](https://cloud.google.com/storage/docs/cloud-storage-fuse/performance#increase-metadata-cache-values).
 * **Pre-populating Metadata Cache:**
 
   * To improve the performance of subsequent file and directory lookups, you can pre-populate the metadata cache after mounting the bucket by running the following command. More details can be found [here](https://cloud.google.com/storage/docs/cloud-storage-fuse/performance#pre-populate-the-metadata-cache):
@@ -55,7 +55,7 @@ Here is an [example](https://github.com/GoogleCloudPlatform/cluster-toolkit/blob
 ```
 * **Tuning `read-ahead-kb`** 
 
-  * The `read-ahead-kb` flag controls the size of the read-ahead buffer that GCSFuse uses to prefetch data from GCS. Tuning this value can significantly improve performance for sequential reads of large files.  
+  * The `read-ahead-kb` flag controls the size of kernel read-ahead buffer which in turns impacts number of requests to GCSFuse. Tuning this value can significantly improve performance for sequential reads of large files.
   * A good starting point for `read-ahead-kb` is to set it to a value slightly larger than the average read size of your application. Typical recommendation is to set it to `1024`.  
 ```
      sudo sh -c 'echo 1024 > /sys/block/sda/queue/read_ahead_kb'
