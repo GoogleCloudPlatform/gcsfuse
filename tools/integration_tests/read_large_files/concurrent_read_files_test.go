@@ -62,6 +62,9 @@ func TestReadFilesConcurrently(t *testing.T) {
 
 	// Wait on threads to end.
 	err := eG.Wait()
+	for i := 0; i < NumberOfFilesInLocalDiskForConcurrentRead; i++ {
+		operations.RemoveFile(filesPathInLocalDisk[i])
+	}
 	if err != nil {
 		t.Fatalf("Error: %v", err)
 	}
