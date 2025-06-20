@@ -178,17 +178,6 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 				}
 			}
 			addEntryToCache = true
-		} else if bucket.BucketType().Zonal && object.IsUnfinalized() {
-			// If the entry is considered valid but there's no download job, we may need
-			// to create one. This is critical for unfinalized objects that have grown
-			// or for resuming a previously failed/partial download.
-			if existingJob == nil && fileInfoData.Offset < object.Size {
-				// A job is required to download the remaining content.
-				// The CreateJobIfNotExists method will internally use the existing
-				// FileInfo entry to configure the job to resume from fileInfoData.Offset.
-				_ = chr.jobManager.CreateJobIfNotExists(object, bucket)
-			}
-			addEntryToCache = false
 		}
 	}
 
