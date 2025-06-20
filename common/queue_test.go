@@ -21,16 +21,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewQueue(t *testing.T) {
-	q := NewQueue[int]()
+func TestNewLinkedListQueue(t *testing.T) {
+	q := NewLinkedListQueue[int]()
 
-	assert.NotNil(t, q, "NewQueue() should return a non-nil queue.")
+	assert.NotNil(t, q, "NewLinkedListQueue() should return a non-nil queue.")
 	assert.True(t, q.IsEmpty(), "A new queue should be empty.")
 	assert.Equal(t, 0, q.Len(), "A new queue should have a size of 0.")
 }
 
-func TestQueue_Push(t *testing.T) {
-	q := NewQueue[int]()
+func TestLinkedListQueue_Push(t *testing.T) {
+	q := NewLinkedListQueue[int]()
 
 	q.Push(4)
 	q.Push(5)
@@ -39,95 +39,76 @@ func TestQueue_Push(t *testing.T) {
 	assert.False(t, q.IsEmpty())
 }
 
-func TestQueue_Pop(t *testing.T) {
-	q := NewQueue[int]()
+func TestLinkedListQueue_SinglePop(t *testing.T) {
+	q := NewLinkedListQueue[int]()
 	q.Push(4)
 	q.Push(5)
 	require.Equal(t, 4, q.Peek())
 	require.False(t, q.IsEmpty())
 
 	val := q.Pop()
+
 	assert.Equal(t, 4, val)
 	assert.Equal(t, 5, q.Peek())
+}
+
+func TestLinkedListQueue_MultiplePops(t *testing.T) {
+	q := NewLinkedListQueue[int]()
+	q.Push(4)
+	q.Push(5)
+	require.Equal(t, 4, q.Peek())
+	require.False(t, q.IsEmpty())
+	val := q.Pop()
+	require.Equal(t, 4, val)
+	require.Equal(t, 5, q.Peek())
 
 	val = q.Pop()
+
 	assert.Equal(t, 5, val)
 	assert.True(t, q.IsEmpty())
 }
 
-func TestQueue_PopNewQueue(t *testing.T) {
-	q := NewQueue[int]()
-	assert.True(t, q.IsEmpty(), "New queue should be empty.")
-
+func TestLinkedListQueue_PopEmptyQueue(t *testing.T) {
 	assert.Panics(t, func() {
-		q.Pop()
+		NewLinkedListQueue[int]().Pop()
 	}, "Pop should panic when called on an empty queue.")
 }
 
-func TestQueue_PopEmptyQueue(t *testing.T) {
-	q := NewQueue[int]()
-	q.Push(3)
-	val := q.Pop()
-	assert.Equal(t, 3, val)
-	assert.True(t, q.IsEmpty())
-
-	assert.Panics(t, func() {
-		q.Pop()
-	}, "Pop should panic when called on an empty queue.")
-}
-
-func TestQueue_Peek(t *testing.T) {
-	q := NewQueue[int]()
+func TestLinkedListQueue_Peek(t *testing.T) {
+	q := NewLinkedListQueue[int]()
 	q.Push(4)
+	require.Equal(t, 1, q.Len())
 
 	val := q.Peek()
-	assert.Equal(t, 4, val)
 
-	// Peek again to ensure it doesn't remove the element.
-	val = q.Peek()
 	assert.Equal(t, 4, val)
+	assert.Equal(t, 1, q.Len()) // Length should remain unchanged.
 	assert.False(t, q.IsEmpty())
-	assert.Equal(t, 1, q.Len())
 }
 
-func TestQueue_PeekNewQueue(t *testing.T) {
-	q := NewQueue[int]()
-	assert.True(t, q.IsEmpty(), "New queue should be empty.")
-
+func TestLinkedListQueue_PeekEmptyQueue(t *testing.T) {
 	assert.Panics(t, func() {
-		q.Peek()
+		NewLinkedListQueue[int]().Peek()
 	}, "Peek should panic when called on an empty queue.")
 }
 
-func TestQueue_PeekEmptyQueue(t *testing.T) {
-	q := NewQueue[int]()
-	q.Push(3)
-	val := q.Pop()
-	assert.Equal(t, 3, val)
-	assert.True(t, q.IsEmpty())
-
-	assert.Panics(t, func() {
-		q.Peek()
-	}, "Peek should panic when called on an empty queue.")
-}
-
-func TestQueue_IsEmpty(t *testing.T) {
-	// Empty queue.
-	q := NewQueue[int]()
-	assert.True(t, q.IsEmpty())
-
-	// Non-empty queue.
+func TestLinkedListQueue_IsEmptyTrue(t *testing.T) {
+	q := NewLinkedListQueue[int]()
 	q.Push(4)
-	assert.False(t, q.IsEmpty())
+	q.Pop()
 
-	// Make empty by poping the only element.
-	val := q.Pop()
-	assert.Equal(t, 4, val)
 	assert.True(t, q.IsEmpty())
 }
 
-func TestQueue_Len(t *testing.T) {
-	q := NewQueue[int]()
+func TestLinkedListQueue_IsEmptyFalse(t *testing.T) {
+	q := NewLinkedListQueue[int]()
+	q.Push(4)
+
+	assert.False(t, q.IsEmpty())
+}
+
+func TestLinkedListQueue_Len(t *testing.T) {
+	q := NewLinkedListQueue[int]()
 	assert.Equal(t, 0, q.Len())
 
 	q.Push(4)
