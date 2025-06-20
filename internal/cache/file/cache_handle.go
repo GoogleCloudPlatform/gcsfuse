@@ -206,7 +206,18 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 		// If fileDownloadJob is nil then it means either the job is successfully
 		// completed or failed. The offset must be equal to size of object for job
 		// to be completed.
-		err = fch.validateEntryInFileInfoCache(bucket, object, object.Size, false)
+
+		if bucket.BucketType().Zonal && object.IsUnfinalized() {
+			// For unfinalized objects (supported only in zonal buckets),
+			// it is known that the object size can grow over time, and thus
+			// their object-size can be more than their cached-entry size.
+			// To allow reading from cache for such objects, don't compare
+			// cached-entry size to the object size, but only to what is needed
+			// to be read.
+			err = fch.validateEntryInFileInfoCache(bucket, object, uint64(requiredOffset), false)
+		} else {
+			err = fch.validateEntryInFileInfoCache(bucket, object, object.Size, false)
+		}
 		if err != nil {
 			return 0, false, err
 		}
