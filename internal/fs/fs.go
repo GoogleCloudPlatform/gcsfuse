@@ -2665,18 +2665,17 @@ func (fs *fileSystem) WriteFile(
 	fs.mu.Unlock()
 
 	var gcsSynced bool
+	in.Lock()
+	defer in.Unlock()
+	if err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in, fh.OpenMode()); err != nil {
+		return
+	}
 	if fs.newConfig.Write.ExperimentalEnableRapidAppends {
-		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in, fh.OpenMode())
-		if err != nil {
-			return
-		}
 		// Serve the request via the file handle.
+		in.Unlock()
+		defer in.Lock()
 		gcsSynced, err = fh.Write(ctx, op.Data, op.Offset)
 	} else {
-		in.Lock()
-		defer in.Unlock()
-
-		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in, util.Write)
 		// Serve the request.
 		gcsSynced, err = in.Write(ctx, op.Data, op.Offset, util.Write)
 	}

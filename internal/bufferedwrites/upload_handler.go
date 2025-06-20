@@ -107,15 +107,15 @@ func (uh *UploadHandler) createObjectWriter() (err error) {
 	// (and context will be cancelled) by the time complete upload is done.
 	var ctx context.Context
 	ctx, uh.cancelFunc = context.WithCancel(context.Background())
-	if uh.obj == nil || !uh.obj.Finalized.IsZero() {
-		uh.writer, err = uh.bucket.CreateObjectChunkWriter(ctx, req, int(uh.blockSize), nil)
-	} else {
+	if uh.bucket.BucketType().Zonal && (uh.obj != nil && uh.obj.Finalized.IsZero()) {
 		chunkWriterReq := gcs.CreateObjectChunkWriterRequest{
 			CreateObjectRequest: *req,
 			ChunkSize:           int(uh.blockSize),
 			Offset:              int64(uh.obj.Size),
 		}
 		uh.writer, err = uh.bucket.CreateAppendableObjectWriter(ctx, &chunkWriterReq)
+	} else {
+		uh.writer, err = uh.bucket.CreateObjectChunkWriter(ctx, req, int(uh.blockSize), nil)
 	}
 	return
 }

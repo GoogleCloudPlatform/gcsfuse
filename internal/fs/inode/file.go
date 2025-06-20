@@ -1059,11 +1059,11 @@ func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, obj *gcs.
 	if f.local || obj.Size == 0 {
 		return true
 	}
-
-	if f.config.Write.ExperimentalEnableRapidAppends {
-		if openMode == util.Append && f.bucket.BucketType().Zonal && obj.Finalized.IsZero() {
-			return true
-		}
+	if !f.config.Write.ExperimentalEnableRapidAppends {
+		return false
+	}
+	if openMode == util.Append && f.bucket.BucketType().Zonal && obj.Finalized.IsZero() {
+		return true
 	}
 	return false
 }

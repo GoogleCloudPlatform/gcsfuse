@@ -71,7 +71,7 @@ func (t *UploadHandlerTest) SetupSubTest() {
 	t.SetupTest()
 }
 
-func (t *UploadHandlerTest) createUploadHandlerWithNonNilObjectOfGivenSize(size uint64, finalized time.Time) {
+func (t *UploadHandlerTest) createUploadHandlerWithObjectOfGivenSize(size uint64, finalized time.Time) {
 	t.uh = newUploadHandler(&CreateUploadHandlerRequest{
 		Object: &gcs.Object{
 			Name:      objectName,
@@ -88,7 +88,8 @@ func (t *UploadHandlerTest) createUploadHandlerWithNonNilObjectOfGivenSize(size 
 }
 
 func (t *UploadHandlerTest) TestCreateObjectWriter_CreateAppendableObjectWriterCalled() {
-	t.createUploadHandlerWithNonNilObjectOfGivenSize(objectSize, time.Time{})
+	t.createUploadHandlerWithObjectOfGivenSize(objectSize, time.Time{})
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{Zonal: true})
 	t.mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).Return(&storagemock.Writer{}, nil)
 
 	_ = t.uh.createObjectWriter()
@@ -97,7 +98,8 @@ func (t *UploadHandlerTest) TestCreateObjectWriter_CreateAppendableObjectWriterC
 }
 
 func (t *UploadHandlerTest) TestCreateObjectWriter_CreateObjectChunkWriterCalled() {
-	t.createUploadHandlerWithNonNilObjectOfGivenSize(0, finalized)
+	t.createUploadHandlerWithObjectOfGivenSize(0, finalized)
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything).Return(&storagemock.Writer{}, nil)
 
 	_ = t.uh.createObjectWriter()
@@ -106,6 +108,7 @@ func (t *UploadHandlerTest) TestCreateObjectWriter_CreateObjectChunkWriterCalled
 }
 
 func (t *UploadHandlerTest) TestCreateObjectWriter_CreateObjectChunkWriterCalledForLocalFile() {
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything).Return(&storagemock.Writer{}, nil)
 
 	_ = t.uh.createObjectWriter()
@@ -114,7 +117,8 @@ func (t *UploadHandlerTest) TestCreateObjectWriter_CreateObjectChunkWriterCalled
 }
 
 func (t *UploadHandlerTest) TestEnsureWriter_CreateAppendableWriterIsSuccessful() {
-	t.createUploadHandlerWithNonNilObjectOfGivenSize(objectSize, time.Time{})
+	t.createUploadHandlerWithObjectOfGivenSize(objectSize, time.Time{})
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{Zonal: true})
 	writer := &storagemock.Writer{}
 	t.mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 
@@ -124,7 +128,8 @@ func (t *UploadHandlerTest) TestEnsureWriter_CreateAppendableWriterIsSuccessful(
 	assert.NotNil(t.T(), t.uh.writer)
 }
 func (t *UploadHandlerTest) TestEnsureWriter_CreateAppendableWriterReturnsError() {
-	t.createUploadHandlerWithNonNilObjectOfGivenSize(objectSize, time.Time{})
+	t.createUploadHandlerWithObjectOfGivenSize(objectSize, time.Time{})
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{Zonal: true})
 	expectedErr := fmt.Errorf("createAppendableObjectWriter failed")
 	t.mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedErr)
 
@@ -135,7 +140,8 @@ func (t *UploadHandlerTest) TestEnsureWriter_CreateAppendableWriterReturnsError(
 }
 
 func (t *UploadHandlerTest) TestEnsureWriter_CreateObjectChunkWriterIsSuccessful() {
-	t.createUploadHandlerWithNonNilObjectOfGivenSize(0, finalized)
+	t.createUploadHandlerWithObjectOfGivenSize(0, finalized)
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
 	writer := &storagemock.Writer{}
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 
@@ -145,7 +151,8 @@ func (t *UploadHandlerTest) TestEnsureWriter_CreateObjectChunkWriterIsSuccessful
 	assert.NotNil(t.T(), t.uh.writer)
 }
 func (t *UploadHandlerTest) TestEnsureWriter_CreateObjectChunkWriterReturnsError() {
-	t.createUploadHandlerWithNonNilObjectOfGivenSize(0, finalized)
+	t.createUploadHandlerWithObjectOfGivenSize(0, finalized)
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
 	expectedErr := fmt.Errorf("createObjectChunkWriter failed")
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedErr)
 
@@ -159,6 +166,7 @@ func (t *UploadHandlerTest) TestMultipleBlockUpload() {
 	// CreateObjectChunkWriter -- should be called once.
 	writer := &storagemock.Writer{}
 	mockObj := &gcs.MinObject{}
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 	t.mockBucket.On("FinalizeUpload", mock.Anything, writer).Return(mockObj, nil)
 
@@ -187,6 +195,7 @@ func (t *UploadHandlerTest) TestUploadWhenCreateObjectWriterFails() {
 	b, err := t.blockPool.Get()
 	require.NoError(t.T(), err)
 	// CreateObjectChunkWriter -- should be called once.
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("taco"))
 
 	// Upload the block.
@@ -212,6 +221,7 @@ func (t *UploadHandlerTest) TestFinalizeWithWriterAlreadyPresent() {
 
 func (t *UploadHandlerTest) TestFinalizeWithNoWriter() {
 	writer := &storagemock.Writer{}
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 	assert.Nil(t.T(), t.uh.writer)
 	mockObj := &gcs.MinObject{}
@@ -225,6 +235,7 @@ func (t *UploadHandlerTest) TestFinalizeWithNoWriter() {
 }
 
 func (t *UploadHandlerTest) TestFinalizeWithNoWriterWhenCreateObjectWriterFails() {
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("taco"))
 	assert.Nil(t.T(), t.uh.writer)
 
@@ -241,6 +252,7 @@ func (t *UploadHandlerTest) TestFinalizeWhenFinalizeUploadFails() {
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 	assert.Nil(t.T(), t.uh.writer)
 	mockObj := &gcs.MinObject{}
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
 	t.mockBucket.On("FinalizeUpload", mock.Anything, writer).Return(mockObj, fmt.Errorf("taco"))
 
 	obj, err := t.uh.Finalize()
@@ -265,6 +277,7 @@ func (t *UploadHandlerTest) TestFlushWithWriterAlreadyPresent() {
 
 func (t *UploadHandlerTest) TestFlushWithNoWriter() {
 	writer := &storagemock.Writer{}
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 	assert.Nil(t.T(), t.uh.writer)
 	mockObject := &gcs.MinObject{Size: 10}
@@ -277,6 +290,7 @@ func (t *UploadHandlerTest) TestFlushWithNoWriter() {
 }
 
 func (t *UploadHandlerTest) TestFlushWithNoWriterWhenCreateObjectWriterFails() {
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("taco"))
 	assert.Nil(t.T(), t.uh.writer)
 
@@ -290,6 +304,7 @@ func (t *UploadHandlerTest) TestFlushWithNoWriterWhenCreateObjectWriterFails() {
 
 func (t *UploadHandlerTest) TestFlushWhenFlushPendingWritesFails() {
 	writer := &storagemock.Writer{}
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 	assert.Nil(t.T(), t.uh.writer)
 	var minObj *gcs.MinObject = nil
@@ -311,6 +326,7 @@ func (t *UploadHandlerTest) TestUploadSingleBlockThrowsErrorInCopy() {
 	require.NoError(t.T(), err)
 	// CreateObjectChunkWriter -- should be called once.
 	writer := &storagemock.Writer{}
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 	// First write will be an error and Close will be successful.
 	writer.On("Write", mock.Anything).Return(0, fmt.Errorf("taco")).Once()
@@ -334,6 +350,7 @@ func (t *UploadHandlerTest) TestUploadMultipleBlocksThrowsErrorInCopy() {
 	}
 	// CreateObjectChunkWriter -- should be called once.
 	writer := &storagemock.Writer{}
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 	// Second write will be an error and rest of the operations will be successful.
 	writer.
@@ -402,6 +419,7 @@ func TestUploadErrorReturnsNil(t *testing.T) {
 func (t *UploadHandlerTest) TestMultipleBlockAwaitBlocksUpload() {
 	// CreateObjectChunkWriter -- should be called once.
 	writer := &storagemock.Writer{}
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 	// Upload the blocks.
 	for _, b := range t.createBlocks(5) {
@@ -441,6 +459,7 @@ func (t *UploadHandlerTest) TestCreateObjectChunkWriterIsCalledWithCorrectReques
 	// CreateObjectChunkWriter -- should be called once with correct request parameters.
 	writer := &storagemock.Writer{}
 	mockObj := &gcs.Object{}
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
 	t.mockBucket.On("CreateObjectChunkWriter",
 		mock.Anything,
 		mock.MatchedBy(func(req *gcs.CreateObjectRequest) bool {
@@ -469,6 +488,7 @@ func (t *UploadHandlerTest) TestCreateObjectChunkWriterIsCalledWithCorrectReques
 	// CreateObjectChunkWriter -- should be called once with correct request parameters.
 	writer := &storagemock.Writer{}
 	mockObj := &gcs.Object{}
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
 	t.mockBucket.On("CreateObjectChunkWriter",
 		mock.Anything,
 		mock.MatchedBy(func(req *gcs.CreateObjectRequest) bool {

@@ -217,7 +217,7 @@ func (t *FileTest) TestAreBufferedWritesSupported() {
 			supported:  false,
 		},
 		{
-			name:       "WriteToNonNilObj",
+			name:       "WriteToObjOnNonZB",
 			content:    nonNilContents,
 			bucketType: gcs.BucketType{},
 			finalized:  finalizedTime,
@@ -225,7 +225,7 @@ func (t *FileTest) TestAreBufferedWritesSupported() {
 			supported:  false,
 		},
 		{
-			name:       "WriteToNilObj",
+			name:       "WriteToEmptyObj",
 			content:    "",
 			bucketType: gcs.BucketType{},
 			finalized:  finalizedTime,
