@@ -82,14 +82,13 @@ func (t *BlockPoolTest) TestGetWhenBlockIsAvailableForReuse() {
 	b, err := createBlock(2)
 	require.Nil(t.T(), err)
 	content := []byte("hi")
-	var n int
-	n, err = b.Write(content)
+	n, err := b.Write(content)
 	require.Equal(t.T(), 2, n)
 	require.Nil(t.T(), err)
 	// Validating the content of the block
 	output, err := io.ReadAll(b.Reader())
-	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), content, output)
+	require.Nil(t.T(), err)
+	require.Equal(t.T(), content, output)
 	bp.freeBlocksCh <- b
 	// Setting totalBlocks same as maxBlocks to ensure no new blocks are created.
 	bp.totalBlocks = 10
