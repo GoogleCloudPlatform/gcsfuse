@@ -15,14 +15,21 @@
 
 # Script Usage Documentation
 usage() {
-  echo "Usage: $0 <TEST_INSTALLED_PACKAGE> <SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE> <BUCKET_LOCATION> [RUN_TEST_ON_TPC_ENDPOINT] [RUN_TESTS_WITH_PRESUBMIT_FLAG] [RUN_TESTS_WITH_ZONAL_BUCKET] [BUILD_BINARY_IN_SCRIPT]"
-  echo "  TEST_INSTALLED_PACKAGE: 'true' or 'false' to test installed gcsfuse package."
-  echo "  SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE: 'true' or 'false' to skip few non-essential tests inside packages."
-  echo "  BUCKET_LOCATION: The Google Cloud Storage bucket location (e.g., 'us-central1')."
-  echo "  RUN_TEST_ON_TPC_ENDPOINT (optional): 'true' or 'false' to run tests on TPC endpoint (Default: 'false')."
-  echo "  RUN_TESTS_WITH_PRESUBMIT_FLAG (optional): 'true' or 'false' to run tests with presubmit flag (Default: 'false')."
-  echo "  RUN_TESTS_WITH_ZONAL_BUCKET (optional): 'true' or 'false' to run tests with zonal bucket (Default: 'false')."
-  echo "  BUILD_BINARY_IN_SCRIPT (optional): 'true' or 'false' to build binary in script (Default: 'true')."
+  echo "Usage: $0 [options]"
+  echo "Options:"
+  echo "  Required:"
+  echo "    --bucket-location             <location>     The Google Cloud Storage bucket location (e.g., 'us-central1')."
+  echo ""
+  echo "  Optional:"
+  echo "    --test-installed-package                     Test installed gcsfuse package. (Default: false)"
+  echo "    --skip-non-essential-tests                   Skip non-essential tests inside packages. (Default: false)"
+  echo "    --tpc-endpoint                               Run tests on TPC endpoint. (Default: false)"
+  echo "    --presubmit                                  Run tests with presubmit flag. (Default: false)"
+  echo "    --zonal                                      Run tests with zonal bucket. (Default: false)"
+  echo "    --no-build-binary-in-script                  To disable building gcsfuse binary in script. (Default: false)"
+  echo "    --package-level-parallelism   <parallelism>  To adjust the number of packages to execute in parallel. (Default: 10)"
+  echo "    --track-resource-usage                       To track resource(cpu/mem/disk) usage during e2e run. (Default: false)"
+  echo "    --help                                       Display this help and exit."
   exit 1
 }
 
@@ -75,21 +82,93 @@ PACKAGE_RUNTIME_STATS=$(mktemp "/tmp/${TMP_PREFIX}_package_stats_runtime.XXXXXX"
 RESOURCE_USAGE_FILE=$(mktemp "/tmp/${TMP_PREFIX}_system_resource_usage.XXXXXX") || { log_error "Unable to create system resource usage file"; exit 1; }
 
 # Argument Parsing and Assignments
-if [ "$#" -lt 3 ]; then
-  log_error "Missing required arguments."
+# Set default values for optional arguments
+SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE="false"
+TEST_INSTALLED_PACKAGE="false"
+RUN_TEST_ON_TPC_ENDPOINT="false"
+RUN_TESTS_WITH_PRESUBMIT_FLAG="false"
+RUN_TESTS_WITH_ZONAL_BUCKET="false"
+BUILD_BINARY_IN_SCRIPT="true"
+TRACK_RESOURCE_USAGE="false"
+
+# Define options for getopt
+# A long option name followed by a colon indicates it requires an argument.
+LONG=bucket-location:,test-installed-package,skip-non-essential-tests,no-build-binary-in-script,tpc-endpoint,presubmit,zonal,package-level-parallelism,track-resource-usage,help
+
+# Parse the options using getopt
+# --options "" specifies that there are no short options.
+PARSED=$(getopt --options "" --longoptions "$LONG" --name "$0" -- "$@")
+if [[ $? -ne 0 ]]; then
+    # getopt will have already printed an error message
+    usage
+fi
+
+# Read the parsed options back into the positional parameters.
+eval set -- "$PARSED"
+
+# Loop through the options and assign values to our variables
+while true; do
+    case "$1" in
+        --bucket-location)
+            BUCKET_LOCATION="$2"
+            shift 2
+            ;;
+        --package-level-parallelism)
+            PACKAGE_LEVEL_PARALLELISM="$2"
+            shift 2
+            ;;
+        --test-installed-package)
+            TEST_INSTALLED_PACKAGE="true"
+            shift 
+            ;;
+        --skip-non-essential-tests)
+            SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE="true"
+            shift
+            ;;
+        --no-build-binary-in-script)
+            BUILD_BINARY_IN_SCRIPT="false"
+            shift
+            ;;
+        --tpc-endpoint)
+            RUN_TEST_ON_TPC_ENDPOINT="true"
+            shift
+            ;;
+        --presubmit)
+            RUN_TESTS_WITH_PRESUBMIT_FLAG="true"
+            shift
+            ;;
+        --zonal)
+            RUN_TESTS_WITH_ZONAL_BUCKET="true"
+            shift
+            ;;
+        --track-resource-usage)
+            TRACK_RESOURCE_USAGE="true"
+            shift
+            ;;
+        --help)
+            usage
+            ;;
+        --)
+            shift
+            break
+            ;;
+        *)
+            log_error "Programming error in option parsing."
+            exit 3
+            ;;
+    esac
+done
+
+# Check if bucket local required arguments is not provided
+if [ -z "${BUCKET_LOCATION}" ]; then
+  log_error "Missing required argument [--bucket-location]. Use --help for more details."
   usage
 fi
-TEST_INSTALLED_PACKAGE="$1"
-SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE="$2"
-BUCKET_LOCATION="$3"
-# Assign optional arguments with provided or default values
-RUN_TEST_ON_TPC_ENDPOINT="${4:-false}"
-RUN_TESTS_WITH_PRESUBMIT_FLAG="${5:-false}"
-RUN_TESTS_WITH_ZONAL_BUCKET="${6:-false}"
-BUILD_BINARY_IN_SCRIPT="${7:-true}"
-if [ "$#" -gt 7 ]; then
-  log_error "Too many arguments."
-  usage
+
+# Check for any leftover positional arguments
+if [[ "$#" -ne 0 ]]; then
+    log_error "Too many arguments provided."
+    usage
 fi
 
 # Zonal Bucket location validation.
@@ -552,11 +631,13 @@ main() {
   # Reset SECONDS to 0
   SECONDS=0
 
-  # Start collecting system resource usage in background.
-  log_info "Starting resource usage collection process."
-  ./tools/integration_tests/resource_usage.sh "COLLECT" "$RESOURCE_USAGE_FILE" &
-  RESOURCE_USAGE_PID=$!
-  log_info "Resource usage collection process started at PID: $RESOURCE_USAGE_PID"
+  if [ "$TRACK_RESOURCE_USAGE" == "true" ]; then
+    # Start collecting system resource usage in background.
+    log_info "Starting resource usage collection process."
+    ./tools/integration_tests/resource_usage.sh "COLLECT" "$RESOURCE_USAGE_FILE" &
+    RESOURCE_USAGE_PID=$!
+    log_info "Resource usage collection process started at PID: $RESOURCE_USAGE_PID"
+  fi
 
   local pids=()
   local overall_exit_code=0
@@ -585,13 +666,15 @@ main() {
   # Print package runtime stats table.
   ./tools/integration_tests/create_package_runtime_table.sh "$PACKAGE_RUNTIME_STATS"
 
-  # Kill resource usage background PID and print resource usage.
-  log_info "Stopping resource usage collection process: $RESOURCE_USAGE_PID"
-  if safe_kill "$RESOURCE_USAGE_PID" "resource_usage.sh"; then
-    log_info "Resource usage collection process stopped."
-    ./tools/integration_tests/resource_usage.sh "PRINT" "$RESOURCE_USAGE_FILE"
-  else
-    log_error "Failed to stop resource usage collection process (or it's already stopped)"
+  if [ "$TRACK_RESOURCE_USAGE" == "true" ]; then
+    # Kill resource usage background PID and print resource usage.
+    log_info "Stopping resource usage collection process: $RESOURCE_USAGE_PID"
+    if safe_kill "$RESOURCE_USAGE_PID" "resource_usage.sh"; then
+      log_info "Resource usage collection process stopped."
+      ./tools/integration_tests/resource_usage.sh "PRINT" "$RESOURCE_USAGE_FILE"
+    else
+      log_error "Failed to stop resource usage collection process (or it's already stopped)"
+    fi
   fi
   exit $overall_exit_code
 }
