@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type dummyTask struct {
@@ -62,8 +63,8 @@ func TestNewStaticWorkerPool_Failure(t *testing.T) {
 
 func TestStaticWorkerPool_Start(t *testing.T) {
 	pool, err := NewStaticWorkerPool(2, 3)
-	assert.NoError(t, err)
-	assert.NotNil(t, pool)
+	require.NoError(t, err)
+	require.NotNil(t, pool)
 
 	pool.Start()
 	defer pool.Stop()
@@ -80,8 +81,8 @@ func TestStaticWorkerPool_Start(t *testing.T) {
 
 func TestStaticWorkerPool_SchedulePriorityTask(t *testing.T) {
 	pool, err := NewStaticWorkerPool(2, 3)
-	assert.NoError(t, err)
-	assert.NotNil(t, pool)
+	require.NoError(t, err)
+	require.NotNil(t, pool)
 	pool.Start()
 	defer pool.Stop()
 
@@ -96,8 +97,8 @@ func TestStaticWorkerPool_SchedulePriorityTask(t *testing.T) {
 
 func TestStaticWorkerPool_ScheduleNormalTask(t *testing.T) {
 	pool, err := NewStaticWorkerPool(2, 3)
-	assert.NoError(t, err)
-	assert.NotNil(t, pool)
+	require.NoError(t, err)
+	require.NotNil(t, pool)
 	pool.Start()
 	defer pool.Stop()
 
@@ -105,15 +106,15 @@ func TestStaticWorkerPool_ScheduleNormalTask(t *testing.T) {
 	pool.Schedule(false, dt)
 
 	// Wait for the task to be executed.
-	assert.Eventually(t, func() bool {
+	require.Eventually(t, func() bool {
 		return dt.executed
 	}, 100*time.Millisecond, time.Millisecond, "Priority task was not executed in time.")
 }
 
 func TestStaticWorkerPool_HighNumberOfTasks(t *testing.T) {
 	pool, err := NewStaticWorkerPool(5, 10)
-	assert.NoError(t, err)
-	assert.NotNil(t, pool)
+	require.NoError(t, err)
+	require.NotNil(t, pool)
 	pool.Start()
 	defer pool.Stop()
 
@@ -131,26 +132,25 @@ func TestStaticWorkerPool_HighNumberOfTasks(t *testing.T) {
 
 func TestStaticWorkerPool_ScheduleAfterStop(t *testing.T) {
 	pool, err := NewStaticWorkerPool(2, 3)
-	assert.NoError(t, err)
-	assert.NotNil(t, pool)
+	require.NoError(t, err)
+	require.NotNil(t, pool)
 	pool.Start()
 
 	pool.Stop()
 
 	assert.Panics(t, func() { pool.Schedule(true, &dummyTask{}) }, "Should panic when scheduling after cancel.")
-	assert.NotNil(t, pool.ctx.Err(), "Context should be cancelled.")
 }
 
 func TestStaticWorkerPool_Stop(t *testing.T) {
 	pool, err := NewStaticWorkerPool(2, 3)
-	assert.NoError(t, err)
-	assert.NotNil(t, pool)
+	require.NoError(t, err)
+	require.NotNil(t, pool)
 	pool.Start()
 
 	// Stop the pool and check if channels are closed.
 	pool.Stop()
 
-	assert.NotNil(t, pool.ctx.Err())
+	assert.Panics(t, func() { pool.stop <- true }, "normalCh channel is not closed.")
 	assert.Panics(t, func() { pool.normalCh <- &dummyTask{} }, "normalCh channel is not closed.")
 	assert.Panics(t, func() { pool.priorityCh <- &dummyTask{} }, "priorityCh channel is not closed.")
 }

@@ -15,7 +15,6 @@
 package workerpool
 
 import (
-	"context"
 	"fmt"
 	"sync"
 
@@ -30,9 +29,8 @@ type staticWorkerPool struct {
 	priorityWorker uint32 // Number of priority workers in this pool.
 	normalWorker   uint32 // Number of normal workers in this pool.
 
-	// Context to close all the workers.
-	ctx    context.Context
-	cancel context.CancelFunc
+	// Stop channel to notify all the workers to stop.
+	stop chan bool
 
 	// Wait group to wait for all workers to finish.
 	wg sync.WaitGroup
@@ -51,12 +49,10 @@ func NewStaticWorkerPool(priorityWorker uint32, normalWorker uint32) (*staticWor
 
 	logger.Infof("staticWorkerPool: creating with %d normal, and %d priority workers.", normalWorker, priorityWorker)
 
-	ctx, cancel := context.WithCancel(context.Background())
 	return &staticWorkerPool{
 		priorityWorker: priorityWorker,
 		normalWorker:   normalWorker,
-		ctx:            ctx,
-		cancel:         cancel,
+		stop:           make(chan bool),
 		// Keep the channel capacity large enough to handle burst of tasks.
 		priorityCh: make(chan Task, priorityWorker*200),
 		normalCh:   make(chan Task, normalWorker*5000),
@@ -78,7 +74,10 @@ func (swp *staticWorkerPool) Start() {
 
 // Stop all the workers threads and wait for them to finish processing.
 func (swp *staticWorkerPool) Stop() {
-	swp.cancel()
+	// Notify all workers to stop.
+	logger.Infof("staticWorkerPool: stopping all the workers.")
+	close(swp.stop)
+
 	swp.wg.Wait()
 
 	// Close the channel after all workers are done.
@@ -107,11 +106,11 @@ func (swp *staticWorkerPool) do(priority bool) {
 		// Worker only listens to the priority channel.
 		for {
 			select {
-			case <-swp.ctx.Done():
+			case <-swp.stop:
 				return
 			default:
 				select {
-				case <-swp.ctx.Done():
+				case <-swp.stop:
 					return
 				case task := <-swp.priorityCh:
 					task.Execute()
@@ -122,13 +121,13 @@ func (swp *staticWorkerPool) do(priority bool) {
 		// Worker listens to both channels but gives priority to the priority channel.
 		for {
 			select {
-			case <-swp.ctx.Done():
+			case <-swp.stop:
 				return
 			case task := <-swp.priorityCh:
 				task.Execute()
 			default:
 				select {
-				case <-swp.ctx.Done():
+				case <-swp.stop:
 					return
 				case task := <-swp.priorityCh:
 					task.Execute()
