@@ -191,4 +191,11 @@ type Bucket interface {
 	RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*Folder, error)
 
 	CreateFolder(ctx context.Context, folderName string) (*Folder, error)
+
+	// GCSName returns the original GCS name for the object.
+	//
+	// Some Bucket implementations modify the Name field of the MinObject before
+	// returning it, in which case, users must use this function to get the
+	// original name.
+	GCSName(object *MinObject) string
 }

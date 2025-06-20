@@ -138,6 +138,13 @@
   usage: "Enable parallel downloads."
   default: false
 
+- config-path: "file-cache.experimental-exclude-regex"
+  flag-name: "file-cache-experimental-exclude-regex"
+  type: "string"
+  usage: "Exclude file paths (in the format bucket_name/object_key) specified by this regex from file caching."
+  default: ""
+  hide-flag: true
+
 - config-path: "file-cache.experimental-parallel-downloads-default-on"
   flag-name: "file-cache-experimental-parallel-downloads-default-on"
   type: "bool"

@@ -574,6 +574,10 @@ func (m *mockBucket) RenameFolder(ctx context.Context, folderName string, destin
 	return
 }
 
+func (m *mockBucket) GCSName(obj *gcs.MinObject) string {
+	return obj.Name
+}
+
 func (m *mockBucket) NewMultiRangeDownloader(
 	p0 context.Context, p1 *gcs.MultiRangeDownloaderRequest) (o0 gcs.MultiRangeDownloader, o1 error) {
 	// Get a file name and line number for the caller.

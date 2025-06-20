@@ -376,3 +376,7 @@ func (b *debugBucket) NewMultiRangeDownloader(
 	}
 	return
 }
+
+func (b *debugBucket) GCSName(obj *gcs.MinObject) string {
+	return obj.Name
+}
