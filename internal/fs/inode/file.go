@@ -553,9 +553,9 @@ func (f *FileInode) Read(
 	offset int64) (n int, err error) {
 	// It is not nil when streaming writes are enabled and bucket type is Zonal.
 	if f.bwh != nil {
-		// Allow reading from unfinalized objects (which are supported only in zonal buckets as of now).
-		if f.bucket == nil || !f.bucket.BucketType().Zonal || !f.src.IsUnfinalized() {
-			err = fmt.Errorf("cannot read a finalized object when upload is in progress: %w", syscall.ENOTSUP)
+		// Allow reading from unfinalized objects.
+		if !f.src.IsUnfinalized() {
+			err = fmt.Errorf("cannot read a file when upload in progress: %w", syscall.ENOTSUP)
 			return
 		}
 	}
