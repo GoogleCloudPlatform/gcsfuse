@@ -2672,6 +2672,8 @@ func (fs *fileSystem) WriteFile(
 	}
 	if fs.newConfig.Write.ExperimentalEnableRapidAppends {
 		// Serve the request via the file handle.
+		in.Unlock()
+		defer in.Lock()
 		gcsSynced, err = fh.Write(ctx, op.Data, op.Offset)
 	} else {
 		// Serve the request.
