@@ -171,6 +171,8 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	// state, or clear fh.reader if it's not possible to create one (probably
 	// because the inode is dirty).
 
+	// TODO: Remove this if-block once we stop finalizing
+	// objects in zonal bucket on writes by default (b/426512250).
 	if fh.inode.Bucket().Bucket.BucketType().Zonal && fh.inode.Source().IsUnfinalized() {
 		_, err = fh.inode.SyncPendingBufferedWrites()
 		if err != nil {
