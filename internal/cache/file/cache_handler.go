@@ -157,12 +157,17 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 		// reference to download job then it means the job has failed.
 		existingJob := chr.jobManager.GetJob(object.Name, bucket.Name())
 		shouldInvalidate := (existingJob == nil) && (fileInfoData.Offset < object.Size)
-		// For unfinalized objects (supported only in zonal buckets),
-		// it is known that the object size can grow over time, and thus
-		// their object-size can be more than their cached-entry size,
-		// so we should not invalidate cache-entry for them because of size-check.
-		if shouldInvalidate && bucket.BucketType().Zonal && object.IsUnfinalized() {
-			shouldInvalidate = false
+		if shouldInvalidate {
+			// For unfinalized objects (supported only in zonal buckets),
+			// it is known that the object size can grow over time, and thus
+			// their object-size can be more than their cached-entry size,
+			// so we should not invalidate cache-entry for them because of size-check.
+			// As we are not comparing the downloaded size against object size,
+			// we should compare it against the total intended size of the cache file entry,
+			// to safeguard against previous download failures.
+			if bucket.BucketType().Zonal && object.IsUnfinalized() && fileInfoData.Offset == fileInfoData.FileSize {
+				shouldInvalidate = false
+			}
 		}
 		if (!shouldInvalidate) && (existingJob != nil) {
 			existingJobStatus := existingJob.GetStatus().Name
