@@ -989,6 +989,43 @@ func TestArgsParsing_EnableHNSFlags(t *testing.T) {
 	}
 }
 
+func TestArgsParsing_EnableGoogleLibAuthFlag(t *testing.T) {
+	tests := []struct {
+		name                        string
+		args                        []string
+		expectedEnableGoogleLibAuth bool
+	}{
+		{
+			name:                        "default",
+			args:                        []string{"gcsfuse", "abc", "pqr"},
+			expectedEnableGoogleLibAuth: false,
+		},
+		{
+			name:                        "normal",
+			args:                        []string{"gcsfuse", "--enable-google-lib-auth=true", "abc", "pqr"},
+			expectedEnableGoogleLibAuth: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotEnableGoogleLibAuth bool
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				gotEnableGoogleLibAuth = cfg.EnableGoogleLibAuth
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedEnableGoogleLibAuth, gotEnableGoogleLibAuth)
+			}
+		})
+	}
+}
+
 func TestArgsParsing_EnableAtomicRenameObjectFlag(t *testing.T) {
 	tests := []struct {
 		name                             string

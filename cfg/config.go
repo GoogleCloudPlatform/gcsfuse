@@ -34,6 +34,8 @@ type Config struct {
 
 	EnableAtomicRenameObject bool `yaml:"enable-atomic-rename-object"`
 
+	EnableGoogleLibAuth bool `yaml:"enable-google-lib-auth"`
+
 	EnableHns bool `yaml:"enable-hns"`
 
 	EnableNewReader bool `yaml:"enable-new-reader"`
@@ -368,6 +370,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("enable-empty-managed-folders", "", false, "This handles the corner case in listing managed folders. There are two corner cases (a) empty managed folder (b) nested managed folder which doesn't contain any descendent as object. This flag always works in conjunction with --implicit-dirs flag. (a) If only ImplicitDirectories is true, all managed folders are listed other than above two mentioned cases. (b) If both ImplicitDirectories and EnableEmptyManagedFolders are true, then all the managed folders are listed including the above-mentioned corner case. (c) If ImplicitDirectories is false then no managed folders are listed irrespective of enable-empty-managed-folders flag.")
 
 	if err := flagSet.MarkHidden("enable-empty-managed-folders"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("enable-google-lib-auth", "", false, "Enable google library authentication method to fetch the credentials")
+
+	if err := flagSet.MarkHidden("enable-google-lib-auth"); err != nil {
 		return err
 	}
 
@@ -741,6 +749,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("list.enable-empty-managed-folders", flagSet.Lookup("enable-empty-managed-folders")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("enable-google-lib-auth", flagSet.Lookup("enable-google-lib-auth")); err != nil {
 		return err
 	}
 
