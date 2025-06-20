@@ -664,3 +664,66 @@ func TestValidateMetrics(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateLogSeverityRanks(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		logSev         string
+		wantLogSevRank int
+		wantLogSev     LogSeverity
+		wantErr        bool
+	}{
+		{
+			logSev:         "off",
+			wantLogSevRank: 5,
+			wantLogSev:     OffLogSeverity,
+		},
+		{
+			logSev:         "error",
+			wantLogSevRank: 4,
+			wantLogSev:     ErrorLogSeverity,
+		},
+		{
+			logSev:         "warning",
+			wantLogSevRank: 3,
+			wantLogSev:     WarningLogSeverity,
+		},
+		{
+			logSev:         "info",
+			wantLogSevRank: 2,
+			wantLogSev:     InfoLogSeverity,
+		},
+		{
+			logSev:         "debug",
+			wantLogSevRank: 1,
+			wantLogSev:     DebugLogSeverity,
+		},
+		{
+			logSev:         "trace",
+			wantLogSevRank: 0,
+			wantLogSev:     TraceLogSeverity,
+		},
+		{
+			logSev:         "invalid",
+			wantLogSevRank: -1,
+			wantErr:        true,
+		},
+	}
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.logSev, func(t *testing.T) {
+			t.Parallel()
+			level := LogSeverity(tc.logSev)
+
+			err := level.UnmarshalText([]byte(tc.logSev))
+
+			if tc.wantErr {
+				assert.Error(t, err)
+				assert.Equal(t, -1, level.Rank())
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.wantLogSev.Rank(), level.Rank())
+			}
+		})
+	}
+}
