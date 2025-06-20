@@ -22,7 +22,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -1577,7 +1576,8 @@ func (t *FileTest) TestReadFileWhenStreamingWritesAreEnabled() {
 
 			assert.Equal(t.T(), 0, n)
 			require.Error(t.T(), err)
-			assert.ErrorIs(t.T(), err, syscall.ENOTSUP)
+			//assert.ErrorIs(t.T(), err, syscall.ENOTSUP)
+			assert.Equal(t.T(), "cannot read a file when upload in progress", err.Error())
 		})
 	}
 }
