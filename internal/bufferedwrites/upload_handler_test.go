@@ -219,7 +219,7 @@ func (t *UploadHandlerTest) TestUploadSingleBlockThrowsErrorInCopy() {
 	// Create a block with test data.
 	b, err := t.blockPool.Get()
 	require.NoError(t.T(), err)
-	err = b.Write([]byte("test data"))
+	_, err = b.Write([]byte("test data"))
 	require.NoError(t.T(), err)
 	// CreateObjectChunkWriter -- should be called once.
 	writer := &storagemock.Writer{}
@@ -241,7 +241,8 @@ func (t *UploadHandlerTest) TestUploadMultipleBlocksThrowsErrorInCopy() {
 	// Create some blocks.
 	blocks := t.createBlocks(4)
 	for i := 0; i < 4; i++ {
-		err := blocks[i].Write([]byte("testdata" + strconv.Itoa(i) + " "))
+		n, err := blocks[i].Write([]byte("testdata" + strconv.Itoa(i) + " "))
+		require.Equal(t.T(), 10, n)
 		require.NoError(t.T(), err)
 	}
 	// CreateObjectChunkWriter -- should be called once.
