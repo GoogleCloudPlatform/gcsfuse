@@ -60,7 +60,7 @@ func (q *linkedListQueue[T]) IsEmpty() bool {
 // Panics if the queue is empty.
 func (q *linkedListQueue[T]) Peek() T {
 	if q.size == 0 {
-		panic("Pop called on an empty queue.")
+		panic("Peek called on an empty queue.")
 	}
 	return q.start.value
 }
