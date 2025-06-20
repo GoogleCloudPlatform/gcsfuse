@@ -989,29 +989,29 @@ func TestArgsParsing_EnableHNSFlags(t *testing.T) {
 	}
 }
 
-func TestArgsParsing_EnableNewAuthFlag(t *testing.T) {
+func TestArgsParsing_EnableGoogleLibAuthFlag(t *testing.T) {
 	tests := []struct {
-		name                  string
-		args                  []string
-		expectedEnableNewAuth bool
+		name                        string
+		args                        []string
+		expectedEnableGoogleLibAuth bool
 	}{
 		{
-			name:                  "default",
-			args:                  []string{"gcsfuse", "abc", "pqr"},
-			expectedEnableNewAuth: false,
+			name:                        "default",
+			args:                        []string{"gcsfuse", "abc", "pqr"},
+			expectedEnableGoogleLibAuth: false,
 		},
 		{
-			name:                  "normal",
-			args:                  []string{"gcsfuse", "--enable-new-auth=true", "abc", "pqr"},
-			expectedEnableNewAuth: true,
+			name:                        "normal",
+			args:                        []string{"gcsfuse", "--enable-google-lib-auth=true", "abc", "pqr"},
+			expectedEnableGoogleLibAuth: true,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var gotEnableNewAuth bool
+			var gotEnableGoogleLibAuth bool
 			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotEnableNewAuth = cfg.EnableNewAuth
+				gotEnableGoogleLibAuth = cfg.EnableGoogleLibAuth
 				return nil
 			})
 			require.Nil(t, err)
@@ -1020,7 +1020,7 @@ func TestArgsParsing_EnableNewAuthFlag(t *testing.T) {
 			err = cmd.Execute()
 
 			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedEnableNewAuth, gotEnableNewAuth)
+				assert.Equal(t, tc.expectedEnableGoogleLibAuth, gotEnableGoogleLibAuth)
 			}
 		})
 	}

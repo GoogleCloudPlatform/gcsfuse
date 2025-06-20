@@ -85,18 +85,18 @@
   default: true
   hide-flag: true
 
+- flag-name: "enable-google-lib-auth"
+  config-path: "enable-google-lib-auth"
+  type: "bool"
+  usage: "Enable google library authentication method to fetch the credentials"
+  default: false
+  hide-flag: true
+
 - config-path: "enable-hns"
   flag-name: "enable-hns"
   type: "bool"
   usage: "Enables support for HNS buckets"
   default: true
-  hide-flag: true
-
-- flag-name: "enable-new-auth"
-  config-path: "enable-new-auth"
-  type: "bool"
-  usage: "Enable new authentication method to fetch the credentials"
-  default: false
   hide-flag: true
 
 - config-path: "enable-new-reader"

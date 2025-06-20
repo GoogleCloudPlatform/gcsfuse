@@ -34,9 +34,9 @@ type Config struct {
 
 	EnableAtomicRenameObject bool `yaml:"enable-atomic-rename-object"`
 
-	EnableHns bool `yaml:"enable-hns"`
+	EnableGoogleLibAuth bool `yaml:"enable-google-lib-auth"`
 
-	EnableNewAuth bool `yaml:"enable-new-auth"`
+	EnableHns bool `yaml:"enable-hns"`
 
 	EnableNewReader bool `yaml:"enable-new-reader"`
 
@@ -373,15 +373,15 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("enable-hns", "", true, "Enables support for HNS buckets")
+	flagSet.BoolP("enable-google-lib-auth", "", false, "Enable google library authentication method to fetch the credentials")
 
-	if err := flagSet.MarkHidden("enable-hns"); err != nil {
+	if err := flagSet.MarkHidden("enable-google-lib-auth"); err != nil {
 		return err
 	}
 
-	flagSet.BoolP("enable-new-auth", "", false, "Enable new authentication method to fetch the credentials")
+	flagSet.BoolP("enable-hns", "", true, "Enables support for HNS buckets")
 
-	if err := flagSet.MarkHidden("enable-new-auth"); err != nil {
+	if err := flagSet.MarkHidden("enable-hns"); err != nil {
 		return err
 	}
 
@@ -752,11 +752,11 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("enable-hns", flagSet.Lookup("enable-hns")); err != nil {
+	if err := v.BindPFlag("enable-google-lib-auth", flagSet.Lookup("enable-google-lib-auth")); err != nil {
 		return err
 	}
 
-	if err := v.BindPFlag("enable-new-auth", flagSet.Lookup("enable-new-auth")); err != nil {
+	if err := v.BindPFlag("enable-hns", flagSet.Lookup("enable-hns")); err != nil {
 		return err
 	}
 
