@@ -1993,7 +1993,7 @@ func (r *gRPCReader) Read(p []byte) (int, error) {
 	// TODO: Figure out if we need to support decompressive transcoding
 	// https://cloud.google.com/storage/docs/transcoding.
 
-	n = r.currMsg.readAndUpdateCRC(p, func(b []byte) {
+	n = r.currMsg.readAndUpdateCRC(p, 1, func(b []byte) {
 		r.updateCRC(b)
 	})
 	r.seen += int64(n)
