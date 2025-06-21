@@ -166,6 +166,7 @@ func (t *fsTest) SetUpTestSuite() {
 			FileSystem: cfg.FileSystemConfig{
 				PreconditionErrors: false,
 			},
+			EnableNewReader: true,
 		}
 	}
 	t.serverCfg.MetricHandle = common.NewNoopMetrics()
