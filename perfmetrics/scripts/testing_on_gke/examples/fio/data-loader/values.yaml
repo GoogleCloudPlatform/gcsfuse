@@ -18,8 +18,12 @@
 # Declare variables to be passed into your templates.
 
 bucketName: gke-fio-64k-1m
-
+createUsingGcsfuse: false
+preprod: false
 fio:
   fileSize: 64K
   blockSize: 64K
+  numThreads: 50
   filesPerThread: "20000"
+gcsfuse:
+  mountOptions: "implicit-dirs"
