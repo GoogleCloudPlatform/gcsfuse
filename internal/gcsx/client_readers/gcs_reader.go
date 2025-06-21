@@ -103,12 +103,6 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.R
 
 	gr.rangeReader.invalidateReaderIfMisalignedOrTooSmall(offset, p)
 
-	// If the data can't be served from the existing reader, then we need to update the seeks.
-	// If current offset is not same as expected offset, it's a random read.
-	if gr.expectedOffset != 0 && gr.expectedOffset != offset {
-		gr.seeks++
-	}
-
 	readReq := &gcsx.GCSReaderRequest{
 		Buffer:    p,
 		Offset:    offset,
@@ -126,6 +120,12 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.R
 	}
 	if !errors.Is(err, gcsx.FallbackToAnotherReader) {
 		return readerResponse, err
+	}
+
+	// If the data can't be served from the existing reader, then we need to update the seeks.
+	// If current offset is not same as expected offset, it's a random read.
+	if gr.expectedOffset != 0 && gr.expectedOffset != offset {
+		gr.seeks++
 	}
 
 	// If we don't have a reader, determine whether to read from RangeReader or MultiRangeReader.
