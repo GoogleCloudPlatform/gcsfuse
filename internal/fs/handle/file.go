@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
@@ -331,4 +332,8 @@ func (fh *FileHandle) destroyReadManager() {
 	}
 	fh.readManager.Destroy()
 	fh.readManager = nil
+}
+
+func (fh *FileHandle) FdForPassthrough() (*os.File, error) {
+	return fh.fileCacheHandler.FdForPassthrough(fh.inode.Source().Name, fh.inode.Bucket().Name())
 }
