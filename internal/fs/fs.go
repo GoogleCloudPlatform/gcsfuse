@@ -2535,11 +2535,11 @@ func (fs *fileSystem) OpenFile(
 	// Inode lock is required to register fileHandle with the inode.
 	fs.mu.Unlock()
 	in.Lock()
-	defer in.Unlock()
+	// defer in.Unlock()
 
 	// Get the fs lock again.
 	fs.mu.Lock()
-	defer fs.mu.Unlock()
+	// defer fs.mu.Unlock()
 
 	// Allocate a handle.
 	handleID := fs.nextHandleID
@@ -2547,7 +2547,8 @@ func (fs *fileSystem) OpenFile(
 
 	// Figure out the mode in which the file is being opened.
 	openMode := util.FileOpenMode(op)
-	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, &fs.newConfig.Read)
+	x := handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, &fs.newConfig.Read)
+	fs.handles[handleID] = x
 	op.Handle = handleID
 
 	// When we observe object generations that we didn't create, we assign them
@@ -2555,6 +2556,27 @@ func (fs *fileSystem) OpenFile(
 	// kernel. Therefore it's safe to tell the kernel to keep the page cache from
 	// open to open for a given inode.
 	op.KeepPageCache = true
+
+	passthroughFD, errPassthrough := x.FdForPassthrough()
+	logger.Tracef("OpenFile: %v", errPassthrough)
+
+	if errPassthrough != nil {
+		logger.Tracef("OpenFile: %v", errPassthrough)
+		return fmt.Errorf("OpenFile: %w", errPassthrough)
+	}
+	op.BackingMap = fuseops.BackingMap{
+		Fd: int32(passthroughFD.Fd()),
+	}
+
+	fs.mu.Unlock()
+	in.Unlock()
+
+	x.Lock()
+	x.Inode().Lock()
+	defer x.Unlock()
+	bytes := make([]byte, 10)
+	x.Read(ctx, bytes, 0, fs.sequentialReadSizeMb)
+	time.Sleep(2 * time.Second)
 
 	return
 }
