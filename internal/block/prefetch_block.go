@@ -17,7 +17,6 @@ package block
 import (
 	"context"
 	"fmt"
-	"syscall"
 )
 
 type PrefetchBlock interface {
@@ -69,17 +68,14 @@ func (p *prefetchBlock) NotificationChannel() <-chan int {
 
 // createPrefetchBlock creates a new block.
 func createPrefetchBlock(blockSize int64) (PrefetchBlock, error) {
-	prot, flags := syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_ANON|syscall.MAP_PRIVATE
-	addr, err := syscall.Mmap(-1, 0, int(blockSize), prot, flags)
+
+	mb, err := createMemoryBlock(blockSize)
 	if err != nil {
-		return nil, fmt.Errorf("mmap error: %v", err)
+		return nil, fmt.Errorf("error creating memory block: %w", err)
 	}
 
 	pb := prefetchBlock{
-		memoryBlock: memoryBlock{
-			buffer: addr,
-			offset: offset{0, 0},
-		},
+		memoryBlock:  *mb,
 		notification: make(chan int, 1),
 		cancelFunc:   nil,
 		id:           0,
