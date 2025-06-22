@@ -2286,6 +2286,7 @@ func (d *readResponseDecoder) readAndUpdateCRC(p []byte, readID int64, updateCRC
 func (d *readResponseDecoder) writeToAndUpdateCRC(w io.Writer, readID int64, updateCRC func([]byte)) (int64, error) {
 	// For a completely empty message, just return 0
 	if len(d.databufs) == 0 {
+		fmt.Println("len of databufs is empty")
 		return 0, nil
 	}
 	var written int64
@@ -2490,6 +2491,10 @@ func (d *readResponseDecoder) readFullObjectResponse() error {
 			msg.ObjectDataRanges = append(msg.ObjectDataRanges, newRangeData)
 			// Get a reference to the newly added element to populate it.
 			currentRange := msg.ObjectDataRanges[len(msg.ObjectDataRanges)-1]
+			// This variable will temporarily hold the data offsets until the ReadId is known.
+			var contentOffsets bufferSliceOffsets
+			var hasContent bool
+
 			bytesFieldLen, err := d.consumeVarint()
 			if err != nil {
 				return fmt.Errorf("consuming bytes: %w", err)
@@ -2516,12 +2521,12 @@ func (d *readResponseDecoder) readFullObjectResponse() error {
 						switch {
 						case gotNum == checksummedDataContentField && gotTyp == protowire.BytesType:
 							// Get the offsets of the content bytes.
-							offsets, err := d.consumeBytes()
+							contentOffsets, err = d.consumeBytes()
 							if err != nil {
 								return fmt.Errorf("invalid BidiReadObjectResponse.ChecksummedData.Content: %w", err)
 							}
-							// Store the offsets in the map, keyed by the ReadId of the current range.
-							d.dataOffsets[currentRange.ReadRange.GetReadId()] = offsets
+							hasContent = true
+
 						case gotNum == checksummedDataCRC32CField && gotTyp == protowire.Fixed32Type:
 							v, err := d.consumeFixed32()
 							if err != nil {
@@ -2552,6 +2557,10 @@ func (d *readResponseDecoder) readFullObjectResponse() error {
 					currentRange.RangeEnd = protowire.DecodeBool(b)
 				}
 
+			}
+			if hasContent {
+				// Store the offsets in the map, keyed by the ReadId of the current range.
+				d.dataOffsets[currentRange.ReadRange.GetReadId()] = contentOffsets
 			}
 		case fieldNum == metadataField && fieldType == protowire.BytesType:
 			msg.Metadata = &storagepb.Object{}
