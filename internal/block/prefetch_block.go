@@ -36,7 +36,21 @@ type PrefetchBlock interface {
 
 	// SetId sets the id of the block. The id is used to identify the portion of
 	SetId(id int64)
+
+	// Ready mark the block is ready to consume by the reader. The value indicates the
+	// status of the block:
+	// - BlockStatusDownloaded: Download of this block is complete.
+	// - BlockStatusDownloadFailed: Download of this block has failed.
+	// - BlockStatusDownloadCancelled: Download of this block has been cancelled.
+	Ready(val int)
 }
+
+// Status of the download.
+const (
+	BlockStatusDownloaded        int = iota + 1 // Download of this block is complete
+	BlockStatusDownloadFailed                   // Download of this block has failed
+	BlockStatusDownloadCancelled                // Download of this block has been cancelled
+)
 
 type prefetchBlock struct {
 	memoryBlock
@@ -67,7 +81,7 @@ func (p *prefetchBlock) NotificationChannel() <-chan int {
 }
 
 // createPrefetchBlock creates a new block.
-func createPrefetchBlock(blockSize int64) (PrefetchBlock, error) {
+func CreatePrefetchBlock(blockSize int64) (PrefetchBlock, error) {
 
 	mb, err := createMemoryBlock(blockSize)
 	if err != nil {
@@ -90,4 +104,16 @@ func (p *prefetchBlock) GetId() int64 {
 
 func (p *prefetchBlock) SetId(id int64) {
 	p.id = id
+}
+
+func (p *prefetchBlock) Ready(val int) {
+	if p.notification == nil {
+		return
+	}
+
+	select {
+	case p.notification <- val:
+	default:
+		// If the channel is full, we don't want to block.
+	}
 }
