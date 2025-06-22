@@ -333,3 +333,7 @@ func (fh *FileHandle) destroyReadManager() {
 func (fh *FileHandle) OpenMode() util.OpenMode {
 	return fh.openMode
 }
+
+func (fh *FileHandle) FdForPassthrough() (*os.File, error) {
+	return fh.fileCacheHandler.FdForPassthrough(fh.inode.Source().Name, fh.inode.Bucket().Name())
+}

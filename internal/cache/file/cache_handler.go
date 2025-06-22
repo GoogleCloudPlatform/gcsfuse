@@ -90,6 +90,16 @@ func (chr *CacheHandler) createLocalFileReadHandle(objectName string, bucketName
 	return util.CreateFile(fileSpec, os.O_RDONLY)
 }
 
+func (chr *CacheHandler) FdForPassthrough(objectName string, bucketName string) (*os.File, error) {
+	fileSpec := data.FileSpec{
+		Path:     util.GetDownloadPath(chr.cacheDir, util.GetObjectPath(bucketName, objectName)),
+		FilePerm: chr.filePerm,
+		DirPerm:  chr.dirPerm,
+	}
+
+	return util.CreateFile(fileSpec, os.O_RDONLY)
+}
+
 // cleanUpEvictedFile is a utility method called for the evicted/deleted fileInfo.
 // As part of execution, it (a) stops and removes the download job (b) truncates
 // and deletes the file in cache.
