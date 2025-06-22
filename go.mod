@@ -2,6 +2,8 @@ module github.com/googlecloudplatform/gcsfuse/v3
 
 go 1.24.0
 
+replace github.com/jacobsa/fuse => /home/princer_google_com/dev/fuse
+
 require (
 	cloud.google.com/go/compute/metadata v0.7.0
 	cloud.google.com/go/iam v1.5.2
