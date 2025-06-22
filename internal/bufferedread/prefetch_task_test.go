@@ -121,7 +121,7 @@ func (pts *PrefetchTaskTestSuite) TestExecuteError() {
 	}
 }
 
-func (pts *PrefetchTaskTestSuite) TestExecuteContextCancelled() {
+func (pts *PrefetchTaskTestSuite) TestExecuteContextCancelledWhileReaderCreation() {
 	blockSize := 500
 	prefetchBlock, err := block.CreatePrefetchBlock(int64(blockSize))
 	prefetchBlock.SetId(0)
@@ -137,6 +137,49 @@ func (pts *PrefetchTaskTestSuite) TestExecuteContextCancelled() {
 		},
 	}
 	pts.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(rc, context.Canceled).Times(1)
+
+	task.Execute()
+
+	assert.Error(pts.T(), context.Canceled)
+	pts.mockBucket.AssertExpectations(pts.T())
+	select {
+	case status := <-prefetchBlock.NotificationChannel():
+		assert.Equal(pts.T(), block.BlockStatusDownloadCancelled, status)
+	case <-time.After(1 * time.Second):
+		assert.Fail(pts.T(), "Notification channel didn't give a status in expected time.")
+	}
+}
+
+// ctxCancelledReader is a mock reader that simulates a context cancellation error while reading.
+type ctxCancelledReader struct {
+	io.Reader
+	io.Closer
+}
+
+func (r *ctxCancelledReader) Read(p []byte) (n int, err error) {
+	return 0, context.Canceled
+}
+
+func (r *ctxCancelledReader) Close() error {
+	return nil
+}
+
+func (pts *PrefetchTaskTestSuite) TestExecuteContextCancelledWhileReadingFromReader() {
+	blockSize := 500
+	prefetchBlock, err := block.CreatePrefetchBlock(int64(blockSize))
+	prefetchBlock.SetId(0)
+	require.Nil(pts.T(), err)
+	task := NewPrefetchTask(context.Background(), pts.object, pts.mockBucket, prefetchBlock, true)
+	rc := &fake.FakeReader{ReadCloser: new(ctxCancelledReader)}
+	readObjectRequest := &gcs.ReadObjectRequest{
+		Name:       pts.object.Name,
+		Generation: pts.object.Generation,
+		Range: &gcs.ByteRange{
+			Start: uint64(0),
+			Limit: uint64(blockSize),
+		},
+	}
+	pts.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(rc, nil).Times(1)
 
 	task.Execute()
 

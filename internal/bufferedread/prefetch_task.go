@@ -79,7 +79,7 @@ func (p *PrefetchTask) Execute() {
 
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
-			logger.Warnf("Download block (%s, %v): %v failed with context cancelled.", p.object.Name, blockId, err)
+			logger.Warnf("Download block (%s, %v): %v failed with context cancelled while reader creation.", p.object.Name, blockId, err)
 			p.block.Ready(block.BlockStatusDownloadCancelled)
 		} else {
 			err = fmt.Errorf("downloadRange: error in creating reader(%d, %d), error: %v", start, end, err)
@@ -91,7 +91,7 @@ func (p *PrefetchTask) Execute() {
 	_, err = io.CopyN(p.block, newReader, int64(end-start))
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
-			logger.Warnf("Download block (%s, %v): %v failed with context cancelled.", p.object.Name, blockId, err)
+			logger.Warnf("Download block (%s, %v): %v failed with context cancelled while reading.", p.object.Name, blockId, err)
 			p.block.Ready(block.BlockStatusDownloadCancelled)
 		} else {
 			err = fmt.Errorf("downloadRange: error copying the content to block: %v", err)
