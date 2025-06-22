@@ -1269,7 +1269,6 @@ func (c *grpcStorageClient) NewMultiRangeDownloader(ctx context.Context, params 
 				// to indicate that output buffer is filled.
 				databufs := mem.BufferSlice{}
 				err = mrd.stream.RecvMsg(&databufs)
-				fmt.Println("Received data in MRD")
 				/*if resp.GetReadHandle().GetHandle() != nil {
 					mrd.readHandle = resp.GetReadHandle().GetHandle()
 				}*/
@@ -1280,8 +1279,6 @@ func (c *grpcStorageClient) NewMultiRangeDownloader(ctx context.Context, params 
 				if err != nil {
 					// cancel stream and reopen the stream again.
 					// Incase again an error is thrown close the streamManager goroutine.
-					fmt.Println("Going to retry")
-					fmt.Println(err)
 					mrd.retrier(err, "receiver")
 				}
 
@@ -1291,8 +1288,6 @@ func (c *grpcStorageClient) NewMultiRangeDownloader(ctx context.Context, params 
 					// Use the custom decoder to parse the message.
 					decoder := &readResponseDecoder{databufs: databufs}
 					if err := decoder.readFullObjectResponse(); err != nil {
-						fmt.Println("Reading full object response failed. retrying")
-						fmt.Println(err)
 						mrd.retrier(err, "receiver")
 						continue // Move to next iteration after retry
 					}
@@ -1320,13 +1315,10 @@ func (c *grpcStorageClient) NewMultiRangeDownloader(ctx context.Context, params 
 
 						// The decoder holds the object content. writeToAndUpdateCRC writes
 						// it to the user's buffer without an intermediate copy.
-						fmt.Println("writing to the writer")
-						fmt.Println(id)
 						written, err := decoder.writeToAndUpdateCRC(mrd.activeRanges[id].writer, id,  func(b []byte) {
 							// crc update logic can be added here if needed
 						})
 
-						fmt.Println(written)
 						if err != nil {
 							mrd.activeRanges[id].callback(mrd.activeRanges[id].offset, mrd.activeRanges[id].totalBytesWritten, err)
 							mrd.numActiveRanges--
@@ -1343,8 +1335,6 @@ func (c *grpcStorageClient) NewMultiRangeDownloader(ctx context.Context, params 
 							}
 						}
 						if val.GetRangeEnd() {
-							fmt.Println("Returning the callback")
-							fmt.Println(id)
 							mrd.activeRanges[id].callback(mrd.activeRanges[id].offset, mrd.activeRanges[id].totalBytesWritten, nil)
 							mrd.numActiveRanges--
 							delete(mrd.activeRanges, id)
@@ -2284,7 +2274,6 @@ func (d *readResponseDecoder) readAndUpdateCRC(p []byte, readID int64, updateCRC
 func (d *readResponseDecoder) writeToAndUpdateCRC(w io.Writer, readID int64, updateCRC func([]byte)) (int64, error) {
 	// For a completely empty message, just return 0
 	if len(d.databufs) == 0 {
-		fmt.Println("len of databufs is empty")
 		return 0, nil
 	}
 	// Look up the specific offsets for the requested readID.
