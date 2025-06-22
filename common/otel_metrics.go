@@ -123,6 +123,7 @@ type otelMetrics struct {
 	gcsRequestCount         metric.Int64Counter
 	gcsRequestLatency       metric.Float64Histogram
 	gcsDownloadBytesCount   metric.Int64Counter
+	gcsRetryCount            metric.Int64Counter
 
 	fileCacheReadCount      metric.Int64Counter
 	fileCacheReadBytesCount metric.Int64Counter
@@ -200,18 +201,19 @@ func NewOTelMetrics() (MetricHandle, error) {
 	gcsReaderCount, err7 := gcsMeter.Int64Counter("gcs/reader_count", metric.WithDescription("The cumulative number of GCS object readers opened or closed."))
 	gcsRequestCount, err8 := gcsMeter.Int64Counter("gcs/request_count", metric.WithDescription("The cumulative number of GCS requests processed along with the GCS method."))
 	gcsRequestLatency, err9 := gcsMeter.Float64Histogram("gcs/request_latencies", metric.WithDescription("The cumulative distribution of the GCS request latencies."), metric.WithUnit("ms"))
+	gcsRetryCount, err10 := gcsMeter.Int64Counter("gcs/retry_count", metric.WithDescription("The cumulative number of retryable errors recieved from GCS."))
 
-	fileCacheReadCount, err10 := fileCacheMeter.Int64Counter("file_cache/read_count",
+	fileCacheReadCount, err11 := fileCacheMeter.Int64Counter("file_cache/read_count",
 		metric.WithDescription("Specifies the number of read requests made via file cache along with type - Sequential/Random and cache hit - true/false"))
-	fileCacheReadBytesCount, err11 := fileCacheMeter.Int64Counter("file_cache/read_bytes_count",
+	fileCacheReadBytesCount, err12 := fileCacheMeter.Int64Counter("file_cache/read_bytes_count",
 		metric.WithDescription("The cumulative number of bytes read from file cache along with read type - Sequential/Random"),
 		metric.WithUnit("By"))
-	fileCacheReadLatency, err12 := fileCacheMeter.Float64Histogram("file_cache/read_latencies",
+	fileCacheReadLatency, err13 := fileCacheMeter.Float64Histogram("file_cache/read_latencies",
 		metric.WithDescription("The cumulative distribution of the file cache read latencies along with cache hit - true/false"),
 		metric.WithUnit("us"),
 		defaultLatencyDistribution)
 
-	if err := errors.Join(err1, err2, err3, err4, err5, err6, err7, err8, err9, err10, err11, err12); err != nil {
+	if err := errors.Join(err1, err2, err3, err4, err5, err6, err7, err8, err9, err10, err11, err12, err13); err != nil {
 		return nil, err
 	}
 
@@ -225,6 +227,7 @@ func NewOTelMetrics() (MetricHandle, error) {
 		gcsRequestCount:         gcsRequestCount,
 		gcsRequestLatency:       gcsRequestLatency,
 		gcsDownloadBytesCount:   gcsDownloadBytesCount,
+		gcsRetryCount: gcsRetryCount,
 		fileCacheReadCount:      fileCacheReadCount,
 		fileCacheReadBytesCount: fileCacheReadBytesCount,
 		fileCacheReadLatency:    fileCacheReadLatency,
