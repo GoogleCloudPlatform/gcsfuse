@@ -2287,38 +2287,51 @@ func (d *readResponseDecoder) writeToAndUpdateCRC(w io.Writer, readID int64, upd
 		fmt.Println("len of databufs is empty")
 		return 0, nil
 	}
-	var written int64
-	for !d.done {
-		offsets, ok := d.dataOffsets[readID]
-		if !ok {
-			return 0, fmt.Errorf("storage: no data found in message for readID %d", readID)
+	// Look up the specific offsets for the requested readID.
+	offsets, ok := d.dataOffsets[readID]
+	if !ok {
+		// It's normal for a message to not contain data for every active range,
+		// so we return 0 bytes written and no error.
+		return 0, nil
+	}
+
+	var totalWritten int64
+
+	// Loop from the starting buffer to the ending buffer for this specific data range.
+	for i := offsets.startBuf; i <= offsets.endBuf; i++ {
+		databuf := d.databufs[i]
+
+		// Determine the start and end of the data slice for the current buffer.
+		start := uint64(0)
+		if i == offsets.startBuf {
+			start = offsets.startOff
 		}
-		databuf := d.databufs[offsets.currBuf]
-		startOff := offsets.currOff
-		var b []byte
-		if offsets.currBuf == offsets.endBuf {
-			b = databuf.ReadOnlyData()[startOff:offsets.endOff]
-		} else {
-			b = databuf.ReadOnlyData()[startOff:]
+
+		end := uint64(databuf.Len())
+		if i == offsets.endBuf {
+			end = offsets.endOff
 		}
-		var n int
-		// Write all remaining data from the current buffer
-		n, err := w.Write(b)
-		written += int64(n)
-		updateCRC(b)
+
+		// It's possible for a buffer to be empty in some edge cases.
+		if start >= end {
+			continue
+		}
+
+		dataSlice := databuf.ReadOnlyData()[start:end]
+
+		// Write the data slice to the user's writer.
+		n, err := w.Write(dataSlice)
+		totalWritten += int64(n)
+		if updateCRC != nil {
+			updateCRC(dataSlice[:n])
+		}
 		if err != nil {
-			return written, err
-		}
-		offsets.currOff = 0
-		// We've read all the data from this message.
-		if offsets.currBuf == offsets.endBuf {
-			d.done = true
-			d.databufs.Free()
-		} else {
-			offsets.currBuf++
+			// Return immediately on a write error.
+			return totalWritten, err
 		}
 	}
-	return written, nil
+
+	return totalWritten, nil
 }
 
 // Consume the next available tag in the input data and return the field number and type.
