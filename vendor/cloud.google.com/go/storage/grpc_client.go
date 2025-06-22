@@ -1525,8 +1525,6 @@ func (mrd *gRPCBidiReader) reopenStream(failSpec []mrdRange) error {
 		}
 		mrd.mu.Unlock()
 	}
-	// Free the buffer from the initial message once it has been processed.
-	res.decoder.databufs.Free()
 	if failSpec != nil {
 		mrd.rangesToRead <- failSpec
 	}
