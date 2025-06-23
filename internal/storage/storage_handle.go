@@ -32,6 +32,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"golang.org/x/net/context"
 	option "google.golang.org/api/option"
+	"google.golang.org/api/option/internaloption"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -98,6 +99,7 @@ func createClientOptionForGRPCClient(clientConfig *storageutil.StorageClientConf
 			return
 		}
 		clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
+		clientOpts = append(clientOpts, internaloption.AllowHardBoundTokens("ALTS"))
 	}
 
 	if enableBidiConfig {
