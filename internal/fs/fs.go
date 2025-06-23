@@ -1502,8 +1502,6 @@ func (fs *fileSystem) LookUpInode(
 	e := &op.Entry
 	e.Child = child.ID()
 	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
-	e.EntryExpiration = time.Now().Add(24 * time.Hour)
-	e.AttributesExpiration = e.EntryExpiration
 
 	if err != nil {
 		return err
@@ -2457,7 +2455,7 @@ func (fs *fileSystem) Unlink(
 	err = parent.DeleteChildFile(
 		ctx,
 		op.Name,
-		0, // Latest generation
+		0,   // Latest generation
 		nil) // No meta-generation precondition
 
 	if err != nil {

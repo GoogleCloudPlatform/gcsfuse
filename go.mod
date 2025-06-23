@@ -1,13 +1,12 @@
-module github.com/googlecloudplatform/gcsfuse/v3
+module github.com/googlecloudplatform/gcsfuse/v2
 
 go 1.24.0
 
-replace github.com/jacobsa/fuse => github.com/aditimittal2003/fuse v0.0.0-20250609122155-cd3b8e0bf5a5
+replace github.com/jacobsa/fuse => github.com/aditimittal2003/fuse v0.0.0-20250613141538-2add789fb48e
 
 require (
 	cloud.google.com/go/compute/metadata v0.7.0
 	cloud.google.com/go/iam v1.5.2
-	cloud.google.com/go/profiler v0.4.2
 	cloud.google.com/go/secretmanager v1.14.7
 	cloud.google.com/go/storage v1.55.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.52.0
@@ -77,7 +76,6 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
-	github.com/google/pprof v0.0.0-20250501235452-c0086092b71a // indirect
 	github.com/google/renameio/v2 v2.0.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect

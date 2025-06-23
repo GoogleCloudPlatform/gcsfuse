@@ -400,6 +400,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.BoolP("enable-readdirplus", "", false, "This flag is used to enable ReadDirPlus capability")
+
+	if err := flagSet.MarkHidden("enable-readdirplus"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("enable-streaming-writes", "", false, "Enables streaming uploads during write file operation.")
 
 	flagSet.BoolP("experimental-enable-json-read", "", false, "By default, GCSFuse uses the GCS XML API to get and read objects. When this flag is specified, GCSFuse uses the GCS JSON API instead.\"")
