@@ -105,6 +105,10 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 	if err != nil {
 		return
 	}
+	var size int64
+	if req.Object != nil {
+		size = int64(req.Object.Size)
+	}
 
 	bwh = &bufferedWriteHandlerImpl{
 		current:   nil,
@@ -118,7 +122,7 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 			BlockSize:                req.BlockSize,
 			ChunkTransferTimeoutSecs: req.ChunkTransferTimeoutSecs,
 		}),
-		totalSize:     0,
+		totalSize:     size,
 		mtime:         time.Now(),
 		truncatedSize: -1,
 	}
