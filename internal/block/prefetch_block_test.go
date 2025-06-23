@@ -32,7 +32,7 @@ func TestPrefetchBlockTestSuite(t *testing.T) {
 }
 
 func (testSuite *prefetchBlockTest) TestCreatePrefetchBlock() {
-	pb, err := createPrefetchBlock(12)
+	pb, err := CreatePrefetchBlock(12)
 	require.Nil(testSuite.T(), err)
 
 	// No write operation, so size should be 0
@@ -45,7 +45,7 @@ func (testSuite *prefetchBlockTest) TestCreatePrefetchBlock() {
 }
 
 func (testSuite *prefetchBlockTest) TestPrefetchBlockWrite() {
-	pb, err := createPrefetchBlock(12)
+	pb, err := CreatePrefetchBlock(12)
 	require.Nil(testSuite.T(), err)
 	content := []byte("hi")
 
@@ -60,7 +60,7 @@ func (testSuite *prefetchBlockTest) TestPrefetchBlockWrite() {
 }
 
 func (testSuite *prefetchBlockTest) TestPrefetchBlockWriteWithDataGreaterThanCapacity() {
-	pb, err := createPrefetchBlock(1)
+	pb, err := CreatePrefetchBlock(1)
 	require.Nil(testSuite.T(), err)
 	content := []byte("hi")
 
@@ -72,7 +72,7 @@ func (testSuite *prefetchBlockTest) TestPrefetchBlockWriteWithDataGreaterThanCap
 }
 
 func (testSuite *prefetchBlockTest) TestPrefetchBlockReuse() {
-	pb, err := createPrefetchBlock(12)
+	pb, err := CreatePrefetchBlock(12)
 	require.Nil(testSuite.T(), err)
 	content := []byte("hi")
 	n, err := pb.Write(content)
@@ -90,7 +90,7 @@ func (testSuite *prefetchBlockTest) TestPrefetchBlockReuse() {
 }
 
 func (testSuite *prefetchBlockTest) TestPrefetchBlockGetIdForEmptyBlock() {
-	pb, err := createPrefetchBlock(12)
+	pb, err := CreatePrefetchBlock(12)
 	require.Nil(testSuite.T(), err)
 
 	// Initially, the ID should be 0
@@ -99,7 +99,7 @@ func (testSuite *prefetchBlockTest) TestPrefetchBlockGetIdForEmptyBlock() {
 
 // TestPrefetchBlockSetId sets the ID of the prefetch block and verifies it.
 func (testSuite *prefetchBlockTest) TestPrefetchBlockSetId() {
-	pb, err := createPrefetchBlock(12)
+	pb, err := CreatePrefetchBlock(12)
 	require.Nil(testSuite.T(), err)
 
 	// Set a new ID

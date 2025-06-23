@@ -17,6 +17,8 @@ package block
 import (
 	"context"
 	"fmt"
+
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 )
 
 type PrefetchBlock interface {
@@ -114,6 +116,6 @@ func (p *prefetchBlock) Ready(val int) {
 	select {
 	case p.notification <- val:
 	default:
-		// If the channel is full, we don't want to block.
+		logger.Warnf("Expected an empty channel while writing an block notification: %d", val)
 	}
 }
