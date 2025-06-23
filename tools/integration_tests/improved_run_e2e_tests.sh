@@ -106,14 +106,26 @@ fi
 # Read the parsed options back into the positional parameters.
 eval set -- "$PARSED"
 
+# Validates option value to be non-empty and should not be another option name.
+validate_option_value() {
+  local option=$1
+  local value=$2
+  if [[ -z "$value" || "$value" == -* ]]; then
+    log_error "Invalid or empty value [$value] for option $option."
+    usage
+  fi
+}
+
 # Loop through the options and assign values to our variables
 while true; do
     case "$1" in
         --bucket-location)
+            validate_option_value "$1" "$2"
             BUCKET_LOCATION="$2"
             shift 2
             ;;
         --package-level-parallelism)
+            validate_option_value "$1" "$2"
             PACKAGE_LEVEL_PARALLELISM="$2"
             shift 2
             ;;
@@ -159,15 +171,9 @@ while true; do
     esac
 done
 
-# Check if bucket local required arguments is not provided
-if [ -z "${BUCKET_LOCATION}" ]; then
-  log_error "Missing required argument [--bucket-location]. Use --help for more details."
-  usage
-fi
-
 # Check for any leftover positional arguments
 if [[ "$#" -ne 0 ]]; then
-    log_error "Too many arguments provided."
+    log_error "Unrecognized arguments [$*]."
     usage
 fi
 
@@ -365,8 +371,12 @@ safe_kill() {
 
 # Cleanup ensures each of the buckets created is destroyed and the temp files are cleaned up.
 clean_up() {
-  if ! safe_kill "$RESOURCE_USAGE_PID" "resource_usage.sh"; then
-    log_error "Failed to stop resource usage collection process (or it's already stopped): $RESOURCE_USAGE_PID"
+  if [ "$TRACK_RESOURCE_USAGE" == "true" ]; then
+    if ! safe_kill "$RESOURCE_USAGE_PID" "resource_usage.sh"; then
+      log_error "Failed to stop resource usage collection process (or it's already stopped)"
+    else
+      log_info "Resource usage collection process stopped."
+    fi
   fi
   if [ -n "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}" ] && [ -d "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}" ]; then
     log_info "Cleaning up GCSFuse build directory created by script: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
