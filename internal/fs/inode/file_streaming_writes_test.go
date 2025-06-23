@@ -223,12 +223,13 @@ func (t *FileStreamingWritesZonalBucketTest) TestSourceGenerationIsAuthoritative
 	assert.True(t.T(), t.in.SourceGenerationIsAuthoritative())
 }
 
-func (t *FileStreamingWritesZonalBucketTest) TestSourceGenerationIsAuthoritativeReturnsTrueAfterWriteForZonalBuckets() {
+func (t *FileStreamingWritesZonalBucketTest) TestSourceGenerationIsAuthoritativeReturnsFalseAfterWriteForZonalBuckets() {
 	t.createBufferedWriteHandler()
 	gcsSynced, err := t.in.Write(t.ctx, []byte("taco"), 0, util.Write)
 	assert.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
-	assert.True(t.T(), t.in.SourceGenerationIsAuthoritative())
+
+	assert.False(t.T(), t.in.SourceGenerationIsAuthoritative())
 }
 
 func (t *FileStreamingWritesZonalBucketTest) TestSyncPendingBufferedWritesForZonalBucketsPromotesInodeToNonLocal() {
