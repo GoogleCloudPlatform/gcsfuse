@@ -88,9 +88,8 @@ func (fch *CacheHandle) shouldReadFromCache(jobStatus *downloader.JobStatus, req
 	return err
 }
 
-// validateEntryInFileInfoCache checks if entry is present for a given object in
-// file info cache with same generation and at least requiredOffset.
-// It returns nil if entry is present, otherwise returns an appropriate error.
+// getFileInfoData returns the file-info cache entry for the given object
+// in the associated bucket.
 // Whether to change the order in cache while lookup is controlled via
 // changeCacheOrder.
 func (fch *CacheHandle) getFileInfoData(bucket gcs.Bucket, object *gcs.MinObject, changeCacheOrder bool) (*data.FileInfo, error) {

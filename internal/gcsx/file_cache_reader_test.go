@@ -558,7 +558,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_OffsetBeyondObjectSizeShouldThrowError
 	assert.Zero(t.T(), readerResponse.Size)
 }
 
-func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectRereadAfterSizeIncreaseFromOffsetBeyondCachedObjectSizeShouldThrowFallbackToGcsError() {
+func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBeyondCachedSizeAfterSizeIncreaseShouldThrowFallbackError() {
 	t.mockBucket.On("Name").Return("test-bucket")
 	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
@@ -568,8 +568,10 @@ func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectRereadAfterSizeIncrea
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), 17, readerResponse.Size)
 
+	// Resize the object and read beyond previously cached size and within new size.
 	t.object.Size = 27
 	readerResponse, err = t.reader.ReadAt(t.ctx, make([]byte, 10), 17)
+
 	assert.Error(t.T(), err)
 	assert.Zero(t.T(), readerResponse.Size)
 	assert.ErrorIs(t.T(), err, FallbackToAnotherReader)
