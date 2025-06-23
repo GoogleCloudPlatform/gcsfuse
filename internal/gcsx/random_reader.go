@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"time"
 
 	"github.com/google/uuid"
@@ -316,7 +317,7 @@ func (rr *randomReader) ReadAt(
 	// then the file cache behavior is write-through i.e. data is first read from
 	// GCS, cached in file and then served from that file. But the cacheHit is
 	// false in that case.
-	/*n, cacheHit, err := rr.tryReadingFromFileCache(ctx, p, offset)
+	n, cacheHit, err := rr.tryReadingFromFileCache(ctx, p, offset)
 	if err != nil {
 		err = fmt.Errorf("ReadAt: while reading from cache: %w", err)
 		return
@@ -379,7 +380,7 @@ func (rr *randomReader) ReadAt(
 	if readerType == RangeReader {
 		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, rr.readType)
 		return
-	}*/
+	}
 
 	objectData.Size, err = rr.readFromMultiRangeReader(ctx, p, offset, int64(rr.object.Size), TimeoutForMultiRangeRead)
 	return

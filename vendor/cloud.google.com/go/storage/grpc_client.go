@@ -1967,39 +1967,30 @@ func (r *gRPCReader) Read(p []byte) (int, error) {
 		return 0, fmt.Errorf("storage: reader has been closed")
 	}
 
-	var n int
+	for {
+			// If there is data remaining in the current message, try to read from it.
+		 if r.currMsg != nil && !r.currMsg.done {
+			 n, found := r.currMsg.readAndUpdateCRC(p, 1, func(b []byte) {
+								r.updateCRC(b)
+							})
 
-	// If there is data remaining in the current message, return what was
-	// available to conform to the Reader
-	// interface: https://pkg.go.dev/io#Reader.
-	if !r.currMsg.done {
-		n = r.currMsg.readAndUpdateCRC(p, 1, func(b []byte) {
-			r.updateCRC(b)
-		})
-		r.seen += int64(n)
-		return n, nil
+								// If data for our readID was found, we can update `seen` and return.
+								if found {
+									r.seen += int64(n)
+									return n, nil
+								}
+						    // If not found, this message is exhausted for our purposes.
+								// Fall through to recv() to get a new one.
+		   }
+
+			 // Get the next message from the stream.
+			 err := r.recv()
+			 if err != nil {
+						// This correctly handles io.EOF, context canceled, and other terminal errors.
+								return 0, err
+				}
+				// The loop will now restart and try to read from the new r.currMsg.
 	}
-
-	// Attempt to Recv the next message on the stream.
-	// This will update r.currMsg with the decoder for the new message.
-	err := r.recv()
-	if err != nil {
-		return 0, err
-	}
-
-	// TODO: Determine if we need to capture incremental CRC32C for this
-	// chunk. The Object CRC32C checksum is captured when directed to read
-	// the entire Object. If directed to read a range, we may need to
-	// calculate the range's checksum for verification if the checksum is
-	// present in the response here.
-	// TODO: Figure out if we need to support decompressive transcoding
-	// https://cloud.google.com/storage/docs/transcoding.
-
-	n = r.currMsg.readAndUpdateCRC(p, 1, func(b []byte) {
-		r.updateCRC(b)
-	})
-	r.seen += int64(n)
-	return n, nil
 }
 
 // WriteTo writes all the data requested by the Reader into w, implementing
@@ -2027,47 +2018,38 @@ func (r *gRPCReader) WriteTo(w io.Writer) (int64, error) {
 
 	// Write any already received message to the stream. There will be some leftovers from the
 	// original NewRangeReader call.
-	if r.currMsg != nil && !r.currMsg.done {
-		written, err := r.currMsg.writeToAndUpdateCRC(w,1, func(b []byte) {
-			r.updateCRC(b)
-		})
-		r.seen += int64(written)
-		r.currMsg = nil
-		if err != nil {
-			return r.seen - alreadySeen, err
-		}
-	}
-
-	// Loop and receive additional messages until the entire data is written.
 	for {
+		// Write any data from the current message buffer.
+		if r.currMsg != nil && !r.currMsg.done {
+			written, _, err := r.currMsg.writeToAndUpdateCRC(w, 1, func(b []byte) {
+				r.updateCRC(b)
+			})
+			r.seen += written
+			if err != nil {
+				return r.seen - alreadySeen, err
+			}
+			// If no data was found, we still need to fetch the next message.
+			// If data was found, we also need the next message. So we always fall through.
+		}
+
 		// Attempt to receive the next message on the stream.
-		// Will terminate with io.EOF once data has all come through.
-		// recv() handles stream reopening and retry logic so no need for retries here.
 		err := r.recv()
 		if err != nil {
 			if err == io.EOF {
-				// We are done; check the checksum if necessary and return.
+				// We are done; check the checksum if necessary and break the loop.
 				err = r.runCRCCheck()
+				break
 			}
 			return r.seen - alreadySeen, err
 		}
-
-		// TODO: Determine if we need to capture incremental CRC32C for this
-		// chunk. The Object CRC32C checksum is captured when directed to read
-		// the entire Object. If directed to read a range, we may need to
-		// calculate the range's checksum for verification if the checksum is
-		// present in the response here.
-		// TODO: Figure out if we need to support decompressive transcoding
-		// https://cloud.google.com/storage/docs/transcoding.
-		written, err := r.currMsg.writeToAndUpdateCRC(w, 1, func(b []byte) {
-			r.updateCRC(b)
-		})
-		r.seen += int64(written)
-		if err != nil {
-			return r.seen - alreadySeen, err
-		}
+		// Continue loop to process the new message.
 	}
-
+	// Propagate any checksum error.
+	var finalErr error
+	if err := r.runCRCCheck(); err != nil {
+				finalErr = err
+	}
+	return r.seen - alreadySeen, finalErr
 }
 
 // Close cancels the read stream's context in order for it to be closed and
@@ -2226,10 +2208,10 @@ func (d *readResponseDecoder) advanceOffset(n uint64) error {
 // This copies object data from the message into the buffer and returns the number of
 // bytes copied. The data offsets are incremented in the message. The updateCRC
 // function is called on the copied bytes.
-func (d *readResponseDecoder) readAndUpdateCRC(p []byte, readID int64, updateCRC func([]byte)) int {
+func (d *readResponseDecoder) readAndUpdateCRC(p []byte, readID int64, updateCRC func([]byte)) (n int, found bool) {
 	// For a completely empty message, just return 0.
 	if len(d.databufs) == 0 {
-		return 0
+		return 0, true
 	}
 
 	// HIGHLIGHT START
@@ -2237,7 +2219,7 @@ func (d *readResponseDecoder) readAndUpdateCRC(p []byte, readID int64, updateCRC
 	offsets, ok := d.dataOffsets[readID]
 	if !ok {
 		// If the message contains no data for this ID, return 0 bytes read.
-		return 0
+		return 0, false
 	}
 	// HIGHLIGHT END
 
@@ -2268,20 +2250,20 @@ func (d *readResponseDecoder) readAndUpdateCRC(p []byte, readID int64, updateCRC
 	// Update the map with the new offsets.
 	d.dataOffsets[readID] = offsets
 
-	return n
+	return n, true
 }
 
-func (d *readResponseDecoder) writeToAndUpdateCRC(w io.Writer, readID int64, updateCRC func([]byte)) (int64, error) {
+func (d *readResponseDecoder) writeToAndUpdateCRC(w io.Writer, readID int64, updateCRC func([]byte)) (totalWritten int64, found bool, err error) {
 	// For a completely empty message, just return 0
 	if len(d.databufs) == 0 {
-		return 0, nil
+		return 0,  true,nil
 	}
 	// Look up the specific offsets for the requested readID.
 	offsets, ok := d.dataOffsets[readID]
 	if !ok {
 		// It's normal for a message to not contain data for every active range,
 		// so we return 0 bytes written and no error.
-		return 0, nil
+		return 0, false,nil
 	}
 
 	var totalWritten int64
@@ -2316,11 +2298,11 @@ func (d *readResponseDecoder) writeToAndUpdateCRC(w io.Writer, readID int64, upd
 		}
 		if err != nil {
 			// Return immediately on a write error.
-			return totalWritten, err
+			return totalWritten, true, err
 		}
 	}
 
-	return totalWritten, nil
+	return totalWritten, true, nil
 }
 
 // Consume the next available tag in the input data and return the field number and type.
