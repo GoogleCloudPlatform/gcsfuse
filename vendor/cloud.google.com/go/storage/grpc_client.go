@@ -1315,7 +1315,7 @@ func (c *grpcStorageClient) NewMultiRangeDownloader(ctx context.Context, params 
 
 						// The decoder holds the object content. writeToAndUpdateCRC writes
 						// it to the user's buffer without an intermediate copy.
-						written, err := decoder.writeToAndUpdateCRC(mrd.activeRanges[id].writer, id,  func(b []byte) {
+						written,_, err := decoder.writeToAndUpdateCRC(mrd.activeRanges[id].writer, id,  func(b []byte) {
 							// crc update logic can be added here if needed
 						})
 
@@ -1497,7 +1497,7 @@ func (mrd *gRPCBidiReader) reopenStream(failSpec []mrdRange) error {
 		}
 
 		// Use the decoder's zero-copy write method.
-		written, writeErr := res.decoder.writeToAndUpdateCRC(activeRange.writer, id, nil)
+		written,_, writeErr := res.decoder.writeToAndUpdateCRC(activeRange.writer, id, nil)
 		if writeErr != nil {
 			activeRange.callback(activeRange.offset, activeRange.totalBytesWritten, writeErr)
 			mrd.numActiveRanges--
@@ -2231,7 +2231,7 @@ func (d *readResponseDecoder) readAndUpdateCRC(p []byte, readID int64, updateCRC
 	} else {
 		b = databuf.ReadOnlyData()[startOff:]
 	}
-	n := copy(p, b)
+	n = copy(p, b)
 	if updateCRC != nil {
 		updateCRC(b[:n])
 	}
@@ -2266,7 +2266,6 @@ func (d *readResponseDecoder) writeToAndUpdateCRC(w io.Writer, readID int64, upd
 		return 0, false,nil
 	}
 
-	var totalWritten int64
 
 	// Loop from the starting buffer to the ending buffer for this specific data range.
 	for i := offsets.startBuf; i <= offsets.endBuf; i++ {
