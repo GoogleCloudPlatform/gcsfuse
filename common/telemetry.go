@@ -77,6 +77,7 @@ type GCSMetricHandle interface {
 	GCSRequestLatency(ctx context.Context, latency time.Duration, gcsMethod string)
 	GCSReadCount(ctx context.Context, inc int64, readType string)
 	GCSDownloadBytesCount(ctx context.Context, inc int64, readType string)
+	GCSRetryCount(ctx context.Context, inc int64, gcsRetryErr string)
 }
 
 type OpsMetricHandle interface {

@@ -44,11 +44,14 @@ var (
 	readTypeKey = attribute.Key("read_type")
 	// cacheHitKey specifies whether the read operation from file cache resulted in a cache-hit or miss.
 	cacheHitKey = attribute.Key("cache_hit")
+	// gcsRetryErrKey specifies the GCS error that has been retried.
+	gcsRetryErrKey = attribute.Key("gcs_retry_error")
 
 	fsOpsOptionCache,
 	readTypeOptionCache,
 	ioMethodOptionCache,
 	gcsMethodOptionCache,
+	gcsRetryErrOptionCache,
 	cacheHitOptionCache,
 	cacheHitReadTypeOptionCache,
 	fsOpsErrorCategoryOptionCache sync.Map
@@ -105,6 +108,13 @@ func gcsMethodAttrOption(gcsMethod string) metric.MeasurementOption {
 		})
 }
 
+func gcsRetryErrAttrOption(gcsRetryErr string) metric.MeasurementOption {
+	return loadOrStoreAttrOption(&gcsRetryErrOptionCache, gcsRetryErr,
+		func() attribute.Set {
+			return attribute.NewSet(gcsRetryErrKey.String(gcsRetryErr))
+		})
+}
+
 func cacheHitReadTypeAttrOption(attr CacheHitReadType) metric.MeasurementOption {
 	return loadOrStoreAttrOption(&cacheHitReadTypeOptionCache, attr, func() attribute.Set {
 		return attribute.NewSet(cacheHitKey.String(attr.CacheHit), readTypeKey.String(attr.ReadType))
@@ -123,7 +133,7 @@ type otelMetrics struct {
 	gcsRequestCount         metric.Int64Counter
 	gcsRequestLatency       metric.Float64Histogram
 	gcsDownloadBytesCount   metric.Int64Counter
-	gcsRetryCount            metric.Int64Counter
+	gcsRetryCount           metric.Int64Counter
 
 	fileCacheReadCount      metric.Int64Counter
 	fileCacheReadBytesCount metric.Int64Counter
@@ -152,6 +162,10 @@ func (o *otelMetrics) GCSReadCount(ctx context.Context, inc int64, readType stri
 
 func (o *otelMetrics) GCSDownloadBytesCount(ctx context.Context, inc int64, readType string) {
 	o.gcsDownloadBytesCount.Add(ctx, inc, readTypeAttrOption(readType))
+}
+
+func (o *otelMetrics) GCSRetryCount(ctx context.Context, inc int64, gcsRetryErr string) {
+	o.gcsRetryCount.Add(ctx, inc, gcsRetryErrAttrOption(gcsRetryErr))
 }
 
 func (o *otelMetrics) OpsCount(ctx context.Context, inc int64, fsOp string) {
@@ -227,7 +241,7 @@ func NewOTelMetrics() (MetricHandle, error) {
 		gcsRequestCount:         gcsRequestCount,
 		gcsRequestLatency:       gcsRequestLatency,
 		gcsDownloadBytesCount:   gcsDownloadBytesCount,
-		gcsRetryCount: gcsRetryCount,
+		gcsRetryCount:           gcsRetryCount,
 		fileCacheReadCount:      fileCacheReadCount,
 		fileCacheReadBytesCount: fileCacheReadBytesCount,
 		fileCacheReadLatency:    fileCacheReadLatency,

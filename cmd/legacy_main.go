@@ -136,7 +136,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle c
 		GrpcConnPoolSize:           int(newConfig.GcsConnection.GrpcConnPoolSize),
 		EnableHNS:                  newConfig.EnableHns,
 		ReadStallRetryConfig:       newConfig.GcsRetries.ReadStall,
-		MetricHandle: metricHandle,
+		MetricHandle:               metricHandle,
 	}
 	logger.Infof("UserAgent = %s\n", storageClientConfig.UserAgent)
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig, newConfig.GcsConnection.BillingProject)

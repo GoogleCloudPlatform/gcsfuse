@@ -74,9 +74,7 @@ func ShouldRetryWrapper(ctx context.Context, err error, metricHandle common.Metr
 			val = "STALLED_READ_REQUEST"
 		}
 
-		metricHandle.GCSRetryCount(ctx, 1, []common.MetricAttr{
-			{Key: common.GCSRetryErr, Value: val},
-		})
+		metricHandle.GCSRetryCount(ctx, 1, val)
 	}
 
 	return retry
