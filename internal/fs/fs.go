@@ -28,7 +28,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 
 	"golang.org/x/sync/semaphore"
 
@@ -1502,6 +1502,8 @@ func (fs *fileSystem) LookUpInode(
 	e := &op.Entry
 	e.Child = child.ID()
 	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
+	e.EntryExpiration = time.Now().Add(24 * time.Hour)
+	e.AttributesExpiration = e.EntryExpiration
 
 	if err != nil {
 		return err
@@ -1925,17 +1927,17 @@ func (fs *fileSystem) CreateSymlink(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) RmDir(
-	// When rm -r or os.RemoveAll call is made, the following calls are made in order
-	//	 1. RmDir (only in the case of os.RemoveAll)
-	//	 2. Unlink all nested files,
-	//	 3. lookupInode call on implicit directory
-	//	 4. Rmdir on the directory.
-	//
-	// When type cache ttl is set, we construct an implicitDir even though one doesn't
-	// exist on GCS (https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/internal/fs/inode/dir.go#L452),
-	// and thus, we get rmDir call to GCSFuse.
-	// Whereas when ttl is zero, lookupInode call itself fails and RmDir is not called
-	// because object is not present in GCS.
+// When rm -r or os.RemoveAll call is made, the following calls are made in order
+//	 1. RmDir (only in the case of os.RemoveAll)
+//	 2. Unlink all nested files,
+//	 3. lookupInode call on implicit directory
+//	 4. Rmdir on the directory.
+//
+// When type cache ttl is set, we construct an implicitDir even though one doesn't
+// exist on GCS (https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/internal/fs/inode/dir.go#L452),
+// and thus, we get rmDir call to GCSFuse.
+// Whereas when ttl is zero, lookupInode call itself fails and RmDir is not called
+// because object is not present in GCS.
 
 	ctx context.Context,
 	op *fuseops.RmDirOp) (err error) {
@@ -2455,7 +2457,7 @@ func (fs *fileSystem) Unlink(
 	err = parent.DeleteChildFile(
 		ctx,
 		op.Name,
-		0,   // Latest generation
+		0, // Latest generation
 		nil) // No meta-generation precondition
 
 	if err != nil {
@@ -2551,7 +2553,7 @@ func (fs *fileSystem) ReadDirPlus(
 	localFileEntriesPlus := in.LocalFileEntriesPlus(fs.localFileInodes)
 	fs.mu.Unlock()
 
-	expiration := time.Now().Add(fs.inodeAttributeCacheTTL)
+	expiration := time.Now().Add(24 * time.Hour)
 	for localEntryName, localEntryPlus := range localFileEntriesPlus {
 		localEntryPlus.Entry.AttributesExpiration = expiration
 		localEntryPlus.Entry.EntryExpiration = expiration
