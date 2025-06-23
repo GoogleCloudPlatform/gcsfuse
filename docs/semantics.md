@@ -2,13 +2,9 @@
 
 ## Reads
 
-Cloud Storage FUSE makes API calls to Cloud Storage to read an object directly, without downloading it to a local
-directory. A TCP connection is established, in which the entire object, or just portions as specified by the
-application/operating system via an offset, can be read back.
+Cloud Storage FUSE makes API calls to Cloud Storage to read an object directly, without downloading it to a local directory. A TCP connection is established, in which the entire object, or just portions as specified by the application/operating system via an offset, can be read back.
 
-Files that have not been modified are read portion by portion on demand. Cloud Storage FUSE uses a heuristic to detect
-when a file is being read sequentially, and will issue fewer, larger read requests to Cloud Storage in this case,
-increasing performance.
+Files that have not been modified are read portion by portion on demand. Cloud Storage FUSE uses a heuristic to detect when a file is being read sequentially, and will issue fewer, larger read requests to Cloud Storage in this case, increasing performance.
 
 ## Writes
 
