@@ -185,6 +185,7 @@ func (t *readManagerTest) Test_ReadAt_NoExistingReader() {
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, errors.New("network error"))
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(1)
 	t.mockBucket.On("Name").Return("test-bucket")
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
 
 	_, err := t.readAt(0, 1)
 
@@ -228,6 +229,7 @@ func (t *readManagerTest) Test_ReadAt_FullObjectFromCache() {
 	// Mock the reader that returns full object data
 	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, fakeReader)
 	t.mockBucket.On("Name").Return("test-bucket").Maybe()
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
 
 	// Act: First read (expected to be served via GCS, populating the cache)
 	firstResp, err := t.readAt(0, int64(objectSize))
