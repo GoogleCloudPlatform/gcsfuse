@@ -1479,9 +1479,7 @@ func (fs *fileSystem) LookUpInode(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 	// Find the parent directory in question.
 	fs.mu.Lock()
@@ -1515,9 +1513,7 @@ func (fs *fileSystem) GetInodeAttributes(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 	// Find the inode.
 	fs.mu.Lock()
@@ -1543,9 +1539,7 @@ func (fs *fileSystem) SetInodeAttributes(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 	// Find the inode.
 	fs.mu.Lock()
@@ -1619,9 +1613,7 @@ func (fs *fileSystem) MkDir(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 	// Find the parent.
 	fs.mu.Lock()
@@ -1678,9 +1670,7 @@ func (fs *fileSystem) MkNode(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 	if (op.Mode & (iofs.ModeNamedPipe | iofs.ModeSocket)) != 0 {
 		return syscall.ENOTSUP
@@ -1819,9 +1809,7 @@ func (fs *fileSystem) CreateFile(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 	// Create the child.
 	var child inode.Inode
@@ -1870,9 +1858,7 @@ func (fs *fileSystem) CreateSymlink(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 	// Find the parent.
 	fs.mu.Lock()
@@ -1940,9 +1926,7 @@ func (fs *fileSystem) RmDir(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 	// Find the parent.
 	fs.mu.Lock()
@@ -2048,9 +2032,7 @@ func (fs *fileSystem) Rename(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 	// Find the old and new parents.
 	fs.mu.Lock()
@@ -2409,9 +2391,7 @@ func (fs *fileSystem) Unlink(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 
 	fs.mu.Lock()
@@ -2506,9 +2486,7 @@ func (fs *fileSystem) ReadDir(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 	// Find the handle.
 	fs.mu.Lock()
@@ -2588,9 +2566,7 @@ func (fs *fileSystem) ReadFile(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 	// Save readOp in context for access in logs.
 	ctx = context.WithValue(ctx, gcsx.ReadOp, op)
@@ -2653,9 +2629,7 @@ func (fs *fileSystem) WriteFile(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 
 	if fs.newConfig.Write.ExperimentalEnableRapidAppends {
@@ -2699,9 +2673,7 @@ func (fs *fileSystem) SyncFile(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 	// Find the inode.
 	fs.mu.Lock()
@@ -2732,9 +2704,7 @@ func (fs *fileSystem) FlushFile(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 	// Find the inode.
 	fs.mu.Lock()
