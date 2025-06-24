@@ -15,7 +15,6 @@
 package util
 
 import (
-	"context"
 	"fmt"
 	"math"
 	"os"
@@ -100,11 +99,4 @@ func MiBsToBytes(mibs uint64) uint64 {
 // For reference, each MiB = 2^20 bytes.
 func BytesToHigherMiBs(bytes uint64) uint64 {
 	return common.BytesToHigherMiBs(bytes)
-}
-
-// IsolateContextFromParentContext creates a copy of the parent context which is
-// not cancelled when parent context is cancelled.
-func IsolateContextFromParentContext(ctx context.Context) (context.Context, context.CancelFunc) {
-	ctx = context.WithoutCancel(ctx)
-	return context.WithCancel(ctx)
 }
