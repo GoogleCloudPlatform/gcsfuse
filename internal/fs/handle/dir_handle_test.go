@@ -16,7 +16,6 @@ package handle
 
 import (
 	"context"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"math"
 	"path"
 	"testing"

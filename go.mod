@@ -1,12 +1,14 @@
-module github.com/googlecloudplatform/gcsfuse/v2
+module github.com/googlecloudplatform/gcsfuse/v3
 
 go 1.24.0
 
 replace github.com/jacobsa/fuse => github.com/aditimittal2003/fuse v0.0.0-20250613141538-2add789fb48e
 
 require (
+	cloud.google.com/go/auth v0.16.1
 	cloud.google.com/go/compute/metadata v0.7.0
 	cloud.google.com/go/iam v1.5.2
+	cloud.google.com/go/profiler v0.4.3
 	cloud.google.com/go/secretmanager v1.14.7
 	cloud.google.com/go/storage v1.55.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.52.0
@@ -15,6 +17,7 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.2.1
 	github.com/google/uuid v1.6.0
 	github.com/googleapis/gax-go/v2 v2.14.2
+	github.com/googlecloudplatform/gcsfuse/v2 v2.12.2
 	github.com/jacobsa/daemonize v0.0.0-20240917082746-f35568b6c3ec
 	github.com/jacobsa/fuse v0.0.0-20250506064942-d10bfe4fb08e
 	github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd
@@ -56,7 +59,6 @@ require (
 require (
 	cel.dev/expr v0.24.0 // indirect
 	cloud.google.com/go v0.121.2 // indirect
-	cloud.google.com/go/auth v0.16.1 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/longrunning v0.6.7 // indirect
 	cloud.google.com/go/monitoring v1.24.2 // indirect
@@ -75,7 +77,7 @@ require (
 	github.com/go-jose/go-jose/v4 v4.1.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
+	github.com/google/pprof v0.0.0-20250602020802-c6617b811d0e // indirect
 	github.com/google/renameio/v2 v2.0.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
