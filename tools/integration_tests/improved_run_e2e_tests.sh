@@ -62,7 +62,6 @@ readonly INTEGRATION_TEST_PACKAGE_DIR="./tools/integration_tests"
 readonly INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS=60 
 readonly TMP_PREFIX="gcsfuse_e2e"
 readonly ZONAL_BUCKET_SUPPORTED_LOCATIONS=("us-central1" "us-west4")
-readonly PACKAGE_LEVEL_PARALLELISM=10 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
 readonly DELETE_BUCKET_PARALLELISM=10 # Controls how many buckets are deleted in parallel.
 # 6 second delay between creating buckets as both hns and flat runs create buckets in parallel.
 # Ref: https://cloud.google.com/storage/quotas#buckets
@@ -90,10 +89,11 @@ RUN_TESTS_WITH_PRESUBMIT_FLAG="false"
 RUN_TESTS_WITH_ZONAL_BUCKET="false"
 BUILD_BINARY_IN_SCRIPT="true"
 TRACK_RESOURCE_USAGE="false"
+PACKAGE_LEVEL_PARALLELISM=10 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
 
 # Define options for getopt
 # A long option name followed by a colon indicates it requires an argument.
-LONG=bucket-location:,test-installed-package,skip-non-essential-tests,no-build-binary-in-script,tpc-endpoint,presubmit,zonal,package-level-parallelism,track-resource-usage,help
+LONG=bucket-location:,test-installed-package,skip-non-essential-tests,no-build-binary-in-script,tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,help
 
 # Parse the options using getopt
 # --options "" specifies that there are no short options.
@@ -106,26 +106,14 @@ fi
 # Read the parsed options back into the positional parameters.
 eval set -- "$PARSED"
 
-# Validates option value to be non-empty and should not be another option name.
-validate_option_value() {
-  local option=$1
-  local value=$2
-  if [[ -z "$value" || "$value" == -* ]]; then
-    log_error "Invalid or empty value [$value] for option $option."
-    usage
-  fi
-}
-
 # Loop through the options and assign values to our variables
-while true; do
+while (( $# >= 1 )); do
     case "$1" in
         --bucket-location)
-            validate_option_value "$1" "$2"
             BUCKET_LOCATION="$2"
             shift 2
             ;;
         --package-level-parallelism)
-            validate_option_value "$1" "$2"
             PACKAGE_LEVEL_PARALLELISM="$2"
             shift 2
             ;;
@@ -165,11 +153,24 @@ while true; do
             break
             ;;
         *)
-            log_error "Programming error in option parsing."
-            exit 3
+            break
             ;;
     esac
 done
+
+# Validates option value to be non-empty and should not be another option name.
+validate_option_value() {
+  local option=$1
+  local value=$2
+  if [[ -z "$value" || "$value" == -* ]]; then
+    log_error "Invalid or empty value [$value] for option $option."
+    usage
+  fi
+}
+
+# Validate long options which require values.
+validate_option_value "--bucket-location" "$BUCKET_LOCATION"
+validate_option_value "--package-level-parallelism" "$PACKAGE_LEVEL_PARALLELISM"
 
 # Check for any leftover positional arguments
 if [[ "$#" -ne 0 ]]; then
