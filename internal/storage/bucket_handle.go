@@ -258,7 +258,8 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	wc := &ObjectWriter{obj.NewWriter(ctx)}
 	wc.ChunkSize = chunkSize
 	wc.Writer = storageutil.SetAttrsInWriter(wc.Writer, req)
-	wc.ChunkTransferTimeout = time.Duration(req.ChunkTransferTimeoutSecs) * time.Second
+	// TODO(b/424091803): Uncomment once chunk transfer timeout issue in resumable uploads is fixed in dependencies.
+	// wc.ChunkTransferTimeout = time.Duration(req.ChunkTransferTimeoutSecs) * time.Second
 	if callBack == nil {
 		callBack = func(bytesUploadedSoFar int64) {
 			logger.Tracef("gcs: Req %#16x: -- UploadBlock(%q): %20v bytes uploaded so far", ctx.Value(gcs.ReqIdField), req.Name, bytesUploadedSoFar)

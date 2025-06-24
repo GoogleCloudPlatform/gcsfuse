@@ -34,6 +34,8 @@ type Config struct {
 
 	EnableAtomicRenameObject bool `yaml:"enable-atomic-rename-object"`
 
+	EnableGoogleLibAuth bool `yaml:"enable-google-lib-auth"`
+
 	EnableHns bool `yaml:"enable-hns"`
 
 	EnableNewReader bool `yaml:"enable-new-reader"`
@@ -373,6 +375,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.BoolP("enable-google-lib-auth", "", false, "Enable google library authentication method to fetch the credentials")
+
+	if err := flagSet.MarkHidden("enable-google-lib-auth"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("enable-hns", "", true, "Enables support for HNS buckets")
 
 	if err := flagSet.MarkHidden("enable-hns"); err != nil {
@@ -387,11 +395,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.")
 
-	flagSet.BoolP("enable-read-stall-retry", "", false, "To turn on/off retries for stalled read requests. This is based on a timeout that changes depending on how long similar requests took in the past.")
-
-	if err := flagSet.MarkHidden("enable-read-stall-retry"); err != nil {
-		return err
-	}
+	flagSet.BoolP("enable-read-stall-retry", "", true, "To turn on/off retries for stalled read requests. This is based on a timeout that changes depending on how long similar requests took in the past.")
 
 	flagSet.BoolP("enable-streaming-writes", "", true, "Enables streaming uploads during write file operation.")
 
@@ -753,6 +757,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("list.enable-empty-managed-folders", flagSet.Lookup("enable-empty-managed-folders")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("enable-google-lib-auth", flagSet.Lookup("enable-google-lib-auth")); err != nil {
 		return err
 	}
 

@@ -1006,14 +1006,14 @@ func (f *FileInode) CreateEmptyTempFile(ctx context.Context) (err error) {
 
 // Initializes Buffered Write Handler if the file inode is eligible and returns
 // initialized as true when the new instance of buffered writer handler is created.
-func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context) (bool, error) {
+func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, openMode util.OpenMode) (bool, error) {
 	// bwh already initialized, do nothing.
 	if f.bwh != nil {
 		return false, nil
 	}
 
 	tempFileInUse := f.content != nil
-	if f.src.Size != 0 || !f.config.Write.EnableStreamingWrites || tempFileInUse {
+	if !f.config.Write.EnableStreamingWrites || tempFileInUse {
 		// bwh should not be initialized under these conditions.
 		return false, nil
 	}
@@ -1025,6 +1025,10 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context) (boo
 		if err != nil {
 			return false, err
 		}
+	}
+
+	if !f.areBufferedWritesSupported(openMode, latestGcsObj) {
+		return false, nil
 	}
 
 	if f.bwh == nil {
@@ -1048,4 +1052,18 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context) (boo
 		return true, nil
 	}
 	return false, nil
+}
+
+func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, obj *gcs.Object) bool {
+	// For new files and existing files of size 0, buffered writes are always supported.
+	if f.local || obj.Size == 0 {
+		return true
+	}
+	if !f.config.Write.ExperimentalEnableRapidAppends {
+		return false
+	}
+	if openMode == util.Append && f.bucket.BucketType().Zonal && obj.Finalized.IsZero() {
+		return true
+	}
+	return false
 }

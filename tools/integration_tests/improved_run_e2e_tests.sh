@@ -72,6 +72,7 @@ BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR=""
 LOG_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_logging_lock.XXXXXX") || { log_error "Unable to create lock file"; exit 1; }
 BUCKET_NAMES=$(mktemp "/tmp/${TMP_PREFIX}_bucket_names.XXXXXX") || { log_error "Unable to create bucket names file"; exit 1; }
 PACKAGE_RUNTIME_STATS=$(mktemp "/tmp/${TMP_PREFIX}_package_stats_runtime.XXXXXX") || { log_error "Unable to create package stats runtime file"; exit 1; }
+RESOURCE_USAGE_FILE=$(mktemp "/tmp/${TMP_PREFIX}_system_resource_usage.XXXXXX") || { log_error "Unable to create system resource usage file"; exit 1; }
 
 # Argument Parsing and Assignments
 if [ "$#" -lt 3 ]; then
@@ -134,6 +135,7 @@ TEST_PACKAGES_COMMON=(
   # "grpc_validation"
   "negative_stat_cache"
   "stale_handle"
+   "release_version"
 )
 
 # Test packages for regional buckets.
@@ -269,8 +271,24 @@ delete_bucket() {
   return 0
 }
 
+# Get command of the PID and check if it contains the string. Kill if it does.
+safe_kill() {
+  local pid=$1
+  local str=$2
+  local cmd
+
+  if [[ -n "$pid" && -n "$str" ]] && cmd=$(ps -p "$pid" -o cmd=) && [[ "$cmd" == *"$str"* ]]; then
+    kill "$pid"
+  else
+    return 1
+  fi
+}
+
 # Cleanup ensures each of the buckets created is destroyed and the temp files are cleaned up.
 clean_up() {
+  if ! safe_kill "$RESOURCE_USAGE_PID" "resource_usage.sh"; then
+    log_error "Failed to stop resource usage collection process (or it's already stopped): $RESOURCE_USAGE_PID"
+  fi
   if [ -n "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}" ] && [ -d "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}" ]; then
     log_info "Cleaning up GCSFuse build directory created by script: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
     rm -rf "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
@@ -433,7 +451,7 @@ build_gcsfuse_once() {
   log_info "Using GCSFuse source directory: ${gcsfuse_src_dir}"
 
   log_info "Building GCSFuse using 'go run ./tools/build_gcsfuse/main.go'..."
-  (cd "${gcsfuse_src_dir}" && go run ./tools/build_gcsfuse/main.go . "${build_output_dir}" "e2e-$(date +%s)")
+  (cd "${gcsfuse_src_dir}" && go run ./tools/build_gcsfuse/main.go . "${build_output_dir}" "0.0.0")
   if [ $? -ne 0 ]; then
     log_error "Building GCSFuse binaries using 'go run ./tools/build_gcsfuse/main.go' failed."
     rm -rf "${build_output_dir}" # Clean up created temp dir
@@ -530,9 +548,16 @@ main() {
     fi
     log_info "Script built GCSFuse at: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
   fi
-    
+
   # Reset SECONDS to 0
   SECONDS=0
+
+  # Start collecting system resource usage in background.
+  log_info "Starting resource usage collection process."
+  ./tools/integration_tests/resource_usage.sh "COLLECT" "$RESOURCE_USAGE_FILE" &
+  RESOURCE_USAGE_PID=$!
+  log_info "Resource usage collection process started at PID: $RESOURCE_USAGE_PID"
+
   local pids=()
   local overall_exit_code=0
   if [[ "${RUN_TESTS_WITH_ZONAL_BUCKET}" == "true" ]]; then
@@ -556,7 +581,18 @@ main() {
   elapsed_min=$(((SECONDS + 60) / 60))
   log_info "------ E2E test packages complete run took ${elapsed_min} minutes ------"
   log_info ""
+
+  # Print package runtime stats table.
   ./tools/integration_tests/create_package_runtime_table.sh "$PACKAGE_RUNTIME_STATS"
+
+  # Kill resource usage background PID and print resource usage.
+  log_info "Stopping resource usage collection process: $RESOURCE_USAGE_PID"
+  if safe_kill "$RESOURCE_USAGE_PID" "resource_usage.sh"; then
+    log_info "Resource usage collection process stopped."
+    ./tools/integration_tests/resource_usage.sh "PRINT" "$RESOURCE_USAGE_FILE"
+  else
+    log_error "Failed to stop resource usage collection process (or it's already stopped)"
+  fi
   exit $overall_exit_code
 }
 

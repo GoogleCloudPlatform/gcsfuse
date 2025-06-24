@@ -31,7 +31,7 @@ type Block interface {
 	Size() int64
 
 	// Write writes the given data to block.
-	Write(bytes []byte) error
+	Write(bytes []byte) (n int, err error)
 
 	// Reader interface helps in copying the data directly to storage.writer
 	// while uploading to GCS.
@@ -62,18 +62,18 @@ func (m *memoryBlock) Reuse() {
 func (m *memoryBlock) Size() int64 {
 	return m.offset.end - m.offset.start
 }
-func (m *memoryBlock) Write(bytes []byte) error {
+func (m *memoryBlock) Write(bytes []byte) (int, error) {
 	if m.Size()+int64(len(bytes)) > int64(cap(m.buffer)) {
-		return fmt.Errorf("received data more than capacity of the block")
+		return 0, fmt.Errorf("received data more than capacity of the block")
 	}
 
 	n := copy(m.buffer[m.offset.end:], bytes)
 	if n != len(bytes) {
-		return fmt.Errorf("error in copying the data to block. Expected %d, got %d", len(bytes), n)
+		return 0, fmt.Errorf("error in copying the data to block. Expected %d, got %d", len(bytes), n)
 	}
 
 	m.offset.end += int64(len(bytes))
-	return nil
+	return n, nil
 }
 
 func (m *memoryBlock) Reader() io.Reader {

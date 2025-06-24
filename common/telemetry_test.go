@@ -21,6 +21,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 func TestJoinShutdownFunc(t *testing.T) {
@@ -88,8 +91,8 @@ func TestJoinShutdownFunc(t *testing.T) {
 }
 
 type int64DataPoint struct {
-	v     int64
-	attrs []MetricAttr
+	v    int64
+	attr metric.MeasurementOption
 }
 
 type fakeMetricHandle struct {
@@ -98,17 +101,17 @@ type fakeMetricHandle struct {
 	GCSDownloadBytesCounter []int64DataPoint
 }
 
-func (f *fakeMetricHandle) GCSReadCount(ctx context.Context, inc int64, attrs []MetricAttr) {
+func (f *fakeMetricHandle) GCSReadCount(ctx context.Context, inc int64, readType string) {
 	f.GCSReadBytesCounter = append(f.GCSReadBytesCounter, int64DataPoint{
-		v:     inc,
-		attrs: attrs,
+		v:    inc,
+		attr: metric.WithAttributes(attribute.String("read_type", readType)),
 	})
 }
 
-func (f *fakeMetricHandle) GCSDownloadBytesCount(ctx context.Context, requestedDataSize int64, attrs []MetricAttr) {
+func (f *fakeMetricHandle) GCSDownloadBytesCount(ctx context.Context, requestedDataSize int64, readType string) {
 	f.GCSDownloadBytesCounter = append(f.GCSDownloadBytesCounter, int64DataPoint{
-		v:     requestedDataSize,
-		attrs: attrs,
+		v:    requestedDataSize,
+		attr: metric.WithAttributes(attribute.String("read_type", readType)),
 	})
 }
 
@@ -121,11 +124,11 @@ func TestCaptureGCSReadMetrics(t *testing.T) {
 	require.Len(t, metricHandle.GCSReadBytesCounter, 1)
 	require.Len(t, metricHandle.GCSDownloadBytesCounter, 1)
 	assert.Equal(t, metricHandle.GCSReadBytesCounter[0], int64DataPoint{
-		v:     1,
-		attrs: []MetricAttr{{Key: ReadType, Value: "Sequential"}},
+		v:    1,
+		attr: metric.WithAttributes(attribute.String("read_type", "Sequential")),
 	})
 	assert.Equal(t, metricHandle.GCSDownloadBytesCounter[0], int64DataPoint{
-		v:     64,
-		attrs: []MetricAttr{{Key: ReadType, Value: "Sequential"}},
+		v:    64,
+		attr: metric.WithAttributes(attribute.String("read_type", "Sequential")),
 	})
 }
