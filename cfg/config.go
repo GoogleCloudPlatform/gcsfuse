@@ -114,6 +114,8 @@ type FileSystemConfig struct {
 
 	DisableParallelDirops bool `yaml:"disable-parallel-dirops"`
 
+	ExperimentalEnableEntryTimeout bool `yaml:"experimental-enable-entry-timeout"`
+
 	ExperimentalEnableReaddirplus bool `yaml:"experimental-enable-readdirplus"`
 
 	FileMode Octal `yaml:"file-mode"`
@@ -400,6 +402,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("enable-read-stall-retry", "", true, "To turn on/off retries for stalled read requests. This is based on a timeout that changes depending on how long similar requests took in the past.")
 
 	flagSet.BoolP("enable-streaming-writes", "", true, "Enables streaming uploads during write file operation.")
+
+	flagSet.BoolP("experimental-enable-entry-timeout", "", false, "Enables timeout-controlled caching of entries in the name lookup cache.")
+
+	if err := flagSet.MarkHidden("experimental-enable-entry-timeout"); err != nil {
+		return err
+	}
 
 	flagSet.BoolP("experimental-enable-json-read", "", false, "By default, GCSFuse uses the GCS XML API to get and read objects. When this flag is specified, GCSFuse uses the GCS JSON API instead.\"")
 
@@ -789,6 +797,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("write.enable-streaming-writes", flagSet.Lookup("enable-streaming-writes")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.experimental-enable-entry-timeout", flagSet.Lookup("experimental-enable-entry-timeout")); err != nil {
 		return err
 	}
 

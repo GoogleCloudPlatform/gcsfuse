@@ -190,6 +190,13 @@
   default: false
   hide-flag: true
 
+- config-path: "file-system.experimental-enable-entry-timeout"
+  flag-name: "experimental-enable-entry-timeout"
+  type: "bool"
+  usage: "Enables timeout-controlled caching of entries in the name lookup cache."
+  default: false
+  hide-flag: true
+
 - config-path: "file-system.experimental-enable-readdirplus"
   flag-name: "experimental-enable-readdirplus"
   type: "bool"
