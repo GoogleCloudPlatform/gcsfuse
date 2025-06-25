@@ -23,6 +23,7 @@ import (
 	"sync"
 	"syscall"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
@@ -96,16 +97,20 @@ func (t *unfinalizedObjectReads) Test_ReadUnfinalizedWithNoActiveAppends_RandomR
 	sem := make(chan struct{}, maxParallelReads)
 
 	// Read unfinalized object in random chunks.
-	for range numReads {
+	for i := range numReads {
 		wg.Add(1)
 		// Acquire a token. This will block if the semaphore is full.
 		sem <- struct{}{}
-		go func() {
+		go func(i int) {
 			defer wg.Done()
 			// Release the token back to the semaphore.
 			defer func() { <-sem }()
-			readChunkSize := 1 + rand.Int63n(maxReadChunkSize-1)
-			readOffset := rand.Int63n(fileSize - readChunkSize)
+
+			// Create a new random source for each goroutine to avoid lock contention
+			// on the global rand source.
+			r := rand.New(rand.NewSource(time.Now().UnixNano() + int64(i)))
+			readChunkSize := 1 + r.Int63n(maxReadChunkSize-1)
+			readOffset := r.Int63n(fileSize - readChunkSize)
 
 			readContent, err := operations.ReadChunkFromFile(path.Join(t.testDirPath, t.fileName), readChunkSize, readOffset, os.O_RDONLY|syscall.O_DIRECT)
 
@@ -113,7 +118,7 @@ func (t *unfinalizedObjectReads) Test_ReadUnfinalizedWithNoActiveAppends_RandomR
 			require.NoErrorf(t.T(), err, "Failed to read %q from [%09d, %09d]: %v", fullFilePath, readOffset, readOffset+readChunkSize, err)
 			expectedContent := t.content[readOffset:endOffset]
 			assert.Equalf(t.T(), string(readContent), expectedContent, "Read of %q from [%09d, %09d] failed with content mismatch.", fullFilePath, readOffset, readOffset+readChunkSize)
-		}()
+		}(i)
 	}
 	// Wait for all concurrent reads to complete.
 	wg.Wait()
