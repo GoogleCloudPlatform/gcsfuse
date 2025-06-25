@@ -29,7 +29,6 @@ import (
 	cacheUtil "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/jacobsa/fuse/fuseops"
 )
 
@@ -119,9 +118,9 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 
 		logger.Tracef("%.13v -> %s", requestID, requestOutput)
 
-		readType := util.Random
+		readType := common.ReadTypeRandom
 		if isSequential {
-			readType = util.Sequential
+			readType = common.ReadTypeSequential
 		}
 		captureFileCacheMetrics(ctx, fc.metricHandle, readType, bytesRead, cacheHit, executionTime)
 	}()
