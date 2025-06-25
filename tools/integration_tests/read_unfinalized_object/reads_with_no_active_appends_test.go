@@ -17,7 +17,10 @@ package unfinalized_object
 import (
 	"context"
 	"log"
+	"math/rand"
+	"os"
 	"path"
+	"syscall"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -47,8 +50,6 @@ type unfinalizedObjectReads struct {
 func (t *unfinalizedObjectReads) SetupTest() {
 	t.testDirPath = client.SetupTestDirectory(t.ctx, t.storageClient, testDirName)
 	t.fileName = path.Base(t.T().Name()) + setup.GenerateRandomString(5)
-	var size int = operations.MiB
-	t.content = setup.GenerateRandomString(size)
 }
 
 func (t *unfinalizedObjectReads) TeardownTest() {}
@@ -56,8 +57,9 @@ func (t *unfinalizedObjectReads) TeardownTest() {}
 // //////////////////////////////////////////////////////////////////////
 // Helpers
 // //////////////////////////////////////////////////////////////////////
-func (t *unfinalizedObjectReads) createUnfinalizedObject() {
+func (t *unfinalizedObjectReads) createUnfinalizedObject(size int64) {
 	t.T().Helper()
+	t.content = setup.GenerateRandomString(int(size))
 	// Create un-finalized object via same mount.
 	fh := operations.CreateFile(path.Join(t.testDirPath, t.fileName), setup.FilePermission_0600, t.T())
 	operations.WriteWithoutClose(fh, t.content, t.T())
@@ -68,14 +70,34 @@ func (t *unfinalizedObjectReads) createUnfinalizedObject() {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (t *unfinalizedObjectReads) TestUnfinalizedObjectsCanBeRead() {
-	t.createUnfinalizedObject()
+func (t *unfinalizedObjectReads) Test_ReadUnfinalizedWithNoActiveAppends_SequentialRead() {
+	t.createUnfinalizedObject(100 * util.MiB)
 
 	// Read un-finalized object.
 	readContent, err := operations.ReadFileSequentially(path.Join(t.testDirPath, t.fileName), util.MiB)
 
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), t.content, string(readContent))
+}
+
+func (t *unfinalizedObjectReads) Test_ReadUnfinalizedWithNoActiveAppends_RandomRead() {
+	fileSize := int64(500 * util.MiB)
+	t.createUnfinalizedObject(fileSize)
+
+	// Read un-finalized object.
+	for numRandomReadsRemaining := 100; numRandomReadsRemaining > 0; numRandomReadsRemaining-- {
+		readSize := rand.Int63n(200 * util.MiB)
+		offset := rand.Int63n(fileSize - readSize)
+		endOffset := offset + readSize
+
+		t.T().Logf("Testing reading chunk from [%09d,%09d) ...", offset, offset+readSize)
+		readContent, err := operations.ReadChunkFromFile(path.Join(t.testDirPath, t.fileName), readSize, offset, os.O_RDONLY|syscall.O_DIRECT)
+
+		require.NoError(t.T(), err)
+		require.Equal(t.T(), int64(len(readContent)), readSize)
+		expectedContent := t.content[offset:endOffset]
+		require.Equal(t.T(), string(readContent), expectedContent)
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
