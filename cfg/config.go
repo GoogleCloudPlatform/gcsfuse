@@ -114,7 +114,7 @@ type FileSystemConfig struct {
 
 	DisableParallelDirops bool `yaml:"disable-parallel-dirops"`
 
-	ExperimentalEnableEntryTimeout bool `yaml:"experimental-enable-entry-timeout"`
+	ExperimentalEnableDentryCache bool `yaml:"experimental-enable-dentry-cache"`
 
 	ExperimentalEnableReaddirplus bool `yaml:"experimental-enable-readdirplus"`
 
@@ -403,9 +403,9 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-streaming-writes", "", true, "Enables streaming uploads during write file operation.")
 
-	flagSet.BoolP("experimental-enable-entry-timeout", "", false, "Enables timeout-controlled caching of entries in the name lookup cache.")
+	flagSet.BoolP("experimental-enable-dentry-cache", "", false, "When enabled, it sets the Dentry cache entry timeout same as metadata-cache-ttl. This enables kernel to use cached entry to map the file paths to inodes, instead of making LookUpInode calls to GCSFuse.")
 
-	if err := flagSet.MarkHidden("experimental-enable-entry-timeout"); err != nil {
+	if err := flagSet.MarkHidden("experimental-enable-dentry-cache"); err != nil {
 		return err
 	}
 
@@ -800,7 +800,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("file-system.experimental-enable-entry-timeout", flagSet.Lookup("experimental-enable-entry-timeout")); err != nil {
+	if err := v.BindPFlag("file-system.experimental-enable-dentry-cache", flagSet.Lookup("experimental-enable-dentry-cache")); err != nil {
 		return err
 	}
 
