@@ -45,7 +45,7 @@ Here is an [example](https://github.com/GoogleCloudPlatform/cluster-toolkit/blob
   * For TPU-based workloads, using a RAM disk for the file cache can provide a significant speed advantage.  
 * **Metadata Cache TTL:**
 
-  * The sample configurations may use a long or infinite Time-to-Live (TTL) for the metadata cache. While this can improve performance for static datasets, be aware of the implications. More details can be found [here](https://cloud.google.com/storage/docs/cloud-storage-fuse/performance#increase-metadata-cache-values).
+  * The sample configurations may use a long or infinite Time-to-Live (TTL) for the metadata cache and there might be consistency implications. More details can be found [here](https://cloud.google.com/storage/docs/cloud-storage-fuse/performance#increase-metadata-cache-values).
 * **Pre-populating Metadata Cache:**
 
   * To improve the performance of subsequent file and directory lookups, you can pre-populate the metadata cache after mounting the bucket by running the following command. More details can be found [here](https://cloud.google.com/storage/docs/cloud-storage-fuse/performance#pre-populate-the-metadata-cache):
