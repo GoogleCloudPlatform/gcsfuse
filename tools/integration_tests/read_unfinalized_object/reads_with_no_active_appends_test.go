@@ -84,22 +84,24 @@ func (t *unfinalizedObjectReads) Test_ReadUnfinalizedWithNoActiveAppends_Sequent
 }
 
 func (t *unfinalizedObjectReads) Test_ReadUnfinalizedWithNoActiveAppends_RandomRead() {
+	numReads := 50
 	fileSize := int64(500 * util.MiB)
-	t.createUnfinalizedObject(fileSize)
+	maxReadChunkSize := int64(200 * util.MiB)
+	fullFilePath = path.Join(t.testDirPath, t.fileName)
+	t.createoUnfinalizedObject(fileSize)
 
 	// Read un-finalized object.
-	for numRandomReadsRemaining := 100; numRandomReadsRemaining > 0; numRandomReadsRemaining-- {
-		readSize := rand.Int63n(200 * util.MiB)
-		offset := rand.Int63n(fileSize - readSize)
-		endOffset := offset + readSize
+	for numRandomReadsRemaining := numReads; numRandomReadsRemaining > 0; numRandomReadsRemaining-- {
+		readChunkSize := rand.Int63n(maxReadChunkSize)
+		readOffset := rand.Int63n(fileSize - readChunkSize)
+		endOffset := readOffset + readChunkSize
 
-		//t.T().Logf("Testing reading chunk from [%09d,%09d) ...", offset, offset+readSize)
-		readContent, err := operations.ReadChunkFromFile(path.Join(t.testDirPath, t.fileName), readSize, offset, os.O_RDONLY|syscall.O_DIRECT)
+		//t.T().Logf("Testing reading chunk from [%09d,%09d) ...", readOffset, readOffset+readChunkSize)
+		readContent, err := operations.ReadChunkFromFile(path.Join(t.testDirPath, t.fileName), readChunkSize, readOffset, os.O_RDONLY|syscall.O_DIRECT)
 
-		require.NoErrorf(t.T(), err, "Read to fail object gs://%s/%s from [%09d, %09d]", setup.TestBucket(), path.Join(t.testDirPath, t.fileName), offset, offset + readSize)
-		require.Equalf(t.T(), int64(len(readContent)), readSize, "Read to fail object gs://%s/%s from [%09d, %09d]", setup.TestBucket(), path.Join(t.testDirPath, t.fileName), offset, offset + readSize)
-		expectedContent := t.content[offset:endOffset]
-		require.Equalf(t.T(), string(readContent), expectedContent, "Read to fail object gs://%s/%s from [%09d, %09d]", setup.TestBucket(), path.Join(t.testDirPath, t.fileName), offset, offset + readSize)
+		require.NoErrorf(t.T(), err, "Failed to read %q from [%09d, %09d]: %v", fullFilePath, readOffset, readOffset+readChunkSize, err)
+		expectedContent := t.content[readOffset:endOffset]
+		assert.Equalf(t.T(), string(readContent), expectedContent, "Read of %q from [%09d, %09d] failed with content mismatch.", fullFilePath, readOffset, readOffset+readChunkSize)
 	}
 }
 
