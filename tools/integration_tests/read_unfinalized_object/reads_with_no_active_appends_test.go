@@ -87,18 +87,17 @@ func (t *unfinalizedObjectReads) Test_ReadUnfinalizedWithNoActiveAppends_RandomR
 	numReads := 50
 	fileSize := int64(500 * util.MiB)
 	maxReadChunkSize := int64(200 * util.MiB)
-	fullFilePath = path.Join(t.testDirPath, t.fileName)
-	t.createoUnfinalizedObject(fileSize)
+	fullFilePath := path.Join(t.testDirPath, t.fileName)
+	t.createUnfinalizedObject(fileSize)
 
-	// Read un-finalized object.
-	for numRandomReadsRemaining := numReads; numRandomReadsRemaining > 0; numRandomReadsRemaining-- {
-		readChunkSize := rand.Int63n(maxReadChunkSize)
+	// Read unfinalized object in random chunks.
+	for range numReads {
+		readChunkSize := 1 + rand.Int63n(maxReadChunkSize-1)
 		readOffset := rand.Int63n(fileSize - readChunkSize)
-		endOffset := readOffset + readChunkSize
 
-		//t.T().Logf("Testing reading chunk from [%09d,%09d) ...", readOffset, readOffset+readChunkSize)
 		readContent, err := operations.ReadChunkFromFile(path.Join(t.testDirPath, t.fileName), readChunkSize, readOffset, os.O_RDONLY|syscall.O_DIRECT)
 
+		endOffset := readOffset + readChunkSize
 		require.NoErrorf(t.T(), err, "Failed to read %q from [%09d, %09d]: %v", fullFilePath, readOffset, readOffset+readChunkSize, err)
 		expectedContent := t.content[readOffset:endOffset]
 		assert.Equalf(t.T(), string(readContent), expectedContent, "Read of %q from [%09d, %09d] failed with content mismatch.", fullFilePath, readOffset, readOffset+readChunkSize)
