@@ -112,7 +112,7 @@ type FileSystemConfig struct {
 
 	DisableParallelDirops bool `yaml:"disable-parallel-dirops"`
 
-	EnableReaddirplus bool `yaml:"enable-readdirplus"`
+	ExperimentalEnableReaddirplus bool `yaml:"experimental-enable-readdirplus"`
 
 	FileMode Octal `yaml:"file-mode"`
 
@@ -397,17 +397,17 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-read-stall-retry", "", true, "To turn on/off retries for stalled read requests. This is based on a timeout that changes depending on how long similar requests took in the past.")
 
-	flagSet.BoolP("enable-readdirplus", "", false, "This flag is used to enable ReadDirPlus capability")
-
-	if err := flagSet.MarkHidden("enable-readdirplus"); err != nil {
-		return err
-	}
-
 	flagSet.BoolP("enable-streaming-writes", "", true, "Enables streaming uploads during write file operation.")
 
 	flagSet.BoolP("experimental-enable-json-read", "", false, "By default, GCSFuse uses the GCS XML API to get and read objects. When this flag is specified, GCSFuse uses the GCS JSON API instead.\"")
 
 	if err := flagSet.MarkDeprecated("experimental-enable-json-read", "Experimental flag: could be dropped even in a minor release."); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("experimental-enable-readdirplus", "", false, "Experimental: Enables ReadDirPlus capability")
+
+	if err := flagSet.MarkHidden("experimental-enable-readdirplus"); err != nil {
 		return err
 	}
 
@@ -780,15 +780,15 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("file-system.enable-readdirplus", flagSet.Lookup("enable-readdirplus")); err != nil {
-		return err
-	}
-
 	if err := v.BindPFlag("write.enable-streaming-writes", flagSet.Lookup("enable-streaming-writes")); err != nil {
 		return err
 	}
 
 	if err := v.BindPFlag("gcs-connection.experimental-enable-json-read", flagSet.Lookup("experimental-enable-json-read")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.experimental-enable-readdirplus", flagSet.Lookup("experimental-enable-readdirplus")); err != nil {
 		return err
 	}
 
