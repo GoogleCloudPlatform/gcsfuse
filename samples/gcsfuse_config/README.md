@@ -58,7 +58,8 @@ Here is an [example](https://github.com/GoogleCloudPlatform/cluster-toolkit/blob
   * The `read-ahead-kb` flag controls the size of kernel read-ahead buffer which in turns impacts number of requests to GCSFuse. Tuning this value can significantly improve performance for sequential reads of large files.
   * A good starting point for `read-ahead-kb` is to set it to a value slightly larger than the average read size of your application. Typical recommendation is to set it to `1024`.  
 ```
-     sudo sh -c 'echo 1024 > /sys/block/sda/queue/read_ahead_kb'
+      export GCSFUSEMOUNT=/your/container/mountpoint
+      echo 1024 | sudo tee /sys/class/bdi/0:$(stat -c "%d" $GCSFUSEMOUNT)/read_ahead_kb
 ```
 
 
