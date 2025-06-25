@@ -20,6 +20,7 @@ import (
 	"math/rand"
 	"os"
 	"path"
+	"sync"
 	"syscall"
 	"testing"
 
@@ -89,19 +90,33 @@ func (t *unfinalizedObjectReads) Test_ReadUnfinalizedWithNoActiveAppends_RandomR
 	maxReadChunkSize := int64(200 * util.MiB)
 	fullFilePath := path.Join(t.testDirPath, t.fileName)
 	t.createUnfinalizedObject(fileSize)
+	maxParallelReads := 10
+	var wg sync.WaitGroup
+	// Use a buffered channel as a semaphore to limit concurrent reads.
+	sem := make(chan struct{}, maxParallelReads)
 
 	// Read unfinalized object in random chunks.
 	for range numReads {
-		readChunkSize := 1 + rand.Int63n(maxReadChunkSize-1)
-		readOffset := rand.Int63n(fileSize - readChunkSize)
+		wg.Add(1)
+		// Acquire a token. This will block if the semaphore is full.
+		sem <- struct{}{}
+		go func() {
+			defer wg.Done()
+			// Release the token back to the semaphore.
+			defer func() { <-sem }()
+			readChunkSize := 1 + rand.Int63n(maxReadChunkSize-1)
+			readOffset := rand.Int63n(fileSize - readChunkSize)
 
-		readContent, err := operations.ReadChunkFromFile(path.Join(t.testDirPath, t.fileName), readChunkSize, readOffset, os.O_RDONLY|syscall.O_DIRECT)
+			readContent, err := operations.ReadChunkFromFile(path.Join(t.testDirPath, t.fileName), readChunkSize, readOffset, os.O_RDONLY|syscall.O_DIRECT)
 
-		endOffset := readOffset + readChunkSize
-		require.NoErrorf(t.T(), err, "Failed to read %q from [%09d, %09d]: %v", fullFilePath, readOffset, readOffset+readChunkSize, err)
-		expectedContent := t.content[readOffset:endOffset]
-		assert.Equalf(t.T(), string(readContent), expectedContent, "Read of %q from [%09d, %09d] failed with content mismatch.", fullFilePath, readOffset, readOffset+readChunkSize)
+			endOffset := readOffset + readChunkSize
+			require.NoErrorf(t.T(), err, "Failed to read %q from [%09d, %09d]: %v", fullFilePath, readOffset, readOffset+readChunkSize, err)
+			expectedContent := t.content[readOffset:endOffset]
+			assert.Equalf(t.T(), string(readContent), expectedContent, "Read of %q from [%09d, %09d] failed with content mismatch.", fullFilePath, readOffset, readOffset+readChunkSize)
+		}()
 	}
+	// Wait for all concurrent reads to complete.
+	wg.Wait()
 }
 
 ////////////////////////////////////////////////////////////////////////
