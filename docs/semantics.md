@@ -182,7 +182,7 @@ Warnings:
   - The mounted bucket is never modified.
   - The mounted bucket is only modified on a single machine, via a single Cloud Storage FUSE mount.
   - The mounted bucket is modified by multiple actors, but the user is confident that they don't need the guarantees discussed in this document.
-- On high end machines GCSFuse sets TTL to infinite by default (link to the cloud doc). Please override it manually if your workload requires consistency guarantees.
+- On high end machines GCSFuse sets TTL to infinite by default ([refer](https://cloud.google.com/storage/docs/cloud-storage-fuse/caching#cache-invalidation)). Please override it manually if your workload requires consistency guarantees.
 
 ## Type caching
 
