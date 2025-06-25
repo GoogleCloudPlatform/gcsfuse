@@ -104,7 +104,7 @@ const (
 
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper, config *cfg.ReadConfig) RandomReader {
+func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper, config *cfg.Config) RandomReader {
 	return &randomReader{
 		object:                o,
 		bucket:                bucket,
@@ -175,7 +175,7 @@ type randomReader struct {
 
 	metricHandle common.MetricHandle
 
-	config *cfg.ReadConfig
+	config *cfg.Config
 
 	// Specifies the next expected offset for the reads. Used to distinguish between
 	// sequential and random reads.
@@ -425,28 +425,30 @@ func (rr *randomReader) Destroy() {
 func (rr *randomReader) readFull(
 	ctx context.Context,
 	p []byte) (n int, err error) {
-	// Start a goroutine that will cancel the read operation we block on below if
-	// the calling context is cancelled, but only if this method has not already
-	// returned (to avoid souring the reader for the next read if this one is
-	// successful, since the calling context will eventually be cancelled).
-	readDone := make(chan struct{})
-	defer close(readDone)
+	if rr.config != nil && !rr.config.FileSystem.IgnoreInterrupts {
+		// Start a goroutine that will cancel the read operation we block on below if
+		// the calling context is cancelled, but only if this method has not already
+		// returned (to avoid souring the reader for the next read if this one is
+		// successful, since the calling context will eventually be cancelled).
+		readDone := make(chan struct{})
+		defer close(readDone)
 
-	go func() {
-		select {
-		case <-readDone:
-			return
-
-		case <-ctx.Done():
+		go func() {
 			select {
 			case <-readDone:
 				return
 
-			default:
-				rr.cancel()
+			case <-ctx.Done():
+				select {
+				case <-readDone:
+					return
+
+				default:
+					rr.cancel()
+				}
 			}
-		}
-	}()
+		}()
+	}
 
 	// Call through.
 	n, err = io.ReadFull(rr.reader, p)
@@ -461,7 +463,7 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 	// Begin the read.
 	ctx, cancel := context.WithCancel(context.Background())
 
-	if rr.config != nil && rr.config.InactiveStreamTimeout > 0 {
+	if rr.config != nil && rr.config.Read.InactiveStreamTimeout > 0 {
 		rr.reader, err = NewInactiveTimeoutReader(
 			ctx,
 			rr.bucket,
@@ -471,7 +473,7 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 				Start: uint64(start),
 				Limit: uint64(end),
 			},
-			rr.config.InactiveStreamTimeout)
+			rr.config.Read.InactiveStreamTimeout)
 	} else {
 		rr.reader, err = rr.bucket.NewReaderWithReadHandle(
 			ctx,
