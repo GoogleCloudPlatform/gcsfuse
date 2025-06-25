@@ -44,6 +44,7 @@ type unfinalizedObjectReads struct {
 	testDirPath   string
 	fileName      string
 	content       string
+	cacheDir      string
 	suite.Suite
 }
 
@@ -52,7 +53,9 @@ func (t *unfinalizedObjectReads) SetupTest() {
 	t.fileName = path.Base(t.T().Name()) + setup.GenerateRandomString(5)
 }
 
-func (t *unfinalizedObjectReads) TeardownTest() {}
+func (t *unfinalizedObjectReads) TeardownTest() {
+	os.RemoveAll(path.Join(t.testDirPath, t.fileName))
+}
 
 // //////////////////////////////////////////////////////////////////////
 // Helpers
@@ -90,13 +93,13 @@ func (t *unfinalizedObjectReads) Test_ReadUnfinalizedWithNoActiveAppends_RandomR
 		offset := rand.Int63n(fileSize - readSize)
 		endOffset := offset + readSize
 
-		t.T().Logf("Testing reading chunk from [%09d,%09d) ...", offset, offset+readSize)
+		//t.T().Logf("Testing reading chunk from [%09d,%09d) ...", offset, offset+readSize)
 		readContent, err := operations.ReadChunkFromFile(path.Join(t.testDirPath, t.fileName), readSize, offset, os.O_RDONLY|syscall.O_DIRECT)
 
-		require.NoError(t.T(), err)
-		require.Equal(t.T(), int64(len(readContent)), readSize)
+		require.NoErrorf(t.T(), err, "Read to fail object gs://%s/%s from [%09d, %09d]", setup.TestBucket(), path.Join(t.testDirPath, t.fileName), offset, offset + readSize)
+		require.Equalf(t.T(), int64(len(readContent)), readSize, "Read to fail object gs://%s/%s from [%09d, %09d]", setup.TestBucket(), path.Join(t.testDirPath, t.fileName), offset, offset + readSize)
 		expectedContent := t.content[offset:endOffset]
-		require.Equal(t.T(), string(readContent), expectedContent)
+		require.Equalf(t.T(), string(readContent), expectedContent, "Read to fail object gs://%s/%s from [%09d, %09d]", setup.TestBucket(), path.Join(t.testDirPath, t.fileName), offset, offset + readSize)
 	}
 }
 
@@ -121,19 +124,25 @@ func TestUnfinalizedObjectReadTest(t *testing.T) {
 		return
 	}
 
+	ts.cacheDir = path.Join("/tmp", "gcsfuse-cachedir-"+setup.GenerateRandomString(5))
+
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
 		{"--metadata-cache-ttl-secs=0"},
+		{"--metadata-cache-ttl-secs=0", "--cache-dir=" + ts.cacheDir, "--file-cache-max-size-mb=-1", "--file-cache-cache-file-for-range-read=true"},
 		{"--metadata-cache-ttl-secs=300"},
+		{"--metadata-cache-ttl-secs=300", "--cache-dir=" + ts.cacheDir, "--file-cache-max-size-mb=-1", "--file-cache-cache-file-for-range-read=true"},
 	}
 
 	// Run tests.
 	for _, flags := range flagsSet {
 		ts.flags = flags
+		os.Mkdir(ts.cacheDir, setup.DirPermission_0755)
 		setup.MountGCSFuseWithGivenMountFunc(ts.flags, mountFunc)
 		log.Printf("Running tests with flags: %s", ts.flags)
 		suite.Run(t, ts)
 		setup.SaveGCSFuseLogFileInCaseOfFailure(t)
 		setup.UnmountGCSFuseAndDeleteLogFile(setup.MntDir())
+		os.RemoveAll(ts.cacheDir)
 	}
 }
