@@ -34,10 +34,9 @@ func assertThat(
 // it halts the currently running test immediately. It is thus useful for
 // things like bounds checking:
 //
-//     someSlice := [...]
-//     AssertEq(1, len(someSlice))  // Protects next line from panicking.
-//     ExpectEq("taco", someSlice[0])
-//
+//	someSlice := [...]
+//	AssertEq(1, len(someSlice))  // Protects next line from panicking.
+//	ExpectEq("taco", someSlice[0])
 func AssertThat(
 	x interface{},
 	m oglematchers.Matcher,

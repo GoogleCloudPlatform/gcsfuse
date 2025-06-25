@@ -23,8 +23,7 @@ import (
 
 // Is the type comparable according to the definition here?
 //
-//     http://weekly.golang.org/doc/go_spec.html#Comparison_operators
-//
+//	http://weekly.golang.org/doc/go_spec.html#Comparison_operators
 func isComparable(t reflect.Type) bool {
 	switch t.Kind() {
 	case reflect.Array:

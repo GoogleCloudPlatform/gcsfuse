@@ -21,31 +21,30 @@
 //
 // For example:
 //
-//     ////////////////////////////////////////////////////////////////////////
-//     // testing package test
-//     ////////////////////////////////////////////////////////////////////////
+//	////////////////////////////////////////////////////////////////////////
+//	// testing package test
+//	////////////////////////////////////////////////////////////////////////
 //
-//     someStr, err := ComputeSomeString()
-//     if err != nil {
-//       t.Errorf("ComputeSomeString: expected nil error, got %v", err)
-//     }
+//	someStr, err := ComputeSomeString()
+//	if err != nil {
+//	  t.Errorf("ComputeSomeString: expected nil error, got %v", err)
+//	}
 //
-//     !strings.Contains(someStr, "foo") {
-//       t.Errorf("ComputeSomeString: expected substring foo, got %v", someStr)
-//     }
+//	!strings.Contains(someStr, "foo") {
+//	  t.Errorf("ComputeSomeString: expected substring foo, got %v", someStr)
+//	}
 //
-//     ////////////////////////////////////////////////////////////////////////
-//     // ogletest test
-//     ////////////////////////////////////////////////////////////////////////
+//	////////////////////////////////////////////////////////////////////////
+//	// ogletest test
+//	////////////////////////////////////////////////////////////////////////
 //
-//     someStr, err := ComputeSomeString()
-//     ExpectEq(nil, err)
-//     ExpectThat(someStr, HasSubstr("foo")
+//	someStr, err := ComputeSomeString()
+//	ExpectEq(nil, err)
+//	ExpectThat(someStr, HasSubstr("foo")
 //
 // Failure messages require no work from the user, and look like the following:
 //
-//     foo_test.go:103:
-//     Expected: has substring "foo"
-//     Actual:   "bar baz"
-//
+//	foo_test.go:103:
+//	Expected: has substring "foo"
+//	Actual:   "bar baz"
 package ogletest

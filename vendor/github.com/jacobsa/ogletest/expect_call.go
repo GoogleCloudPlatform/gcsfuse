@@ -16,8 +16,9 @@
 package ogletest
 
 import (
-	"github.com/jacobsa/oglemock"
 	"runtime"
+
+	"github.com/jacobsa/oglemock"
 )
 
 // ExpectCall expresses an expectation that the method of the given name
@@ -27,9 +28,9 @@ import (
 //
 // For example:
 //
-//     mockWriter := [...]
-//     ogletest.ExpectCall(mockWriter, "Write")(oglematchers.ElementsAre(0x1))
-//         .WillOnce(oglemock.Return(1, nil))
+//	mockWriter := [...]
+//	ogletest.ExpectCall(mockWriter, "Write")(oglematchers.ElementsAre(0x1))
+//	    .WillOnce(oglemock.Return(1, nil))
 //
 // This is a shortcut for calling i.MockController.ExpectCall, where i is the
 // TestInfo struct for the currently-running test. Unlike that direct approach,

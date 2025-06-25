@@ -28,23 +28,23 @@ import (
 // matcher does not support), but for convenience the following rules also
 // apply:
 //
-//  *  Type checking is done based on underlying types rather than actual
+//   - Type checking is done based on underlying types rather than actual
 //     types, so that e.g. two aliases for string can be compared:
 //
-//         type stringAlias1 string
-//         type stringAlias2 string
+//     type stringAlias1 string
+//     type stringAlias2 string
 //
-//         a := "taco"
-//         b := stringAlias1("taco")
-//         c := stringAlias2("taco")
+//     a := "taco"
+//     b := stringAlias1("taco")
+//     c := stringAlias2("taco")
 //
-//         ExpectTrue(a == b)  // Legal, passes
-//         ExpectTrue(b == c)  // Illegal, doesn't compile
+//     ExpectTrue(a == b)  // Legal, passes
+//     ExpectTrue(b == c)  // Illegal, doesn't compile
 //
-//         ExpectThat(a, Equals(b))  // Passes
-//         ExpectThat(b, Equals(c))  // Passes
+//     ExpectThat(a, Equals(b))  // Passes
+//     ExpectThat(b, Equals(c))  // Passes
 //
-//  *  Values of numeric type are treated as if they were abstract numbers, and
+//   - Values of numeric type are treated as if they were abstract numbers, and
 //     compared accordingly. Therefore Equals(17) will match int(17),
 //     int16(17), uint(17), float32(17), complex64(17), and so on.
 //

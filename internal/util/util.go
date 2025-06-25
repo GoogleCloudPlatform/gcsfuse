@@ -38,9 +38,9 @@ const (
 const (
 	GCSFUSE_PARENT_PROCESS_DIR = "gcsfuse-parent-process-dir"
 
-	MaxMiBsInUint64 uint64 = math.MaxUint64 >> 20
-	MaxMiBsInInt64  int64  = math.MaxInt64 >> 20
-	MiB                    = 1024 * 1024
+	MaxMiBsInUint64 uint64 = common.MaxMiBsInUint64
+	MaxMiBsInInt64  int64  = common.MaxMiBsInInt64
+	MiB                    = common.MiB
 
 	// HeapSizeToRssConversionFactor is a constant factor
 	// which we multiply to the calculated heap-size
@@ -99,11 +99,7 @@ func MiBsToBytes(mibs uint64) uint64 {
 // then it returns the next higher no. of MiBs.
 // For reference, each MiB = 2^20 bytes.
 func BytesToHigherMiBs(bytes uint64) uint64 {
-	if bytes > (MaxMiBsInUint64 << 20) {
-		return MaxMiBsInUint64 + 1
-	}
-	const bytesInOneMiB uint64 = 1 << 20
-	return uint64(math.Ceil(float64(bytes) / float64(bytesInOneMiB)))
+	return common.BytesToHigherMiBs(bytes)
 }
 
 // IsolateContextFromParentContext creates a copy of the parent context which is

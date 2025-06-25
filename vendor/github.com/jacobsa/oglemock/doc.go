@@ -17,12 +17,12 @@
 //
 // Among its features are the following:
 //
-//  *  An extensive and extensible set of matchers for expressing call
+//   - An extensive and extensible set of matchers for expressing call
 //     expectations (provided by the oglematchers package).
 //
-//  *  Style and semantics similar to Google Mock and Google JS Test.
+//   - Style and semantics similar to Google Mock and Google JS Test.
 //
-//  *  Easy integration with the ogletest unit testing framework.
+//   - Easy integration with the ogletest unit testing framework.
 //
 // See https://github.com/jacobsa/oglemock for more information.
 package oglemock

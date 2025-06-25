@@ -25,13 +25,12 @@ import (
 // Given a list of arguments M, ElementsAre returns a matcher that matches
 // arrays and slices A where all of the following hold:
 //
-//  *  A is the same length as M.
+//   - A is the same length as M.
 //
-//  *  For each i < len(A) where M[i] is a matcher, A[i] matches M[i].
+//   - For each i < len(A) where M[i] is a matcher, A[i] matches M[i].
 //
-//  *  For each i < len(A) where M[i] is not a matcher, A[i] matches
+//   - For each i < len(A) where M[i] is not a matcher, A[i] matches
 //     Equals(M[i]).
-//
 func ElementsAre(M ...interface{}) Matcher {
 	// Copy over matchers, or convert to Equals(x) for non-matcher x.
 	subMatchers := make([]Matcher, len(M))

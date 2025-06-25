@@ -17,8 +17,6 @@ package cfg
 import (
 	"math"
 	"time"
-
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
 
 const (
@@ -91,7 +89,7 @@ const (
 	// FileCacheParallelDownloadsConfigKey is the Viper configuration key for the
 	//parallel-downloads enablement.
 	FileCacheParallelDownloadsConfigKey = "file-cache.enable-parallel-downloads"
-	maxSupportedStatCacheMaxSizeMB      = util.MaxMiBsInUint64
+	maxSupportedStatCacheMaxSizeMB      = math.MaxUint64 >> 20
 )
 
 // CacheUtilMinimumAlignSizeForWriting is the minimum buffer size used for memory-aligned
