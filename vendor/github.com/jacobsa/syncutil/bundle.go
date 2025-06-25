@@ -32,37 +32,37 @@ import (
 // each other, conveniently cancelling the pipeline if anything fails. A
 // typical use looks like the following:
 //
-//     // Run a pipeline that consists of one goroutine listing object names,
-//     // while N goroutines concurrently delete the listed objects one by one.
-//     // If any listing or deletion operation fails, cancel the whole pipeline
-//     // and return the error.
-//     func deleteAllObjects(ctx context.Context, N int) error {
-//       bundle := syncutil.NewBundle(ctx)
+//	 // Run a pipeline that consists of one goroutine listing object names,
+//	 // while N goroutines concurrently delete the listed objects one by one.
+//	 // If any listing or deletion operation fails, cancel the whole pipeline
+//	 // and return the error.
+//	 func deleteAllObjects(ctx context.Context, N int) error {
+//	   bundle := syncutil.NewBundle(ctx)
 //
-//       // List objects into a channel. Assuming that listObjects responds to
-//       // cancellation of its context, it will not get stuck blocking forever
-//       // on a write into objectNames if the deleters return early in error
-//       // before draining the channel.
-//       objectNames := make(chan string)
-//       bundle.Add(func(ctx context.Context) error {
-//         defer close(objectNames)
-//         return listObjects(ctx, objectNames)
-//       })
+//	   // List objects into a channel. Assuming that listObjects responds to
+//	   // cancellation of its context, it will not get stuck blocking forever
+//	   // on a write into objectNames if the deleters return early in error
+//	   // before draining the channel.
+//	   objectNames := make(chan string)
+//	   bundle.Add(func(ctx context.Context) error {
+//	     defer close(objectNames)
+//	     return listObjects(ctx, objectNames)
+//	   })
 //
-//       // Run N deletion workers.
-//       for i := 0; i < N; i++ {
-//         bundle.Add(func(ctx context.Context) error {
-//           for name := range objectNames {
-//             if err := deleteObject(ctx, name); err != nil {
-//               return err
-//             }
-//           }
-//         })
-//       }
+//	   // Run N deletion workers.
+//	   for i := 0; i < N; i++ {
+//	     bundle.Add(func(ctx context.Context) error {
+//	       for name := range objectNames {
+//	         if err := deleteObject(ctx, name); err != nil {
+//	           return err
+//	         }
+//	       }
+//	     })
+//	   }
 //
-//       // Wait for the whole pipeline to finish, and return its status.
-//       return bundle.Join()
-//    }
+//	   // Wait for the whole pipeline to finish, and return its status.
+//	   return bundle.Join()
+//	}
 //
 // Bundles must be created using NewBundle. Bundle methods must not be called
 // concurrently.

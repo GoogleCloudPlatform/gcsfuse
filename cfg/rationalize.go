@@ -18,7 +18,7 @@ import (
 	"math"
 	"net/url"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
 )
 
 // isSet interface is abstraction over the IsSet() method of viper, specially
@@ -70,7 +70,7 @@ func resolveStatCacheMaxSizeMB(v isSet, c *MetadataCacheConfig, optimizedFlags [
 	// Local function to calculate size based on deprecated capacity.
 	calculateSizeFromCapacity := func(capacity int64) int64 {
 		avgTotalStatCacheEntrySize := AverageSizeOfPositiveStatCacheEntry + AverageSizeOfNegativeStatCacheEntry
-		return int64(util.BytesToHigherMiBs(uint64(capacity) * avgTotalStatCacheEntrySize))
+		return int64(common.BytesToHigherMiBs(uint64(capacity) * avgTotalStatCacheEntrySize))
 	}
 
 	// Order of precedence for setting stat cache size
@@ -94,7 +94,7 @@ func resolveStreamingWriteConfig(w *WriteConfig) {
 		w.CreateEmptyFile = false
 	}
 
-	w.BlockSizeMb *= util.MiB
+	w.BlockSizeMb *= common.MiB
 
 	if w.GlobalMaxBlocks == -1 {
 		w.GlobalMaxBlocks = math.MaxInt64

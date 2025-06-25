@@ -1282,8 +1282,6 @@ func (c *grpcStorageClient) NewMultiRangeDownloader(ctx context.Context, params 
 					mrd.retrier(err, "receiver")
 				}
 
-
-
 				if err == nil {
 					// Use the custom decoder to parse the message.
 					decoder := &readResponseDecoder{databufs: databufs}
@@ -1315,7 +1313,7 @@ func (c *grpcStorageClient) NewMultiRangeDownloader(ctx context.Context, params 
 
 						// The decoder holds the object content. writeToAndUpdateCRC writes
 						// it to the user's buffer without an intermediate copy.
-						written,_, err := decoder.writeToAndUpdateCRC(mrd.activeRanges[id].writer, id,  func(b []byte) {
+						written, _, err := decoder.writeToAndUpdateCRC(mrd.activeRanges[id].writer, id, func(b []byte) {
 							// crc update logic can be added here if needed
 						})
 
@@ -1497,7 +1495,7 @@ func (mrd *gRPCBidiReader) reopenStream(failSpec []mrdRange) error {
 		}
 
 		// Use the decoder's zero-copy write method.
-		written,_, writeErr := res.decoder.writeToAndUpdateCRC(activeRange.writer, id, nil)
+		written, _, writeErr := res.decoder.writeToAndUpdateCRC(activeRange.writer, id, nil)
 		if writeErr != nil {
 			activeRange.callback(activeRange.offset, activeRange.totalBytesWritten, writeErr)
 			mrd.numActiveRanges--
@@ -1913,7 +1911,7 @@ type readStreamResponse struct {
 }
 
 type bidiReadStreamResponse struct {
-	stream   storagepb.Storage_BidiReadObjectClient
+	stream storagepb.Storage_BidiReadObjectClient
 	//response *storagepb.BidiReadObjectResponse
 	decoder *readResponseDecoder
 }
@@ -1968,28 +1966,28 @@ func (r *gRPCReader) Read(p []byte) (int, error) {
 	}
 
 	for {
-			// If there is data remaining in the current message, try to read from it.
-		 if r.currMsg != nil && !r.currMsg.done {
-			 n, found := r.currMsg.readAndUpdateCRC(p, 1, func(b []byte) {
-								r.updateCRC(b)
-							})
+		// If there is data remaining in the current message, try to read from it.
+		if r.currMsg != nil && !r.currMsg.done {
+			n, found := r.currMsg.readAndUpdateCRC(p, 1, func(b []byte) {
+				r.updateCRC(b)
+			})
 
-								// If data for our readID was found, we can update `seen` and return.
-								if found {
-									r.seen += int64(n)
-									return n, nil
-								}
-						    // If not found, this message is exhausted for our purposes.
-								// Fall through to recv() to get a new one.
-		   }
+			// If data for our readID was found, we can update `seen` and return.
+			if found {
+				r.seen += int64(n)
+				return n, nil
+			}
+			// If not found, this message is exhausted for our purposes.
+			// Fall through to recv() to get a new one.
+		}
 
-			 // Get the next message from the stream.
-			 err := r.recv()
-			 if err != nil {
-						// This correctly handles io.EOF, context canceled, and other terminal errors.
-								return 0, err
-				}
-				// The loop will now restart and try to read from the new r.currMsg.
+		// Get the next message from the stream.
+		err := r.recv()
+		if err != nil {
+			// This correctly handles io.EOF, context canceled, and other terminal errors.
+			return 0, err
+		}
+		// The loop will now restart and try to read from the new r.currMsg.
 	}
 }
 
@@ -2047,7 +2045,7 @@ func (r *gRPCReader) WriteTo(w io.Writer) (int64, error) {
 	// Propagate any checksum error.
 	var finalErr error
 	if err := r.runCRCCheck(); err != nil {
-				finalErr = err
+		finalErr = err
 	}
 	return r.seen - alreadySeen, finalErr
 }
@@ -2119,11 +2117,11 @@ type readResponseDecoder struct {
 	currBuf int    // index of the current buffer being processed
 	currOff uint64 // offset in the current buffer
 	// Processed data
-	msg         *storagepb.BidiReadObjectResponse // processed response message with all fields other than object data populated
+	msg *storagepb.BidiReadObjectResponse // processed response message with all fields other than object data populated
 	// The original dataOffsets field is replaced with a map to handle multiple ranges.
 	// dataOffsets bufferSliceOffsets
 	dataOffsets map[int64]bufferSliceOffsets // New field: map ReadId to its data offsets
-	done        bool                              // true if the data has been completely read.
+	done        bool                         // true if the data has been completely read.
 }
 
 type bufferSliceOffsets struct {
@@ -2256,16 +2254,15 @@ func (d *readResponseDecoder) readAndUpdateCRC(p []byte, readID int64, updateCRC
 func (d *readResponseDecoder) writeToAndUpdateCRC(w io.Writer, readID int64, updateCRC func([]byte)) (totalWritten int64, found bool, err error) {
 	// For a completely empty message, just return 0
 	if len(d.databufs) == 0 {
-		return 0,  true,nil
+		return 0, true, nil
 	}
 	// Look up the specific offsets for the requested readID.
 	offsets, ok := d.dataOffsets[readID]
 	if !ok {
 		// It's normal for a message to not contain data for every active range,
 		// so we return 0 bytes written and no error.
-		return 0, false,nil
+		return 0, false, nil
 	}
-
 
 	// Loop from the starting buffer to the ending buffer for this specific data range.
 	for i := offsets.startBuf; i <= offsets.endBuf; i++ {

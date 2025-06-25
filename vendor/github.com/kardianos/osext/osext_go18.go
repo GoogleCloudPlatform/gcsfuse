@@ -1,4 +1,5 @@
-//+build go1.8,!openbsd
+//go:build go1.8 && !openbsd
+// +build go1.8,!openbsd
 
 package osext
 
