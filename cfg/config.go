@@ -114,6 +114,8 @@ type FileSystemConfig struct {
 
 	DisableParallelDirops bool `yaml:"disable-parallel-dirops"`
 
+	ExperimentalEnableReaddirplus bool `yaml:"experimental-enable-readdirplus"`
+
 	FileMode Octal `yaml:"file-mode"`
 
 	FuseOptions []string `yaml:"fuse-options"`
@@ -402,6 +404,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("experimental-enable-json-read", "", false, "By default, GCSFuse uses the GCS XML API to get and read objects. When this flag is specified, GCSFuse uses the GCS JSON API instead.\"")
 
 	if err := flagSet.MarkDeprecated("experimental-enable-json-read", "Experimental flag: could be dropped even in a minor release."); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("experimental-enable-readdirplus", "", false, "Enables ReadDirPlus capability")
+
+	if err := flagSet.MarkHidden("experimental-enable-readdirplus"); err != nil {
 		return err
 	}
 
@@ -785,6 +793,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-connection.experimental-enable-json-read", flagSet.Lookup("experimental-enable-json-read")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.experimental-enable-readdirplus", flagSet.Lookup("experimental-enable-readdirplus")); err != nil {
 		return err
 	}
 

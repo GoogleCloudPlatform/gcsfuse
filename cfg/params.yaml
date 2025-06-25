@@ -190,6 +190,13 @@
   default: false
   hide-flag: true
 
+- config-path: "file-system.experimental-enable-readdirplus"
+  flag-name: "experimental-enable-readdirplus"
+  type: "bool"
+  usage: "Enables ReadDirPlus capability"
+  default: false
+  hide-flag: true
+
 - config-path: "file-system.file-mode"
   flag-name: "file-mode"
   type: "octal"
