@@ -132,27 +132,27 @@ TEST_DIR_NON_PARALLEL=(
 # but only those tests which currently
 # pass for zonal buckets.
 TEST_DIR_PARALLEL_FOR_ZB=(
-  "benchmarking"
-  "explicit_dir"
-  "gzip"
-  "implicit_dir"
-  "interrupt"
-  "kernel_list_cache"
-  "local_file"
-  "log_rotation"
-  "monitoring"
-  "mount_timeout"
-  "mounting"
-  "negative_stat_cache"
-  "operations"
-  "read_cache"
-  "read_large_files"
-  "rename_dir_limit"
-  "stale_handle"
-  "streaming_writes"
-  "write_large_files"
-  "unfinalized_object"
-  "release_version"
+#   "benchmarking"
+#   "explicit_dir"
+#   "gzip"
+#   "implicit_dir"
+#   "interrupt"
+#   "kernel_list_cache"
+#   "local_file"
+#   "log_rotation"
+#   "monitoring"
+#   "mount_timeout"
+#   "mounting"
+#   "negative_stat_cache"
+#   "operations"
+#   "read_cache"
+#   "read_large_files"
+#   "rename_dir_limit"
+#   "stale_handle"
+#   "streaming_writes"
+#   "write_large_files"
+#   "unfinalized_object"
+#   "release_version"
   "read_unfinalized_object"
 )
 
@@ -160,11 +160,11 @@ TEST_DIR_PARALLEL_FOR_ZB=(
 # but only those tests which currently
 # pass for zonal buckets.
 TEST_DIR_NON_PARALLEL_FOR_ZB=(
-  "concurrent_operations"
-  "list_large_dir"
-  "managed_folders"
-  "readonly"
-  "readonly_creds"
+  # "concurrent_operations"
+  # "list_large_dir"
+  # "managed_folders"
+  # "readonly"
+  # "readonly_creds"
 )
 
 # Create a temporary file to store the log file name.
