@@ -327,3 +327,7 @@ func (b *prefixBucket) NewMultiRangeDownloader(
 	mrd, err = b.wrapped.NewMultiRangeDownloader(ctx, mReq)
 	return
 }
+
+func (b *prefixBucket) GCSName(object *gcs.MinObject) string {
+	return b.wrappedName(b.wrapped.GCSName(object))
+}

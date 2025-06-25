@@ -88,7 +88,7 @@ func initializeCacheHandlerTestArgs(t *testing.T, fileCacheConfig *cfg.FileCache
 		util.DefaultDirPerm, cacheDir, DefaultSequentialReadSizeMb, fileCacheConfig, common.NewNoopMetrics())
 
 	// Mocked cached handler object.
-	cacheHandler := NewCacheHandler(cache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
+	cacheHandler := NewCacheHandler(cache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, fileCacheConfig.ExperimentalExcludeRegex)
 
 	// Follow consistency, local-cache file, entry in fileInfo cache and job should exist initially.
 	fileInfoKeyName := addTestFileInfoEntryInCache(t, cache, object, storage.TestBucketName)
@@ -538,6 +538,25 @@ func Test_GetCacheHandle_IfLocalFileGetsDeleted(t *testing.T) {
 	actualJob := chTestArgs.jobManager.GetJob(chTestArgs.object.Name, chTestArgs.bucket.Name())
 	assert.Equal(t, existingJob, actualJob)
 	assert.Equal(t, downloader.NotStarted, existingJob.GetStatus().Name)
+}
+
+func Test_GetCacheHandle_ExcludeFromCache(t *testing.T) {
+	regex := ".*object_1"
+	cacheDir := path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir")
+	chTestArgs := initializeCacheHandlerTestArgs(t, &cfg.FileCacheConfig{EnableCrc: true, ExperimentalExcludeRegex: regex}, cacheDir)
+
+	// Check cache handle is not created for excluded file
+	chTestArgs.object.Name = "object_1"
+	cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
+	assert.True(t, errors.Is(err, util.ErrFileExcludedFromCacheByRegex))
+	assert.Nil(t, cacheHandle)
+
+	// Check cache handle is created for file not excluded.
+	chTestArgs.object.Name = "object_2"
+	cacheHandle, err = chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
+	assert.NoError(t, err)
+	assert.Nil(t, cacheHandle.validateCacheHandle())
+
 }
 
 func Test_GetCacheHandle_CacheForRangeRead(t *testing.T) {

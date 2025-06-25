@@ -17,6 +17,8 @@ package file
 import (
 	"fmt"
 	"os"
+	"path"
+	"regexp"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
@@ -51,9 +53,22 @@ type CacheHandler struct {
 
 	// mu guards the handling of insertion into and eviction from file cache.
 	mu locker.Locker
+
+	// excludeRegex is the compiled regex for excluding files from cache
+	excludeRegex *regexp.Regexp
 }
 
-func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode) *CacheHandler {
+func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode, excludeRegex string) *CacheHandler {
+	var compiledRegex *regexp.Regexp
+	if excludeRegex != "" {
+		var err error
+		compiledRegex, err = regexp.Compile(excludeRegex)
+		if err != nil {
+			logger.Warnf("Failed to compile exclude regex %q: %v", excludeRegex, err)
+			compiledRegex = nil
+		}
+	}
+
 	return &CacheHandler{
 		fileInfoCache: fileInfoCache,
 		jobManager:    jobManager,
@@ -61,6 +76,7 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 		filePerm:      filePerm,
 		dirPerm:       dirPerm,
 		mu:            locker.New("FileCacheHandler", func() {}),
+		excludeRegex:  compiledRegex,
 	}
 }
 
@@ -202,6 +218,11 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 	chr.mu.Lock()
 	defer chr.mu.Unlock()
 
+	// Check if file should be excluded from cache
+	if chr.shouldExcludeFromCache(bucket, object) {
+		return nil, util.ErrFileExcludedFromCacheByRegex
+	}
+
 	// If cacheForRangeRead is set to False, initialOffset is non-zero (i.e. random read)
 	// and entry for file doesn't already exist in fileInfoCache then no need to
 	// create file in cache.
@@ -273,4 +294,16 @@ func (chr *CacheHandler) Destroy() (err error) {
 
 	chr.jobManager.Destroy()
 	return
+}
+
+// shouldExcludeFromCache checks if the object should be excluded from cache
+// based on the configured regex pattern.
+func (chr *CacheHandler) shouldExcludeFromCache(bucket gcs.Bucket, object *gcs.MinObject) bool {
+	if chr.excludeRegex == nil {
+		return false
+	}
+
+	// Get the GCS name of the object and create the cloud path in the format bucket/object.
+	cloudPath := path.Join(bucket.Name(), bucket.GCSName(object))
+	return chr.excludeRegex.MatchString(cloudPath)
 }

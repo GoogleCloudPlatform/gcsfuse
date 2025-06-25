@@ -514,3 +514,7 @@ func (b *fastStatBucket) NewMultiRangeDownloader(
 	mrd, err = b.wrapped.NewMultiRangeDownloader(ctx, req)
 	return
 }
+
+func (b *fastStatBucket) GCSName(obj *gcs.MinObject) string {
+	return b.wrapped.GCSName(obj)
+}

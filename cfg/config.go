@@ -96,6 +96,8 @@ type FileCacheConfig struct {
 
 	EnableParallelDownloads bool `yaml:"enable-parallel-downloads"`
 
+	ExperimentalExcludeRegex string `yaml:"experimental-exclude-regex"`
+
 	ExperimentalParallelDownloadsDefaultOn bool `yaml:"experimental-parallel-downloads-default-on"`
 
 	MaxParallelDownloads int64 `yaml:"max-parallel-downloads"`
@@ -444,6 +446,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.BoolP("file-cache-enable-parallel-downloads", "", false, "Enable parallel downloads.")
+
+	flagSet.StringP("file-cache-experimental-exclude-regex", "", "", "Exclude file paths (in the format bucket_name/object_key) specified by this regex from file caching.")
+
+	if err := flagSet.MarkHidden("file-cache-experimental-exclude-regex"); err != nil {
+		return err
+	}
 
 	flagSet.BoolP("file-cache-experimental-parallel-downloads-default-on", "", true, "Enable parallel downloads by default on experimental basis.")
 
@@ -813,6 +821,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-cache.enable-parallel-downloads", flagSet.Lookup("file-cache-enable-parallel-downloads")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-cache.experimental-exclude-regex", flagSet.Lookup("file-cache-experimental-exclude-regex")); err != nil {
 		return err
 	}
 
