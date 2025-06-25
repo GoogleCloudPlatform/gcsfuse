@@ -33,7 +33,6 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"go.opentelemetry.io/otel/sdk/resource"
-
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
@@ -62,13 +61,7 @@ func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config) (shutdownFn co
 		options = append(options, metric.WithResource(res))
 	}
 
-	options = append(options, metric.WithView(dropDisallowedMetricsView),
-		metric.WithView(metric.NewView(
-			metric.Instrument{
-				Name: "file_cache/read_latencies",
-			},
-			metric.Stream{Aggregation: metric.AggregationBase2ExponentialHistogram{MaxSize: 100000, MaxScale: 5}},
-		)))
+	options = append(options, metric.WithView(dropDisallowedMetricsView))
 
 	meterProvider := metric.NewMeterProvider(options...)
 	shutdownFns = append(shutdownFns, meterProvider.Shutdown)
