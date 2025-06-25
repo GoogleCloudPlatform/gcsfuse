@@ -140,7 +140,7 @@ func (fch *CacheHandle) validateEntryInFileInfoCache(bucket gcs.Bucket, object *
 		// For unfinalized (zonal) objects, size can grow. If a read requires data
 		// beyond the fully-cached original size, fall back to GCS for the new
 		// content.
-		if bucket.BucketType().Zonal && object.IsUnfinalized() && fileInfoData.Offset >= fileInfoData.FileSize {
+		if bucket.BucketType().Zonal && object.IsUnfinalized() && fileInfoData.Offset == fileInfoData.FileSize {
 			return fmt.Errorf("unexpected %q was fully downloaded in cache earlier, but is not sufficient to serve this read-request (required=%v, available=%v, to-be-downloaded=%v), so falling back to GCS. %w", object.Name, requiredOffset, fileInfoData.Offset, fileInfoData.FileSize, util.ErrFallbackToGCS)
 		}
 		return fmt.Errorf("%w offset of cached object: %v is less than required offset %v", util.ErrInvalidFileInfoCache, fileInfoData.Offset, requiredOffset)
@@ -169,8 +169,11 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 		return 0, false, fmt.Errorf("%w Error in getCachedFileInfo: %v", util.ErrInvalidFileInfoCache, errFileInfo)
 	}
 
-	// New check to ensure we bail out early in case the requested data is beyond cached size for an unfinalized object
-	if bucket.BucketType().Zonal && object.IsUnfinalized() && offset+int64(len(dst)) > int64(fileInfoData.FileSize) {
+	// New check to ensure we bail out early in case the requested read-offset is beyond the cached size for an unfinalized object.
+	// If the end-offset is within the cached size, then the read will be served from the cache.
+	// If offset is within the cached size and end-offset is beyond the cached-size, then
+	// we will fallback to GCS in the later logic, but we should still create the cache download job even in that case.
+	if bucket.BucketType().Zonal && object.IsUnfinalized() && offset > int64(fileInfoData.FileSize) {
 		err = util.ErrFallbackToGCS
 		return
 	}
