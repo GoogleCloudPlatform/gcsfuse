@@ -934,7 +934,7 @@ func (t *RandomReaderStretchrTest) Test_ReadFromMultiRangeReader_ValidateTimeout
 func (t *RandomReaderStretchrTest) Test_ReadAt_WithAndWithoutReadConfig() {
 	testCases := []struct {
 		name                        string
-		config                      *cfg.ReadConfig
+		config                      *cfg.Config
 		expectInactiveTimeoutReader bool
 	}{
 		{
@@ -944,12 +944,12 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_WithAndWithoutReadConfig() {
 		},
 		{
 			name:                        "WithReadConfigAndZeroTimeout",
-			config:                      &cfg.ReadConfig{InactiveStreamTimeout: 0},
+			config:                      &cfg.Config{Read: cfg.ReadConfig{InactiveStreamTimeout: 0}},
 			expectInactiveTimeoutReader: false,
 		},
 		{
 			name:                        "WithReadConfigAndPositiveTimeout",
-			config:                      &cfg.ReadConfig{InactiveStreamTimeout: 10 * time.Millisecond},
+			config:                      &cfg.Config{Read: cfg.ReadConfig{InactiveStreamTimeout: 10 * time.Millisecond}},
 			expectInactiveTimeoutReader: true,
 		},
 	}
