@@ -2547,8 +2547,8 @@ func (fs *fileSystem) OpenFile(
 
 	// Figure out the mode in which the file is being opened.
 	openMode := util.FileOpenMode(op)
-	x := handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, &fs.newConfig.Read)
-	fs.handles[handleID] = x
+	newFH := handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, &fs.newConfig.Read)
+	fs.handles[handleID] = newFH
 	op.Handle = handleID
 
 	// When we observe object generations that we didn't create, we assign them
@@ -2557,26 +2557,26 @@ func (fs *fileSystem) OpenFile(
 	// open to open for a given inode.
 	op.KeepPageCache = true
 
-	passthroughFD, errPassthrough := x.FdForPassthrough()
-	logger.Tracef("OpenFile: %v", errPassthrough)
-
-	if errPassthrough != nil {
+	if openMode == util.Read {
+		passthroughFD, errPassthrough := newFH.FdForPassthrough()
 		logger.Tracef("OpenFile: %v", errPassthrough)
-		return fmt.Errorf("OpenFile: %w", errPassthrough)
-	}
-	op.BackingMap = fuseops.BackingMap{
-		Fd: int32(passthroughFD.Fd()),
+
+		if errPassthrough != nil {
+			logger.Tracef("OpenFile: %v", errPassthrough)
+			return fmt.Errorf("OpenFile: %w", errPassthrough)
+		}
+		op.BackingMap = fuseops.BackingMap{
+			Fd: int32(passthroughFD.Fd()),
+		}
 	}
 
 	fs.mu.Unlock()
 	in.Unlock()
 
-	x.Lock()
-	x.Inode().Lock()
-	defer x.Unlock()
+	newFH.Lock()
+	defer newFH.Unlock()
 	bytes := make([]byte, 10)
-	x.Read(ctx, bytes, 0, fs.sequentialReadSizeMb)
-	time.Sleep(2 * time.Second)
+	newFH.Read(ctx, bytes, 0, fs.sequentialReadSizeMb)
 
 	return
 }

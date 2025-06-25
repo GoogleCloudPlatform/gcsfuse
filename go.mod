@@ -2,9 +2,10 @@ module github.com/googlecloudplatform/gcsfuse/v3
 
 go 1.24.0
 
-replace github.com/jacobsa/fuse => /home/princer_google_com/dev/fuse
+replace github.com/jacobsa/fuse => github.com/ashmeenkaur/fuse v0.0.0-20250626040143-3f47d2cc25f5
 
 require (
+	cloud.google.com/go/auth v0.16.1
 	cloud.google.com/go/compute/metadata v0.7.0
 	cloud.google.com/go/iam v1.5.2
 	cloud.google.com/go/profiler v0.4.2
@@ -17,7 +18,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/googleapis/gax-go/v2 v2.14.2
 	github.com/jacobsa/daemonize v0.0.0-20240917082746-f35568b6c3ec
-	github.com/jacobsa/fuse v0.0.0-20250506064942-d10bfe4fb08e
+	github.com/jacobsa/fuse v0.0.0-20250626040143-3f47d2cc25f5
 	github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd
 	github.com/jacobsa/oglemock v0.0.0-20150831005832-e94d794d06ff
 	github.com/jacobsa/ogletest v0.0.0-20170503003838-80d50a735a11
@@ -57,7 +58,6 @@ require (
 require (
 	cel.dev/expr v0.24.0 // indirect
 	cloud.google.com/go v0.121.2 // indirect
-	cloud.google.com/go/auth v0.16.1 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/longrunning v0.6.7 // indirect
 	cloud.google.com/go/monitoring v1.24.2 // indirect
