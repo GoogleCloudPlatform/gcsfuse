@@ -378,7 +378,7 @@ func (o *otelMetrics) FileCacheReadLatency(ctx context.Context, latency time.Dur
 
 func getFSOpsLatencyMetric() (metric.Int64Histogram, error) {
 	return fsOpsMeter.Int64Histogram("fs/ops_latency", metric.WithDescription("The cumulative distribution of file system operation latencies"), metric.WithUnit("us"),
-		defaultLatencyDistribution)
+		opsLatencyDistribution)
 }
 
 func NewOTelMetrics() (MetricHandle, error) {
