@@ -25,7 +25,8 @@ usage() {
   echo "    --skip-non-essential-tests                   Skip non-essential tests inside packages. (Default: false)"
   echo "    --tpc-endpoint                               Run tests on TPC endpoint. (Default: false)"
   echo "    --presubmit                                  Run tests with presubmit flag. (Default: false)"
-  echo "    --zonal                                      Run tests with zonal bucket. (Default: false)"
+  echo "    --zonal                                      Run tests with zonal bucket in --bucket-location region."
+  echo "                                                 The placement for Zonal buckets by deafault is Zone A of --bucket-location. (Default: false)"
   echo "    --no-build-binary-in-script                  To disable building gcsfuse binary in script. (Default: false)"
   echo "    --package-level-parallelism   <parallelism>  To adjust the number of packages to execute in parallel. (Default: 10)"
   echo "    --track-resource-usage                       To track resource(cpu/mem/disk) usage during e2e run. (Default: false)"
@@ -82,18 +83,18 @@ RESOURCE_USAGE_FILE=$(mktemp "/tmp/${TMP_PREFIX}_system_resource_usage.XXXXXX") 
 
 # Argument Parsing and Assignments
 # Set default values for optional arguments
-SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE="false"
-TEST_INSTALLED_PACKAGE="false"
-RUN_TEST_ON_TPC_ENDPOINT="false"
-RUN_TESTS_WITH_PRESUBMIT_FLAG="false"
-RUN_TESTS_WITH_ZONAL_BUCKET="false"
-BUILD_BINARY_IN_SCRIPT="true"
-TRACK_RESOURCE_USAGE="false"
+SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=false
+TEST_INSTALLED_PACKAGE=false
+RUN_TEST_ON_TPC_ENDPOINT=false
+RUN_TESTS_WITH_PRESUBMIT_FLAG=false
+RUN_TESTS_WITH_ZONAL_BUCKET=false
+BUILD_BINARY_IN_SCRIPT=true
+TRACK_RESOURCE_USAGE=false
 PACKAGE_LEVEL_PARALLELISM=10 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
 
 # Define options for getopt
 # A long option name followed by a colon indicates it requires an argument.
-LONG=bucket-location:,test-installed-package,skip-non-essential-tests,no-build-binary-in-script,tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,help
+LONG=bucket-location:,test-installed-package,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,help
 
 # Parse the options using getopt
 # --options "" specifies that there are no short options.
@@ -118,31 +119,31 @@ while (( $# >= 1 )); do
             shift 2
             ;;
         --test-installed-package)
-            TEST_INSTALLED_PACKAGE="true"
+            TEST_INSTALLED_PACKAGE=true
             shift 
             ;;
         --skip-non-essential-tests)
-            SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE="true"
+            SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=true
             shift
             ;;
         --no-build-binary-in-script)
-            BUILD_BINARY_IN_SCRIPT="false"
+            BUILD_BINARY_IN_SCRIPT=false
             shift
             ;;
-        --tpc-endpoint)
-            RUN_TEST_ON_TPC_ENDPOINT="true"
+        --test-on-tpc-endpoint)
+            RUN_TEST_ON_TPC_ENDPOINT=true
             shift
             ;;
         --presubmit)
-            RUN_TESTS_WITH_PRESUBMIT_FLAG="true"
+            RUN_TESTS_WITH_PRESUBMIT_FLAG=true
             shift
             ;;
         --zonal)
-            RUN_TESTS_WITH_ZONAL_BUCKET="true"
+            RUN_TESTS_WITH_ZONAL_BUCKET=true
             shift
             ;;
         --track-resource-usage)
-            TRACK_RESOURCE_USAGE="true"
+            TRACK_RESOURCE_USAGE=true
             shift
             ;;
         --help)
@@ -153,7 +154,8 @@ while (( $# >= 1 )); do
             break
             ;;
         *)
-            break
+            log_error "Unrecognized arguments [$*]."
+            usage
             ;;
     esac
 done
@@ -172,14 +174,8 @@ validate_option_value() {
 validate_option_value "--bucket-location" "$BUCKET_LOCATION"
 validate_option_value "--package-level-parallelism" "$PACKAGE_LEVEL_PARALLELISM"
 
-# Check for any leftover positional arguments
-if [[ "$#" -ne 0 ]]; then
-    log_error "Unrecognized arguments [$*]."
-    usage
-fi
-
 # Zonal Bucket location validation.
-if [[ "${RUN_TESTS_WITH_ZONAL_BUCKET}" == "true" ]]; then
+if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
   supported_bucket=false
   for location in "${ZONAL_BUCKET_SUPPORTED_LOCATIONS[@]}"; do
     if [[ "$BUCKET_LOCATION" == "$location" ]]; then
@@ -187,7 +183,7 @@ if [[ "${RUN_TESTS_WITH_ZONAL_BUCKET}" == "true" ]]; then
       break
     fi
   done
-  if [[ "${supported_bucket}" == false ]]; then
+  if ! ${supported_bucket}; then
     log_error "Unsupported Bucket Location ${BUCKET_LOCATION} for Zonal Run. Supported Locations are: ${ZONAL_BUCKET_SUPPORTED_LOCATIONS[*]}"
     exit 1
   fi
@@ -372,7 +368,7 @@ safe_kill() {
 
 # Cleanup ensures each of the buckets created is destroyed and the temp files are cleaned up.
 clean_up() {
-  if [ "$TRACK_RESOURCE_USAGE" == "true" ]; then
+  if ${TRACK_RESOURCE_USAGE}; then
     if ! safe_kill "$RESOURCE_USAGE_PID" "resource_usage.sh"; then
       log_error "Failed to stop resource usage collection process (or it's already stopped)"
     else
@@ -484,7 +480,7 @@ test_package() {
 
   # Build go package test command.
   local go_test_cmd_parts=("GODEBUG=asyncpreemptoff=1" "go" "test" "-v" "-timeout=${INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS}m" "${INTEGRATION_TEST_PACKAGE_DIR}/${package_name}")
-  if [[ "$SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE" == "true" ]]; then
+  if ${SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE}; then
     go_test_cmd_parts+=("-short")
   fi
   if [[ "$package_name" == "benchmarking" ]]; then
@@ -492,16 +488,16 @@ test_package() {
   fi
   # Test Binary flags after this.
   go_test_cmd_parts+=("-args" "--integrationTest" "--testbucket=${bucket_name}")
-  if [[ "$TEST_INSTALLED_PACKAGE" == "true" ]]; then
+  if ${TEST_INSTALLED_PACKAGE}; then
     go_test_cmd_parts+=("--testInstalledPackage")
   fi
-  if [[ "$RUN_TESTS_WITH_PRESUBMIT_FLAG" == "true" ]]; then
+  if ${RUN_TESTS_WITH_PRESUBMIT_FLAG}; then
     go_test_cmd_parts+=("--presubmit")
   fi
   if [[ "$bucket_type" == "$ZONAL" ]]; then
     go_test_cmd_parts+=("--zonal")
   fi
-  if [[ "$RUN_TEST_ON_TPC_ENDPOINT" == "true" ]]; then
+  if ${RUN_TEST_ON_TPC_ENDPOINT}; then
     go_test_cmd_parts+=("--testOnTPCEndPoint")
   fi
   if [[ -n "$BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR" ]]; then 
@@ -628,7 +624,7 @@ main() {
   log_info ""
 
   # Decide whether to build GCSFuse based on RUN_E2E_TESTS_ON_PACKAGE
-  if [ "$TEST_INSTALLED_PACKAGE" != "true" ] && [ "$BUILD_BINARY_IN_SCRIPT" == "true" ]; then
+  if [ ! ${TEST_INSTALLED_PACKAGE} ] && [ ${BUILD_BINARY_IN_SCRIPT} ]; then
     log_info "TEST_INSTALLED_PACKAGE is not 'true' (value: '${TEST_INSTALLED_PACKAGE}') and BUILD_BINARY_IN_SCRIPT is 'true'."
     log_info "Building GCSFuse inside script..."
     if ! build_gcsfuse_once; then
@@ -642,7 +638,7 @@ main() {
   # Reset SECONDS to 0
   SECONDS=0
 
-  if [ "$TRACK_RESOURCE_USAGE" == "true" ]; then
+  if ${TRACK_RESOURCE_USAGE}; then
     # Start collecting system resource usage in background.
     log_info "Starting resource usage collection process."
     ./tools/integration_tests/resource_usage.sh "COLLECT" "$RESOURCE_USAGE_FILE" &
@@ -652,9 +648,9 @@ main() {
 
   local pids=()
   local overall_exit_code=0
-  if [[ "${RUN_TESTS_WITH_ZONAL_BUCKET}" == "true" ]]; then
+  if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
     run_test_group "ZONAL" "TEST_PACKAGES_FOR_ZB" "$ZONAL" & pids+=($!)
-  elif [[ "${RUN_TEST_ON_TPC_ENDPOINT}" == "true" ]]; then
+  elif ${RUN_TEST_ON_TPC_ENDPOINT}; then
     # Override PROJECT_ID and BUCKET_LOCATION for TPC tests
     PROJECT_ID="$TPCZERO_PROJECT_ID"
     BUCKET_LOCATION="$TPC_BUCKET_LOCATION"
@@ -677,7 +673,7 @@ main() {
   # Print package runtime stats table.
   ./tools/integration_tests/create_package_runtime_table.sh "$PACKAGE_RUNTIME_STATS"
 
-  if [ "$TRACK_RESOURCE_USAGE" == "true" ]; then
+  if ${TRACK_RESOURCE_USAGE}; then
     # Kill resource usage background PID and print resource usage.
     log_info "Stopping resource usage collection process: $RESOURCE_USAGE_PID"
     if safe_kill "$RESOURCE_USAGE_PID" "resource_usage.sh"; then
