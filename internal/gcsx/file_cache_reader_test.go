@@ -499,16 +499,19 @@ func (t *fileCacheReaderTest) Test_ReadAt_NegativeOffsetShouldThrowError() {
 	assert.Zero(t.T(), readerResponse.Size)
 }
 
-func (t *fileCacheReaderTest) Test_ReadAt_OffsetBeyondObjectSizeShouldThrowError() {
-	t.mockBucket.On("Name").Return("test-bucket")
-
+func (t *fileCacheReaderTest) Test_ReadAt_OffsetBeyondObjectSizeShouldThrowEOFError() {
 	readerResponse, err := t.reader.ReadAt(t.ctx, make([]byte, 10), int64(t.object.Size)+1)
 
 	assert.Error(t.T(), err)
 	assert.Zero(t.T(), readerResponse.Size)
+	assert.ErrorIs(t.T(), err, io.EOF)
 }
 
 func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBeyondCachedSizeAfterSizeIncreaseShouldThrowFallbackError() {
+	if !t.bucketType.Zonal {
+		t.T().Skipf("Skipping test for non-zonal bucket type")
+	}
+
 	t.mockBucket.On("Name").Return("test-bucket")
 	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
