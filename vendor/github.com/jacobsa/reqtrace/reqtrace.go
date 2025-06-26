@@ -82,10 +82,11 @@ func StartSpan(
 //
 // Example:
 //
-//	func DoSomething(ctx context.Context) (err error) {
-//	  defer reqtrace.StartSpanWithError(&ctx, &err, "DoSomething")()
-//	  [...]
-//	}
+//     func DoSomething(ctx context.Context) (err error) {
+//       defer reqtrace.StartSpanWithError(&ctx, &err, "DoSomething")()
+//       [...]
+//     }
+//
 func StartSpanWithError(
 	ctx *context.Context,
 	err *error,

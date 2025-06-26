@@ -39,42 +39,43 @@ func InvariantCheckingEnabled() bool {
 //
 // A typical use looks like this:
 //
-//	type myStruct struct {
-//	  mu syncutil.InvariantMutex
+//     type myStruct struct {
+//       mu syncutil.InvariantMutex
 //
-//	  // INVARIANT: nextGeneration == currentGeneration + 1
-//	  currentGeneration int // GUARDED_BY(mu)
-//	  nextGeneration    int // GUARDED_BY(mu)
-//	}
+//       // INVARIANT: nextGeneration == currentGeneration + 1
+//       currentGeneration int // GUARDED_BY(mu)
+//       nextGeneration    int // GUARDED_BY(mu)
+//     }
 //
-//	// The constructor function for myStruct sets up the mutex to
-//	// call the checkInvariants method.
-//	func newMyStruct() *myStruct {
-//	  s := &myStruct{
-//	    currentGeneration: 1,
-//	    nextGeneration:    2,
-//	  }
+//     // The constructor function for myStruct sets up the mutex to
+//     // call the checkInvariants method.
+//     func newMyStruct() *myStruct {
+//       s := &myStruct{
+//         currentGeneration: 1,
+//         nextGeneration:    2,
+//       }
 //
-//	  s.mu = syncutil.NewInvariantMutex(s.checkInvariants)
-//	  return s
-//	}
+//       s.mu = syncutil.NewInvariantMutex(s.checkInvariants)
+//       return s
+//     }
 //
-//	func (s *myStruct) checkInvariants() {
-//	  if s.nextGeneration != s.currentGeneration+1 {
-//	    panic(
-//	      fmt.Sprintf("%v != %v + 1", s.nextGeneration, s.currentGeneration))
-//	  }
-//	}
+//     func (s *myStruct) checkInvariants() {
+//       if s.nextGeneration != s.currentGeneration+1 {
+//         panic(
+//           fmt.Sprintf("%v != %v + 1", s.nextGeneration, s.currentGeneration))
+//       }
+//     }
 //
-//	// When EnableInvariantChecking has been called, invariants will be
-//	// checked at entry to and exit from this function.
-//	func (s *myStruct) setGeneration(n int) {
-//	  s.mu.Lock()
-//	  defer s.mu.Unlock()
+//     // When EnableInvariantChecking has been called, invariants will be
+//     // checked at entry to and exit from this function.
+//     func (s *myStruct) setGeneration(n int) {
+//       s.mu.Lock()
+//       defer s.mu.Unlock()
 //
-//	  s.currentGeneration = n
-//	  s.nextGeneration = n + 1
-//	}
+//       s.currentGeneration = n
+//       s.nextGeneration = n + 1
+//     }
+//
 type InvariantMutex struct {
 	mu    sync.RWMutex
 	check func()

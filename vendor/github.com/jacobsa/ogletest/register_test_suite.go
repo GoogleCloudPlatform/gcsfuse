@@ -67,42 +67,43 @@ type TearDownInterface interface {
 // methods defined by the following interfaces, which when present are treated
 // as described in the documentation for those interfaces:
 //
-//   - SetUpTestSuiteInterface
-//   - SetUpInterface
-//   - TearDownInterface
-//   - TearDownTestSuiteInterface
+//  *  SetUpTestSuiteInterface
+//  *  SetUpInterface
+//  *  TearDownInterface
+//  *  TearDownTestSuiteInterface
 //
 // Each test method is invoked on a different receiver, which is initially a
 // zero value of the test suite type.
 //
 // Example:
 //
-//	// Some value that is needed by the tests but is expensive to compute.
-//	var someExpensiveThing uint
+//     // Some value that is needed by the tests but is expensive to compute.
+//     var someExpensiveThing uint
 //
-//	type FooTest struct {
-//	  // Path to a temporary file used by the tests. Each test gets a
-//	  // different temporary file.
-//	  tempFile string
-//	}
-//	func init() { ogletest.RegisterTestSuite(&FooTest{}) }
+//     type FooTest struct {
+//       // Path to a temporary file used by the tests. Each test gets a
+//       // different temporary file.
+//       tempFile string
+//     }
+//     func init() { ogletest.RegisterTestSuite(&FooTest{}) }
 //
-//	func (t *FooTest) SetUpTestSuite() {
-//	  someExpensiveThing = ComputeSomeExpensiveThing()
-//	}
+//     func (t *FooTest) SetUpTestSuite() {
+//       someExpensiveThing = ComputeSomeExpensiveThing()
+//     }
 //
-//	func (t *FooTest) SetUp(ti *ogletest.TestInfo) {
-//	  t.tempFile = CreateTempFile()
-//	}
+//     func (t *FooTest) SetUp(ti *ogletest.TestInfo) {
+//       t.tempFile = CreateTempFile()
+//     }
 //
-//	func (t *FooTest) TearDown() {
-//	  DeleteTempFile(t.tempFile)
-//	}
+//     func (t *FooTest) TearDown() {
+//       DeleteTempFile(t.tempFile)
+//     }
 //
-//	func (t *FooTest) FrobinicatorIsSuccessfullyTweaked() {
-//	  res := DoSomethingWithExpensiveThing(someExpensiveThing, t.tempFile)
-//	  ExpectThat(res, Equals(true))
-//	}
+//     func (t *FooTest) FrobinicatorIsSuccessfullyTweaked() {
+//       res := DoSomethingWithExpensiveThing(someExpensiveThing, t.tempFile)
+//       ExpectThat(res, Equals(true))
+//     }
+//
 func RegisterTestSuite(p interface{}) {
 	if p == nil {
 		panic("RegisterTestSuite called with nil suite.")

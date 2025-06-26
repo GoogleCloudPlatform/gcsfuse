@@ -32,8 +32,9 @@ import (
 //
 // For example:
 //
-//	ExpectThat(userName, Equals("jacobsa"))
-//	ExpectThat(users[i], Equals("jacobsa"), "while processing user %d", i)
+//     ExpectThat(userName, Equals("jacobsa"))
+//     ExpectThat(users[i], Equals("jacobsa"), "while processing user %d", i)
+//
 func ExpectThat(
 	x interface{},
 	m oglematchers.Matcher,

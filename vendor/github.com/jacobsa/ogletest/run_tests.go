@@ -105,14 +105,15 @@ func runTestFunction(tf TestFunction) (failures []FailureRecord) {
 //
 // For example:
 //
-//	import (
-//	  "github.com/jacobsa/ogletest"
-//	  "testing"
-//	)
+//     import (
+//       "github.com/jacobsa/ogletest"
+//       "testing"
+//     )
 //
-//	func TestOgletest(t *testing.T) {
-//	  ogletest.RunTests(t)
-//	}
+//     func TestOgletest(t *testing.T) {
+//       ogletest.RunTests(t)
+//     }
+//
 func RunTests(t *testing.T) {
 	runTestsOnce.Do(func() { runTestsInternal(t) })
 }

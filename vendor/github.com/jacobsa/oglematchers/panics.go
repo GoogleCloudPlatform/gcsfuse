@@ -27,7 +27,8 @@ import (
 // NOTE(jacobsa): This matcher cannot detect the case where the function panics
 // using panic(nil), by design of the language. See here for more info:
 //
-//	http://goo.gl/9aIQL
+//     http://goo.gl/9aIQL
+//
 func Panics(m Matcher) Matcher {
 	return &panicsMatcher{m}
 }

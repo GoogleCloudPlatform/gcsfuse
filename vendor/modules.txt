@@ -242,7 +242,7 @@ github.com/inconshreveable/mousetrap
 # github.com/jacobsa/daemonize v0.0.0-20240917082746-f35568b6c3ec
 ## explicit
 github.com/jacobsa/daemonize
-# github.com/jacobsa/fuse v0.0.0-20250506064942-d10bfe4fb08e
+# github.com/jacobsa/fuse v0.0.0-20250506064942-d10bfe4fb08e => ../fuse-pool
 ## explicit; go 1.23.0
 github.com/jacobsa/fuse
 github.com/jacobsa/fuse/fsutil
@@ -750,3 +750,4 @@ gopkg.in/natefinch/lumberjack.v2
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
+# github.com/jacobsa/fuse => ../fuse-pool

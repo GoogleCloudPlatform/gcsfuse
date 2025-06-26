@@ -21,11 +21,12 @@ package oglematchers
 //
 // For example:
 //
-//	err := errors.New("taco burrito")
+//     err := errors.New("taco burrito")
 //
-//	Error(Equals("taco burrito"))  // matches err
-//	Error(HasSubstr("taco"))       // matches err
-//	Error(HasSubstr("enchilada"))  // doesn't match err
+//     Error(Equals("taco burrito"))  // matches err
+//     Error(HasSubstr("taco"))       // matches err
+//     Error(HasSubstr("enchilada"))  // doesn't match err
+//
 func Error(m Matcher) Matcher {
 	return &errorMatcher{m}
 }

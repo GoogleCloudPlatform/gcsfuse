@@ -31,19 +31,20 @@ var complex128Type = reflect.TypeOf(complex128(0))
 // Given an argument x to Return and a corresponding type T in the method's
 // signature, at least one of the following must hold:
 //
-//   - x is assignable to T. (See "Assignability" in the language spec.) Note
+//  *  x is assignable to T. (See "Assignability" in the language spec.) Note
 //     that this in particular applies that x may be a type that implements an
 //     interface T. It also implies that the nil literal can be used if T is a
 //     pointer, function, interface, slice, channel, or map type.
 //
-//   - T is any numeric type, and x is an int that is in-range for that type.
+//  *  T is any numeric type, and x is an int that is in-range for that type.
 //     This facilities using raw integer constants: Return(17).
 //
-//   - T is a floating-point or complex number type, and x is a float64.  This
+//  *  T is a floating-point or complex number type, and x is a float64.  This
 //     facilities using raw floating-point constants: Return(17.5).
 //
-//   - T is a complex number type, and x is a complex128. This facilities using
+//  *  T is a complex number type, and x is a complex128. This facilities using
 //     raw complex constants: Return(17+2i).
+//
 func Return(vals ...interface{}) Action {
 	return &returnAction{vals, nil}
 }

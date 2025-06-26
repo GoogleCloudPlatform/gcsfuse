@@ -1,5 +1,7 @@
 module github.com/googlecloudplatform/gcsfuse/v3
 
+replace github.com/jacobsa/fuse => ../fuse-pool
+
 go 1.24.0
 
 require (
