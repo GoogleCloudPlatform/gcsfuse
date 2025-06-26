@@ -188,6 +188,7 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, size i
 		objectData, err = fh.reader.ReadAt(ctx, dst, offset, size)
 		switch {
 		case errors.Is(err, io.EOF):
+			fmt.Println("returned eof")
 			if err != io.EOF {
 				logger.Warnf("Unexpected EOF error encountered while reading, err: %v type: %T ", err, err)
 				err = io.EOF
