@@ -114,36 +114,7 @@ func cacheHitReadTypeAttrOption(attr CacheHitReadType) metric.MeasurementOption 
 // otelMetrics maintains the list of all metrics computed in GCSFuse.
 type otelMetrics struct {
 	fsOpsErrorCount metric.Int64Counter
-	fsOpStatFSLatency,
-	fsOpLookUpInodeLatency,
-	fsOpGetInodeAttributesLatency,
-	fsOpSetInodeAttributesLatency,
-	fsOpForgetInodeLatency,
-	fsOpBatchForgetLatency,
-	fsOpMkDirLatency,
-	fsOpMkNodeLatency,
-	fsOpCreateFileLatency,
-	fsOpCreateLinkLatency,
-	fsOpCreateSymlinkLatency,
-	fsOpRenameLatency,
-	fsOpRmDirLatency,
-	fsOpUnlinkLatency,
-	fsOpOpenDirLatency,
-	fsOpReadDirLatency,
-	fsOpReleaseDirHandleLatency,
-	fsOpOpenFileLatency,
-	fsOpReadFileLatency,
-	fsOpWriteFileLatency,
-	fsOpSyncFileLatency,
-	fsOpFlushFileLatency,
-	fsOpReleaseFileHandleLatency,
-	fsOpReadSymlinkLatency,
-	fsOpRemoveXattrLatency,
-	fsOpGetXattrLatency,
-	fsOpListXattrLatency,
-	fsOpSetXattrLatency,
-	fsOpFallocateLatency,
-	fsOpSyncFSLatency metric.Int64Histogram
+	fsOpsLatency    metric.Int64Histogram
 
 	gcsReadCountSeqAtomic,
 	gcsReadCountRandomAtomic,
@@ -296,68 +267,7 @@ func (o *otelMetrics) OpsCount(ctx context.Context, inc int64, fsOp string) {
 }
 
 func (o *otelMetrics) OpsLatency(ctx context.Context, latency time.Duration, fsOp string) {
-	switch fsOp {
-	case OpStatFS:
-		o.fsOpStatFSLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpLookUpInode:
-		o.fsOpLookUpInodeLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpGetInodeAttributes:
-		o.fsOpGetInodeAttributesLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpSetInodeAttributes:
-		o.fsOpSetInodeAttributesLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpForgetInode:
-		o.fsOpForgetInodeLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpBatchForget:
-		o.fsOpBatchForgetLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpMkDir:
-		o.fsOpMkDirLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpMkNode:
-		o.fsOpMkNodeLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpCreateFile:
-		o.fsOpCreateFileLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpCreateLink:
-		o.fsOpCreateLinkLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpCreateSymlink:
-		o.fsOpCreateSymlinkLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpRename:
-		o.fsOpRenameLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpRmDir:
-		o.fsOpRmDirLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpUnlink:
-		o.fsOpUnlinkLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpOpenDir:
-		o.fsOpOpenDirLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpReadDir:
-		o.fsOpReadDirLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpReleaseDirHandle:
-		o.fsOpReleaseDirHandleLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpOpenFile:
-		o.fsOpOpenFileLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpReadFile:
-		o.fsOpReadFileLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpWriteFile:
-		o.fsOpWriteFileLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpSyncFile:
-		o.fsOpSyncFileLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpFlushFile:
-		o.fsOpFlushFileLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpReleaseFileHandle:
-		o.fsOpReleaseFileHandleLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpReadSymlink:
-		o.fsOpReadSymlinkLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpRemoveXattr:
-		o.fsOpRemoveXattrLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpGetXattr:
-		o.fsOpGetXattrLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpListXattr:
-		o.fsOpListXattrLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpSetXattr:
-		o.fsOpSetXattrLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpFallocate:
-		o.fsOpFallocateLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	case OpSyncFS:
-		o.fsOpSyncFSLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
-	}
+	o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
 }
 
 func (o *otelMetrics) OpsErrorCount(ctx context.Context, inc int64, attrs FSOpsErrorCategory) {
@@ -378,7 +288,7 @@ func (o *otelMetrics) FileCacheReadLatency(ctx context.Context, latency time.Dur
 
 func getFSOpsLatencyMetric() (metric.Int64Histogram, error) {
 	return fsOpsMeter.Int64Histogram("fs/ops_latency", metric.WithDescription("The cumulative distribution of file system operation latencies"), metric.WithUnit("us"),
-		opsLatencyDistribution)
+		defaultLatencyDistribution)
 }
 
 func NewOTelMetrics() (MetricHandle, error) {
@@ -449,36 +359,7 @@ func NewOTelMetrics() (MetricHandle, error) {
 			obsrv.Observe(fsOpSyncFSAtomic.Load(), fsOpsAttrOption(OpSyncFS))
 			return nil
 		}))
-	fsOpStatFSLatency, _ := getFSOpsLatencyMetric()
-	fsOpLookUpInodeLatency, _ := getFSOpsLatencyMetric()
-	fsOpGetInodeAttributesLatency, _ := getFSOpsLatencyMetric()
-	fsOpSetInodeAttributesLatency, _ := getFSOpsLatencyMetric()
-	fsOpForgetInodeLatency, _ := getFSOpsLatencyMetric()
-	fsOpBatchForgetLatency, _ := getFSOpsLatencyMetric()
-	fsOpMkDirLatency, _ := getFSOpsLatencyMetric()
-	fsOpMkNodeLatency, _ := getFSOpsLatencyMetric()
-	fsOpCreateFileLatency, _ := getFSOpsLatencyMetric()
-	fsOpCreateLinkLatency, _ := getFSOpsLatencyMetric()
-	fsOpCreateSymlinkLatency, _ := getFSOpsLatencyMetric()
-	fsOpRenameLatency, _ := getFSOpsLatencyMetric()
-	fsOpRmDirLatency, _ := getFSOpsLatencyMetric()
-	fsOpUnlinkLatency, _ := getFSOpsLatencyMetric()
-	fsOpOpenDirLatency, _ := getFSOpsLatencyMetric()
-	fsOpReadDirLatency, _ := getFSOpsLatencyMetric()
-	fsOpReleaseDirHandleLatency, _ := getFSOpsLatencyMetric()
-	fsOpOpenFileLatency, _ := getFSOpsLatencyMetric()
-	fsOpReadFileLatency, _ := getFSOpsLatencyMetric()
-	fsOpWriteFileLatency, _ := getFSOpsLatencyMetric()
-	fsOpSyncFileLatency, _ := getFSOpsLatencyMetric()
-	fsOpFlushFileLatency, _ := getFSOpsLatencyMetric()
-	fsOpReleaseFileHandleLatency, _ := getFSOpsLatencyMetric()
-	fsOpReadSymlinkLatency, _ := getFSOpsLatencyMetric()
-	fsOpRemoveXattrLatency, _ := getFSOpsLatencyMetric()
-	fsOpGetXattrLatency, _ := getFSOpsLatencyMetric()
-	fsOpListXattrLatency, _ := getFSOpsLatencyMetric()
-	fsOpSetXattrLatency, _ := getFSOpsLatencyMetric()
-	fsOpFallocateLatency, _ := getFSOpsLatencyMetric()
-	fsOpSyncFSLatency, _ := getFSOpsLatencyMetric()
+	fsOpsLatency, _ := getFSOpsLatencyMetric()
 	fsOpsErrorCount, err3 := fsOpsMeter.Int64Counter("fs/ops_error_count", metric.WithDescription("The cumulative number of errors generated by file system operations"))
 
 	_, err4 := gcsMeter.Int64ObservableCounter("gcs/read_count",
@@ -571,35 +452,6 @@ func NewOTelMetrics() (MetricHandle, error) {
 		fileCacheReadCount:                  fileCacheReadCount,
 		fileCacheReadBytesCount:             fileCacheReadBytesCount,
 		fileCacheReadLatency:                fileCacheReadLatency,
-		fsOpStatFSLatency:                   fsOpStatFSLatency,
-		fsOpLookUpInodeLatency:              fsOpLookUpInodeLatency,
-		fsOpGetInodeAttributesLatency:       fsOpGetInodeAttributesLatency,
-		fsOpSetInodeAttributesLatency:       fsOpSetInodeAttributesLatency,
-		fsOpForgetInodeLatency:              fsOpForgetInodeLatency,
-		fsOpBatchForgetLatency:              fsOpBatchForgetLatency,
-		fsOpMkDirLatency:                    fsOpMkDirLatency,
-		fsOpMkNodeLatency:                   fsOpMkNodeLatency,
-		fsOpCreateFileLatency:               fsOpCreateFileLatency,
-		fsOpCreateLinkLatency:               fsOpCreateLinkLatency,
-		fsOpCreateSymlinkLatency:            fsOpCreateSymlinkLatency,
-		fsOpRenameLatency:                   fsOpRenameLatency,
-		fsOpRmDirLatency:                    fsOpRmDirLatency,
-		fsOpUnlinkLatency:                   fsOpUnlinkLatency,
-		fsOpOpenDirLatency:                  fsOpOpenDirLatency,
-		fsOpReadDirLatency:                  fsOpReadDirLatency,
-		fsOpReleaseDirHandleLatency:         fsOpReleaseDirHandleLatency,
-		fsOpOpenFileLatency:                 fsOpOpenFileLatency,
-		fsOpReadFileLatency:                 fsOpReadFileLatency,
-		fsOpWriteFileLatency:                fsOpWriteFileLatency,
-		fsOpSyncFileLatency:                 fsOpSyncFileLatency,
-		fsOpFlushFileLatency:                fsOpFlushFileLatency,
-		fsOpReleaseFileHandleLatency:        fsOpReleaseFileHandleLatency,
-		fsOpReadSymlinkLatency:              fsOpReadSymlinkLatency,
-		fsOpRemoveXattrLatency:              fsOpRemoveXattrLatency,
-		fsOpGetXattrLatency:                 fsOpGetXattrLatency,
-		fsOpListXattrLatency:                fsOpListXattrLatency,
-		fsOpSetXattrLatency:                 fsOpSetXattrLatency,
-		fsOpFallocateLatency:                fsOpFallocateLatency,
-		fsOpSyncFSLatency:                   fsOpSyncFSLatency,
+		fsOpsLatency:                        fsOpsLatency,
 	}, nil
 }
