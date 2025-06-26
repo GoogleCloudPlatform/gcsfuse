@@ -21,6 +21,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cmd"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
@@ -45,9 +46,12 @@ func main() {
 	defer logPanic()
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
-	// Set up profiling handlers.
-	go perf.HandleCPUProfileSignals()
-	go perf.HandleMemoryProfileSignals()
+
+	// Enable profiling signal handlers only if the environment variable is set.
+	if os.Getenv("ENABLE_GCSFUSE_CPU_MEM_PPROF_HANDLERS") != "" {
+		go perf.HandleCPUProfileSignals()
+		go perf.HandleMemoryProfileSignals()
+	}
 
 	cmd.ExecuteMountCmd()
 }
