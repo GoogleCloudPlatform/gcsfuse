@@ -227,8 +227,8 @@ func (rr *randomReader) CheckInvariants() {
 // fileHandle to file in cache. So, we will get the correct data from fileHandle
 // because Linux does not delete a file until open fileHandle count for a file is zero.
 func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
-	p []byte,
-	offset int64) (n int, cacheHit bool, err error) {
+		p []byte,
+		offset int64) (n int, cacheHit bool, err error) {
 
 	if rr.fileCacheHandler == nil {
 		return
@@ -310,9 +310,9 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 }
 
 func (rr *randomReader) ReadAt(
-	ctx context.Context,
-	p []byte,
-	offset int64, size int64) (objectData ObjectData, err error) {
+		ctx context.Context,
+		p []byte,
+		offset int64, size int64) (objectData ObjectData, err error) {
 	objectData = ObjectData{
 		CacheHit: false,
 		Size:     0,
@@ -407,14 +407,16 @@ func (rr *randomReader) ReadData(size int64, bytesRead int64, offset int64, obje
 
 	if err == io.EOF {
 		bytesReadInThisCall := bytesRead - bytesReadBeforeThisCall
+
 		rr.reader = nil
 
 		// If we received EOF but made no progress, we are done. This
 		// prevents the infinite recursion that causes a stack overflow.
-		if bytesReadInThisCall == 0 {
+		/*if bytesReadInThisCall == 0 {
 			objectData.Size = int(bytesRead)
 			return objectData, io.EOF
-		}
+		}*/
+		// This is not right code. But incase of sequential reads we will utimately the offset >= int64(rr.object.Size). so we are good.
 		return rr.ReadData(size, bytesRead, offset+bytesReadInThisCall, objectData)
 	}
 
@@ -510,8 +512,8 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 // Range here is [start, end]. End is computed using the readType, start offset
 // and size of the data the callers needs.
 func (rr *randomReader) getReadInfo(
-	start int64,
-	size int64) (end int64, err error) {
+		start int64,
+		size int64) (end int64, err error) {
 	// Make sure start and size are legal.
 	if start < 0 || uint64(start) > rr.object.Size || size < 0 {
 		err = fmt.Errorf(
