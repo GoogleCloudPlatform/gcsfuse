@@ -2593,7 +2593,7 @@ func (fs *fileSystem) ReadFile(
 	if fs.newConfig.EnableNewReader {
 		op.Dst, op.BytesRead, err = fh.ReadWithReadManager(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
 	} else {
-		op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
+		op.Data, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, op.Size, fs.sequentialReadSizeMb)
 	}
 
 	// As required by fuse, we don't treat EOF as an error.

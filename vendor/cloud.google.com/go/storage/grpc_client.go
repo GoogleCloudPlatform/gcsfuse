@@ -2050,6 +2050,84 @@ func (r *gRPCReader) WriteTo(w io.Writer) (int64, error) {
 	return r.seen - alreadySeen, finalErr
 }
 
+// ReadChunks reads up to `size` bytes from the stream and returns them as an
+// array of byte slices, avoiding extra copies. The returned slices point to
+// underlying network buffers and are only valid until the next read call.
+func (r *gRPCReader) ReadChunks(size int64) ([][]byte, error) {
+	if size == 0 {
+		return nil, nil
+	}
+	if r.size == r.seen || r.zeroRange {
+		return nil, io.EOF
+	}
+	if r.stream == nil {
+		return nil, fmt.Errorf("storage: reader has been closed")
+	}
+
+	var resultChunks [][]byte
+	var totalRead int64
+
+	// First, use any leftover data from a previous standard Read call.
+	if len(r.leftovers) > 0 {
+		resultChunks = append(resultChunks, r.leftovers)
+		totalRead += int64(len(r.leftovers))
+		r.leftovers = nil
+	}
+
+	for totalRead < size {
+		// Try to drain chunks from the current message buffer.
+		if r.currMsg != nil && !r.currMsg.done {
+			chunks, found := r.currMsg.drainChunksAsSlices(1)
+			if found {
+				for _, chunk := range chunks {
+					r.updateCRC(chunk)
+					r.seen += int64(len(chunk))
+					totalRead += int64(len(chunk))
+					resultChunks = append(resultChunks, chunk)
+				}
+			}
+		}
+
+		// If we still need more data, fetch the next message.
+		if totalRead < size {
+			if err := r.recv(); err != nil {
+				if err == io.EOF {
+					break // End of stream, return what we have.
+				}
+				return resultChunks, err // Return partial data on other errors.
+			}
+		}
+	}
+
+	// If we over-read, truncate the last chunk.
+	if overRead := totalRead - size; overRead > 0 {
+		lastChunk := resultChunks[len(resultChunks)-1]
+		resultChunks[len(resultChunks)-1] = lastChunk[:int64(len(lastChunk))-overRead]
+		r.leftovers = lastChunk[int64(len(lastChunk))-overRead:]
+	}
+
+	return resultChunks, nil
+}
+
+
+// ReadChunks provides a zero-copy way to read data from the object. It reads
+// up to `size` bytes and returns them as an array of byte arrays, where each
+// inner slice is a view into an underlying network buffer.
+//
+// The returned byte slices are only valid until the next call to Read or
+// ReadChunks. The caller must copy the data if it needs to be retained.
+func (r *Reader) ReadChunks(size int64) ([][]byte, error) {
+		if r.reader == nil {
+				return nil, errors.New("storage: reader is closed")
+			}
+		if gr, ok := r.reader.(*gRPCReader); ok {
+				return gr.ReadChunks(size)
+			}
+		// Fallback for non-gRPC readers (e.g., HTTP) is not implemented for zero-copy.
+				return nil, errors.New("storage: ReadChunks is only supported for gRPC reads")
+	}
+
+
 // Close cancels the read stream's context in order for it to be closed and
 // collected, and frees any currently in use buffers.
 func (r *gRPCReader) Close() error {
@@ -2570,6 +2648,35 @@ func (d *readResponseDecoder) readFullObjectResponse() error {
 	d.msg = msg
 
 	return nil
+}
+
+// drainChunksAsSlices returns all available byte slices for a given readID from
+// the current message. This is a zero-copy operation. The returned slices are
+// only valid until the next message is processed.
+func (d *readResponseDecoder) drainChunksAsSlices(readID int64) ([][]byte, bool) {
+	offsets, ok := d.dataOffsets[readID]
+	if !ok {
+		return nil, false
+	}
+
+	var chunks [][]byte
+	// Loop from the starting buffer to the ending buffer for this data range.
+	for i := offsets.startBuf; i <= offsets.endBuf; i++ {
+		databuf := d.databufs[i]
+		start := uint64(0)
+		if i == offsets.startBuf {
+			start = offsets.startOff
+		}
+		end := uint64(databuf.Len())
+		if i == offsets.endBuf {
+			end = offsets.endOff
+		}
+		if start < end {
+			chunks = append(chunks, databuf.ReadOnlyData()[start:end])
+		}
+	}
+	d.done = true // Mark this message as fully drained for this reader.
+	return chunks, true
 }
 
 // reopenStream "closes" the existing stream and attempts to reopen a stream and

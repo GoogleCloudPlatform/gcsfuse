@@ -172,6 +172,7 @@ type ComposeSource struct {
 type StorageReader interface {
 	ReadHandle() storagev2.ReadHandle
 	io.ReadCloser
+	ReadChunks(size int64) ([][]byte, error)
 }
 
 // ByteRange is a [start, limit) range of bytes within an object.

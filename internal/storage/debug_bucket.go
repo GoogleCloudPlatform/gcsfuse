@@ -93,7 +93,12 @@ type debugReader struct {
 	requestID uint64
 	desc      string
 	startTime time.Time
-	wrapped   io.ReadCloser
+	wrapped   gcs.StorageReader
+}
+
+func (dr *debugReader) ReadChunks(size int64) ([][]byte, error) {
+	//TODO implement me
+	return dr.wrapped.ReadChunks(size)
 }
 
 func (dr *debugReader) Read(p []byte) (n int, err error) {

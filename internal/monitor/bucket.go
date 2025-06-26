@@ -234,6 +234,10 @@ type monitoringReadCloser struct {
 	metricHandle common.MetricHandle
 }
 
+func (mrc *monitoringReadCloser) ReadChunks(size int64) ([][]byte, error) {
+	return mrc.wrapped.ReadChunks(size)
+}
+
 func (mrc *monitoringReadCloser) Read(p []byte) (n int, err error) {
 	n, err = mrc.wrapped.Read(p)
 	mrc.metricHandle.GCSReadBytesCount(mrc.ctx, int64(n))

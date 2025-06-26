@@ -18,7 +18,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"time"
 
 	"github.com/google/uuid"
@@ -69,7 +68,7 @@ type RandomReader interface {
 	// byte array. In case input array is populated, the same array will be returned
 	// as part of response. Hence the callers should use the byte array returned
 	// as part of response always.
-	ReadAt(ctx context.Context, p []byte, offset int64) (objectData ObjectData, err error)
+	ReadAt(ctx context.Context, p []byte, offset int64, size int64) (objectData ObjectData, err error)
 
 	// Return the record for the object to which the reader is bound.
 	Object() (o *gcs.MinObject)
@@ -82,7 +81,7 @@ type RandomReader interface {
 // ObjectData specifies the response returned as part of ReadAt call.
 type ObjectData struct {
 	// Byte array populated with the requested data.
-	DataBuf []byte
+	DataBuf [][]byte
 	// Size of the data returned.
 	Size int
 	// Specified whether data is served from cache or not.
@@ -120,6 +119,13 @@ func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb i
 		metricHandle:          metricHandle,
 		config:                config,
 	}
+}
+
+// Reader is an interface that abstracts the underlying object reader from the Go SDK.
+// It must include the new ReadChunks method.
+type SDKReader interface {
+	ReadChunks(size int64) ([][]byte, error)
+	Close() error
 }
 
 type randomReader struct {
@@ -180,6 +186,11 @@ type randomReader struct {
 	// Specifies the next expected offset for the reads. Used to distinguish between
 	// sequential and random reads.
 	expectedOffset int64
+
+	// A list of byte slices from the last ReadChunks call that were not fully consumed.
+	leftoverChunks [][]byte
+	// The offset within the first leftover chunk.
+	leftoverOffset int
 }
 
 func (rr *randomReader) CheckInvariants() {
@@ -301,9 +312,8 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 func (rr *randomReader) ReadAt(
 	ctx context.Context,
 	p []byte,
-	offset int64) (objectData ObjectData, err error) {
+	offset int64, size int64) (objectData ObjectData, err error) {
 	objectData = ObjectData{
-		DataBuf:  p,
 		CacheHit: false,
 		Size:     0,
 	}
@@ -313,77 +323,93 @@ func (rr *randomReader) ReadAt(
 		return
 	}
 
-	// Note: If we are reading the file for the first time and read type is sequential
-	// then the file cache behavior is write-through i.e. data is first read from
-	// GCS, cached in file and then served from that file. But the cacheHit is
-	// false in that case.
-	n, cacheHit, err := rr.tryReadingFromFileCache(ctx, p, offset)
-	if err != nil {
-		err = fmt.Errorf("ReadAt: while reading from cache: %w", err)
-		return
-	}
-	// Data was served from cache.
-	if cacheHit || n == len(p) || (n < len(p) && uint64(offset)+uint64(n) == rr.object.Size) {
-		objectData.CacheHit = cacheHit
-		objectData.Size = n
-		return
-	}
+	var bytesRead int64 = 0
 
-	// Check first if we can read using existing reader. if not, determine which
-	// api to use and call gcs accordingly.
+	// 1. Consume any leftover chunks from the previous Read call.
+	for len(rr.leftoverChunks) > 0 && bytesRead < size {
+		chunk := rr.leftoverChunks[0]
 
-	// When the offset is AFTER the reader position, try to seek forward, within reason.
-	// This happens when the kernel page cache serves some data. It's very common for
-	// concurrent reads, often by only a few 128kB fuse read requests. The aim is to
-	// re-use GCS connection and avoid throwing away already read data.
-	// For parallel sequential reads to a single file, not throwing away the connections
-	// is a 15-20x improvement in throughput: 150-200 MiB/s instead of 10 MiB/s.
-	if rr.reader != nil && rr.start < offset && offset-rr.start < maxReadSize {
-		bytesToSkip := offset - rr.start
-		discardedBytes, copyError := io.CopyN(io.Discard, rr.reader, bytesToSkip)
-		// io.EOF is expected if the reader is shorter than the requested offset to read.
-		if copyError != nil && !errors.Is(copyError, io.EOF) {
-			logger.Warnf("Error while skipping reader bytes: %v", copyError)
+		requiredSize := len(chunk) - rr.leftoverOffset
+		if requiredSize > int(size-bytesRead) {
+			requiredSize = int(size - bytesRead)
 		}
-		rr.start += discardedBytes
+
+		objectData.DataBuf = append(objectData.DataBuf, chunk[rr.leftoverOffset:rr.leftoverOffset+requiredSize])
+		bytesRead += int64(requiredSize)
+		rr.leftoverOffset += requiredSize
+
+		// If the leftover chunk is now fully consumed, remove it.
+		if rr.leftoverOffset >= len(chunk) {
+			rr.leftoverChunks = rr.leftoverChunks[1:]
+			rr.leftoverOffset = 0
+		}
 	}
 
-	// If we have an existing reader, but it's positioned at the wrong place,
-	// clean it up and throw it away.
-	// We will also clean up the existing reader if it can't serve the entire request.
-	dataToRead := math.Min(float64(offset+int64(len(p))), float64(rr.object.Size))
-	if rr.reader != nil && (rr.start != offset || int64(dataToRead) > rr.limit) {
-		rr.closeReader()
+	// If the destination buffer is full, we are done.
+	if bytesRead == size {
+		objectData.Size = int(bytesRead)
+		return objectData, nil
+	}
+
+	// 2. If more data is needed, call the new ReadChunks method on the SDK reader.
+	// This call returns an array of byte slices, avoiding extra copies in the SDK.
+	//
+	return rr.ReadData(size, bytesRead, offset+bytesRead, objectData)
+}
+
+func (rr *randomReader) ReadData(size int64, bytesRead int64, offset int64, objectData ObjectData) (ObjectData, error) {
+	if offset >= int64(rr.object.Size) {
+		err := io.EOF
+		objectData.Size = int(bytesRead)
+		return objectData, err
+	}
+
+	needed := size - bytesRead
+
+	if rr.reader == nil {
+		end, err := rr.getReadInfo(offset, needed)
+		if err != nil {
+			return objectData, err
+		}
+		err = rr.startRead(offset, end)
+		if err != nil {
+			err = fmt.Errorf("startRead: %w", err)
+			return objectData, err
+		}
+	}
+
+	newChunks, err := rr.reader.ReadChunks(needed)
+
+	// 3. Process the newly fetched chunks.
+	for _, chunk := range newChunks {
+		if bytesRead < size {
+			requiredSize := size - bytesRead
+			if requiredSize > int64(len(chunk)) {
+				requiredSize = int64(len(chunk))
+			}
+
+			objectData.DataBuf = append(objectData.DataBuf, chunk[0:requiredSize])
+			bytesRead += requiredSize
+
+			// If the new chunk was not fully consumed, it becomes a leftover.
+			if requiredSize < int64(len(chunk)) {
+				rr.leftoverChunks = append(rr.leftoverChunks, chunk)
+				rr.leftoverOffset = int(requiredSize)
+			}
+		} else {
+			// If dst is full, add all remaining new chunks to leftovers.
+			rr.leftoverChunks = append(rr.leftoverChunks, chunk)
+			rr.leftoverOffset = 0
+		}
+	}
+
+	if err == io.EOF {
 		rr.reader = nil
-		rr.cancel = nil
+		return rr.ReadData(size, bytesRead, offset+bytesRead, objectData)
 	}
 
-	if rr.reader != nil {
-		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, -1, rr.readType)
-		return
-	}
-
-	// If the data can't be served from the existing reader, then we need to update the seeks.
-	// If current offset is not same as expected offset, its a random read.
-	if rr.expectedOffset != 0 && rr.expectedOffset != offset {
-		rr.seeks++
-	}
-
-	// If we don't have a reader, determine whether to read from NewReader or MRR.
-	end, err := rr.getReadInfo(offset, int64(len(p)))
-	if err != nil {
-		err = fmt.Errorf("ReadAt: getReaderInfo: %w", err)
-		return
-	}
-
-	readerType := readerType(rr.readType, offset, end, rr.bucket.BucketType())
-	if readerType == RangeReader {
-		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, rr.readType)
-		return
-	}
-
-	objectData.Size, err = rr.readFromMultiRangeReader(ctx, p, offset, int64(rr.object.Size), TimeoutForMultiRangeRead)
-	return
+	objectData.Size = int(bytesRead)
+	return objectData, err
 }
 
 func (rr *randomReader) Object() (o *gcs.MinObject) {
@@ -422,39 +448,6 @@ func (rr *randomReader) Destroy() {
 // Like io.ReadFull, but deals with the cancellation issues.
 //
 // REQUIRES: rr.reader != nil
-func (rr *randomReader) readFull(
-	ctx context.Context,
-	p []byte) (n int, err error) {
-	if rr.config != nil && !rr.config.FileSystem.IgnoreInterrupts {
-		// Start a goroutine that will cancel the read operation we block on below if
-		// the calling context is cancelled, but only if this method has not already
-		// returned (to avoid souring the reader for the next read if this one is
-		// successful, since the calling context will eventually be cancelled).
-		readDone := make(chan struct{})
-		defer close(readDone)
-
-		go func() {
-			select {
-			case <-readDone:
-				return
-
-			case <-ctx.Done():
-				select {
-				case <-readDone:
-					return
-
-				default:
-					rr.cancel()
-				}
-			}
-		}()
-	}
-
-	// Call through.
-	n, err = io.ReadFull(rr.reader, p)
-
-	return
-}
 
 // Ensure that rr.reader is set up for a range for which [start, start+size) is
 // a prefix. Irrespective of the size requested, we try to fetch more data
@@ -462,32 +455,19 @@ func (rr *randomReader) readFull(
 func (rr *randomReader) startRead(start int64, end int64) (err error) {
 	// Begin the read.
 	ctx, cancel := context.WithCancel(context.Background())
-
-	if rr.config != nil && rr.config.Read.InactiveStreamTimeout > 0 {
-		rr.reader, err = NewInactiveTimeoutReader(
-			ctx,
-			rr.bucket,
-			rr.object,
-			rr.readHandle,
-			gcs.ByteRange{
+	rr.reader, err = rr.bucket.NewReaderWithReadHandle(
+		ctx,
+		&gcs.ReadObjectRequest{
+			Name:       rr.object.Name,
+			Generation: rr.object.Generation,
+			Range: &gcs.ByteRange{
 				Start: uint64(start),
 				Limit: uint64(end),
 			},
-			rr.config.Read.InactiveStreamTimeout)
-	} else {
-		rr.reader, err = rr.bucket.NewReaderWithReadHandle(
-			ctx,
-			&gcs.ReadObjectRequest{
-				Name:       rr.object.Name,
-				Generation: rr.object.Generation,
-				Range: &gcs.ByteRange{
-					Start: uint64(start),
-					Limit: uint64(end),
-				},
-				ReadCompressed: rr.object.HasContentEncodingGzip(),
-				ReadHandle:     rr.readHandle,
-			})
-	}
+			ReadCompressed: rr.object.HasContentEncodingGzip(),
+			ReadHandle:     rr.readHandle,
+		},
+	)
 
 	// If a file handle is open locally, but the corresponding object doesn't exist
 	// in GCS, it indicates a file clobbering scenario. This likely occurred because:
@@ -599,9 +579,9 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 
 	// Now we have a reader positioned at the correct place. Consume as much from
 	// it as possible.
-	n, err = rr.readFull(ctx, p)
+	/*n, err = rr.readFull(ctx, p)
 	rr.start += int64(n)
-	rr.totalReadBytes += uint64(n)
+	rr.totalReadBytes += uint64(n)*/
 
 	// Sanity check.
 	if rr.start > rr.limit {

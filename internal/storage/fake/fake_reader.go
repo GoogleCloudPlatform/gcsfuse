@@ -26,6 +26,11 @@ type FakeReader struct {
 	Handle []byte
 }
 
+func (fr *FakeReader) ReadChunks(size int64) ([][]byte, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (fr *FakeReader) ReadHandle() storagev2.ReadHandle {
 	return fr.Handle
 }

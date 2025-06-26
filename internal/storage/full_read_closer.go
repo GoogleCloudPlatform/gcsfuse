@@ -26,6 +26,10 @@ type gcsFullReadCloser struct {
 	wrapped gcs.StorageReader
 }
 
+func (frc gcsFullReadCloser) ReadChunks(size int64) ([][]byte, error) {
+	return frc.ReadChunks(size)
+}
+
 func newGCSFullReadCloser(reader gcs.StorageReader) gcs.StorageReader {
 	return gcsFullReadCloser{wrapped: reader}
 }

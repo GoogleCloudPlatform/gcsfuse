@@ -73,6 +73,11 @@ type InactiveTimeoutReader struct {
 	isActive bool
 }
 
+func (itr *InactiveTimeoutReader) ReadChunks(size int64) ([][]byte, error) {
+	//TODO implement me
+	return itr.gcsReader.ReadChunks(size)
+}
+
 var (
 	ErrZeroInactivityTimeout = errors.New("ErrZeroInactivityTimeout")
 )

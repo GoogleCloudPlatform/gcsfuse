@@ -308,6 +308,10 @@ type throttledGCSReader struct {
 	Closer gcs.StorageReader
 }
 
+func (rc *throttledGCSReader) ReadChunks(size int64) ([][]byte, error) {
+	return rc.Closer.ReadChunks(size)
+}
+
 func (rc *throttledGCSReader) Read(p []byte) (n int, err error) {
 	n, err = rc.Reader.Read(p)
 	return
