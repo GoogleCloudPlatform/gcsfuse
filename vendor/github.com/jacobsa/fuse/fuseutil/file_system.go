@@ -101,7 +101,11 @@ func newFileSystemServer(fs FileSystem) fuse.Server {
 	for range poolSize {
 		go func() {
 			for {
-				(<-ch)()
+				f, ok := <-ch
+				if !ok {
+					break
+				}
+				f()
 			}
 		}()
 	}
@@ -121,14 +125,29 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 	defer func() {
 		s.opsInFlight.Wait()
 		s.fs.Destroy()
+		close(ch)
 	}()
 
 	for {
 		ctx, op, err := c.ReadOp()
 		if err == io.EOF {
 			break
+		}
+
+		if err != nil {
+			panic(err)
+		}
+
+		s.opsInFlight.Add(1)
+		if _, ok := op.(*fuseops.ForgetInodeOp); ok {
+			// Special case: call in this goroutine for
+			// forget inode ops, which may come in a
+			// flurry from the kernel and are generally
+			// cheap for the file system to handle
+			s.handleOp(c, ctx, op)
 		} else {
 			ch <- func() { s.handleOp(c, ctx, op) }
+			//go s.handleOp(c, ctx, op)
 		}
 	}
 }
