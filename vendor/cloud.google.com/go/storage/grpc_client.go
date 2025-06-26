@@ -2054,6 +2054,7 @@ func (r *gRPCReader) WriteTo(w io.Writer) (int64, error) {
 // array of byte slices, avoiding extra copies. The returned slices point to
 // underlying network buffers and are only valid until the next read call.
 func (r *gRPCReader) ReadChunks(size int64) ([][]byte, error) {
+	fmt.Println(fmt.Sprintf("request for size %d", size))
 	if size == 0 {
 		return nil, nil
 	}
@@ -2074,6 +2075,8 @@ func (r *gRPCReader) ReadChunks(size int64) ([][]byte, error) {
 		r.leftovers = nil
 	}
 
+	count := 0
+
 	for totalRead < size {
 		// Try to drain chunks from the current message buffer.
 		if r.currMsg != nil && !r.currMsg.done {
@@ -2084,6 +2087,8 @@ func (r *gRPCReader) ReadChunks(size int64) ([][]byte, error) {
 					r.seen += int64(len(chunk))
 					totalRead += int64(len(chunk))
 					resultChunks = append(resultChunks, chunk)
+					count++
+					fmt.Println(count)
 				}
 			}
 		}
