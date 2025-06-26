@@ -364,6 +364,8 @@ func (rr *randomReader) ReadData(size int64, bytesRead int64, offset int64, obje
 		return objectData, err
 	}
 
+	bytesReadBeforeThisCall := bytesRead
+
 	needed := size - bytesRead
 
 	if rr.reader == nil {
@@ -404,8 +406,16 @@ func (rr *randomReader) ReadData(size int64, bytesRead int64, offset int64, obje
 	}
 
 	if err == io.EOF {
+		bytesReadInThisCall := bytesRead - bytesReadBeforeThisCall
 		rr.reader = nil
-		return rr.ReadData(size, bytesRead, offset+bytesRead, objectData)
+
+		// If we received EOF but made no progress, we are done. This
+		// prevents the infinite recursion that causes a stack overflow.
+		if bytesReadInThisCall == 0 {
+			objectData.Size = int(bytesRead)
+			return objectData, io.EOF
+		}
+		return rr.ReadData(size, bytesRead, offset+bytesReadInThisCall, objectData)
 	}
 
 	objectData.Size = int(bytesRead)
