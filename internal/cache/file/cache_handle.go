@@ -173,7 +173,7 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 	// If the end-offset is within the cached size, then the read will be served from the cache.
 	// If offset is within the cached size and end-offset is beyond the cached-size, then
 	// we will fallback to GCS in the later logic, but we should still create the cache download job even in that case.
-	if bucket.BucketType().Zonal && object.IsUnfinalized() && offset > int64(fileInfoData.FileSize) {
+	if bucket.BucketType().Zonal && object.IsUnfinalized() && offset >= int64(fileInfoData.FileSize) {
 		err = util.ErrFallbackToGCS
 		return
 	}
