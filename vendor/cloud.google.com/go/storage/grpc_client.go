@@ -2100,10 +2100,37 @@ func (r *gRPCReader) ReadChunks(size int64) ([][]byte, error) {
 	}
 
 	// If we over-read, truncate the last chunk.
-	if overRead := totalRead - size; overRead > 0 {
-		lastChunk := resultChunks[len(resultChunks)-1]
-		resultChunks[len(resultChunks)-1] = lastChunk[:int64(len(lastChunk))-overRead]
-		r.leftovers = lastChunk[int64(len(lastChunk))-overRead:]
+	if totalRead > size {
+		bytesToTrim := totalRead - size
+
+		// Trim from the end of the chunks slice backwards.
+		for i := len(resultChunks) - 1; i >= 0; i-- {
+			chunk := resultChunks[i]
+			if int64(len(chunk)) >= bytesToTrim {
+				// This is the chunk we need to split.
+				splitPoint := int64(len(chunk)) - bytesToTrim
+
+				// Prepend the remainder to the single leftovers slice.
+				remainder := chunk[splitPoint:]
+				r.leftovers = append(remainder, r.leftovers...)
+
+				// Truncate the chunk in the results.
+				resultChunks[i] = chunk[:splitPoint]
+
+				// If the truncated part of this chunk is now empty, remove it.
+				if len(resultChunks[i]) == 0 {
+					resultChunks = resultChunks[:i]
+				}
+
+				bytesToTrim = 0
+				break // Done trimming.
+			} else {
+				// This entire chunk is a leftover. Prepend it.
+				bytesToTrim -= int64(len(chunk))
+				r.leftovers = append(chunk, r.leftovers...)
+				resultChunks = resultChunks[:i] // Remove this chunk from the result.
+			}
+		}
 	}
 
 	return resultChunks, nil
