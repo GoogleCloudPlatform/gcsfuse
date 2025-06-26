@@ -361,17 +361,14 @@ func (rr *randomReader) ReadData(size int64, bytesRead int64, offset int64, obje
 	if offset >= int64(rr.object.Size) {
 		err := io.EOF
 		objectData.Size = int(bytesRead)
-		fmt.Println("Returnign eof from objext size check")
 		return objectData, err
 	}
-	fmt.Println(fmt.Sprintf("offset %d", offset))
 
 	bytesReadBeforeThisCall := bytesRead
 
 	needed := size - bytesRead
 
 	if rr.reader == nil {
-		fmt.Println(fmt.Sprintf("read is nil making a new call"))
 		end, err := rr.getReadInfo(offset, needed)
 		if err != nil {
 			return objectData, err
@@ -408,16 +405,12 @@ func (rr *randomReader) ReadData(size int64, bytesRead int64, offset int64, obje
 		}
 	}
 
-	fmt.Println("Done processing the chunks")
-
 	bytesReadInThisCall := bytesRead - bytesReadBeforeThisCall
 	rr.start += bytesReadInThisCall
 
 	if err == io.EOF || rr.start == rr.limit {
 
 		rr.closeReader()
-		fmt.Println("closed the reader")
-		fmt.Println(bytesReadInThisCall)
 		rr.reader = nil
 
 		// If we received EOF but made no progress, we are done. This
