@@ -27,7 +27,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
 
 const (
@@ -280,7 +279,7 @@ func (rr *RangeReader) startRead(start int64, end int64) error {
 	rr.limit = end
 
 	requestedDataSize := end - start
-	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, util.Sequential, requestedDataSize)
+	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, common.ReadTypeSequential, requestedDataSize)
 
 	return nil
 }
