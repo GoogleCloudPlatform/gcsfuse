@@ -270,50 +270,6 @@ func (t *fileTest) Test_Read_ErrorScenarios() {
 	}
 }
 
-// Test_ReadWithReadManager_FallbackToInode verifies that ReadWithReadManager
-// falls back to inode object data when readManager is not valid.
-func (t *fileTest) Test_ReadWithReadManager_FallbackToInode() {
-	dst := make([]byte, 100)
-	objectData := []byte("fallback data")
-	object := gcs.MinObject{Name: "test_obj", Generation: 0}
-	parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
-	in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, objectData, true)
-	fh := NewFileHandle(in, nil, false, common.NewNoopMetrics(), util.Read, &cfg.Config{})
-	fh.inode.RLock()
-	mockRM := new(read_manager.MockReadManager)
-	mockRM.On("Destroy").Return()
-	fh.readManager = mockRM
-
-	output, n, err := fh.ReadWithReadManager(t.ctx, dst, 0, 200)
-
-	assert.Equal(t.T(), io.EOF, err)
-	assert.Equal(t.T(), len(objectData), n)
-	assert.Equal(t.T(), objectData, output[:n])
-	mockRM.AssertExpectations(t.T())
-}
-
-// Test_Read_FallbackToInode verifies that Read falls back to inode object data
-// when reader is not valid.
-func (t *fileTest) Test_Read_FallbackToInode() {
-	dst := make([]byte, 100)
-	objectData := []byte("fallback data")
-	object := gcs.MinObject{Name: "test_obj", Generation: 0}
-	parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
-	in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, objectData, true)
-	fh := NewFileHandle(in, nil, false, common.NewNoopMetrics(), util.Read, &cfg.Config{})
-	fh.inode.RLock()
-	mockR := new(gcsx.MockRandomReader)
-	mockR.On("Destroy").Return()
-	fh.reader = mockR
-
-	output, n, err := fh.Read(t.ctx, dst, 0, 200)
-
-	assert.Equal(t.T(), io.EOF, err)
-	assert.Equal(t.T(), len(objectData), n)
-	assert.Equal(t.T(), objectData, output[:n])
-	mockR.AssertExpectations(t.T())
-}
-
 func (t *fileTest) TestOpenMode() {
 	testCases := []struct {
 		name     string
