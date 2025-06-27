@@ -740,11 +740,12 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 	}{
 		{
 			name: "normal",
-			args: []string{"gcsfuse", "--dir-mode=0777", "--disable-parallel-dirops", "--experimental-enable-readdirplus", "--file-mode=0666", "--o", "ro", "--gid=7", "--ignore-interrupts=false", "--kernel-list-cache-ttl-secs=300", "--rename-dir-limit=10", "--temp-dir=~/temp", "--uid=8", "--precondition-errors=false", "abc", "pqr"},
+			args: []string{"gcsfuse", "--dir-mode=0777", "--disable-parallel-dirops", "--experimental-enable-dentry-cache", "--experimental-enable-readdirplus", "--file-mode=0666", "--o", "ro", "--gid=7", "--ignore-interrupts=false", "--kernel-list-cache-ttl-secs=300", "--rename-dir-limit=10", "--temp-dir=~/temp", "--uid=8", "--precondition-errors=false", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
 					DirMode:                       0777,
 					DisableParallelDirops:         true,
+					ExperimentalEnableDentryCache: true,
 					ExperimentalEnableReaddirplus: true,
 					FileMode:                      0666,
 					FuseOptions:                   []string{"ro"},
@@ -765,6 +766,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					DirMode:                       0777,
 					DisableParallelDirops:         false,
+					ExperimentalEnableDentryCache: false,
 					ExperimentalEnableReaddirplus: false,
 					FileMode:                      0666,
 					FuseOptions:                   []string{},
@@ -785,6 +787,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					DirMode:                       0777,
 					DisableParallelDirops:         false,
+					ExperimentalEnableDentryCache: false,
 					ExperimentalEnableReaddirplus: false,
 					FileMode:                      0666,
 					FuseOptions:                   []string{},
@@ -805,6 +808,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					DirMode:                       0777,
 					DisableParallelDirops:         false,
+					ExperimentalEnableDentryCache: false,
 					ExperimentalEnableReaddirplus: false,
 					FileMode:                      0666,
 					FuseOptions:                   []string{},
@@ -825,6 +829,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					DirMode:                       0777,
 					DisableParallelDirops:         false,
+					ExperimentalEnableDentryCache: false,
 					ExperimentalEnableReaddirplus: false,
 					FileMode:                      0666,
 					FuseOptions:                   []string{},
@@ -845,6 +850,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					DirMode:                       0755,
 					DisableParallelDirops:         false,
+					ExperimentalEnableDentryCache: false,
 					ExperimentalEnableReaddirplus: false,
 					FileMode:                      0644,
 					FuseOptions:                   []string{},
@@ -907,6 +913,10 @@ func TestArgsParsing_FileSystemFlagsThrowsError(t *testing.T) {
 		{
 			name: "invalid_experimental_enable_readdirplus",
 			args: []string{"gcsfuse", "--experimental-enable-readdirplus=abc", "abc", "pqr"},
+		},
+		{
+			name: "invalid_experimental_enable_dentry_cache",
+			args: []string{"gcsfuse", "--experimental-enable-dentry-cache=abc", "abc", "pqr"},
 		},
 	}
 

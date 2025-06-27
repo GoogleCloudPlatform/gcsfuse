@@ -190,6 +190,16 @@
   default: false
   hide-flag: true
 
+- config-path: "file-system.experimental-enable-dentry-cache"
+  flag-name: "experimental-enable-dentry-cache"
+  type: "bool"
+  usage: >-
+    When enabled, it sets the Dentry cache entry timeout same as metadata-cache-ttl.
+    This enables kernel to use cached entry to map the file paths to inodes,
+    instead of making LookUpInode calls to GCSFuse.
+  default: false
+  hide-flag: true
+
 - config-path: "file-system.experimental-enable-readdirplus"
   flag-name: "experimental-enable-readdirplus"
   type: "bool"
