@@ -76,6 +76,9 @@ type RandomReader interface {
 	// Clean up any resources associated with the reader, which must not be used
 	// again.
 	Destroy()
+
+	// Returns the read type.
+	ReadType() string
 }
 
 // ObjectData specifies the response returned as part of ReadAt call.
@@ -421,6 +424,10 @@ func (rr *randomReader) Destroy() {
 	}
 }
 
+func (rr *randomReader) ReadType() string {
+	return rr.readType
+}
+
 // Like io.ReadFull, but deals with the cancellation issues.
 //
 // REQUIRES: rr.reader != nil
@@ -560,6 +567,8 @@ func (rr *randomReader) getReadInfo(
 				randomReadSize = maxReadSize
 			}
 			end = start + randomReadSize
+		} else {
+			rr.readType = util.Sequential
 		}
 	}
 	if end > int64(rr.object.Size) {
