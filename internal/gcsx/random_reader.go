@@ -15,6 +15,7 @@
 package gcsx
 
 import (
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
@@ -104,6 +105,10 @@ const (
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
 func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper, config *cfg.ReadConfig) RandomReader {
+	randomBytes := make([]byte, 1*1024*1024)
+
+	// Read random bytes into the slice
+	_, _ = rand.Read(randomBytes)
 	return &randomReader{
 		object:                o,
 		bucket:                bucket,
@@ -118,6 +123,7 @@ func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb i
 		mrdWrapper:            mrdWrapper,
 		metricHandle:          metricHandle,
 		config:                config,
+		data:                  randomBytes,
 	}
 }
 
@@ -179,6 +185,7 @@ type randomReader struct {
 	// Specifies the next expected offset for the reads. Used to distinguish between
 	// sequential and random reads.
 	expectedOffset int64
+	data           []byte
 }
 
 func (rr *randomReader) CheckInvariants() {
@@ -215,8 +222,8 @@ func (rr *randomReader) CheckInvariants() {
 // fileHandle to file in cache. So, we will get the correct data from fileHandle
 // because Linux does not delete a file until open fileHandle count for a file is zero.
 func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
-	p []byte,
-	offset int64) (n int, cacheHit bool, err error) {
+		p []byte,
+		offset int64) (n int, cacheHit bool, err error) {
 
 	if rr.fileCacheHandler == nil {
 		return
@@ -301,9 +308,9 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 }
 
 func (rr *randomReader) ReadAt(
-	ctx context.Context,
-	p []byte,
-	offset int64) (objectData ObjectData, err error) {
+		ctx context.Context,
+		p []byte,
+		offset int64) (objectData ObjectData, err error) {
 	objectData = ObjectData{
 		DataBuf:  p,
 		CacheHit: false,
@@ -312,6 +319,12 @@ func (rr *randomReader) ReadAt(
 
 	if offset >= int64(rr.object.Size) {
 		err = io.EOF
+		return
+	}
+
+	if rr.data != nil {
+		objectData.DataBuf = rr.data[0:len(p)]
+		objectData.Size = len(objectData.DataBuf)
 		return
 	}
 
@@ -425,8 +438,8 @@ func (rr *randomReader) Destroy() {
 //
 // REQUIRES: rr.reader != nil
 func (rr *randomReader) readFull(
-	ctx context.Context,
-	p []byte) (n int, err error) {
+		ctx context.Context,
+		p []byte) (n int, err error) {
 	// Start a goroutine that will cancel the read operation we block on below if
 	// the calling context is cancelled, but only if this method has not already
 	// returned (to avoid souring the reader for the next read if this one is
@@ -520,8 +533,8 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 // Range here is [start, end]. End is computed using the readType, start offset
 // and size of the data the callers needs.
 func (rr *randomReader) getReadInfo(
-	start int64,
-	size int64) (end int64, err error) {
+		start int64,
+		size int64) (end int64, err error) {
 	// Make sure start and size are legal.
 	if start < 0 || uint64(start) > rr.object.Size || size < 0 {
 		err = fmt.Errorf(
