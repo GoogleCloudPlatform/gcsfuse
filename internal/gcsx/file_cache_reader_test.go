@@ -23,6 +23,7 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
@@ -42,6 +43,7 @@ import (
 
 const (
 	testObject                = "testObject"
+	testObject_unfinalized    = "testObject_unfinalized"
 	sequentialReadSizeInMb    = 22
 	sequentialReadSizeInBytes = sequentialReadSizeInMb * MiB
 	cacheMaxSize              = 2 * sequentialReadSizeInMb * MiB
@@ -49,14 +51,16 @@ const (
 
 type fileCacheReaderTest struct {
 	suite.Suite
-	ctx          context.Context
-	object       *gcs.MinObject
-	mockBucket   *storage.TestifyMockBucket
-	cacheDir     string
-	jobManager   *downloader.JobManager
-	cacheHandler *file.CacheHandler
-	reader       *FileCacheReader
-	bucketType   gcs.BucketType
+	ctx                       context.Context
+	object                    *gcs.MinObject
+	unfinalized_object        *gcs.MinObject
+	mockBucket                *storage.TestifyMockBucket
+	cacheDir                  string
+	jobManager                *downloader.JobManager
+	cacheHandler              *file.CacheHandler
+	reader                    *FileCacheReader
+	reader_unfinalized_object *FileCacheReader
+	bucketType                gcs.BucketType
 }
 
 func TestNonZonalBucketFileCacheReaderTestSuite(t *testing.T) {
@@ -76,6 +80,12 @@ func (t *fileCacheReaderTest) SetupTest() {
 		Name:       testObject,
 		Size:       17,
 		Generation: 1234,
+		Finalized:  time.Date(2025, time.June, 27, 07, 22, 30, 0, time.UTC),
+	}
+	t.unfinalized_object = &gcs.MinObject{
+		Name:       testObject_unfinalized,
+		Size:       17,
+		Generation: 1234,
 	}
 	t.mockBucket = new(storage.TestifyMockBucket)
 	t.cacheDir = path.Join(os.Getenv("HOME"), "test_cache_dir")
@@ -83,6 +93,7 @@ func (t *fileCacheReaderTest) SetupTest() {
 	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, &cfg.FileCacheConfig{EnableCrc: false}, common.NewNoopMetrics())
 	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "")
 	t.reader = NewFileCacheReader(t.object, t.mockBucket, t.cacheHandler, true, common.NewNoopMetrics())
+	t.reader_unfinalized_object = NewFileCacheReader(t.unfinalized_object, t.mockBucket, t.cacheHandler, true, common.NewNoopMetrics())
 	t.ctx = context.Background()
 }
 
@@ -513,6 +524,121 @@ func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBeyondC
 	}
 
 	t.mockBucket.On("Name").Return("test-bucket")
+	testContent := testutil.GenerateRandomBytes(int(t.unfinalized_object.Size))
+	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
+	t.mockNewReaderWithHandleCallForTestBucket(0, t.unfinalized_object.Size, rd)
+	t.mockBucket.On("BucketType").Return(t.bucketType)
+	readerResponse, err := t.reader_unfinalized_object.ReadAt(t.ctx, make([]byte, 17), 0)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 17, readerResponse.Size)
+
+	// Resize the object from 17 to 27, and read beyond previously cached size (17) and within new object size (27).
+	t.unfinalized_object.Size = 27
+	readerResponse, err = t.reader_unfinalized_object.ReadAt(t.ctx, make([]byte, 10), 17)
+
+	assert.Error(t.T(), err)
+	assert.Zero(t.T(), readerResponse.Size)
+	assert.ErrorIs(t.T(), err, FallbackToAnotherReader)
+	t.mockBucket.AssertExpectations(t.T())
+}
+
+func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBeyondObjectSizeAfterSizeIncreaseShouldThrowEOFError() {
+	if !t.bucketType.Zonal {
+		t.T().Skipf("Skipping test for non-zonal bucket type")
+	}
+
+	t.mockBucket.On("Name").Return("test-bucket")
+	testContent := testutil.GenerateRandomBytes(int(t.unfinalized_object.Size))
+	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
+	t.mockNewReaderWithHandleCallForTestBucket(0, t.unfinalized_object.Size, rd)
+	t.mockBucket.On("BucketType").Return(t.bucketType)
+	readerResponse, err := t.reader_unfinalized_object.ReadAt(t.ctx, make([]byte, 17), 0)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 17, readerResponse.Size)
+
+	// Resize the object from 17 to 27, and read beyond new object size (27).
+	t.unfinalized_object.Size = 27
+	readerResponse, err = t.reader_unfinalized_object.ReadAt(t.ctx, make([]byte, 10), 27)
+
+	assert.Error(t.T(), err)
+	assert.Zero(t.T(), readerResponse.Size)
+	assert.ErrorIs(t.T(), err, io.EOF)
+	t.mockBucket.AssertExpectations(t.T())
+}
+
+func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBelowCachedSizeAndReadBeyondCachedSizeWithIncresedObjectSizeShouldThrowFallbackError() {
+	if !t.bucketType.Zonal {
+		t.T().Skipf("Skipping test for non-zonal bucket type")
+	}
+
+	t.mockBucket.On("Name").Return("test-bucket")
+	testContent := testutil.GenerateRandomBytes(int(t.unfinalized_object.Size))
+	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
+	t.mockNewReaderWithHandleCallForTestBucket(0, t.unfinalized_object.Size, rd)
+	t.mockBucket.On("BucketType").Return(t.bucketType)
+	readerResponse, err := t.reader_unfinalized_object.ReadAt(t.ctx, make([]byte, 17), 0)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 17, readerResponse.Size)
+
+	// Resize the object from 17 to 27, and read from below previously cached size (17) and within new object size (27).
+	t.unfinalized_object.Size = 27
+	readerResponse, err = t.reader_unfinalized_object.ReadAt(t.ctx, make([]byte, 10), 10)
+
+	assert.Error(t.T(), err)
+	assert.Zero(t.T(), readerResponse.Size)
+	assert.ErrorIs(t.T(), err, FallbackToAnotherReader)
+	t.mockBucket.AssertExpectations(t.T())
+}
+
+func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBelowCachedSizeAndReadBeyondObjectSizeWithIncresedObjectSizeShouldThrowFallbackError() {
+	if !t.bucketType.Zonal {
+		t.T().Skipf("Skipping test for non-zonal bucket type")
+	}
+
+	t.mockBucket.On("Name").Return("test-bucket")
+	testContent := testutil.GenerateRandomBytes(int(t.unfinalized_object.Size))
+	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
+	t.mockNewReaderWithHandleCallForTestBucket(0, t.unfinalized_object.Size, rd)
+	t.mockBucket.On("BucketType").Return(t.bucketType)
+	readerResponse, err := t.reader_unfinalized_object.ReadAt(t.ctx, make([]byte, 17), 0)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 17, readerResponse.Size)
+
+	// Resize the object from 17 to 27, and read from below cached size (17) and beyond this new object size (27).
+	t.unfinalized_object.Size = 27
+	readerResponse, err = t.reader_unfinalized_object.ReadAt(t.ctx, make([]byte, 25), 10)
+
+	assert.Error(t.T(), err)
+	assert.Zero(t.T(), readerResponse.Size)
+	assert.ErrorIs(t.T(), err, FallbackToAnotherReader)
+	t.mockBucket.AssertExpectations(t.T())
+}
+
+func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBelowCachedSizeAndReadBeyondCachedSizeShouldNotThrowError() {
+	if !t.bucketType.Zonal {
+		t.T().Skipf("Skipping test for non-zonal bucket type")
+	}
+
+	t.mockBucket.On("Name").Return("test-bucket")
+	testContent := testutil.GenerateRandomBytes(int(t.unfinalized_object.Size))
+	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
+	t.mockNewReaderWithHandleCallForTestBucket(0, t.unfinalized_object.Size, rd)
+	t.mockBucket.On("BucketType").Return(t.bucketType)
+	readerResponse, err := t.reader_unfinalized_object.ReadAt(t.ctx, make([]byte, 17), 0)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 17, readerResponse.Size)
+
+	// Read from offset [10,20) with object-size and cached-size both at 17.
+	// It should read 7 bytes in this case, and no error should be returned.
+	readerResponse, err = t.reader_unfinalized_object.ReadAt(t.ctx, make([]byte, 10), 10)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 7, readerResponse.Size)
+	t.mockBucket.AssertExpectations(t.T())
+}
+
+func (t *fileCacheReaderTest) Test_ReadAt_FinalizedObjectReadFromOffsetBelowCachedSizeAndReadBeyondCachedSizeShouldNotThrowError() {
+	t.mockBucket.On("Name").Return("test-bucket")
 	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rd)
@@ -521,13 +647,12 @@ func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBeyondC
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), 17, readerResponse.Size)
 
-	// Resize the object and read beyond previously cached size and within new size.
-	t.object.Size = 27
-	readerResponse, err = t.reader.ReadAt(t.ctx, make([]byte, 10), 17)
+	// Read from offset [10,20) with object-size and cached-size both at 17.
+	// It should read 7 bytes in this case, and no error should be returned.
+	readerResponse, err = t.reader.ReadAt(t.ctx, make([]byte, 10), 10)
 
-	assert.Error(t.T(), err)
-	assert.Zero(t.T(), readerResponse.Size)
-	assert.ErrorIs(t.T(), err, FallbackToAnotherReader)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 7, readerResponse.Size)
 	t.mockBucket.AssertExpectations(t.T())
 }
 
