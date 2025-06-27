@@ -2575,6 +2575,7 @@ func (fs *fileSystem) OpenFile(
 
 	newFH.Lock()
 	defer newFH.Unlock()
+	in.Lock()
 	bytes := make([]byte, 10)
 	newFH.Read(ctx, bytes, 0, fs.sequentialReadSizeMb)
 
