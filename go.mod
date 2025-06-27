@@ -3,6 +3,7 @@ module github.com/googlecloudplatform/gcsfuse/v3
 go 1.24.0
 
 require (
+	cloud.google.com/go/auth v0.16.1
 	cloud.google.com/go/compute/metadata v0.7.0
 	cloud.google.com/go/iam v1.5.2
 	cloud.google.com/go/profiler v0.4.2
@@ -11,7 +12,7 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.52.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.28.0
 	github.com/fsouza/fake-gcs-server v1.52.2
-	github.com/go-viper/mapstructure/v2 v2.2.1
+	github.com/go-viper/mapstructure/v2 v2.3.0
 	github.com/google/uuid v1.6.0
 	github.com/googleapis/gax-go/v2 v2.14.2
 	github.com/jacobsa/daemonize v0.0.0-20240917082746-f35568b6c3ec
@@ -55,7 +56,6 @@ require (
 require (
 	cel.dev/expr v0.24.0 // indirect
 	cloud.google.com/go v0.121.2 // indirect
-	cloud.google.com/go/auth v0.16.1 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/longrunning v0.6.7 // indirect
 	cloud.google.com/go/monitoring v1.24.2 // indirect
