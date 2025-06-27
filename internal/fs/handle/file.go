@@ -116,15 +116,15 @@ func (fh *FileHandle) Unlock() {
 // falling back to inode.Read otherwise. It may be more efficient than directly calling inode.Read.
 //
 // LOCKS_REQUIRED(fh.mu)
-// LOCKS_REQUIRED(fh.inode.mu)
-// UNLOCK_FUNCTION(fh.inode.mu)
+// RLOCKS_REQUIRED(fh.inode.mu)
+// RUNLOCK_FUNCTION(fh.inode.mu)
 func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offset int64, sequentialReadSizeMb int32) ([]byte, int, error) {
 	// fh.inode.mu is already locked to ensure that we have a readManager for its current
 	// state, or clear fh.readManager if it's not possible to create one (probably
 	// because the inode is dirty).
 	err := fh.tryEnsureReadManager(ctx, sequentialReadSizeMb)
 	if err != nil {
-		fh.inode.Unlock()
+		fh.inode.RUnlock()
 		return nil, 0, fmt.Errorf("tryEnsureReadManager: %w", err)
 	}
 
@@ -133,7 +133,7 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 	// multiple reads can run concurrently. It's safe because the user can't tell
 	// if a concurrent write started during or after a read.
 	if fh.readManager != nil {
-		fh.inode.Unlock()
+		fh.inode.RUnlock()
 
 		var readerResponse gcsx.ReaderResponse
 		readerResponse, err = fh.readManager.ReadAt(ctx, dst, offset)
@@ -152,7 +152,7 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 	}
 
 	// If read manager is not available, fall back to reading via inode
-	defer fh.inode.Unlock()
+	defer fh.inode.RUnlock()
 
 	n, err := fh.inode.Read(ctx, dst, offset)
 
@@ -164,15 +164,15 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 // more efficient.
 //
 // LOCKS_REQUIRED(fh.mu)
-// LOCKS_REQUIRED(fh.inode.mu)
-// UNLOCK_FUNCTION(fh.inode.mu)
+// RLOCKS_REQUIRED(fh.inode.mu)
+// RUNLOCK_FUNCTION(fh.inode.mu)
 func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequentialReadSizeMb int32) (output []byte, n int, err error) {
 	// fh.inode.mu is already locked to ensure that we have a reader for its current
 	// state, or clear fh.reader if it's not possible to create one (probably
 	// because the inode is dirty).
 	err = fh.tryEnsureReader(ctx, sequentialReadSizeMb)
 	if err != nil {
-		fh.inode.Unlock()
+		fh.inode.RUnlock()
 		err = fmt.Errorf("tryEnsureReader: %w", err)
 		return
 	}
@@ -182,7 +182,7 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	// multiple reads can run concurrently. It's safe because the user can't tell
 	// if a concurrent write started during or after a read.
 	if fh.reader != nil {
-		fh.inode.Unlock()
+		fh.inode.RUnlock()
 
 		var objectData gcsx.ObjectData
 		objectData, err = fh.reader.ReadAt(ctx, dst, offset)
@@ -205,7 +205,7 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	}
 
 	// Otherwise we must fall through to the inode.
-	defer fh.inode.Unlock()
+	defer fh.inode.RUnlock()
 	n, err = fh.inode.Read(ctx, dst, offset)
 	// Setting dst as output since output is used by the caller to read the data.
 	output = dst
@@ -238,14 +238,8 @@ func (fh *FileHandle) checkInvariants() {
 // for the current state of the inode otherwise set it to nil.
 //
 // LOCKS_REQUIRED(fh)
-// LOCKS_REQUIRED(fh.inode)
+// RLOCKS_REQUIRED(fh.inode)
 func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb int32) (err error) {
-	// If content cache enabled, CacheEnsureContent forces the file handler to fall through to the inode
-	// and fh.inode.SourceGenerationIsAuthoritative() will return false
-	err = fh.inode.CacheEnsureContent(ctx)
-	if err != nil {
-		return
-	}
 	// If the inode is dirty, there's nothing we can do. Throw away our reader if
 	// we have one.
 	if !fh.inode.SourceGenerationIsAuthoritative() {
@@ -280,14 +274,8 @@ func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb 
 // for the current state of the inode otherwise set it to nil.
 //
 // LOCKS_REQUIRED(fh)
-// LOCKS_REQUIRED(fh.inode)
+// RLOCKS_REQUIRED(fh.inode)
 func (fh *FileHandle) tryEnsureReadManager(ctx context.Context, sequentialReadSizeMb int32) error {
-	// If content cache enabled, CacheEnsureContent forces the file handler to fall through to the inode
-	// and fh.inode.SourceGenerationIsAuthoritative() will return false
-	if err := fh.inode.CacheEnsureContent(ctx); err != nil {
-		return fmt.Errorf("failed to ensure inode content: %w", err)
-	}
-
 	// If the inode is dirty, there's nothing we can do. Throw away our readManager if
 	// we have one.
 	if !fh.inode.SourceGenerationIsAuthoritative() {

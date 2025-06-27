@@ -341,6 +341,14 @@ func (f *FileInode) Unlock() {
 	f.mu.Unlock()
 }
 
+func (f *FileInode) RLock() {
+	f.mu.RLock()
+}
+
+func (f *FileInode) RUnlock() {
+	f.mu.RUnlock()
+}
+
 func (f *FileInode) ID() fuseops.InodeID {
 	return f.id
 }
