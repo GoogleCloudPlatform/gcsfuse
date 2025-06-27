@@ -15,12 +15,10 @@
 
 # Script Usage Documentation
 usage() {
-  echo "Usage: $0 [options]"
-  echo "Options:"
-  echo "  Required:"
-  echo "    --bucket-location             <location>     The Google Cloud Storage bucket location (e.g., 'us-central1')."
+  echo "Usage: $0 --bucket-location <bucket-location> [options]"
+  echo "    --bucket-location            <location>     The Google Cloud Storage bucket location (e.g., 'us-central1')."
   echo ""
-  echo "  Optional:"
+  echo "Options:"
   echo "    --test-installed-package                     Test installed gcsfuse package. (Default: false)"
   echo "    --skip-non-essential-tests                   Skip non-essential tests inside packages. (Default: false)"
   echo "    --tpc-endpoint                               Run tests on TPC endpoint. (Default: false)"
@@ -31,7 +29,7 @@ usage() {
   echo "    --package-level-parallelism   <parallelism>  To adjust the number of packages to execute in parallel. (Default: 10)"
   echo "    --track-resource-usage                       To track resource(cpu/mem/disk) usage during e2e run. (Default: false)"
   echo "    --help                                       Display this help and exit."
-  exit 1
+  exit "$1"
 }
 
 # Logging Helpers
@@ -101,7 +99,7 @@ LONG=bucket-location:,test-installed-package,skip-non-essential-tests,no-build-b
 PARSED=$(getopt --options "" --longoptions "$LONG" --name "$0" -- "$@")
 if [[ $? -ne 0 ]]; then
     # getopt will have already printed an error message
-    usage
+    usage 1
 fi
 
 # Read the parsed options back into the positional parameters.
@@ -147,7 +145,7 @@ while (( $# >= 1 )); do
             shift
             ;;
         --help)
-            usage
+            usage 0
             ;;
         --)
             shift
@@ -155,7 +153,7 @@ while (( $# >= 1 )); do
             ;;
         *)
             log_error "Unrecognized arguments [$*]."
-            usage
+            usage 1
             ;;
     esac
 done
@@ -166,7 +164,7 @@ validate_option_value() {
   local value=$2
   if [[ -z "$value" || "$value" == -* ]]; then
     log_error "Invalid or empty value [$value] for option $option."
-    usage
+    usage 1
   fi
 }
 
