@@ -40,8 +40,8 @@ github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/cloudmock v0
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/cloudmock v0.52.0/go.mod h1:f/ad5NuHnYz8AOZGuR0cY+l36oSCstdxD73YlIchr6I=
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.52.0 h1:wbMd4eG/fOhsCa6+IP8uEDvWF5vl7rNoUWmP5f72Tbs=
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.52.0/go.mod h1:gdIm9TxRk5soClCwuB0FtdXsbqtw0aqPwBEurK9tPkw=
-github.com/ashmeenkaur/fuse v0.0.0-20250626040143-3f47d2cc25f5 h1:0U/ALTCAOZS6FMw1xWBgyENX7vOTz/LFfJC5xzDmdLo=
-github.com/ashmeenkaur/fuse v0.0.0-20250626040143-3f47d2cc25f5/go.mod h1:fcpw1yk/suvFhB8rT9P+pst+NLboWsBLky9csooKjPc=
+github.com/ashmeenkaur/fuse v0.0.0-20250627051258-1707a44ba0cd h1:tvB0434nCeb7RuCGIqJRWs40lOqe0B8ayUhqj9XrXQo=
+github.com/ashmeenkaur/fuse v0.0.0-20250627051258-1707a44ba0cd/go.mod h1:fcpw1yk/suvFhB8rT9P+pst+NLboWsBLky9csooKjPc=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=

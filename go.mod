@@ -2,7 +2,7 @@ module github.com/googlecloudplatform/gcsfuse/v3
 
 go 1.24.0
 
-replace github.com/jacobsa/fuse => github.com/ashmeenkaur/fuse v0.0.0-20250626040143-3f47d2cc25f5
+replace github.com/jacobsa/fuse => github.com/ashmeenkaur/fuse v0.0.0-20250627051258-1707a44ba0cd
 
 require (
 	cloud.google.com/go/auth v0.16.1
@@ -18,7 +18,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/googleapis/gax-go/v2 v2.14.2
 	github.com/jacobsa/daemonize v0.0.0-20240917082746-f35568b6c3ec
-	github.com/jacobsa/fuse v0.0.0-20250626040143-3f47d2cc25f5
+	github.com/jacobsa/fuse v0.0.0-20250627051258-1707a44ba0cd
 	github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd
 	github.com/jacobsa/oglemock v0.0.0-20150831005832-e94d794d06ff
 	github.com/jacobsa/ogletest v0.0.0-20170503003838-80d50a735a11
