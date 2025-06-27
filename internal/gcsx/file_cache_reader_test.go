@@ -84,6 +84,7 @@ func (t *fileCacheReaderTest) SetupTest() {
 	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "")
 	t.reader = NewFileCacheReader(t.object, t.mockBucket, t.cacheHandler, true, common.NewNoopMetrics())
 	t.ctx = context.Background()
+	t.mockBucket.On("BucketType").Return(t.bucketType)
 }
 
 func (t *fileCacheReaderTest) TearDownTest() {
@@ -151,7 +152,6 @@ func (t *fileCacheReaderTest) Test_tryReadingFromFileCache_CacheHit() {
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rd)
 	t.mockBucket.On("Name").Return("test-bucket")
-	t.mockBucket.On("BucketType").Return(t.bucketType)
 	buf := make([]byte, t.object.Size)
 	// First read will be a cache miss.
 	n, cacheHit, err := t.reader.tryReadingFromFileCache(t.ctx, buf, 0)
@@ -174,7 +174,6 @@ func (t *fileCacheReaderTest) Test_tryReadingFromFileCache_SequentialSubsequentR
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rd)
 	t.mockBucket.On("Name").Return("test-bucket")
-	t.mockBucket.On("BucketType").Return(t.bucketType)
 	start1 := 0
 	end1 := util.MiB
 	require.Less(t.T(), end1, int(t.object.Size))
@@ -202,7 +201,6 @@ func (t *fileCacheReaderTest) Test_ReadAt_SequentialRangeRead() {
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rd)
 	t.mockBucket.On("Name").Return("test-bucket")
-	t.mockBucket.On("BucketType").Return(t.bucketType)
 	start := 0
 	end := 10
 	require.Less(t.T(), end, int(t.object.Size))
@@ -244,7 +242,6 @@ func (t *fileCacheReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenCa
 	// Mock for download job's NewReader call
 	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rd)
 	t.mockBucket.On("Name").Return("test-bucket")
-	t.mockBucket.On("BucketType").Return(t.bucketType)
 	buf := make([]byte, end-start)
 
 	readerResponse, err := t.reader.ReadAt(t.ctx, buf, int64(start))
@@ -263,7 +260,6 @@ func (t *fileCacheReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffset
 	// Mock for download job's NewReader call
 	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rd)
 	t.mockBucket.On("Name").Return("test-bucket")
-	t.mockBucket.On("BucketType").Return(t.bucketType)
 	start1 := 0
 	end1 := util.MiB
 	require.Less(t.T(), end1, int(t.object.Size))
@@ -294,7 +290,6 @@ func (t *fileCacheReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffset
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rd)
 	t.mockBucket.On("Name").Return("test-bucket")
-	t.mockBucket.On("BucketType").Return(t.bucketType)
 	start1 := 0
 	end1 := util.MiB
 	require.Less(t.T(), end1, int(t.object.Size))
@@ -328,7 +323,6 @@ func (t *fileCacheReaderTest) Test_ReadAt_CacheMissDueToInvalidJob() {
 	rc1 := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rc1)
 	t.mockBucket.On("Name").Return("test-bucket")
-	t.mockBucket.On("BucketType").Return(t.bucketType)
 	buf := make([]byte, t.object.Size)
 	readerResponse, err := t.reader.ReadAt(t.ctx, buf, 0)
 	assert.NoError(t.T(), err)
@@ -355,7 +349,6 @@ func (t *fileCacheReaderTest) Test_ReadAt_CachePopulatedAndThenCacheMissDueToInv
 	rd1 := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rd1)
 	t.mockBucket.On("Name").Return("test-bucket")
-	t.mockBucket.On("BucketType").Return(t.bucketType)
 	readerResponse, err := t.reader.ReadAt(t.ctx, make([]byte, t.object.Size), 0)
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), testContent, readerResponse.DataBuf)
@@ -388,7 +381,6 @@ func (t *fileCacheReaderTest) Test_ReadAt_CachePopulatedAndThenCacheMissDueToInv
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rd)
 	t.mockBucket.On("Name").Return("test-bucket")
-	t.mockBucket.On("BucketType").Return(t.bucketType)
 	readerResponse, err := t.reader.ReadAt(t.ctx, make([]byte, t.object.Size), 0)
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), readerResponse.DataBuf, testContent)
@@ -414,7 +406,6 @@ func (t *fileCacheReaderTest) Test_ReadAt_IfCacheFileGetsDeleted() {
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rd)
 	t.mockBucket.On("Name").Return("test-bucket")
-	t.mockBucket.On("BucketType").Return(t.bucketType)
 	readerResponse, err := t.reader.ReadAt(t.ctx, make([]byte, t.object.Size), 0)
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), readerResponse.DataBuf, testContent)
@@ -438,7 +429,6 @@ func (t *fileCacheReaderTest) Test_ReadAt_IfCacheFileGetsDeletedWithCacheHandleO
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rd)
 	t.mockBucket.On("Name").Return("test-bucket")
-	t.mockBucket.On("BucketType").Return(t.bucketType)
 	readerResponse, err := t.reader.ReadAt(t.ctx, make([]byte, t.object.Size), 0)
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), readerResponse.DataBuf, testContent)
@@ -463,7 +453,6 @@ func (t *fileCacheReaderTest) Test_ReadAt_FailedJobNextReadCreatesNewJobAndCache
 	// This triggers a fallback to GCS reader.
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, errors.New("")).Once()
 	t.mockBucket.On("Name").Return("test-bucket")
-	t.mockBucket.On("BucketType").Return(t.bucketType)
 	// First ReadAt call:
 	// - Should result in a FallbackToAnotherReader error.
 	// - No data should be returned.
@@ -536,7 +525,6 @@ func (t *fileCacheReaderTest) Test_Destroy_NonNilCacheHandle() {
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, rd)
 	t.mockBucket.On("Name").Return("test-bucket")
-	t.mockBucket.On("BucketType").Return(t.bucketType)
 	readerResponse, err := t.reader.ReadAt(t.ctx, make([]byte, t.object.Size), 0)
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), readerResponse.DataBuf, testContent)
