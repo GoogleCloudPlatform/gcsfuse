@@ -15,9 +15,11 @@
 package logger
 
 import (
+	// "fmt"
 	"log/slog"
 	"strings"
-	"time"
+	// "time"
+	// "sync"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 )
@@ -86,7 +88,8 @@ func addPrefixToMessage(a *slog.Attr, prefix string) {
 	// Change key name to "message" so that it is compatible with fluentD.
 	a.Key = messageKey
 	// Add prefix to the message.
-	message := a.Value.Any().(string)
+	// message := a.Value.Any().(string)
+	message := a.Value.String()
 	var sb strings.Builder
 	sb.WriteString(prefix)
 	sb.WriteString(message)
@@ -99,11 +102,13 @@ func addPrefixToMessage(a *slog.Attr, prefix string) {
 // 2. for text logs:
 // time="08/09/2023 09:24:54.437193"
 func customiseTimeFormat(a *slog.Attr, format string) {
-	currTime := a.Value.Any().(time.Time).Round(0)
+	// currTime := a.Value.Any().(time.Time).Round(0)
+	// currTime, ok := a.Value.Time()
+	currTime := a.Value.Time()
 	if format == textFormat {
 		a.Value = slog.StringValue(currTime.Round(0).Format("02/01/2006 03:04:05.000000"))
 	} else {
-		*a = slog.Group(timestampKey, secondsKey, currTime.Unix(), nanosKey, currTime.Nanosecond())
+		*a = slog.Group(timestampKey, slog.Int64(secondsKey, currTime.Unix()), slog.Int(nanosKey, currTime.Nanosecond()))
 	}
 }
 
@@ -123,7 +128,7 @@ func getHandlerOptions(levelVar *slog.LevelVar, prefix string, format string) *s
 			}
 
 			if a.Key == slog.TimeKey {
-				customiseTimeFormat(&a, format)
+				// customiseTimeFormat(&a, format)
 			}
 			return a
 		},

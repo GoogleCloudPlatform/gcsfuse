@@ -52,7 +52,7 @@ var (
 func InitLogFile(newLogConfig cfg.LoggingConfig) error {
 	var f *os.File
 	var sysWriter *syslog.Writer
-	var fileWriter *lumberjack.Logger
+	var fileWriter io.Writer
 	var err error
 	if newLogConfig.FilePath != "" {
 		f, err = os.OpenFile(
@@ -63,12 +63,15 @@ func InitLogFile(newLogConfig cfg.LoggingConfig) error {
 		if err != nil {
 			return err
 		}
-		fileWriter = &lumberjack.Logger{
+		fileWriterLJ := &lumberjack.Logger{
 			Filename:   f.Name(),
 			MaxSize:    int(newLogConfig.LogRotate.MaxFileSizeMb),
 			MaxBackups: int(newLogConfig.LogRotate.BackupFileCount),
 			Compress:   newLogConfig.LogRotate.Compress,
 		}
+
+		fileWriter = NewAsyncLogger(fileWriterLJ, 200000)
+
 	} else {
 		if _, ok := os.LookupEnv(GCSFuseInBackgroundMode); ok {
 			// Priority consist of facility and severity, here facility to specify the
@@ -162,12 +165,13 @@ func Fatal(format string, v ...interface{}) {
 
 type loggerFactory struct {
 	// If nil, log to stdout or stderr. Otherwise, log to this file.
-	file       *os.File
-	sysWriter  *syslog.Writer
-	format     string
-	level      string
-	logRotate  cfg.LogRotateLoggingConfig
-	fileWriter *lumberjack.Logger
+	file      *os.File
+	sysWriter *syslog.Writer
+	format    string
+	level     string
+	logRotate cfg.LogRotateLoggingConfig
+	// fileWriter *lumberjack.Logger
+	fileWriter io.Writer
 }
 
 func (f *loggerFactory) newLogger(level string) *slog.Logger {
@@ -183,6 +187,7 @@ func (f *loggerFactory) createJsonOrTextHandler(writer io.Writer, levelVar *slog
 	if f.format == textFormat {
 		return slog.NewTextHandler(writer, getHandlerOptions(levelVar, prefix, f.format))
 	}
+	// return slog.NewJSONHandler(writer, nil)
 	return slog.NewJSONHandler(writer, getHandlerOptions(levelVar, prefix, f.format))
 }
 
@@ -195,4 +200,8 @@ func (f *loggerFactory) handler(levelVar *slog.LevelVar, prefix string) slog.Han
 		return f.createJsonOrTextHandler(f.sysWriter, levelVar, prefix)
 	}
 	return f.createJsonOrTextHandler(os.Stdout, levelVar, prefix)
+}
+
+func GetLogger() *slog.Logger {
+	return defaultLogger
 }
