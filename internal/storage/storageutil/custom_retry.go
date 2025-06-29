@@ -61,14 +61,14 @@ func ShouldRetry(err error) (b bool) {
 	return
 }
 
-func ShouldRetryWrapper(ctx context.Context, err error, metricHandle common.MetricHandle) bool {
+func ShouldRetryWithMonitoring(ctx context.Context, err error, metricHandle common.MetricHandle) bool {
 	if err == nil {
 		return false
 	}
 
 	retry := ShouldRetry(err)
 	if !retry {
-	  return false
+		return false
 	}
 	// Record metrics
 	val := "OTHER_ERRORS"
