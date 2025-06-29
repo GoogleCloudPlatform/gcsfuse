@@ -44,7 +44,8 @@ func (t *MainTest) TestCreateStorageHandle() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"}}
 
 	userAgent := "AppName"
-	storageHandle, err := createStorageHandle(newConfig, userAgent)
+	metricHandle := common.NewNoopMetrics()
+	storageHandle, err := createStorageHandle(newConfig, userAgent, metricHandle)
 
 	assert.Equal(t.T(), nil, err)
 	assert.NotEqual(t.T(), nil, storageHandle)
@@ -57,7 +58,8 @@ func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPC() {
 	}
 
 	userAgent := "AppName"
-	storageHandle, err := createStorageHandle(newConfig, userAgent)
+	metricHandle := common.NewNoopMetrics()
+	storageHandle, err := createStorageHandle(newConfig, userAgent, metricHandle)
 
 	assert.Equal(t.T(), nil, err)
 	assert.NotEqual(t.T(), nil, storageHandle)
