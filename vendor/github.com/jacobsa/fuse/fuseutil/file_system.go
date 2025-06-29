@@ -114,7 +114,8 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 		}
 
 		s.opsInFlight.Add(1)
-		//s.handleOp(c, ctx, op)
+		s.handleOp(c, ctx, op)
+		/*//s.handleOp(c, ctx, op)
 		if _, ok := op.(*fuseops.ForgetInodeOp); ok {
 			// Special case: call in this goroutine for
 			// forget inode ops, which may come in a
@@ -123,7 +124,7 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 			s.handleOp(c, ctx, op)
 		} else {
 			go s.handleOp(c, ctx, op)
-		}
+		}*/
 	}
 }
 
