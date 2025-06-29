@@ -67,15 +67,15 @@ func ShouldRetryWrapper(ctx context.Context, err error, metricHandle common.Metr
 	}
 
 	retry := ShouldRetry(err)
-	if retry {
-		// Record metrics
-		val := "OTHER_ERRORS"
-		if errors.Is(err, context.DeadlineExceeded) {
-			val = "STALLED_READ_REQUEST"
-		}
-
-		metricHandle.GCSRetryCount(ctx, 1, val)
+	if !retry {
+	  return false
+	}
+	// Record metrics
+	val := "OTHER_ERRORS"
+	if errors.Is(err, context.DeadlineExceeded) {
+		val = "STALLED_READ_REQUEST"
 	}
 
+	metricHandle.GCSRetryCount(ctx, 1, val)
 	return retry
 }
