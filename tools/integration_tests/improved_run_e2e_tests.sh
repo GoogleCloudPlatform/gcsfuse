@@ -215,7 +215,8 @@ TEST_PACKAGES_COMMON=(
   # "grpc_validation"
   "negative_stat_cache"
   "stale_handle"
-   "release_version"
+  "release_version"
+  "read_unfinalized_object"
 )
 
 # Test packages for regional buckets.

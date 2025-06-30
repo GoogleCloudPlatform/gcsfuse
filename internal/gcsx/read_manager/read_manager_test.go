@@ -99,10 +99,15 @@ type readManagerTest struct {
 	mockBucket  *storage.TestifyMockBucket
 	readManager *ReadManager
 	ctx         context.Context
+	bucketType  gcs.BucketType
 }
 
-func TestReadManagerTestSuite(t *testing.T) {
-	suite.Run(t, new(readManagerTest))
+func TestNonZonalBucketReadManagerTestSuite(t *testing.T) {
+	suite.Run(t, &readManagerTest{bucketType: gcs.BucketType{}})
+}
+
+func TestZonalBucketReadManagerTestSuite(t *testing.T) {
+	suite.Run(t, &readManagerTest{bucketType: gcs.BucketType{Zonal: true, Hierarchical: true}})
 }
 
 func (t *readManagerTest) SetupTest() {
@@ -183,7 +188,7 @@ func (t *readManagerTest) Test_ReadAt_InvalidOffset() {
 func (t *readManagerTest) Test_ReadAt_NoExistingReader() {
 	// The bucket should be called to set up a new reader.
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, errors.New("network error"))
-	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(1)
+	t.mockBucket.On("BucketType", mock.Anything).Return(t.bucketType).Times(2)
 	t.mockBucket.On("Name").Return("test-bucket")
 
 	_, err := t.readAt(0, 1)
@@ -197,7 +202,7 @@ func (t *readManagerTest) Test_ReadAt_ReaderFailsWithTimeout() {
 	r := iotest.OneByteReader(iotest.TimeoutReader(strings.NewReader("xxx")))
 	rc := &fake.FakeReader{ReadCloser: io.NopCloser(r)}
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(rc, nil).Once()
-	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(1)
+	t.mockBucket.On("BucketType", mock.Anything).Return(t.bucketType).Times(1)
 
 	_, err := t.readAt(0, 3)
 
@@ -208,7 +213,7 @@ func (t *readManagerTest) Test_ReadAt_ReaderFailsWithTimeout() {
 
 func (t *readManagerTest) Test_ReadAt_FileClobbered() {
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, &gcs.NotFoundError{})
-	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(1)
+	t.mockBucket.On("BucketType", mock.Anything).Return(t.bucketType).Times(1)
 	t.mockBucket.On("Name").Return("test-bucket")
 
 	_, err := t.readAt(1, 3)
@@ -228,6 +233,7 @@ func (t *readManagerTest) Test_ReadAt_FullObjectFromCache() {
 	// Mock the reader that returns full object data
 	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, fakeReader)
 	t.mockBucket.On("Name").Return("test-bucket").Maybe()
+	t.mockBucket.On("BucketType").Return(t.bucketType)
 
 	// Act: First read (expected to be served via GCS, populating the cache)
 	firstResp, err := t.readAt(0, int64(objectSize))
