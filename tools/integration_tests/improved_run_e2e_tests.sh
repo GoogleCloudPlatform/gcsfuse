@@ -16,12 +16,12 @@
 # Script Usage Documentation
 usage() {
   echo "Usage: $0 --bucket-location <bucket-location> [options]"
-  echo "    --bucket-location            <location>     The Google Cloud Storage bucket location (e.g., 'us-central1')."
+  echo "    --bucket-location            <location>      The Google Cloud Storage bucket location (e.g., 'us-central1')."
   echo ""
   echo "Options:"
   echo "    --test-installed-package                     Test installed gcsfuse package. (Default: false)"
   echo "    --skip-non-essential-tests                   Skip non-essential tests inside packages. (Default: false)"
-  echo "    --tpc-endpoint                               Run tests on TPC endpoint. (Default: false)"
+  echo "    --test-on-tpc-endpoint                       Run tests on TPC endpoint. (Default: false)"
   echo "    --presubmit                                  Run tests with presubmit flag. (Default: false)"
   echo "    --zonal                                      Run tests with zonal bucket in --bucket-location region."
   echo "                                                 The placement for Zonal buckets by deafault is Zone A of --bucket-location. (Default: false)"
@@ -215,7 +215,7 @@ TEST_PACKAGES_COMMON=(
   # "grpc_validation"
   "negative_stat_cache"
   "stale_handle"
-   "release_version"
+  "release_version"
 )
 
 # Test packages for regional buckets.
@@ -622,7 +622,7 @@ main() {
   log_info ""
 
   # Decide whether to build GCSFuse based on RUN_E2E_TESTS_ON_PACKAGE
-  if [ ! ${TEST_INSTALLED_PACKAGE} ] && [ ${BUILD_BINARY_IN_SCRIPT} ]; then
+  if (! ${TEST_INSTALLED_PACKAGE} ) && ${BUILD_BINARY_IN_SCRIPT}; then
     log_info "TEST_INSTALLED_PACKAGE is not 'true' (value: '${TEST_INSTALLED_PACKAGE}') and BUILD_BINARY_IN_SCRIPT is 'true'."
     log_info "Building GCSFuse inside script..."
     if ! build_gcsfuse_once; then
