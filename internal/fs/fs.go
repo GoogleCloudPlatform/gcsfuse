@@ -1505,7 +1505,7 @@ func (fs *fileSystem) LookUpInode(
 	e := &op.Entry
 	e.Child = child.ID()
 	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
-	e.EntryExpiration = time.Now().Add(60*time.Second)
+	e.EntryExpiration = time.Now().Add(60 * time.Second)
 
 	if err != nil {
 		return err
@@ -1917,17 +1917,17 @@ func (fs *fileSystem) CreateSymlink(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) RmDir(
-	// When rm -r or os.RemoveAll call is made, the following calls are made in order
-	//	 1. RmDir (only in the case of os.RemoveAll)
-	//	 2. Unlink all nested files,
-	//	 3. lookupInode call on implicit directory
-	//	 4. Rmdir on the directory.
-	//
-	// When type cache ttl is set, we construct an implicitDir even though one doesn't
-	// exist on GCS (https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/internal/fs/inode/dir.go#L452),
-	// and thus, we get rmDir call to GCSFuse.
-	// Whereas when ttl is zero, lookupInode call itself fails and RmDir is not called
-	// because object is not present in GCS.
+// When rm -r or os.RemoveAll call is made, the following calls are made in order
+//	 1. RmDir (only in the case of os.RemoveAll)
+//	 2. Unlink all nested files,
+//	 3. lookupInode call on implicit directory
+//	 4. Rmdir on the directory.
+//
+// When type cache ttl is set, we construct an implicitDir even though one doesn't
+// exist on GCS (https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/internal/fs/inode/dir.go#L452),
+// and thus, we get rmDir call to GCSFuse.
+// Whereas when ttl is zero, lookupInode call itself fails and RmDir is not called
+// because object is not present in GCS.
 
 	ctx context.Context,
 	op *fuseops.RmDirOp) (err error) {
@@ -2441,7 +2441,7 @@ func (fs *fileSystem) Unlink(
 	err = parent.DeleteChildFile(
 		ctx,
 		op.Name,
-		0,   // Latest generation
+		0, // Latest generation
 		nil) // No meta-generation precondition
 
 	if err != nil {
@@ -2644,18 +2644,78 @@ func (fs *fileSystem) WriteFile(
 	fs.mu.Lock()
 	fh := fs.handles[op.Handle].(*handle.FileHandle)
 	in := fs.fileInodeOrDie(op.Inode)
+	//currentName := in.Name().LocalName()
+	//childBase := path.Base(currentName)
+	//parentLocal := path.Dir(currentName)
+	//
+	//var parentInode inode.DirInode
+	//if parentLocal == "."{
+	//	parentInode = fs.inodes[fuseops.RootInodeID].(inode.DirInode)
+	//} else {
+	//	parentName := inode.Name(parentLocal + "/")
+	//	var ok bool
+	//	if parentInode, ok = fs.implicitDirInodes[parentName]; !ok {
+	//		if parentInode, ok = fs.folderInodes[parentName]; !ok {
+	//			if genBacked, ok := fs.generationBackedInodes[parentName]; ok {
+	//				parentInode, _ = genBacked.(inode.DirInode)
+	//			}
+	//		}
+	//	}
+	//}
 	fs.mu.Unlock()
 
+	var parentInodeID fuseops.InodeID
+	var getParentErr error
+
+	fileName := in.Name()
+	childGcsObjectName := fileName.GcsObjectName()
+	parentGcsObjectNameStr := path.Dir(childGcsObjectName)
+	if parentGcsObjectNameStr == "." || parentGcsObjectNameStr == "" {
+		parentInodeID = fuseops.RootInodeID
+	} else {
+		if !strings.HasSuffix(parentGcsObjectNameStr, "/") {
+			parentGcsObjectNameStr += "/"
+		}
+
+		fs.mu.Lock() // Re-acquire the file system lock before accessing fs.folderInodes and fs.implicitDirInodes.
+
+		foundParent := false
+		for nameKey, dirInode := range fs.folderInodes {
+			if nameKey.GcsObjectName() == parentGcsObjectNameStr {
+				parentInodeID = dirInode.ID()
+				foundParent = true
+				break
+			}
+		}
+
+		if !foundParent {
+			for nameKey, dirInode := range fs.implicitDirInodes {
+				if nameKey.GcsObjectName() == parentGcsObjectNameStr {
+					parentInodeID = dirInode.ID()
+					foundParent = true
+					break
+				}
+			}
+		}
+
+		if !foundParent {
+			getParentErr = fmt.Errorf("parent directory inode with GCS object name %q not found for file %q", parentGcsObjectNameStr, childGcsObjectName)
+			fs.mu.Unlock()
+			return getParentErr
+		}
+		fs.mu.Unlock()
+	}
 	var gcsSynced bool
 	in.Lock()
 	defer in.Unlock()
 	if err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in, fh.OpenMode()); err != nil {
 		var fileClobberedError *gcsfuse_errors.FileClobberedError
 		ok := errors.As(err, &fileClobberedError)
-		if  ok {
-			// fmt.Printf("ImInode %d\n", op.Inode) 
-			fs.notifier.InvalidateInode(op.Inode,0,0)
-			// fs.notifier.InvalidateEntry(fuseops.RootInodeID,in.Name().LocalName())
+		if ok {
+			fmt.Printf("ImParentInode %d\n", parentInodeID)
+			//err = fs.notifier.InvalidateInode(op.Inode,0,0)
+
+			err = fs.notifier.InvalidateEntry(parentInodeID, path.Base(in.Name().LocalName()))
 			// fmt.Println("Hello")
 		}
 		return
