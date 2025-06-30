@@ -2508,6 +2508,13 @@ func (fs *fileSystem) ReadDir(
 }
 
 // LOCKS_EXCLUDED(fs.mu)
+func (fs *fileSystem) ReadDirPlus(
+	ctx context.Context,
+	op *fuseops.ReadDirPlusOp) (err error) {
+	return nil
+}
+
+// LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReleaseDirHandle(
 	ctx context.Context,
 	op *fuseops.ReleaseDirHandleOp) (err error) {
