@@ -16,7 +16,6 @@ package fs
 
 import (
 	"fmt"
-
 	newcfg "github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/wrappers"
 	"github.com/jacobsa/fuse"
@@ -36,5 +35,6 @@ func NewServer(ctx context.Context, cfg *ServerConfig) (fuse.Server, error) {
 		fs = wrappers.WithTracing(fs)
 	}
 	fs = wrappers.WithMonitoring(fs, cfg.MetricHandle)
-	return fuseutil.NewFileSystemServer(fs), nil
+
+	return fuse.NewServerWithNotifier(cfg.Notifier, fuseutil.NewFileSystemServer(fs)), nil
 }

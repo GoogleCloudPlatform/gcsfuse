@@ -101,6 +101,7 @@ be interacting with the file system.`)
 		ExperimentalEnableRapidAppends:     newConfig.Write.ExperimentalEnableRapidAppends,
 	}
 	bm := gcsx.NewBucketManager(bucketCfg, storageHandle)
+    notifier := fuse.NewNotifier()
 
 	// Create a file system server.
 	serverCfg := &fs.ServerConfig{
@@ -121,6 +122,7 @@ be interacting with the file system.`)
 		EnableNonexistentTypeCache: newConfig.MetadataCache.EnableNonexistentTypeCache,
 		NewConfig:                  newConfig,
 		MetricHandle:               metricHandle,
+		Notifier:                   notifier,
 	}
 
 	logger.Infof("Creating a new server...\n")

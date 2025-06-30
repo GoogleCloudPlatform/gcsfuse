@@ -37,6 +37,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	cacheutil "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/handle"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
@@ -129,6 +130,8 @@ type ServerConfig struct {
 	NewConfig *cfg.Config
 
 	MetricHandle common.MetricHandle
+
+	Notifier *fuse.Notifier
 }
 
 // Create a fuse file system server according to the supplied configuration.
@@ -196,6 +199,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		metricHandle:               serverCfg.MetricHandle,
 		enableAtomicRenameObject:   serverCfg.NewConfig.EnableAtomicRenameObject,
 		globalMaxWriteBlocksSem:    semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
+		notifier:                   serverCfg.Notifier,
 	}
 
 	// Set up root bucket
@@ -492,6 +496,9 @@ type fileSystem struct {
 	// Limits the max number of blocks that can be created across file system when
 	// streaming writes are enabled.
 	globalMaxWriteBlocksSem *semaphore.Weighted
+
+	// notifier to invalidate entry
+	notifier *fuse.Notifier
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -1498,6 +1505,7 @@ func (fs *fileSystem) LookUpInode(
 	e := &op.Entry
 	e.Child = child.ID()
 	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
+	e.EntryExpiration = time.Now().Add(60*time.Second)
 
 	if err != nil {
 		return err
@@ -2642,6 +2650,14 @@ func (fs *fileSystem) WriteFile(
 	in.Lock()
 	defer in.Unlock()
 	if err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in, fh.OpenMode()); err != nil {
+		var fileClobberedError *gcsfuse_errors.FileClobberedError
+		ok := errors.As(err, &fileClobberedError)
+		if  ok {
+			// fmt.Printf("ImInode %d\n", op.Inode) 
+			fs.notifier.InvalidateInode(op.Inode,0,0)
+			// fs.notifier.InvalidateEntry(fuseops.RootInodeID,in.Name().LocalName())
+			// fmt.Println("Hello")
+		}
 		return
 	}
 	if fs.newConfig.Write.ExperimentalEnableRapidAppends {
