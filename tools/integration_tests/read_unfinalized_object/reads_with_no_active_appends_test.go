@@ -158,12 +158,12 @@ func TestUnfinalizedObjectReadTest(t *testing.T) {
 	// Run tests.
 	for _, flags := range flagsSet {
 		ts.flags = flags
-		require.NoError(os.Mkdir(ts.cacheDir, setup.DirPermission_0755))
+		require.NoError(t, os.Mkdir(ts.cacheDir, setup.DirPermission_0755))
 		setup.MountGCSFuseWithGivenMountFunc(ts.flags, mountFunc)
 		log.Printf("Running tests with flags: %s", ts.flags)
 		suite.Run(t, ts)
 		setup.SaveGCSFuseLogFileInCaseOfFailure(t)
 		setup.UnmountGCSFuseAndDeleteLogFile(setup.MntDir())
-		require.NoError(os.RemoveAll(ts.cacheDir))
+		require.NoError(t, os.RemoveAll(ts.cacheDir))
 	}
 }
