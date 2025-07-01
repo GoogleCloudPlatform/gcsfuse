@@ -4,203 +4,6 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//	https://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-// A program that generates otel_metrics.go from metrics.yaml.
-package main
-
-import (
-	"bytes"
-	"fmt"
-	"go/format"
-	"log"
-	"os"
-	"path/filepath"
-	"strings"
-	"text/template"
-
-	"gopkg.in/yaml.v3"
-)
-
-const (
-	inputFile  = "metrics.yaml"
-	outputFile = "otel_metrics_2.go"
-	// tmplFile is unused as the template is inlined below.
-)
-
-// Metric corresponds to a single metric definition in metrics.yaml.
-type Metric struct {
-	Name        string      `yaml:"metric-name"`
-	Description string      `yaml:"description"`
-	Unit        string      `yaml:"unit"`
-	Attributes  []Attribute `yaml:"attributes"`
-}
-
-// Attribute corresponds to a metric attribute in metrics.yaml.
-type Attribute struct {
-	Name   string   `yaml:"attribute-name"`
-	Type   string   `yaml:"attribute-type"`
-	Values []string `yaml:"values,omitempty"`
-}
-
-// TemplateData is the data structure passed to the template.
-type TemplateData struct {
-	Metrics []TemplateMetric
-}
-
-// TemplateMetric is a processed metric ready for code generation.
-type TemplateMetric struct {
-	Metric
-	CamelCaseName string
-	Combinations  []AttributeCombination
-}
-
-// AttributeCombination represents a single combination of attribute values for a metric.
-type AttributeCombination struct {
-	AtomicVarName     string
-	AttrSetVarName    string
-	AttrSetDefinition string
-}
-
-// toPascalCase converts a string from snake-case or kebab-case to PascalCase.
-func toPascalCase(s string) string {
-	s = strings.ReplaceAll(s, "-", "_")
-	parts := strings.Split(s, "_")
-	for i, part := range parts {
-		if len(part) > 0 {
-			parts[i] = strings.ToUpper(part[:1]) + part[1:]
-		}
-	}
-	return strings.Join(parts, "")
-}
-
-// toCamelCase converts a string to camelCase.
-func toCamelCase(s string) string {
-	pascal := toPascalCase(s)
-	if len(pascal) == 0 {
-		return ""
-	}
-	return strings.ToLower(pascal[:1]) + pascal[1:]
-}
-
-// generateCombinations creates all possible attribute combinations for a given metric.
-func generateCombinations(metric Metric) []AttributeCombination {
-	type attrDomain struct {
-		Attribute
-		domain []string
-	}
-
-	var domains []attrDomain
-	for _, attr := range metric.Attributes {
-		d := attrDomain{Attribute: attr}
-		if attr.Type == "bool" {
-			d.domain = []string{"true", "false"}
-		} else {
-			d.domain = attr.Values
-		}
-		domains = append(domains, d)
-	}
-
-	var combinations []AttributeCombination
-	var rec func(int, []string)
-
-	rec = func(domainIndex int, currentCombo []string) {
-		if domainIndex == len(domains) {
-			var baseNameParts []string
-			baseNameParts = append(baseNameParts, toCamelCase(metric.Name))
-
-			var attrSetParts []string
-			for i, val := range currentCombo {
-				attr := domains[i].Attribute
-				baseNameParts = append(baseNameParts, toPascalCase(attr.Name))
-				baseNameParts = append(baseNameParts, toPascalCase(val))
-				if attr.Type == "bool" {
-					attrSetParts = append(attrSetParts, fmt.Sprintf(`attribute.Bool("%s", %s)`, attr.Name, val))
-				} else {
-					attrSetParts = append(attrSetParts, fmt.Sprintf(`attribute.String("%s", "%s")`, attr.Name, val))
-				}
-			}
-
-			baseName := strings.Join(baseNameParts, "")
-			combo := AttributeCombination{
-				AtomicVarName:     baseName + "Atomic",
-				AttrSetVarName:    baseName + "AttrSet",
-				AttrSetDefinition: fmt.Sprintf("metric.WithAttributeSet(attribute.NewSet(%s))", strings.Join(attrSetParts, ", ")),
-			}
-			combinations = append(combinations, combo)
-			return
-		}
-
-		for _, val := range domains[domainIndex].domain {
-			rec(domainIndex+1, append(currentCombo, val))
-		}
-	}
-
-	rec(0, []string{})
-	return combinations
-}
-
-func main() {
-	log.SetFlags(0)
-	yamlFile, err := os.ReadFile(inputFile)
-	if err != nil {
-		log.Fatalf("Error reading %s: %v", inputFile, err)
-	}
-
-	var metrics []Metric
-	if err = yaml.Unmarshal(yamlFile, &metrics); err != nil {
-		log.Fatalf("Error unmarshalling YAML from %s: %v", inputFile, err)
-	}
-
-	templateData := TemplateData{}
-	for _, m := range metrics {
-		tm := TemplateMetric{
-			Metric:        m,
-			CamelCaseName: toCamelCase(m.Name),
-			Combinations:  generateCombinations(m),
-		}
-		templateData.Metrics = append(templateData.Metrics, tm)
-	}
-
-	tmpl, err := template.New("otel").Parse(otelTemplate)
-	if err != nil {
-		log.Fatalf("Error parsing template: %v", err)
-	}
-
-	var buf bytes.Buffer
-	if err = tmpl.Execute(&buf, templateData); err != nil {
-		log.Fatalf("Error executing template: %v", err)
-	}
-
-	formatted, err := format.Source(buf.Bytes())
-	if err != nil {
-		log.Fatalf("Error formatting generated code: %v\n---CODE---\n%s", err, buf.String())
-	}
-
-	outDir := filepath.Dir(outputFile)
-	if err := os.MkdirAll(outDir, 0755); err != nil {
-		log.Fatalf("Error creating output directory %s: %v", outDir, err)
-	}
-
-	if err := os.WriteFile(outputFile, formatted, 0644); err != nil {
-		log.Fatalf("Error writing to %s: %v", outputFile, err)
-	}
-
-	fmt.Printf("Successfully generated %s from %s\n", outputFile, inputFile)
-}
-
-const otelTemplate = `// Copyright 2024 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
 //     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
@@ -209,66 +12,294 @@ const otelTemplate = `// Copyright 2024 Google LLC
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Autogenerated by autogen/main.go, do not edit.
-
-package common
+package main
 
 import (
-	"context"
-	"sync/atomic"
+	"bytes"
+	"flag"
+	"fmt"
+	"go/format"
+	"log"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+	"text/template"
 
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+	"gopkg.in/yaml.v3"
 )
 
-var (
-	meter = otel.Meter("gcsfuse")
-)
+// YAML Structures
 
-type otelMetrics struct {
-{{- range .Metrics}}
-{{- range .Combinations}}
-	{{.AtomicVarName}} *atomic.Int64
-{{- end}}
-{{- end}}
+type Metric struct {
+	Name        string      `yaml:"metric-name"`
+	Description string      `yaml:"description"`
+	Unit        string      `yaml:"unit"`
+	Attributes  []Attribute `yaml:"attributes"`
 }
 
-func NewOTelMetrics() (*otelMetrics, error) {
-	var (
-	{{- range .Metrics}}
-	{{- range .Combinations}}
-		{{.AtomicVarName}} atomic.Int64
-	{{- end}}
-	{{- end}}
-	)
+type Attribute struct {
+	Name   string   `yaml:"attribute-name"`
+	Type   string   `yaml:"attribute-type"`
+	Values []string `yaml:"values,omitempty"`
+}
 
-	{{- range .Metrics}}
-	{{- range .Combinations}}
-	{{.AttrSetVarName}} := {{.AttrSetDefinition}}
-	{{- end}}
-	{{- end}}
+// Template Data Structures
 
-	{{- range .Metrics}}
-	if _, err := meter.Int64ObservableCounter("{{.Name}}",
-		metric.WithDescription("{{.Description}}"),
-		metric.WithUnit("{{.Unit}}"),
-		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
-			{{- range .Combinations}}
-			obsrv.Observe({{.AtomicVarName}}.Load(), {{.AttrSetVarName}})
-			{{- end}}
-			return nil
-		})); err != nil {
-		return nil, err
+type TemplateData struct {
+	PackageName string
+	Metrics     []ProcessedMetric
+	AttrMap     map[string]ProcessedAttribute
+}
+
+type ProcessedMetric struct {
+	Name         string
+	GoName       string
+	Description  string
+	Unit         string
+	Attributes   []ProcessedAttribute
+	Combinations []Combination
+	SwitchTree   *SwitchNode
+}
+
+type ProcessedAttribute struct {
+	Name   string
+	GoName string
+	GoType string
+	Values []string
+}
+
+type Combination struct {
+	Attributes     map[string]string
+	AtomicVarName  string
+	AttrSetVarName string
+}
+
+type SwitchNode struct {
+	AttributeGoName string
+	AttributeGoType string
+	Children        map[string]*SwitchNode
+	IsLeaf          bool
+	LeafVarName     string
+}
+
+func main() {
+	inputFile := flag.String("in", "metrics.yaml", "Input YAML file")
+	outputFile := flag.String("out", "otel_metrics.go", "Output Go file")
+	packageName := flag.String("pkg", "main", "Go package name for the generated file")
+	flag.Parse()
+
+	yamlFile, err := os.ReadFile(*inputFile)
+	if err != nil {
+		log.Fatalf("Error reading YAML file: %v", err)
 	}
-	{{- end}}
 
-	return &otelMetrics{
-		{{- range .Metrics}}
-		{{- range .Combinations}}
-		{{.AtomicVarName}}: &{{.AtomicVarName}},
-		{{- end}}
-		{{- end}}
-	}, nil
+	var metrics []Metric
+	err = yaml.Unmarshal(yamlFile, &metrics)
+	if err != nil {
+		log.Fatalf("Error unmarshalling YAML: %v", err)
+	}
+
+	data := processMetrics(metrics, *packageName)
+
+	tmpl, err := template.New(filepath.Base("otel_metrics.go.tmpl")).Funcs(template.FuncMap{
+		"ToOtelType": toOtelType,
+	}).ParseFiles("otel_metrics.go.tmpl")
+	if err != nil {
+		log.Fatalf("Error parsing template: %v", err)
+	}
+
+	var buf bytes.Buffer
+	err = tmpl.Execute(&buf, data)
+	if err != nil {
+		log.Fatalf("Error executing template: %v", err)
+	}
+
+	formatted, err := format.Source(buf.Bytes())
+	if err != nil {
+		log.Fatalf("Error formatting generated code: %v", err)
+	}
+
+	err = os.WriteFile(*outputFile, formatted, 0644)
+	if err != nil {
+		log.Fatalf("Error writing output file: %v", err)
+	}
+
+	fmt.Printf("Successfully generated %s\n", *outputFile)
 }
-`
+
+func processMetrics(metrics []Metric, pkgName string) TemplateData {
+	var processedMetrics []ProcessedMetric
+	attrMap := make(map[string]ProcessedAttribute)
+
+	for _, m := range metrics {
+		pm := ProcessedMetric{
+			Name:        m.Name,
+			GoName:      toPascalCase(m.Name),
+			Description: m.Description,
+			Unit:        m.Unit,
+		}
+
+		for _, a := range m.Attributes {
+			pa := ProcessedAttribute{
+				Name:   a.Name,
+				GoName: toCamelCase(a.Name),
+				GoType: a.Type,
+			}
+			if a.Type == "bool" {
+				pa.Values = []string{"true", "false"}
+			} else {
+				pa.Values = a.Values
+			}
+			pm.Attributes = append(pm.Attributes, pa)
+			attrMap[pa.Name] = pa
+		}
+
+		// Sort attributes to ensure deterministic order for variable names
+		sort.Slice(pm.Attributes, func(i, j int) bool {
+			return pm.Attributes[i].Name < pm.Attributes[j].Name
+		})
+
+		pm.Combinations = generateCombinations(pm)
+		pm.SwitchTree = buildSwitchTree(pm)
+		processedMetrics = append(processedMetrics, pm)
+	}
+
+	return TemplateData{
+		PackageName: pkgName,
+		Metrics:     processedMetrics,
+		AttrMap:     attrMap,
+	}
+}
+
+func generateCombinations(pm ProcessedMetric) []Combination {
+	var combinations []Combination
+
+	var recurse func(int, map[string]string)
+	recurse = func(attrIndex int, currentCombo map[string]string) {
+		if attrIndex == len(pm.Attributes) {
+			// Create a copy of the map
+			finalCombo := make(map[string]string)
+			var nameParts []string
+			nameParts = append(nameParts, pm.GoName)
+
+			// Sort keys for deterministic naming
+			var sortedAttrNames []string
+			for k := range currentCombo {
+				sortedAttrNames = append(sortedAttrNames, k)
+			}
+			sort.Strings(sortedAttrNames)
+
+			for _, attrName := range sortedAttrNames {
+				val := currentCombo[attrName]
+				finalCombo[attrName] = val
+				nameParts = append(nameParts, toPascalCase(attrName), toPascalCase(val))
+			}
+
+			baseName := strings.Join(nameParts, "")
+			combinations = append(combinations, Combination{
+				Attributes:     finalCombo,
+				AtomicVarName:  toCamelCase(baseName) + "Atomic",
+				AttrSetVarName: toCamelCase(baseName) + "AttrSet",
+			})
+			return
+		}
+
+		attr := pm.Attributes[attrIndex]
+		for _, val := range attr.Values {
+			currentCombo[attr.Name] = val
+			recurse(attrIndex+1, currentCombo)
+		}
+	}
+
+	recurse(0, make(map[string]string))
+	return combinations
+}
+
+func buildSwitchTree(pm ProcessedMetric) *SwitchNode {
+	if len(pm.Attributes) == 0 {
+		baseName := toPascalCase(pm.Name)
+		return &SwitchNode{
+			IsLeaf:      true,
+			LeafVarName: toCamelCase(baseName) + "Atomic",
+		}
+	}
+
+	var build func(int, map[string]string) *SwitchNode
+	build = func(attrIndex int, path map[string]string) *SwitchNode {
+		attr := pm.Attributes[attrIndex]
+		node := &SwitchNode{
+			AttributeGoName: attr.GoName,
+			AttributeGoType: attr.GoType,
+			Children:        make(map[string]*SwitchNode),
+		}
+
+		for _, val := range attr.Values {
+			newPath := make(map[string]string)
+			for k, v := range path {
+				newPath[k] = v
+			}
+			newPath[attr.Name] = val
+
+			if attrIndex+1 == len(pm.Attributes) {
+				// Leaf node
+				var nameParts []string
+				nameParts = append(nameParts, pm.GoName)
+
+				var sortedAttrNames []string
+				for k := range newPath {
+					sortedAttrNames = append(sortedAttrNames, k)
+				}
+				sort.Strings(sortedAttrNames)
+
+				for _, attrName := range sortedAttrNames {
+					v := newPath[attrName]
+					nameParts = append(nameParts, toPascalCase(attrName), toPascalCase(v))
+				}
+				baseName := strings.Join(nameParts, "")
+
+				node.Children[val] = &SwitchNode{
+					IsLeaf:      true,
+					LeafVarName: toCamelCase(baseName) + "Atomic",
+				}
+			} else {
+				node.Children[val] = build(attrIndex+1, newPath)
+			}
+		}
+		return node
+	}
+
+	return build(0, make(map[string]string))
+}
+
+// Template Helper Functions
+
+func toPascalCase(s string) string {
+	s = strings.ReplaceAll(s, "-", " ")
+	s = strings.ReplaceAll(s, "_", " ")
+	s = cases.Title(language.English).String(s)
+	return strings.ReplaceAll(s, " ", "")
+}
+
+func toCamelCase(s string) string {
+	pascal := toPascalCase(s)
+	if pascal == "" {
+		return ""
+	}
+	return strings.ToLower(pascal[:1]) + pascal[1:]
+}
+
+func toOtelType(goType string) string {
+	switch goType {
+	case "string":
+		return "String"
+	case "bool":
+		return "Bool"
+	case "int64":
+		return "Int64"
+	default:
+		return goType
+	}
+}
