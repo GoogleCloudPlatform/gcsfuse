@@ -29,9 +29,9 @@ import (
 )
 
 const (
-	inputFile  = "autogen/metrics.yaml"
-	outputFile = "otel_metrics_dup.go"
-	tmplFile   = "autogen/otel_metrics.go.tmpl"
+	inputFile  = "metrics.yaml"
+	outputFile = "otel_metrics_2.go"
+	// tmplFile is unused as the template is inlined below.
 )
 
 // Metric corresponds to a single metric definition in metrics.yaml.
@@ -235,14 +235,11 @@ type otelMetrics struct {
 }
 
 func NewOTelMetrics() (*otelMetrics, error) {
-	{{- $allCombos := list }}
-	{{- range .Metrics -}}
-		{{- $allCombos = append $allCombos .Combinations -}}
-	{{- end -}}
-
 	var (
-	{{- range $allCombos}}
+	{{- range .Metrics}}
+	{{- range .Combinations}}
 		{{.AtomicVarName}} atomic.Int64
+	{{- end}}
 	{{- end}}
 	)
 

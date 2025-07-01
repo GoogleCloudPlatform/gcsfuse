@@ -1,5 +1,5 @@
 - metric-name: metric1
-  description: "description of the metric"
+  description: "description of the metric1"
   unit: "us"
   attributes:
   - attribute-name: attr1
@@ -9,7 +9,7 @@
     - v2
 
 - metric-name: metric2
-  description: "description of the metric"
+  description: "description of the metric2"
   unit: "by"
   attributes:
   - attribute-name: attr2
