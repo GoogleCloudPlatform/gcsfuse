@@ -75,6 +75,8 @@ type RandomReader interface {
 	// Clean up any resources associated with the reader, which must not be used
 	// again.
 	Destroy()
+
+	IsFileCached() bool
 }
 
 // ObjectData specifies the response returned as part of ReadAt call.
@@ -195,6 +197,13 @@ func (rr *randomReader) CheckInvariants() {
 	if rr.limit < 0 && rr.reader != nil {
 		panic(fmt.Sprintf("Unexpected non-nil reader with limit == %d", rr.limit))
 	}
+}
+
+func (rr *randomReader) IsFileCached() bool {
+	if rr.fileCacheHandle != nil && rr.fileCacheHandle.DownloadJob() != nil {
+		return rr.fileCacheHandle.DownloadJob().IsComplete()
+	}
+	return false
 }
 
 // tryReadingFromFileCache creates the cache handle first if it doesn't exist already

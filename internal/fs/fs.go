@@ -2574,18 +2574,23 @@ func (fs *fileSystem) OpenFile(
 	in.Unlock()
 
 	newFH.Lock()
-	in.Lock()
 	defer newFH.Unlock()
 	// Trigger file caching.
 	// If size less than equal to 10MiB, wait for file to be cached.
 	// check for file cache status.
 
 	bytes := make([]byte, 10)
-	_, _, err = newFH.Read(ctx, bytes, 0, fs.sequentialReadSizeMb)
+	in.Lock()
+	err = newFH.TryEnsureReader(ctx, fs.sequentialReadSizeMb)
 	if err != nil {
-		return fmt.Errorf("newFH.Read: %w", err)
+		return err
 	}
-
+	if !newFH.Reader().IsFileCached() {
+		_, _, err = newFH.Read(ctx, bytes, 0, fs.sequentialReadSizeMb)
+		if err != nil {
+			return fmt.Errorf("newFH.Read: %w", err)
+		}
+	}
 	return
 }
 
@@ -2733,12 +2738,15 @@ func (fs *fileSystem) FlushFile(
 		ctx = context.Background()
 	}
 	// Find the inode.
+	logger.Infof("trying to acquire fs lock in flushFile")
 	fs.mu.Lock()
 	in := fs.fileInodeOrDie(op.Inode)
 	fs.mu.Unlock()
 
+	logger.Infof("trying to acquire in lock in flushFile")
 	in.Lock()
 	defer in.Unlock()
+	logger.Infof("acquired inode lock in flushFile")
 
 	// Sync it.
 	if err := fs.flushFile(ctx, in); err != nil {

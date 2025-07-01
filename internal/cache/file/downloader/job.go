@@ -589,3 +589,10 @@ func (job *Job) IsExperimentalParallelDownloadsDefaultOn() bool {
 	}
 	return false
 }
+
+func (job *Job) IsComplete() bool {
+	if job.status.Name == Completed {
+		return true
+	}
+	return false
+}

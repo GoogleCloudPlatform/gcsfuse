@@ -265,3 +265,7 @@ func (fch *CacheHandle) Close() (err error) {
 
 	return
 }
+
+func (fch *CacheHandle) DownloadJob() *downloader.Job {
+	return fch.fileDownloadJob
+}
