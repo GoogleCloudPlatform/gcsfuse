@@ -41,5 +41,5 @@ _testmain.go
 .idea/
 .vscode
 
-# External folders
-vendor/
+## External folders
+#vendor/
