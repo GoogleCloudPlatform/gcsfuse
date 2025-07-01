@@ -57,6 +57,7 @@ func init() {
 
 var CacheDir = path.Join(os.Getenv("HOME"), "cache-dir")
 var FileCacheDir = path.Join(CacheDir, util.FileCache)
+var CacheExcludeName = "do_not_cache"
 
 // A collection of tests for a file system where the file cache is enabled
 // with cache-file-for-range-read set to False.
@@ -68,9 +69,10 @@ func (t *FileCacheTest) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.NewConfig = &cfg.Config{
 		FileCache: cfg.FileCacheConfig{
-			MaxSizeMb:             FileCacheSizeInMb,
-			CacheFileForRangeRead: false,
-			EnableCrc:             true,
+			MaxSizeMb:                FileCacheSizeInMb,
+			CacheFileForRangeRead:    false,
+			EnableCrc:                true,
+			ExperimentalExcludeRegex: CacheExcludeName,
 		},
 		CacheDir: cfg.ResolvedPath(CacheDir),
 	}
@@ -191,6 +193,28 @@ func sequentialToRandomReadShouldPopulateCache(t *fsTest) {
 	AssertTrue(reflect.DeepEqual(string(cachedContent[:100]), objectContent[:100]))
 }
 
+func excludedFileShouldNotPopulateCache(t *fsTest, cacheDir string) {
+	objectContent := generateRandomString(DefaultObjectSizeInMb * util.MiB)
+	objects := map[string]string{CacheExcludeName: objectContent}
+	err := t.createObjects(objects)
+	AssertEq(nil, err)
+	filePath := path.Join(mntDir, CacheExcludeName)
+	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
+	defer closeFile(file)
+	AssertEq(nil, err)
+
+	// reading object with name matching the exclude regex should not cache the object into file.
+	buf := make([]byte, len(objectContent))
+	_, err = file.Read(buf)
+	AssertEq(nil, err)
+	AssertEq(objectContent, string(buf))
+
+	objectPath := util.GetObjectPath(bucket.Name(), CacheExcludeName)
+	downloadPath := util.GetDownloadPath(cacheDir, objectPath)
+	_, err = os.Stat(downloadPath)
+	AssertTrue(os.IsNotExist(err))
+}
+
 func (t *FileCacheTest) ReadShouldChangeLRU() {
 	objectName1 := DefaultObjectName + "1"
 	objectContent1 := generateRandomString(DefaultObjectSizeInMb * util.MiB)
@@ -255,6 +279,10 @@ func (t *FileCacheTest) SequentialReadShouldPopulateCache() {
 
 func (t *FileCacheTest) SequentialToRandomReadShouldPopulateCache() {
 	sequentialToRandomReadShouldPopulateCache(&t.fsTest)
+}
+
+func (t *FileCacheTest) ExcludedFileShouldNotPopulateCache() {
+	excludedFileShouldNotPopulateCache(&t.fsTest, FileCacheDir)
 }
 
 func (t *FileCacheTest) CacheFilePermission() {

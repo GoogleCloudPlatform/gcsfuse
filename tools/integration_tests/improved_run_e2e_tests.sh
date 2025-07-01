@@ -15,15 +15,21 @@
 
 # Script Usage Documentation
 usage() {
-  echo "Usage: $0 <TEST_INSTALLED_PACKAGE> <SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE> <BUCKET_LOCATION> [RUN_TEST_ON_TPC_ENDPOINT] [RUN_TESTS_WITH_PRESUBMIT_FLAG] [RUN_TESTS_WITH_ZONAL_BUCKET] [BUILD_BINARY_IN_SCRIPT]"
-  echo "  TEST_INSTALLED_PACKAGE: 'true' or 'false' to test installed gcsfuse package."
-  echo "  SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE: 'true' or 'false' to skip few non-essential tests inside packages."
-  echo "  BUCKET_LOCATION: The Google Cloud Storage bucket location (e.g., 'us-central1')."
-  echo "  RUN_TEST_ON_TPC_ENDPOINT (optional): 'true' or 'false' to run tests on TPC endpoint (Default: 'false')."
-  echo "  RUN_TESTS_WITH_PRESUBMIT_FLAG (optional): 'true' or 'false' to run tests with presubmit flag (Default: 'false')."
-  echo "  RUN_TESTS_WITH_ZONAL_BUCKET (optional): 'true' or 'false' to run tests with zonal bucket (Default: 'false')."
-  echo "  BUILD_BINARY_IN_SCRIPT (optional): 'true' or 'false' to build binary in script (Default: 'true')."
-  exit 1
+  echo "Usage: $0 --bucket-location <bucket-location> [options]"
+  echo "    --bucket-location            <location>      The Google Cloud Storage bucket location (e.g., 'us-central1')."
+  echo ""
+  echo "Options:"
+  echo "    --test-installed-package                     Test installed gcsfuse package. (Default: false)"
+  echo "    --skip-non-essential-tests                   Skip non-essential tests inside packages. (Default: false)"
+  echo "    --test-on-tpc-endpoint                       Run tests on TPC endpoint. (Default: false)"
+  echo "    --presubmit                                  Run tests with presubmit flag. (Default: false)"
+  echo "    --zonal                                      Run tests with zonal bucket in --bucket-location region."
+  echo "                                                 The placement for Zonal buckets by deafault is Zone A of --bucket-location. (Default: false)"
+  echo "    --no-build-binary-in-script                  To disable building gcsfuse binary in script. (Default: false)"
+  echo "    --package-level-parallelism   <parallelism>  To adjust the number of packages to execute in parallel. (Default: 10)"
+  echo "    --track-resource-usage                       To track resource(cpu/mem/disk) usage during e2e run. (Default: false)"
+  echo "    --help                                       Display this help and exit."
+  exit "$1"
 }
 
 # Logging Helpers
@@ -55,7 +61,6 @@ readonly INTEGRATION_TEST_PACKAGE_DIR="./tools/integration_tests"
 readonly INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS=60 
 readonly TMP_PREFIX="gcsfuse_e2e"
 readonly ZONAL_BUCKET_SUPPORTED_LOCATIONS=("us-central1" "us-west4")
-readonly PACKAGE_LEVEL_PARALLELISM=10 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
 readonly DELETE_BUCKET_PARALLELISM=10 # Controls how many buckets are deleted in parallel.
 # 6 second delay between creating buckets as both hns and flat runs create buckets in parallel.
 # Ref: https://cloud.google.com/storage/quotas#buckets
@@ -75,25 +80,100 @@ PACKAGE_RUNTIME_STATS=$(mktemp "/tmp/${TMP_PREFIX}_package_stats_runtime.XXXXXX"
 RESOURCE_USAGE_FILE=$(mktemp "/tmp/${TMP_PREFIX}_system_resource_usage.XXXXXX") || { log_error "Unable to create system resource usage file"; exit 1; }
 
 # Argument Parsing and Assignments
-if [ "$#" -lt 3 ]; then
-  log_error "Missing required arguments."
-  usage
-fi
-TEST_INSTALLED_PACKAGE="$1"
-SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE="$2"
-BUCKET_LOCATION="$3"
-# Assign optional arguments with provided or default values
-RUN_TEST_ON_TPC_ENDPOINT="${4:-false}"
-RUN_TESTS_WITH_PRESUBMIT_FLAG="${5:-false}"
-RUN_TESTS_WITH_ZONAL_BUCKET="${6:-false}"
-BUILD_BINARY_IN_SCRIPT="${7:-true}"
-if [ "$#" -gt 7 ]; then
-  log_error "Too many arguments."
-  usage
+# Set default values for optional arguments
+SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=false
+TEST_INSTALLED_PACKAGE=false
+RUN_TEST_ON_TPC_ENDPOINT=false
+RUN_TESTS_WITH_PRESUBMIT_FLAG=false
+RUN_TESTS_WITH_ZONAL_BUCKET=false
+BUILD_BINARY_IN_SCRIPT=true
+TRACK_RESOURCE_USAGE=false
+PACKAGE_LEVEL_PARALLELISM=10 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
+
+# Define options for getopt
+# A long option name followed by a colon indicates it requires an argument.
+LONG=bucket-location:,test-installed-package,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,help
+
+# Parse the options using getopt
+# --options "" specifies that there are no short options.
+PARSED=$(getopt --options "" --longoptions "$LONG" --name "$0" -- "$@")
+if [[ $? -ne 0 ]]; then
+    # getopt will have already printed an error message
+    usage 1
 fi
 
+# Read the parsed options back into the positional parameters.
+eval set -- "$PARSED"
+
+# Loop through the options and assign values to our variables
+while (( $# >= 1 )); do
+    case "$1" in
+        --bucket-location)
+            BUCKET_LOCATION="$2"
+            shift 2
+            ;;
+        --package-level-parallelism)
+            PACKAGE_LEVEL_PARALLELISM="$2"
+            shift 2
+            ;;
+        --test-installed-package)
+            TEST_INSTALLED_PACKAGE=true
+            shift 
+            ;;
+        --skip-non-essential-tests)
+            SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=true
+            shift
+            ;;
+        --no-build-binary-in-script)
+            BUILD_BINARY_IN_SCRIPT=false
+            shift
+            ;;
+        --test-on-tpc-endpoint)
+            RUN_TEST_ON_TPC_ENDPOINT=true
+            shift
+            ;;
+        --presubmit)
+            RUN_TESTS_WITH_PRESUBMIT_FLAG=true
+            shift
+            ;;
+        --zonal)
+            RUN_TESTS_WITH_ZONAL_BUCKET=true
+            shift
+            ;;
+        --track-resource-usage)
+            TRACK_RESOURCE_USAGE=true
+            shift
+            ;;
+        --help)
+            usage 0
+            ;;
+        --)
+            shift
+            break
+            ;;
+        *)
+            log_error "Unrecognized arguments [$*]."
+            usage 1
+            ;;
+    esac
+done
+
+# Validates option value to be non-empty and should not be another option name.
+validate_option_value() {
+  local option=$1
+  local value=$2
+  if [[ -z "$value" || "$value" == -* ]]; then
+    log_error "Invalid or empty value [$value] for option $option."
+    usage 1
+  fi
+}
+
+# Validate long options which require values.
+validate_option_value "--bucket-location" "$BUCKET_LOCATION"
+validate_option_value "--package-level-parallelism" "$PACKAGE_LEVEL_PARALLELISM"
+
 # Zonal Bucket location validation.
-if [[ "${RUN_TESTS_WITH_ZONAL_BUCKET}" == "true" ]]; then
+if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
   supported_bucket=false
   for location in "${ZONAL_BUCKET_SUPPORTED_LOCATIONS[@]}"; do
     if [[ "$BUCKET_LOCATION" == "$location" ]]; then
@@ -101,7 +181,7 @@ if [[ "${RUN_TESTS_WITH_ZONAL_BUCKET}" == "true" ]]; then
       break
     fi
   done
-  if [[ "${supported_bucket}" == false ]]; then
+  if ! ${supported_bucket}; then
     log_error "Unsupported Bucket Location ${BUCKET_LOCATION} for Zonal Run. Supported Locations are: ${ZONAL_BUCKET_SUPPORTED_LOCATIONS[*]}"
     exit 1
   fi
@@ -135,7 +215,7 @@ TEST_PACKAGES_COMMON=(
   # "grpc_validation"
   "negative_stat_cache"
   "stale_handle"
-   "release_version"
+  "release_version"
 )
 
 # Test packages for regional buckets.
@@ -286,8 +366,12 @@ safe_kill() {
 
 # Cleanup ensures each of the buckets created is destroyed and the temp files are cleaned up.
 clean_up() {
-  if ! safe_kill "$RESOURCE_USAGE_PID" "resource_usage.sh"; then
-    log_error "Failed to stop resource usage collection process (or it's already stopped): $RESOURCE_USAGE_PID"
+  if ${TRACK_RESOURCE_USAGE}; then
+    if ! safe_kill "$RESOURCE_USAGE_PID" "resource_usage.sh"; then
+      log_error "Failed to stop resource usage collection process (or it's already stopped)"
+    else
+      log_info "Resource usage collection process stopped."
+    fi
   fi
   if [ -n "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}" ] && [ -d "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}" ]; then
     log_info "Cleaning up GCSFuse build directory created by script: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
@@ -394,7 +478,7 @@ test_package() {
 
   # Build go package test command.
   local go_test_cmd_parts=("GODEBUG=asyncpreemptoff=1" "go" "test" "-v" "-timeout=${INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS}m" "${INTEGRATION_TEST_PACKAGE_DIR}/${package_name}")
-  if [[ "$SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE" == "true" ]]; then
+  if ${SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE}; then
     go_test_cmd_parts+=("-short")
   fi
   if [[ "$package_name" == "benchmarking" ]]; then
@@ -402,16 +486,16 @@ test_package() {
   fi
   # Test Binary flags after this.
   go_test_cmd_parts+=("-args" "--integrationTest" "--testbucket=${bucket_name}")
-  if [[ "$TEST_INSTALLED_PACKAGE" == "true" ]]; then
+  if ${TEST_INSTALLED_PACKAGE}; then
     go_test_cmd_parts+=("--testInstalledPackage")
   fi
-  if [[ "$RUN_TESTS_WITH_PRESUBMIT_FLAG" == "true" ]]; then
+  if ${RUN_TESTS_WITH_PRESUBMIT_FLAG}; then
     go_test_cmd_parts+=("--presubmit")
   fi
   if [[ "$bucket_type" == "$ZONAL" ]]; then
     go_test_cmd_parts+=("--zonal")
   fi
-  if [[ "$RUN_TEST_ON_TPC_ENDPOINT" == "true" ]]; then
+  if ${RUN_TEST_ON_TPC_ENDPOINT}; then
     go_test_cmd_parts+=("--testOnTPCEndPoint")
   fi
   if [[ -n "$BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR" ]]; then 
@@ -538,7 +622,7 @@ main() {
   log_info ""
 
   # Decide whether to build GCSFuse based on RUN_E2E_TESTS_ON_PACKAGE
-  if [ "$TEST_INSTALLED_PACKAGE" != "true" ] && [ "$BUILD_BINARY_IN_SCRIPT" == "true" ]; then
+  if (! ${TEST_INSTALLED_PACKAGE} ) && ${BUILD_BINARY_IN_SCRIPT}; then
     log_info "TEST_INSTALLED_PACKAGE is not 'true' (value: '${TEST_INSTALLED_PACKAGE}') and BUILD_BINARY_IN_SCRIPT is 'true'."
     log_info "Building GCSFuse inside script..."
     if ! build_gcsfuse_once; then
@@ -552,17 +636,19 @@ main() {
   # Reset SECONDS to 0
   SECONDS=0
 
-  # Start collecting system resource usage in background.
-  log_info "Starting resource usage collection process."
-  ./tools/integration_tests/resource_usage.sh "COLLECT" "$RESOURCE_USAGE_FILE" &
-  RESOURCE_USAGE_PID=$!
-  log_info "Resource usage collection process started at PID: $RESOURCE_USAGE_PID"
+  if ${TRACK_RESOURCE_USAGE}; then
+    # Start collecting system resource usage in background.
+    log_info "Starting resource usage collection process."
+    ./tools/integration_tests/resource_usage.sh "COLLECT" "$RESOURCE_USAGE_FILE" &
+    RESOURCE_USAGE_PID=$!
+    log_info "Resource usage collection process started at PID: $RESOURCE_USAGE_PID"
+  fi
 
   local pids=()
   local overall_exit_code=0
-  if [[ "${RUN_TESTS_WITH_ZONAL_BUCKET}" == "true" ]]; then
+  if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
     run_test_group "ZONAL" "TEST_PACKAGES_FOR_ZB" "$ZONAL" & pids+=($!)
-  elif [[ "${RUN_TEST_ON_TPC_ENDPOINT}" == "true" ]]; then
+  elif ${RUN_TEST_ON_TPC_ENDPOINT}; then
     # Override PROJECT_ID and BUCKET_LOCATION for TPC tests
     PROJECT_ID="$TPCZERO_PROJECT_ID"
     BUCKET_LOCATION="$TPC_BUCKET_LOCATION"
@@ -585,13 +671,15 @@ main() {
   # Print package runtime stats table.
   ./tools/integration_tests/create_package_runtime_table.sh "$PACKAGE_RUNTIME_STATS"
 
-  # Kill resource usage background PID and print resource usage.
-  log_info "Stopping resource usage collection process: $RESOURCE_USAGE_PID"
-  if safe_kill "$RESOURCE_USAGE_PID" "resource_usage.sh"; then
-    log_info "Resource usage collection process stopped."
-    ./tools/integration_tests/resource_usage.sh "PRINT" "$RESOURCE_USAGE_FILE"
-  else
-    log_error "Failed to stop resource usage collection process (or it's already stopped)"
+  if ${TRACK_RESOURCE_USAGE}; then
+    # Kill resource usage background PID and print resource usage.
+    log_info "Stopping resource usage collection process: $RESOURCE_USAGE_PID"
+    if safe_kill "$RESOURCE_USAGE_PID" "resource_usage.sh"; then
+      log_info "Resource usage collection process stopped."
+      ./tools/integration_tests/resource_usage.sh "PRINT" "$RESOURCE_USAGE_FILE"
+    else
+      log_error "Failed to stop resource usage collection process (or it's already stopped)"
+    fi
   fi
   exit $overall_exit_code
 }

@@ -15,7 +15,6 @@
 package util
 
 import (
-	"context"
 	"math"
 	"os"
 	"path/filepath"
@@ -213,18 +212,4 @@ func (ts *UtilTest) TestBytesToHigherMiBs() {
 	for _, tc := range cases {
 		assert.Equal(ts.T(), tc.mib, BytesToHigherMiBs(tc.bytes))
 	}
-}
-
-func (ts *UtilTest) TestIsolateContextFromParentContext() {
-	parentCtx, parentCtxCancel := context.WithCancel(context.Background())
-
-	// Call the method and cancel the parent context.
-	newCtx, newCtxCancel := IsolateContextFromParentContext(parentCtx)
-	parentCtxCancel()
-
-	// Validate new context is not cancelled after parent's cancellation.
-	assert.NoError(ts.T(), newCtx.Err())
-	// Cancel the new context and validate.
-	newCtxCancel()
-	assert.ErrorIs(ts.T(), newCtx.Err(), context.Canceled)
 }

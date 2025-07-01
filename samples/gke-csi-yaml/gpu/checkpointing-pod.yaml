@@ -5,7 +5,8 @@ metadata:
   namespace: <customer-namespace>
   annotations:
     gke-gcsfuse/volumes: "true"
-
+    # gke-gcsfuse/metadata-prefetch-memory-limit: "0" # min GKE version: `1.32.3-gke.1717000` for this annotation to take effect
+    # gke-gcsfuse/metadata-prefetch-cpu-limit: "0" # min GKE version: `1.32.3-gke.1717000` for this annotation to take effect
 spec:
   containers:
     # Add your workload container spec
