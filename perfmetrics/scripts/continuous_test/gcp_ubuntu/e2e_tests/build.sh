@@ -17,14 +17,8 @@
 # This will stop execution when any command will have non-zero status.
 set -e
 
-readonly RUN_E2E_TESTS_ON_INSTALLED_PACKAGE=true
-readonly SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=false
-readonly RUN_TEST_ON_TPC_ENDPOINT=false
-readonly PROJECT_ID="gcs-fuse-test-ml"
 readonly BUCKET_LOCATION=us-central1
-
-# This flag, if set true, will indicate to the underlying script, to customize for a presubmit-run.
-readonly RUN_TESTS_WITH_PRESUBMIT_FLAG=false
+readonly REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT="5.1"
 
 # This flag, if set true, will indicate to underlying script(s) to run for zonal bucket(s) instead of non-zonal bucket(s).
 ZONAL_BUCKET_ARG=false
@@ -46,9 +40,11 @@ echo "Building and installing gcsfuse..."
 commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 ./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId
 
+# Install required bash version for e2e script as kokoro has outdated bash versions.
+./perfmetrics/scripts/install_bash.sh "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT"
+
 # To execute tests for a specific commitId, ensure you've checked out from that commitId first.
 git checkout $commitId
 
 echo "Running e2e tests on installed package...."
-# $1 argument is refering to value of testInstalledPackage
-./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG ${ZONAL_BUCKET_ARG}
+/usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --track-resource-usage
