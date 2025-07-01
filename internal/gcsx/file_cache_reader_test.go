@@ -538,12 +538,27 @@ func (t *fileCacheReaderTest) fullyReadOriginalSizeOfUnfinalizedObject(origObjec
 	assert.Equal(t.T(), int(origObjectSize), readerResponse.Size)
 }
 
+func (t *fileCacheReaderTest) waitForDownloadJobToFinish(obj *gcs.MinObject) {
+	t.T().Helper()
+
+	job := t.jobManager.GetJob(obj.Name, t.mockBucket.Name())
+	if job != nil {
+		for job.GetStatus().Name == downloader.Downloading {
+			time.Sleep(10 * time.Millisecond) // Poll the job status.
+		}
+	}
+}
+
 func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBeyondCachedSizeAfterSizeIncreasedShouldThrowFallbackError() {
 	t.skipForNonZonalBucket()
 
 	origObjectSize := t.unfinalized_object.Size
 	cachedObjectSize := int64(origObjectSize)
+	// First read, which may start a background download job.
 	t.fullyReadOriginalSizeOfUnfinalizedObject(origObjectSize, cachedObjectSize)
+	// Wait for the background download job to complete to avoid a data race.
+	// This is needed to avoid the race condition on the size of t.unfinalized_object later on.
+	t.waitForDownloadJobToFinish(t.unfinalized_object)
 
 	// Resize the object, and read beyond previously cached size and within new object size.
 	objectSizeIncrease := uint64(10)
@@ -562,7 +577,11 @@ func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBeyondO
 
 	origObjectSize := t.unfinalized_object.Size
 	cachedObjectSize := int64(origObjectSize)
+	// First read, which may start a background download job.
 	t.fullyReadOriginalSizeOfUnfinalizedObject(origObjectSize, cachedObjectSize)
+	// Wait for the background download job to complete to avoid a data race.
+	// This is needed to avoid the race condition on the size of t.unfinalized_object later on.
+	t.waitForDownloadJobToFinish(t.unfinalized_object)
 
 	// Resize the object, and read beyond new object size.
 	objectSizeIncrease := uint64(10)
@@ -581,7 +600,11 @@ func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBelowCa
 
 	origObjectSize := t.unfinalized_object.Size
 	cachedObjectSize := int64(origObjectSize)
+	// First read, which may start a background download job.
 	t.fullyReadOriginalSizeOfUnfinalizedObject(origObjectSize, cachedObjectSize)
+	// Wait for the background download job to complete to avoid a data race.
+	// This is needed to avoid the race condition on the size of t.unfinalized_object later on.
+	t.waitForDownloadJobToFinish(t.unfinalized_object)
 
 	// Resize the object, and read from below previously cached size and within new object size.
 	objectSizeIncrease := uint64(10)
@@ -600,7 +623,11 @@ func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBelowCa
 
 	origObjectSize := t.unfinalized_object.Size
 	cachedObjectSize := int64(origObjectSize)
+	// First read, which may start a background download job.
 	t.fullyReadOriginalSizeOfUnfinalizedObject(origObjectSize, cachedObjectSize)
+	// Wait for the background download job to complete to avoid a data race.
+	// This is needed to avoid the race condition on the size of t.unfinalized_object later on.
+	t.waitForDownloadJobToFinish(t.unfinalized_object)
 
 	// Resize the object, and read from below cached size and beyond this new object size.
 	objectSizeIncrease := uint64(10)
