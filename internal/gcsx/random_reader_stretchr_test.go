@@ -25,17 +25,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/common"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/clock"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/clock"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	testutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -76,7 +76,7 @@ func (t *RandomReaderStretchrTest) SetupTest() {
 	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, &cfg.FileCacheConfig{
 		EnableCrc: false,
 	}, nil)
-	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
+	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "")
 
 	// Set up the reader.
 	rr := NewRandomReader(t.object, t.mockBucket, sequentialReadSizeInMb, nil, false, common.NewNoopMetrics(), nil, nil)
@@ -141,7 +141,7 @@ func (t *RandomReaderStretchrTest) Test_ReadInfo_Sequential() {
 			end, err := t.rr.wrapped.getReadInfo(tc.start, 10)
 
 			assert.NoError(t.T(), err)
-			assert.Equal(t.T(), testutil.Sequential, t.rr.wrapped.readType)
+			assert.Equal(t.T(), common.ReadTypeSequential, t.rr.wrapped.readType)
 			assert.Equal(t.T(), tc.expectedEnd, end)
 		})
 	}
@@ -174,7 +174,7 @@ func (t *RandomReaderStretchrTest) Test_ReadInfo_Random() {
 			end, err := t.rr.wrapped.getReadInfo(tc.start, 10)
 
 			assert.NoError(t.T(), err)
-			assert.Equal(t.T(), testutil.Random, t.rr.wrapped.readType)
+			assert.Equal(t.T(), common.ReadTypeRandom, t.rr.wrapped.readType)
 			assert.Equal(t.T(), tc.expectedEnd, end)
 		})
 	}
@@ -191,7 +191,7 @@ func (t *RandomReaderStretchrTest) Test_ReaderType() {
 	}{
 		{
 			name:       "ZonalBucketRandomRead",
-			readType:   testutil.Random,
+			readType:   common.ReadTypeRandom,
 			start:      50,
 			end:        68,
 			bucketType: gcs.BucketType{Zonal: true},
@@ -199,7 +199,7 @@ func (t *RandomReaderStretchrTest) Test_ReaderType() {
 		},
 		{
 			name:       "ZonalBucketRandomReadLargerThan8MB",
-			readType:   testutil.Random,
+			readType:   common.ReadTypeRandom,
 			start:      0,
 			end:        9 * MiB,
 			bucketType: gcs.BucketType{Zonal: true},
@@ -207,7 +207,7 @@ func (t *RandomReaderStretchrTest) Test_ReaderType() {
 		},
 		{
 			name:       "ZonalBucketSequentialRead",
-			readType:   testutil.Sequential,
+			readType:   common.ReadTypeSequential,
 			start:      50,
 			end:        68,
 			bucketType: gcs.BucketType{Zonal: true},
@@ -215,7 +215,7 @@ func (t *RandomReaderStretchrTest) Test_ReaderType() {
 		},
 		{
 			name:       "RegularBucketRandomRead",
-			readType:   testutil.Random,
+			readType:   common.ReadTypeRandom,
 			start:      50,
 			end:        68,
 			bucketType: gcs.BucketType{Zonal: false},
@@ -223,7 +223,7 @@ func (t *RandomReaderStretchrTest) Test_ReaderType() {
 		},
 		{
 			name:       "RegularBucketSequentialRead",
-			readType:   testutil.Sequential,
+			readType:   common.ReadTypeSequential,
 			start:      50,
 			end:        68,
 			bucketType: gcs.BucketType{Zonal: false},
@@ -641,7 +641,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ValidateReadType() {
 			dataSize:          100,
 			bucketType:        gcs.BucketType{Zonal: false},
 			readRanges:        [][]int{{0, 10}, {10, 20}, {20, 35}, {35, 50}},
-			expectedReadTypes: []string{testutil.Sequential, testutil.Sequential, testutil.Sequential, testutil.Sequential},
+			expectedReadTypes: []string{common.ReadTypeSequential, common.ReadTypeSequential, common.ReadTypeSequential, common.ReadTypeSequential},
 			expectedSeeks:     []int{0, 0, 0, 0, 0},
 		},
 		{
@@ -649,7 +649,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ValidateReadType() {
 			dataSize:          100,
 			bucketType:        gcs.BucketType{Zonal: true},
 			readRanges:        [][]int{{0, 10}, {10, 20}, {20, 35}, {35, 50}},
-			expectedReadTypes: []string{testutil.Sequential, testutil.Sequential, testutil.Sequential, testutil.Sequential},
+			expectedReadTypes: []string{common.ReadTypeSequential, common.ReadTypeSequential, common.ReadTypeSequential, common.ReadTypeSequential},
 			expectedSeeks:     []int{0, 0, 0, 0, 0},
 		},
 		{
@@ -657,7 +657,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ValidateReadType() {
 			dataSize:          100,
 			bucketType:        gcs.BucketType{Zonal: false},
 			readRanges:        [][]int{{0, 50}, {30, 40}, {10, 20}, {20, 30}, {30, 40}},
-			expectedReadTypes: []string{testutil.Sequential, testutil.Sequential, testutil.Random, testutil.Random, testutil.Random},
+			expectedReadTypes: []string{common.ReadTypeSequential, common.ReadTypeSequential, common.ReadTypeRandom, common.ReadTypeRandom, common.ReadTypeRandom},
 			expectedSeeks:     []int{0, 1, 2, 2, 2},
 		},
 		{
@@ -665,7 +665,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ValidateReadType() {
 			dataSize:          100,
 			bucketType:        gcs.BucketType{Zonal: true},
 			readRanges:        [][]int{{0, 50}, {30, 40}, {10, 20}, {20, 30}, {30, 40}},
-			expectedReadTypes: []string{testutil.Sequential, testutil.Sequential, testutil.Random, testutil.Random, testutil.Random},
+			expectedReadTypes: []string{common.ReadTypeSequential, common.ReadTypeSequential, common.ReadTypeRandom, common.ReadTypeRandom, common.ReadTypeRandom},
 			expectedSeeks:     []int{0, 1, 2, 2, 2},
 		},
 	}
@@ -676,7 +676,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ValidateReadType() {
 			t.rr.wrapped.reader = nil
 			t.rr.wrapped.isMRDInUse = false
 			t.rr.wrapped.seeks = 0
-			t.rr.wrapped.readType = testutil.Sequential
+			t.rr.wrapped.readType = common.ReadTypeSequential
 			t.rr.wrapped.expectedOffset = 0
 			t.object.Size = uint64(tc.dataSize)
 			testContent := testutil.GenerateRandomBytes(int(t.object.Size))
@@ -706,7 +706,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ValidateZonalRandomReads() {
 	t.rr.wrapped.reader = nil
 	t.rr.wrapped.isMRDInUse = false
 	t.rr.wrapped.seeks = 0
-	t.rr.wrapped.readType = testutil.Sequential
+	t.rr.wrapped.readType = common.ReadTypeSequential
 	t.rr.wrapped.expectedOffset = 0
 	t.rr.wrapped.totalReadBytes = 0
 	t.object.Size = 20 * MiB
@@ -737,7 +737,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ValidateZonalRandomReads() {
 		_, err := t.rr.wrapped.ReadAt(t.rr.ctx, buf, int64(readRange[0]))
 
 		assert.NoError(t.T(), err)
-		assert.Equal(t.T(), testutil.Random, t.rr.wrapped.readType)
+		assert.Equal(t.T(), common.ReadTypeRandom, t.rr.wrapped.readType)
 		assert.Equal(t.T(), int64(readRange[1]), t.rr.wrapped.expectedOffset)
 		assert.Equal(t.T(), uint64(seeks), t.rr.wrapped.seeks)
 	}
@@ -930,7 +930,7 @@ func (t *RandomReaderStretchrTest) Test_ReadFromMultiRangeReader_ValidateTimeout
 
 // Validates:
 // 1. No change in ReadAt behavior based inactiveStreamTimeout config.
-// 2. Valid timeout config creates inactiveTimeoutReader instance of storage.Reader.
+// 2. Valid timeout config creates InactiveTimeoutReader instance of storage.Reader.
 func (t *RandomReaderStretchrTest) Test_ReadAt_WithAndWithoutReadConfig() {
 	testCases := []struct {
 		name                        string
@@ -996,7 +996,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_WithAndWithoutReadConfig() {
 			assert.NotNil(t.T(), t.rr.wrapped.cancel)
 			assert.Equal(t.T(), int64(readLength), t.rr.wrapped.start)
 			assert.Equal(t.T(), int64(t.object.Size), t.rr.wrapped.limit)
-			_, isInactiveTimeoutReader := t.rr.wrapped.reader.(*inactiveTimeoutReader)
+			_, isInactiveTimeoutReader := t.rr.wrapped.reader.(*InactiveTimeoutReader)
 			assert.Equal(t.T(), tc.expectInactiveTimeoutReader, isInactiveTimeoutReader)
 		})
 	}

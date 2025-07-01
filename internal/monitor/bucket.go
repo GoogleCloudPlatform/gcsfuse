@@ -20,15 +20,15 @@ import (
 	"time"
 
 	storagev2 "cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/common"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
 
 // recordRequest records a request and its latency.
 func recordRequest(ctx context.Context, metricHandle common.MetricHandle, method string, start time.Time) {
-	metricHandle.GCSRequestCount(ctx, 1, []common.MetricAttr{{Key: common.GCSMethod, Value: method}})
+	metricHandle.GCSRequestCount(ctx, 1, method)
 
-	metricHandle.GCSRequestLatency(ctx, time.Since(start), []common.MetricAttr{{Key: common.GCSMethod, Value: method}})
+	metricHandle.GCSRequestLatency(ctx, time.Since(start), method)
 }
 
 func CaptureMultiRangeDownloaderMetrics(ctx context.Context, metricHandle common.MetricHandle, method string, start time.Time) {
@@ -211,9 +211,13 @@ func (mb *monitoringBucket) NewMultiRangeDownloader(
 	return
 }
 
+func (mb *monitoringBucket) GCSName(obj *gcs.MinObject) string {
+	return mb.wrapped.GCSName(obj)
+}
+
 // recordReader increments the reader count when it's opened or closed.
 func recordReader(ctx context.Context, metricHandle common.MetricHandle, ioMethod string) {
-	metricHandle.GCSReaderCount(ctx, 1, []common.MetricAttr{{Key: common.IOMethod, Value: ioMethod}})
+	metricHandle.GCSReaderCount(ctx, 1, ioMethod)
 }
 
 // Monitoring on the object reader

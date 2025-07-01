@@ -24,6 +24,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -31,8 +32,10 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
+	"go.opentelemetry.io/contrib/detectors/gcp"
+	"go.opentelemetry.io/otel/sdk/resource"
 	"google.golang.org/api/iterator"
 )
 
@@ -53,6 +56,8 @@ const (
 	PathEnvVariable          = "PATH"
 	GCSFuseLogFilePrefix     = "gcsfuse-failed-integration-test-logs-"
 	ProxyServerLogFilePrefix = "proxy-server-failed-integration-test-logs-"
+	zoneMatcherRegex         = "^[a-z]+-[a-z0-9]+-[a-z]$"
+	regionMatcherRegex       = "^[a-z]+-[a-z0-9]+$"
 )
 
 var (
@@ -641,4 +646,39 @@ func CreateProxyServerLogFile(t *testing.T) string {
 
 func AppendProxyEndpointToFlagSet(flagSet *[]string, port int) {
 	*flagSet = append(*flagSet, "--custom-endpoint="+fmt.Sprintf("http://localhost:%d/storage/v1/", port))
+}
+
+// GetGCEZone returns the GCE zone of the current machine from
+// the GCP resource detector.
+func GetGCEZone(ctx context.Context) (string, error) {
+	detectedAttrs, err := resource.New(ctx, resource.WithDetectors(gcp.NewDetector()))
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch GCP resource detector: %w", err)
+	}
+	attrs := detectedAttrs.Set()
+	if zoneValue, exists := attrs.Value("cloud.availability_zone"); exists {
+		zone := zoneValue.AsString()
+		// Confirm that the zone string is in right format e.g. us-central1-a.
+		if match, err := regexp.MatchString(zoneMatcherRegex, zone); !match || err != nil {
+			return zone, fmt.Errorf("zone %q returned by GCP resource detector is not a valid zone-string: %w", zone, err)
+		}
+		return zone, nil
+	}
+	return "", fmt.Errorf("cloud.availability_zone not found in GCP resource detector")
+}
+
+// GetGCERegion return the GCE region for a given GCE zone.
+// E.g. from us-central1-a, it returns us-central1.
+func GetGCERegion(gceZone string) (string, error) {
+	indexOfLastHyphen := strings.LastIndex(gceZone, "-")
+	if indexOfLastHyphen < 0 {
+		return "", fmt.Errorf("input gceZone %q is not proper. It is expected to be of the form <country>-<region>-<zone> e.g. us-central1-a.", gceZone)
+	}
+	region := gceZone[:indexOfLastHyphen]
+
+	// Confirm that the region string is in right format e.g. us-central1.
+	if match, err := regexp.MatchString(regionMatcherRegex, region); !match || err != nil {
+		return region, fmt.Errorf("zone %q returned by GCE metadata server is not a valid zone-string: %w", region, err)
+	}
+	return region, nil
 }

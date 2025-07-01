@@ -18,10 +18,10 @@ package local_file
 import (
 	"os"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
-	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
+	. "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
 
 func (t *CommonLocalFileTestSuite) TestStatOnLocalFile() {
@@ -56,12 +56,13 @@ func (t *CommonLocalFileTestSuite) TestStatOnLocalFileWithConflictingFileNameSuf
 		FileName1, "", t.T())
 }
 
-func (t *localFileTestSuite) TestTruncateLocalFileToSmallerSize() {
+func (t *CommonLocalFileTestSuite) TestTruncateLocalFileToSmallerSize() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
-	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
+	fileName := FileName1 + setup.GenerateRandomString(5)
+	filePath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t.T())
 	// Writing contents to local file .
-	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t.T())
+	operations.WriteWithoutClose(fh, FileContents, t.T())
 
 	// Stat the file to validate if new contents are written.
 	operations.VerifyStatFile(filePath, SizeOfFileContents, FilePerms, t.T())
@@ -72,12 +73,10 @@ func (t *localFileTestSuite) TestTruncateLocalFileToSmallerSize() {
 		t.T().Fatalf("os.Truncate err: %v", err)
 	}
 
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
-
 	// Stat the file to validate if file is truncated correctly.
 	operations.VerifyStatFile(filePath, SmallerSizeTruncate, FilePerms, t.T())
 
 	// Close the file and validate that the file is created on GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
-		FileName1, FileContents[:SmallerSizeTruncate], t.T())
+		fileName, FileContents[:SmallerSizeTruncate], t.T())
 }

@@ -11,7 +11,7 @@ import (
 	runtime "runtime"
 	unsafe "unsafe"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	oglemock "github.com/jacobsa/oglemock"
 	context "golang.org/x/net/context"
 )
@@ -572,6 +572,10 @@ func (m *mockBucket) RenameFolder(ctx context.Context, folderName string, destin
 		o1 = retVals[1].(error)
 	}
 	return
+}
+
+func (m *mockBucket) GCSName(obj *gcs.MinObject) string {
+	return obj.Name
 }
 
 func (m *mockBucket) NewMultiRangeDownloader(

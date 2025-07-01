@@ -21,9 +21,9 @@ import (
 	"testing"
 	"time"
 
-	emulator_tests "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/emulator_tests/util"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
+	emulator_tests "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/emulator_tests/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -101,9 +101,10 @@ func TestChunkTransferTimeoutInfinity(t *testing.T) {
 }
 
 func TestChunkTransferTimeout(t *testing.T) {
+	// TODO(b/424091803): Enable streaming writes once chunk transfer timeout issue in resumable uploads is fixed in dependencies.
 	flagSets := [][]string{
-		{},
-		{"--chunk-transfer-timeout-secs=5"},
+		{"--enable-streaming-writes=false"},
+		{"--enable-streaming-writes=false", "--chunk-transfer-timeout-secs=5"},
 	}
 
 	stallScenarios := []struct {

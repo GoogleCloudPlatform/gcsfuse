@@ -20,7 +20,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
 
 // Octal is the datatype for params such as file-mode and dir-mode which accept a base-8 value.
@@ -63,15 +63,43 @@ func (p *Protocol) UnmarshalText(text []byte) error {
 // "TRACE", "DEBUG", "INFO", "WARNING", "ERROR", "OFF"
 type LogSeverity string
 
+// Constants for all supported log severities.
+const (
+	TraceLogSeverity   LogSeverity = "TRACE"
+	DebugLogSeverity   LogSeverity = "DEBUG"
+	InfoLogSeverity    LogSeverity = "INFO"
+	WarningLogSeverity LogSeverity = "WARNING"
+	ErrorLogSeverity   LogSeverity = "ERROR"
+	OffLogSeverity     LogSeverity = "OFF"
+)
+
+// severityRanking maps each level to an integer for validation and comparison.
+var severityRanking = map[LogSeverity]int{
+	TraceLogSeverity:   0,
+	DebugLogSeverity:   1,
+	InfoLogSeverity:    2,
+	WarningLogSeverity: 3,
+	ErrorLogSeverity:   4,
+	OffLogSeverity:     5,
+}
+
 func (l *LogSeverity) UnmarshalText(text []byte) error {
-	textStr := string(text)
-	level := strings.ToUpper(textStr)
-	v := []string{"TRACE", "DEBUG", "INFO", "WARNING", "ERROR", "OFF"}
-	if !slices.Contains(v, level) {
-		return fmt.Errorf("invalid logseverity value: %s. It can only assume values in the list: %v", textStr, v)
+	level := LogSeverity(strings.ToUpper(string(text)))
+	if _, ok := severityRanking[level]; !ok {
+		return fmt.Errorf("invalid log severity level: %s. Must be one of [TRACE, DEBUG, INFO, WARNING, ERROR, OFF]", text)
 	}
-	*l = LogSeverity(level)
+	*l = level
 	return nil
+}
+
+// Rank returns the integer representation of the severity rank.
+// Returns -1 if the severity is unknown.
+func (l LogSeverity) Rank() int {
+	if rank, ok := severityRanking[l]; ok {
+		return rank
+	}
+	// This case should ideally not be reached as LogSeverity configs are validated before mounting.
+	return -1
 }
 
 // ResolvedPath represents a file-path which is an absolute path and is resolved

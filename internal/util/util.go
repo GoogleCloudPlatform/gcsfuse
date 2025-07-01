@@ -15,7 +15,6 @@
 package util
 
 import (
-	"context"
 	"fmt"
 	"math"
 	"os"
@@ -27,11 +26,6 @@ import (
 
 const (
 	GCSFUSE_PARENT_PROCESS_DIR = "gcsfuse-parent-process-dir"
-
-	// Constants for read types - Sequential/Random
-	Sequential = "Sequential"
-	Random     = "Random"
-	Parallel   = "Parallel"
 
 	MaxMiBsInUint64 uint64 = math.MaxUint64 >> 20
 	MaxMiBsInInt64  int64  = math.MaxInt64 >> 20
@@ -99,11 +93,4 @@ func BytesToHigherMiBs(bytes uint64) uint64 {
 	}
 	const bytesInOneMiB uint64 = 1 << 20
 	return uint64(math.Ceil(float64(bytes) / float64(bytesInOneMiB)))
-}
-
-// IsolateContextFromParentContext creates a copy of the parent context which is
-// not cancelled when parent context is cancelled.
-func IsolateContextFromParentContext(ctx context.Context) (context.Context, context.CancelFunc) {
-	ctx = context.WithoutCancel(ctx)
-	return context.WithCancel(ctx)
 }

@@ -53,7 +53,7 @@ func BuildGcsfuse(dstDir string) (err error) {
 	{
 		var pkg *build.Package
 		pkg, err = build.Import(
-			"github.com/googlecloudplatform/gcsfuse/v2",
+			"github.com/googlecloudplatform/gcsfuse/v3",
 			"",
 			build.FindOnly)
 
@@ -73,7 +73,7 @@ func BuildGcsfuse(dstDir string) (err error) {
 			toolPath,
 			srcDir,
 			dstDir,
-			"fake_version",
+			"0.0.0",
 		)
 
 		var output []byte
@@ -94,7 +94,7 @@ func buildBuildGcsfuse(dst string) (err error) {
 	{
 		var pkg *build.Package
 		pkg, err = build.Import(
-			"github.com/googlecloudplatform/gcsfuse/v2/tools/build_gcsfuse",
+			"github.com/googlecloudplatform/gcsfuse/v3/tools/build_gcsfuse",
 			"",
 			build.FindOnly)
 

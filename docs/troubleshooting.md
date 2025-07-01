@@ -188,3 +188,16 @@ If this increased CPU usage negatively impacts your workload's performance, you 
 
 ### Potential Stat Consistency Issues on high-performance machines with Default TTL
 Starting with [version 3.0.0](https://github.com/GoogleCloudPlatform/gcsfuse/releases/tag/v3.0.0), On high-performance machines - gcsfuse will default to infinite stat cache TTL ([refer](https://cloud.google.com/storage/docs/cloud-storage-fuse/automated-configurations)), potentially causing stale file/directory information if the bucket is modified externally. If strict consistency is needed, manually set a finite TTL (e.g., --stat-cache-ttl 1m) to ensure metadata reflects recent changes. Consult [semantics](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md) doc for more details.
+
+### Writes still using staged writes even though streaming writes are enabled.
+If you observe that GCSFuse is still utilizing staged writes despite streaming writes being enabled, several factors could be at play.
+
+- **Global Max Blocks Limit Reached:** You might encounter warning logs indicating that streaming write blocks cannot be allocated because the global maximum blocks limit has been reached. In such cases, consider increasing the `--write-global-max-blocks` limit if sufficient memory resources are available.
+
+- **Unsupported Write Operations:** Streaming writes only work for sequential writes to new or empty files. GCSFuse will automatically revert to staged writes for the following scenarios:
+  - Modifying existing files (non-zero size).
+  - Performing out-of-order writes.
+  - Reading from a file while writes are in progress (this action finalizes the object and subsequent writes will fall back).
+  - Truncating a file downwards while writes are in progress (this action also finalizes the object and subsequent writes will fall back).
+
+An informational log message will be emitted by GCSFuse whenever a fallback to staged writes occurs, providing details on the reason.

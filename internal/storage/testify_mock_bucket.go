@@ -17,7 +17,7 @@ package storage
 import (
 	"context"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -155,4 +155,9 @@ func (m *TestifyMockBucket) NewMultiRangeDownloader(
 		return args.Get(0).(gcs.MultiRangeDownloader), nil
 	}
 	return nil, args.Error(1)
+}
+
+func (m *TestifyMockBucket) GCSName(obj *gcs.MinObject) string {
+	args := m.Called(obj)
+	return args.Get(0).(string)
 }

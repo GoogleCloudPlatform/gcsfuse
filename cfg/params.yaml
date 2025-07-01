@@ -82,6 +82,13 @@
   flag-name: "enable-atomic-rename-object"
   type: "bool"
   usage: "Enables support for atomic rename object operation on HNS bucket."
+  default: true
+  hide-flag: true
+
+- flag-name: "enable-google-lib-auth"
+  config-path: "enable-google-lib-auth"
+  type: "bool"
+  usage: "Enable google library authentication method to fetch the credentials"
   default: false
   hide-flag: true
 
@@ -131,6 +138,13 @@
   usage: "Enable parallel downloads."
   default: false
 
+- config-path: "file-cache.experimental-exclude-regex"
+  flag-name: "file-cache-experimental-exclude-regex"
+  type: "string"
+  usage: "Exclude file paths (in the format bucket_name/object_key) specified by this regex from file caching."
+  default: ""
+  hide-flag: true
+
 - config-path: "file-cache.experimental-parallel-downloads-default-on"
   flag-name: "file-cache-experimental-parallel-downloads-default-on"
   type: "bool"
@@ -173,6 +187,23 @@
   flag-name: "disable-parallel-dirops"
   type: "bool"
   usage: "Specifies whether to allow parallel dir operations (lookups and readers)"
+  default: false
+  hide-flag: true
+
+- config-path: "file-system.experimental-enable-dentry-cache"
+  flag-name: "experimental-enable-dentry-cache"
+  type: "bool"
+  usage: >-
+    When enabled, it sets the Dentry cache entry timeout same as metadata-cache-ttl.
+    This enables kernel to use cached entry to map the file paths to inodes,
+    instead of making LookUpInode calls to GCSFuse.
+  default: false
+  hide-flag: true
+
+- config-path: "file-system.experimental-enable-readdirplus"
+  flag-name: "experimental-enable-readdirplus"
+  type: "bool"
+  usage: "Enables ReadDirPlus capability"
   default: false
   hide-flag: true
 
@@ -399,8 +430,7 @@
   usage: >-
     To turn on/off retries for stalled read requests. This is based on a timeout
     that changes depending on how long similar requests took in the past.
-  default: false
-  hide-flag: true
+  default: true
 
 - config-path: "gcs-retries.read-stall.initial-req-timeout"
   flag-name: "read-stall-initial-req-timeout"
@@ -512,7 +542,7 @@
     flag has been deprecated (starting v2.0) and in favor of
     stat-cache-max-size-mb. For now, the value of stat-cache-capacity will be
     translated to the next higher corresponding value of stat-cache-max-size-mb
-    (assuming stat-cache entry-size ~= 1640 bytes, including 1400 for positive
+    (assuming stat-cache entry-size ~= 1688 bytes, including 1448 for positive
     entry and 240 for corresponding negative entry), if stat-cache-max-size-mb
     is not set."
   deprecated: true
@@ -588,7 +618,7 @@
   usage: >-
     The maximum size of stat-cache in MiBs. It can also be set to -1 for
     no-size-limit, 0 for no cache. Values below -1 are not supported.
-  default: "32"
+  default: "33"
 
 - config-path: "metadata-cache.ttl-secs"
   flag-name: "metadata-cache-ttl-secs"
@@ -712,7 +742,7 @@
     Duration of inactivity after which an open GCS read stream is automatically closed.
     This helps conserve resources when a file handle remains open without active Read calls.
     A value of '0s' disables this timeout.
-  default: "0s"
+  default: "10s"
   hide-flag: true
 
 - config-path: "write.block-size-mb"

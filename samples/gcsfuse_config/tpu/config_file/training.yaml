@@ -1,0 +1,11 @@
+implicit-dirs: true                # Create implicit directories locally when accessed
+metadata-cache:
+  negative-ttl-secs: 0             # Disable caching for lookups of files/dirs that don't exist
+  ttl-secs: -1                     # Keep cached metadata (file attributes, types) indefinitely time-wise
+  stat-cache-max-size-mb: -1       # Allow unlimited size for the file attribute (stat) cache
+  type-cache-max-size-mb: -1       # Allow unlimited size for the file/directory type cache
+# if enabling the file cache, uncomment out to use #
+# cache-dir: /tmp                  # Use LSSD backing on GPU and RAM Disk backing on TPU
+#file-cache:
+#  max-size-mb: <DATASET_SIZE>     # Allow DATASET_SIZE worth of size for the file content cache
+#  cache-file-for-range-read: true # Cache the entire file when any part is read sequentially

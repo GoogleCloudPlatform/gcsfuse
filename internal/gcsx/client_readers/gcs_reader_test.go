@@ -21,13 +21,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/common"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/clock"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	testUtil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/clock"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	testUtil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -73,7 +74,12 @@ func (t *gcsReaderTest) SetupTest() {
 		Generation: 1234,
 	}
 	t.mockBucket = new(storage.TestifyMockBucket)
-	t.gcsReader = NewGCSReader(t.object, t.mockBucket, common.NewNoopMetrics(), nil, sequentialReadSizeInMb)
+	t.gcsReader = NewGCSReader(t.object, t.mockBucket, &GCSReaderConfig{
+		MetricHandle:         common.NewNoopMetrics(),
+		MrdWrapper:           nil,
+		SequentialReadSizeMb: sequentialReadSizeInMb,
+		ReadConfig:           nil,
+	})
 	t.ctx = context.Background()
 }
 
@@ -92,11 +98,16 @@ func (t *gcsReaderTest) Test_NewGCSReader() {
 		Generation: 4321,
 	}
 
-	gcsReader := NewGCSReader(object, t.mockBucket, common.NewNoopMetrics(), nil, 200)
+	gcsReader := NewGCSReader(object, t.mockBucket, &GCSReaderConfig{
+		MetricHandle:         common.NewNoopMetrics(),
+		MrdWrapper:           nil,
+		SequentialReadSizeMb: 200,
+		ReadConfig:           nil,
+	})
 
 	assert.Equal(t.T(), object, gcsReader.object)
 	assert.Equal(t.T(), t.mockBucket, gcsReader.bucket)
-	assert.Equal(t.T(), testUtil.Sequential, gcsReader.readType)
+	assert.Equal(t.T(), common.ReadTypeSequential, gcsReader.readType)
 }
 
 func (t *gcsReaderTest) Test_ReadAt_InvalidOffset() {
@@ -161,6 +172,7 @@ func (t *gcsReaderTest) Test_ReadAt_ExistingReaderLimitIsLessThanRequestedDataSi
 	assert.Equal(t.T(), requestSize, readerResponse.Size)
 	assert.Equal(t.T(), content, string(readerResponse.DataBuf[:readerResponse.Size]))
 	assert.Equal(t.T(), uint64(requestSize), t.gcsReader.totalReadBytes)
+	assert.Equal(t.T(), int64(2+requestSize), t.gcsReader.expectedOffset)
 	assert.Equal(t.T(), expectedHandleInRequest, t.gcsReader.rangeReader.readHandle)
 }
 
@@ -194,7 +206,29 @@ func (t *gcsReaderTest) Test_ReadAt_ExistingReaderLimitIsLessThanRequestedObject
 	assert.Nil(t.T(), t.gcsReader.rangeReader.reader)
 	assert.Equal(t.T(), int(t.object.Size), readerResponse.Size)
 	assert.Equal(t.T(), content, string(readerResponse.DataBuf[:readerResponse.Size]))
+	assert.Equal(t.T(), int64(t.object.Size), t.gcsReader.expectedOffset)
 	assert.Equal(t.T(), []byte(nil), t.gcsReader.rangeReader.readHandle)
+}
+
+func (t *gcsReaderTest) Test_ReadAt_ExistingReaderIsFine() {
+	t.object.Size = 6
+	content := "xxx"
+	// Simulate an existing reader
+	t.gcsReader.rangeReader.reader = &fake.FakeReader{ReadCloser: getReadCloser([]byte(content)), Handle: []byte("fake")}
+	t.gcsReader.rangeReader.cancel = func() {}
+	t.gcsReader.rangeReader.start = 2
+	t.gcsReader.totalReadBytes = 2
+	t.gcsReader.rangeReader.limit = 5
+	requestSize := 3
+
+	readerResponse, err := t.readAt(2, int64(requestSize))
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 3, readerResponse.Size)
+	assert.Equal(t.T(), content, string(readerResponse.DataBuf[:readerResponse.Size]))
+	assert.Equal(t.T(), uint64(5), t.gcsReader.totalReadBytes)
+	assert.Equal(t.T(), int64(5), t.gcsReader.expectedOffset)
+	assert.Equal(t.T(), []byte("fake"), t.gcsReader.rangeReader.readHandle)
 }
 
 func (t *gcsReaderTest) Test_ExistingReader_WrongOffset() {
@@ -249,34 +283,39 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateReadType() {
 		bucketType        gcs.BucketType
 		readRanges        [][]int
 		expectedReadTypes []string
+		expectedSeeks     []int
 	}{
 		{
 			name:              "SequentialReadFlat",
 			dataSize:          100,
 			bucketType:        gcs.BucketType{Zonal: false},
 			readRanges:        [][]int{{0, 10}, {10, 20}, {20, 35}, {35, 50}},
-			expectedReadTypes: []string{testUtil.Sequential, testUtil.Sequential, testUtil.Sequential, testUtil.Sequential},
+			expectedReadTypes: []string{common.ReadTypeSequential, common.ReadTypeSequential, common.ReadTypeSequential, common.ReadTypeSequential},
+			expectedSeeks:     []int{0, 0, 0, 0, 0},
 		},
 		{
 			name:              "SequentialReadZonal",
 			dataSize:          100,
 			bucketType:        gcs.BucketType{Zonal: true},
 			readRanges:        [][]int{{0, 10}, {10, 20}, {20, 35}, {35, 50}},
-			expectedReadTypes: []string{testUtil.Sequential, testUtil.Sequential, testUtil.Sequential, testUtil.Sequential},
+			expectedReadTypes: []string{common.ReadTypeSequential, common.ReadTypeSequential, common.ReadTypeSequential, common.ReadTypeSequential},
+			expectedSeeks:     []int{0, 0, 0, 0, 0},
 		},
 		{
 			name:              "RandomReadFlat",
 			dataSize:          100,
 			bucketType:        gcs.BucketType{Zonal: false},
 			readRanges:        [][]int{{0, 50}, {30, 40}, {10, 20}, {20, 30}, {30, 40}},
-			expectedReadTypes: []string{testUtil.Sequential, testUtil.Sequential, testUtil.Random, testUtil.Random, testUtil.Random},
+			expectedReadTypes: []string{common.ReadTypeSequential, common.ReadTypeSequential, common.ReadTypeRandom, common.ReadTypeRandom, common.ReadTypeRandom},
+			expectedSeeks:     []int{0, 1, 2, 2, 2},
 		},
 		{
 			name:              "RandomReadZonal",
 			dataSize:          100,
 			bucketType:        gcs.BucketType{Zonal: true},
 			readRanges:        [][]int{{0, 50}, {30, 40}, {10, 20}, {20, 30}, {30, 40}},
-			expectedReadTypes: []string{testUtil.Sequential, testUtil.Sequential, testUtil.Random, testUtil.Random, testUtil.Random},
+			expectedReadTypes: []string{common.ReadTypeSequential, common.ReadTypeSequential, common.ReadTypeRandom, common.ReadTypeRandom, common.ReadTypeRandom},
+			expectedSeeks:     []int{0, 1, 2, 2, 2},
 		},
 	}
 
@@ -286,7 +325,8 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateReadType() {
 			require.Equal(t.T(), len(tc.readRanges), len(tc.expectedReadTypes), "Test Parameter Error: readRanges and expectedReadTypes should have same length")
 			t.gcsReader.mrr.isMRDInUse = false
 			t.gcsReader.seeks = 0
-			t.gcsReader.rangeReader.readType = testUtil.Sequential
+			t.gcsReader.rangeReader.readType = common.ReadTypeSequential
+			t.gcsReader.expectedOffset = 0
 			t.object.Size = uint64(tc.dataSize)
 			testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
 			fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{})
@@ -302,6 +342,8 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateReadType() {
 
 				assert.NoError(t.T(), err)
 				assert.Equal(t.T(), tc.expectedReadTypes[i], t.gcsReader.readType)
+				assert.Equal(t.T(), int64(readRange[1]), t.gcsReader.expectedOffset)
+				assert.Equal(t.T(), uint64(tc.expectedSeeks[i]), t.gcsReader.seeks)
 			}
 		})
 	}
@@ -485,5 +527,120 @@ func (t *gcsReaderTest) Test_ReadInfo_Random() {
 			assert.Equal(t.T(), random, t.gcsReader.readType)
 			assert.Equal(t.T(), tc.expectedEnd, end)
 		})
+	}
+}
+
+// Validates:
+// 1. No change in ReadAt behavior based inactiveStreamTimeout readConfig.
+// 2. Valid timeout readConfig creates inactiveTimeoutReader instance of storage.Reader.
+func (t *gcsReaderTest) Test_ReadAt_WithAndWithoutReadConfig() {
+	testCases := []struct {
+		name                        string
+		config                      *cfg.ReadConfig
+		expectInactiveTimeoutReader bool
+	}{
+		{
+			name:                        "WithoutReadConfig",
+			config:                      nil,
+			expectInactiveTimeoutReader: false,
+		},
+		{
+			name:                        "WithReadConfigAndZeroTimeout",
+			config:                      &cfg.ReadConfig{InactiveStreamTimeout: 0},
+			expectInactiveTimeoutReader: false,
+		},
+		{
+			name:                        "WithReadConfigAndPositiveTimeout",
+			config:                      &cfg.ReadConfig{InactiveStreamTimeout: 10 * time.Millisecond},
+			expectInactiveTimeoutReader: true,
+		},
+	}
+
+	objectSize := uint64(20)
+	readOffset := int64(0)
+	readLength := 10 // Reading only 10 bytes from the complete object reader.
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.SetupTest() // Resets mockBucket, rr, etc. for each sub-test
+			defer t.TearDownTest()
+
+			t.gcsReader.rangeReader.readConfig = tc.config
+			t.gcsReader.rangeReader.reader = nil // Ensure startRead path is taken in ReadAt
+			t.object.Size = objectSize
+			// Prepare fake content for the GCS object.
+			// startRead will attempt to read the entire object [0, objectSize)
+			// because objectSize is small compared to typical SequentialReadSizeMb.
+			fakeReaderContent := testUtil.GenerateRandomBytes(int(t.object.Size))
+			rc := &fake.FakeReader{ReadCloser: getReadCloser(fakeReaderContent)}
+			expectedReadObjectRequest := &gcs.ReadObjectRequest{
+				Name:       t.object.Name,
+				Generation: t.object.Generation,
+				Range: &gcs.ByteRange{
+					Start: uint64(readOffset), // Read from the beginning
+					Limit: t.object.Size,      // getReadInfo will determine this limit
+				},
+				ReadCompressed: t.object.HasContentEncodingGzip(),
+				ReadHandle:     nil, // No existing read handle
+			}
+			t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, expectedReadObjectRequest).Return(rc, nil).Once()
+			// BucketType is called by ReadAt -> getReadInfo -> readerType to determine reader strategy.
+			t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false}).Once()
+
+			objectData, err := t.readAt(readOffset, int64(readLength))
+
+			t.mockBucket.AssertExpectations(t.T())
+			assert.NoError(t.T(), err)
+			assert.Equal(t.T(), readLength, objectData.Size)
+			assert.Equal(t.T(), fakeReaderContent[:readLength], objectData.DataBuf[:objectData.Size]) // Ensure buffer is populated correctly
+			assert.NotNil(t.T(), t.gcsReader.rangeReader.reader, "Reader should be active as partial data read from the requested range.")
+			assert.NotNil(t.T(), t.gcsReader.rangeReader.cancel)
+			assert.Equal(t.T(), int64(readLength), t.gcsReader.rangeReader.start)
+			assert.Equal(t.T(), int64(t.object.Size), t.gcsReader.rangeReader.limit)
+			_, isInactiveTimeoutReader := t.gcsReader.rangeReader.reader.(*gcsx.InactiveTimeoutReader)
+			assert.Equal(t.T(), tc.expectInactiveTimeoutReader, isInactiveTimeoutReader)
+		})
+	}
+}
+
+// This test validates the bug fix where seeks are not updated correctly in case of zonal bucket random reads (b/410904634).
+func (t *gcsReaderTest) Test_ReadAt_ValidateZonalRandomReads() {
+	t.gcsReader.rangeReader.reader = nil
+	t.gcsReader.mrr.isMRDInUse = false
+	t.gcsReader.seeks = 0
+	t.gcsReader.rangeReader.readType = common.ReadTypeSequential
+	t.gcsReader.expectedOffset = 0
+	t.gcsReader.totalReadBytes = 0
+	t.object.Size = 20 * MiB
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true})
+	testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
+	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{})
+	assert.Nil(t.T(), err, "Error in creating MRDWrapper")
+	t.gcsReader.mrr.mrdWrapper = &fakeMRDWrapper
+	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(&fake.FakeReader{ReadCloser: getReadCloser(testContent)}, nil).Twice()
+	buf := make([]byte, 3*MiB)
+
+	// Sequential read #1
+	_, err = t.gcsReader.ReadAt(t.ctx, buf, 13*MiB)
+	assert.NoError(t.T(), err)
+	// Random read #1
+	seeks := 1
+	_, err = t.gcsReader.ReadAt(t.ctx, buf, 12*MiB)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), uint64(seeks), t.gcsReader.seeks)
+
+	readRanges := [][]int{{11 * MiB, 15 * MiB}, {12 * MiB, 14 * MiB}, {10 * MiB, 12 * MiB}, {9 * MiB, 11 * MiB}, {8 * MiB, 10 * MiB}}
+	// Series of random reads to check if seeks are updated correctly and MRD is invoked always
+	for _, readRange := range readRanges {
+		seeks++
+		t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, testContent, time.Microsecond))
+		buf := make([]byte, readRange[1]-readRange[0])
+
+		_, err := t.gcsReader.ReadAt(t.ctx, buf, int64(readRange[0]))
+
+		assert.NoError(t.T(), err)
+		assert.Equal(t.T(), uint64(seeks), t.gcsReader.seeks)
+		assert.Equal(t.T(), common.ReadTypeRandom, t.gcsReader.readType)
+		assert.Equal(t.T(), int64(readRange[1]), t.gcsReader.expectedOffset)
 	}
 }

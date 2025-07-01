@@ -30,20 +30,20 @@ import (
 
 	"golang.org/x/sync/semaphore"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/common"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
-	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/handle"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
+	cacheutil "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/handle"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -249,7 +249,7 @@ func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.Cac
 	}
 
 	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir, serverCfg.SequentialReadSizeMb, &serverCfg.NewConfig.FileCache, serverCfg.MetricHandle)
-	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager, cacheDir, filePerm, dirPerm)
+	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager, cacheDir, filePerm, dirPerm, serverCfg.NewConfig.FileCache.ExperimentalExcludeRegex)
 	return
 }
 
@@ -1219,8 +1219,8 @@ func (fs *fileSystem) syncFile(
 //
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(f.mu)
-func (fs *fileSystem) createBufferedWriteHandlerAndSyncOrTempWriter(ctx context.Context, f *inode.FileInode) error {
-	err := fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, f)
+func (fs *fileSystem) createBufferedWriteHandlerAndSyncOrTempWriter(ctx context.Context, f *inode.FileInode, openMode util.OpenMode) error {
+	err := fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, f, openMode)
 	if err != nil {
 		return err
 	}
@@ -1235,8 +1235,8 @@ func (fs *fileSystem) createBufferedWriteHandlerAndSyncOrTempWriter(ctx context.
 //
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(f.mu)
-func (fs *fileSystem) initBufferedWriteHandlerAndSyncFileIfEligible(ctx context.Context, f *inode.FileInode) error {
-	initialized, err := f.InitBufferedWriteHandlerIfEligible(ctx)
+func (fs *fileSystem) initBufferedWriteHandlerAndSyncFileIfEligible(ctx context.Context, f *inode.FileInode, openMode util.OpenMode) error {
+	initialized, err := f.InitBufferedWriteHandlerIfEligible(ctx, openMode)
 	if err != nil {
 		return err
 	}
@@ -1479,9 +1479,7 @@ func (fs *fileSystem) LookUpInode(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 	// Find the parent directory in question.
 	fs.mu.Lock()
@@ -1515,9 +1513,7 @@ func (fs *fileSystem) GetInodeAttributes(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 	// Find the inode.
 	fs.mu.Lock()
@@ -1543,9 +1539,7 @@ func (fs *fileSystem) SetInodeAttributes(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 	// Find the inode.
 	fs.mu.Lock()
@@ -1568,11 +1562,16 @@ func (fs *fileSystem) SetInodeAttributes(
 	// Truncate files.
 	if isFile && op.Size != nil {
 		// Initialize BWH if eligible and Sync file inode.
-		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, file)
+		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, file, util.Write)
 		if err != nil {
 			return
 		}
-		err = file.Truncate(ctx, int64(*op.Size))
+		gcsSynced, err := file.Truncate(ctx, int64(*op.Size))
+		// Sync the inode if finalize during truncate is successful
+		// even if the truncate operation later resulted error.
+		if gcsSynced {
+			fs.promoteToGenerationBacked(file)
+		}
 		if err != nil {
 			err = fmt.Errorf("truncate: %w", err)
 			return err
@@ -1614,9 +1613,7 @@ func (fs *fileSystem) MkDir(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 	// Find the parent.
 	fs.mu.Lock()
@@ -1673,9 +1670,7 @@ func (fs *fileSystem) MkNode(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 	if (op.Mode & (iofs.ModeNamedPipe | iofs.ModeSocket)) != 0 {
 		return syscall.ENOTSUP
@@ -1795,7 +1790,7 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	fs.mu.Unlock()
 	defer fs.mu.Lock()
 	fileInode.Lock()
-	err = fs.createBufferedWriteHandlerAndSyncOrTempWriter(ctx, fileInode)
+	err = fs.createBufferedWriteHandlerAndSyncOrTempWriter(ctx, fileInode, util.Write)
 	fileInode.Unlock()
 	if err != nil {
 		return
@@ -1814,9 +1809,7 @@ func (fs *fileSystem) CreateFile(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 	// Create the child.
 	var child inode.Inode
@@ -1838,8 +1831,9 @@ func (fs *fileSystem) CreateFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	// Creating new file is always a write operation, hence passing readOnly as false.
-	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, util.Write, &fs.newConfig.Read)
+	// CreateFile() invoked to create new files, can be safely considered as filehandle
+	// opened in append mode.
+	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, util.Append, &fs.newConfig.Read)
 	op.Handle = handleID
 
 	fs.mu.Unlock()
@@ -1864,9 +1858,7 @@ func (fs *fileSystem) CreateSymlink(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 	// Find the parent.
 	fs.mu.Lock()
@@ -1934,9 +1926,7 @@ func (fs *fileSystem) RmDir(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 	// Find the parent.
 	fs.mu.Lock()
@@ -2042,9 +2032,7 @@ func (fs *fileSystem) Rename(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 	// Find the old and new parents.
 	fs.mu.Lock()
@@ -2403,9 +2391,7 @@ func (fs *fileSystem) Unlink(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 
 	fs.mu.Lock()
@@ -2500,9 +2486,7 @@ func (fs *fileSystem) ReadDir(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 	// Find the handle.
 	fs.mu.Lock()
@@ -2582,9 +2566,7 @@ func (fs *fileSystem) ReadFile(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 	// Save readOp in context for access in logs.
 	ctx = context.WithValue(ctx, gcsx.ReadOp, op)
@@ -2607,7 +2589,12 @@ func (fs *fileSystem) ReadFile(
 		}
 	}
 	// Serve the read.
-	op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
+
+	if fs.newConfig.EnableNewReader {
+		op.Dst, op.BytesRead, err = fh.ReadWithReadManager(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
+	} else {
+		op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
+	}
 
 	// As required by fuse, we don't treat EOF as an error.
 	if err == io.EOF {
@@ -2642,25 +2629,36 @@ func (fs *fileSystem) WriteFile(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
-	// Find the inode.
+
+	// Find the inode( and file handle in case of appends).
 	fs.mu.Lock()
+	fh := fs.handles[op.Handle].(*handle.FileHandle)
 	in := fs.fileInodeOrDie(op.Inode)
 	fs.mu.Unlock()
 
+	var gcsSynced bool
 	in.Lock()
 	defer in.Unlock()
-
-	err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in)
+	if err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in, fh.OpenMode()); err != nil {
+		return
+	}
+	if fs.newConfig.Write.ExperimentalEnableRapidAppends {
+		// Serve the request via the file handle.
+		gcsSynced, err = fh.Write(ctx, op.Data, op.Offset)
+	} else {
+		// Serve the request.
+		gcsSynced, err = in.Write(ctx, op.Data, op.Offset, util.Write)
+	}
 	if err != nil {
 		return
 	}
-
-	// Serve the request.
-	err = in.Write(ctx, op.Data, op.Offset)
+	// Sync the inode if finalize during write is successful
+	// even if the write operation later resulted in error.
+	if gcsSynced {
+		fs.promoteToGenerationBacked(in)
+	}
 	return
 }
 
@@ -2671,9 +2669,7 @@ func (fs *fileSystem) SyncFile(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 	// Find the inode.
 	fs.mu.Lock()
@@ -2704,9 +2700,7 @@ func (fs *fileSystem) FlushFile(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		var cancel context.CancelFunc
-		ctx, cancel = util.IsolateContextFromParentContext(ctx)
-		defer cancel()
+		ctx = context.Background()
 	}
 	// Find the inode.
 	fs.mu.Lock()

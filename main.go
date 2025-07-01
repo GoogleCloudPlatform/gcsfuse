@@ -22,10 +22,9 @@ package main
 import (
 	"log"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/cmd"
-	"github.com/googlecloudplatform/gcsfuse/v2/common"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/perf"
+	"github.com/googlecloudplatform/gcsfuse/v3/cmd"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/perf"
 )
 
 func logPanic() {
@@ -42,7 +41,6 @@ func logPanic() {
 //
 //go:generate go run -C tools/config-gen . --paramsFile=../../cfg/params.yaml --outDir=../../cfg --templateDir=templates
 func main() {
-	logger.Infof("Running gcsfuse/%s", common.GetVersion())
 	// Common configuration for all commands
 	defer logPanic()
 	// Make logging output better.

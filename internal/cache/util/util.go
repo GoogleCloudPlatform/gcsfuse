@@ -25,8 +25,8 @@ import (
 	"path/filepath"
 	"unsafe"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
 	"github.com/jacobsa/fuse/fsutil"
 )
 
@@ -38,6 +38,7 @@ var (
 	ErrFallbackToGCS                       = errors.New("read via gcs")
 	ErrFileNotPresentInCache               = errors.New("file is not present in cache")
 	ErrCacheHandleNotRequiredForRandomRead = errors.New("cacheFileForRangeRead is false, read type random read and fileInfo entry is absent")
+	ErrFileExcludedFromCacheByRegex        = errors.New("file excluded from cache by regex")
 )
 
 const (

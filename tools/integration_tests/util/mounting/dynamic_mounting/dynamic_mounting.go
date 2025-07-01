@@ -24,9 +24,9 @@ import (
 	"cloud.google.com/go/compute/metadata"
 	"cloud.google.com/go/storage"
 
-	client_util "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	client_util "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
 
 const PrefixBucketForDynamicMountingTest = "gcsfuse-dynamic-mounting-test-"
@@ -106,6 +106,26 @@ func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Cli
 	// Create bucket handle and attributes
 	storageClassAndLocation := &storage.BucketAttrs{
 		Location: "us-west1",
+	}
+
+	if setup.IsZonalBucketRun() {
+		storageClassAndLocation.StorageClass = "RAPID"
+		gceZone, err := setup.GetGCEZone(ctx)
+		if err != nil {
+			return "", fmt.Errorf("failed to find the GCE zone of the VM: %w", err)
+		}
+		gceRegion, err := setup.GetGCERegion(gceZone)
+		if err != nil {
+			return "", fmt.Errorf("failed to find the GCE region of the VM: %w", err)
+		}
+		storageClassAndLocation.Location = gceRegion
+		storageClassAndLocation.CustomPlacementConfig = &storage.CustomPlacementConfig{DataLocations: []string{gceZone}}
+		storageClassAndLocation.HierarchicalNamespace = &storage.HierarchicalNamespace{
+			Enabled: true,
+		}
+		storageClassAndLocation.UniformBucketLevelAccess = storage.UniformBucketLevelAccess{
+			Enabled: true,
+		}
 	}
 
 	bucketName = PrefixBucketForDynamicMountingTest + setup.GenerateRandomString(5)

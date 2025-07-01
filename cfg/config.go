@@ -34,6 +34,8 @@ type Config struct {
 
 	EnableAtomicRenameObject bool `yaml:"enable-atomic-rename-object"`
 
+	EnableGoogleLibAuth bool `yaml:"enable-google-lib-auth"`
+
 	EnableHns bool `yaml:"enable-hns"`
 
 	EnableNewReader bool `yaml:"enable-new-reader"`
@@ -94,6 +96,8 @@ type FileCacheConfig struct {
 
 	EnableParallelDownloads bool `yaml:"enable-parallel-downloads"`
 
+	ExperimentalExcludeRegex string `yaml:"experimental-exclude-regex"`
+
 	ExperimentalParallelDownloadsDefaultOn bool `yaml:"experimental-parallel-downloads-default-on"`
 
 	MaxParallelDownloads int64 `yaml:"max-parallel-downloads"`
@@ -109,6 +113,10 @@ type FileSystemConfig struct {
 	DirMode Octal `yaml:"dir-mode"`
 
 	DisableParallelDirops bool `yaml:"disable-parallel-dirops"`
+
+	ExperimentalEnableDentryCache bool `yaml:"experimental-enable-dentry-cache"`
+
+	ExperimentalEnableReaddirplus bool `yaml:"experimental-enable-readdirplus"`
 
 	FileMode Octal `yaml:"file-mode"`
 
@@ -353,7 +361,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("enable-atomic-rename-object", "", false, "Enables support for atomic rename object operation on HNS bucket.")
+	flagSet.BoolP("enable-atomic-rename-object", "", true, "Enables support for atomic rename object operation on HNS bucket.")
 
 	if err := flagSet.MarkHidden("enable-atomic-rename-object"); err != nil {
 		return err
@@ -371,6 +379,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.BoolP("enable-google-lib-auth", "", false, "Enable google library authentication method to fetch the credentials")
+
+	if err := flagSet.MarkHidden("enable-google-lib-auth"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("enable-hns", "", true, "Enables support for HNS buckets")
 
 	if err := flagSet.MarkHidden("enable-hns"); err != nil {
@@ -385,17 +399,25 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.")
 
-	flagSet.BoolP("enable-read-stall-retry", "", false, "To turn on/off retries for stalled read requests. This is based on a timeout that changes depending on how long similar requests took in the past.")
-
-	if err := flagSet.MarkHidden("enable-read-stall-retry"); err != nil {
-		return err
-	}
+	flagSet.BoolP("enable-read-stall-retry", "", true, "To turn on/off retries for stalled read requests. This is based on a timeout that changes depending on how long similar requests took in the past.")
 
 	flagSet.BoolP("enable-streaming-writes", "", true, "Enables streaming uploads during write file operation.")
+
+	flagSet.BoolP("experimental-enable-dentry-cache", "", false, "When enabled, it sets the Dentry cache entry timeout same as metadata-cache-ttl. This enables kernel to use cached entry to map the file paths to inodes, instead of making LookUpInode calls to GCSFuse.")
+
+	if err := flagSet.MarkHidden("experimental-enable-dentry-cache"); err != nil {
+		return err
+	}
 
 	flagSet.BoolP("experimental-enable-json-read", "", false, "By default, GCSFuse uses the GCS XML API to get and read objects. When this flag is specified, GCSFuse uses the GCS JSON API instead.\"")
 
 	if err := flagSet.MarkDeprecated("experimental-enable-json-read", "Experimental flag: could be dropped even in a minor release."); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("experimental-enable-readdirplus", "", false, "Enables ReadDirPlus capability")
+
+	if err := flagSet.MarkHidden("experimental-enable-readdirplus"); err != nil {
 		return err
 	}
 
@@ -440,6 +462,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.BoolP("file-cache-enable-parallel-downloads", "", false, "Enable parallel downloads.")
+
+	flagSet.StringP("file-cache-experimental-exclude-regex", "", "", "Exclude file paths (in the format bucket_name/object_key) specified by this regex from file caching.")
+
+	if err := flagSet.MarkHidden("file-cache-experimental-exclude-regex"); err != nil {
+		return err
+	}
 
 	flagSet.BoolP("file-cache-experimental-parallel-downloads-default-on", "", true, "Enable parallel downloads by default on experimental basis.")
 
@@ -569,7 +597,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
 
-	flagSet.DurationP("read-inactive-stream-timeout", "", 0*time.Nanosecond, "Duration of inactivity after which an open GCS read stream is automatically closed. This helps conserve resources when a file handle remains open without active Read calls. A value of '0s' disables this timeout.")
+	flagSet.DurationP("read-inactive-stream-timeout", "", 10000000000*time.Nanosecond, "Duration of inactivity after which an open GCS read stream is automatically closed. This helps conserve resources when a file handle remains open without active Read calls. A value of '0s' disables this timeout.")
 
 	if err := flagSet.MarkHidden("read-inactive-stream-timeout"); err != nil {
 		return err
@@ -619,13 +647,13 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("stat-cache-capacity", "", 20460, "How many entries can the stat-cache hold (impacts memory consumption). This flag has been deprecated (starting v2.0) and in favor of stat-cache-max-size-mb. For now, the value of stat-cache-capacity will be translated to the next higher corresponding value of stat-cache-max-size-mb (assuming stat-cache entry-size ~= 1640 bytes, including 1400 for positive entry and 240 for corresponding negative entry), if stat-cache-max-size-mb is not set.\"")
+	flagSet.IntP("stat-cache-capacity", "", 20460, "How many entries can the stat-cache hold (impacts memory consumption). This flag has been deprecated (starting v2.0) and in favor of stat-cache-max-size-mb. For now, the value of stat-cache-capacity will be translated to the next higher corresponding value of stat-cache-max-size-mb (assuming stat-cache entry-size ~= 1688 bytes, including 1448 for positive entry and 240 for corresponding negative entry), if stat-cache-max-size-mb is not set.\"")
 
 	if err := flagSet.MarkDeprecated("stat-cache-capacity", "Please use --stat-cache-max-size-mb instead."); err != nil {
 		return err
 	}
 
-	flagSet.IntP("stat-cache-max-size-mb", "", 32, "The maximum size of stat-cache in MiBs. It can also be set to -1 for no-size-limit, 0 for no cache. Values below -1 are not supported.")
+	flagSet.IntP("stat-cache-max-size-mb", "", 33, "The maximum size of stat-cache in MiBs. It can also be set to -1 for no-size-limit, 0 for no cache. Values below -1 are not supported.")
 
 	flagSet.DurationP("stat-cache-ttl", "", 60000000000*time.Nanosecond, "How long to cache StatObject results and inode attributes. This flag has been deprecated (starting v2.0) in favor of metadata-cache-ttl-secs. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second is used as ttl for both stat-cache and type-cache, when metadata-cache-ttl-secs is not set.")
 
@@ -748,6 +776,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("enable-google-lib-auth", flagSet.Lookup("enable-google-lib-auth")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("enable-hns", flagSet.Lookup("enable-hns")); err != nil {
 		return err
 	}
@@ -768,7 +800,15 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("file-system.experimental-enable-dentry-cache", flagSet.Lookup("experimental-enable-dentry-cache")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("gcs-connection.experimental-enable-json-read", flagSet.Lookup("experimental-enable-json-read")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.experimental-enable-readdirplus", flagSet.Lookup("experimental-enable-readdirplus")); err != nil {
 		return err
 	}
 
@@ -805,6 +845,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-cache.enable-parallel-downloads", flagSet.Lookup("file-cache-enable-parallel-downloads")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-cache.experimental-exclude-regex", flagSet.Lookup("file-cache-experimental-exclude-regex")); err != nil {
 		return err
 	}
 

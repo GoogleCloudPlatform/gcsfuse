@@ -21,10 +21,10 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/common"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	. "github.com/jacobsa/ogletest"
 	"github.com/stretchr/testify/mock"
 )
@@ -61,7 +61,7 @@ func (t *BucketManagerTest) SetUp(_ *TestInfo) {
 			LocationType:          "zone",
 		}, nil)
 	ctx := context.Background()
-	t.bucket, err = t.storageHandle.BucketHandle(ctx, TestBucketName, "")
+	t.bucket, err = t.storageHandle.BucketHandle(ctx, TestBucketName, "", false)
 
 	AssertNe(nil, t.bucket)
 	AssertEq(nil, err)

@@ -193,6 +193,7 @@ TEST_DIR_PARALLEL=(
   "stale_handle"
   "negative_stat_cache"
   "streaming_writes"
+  "release_version"
 )
 
 # These tests never become parallel as they are changing bucket permissions.

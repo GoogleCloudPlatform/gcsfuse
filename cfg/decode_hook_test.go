@@ -273,7 +273,7 @@ func TestParsingError(t *testing.T) {
 		{
 			name:   "LogSeverity",
 			args:   []string{"--logSeverityParam=abc"},
-			errMsg: "invalid logseverity value: abc. It can only assume values in the list: [TRACE DEBUG INFO WARNING ERROR OFF]",
+			errMsg: "invalid log severity level: abc. Must be one of [TRACE, DEBUG, INFO, WARNING, ERROR, OFF]",
 		},
 		{
 			name:   "Protocol",
