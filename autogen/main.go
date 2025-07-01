@@ -22,6 +22,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"text/template"
@@ -36,8 +37,10 @@ import (
 type Metric struct {
 	Name        string      `yaml:"metric-name"`
 	Description string      `yaml:"description"`
+	Type        string      `yaml:"type"`
 	Unit        string      `yaml:"unit"`
 	Attributes  []Attribute `yaml:"attributes"`
+	Boundaries  []int64     `yaml:"boundaries,omitempty"`
 }
 
 type Attribute struct {
@@ -55,13 +58,16 @@ type TemplateData struct {
 }
 
 type ProcessedMetric struct {
-	Name         string
-	GoName       string
-	Description  string
-	Unit         string
-	Attributes   []ProcessedAttribute
-	Combinations []Combination
-	SwitchTree   *SwitchNode
+	Name            string
+	GoName          string
+	Type            string
+	Description     string
+	Unit            string
+	Boundaries      []int64
+	GoUnitConverter string
+	Attributes      []ProcessedAttribute
+	Combinations    []MetricCombination
+	SwitchTree      *SwitchNode
 }
 
 type ProcessedAttribute struct {
@@ -71,7 +77,7 @@ type ProcessedAttribute struct {
 	Values []string
 }
 
-type Combination struct {
+type MetricCombination struct {
 	Attributes     map[string]string
 	AtomicVarName  string
 	AttrSetVarName string
@@ -82,7 +88,7 @@ type SwitchNode struct {
 	AttributeGoType string
 	Children        map[string]*SwitchNode
 	IsLeaf          bool
-	LeafVarName     string
+	LeafCombination *MetricCombination
 }
 
 func main() {
@@ -136,10 +142,13 @@ func processMetrics(metrics []Metric, pkgName string) TemplateData {
 
 	for _, m := range metrics {
 		pm := ProcessedMetric{
-			Name:        m.Name,
-			GoName:      toPascalCase(m.Name),
-			Description: m.Description,
-			Unit:        m.Unit,
+			Name:            m.Name,
+			GoName:          toPascalCase(m.Name),
+			Type:            m.Type,
+			Description:     m.Description,
+			Unit:            m.Unit,
+			Boundaries:      m.Boundaries,
+			GoUnitConverter: getUnitConverter(m.Unit),
 		}
 
 		for _, a := range m.Attributes {
@@ -162,7 +171,7 @@ func processMetrics(metrics []Metric, pkgName string) TemplateData {
 			return pm.Attributes[i].Name < pm.Attributes[j].Name
 		})
 
-		pm.Combinations = generateCombinations(pm)
+		pm.Combinations = generateMetricCombinations(pm)
 		pm.SwitchTree = buildSwitchTree(pm)
 		processedMetrics = append(processedMetrics, pm)
 	}
@@ -174,8 +183,8 @@ func processMetrics(metrics []Metric, pkgName string) TemplateData {
 	}
 }
 
-func generateCombinations(pm ProcessedMetric) []Combination {
-	var combinations []Combination
+func generateMetricCombinations(pm ProcessedMetric) []MetricCombination {
+	var combinations []MetricCombination
 
 	var recurse func(int, map[string]string)
 	recurse = func(attrIndex int, currentCombo map[string]string) {
@@ -199,7 +208,7 @@ func generateCombinations(pm ProcessedMetric) []Combination {
 			}
 
 			baseName := strings.Join(nameParts, "")
-			combinations = append(combinations, Combination{
+			combinations = append(combinations, MetricCombination{
 				Attributes:     finalCombo,
 				AtomicVarName:  toCamelCase(baseName) + "Atomic",
 				AttrSetVarName: toCamelCase(baseName) + "AttrSet",
@@ -220,10 +229,11 @@ func generateCombinations(pm ProcessedMetric) []Combination {
 
 func buildSwitchTree(pm ProcessedMetric) *SwitchNode {
 	if len(pm.Attributes) == 0 {
-		baseName := toPascalCase(pm.Name)
+		// For metrics without attributes, there's one combination.
 		return &SwitchNode{
-			IsLeaf:      true,
-			LeafVarName: toCamelCase(baseName) + "Atomic",
+			IsLeaf: true,
+			// Point to the first (and only) combination.
+			LeafCombination: &pm.Combinations[0],
 		}
 	}
 
@@ -245,24 +255,18 @@ func buildSwitchTree(pm ProcessedMetric) *SwitchNode {
 
 			if attrIndex+1 == len(pm.Attributes) {
 				// Leaf node
-				var nameParts []string
-				nameParts = append(nameParts, pm.GoName)
-
-				var sortedAttrNames []string
-				for k := range newPath {
-					sortedAttrNames = append(sortedAttrNames, k)
+				var leafCombo *MetricCombination
+				// Find the combination that matches the current path
+				for i := range pm.Combinations {
+					if reflect.DeepEqual(pm.Combinations[i].Attributes, newPath) {
+						leafCombo = &pm.Combinations[i]
+						break
+					}
 				}
-				sort.Strings(sortedAttrNames)
-
-				for _, attrName := range sortedAttrNames {
-					v := newPath[attrName]
-					nameParts = append(nameParts, toPascalCase(attrName), toPascalCase(v))
-				}
-				baseName := strings.Join(nameParts, "")
 
 				node.Children[val] = &SwitchNode{
-					IsLeaf:      true,
-					LeafVarName: toCamelCase(baseName) + "Atomic",
+					IsLeaf:          true,
+					LeafCombination: leafCombo,
 				}
 			} else {
 				node.Children[val] = build(attrIndex+1, newPath)
@@ -272,6 +276,18 @@ func buildSwitchTree(pm ProcessedMetric) *SwitchNode {
 	}
 
 	return build(0, make(map[string]string))
+}
+
+func getUnitConverter(unit string) string {
+	switch unit {
+	case "us":
+		return "Microseconds"
+	case "ms":
+		return "Milliseconds"
+	case "s":
+		return "Seconds"
+	}
+	return ""
 }
 
 // Template Helper Functions
