@@ -113,20 +113,54 @@ func cacheHitReadTypeAttrOption(attr CacheHitReadType) metric.MeasurementOption 
 
 // otelMetrics maintains the list of all metrics computed in GCSFuse.
 type otelMetrics struct {
-	fsOpsCount      metric.Int64Counter
 	fsOpsErrorCount metric.Int64Counter
-	fsOpsLatency    metric.Float64Histogram
+	fsOpsLatency    metric.Int64Histogram
 
-	gcsReadCount            metric.Int64Counter
+	gcsReadCountSeqAtomic,
+	gcsReadCountRandomAtomic,
+	gcsReadCountParallelAtomic,
+	gcsDownloadBytesCountSeqAtomic,
+	gcsDownloadBytesCountRandomAtomic,
+	gcsDownloadBytesCountParallelAtomic,
+	fsOpStatFSAtomic,
+	fsOpLookUpInodeAtomic,
+	fsOpGetInodeAttributesAtomic,
+	fsOpSetInodeAttributesAtomic,
+	fsOpForgetInodeAtomic,
+	fsOpBatchForgetAtomic,
+	fsOpMkDirAtomic,
+	fsOpMkNodeAtomic,
+	fsOpCreateFileAtomic,
+	fsOpCreateLinkAtomic,
+	fsOpCreateSymlinkAtomic,
+	fsOpRenameAtomic,
+	fsOpRmDirAtomic,
+	fsOpUnlinkAtomic,
+	fsOpOpenDirAtomic,
+	fsOpReadDirAtomic,
+	fsOpReleaseDirHandleAtomic,
+	fsOpOpenFileAtomic,
+	fsOpReadFileAtomic,
+	fsOpWriteFileAtomic,
+	fsOpSyncFileAtomic,
+	fsOpFlushFileAtomic,
+	fsOpReleaseFileHandleAtomic,
+	fsOpReadSymlinkAtomic,
+	fsOpRemoveXattrAtomic,
+	fsOpGetXattrAtomic,
+	fsOpListXattrAtomic,
+	fsOpSetXattrAtomic,
+	fsOpFallocateAtomic,
+	fsOpSyncFSAtomic,
 	gcsReadBytesCountAtomic *atomic.Int64
-	gcsReaderCount          metric.Int64Counter
-	gcsRequestCount         metric.Int64Counter
-	gcsRequestLatency       metric.Float64Histogram
-	gcsDownloadBytesCount   metric.Int64Counter
+
+	gcsReaderCount    metric.Int64Counter
+	gcsRequestCount   metric.Int64Counter
+	gcsRequestLatency metric.Int64Histogram
 
 	fileCacheReadCount      metric.Int64Counter
 	fileCacheReadBytesCount metric.Int64Counter
-	fileCacheReadLatency    metric.Float64Histogram
+	fileCacheReadLatency    metric.Int64Histogram
 }
 
 func (o *otelMetrics) GCSReadBytesCount(_ context.Context, inc int64) {
@@ -142,23 +176,98 @@ func (o *otelMetrics) GCSRequestCount(ctx context.Context, inc int64, gcsMethod 
 }
 
 func (o *otelMetrics) GCSRequestLatency(ctx context.Context, latency time.Duration, gcsMethod string) {
-	o.gcsRequestLatency.Record(ctx, float64(latency.Milliseconds()), gcsMethodAttrOption(gcsMethod))
+	o.gcsRequestLatency.Record(ctx, latency.Milliseconds(), gcsMethodAttrOption(gcsMethod))
 }
 
 func (o *otelMetrics) GCSReadCount(ctx context.Context, inc int64, readType string) {
-	o.gcsReadCount.Add(ctx, inc, readTypeAttrOption(readType))
+	switch readType {
+	case ReadTypeSequential:
+		o.gcsReadCountSeqAtomic.Add(inc)
+	case ReadTypeRandom:
+		o.gcsReadCountRandomAtomic.Add(inc)
+	case ReadTypeParallel:
+		o.gcsReadCountParallelAtomic.Add(inc)
+	}
 }
 
 func (o *otelMetrics) GCSDownloadBytesCount(ctx context.Context, inc int64, readType string) {
-	o.gcsDownloadBytesCount.Add(ctx, inc, readTypeAttrOption(readType))
+	switch readType {
+	case ReadTypeSequential:
+		o.gcsDownloadBytesCountSeqAtomic.Add(inc)
+	case ReadTypeRandom:
+		o.gcsDownloadBytesCountRandomAtomic.Add(inc)
+	case ReadTypeParallel:
+		o.gcsDownloadBytesCountParallelAtomic.Add(inc)
+	}
 }
 
 func (o *otelMetrics) OpsCount(ctx context.Context, inc int64, fsOp string) {
-	o.fsOpsCount.Add(ctx, inc, fsOpsAttrOption(fsOp))
+	switch fsOp {
+	case OpStatFS:
+		o.fsOpStatFSAtomic.Add(inc)
+	case OpLookUpInode:
+		o.fsOpLookUpInodeAtomic.Add(inc)
+	case OpGetInodeAttributes:
+		o.fsOpGetInodeAttributesAtomic.Add(inc)
+	case OpSetInodeAttributes:
+		o.fsOpSetInodeAttributesAtomic.Add(inc)
+	case OpForgetInode:
+		o.fsOpForgetInodeAtomic.Add(inc)
+	case OpBatchForget:
+		o.fsOpBatchForgetAtomic.Add(inc)
+	case OpMkDir:
+		o.fsOpMkDirAtomic.Add(inc)
+	case OpMkNode:
+		o.fsOpMkNodeAtomic.Add(inc)
+	case OpCreateFile:
+		o.fsOpCreateFileAtomic.Add(inc)
+	case OpCreateLink:
+		o.fsOpCreateLinkAtomic.Add(inc)
+	case OpCreateSymlink:
+		o.fsOpCreateSymlinkAtomic.Add(inc)
+	case OpRename:
+		o.fsOpRenameAtomic.Add(inc)
+	case OpRmDir:
+		o.fsOpRmDirAtomic.Add(inc)
+	case OpUnlink:
+		o.fsOpUnlinkAtomic.Add(inc)
+	case OpOpenDir:
+		o.fsOpOpenDirAtomic.Add(inc)
+	case OpReadDir:
+		o.fsOpReadDirAtomic.Add(inc)
+	case OpReleaseDirHandle:
+		o.fsOpReleaseDirHandleAtomic.Add(inc)
+	case OpOpenFile:
+		o.fsOpOpenFileAtomic.Add(inc)
+	case OpReadFile:
+		o.fsOpReadFileAtomic.Add(inc)
+	case OpWriteFile:
+		o.fsOpWriteFileAtomic.Add(inc)
+	case OpSyncFile:
+		o.fsOpSyncFileAtomic.Add(inc)
+	case OpFlushFile:
+		o.fsOpFlushFileAtomic.Add(inc)
+	case OpReleaseFileHandle:
+		o.fsOpReleaseFileHandleAtomic.Add(inc)
+	case OpReadSymlink:
+		o.fsOpReadSymlinkAtomic.Add(inc)
+	case OpRemoveXattr:
+		o.fsOpRemoveXattrAtomic.Add(inc)
+	case OpGetXattr:
+		o.fsOpGetXattrAtomic.Add(inc)
+	case OpListXattr:
+		o.fsOpListXattrAtomic.Add(inc)
+	case OpSetXattr:
+		o.fsOpSetXattrAtomic.Add(inc)
+	case OpFallocate:
+		o.fsOpFallocateAtomic.Add(inc)
+	case OpSyncFS:
+		o.fsOpSyncFSAtomic.Add(inc)
+	}
 }
 
 func (o *otelMetrics) OpsLatency(ctx context.Context, latency time.Duration, fsOp string) {
-	o.fsOpsLatency.Record(ctx, float64(latency.Microseconds()), fsOpsAttrOption(fsOp))
+	o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsAttrOption(fsOp))
 }
 
 func (o *otelMetrics) OpsErrorCount(ctx context.Context, inc int64, attrs FSOpsErrorCategory) {
@@ -174,22 +283,105 @@ func (o *otelMetrics) FileCacheReadBytesCount(ctx context.Context, inc int64, re
 }
 
 func (o *otelMetrics) FileCacheReadLatency(ctx context.Context, latency time.Duration, cacheHit string) {
-	o.fileCacheReadLatency.Record(ctx, float64(latency.Microseconds()), cacheHitAttrOption(cacheHit))
+	o.fileCacheReadLatency.Record(ctx, latency.Microseconds(), cacheHitAttrOption(cacheHit))
+}
+
+func getFSOpsLatencyMetric() (metric.Int64Histogram, error) {
+	return fsOpsMeter.Int64Histogram("fs/ops_latency", metric.WithDescription("The cumulative distribution of file system operation latencies"), metric.WithUnit("us"),
+		defaultLatencyDistribution)
 }
 
 func NewOTelMetrics() (MetricHandle, error) {
-	fsOpsCount, err1 := fsOpsMeter.Int64Counter("fs/ops_count", metric.WithDescription("The cumulative number of ops processed by the file system."))
-	fsOpsLatency, err2 := fsOpsMeter.Float64Histogram("fs/ops_latency", metric.WithDescription("The cumulative distribution of file system operation latencies"), metric.WithUnit("us"),
-		defaultLatencyDistribution)
+	var gcsReadBytesCountAtomic, gcsReadBytesCountSeqAtomic, gcsReadBytesCountRandomAtomic, gcsReadBytesCountParallelAtomic,
+		gcsDownloadBytesCountSeqAtomic, gcsDownloadBytesCountRandomAtomic, gcsDownloadBytesCountParallelAtomic,
+		fsOpStatFSAtomic,
+		fsOpLookUpInodeAtomic,
+		fsOpGetInodeAttributesAtomic,
+		fsOpSetInodeAttributesAtomic,
+		fsOpForgetInodeAtomic,
+		fsOpBatchForgetAtomic,
+		fsOpMkDirAtomic,
+		fsOpMkNodeAtomic,
+		fsOpCreateFileAtomic,
+		fsOpCreateLinkAtomic,
+		fsOpCreateSymlinkAtomic,
+		fsOpRenameAtomic,
+		fsOpRmDirAtomic,
+		fsOpUnlinkAtomic,
+		fsOpOpenDirAtomic,
+		fsOpReadDirAtomic,
+		fsOpReleaseDirHandleAtomic,
+		fsOpOpenFileAtomic,
+		fsOpReadFileAtomic,
+		fsOpWriteFileAtomic,
+		fsOpSyncFileAtomic,
+		fsOpFlushFileAtomic,
+		fsOpReleaseFileHandleAtomic,
+		fsOpReadSymlinkAtomic,
+		fsOpRemoveXattrAtomic,
+		fsOpGetXattrAtomic,
+		fsOpListXattrAtomic,
+		fsOpSetXattrAtomic,
+		fsOpFallocateAtomic,
+		fsOpSyncFSAtomic atomic.Int64
+
+	_, err1 := fsOpsMeter.Int64ObservableCounter("fs/ops_count", metric.WithDescription("The cumulative number of ops processed by the file system."),
+		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
+			obsrv.Observe(fsOpStatFSAtomic.Load(), fsOpsAttrOption(OpStatFS))
+			obsrv.Observe(fsOpLookUpInodeAtomic.Load(), fsOpsAttrOption(OpLookUpInode))
+			obsrv.Observe(fsOpGetInodeAttributesAtomic.Load(), fsOpsAttrOption(OpGetInodeAttributes))
+			obsrv.Observe(fsOpSetInodeAttributesAtomic.Load(), fsOpsAttrOption(OpSetInodeAttributes))
+			obsrv.Observe(fsOpForgetInodeAtomic.Load(), fsOpsAttrOption(OpForgetInode))
+			obsrv.Observe(fsOpBatchForgetAtomic.Load(), fsOpsAttrOption(OpBatchForget))
+			obsrv.Observe(fsOpMkDirAtomic.Load(), fsOpsAttrOption(OpMkDir))
+			obsrv.Observe(fsOpMkNodeAtomic.Load(), fsOpsAttrOption(OpMkNode))
+			obsrv.Observe(fsOpCreateFileAtomic.Load(), fsOpsAttrOption(OpCreateFile))
+			obsrv.Observe(fsOpCreateLinkAtomic.Load(), fsOpsAttrOption(OpCreateLink))
+			obsrv.Observe(fsOpCreateSymlinkAtomic.Load(), fsOpsAttrOption(OpCreateSymlink))
+			obsrv.Observe(fsOpRenameAtomic.Load(), fsOpsAttrOption(OpRename))
+			obsrv.Observe(fsOpRmDirAtomic.Load(), fsOpsAttrOption(OpRmDir))
+			obsrv.Observe(fsOpUnlinkAtomic.Load(), fsOpsAttrOption(OpUnlink))
+			obsrv.Observe(fsOpOpenDirAtomic.Load(), fsOpsAttrOption(OpOpenDir))
+			obsrv.Observe(fsOpReadDirAtomic.Load(), fsOpsAttrOption(OpReadDir))
+			obsrv.Observe(fsOpReleaseDirHandleAtomic.Load(), fsOpsAttrOption(OpReleaseDirHandle))
+			obsrv.Observe(fsOpOpenFileAtomic.Load(), fsOpsAttrOption(OpOpenFile))
+			obsrv.Observe(fsOpReadFileAtomic.Load(), fsOpsAttrOption(OpReadFile))
+			obsrv.Observe(fsOpWriteFileAtomic.Load(), fsOpsAttrOption(OpWriteFile))
+			obsrv.Observe(fsOpSyncFileAtomic.Load(), fsOpsAttrOption(OpSyncFile))
+			obsrv.Observe(fsOpFlushFileAtomic.Load(), fsOpsAttrOption(OpFlushFile))
+			obsrv.Observe(fsOpReleaseFileHandleAtomic.Load(), fsOpsAttrOption(OpReleaseFileHandle))
+			obsrv.Observe(fsOpReadSymlinkAtomic.Load(), fsOpsAttrOption(OpReadSymlink))
+			obsrv.Observe(fsOpRemoveXattrAtomic.Load(), fsOpsAttrOption(OpRemoveXattr))
+			obsrv.Observe(fsOpGetXattrAtomic.Load(), fsOpsAttrOption(OpGetXattr))
+			obsrv.Observe(fsOpListXattrAtomic.Load(), fsOpsAttrOption(OpListXattr))
+			obsrv.Observe(fsOpSetXattrAtomic.Load(), fsOpsAttrOption(OpSetXattr))
+			obsrv.Observe(fsOpFallocateAtomic.Load(), fsOpsAttrOption(OpFallocate))
+			obsrv.Observe(fsOpSyncFSAtomic.Load(), fsOpsAttrOption(OpSyncFS))
+			return nil
+		}))
+	fsOpsLatency, _ := getFSOpsLatencyMetric()
 	fsOpsErrorCount, err3 := fsOpsMeter.Int64Counter("fs/ops_error_count", metric.WithDescription("The cumulative number of errors generated by file system operations"))
 
-	gcsReadCount, err4 := gcsMeter.Int64Counter("gcs/read_count", metric.WithDescription("Specifies the number of gcs reads made along with type - Sequential/Random"))
+	_, err4 := gcsMeter.Int64ObservableCounter("gcs/read_count",
+		metric.WithDescription("Specifies the number of gcs reads made along with type - Sequential/Random"),
+		metric.WithUnit("By"),
+		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
+			obsrv.Observe(gcsReadBytesCountSeqAtomic.Load(), readTypeAttrOption(ReadTypeSequential))
+			obsrv.Observe(gcsReadBytesCountRandomAtomic.Load(), readTypeAttrOption(ReadTypeRandom))
+			obsrv.Observe(gcsReadBytesCountParallelAtomic.Load(), readTypeAttrOption(ReadTypeParallel))
+			return nil
+		}))
 
-	gcsDownloadBytesCount, err5 := gcsMeter.Int64Counter("gcs/download_bytes_count",
+	_, err5 := gcsMeter.Int64ObservableCounter("gcs/download_bytes_count",
 		metric.WithDescription("The cumulative number of bytes downloaded from GCS along with type - Sequential/Random"),
-		metric.WithUnit("By"))
+		metric.WithUnit("By"),
+		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
+			obsrv.Observe(gcsDownloadBytesCountSeqAtomic.Load(), readTypeAttrOption(ReadTypeSequential))
+			obsrv.Observe(gcsDownloadBytesCountRandomAtomic.Load(), readTypeAttrOption(ReadTypeRandom))
+			obsrv.Observe(gcsDownloadBytesCountParallelAtomic.Load(), readTypeAttrOption(ReadTypeParallel))
+			return nil
+		}))
 
-	var gcsReadBytesCountAtomic atomic.Int64
 	_, err6 := gcsMeter.Int64ObservableCounter("gcs/read_bytes_count",
 		metric.WithDescription("The cumulative number of bytes read from GCS objects."),
 		metric.WithUnit("By"),
@@ -199,34 +391,67 @@ func NewOTelMetrics() (MetricHandle, error) {
 		}))
 	gcsReaderCount, err7 := gcsMeter.Int64Counter("gcs/reader_count", metric.WithDescription("The cumulative number of GCS object readers opened or closed."))
 	gcsRequestCount, err8 := gcsMeter.Int64Counter("gcs/request_count", metric.WithDescription("The cumulative number of GCS requests processed along with the GCS method."))
-	gcsRequestLatency, err9 := gcsMeter.Float64Histogram("gcs/request_latencies", metric.WithDescription("The cumulative distribution of the GCS request latencies."), metric.WithUnit("ms"))
+	gcsRequestLatency, err9 := gcsMeter.Int64Histogram("gcs/request_latencies", metric.WithDescription("The cumulative distribution of the GCS request latencies."), metric.WithUnit("ms"))
 
 	fileCacheReadCount, err10 := fileCacheMeter.Int64Counter("file_cache/read_count",
 		metric.WithDescription("Specifies the number of read requests made via file cache along with type - Sequential/Random and cache hit - true/false"))
 	fileCacheReadBytesCount, err11 := fileCacheMeter.Int64Counter("file_cache/read_bytes_count",
 		metric.WithDescription("The cumulative number of bytes read from file cache along with read type - Sequential/Random"),
 		metric.WithUnit("By"))
-	fileCacheReadLatency, err12 := fileCacheMeter.Float64Histogram("file_cache/read_latencies",
+	fileCacheReadLatency, err12 := fileCacheMeter.Int64Histogram("file_cache/read_latencies",
 		metric.WithDescription("The cumulative distribution of the file cache read latencies along with cache hit - true/false"),
 		metric.WithUnit("us"),
 		defaultLatencyDistribution)
 
-	if err := errors.Join(err1, err2, err3, err4, err5, err6, err7, err8, err9, err10, err11, err12); err != nil {
+	if err := errors.Join(err1, err3, err4, err5, err6, err7, err8, err9, err10, err11, err12); err != nil {
 		return nil, err
 	}
 
 	return &otelMetrics{
-		fsOpsCount:              fsOpsCount,
-		fsOpsErrorCount:         fsOpsErrorCount,
-		fsOpsLatency:            fsOpsLatency,
-		gcsReadCount:            gcsReadCount,
-		gcsReadBytesCountAtomic: &gcsReadBytesCountAtomic,
-		gcsReaderCount:          gcsReaderCount,
-		gcsRequestCount:         gcsRequestCount,
-		gcsRequestLatency:       gcsRequestLatency,
-		gcsDownloadBytesCount:   gcsDownloadBytesCount,
-		fileCacheReadCount:      fileCacheReadCount,
-		fileCacheReadBytesCount: fileCacheReadBytesCount,
-		fileCacheReadLatency:    fileCacheReadLatency,
+		fsOpStatFSAtomic:                    &fsOpStatFSAtomic,
+		fsOpLookUpInodeAtomic:               &fsOpLookUpInodeAtomic,
+		fsOpGetInodeAttributesAtomic:        &fsOpGetInodeAttributesAtomic,
+		fsOpSetInodeAttributesAtomic:        &fsOpSetInodeAttributesAtomic,
+		fsOpForgetInodeAtomic:               &fsOpForgetInodeAtomic,
+		fsOpBatchForgetAtomic:               &fsOpBatchForgetAtomic,
+		fsOpMkDirAtomic:                     &fsOpMkDirAtomic,
+		fsOpMkNodeAtomic:                    &fsOpMkNodeAtomic,
+		fsOpCreateFileAtomic:                &fsOpCreateFileAtomic,
+		fsOpCreateLinkAtomic:                &fsOpCreateLinkAtomic,
+		fsOpCreateSymlinkAtomic:             &fsOpCreateSymlinkAtomic,
+		fsOpRenameAtomic:                    &fsOpRenameAtomic,
+		fsOpRmDirAtomic:                     &fsOpRmDirAtomic,
+		fsOpUnlinkAtomic:                    &fsOpUnlinkAtomic,
+		fsOpOpenDirAtomic:                   &fsOpOpenDirAtomic,
+		fsOpReadDirAtomic:                   &fsOpReadDirAtomic,
+		fsOpReleaseDirHandleAtomic:          &fsOpReleaseDirHandleAtomic,
+		fsOpOpenFileAtomic:                  &fsOpOpenFileAtomic,
+		fsOpReadFileAtomic:                  &fsOpReadFileAtomic,
+		fsOpWriteFileAtomic:                 &fsOpWriteFileAtomic,
+		fsOpSyncFileAtomic:                  &fsOpSyncFileAtomic,
+		fsOpFlushFileAtomic:                 &fsOpFlushFileAtomic,
+		fsOpReleaseFileHandleAtomic:         &fsOpReleaseFileHandleAtomic,
+		fsOpReadSymlinkAtomic:               &fsOpReadSymlinkAtomic,
+		fsOpRemoveXattrAtomic:               &fsOpRemoveXattrAtomic,
+		fsOpGetXattrAtomic:                  &fsOpGetXattrAtomic,
+		fsOpListXattrAtomic:                 &fsOpListXattrAtomic,
+		fsOpSetXattrAtomic:                  &fsOpSetXattrAtomic,
+		fsOpFallocateAtomic:                 &fsOpFallocateAtomic,
+		fsOpSyncFSAtomic:                    &fsOpSyncFSAtomic,
+		fsOpsErrorCount:                     fsOpsErrorCount,
+		gcsReadBytesCountAtomic:             &gcsReadBytesCountAtomic,
+		gcsReadCountSeqAtomic:               &gcsReadBytesCountSeqAtomic,
+		gcsReadCountRandomAtomic:            &gcsReadBytesCountRandomAtomic,
+		gcsReadCountParallelAtomic:          &gcsReadBytesCountParallelAtomic,
+		gcsReaderCount:                      gcsReaderCount,
+		gcsRequestCount:                     gcsRequestCount,
+		gcsRequestLatency:                   gcsRequestLatency,
+		gcsDownloadBytesCountSeqAtomic:      &gcsDownloadBytesCountSeqAtomic,
+		gcsDownloadBytesCountRandomAtomic:   &gcsDownloadBytesCountRandomAtomic,
+		gcsDownloadBytesCountParallelAtomic: &gcsDownloadBytesCountParallelAtomic,
+		fileCacheReadCount:                  fileCacheReadCount,
+		fileCacheReadBytesCount:             fileCacheReadBytesCount,
+		fileCacheReadLatency:                fileCacheReadLatency,
+		fsOpsLatency:                        fsOpsLatency,
 	}, nil
 }

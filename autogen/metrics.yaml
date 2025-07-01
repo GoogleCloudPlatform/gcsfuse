@@ -1,0 +1,21 @@
+- metric-name: metric1
+  description: "description of the metric"
+  unit: "us"
+  attributes:
+  - attribute-name: attr1
+    attribute-type: string
+    values:
+    - v1
+    - v2
+
+- metric-name: metric2
+  description: "description of the metric"
+  unit: "by"
+  attributes:
+  - attribute-name: attr2
+    attribute-type: string
+    values:
+    - op1
+    - op2
+  - attribute-name: attr3
+    attribute-type: bool
