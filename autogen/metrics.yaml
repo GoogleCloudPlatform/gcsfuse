@@ -1,5 +1,6 @@
 - metric-name: metric1
   description: "description of the metric1"
+  type: "int_counter"
   unit: "us"
   attributes:
   - attribute-name: attr1
@@ -10,6 +11,7 @@
 
 - metric-name: metric2
   description: "description of the metric2"
+  type: "int_counter"
   unit: "by"
   attributes:
   - attribute-name: attr2
@@ -19,3 +21,27 @@
     - op2
   - attribute-name: attr3
     attribute-type: bool
+
+- metric-name: metric3
+  description: "description of the metric3"
+  type: "int_histogram"
+  unit: "us"
+  attributes:
+  - attribute-name: attr4
+    attribute-type: string
+    values:
+    - a1
+    - a2
+  boundaries:
+  - 1
+  - 160
+  - 5000
+
+- metric-name: metric4
+  description: "description of the metric4"
+  type: "int_histogram"
+  unit: "ms"
+  boundaries:
+  - 1
+  - 150
+  - 500

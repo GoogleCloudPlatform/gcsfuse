@@ -16,7 +16,9 @@ package main
 
 import (
 	"context"
+	"errors"
 	"sync/atomic"
+	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
@@ -25,12 +27,22 @@ import (
 )
 
 var (
-	meter = otel.Meter("gcsfuse")
+	meter                            = otel.Meter("gcsfuse")
+	metric1Attr1V1AttrSet            = metric.WithAttributeSet(attribute.NewSet(attribute.String("attr1", "v1")))
+	metric1Attr1V2AttrSet            = metric.WithAttributeSet(attribute.NewSet(attribute.String("attr1", "v2")))
+	metric2Attr2Op1Attr3TrueAttrSet  = metric.WithAttributeSet(attribute.NewSet(attribute.String("attr2", "op1"), attribute.Bool("attr3", true)))
+	metric2Attr2Op1Attr3FalseAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("attr2", "op1"), attribute.Bool("attr3", false)))
+	metric2Attr2Op2Attr3TrueAttrSet  = metric.WithAttributeSet(attribute.NewSet(attribute.String("attr2", "op2"), attribute.Bool("attr3", true)))
+	metric2Attr2Op2Attr3FalseAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("attr2", "op2"), attribute.Bool("attr3", false)))
+	metric3Attr4A1AttrSet            = metric.WithAttributeSet(attribute.NewSet(attribute.String("attr4", "a1")))
+	metric3Attr4A2AttrSet            = metric.WithAttributeSet(attribute.NewSet(attribute.String("attr4", "a2")))
 )
 
 type MetricHandle interface {
 	Metric1(inc int64, attr1 string)
 	Metric2(inc int64, attr2 string, attr3 bool)
+	Metric3(ctx context.Context, duration time.Duration, attr4 string)
+	Metric4(ctx context.Context, duration time.Duration)
 }
 
 type otelMetrics struct {
@@ -40,6 +52,8 @@ type otelMetrics struct {
 	metric2Attr2Op1Attr3FalseAtomic,
 	metric2Attr2Op2Attr3TrueAtomic,
 	metric2Attr2Op2Attr3FalseAtomic *atomic.Int64
+	metric3,
+	metric4 metric.Int64Histogram
 }
 
 func (o *otelMetrics) Metric1(inc int64, attr1 string) {
@@ -68,19 +82,25 @@ func (o *otelMetrics) Metric2(inc int64, attr2 string, attr3 bool) {
 			o.metric2Attr2Op2Attr3FalseAtomic.Add(inc)
 		}
 	}
+}
 
+func (o *otelMetrics) Metric3(ctx context.Context, latency time.Duration, attr4 string) {
+	switch attr4 {
+	case "a1":
+		o.metric3.Record(ctx, latency.Microseconds(), metric3Attr4A1AttrSet)
+	case "a2":
+		o.metric3.Record(ctx, latency.Microseconds(), metric3Attr4A2AttrSet)
+	}
+}
+
+func (o *otelMetrics) Metric4(ctx context.Context, latency time.Duration) {
+	o.metric4.Record(ctx, latency.Milliseconds())
 }
 
 func NewOTelMetrics() (*otelMetrics, error) {
 	var metric1Attr1V1Atomic, metric1Attr1V2Atomic, metric2Attr2Op1Attr3TrueAtomic, metric2Attr2Op1Attr3FalseAtomic, metric2Attr2Op2Attr3TrueAtomic, metric2Attr2Op2Attr3FalseAtomic atomic.Int64
 
-	metric1Attr1V1AttrSet := metric.WithAttributeSet(attribute.NewSet(attribute.String("attr1", "v1")))
-	metric1Attr1V2AttrSet := metric.WithAttributeSet(attribute.NewSet(attribute.String("attr1", "v2")))
-	metric2Attr2Op1Attr3TrueAttrSet := metric.WithAttributeSet(attribute.NewSet(attribute.String("attr2", "op1"), attribute.Bool("attr3", true)))
-	metric2Attr2Op1Attr3FalseAttrSet := metric.WithAttributeSet(attribute.NewSet(attribute.String("attr2", "op1"), attribute.Bool("attr3", false)))
-	metric2Attr2Op2Attr3TrueAttrSet := metric.WithAttributeSet(attribute.NewSet(attribute.String("attr2", "op2"), attribute.Bool("attr3", true)))
-	metric2Attr2Op2Attr3FalseAttrSet := metric.WithAttributeSet(attribute.NewSet(attribute.String("attr2", "op2"), attribute.Bool("attr3", false)))
-	meter.Int64ObservableCounter("metric1",
+	_, err1 := meter.Int64ObservableCounter("metric1",
 		metric.WithDescription("description of the metric1"),
 		metric.WithUnit("us"),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -89,7 +109,7 @@ func NewOTelMetrics() (*otelMetrics, error) {
 			return nil
 		}))
 
-	meter.Int64ObservableCounter("metric2",
+	_, err2 := meter.Int64ObservableCounter("metric2",
 		metric.WithDescription("description of the metric2"),
 		metric.WithUnit("by"),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -100,6 +120,19 @@ func NewOTelMetrics() (*otelMetrics, error) {
 			return nil
 		}))
 
+	metric3, err3 := meter.Int64Histogram("metric3",
+		metric.WithDescription("description of the metric3"),
+		metric.WithUnit("us"),
+		metric.WithExplicitBucketBoundaries(1, 160, 5000))
+
+	metric4, err4 := meter.Int64Histogram("metric4",
+		metric.WithDescription("description of the metric4"),
+		metric.WithUnit("ms"),
+		metric.WithExplicitBucketBoundaries(1, 150, 500))
+
+	if err := errors.Join(err1, err2, err3, err4); err != nil {
+		return nil, err
+	}
 	return &otelMetrics{
 		metric1Attr1V1Atomic:            &metric1Attr1V1Atomic,
 		metric1Attr1V2Atomic:            &metric1Attr1V2Atomic,
@@ -107,5 +140,7 @@ func NewOTelMetrics() (*otelMetrics, error) {
 		metric2Attr2Op1Attr3FalseAtomic: &metric2Attr2Op1Attr3FalseAtomic,
 		metric2Attr2Op2Attr3TrueAtomic:  &metric2Attr2Op2Attr3TrueAtomic,
 		metric2Attr2Op2Attr3FalseAtomic: &metric2Attr2Op2Attr3FalseAtomic,
+		metric3:                         metric3,
+		metric4:                         metric4,
 	}, nil
 }
