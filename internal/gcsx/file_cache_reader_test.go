@@ -526,7 +526,7 @@ func (t *fileCacheReaderTest) skipForNonZonalBucket() {
 	}
 }
 
-func (t *fileCacheReaderTest) fullyReadOriginalSizeOfUnfinalizedObject(origObjectSize uint64, cachedObjectSize int64) {
+func (t *fileCacheReaderTest) fullyReadOriginalSizeOfUnfinalizedObject(origObjectSize uint64) {
 	t.T().Helper()
 	t.mockBucket.On("Name").Return("test-bucket")
 	testContent := testutil.GenerateRandomBytes(int(t.unfinalized_object.Size))
@@ -551,16 +551,15 @@ func (t *fileCacheReaderTest) waitForDownloadJobToFinish(obj *gcs.MinObject) {
 
 func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBeyondCachedSizeAfterSizeIncreasedShouldThrowFallbackError() {
 	t.skipForNonZonalBucket()
-
 	origObjectSize := t.unfinalized_object.Size
-	cachedObjectSize := int64(origObjectSize)
 	// First read, which may start a background download job.
-	t.fullyReadOriginalSizeOfUnfinalizedObject(origObjectSize, cachedObjectSize)
+	t.fullyReadOriginalSizeOfUnfinalizedObject(origObjectSize)
 	// Wait for the background download job to complete to avoid a data race.
 	// This is needed to avoid the race condition on the size of t.unfinalized_object later on.
 	t.waitForDownloadJobToFinish(t.unfinalized_object)
 
 	// Resize the object, and read beyond previously cached size and within new object size.
+	cachedObjectSize := int64(origObjectSize)
 	objectSizeIncrease := uint64(10)
 	newObjectSize := origObjectSize + objectSizeIncrease
 	t.unfinalized_object.Size = newObjectSize
@@ -574,11 +573,9 @@ func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBeyondC
 
 func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBeyondObjectSizeAfterSizeIncreasedShouldThrowEOFError() {
 	t.skipForNonZonalBucket()
-
 	origObjectSize := t.unfinalized_object.Size
-	cachedObjectSize := int64(origObjectSize)
 	// First read, which may start a background download job.
-	t.fullyReadOriginalSizeOfUnfinalizedObject(origObjectSize, cachedObjectSize)
+	t.fullyReadOriginalSizeOfUnfinalizedObject(origObjectSize)
 	// Wait for the background download job to complete to avoid a data race.
 	// This is needed to avoid the race condition on the size of t.unfinalized_object later on.
 	t.waitForDownloadJobToFinish(t.unfinalized_object)
@@ -597,16 +594,15 @@ func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBeyondO
 
 func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBelowCachedSizeAndReadBeyondCachedSizeWithIncreasedObjectSizeShouldThrowFallbackError() {
 	t.skipForNonZonalBucket()
-
 	origObjectSize := t.unfinalized_object.Size
-	cachedObjectSize := int64(origObjectSize)
 	// First read, which may start a background download job.
-	t.fullyReadOriginalSizeOfUnfinalizedObject(origObjectSize, cachedObjectSize)
+	t.fullyReadOriginalSizeOfUnfinalizedObject(origObjectSize)
 	// Wait for the background download job to complete to avoid a data race.
 	// This is needed to avoid the race condition on the size of t.unfinalized_object later on.
 	t.waitForDownloadJobToFinish(t.unfinalized_object)
 
 	// Resize the object, and read from below previously cached size and within new object size.
+	cachedObjectSize := int64(origObjectSize)
 	objectSizeIncrease := uint64(10)
 	newObjectSize := origObjectSize + objectSizeIncrease
 	t.unfinalized_object.Size = newObjectSize
@@ -620,16 +616,15 @@ func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBelowCa
 
 func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBelowCachedSizeAndReadBeyondObjectSizeWithIncreasedObjectSizeShouldThrowFallbackError() {
 	t.skipForNonZonalBucket()
-
 	origObjectSize := t.unfinalized_object.Size
-	cachedObjectSize := int64(origObjectSize)
 	// First read, which may start a background download job.
-	t.fullyReadOriginalSizeOfUnfinalizedObject(origObjectSize, cachedObjectSize)
+	t.fullyReadOriginalSizeOfUnfinalizedObject(origObjectSize)
 	// Wait for the background download job to complete to avoid a data race.
 	// This is needed to avoid the race condition on the size of t.unfinalized_object later on.
 	t.waitForDownloadJobToFinish(t.unfinalized_object)
 
 	// Resize the object, and read from below cached size and beyond this new object size.
+	cachedObjectSize := int64(origObjectSize)
 	objectSizeIncrease := uint64(10)
 	newObjectSize := origObjectSize + objectSizeIncrease
 	t.unfinalized_object.Size = newObjectSize
@@ -643,11 +638,10 @@ func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBelowCa
 
 func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBelowCachedSizeAndReadBeyondCachedSizeShouldNotThrowError() {
 	t.skipForNonZonalBucket()
-
 	origObjectSize := t.unfinalized_object.Size
-	cachedObjectSize := int64(origObjectSize)
-	t.fullyReadOriginalSizeOfUnfinalizedObject(origObjectSize, cachedObjectSize)
+	t.fullyReadOriginalSizeOfUnfinalizedObject(origObjectSize)
 
+	cachedObjectSize := int64(origObjectSize)
 	readerResponse, err := t.reader_unfinalized_object.ReadAt(t.ctx, make([]byte, cachedObjectSize+1), cachedObjectSize/2)
 
 	assert.NoError(t.T(), err)
