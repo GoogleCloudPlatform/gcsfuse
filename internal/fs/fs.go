@@ -2574,10 +2574,17 @@ func (fs *fileSystem) OpenFile(
 	in.Unlock()
 
 	newFH.Lock()
-	defer newFH.Unlock()
 	in.Lock()
+	defer newFH.Unlock()
+	// Trigger file caching.
+	// If size less than equal to 10MiB, wait for file to be cached.
+	// check for file cache status.
+
 	bytes := make([]byte, 10)
-	newFH.Read(ctx, bytes, 0, fs.sequentialReadSizeMb)
+	_, _, err = newFH.Read(ctx, bytes, 0, fs.sequentialReadSizeMb)
+	if err != nil {
+		return fmt.Errorf("newFH.Read: %w", err)
+	}
 
 	return
 }
