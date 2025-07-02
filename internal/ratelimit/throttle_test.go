@@ -30,7 +30,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/ratelimit"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/ratelimit"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/net/context"

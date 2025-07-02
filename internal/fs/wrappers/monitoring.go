@@ -20,7 +20,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 )
@@ -226,17 +226,17 @@ func categorize(err error) string {
 
 // Records file system operation count, failed operation count and the operation latency.
 func recordOp(ctx context.Context, metricHandle common.MetricHandle, method string, start time.Time, fsErr error) {
-	metricHandle.OpsCount(ctx, 1, []common.MetricAttr{{Key: common.FSOp, Value: method}})
+	metricHandle.OpsCount(ctx, 1, method)
 
 	// Recording opErrorCount.
 	if fsErr != nil {
 		errCategory := categorize(fsErr)
-		metricHandle.OpsErrorCount(ctx, 1, []common.MetricAttr{
-			{Key: common.FSOp, Value: method},
-			{Key: common.FSErrCategory, Value: errCategory}},
-		)
+		metricHandle.OpsErrorCount(ctx, 1, common.FSOpsErrorCategory{
+			FSOps:         method,
+			ErrorCategory: errCategory,
+		})
 	}
-	metricHandle.OpsLatency(ctx, time.Since(start), []common.MetricAttr{{Key: common.FSOp, Value: method}})
+	metricHandle.OpsLatency(ctx, time.Since(start), method)
 }
 
 // WithMonitoring takes a FileSystem, returns a FileSystem with monitoring

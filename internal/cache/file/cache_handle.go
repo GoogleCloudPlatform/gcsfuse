@@ -20,11 +20,11 @@ import (
 	"io"
 	"os"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
 
 type CacheHandle struct {
@@ -88,19 +88,18 @@ func (fch *CacheHandle) shouldReadFromCache(jobStatus *downloader.JobStatus, req
 	return err
 }
 
-// validateEntryInFileInfoCache checks if entry is present for a given object in
-// file info cache with same generation and at least requiredOffset.
-// It returns nil if entry is present, otherwise returns an appropriate error.
+// getFileInfoData returns the file-info cache entry for the given object
+// in the associated bucket.
 // Whether to change the order in cache while lookup is controlled via
 // changeCacheOrder.
-func (fch *CacheHandle) validateEntryInFileInfoCache(bucket gcs.Bucket, object *gcs.MinObject, requiredOffset uint64, changeCacheOrder bool) error {
+func (fch *CacheHandle) getFileInfoData(bucket gcs.Bucket, object *gcs.MinObject, changeCacheOrder bool) (*data.FileInfo, error) {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: bucket.Name(),
 		ObjectName: object.Name,
 	}
 	fileInfoKeyName, err := fileInfoKey.Key()
 	if err != nil {
-		return fmt.Errorf("error while creating key for bucket %s and object %s: %w", bucket.Name(), object.Name, err)
+		return nil, fmt.Errorf("error while creating key for bucket %s and object %s: %w", bucket.Name(), object.Name, err)
 	}
 
 	var fileInfo lru.ValueType
@@ -110,13 +109,30 @@ func (fch *CacheHandle) validateEntryInFileInfoCache(bucket gcs.Bucket, object *
 		fileInfo = fch.fileInfoCache.LookUpWithoutChangingOrder(fileInfoKeyName)
 	}
 	if fileInfo == nil {
-		return fmt.Errorf("%w: no entry found in file info cache for key %v", util.ErrInvalidFileInfoCache, fileInfoKeyName)
+		return nil, fmt.Errorf("%w: no entry found in file info cache for key %v", util.ErrInvalidFileInfoCache, fileInfoKeyName)
 	}
 
 	// The generation check below is required because it may happen that file
 	// being read is evicted from cache during or after reading the required offset
 	// from local cached file to `dst` buffer.
-	fileInfoData := fileInfo.(data.FileInfo)
+	fileInfoData, ok := fileInfo.(data.FileInfo)
+	if !ok {
+		return nil, fmt.Errorf("getFileInfoData: failed to get fileInfoData from file-cache for %q: %w", object.Name, util.ErrInvalidFileHandle)
+	}
+
+	return &fileInfoData, nil
+}
+
+// validateEntryInFileInfoCache checks if entry is present for a given object in
+// file info cache with same generation and at least requiredOffset.
+// It returns nil if entry is present, otherwise returns an appropriate error.
+// Whether to change the order in cache while lookup is controlled via
+// changeCacheOrder.
+func (fch *CacheHandle) validateEntryInFileInfoCache(bucket gcs.Bucket, object *gcs.MinObject, requiredOffset uint64, changeCacheOrder bool) error {
+	fileInfoData, err := fch.getFileInfoData(bucket, object, changeCacheOrder)
+	if err != nil {
+		return fmt.Errorf("validateEntryInFileInfoCache: failed to get fileInfoData for %q: %w", object.Name, err)
+	}
 	if fileInfoData.ObjectGeneration != object.Generation {
 		return fmt.Errorf("%w: generation of cached object: %v is different from required generation: %v", util.ErrInvalidFileInfoCache, fileInfoData.ObjectGeneration, object.Generation)
 	}
@@ -140,6 +156,23 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 
 	if offset < 0 || offset >= int64(object.Size) {
 		return 0, false, fmt.Errorf("wrong offset requested: %d, object size: %d", offset, object.Size)
+	}
+
+	fileInfoData, errFileInfo := fch.getFileInfoData(bucket, object, false)
+	if errFileInfo != nil {
+		return 0, false, fmt.Errorf("%w Error in getCachedFileInfo: %v", util.ErrInvalidFileInfoCache, errFileInfo)
+	}
+
+	// New check to ensure we bail out early in case the requested read-offset is beyond the cached size for an unfinalized object.
+	// If the end-offset is within the cached size, then the read will be served from the cache.
+	// If offset is within the cached size and end-offset is beyond the cached-size, then
+	// we will fallback to GCS in the later logic, but we should still create the cache download job even in that case.
+	//
+	// Note: Change the below check to `(offset + len(dst)) > int64(fileInfoData.FileSize))` if the below
+	// check causes a problem in any edge-case.
+	if bucket.BucketType().Zonal && object.IsUnfinalized() && offset >= int64(fileInfoData.FileSize) {
+		err = util.ErrFallbackToGCS
+		return
 	}
 
 	// Checking before updating the previous offset.
@@ -198,7 +231,7 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 		// If fileDownloadJob is nil then it means either the job is successfully
 		// completed or failed. The offset must be equal to size of object for job
 		// to be completed.
-		err = fch.validateEntryInFileInfoCache(bucket, object, object.Size, false)
+		err = fch.validateEntryInFileInfoCache(bucket, object, fileInfoData.FileSize, false)
 		if err != nil {
 			return 0, false, err
 		}

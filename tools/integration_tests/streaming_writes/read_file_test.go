@@ -17,8 +17,8 @@ package streaming_writes
 import (
 	"path"
 
-	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
+	. "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -30,7 +30,7 @@ func (t *StreamingWritesSuite) TestReadFileAfterSync() {
 	// Sync File to ensure buffers are flushed to GCS.
 	operations.SyncFile(t.f1, t.T())
 
-	t.validateReadCall(t.f1.Name())
+	t.validateReadCall(t.f1, t.data)
 
 	// Close the file and validate that the file is created on GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, t.data, t.T())
@@ -41,10 +41,22 @@ func (t *StreamingWritesSuite) TestReadBeforeFileIsFlushed() {
 	operations.WriteAt(t.data, 0, t.f1, t.T())
 
 	// Try to read the file.
-	t.validateReadCall(t.filePath)
+	t.validateReadCall(t.f1, t.data)
 
 	// Validate if correct content is uploaded to GCS after read error.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, t.data, t.T())
+}
+
+func (t *StreamingWritesSuite) TestReadBeforeSyncThenWriteAgainAndRead() {
+	// Write data to file.
+	operations.WriteAt(t.data, 0, t.f1, t.T())
+
+	t.validateReadCall(t.f1, t.data)
+
+	operations.WriteAt(t.data, int64(len(t.data)), t.f1, t.T())
+	t.validateReadCall(t.f1, t.data+t.data)
+	// Validate if correct content is uploaded to GCS after read.
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, t.data+t.data, t.T())
 }
 
 func (t *StreamingWritesSuite) TestReadAfterFlush() {

@@ -26,17 +26,17 @@ import (
 	"testing/iotest"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/common"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/gcsfuse_errors"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	testutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/jacobsa/fuse/fuseops"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
@@ -152,9 +152,13 @@ type RandomReaderTest struct {
 	cacheDir     string
 	jobManager   *downloader.JobManager
 	cacheHandler *file.CacheHandler
+	bucketType   gcs.BucketType
 }
 
-func init() { RegisterTestSuite(&RandomReaderTest{}) }
+func init() {
+	RegisterTestSuite(&RandomReaderTest{bucketType: gcs.BucketType{}})
+	RegisterTestSuite(&RandomReaderTest{bucketType: gcs.BucketType{Zonal: true, Hierarchical: true}})
+}
 
 var _ SetUpInterface = &RandomReaderTest{}
 var _ TearDownInterface = &RandomReaderTest{}
@@ -178,7 +182,7 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, &cfg.FileCacheConfig{
 		EnableCrc: false,
 	}, common.NewNoopMetrics())
-	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
+	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "")
 
 	// Set up the reader.
 	rr := NewRandomReader(t.object, t.bucket, sequentialReadSizeInMb, nil, false, common.NewNoopMetrics(), nil, nil)
@@ -232,7 +236,7 @@ func (t *RandomReaderTest) NoExistingReader() {
 	// The bucket should be called to set up a new reader.
 	ExpectCall(t.bucket, "NewReaderWithReadHandle")(Any(), Any()).
 		WillOnce(Return(nil, errors.New("")))
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(gcs.BucketType{}))
+	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
 	buf := make([]byte, 1)
 
 	_, err := t.rr.ReadAt(buf, 0)
@@ -266,7 +270,7 @@ func (t *RandomReaderTest) ExistingReader_ReadAtOffsetAfterTheReaderPosition() {
 func (t *RandomReaderTest) NewReaderReturnsError() {
 	ExpectCall(t.bucket, "NewReaderWithReadHandle")(Any(), Any()).
 		WillOnce(Return(nil, errors.New("taco")))
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(gcs.BucketType{}))
+	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
 	buf := make([]byte, 1)
 
 	_, err := t.rr.ReadAt(buf, 0)
@@ -282,7 +286,7 @@ func (t *RandomReaderTest) ReaderFails() {
 
 	ExpectCall(t.bucket, "NewReaderWithReadHandle")(Any(), Any()).
 		WillOnce(Return(rc, nil))
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(gcs.BucketType{}))
+	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
 
 	// Call
 	buf := make([]byte, 3)
@@ -438,7 +442,7 @@ func (t *RandomReaderTest) UpgradesReadsToObjectSize() {
 		Any(),
 		AllOf(rangeStartIs(1), rangeLimitIs(objectSize))).
 		WillOnce(Return(rc, nil))
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(gcs.BucketType{}))
+	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
 
 	// Call through.
 	buf := make([]byte, readSize)
@@ -468,6 +472,7 @@ func (t *RandomReaderTest) UpgradeReadsToAverageSize() {
 	t.rr.wrapped.cancel = func() {}
 	t.rr.wrapped.start = 2
 	t.rr.wrapped.limit = 5
+	t.rr.wrapped.expectedOffset = 2
 
 	// The bucket should be asked to read expectedBytesToRead bytes.
 	r := strings.NewReader(strings.Repeat("x", expectedBytesToRead))
@@ -479,7 +484,7 @@ func (t *RandomReaderTest) UpgradeReadsToAverageSize() {
 			rangeStartIs(start),
 			rangeLimitIs(start+expectedBytesToRead),
 		)).WillOnce(Return(rc, nil))
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(gcs.BucketType{}))
+	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
 
 	// Call through.
 	buf := make([]byte, readSize)
@@ -513,7 +518,7 @@ func (t *RandomReaderTest) UpgradesSequentialReads_ExistingReader() {
 		Any(),
 		AllOf(rangeStartIs(1), rangeLimitIs(1+sequentialReadSizeInBytes))).
 		WillOnce(Return(rc, nil))
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(gcs.BucketType{}))
+	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
 
 	// Call through.
 	buf := make([]byte, readSize)
@@ -548,7 +553,7 @@ func (t *RandomReaderTest) UpgradesSequentialReads_NoExistingReader() {
 		Any(),
 		AllOf(rangeStartIs(1), rangeLimitIs(1+readSize))).
 		WillOnce(Return(rc, nil))
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(gcs.BucketType{}))
+	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
 
 	// Call through.
 	buf := make([]byte, readSize)
@@ -571,6 +576,7 @@ func (t *RandomReaderTest) Test_ReadAt_SequentialFullObject() {
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, objectSize, rd)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
+	ExpectCall(t.bucket, "BucketType")().WillRepeatedly(Return(t.bucketType))
 	buf := make([]byte, objectSize)
 	objectData, err := t.rr.ReadAt(buf, 0)
 	ExpectFalse(objectData.CacheHit)
@@ -591,6 +597,7 @@ func (t *RandomReaderTest) Test_ReadAt_SequentialRangeRead() {
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, objectSize, rd)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
+	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
 	start := 0
 	end := 10 // not included
 	AssertLt(end, objectSize)
@@ -611,6 +618,7 @@ func (t *RandomReaderTest) Test_ReadAt_SequentialSubsequentReadOffsetLessThanRea
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, objectSize, rd)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
+	ExpectCall(t.bucket, "BucketType")().WillRepeatedly(Return(t.bucketType))
 	start1 := 0
 	end1 := util.MiB // not included
 	AssertLt(end1, objectSize)
@@ -642,7 +650,7 @@ func (t *RandomReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenCache
 	rc := &fake.FakeReader{ReadCloser: getReadCloser(testContent[start:])}
 	t.mockNewReaderWithHandleCallForTestBucket(uint64(start), objectSize, rc)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
-	ExpectCall(t.bucket, "BucketType")().WillRepeatedly(Return(gcs.BucketType{}))
+	ExpectCall(t.bucket, "BucketType")().WillRepeatedly(Return(t.bucketType))
 	buf := make([]byte, end-start)
 	objectData, err := t.rr.ReadAt(buf, int64(start))
 	ExpectFalse(objectData.CacheHit)
@@ -673,7 +681,7 @@ func (t *RandomReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenCache
 	// Mock for download job's NewReader call
 	t.mockNewReaderWithHandleCallForTestBucket(0, objectSize, rd1)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(gcs.BucketType{}))
+	ExpectCall(t.bucket, "BucketType")().WillRepeatedly(Return(t.bucketType))
 	buf := make([]byte, end-start)
 
 	objectData, err := t.rr.ReadAt(buf, int64(start))
@@ -694,7 +702,7 @@ func (t *RandomReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffsetMor
 	// Mock for download job's NewReader call
 	t.mockNewReaderWithHandleCallForTestBucket(0, objectSize, rd)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(gcs.BucketType{}))
+	ExpectCall(t.bucket, "BucketType")().WillRepeatedly(Return(t.bucketType))
 	start1 := 0
 	end1 := util.MiB // not included
 	AssertLt(end1, objectSize)
@@ -727,7 +735,7 @@ func (t *RandomReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffsetLes
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, objectSize, rd)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(gcs.BucketType{}))
+	ExpectCall(t.bucket, "BucketType")().WillRepeatedly(Return(t.bucketType))
 	start1 := 0
 	end1 := util.MiB // not included
 	AssertLt(end1, objectSize)
@@ -765,7 +773,7 @@ func (t *RandomReaderTest) Test_ReadAt_CacheMissDueToInvalidJob() {
 	rc1 := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, objectSize, rc1)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(gcs.BucketType{}))
+	ExpectCall(t.bucket, "BucketType")().WillRepeatedly(Return(t.bucketType))
 	buf := make([]byte, objectSize)
 	objectData, err := t.rr.ReadAt(buf, 0)
 	AssertEq(nil, err)
@@ -799,7 +807,7 @@ func (t *RandomReaderTest) Test_ReadAt_CachePopulatedAndThenCacheMissDueToInvali
 	rd1 := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, objectSize, rd1)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(gcs.BucketType{}))
+	ExpectCall(t.bucket, "BucketType")().WillRepeatedly(Return(t.bucketType))
 	buf := make([]byte, objectSize)
 	objectData, err := t.rr.ReadAt(buf, 0)
 	AssertEq(nil, err)
@@ -839,7 +847,7 @@ func (t *RandomReaderTest) Test_ReadAt_CachePopulatedAndThenCacheMissDueToInvali
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, objectSize, rd)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(gcs.BucketType{}))
+	ExpectCall(t.bucket, "BucketType")().WillRepeatedly(Return(t.bucketType))
 	buf := make([]byte, objectSize)
 	objectData, err := t.rr.ReadAt(buf, 0)
 	AssertEq(nil, err)
@@ -875,6 +883,7 @@ func (t *RandomReaderTest) Test_ReadAt_IfCacheFileGetsDeleted() {
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, objectSize, rd)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
+	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
 	buf := make([]byte, objectSize)
 	objectData, err := t.rr.ReadAt(buf, 0)
 	AssertEq(nil, err)
@@ -906,6 +915,7 @@ func (t *RandomReaderTest) Test_ReadAt_IfCacheFileGetsDeletedWithCacheHandleOpen
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, objectSize, rd)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
+	ExpectCall(t.bucket, "BucketType")().WillRepeatedly(Return(t.bucketType))
 	buf := make([]byte, objectSize)
 	objectData, err := t.rr.ReadAt(buf, 0)
 	AssertEq(nil, err)
@@ -939,7 +949,7 @@ func (t *RandomReaderTest) Test_ReadAt_FailedJobRestartAndCacheHit() {
 	ExpectCall(t.bucket, "NewReaderWithReadHandle")(Any(), Any()).
 		WillOnce(Return(nil, errors.New(""))).WillRepeatedly(Return(rc, nil))
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(gcs.BucketType{}))
+	ExpectCall(t.bucket, "BucketType")().WillRepeatedly(Return(t.bucketType))
 	buf := make([]byte, objectSize)
 	objectData, err := t.rr.ReadAt(buf, 0)
 	AssertEq(nil, err)
@@ -975,6 +985,7 @@ func (t *RandomReaderTest) Test_tryReadingFromFileCache_CacheHit() {
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, objectSize, rd)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
+	ExpectCall(t.bucket, "BucketType")().WillRepeatedly(Return(t.bucketType))
 	buf := make([]byte, objectSize)
 	// First read will be a cache miss.
 	_, cacheHit, err := t.rr.wrapped.tryReadingFromFileCache(t.rr.ctx, buf, 0)
@@ -1011,6 +1022,7 @@ func (t *RandomReaderTest) Test_ReadAt_OffsetEqualToObjectSize() {
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, objectSize, rd)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
+	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
 	start1 := 0
 	end1 := util.MiB // equal to objectSize
 	// First call from offset 0 - objectSize
@@ -1047,6 +1059,7 @@ func (t *RandomReaderTest) Test_Destroy_NonNilCacheHandle() {
 	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, objectSize, rd)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
+	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
 	buf := make([]byte, objectSize)
 	_, cacheHit, err := t.rr.wrapped.tryReadingFromFileCache(t.rr.ctx, buf, 0)
 	AssertFalse(cacheHit)

@@ -21,9 +21,9 @@ import (
 	"strings"
 
 	"github.com/go-viper/mapstructure/v2"
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/common"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -155,10 +155,10 @@ func convertToPosixArgs(args []string, c *cobra.Command) []string {
 var ExecuteMountCmd = func() {
 	rootCmd, err := newRootCmd(Mount)
 	if err != nil {
-		log.Fatalf("Error occurred while creating the root command: %v", err)
+		log.Fatalf("Error occurred while creating the root command on gcsfuse/%s: %v", common.GetVersion(), err)
 	}
 	rootCmd.SetArgs(convertToPosixArgs(os.Args, rootCmd))
 	if err := rootCmd.Execute(); err != nil {
-		log.Fatalf("Error occurred during command execution: %v", err)
+		log.Fatalf("Error occurred during command execution on gcsfuse/%s: %v", common.GetVersion(), err)
 	}
 }

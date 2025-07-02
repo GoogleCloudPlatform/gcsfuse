@@ -21,10 +21,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -410,6 +410,7 @@ func (testSuite *BufferedWriteTest) TestTruncateWithLesserSize() {
 	err := testSuite.bwh.Truncate(2)
 
 	assert.Error(testSuite.T(), err)
+	assert.Equal(testSuite.T(), ErrOutOfOrderWrite, err)
 }
 
 func (testSuite *BufferedWriteTest) TestTruncateWithSizeGreaterThanCurrentObjectSize() {

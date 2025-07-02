@@ -24,10 +24,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
 	promclient "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
 	"github.com/stretchr/testify/assert"
@@ -231,6 +231,7 @@ func (testSuite *PromTest) TestReadMetrics() {
 	_, err := os.ReadFile(path.Join(testSuite.mountPoint, "hello/hello.txt"))
 
 	require.NoError(testSuite.T(), err)
+	assertNonZeroCountMetric(testSuite, "file_cache_read_bytes_count", "read_type", "Sequential")
 	assertNonZeroCountMetric(testSuite, "file_cache_read_count", "cache_hit", "false")
 	assertNonZeroCountMetric(testSuite, "file_cache_read_count", "read_type", "Sequential")
 	assertNonZeroHistogramMetric(testSuite, "file_cache_read_latencies", "cache_hit", "false")
@@ -244,7 +245,7 @@ func (testSuite *PromTest) TestReadMetrics() {
 	assertNonZeroCountMetric(testSuite, "gcs_download_bytes_count", "", "")
 	assertNonZeroCountMetric(testSuite, "gcs_read_bytes_count", "", "")
 	assertNonZeroHistogramMetric(testSuite, "gcs_request_latencies", "gcs_method", "NewReader")
-	//TODO: file_cache_read_bytes_count should be added once with waitForDownload is true same as sequential for default pd,
+	assertNonZeroHistogramMetric(testSuite, "gcs_request_latencies", "gcs_method", "NewReader")
 }
 
 func TestPromOTELSuite(t *testing.T) {

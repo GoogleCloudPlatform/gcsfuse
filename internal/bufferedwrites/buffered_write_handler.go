@@ -20,9 +20,9 @@ import (
 	"math"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/block"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -105,6 +105,10 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 	if err != nil {
 		return
 	}
+	var size int64
+	if req.Object != nil {
+		size = int64(req.Object.Size)
+	}
 
 	bwh = &bufferedWriteHandlerImpl{
 		current:   nil,
@@ -118,7 +122,7 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 			BlockSize:                req.BlockSize,
 			ChunkTransferTimeoutSecs: req.ChunkTransferTimeoutSecs,
 		}),
-		totalSize:     0,
+		totalSize:     size,
 		mtime:         time.Now(),
 		truncatedSize: -1,
 	}
@@ -161,7 +165,7 @@ func (wh *bufferedWriteHandlerImpl) appendBuffer(data []byte) (err error) {
 		remainingBlockSize := float64(wh.blockPool.BlockSize()) - float64(wh.current.Size())
 		pendingDataForWrite := float64(len(data)) - float64(dataWritten)
 		bytesToCopy := int(math.Min(remainingBlockSize, pendingDataForWrite))
-		err := wh.current.Write(data[dataWritten : dataWritten+bytesToCopy])
+		_, err := wh.current.Write(data[dataWritten : dataWritten+bytesToCopy])
 		if err != nil {
 			return err
 		}
@@ -260,7 +264,7 @@ func (wh *bufferedWriteHandlerImpl) SetMtime(mtime time.Time) {
 
 func (wh *bufferedWriteHandlerImpl) Truncate(size int64) error {
 	if size < wh.totalSize {
-		return fmt.Errorf("cannot truncate to lesser size when upload is in progress")
+		return ErrOutOfOrderWrite
 	}
 
 	wh.truncatedSize = size

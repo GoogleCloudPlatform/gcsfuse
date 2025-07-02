@@ -21,8 +21,8 @@ import (
 	"time"
 
 	storagev2 "cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
 
@@ -375,4 +375,8 @@ func (b *debugBucket) NewMultiRangeDownloader(
 		wrapped:   mrd,
 	}
 	return
+}
+
+func (b *debugBucket) GCSName(obj *gcs.MinObject) string {
+	return obj.Name
 }

@@ -18,7 +18,7 @@ import (
 	"math"
 	"net/url"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
 
 // isSet interface is abstraction over the IsSet() method of viper, specially

@@ -18,9 +18,9 @@ import (
 	"os"
 	"path"
 
-	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	. "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -34,7 +34,9 @@ func (t *StreamingWritesSuite) TestCreateSymlinkForLocalFileAndReadFromSymlink()
 	operations.VerifyReadLink(t.filePath, symlink, t.T())
 
 	// Validate read file from symlink.
-	t.validateReadCall(symlink)
+	symlink_fh := operations.OpenFile(symlink, t.T())
+	defer operations.CloseFileShouldNotThrowError(t.T(), symlink_fh)
+	t.validateReadCall(symlink_fh, t.data)
 
 	// Close the file and validate that the file is created on GCS.
 	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, t.data, t.T())
@@ -50,7 +52,9 @@ func (t *StreamingWritesSuite) TestReadingFromSymlinkForDeletedLocalFile() {
 	operations.VerifyReadLink(t.filePath, symlink, t.T())
 
 	// Validate read from symlink.
-	t.validateReadCall(symlink)
+	symlink_fh := operations.OpenFile(symlink, t.T())
+	defer operations.CloseFileShouldNotThrowError(t.T(), symlink_fh)
+	t.validateReadCall(symlink_fh, t.data)
 
 	// Remove filePath and then close the fileHandle to avoid syncing to GCS.
 	operations.RemoveFile(t.filePath)

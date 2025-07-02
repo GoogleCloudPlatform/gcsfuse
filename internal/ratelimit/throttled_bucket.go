@@ -18,7 +18,7 @@ import (
 	"io"
 
 	storagev2 "cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
 
@@ -295,6 +295,10 @@ func (b *throttledBucket) NewMultiRangeDownloader(
 	// Call through.
 	mrd, err = b.wrapped.NewMultiRangeDownloader(ctx, req)
 	return
+}
+
+func (b *throttledBucket) GCSName(obj *gcs.MinObject) string {
+	return b.wrapped.GCSName(obj)
 }
 
 ////////////////////////////////////////////////////////////////////////

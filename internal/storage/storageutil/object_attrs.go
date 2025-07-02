@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
@@ -96,6 +96,7 @@ func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *gcs.Object {
 		StorageClass:       attrs.StorageClass,
 		Deleted:            attrs.Deleted,
 		Updated:            attrs.Updated,
+		Finalized:          attrs.Finalized,
 		ComponentCount:     attrs.ComponentCount,
 		ContentDisposition: attrs.ContentDisposition,
 		CustomTime:         string(attrs.CustomTime.Format(time.RFC3339)),
@@ -122,6 +123,7 @@ func ObjectAttrsToMinObject(attrs *storage.ObjectAttrs) *gcs.MinObject {
 		Generation:      attrs.Generation,
 		MetaGeneration:  attrs.Metageneration,
 		Updated:         attrs.Updated,
+		Finalized:       attrs.Finalized,
 	}
 }
 
@@ -172,6 +174,7 @@ func ConvertObjToMinObject(o *gcs.Object) *gcs.MinObject {
 		Metadata:        o.Metadata,
 		ContentEncoding: o.ContentEncoding,
 		CRC32C:          o.CRC32C,
+		Finalized:       o.Finalized,
 	}
 }
 
@@ -209,6 +212,7 @@ func ConvertMinObjectAndExtendedObjectAttributesToObject(m *gcs.MinObject,
 		Generation:         m.Generation,
 		MetaGeneration:     m.MetaGeneration,
 		Updated:            m.Updated,
+		Finalized:          m.Finalized,
 		Metadata:           m.Metadata,
 		ContentEncoding:    m.ContentEncoding,
 		ContentType:        e.ContentType,
@@ -242,5 +246,6 @@ func ConvertMinObjectToObject(m *gcs.MinObject) *gcs.Object {
 		Metadata:        m.Metadata,
 		ContentEncoding: m.ContentEncoding,
 		CRC32C:          m.CRC32C,
+		Finalized:       m.Finalized,
 	}
 }

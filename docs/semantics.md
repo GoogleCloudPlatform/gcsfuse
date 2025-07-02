@@ -4,11 +4,71 @@
 
 Cloud Storage FUSE makes API calls to Cloud Storage to read an object directly, without downloading it to a local directory. A TCP connection is established, in which the entire object, or just portions as specified by the application/operating system via an offset, can be read back.
 
-Files that have not been modified are read portion by portion on demand. Cloud Storage FUSE uses a heuristic to detect when a file is being read sequentially, and will issue fewer, larger read requests to Cloud Storage in this case, increasing performance. 
+Files that have not been modified are read portion by portion on demand. Cloud Storage FUSE uses a heuristic to detect when a file is being read sequentially, and will issue fewer, larger read requests to Cloud Storage in this case, increasing performance.
 
 ## Writes
 
-### Default Write Path
+Starting with v3.0, streaming writes is the default write path. For more details, see the `With Streaming Writes`
+section below. You can revert to the previous default write path (staging writes to a temporary file on disk) using the
+`--enable-streaming-writes=false` flag or `write:enable-streaming-writes: false` in the config file.
+
+### Streaming Writes - Default Write Path
+
+Starting with version 2.9.1, and becoming the default in v3.0.0, GCSFuse supports streaming-writes, which is a new write
+path that uploads data directly to Google Cloud Storage (GCS) as it's written without fully staging the file in the
+temp-dir. This reduces both latency and disk space usage, making it particularly beneficial for large, sequential writes
+such as checkpoints. Streaming writes can be enabled using `--enable-streaming-writes` flag or
+`write:enable-streaming-writes:true` in the config file (Default starting GCSFuse v3.0.0).
+
+**Memory Usage:** Each file opened for streaming writes will consume
+approximately 64MiB of RAM during the upload process. This memory is released
+when the file handle is closed. This should be considered when planning resource
+allocation for applications using streaming writes.
+
+Memory usage can be controlled using the `--write-global-max-blocks` flag or `write:global-max-blocks` config. The
+default value is 4 for low-spec machines and 1600 for high-spec machines. One block is used per file, which means that
+on low-spec machines, writes will automatically fall back to legacy staged writes if more than 4 files are concurrently
+opened for streaming writes.
+
+#### Note on Streaming Writes:
+
+- **New files, Sequential Writes:** Streaming writes are designed for sequential
+  writes to a new file only. Modifying existing files, or doing out-of-order
+  writes (whether from the same file handle or concurrent writes from multiple
+  file handles) will cause GCSFuse to automatically revert to the existing write
+  path of staging writes to a temporary file on disk. An informational log
+  message will be emitted when this fallback occurs.
+
+- **Concurrent Writes to the Same File:** While concurrent writes to the same
+  file are possible, they are not the primary use case for this initial phase of
+  streaming writes. If a (rare, often server-related) error occurs during
+  concurrent writes, all file handles must be closed before any future writes
+  can resume. This phase of streaming writes is optimized for single-stream
+  writes to new files, such as for AI/ML checkpointing.
+
+- **File System Semantics Change:**
+    - **FSync operation does not finalize the object:** When streaming writes
+      are enabled, the fsync operation will not finalize the object on GCS.
+      Instead, the object will be finalized only when the file is closed.
+      Only finalized objects are visible to the end user. This is a key
+      difference from the default non-streaming-writes behavior and should be considered when
+      using streaming writes. Relying on fsync for data durability with
+      streaming writes enabled is not recommended. Data is guaranteed to be
+      on GCS only after the file is closed.
+    - **Rename Operation Syncs the File:** Rename operation on a file undergoing
+      writes via streaming writes will be finalized and then renamed. This means
+      that any follow up writes will automatically revert to the existing
+      behavior of staging writes to a temporary file on disk.
+    - **Read Operations During Write:** Reads are now supported on files that are being
+      written to with streaming writes. However, performing a read operation will finalize the object on GCS. Any
+      subsequent write operations to that file will then automatically revert to legacy staged writes. Applications should
+      generally avoid reading from a file while it is being written to using streaming writes, as this will prematurely
+      finalize the object.
+    - **Truncate During Writes:** If a file is truncated downwards using truncate() or ftruncate() while streaming
+      writes
+      are in progress, the file on GCS is finalized, and any subsequent writes revert to legacy staged writes.
+
+### Staged Writes - Legacy Write Path
 
 Files are written locally as a temporary file (temp-file for short) whose
 location is controlled by the flag `--temp-dir`. Upon closing or fsyncing
@@ -46,61 +106,6 @@ when writing large files.
   does not have enough free space available, then you will get 'out of space'
   error. Then the temp-file will not be deleted until you do an fsync for that
   file, or unmount the bucket.
-
-### With Streaming Writes
-
-Starting with version 2.9.1, GCSFuse supports streaming-writes, which is a new
-write
-path that uploads data directly to Google Cloud Storage (GCS) as it's written
-without fully staging the file in the temp-dir. This reduces both latency and
-disk space usage, making it particularly beneficial for large, sequential writes
-such as checkpoints. Streaming writes can be enabled using
-`--enable-streaming-writes` flag or `write:enable-streaming-writes:true` in the
-config file.
-
-**Memory Usage:** Each file opened for streaming writes will consume
-approximately 64MB of RAM during the upload process. This memory is released
-when the file handle is closed. This should be considered when planning resource
-allocation for applications using streaming writes.
-
-#### Note on Streaming Writes:
-
-- **New files, Sequential Writes:** Streaming writes are designed for sequential
-  writes to a new file only. Modifying existing files, or doing out-of-order 
-  writes (whether from the same file handle or concurrent writes from multiple 
-  file handles) will cause GCSFuse to automatically revert to the existing write
-  path of staging writes to a temporary file on disk. An informational log
-  message will be emitted when this fallback occurs.
-
-- **Concurrent Writes to the Same File:** While concurrent writes to the same
-  file are possible, they are not the primary use case for this initial phase of
-  streaming writes. If a (rare, often server-related) error occurs during
-  concurrent writes, all file handles must be closed before any future writes
-  can resume. This phase of streaming writes is optimized for single-stream
-  writes to new files, such as for AI/ML checkpointing.
-
-- **File System Semantics Change:**
-    - **FSync operation does not finalize the object:** When streaming writes
-      are enabled, the fsync operation will not finalize the object on GCS.
-      Instead, the object will be finalized only when the file is closed. 
-      Only finalized objects are visible to the end user. This is a key 
-      difference from the default non-streaming-writes behavior and should be considered when 
-      using streaming writes. Relying on fsync for data durability with
-      streaming writes enabled is not recommended. Data is guaranteed to be
-      on GCS only after the file is closed.
-    - **Rename Operation Syncs the File:** Rename operation on a file undergoing
-      writes via streaming writes will be finalized and then renamed. This means
-      that any follow up writes will automatically revert to the existing
-      behavior of staging writes to a temporary file on disk.
-    - **Read Operations During Write:** Today the application can read the data
-      when the writes are in progress for that file. With buffered writes, the
-      application will not be able to read the file until the corresponding GCS 
-      object is finalized i.e., fclose() is called. Applications should not read from a file while it is being written to 
-      using streaming writes.
-    - **Write Stalls and Chunk Uploads:** Streaming writes do not currently
-      implement chunk-level timeouts or retries. Write operations may stall, and
-      chunk uploads that encounter errors will eventually fail after the default
-      32-second deadline.
 
 ___
 
@@ -177,10 +182,12 @@ The behavior of stat cache is controlled by the following flags/config parameter
    
    Positive and negative stat results will be cached for the specified amount of time.
 
-Warning: Using stat caching breaks the consistency guarantees discussed in this document. It is safe only in the following situations:
-- The mounted bucket is never modified.
-- The mounted bucket is only modified on a single machine, via a single Cloud Storage FUSE mount.
-- The mounted bucket is modified by multiple actors, but the user is confident that they don't need the guarantees discussed in this document.
+Warnings: 
+- Using stat caching breaks the consistency guarantees discussed in this document. It is safe only in the following situations:
+  - The mounted bucket is never modified.
+  - The mounted bucket is only modified on a single machine, via a single Cloud Storage FUSE mount.
+  - The mounted bucket is modified by multiple actors, but the user is confident that they don't need the guarantees discussed in this document.
+- On high performance machines GCSFuse sets TTL to infinite by default ([refer](https://cloud.google.com/storage/docs/cloud-storage-fuse/caching#cache-invalidation)). Please override it manually if your workload requires consistency guarantees.
 
 ## Type caching
 

@@ -21,7 +21,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
 	"github.com/jacobsa/fuse/fsutil"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"

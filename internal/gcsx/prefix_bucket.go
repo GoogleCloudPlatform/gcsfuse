@@ -19,7 +19,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
 
@@ -134,7 +134,12 @@ func (b *prefixBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs
 }
 
 func (b *prefixBucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (o *gcs.MinObject, err error) {
-	return b.wrapped.FlushPendingWrites(ctx, w)
+	o, err = b.wrapped.FlushPendingWrites(ctx, w)
+	// Modify the returned object.
+	if o != nil {
+		o.Name = b.localName(o.Name)
+	}
+	return
 }
 
 func (b *prefixBucket) CopyObject(
@@ -321,4 +326,8 @@ func (b *prefixBucket) NewMultiRangeDownloader(
 
 	mrd, err = b.wrapped.NewMultiRangeDownloader(ctx, mReq)
 	return
+}
+
+func (b *prefixBucket) GCSName(object *gcs.MinObject) string {
+	return b.wrappedName(b.wrapped.GCSName(object))
 }

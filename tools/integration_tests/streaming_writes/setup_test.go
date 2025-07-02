@@ -21,9 +21,9 @@ import (
 	"testing"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
 
 const (
@@ -66,9 +66,9 @@ func TestMain(m *testing.M) {
 
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
-		{"--rename-dir-limit=3", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=2", "--write-global-max-blocks=0"},
-		{"--rename-dir-limit=3", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=2", "--client-protocol=grpc"},
-		{"--rename-dir-limit=3", "--enable-streaming-writes=true", "--write-block-size-mb=1", "--write-max-blocks-per-file=2"},
+		{"--rename-dir-limit=3", "--write-block-size-mb=1", "--write-max-blocks-per-file=2", "--write-global-max-blocks=0"},
+		{"--rename-dir-limit=3", "--write-block-size-mb=1", "--write-max-blocks-per-file=2", "--client-protocol=grpc", "--write-global-max-blocks=-1"},
+		{"--rename-dir-limit=3", "--write-block-size-mb=1", "--write-max-blocks-per-file=2", "--write-global-max-blocks=-1"},
 	}
 
 	log.Println("Running static mounting tests...")

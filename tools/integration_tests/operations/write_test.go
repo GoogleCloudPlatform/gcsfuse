@@ -25,11 +25,11 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
 
 const tempFileName = "tmpFile"
@@ -108,15 +108,7 @@ func validateObjectAttributes(attr1, attr2 *storage.ObjectAttrs, t *testing.T) {
 		}
 	}
 	if attr1.StorageClass != storageClass || attr2.StorageClass != storageClass {
-		if setup.IsZonalBucketRun() {
-			if attr1.StorageClass != attr2.StorageClass {
-				t.Errorf("Expected storage classes to be same (%q) for both, but found attr1.StorageClass = %q (bucketName = %q) != attr2.StorageClass = %q (bucketName = %q)", storageClass, attr1.StorageClass, attr1.Bucket, attr2.StorageClass, attr2.Bucket)
-			} else {
-				t.Logf("Expected storage class to be %q for both, but found StorageClass = %q for both (buckets = %q, %q).", storageClass, attr1.StorageClass, attr1.Bucket, attr2.Bucket)
-			}
-		} else {
-			t.Errorf("Expected storage class to be %q, but found attr1.StorageClass = %q (bucketName = %q), attr2.StorageClass = %q (bucketName = %q)", storageClass, attr1.StorageClass, attr1.Bucket, attr2.StorageClass, attr2.Bucket)
-		}
+		t.Errorf("Expected storage class to be %q, but found attr1.StorageClass = %q (bucketName = %q), attr2.StorageClass = %q (bucketName = %q)", storageClass, attr1.StorageClass, attr1.Bucket, attr2.StorageClass, attr2.Bucket)
 	}
 	attr1MTime, _ := time.Parse(time.RFC3339Nano, attr1.Metadata[gcs.MtimeMetadataKey])
 	attr2MTime, _ := time.Parse(time.RFC3339Nano, attr2.Metadata[gcs.MtimeMetadataKey])
@@ -228,7 +220,7 @@ func TestWriteAtFileOperationsDoesNotChangeObjectAttributes(t *testing.T) {
 	// Over-write the file.
 	fh, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, operations.FilePermission_0600)
 	if err != nil {
-		t.Errorf("Could not open file %s after creation.", fileName)
+		t.Fatalf("Could not open file %s after creation.", fileName)
 	}
 	operations.WriteAt(tempFileContent+appendContent, 0, fh, t)
 	operations.CloseFileShouldNotThrowError(t, fh)

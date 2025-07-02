@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -43,6 +43,13 @@ func validFileCacheConfig(t *testing.T) FileCacheConfig {
 		WriteBufferSize:          4 * 1024 * 1024,
 		EnableODirect:            true,
 	}
+}
+
+func validFileCacheConfigWithExcludeRegex(t *testing.T, r string) FileCacheConfig {
+	t.Helper()
+	cfg := validFileCacheConfig(t)
+	cfg.ExperimentalExcludeRegex = r
+	return cfg
 }
 
 func TestValidateConfigSuccessful(t *testing.T) {
@@ -170,6 +177,21 @@ func TestValidateConfigSuccessful(t *testing.T) {
 					MaxSizeMb:                -1,
 					WriteBufferSize:          4 * 1024 * 1024,
 				},
+				GcsConnection: GcsConnectionConfig{
+					CustomEndpoint:       "https://bing.com/search?q=dotnet",
+					SequentialReadSizeMb: 200,
+				},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "disabled",
+				},
+			},
+		},
+		{
+			name: "valid_file_cache_exclude_config",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				CacheDir:  "/some/valid/path",
+				FileCache: validFileCacheConfigWithExcludeRegex(t, ".*"),
 				GcsConnection: GcsConnectionConfig{
 					CustomEndpoint:       "https://bing.com/search?q=dotnet",
 					SequentialReadSizeMb: 200,
@@ -383,6 +405,13 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "disabled",
 				},
+			},
+		},
+		{
+			name: "file_cache_exclude_regex",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfigWithExcludeRegex(t, "["),
 			},
 		},
 		{
@@ -660,6 +689,69 @@ func TestValidateMetrics(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestValidateLogSeverityRanks(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		logSev         string
+		wantLogSevRank int
+		wantLogSev     LogSeverity
+		wantErr        bool
+	}{
+		{
+			logSev:         "off",
+			wantLogSevRank: 5,
+			wantLogSev:     OffLogSeverity,
+		},
+		{
+			logSev:         "error",
+			wantLogSevRank: 4,
+			wantLogSev:     ErrorLogSeverity,
+		},
+		{
+			logSev:         "warning",
+			wantLogSevRank: 3,
+			wantLogSev:     WarningLogSeverity,
+		},
+		{
+			logSev:         "info",
+			wantLogSevRank: 2,
+			wantLogSev:     InfoLogSeverity,
+		},
+		{
+			logSev:         "debug",
+			wantLogSevRank: 1,
+			wantLogSev:     DebugLogSeverity,
+		},
+		{
+			logSev:         "trace",
+			wantLogSevRank: 0,
+			wantLogSev:     TraceLogSeverity,
+		},
+		{
+			logSev:         "invalid",
+			wantLogSevRank: -1,
+			wantErr:        true,
+		},
+	}
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.logSev, func(t *testing.T) {
+			t.Parallel()
+			level := LogSeverity(tc.logSev)
+
+			err := level.UnmarshalText([]byte(tc.logSev))
+
+			if tc.wantErr {
+				assert.Error(t, err)
+				assert.Equal(t, -1, level.Rank())
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.wantLogSev.Rank(), level.Rank())
 			}
 		})
 	}

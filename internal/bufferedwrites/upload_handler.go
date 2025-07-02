@@ -25,9 +25,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/block"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
 
 // UploadHandler is responsible for synchronized uploads of the filled blocks
@@ -107,7 +107,16 @@ func (uh *UploadHandler) createObjectWriter() (err error) {
 	// (and context will be cancelled) by the time complete upload is done.
 	var ctx context.Context
 	ctx, uh.cancelFunc = context.WithCancel(context.Background())
-	uh.writer, err = uh.bucket.CreateObjectChunkWriter(ctx, req, int(uh.blockSize), nil)
+	if uh.bucket.BucketType().Zonal && (uh.obj != nil && uh.obj.Finalized.IsZero()) {
+		chunkWriterReq := gcs.CreateObjectChunkWriterRequest{
+			CreateObjectRequest: *req,
+			ChunkSize:           int(uh.blockSize),
+			Offset:              int64(uh.obj.Size),
+		}
+		uh.writer, err = uh.bucket.CreateAppendableObjectWriter(ctx, &chunkWriterReq)
+	} else {
+		uh.writer, err = uh.bucket.CreateObjectChunkWriter(ctx, req, int(uh.blockSize), nil)
+	}
 	return
 }
 
@@ -168,8 +177,7 @@ func (uh *UploadHandler) Finalize() (*gcs.MinObject, error) {
 
 func (uh *UploadHandler) ensureWriter() error {
 	if uh.writer == nil {
-		err := uh.createObjectWriter()
-		if err != nil {
+		if err := uh.createObjectWriter(); err != nil {
 			return fmt.Errorf("createObjectWriter failed for object %s: %w", uh.objectName, err)
 		}
 	}

@@ -23,9 +23,9 @@ import (
 	"testing"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
 )
 
 const ExplicitDirInImplicitDir = "explicitDirInImplicitDir"
@@ -36,10 +36,17 @@ const NumberOfFilesInExplicitDirInImplicitSubDir = 1
 const NumberOfFilesInExplicitDirInImplicitDir = 1
 const DirForImplicitDirTests = "dirForImplicitDirTests"
 
-var (
+// IMPORTANT: To prevent global variable pollution, enhance code clarity,
+// and avoid inadvertent errors. We strongly suggest that, all new package-level
+// variables (which would otherwise be declared with `var` at the package root) should
+// be added as fields to this 'env' struct instead.
+type env struct {
 	storageClient *storage.Client
 	ctx           context.Context
-)
+	testDirPath   string
+}
+
+var testEnv env
 
 func setupTestDir(dirName string) string {
 	dir := setup.SetupTestDirectory(DirForImplicitDirTests)
@@ -55,8 +62,8 @@ func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	// Create storage client before running tests.
-	ctx = context.Background()
-	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
+	testEnv.ctx = context.Background()
+	closeStorageClient := client.CreateStorageClientWithCancel(&testEnv.ctx, &testEnv.storageClient)
 	defer func() {
 		err := closeStorageClient()
 		if err != nil {
@@ -66,7 +73,7 @@ func TestMain(m *testing.M) {
 
 	flagsSet := [][]string{{"--implicit-dirs"}}
 
-	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
+	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(testEnv.ctx, testEnv.storageClient); err == nil {
 		flagsSet = append(flagsSet, hnsFlagSet)
 	}
 
@@ -77,6 +84,6 @@ func TestMain(m *testing.M) {
 	successCode := implicit_and_explicit_dir_setup.RunTestsForImplicitDirAndExplicitDir(flagsSet, m)
 
 	// Clean up test directory created.
-	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
+	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
 }

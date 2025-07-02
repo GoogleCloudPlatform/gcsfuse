@@ -27,10 +27,10 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
-	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
+	testutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	. "github.com/jacobsa/ogletest"
 )
 

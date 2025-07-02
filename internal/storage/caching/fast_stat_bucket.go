@@ -20,10 +20,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"golang.org/x/net/context"
 
 	"github.com/jacobsa/timeutil"
@@ -442,8 +442,7 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 	}
 
 	// Put the object in cache.
-	o := storageutil.ConvertMinObjectToObject(m)
-	b.insert(o)
+	b.insertMinObject(m)
 
 	return
 }
@@ -514,4 +513,8 @@ func (b *fastStatBucket) NewMultiRangeDownloader(
 	ctx context.Context, req *gcs.MultiRangeDownloaderRequest) (mrd gcs.MultiRangeDownloader, err error) {
 	mrd, err = b.wrapped.NewMultiRangeDownloader(ctx, req)
 	return
+}
+
+func (b *fastStatBucket) GCSName(obj *gcs.MinObject) string {
+	return b.wrapped.GCSName(obj)
 }

@@ -20,6 +20,8 @@ set -x
 gsutil cp  gs://gcsfuse-release-packages/version-detail/details.txt .
 # Writing VM instance name to details.txt (Format: release-test-<os-name>)
 vm_instance_name=$(curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google")
+# first line of details.txt contains the release version in the format MAJOR.MINOR.PATCH
+to_release_version=$(sed '1q' details.txt | tr -d '\n')
 echo $vm_instance_name >> details.txt
 touch ~/logs.txt
 
@@ -51,8 +53,8 @@ then
     fi
 
     sudo apt-get update
-    # Install latest released gcsfuse version
-    sudo apt-get install -y gcsfuse
+    # Install to be released gcsfuse version
+    sudo apt-get install -y gcsfuse="$to_release_version" >> ~/logs.txt
 else
 #  For rhel and centos
     sudo yum install fuse
@@ -72,20 +74,20 @@ repo_gpgcheck=0
 gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
       https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
 EOF
-sudo yum install -y gcsfuse
+sudo yum install -y gcsfuse-"$to_release_version" >> ~/logs.txt
 fi
 
 # Verify gcsfuse version (successful installation)
 gcsfuse --version |& tee version.txt
 installed_version=$(echo $(sed -n 1p version.txt) | cut -d' ' -f3)
 if grep -q $installed_version details.txt; then
-    echo "GCSFuse latest version installed correctly." &>> ~/logs.txt
+    echo "GCSFuse to be released version installed correctly." &>> ~/logs.txt
 else
-    echo "Failure detected in latest gcsfuse version installation." &>> ~/logs.txt
+    echo "Failure detected in to be released gcsfuse version installation." &>> ~/logs.txt
 fi
 
 
-# Uninstall gcsfuse latest version and install old version
+# Uninstall gcsfuse and install old version.
 if grep -q ubuntu details.txt || grep -q debian details.txt;
 then
   sudo apt-get remove -y gcsfuse |& tee -a ~/logs.txt
@@ -104,7 +106,7 @@ else
   echo "Failure detected in GCSFuse old version installation." &>> ~/logs.txt
 fi
 
-# Upgrade gcsfuse to latest version
+# Upgrade gcsfuse to latest version.
 if grep -q ubuntu details.txt || grep -q debian details.txt;
 then
     sudo apt-get install --only-upgrade gcsfuse |& tee -a ~/logs.txt
@@ -112,12 +114,19 @@ else
     sudo yum -y upgrade gcsfuse |& tee -a ~/logs.txt
 fi
 
+# Verify that gcsfuse has been upgraded to the to_be_released version using version comparison.
+# This is to ensure that the correct version is installed after the upgrade.
 gcsfuse --version |& tee version.txt
 installed_version=$(echo $(sed -n 1p version.txt) | cut -d' ' -f3)
-if grep -q $installed_version details.txt; then
-    echo "GCSFuse successfully upgraded to latest version $installed_version." &>> ~/logs.txt
+# The following command compares the two versions:
+# 1. `printf` outputs to_release_version and installed_version on a new line.
+# 2. `sort -V` sorts them naturally (version sort).
+# 3. `tail -n 1` gets the last line, which is the highest version.
+# The condition is true if installed_version is greater than or equal to to_release_version.
+if [[ "$(printf '%s\n%s\n' "$to_release_version" "$installed_version" | sort -V | tail -n 1)" == "$installed_version" ]]; then
+  echo "GCSFuse successfully upgraded to latest version: installed_version ($installed_version), to_release_version: ($to_release_version)" &>> ~/logs.txt
 else
-    echo "Failure detected in upgrading to latest gcsfuse version." &>> ~/logs.txt
+  echo "Failure detected in upgrading to latest gcsfuse version: installed_version ($installed_version), to_release_version: ($to_release_version)" &>> ~/logs.txt
 fi
 
 if grep -q Failure ~/logs.txt; then
@@ -128,4 +137,3 @@ else
 fi
 
 gsutil cp ~/logs.txt gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/installation-test/$(sed -n 3p details.txt)/
-

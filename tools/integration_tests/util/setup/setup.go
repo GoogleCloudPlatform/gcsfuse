@@ -24,6 +24,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -31,8 +32,10 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
+	"go.opentelemetry.io/contrib/detectors/gcp"
+	"go.opentelemetry.io/otel/sdk/resource"
 	"google.golang.org/api/iterator"
 )
 
@@ -43,6 +46,8 @@ var mountedDirectory = flag.String("mountedDirectory", "", "The GCSFuse mounted 
 var integrationTest = flag.Bool("integrationTest", false, "Run tests only when the flag value is true.")
 var testInstalledPackage = flag.Bool("testInstalledPackage", false, "[Optional] Run tests on the package pre-installed on the host machine. By default, integration tests build a new package to run the tests.")
 var testOnTPCEndPoint = flag.Bool("testOnTPCEndPoint", false, "Run tests on TPC endpoint only when the flag value is true.")
+var gcsfusePreBuiltDir = flag.String("gcsfuse_prebuilt_dir", "", "Path to the pre-built GCSFuse directory containing bin/gcsfuse and sbin/mount.gcsfuse.")
+var profileLabelForMountedDirTest = flag.String("profile_label", "", "To pass profile-label for the cloud-profile test.")
 
 const (
 	FilePermission_0600      = 0600
@@ -51,6 +56,8 @@ const (
 	PathEnvVariable          = "PATH"
 	GCSFuseLogFilePrefix     = "gcsfuse-failed-integration-test-logs-"
 	ProxyServerLogFilePrefix = "proxy-server-failed-integration-test-logs-"
+	zoneMatcherRegex         = "^[a-z]+-[a-z0-9]+-[a-z]$"
+	regionMatcherRegex       = "^[a-z]+-[a-z0-9]+$"
 )
 
 var (
@@ -145,6 +152,11 @@ func DynamicBucketMounted() string {
 	return dynamicBucketMounted
 }
 
+// ProfileLabelForMountedDirTest returns the profile-label required for cloud-profiler test package.
+func ProfileLabelForMountedDirTest() string {
+	return *profileLabelForMountedDirTest
+}
+
 // SetDynamicBucketMounted sets the name of the bucket in case of dynamic mount.
 func SetDynamicBucketMounted(dynamicBucketValue string) {
 	dynamicBucketMounted = dynamicBucketValue
@@ -168,7 +180,35 @@ func SetUpTestDir() error {
 		return fmt.Errorf("TempDir: %w", err)
 	}
 
-	if !TestInstalledPackage() {
+	// Order of priority to choose GCSFuse installation to run the tests
+	// 1. Installed package if explicitly asked to
+	// 2. Prebuilt GCSFuse dir if the said flag is passed
+	// 3. Build it yourself
+	if TestInstalledPackage() {
+		// when testInstalledPackage flag is set, gcsfuse is preinstalled on the
+		// machine. Hence, here we are overwriting binFile to gcsfuse.
+		log.Printf("Using GCSFuse installed on the target machine")
+		binFile = "gcsfuse"
+		sbinFile = "mount.gcsfuse"
+	} else if *gcsfusePreBuiltDir != "" {
+		prebuiltDir := *gcsfusePreBuiltDir
+		log.Printf("Using GCSFuse from pre-built directory specified by --gcsfuse_prebuilt_dir flag: %s", prebuiltDir)
+		binFile = filepath.Join(prebuiltDir, "bin/gcsfuse")
+		sbinFile = filepath.Join(prebuiltDir, "sbin/mount.gcsfuse")
+
+		if _, statErr := os.Stat(binFile); statErr != nil {
+			return fmt.Errorf("gcsfuse binary from --gcsfuse_prebuilt_dir not found at %s: %w", binFile, statErr)
+		}
+		if _, statErr := os.Stat(sbinFile); statErr != nil {
+			return fmt.Errorf("mount helper from --gcsfuse_prebuilt_dir not found at %s: %w", sbinFile, statErr)
+		}
+		// Set PATH to include the bin directory of the pre-built gcsfuse
+		err = os.Setenv(PathEnvVariable, filepath.Dir(binFile)+string(filepath.ListSeparator)+os.Getenv(PathEnvVariable))
+		if err != nil {
+			return fmt.Errorf("error setting PATH for --gcsfuse_prebuilt_dir: %v", err.Error())
+		}
+	} else {
+		log.Printf("Building GCSFuse from source in the dir: %s ...", testDir)
 		err = util.BuildGcsfuse(testDir)
 		if err != nil {
 			return fmt.Errorf("BuildGcsfuse(%q): %w", TestDir(), err)
@@ -181,14 +221,10 @@ func SetUpTestDir() error {
 		// Setting PATH so that executable is found in test directory.
 		err := os.Setenv(PathEnvVariable, path.Join(TestDir(), "bin")+string(filepath.ListSeparator)+os.Getenv(PathEnvVariable))
 		if err != nil {
-			log.Printf("Error in setting PATH environment variable: %v", err.Error())
+			return fmt.Errorf("error in setting PATH environment variable: %v", err.Error())
 		}
-	} else {
-		// when testInstalledPackage flag is set, gcsfuse is preinstalled on the
-		// machine. Hence, here we are overwriting binFile to gcsfuse.
-		binFile = "gcsfuse"
-		sbinFile = "mount.gcsfuse"
 	}
+
 	logFile = path.Join(TestDir(), "gcsfuse.log")
 	mntDir = path.Join(TestDir(), "mnt")
 
@@ -610,4 +646,39 @@ func CreateProxyServerLogFile(t *testing.T) string {
 
 func AppendProxyEndpointToFlagSet(flagSet *[]string, port int) {
 	*flagSet = append(*flagSet, "--custom-endpoint="+fmt.Sprintf("http://localhost:%d/storage/v1/", port))
+}
+
+// GetGCEZone returns the GCE zone of the current machine from
+// the GCP resource detector.
+func GetGCEZone(ctx context.Context) (string, error) {
+	detectedAttrs, err := resource.New(ctx, resource.WithDetectors(gcp.NewDetector()))
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch GCP resource detector: %w", err)
+	}
+	attrs := detectedAttrs.Set()
+	if zoneValue, exists := attrs.Value("cloud.availability_zone"); exists {
+		zone := zoneValue.AsString()
+		// Confirm that the zone string is in right format e.g. us-central1-a.
+		if match, err := regexp.MatchString(zoneMatcherRegex, zone); !match || err != nil {
+			return zone, fmt.Errorf("zone %q returned by GCP resource detector is not a valid zone-string: %w", zone, err)
+		}
+		return zone, nil
+	}
+	return "", fmt.Errorf("cloud.availability_zone not found in GCP resource detector")
+}
+
+// GetGCERegion return the GCE region for a given GCE zone.
+// E.g. from us-central1-a, it returns us-central1.
+func GetGCERegion(gceZone string) (string, error) {
+	indexOfLastHyphen := strings.LastIndex(gceZone, "-")
+	if indexOfLastHyphen < 0 {
+		return "", fmt.Errorf("input gceZone %q is not proper. It is expected to be of the form <country>-<region>-<zone> e.g. us-central1-a.", gceZone)
+	}
+	region := gceZone[:indexOfLastHyphen]
+
+	// Confirm that the region string is in right format e.g. us-central1.
+	if match, err := regexp.MatchString(regionMatcherRegex, region); !match || err != nil {
+		return region, fmt.Errorf("zone %q returned by GCE metadata server is not a valid zone-string: %w", region, err)
+	}
+	return region, nil
 }

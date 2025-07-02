@@ -24,7 +24,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )

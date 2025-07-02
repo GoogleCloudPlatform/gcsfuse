@@ -16,15 +16,14 @@ package cmd
 
 import (
 	"fmt"
-	"math"
 	"os"
 	"path"
 	"runtime"
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -193,8 +192,8 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 				Write: cfg.WriteConfig{
 					CreateEmptyFile:       false,
 					BlockSizeMb:           32 * util.MiB,
-					EnableStreamingWrites: false,
-					GlobalMaxBlocks:       math.MaxInt64,
+					EnableStreamingWrites: true,
+					GlobalMaxBlocks:       4,
 					MaxBlocksPerFile:      1},
 			},
 		},
@@ -658,7 +657,7 @@ func TestValidateConfigFile_MetadataCacheConfigSuccessful(t *testing.T) {
 					DeprecatedTypeCacheTtl:              60 * time.Second,
 					EnableNonexistentTypeCache:          false,
 					ExperimentalMetadataPrefetchOnMount: "disabled",
-					StatCacheMaxSizeMb:                  32,
+					StatCacheMaxSizeMb:                  33,
 					TtlSecs:                             60,
 					NegativeTtlSecs:                     5,
 					TypeCacheMaxSizeMb:                  4,
@@ -712,7 +711,7 @@ func TestValidateConfigFile_GCSRetries(t *testing.T) {
 					MaxRetrySleep:            30 * time.Second,
 					Multiplier:               2,
 					ReadStall: cfg.ReadStallGcsRetriesConfig{
-						Enable:              false,
+						Enable:              true,
 						MinReqTimeout:       1500 * time.Millisecond,
 						MaxReqTimeout:       1200 * time.Second,
 						InitialReqTimeout:   20 * time.Second,
@@ -732,7 +731,7 @@ func TestValidateConfigFile_GCSRetries(t *testing.T) {
 					MaxRetrySleep:            30 * time.Second,
 					Multiplier:               2,
 					ReadStall: cfg.ReadStallGcsRetriesConfig{
-						Enable:              true,
+						Enable:              false,
 						MinReqTimeout:       10 * time.Second,
 						MaxReqTimeout:       200 * time.Second,
 						InitialReqTimeout:   20 * time.Second,

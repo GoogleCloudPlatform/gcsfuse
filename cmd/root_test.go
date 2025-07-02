@@ -16,15 +16,14 @@ package cmd
 
 import (
 	"fmt"
-	"math"
 	"os"
 	"path"
 	"runtime"
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -262,33 +261,33 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 		expectedWriteMaxBlocksPerFile          int64
 	}{
 		{
-			name:                                   "Test create-empty-file flag true.",
-			args:                                   []string{"gcsfuse", "--create-empty-file=true", "abc", "pqr"},
+			name:                                   "Test create-empty-file flag true works when streaming writes are explicitly disabled.",
+			args:                                   []string{"gcsfuse", "--create-empty-file=true", "--enable-streaming-writes=false", "abc", "pqr"},
 			expectedCreateEmptyFile:                true,
 			expectedEnableStreamingWrites:          false,
 			expectedExperimentalEnableRapidAppends: false,
 			expectedWriteBlockSizeMB:               32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:           math.MaxInt64,
+			expectedWriteGlobalMaxBlocks:           4,
 			expectedWriteMaxBlocksPerFile:          1,
 		},
 		{
 			name:                                   "Test create-empty-file flag false.",
 			args:                                   []string{"gcsfuse", "--create-empty-file=false", "abc", "pqr"},
 			expectedCreateEmptyFile:                false,
-			expectedEnableStreamingWrites:          false,
+			expectedEnableStreamingWrites:          true,
 			expectedExperimentalEnableRapidAppends: false,
 			expectedWriteBlockSizeMB:               32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:           math.MaxInt64,
+			expectedWriteGlobalMaxBlocks:           4,
 			expectedWriteMaxBlocksPerFile:          1,
 		},
 		{
 			name:                                   "Test default flags.",
 			args:                                   []string{"gcsfuse", "abc", "pqr"},
 			expectedCreateEmptyFile:                false,
-			expectedEnableStreamingWrites:          false,
+			expectedEnableStreamingWrites:          true,
 			expectedExperimentalEnableRapidAppends: false,
 			expectedWriteBlockSizeMB:               32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:           math.MaxInt64,
+			expectedWriteGlobalMaxBlocks:           4,
 			expectedWriteMaxBlocksPerFile:          1,
 		},
 		{
@@ -298,7 +297,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedEnableStreamingWrites:          true,
 			expectedExperimentalEnableRapidAppends: false,
 			expectedWriteBlockSizeMB:               32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:           math.MaxInt64,
+			expectedWriteGlobalMaxBlocks:           4,
 			expectedWriteMaxBlocksPerFile:          1,
 		},
 		{
@@ -308,17 +307,17 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedEnableStreamingWrites:          false,
 			expectedExperimentalEnableRapidAppends: false,
 			expectedWriteBlockSizeMB:               32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:           math.MaxInt64,
+			expectedWriteGlobalMaxBlocks:           4,
 			expectedWriteMaxBlocksPerFile:          1,
 		},
 		{
 			name:                                   "Test experimental-enable-rapid-appends flag true.",
 			args:                                   []string{"gcsfuse", "--write-experimental-enable-rapid-appends", "abc", "pqr"},
 			expectedCreateEmptyFile:                false,
-			expectedEnableStreamingWrites:          false,
+			expectedEnableStreamingWrites:          true,
 			expectedExperimentalEnableRapidAppends: true,
 			expectedWriteBlockSizeMB:               32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:           math.MaxInt64,
+			expectedWriteGlobalMaxBlocks:           4,
 			expectedWriteMaxBlocksPerFile:          1,
 		},
 		{
@@ -328,7 +327,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedEnableStreamingWrites:          true,
 			expectedExperimentalEnableRapidAppends: false,
 			expectedWriteBlockSizeMB:               10 * util.MiB,
-			expectedWriteGlobalMaxBlocks:           math.MaxInt64,
+			expectedWriteGlobalMaxBlocks:           4,
 			expectedWriteMaxBlocksPerFile:          1,
 		},
 		{
@@ -348,8 +347,26 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedEnableStreamingWrites:          true,
 			expectedExperimentalEnableRapidAppends: false,
 			expectedWriteBlockSizeMB:               32 * util.MiB,
-			expectedWriteGlobalMaxBlocks:           math.MaxInt64,
+			expectedWriteGlobalMaxBlocks:           4,
 			expectedWriteMaxBlocksPerFile:          10,
+		},
+		{
+			name:                                   "Test high performance config values.",
+			args:                                   []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "abc", "pqr"},
+			expectedEnableStreamingWrites:          true,
+			expectedExperimentalEnableRapidAppends: false,
+			expectedWriteBlockSizeMB:               32 * util.MiB,
+			expectedWriteGlobalMaxBlocks:           1600,
+		},
+		{
+			name:                                   "Test high performance config values with --write-global-max-blocks flag overriden.",
+			args:                                   []string{"gcsfuse", "--write-global-max-blocks=2000", "--disable-autoconfig=false", "abc", "pqr"},
+			expectedCreateEmptyFile:                false,
+			expectedEnableStreamingWrites:          true,
+			expectedExperimentalEnableRapidAppends: false,
+			expectedWriteBlockSizeMB:               32 * util.MiB,
+			expectedWriteGlobalMaxBlocks:           2000,
+			expectedWriteMaxBlocksPerFile:          1,
 		},
 	}
 
@@ -383,7 +400,7 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 	}{
 		{
 			name: "Test file cache flags.",
-			args: []string{"gcsfuse", "--file-cache-cache-file-for-range-read", "--file-cache-download-chunk-size-mb=20", "--file-cache-enable-crc", "--cache-dir=/some/valid/dir", "--file-cache-enable-parallel-downloads", "--file-cache-max-parallel-downloads=40", "--file-cache-max-size-mb=100", "--file-cache-parallel-downloads-per-file=2", "--file-cache-enable-o-direct=false", "abc", "pqr"},
+			args: []string{"gcsfuse", "--file-cache-cache-file-for-range-read", "--file-cache-download-chunk-size-mb=20", "--file-cache-enable-crc", "--cache-dir=/some/valid/dir", "--file-cache-experimental-exclude-regex=.*", "--file-cache-enable-parallel-downloads", "--file-cache-max-parallel-downloads=40", "--file-cache-max-size-mb=100", "--file-cache-parallel-downloads-per-file=2", "--file-cache-enable-o-direct=false", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				CacheDir: "/some/valid/dir",
 				FileCache: cfg.FileCacheConfig{
@@ -391,6 +408,7 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 					DownloadChunkSizeMb:                    20,
 					EnableCrc:                              true,
 					EnableParallelDownloads:                true,
+					ExperimentalExcludeRegex:               ".*",
 					ExperimentalParallelDownloadsDefaultOn: true,
 					MaxParallelDownloads:                   40,
 					MaxSizeMb:                              100,
@@ -409,6 +427,7 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 					DownloadChunkSizeMb:                    200,
 					EnableCrc:                              false,
 					EnableParallelDownloads:                false,
+					ExperimentalExcludeRegex:               "",
 					ExperimentalParallelDownloadsDefaultOn: true,
 					MaxParallelDownloads:                   int64(max(16, 2*runtime.NumCPU())),
 					MaxSizeMb:                              -1,
@@ -721,20 +740,22 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 	}{
 		{
 			name: "normal",
-			args: []string{"gcsfuse", "--dir-mode=0777", "--disable-parallel-dirops", "--file-mode=0666", "--o", "ro", "--gid=7", "--ignore-interrupts=false", "--kernel-list-cache-ttl-secs=300", "--rename-dir-limit=10", "--temp-dir=~/temp", "--uid=8", "--precondition-errors=false", "abc", "pqr"},
+			args: []string{"gcsfuse", "--dir-mode=0777", "--disable-parallel-dirops", "--experimental-enable-dentry-cache", "--experimental-enable-readdirplus", "--file-mode=0666", "--o", "ro", "--gid=7", "--ignore-interrupts=false", "--kernel-list-cache-ttl-secs=300", "--rename-dir-limit=10", "--temp-dir=~/temp", "--uid=8", "--precondition-errors=false", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					DirMode:                0777,
-					DisableParallelDirops:  true,
-					FileMode:               0666,
-					FuseOptions:            []string{"ro"},
-					Gid:                    7,
-					IgnoreInterrupts:       false,
-					KernelListCacheTtlSecs: 300,
-					RenameDirLimit:         10,
-					TempDir:                cfg.ResolvedPath(path.Join(hd, "temp")),
-					PreconditionErrors:     false,
-					Uid:                    8,
+					DirMode:                       0777,
+					DisableParallelDirops:         true,
+					ExperimentalEnableDentryCache: true,
+					ExperimentalEnableReaddirplus: true,
+					FileMode:                      0666,
+					FuseOptions:                   []string{"ro"},
+					Gid:                           7,
+					IgnoreInterrupts:              false,
+					KernelListCacheTtlSecs:        300,
+					RenameDirLimit:                10,
+					TempDir:                       cfg.ResolvedPath(path.Join(hd, "temp")),
+					PreconditionErrors:            false,
+					Uid:                           8,
 				},
 			},
 		},
@@ -743,17 +764,19 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--dir-mode=777", "--file-mode=666", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					DirMode:                0777,
-					DisableParallelDirops:  false,
-					FileMode:               0666,
-					FuseOptions:            []string{},
-					Gid:                    -1,
-					IgnoreInterrupts:       true,
-					KernelListCacheTtlSecs: 0,
-					RenameDirLimit:         0,
-					TempDir:                "",
-					PreconditionErrors:     true,
-					Uid:                    -1,
+					DirMode:                       0777,
+					DisableParallelDirops:         false,
+					ExperimentalEnableDentryCache: false,
+					ExperimentalEnableReaddirplus: false,
+					FileMode:                      0666,
+					FuseOptions:                   []string{},
+					Gid:                           -1,
+					IgnoreInterrupts:              true,
+					KernelListCacheTtlSecs:        0,
+					RenameDirLimit:                0,
+					TempDir:                       "",
+					PreconditionErrors:            true,
+					Uid:                           -1,
 				},
 			},
 		},
@@ -762,17 +785,19 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--dir-mode=777", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "--file-mode=666", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					DirMode:                0777,
-					DisableParallelDirops:  false,
-					FileMode:               0666,
-					FuseOptions:            []string{},
-					Gid:                    -1,
-					IgnoreInterrupts:       true,
-					KernelListCacheTtlSecs: 0,
-					RenameDirLimit:         200000,
-					TempDir:                "",
-					PreconditionErrors:     true,
-					Uid:                    -1,
+					DirMode:                       0777,
+					DisableParallelDirops:         false,
+					ExperimentalEnableDentryCache: false,
+					ExperimentalEnableReaddirplus: false,
+					FileMode:                      0666,
+					FuseOptions:                   []string{},
+					Gid:                           -1,
+					IgnoreInterrupts:              true,
+					KernelListCacheTtlSecs:        0,
+					RenameDirLimit:                200000,
+					TempDir:                       "",
+					PreconditionErrors:            true,
+					Uid:                           -1,
 				},
 			},
 		},
@@ -781,17 +806,19 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--dir-mode=777", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=true", "--file-mode=666", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					DirMode:                0777,
-					DisableParallelDirops:  false,
-					FileMode:               0666,
-					FuseOptions:            []string{},
-					Gid:                    -1,
-					IgnoreInterrupts:       true,
-					KernelListCacheTtlSecs: 0,
-					RenameDirLimit:         0,
-					TempDir:                "",
-					PreconditionErrors:     true,
-					Uid:                    -1,
+					DirMode:                       0777,
+					DisableParallelDirops:         false,
+					ExperimentalEnableDentryCache: false,
+					ExperimentalEnableReaddirplus: false,
+					FileMode:                      0666,
+					FuseOptions:                   []string{},
+					Gid:                           -1,
+					IgnoreInterrupts:              true,
+					KernelListCacheTtlSecs:        0,
+					RenameDirLimit:                0,
+					TempDir:                       "",
+					PreconditionErrors:            true,
+					Uid:                           -1,
 				},
 			},
 		},
@@ -800,17 +827,19 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--dir-mode=777", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "--rename-dir-limit=15000", "--file-mode=666", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					DirMode:                0777,
-					DisableParallelDirops:  false,
-					FileMode:               0666,
-					FuseOptions:            []string{},
-					Gid:                    -1,
-					IgnoreInterrupts:       true,
-					KernelListCacheTtlSecs: 0,
-					RenameDirLimit:         15000,
-					TempDir:                "",
-					PreconditionErrors:     true,
-					Uid:                    -1,
+					DirMode:                       0777,
+					DisableParallelDirops:         false,
+					ExperimentalEnableDentryCache: false,
+					ExperimentalEnableReaddirplus: false,
+					FileMode:                      0666,
+					FuseOptions:                   []string{},
+					Gid:                           -1,
+					IgnoreInterrupts:              true,
+					KernelListCacheTtlSecs:        0,
+					RenameDirLimit:                15000,
+					TempDir:                       "",
+					PreconditionErrors:            true,
+					Uid:                           -1,
 				},
 			},
 		},
@@ -819,17 +848,19 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			args: []string{"gcsfuse", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					DirMode:                0755,
-					DisableParallelDirops:  false,
-					FileMode:               0644,
-					FuseOptions:            []string{},
-					Gid:                    -1,
-					IgnoreInterrupts:       true,
-					KernelListCacheTtlSecs: 0,
-					RenameDirLimit:         0,
-					TempDir:                "",
-					PreconditionErrors:     true,
-					Uid:                    -1,
+					DirMode:                       0755,
+					DisableParallelDirops:         false,
+					ExperimentalEnableDentryCache: false,
+					ExperimentalEnableReaddirplus: false,
+					FileMode:                      0644,
+					FuseOptions:                   []string{},
+					Gid:                           -1,
+					IgnoreInterrupts:              true,
+					KernelListCacheTtlSecs:        0,
+					RenameDirLimit:                0,
+					TempDir:                       "",
+					PreconditionErrors:            true,
+					Uid:                           -1,
 				},
 			},
 		},
@@ -878,6 +909,14 @@ func TestArgsParsing_FileSystemFlagsThrowsError(t *testing.T) {
 		{
 			name: "invalid_disable_parallel_dirops",
 			args: []string{"gcsfuse", "--disable-parallel-dirops=abc", "abc", "pqr"},
+		},
+		{
+			name: "invalid_experimental_enable_readdirplus",
+			args: []string{"gcsfuse", "--experimental-enable-readdirplus=abc", "abc", "pqr"},
+		},
+		{
+			name: "invalid_experimental_enable_dentry_cache",
+			args: []string{"gcsfuse", "--experimental-enable-dentry-cache=abc", "abc", "pqr"},
 		},
 	}
 
@@ -972,6 +1011,43 @@ func TestArgsParsing_EnableHNSFlags(t *testing.T) {
 	}
 }
 
+func TestArgsParsing_EnableGoogleLibAuthFlag(t *testing.T) {
+	tests := []struct {
+		name                        string
+		args                        []string
+		expectedEnableGoogleLibAuth bool
+	}{
+		{
+			name:                        "default",
+			args:                        []string{"gcsfuse", "abc", "pqr"},
+			expectedEnableGoogleLibAuth: false,
+		},
+		{
+			name:                        "normal",
+			args:                        []string{"gcsfuse", "--enable-google-lib-auth=true", "abc", "pqr"},
+			expectedEnableGoogleLibAuth: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotEnableGoogleLibAuth bool
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				gotEnableGoogleLibAuth = cfg.EnableGoogleLibAuth
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedEnableGoogleLibAuth, gotEnableGoogleLibAuth)
+			}
+		})
+	}
+}
+
 func TestArgsParsing_EnableAtomicRenameObjectFlag(t *testing.T) {
 	tests := []struct {
 		name                             string
@@ -979,9 +1055,14 @@ func TestArgsParsing_EnableAtomicRenameObjectFlag(t *testing.T) {
 		expectedEnableAtomicRenameObject bool
 	}{
 		{
-			name:                             "normal",
-			args:                             []string{"gcsfuse", "--enable-atomic-rename-object=true", "abc", "pqr"},
+			name:                             "default",
+			args:                             []string{"gcsfuse", "abc", "pqr"},
 			expectedEnableAtomicRenameObject: true,
+		},
+		{
+			name:                             "normal",
+			args:                             []string{"gcsfuse", "--enable-atomic-rename-object=false", "abc", "pqr"},
+			expectedEnableAtomicRenameObject: false,
 		},
 	}
 
@@ -1160,7 +1241,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 					DeprecatedTypeCacheTtl:              60 * time.Second,
 					EnableNonexistentTypeCache:          false,
 					ExperimentalMetadataPrefetchOnMount: "disabled",
-					StatCacheMaxSizeMb:                  32,
+					StatCacheMaxSizeMb:                  33,
 					TtlSecs:                             60,
 					NegativeTtlSecs:                     5,
 					TypeCacheMaxSizeMb:                  4,
@@ -1177,7 +1258,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 					DeprecatedTypeCacheTtl:              60 * time.Second,
 					EnableNonexistentTypeCache:          false,
 					ExperimentalMetadataPrefetchOnMount: "disabled",
-					StatCacheMaxSizeMb:                  32,
+					StatCacheMaxSizeMb:                  33,
 					TtlSecs:                             60,
 					NegativeTtlSecs:                     5,
 					TypeCacheMaxSizeMb:                  4,
@@ -1272,7 +1353,7 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 					MaxRetrySleep:            30 * time.Second,
 					Multiplier:               2,
 					ReadStall: cfg.ReadStallGcsRetriesConfig{
-						Enable:              false,
+						Enable:              true,
 						InitialReqTimeout:   20 * time.Second,
 						MinReqTimeout:       1500 * time.Millisecond,
 						MaxReqTimeout:       1200 * time.Second,
@@ -1302,6 +1383,98 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 	}
 }
 
+func TestArgsParsing_ProfilerFlags(t *testing.T) {
+	tests := []struct {
+		name           string
+		args           []string
+		expectedConfig cfg.ProfilingConfig
+	}{
+		{
+			name: "Default profiler config (disabled)",
+			args: []string{"gcsfuse", "bucket", "mountpoint"},
+			expectedConfig: cfg.ProfilingConfig{
+				Enabled:       false, // Profiler is disabled by default
+				Label:         "gcsfuse-0.0.0",
+				Mutex:         false, // Default for --profiling-mutex
+				Cpu:           true,  // Default for --profiling-cpu
+				AllocatedHeap: true,  // Default for --profiling-allocated-heap
+				Heap:          true,  // Default for --profiling-heap
+				Goroutines:    false, // Default for --profiling-goroutines
+			},
+		},
+		{
+			name: "Profiler enabled, sub-profilers default",
+			args: []string{"gcsfuse", "--enable-cloud-profiling", "bucket", "mountpoint"},
+			expectedConfig: cfg.ProfilingConfig{
+				Enabled:       true,
+				Label:         "gcsfuse-0.0.0",
+				Mutex:         false,
+				Cpu:           true,
+				AllocatedHeap: true,
+				Heap:          true,
+				Goroutines:    false,
+			},
+		},
+		{
+			name: "Profiler enabled, all sub-profilers explicitly true and label set",
+			args: []string{"gcsfuse", "--enable-cloud-profiling", "--profiling-label=v1.0.0", "--profiling-mutex=true", "--profiling-cpu=true", "--profiling-allocated-heap=true", "--profiling-heap=true", "--profiling-goroutines=true", "bucket", "mountpoint"},
+			expectedConfig: cfg.ProfilingConfig{
+				Enabled:       true,
+				Label:         "v1.0.0",
+				Mutex:         true,
+				Cpu:           true,
+				AllocatedHeap: true,
+				Heap:          true,
+				Goroutines:    true,
+			},
+		},
+		{
+			name: "Profiler enabled, all sub-profilers explicitly false",
+			args: []string{"gcsfuse", "--enable-cloud-profiling", "--profiling-mutex=false", "--profiling-cpu=false", "--profiling-allocated-heap=false", "--profiling-heap=false", "--profiling-goroutines=false", "bucket", "mountpoint"},
+			expectedConfig: cfg.ProfilingConfig{
+				Enabled:       true,
+				Label:         "gcsfuse-0.0.0",
+				Mutex:         false,
+				Cpu:           false,
+				AllocatedHeap: false,
+				Heap:          false,
+				Goroutines:    false,
+			},
+		},
+		{
+			name: "Profiler explicitly disabled, some sub-profiler flags set",
+			args: []string{"gcsfuse", "--enable-cloud-profiling=false", "--profiling-mutex=true", "--profiling-cpu=false", "bucket", "mountpoint"},
+			expectedConfig: cfg.ProfilingConfig{
+				Enabled:       false, // Master switch is off
+				Label:         "gcsfuse-0.0.0",
+				Mutex:         true,  // Flag was parsed
+				Cpu:           false, // Flag was parsed
+				AllocatedHeap: true,  // Default for its flag
+				Heap:          true,  // Default for its flag
+				Goroutines:    false, // Default for its flag
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotProfilerConfig cfg.ProfilingConfig
+			cmd, err := newRootCmd(func(c *cfg.Config, _, _ string) error {
+				gotProfilerConfig = c.Profiling
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedConfig, gotProfilerConfig)
+			}
+		})
+	}
+}
+
 func TestArgsParsing_ReadInactiveTimeoutConfig(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -1311,7 +1484,7 @@ func TestArgsParsing_ReadInactiveTimeoutConfig(t *testing.T) {
 		{
 			name:            "default",
 			cfgFile:         "empty.yaml",
-			expectedTimeout: 0,
+			expectedTimeout: 10 * time.Second,
 		},
 		{
 			name:            "override_default",

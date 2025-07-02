@@ -28,9 +28,9 @@ import (
 	"cloud.google.com/go/storage"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"google.golang.org/api/iterator"
 )
 
@@ -39,10 +39,11 @@ const FullBucketPathHNS = "projects/_/buckets/%s"
 
 type bucketHandle struct {
 	gcs.Bucket
-	bucket        *storage.BucketHandle
-	bucketName    string
-	bucketType    *gcs.BucketType
-	controlClient StorageControlClient
+	bucket             *storage.BucketHandle
+	bucketName         string
+	bucketType         *gcs.BucketType
+	controlClient      StorageControlClient
+	enableRapidAppends bool
 }
 
 func (bh *bucketHandle) Name() string {
@@ -141,6 +142,12 @@ func (bh *bucketHandle) StatObject(ctx context.Context,
 		err = fmt.Errorf("error in fetching object attributes: %w", err)
 		return
 	}
+	if attrs.Finalized.IsZero() {
+		if err = bh.fetchLatestSizeOfUnfinalizedObject(ctx, attrs); err != nil {
+			err = fmt.Errorf("failed to fetch the latest size of unfinalized object %q: %w", attrs.Name, err)
+			return
+		}
+	}
 
 	// Converting attrs to type *Object
 	o := storageutil.ObjectAttrsToBucketObject(attrs)
@@ -150,6 +157,29 @@ func (bh *bucketHandle) StatObject(ctx context.Context,
 	}
 
 	return
+}
+
+// Note: This is not production ready code and will be removed once StatObject
+// requests return correct attr values for appendable objects.
+func (bh *bucketHandle) fetchLatestSizeOfUnfinalizedObject(ctx context.Context, attrs *storage.ObjectAttrs) error {
+	if bh.BucketType().Zonal && bh.enableRapidAppends {
+		// Get object handle
+		obj := bh.bucket.Object(attrs.Name)
+		// Create a new reader
+		reader, err := obj.NewRangeReader(ctx, 0, 0)
+		if err != nil {
+			return fmt.Errorf("failed to create zero-byte reader for object %q: %v", attrs.Name, err)
+		}
+		err = reader.Close()
+		if err != nil {
+			logger.Warnf("failed to close zero-byte reader for object %q: %v", attrs.Name, err)
+		}
+
+		// Set the size
+		attrs.Size = reader.Attrs.Size
+		return nil
+	}
+	return nil
 }
 
 func (bh *bucketHandle) getObjectHandleWithPreconditionsSet(req *gcs.CreateObjectRequest) *storage.ObjectHandle {
@@ -228,6 +258,8 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	wc := &ObjectWriter{obj.NewWriter(ctx)}
 	wc.ChunkSize = chunkSize
 	wc.Writer = storageutil.SetAttrsInWriter(wc.Writer, req)
+	// TODO(b/424091803): Uncomment once chunk transfer timeout issue in resumable uploads is fixed in dependencies.
+	// wc.ChunkTransferTimeout = time.Duration(req.ChunkTransferTimeoutSecs) * time.Second
 	if callBack == nil {
 		callBack = func(bytesUploadedSoFar int64) {
 			logger.Tracef("gcs: Req %#16x: -- UploadBlock(%q): %20v bytes uploaded so far", ctx.Value(gcs.ReqIdField), req.Name, bytesUploadedSoFar)
@@ -245,6 +277,8 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 func (bh *bucketHandle) CreateAppendableObjectWriter(ctx context.Context,
 	req *gcs.CreateObjectChunkWriterRequest) (gcs.Writer, error) {
 	obj := bh.getObjectHandleWithPreconditionsSet(&req.CreateObjectRequest)
+	// To create the takeover writer, the objectHandle.Generation must be set.
+	obj = obj.Generation(*req.CreateObjectRequest.GenerationPrecondition)
 	callBack := func(bytesUploadedSoFar int64) {
 		logger.Tracef("gcs: Req %#16x: -- UploadBlock(%q): %20v bytes uploaded so far", ctx.Value(gcs.ReqIdField), req.Name, bytesUploadedSoFar)
 	}
@@ -258,7 +292,7 @@ func (bh *bucketHandle) CreateAppendableObjectWriter(ctx context.Context,
 	tw, off, err := obj.NewWriterFromAppendableObject(ctx, &opts) // Takeover writer tw created from offset off.
 
 	if err != nil {
-		err = fmt.Errorf("Error while creating appendable object writer : %w", err)
+		err = fmt.Errorf("error while creating appendable object writer : %w", err)
 		return nil, err
 	}
 
@@ -366,7 +400,14 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 		IncludeFoldersAsPrefixes: req.IncludeFoldersAsPrefixes,
 		//MaxResults: , (Field not present in storage.Query of Go Storage Library but present in ListObjectsQuery in Jacobsa code.)
 	}
-	err = query.SetAttrSelection([]string{"Name", "Size", "Generation", "Metageneration", "Updated", "Metadata", "ContentEncoding", "CRC32C"})
+	minObjAttrs := []string{"Name", "Size", "Generation", "Metageneration", "Updated", "Metadata", "ContentEncoding", "CRC32C"}
+	if bh.BucketType().Zonal {
+		// For regional buckets, partial response API fails to populate the Finalized field.(b/398916957)
+		// For objects in regional buckets, this field will be *unset*.
+		minObjAttrs = append(minObjAttrs, "Finalized")
+	}
+	err = query.SetAttrSelection(minObjAttrs)
+
 	if err != nil {
 		err = fmt.Errorf("error while setting attribute selection for List Object query :%w", err)
 		return
@@ -390,6 +431,12 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 		if err != nil {
 			err = fmt.Errorf("error in iterating through objects: %w", err)
 			return
+		}
+		if attrs.Finalized.IsZero() {
+			if err = bh.fetchLatestSizeOfUnfinalizedObject(ctx, attrs); err != nil {
+				err = fmt.Errorf("failed to fetch the latest size of unfinalized object %q: %w", attrs.Name, err)
+				return
+			}
 		}
 
 		// Prefix attribute will be set for the objects returned as part of Prefix[] array in list response.
@@ -673,6 +720,10 @@ func (bh *bucketHandle) NewMultiRangeDownloader(
 
 	mrd, err = obj.NewMultiRangeDownloader(ctx)
 	return
+}
+
+func (bh *bucketHandle) GCSName(obj *gcs.MinObject) string {
+	return obj.Name
 }
 
 func isStorageConditionsNotEmpty(conditions storage.Conditions) bool {
