@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
@@ -57,6 +58,8 @@ type StorageClientConfig struct {
 	EnableHNS bool
 
 	ReadStallRetryConfig cfg.ReadStallGcsRetriesConfig
+
+	MetricHandle common.MetricHandle
 }
 
 func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *http.Client, err error) {
