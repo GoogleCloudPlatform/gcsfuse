@@ -29,13 +29,6 @@ BUCKET_NAME=$3
 SPREADSHEET_ID=$4
 MOUNT_POINT=gcs
 # The VM will itself exit if the gcsfuse mount fails.
-
-# Temporary debug measure. As experiment-4 keeps on failing, enable saving full gcsfuse log for
-# it.
-if [ "${EXPERIMENT_NUMBER}" = "4" ] ; then
- GCSFUSE_FLAGS+=" --log-rotate-max-file-size-mb=102400"
-fi
-
 gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 
 echo Print the time when FIO tests start
