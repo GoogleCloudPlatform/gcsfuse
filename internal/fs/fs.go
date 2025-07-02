@@ -2512,7 +2512,7 @@ func (fs *fileSystem) ReadDirPlus(
 	ctx context.Context,
 	op *fuseops.ReadDirPlusOp) (err error) {
 	// TODO: Implement ReadDirPlus to fetch directory entries with attributes.
-	return nil
+	return syscall.ENOSYS
 }
 
 // LOCKS_EXCLUDED(fs.mu)
