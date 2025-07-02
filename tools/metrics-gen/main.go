@@ -250,7 +250,7 @@ const codeTemplate = `// Copyright 2024 Google LLC
 
 // **** DO NOT EDIT - FILE IS AUTO-GENERATED ****
 
-package main
+package common
 
 import (
 	"context"
