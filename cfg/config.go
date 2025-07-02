@@ -66,6 +66,8 @@ type Config struct {
 
 	OnlyDir string `yaml:"only-dir"`
 
+	Read ReadConfig `yaml:"read"`
+
 	Write WriteConfig `yaml:"write"`
 }
 
@@ -229,6 +231,20 @@ type MonitoringConfig struct {
 	ExperimentalTracingSamplingRatio float64 `yaml:"experimental-tracing-sampling-ratio"`
 }
 
+type ReadConfig struct {
+	BlockSizeMb int64 `yaml:"block-size-mb"`
+
+	EnableBufferedRead bool `yaml:"enable-buffered-read"`
+
+	GlobalMaxBlocks int64 `yaml:"global-max-blocks"`
+
+	MaxBlocksPerHandle int64 `yaml:"max-blocks-per-handle"`
+
+	MaxParallelism int64 `yaml:"max-parallelism"`
+
+	StartBlocksPerHandle int64 `yaml:"start-blocks-per-handle"`
+}
+
 type ReadStallGcsRetriesConfig struct {
 	Enable bool `yaml:"enable"`
 
@@ -332,6 +348,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	if err := flagSet.MarkHidden("enable-atomic-rename-object"); err != nil {
 		return err
 	}
+
+	flagSet.BoolP("enable-buffered-read", "", false, "Part size for the non-file-cache flow.")
 
 	flagSet.BoolP("enable-empty-managed-folders", "", false, "This handles the corner case in listing managed folders. There are two corner cases (a) empty managed folder (b) nested managed folder which doesn't contain any descendent as object. This flag always works in conjunction with --implicit-dirs flag. (a) If only ImplicitDirectories is true, all managed folders are listed other than above two mentioned cases. (b) If both ImplicitDirectories and EnableEmptyManagedFolders are true, then all the managed folders are listed including the above-mentioned corner case. (c) If ImplicitDirectories is false then no managed folders are listed irrespective of enable-empty-managed-folders flag.")
 
@@ -501,6 +519,14 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
 
+	flagSet.IntP("read-block-size-mb", "", 4, "Part size for the non-file-cache flow.")
+
+	flagSet.IntP("read-global-max-blocks", "", 60, "Total cap over memory used for prefetch.")
+
+	flagSet.IntP("read-max-blocks-per-handle", "", 20, "Per file max number of blocks to be prefetched.")
+
+	flagSet.IntP("read-max-parallelism", "", 100, "Upper limit of overall parallelism.")
+
 	flagSet.DurationP("read-stall-initial-req-timeout", "", 20000000000*time.Nanosecond, "Initial value of the read-request dynamic timeout.")
 
 	if err := flagSet.MarkHidden("read-stall-initial-req-timeout"); err != nil {
@@ -530,6 +556,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	if err := flagSet.MarkHidden("read-stall-req-target-percentile"); err != nil {
 		return err
 	}
+
+	flagSet.IntP("read-start-blocks-per-handle", "", 8, "Per file initial number of blocks to be prefetched.")
 
 	flagSet.IntP("rename-dir-limit", "", 0, "Allow rename a directory containing fewer descendants than this limit.")
 
@@ -661,6 +689,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("enable-atomic-rename-object", flagSet.Lookup("enable-atomic-rename-object")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.enable-buffered-read", flagSet.Lookup("enable-buffered-read")); err != nil {
 		return err
 	}
 
@@ -860,6 +892,22 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("read.block-size-mb", flagSet.Lookup("read-block-size-mb")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.global-max-blocks", flagSet.Lookup("read-global-max-blocks")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.max-blocks-per-handle", flagSet.Lookup("read-max-blocks-per-handle")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.max-parallelism", flagSet.Lookup("read-max-parallelism")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("gcs-retries.read-stall.initial-req-timeout", flagSet.Lookup("read-stall-initial-req-timeout")); err != nil {
 		return err
 	}
@@ -877,6 +925,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-retries.read-stall.req-target-percentile", flagSet.Lookup("read-stall-req-target-percentile")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.start-blocks-per-handle", flagSet.Lookup("read-start-blocks-per-handle")); err != nil {
 		return err
 	}
 
