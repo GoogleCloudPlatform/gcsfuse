@@ -21,7 +21,7 @@ jobs:
     - name: CodeGen
       run: go generate ./...
     - name: Formatting diff
-      run: go fmt ./... && git diff --exit-code --name-only
+      run: go fmt ./... && go mod tidy && git diff --exit-code --name-only
 
   linux-tests:
     strategy:
