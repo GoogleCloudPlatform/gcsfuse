@@ -1,0 +1,13 @@
+implicit-dirs: true               # Create implicit directories locally when accessed
+cache-dir: /tmp                   # Use LSSD backing on GPU and RAM Disk backing on TPU
+metadata-cache:
+  negative-ttl-secs: 0            # Disable caching for lookups of files/dirs that don't exist
+  ttl-secs: -1                    # Keep cached metadata (file attributes, types) indefinitely time-wise
+  stat-cache-max-size-mb: -1      # Allow unlimited size for the file attribute (stat) cache
+  type-cache-max-size-mb: -1      # Allow unlimited size for the file/directory type cache
+file-cache:
+  max-size-mb: -1                 # Allow unlimited size for the file content cache
+  cache-file-for-range-read: true # Cache the entire file when any part is read sequentially
+  enable-parallel-downloads: true # Use multiple streams to download file content faster
+write:
+  enable-streaming-writes: true   # Enable streaming writes

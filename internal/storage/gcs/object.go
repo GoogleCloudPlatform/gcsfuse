@@ -113,3 +113,7 @@ type ExtendedObjectAttributes struct {
 func (mo MinObject) HasContentEncodingGzip() bool {
 	return mo.ContentEncoding == ContentEncodingGzip
 }
+
+func (mo MinObject) IsUnfinalized() bool {
+	return mo.Finalized.IsZero()
+}

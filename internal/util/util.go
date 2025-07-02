@@ -15,7 +15,6 @@
 package util
 
 import (
-	"context"
 	"fmt"
 	"math"
 	"os"
@@ -23,16 +22,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
-)
-
-const (
-	// TODO: Remove these constants in favor of common.* constants.
-	// Constants for read types - Sequential/Random
-	Sequential = common.ReadTypeSequential
-	Random     = common.ReadTypeRandom
-	Parallel   = common.ReadTypeParallel
 )
 
 const (
@@ -104,11 +93,4 @@ func BytesToHigherMiBs(bytes uint64) uint64 {
 	}
 	const bytesInOneMiB uint64 = 1 << 20
 	return uint64(math.Ceil(float64(bytes) / float64(bytesInOneMiB)))
-}
-
-// IsolateContextFromParentContext creates a copy of the parent context which is
-// not cancelled when parent context is cancelled.
-func IsolateContextFromParentContext(ctx context.Context) (context.Context, context.CancelFunc) {
-	ctx = context.WithoutCancel(ctx)
-	return context.WithCancel(ctx)
 }
