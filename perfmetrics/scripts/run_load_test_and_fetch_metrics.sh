@@ -35,7 +35,17 @@ echo Print the time when FIO tests start
 date
 echo Running fio test..
 echo "Overall fio start epoch time:" `date +%s`
-fio job_files/seq_rand_read_write.fio --lat_percentiles 1 --output-format=json --output="fio-output${EXPERIMENT_NUMBER}.json"
+
+# Temporary fix. As experiment-4 keeps on failing due to 429, pass NRFILES=10
+# for it.
+if [ "${EXPERIMENT_NUMBER}" = "4" ] ; then
+ NRFILES=10
+else
+ NRFILES=1
+fi
+
+NRFILES=${NRFILES} fio job_files/seq_rand_read_write.fio --lat_percentiles 1 --output-format=json --output="fio-output${EXPERIMENT_NUMBER}.json"
+
 echo "Overall fio end epoch time:" `date +%s`
 sudo umount $MOUNT_POINT
 
