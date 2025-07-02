@@ -227,6 +227,9 @@ func buildSwitches(metric Metric) string {
 		if metric.Type == "int_histogram" {
 			unitMethod := getUnitMethod(metric.Unit)
 			builder.WriteString(fmt.Sprintf("\to.%s.Record(ctx, latency%s)\n", toCamel(metric.Name), unitMethod))
+		} else if metric.Type == "int_counter" {
+			atomicName := getAtomicName(metric.Name, AttrCombination{})
+			builder.WriteString(fmt.Sprintf("\to.%s.Add(inc)\n", atomicName))
 		}
 	} else {
 		recorder(0, AttrCombination{})
@@ -340,7 +343,7 @@ func NewOTelMetrics() (*otelMetrics, error) {
 		metric.WithUnit("{{.Unit}}"),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
 			{{- range $combination := (index $.AttrCombinations $metric.Name)}}
-			obsrv.Observe({{getAtomicName $metric.Name $combination}}.Load(), {{getVarName $metric.Name $combination}})
+			obsrv.Observe({{getAtomicName $metric.Name $combination}}.Load(){{if $metric.Attributes}}, {{getVarName $metric.Name $combination}}{{end}})
 			{{- end}}
 			return nil
 		}))
@@ -409,9 +412,7 @@ func main() {
 
 	attrCombinations := make(map[string][]AttrCombination)
 	for _, m := range metrics {
-		if len(m.Attributes) > 0 {
-			attrCombinations[m.Name] = generateCombinations(m.Attributes)
-		}
+		attrCombinations[m.Name] = generateCombinations(m.Attributes)
 	}
 
 	data := TemplateData{
