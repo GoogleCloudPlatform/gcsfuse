@@ -44,14 +44,14 @@ var (
 	readTypeKey = attribute.Key("read_type")
 	// cacheHitKey specifies whether the read operation from file cache resulted in a cache-hit or miss.
 	cacheHitKey = attribute.Key("cache_hit")
-	// retriedErrorCategoryKey specifies the category of the error that triggered a retry.
-	retriedErrCategoryKey = attribute.Key("retried_error_category")
+	// retryErrCategoryKey specifies the category of the error that triggered a retry.
+	retryErrCategoryKey = attribute.Key("retry_error_category")
 
 	fsOpsOptionCache,
 	readTypeOptionCache,
 	ioMethodOptionCache,
 	gcsMethodOptionCache,
-	retriedErrCategoryOptionCache,
+	retryErrCategoryOptionCache,
 	cacheHitOptionCache,
 	cacheHitReadTypeOptionCache,
 	fsOpsErrorCategoryOptionCache sync.Map
@@ -108,10 +108,10 @@ func gcsMethodAttrOption(gcsMethod string) metric.MeasurementOption {
 		})
 }
 
-func retriedErrCategoryAttrOption(retriedErrCategory string) metric.MeasurementOption {
-	return loadOrStoreAttrOption(&retriedErrCategoryOptionCache, retriedErrCategory,
+func retryErrCategoryAttrOption(retryErrCategory string) metric.MeasurementOption {
+	return loadOrStoreAttrOption(&retryErrCategoryOptionCache, retryErrCategory,
 		func() attribute.Set {
-			return attribute.NewSet(retriedErrCategoryKey.String(retriedErrCategory))
+			return attribute.NewSet(retryErrCategoryKey.String(retryErrCategory))
 		})
 }
 
@@ -164,8 +164,8 @@ func (o *otelMetrics) GCSDownloadBytesCount(ctx context.Context, inc int64, read
 	o.gcsDownloadBytesCount.Add(ctx, inc, readTypeAttrOption(readType))
 }
 
-func (o *otelMetrics) GCSRetryCount(ctx context.Context, inc int64, retriedErrCategory string) {
-	o.gcsRetryCount.Add(ctx, inc, retriedErrCategoryAttrOption(retriedErrCategory))
+func (o *otelMetrics) GCSRetryCount(ctx context.Context, inc int64, retryErrCategory string) {
+	o.gcsRetryCount.Add(ctx, inc, retryErrCategoryAttrOption(retryErrCategory))
 }
 
 func (o *otelMetrics) OpsCount(ctx context.Context, inc int64, fsOp string) {
