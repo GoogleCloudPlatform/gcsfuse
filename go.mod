@@ -2,9 +2,6 @@ module github.com/googlecloudplatform/gcsfuse/v3
 
 go 1.24.0
 
-// TODO: Remove this and update the github.com/jacobsa/fuse version, once the changes get merged
-replace github.com/jacobsa/fuse => github.com/aditimittal2003/fuse v0.0.0-20250701050603-375bc2cf8b04
-
 require (
 	cloud.google.com/go/auth v0.16.1
 	cloud.google.com/go/compute/metadata v0.7.0
@@ -19,7 +16,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/googleapis/gax-go/v2 v2.14.2
 	github.com/jacobsa/daemonize v0.0.0-20240917082746-f35568b6c3ec
-	github.com/jacobsa/fuse v0.0.0-20250506064942-d10bfe4fb08e
+	github.com/jacobsa/fuse v0.0.0-20250702080931-3e9d24d5e3ff
 	github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd
 	github.com/jacobsa/oglemock v0.0.0-20150831005832-e94d794d06ff
 	github.com/jacobsa/ogletest v0.0.0-20170503003838-80d50a735a11
