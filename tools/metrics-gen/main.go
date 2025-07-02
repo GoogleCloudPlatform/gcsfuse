@@ -76,6 +76,7 @@ var funcMap = template.FuncMap{
 }
 
 func toPascal(s string) string {
+	s = strings.ReplaceAll(s, "/", "-")
 	s = strings.ReplaceAll(s, "_", "-")
 	parts := strings.Split(s, "-")
 	for i, p := range parts {
@@ -289,7 +290,7 @@ type MetricHandle interface {
 		{{- if .Attributes}}, {{end}}
 		{{- range $i, $attr := .Attributes -}}
 			{{if $i}}, {{end}}{{toCamel $attr.Name}} {{getGoType $attr.Type}}
-		{{- end }}
+		{{- end }},
 	)
 {{- end}}
 }
@@ -319,7 +320,7 @@ func (o *otelMetrics) {{toPascal .Name}}(
 	{{- if .Attributes}}, {{end}}
 	{{- range $i, $attr := .Attributes -}}
 		{{if $i}}, {{end}}{{toCamel $attr.Name}} {{getGoType $attr.Type}}
-	{{- end }}
+	{{- end }},
 ) {
 {{buildSwitches .}}
 }

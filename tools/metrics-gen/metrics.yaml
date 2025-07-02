@@ -1,47 +1,81 @@
-- metric-name: metric1
-  description: "description of the metric1"
+- metric-name: fs/ops_count
+  description: "The cumulative number of ops processed by the file system."
   type: "int_counter"
-  unit: "us"
   attributes:
-  - attribute-name: attr1
+  - attribute-name: fs_op
     attribute-type: string
     values:
-    - v1
-    - v2
+    - "StatFS"
+    - "LookUpInode"
+    - "GetInodeAttributes"
+    - "SetInodeAttributes"
+    - "ForgetInode"
+    - "BatchForget"
+    - "MkDir"
+    - "MkNode"
+    - "CreateFile"
+    - "CreateLink"
+    - "CreateSymlink"
+    - "Rename"
+    - "RmDir"
+    - "Unlink"
+    - "OpenDir"
+    - "ReadDir"
+    - "ReleaseDirHandle"
+    - "OpenFile"
+    - "ReadFile"
+    - "WriteFile"
+    - "SyncFile"
+    - "FlushFile"
+    - "ReleaseFileHandle"
+    - "ReadSymlink"
+    - "RemoveXattr"
+    - "GetXattr"
+    - "ListXattr"
+    - "SetXattr"
+    - "Fallocate"
+    - "SyncFS"
 
-- metric-name: metric2
-  description: "description of the metric2"
-  type: "int_counter"
-  unit: "by"
-  attributes:
-  - attribute-name: attr2
-    attribute-type: string
-    values:
-    - op1
-    - op2
-  - attribute-name: attr3
-    attribute-type: bool
 
-- metric-name: metric3
-  description: "description of the metric3"
+- metric-name: fs/ops_latency
+  description: "The cumulative distribution of file system operation latencies"
   type: "int_histogram"
   unit: "us"
-  attributes:
-  - attribute-name: attr4
-    attribute-type: string
-    values:
-    - a1
-    - a2
-  boundaries:
-  - 1
-  - 160
-  - 5000
-
-- metric-name: metric4
-  description: "description of the metric4"
-  type: "int_histogram"
-  unit: "ms"
   boundaries:
   - 1
   - 150
   - 500
+  attributes:
+  - attribute-name: fs_op
+    attribute-type: string
+    values:
+    - "StatFS"
+    - "LookUpInode"
+    - "GetInodeAttributes"
+    - "SetInodeAttributes"
+    - "ForgetInode"
+    - "BatchForget"
+    - "MkDir"
+    - "MkNode"
+    - "CreateFile"
+    - "CreateLink"
+    - "CreateSymlink"
+    - "Rename"
+    - "RmDir"
+    - "Unlink"
+    - "OpenDir"
+    - "ReadDir"
+    - "ReleaseDirHandle"
+    - "OpenFile"
+    - "ReadFile"
+    - "WriteFile"
+    - "SyncFile"
+    - "FlushFile"
+    - "ReleaseFileHandle"
+    - "ReadSymlink"
+    - "RemoveXattr"
+    - "GetXattr"
+    - "ListXattr"
+    - "SetXattr"
+    - "Fallocate"
+    - "SyncFS"
