@@ -41,11 +41,10 @@ type MainTest struct {
 func (t *MainTest) TestCreateStorageHandle() {
 	newConfig := &cfg.Config{
 		GcsConnection: cfg.GcsConnectionConfig{ClientProtocol: cfg.HTTP1},
-		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"}}
+		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
+	}
 
-	userAgent := "AppName"
-	metricHandle := common.NewNoopMetrics()
-	storageHandle, err := createStorageHandle(newConfig, userAgent, metricHandle)
+	storageHandle, err := createStorageHandle(newConfig, "AppName", common.NewNoopMetrics())
 
 	assert.Equal(t.T(), nil, err)
 	assert.NotEqual(t.T(), nil, storageHandle)
@@ -57,9 +56,7 @@ func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPC() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	userAgent := "AppName"
-	metricHandle := common.NewNoopMetrics()
-	storageHandle, err := createStorageHandle(newConfig, userAgent, metricHandle)
+	storageHandle, err := createStorageHandle(newConfig, "AppName", common.NewNoopMetrics())
 
 	assert.Equal(t.T(), nil, err)
 	assert.NotEqual(t.T(), nil, storageHandle)
@@ -68,8 +65,8 @@ func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPC() {
 func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsSet() {
 	os.Setenv("GCSFUSE_METADATA_IMAGE_TYPE", "DLVM")
 	defer os.Unsetenv("GCSFUSE_METADATA_IMAGE_TYPE")
-
 	mountConfig := &cfg.Config{}
+
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
 	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s AppName (GPN:gcsfuse-DLVM) (Cfg:0:0:0:0)", common.GetVersion()))
 
@@ -78,6 +75,7 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsSet() {
 
 func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsNotSet() {
 	mountConfig := &cfg.Config{}
+
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
 	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0)", common.GetVersion()))
 
@@ -86,8 +84,10 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsNotSet() {
 
 func (t *MainTest) TestGetUserAgentConfigWithNoFileCache() {
 	mountConfig := &cfg.Config{}
+
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
 	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0)", common.GetVersion()))
+
 	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }
 
@@ -210,8 +210,8 @@ func (t *MainTest) TestGetUserAgentConfig() {
 func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarSetAndAppNameNotSet() {
 	os.Setenv("GCSFUSE_METADATA_IMAGE_TYPE", "DLVM")
 	defer os.Unsetenv("GCSFUSE_METADATA_IMAGE_TYPE")
-
 	mountConfig := &cfg.Config{}
+
 	userAgent := getUserAgent("", getConfigForUserAgent(mountConfig))
 	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-DLVM) (Cfg:0:0:0:0)", common.GetVersion()))
 
@@ -225,11 +225,11 @@ func (t *MainTest) TestCallListRecursiveOnExistingDirectory() {
 		t.T().Fatalf("Failed to set up test. error = %v", err)
 	}
 	defer os.RemoveAll(rootdir)
+
 	_, err = os.CreateTemp(rootdir, "abc-*.txt")
 	if err != nil {
 		t.T().Fatalf("Failed to set up test. error = %v", err)
 	}
-
 	err = callListRecursive(rootdir)
 
 	assert.Nil(t.T(), err)
