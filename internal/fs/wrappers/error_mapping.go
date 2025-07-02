@@ -280,6 +280,15 @@ func (em *errorMapping) ReadDir(
 	return em.mapError("ReadDir", err)
 }
 
+func (em *errorMapping) ReadDirPlus(
+	ctx context.Context,
+	op *fuseops.ReadDirPlusOp) error {
+	defer em.handlePanic()
+
+	err := em.wrapped.ReadDirPlus(ctx, op)
+	return em.mapError("ReadDirPlus", err)
+}
+
 func (em *errorMapping) ReleaseDirHandle(
 	ctx context.Context,
 	op *fuseops.ReleaseDirHandleOp) error {

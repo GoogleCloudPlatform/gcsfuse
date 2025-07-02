@@ -2,6 +2,9 @@ module github.com/googlecloudplatform/gcsfuse/v3
 
 go 1.24.0
 
+// TODO: Remove this and update the github.com/jacobsa/fuse version, once the changes get merged
+replace github.com/jacobsa/fuse => github.com/aditimittal2003/fuse v0.0.0-20250701050603-375bc2cf8b04
+
 require (
 	cloud.google.com/go/compute/metadata v0.7.0
 	cloud.google.com/go/iam v1.5.2
