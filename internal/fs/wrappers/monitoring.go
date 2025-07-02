@@ -330,6 +330,10 @@ func (fs *monitoring) ReadDir(ctx context.Context, op *fuseops.ReadDirOp) error 
 	return fs.invokeWrapped(ctx, "ReadDir", func(ctx context.Context) error { return fs.wrapped.ReadDir(ctx, op) })
 }
 
+func (fs *monitoring) ReadDirPlus(ctx context.Context, op *fuseops.ReadDirPlusOp) error {
+	return fs.invokeWrapped(ctx, "ReadDirPlus", func(ctx context.Context) error { return fs.wrapped.ReadDirPlus(ctx, op) })
+}
+
 func (fs *monitoring) ReleaseDirHandle(ctx context.Context, op *fuseops.ReleaseDirHandleOp) error {
 	return fs.invokeWrapped(ctx, "ReleaseDirHandle", func(ctx context.Context) error { return fs.wrapped.ReleaseDirHandle(ctx, op) })
 }
