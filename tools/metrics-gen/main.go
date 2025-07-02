@@ -18,304 +18,427 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"go/format"
 	"log"
 	"os"
 	"path/filepath"
-	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"text/template"
 
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 	"gopkg.in/yaml.v3"
 )
 
-// YAML Structures
-
+// Data structures to parse metrics.yaml
 type Metric struct {
 	Name        string      `yaml:"metric-name"`
 	Description string      `yaml:"description"`
 	Type        string      `yaml:"type"`
 	Unit        string      `yaml:"unit"`
 	Attributes  []Attribute `yaml:"attributes"`
-	Boundaries  []int64     `yaml:"boundaries,omitempty"`
+	Boundaries  []int64     `yaml:"boundaries"`
 }
 
 type Attribute struct {
 	Name   string   `yaml:"attribute-name"`
 	Type   string   `yaml:"attribute-type"`
-	Values []string `yaml:"values,omitempty"`
+	Values []string `yaml:"values"`
 }
 
-// Template Data Structures
+// AttrValuePair is a helper struct for generating combinations.
+type AttrValuePair struct {
+	Name  string
+	Type  string
+	Value string // "true"/"false" for bools
+}
 
+// AttrCombination is a list of AttrValuePairs.
+type AttrCombination []AttrValuePair
+
+// Data structure to pass to the template.
 type TemplateData struct {
-	PackageName string
-	Metrics     []ProcessedMetric
-	AttrMap     map[string]ProcessedAttribute
+	Metrics          []Metric
+	AttrCombinations map[string][]AttrCombination
 }
 
-type ProcessedMetric struct {
-	Name            string
-	GoName          string
-	Type            string
-	Description     string
-	Unit            string
-	Boundaries      []int64
-	GoUnitConverter string
-	Attributes      []ProcessedAttribute
-	Combinations    []MetricCombination
-	SwitchTree      *SwitchNode
+// Helper functions for the template.
+var funcMap = template.FuncMap{
+	"toPascal":      toPascal,
+	"toCamel":       toCamel,
+	"getVarName":    getVarName,
+	"getAtomicName": getAtomicName,
+	"getGoType":     getGoType,
+	"getUnitMethod": getUnitMethod,
+	"joinInts":      joinInts,
+	"isCounter":     func(m Metric) bool { return m.Type == "int_counter" },
+	"isHistogram":   func(m Metric) bool { return m.Type == "int_histogram" },
+	"buildSwitches": buildSwitches,
 }
 
-type ProcessedAttribute struct {
-	Name   string
-	GoName string
-	GoType string
-	Values []string
+func toPascal(s string) string {
+	s = strings.ReplaceAll(s, "_", "-")
+	parts := strings.Split(s, "-")
+	for i, p := range parts {
+		if len(p) > 0 {
+			parts[i] = strings.ToUpper(p[:1]) + p[1:]
+		}
+	}
+	return strings.Join(parts, "")
 }
 
-type MetricCombination struct {
-	Attributes     map[string]string
-	AtomicVarName  string
-	AttrSetVarName string
+func toCamel(s string) string {
+	pascal := toPascal(s)
+	if len(pascal) > 0 {
+		return strings.ToLower(pascal[:1]) + pascal[1:]
+	}
+	return ""
 }
 
-type SwitchNode struct {
-	AttributeGoName string
-	AttributeGoType string
-	Children        map[string]*SwitchNode
-	IsLeaf          bool
-	LeafCombination *MetricCombination
+func getVarName(metricName string, combo AttrCombination) string {
+	var parts []string
+	parts = append(parts, toCamel(metricName))
+	for _, pair := range combo {
+		parts = append(parts, toPascal(pair.Name))
+		parts = append(parts, toPascal(pair.Value))
+	}
+	parts = append(parts, "AttrSet")
+	return strings.Join(parts, "")
 }
+
+func getAtomicName(metricName string, combo AttrCombination) string {
+	var parts []string
+	parts = append(parts, toCamel(metricName))
+	for _, pair := range combo {
+		parts = append(parts, toPascal(pair.Name))
+		parts = append(parts, toPascal(pair.Value))
+	}
+	parts = append(parts, "Atomic")
+	return strings.Join(parts, "")
+}
+
+func getGoType(t string) string {
+	switch t {
+	case "string":
+		return "string"
+	case "bool":
+		return "bool"
+	default:
+		return "interface{}"
+	}
+}
+
+func getUnitMethod(unit string) string {
+	switch unit {
+	case "us":
+		return ".Microseconds()"
+	case "ms":
+		return ".Milliseconds()"
+	case "s":
+		return ".Seconds()"
+	default:
+		// Assumes the value is already in the correct unit if not time-based.
+		return ""
+	}
+}
+
+func joinInts(nums []int64) string {
+	var s []string
+	for _, n := range nums {
+		s = append(s, strconv.FormatInt(n, 10))
+	}
+	return strings.Join(s, ", ")
+}
+
+// generateCombinations creates all possible combinations of attribute values.
+func generateCombinations(attributes []Attribute) []AttrCombination {
+	if len(attributes) == 0 {
+		return []AttrCombination{{}}
+	}
+
+	firstAttr := attributes[0]
+	remainingAttrs := attributes[1:]
+	combsOfRest := generateCombinations(remainingAttrs)
+
+	var firstAttrValues []AttrValuePair
+	if firstAttr.Type == "string" {
+		for _, v := range firstAttr.Values {
+			firstAttrValues = append(firstAttrValues, AttrValuePair{Name: firstAttr.Name, Type: "string", Value: v})
+		}
+	} else if firstAttr.Type == "bool" {
+		firstAttrValues = append(firstAttrValues, AttrValuePair{Name: firstAttr.Name, Type: "bool", Value: "true"})
+		firstAttrValues = append(firstAttrValues, AttrValuePair{Name: firstAttr.Name, Type: "bool", Value: "false"})
+	}
+
+	var result []AttrCombination
+	for _, val := range firstAttrValues {
+		for _, comb := range combsOfRest {
+			newComb := append(AttrCombination{val}, comb...)
+			result = append(result, newComb)
+		}
+	}
+	return result
+}
+
+// buildSwitches generates the nested switch statement code for a metric method.
+func buildSwitches(metric Metric) string {
+	var builder strings.Builder
+	var recorder func(level int, combo AttrCombination)
+
+	recorder = func(level int, combo AttrCombination) {
+		if level == len(metric.Attributes) {
+			// Base case: record the metric
+			indent := strings.Repeat("\t", level+1)
+			if metric.Type == "int_counter" {
+				atomicName := getAtomicName(metric.Name, combo)
+				builder.WriteString(fmt.Sprintf("%so.%s.Add(inc)\n", indent, atomicName))
+			} else { // histogram
+				varName := getVarName(metric.Name, combo)
+				unitMethod := getUnitMethod(metric.Unit)
+				builder.WriteString(fmt.Sprintf("%so.%s.Record(ctx, latency%s, %s)\n", indent, toCamel(metric.Name), unitMethod, varName))
+			}
+			return
+		}
+
+		attr := metric.Attributes[level]
+		indent := strings.Repeat("\t", level+1)
+		builder.WriteString(fmt.Sprintf("%sswitch %s {\n", indent, toCamel(attr.Name)))
+
+		var values []string
+		if attr.Type == "string" {
+			values = attr.Values
+		} else { // bool
+			values = []string{"true", "false"}
+		}
+
+		for _, val := range values {
+			caseVal := val
+			if attr.Type == "string" {
+				caseVal = `"` + val + `"`
+			}
+			builder.WriteString(fmt.Sprintf("%scase %s:\n", strings.Repeat("\t", level+2), caseVal))
+			currentCombo := append(combo, AttrValuePair{Name: attr.Name, Type: attr.Type, Value: val})
+			recorder(level+1, currentCombo)
+		}
+		builder.WriteString(fmt.Sprintf("%s}\n", indent))
+	}
+
+	if len(metric.Attributes) == 0 {
+		if metric.Type == "int_histogram" {
+			unitMethod := getUnitMethod(metric.Unit)
+			builder.WriteString(fmt.Sprintf("\to.%s.Record(ctx, latency%s)\n", toCamel(metric.Name), unitMethod))
+		}
+	} else {
+		recorder(0, AttrCombination{})
+	}
+
+	return builder.String()
+}
+
+const codeTemplate = `// Copyright 2024 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// **** DO NOT EDIT - FILE IS AUTO-GENERATED ****
+
+package main
+
+import (
+	"context"
+	"errors"
+	"sync/atomic"
+	"time"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
+)
+
+var (
+	meter = otel.Meter("gcsfuse")
+{{- range $metric := .Metrics -}}
+{{- if .Attributes}}
+{{- range $combination := (index $.AttrCombinations $metric.Name)}}
+	{{getVarName $metric.Name $combination}} = metric.WithAttributeSet(attribute.NewSet(
+		{{- range $pair := $combination -}}
+			attribute.{{if eq $pair.Type "string"}}String{{else}}Bool{{end}}("{{$pair.Name}}", {{if eq $pair.Type "string"}}"{{$pair.Value}}"{{else}}{{$pair.Value}}{{end}}),
+		{{- end -}}
+	))
+{{- end -}}
+{{- end -}}
+{{- end -}}
+)
+
+type MetricHandle interface {
+{{- range .Metrics}}
+	{{toPascal .Name}}(
+		{{- if isCounter . }}
+			inc int64
+		{{- else }}
+			ctx context.Context, duration time.Duration
+		{{- end }}
+		{{- if .Attributes}}, {{end}}
+		{{- range $i, $attr := .Attributes -}}
+			{{if $i}}, {{end}}{{toCamel $attr.Name}} {{getGoType $attr.Type}}
+		{{- end }}
+	)
+{{- end}}
+}
+
+type otelMetrics struct {
+	{{- range $metric := .Metrics}}
+		{{- if isCounter $metric}}
+			{{- range $combination := (index $.AttrCombinations $metric.Name)}}
+	{{getAtomicName $metric.Name $combination}} *atomic.Int64
+			{{- end}}
+		{{- end}}
+	{{- end}}
+	{{- range $metric := .Metrics}}
+		{{- if isHistogram $metric}}
+	{{toCamel $metric.Name}} metric.Int64Histogram
+		{{- end}}
+	{{- end}}
+}
+
+{{range .Metrics}}
+func (o *otelMetrics) {{toPascal .Name}}(
+	{{- if isCounter . }}
+		inc int64
+	{{- else }}
+		ctx context.Context, latency time.Duration
+	{{- end }}
+	{{- if .Attributes}}, {{end}}
+	{{- range $i, $attr := .Attributes -}}
+		{{if $i}}, {{end}}{{toCamel $attr.Name}} {{getGoType $attr.Type}}
+	{{- end }}
+) {
+{{buildSwitches .}}
+}
+{{end}}
+
+func NewOTelMetrics() (*otelMetrics, error) {
+{{- range $metric := .Metrics}}
+	{{- if isCounter $metric}}
+	var {{range $i, $combination := (index $.AttrCombinations $metric.Name)}}{{if $i}}, {{end}}{{getAtomicName $metric.Name $combination}}{{end}} atomic.Int64
+	{{- end}}
+{{- end}}
+
+{{- range $i, $metric := .Metrics}}
+	{{- if isCounter $metric}}
+	_, err{{$i}} := meter.Int64ObservableCounter("{{$metric.Name}}",
+		metric.WithDescription("{{.Description}}"),
+		metric.WithUnit("{{.Unit}}"),
+		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
+			{{- range $combination := (index $.AttrCombinations $metric.Name)}}
+			obsrv.Observe({{getAtomicName $metric.Name $combination}}.Load(), {{getVarName $metric.Name $combination}})
+			{{- end}}
+			return nil
+		}))
+	{{- else}}
+	{{toCamel $metric.Name}}, err{{$i}} := meter.Int64Histogram("{{$metric.Name}}",
+		metric.WithDescription("{{.Description}}"),
+		metric.WithUnit("{{.Unit}}"),
+		{{- if .Boundaries}}
+		metric.WithExplicitBucketBoundaries({{joinInts .Boundaries}}))
+		{{- else}}
+		)
+		{{- end}}
+	{{- end}}
+{{end}}
+
+	errs := []error{
+		{{- range $i, $metric := .Metrics -}}
+			{{if $i}}, {{end}}err{{$i}}
+		{{- end -}}
+	}
+	if err := errors.Join(errs...); err != nil {
+		return nil, err
+	}
+
+	return &otelMetrics{
+	{{- range $metric := .Metrics}}
+		{{- if isCounter $metric}}
+			{{- range $combination := (index $.AttrCombinations $metric.Name)}}
+		{{getAtomicName $metric.Name $combination}}: &{{getAtomicName $metric.Name $combination}},
+			{{- end}}
+		{{- else}}
+		{{toCamel $metric.Name}}: {{toCamel $metric.Name}},
+		{{- end}}
+	{{- end}}
+	}, nil
+}
+`
 
 func main() {
-	inputFile := flag.String("in", "metrics.yaml", "Input YAML file")
-	outputFile := flag.String("out", "otel_metrics.go", "Output Go file")
-	packageName := flag.String("pkg", "main", "Go package name for the generated file")
+	inputFile := flag.String("input", "metrics.yaml", "Input YAML file")
+	outputFile := flag.String("output", "otel_metrics.go", "Output Go file")
 	flag.Parse()
 
 	yamlFile, err := os.ReadFile(*inputFile)
 	if err != nil {
-		log.Fatalf("Error reading YAML file: %v", err)
+		log.Fatalf("error reading yaml file: %v", err)
 	}
 
 	var metrics []Metric
 	err = yaml.Unmarshal(yamlFile, &metrics)
 	if err != nil {
-		log.Fatalf("Error unmarshalling YAML: %v", err)
+		log.Fatalf("error unmarshalling yaml: %v", err)
 	}
 
-	data := processMetrics(metrics, *packageName)
+	// Sort attributes and their string values for deterministic output
+	for i := range metrics {
+		sort.Slice(metrics[i].Attributes, func(k, j int) bool {
+			return metrics[i].Attributes[k].Name < metrics[i].Attributes[j].Name
+		})
+		for j := range metrics[i].Attributes {
+			if metrics[i].Attributes[j].Type == "string" {
+				sort.Strings(metrics[i].Attributes[j].Values)
+			}
+		}
+	}
 
-	tmpl, err := template.New(filepath.Base("otel_metrics.go.tmpl")).Funcs(template.FuncMap{
-		"ToOtelType": toOtelType,
-	}).ParseFiles("otel_metrics.go.tmpl")
+	attrCombinations := make(map[string][]AttrCombination)
+	for _, m := range metrics {
+		if len(m.Attributes) > 0 {
+			attrCombinations[m.Name] = generateCombinations(m.Attributes)
+		}
+	}
+
+	data := TemplateData{
+		Metrics:          metrics,
+		AttrCombinations: attrCombinations,
+	}
+
+	tmpl, err := template.New("otel_metrics").Funcs(funcMap).Parse(codeTemplate)
 	if err != nil {
-		log.Fatalf("Error parsing template: %v", err)
+		log.Fatalf("error parsing template: %v", err)
 	}
 
 	var buf bytes.Buffer
 	err = tmpl.Execute(&buf, data)
 	if err != nil {
-		log.Fatalf("Error executing template: %v", err)
+		log.Fatalf("error executing template: %v", err)
 	}
 
-	formatted, err := format.Source(buf.Bytes())
-	if err != nil {
-		log.Fatalf("Error formatting generated code: %v", err)
+	// Create the directory if it doesn't exist
+	outputDir := filepath.Dir(*outputFile)
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		log.Fatalf("error creating output directory: %v", err)
 	}
 
-	err = os.WriteFile(*outputFile, formatted, 0644)
+	err = os.WriteFile(*outputFile, buf.Bytes(), 0644)
 	if err != nil {
-		log.Fatalf("Error writing output file: %v", err)
+		log.Fatalf("error writing output file: %v", err)
 	}
 
 	fmt.Printf("Successfully generated %s\n", *outputFile)
-}
-
-func processMetrics(metrics []Metric, pkgName string) TemplateData {
-	var processedMetrics []ProcessedMetric
-	attrMap := make(map[string]ProcessedAttribute)
-
-	for _, m := range metrics {
-		pm := ProcessedMetric{
-			Name:            m.Name,
-			GoName:          toPascalCase(m.Name),
-			Type:            m.Type,
-			Description:     m.Description,
-			Unit:            m.Unit,
-			Boundaries:      m.Boundaries,
-			GoUnitConverter: getUnitConverter(m.Unit),
-		}
-
-		for _, a := range m.Attributes {
-			pa := ProcessedAttribute{
-				Name:   a.Name,
-				GoName: toCamelCase(a.Name),
-				GoType: a.Type,
-			}
-			if a.Type == "bool" {
-				pa.Values = []string{"true", "false"}
-			} else {
-				pa.Values = a.Values
-			}
-			pm.Attributes = append(pm.Attributes, pa)
-			attrMap[pa.Name] = pa
-		}
-
-		// Sort attributes to ensure deterministic order for variable names
-		sort.Slice(pm.Attributes, func(i, j int) bool {
-			return pm.Attributes[i].Name < pm.Attributes[j].Name
-		})
-
-		pm.Combinations = generateMetricCombinations(pm)
-		pm.SwitchTree = buildSwitchTree(pm)
-		processedMetrics = append(processedMetrics, pm)
-	}
-
-	return TemplateData{
-		PackageName: pkgName,
-		Metrics:     processedMetrics,
-		AttrMap:     attrMap,
-	}
-}
-
-func generateMetricCombinations(pm ProcessedMetric) []MetricCombination {
-	var combinations []MetricCombination
-
-	var recurse func(int, map[string]string)
-	recurse = func(attrIndex int, currentCombo map[string]string) {
-		if attrIndex == len(pm.Attributes) {
-			// Create a copy of the map
-			finalCombo := make(map[string]string)
-			var nameParts []string
-			nameParts = append(nameParts, pm.GoName)
-
-			// Sort keys for deterministic naming
-			var sortedAttrNames []string
-			for k := range currentCombo {
-				sortedAttrNames = append(sortedAttrNames, k)
-			}
-			sort.Strings(sortedAttrNames)
-
-			for _, attrName := range sortedAttrNames {
-				val := currentCombo[attrName]
-				finalCombo[attrName] = val
-				nameParts = append(nameParts, toPascalCase(attrName), toPascalCase(val))
-			}
-
-			baseName := strings.Join(nameParts, "")
-			combinations = append(combinations, MetricCombination{
-				Attributes:     finalCombo,
-				AtomicVarName:  toCamelCase(baseName) + "Atomic",
-				AttrSetVarName: toCamelCase(baseName) + "AttrSet",
-			})
-			return
-		}
-
-		attr := pm.Attributes[attrIndex]
-		for _, val := range attr.Values {
-			currentCombo[attr.Name] = val
-			recurse(attrIndex+1, currentCombo)
-		}
-	}
-
-	recurse(0, make(map[string]string))
-	return combinations
-}
-
-func buildSwitchTree(pm ProcessedMetric) *SwitchNode {
-	if len(pm.Attributes) == 0 {
-		// For metrics without attributes, there's one combination.
-		return &SwitchNode{
-			IsLeaf: true,
-			// Point to the first (and only) combination.
-			LeafCombination: &pm.Combinations[0],
-		}
-	}
-
-	var build func(int, map[string]string) *SwitchNode
-	build = func(attrIndex int, path map[string]string) *SwitchNode {
-		attr := pm.Attributes[attrIndex]
-		node := &SwitchNode{
-			AttributeGoName: attr.GoName,
-			AttributeGoType: attr.GoType,
-			Children:        make(map[string]*SwitchNode),
-		}
-
-		for _, val := range attr.Values {
-			newPath := make(map[string]string)
-			for k, v := range path {
-				newPath[k] = v
-			}
-			newPath[attr.Name] = val
-
-			if attrIndex+1 == len(pm.Attributes) {
-				// Leaf node
-				var leafCombo *MetricCombination
-				// Find the combination that matches the current path
-				for i := range pm.Combinations {
-					if reflect.DeepEqual(pm.Combinations[i].Attributes, newPath) {
-						leafCombo = &pm.Combinations[i]
-						break
-					}
-				}
-
-				node.Children[val] = &SwitchNode{
-					IsLeaf:          true,
-					LeafCombination: leafCombo,
-				}
-			} else {
-				node.Children[val] = build(attrIndex+1, newPath)
-			}
-		}
-		return node
-	}
-
-	return build(0, make(map[string]string))
-}
-
-func getUnitConverter(unit string) string {
-	switch unit {
-	case "us":
-		return "Microseconds"
-	case "ms":
-		return "Milliseconds"
-	case "s":
-		return "Seconds"
-	}
-	return ""
-}
-
-// Template Helper Functions
-
-func toPascalCase(s string) string {
-	s = strings.ReplaceAll(s, "-", " ")
-	s = strings.ReplaceAll(s, "_", " ")
-	s = cases.Title(language.English).String(s)
-	return strings.ReplaceAll(s, " ", "")
-}
-
-func toCamelCase(s string) string {
-	pascal := toPascalCase(s)
-	if pascal == "" {
-		return ""
-	}
-	return strings.ToLower(pascal[:1]) + pascal[1:]
-}
-
-func toOtelType(goType string) string {
-	switch goType {
-	case "string":
-		return "String"
-	case "bool":
-		return "Bool"
-	case "int64":
-		return "Int64"
-	default:
-		return goType
-	}
 }
