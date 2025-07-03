@@ -97,6 +97,11 @@ func (m *memoryBlock) Deallocate() error {
 
 // createBlock creates a new block.
 func createBlock(blockSize int64) (Block, error) {
+	return createMemoryBlock(blockSize)
+}
+
+// createMemoryBlock creates a new memory block with the given size.
+func createMemoryBlock(blockSize int64) (*memoryBlock, error) {
 	prot, flags := syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_ANON|syscall.MAP_PRIVATE
 	addr, err := syscall.Mmap(-1, 0, int(blockSize), prot, flags)
 	if err != nil {
