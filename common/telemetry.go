@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"go.opentelemetry.io/otel/metric"
 )
@@ -70,33 +69,7 @@ func (a *MetricAttr) String() string {
 	return fmt.Sprintf("Key: %s, Value: %s", a.Key, a.Value)
 }
 
-type GCSMetricHandle interface {
-	GCSReadBytesCount(ctx context.Context, inc int64)
-	GCSReaderCount(ctx context.Context, inc int64, ioMethod string)
-	GCSRequestCount(ctx context.Context, inc int64, gcsMethod string)
-	GCSRequestLatency(ctx context.Context, latency time.Duration, gcsMethod string)
-	GCSReadCount(ctx context.Context, inc int64, readType string)
-	GCSDownloadBytesCount(ctx context.Context, inc int64, readType string)
-}
-
-type OpsMetricHandle interface {
-	OpsCount(ctx context.Context, inc int64, fsOp string)
-	OpsLatency(ctx context.Context, latency time.Duration, fsOp string)
-	OpsErrorCount(ctx context.Context, inc int64, attrs FSOpsErrorCategory)
-}
-
-type FileCacheMetricHandle interface {
-	FileCacheReadCount(ctx context.Context, inc int64, attrs CacheHitReadType)
-	FileCacheReadBytesCount(ctx context.Context, inc int64, readType string)
-	FileCacheReadLatency(ctx context.Context, latency time.Duration, cacheHit string)
-}
-type MetricHandle interface {
-	GCSMetricHandle
-	OpsMetricHandle
-	FileCacheMetricHandle
-}
-
 func CaptureGCSReadMetrics(ctx context.Context, metricHandle MetricHandle, readType string, requestedDataSize int64) {
-	metricHandle.GCSReadCount(ctx, 1, readType)
-	metricHandle.GCSDownloadBytesCount(ctx, requestedDataSize, readType)
+	metricHandle.GcsReadCount(1, readType)
+	metricHandle.GcsDownloadBytesCount(requestedDataSize, readType)
 }

@@ -26,9 +26,9 @@ import (
 
 // recordRequest records a request and its latency.
 func recordRequest(ctx context.Context, metricHandle common.MetricHandle, method string, start time.Time) {
-	metricHandle.GCSRequestCount(ctx, 1, method)
+	metricHandle.GcsRequestCount(1, method)
 
-	metricHandle.GCSRequestLatency(ctx, time.Since(start), method)
+	metricHandle.GcsRequestLatencies(ctx, time.Since(start), method)
 }
 
 func CaptureMultiRangeDownloaderMetrics(ctx context.Context, metricHandle common.MetricHandle, method string, start time.Time) {
@@ -217,7 +217,7 @@ func (mb *monitoringBucket) GCSName(obj *gcs.MinObject) string {
 
 // recordReader increments the reader count when it's opened or closed.
 func recordReader(ctx context.Context, metricHandle common.MetricHandle, ioMethod string) {
-	metricHandle.GCSReaderCount(ctx, 1, ioMethod)
+	metricHandle.GcsReaderCount(1, ioMethod)
 }
 
 // Monitoring on the object reader
@@ -240,7 +240,7 @@ type monitoringReadCloser struct {
 
 func (mrc *monitoringReadCloser) Read(p []byte) (n int, err error) {
 	n, err = mrc.wrapped.Read(p)
-	mrc.metricHandle.GCSReadBytesCount(mrc.ctx, int64(n))
+	mrc.metricHandle.GcsReadBytesCount(int64(n))
 	return
 }
 

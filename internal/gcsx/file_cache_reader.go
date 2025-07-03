@@ -208,13 +208,10 @@ func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (
 }
 
 func captureFileCacheMetrics(ctx context.Context, metricHandle common.MetricHandle, readType string, readDataSize int, cacheHit bool, readLatency time.Duration) {
-	metricHandle.FileCacheReadCount(ctx, 1, common.CacheHitReadType{
-		ReadType: readType,
-		CacheHit: strconv.FormatBool(cacheHit),
-	})
+	metricHandle.FileCacheReadCount(1, strconv.FormatBool(cacheHit), readType)
 
-	metricHandle.FileCacheReadBytesCount(ctx, int64(readDataSize), readType)
-	metricHandle.FileCacheReadLatency(ctx, readLatency, strconv.FormatBool(cacheHit))
+	metricHandle.FileCacheReadBytesCount(int64(readDataSize), readType)
+	metricHandle.FileCacheReadLatencies(ctx, readLatency, strconv.FormatBool(cacheHit))
 }
 
 func (fc *FileCacheReader) Destroy() {

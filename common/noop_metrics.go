@@ -26,17 +26,18 @@ func NewNoopMetrics() MetricHandle {
 
 type noopMetrics struct{}
 
-func (*noopMetrics) GCSReadBytesCount(_ context.Context, _ int64)                   {}
-func (*noopMetrics) GCSReaderCount(_ context.Context, _ int64, _ string)            {}
-func (*noopMetrics) GCSRequestCount(_ context.Context, _ int64, _ string)           {}
-func (*noopMetrics) GCSRequestLatency(_ context.Context, _ time.Duration, _ string) {}
-func (*noopMetrics) GCSReadCount(_ context.Context, _ int64, _ string)              {}
-func (*noopMetrics) GCSDownloadBytesCount(_ context.Context, _ int64, _ string)     {}
+func (*noopMetrics) GcsReadBytesCount(_ int64)                                        {}
+func (*noopMetrics) GcsReaderCount(_ int64, _ string)                                 {}
+func (*noopMetrics) GcsRequestCount(_ int64, _ string)                                {}
+func (*noopMetrics) GcsRequestLatencies(_ context.Context, _ time.Duration, _ string) {}
+func (*noopMetrics) GcsReadCount(_ int64, _ string)                                   {}
+func (*noopMetrics) GcsDownloadBytesCount(_ int64, _ string)                          {}
+func (*noopMetrics) GcsRetryCount(_ int64, _ string)                                  {}
 
-func (*noopMetrics) OpsCount(_ context.Context, _ int64, _ string)                  {}
-func (*noopMetrics) OpsLatency(_ context.Context, _ time.Duration, _ string)        {}
-func (*noopMetrics) OpsErrorCount(_ context.Context, _ int64, _ FSOpsErrorCategory) {}
+func (*noopMetrics) FsOpsCount(_ int64, _ string)                              {}
+func (*noopMetrics) FsOpsLatency(_ context.Context, _ time.Duration, _ string) {}
+func (*noopMetrics) FsOpsErrorCount(_ int64, _ string, _ string)               {}
 
-func (*noopMetrics) FileCacheReadCount(_ context.Context, _ int64, attrs CacheHitReadType) {}
-func (*noopMetrics) FileCacheReadBytesCount(_ context.Context, _ int64, _ string)          {}
-func (*noopMetrics) FileCacheReadLatency(_ context.Context, _ time.Duration, _ string)     {}
+func (*noopMetrics) FileCacheReadCount(_ int64, _ string, _ string)                      {}
+func (*noopMetrics) FileCacheReadBytesCount(_ int64, _ string)                           {}
+func (*noopMetrics) FileCacheReadLatencies(_ context.Context, _ time.Duration, _ string) {}
