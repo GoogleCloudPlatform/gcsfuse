@@ -123,6 +123,7 @@ func cacheHitReadTypeAttrOption(attr CacheHitReadType) metric.MeasurementOption 
 
 // otelMetrics maintains the list of all metrics computed in GCSFuse.
 type otelMetrics struct {
+	taskCh          chan func()
 	fsOpsCount      metric.Int64Counter
 	fsOpsErrorCount metric.Int64Counter
 	fsOpsLatency    metric.Float64Histogram
@@ -140,59 +141,81 @@ type otelMetrics struct {
 	fileCacheReadLatency    metric.Float64Histogram
 }
 
+func (o *otelMetrics) addTaskToQueue(f func()) {
+	select {
+	case o.taskCh <- f: //Task added to queue
+	default: //Skip adding the metric update to queue since queue is full.
+	}
+}
 func (o *otelMetrics) GCSReadBytesCount(_ context.Context, inc int64) {
-	o.gcsReadBytesCountAtomic.Add(inc)
+	o.addTaskToQueue(func() { o.gcsReadBytesCountAtomic.Add(inc) })
 }
 
 func (o *otelMetrics) GCSReaderCount(ctx context.Context, inc int64, ioMethod string) {
-	o.gcsReaderCount.Add(ctx, inc, ioMethodAttrOption(ioMethod))
+	o.addTaskToQueue(func() { o.gcsReaderCount.Add(ctx, inc, ioMethodAttrOption(ioMethod)) })
 }
 
 func (o *otelMetrics) GCSRequestCount(ctx context.Context, inc int64, gcsMethod string) {
-	o.gcsRequestCount.Add(ctx, inc, gcsMethodAttrOption(gcsMethod))
+	o.addTaskToQueue(func() { o.gcsRequestCount.Add(ctx, inc, gcsMethodAttrOption(gcsMethod)) })
 }
 
 func (o *otelMetrics) GCSRequestLatency(ctx context.Context, latency time.Duration, gcsMethod string) {
-	o.gcsRequestLatency.Record(ctx, float64(latency.Milliseconds()), gcsMethodAttrOption(gcsMethod))
+	o.addTaskToQueue(func() {
+		o.gcsRequestLatency.Record(ctx, float64(latency.Milliseconds()), gcsMethodAttrOption(gcsMethod))
+	})
 }
 
 func (o *otelMetrics) GCSReadCount(ctx context.Context, inc int64, readType string) {
-	o.gcsReadCount.Add(ctx, inc, readTypeAttrOption(readType))
+	o.addTaskToQueue(func() { o.gcsReadCount.Add(ctx, inc, readTypeAttrOption(readType)) })
 }
 
 func (o *otelMetrics) GCSDownloadBytesCount(ctx context.Context, inc int64, readType string) {
-	o.gcsDownloadBytesCount.Add(ctx, inc, readTypeAttrOption(readType))
+	o.addTaskToQueue(func() { o.gcsDownloadBytesCount.Add(ctx, inc, readTypeAttrOption(readType)) })
 }
 
 func (o *otelMetrics) GCSRetryCount(ctx context.Context, inc int64, retryErrCategory string) {
-	o.gcsRetryCount.Add(ctx, inc, retryErrCategoryAttrOption(retryErrCategory))
+	o.addTaskToQueue(func() { o.gcsRetryCount.Add(ctx, inc, retryErrCategoryAttrOption(retryErrCategory)) })
 }
 
 func (o *otelMetrics) OpsCount(ctx context.Context, inc int64, fsOp string) {
-	o.fsOpsCount.Add(ctx, inc, fsOpsAttrOption(fsOp))
+	o.addTaskToQueue(func() { o.fsOpsCount.Add(ctx, inc, fsOpsAttrOption(fsOp)) })
 }
 
 func (o *otelMetrics) OpsLatency(ctx context.Context, latency time.Duration, fsOp string) {
-	o.fsOpsLatency.Record(ctx, float64(latency.Microseconds()), fsOpsAttrOption(fsOp))
+	o.addTaskToQueue(func() { o.fsOpsLatency.Record(ctx, float64(latency.Microseconds()), fsOpsAttrOption(fsOp)) })
 }
 
 func (o *otelMetrics) OpsErrorCount(ctx context.Context, inc int64, attrs FSOpsErrorCategory) {
-	o.fsOpsErrorCount.Add(ctx, inc, getFsOpsErrorCategoryAttributeOption(attrs))
+	o.addTaskToQueue(func() { o.fsOpsErrorCount.Add(ctx, inc, getFsOpsErrorCategoryAttributeOption(attrs)) })
 }
 
 func (o *otelMetrics) FileCacheReadCount(ctx context.Context, inc int64, attrs CacheHitReadType) {
-	o.fileCacheReadCount.Add(ctx, inc, cacheHitReadTypeAttrOption(attrs))
+	o.addTaskToQueue(func() { o.fileCacheReadCount.Add(ctx, inc, cacheHitReadTypeAttrOption(attrs)) })
 }
 
 func (o *otelMetrics) FileCacheReadBytesCount(ctx context.Context, inc int64, readType string) {
-	o.fileCacheReadBytesCount.Add(ctx, inc, readTypeAttrOption(readType))
+	o.addTaskToQueue(func() { o.fileCacheReadBytesCount.Add(ctx, inc, readTypeAttrOption(readType)) })
 }
 
 func (o *otelMetrics) FileCacheReadLatency(ctx context.Context, latency time.Duration, cacheHit string) {
-	o.fileCacheReadLatency.Record(ctx, float64(latency.Microseconds()), cacheHitAttrOption(cacheHit))
+	o.addTaskToQueue(func() {
+		o.fileCacheReadLatency.Record(ctx, float64(latency.Microseconds()), cacheHitAttrOption(cacheHit))
+	})
 }
 
-func NewOTelMetrics() (MetricHandle, error) {
+func NewOTelMetrics(workers int, taskBufferSize int) (MetricHandle, error) {
+	taskCh := make(chan func(), taskBufferSize)
+	for range workers {
+		go func() {
+			for {
+				f, ok := <-taskCh
+				if !ok {
+					return
+				}
+				f()
+			}
+		}()
+	}
 	fsOpsCount, err1 := fsOpsMeter.Int64Counter("fs/ops_count", metric.WithDescription("The cumulative number of ops processed by the file system."))
 	fsOpsLatency, err2 := fsOpsMeter.Float64Histogram("fs/ops_latency", metric.WithDescription("The cumulative distribution of file system operation latencies"), metric.WithUnit("us"),
 		defaultLatencyDistribution)
@@ -232,6 +255,7 @@ func NewOTelMetrics() (MetricHandle, error) {
 	}
 
 	return &otelMetrics{
+		taskCh:                  taskCh,
 		fsOpsCount:              fsOpsCount,
 		fsOpsErrorCount:         fsOpsErrorCount,
 		fsOpsLatency:            fsOpsLatency,
