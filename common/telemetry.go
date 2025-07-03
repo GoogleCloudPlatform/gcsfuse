@@ -17,34 +17,15 @@ package common
 import (
 	"context"
 	"errors"
-	"fmt"
-
-	"go.opentelemetry.io/otel/metric"
 )
 
 type ShutdownFn func(ctx context.Context) error
-
-// The default time buckets for latency metrics.
-// The unit can however change for different units i.e. for one metric the unit could be microseconds and for another it could be milliseconds.
-var defaultLatencyDistribution = metric.WithExplicitBucketBoundaries(1, 2, 3, 4, 5, 6, 8, 10, 13, 16, 20, 25, 30, 40, 50, 65, 80, 100, 130, 160, 200, 250, 300, 400, 500, 650, 800, 1000, 2000, 5000, 10000, 20000, 50000, 100000)
 
 const (
 	ReadTypeSequential = "Sequential"
 	ReadTypeRandom     = "Random"
 	ReadTypeParallel   = "Parallel"
 )
-
-// Pair of CacheHit and ReadType attributes
-type CacheHitReadType struct {
-	CacheHit string
-	ReadType string
-}
-
-// Pair of FSOp and ErrorCategory attributes
-type FSOpsErrorCategory struct {
-	FSOps         string
-	ErrorCategory string
-}
 
 // JoinShutdownFunc combines the provided shutdown functions into a single function.
 func JoinShutdownFunc(shutdownFns ...ShutdownFn) ShutdownFn {
@@ -58,15 +39,6 @@ func JoinShutdownFunc(shutdownFns ...ShutdownFn) ShutdownFn {
 		}
 		return err
 	}
-}
-
-// MetricAttr represents the attributes associated with a metric.
-type MetricAttr struct {
-	Key, Value string
-}
-
-func (a *MetricAttr) String() string {
-	return fmt.Sprintf("Key: %s, Value: %s", a.Key, a.Value)
 }
 
 func CaptureGCSReadMetrics(ctx context.Context, metricHandle MetricHandle, readType string, requestedDataSize int64) {
