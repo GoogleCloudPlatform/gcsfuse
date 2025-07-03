@@ -367,7 +367,7 @@ func (dh *DirHandle) ReadDir(
 //
 // LOCKS_REQUIRED(dh.Mu)
 // LOCKS_EXCLUDED(dh.in)
-func (dh *DirHandle) FetchDirCores(
+func (dh *DirHandle) FetchEntryCores(
 	ctx context.Context,
 	op *fuseops.ReadDirPlusOp) (cores map[inode.Name]*inode.Core, err error) {
 	// If the request is for offset zero, we assume that either this is the first
