@@ -193,7 +193,7 @@
   type: "int_counter"
   attributes:
   - attribute-name: cache_hit
-    attribute-type: string
+    attribute-type: bool
     values:
     - "true"
     - "false"
@@ -217,7 +217,7 @@
   boundaries: *common_boundaries
   attributes:
   - attribute-name: cache_hit
-    attribute-type: string
+    attribute-type: bool
     values:
     - "true"
     - "false"

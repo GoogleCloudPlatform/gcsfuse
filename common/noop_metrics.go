@@ -38,6 +38,6 @@ func (*noopMetrics) FsOpsCount(_ int64, _ string)                              {
 func (*noopMetrics) FsOpsLatency(_ context.Context, _ time.Duration, _ string) {}
 func (*noopMetrics) FsOpsErrorCount(_ int64, _ string, _ string)               {}
 
-func (*noopMetrics) FileCacheReadCount(_ int64, _ string, _ string)                      {}
-func (*noopMetrics) FileCacheReadBytesCount(_ int64, _ string)                           {}
-func (*noopMetrics) FileCacheReadLatencies(_ context.Context, _ time.Duration, _ string) {}
+func (*noopMetrics) FileCacheReadCount(_ int64, _ bool, _ string)                      {}
+func (*noopMetrics) FileCacheReadBytesCount(_ int64, _ string)                         {}
+func (*noopMetrics) FileCacheReadLatencies(_ context.Context, _ time.Duration, _ bool) {}
