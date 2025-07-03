@@ -22,7 +22,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"go.opentelelemetry.io/otel"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )
