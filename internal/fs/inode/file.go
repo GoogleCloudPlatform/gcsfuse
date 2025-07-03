@@ -20,7 +20,6 @@ import (
 	"io"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -552,9 +551,8 @@ func (f *FileInode) Read(
 	ctx context.Context,
 	dst []byte,
 	offset int64) (n int, err error) {
-	// It is not nil when streaming writes are enabled and bucket type is Zonal.
 	if f.bwh != nil {
-		err = fmt.Errorf("Unexpected read call for %q when steaming write is in progress for it: %w", f.Name().LocalName(), syscall.ENOTSUP)
+		err = fmt.Errorf("unexpected read call for %q when streaming write is in progress for it", f.Name().LocalName())
 		return
 	}
 
