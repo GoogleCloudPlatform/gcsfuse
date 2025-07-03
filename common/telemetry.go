@@ -37,7 +37,7 @@ const (
 
 // Pair of CacheHit and ReadType attributes
 type CacheHitReadType struct {
-	CacheHit string
+	CacheHit bool
 	ReadType string
 }
 
@@ -89,7 +89,7 @@ type OpsMetricHandle interface {
 type FileCacheMetricHandle interface {
 	FileCacheReadCount(ctx context.Context, inc int64, attrs CacheHitReadType)
 	FileCacheReadBytesCount(ctx context.Context, inc int64, readType string)
-	FileCacheReadLatency(ctx context.Context, latency time.Duration, cacheHit string)
+	FileCacheReadLatency(ctx context.Context, latency time.Duration, cacheHit bool)
 }
 type MetricHandle interface {
 	GCSMetricHandle
