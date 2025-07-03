@@ -300,6 +300,7 @@ type MetricHandle interface {
 }
 
 type otelMetrics struct {
+    ch chan func()
 	{{- range $metric := .Metrics}}
 		{{- if isCounter $metric}}
 			{{- range $combination := (index $.AttrCombinations $metric.Name)}}
@@ -326,11 +327,28 @@ func (o *otelMetrics) {{toPascal .Name}}(
 		{{if $i}}, {{end}}{{toCamel $attr.Name}} {{getGoType $attr.Type}}
 	{{- end }},
 ) {
-{{buildSwitches .}}
+	select {
+	  case o.ch <- func() {
+        {{buildSwitches .}}
+      }: // Do nothing
+      default: // Unblock writes to channel if it's full.
+    }
 }
 {{end}}
 
-func NewOTelMetrics() (*otelMetrics, error) {
+func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetrics, error) {
+  ch := make(chan func(), bufferSize)
+  for range workers {
+    go func() {
+	  for {
+	    f, ok := <-ch
+		if !ok {
+		  return
+		}
+		f()
+	  }
+	}()
+  }
 {{- range $metric := .Metrics}}
 	{{- if isCounter $metric}}
 	var {{range $i, $combination := (index $.AttrCombinations $metric.Name)}}{{if $i}}, {{end}}{{getAtomicName $metric.Name $combination}}{{end}} atomic.Int64
@@ -370,6 +388,7 @@ func NewOTelMetrics() (*otelMetrics, error) {
 	}
 
 	return &otelMetrics{
+	ch : ch,
 	{{- range $metric := .Metrics}}
 		{{- if isCounter $metric}}
 			{{- range $combination := (index $.AttrCombinations $metric.Name)}}
