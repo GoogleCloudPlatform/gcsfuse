@@ -24,7 +24,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"text/template"
+	"text/template" // NOLINT
 
 	"gopkg.in/yaml.v3"
 )
@@ -440,7 +440,7 @@ func main() {
 		AttrCombinations: attrCombinations,
 	}
 
-	tmpl, err := template.New("otel_metrics").Funcs(funcMap).Parse(codeTemplate)
+	tmpl, err := template.New("template.tpl").Funcs(funcMap).Parse(codeTemplate)
 	if err != nil {
 		log.Fatalf("error parsing template: %v", err)
 	}
