@@ -152,7 +152,8 @@ TEST_DIR_PARALLEL_FOR_ZB=(
   "streaming_writes"
   "write_large_files"
   "unfinalized_object"
-   "release_version"
+  "release_version"
+  "read_unfinalized_object"
 )
 
 # Subset of TEST_DIR_NON_PARALLEL,
