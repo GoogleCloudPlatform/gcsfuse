@@ -40,6 +40,7 @@ func logPanic() {
 // Refer https://go.dev/blog/generate for details.
 //
 //go:generate go run -C tools/config-gen . --paramsFile=../../cfg/params.yaml --outDir=../../cfg --templateDir=templates
+//go:generate go run -C tools/metrics-gen . --input=../../common/metrics.yaml --output=../../common/otel_metrics.go
 func main() {
 	// Common configuration for all commands
 	defer logPanic()
