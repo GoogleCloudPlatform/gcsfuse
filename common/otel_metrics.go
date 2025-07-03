@@ -586,7 +586,7 @@ var (
 	gcsRequestCountGcsMethodGetFolderAttrSet                                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "GetFolder")))
 	gcsRequestCountGcsMethodListObjectsAttrSet                                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "ListObjects")))
 	gcsRequestCountGcsMethodMoveObjectAttrSet                                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "MoveObject")))
-	gcsRequestCountGcsMethodMultiRangeDownloaderAddAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "MultiRangeDownloader_Add")))
+	gcsRequestCountGcsMethodMultiRangeDownloaderAddAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "MultiRangeDownloader::Add")))
 	gcsRequestCountGcsMethodNewReaderAttrSet                                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "NewReader")))
 	gcsRequestCountGcsMethodRenameFolderAttrSet                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "RenameFolder")))
 	gcsRequestCountGcsMethodStatObjectAttrSet                                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "StatObject")))
@@ -600,7 +600,7 @@ var (
 	gcsRequestLatenciesGcsMethodGetFolderAttrSet                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "GetFolder")))
 	gcsRequestLatenciesGcsMethodListObjectsAttrSet                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "ListObjects")))
 	gcsRequestLatenciesGcsMethodMoveObjectAttrSet                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "MoveObject")))
-	gcsRequestLatenciesGcsMethodMultiRangeDownloaderAddAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "MultiRangeDownloader_Add")))
+	gcsRequestLatenciesGcsMethodMultiRangeDownloaderAddAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "MultiRangeDownloader::Add")))
 	gcsRequestLatenciesGcsMethodNewReaderAttrSet                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "NewReader")))
 	gcsRequestLatenciesGcsMethodRenameFolderAttrSet                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "RenameFolder")))
 	gcsRequestLatenciesGcsMethodStatObjectAttrSet                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "StatObject")))
@@ -2433,7 +2433,7 @@ func (o *otelMetrics) GcsRequestCount(
 		o.gcsRequestCountGcsMethodListObjectsAtomic.Add(inc)
 	case "MoveObject":
 		o.gcsRequestCountGcsMethodMoveObjectAtomic.Add(inc)
-	case "MultiRangeDownloader_Add":
+	case "MultiRangeDownloader::Add":
 		o.gcsRequestCountGcsMethodMultiRangeDownloaderAddAtomic.Add(inc)
 	case "NewReader":
 		o.gcsRequestCountGcsMethodNewReaderAtomic.Add(inc)
@@ -2469,7 +2469,7 @@ func (o *otelMetrics) GcsRequestLatencies(
 		o.gcsRequestLatencies.Record(ctx, latency.Milliseconds(), gcsRequestLatenciesGcsMethodListObjectsAttrSet)
 	case "MoveObject":
 		o.gcsRequestLatencies.Record(ctx, latency.Milliseconds(), gcsRequestLatenciesGcsMethodMoveObjectAttrSet)
-	case "MultiRangeDownloader_Add":
+	case "MultiRangeDownloader::Add":
 		o.gcsRequestLatencies.Record(ctx, latency.Milliseconds(), gcsRequestLatenciesGcsMethodMultiRangeDownloaderAddAttrSet)
 	case "NewReader":
 		o.gcsRequestLatencies.Record(ctx, latency.Milliseconds(), gcsRequestLatenciesGcsMethodNewReaderAttrSet)

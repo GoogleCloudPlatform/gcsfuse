@@ -76,6 +76,7 @@ var funcMap = template.FuncMap{
 }
 
 func toPascal(s string) string {
+	s = strings.ReplaceAll(s, "::", "-")
 	s = strings.ReplaceAll(s, "/", "-")
 	s = strings.ReplaceAll(s, "_", "-")
 	parts := strings.Split(s, "-")
