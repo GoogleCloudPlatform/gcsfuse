@@ -40,4 +40,4 @@ func (*noopMetrics) OpsErrorCount(_ context.Context, _ int64, _ FSOpsErrorCatego
 
 func (*noopMetrics) FileCacheReadCount(_ context.Context, _ int64, attrs CacheHitReadType) {}
 func (*noopMetrics) FileCacheReadBytesCount(_ context.Context, _ int64, _ string)          {}
-func (*noopMetrics) FileCacheReadLatency(_ context.Context, _ time.Duration, _ string)     {}
+func (*noopMetrics) FileCacheReadLatency(_ context.Context, _ time.Duration, _ bool)       {}
