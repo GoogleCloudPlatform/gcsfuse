@@ -203,8 +203,15 @@ func (o *otelMetrics) FileCacheReadLatency(ctx context.Context, latency time.Dur
 	})
 }
 
-func NewOTelMetrics(workers int, taskBufferSize int) (MetricHandle, error) {
+func NewOTelMetrics(ctx context.Context, workers int, taskBufferSize int) (MetricHandle, error) {
 	taskCh := make(chan func(), taskBufferSize)
+	// close channel when context is done.
+	go func() {
+		<-ctx.Done()
+		close(taskCh)
+	}()
+
+	// Start the workers to execute the tasks.
 	for range workers {
 		go func() {
 			for {

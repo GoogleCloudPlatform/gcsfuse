@@ -389,7 +389,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	metricHandle := common.NewNoopMetrics()
 	if cfg.IsMetricsEnabled(&newConfig.Metrics) {
 		metricExporterShutdownFn = monitor.SetupOTelMetricExporters(ctx, newConfig)
-		if metricHandle, err = common.NewOTelMetrics(10, 1024); err != nil {
+		if metricHandle, err = common.NewOTelMetrics(ctx, 10, 1024); err != nil {
 			metricHandle = common.NewNoopMetrics()
 		}
 	}
