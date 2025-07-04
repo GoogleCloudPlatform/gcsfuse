@@ -156,6 +156,16 @@ func (d *baseDirInode) Attributes(
 }
 
 // LOCKS_REQUIRED(d)
+func (d *baseDirInode) ExtractAttributes(
+	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
+	// Set up basic attributes.
+	attrs = d.attrs
+	attrs.Nlink = 1
+
+	return
+}
+
+// LOCKS_REQUIRED(d)
 func (d *baseDirInode) LookUpChild(ctx context.Context, name string) (*Core, error) {
 	var err error
 	bucket, ok := d.buckets[name]
@@ -183,6 +193,18 @@ func (d *baseDirInode) ReadDescendants(ctx context.Context, limit int) (map[Name
 func (d *baseDirInode) ReadEntries(
 	ctx context.Context,
 	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
+
+	// The subdirectories of the base directory should be all the accessible
+	// buckets. Although the user is allowed to visit each individual
+	// subdirectory, listing all the subdirectories (i.e. the buckets) can be
+	// very expensive and currently not supported.
+	return nil, "", syscall.ENOTSUP
+}
+
+// LOCKS_REQUIRED(d)
+func (d *baseDirInode) ReadEntryCores(
+	ctx context.Context,
+	tok string) (cores map[Name]*Core, newTok string, err error) {
 
 	// The subdirectories of the base directory should be all the accessible
 	// buckets. Although the user is allowed to visit each individual
