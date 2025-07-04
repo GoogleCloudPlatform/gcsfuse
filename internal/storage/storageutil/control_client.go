@@ -24,6 +24,7 @@ import (
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"google.golang.org/api/option"
+	"google.golang.org/api/option/internaloption"
 	"google.golang.org/grpc/codes"
 )
 
@@ -58,7 +59,8 @@ func CreateGRPCControlClient(ctx context.Context, clientOpts []option.ClientOpti
 		logger.Fatal("error setting direct path env var: %v", err)
 	}
 
-	controlClient, err = control.NewStorageControlClient(ctx, clientOpts...)
+	opts := append(clientOpts, internaloption.EnableDirectPath(true), internaloption.AllowNonDefaultServiceAccount(true), internaloption.EnableDirectPathXds())
+	controlClient, err = control.NewStorageControlClient(ctx, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("NewStorageControlClient: %w", err)
 	}
