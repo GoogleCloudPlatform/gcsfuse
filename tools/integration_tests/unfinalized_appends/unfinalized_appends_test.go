@@ -15,6 +15,7 @@
 package unfinalized_appends
 
 import (
+	"io"
 	"os"
 	"path"
 	"syscall"
@@ -123,6 +124,50 @@ func (t *UnfinalizedAppendsSuite) TestAppendsFromDifferentMount() {
 		assert.Equal(t.T(), t.fileSize, len(gotContent))
 		assert.Equal(t.T(), expectedContent, string(gotContent))
 	}
+}
+
+func (t *UnfinalizedAppendsSuite) TestReadWithSeparateHandleWhileAppending() {
+	// This test validates that a separate read-only file handle can see
+	// data being appended by an append handle on the same mount in real time.
+	// The write-handle remains open throughout the test, to simulate append in progress.
+
+	filePath := path.Join(gTestDirPath, t.fileName)
+	expectedContent := t.initialContent
+
+	// 1. First append using the suite's default write handle (opened in 'a' mode).
+	appendContent1 := "appended content\n"
+	_, err := t.appendFileHandle.WriteString(appendContent1)
+	assert.NoError(t.T(), err)
+	expectedContent += appendContent1
+
+	// 2. Open a new, separate handle for reading ('r' mode).
+	readHandle1, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, 0)
+	require.NoError(t.T(), err)
+
+	// 3. Read all content with the new handle and verify it sees the appended data.
+	gotContent1, err := io.ReadAll(readHandle1)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), expectedContent, string(gotContent1))
+
+	// Close the read handle. The write handle remains open.
+	require.NoError(t.T(), readHandle1.Close())
+
+	// 4. Second append using the original, still-open write handle.
+	appendContent2 := "appened content twice\n"
+	_, err = t.appendFileHandle.WriteString(appendContent2)
+	assert.NoError(t.T(), err)
+	expectedContent += appendContent2
+
+	// 5. Open another new handle for reading to verify again.
+	readHandle2, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, 0)
+	require.NoError(t.T(), err)
+
+	// 6. Read and verify the final content.
+	gotContent2, err := io.ReadAll(readHandle2)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), expectedContent, string(gotContent2))
+	require.NoError(t.T(), readHandle2.Close())
+
 }
 
 ////////////////////////////////////////////////////////////////////////
