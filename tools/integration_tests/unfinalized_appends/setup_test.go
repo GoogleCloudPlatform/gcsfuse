@@ -33,31 +33,33 @@ const (
 var (
 	// Flags for the mount options for gRootDir and gOtherRootDir
 	gFlags []string
-
 	// Mount function to be used for the mounting.
 	gMountFunc func([]string) error
 
+	// Globals for primary mount.
 	// Root directory which is mounted by gcsfuse.
 	gRootDir string
-
 	// Stores test directory path in the mounted path for gRootDir.
 	gTestDirPath string
-
 	// Stores log file path for the mount gRootDir.
 	gLogFilePath string
 
+	// Globals for secondary mount.
 	// Other Root directory which is mounted by gcsfuse for multi-mount scenarios.
 	gOtherRootDir string
-
 	// Stores test directory path in the mounted path for gOtherRootDir.
 	gOtherTestDirPath string
-
 	// Stores log file path for the mount gOtherRootDir.
 	gOtherLogFilePath string
+
 	// Clients to create the object in GCS.
 	gStorageClient *storage.Client
 	gCtx           context.Context
 )
+
+////////////////////////////////////////////////////////////////////////
+// TestMain
+////////////////////////////////////////////////////////////////////////
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
@@ -93,7 +95,7 @@ func TestMain(m *testing.M) {
 
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
-		{"--write-block-size-mb=1","--write-global-max-blocks=-1", "--write-experimental-enable-rapid-appends=true"},
+		{"--metadata-cache-ttl-secs=0", "--write-block-size-mb=1", "--write-global-max-blocks=-1", "--write-experimental-enable-rapid-appends=true"},
 	}
 
 	log.Println("Running static mounting tests...")
