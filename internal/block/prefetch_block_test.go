@@ -40,8 +40,6 @@ func (testSuite *prefetchBlockTest) TestCreatePrefetchBlock() {
 	output, err := io.ReadAll(pb.Reader())
 	assert.Nil(testSuite.T(), err)
 	assert.Equal(testSuite.T(), []byte{}, output)
-	assert.Equal(testSuite.T(), int64(0), pb.GetId())
-	assert.NotNil(testSuite.T(), pb.NotificationChannel())
 }
 
 func (testSuite *prefetchBlockTest) TestPrefetchBlockWrite() {
@@ -85,27 +83,9 @@ func (testSuite *prefetchBlockTest) TestPrefetchBlockReuse() {
 	output, err := io.ReadAll(pb.Reader())
 	assert.Nil(testSuite.T(), err)
 	assert.Equal(testSuite.T(), []byte{}, output)
-	assert.Equal(testSuite.T(), int64(0), pb.GetId())
-	assert.NotNil(testSuite.T(), pb.NotificationChannel())
 }
 
 func (testSuite *prefetchBlockTest) TestPrefetchBlockGetIdForEmptyBlock() {
-	pb, err := CreatePrefetchBlock(12)
+	_, err := CreatePrefetchBlock(12)
 	require.Nil(testSuite.T(), err)
-
-	// Initially, the ID should be 0
-	assert.Equal(testSuite.T(), int64(0), pb.GetId())
-}
-
-// TestPrefetchBlockSetId sets the ID of the prefetch block and verifies it.
-func (testSuite *prefetchBlockTest) TestPrefetchBlockSetId() {
-	pb, err := CreatePrefetchBlock(12)
-	require.Nil(testSuite.T(), err)
-
-	// Set a new ID
-	newId := int64(5)
-	pb.SetId(newId)
-
-	// Verify that the ID is set correctly
-	assert.Equal(testSuite.T(), newId, pb.GetId())
 }

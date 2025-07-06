@@ -45,7 +45,8 @@ func NewPrefetchTask(ctx context.Context, object *gcs.MinObject, bucket gcs.Buck
 }
 
 func (p *PrefetchTask) Execute() {
-	blockId := p.block.GetId()
+	startOff := p.block.GetAbsStartOff()
+	blockId := startOff / p.block.Cap()
 	logger.Tracef("Download: <- block (%s, %v).", p.object.Name, blockId)
 	stime := time.Now()
 
@@ -58,8 +59,8 @@ func (p *PrefetchTask) Execute() {
 		}
 	}()
 
-	start := uint64(blockId) * uint64(len(p.block.Data()))
-	end := start + uint64(len(p.block.Data()))
+	start := uint64(startOff)
+	end := start + uint64(p.block.Cap())
 	if end > p.object.Size {
 		end = p.object.Size
 	}
@@ -80,10 +81,10 @@ func (p *PrefetchTask) Execute() {
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			logger.Warnf("Download block (%s, %v): %v failed with context cancelled while reader creation.", p.object.Name, blockId, err)
-			p.block.Ready(block.BlockStatusDownloadCancelled)
+			p.block.NotifyReady(block.BlockStatusDownloadCancelled)
 		} else {
 			err = fmt.Errorf("downloadRange: error in creating reader(%d, %d), error: %v", start, end, err)
-			p.block.Ready(block.BlockStatusDownloadFailed)
+			p.block.NotifyReady(block.BlockStatusDownloadFailed)
 		}
 		return
 	}
@@ -92,13 +93,13 @@ func (p *PrefetchTask) Execute() {
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			logger.Warnf("Download block (%s, %v): %v failed with context cancelled while reading.", p.object.Name, blockId, err)
-			p.block.Ready(block.BlockStatusDownloadCancelled)
+			p.block.NotifyReady(block.BlockStatusDownloadCancelled)
 		} else {
 			err = fmt.Errorf("downloadRange: error copying the content to block: %v", err)
-			p.block.Ready(block.BlockStatusDownloadFailed)
+			p.block.NotifyReady(block.BlockStatusDownloadFailed)
 		}
 		return
 	}
 
-	p.block.Ready(block.BlockStatusDownloaded)
+	p.block.NotifyReady(block.BlockStatusDownloaded)
 }

@@ -16,36 +16,11 @@ package block
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 )
-
-type PrefetchBlock interface {
-	Block
-
-	// Returns complete buffer slice to read any specific data.
-	Data() []byte
-
-	// NotificationChannel returns a channel that notifies when the block is
-	// ready to consume.
-	NotificationChannel() <-chan int
-
-	// GetId returns the id of the block. The id is used to identify the portion of
-	// the block that is being prefetched. The id is used to calculate the offset
-	// of the block in the buffer, where the data is stored.
-	GetId() int64
-
-	// SetId sets the id of the block. The id is used to identify the portion of
-	SetId(id int64)
-
-	// Ready mark the block is ready to consume by the reader. The value indicates the
-	// status of the block:
-	// - BlockStatusDownloaded: Download of this block is complete.
-	// - BlockStatusDownloadFailed: Download of this block has failed.
-	// - BlockStatusDownloadCancelled: Download of this block has been cancelled.
-	Ready(val int)
-}
 
 // Status of the download.
 const (
@@ -54,14 +29,46 @@ const (
 	BlockStatusDownloadCancelled                // Download of this block has been cancelled
 )
 
+var PartialBlockReadErr = errors.New("partial block read error")
+
+type OffsetRange struct {
+	Start, End int64
+}
+
+type PrefetchBlock interface {
+	Block
+
+	// ReadAt reads len(p) bytes into p starting at offset off.
+	// It returns the number of bytes read (0 <= n <= len(p)) and any
+	// error encountered that caused the read to stop.  The
+	// returned error is always nil if n == len(p).
+	// Here, offset is relative to block startOffset.
+	ReadAt(p []byte, off int64) (n int, err error)
+
+	// AwaitReady waits for the block to be ready to consume.
+	// It returns the status of the block and an error if any.
+	AwaitReady(ctx context.Context) (int, error)
+
+	// NotifyReady is used by consumer to marks the block is ready to consume.
+	// The value indicates the status of the block:
+	// - BlockStatusDownloaded: Download of this block is complete.
+	// - BlockStatusDownloadFailed: Download of this block has failed.
+	// - BlockStatusDownloadCancelled: Download of this block has been cancelled.
+	NotifyReady(val int)
+
+	// GetAbsStartOff returns the absolute start offset of the block.
+	GetAbsStartOff() int64
+
+	// SetAbsStartOff sets the absolute start offset of the block.
+	// This should be called only once just after getting the block from the pool.
+	SetAbsStartOff(startOff int64)
+}
+
 type prefetchBlock struct {
 	memoryBlock
 
 	// notification is a channel that notifies when the block is ready to consume.
 	notification chan int
-
-	// cancelFunc is used to cancel the prefetch operation if needed.
-	cancelFunc context.CancelCauseFunc
 
 	// Represents the portion with offset [id * blockSize, (id+1) * blockSize).
 	id int64
@@ -70,7 +77,6 @@ type prefetchBlock struct {
 func (p *prefetchBlock) Reuse() {
 	p.memoryBlock.Reuse()
 	p.notification = make(chan int, 1)
-	p.cancelFunc = nil
 	p.id = 0
 }
 
@@ -93,22 +99,13 @@ func CreatePrefetchBlock(blockSize int64) (PrefetchBlock, error) {
 	pb := prefetchBlock{
 		memoryBlock:  *mb,
 		notification: make(chan int, 1),
-		cancelFunc:   nil,
 		id:           0,
 	}
 
 	return &pb, nil
 }
 
-func (p *prefetchBlock) GetId() int64 {
-	return p.id
-}
-
-func (p *prefetchBlock) SetId(id int64) {
-	p.id = id
-}
-
-func (p *prefetchBlock) Ready(val int) {
+func (p *prefetchBlock) NotifyReady(val int) {
 	if p.notification == nil {
 		return
 	}
@@ -118,4 +115,55 @@ func (p *prefetchBlock) Ready(val int) {
 	default:
 		logger.Warnf("Expected an empty channel while writing an block notification: %d", val)
 	}
+}
+
+func (p *prefetchBlock) AwaitReady(ctx context.Context) (int, error) {
+	if p.notification == nil {
+		return 0, fmt.Errorf("notification channel is not initialized")
+	}
+
+	select {
+	case val := <-p.notification:
+		return val, nil
+	case <-ctx.Done():
+		return 0, ctx.Err()
+	}
+}
+
+func (p *prefetchBlock) GetAbsStartOff() int64 {
+	if p.id < 0 {
+		return 0
+	}
+	return p.id * int64(len(p.Data()))
+}
+
+func (p *prefetchBlock) SetAbsStartOff(startOff int64) {
+	if startOff < 0 {
+		logger.Errorf("Invalid start offset %d for prefetch block", startOff)
+		return
+	}
+
+	if len(p.Data()) == 0 {
+		logger.Errorf("Cannot set start offset for an empty prefetch block")
+		return
+	}
+
+	p.id = startOff / int64(len(p.Data()))
+}
+
+func (p *prefetchBlock) ReadAt(pBytes []byte, off int64) (n int, err error) {
+	if off < 0 || off >= int64(len(p.Data())) {
+		return 0, fmt.Errorf("offset %d is out of bounds for block size %d", off, len(p.Data()))
+	}
+
+	if len(pBytes) == 0 {
+		return 0, nil // No bytes to read, return immediately.
+	}
+
+	n = copy(pBytes, p.Data()[off:])
+
+	if n < len(pBytes) {
+		return n, PartialBlockReadErr
+	}
+	return n, nil
 }

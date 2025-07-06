@@ -63,7 +63,7 @@ func getReadCloser(content []byte) io.ReadCloser {
 func (pts *PrefetchTaskTestSuite) TestExecuteSuccess() {
 	blockSize := 500
 	prefetchBlock, err := block.CreatePrefetchBlock(int64(blockSize))
-	prefetchBlock.SetId(0)
+	prefetchBlock.SetAbsStartOff(0)
 	require.Nil(pts.T(), err)
 	task := NewPrefetchTask(context.Background(), pts.object, pts.mockBucket, prefetchBlock, true)
 	testContent := testutil.GenerateRandomBytes(blockSize)
@@ -80,21 +80,21 @@ func (pts *PrefetchTaskTestSuite) TestExecuteSuccess() {
 
 	task.Execute()
 
-	assert.Equal(pts.T(), testContent, prefetchBlock.Data())
+	assert.Equal(pts.T(), int64(len(testContent)), prefetchBlock.Size())
+	assert.Equal(pts.T(), int64(blockSize), prefetchBlock.Cap())
 	assert.NoError(pts.T(), err)
 	pts.mockBucket.AssertExpectations(pts.T())
-	select {
-	case status := <-prefetchBlock.NotificationChannel():
-		assert.Equal(pts.T(), block.BlockStatusDownloaded, status)
-	case <-time.After(1 * time.Second):
-		assert.Fail(pts.T(), "Notification channel didn't give a status in expected time.")
-	}
+	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
+	defer cancelFunc()
+	status, err := prefetchBlock.AwaitReady(ctx)
+	assert.Equal(pts.T(), block.BlockStatusDownloaded, status)
+	assert.NoError(pts.T(), err)
 }
 
 func (pts *PrefetchTaskTestSuite) TestExecuteError() {
 	blockSize := 500
 	prefetchBlock, err := block.CreatePrefetchBlock(int64(blockSize))
-	prefetchBlock.SetId(0)
+	prefetchBlock.SetAbsStartOff(0)
 	require.Nil(pts.T(), err)
 	task := NewPrefetchTask(context.Background(), pts.object, pts.mockBucket, prefetchBlock, true)
 
@@ -113,18 +113,17 @@ func (pts *PrefetchTaskTestSuite) TestExecuteError() {
 
 	assert.Error(pts.T(), expectedError)
 	pts.mockBucket.AssertExpectations(pts.T())
-	select {
-	case status := <-prefetchBlock.NotificationChannel():
-		assert.Equal(pts.T(), block.BlockStatusDownloadFailed, status)
-	case <-time.After(1 * time.Second):
-		assert.Fail(pts.T(), "Notification channel didn't give a status in expected time.")
-	}
+	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
+	defer cancelFunc()
+	status, err := prefetchBlock.AwaitReady(ctx)
+	assert.Equal(pts.T(), block.BlockStatusDownloadFailed, status)
+	assert.NoError(pts.T(), err)
 }
 
 func (pts *PrefetchTaskTestSuite) TestExecuteContextCancelledWhileReaderCreation() {
 	blockSize := 500
 	prefetchBlock, err := block.CreatePrefetchBlock(int64(blockSize))
-	prefetchBlock.SetId(0)
+	prefetchBlock.SetAbsStartOff(0)
 	require.Nil(pts.T(), err)
 	task := NewPrefetchTask(context.Background(), pts.object, pts.mockBucket, prefetchBlock, true)
 	rc := &fake.FakeReader{ReadCloser: getReadCloser(nil)} // No content since context is cancelled
@@ -142,12 +141,11 @@ func (pts *PrefetchTaskTestSuite) TestExecuteContextCancelledWhileReaderCreation
 
 	assert.Error(pts.T(), context.Canceled)
 	pts.mockBucket.AssertExpectations(pts.T())
-	select {
-	case status := <-prefetchBlock.NotificationChannel():
-		assert.Equal(pts.T(), block.BlockStatusDownloadCancelled, status)
-	case <-time.After(1 * time.Second):
-		assert.Fail(pts.T(), "Notification channel didn't give a status in expected time.")
-	}
+	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
+	defer cancelFunc()
+	status, err := prefetchBlock.AwaitReady(ctx)
+	assert.Equal(pts.T(), block.BlockStatusDownloadCancelled, status)
+	assert.NoError(pts.T(), err)
 }
 
 // ctxCancelledReader is a mock reader that simulates a context cancellation error while reading.
@@ -167,7 +165,7 @@ func (r *ctxCancelledReader) Close() error {
 func (pts *PrefetchTaskTestSuite) TestExecuteContextCancelledWhileReadingFromReader() {
 	blockSize := 500
 	prefetchBlock, err := block.CreatePrefetchBlock(int64(blockSize))
-	prefetchBlock.SetId(0)
+	prefetchBlock.SetAbsStartOff(0)
 	require.Nil(pts.T(), err)
 	task := NewPrefetchTask(context.Background(), pts.object, pts.mockBucket, prefetchBlock, true)
 	rc := &fake.FakeReader{ReadCloser: new(ctxCancelledReader)}
@@ -185,10 +183,9 @@ func (pts *PrefetchTaskTestSuite) TestExecuteContextCancelledWhileReadingFromRea
 
 	assert.Error(pts.T(), context.Canceled)
 	pts.mockBucket.AssertExpectations(pts.T())
-	select {
-	case status := <-prefetchBlock.NotificationChannel():
-		assert.Equal(pts.T(), block.BlockStatusDownloadCancelled, status)
-	case <-time.After(1 * time.Second):
-		assert.Fail(pts.T(), "Notification channel didn't give a status in expected time.")
-	}
+	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
+	defer cancelFunc()
+	status, err := prefetchBlock.AwaitReady(ctx)
+	assert.Equal(pts.T(), block.BlockStatusDownloadCancelled, status)
+	assert.NoError(pts.T(), err)
 }
