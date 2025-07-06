@@ -48,12 +48,26 @@ type DirHandle struct {
 	// GUARDED_BY(Mu)
 	entries []fuseutil.Dirent
 
+	// All entries in the directory along with their attributes. Populated the first time we need one.
+	//
+	// INVARIANT: For each i, entriesPlus[i+1].Offset == entriesPlus[i].Offset + 1
+	//
+	// GUARDED_BY(Mu)
+	entriesPlus []fuseutil.DirentPlus
+
 	// Has entries yet been populated?
 	//
 	// INVARIANT: If !entriesValid, then len(entries) == 0
 	//
 	// GUARDED_BY(Mu)
 	entriesValid bool
+
+	// Has entriesPlus yet been populated?
+	//
+	// INVARIANT: If !entriesPlusValid, then len(entriesPlus) == 0
+	//
+	// GUARDED_BY(Mu)
+	entriesPlusValid bool
 }
 
 // NewDirHandle creates a directory handle that obtains listings from the supplied inode.
@@ -239,6 +253,38 @@ func readAllEntries(
 	return
 }
 
+// readAllEntryCores retrieves all directory entry cores for the given inode,
+// handling pagination and accumulating the results.
+// LOCKS_REQUIRED(in)
+func readAllEntryCores(
+	ctx context.Context,
+	in inode.DirInode) (cores map[inode.Name]*inode.Core, err error) {
+	// Read entries from GCS.
+	// Read one batch at a time.
+	var tok string
+	cores = make(map[inode.Name]*inode.Core)
+	for {
+		// Read a batch from GCS
+		var batch map[inode.Name]*inode.Core
+		batch, tok, err = in.ReadEntryCores(ctx, tok)
+		if err != nil {
+			return
+		}
+
+		// Accumulate.
+		for name, core := range batch {
+			cores[name] = core
+		}
+
+		// Are we done?
+		if tok == "" {
+			break
+		}
+	}
+
+	return
+}
+
 // LOCKS_REQUIRED(dh.Mu)
 // LOCKS_EXCLUDED(dh.in)
 func (dh *DirHandle) ensureEntries(ctx context.Context, localFileEntries map[string]fuseutil.Dirent) (err error) {
@@ -302,6 +348,78 @@ func (dh *DirHandle) ReadDir(
 	// We copy out entries until we run out of entries or space.
 	for i := index; i < len(dh.entries); i++ {
 		n := fuseutil.WriteDirent(op.Dst[op.BytesRead:], dh.entries[i])
+		if n == 0 {
+			break
+		}
+
+		op.BytesRead += n
+	}
+
+	return
+}
+
+// FetchEntryCores retrieves the core inode data for all entries within the directory from GCS.
+//
+// Special case: If the request offset is zero, it assumes the directory is being read from the
+// beginning and resets the cached list of entries.
+//
+// LOCKS_REQUIRED(dh.Mu)
+// LOCKS_EXCLUDED(dh.in)
+func (dh *DirHandle) FetchEntryCores(
+	ctx context.Context,
+	op *fuseops.ReadDirPlusOp) (cores map[inode.Name]*inode.Core, err error) {
+	// If the request is for offset zero, we assume that either this is the first
+	// call or rewinddir has been called. Reset state.
+	if op.Offset == 0 {
+		dh.entriesPlus = nil
+		dh.entriesPlusValid = false
+	}
+
+	// Do we need to read entries from GCS?
+	if !dh.entriesPlusValid {
+		dh.in.Lock()
+		cores, err = readAllEntryCores(ctx, dh.in)
+		if err != nil {
+			dh.in.Unlock()
+			return
+		}
+		dh.in.Unlock()
+	}
+
+	return
+}
+
+// ReadDirPlus populates the FUSE response buffer using a pre-processed list
+// of directory entries.
+// LOCKS_REQUIRED(dh.Mu)
+// LOCKS_EXCLUDED(dh.in)
+func (dh *DirHandle) ReadDirPlus(
+	op *fuseops.ReadDirPlusOp,
+	entriesPlus []fuseutil.DirentPlus) (err error) {
+
+	// Fix up offset fields.
+	for i := 0; i < len(entriesPlus); i++ {
+		entriesPlus[i].Dirent.Offset = fuseops.DirOffset(i) + 1
+	}
+
+	// If entriesPlus has not been populated yet, populate it.
+	if !dh.entriesPlusValid {
+		// Update state.
+		dh.entriesPlus = entriesPlus
+		dh.entriesPlusValid = true
+	}
+
+	// Is the offset past the end of what we have buffered? If so, this must be
+	// an invalid seekdir according to posix.
+	index := int(op.Offset)
+	if index > len(dh.entriesPlus) {
+		err = fuse.EINVAL
+		return
+	}
+
+	//We copy out entries until we run out of entries or space.
+	for i := index; i < len(dh.entriesPlus); i++ {
+		n := fuseutil.WriteDirentPlus(op.Dst[op.BytesRead:], dh.entriesPlus[i])
 		if n == 0 {
 			break
 		}

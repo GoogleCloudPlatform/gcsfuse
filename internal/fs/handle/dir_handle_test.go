@@ -17,8 +17,11 @@ package handle
 import (
 	"context"
 	"math"
+	"path"
 	"testing"
 	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
@@ -114,6 +117,14 @@ func (t *DirHandleTest) createLocalFileInode(name string, id fuseops.InodeID) (i
 func (t *DirHandleTest) validateEntry(entry fuseutil.Dirent, name string, filetype fuseutil.DirentType) {
 	AssertEq(name, entry.Name)
 	AssertEq(filetype, entry.Type)
+}
+
+func (t *DirHandleTest) validateCore(core *inode.Core, name string, filetype metadata.Type, minObjectName string) {
+	AssertNe(nil, core)
+	AssertNe(nil, core.MinObject)
+	AssertEq(name, path.Base(core.FullName.LocalName()))
+	AssertEq(minObjectName, core.MinObject.Name)
+	AssertEq(filetype, core.Type())
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -277,4 +288,76 @@ func (t *DirHandleTest) EnsureEntriesWithOneLocalFile() {
 	AssertEq(nil, err)
 	AssertEq(1, len(t.dh.entries))
 	t.validateEntry(t.dh.entries[0], localFileName1, fuseutil.DT_File)
+}
+
+func (t *DirHandleTest) FetchEntryCoresReturnsExpectedEntries() {
+	// Setup GCS objects
+	_, err := storageutil.CreateObject(t.ctx, t.bucket, "testDir/gcsObject1", nil)
+	AssertEq(nil, err)
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, "testDir/gcsObject2", nil)
+	AssertEq(nil, err)
+	// Prepare ReadDirPlusOp with Offset 0 (triggers refresh)
+	op := &fuseops.ReadDirPlusOp{
+		ReadDirOp: fuseops.ReadDirOp{Offset: 0},
+	}
+
+	// Fetch Entry Cores
+	cores, err := t.dh.FetchEntryCores(t.ctx, op)
+
+	// validations
+	AssertEq(nil, err)
+	AssertEq(2, len(cores))
+	entry1, ok := cores[inode.NewFileName(t.dh.in.Name(), "gcsObject1")]
+	AssertTrue(ok, "entry for gcsObject1 not found")
+	t.validateCore(entry1, "gcsObject1", metadata.RegularFileType, "testDir/gcsObject1")
+	entry2, ok := cores[inode.NewFileName(t.dh.in.Name(), "gcsObject2")]
+	AssertTrue(ok, "entry for gcsObject2 not found")
+	t.validateCore(entry2, "gcsObject2", metadata.RegularFileType, "testDir/gcsObject2")
+}
+
+func (t *DirHandleTest) ReadDirPlusWritesEntriesCorrectly() {
+	entries := []fuseutil.DirentPlus{
+		{
+			Dirent: fuseutil.Dirent{
+				Name:  "file1",
+				Type:  fuseutil.DT_File,
+				Inode: 100,
+			},
+			Entry: fuseops.ChildInodeEntry{
+				Child: 100,
+				Attributes: fuseops.InodeAttributes{
+					Size: 123,
+					Mode: 0644,
+				},
+			},
+		},
+		{
+			Dirent: fuseutil.Dirent{
+				Name:  "file2",
+				Type:  fuseutil.DT_Directory,
+				Inode: 101,
+			},
+			Entry: fuseops.ChildInodeEntry{
+				Child: 101,
+				Attributes: fuseops.InodeAttributes{
+					Size: 456,
+					Mode: 0755,
+				},
+			},
+		},
+	}
+	op := &fuseops.ReadDirPlusOp{
+		ReadDirOp: fuseops.ReadDirOp{Offset: 0, Dst: make([]byte, 1024)},
+	}
+
+	// Call ReadDirPlus
+	err := t.dh.ReadDirPlus(op, entries)
+
+	// Validate
+	AssertEq(nil, err)
+	AssertEq(len(entries), len(t.dh.entriesPlus))
+	// Check entry offsets were updated
+	for i, e := range t.dh.entriesPlus {
+		AssertEq(fuseops.DirOffset(i)+1, e.Dirent.Offset)
+	}
 }

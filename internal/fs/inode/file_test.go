@@ -317,6 +317,20 @@ func (t *FileTest) TestInitialAttributes() {
 	assert.Equal(t.T(), attrs.Mtime, t.backingObj.Updated)
 }
 
+func (t *FileTest) TestExtractAttributes() {
+	attrs, err := t.in.ExtractAttributes(t.ctx)
+	require.NoError(t.T(), err)
+
+	assert.Equal(t.T(), uint64(len(t.initialContents)), attrs.Size)
+	assert.Equal(t.T(), uint32(1), attrs.Nlink)
+	assert.Equal(t.T(), uint32(uid), attrs.Uid)
+	assert.Equal(t.T(), uint32(gid), attrs.Gid)
+	assert.Equal(t.T(), fileMode, attrs.Mode)
+	assert.Equal(t.T(), attrs.Atime, t.backingObj.Updated)
+	assert.Equal(t.T(), attrs.Ctime, t.backingObj.Updated)
+	assert.Equal(t.T(), attrs.Mtime, t.backingObj.Updated)
+}
+
 func (t *FileTest) TestInitialAttributes_MtimeFromObjectMetadata_Gcsfuse() {
 	// Set up an explicit mtime on the backing object and re-create the inode.
 	if t.backingObj.Metadata == nil {
