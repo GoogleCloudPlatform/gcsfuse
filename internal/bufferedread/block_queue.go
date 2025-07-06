@@ -21,6 +21,6 @@ import (
 
 type BlockQueueEntry struct {
 	block      block.PrefetchBlock
-	task       PrefetchTask
+	task       *PrefetchTask
 	cancelFunc context.CancelFunc
 }

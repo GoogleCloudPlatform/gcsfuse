@@ -29,10 +29,11 @@ import (
 
 type PrefetchTask struct {
 	workerpool.Task
-	block  block.PrefetchBlock
-	object *gcs.MinObject
-	bucket gcs.Bucket
-	ctx    context.Context
+	block    block.PrefetchBlock
+	object   *gcs.MinObject
+	bucket   gcs.Bucket
+	ctx      context.Context
+	prefetch bool
 }
 
 func NewPrefetchTask(ctx context.Context, object *gcs.MinObject, bucket gcs.Bucket, block block.PrefetchBlock, prefetch bool) *PrefetchTask {
@@ -45,7 +46,7 @@ func NewPrefetchTask(ctx context.Context, object *gcs.MinObject, bucket gcs.Buck
 }
 
 func (p *PrefetchTask) Execute() {
-	startOff := p.block.GetAbsStartOff()
+	startOff := p.block.AbsStartOff()
 	blockId := startOff / p.block.Cap()
 	logger.Tracef("Download: <- block (%s, %v).", p.object.Name, blockId)
 	stime := time.Now()

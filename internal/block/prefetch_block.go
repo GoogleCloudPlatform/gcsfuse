@@ -56,8 +56,8 @@ type PrefetchBlock interface {
 	// - BlockStatusDownloadCancelled: Download of this block has been cancelled.
 	NotifyReady(val int)
 
-	// GetAbsStartOff returns the absolute start offset of the block.
-	GetAbsStartOff() int64
+	// AbsStartOff returns the absolute start offset of the block.
+	AbsStartOff() int64
 
 	// SetAbsStartOff sets the absolute start offset of the block.
 	// This should be called only once just after getting the block from the pool.
@@ -72,20 +72,14 @@ type prefetchBlock struct {
 
 	// Represents the portion with offset [id * blockSize, (id+1) * blockSize).
 	id int64
+
+	status int // Status of the block download
 }
 
 func (p *prefetchBlock) Reuse() {
 	p.memoryBlock.Reuse()
 	p.notification = make(chan int, 1)
 	p.id = 0
-}
-
-func (p *prefetchBlock) Data() []byte {
-	return p.buffer
-}
-
-func (p *prefetchBlock) NotificationChannel() <-chan int {
-	return p.notification
 }
 
 // createPrefetchBlock creates a new block.
@@ -119,22 +113,25 @@ func (p *prefetchBlock) NotifyReady(val int) {
 
 func (p *prefetchBlock) AwaitReady(ctx context.Context) (int, error) {
 	if p.notification == nil {
-		return 0, fmt.Errorf("notification channel is not initialized")
+		return p.status, nil
 	}
 
 	select {
 	case val := <-p.notification:
+		close(p.notification) // Close the channel to prevent further writes.
+		p.status = val
+		p.notification = nil
 		return val, nil
 	case <-ctx.Done():
 		return 0, ctx.Err()
 	}
 }
 
-func (p *prefetchBlock) GetAbsStartOff() int64 {
+func (p *prefetchBlock) AbsStartOff() int64 {
 	if p.id < 0 {
 		return 0
 	}
-	return p.id * int64(len(p.Data()))
+	return p.id * p.Cap()
 }
 
 func (p *prefetchBlock) SetAbsStartOff(startOff int64) {
@@ -143,24 +140,24 @@ func (p *prefetchBlock) SetAbsStartOff(startOff int64) {
 		return
 	}
 
-	if len(p.Data()) == 0 {
+	if p.Cap() == 0 {
 		logger.Errorf("Cannot set start offset for an empty prefetch block")
 		return
 	}
 
-	p.id = startOff / int64(len(p.Data()))
+	p.id = startOff / p.Cap()
 }
 
 func (p *prefetchBlock) ReadAt(pBytes []byte, off int64) (n int, err error) {
-	if off < 0 || off >= int64(len(p.Data())) {
-		return 0, fmt.Errorf("offset %d is out of bounds for block size %d", off, len(p.Data()))
+	if off < 0 || off >= p.Cap() {
+		return 0, fmt.Errorf("offset %d is out of bounds for block size %d", off, p.Cap())
 	}
 
 	if len(pBytes) == 0 {
 		return 0, nil // No bytes to read, return immediately.
 	}
 
-	n = copy(pBytes, p.Data()[off:])
+	n = copy(pBytes, p.memoryBlock.buffer[off:])
 
 	if n < len(pBytes) {
 		return n, PartialBlockReadErr

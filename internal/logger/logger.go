@@ -196,3 +196,11 @@ func (f *loggerFactory) handler(levelVar *slog.LevelVar, prefix string) slog.Han
 	}
 	return f.createJsonOrTextHandler(os.Stdout, levelVar, prefix)
 }
+
+func SetLogLevel(level string) {
+	if level == defaultLoggerFactory.level {
+		return
+	}
+	defaultLoggerFactory.level = level
+	defaultLogger = defaultLoggerFactory.newLogger(defaultLoggerFactory.level)
+}

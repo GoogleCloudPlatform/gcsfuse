@@ -15,23 +15,22 @@
 package block
 
 import (
-	"errors"
 	"fmt"
 
 	"golang.org/x/sync/semaphore"
 )
 
-var CantAllocateAnyBlockError error = errors.New("cant allocate any streaming write block as global max blocks limit is reached")
+// var CantAllocateAnyBlockError error = errors.New("cant allocate any streaming write block as global max blocks limit is reached")
 
-// BlockPool handles the creation of blocks as per the user configuration.
-type BlockPool struct {
+// PrefetchBlockPool handles the creation of blocks as per the user configuration.
+type PrefetchBlockPool struct {
 	// Channel holding free blocks.
-	freeBlocksCh chan Block
+	freeBlocksCh chan PrefetchBlock
 
 	// Size of each block this pool holds.
 	blockSize int64
 
-	// Max number of blocks this blockPool can create.
+	// Max number of blocks this PrefetchBlockPool can create.
 	maxBlocks int64
 
 	// Total number of blocks created so far.
@@ -42,15 +41,15 @@ type BlockPool struct {
 	globalMaxBlocksSem *semaphore.Weighted
 }
 
-// NewBlockPool creates the blockPool based on the user configuration.
-func NewBlockPool(blockSize int64, maxBlocks int64, globalMaxBlocksSem *semaphore.Weighted) (bp *BlockPool, err error) {
+// NewPrefetchBlockPool creates the PrefetchBlockPool based on the user configuration.
+func NewPrefetchBlockPool(blockSize int64, maxBlocks int64, globalMaxBlocksSem *semaphore.Weighted) (bp *PrefetchBlockPool, err error) {
 	if blockSize <= 0 || maxBlocks <= 0 {
-		err = fmt.Errorf("invalid configuration provided for blockPool, blocksize: %d, maxBlocks: %d", blockSize, maxBlocks)
+		err = fmt.Errorf("invalid configuration provided for PrefetchBlockPool, blocksize: %d, maxBlocks: %d", blockSize, maxBlocks)
 		return
 	}
 
-	bp = &BlockPool{
-		freeBlocksCh:       make(chan Block, maxBlocks),
+	bp = &PrefetchBlockPool{
+		freeBlocksCh:       make(chan PrefetchBlock, maxBlocks),
 		blockSize:          blockSize,
 		maxBlocks:          maxBlocks,
 		totalBlocks:        0,
@@ -66,7 +65,7 @@ func NewBlockPool(blockSize int64, maxBlocks int64, globalMaxBlocksSem *semaphor
 
 // Get returns a block. It returns an existing block if it's ready for reuse or
 // creates a new one if required.
-func (bp *BlockPool) Get() (Block, error) {
+func (bp *PrefetchBlockPool) Get() (PrefetchBlock, error) {
 	for {
 		select {
 		case b := <-bp.freeBlocksCh:
@@ -75,10 +74,10 @@ func (bp *BlockPool) Get() (Block, error) {
 			return b, nil
 
 		default:
-			// No lock is required here since blockPool is per file and all write
+			// No lock is required here since PrefetchBlockPool is per file and all write
 			// calls to a single file are serialized because of inode.lock().
 			if bp.canAllocateBlock() {
-				b, err := createBlock(bp.blockSize)
+				b, err := CreatePrefetchBlock(bp.blockSize)
 				if err != nil {
 					return nil, err
 				}
@@ -91,7 +90,7 @@ func (bp *BlockPool) Get() (Block, error) {
 }
 
 // canAllocateBlock checks if a new block can be allocated.
-func (bp *BlockPool) canAllocateBlock() bool {
+func (bp *PrefetchBlockPool) canAllocateBlock() bool {
 	// If max blocks limit is reached, then no more blocks can be allocated.
 	if bp.totalBlocks >= bp.maxBlocks {
 		return false
@@ -109,16 +108,16 @@ func (bp *BlockPool) canAllocateBlock() bool {
 }
 
 // FreeBlocksChannel returns the freeBlocksCh being used by the block pool.
-func (bp *BlockPool) FreeBlocksChannel() chan Block {
+func (bp *PrefetchBlockPool) FreeBlocksChannel() chan PrefetchBlock {
 	return bp.freeBlocksCh
 }
 
-// BlockSize returns the block size used by the blockPool.
-func (bp *BlockPool) BlockSize() int64 {
+// BlockSize returns the block size used by the PrefetchBlockPool.
+func (bp *PrefetchBlockPool) BlockSize() int64 {
 	return bp.blockSize
 }
 
-func (bp *BlockPool) Release(b Block) {
+func (bp *PrefetchBlockPool) Release(b PrefetchBlock) {
 	// If the block is not deallocated, then put it back on the channel.
 	select {
 	case bp.freeBlocksCh <- b:
@@ -133,7 +132,7 @@ func (bp *BlockPool) Release(b Block) {
 	}
 }
 
-func (bp *BlockPool) ClearFreeBlockChannel(releaseLastBlock bool) error {
+func (bp *PrefetchBlockPool) ClearFreeBlockChannel(releaseLastBlock bool) error {
 	for {
 		select {
 		case b := <-bp.freeBlocksCh:
