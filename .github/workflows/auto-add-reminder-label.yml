@@ -1,0 +1,28 @@
+name: Auto Add Label on Ready for Review or Reopen PR
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - ready_for_review
+
+jobs:
+  add-label:
+    # This condition ensures the label is only added if the PR is not a draft.
+    # When a PR is reopened, it is never in a draft state.
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Add 'remind-reviewers' label
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.addLabels({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: ['remind-reviewers']
+            })
