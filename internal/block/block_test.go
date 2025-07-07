@@ -15,8 +15,10 @@
 package block
 
 import (
+	"context"
 	"io"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -143,4 +145,92 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockDeAllocate() {
 
 	require.Nil(testSuite.T(), err)
 	require.Nil(testSuite.T(), mb.(*memoryBlock).buffer)
+}
+
+func (testSuite *MemoryBlockTest) TestMemoryBlockReadAtSuccess() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+	content := []byte("hello world")
+	n, err := mb.Write(content)
+	require.Nil(testSuite.T(), err)
+	require.Equal(testSuite.T(), 11, n)
+	readBuffer := make([]byte, 5)
+
+	n, err = mb.ReadAt(readBuffer, 6) // Read "world"
+
+	require.Nil(testSuite.T(), err)
+	require.Equal(testSuite.T(), 5, n)
+	assert.Equal(testSuite.T(), []byte("world"), readBuffer)
+}
+
+func (testSuite *MemoryBlockTest) TestMemoryBlockReadAtBeyondBlockSize() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+	content := []byte("hello world")
+	n, err := mb.Write(content)
+	require.Nil(testSuite.T(), err)
+	require.Equal(testSuite.T(), 11, n)
+	readBuffer := make([]byte, 5)
+
+	n, err = mb.ReadAt(readBuffer, 15) // Read beyond the block size
+
+	assert.NotNil(testSuite.T(), err)
+	assert.Equal(testSuite.T(), 0, n)
+}
+
+func (testSuite *MemoryBlockTest) TestMemoryBlockReadAtWithNegativeOffset() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+	content := []byte("hello world")
+	n, err := mb.Write(content)
+	require.Nil(testSuite.T(), err)
+	require.Equal(testSuite.T(), 11, n)
+	readBuffer := make([]byte, 5)
+
+	n, err = mb.ReadAt(readBuffer, -1) // Negative offset
+
+	assert.NotNil(testSuite.T(), err)
+	assert.Equal(testSuite.T(), 0, n)
+}
+
+func (testSuite *MemoryBlockTest) TestMemoryBlockReadAthEOF() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+	content := []byte("hello world")
+	n, err := mb.Write(content)
+	require.Nil(testSuite.T(), err)
+	require.Equal(testSuite.T(), 11, n)
+	readBuffer := make([]byte, 15)
+
+	n, err = mb.ReadAt(readBuffer, 6) // Read "world"
+
+	require.NotNil(testSuite.T(), err)
+	require.Equal(testSuite.T(), io.EOF, err)
+	require.Equal(testSuite.T(), 5, n)
+	assert.Equal(testSuite.T(), []byte("world"), readBuffer[0:n])
+}
+
+func (testSuite *MemoryBlockTest) TestAwaitReadyWaitIfNotNotify() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+
+	ctx, cancel := context.WithTimeout(testSuite.T().Context(), 100*time.Millisecond)
+	defer cancel()
+
+	_, err = mb.AwaitReady(ctx)
+	assert.NotNil(testSuite.T(), err)
+	assert.Equal(testSuite.T(), context.DeadlineExceeded, err)
+}
+
+func (testSuite *MemoryBlockTest) TestAwaitReadyReturnsStatusAfterNotify() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+	go func() {
+		// time.Sleep(time.Millisecond) // Simulate some processing time
+		mb.NotifyReady(1)            // Notify the block is ready
+	}()
+
+	status, err := mb.AwaitReady(context.Background())
+	require.Nil(testSuite.T(), err)
+	assert.Equal(testSuite.T(), 1, status)
 }

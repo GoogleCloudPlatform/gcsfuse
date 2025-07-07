@@ -16,9 +16,18 @@ package block
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"syscall"
+)
+
+// Status of the download.
+const (
+	BlockStatusInProgress        int = iota + 1 // Download of this block is in progress
+	BlockStatusDownloaded                       // Download of this block is complete
+	BlockStatusDownloadFailed                   // Download of this block has failed
+	BlockStatusDownloadCancelled                // Download of this block has been cancelled
 )
 
 // Block represents the buffer which holds the data.
@@ -38,6 +47,30 @@ type Block interface {
 	Reader() io.Reader
 
 	Deallocate() error
+
+	// Follows io.ReaderAt interface.
+	// Here, offset is relative to the start of the block.
+	ReadAt(p []byte, off int64) (n int, err error)
+
+	// AwaitReady waits for the block to be ready to consume.
+	// It returns the status of the block and an error if any.
+	AwaitReady(ctx context.Context) (int, error)
+
+	// NotifyReady is used by consumer to marks the block is ready to consume.
+	// The value indicates the status of the block:
+	// - BlockStatusDownloaded: Download of this block is complete.
+	// - BlockStatusDownloadFailed: Download of this block has failed.
+	// - BlockStatusDownloadCancelled: Download of this block has been cancelled.
+	NotifyReady(val int)
+
+	// AbsStartOff returns the absolute start offset of the block.
+	// Panics if the absolute start offset is not set.
+	AbsStartOff() int64
+
+	// SetAbsStartOff sets the absolute start offset of the block.
+	// This should be called only once just after getting the block from the pool.
+	// It returns an error if the startOff is negative or if it is already set.
+	SetAbsStartOff(startOff int64) error
 }
 
 // TODO: check if we need offset or just storing end is sufficient. We might need
@@ -50,6 +83,15 @@ type memoryBlock struct {
 	Block
 	buffer []byte
 	offset offset
+
+	// It is used to indicate if the block is ready to consume or not.
+	status int
+
+	// notification is a channel that notifies when the block is ready to consume.
+	notification chan int
+
+	// Stores the absolute start offset of the block-segment in the file.
+	absStartOff int64
 }
 
 func (m *memoryBlock) Reuse() {
@@ -57,6 +99,9 @@ func (m *memoryBlock) Reuse() {
 
 	m.offset.end = 0
 	m.offset.start = 0
+	m.notification = make(chan int, 1)
+	m.status = BlockStatusInProgress
+	m.absStartOff = -1
 }
 
 func (m *memoryBlock) Size() int64 {
@@ -104,8 +149,77 @@ func createBlock(blockSize int64) (Block, error) {
 	}
 
 	mb := memoryBlock{
-		buffer: addr,
-		offset: offset{0, 0},
+		buffer:       addr,
+		offset:       offset{0, 0},
+		notification: make(chan int, 1),
+		status:       BlockStatusInProgress,
+		absStartOff:  -1,
 	}
 	return &mb, nil
+}
+
+func (m *memoryBlock) ReadAt(p []byte, off int64) (n int, err error) {
+	if off < 0 || off >= m.Size() {
+		return 0, fmt.Errorf("offset %d is out of bounds for block size %d", off, m.Size())
+	}
+
+	n = copy(p, m.buffer[m.offset.start+off:m.offset.end])
+
+	if n < len(p) {
+		return n, io.EOF
+	}
+	return n, nil
+}
+
+// AwaitReady waits for the block to be ready to consume.
+// It returns the status of the block and an error if any.
+func (m *memoryBlock) AwaitReady(ctx context.Context) (int, error) {
+	select {
+	case val, ok := <-m.notification:
+		if !ok {
+			return m.status, nil
+		}
+
+		// Close the notification channel to prevent further notifications.
+		// Store the last status to return for further AwaitReady calls.
+		close(m.notification)
+		m.status = val
+
+		return m.status, nil
+	case <-ctx.Done():
+		return 0, ctx.Err()
+	}
+}
+
+// NotifyReady is used by the producer to mark the block as ready to consume.
+// This should be called only once to notify the consumer.
+// If called multiple times, it will panic - either because of writing to the
+// closed channel or blocking due to writing over full notification channel.
+func (m *memoryBlock) NotifyReady(val int) {
+	select {
+	case m.notification <- val:
+	default:
+		panic("Expected to notify only once, but got multiple notifications.")
+	}
+}
+
+func (m *memoryBlock) AbsStartOff() int64 {
+	if m.absStartOff < 0 {
+		panic("AbsStartOff is not set, it should be set before calling this method.")
+	}
+	return m.absStartOff
+}
+
+func (m *memoryBlock) SetAbsStartOff(startOff int64) error {
+	if startOff < 0 {
+		return fmt.Errorf("startOff cannot be negative, got %d", startOff)
+	}
+
+	// If absStartOff is already set, then return an error.
+	if m.absStartOff >= 0 {
+		return fmt.Errorf("AbsStartOff is already set, it should be set only once.")
+	}
+
+	m.absStartOff = startOff
+	return nil
 }
