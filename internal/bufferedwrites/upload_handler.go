@@ -135,18 +135,25 @@ func (uh *UploadHandler) uploader() {
 			uh.wg.Done()
 			continue
 		}
-		_, err := io.Copy(uh.writer, currBlock.Reader())
-		if errors.Is(err, context.Canceled) {
-			// Context canceled error indicates that the file was deleted from the
-			// same mount. In this case, we suppress the error to match local
-			// filesystem behavior.
-			err = nil
-		}
-		if err != nil {
-			logger.Errorf("buffered write upload failed for object %s: error in io.Copy: %v", uh.objectName, err)
-			err = gcs.GetGCSError(err)
+		// Reset the readSeek to 0 before uploading.
+		if off, err := currBlock.Seek(0, io.SeekStart); err == nil && off == 0 {
+			_, err = io.Copy(uh.writer, currBlock)
+			if errors.Is(err, context.Canceled) {
+				// Context canceled error indicates that the file was deleted from the
+				// same mount. In this case, we suppress the error to match local
+				// filesystem behavior.
+				err = nil
+			}
+			if err != nil {
+				logger.Errorf("buffered write upload failed for object %s: error in io.Copy: %v", uh.objectName, err)
+				err = gcs.GetGCSError(err)
+				uh.uploadError.Store(&err)
+			}
+		} else {
+			logger.Errorf("buffered write upload failed for object %s: error in block.Seek: %v", uh.objectName, err)
 			uh.uploadError.Store(&err)
 		}
+
 		// Put back the uploaded block on the block pool for re-use.
 		uh.blockPool.Release(currBlock)
 		uh.wg.Done()

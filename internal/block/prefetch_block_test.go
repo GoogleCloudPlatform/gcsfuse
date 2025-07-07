@@ -43,7 +43,7 @@ func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockReuse() {
 	n, err := pmb.Write(content)
 	require.Nil(testSuite.T(), err)
 	require.Equal(testSuite.T(), 2, n)
-	output, err := io.ReadAll(pmb.Reader())
+	output, err := io.ReadAll(pmb)
 	require.Nil(testSuite.T(), err)
 	require.Equal(testSuite.T(), content, output)
 	require.Equal(testSuite.T(), int64(2), pmb.Size())
@@ -52,7 +52,10 @@ func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockReuse() {
 
 	pmb.Reuse()
 
-	output, err = io.ReadAll(pmb.Reader())
+	off, err := pmb.Seek(0, io.SeekStart) // Reset the read position to the start of the block.
+	require.Nil(testSuite.T(), err)
+	require.Equal(testSuite.T(), int64(0), off)
+	output, err = io.ReadAll(pmb)
 	assert.Nil(testSuite.T(), err)
 	assert.Empty(testSuite.T(), output)
 	assert.Equal(testSuite.T(), int64(0), pmb.Size())
