@@ -182,13 +182,14 @@ func (t *UploadHandlerTest) TestMultipleBlockUpload() {
 	require.NoError(t.T(), err)
 	require.NotNil(t.T(), obj)
 	assert.Equal(t.T(), mockObj, obj)
-	// The blocks should be available on the free channel for reuse.
+	// All the 5 blocks should be available on the free channel for reuse.
+	assert.Equal(t.T(), 5, t.uh.blockPool.TotalFreeBlocks())
 	for _, expect := range blocks {
-
 		got, err := t.uh.blockPool.Get()
 		require.NoError(t.T(), err)
 		assert.Equal(t.T(), expect, got)
 	}
+	assert.Equal(t.T(), 0, t.uh.blockPool.TotalFreeBlocks())
 	assertAllBlocksProcessed(t.T(), t.uh)
 }
 
