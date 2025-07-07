@@ -135,7 +135,7 @@ func (uh *UploadHandler) uploader() {
 			uh.wg.Done()
 			continue
 		}
-		_, err := io.Copy(uh.writer, currBlock.Reader())
+		_, err := io.Copy(uh.writer, currBlock)
 		if errors.Is(err, context.Canceled) {
 			// Context canceled error indicates that the file was deleted from the
 			// same mount. In this case, we suppress the error to match local

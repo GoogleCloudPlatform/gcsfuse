@@ -23,15 +23,15 @@ import (
 
 // Block represents the buffer which holds the data.
 type Block interface {
+	io.Reader
+	io.Writer
+
 	// Reuse resets the blocks for reuse.
 	Reuse()
 
 	// Size provides the current data size of the block. The capacity of the block
 	// can be >= data_size.
 	Size() int64
-
-	// Write writes the given data to block.
-	Write(bytes []byte) (n int, err error)
 
 	// Reader interface helps in copying the data directly to storage.writer
 	// while uploading to GCS.
@@ -50,6 +50,9 @@ type memoryBlock struct {
 	Block
 	buffer []byte
 	offset offset
+
+	// readSeek is used to track the position for reading data.
+	readSeek int64
 }
 
 func (m *memoryBlock) Reuse() {
@@ -57,11 +60,28 @@ func (m *memoryBlock) Reuse() {
 
 	m.offset.end = 0
 	m.offset.start = 0
+	m.readSeek = 0
 }
 
 func (m *memoryBlock) Size() int64 {
 	return m.offset.end - m.offset.start
 }
+
+func (m *memoryBlock) Read(bytes []byte) (int, error) {
+	if m.readSeek < m.offset.start {
+		return 0, fmt.Errorf("readSeek %d is less than start offset %d", m.readSeek, m.offset.start)
+	}
+
+	if m.readSeek >= m.offset.end {
+		return 0, io.EOF
+	}
+
+	n := copy(bytes, m.buffer[m.readSeek:m.offset.end])
+	m.readSeek += int64(n)
+
+	return n, nil
+}
+
 func (m *memoryBlock) Write(bytes []byte) (int, error) {
 	if m.Size()+int64(len(bytes)) > int64(cap(m.buffer)) {
 		return 0, fmt.Errorf("received data more than capacity of the block")
