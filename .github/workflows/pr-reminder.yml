@@ -4,8 +4,8 @@ on:
   # Allow manual runs.
   workflow_dispatch:
   schedule:
-    # Runs at 9:30 UTC, which is 2:30 PM IST weekdays.
-    - cron: '30 9 * * 1-5'
+    # Runs every hour from 9AM to 5PM IST weekdays.
+    - cron: '30 3-11 * * 1-5'
 
 jobs:
   remind:
