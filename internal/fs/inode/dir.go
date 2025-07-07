@@ -520,6 +520,16 @@ func (d *dirInode) Attributes(
 	return
 }
 
+// LOCKS_REQUIRED(d)
+func (d *dirInode) ExtractAttributes(
+	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
+	// Set up basic attributes.
+	attrs = d.attrs
+	attrs.Nlink = 1
+
+	return
+}
+
 func (d *dirInode) Bucket() *gcsx.SyncerBucket {
 	return d.bucket
 }

@@ -160,6 +160,14 @@ func (t *BaseDirTest) Attributes() {
 	ExpectEq(dirMode|os.ModeDir, attrs.Mode)
 }
 
+func (t *BaseDirTest) ExtractAttributes() {
+	attrs, err := t.in.ExtractAttributes(t.ctx)
+	AssertEq(nil, err)
+	ExpectEq(uid, attrs.Uid)
+	ExpectEq(gid, attrs.Gid)
+	ExpectEq(dirMode|os.ModeDir, attrs.Mode)
+}
+
 func (t *BaseDirTest) LookUpChild_NonExistent() {
 	result, err := t.in.LookUpChild(t.ctx, "missing_bucket")
 

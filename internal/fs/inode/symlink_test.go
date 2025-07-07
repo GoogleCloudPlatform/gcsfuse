@@ -15,7 +15,11 @@
 package inode_test
 
 import (
+	"context"
+	"os"
 	"testing"
+
+	"github.com/jacobsa/fuse/fuseops"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
@@ -62,4 +66,33 @@ func (t *SymlinkTest) TestIsSymLinkWhenMetadataKeyIsNotPresent() {
 
 func (t *SymlinkTest) TestIsSymLinkForNilObject() {
 	AssertEq(false, inode.IsSymlink(nil))
+}
+
+func (t *SymlinkTest) TestExtractAttributes() {
+	metadata := map[string]string{
+		inode.SymlinkMetadataKey: "target",
+	}
+	m := &gcs.MinObject{
+		Name:     "test",
+		Metadata: metadata,
+	}
+	attrs := fuseops.InodeAttributes{
+		Uid:  1001,
+		Gid:  1002,
+		Mode: 0777 | os.ModeSymlink,
+	}
+
+	inodeID := fuseops.InodeID(42)
+	name := inode.NewFileName(inode.NewRootName("some-bucket"), m.Name)
+	s := inode.NewSymlinkInode(inodeID, name, m, attrs)
+
+	// Call ExtractAttributes
+	extracted, err := s.ExtractAttributes(context.TODO())
+
+	// Check expected values
+	AssertEq(nil, err)
+	ExpectEq(uint32(1), extracted.Nlink)
+	ExpectEq(attrs.Uid, extracted.Uid)
+	ExpectEq(attrs.Gid, extracted.Gid)
+	ExpectEq(attrs.Mode, extracted.Mode)
 }

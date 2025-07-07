@@ -247,6 +247,14 @@ func (t *DirTest) Attributes() {
 	ExpectEq(dirMode|os.ModeDir, attrs.Mode)
 }
 
+func (t *DirTest) ExtractAttributes() {
+	attrs, err := t.in.ExtractAttributes(t.ctx)
+	AssertEq(nil, err)
+	ExpectEq(uid, attrs.Uid)
+	ExpectEq(gid, attrs.Gid)
+	ExpectEq(dirMode|os.ModeDir, attrs.Mode)
+}
+
 func (t *DirTest) LookUpChild_NonExistent() {
 	const name = "qux"
 
