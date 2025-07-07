@@ -43,7 +43,9 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockWrite() {
 
 	assert.Nil(testSuite.T(), err)
 	assert.Equal(testSuite.T(), len(content), n)
-	mb.Seek(0, io.SeekStart) // Reset the read position to the start of the block.
+	off, err := mb.Seek(0, io.SeekStart) // Reset the read position to the start of the block.
+	require.Nil(testSuite.T(), err)
+	assert.Equal(testSuite.T(), int64(0), off)
 	assert.Equal(testSuite.T(), int64(2), mb.Size())
 	output, err := io.ReadAll(mb)
 	assert.Nil(testSuite.T(), err)
@@ -106,7 +108,9 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReuse() {
 
 	mb.Reuse()
 
-	mb.Seek(0, io.SeekStart) // Reset the read position to the start of the block.
+	off, err := mb.Seek(0, io.SeekStart) // Reset the read position to the start of the block.
+	require.Nil(testSuite.T(), err)
+	require.Equal(testSuite.T(), int64(0), off)
 	output, err = io.ReadAll(mb)
 	assert.Nil(testSuite.T(), err)
 	assert.Empty(testSuite.T(), output)
@@ -174,7 +178,9 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReadBeyondEnd() {
 	require.Nil(testSuite.T(), err)
 	require.Equal(testSuite.T(), len(content), n)
 	readBuffer := make([]byte, 20)
-	mb.Seek(13, io.SeekStart) // Reset the read position out of the block.
+	off, err := mb.Seek(13, io.SeekStart) // Reset the read position out of the block.
+	require.Nil(testSuite.T(), err)
+	require.Equal(testSuite.T(), int64(13), off)
 
 	n, err = mb.Read(readBuffer)
 
@@ -186,7 +192,9 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReadFailure() {
 	mb, err := createBlock(12)
 	require.Nil(testSuite.T(), err)
 	readBuffer := make([]byte, 5)
-	mb.Seek(-1, 0) // Set readSeek to an invalid position.
+	off, err := mb.Seek(-1, 0) // Set readSeek to an invalid position.
+	require.Nil(testSuite.T(), err)
+	require.Equal(testSuite.T(), int64(-1), off)
 
 	n, err := mb.Read(readBuffer)
 
