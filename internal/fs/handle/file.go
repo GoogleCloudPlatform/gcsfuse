@@ -170,18 +170,6 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	// fh.inode.mu is already locked to ensure that we have a reader for its current
 	// state, or clear fh.reader if it's not possible to create one (probably
 	// because the inode is dirty).
-
-	// TODO: Remove this if-block once we stop finalizing
-	// objects in zonal bucket on writes by default (b/426512250).
-	if fh.inode.Bucket().Bucket.BucketType().Zonal && fh.inode.Source().IsUnfinalized() {
-		_, err = fh.inode.SyncPendingBufferedWrites()
-		if err != nil {
-			fh.inode.Unlock()
-			err = fmt.Errorf("fh.inode.SyncPendingBufferedWrites: %w", err)
-			return
-		}
-	}
-
 	err = fh.tryEnsureReader(ctx, sequentialReadSizeMb)
 	if err != nil {
 		fh.inode.Unlock()
