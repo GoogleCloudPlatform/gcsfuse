@@ -37,7 +37,7 @@ func TestMemoryBlockTestSuite(t *testing.T) {
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockWrite() {
-	mb, err := createBlock(12)
+	mb, err := CreateBlock(12)
 	require.Nil(testSuite.T(), err)
 	content := []byte("hi")
 	n, err := mb.Write(content)
@@ -51,7 +51,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockWrite() {
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockWriteWithDataGreaterThanCapacity() {
-	mb, err := createBlock(1)
+	mb, err := CreateBlock(1)
 	require.Nil(testSuite.T(), err)
 	content := []byte("hi")
 	n, err := mb.Write(content)
@@ -62,7 +62,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockWriteWithDataGreaterThanCapacit
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockWriteWithMultipleWrites() {
-	mb, err := createBlock(12)
+	mb, err := CreateBlock(12)
 	require.Nil(testSuite.T(), err)
 	n, err := mb.Write([]byte("hi"))
 	require.Nil(testSuite.T(), err)
@@ -78,7 +78,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockWriteWithMultipleWrites() {
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockWriteWith2ndWriteBeyondCapacity() {
-	mb, err := createBlock(2)
+	mb, err := CreateBlock(2)
 	require.Nil(testSuite.T(), err)
 	content := []byte("hi")
 	n, err := mb.Write(content)
@@ -92,7 +92,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockWriteWith2ndWriteBeyondCapacity
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockReuse() {
-	mb, err := createBlock(12)
+	mb, err := CreateBlock(12)
 	require.Nil(testSuite.T(), err)
 	content := []byte("hi")
 	n, err := mb.Write(content)
@@ -118,7 +118,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReuse() {
 
 // Other cases for Size are covered as part of write tests.
 func (testSuite *MemoryBlockTest) TestMemoryBlockSizeForEmptyBlock() {
-	mb, err := createBlock(12)
+	mb, err := CreateBlock(12)
 	require.Nil(testSuite.T(), err)
 
 	assert.Equal(testSuite.T(), int64(0), mb.Size())
@@ -126,7 +126,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockSizeForEmptyBlock() {
 
 // Other cases for reader are covered as part of write tests.
 func (testSuite *MemoryBlockTest) TestMemoryBlockReaderForEmptyBlock() {
-	mb, err := createBlock(12)
+	mb, err := CreateBlock(12)
 	require.Nil(testSuite.T(), err)
 
 	output, err := io.ReadAll(mb.Reader())
@@ -136,7 +136,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReaderForEmptyBlock() {
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockDeAllocate() {
-	mb, err := createBlock(12)
+	mb, err := CreateBlock(12)
 	require.Nil(testSuite.T(), err)
 	content := []byte("hi")
 	n, err := mb.Write(content)
@@ -154,7 +154,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockDeAllocate() {
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockReadAtSuccess() {
-	mb, err := createBlock(12)
+	mb, err := CreateBlock(12)
 	require.Nil(testSuite.T(), err)
 	content := []byte("hello world")
 	_, err = mb.Write(content)
@@ -169,7 +169,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReadAtSuccess() {
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockReadAtBeyondBlockSize() {
-	mb, err := createBlock(12)
+	mb, err := CreateBlock(12)
 	require.Nil(testSuite.T(), err)
 	content := []byte("hello world")
 	_, err = mb.Write(content)
@@ -184,7 +184,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReadAtBeyondBlockSize() {
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockReadAtWithNegativeOffset() {
-	mb, err := createBlock(12)
+	mb, err := CreateBlock(12)
 	require.Nil(testSuite.T(), err)
 	content := []byte("hello world")
 	_, err = mb.Write(content)
@@ -199,7 +199,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReadAtWithNegativeOffset() {
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockReadAtEOF() {
-	mb, err := createBlock(12)
+	mb, err := CreateBlock(12)
 	require.Nil(testSuite.T(), err)
 	content := []byte("hello world")
 	_, err = mb.Write(content)
@@ -214,7 +214,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReadAtEOF() {
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockAbsStartOffsetPanicsOnEmptyBlock() {
-	mb, err := createBlock(12)
+	mb, err := CreateBlock(12)
 	require.Nil(testSuite.T(), err)
 
 	// The absolute start offset should be -1 initially.
@@ -224,7 +224,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockAbsStartOffsetPanicsOnEmptyBloc
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockAbsStartOffsetValid() {
-	mb, err := createBlock(12)
+	mb, err := CreateBlock(12)
 	require.Nil(testSuite.T(), err)
 
 	// Set the absolute start offset to a valid value.
@@ -235,7 +235,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockAbsStartOffsetValid() {
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockSetAbsStartOffsetInvalid() {
-	mb, err := createBlock(12)
+	mb, err := CreateBlock(12)
 	require.Nil(testSuite.T(), err)
 
 	err = mb.SetAbsStartOff(-23)
@@ -244,7 +244,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockSetAbsStartOffsetInvalid() {
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockSetAbsStartOffsetValid() {
-	mb, err := createBlock(12)
+	mb, err := CreateBlock(12)
 	require.Nil(testSuite.T(), err)
 
 	err = mb.SetAbsStartOff(23)
@@ -254,7 +254,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockSetAbsStartOffsetValid() {
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockSetAbsStartOffsetTwiceInvalid() {
-	mb, err := createBlock(12)
+	mb, err := CreateBlock(12)
 	require.Nil(testSuite.T(), err)
 	err = mb.SetAbsStartOff(23)
 	require.Nil(testSuite.T(), err)
@@ -265,14 +265,14 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockSetAbsStartOffsetTwiceInvalid()
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockCap() {
-	mb, err := createBlock(12)
+	mb, err := CreateBlock(12)
 	require.Nil(testSuite.T(), err)
 
 	assert.Equal(testSuite.T(), int64(12), mb.Cap())
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockCapAfterWrite() {
-	mb, err := createBlock(12)
+	mb, err := CreateBlock(12)
 	require.Nil(testSuite.T(), err)
 	content := []byte("hi")
 	n, err := mb.Write(content)
@@ -283,7 +283,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockCapAfterWrite() {
 }
 
 func (testSuite *MemoryBlockTest) TestAwaitReadyWaitIfNotNotify() {
-	mb, err := createBlock(12)
+	mb, err := CreateBlock(12)
 	require.Nil(testSuite.T(), err)
 	ctx, cancel := context.WithTimeout(testSuite.T().Context(), 100*time.Millisecond)
 	defer cancel()
@@ -295,7 +295,7 @@ func (testSuite *MemoryBlockTest) TestAwaitReadyWaitIfNotNotify() {
 }
 
 func (testSuite *MemoryBlockTest) TestAwaitReadyReturnsErrorOnContextCancellation() {
-	mb, err := createBlock(12)
+	mb, err := CreateBlock(12)
 	require.Nil(testSuite.T(), err)
 	ctx, cancel := context.WithCancel(testSuite.T().Context())
 	cancel() // Cancel the context immediately
@@ -331,7 +331,7 @@ func (testSuite *MemoryBlockTest) TestAwaitReadyNotifyVariants() {
 
 	for _, tt := range tests {
 		testSuite.T().Run(tt.name, func(t *testing.T) {
-			mb, err := createBlock(12)
+			mb, err := CreateBlock(12)
 			require.Nil(t, err)
 			go func() {
 				time.Sleep(time.Millisecond)
@@ -347,7 +347,7 @@ func (testSuite *MemoryBlockTest) TestAwaitReadyNotifyVariants() {
 }
 
 func (testSuite *MemoryBlockTest) TestTwoNotifyReadyWithoutAwaitReady() {
-	mb, err := createBlock(12)
+	mb, err := CreateBlock(12)
 	require.Nil(testSuite.T(), err)
 
 	mb.NotifyReady(BlockStatusDownloaded)
@@ -358,7 +358,7 @@ func (testSuite *MemoryBlockTest) TestTwoNotifyReadyWithoutAwaitReady() {
 }
 
 func (testSuite *MemoryBlockTest) TestNotifyReadyAfterAwaitReady() {
-	mb, err := createBlock(12)
+	mb, err := CreateBlock(12)
 	require.Nil(testSuite.T(), err)
 	ctx, cancel := context.WithTimeout(testSuite.T().Context(), 100*time.Millisecond)
 	defer cancel()
@@ -376,7 +376,7 @@ func (testSuite *MemoryBlockTest) TestNotifyReadyAfterAwaitReady() {
 }
 
 func (testSuite *MemoryBlockTest) TestSingleNotifyAndMultipleAwaitReady() {
-	mb, err := createBlock(12)
+	mb, err := CreateBlock(12)
 	require.Nil(testSuite.T(), err)
 	go func() {
 		mb.NotifyReady(BlockStatusDownloaded)
