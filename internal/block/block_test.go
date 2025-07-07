@@ -99,6 +99,8 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReuse() {
 	require.Nil(testSuite.T(), err)
 	require.Equal(testSuite.T(), content, output)
 	require.Equal(testSuite.T(), int64(2), mb.Size())
+	err = mb.SetAbsStartOff(23)
+	require.Nil(testSuite.T(), err)
 
 	mb.Reuse()
 
@@ -106,6 +108,9 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReuse() {
 	assert.Nil(testSuite.T(), err)
 	assert.Empty(testSuite.T(), output)
 	assert.Equal(testSuite.T(), int64(0), mb.Size())
+	assert.Panics(testSuite.T(), func() {
+		_ = mb.(*memoryBlock).AbsStartOff()
+	})
 }
 
 // Other cases for Size are covered as part of write tests.
@@ -203,4 +208,56 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReadAtEOF() {
 	assert.Equal(testSuite.T(), io.EOF, err)
 	assert.Equal(testSuite.T(), 5, n)
 	assert.Equal(testSuite.T(), []byte("world"), readBuffer[0:n])
+}
+
+func (testSuite *MemoryBlockTest) TestMemoryBlockAbsStartOffsetPanicsOnEmptyBlock() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+
+	// The absolute start offset should be -1 initially.
+	assert.Panics(testSuite.T(), func() {
+		_ = mb.(*memoryBlock).AbsStartOff()
+	})
+}
+
+func (testSuite *MemoryBlockTest) TestMemoryBlockAbsStartOffsetValid() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+
+	// Set the absolute start offset to a valid value.
+	mb.(*memoryBlock).absStartOff = 100
+
+	// The absolute start offset should return the set value.
+	assert.Equal(testSuite.T(), int64(100), mb.(*memoryBlock).AbsStartOff())
+}
+
+func (testSuite *MemoryBlockTest) TestMemoryBlockSetAbsStartOffsetInvalid() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+
+	err = mb.SetAbsStartOff(-23)
+
+	assert.NotNil(testSuite.T(), err)
+}
+
+func (testSuite *MemoryBlockTest) TestMemoryBlockSetAbsStartOffsetValid() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+
+	err = mb.SetAbsStartOff(23)
+
+	assert.Nil(testSuite.T(), err)
+	assert.Equal(testSuite.T(), int64(23), mb.(*memoryBlock).AbsStartOff())
+}
+
+func (testSuite *MemoryBlockTest) TestMemoryBlockSetAbsStartOffsetTwiceInvalid() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+	err = mb.SetAbsStartOff(23)
+	require.Nil(testSuite.T(), err)
+	require.Equal(testSuite.T(), int64(23), mb.(*memoryBlock).AbsStartOff())
+
+	err = mb.SetAbsStartOff(42)
+
+	assert.NotNil(testSuite.T(), err)
 }
