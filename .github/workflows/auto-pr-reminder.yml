@@ -6,6 +6,8 @@ on:
       - opened
       - reopened
       - ready_for_review
+    branches:
+      - master
 
 jobs:
   add-label:
