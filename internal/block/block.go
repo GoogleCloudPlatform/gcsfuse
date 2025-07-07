@@ -16,9 +16,20 @@ package block
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"syscall"
+)
+
+// BlockStatus represents the status of the block.
+type BlockStatus int
+
+const (
+	BlockStatusInProgress        BlockStatus = iota // Download of this block is in progress
+	BlockStatusDownloaded                           // Download of this block is complete
+	BlockStatusDownloadFailed                       // Download of this block has failed
+	BlockStatusDownloadCancelled                    // Download of this block has been cancelled
 )
 
 // Block represents the buffer which holds the data.
@@ -55,6 +66,17 @@ type Block interface {
 	// It returns an error if the startOff is negative or if it is already set.
 	// TODO(princer): check if a way to set it as part of constructor.
 	SetAbsStartOff(startOff int64) error
+
+	// AwaitReady waits for the block to be ready to consume.
+	// It returns the status of the block and an error if any.
+	AwaitReady(ctx context.Context) (int, error)
+
+	// NotifyReady is used by consumer to marks the block is ready to consume.
+	// The value indicates the status of the block:
+	// - BlockStatusDownloaded: Download of this block is complete.
+	// - BlockStatusDownloadFailed: Download of this block has failed.
+	// - BlockStatusDownloadCancelled: Download of this block has been cancelled.
+	NotifyReady(val int)
 }
 
 // TODO: check if we need offset or just storing end is sufficient. We might need
@@ -68,6 +90,12 @@ type memoryBlock struct {
 	buffer []byte
 	offset offset
 
+	// Indicates if block is in progress, downloaded, download failed or download cancelled.
+	status BlockStatus
+
+	// notification is a channel that notifies when the block is ready to consume.
+	notification chan BlockStatus
+
 	// Stores the absolute start offset of the block-segment in the file.
 	absStartOff int64
 }
@@ -77,6 +105,8 @@ func (m *memoryBlock) Reuse() {
 
 	m.offset.end = 0
 	m.offset.start = 0
+	m.notification = make(chan int, 1)
+	m.status = BlockStatusInProgress
 	m.absStartOff = -1
 }
 
@@ -130,9 +160,11 @@ func createBlock(blockSize int64) (Block, error) {
 	}
 
 	mb := memoryBlock{
-		buffer:      addr,
-		offset:      offset{0, 0},
-		absStartOff: -1,
+		buffer:       addr,
+		offset:       offset{0, 0},
+		notification: make(chan int, 1),
+		status:       BlockStatusInProgress,
+		absStartOff:  -1,
 	}
 	return &mb, nil
 }
@@ -172,4 +204,36 @@ func (m *memoryBlock) SetAbsStartOff(startOff int64) error {
 
 	m.absStartOff = startOff
 	return nil
+}
+
+// AwaitReady waits for the block to be ready to consume.
+// It returns the status of the block and an error if any.
+func (m *memoryBlock) AwaitReady(ctx context.Context) (BlockStatus, error) {
+	select {
+	case val, ok := <-m.notification:
+		if !ok {
+			return m.status, nil
+		}
+
+		// Close the notification channel to prevent further notifications.
+		close(m.notification)
+		// Save the last status for subsequent AwaitReady calls.
+		m.status = val
+
+		return m.status, nil
+	case <-ctx.Done():
+		return 0, ctx.Err()
+	}
+}
+
+// NotifyReady is used by the producer to mark the block as ready to consume.
+// This should be called only once to notify the consumer.
+// If called multiple times, it will panic - either because of writing to the
+// closed channel or blocking due to writing over full notification channel.
+func (m *memoryBlock) NotifyReady(val int) {
+	select {
+	case m.notification <- val:
+	default:
+		panic("Expected to notify only once, but got multiple notifications.")
+	}
 }
