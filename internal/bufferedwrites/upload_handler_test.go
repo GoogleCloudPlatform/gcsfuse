@@ -60,7 +60,7 @@ func (t *UploadHandlerTest) SetupTest() {
 		Object:                   nil,
 		ObjectName:               "testObject",
 		Bucket:                   t.mockBucket,
-		FreeBlocksCh:             t.blockPool.FreeBlocksChannel(),
+		BlockPool:                t.blockPool,
 		MaxBlocksPerFile:         maxBlocks,
 		BlockSize:                blockSize,
 		ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
@@ -80,7 +80,7 @@ func (t *UploadHandlerTest) createUploadHandlerWithObjectOfGivenSize(size uint64
 		},
 		ObjectName:               "testObject",
 		Bucket:                   t.mockBucket,
-		FreeBlocksCh:             t.blockPool.FreeBlocksChannel(),
+		BlockPool:                t.blockPool,
 		MaxBlocksPerFile:         maxBlocks,
 		BlockSize:                blockSize,
 		ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
@@ -182,11 +182,14 @@ func (t *UploadHandlerTest) TestMultipleBlockUpload() {
 	require.NoError(t.T(), err)
 	require.NotNil(t.T(), obj)
 	assert.Equal(t.T(), mockObj, obj)
-	// The blocks should be available on the free channel for reuse.
+	// All the 5 blocks should be available on the free channel for reuse.
+	assert.Equal(t.T(), 5, t.uh.blockPool.TotalFreeBlocks())
 	for _, expect := range blocks {
-		got := <-t.uh.freeBlocksCh
+		got, err := t.uh.blockPool.Get()
+		require.NoError(t.T(), err)
 		assert.Equal(t.T(), expect, got)
 	}
+	assert.Equal(t.T(), 0, t.uh.blockPool.TotalFreeBlocks())
 	assertAllBlocksProcessed(t.T(), t.uh)
 }
 
@@ -338,7 +341,7 @@ func (t *UploadHandlerTest) TestUploadSingleBlockThrowsErrorInCopy() {
 	// Expect an error on upload due to error while copying content to GCS writer.
 	assertUploadFailureError(t.T(), t.uh)
 	assertAllBlocksProcessed(t.T(), t.uh)
-	assert.Equal(t.T(), 1, len(t.uh.freeBlocksCh))
+	assert.Equal(t.T(), 1, t.uh.blockPool.TotalFreeBlocks())
 }
 
 func (t *UploadHandlerTest) TestUploadMultipleBlocksThrowsErrorInCopy() {
@@ -366,7 +369,7 @@ func (t *UploadHandlerTest) TestUploadMultipleBlocksThrowsErrorInCopy() {
 
 	assertUploadFailureError(t.T(), t.uh)
 	assertAllBlocksProcessed(t.T(), t.uh)
-	assert.Equal(t.T(), 4, len(t.uh.freeBlocksCh))
+	assert.Equal(t.T(), 4, t.uh.blockPool.TotalFreeBlocks())
 }
 
 func assertUploadFailureError(t *testing.T, handler *UploadHandler) {
@@ -431,7 +434,7 @@ func (t *UploadHandlerTest) TestMultipleBlockAwaitBlocksUpload() {
 	// AwaitBlocksUpload.
 	t.uh.AwaitBlocksUpload()
 
-	assert.Equal(t.T(), 5, len(t.uh.freeBlocksCh))
+	assert.Equal(t.T(), 5, t.uh.blockPool.TotalFreeBlocks())
 	assert.Equal(t.T(), 0, len(t.uh.uploadCh))
 	assertAllBlocksProcessed(t.T(), t.uh)
 }
@@ -539,7 +542,7 @@ func (t *UploadHandlerTest) TestDestroy() {
 			t.uh.Destroy()
 
 			assertAllBlocksProcessed(t.T(), t.uh)
-			assert.Equal(t.T(), 5, len(t.uh.freeBlocksCh))
+			assert.Equal(t.T(), 5, t.uh.blockPool.TotalFreeBlocks())
 			assert.Equal(t.T(), 0, len(t.uh.uploadCh))
 			// Check if uploadCh is closed.
 			select {
