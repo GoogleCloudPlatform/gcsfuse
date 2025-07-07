@@ -15,6 +15,7 @@
 package block
 
 import (
+	"fmt"
 	"io"
 	"testing"
 
@@ -41,7 +42,9 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockWrite() {
 
 	assert.Nil(testSuite.T(), err)
 	assert.Equal(testSuite.T(), len(content), n)
-	output, err := io.ReadAll(mb.Reader())
+	mb.Seek(0, io.SeekStart) // Reset the read position to the start of the block.
+	assert.Equal(testSuite.T(), int64(2), mb.Size())
+	output, err := io.ReadAll(mb)
 	assert.Nil(testSuite.T(), err)
 	assert.Equal(testSuite.T(), content, output)
 	assert.Equal(testSuite.T(), int64(2), mb.Size())
@@ -68,7 +71,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockWriteWithMultipleWrites() {
 	require.Nil(testSuite.T(), err)
 	require.Equal(testSuite.T(), 5, n)
 
-	output, err := io.ReadAll(mb.Reader())
+	output, err := io.ReadAll(mb)
 	assert.Nil(testSuite.T(), err)
 	assert.Equal(testSuite.T(), []byte("hihello"), output)
 	assert.Equal(testSuite.T(), int64(7), mb.Size())
@@ -95,14 +98,15 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReuse() {
 	n, err := mb.Write(content)
 	require.Nil(testSuite.T(), err)
 	require.Equal(testSuite.T(), 2, n)
-	output, err := io.ReadAll(mb.Reader())
+	output, err := io.ReadAll(mb)
 	require.Nil(testSuite.T(), err)
 	require.Equal(testSuite.T(), content, output)
 	require.Equal(testSuite.T(), int64(2), mb.Size())
 
 	mb.Reuse()
 
-	output, err = io.ReadAll(mb.Reader())
+	mb.Seek(0, io.SeekStart) // Reset the read position to the start of the block.
+	output, err = io.ReadAll(mb)
 	assert.Nil(testSuite.T(), err)
 	assert.Empty(testSuite.T(), output)
 	assert.Equal(testSuite.T(), int64(0), mb.Size())
@@ -121,7 +125,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReaderForEmptyBlock() {
 	mb, err := createBlock(12)
 	require.Nil(testSuite.T(), err)
 
-	output, err := io.ReadAll(mb.Reader())
+	output, err := io.ReadAll(mb)
 	assert.Nil(testSuite.T(), err)
 	assert.Empty(testSuite.T(), output)
 	assert.Equal(testSuite.T(), int64(0), mb.Size())
@@ -134,7 +138,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockDeAllocate() {
 	n, err := mb.Write(content)
 	require.Nil(testSuite.T(), err)
 	require.Equal(testSuite.T(), 2, n)
-	output, err := io.ReadAll(mb.Reader())
+	output, err := io.ReadAll(mb)
 	require.Nil(testSuite.T(), err)
 	require.Equal(testSuite.T(), content, output)
 	require.Equal(testSuite.T(), int64(2), mb.Size())
@@ -143,4 +147,102 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockDeAllocate() {
 
 	require.Nil(testSuite.T(), err)
 	require.Nil(testSuite.T(), mb.(*memoryBlock).buffer)
+}
+
+func (testSuite *MemoryBlockTest) TestMemoryBlockReadSuccess() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+	content := []byte("hello world")
+	n, err := mb.Write(content)
+	require.Nil(testSuite.T(), err)
+	require.Equal(testSuite.T(), len(content), n)
+	readBuffer := make([]byte, 5)
+
+	n, err = mb.Read(readBuffer)
+	require.Nil(testSuite.T(), err)
+	require.Equal(testSuite.T(), 5, n)
+	assert.Equal(testSuite.T(), "hello", string(readBuffer))
+}
+
+func (testSuite *MemoryBlockTest) TestMemoryBlockReadBeyondEnd() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+	content := []byte("hello world")
+	n, err := mb.Write(content)
+	require.Nil(testSuite.T(), err)
+	require.Equal(testSuite.T(), len(content), n)
+	readBuffer := make([]byte, 20)
+
+	n, err = mb.Read(readBuffer)
+
+	require.Equal(testSuite.T(), io.EOF, err)
+	require.Equal(testSuite.T(), 12, n) // Read should return the number of bytes read.
+	assert.Equal(testSuite.T(), "hello world", string(readBuffer[:n]))
+}
+
+func (testSuite *MemoryBlockTest) TestMemoryBlockReadFailure() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+
+	readBuffer := make([]byte, 5)
+	n, err := mb.Read(readBuffer)
+
+	require.Equal(testSuite.T(), io.EOF, err)
+	require.Equal(testSuite.T(), 0, n) // Read should return 0 bytes read.
+	assert.Empty(testSuite.T(), readBuffer)
+}
+
+func (testSuite *MemoryBlockTest) TestMemoryBlockSeekStart() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+	content := []byte("hello world")
+	n, err := mb.Write(content)
+	require.Nil(testSuite.T(), err)
+	require.Equal(testSuite.T(), len(content), n)
+
+	// Seek to the start of the block.
+	offset, err := mb.Seek(0, io.SeekStart)
+	require.Nil(testSuite.T(), err)
+	require.Equal(testSuite.T(), int64(0), offset)
+
+	readBuffer := make([]byte, 5)
+	n, err = mb.Read(readBuffer)
+	require.Nil(testSuite.T(), err)
+	require.Equal(testSuite.T(), 5, n)
+	assert.Equal(testSuite.T(), "hello", string(readBuffer))
+}
+
+func (testSuite *MemoryBlockTest) TestMemoryBlockSeek() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+	content := []byte("hello world")
+	n, err := mb.Write(content)
+	require.Nil(testSuite.T(), err)
+	require.Equal(testSuite.T(), len(content), n)
+
+	tests := []struct {
+		whence         int
+		offset         int64
+		expectedOutput string
+		expectedOffset int64
+	}{
+		{io.SeekStart, 0, "hello", 0},   // After this, readSeek = 5
+		{io.SeekCurrent, 1, "world", 6}, // After this readSeek = 11
+		{io.SeekEnd, -6, " worl", 5},
+	}
+
+	for _, tt := range tests {
+		testSuite.T().Run(fmt.Sprintf("whence=%d, offset=%d, expectedOutput:%s", tt.whence, tt.offset, tt.expectedOutput), func(t *testing.T) {
+			offset, err := mb.Seek(tt.offset, tt.whence)
+			t.Logf("Seek returned offset: %d, expected: %d, readSeek: %d", offset, tt.expectedOffset, mb.(*memoryBlock).readSeek)
+
+			require.Nil(t, err)
+			require.Equal(t, tt.expectedOffset, offset)
+			readBuffer := make([]byte, 5)
+			n, err = mb.Read(readBuffer)
+			require.Nil(t, err)
+			require.Equal(t, 5, n)
+			assert.Equal(t, tt.expectedOutput, string(readBuffer))
+		})
+	}
 }

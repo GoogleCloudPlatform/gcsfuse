@@ -23,7 +23,7 @@ import (
 
 // Block represents the buffer which holds the data.
 type Block interface {
-	io.Reader
+	io.ReadSeeker
 	io.Writer
 
 	// Reuse resets the blocks for reuse.
@@ -32,10 +32,6 @@ type Block interface {
 	// Size provides the current data size of the block. The capacity of the block
 	// can be >= data_size.
 	Size() int64
-
-	// Reader interface helps in copying the data directly to storage.writer
-	// while uploading to GCS.
-	Reader() io.Reader
 
 	Deallocate() error
 }
@@ -67,6 +63,8 @@ func (m *memoryBlock) Size() int64 {
 	return m.offset.end - m.offset.start
 }
 
+// Read reads data from the block into the provided byte slice.
+// Please make sure to call Seek before calling Read if you want to read from a specific position.
 func (m *memoryBlock) Read(bytes []byte) (int, error) {
 	if m.readSeek < m.offset.start {
 		return 0, fmt.Errorf("readSeek %d is less than start offset %d", m.readSeek, m.offset.start)
@@ -80,6 +78,20 @@ func (m *memoryBlock) Read(bytes []byte) (int, error) {
 	m.readSeek += int64(n)
 
 	return n, nil
+}
+
+func (m *memoryBlock) Seek(offset int64, whence int) (int64, error) {
+	switch whence {
+	case io.SeekStart:
+		m.readSeek = m.offset.start + offset
+	case io.SeekCurrent:
+		m.readSeek += offset
+	case io.SeekEnd:
+		m.readSeek = m.offset.end + offset
+	default:
+		return 0, fmt.Errorf("invalid whence value: %d", whence)
+	}
+	return m.readSeek, nil
 }
 
 func (m *memoryBlock) Write(bytes []byte) (int, error) {

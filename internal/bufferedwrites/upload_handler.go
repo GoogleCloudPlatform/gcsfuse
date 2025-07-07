@@ -135,6 +135,7 @@ func (uh *UploadHandler) uploader() {
 			uh.wg.Done()
 			continue
 		}
+		currBlock.Seek(0, io.SeekStart) // Reset the readSeek to 0 before uploading.
 		_, err := io.Copy(uh.writer, currBlock)
 		if errors.Is(err, context.Canceled) {
 			// Context canceled error indicates that the file was deleted from the
