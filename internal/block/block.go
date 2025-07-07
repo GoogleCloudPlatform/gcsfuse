@@ -15,7 +15,6 @@
 package block
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"syscall"
@@ -106,10 +105,6 @@ func (m *memoryBlock) Write(bytes []byte) (int, error) {
 
 	m.offset.end += int64(len(bytes))
 	return n, nil
-}
-
-func (m *memoryBlock) Reader() io.Reader {
-	return bytes.NewReader(m.buffer[0:m.offset.end])
 }
 
 func (m *memoryBlock) Deallocate() error {

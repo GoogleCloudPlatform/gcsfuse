@@ -15,6 +15,7 @@
 package block
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"testing"
@@ -159,6 +160,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReadSuccess() {
 	readBuffer := make([]byte, 5)
 
 	n, err = mb.Read(readBuffer)
+
 	require.Nil(testSuite.T(), err)
 	require.Equal(testSuite.T(), 5, n)
 	assert.Equal(testSuite.T(), "hello", string(readBuffer))
@@ -172,44 +174,24 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReadBeyondEnd() {
 	require.Nil(testSuite.T(), err)
 	require.Equal(testSuite.T(), len(content), n)
 	readBuffer := make([]byte, 20)
+	mb.Seek(13, io.SeekStart) // Reset the read position out of the block.
 
 	n, err = mb.Read(readBuffer)
 
 	require.Equal(testSuite.T(), io.EOF, err)
-	require.Equal(testSuite.T(), 12, n) // Read should return the number of bytes read.
-	assert.Equal(testSuite.T(), "hello world", string(readBuffer[:n]))
+	require.Equal(testSuite.T(), 0, n)
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockReadFailure() {
 	mb, err := createBlock(12)
 	require.Nil(testSuite.T(), err)
-
 	readBuffer := make([]byte, 5)
+	mb.Seek(-1, 0) // Set readSeek to an invalid position.
+
 	n, err := mb.Read(readBuffer)
 
-	require.Equal(testSuite.T(), io.EOF, err)
+	require.Equal(testSuite.T(), errors.New("readSeek -1 is less than start offset 0"), err)
 	require.Equal(testSuite.T(), 0, n) // Read should return 0 bytes read.
-	assert.Empty(testSuite.T(), readBuffer)
-}
-
-func (testSuite *MemoryBlockTest) TestMemoryBlockSeekStart() {
-	mb, err := createBlock(12)
-	require.Nil(testSuite.T(), err)
-	content := []byte("hello world")
-	n, err := mb.Write(content)
-	require.Nil(testSuite.T(), err)
-	require.Equal(testSuite.T(), len(content), n)
-
-	// Seek to the start of the block.
-	offset, err := mb.Seek(0, io.SeekStart)
-	require.Nil(testSuite.T(), err)
-	require.Equal(testSuite.T(), int64(0), offset)
-
-	readBuffer := make([]byte, 5)
-	n, err = mb.Read(readBuffer)
-	require.Nil(testSuite.T(), err)
-	require.Equal(testSuite.T(), 5, n)
-	assert.Equal(testSuite.T(), "hello", string(readBuffer))
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockSeek() {
