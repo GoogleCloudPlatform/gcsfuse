@@ -117,7 +117,7 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 			Object:                   req.Object,
 			ObjectName:               req.ObjectName,
 			Bucket:                   req.Bucket,
-			FreeBlocksCh:             bp.FreeBlocksChannel(),
+			BlockPool:                bp,
 			MaxBlocksPerFile:         req.MaxBlocksPerFile,
 			BlockSize:                req.BlockSize,
 			ChunkTransferTimeoutSecs: req.ChunkTransferTimeoutSecs,
