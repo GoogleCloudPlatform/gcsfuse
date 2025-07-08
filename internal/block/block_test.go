@@ -15,10 +15,8 @@
 package block
 
 import (
-	"context"
 	"io"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -208,29 +206,4 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReadAthEOF() {
 	require.Equal(testSuite.T(), io.EOF, err)
 	require.Equal(testSuite.T(), 5, n)
 	assert.Equal(testSuite.T(), []byte("world"), readBuffer[0:n])
-}
-
-func (testSuite *MemoryBlockTest) TestAwaitReadyWaitIfNotNotify() {
-	mb, err := createBlock(12)
-	require.Nil(testSuite.T(), err)
-
-	ctx, cancel := context.WithTimeout(testSuite.T().Context(), 100*time.Millisecond)
-	defer cancel()
-
-	_, err = mb.AwaitReady(ctx)
-	assert.NotNil(testSuite.T(), err)
-	assert.Equal(testSuite.T(), context.DeadlineExceeded, err)
-}
-
-func (testSuite *MemoryBlockTest) TestAwaitReadyReturnsStatusAfterNotify() {
-	mb, err := createBlock(12)
-	require.Nil(testSuite.T(), err)
-	go func() {
-		// time.Sleep(time.Millisecond) // Simulate some processing time
-		mb.NotifyReady(1)            // Notify the block is ready
-	}()
-
-	status, err := mb.AwaitReady(context.Background())
-	require.Nil(testSuite.T(), err)
-	assert.Equal(testSuite.T(), 1, status)
 }

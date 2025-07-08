@@ -16,7 +16,6 @@ package block
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"syscall"
@@ -49,28 +48,8 @@ type Block interface {
 	Deallocate() error
 
 	// Follows io.ReaderAt interface.
-	// Here, offset is relative to the start of the block.
+	// Here, off is relative to the start of the block.
 	ReadAt(p []byte, off int64) (n int, err error)
-
-	// AwaitReady waits for the block to be ready to consume.
-	// It returns the status of the block and an error if any.
-	AwaitReady(ctx context.Context) (int, error)
-
-	// NotifyReady is used by consumer to marks the block is ready to consume.
-	// The value indicates the status of the block:
-	// - BlockStatusDownloaded: Download of this block is complete.
-	// - BlockStatusDownloadFailed: Download of this block has failed.
-	// - BlockStatusDownloadCancelled: Download of this block has been cancelled.
-	NotifyReady(val int)
-
-	// AbsStartOff returns the absolute start offset of the block.
-	// Panics if the absolute start offset is not set.
-	AbsStartOff() int64
-
-	// SetAbsStartOff sets the absolute start offset of the block.
-	// This should be called only once just after getting the block from the pool.
-	// It returns an error if the startOff is negative or if it is already set.
-	SetAbsStartOff(startOff int64) error
 }
 
 // TODO: check if we need offset or just storing end is sufficient. We might need
@@ -169,57 +148,4 @@ func (m *memoryBlock) ReadAt(p []byte, off int64) (n int, err error) {
 		return n, io.EOF
 	}
 	return n, nil
-}
-
-// AwaitReady waits for the block to be ready to consume.
-// It returns the status of the block and an error if any.
-func (m *memoryBlock) AwaitReady(ctx context.Context) (int, error) {
-	select {
-	case val, ok := <-m.notification:
-		if !ok {
-			return m.status, nil
-		}
-
-		// Close the notification channel to prevent further notifications.
-		// Store the last status to return for further AwaitReady calls.
-		close(m.notification)
-		m.status = val
-
-		return m.status, nil
-	case <-ctx.Done():
-		return 0, ctx.Err()
-	}
-}
-
-// NotifyReady is used by the producer to mark the block as ready to consume.
-// This should be called only once to notify the consumer.
-// If called multiple times, it will panic - either because of writing to the
-// closed channel or blocking due to writing over full notification channel.
-func (m *memoryBlock) NotifyReady(val int) {
-	select {
-	case m.notification <- val:
-	default:
-		panic("Expected to notify only once, but got multiple notifications.")
-	}
-}
-
-func (m *memoryBlock) AbsStartOff() int64 {
-	if m.absStartOff < 0 {
-		panic("AbsStartOff is not set, it should be set before calling this method.")
-	}
-	return m.absStartOff
-}
-
-func (m *memoryBlock) SetAbsStartOff(startOff int64) error {
-	if startOff < 0 {
-		return fmt.Errorf("startOff cannot be negative, got %d", startOff)
-	}
-
-	// If absStartOff is already set, then return an error.
-	if m.absStartOff >= 0 {
-		return fmt.Errorf("AbsStartOff is already set, it should be set only once.")
-	}
-
-	m.absStartOff = startOff
-	return nil
 }
