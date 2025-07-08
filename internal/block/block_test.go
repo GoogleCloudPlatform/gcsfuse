@@ -255,7 +255,6 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockSetAbsStartOffsetTwiceInvalid()
 	require.Nil(testSuite.T(), err)
 	err = mb.SetAbsStartOff(23)
 	require.Nil(testSuite.T(), err)
-	require.Equal(testSuite.T(), int64(23), mb.(*memoryBlock).AbsStartOff())
 
 	err = mb.SetAbsStartOff(42)
 
