@@ -86,7 +86,10 @@ func (t *BlockPoolTest) TestGetWhenBlockIsAvailableForReuse() {
 	require.Equal(t.T(), 2, n)
 	require.Nil(t.T(), err)
 	// Validating the content of the block
-	output, err := io.ReadAll(b.Reader())
+	off, err := b.Seek(0, io.SeekStart)
+	require.Nil(t.T(), err)
+	require.Equal(t.T(), int64(0), off)
+	output, err := io.ReadAll(b)
 	require.Nil(t.T(), err)
 	require.Equal(t.T(), content, output)
 	bp.freeBlocksCh <- b

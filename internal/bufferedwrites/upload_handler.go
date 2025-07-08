@@ -135,7 +135,11 @@ func (uh *UploadHandler) uploader() {
 			uh.wg.Done()
 			continue
 		}
-		_, err := io.Copy(uh.writer, currBlock.Reader())
+		off, err := currBlock.Seek(0, io.SeekStart) // Reset the readSeek to 0 before uploading.
+		if err != nil || off != 0 {
+			logger.Errorf("buffered write upload failed for object %s: error in block.Seek: %v", uh.objectName, err)
+		}
+		_, err = io.Copy(uh.writer, currBlock)
 		if errors.Is(err, context.Canceled) {
 			// Context canceled error indicates that the file was deleted from the
 			// same mount. In this case, we suppress the error to match local
