@@ -141,8 +141,8 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockDeAllocate() {
 
 	err = mb.Deallocate()
 
-	require.Nil(testSuite.T(), err)
-	require.Nil(testSuite.T(), mb.(*memoryBlock).buffer)
+	assert.Nil(testSuite.T(), err)
+	assert.Nil(testSuite.T(), mb.(*memoryBlock).buffer)
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockReadAtSuccess() {
@@ -156,8 +156,8 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReadAtSuccess() {
 
 	n, err = mb.ReadAt(readBuffer, 6) // Read "world"
 
-	require.Nil(testSuite.T(), err)
-	require.Equal(testSuite.T(), 5, n)
+	assert.Nil(testSuite.T(), err)
+	assert.Equal(testSuite.T(), 5, n)
 	assert.Equal(testSuite.T(), []byte("world"), readBuffer)
 }
 
@@ -202,8 +202,8 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReadAthEOF() {
 
 	n, err = mb.ReadAt(readBuffer, 6) // Read "world"
 
-	require.NotNil(testSuite.T(), err)
-	require.Equal(testSuite.T(), io.EOF, err)
-	require.Equal(testSuite.T(), 5, n)
+	assert.NotNil(testSuite.T(), err)
+	assert.Equal(testSuite.T(), io.EOF, err)
+	assert.Equal(testSuite.T(), 5, n)
 	assert.Equal(testSuite.T(), []byte("world"), readBuffer[0:n])
 }

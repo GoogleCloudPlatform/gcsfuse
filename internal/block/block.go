@@ -21,14 +21,6 @@ import (
 	"syscall"
 )
 
-// Status of the download.
-const (
-	BlockStatusInProgress        int = iota + 1 // Download of this block is in progress
-	BlockStatusDownloaded                       // Download of this block is complete
-	BlockStatusDownloadFailed                   // Download of this block has failed
-	BlockStatusDownloadCancelled                // Download of this block has been cancelled
-)
-
 // Block represents the buffer which holds the data.
 type Block interface {
 	// Reuse resets the blocks for reuse.
@@ -62,15 +54,6 @@ type memoryBlock struct {
 	Block
 	buffer []byte
 	offset offset
-
-	// It is used to indicate if the block is ready to consume or not.
-	status int
-
-	// notification is a channel that notifies when the block is ready to consume.
-	notification chan int
-
-	// Stores the absolute start offset of the block-segment in the file.
-	absStartOff int64
 }
 
 func (m *memoryBlock) Reuse() {
@@ -78,9 +61,6 @@ func (m *memoryBlock) Reuse() {
 
 	m.offset.end = 0
 	m.offset.start = 0
-	m.notification = make(chan int, 1)
-	m.status = BlockStatusInProgress
-	m.absStartOff = -1
 }
 
 func (m *memoryBlock) Size() int64 {
@@ -128,15 +108,15 @@ func createBlock(blockSize int64) (Block, error) {
 	}
 
 	mb := memoryBlock{
-		buffer:       addr,
-		offset:       offset{0, 0},
-		notification: make(chan int, 1),
-		status:       BlockStatusInProgress,
-		absStartOff:  -1,
+		buffer: addr,
+		offset: offset{0, 0},
 	}
 	return &mb, nil
 }
 
+// ReadAt reads data from the block at the specified offset.
+// The offset is relative to the start of the block.
+// It returns the number of bytes read and an error if any.
 func (m *memoryBlock) ReadAt(p []byte, off int64) (n int, err error) {
 	if off < 0 || off >= m.Size() {
 		return 0, fmt.Errorf("offset %d is out of bounds for block size %d", off, m.Size())
