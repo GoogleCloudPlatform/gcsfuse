@@ -140,13 +140,7 @@ func (s *SymlinkInode) Destroy() (err error) {
 }
 
 func (s *SymlinkInode) Attributes(
-	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
-	attrs = s.attrs
-	return
-}
-
-func (s *SymlinkInode) ExtractAttributes(
-	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
+	ctx context.Context, clobberedCheck bool) (attrs fuseops.InodeAttributes, err error) {
 	attrs = s.attrs
 	return
 }

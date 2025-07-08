@@ -68,7 +68,7 @@ func (t *SymlinkTest) TestIsSymLinkForNilObject() {
 	AssertEq(false, inode.IsSymlink(nil))
 }
 
-func (t *SymlinkTest) TestExtractAttributes() {
+func (t *SymlinkTest) TestAttributes() {
 	metadata := map[string]string{
 		inode.SymlinkMetadataKey: "target",
 	}
@@ -81,18 +81,27 @@ func (t *SymlinkTest) TestExtractAttributes() {
 		Gid:  1002,
 		Mode: 0777 | os.ModeSymlink,
 	}
-
 	inodeID := fuseops.InodeID(42)
 	name := inode.NewFileName(inode.NewRootName("some-bucket"), m.Name)
 	s := inode.NewSymlinkInode(inodeID, name, m, attrs)
 
-	// Call ExtractAttributes
-	extracted, err := s.ExtractAttributes(context.TODO())
+	tests := []struct {
+		name           string
+		clobberedCheck bool
+	}{
+		{"WithClobberedCheckFalse", false},
+		{"WithClobberedCheckTrue", true},
+	}
 
-	// Check expected values
-	AssertEq(nil, err)
-	ExpectEq(uint32(1), extracted.Nlink)
-	ExpectEq(attrs.Uid, extracted.Uid)
-	ExpectEq(attrs.Gid, extracted.Gid)
-	ExpectEq(attrs.Mode, extracted.Mode)
+	for _, tt := range tests {
+		// Call Attributes
+		extracted, err := s.Attributes(context.TODO(), tt.clobberedCheck)
+
+		// Check expected values
+		AssertEq(nil, err)
+		ExpectEq(uint32(1), extracted.Nlink)
+		ExpectEq(attrs.Uid, extracted.Uid)
+		ExpectEq(attrs.Gid, extracted.Gid)
+		ExpectEq(attrs.Mode, extracted.Mode)
+	}
 }

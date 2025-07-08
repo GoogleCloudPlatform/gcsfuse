@@ -512,17 +512,7 @@ func (d *dirInode) Destroy() (err error) {
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) Attributes(
-	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
-	// Set up basic attributes.
-	attrs = d.attrs
-	attrs.Nlink = 1
-
-	return
-}
-
-// LOCKS_REQUIRED(d)
-func (d *dirInode) ExtractAttributes(
-	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
+	ctx context.Context, clobberedCheck bool) (attrs fuseops.InodeAttributes, err error) {
 	// Set up basic attributes.
 	attrs = d.attrs
 	attrs.Nlink = 1

@@ -1348,7 +1348,7 @@ func (fs *fileSystem) getAttributes(
 	expiration time.Time,
 	err error) {
 	// Call through.
-	attr, err = in.Attributes(ctx)
+	attr, err = in.Attributes(ctx, true)
 	if err != nil {
 		return
 	}

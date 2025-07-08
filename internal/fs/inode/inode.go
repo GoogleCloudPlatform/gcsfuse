@@ -41,10 +41,10 @@ type Inode interface {
 	IncrementLookupCount()
 
 	// Return up to date attributes for this inode.
-	Attributes(ctx context.Context) (fuseops.InodeAttributes, error)
-
-	// Extract attributes for this inode.
-	ExtractAttributes(ctx context.Context) (fuseops.InodeAttributes, error)
+	// The `clobberedCheck` parameter controls whether this function performs a
+	// remote check to see if the backing GCS object has been modified by another
+	// process.
+	Attributes(ctx context.Context, clobberedCheck bool) (fuseops.InodeAttributes, error)
 
 	// Decrement the lookup count for the inode by the given amount.
 	//
