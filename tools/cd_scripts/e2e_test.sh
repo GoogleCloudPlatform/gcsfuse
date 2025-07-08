@@ -18,6 +18,15 @@ set -x
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
+# Upgrade gcloud
+echo "Upgrade gcloud version"
+gcloud version
+wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
+sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm -r google-cloud-sdk
+sudo /usr/local/google-cloud-sdk/install.sh
+export PATH=/usr/local/google-cloud-sdk/bin:$PATH
+gcloud version && rm gcloud.tar.gz
+
 # Extract the metadata parameters passed, for which we need the zone of the GCE VM 
 # on which the tests are supposed to run.
 ZONE=$(curl -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/zone)
@@ -57,6 +66,8 @@ sudo -u starterscriptuser bash -c '
 set -e
 # Print commands and their arguments as they are executed.
 set -x
+
+export PATH=/usr/local/google-cloud-sdk/bin:$PATH
 
 # Export the RUN_ON_ZB_ONLY variable so that it is available in the environment of the 'starterscriptuser' user.
 # Since we are running the subsequent script as 'starterscriptuser' using sudo, the environment of 'starterscriptuser' 
