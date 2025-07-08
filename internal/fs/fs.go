@@ -2593,9 +2593,8 @@ func (fs *fileSystem) ReadFile(
 		// when we start leaving zonal bucket objects unfinalized.
 		if !fh.Inode().Bucket().BucketType().Zonal {
 			err = fs.flushFile(ctx, fh.Inode())
-		} else if fh.Inode().Source().IsUnfinalized() {
-			// Flush, but don't finalized for unfinalized objects
-			// in zonal buckets.
+		} else {
+			// Flush but don't finalize, in zonal bucket.
 			err = fs.syncFile(ctx, fh.Inode())
 		}
 		if err != nil {
