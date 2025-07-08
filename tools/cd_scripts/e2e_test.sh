@@ -67,6 +67,7 @@ set -e
 # Print commands and their arguments as they are executed.
 set -x
 
+# Since we are now operating as the starterscriptuser, we need to set the environment variable for this user again.
 export PATH=/usr/local/google-cloud-sdk/bin:$PATH
 
 # Export the RUN_ON_ZB_ONLY variable so that it is available in the environment of the 'starterscriptuser' user.
