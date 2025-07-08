@@ -141,6 +141,66 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockDeAllocate() {
 
 	err = mb.Deallocate()
 
+	assert.Nil(testSuite.T(), err)
+	assert.Nil(testSuite.T(), mb.(*memoryBlock).buffer)
+}
+
+func (testSuite *MemoryBlockTest) TestMemoryBlockReadAtSuccess() {
+	mb, err := createBlock(12)
 	require.Nil(testSuite.T(), err)
-	require.Nil(testSuite.T(), mb.(*memoryBlock).buffer)
+	content := []byte("hello world")
+	_, err = mb.Write(content)
+	require.Nil(testSuite.T(), err)
+	readBuffer := make([]byte, 5)
+
+	n, err := mb.ReadAt(readBuffer, 6) // Read "world"
+
+	assert.Nil(testSuite.T(), err)
+	assert.Equal(testSuite.T(), 5, n)
+	assert.Equal(testSuite.T(), []byte("world"), readBuffer)
+}
+
+func (testSuite *MemoryBlockTest) TestMemoryBlockReadAtBeyondBlockSize() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+	content := []byte("hello world")
+	_, err = mb.Write(content)
+	require.Nil(testSuite.T(), err)
+	readBuffer := make([]byte, 5)
+
+	n, err := mb.ReadAt(readBuffer, 15) // Read beyond the block size
+
+	assert.NotNil(testSuite.T(), err)
+	assert.NotErrorIs(testSuite.T(), err, io.EOF)
+	assert.Equal(testSuite.T(), 0, n)
+}
+
+func (testSuite *MemoryBlockTest) TestMemoryBlockReadAtWithNegativeOffset() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+	content := []byte("hello world")
+	_, err = mb.Write(content)
+	require.Nil(testSuite.T(), err)
+	readBuffer := make([]byte, 5)
+
+	n, err := mb.ReadAt(readBuffer, -1) // Negative offset
+
+	assert.NotNil(testSuite.T(), err)
+	assert.NotErrorIs(testSuite.T(), err, io.EOF)
+	assert.Equal(testSuite.T(), 0, n)
+}
+
+func (testSuite *MemoryBlockTest) TestMemoryBlockReadAtEOF() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+	content := []byte("hello world")
+	_, err = mb.Write(content)
+	require.Nil(testSuite.T(), err)
+	readBuffer := make([]byte, 15)
+
+	n, err := mb.ReadAt(readBuffer, 6) // Read "world"
+
+	assert.Equal(testSuite.T(), io.EOF, err)
+	assert.Equal(testSuite.T(), 5, n)
+	assert.Equal(testSuite.T(), []byte("world"), readBuffer[0:n])
 }

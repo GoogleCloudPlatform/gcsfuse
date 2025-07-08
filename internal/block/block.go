@@ -38,6 +38,10 @@ type Block interface {
 	Reader() io.Reader
 
 	Deallocate() error
+
+	// Follows io.ReaderAt interface.
+	// Here, off is relative to the start of the block.
+	ReadAt(p []byte, off int64) (n int, err error)
 }
 
 // TODO: check if we need offset or just storing end is sufficient. We might need
@@ -108,4 +112,20 @@ func createBlock(blockSize int64) (Block, error) {
 		offset: offset{0, 0},
 	}
 	return &mb, nil
+}
+
+// ReadAt reads data from the block at the specified offset.
+// The offset is relative to the start of the block.
+// It returns the number of bytes read and an error if any.
+func (m *memoryBlock) ReadAt(p []byte, off int64) (n int, err error) {
+	if off < 0 || off >= m.Size() {
+		return 0, fmt.Errorf("offset %d is out of bounds for block size %d", off, m.Size())
+	}
+
+	n = copy(p, m.buffer[m.offset.start+off:m.offset.end])
+
+	if n < len(p) {
+		return n, io.EOF
+	}
+	return n, nil
 }
