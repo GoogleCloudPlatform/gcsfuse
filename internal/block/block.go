@@ -30,6 +30,11 @@ type Block interface {
 	// can be >= data_size.
 	Size() int64
 
+	// Cap provides the capacity of the block.
+	// It is the maximum size of data that can be written to the block.
+	// It is always >= Size().
+	Cap() int64
+
 	// Write writes the given data to block.
 	Write(bytes []byte) (n int, err error)
 
@@ -66,6 +71,11 @@ func (m *memoryBlock) Reuse() {
 func (m *memoryBlock) Size() int64 {
 	return m.offset.end - m.offset.start
 }
+
+func (m *memoryBlock) Cap() int64 {
+	return int64(len(m.buffer))
+}
+
 func (m *memoryBlock) Write(bytes []byte) (int, error) {
 	if m.Size()+int64(len(bytes)) > int64(cap(m.buffer)) {
 		return 0, fmt.Errorf("received data more than capacity of the block")
@@ -101,6 +111,11 @@ func (m *memoryBlock) Deallocate() error {
 
 // createBlock creates a new block.
 func createBlock(blockSize int64) (Block, error) {
+	return createMemoryBlock(blockSize)
+}
+
+// createMemoryBlock creates a new memory block with the given size.
+func createMemoryBlock(blockSize int64) (*memoryBlock, error) {
 	prot, flags := syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_ANON|syscall.MAP_PRIVATE
 	addr, err := syscall.Mmap(-1, 0, int(blockSize), prot, flags)
 	if err != nil {
