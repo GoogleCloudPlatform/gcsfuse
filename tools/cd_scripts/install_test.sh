@@ -16,8 +16,16 @@
 # Print commands and their arguments as they are executed.
 set -x
 
+echo "Upgrade gcloud version"
+gcloud version
+wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
+sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm -r google-cloud-sdk
+sudo /usr/local/google-cloud-sdk/install.sh
+export PATH=/usr/local/google-cloud-sdk/bin:$PATH
+gcloud version && rm gcloud.tar.gz
+
 #details.txt file contains the release version and commit hash of the current release.
-gsutil cp  gs://gcsfuse-release-packages/version-detail/details.txt .
+gcloud storage cp  gs://gcsfuse-release-packages/version-detail/details.txt .
 # Writing VM instance name to details.txt (Format: release-test-<os-name>)
 vm_instance_name=$(curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google")
 # first line of details.txt contains the release version in the format MAJOR.MINOR.PATCH
@@ -133,7 +141,7 @@ if grep -q Failure ~/logs.txt; then
     echo "Test failed" &>> ~/logs.txt ;
 else
     touch success.txt
-    gsutil cp success.txt gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/installation-test/$(sed -n 3p details.txt)/   ;
+    gcloud storage cp success.txt gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/installation-test/$(sed -n 3p details.txt)/   ;
 fi
 
-gsutil cp ~/logs.txt gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/installation-test/$(sed -n 3p details.txt)/
+gcloud storage cp ~/logs.txt gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/installation-test/$(sed -n 3p details.txt)/
