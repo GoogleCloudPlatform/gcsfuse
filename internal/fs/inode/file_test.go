@@ -22,7 +22,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -1679,14 +1678,20 @@ func (t *FileTest) TestReadFileWhenStreamingWritesAreEnabled() {
 				assert.False(t.T(), gcsSynced)
 				assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
 			}
-
-			data := make([]byte, 10)
+			data := make([]byte, len("hi"))
+			// Flush is required before reading an object for which BWH is open.
+			assert.NoError(t.T(), t.in.Flush(context.Background()))
 
 			n, err := t.in.Read(t.ctx, data, 0)
 
-			assert.Equal(t.T(), 0, n)
-			require.Error(t.T(), err)
-			assert.ErrorIs(t.T(), err, syscall.ENOTSUP)
+			if tc.performWrite {
+				assert.Equal(t.T(), len(data), n)
+				require.NoError(t.T(), err)
+			} else {
+				assert.Equal(t.T(), 0, n)
+				require.Error(t.T(), err)
+				assert.ErrorIs(t.T(), err, io.EOF)
+			}
 		})
 	}
 }
