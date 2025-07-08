@@ -81,10 +81,8 @@ func (t *SymlinkTest) TestAttributes() {
 		Gid:  1002,
 		Mode: 0777 | os.ModeSymlink,
 	}
-	inodeID := fuseops.InodeID(42)
 	name := inode.NewFileName(inode.NewRootName("some-bucket"), m.Name)
-	s := inode.NewSymlinkInode(inodeID, name, m, attrs)
-
+	s := inode.NewSymlinkInode(fuseops.InodeID(42), name, m, attrs)
 	tests := []struct {
 		name           string
 		clobberedCheck bool

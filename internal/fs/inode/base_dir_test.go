@@ -154,6 +154,7 @@ func (t *BaseDirTest) LookupCount() {
 
 func (t *BaseDirTest) Attributes_ClobberedCheckTrue() {
 	attrs, err := t.in.Attributes(t.ctx, true)
+
 	AssertEq(nil, err)
 	ExpectEq(uid, attrs.Uid)
 	ExpectEq(gid, attrs.Gid)
@@ -162,6 +163,7 @@ func (t *BaseDirTest) Attributes_ClobberedCheckTrue() {
 
 func (t *BaseDirTest) Attributes_ClobberedCheckFalse() {
 	attrs, err := t.in.Attributes(t.ctx, false)
+
 	AssertEq(nil, err)
 	ExpectEq(uid, attrs.Uid)
 	ExpectEq(gid, attrs.Gid)
