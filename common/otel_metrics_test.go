@@ -394,6 +394,86 @@ func TestFsOpsCount(t *testing.T) {
 
 }
 
+func TestFsOpsErrorCount(t *testing.T) {
+	fsOps := []string{
+		"StatFS", "LookUpInode", "GetInodeAttributes", "SetInodeAttributes", "ForgetInode",
+		"BatchForget", "MkDir", "MkNode", "CreateFile", "CreateLink", "CreateSymlink",
+		"Rename", "RmDir", "Unlink", "OpenDir", "ReadDir", "ReleaseDirHandle",
+		"OpenFile", "ReadFile", "WriteFile", "SyncFile", "FlushFile", "ReleaseFileHandle",
+		"ReadSymlink", "RemoveXattr", "GetXattr", "ListXattr", "SetXattr", "Fallocate", "SyncFS",
+	}
+	fsErrorCategories := []string{
+		"DEVICE_ERROR", "DIR_NOT_EMPTY", "FILE_EXISTS", "FILE_DIR_ERROR", "NOT_IMPLEMENTED",
+		"IO_ERROR", "INTERRUPT_ERROR", "INVALID_ARGUMENT", "INVALID_OPERATION", "MISC_ERROR",
+		"NETWORK_ERROR", "NO_FILE_OR_DIR", "NOT_A_DIR", "PERM_ERROR",
+		"PROCESS_RESOURCE_MGMT_ERROR", "TOO_MANY_OPEN_FILES",
+	}
+
+	for _, op := range fsOps {
+		for _, category := range fsErrorCategories {
+			op, category := op, category
+			t.Run(fmt.Sprintf("%s_%s", op, category), func(t *testing.T) {
+				ctx := context.Background()
+				m, rd := setupOTel(ctx, t)
+
+				m.FsOpsErrorCount(5, category, op)
+				waitForMetricsProcessing()
+
+				metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+				opsErrorCount, ok := metrics["fs/ops_error_count"]
+				require.True(t, ok, "fs/ops_error_count metric not found")
+				expectedKey := fmt.Sprintf("fs_error_category=%s;fs_op=%s", category, op)
+				expected := map[string]int64{
+					expectedKey: 5,
+				}
+				assert.Equal(t, expected, opsErrorCount)
+			})
+		}
+	}
+
+}
+
+func TestFsOpsErrorCountSummed(t *testing.T) {
+	ctx := context.Background()
+	m, rd := setupOTel(ctx, t)
+
+	m.FsOpsErrorCount(5, "IO_ERROR", "ReadFile")
+	m.FsOpsErrorCount(3, "IO_ERROR", "ReadFile")
+	waitForMetricsProcessing()
+
+	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+	opsErrorCount, ok := metrics["fs/ops_error_count"]
+	assert.True(t, ok, "fs/ops_error_count metric not found")
+	assert.Equal(t, map[string]int64{"fs_error_category=IO_ERROR;fs_op=ReadFile": 8}, opsErrorCount)
+}
+func TestFsOpsErrorCountDifferentErrors(t *testing.T) {
+	ctx := context.Background()
+	m, rd := setupOTel(ctx, t)
+
+	m.FsOpsErrorCount(5, "IO_ERROR", "ReadFile")
+	m.FsOpsErrorCount(2, "NETWORK_ERROR", "WriteFile")
+	waitForMetricsProcessing()
+
+	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+	opsErrorCount, ok := metrics["fs/ops_error_count"]
+	assert.True(t, ok, "fs/ops_error_count metric not found")
+	assert.Equal(t, map[string]int64{"fs_error_category=IO_ERROR;fs_op=ReadFile": 5, "fs_error_category=NETWORK_ERROR;fs_op=WriteFile": 2}, opsErrorCount)
+}
+func TestFsOpsErrorCountDifferentErrorsSummed(t *testing.T) {
+	ctx := context.Background()
+	m, rd := setupOTel(ctx, t)
+
+	m.FsOpsErrorCount(5, "IO_ERROR", "ReadFile")
+	m.FsOpsErrorCount(2, "NETWORK_ERROR", "WriteFile")
+	m.FsOpsErrorCount(3, "IO_ERROR", "ReadFile")
+	waitForMetricsProcessing()
+
+	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+	opsErrorCount, ok := metrics["fs/ops_error_count"]
+	assert.True(t, ok, "fs/ops_error_count metric not found")
+	assert.Equal(t, map[string]int64{"fs_error_category=IO_ERROR;fs_op=ReadFile": 8, "fs_error_category=NETWORK_ERROR;fs_op=WriteFile": 2}, opsErrorCount)
+}
+
 func waitForMetricsProcessing() {
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(time.Millisecond)
 }
