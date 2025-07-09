@@ -16,6 +16,7 @@ package inode
 
 import (
 	"errors"
+	"maps"
 	"math"
 	"os"
 	"path"
@@ -177,6 +178,26 @@ func (t *DirTest) readAllEntries() (entries []fuseutil.Dirent, err error) {
 	return
 }
 
+// Read all of the entry cores
+func (t *DirTest) readAllEntryCores() (cores map[Name]*Core, err error) {
+	cores = make(map[Name]*Core)
+	tok := ""
+	for {
+		var fetchedCores map[Name]*Core
+		fetchedCores, tok, err = t.in.ReadEntryCores(t.ctx, tok)
+		if err != nil {
+			return
+		}
+		maps.Copy(cores, fetchedCores)
+
+		if tok == "" {
+			break
+		}
+	}
+
+	return
+}
+
 func (t *DirTest) setSymlinkTarget(
 	objName string,
 	target string) (err error) {
@@ -214,6 +235,21 @@ func (t *DirTest) createLocalFileInode(parent Name, name string, id fuseops.Inod
 
 func (t *DirTest) getLocalDirentKey(in Inode) string {
 	return path.Base(in.Name().LocalName())
+}
+
+func (t *DirTest) validateCore(cores map[Name]*Core, entryName string, isDir bool, expectedType metadata.Type, expectedFullName string) {
+	var name Name
+	if isDir {
+		name = NewDirName(t.in.Name(), entryName)
+	} else {
+		name = NewFileName(t.in.Name(), entryName)
+	}
+
+	core, ok := cores[name]
+	AssertTrue(ok, "entry for "+entryName+" not found")
+	ExpectEq(expectedFullName, core.FullName.GcsObjectName())
+	ExpectEq(expectedType, core.Type())
+	ExpectEq(expectedType, t.getTypeFromCache(entryName))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -966,6 +1002,115 @@ func (t *DirTest) ReadEntries_TypeCaching() {
 
 	ExpectEq(dirObjName, result.MinObject.Name)
 
+	// Make sure prevDirListingTimeStamp is initialized.
+	AssertFalse(d.prevDirListingTimeStamp.IsZero())
+}
+
+func (t *DirTest) ReadEntryCores_Empty() {
+	d := t.in.(*dirInode)
+	AssertNe(nil, d)
+	AssertTrue(d.prevDirListingTimeStamp.IsZero())
+
+	cores, err := t.readAllEntryCores()
+
+	AssertEq(nil, err)
+	ExpectEq(0, len(cores))
+	// Make sure prevDirListingTimeStamp is initialized.
+	AssertFalse(d.prevDirListingTimeStamp.IsZero())
+}
+
+func (t *DirTest) ReadEntryCores_NonEmpty_ImplicitDirsDisabled() {
+	var err error
+	var cores map[Name]*Core
+
+	// Set up contents.
+	backedDirEmptyName := path.Join(dirInodeName, "backed_dir_empty") + "/"
+	backedDirNonEmptyName := path.Join(dirInodeName, "backed_dir_nonempty") + "/"
+	backedDirNonEmptyFileName := path.Join(backedDirNonEmptyName, "blah")
+	testFileName := path.Join(dirInodeName, "file")
+	implicitDirObjName := path.Join(dirInodeName, "implicit_dir") + "/blah"
+	symlinkName := path.Join(dirInodeName, "symlink")
+
+	objs := []string{
+		backedDirEmptyName,
+		backedDirNonEmptyName,
+		backedDirNonEmptyFileName,
+		testFileName,
+		implicitDirObjName,
+		symlinkName,
+	}
+
+	err = storageutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
+	AssertEq(nil, err)
+
+	// Set up the symlink target.
+	err = t.setSymlinkTarget(dirInodeName+"symlink", "blah")
+	AssertEq(nil, err)
+
+	// Nil prevDirListingTimeStamp
+	d := t.in.(*dirInode)
+	AssertNe(nil, d)
+	AssertTrue(d.prevDirListingTimeStamp.IsZero())
+
+	// Read cores.
+	cores, err = t.readAllEntryCores()
+
+	AssertEq(nil, err)
+	AssertEq(4, len(cores))
+	t.validateCore(cores, "backed_dir_empty", true, metadata.ExplicitDirType, backedDirEmptyName)
+	t.validateCore(cores, "backed_dir_nonempty", true, metadata.ExplicitDirType, backedDirNonEmptyName)
+	t.validateCore(cores, "file", false, metadata.RegularFileType, testFileName)
+	t.validateCore(cores, "symlink", false, metadata.SymlinkType, symlinkName)
+	// Make sure prevDirListingTimeStamp is initialized.
+	AssertFalse(d.prevDirListingTimeStamp.IsZero())
+}
+
+func (t *DirTest) ReadEntryCores_NonEmpty_ImplicitDirsEnabled() {
+	var err error
+	var cores map[Name]*Core
+
+	// Enable implicit dirs.
+	t.resetInode(true, false, true)
+
+	// Set up contents.
+	backedDirEmptyName := path.Join(dirInodeName, "backed_dir_empty") + "/"
+	backedDirNonEmptyName := path.Join(dirInodeName, "backed_dir_nonempty") + "/"
+	backedDirNonEmptyFileName := path.Join(backedDirNonEmptyName, "blah")
+	testFileName := path.Join(dirInodeName, "file")
+	implicitDirObjName := path.Join(dirInodeName, "implicit_dir") + "/blah"
+	symlinkName := path.Join(dirInodeName, "symlink")
+
+	objs := []string{
+		backedDirEmptyName,
+		backedDirNonEmptyName,
+		backedDirNonEmptyFileName,
+		testFileName,
+		implicitDirObjName,
+		symlinkName,
+	}
+
+	err = storageutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
+	AssertEq(nil, err)
+
+	// Set up the symlink target.
+	err = t.setSymlinkTarget(dirInodeName+"symlink", "blah")
+	AssertEq(nil, err)
+
+	// Nil prevDirListingTimeStamp
+	d := t.in.(*dirInode)
+	AssertNe(nil, d)
+	AssertTrue(d.prevDirListingTimeStamp.IsZero())
+
+	// Read cores.
+	cores, err = t.readAllEntryCores()
+
+	AssertEq(nil, err)
+	AssertEq(5, len(cores))
+	t.validateCore(cores, "backed_dir_empty", true, metadata.ExplicitDirType, backedDirEmptyName)
+	t.validateCore(cores, "backed_dir_nonempty", true, metadata.ExplicitDirType, backedDirNonEmptyName)
+	t.validateCore(cores, "file", false, metadata.RegularFileType, testFileName)
+	t.validateCore(cores, "implicit_dir", true, metadata.ImplicitDirType, path.Join(dirInodeName, "implicit_dir")+"/")
+	t.validateCore(cores, "symlink", false, metadata.SymlinkType, symlinkName)
 	// Make sure prevDirListingTimeStamp is initialized.
 	AssertFalse(d.prevDirListingTimeStamp.IsZero())
 }
