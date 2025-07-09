@@ -19,7 +19,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/uuid"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
 
 func VerifyExpectedSubstrings(t *testing.T, input string, expectedSubstrings []string) {
@@ -39,11 +39,7 @@ func VerifyUnexpectedSubstrings(t *testing.T, input string, unexpectedSubstrings
 }
 
 func GetRandomName(t *testing.T) string {
-	id, err := uuid.NewRandom()
-	if err != nil {
-		t.Errorf("Error while generating random string, err: %v", err)
-	}
-	return id.String()
+	return util.GenerateRandomID()
 }
 
 func SplitBucketNameAndDirPath(t *testing.T, bucketNameWithDirPath string) (bucketName, dirPathInBucket string) {

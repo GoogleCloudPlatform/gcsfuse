@@ -21,7 +21,6 @@ import (
 	"math"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
@@ -227,7 +226,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 	isSeq := offset == 0
 
 	// Request log and start the execution timer.
-	requestId := uuid.New()
+	requestId := util.GenerateRandomID()
 	readOp := ctx.Value(ReadOp).(*fuseops.ReadFileOp)
 	logger.Tracef("%.13v <- FileCache(%s:/%s, offset: %d, size: %d handle: %d)", requestId, rr.bucket.Name(), rr.object.Name, offset, len(p), readOp.Handle)
 	startTime := time.Now()
@@ -631,7 +630,7 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 		// if the reader peters out early. That's fine, but it means we should
 		// have hit the limit above.
 		if rr.reader != nil {
-			err = fmt.Errorf("Reader returned early by skipping %d bytes", rr.limit-rr.start)
+			err = fmt.Errorf("random reader returned early by skipping %d bytes", rr.limit-rr.start)
 			return
 		}
 
