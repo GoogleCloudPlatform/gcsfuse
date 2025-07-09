@@ -77,31 +77,39 @@ def check_and_create_files(bucket_name: str, total_files: int, file_size_gb: int
     else:
       print(f"{fname} already exists with acceptable size.")
 
-def read_all_files(total_files: int, file_size_gb: int) -> int:
+import os
+
+def read_all_files(total_files: int, file_size_gb: int, block_size: int) -> int:
   """
-   Reads a specified number of files, calculates, and returns the total number
-   of bytes read across all files.
+  Reads a specified number of files in chunks, calculates, and returns the total number
+  of bytes read across all files.
 
-   The files are expected to be named with a common prefix and index suffix:
-   {FILE_PREFIX}_{file_size_gb}_{i}.bin, located inside the directory MOUNT_DIR.
+  The files are expected to be named with a common prefix and index suffix:
+  {FILE_PREFIX}_{file_size_gb}_{i}.bin, located inside the directory MOUNT_DIR.
 
-   Args:
-       total_files (int): The number of files to read.
-       file_size_gb (int): file size in gb
-   Returns:
-       int: The total number of bytes read from all files.
+  Args:
+      total_files (int): The number of files to read.
+      file_size_gb (int): File size in gigabytes (used in filename).
+      block_size (int): Number of bytes to read at a time from each file.
 
-   Raises:
-       RuntimeError: If any error occurs while reading any file, including
-                     file not found, permission issues, or other IO errors.
-   """
+  Returns:
+      int: The total number of bytes read from all files.
+
+  Raises:
+      RuntimeError: If any error occurs while reading any file, including
+                    file not found, permission issues, or other IO errors.
+  """
   total_bytes = 0
   for i in range(total_files):
     path = os.path.join(MOUNT_DIR, f"{FILE_PREFIX}_{file_size_gb}_{i}.bin")
     try:
       with open(path, "rb") as f:
-        total_bytes += len(f.read())
-    except Exception as e:  # catch all exceptions
+        while True:
+          chunk = f.read(block_size)
+          if not chunk:
+            break
+          total_bytes += len(chunk)
+    except Exception as e:
       print(f"Error reading file {path}: {e}")
       raise RuntimeError(f"Failed to read file: {path}") from e
 
@@ -113,6 +121,7 @@ def main():
   parser.add_argument("--gcsfuse-config", default="--implicit-dirs", help="GCSFuse mount flags")
   parser.add_argument("--total-files", type=int, default=10, help="Number of files to read")
   parser.add_argument("--file-size-gb", type=int, default=15, help="Size of each file in GB")
+  parser.add_argument("--block-size", type=int, default=15, help="Block size in bytes for reading file")
 
   args = parser.parse_args()
   workflow_type = f"READ_{args.total_files}_{args.file_size_gb}GB_SINGLE_THREAD"
@@ -126,7 +135,7 @@ def main():
   print(f"Starting read of {args.total_files} files...")
   start = time.time()
   try:
-    total_bytes = read_all_files(args.total_files, args.file_size_gb)
+    total_bytes = read_all_files(args.total_files, args.file_size_gb, args.block_size)
     print(f"Total bytes read from {args.total_files} files: {total_bytes}")
   except RuntimeError as e:
     print(f"Failed during file read: {e}")

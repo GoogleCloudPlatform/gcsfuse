@@ -25,7 +25,7 @@ class TestReadFiles(unittest.TestCase):
     file_size = len(b"abc")
     expected_bytes = 3 * file_size
 
-    result = read_single_thread.read_all_files(total_files, file_size)
+    result = read_single_thread.read_all_files(total_files, file_size, 10)
 
     self.assertEqual(result, expected_bytes)
     actual_calls = mock_file.call_args_list
@@ -41,7 +41,7 @@ class TestReadFiles(unittest.TestCase):
     total_files = 1
 
     with self.assertRaises(RuntimeError) as cm:
-      read_single_thread.read_all_files(total_files, 0)
+      read_single_thread.read_all_files(total_files, 0, 10)
 
     self.assertIn("Failed to read file", str(cm.exception))
 
@@ -51,7 +51,7 @@ class TestReadFiles(unittest.TestCase):
     total_files = 1
 
     with self.assertRaises(RuntimeError) as cm:
-      read_single_thread.read_all_files(total_files, 0)
+      read_single_thread.read_all_files(total_files, 0, 10)
 
     self.assertIn("Failed to read file", str(cm.exception))
 
@@ -67,7 +67,7 @@ class TestReadFiles(unittest.TestCase):
     mock_file.side_effect = side_effect
 
     with self.assertRaises(RuntimeError) as cm:
-      read_single_thread.read_all_files(2, 0)
+      read_single_thread.read_all_files(2, 0, 10)
 
     self.assertIn("Failed to read file", str(cm.exception))
     

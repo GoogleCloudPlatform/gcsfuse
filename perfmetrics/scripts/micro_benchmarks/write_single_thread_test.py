@@ -45,7 +45,7 @@ class TestWriteFiles(unittest.TestCase):
   @mock.patch("builtins.open", new_callable=mock.mock_open)
   @mock.patch("os.urandom", return_value=b'x' * 10)
   def test_write_random_file_success(self, mock_urandom, mock_open):
-    result = write_random_file("/fake/file", 10)
+    result = write_random_file("/fake/file", 10, 10)
 
     self.assertTrue(result)
     mock_open.assert_called_once_with("/fake/file", "wb")
@@ -53,7 +53,7 @@ class TestWriteFiles(unittest.TestCase):
 
   @mock.patch("builtins.open", side_effect=IOError("Disk full"))
   def test_write_random_file_failure(self, mock_open):
-    result = write_random_file("/fake/file", 10)
+    result = write_random_file("/fake/file", 10, 10)
 
     self.assertFalse(result)
     mock_open.assert_called_once_with("/fake/file", "wb")
@@ -64,7 +64,7 @@ class TestWriteFiles(unittest.TestCase):
     paths = ["/tmp/file1.bin", "/tmp/file2.bin"]
     expected_total = 20  # 2 files * 10 bytes
 
-    total = create_files(paths, file_size_in_gb=1e-8)  # ~10 bytes each
+    total = create_files(paths, file_size_in_gb=1e-8, block_size=10)  # ~10 bytes each
 
     self.assertEqual(total, expected_total)
     self.assertEqual(mock_open_file.call_count, 2)
@@ -74,7 +74,7 @@ class TestWriteFiles(unittest.TestCase):
     paths = ["/tmp/file1.bin"]
 
     with self.assertRaises(SystemExit) as cm:
-      create_files(paths, file_size_in_gb=1e-8)
+      create_files(paths, file_size_in_gb=1e-8, block_size=10)
 
     self.assertEqual(cm.exception.code, 1)
 
