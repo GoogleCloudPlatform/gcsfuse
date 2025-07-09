@@ -110,6 +110,6 @@ then
   /usr/local/bin/bash ./tools/integration_tests/run_e2e_tests.sh true false ${BUCKET_LOCATION} false false true
 
   # wait after finishing for investigation of logs.
-  sleep inifinity
+  sleep infinity
 fi
 
