@@ -99,7 +99,6 @@ be interacting with the file system.`)
 		ChunkTransferTimeoutSecs:           newConfig.GcsRetries.ChunkTransferTimeoutSecs,
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
 		ExperimentalEnableRapidAppends:     newConfig.Write.ExperimentalEnableRapidAppends,
-		EnableDebugBucket:                  newConfig.Logging.Severity == cfg.TraceLogSeverity,
 	}
 	bm := gcsx.NewBucketManager(bucketCfg, storageHandle)
 
