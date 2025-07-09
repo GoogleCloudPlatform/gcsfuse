@@ -28,7 +28,6 @@ import (
 )
 
 var (
-	meter = otel.Meter("gcsfuse")
 {{- range $metric := .Metrics -}}
 {{- if .Attributes}}
 {{- range $combination := (index $.AttrCombinations $metric.Name)}}
@@ -108,6 +107,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 	  }
 	}()
   }
+  meter := otel.Meter("gcsfuse")
 {{- range $metric := .Metrics}}
 	{{- if isCounter $metric}}
 	var {{range $i, $combination := (index $.AttrCombinations $metric.Name)}}{{if $i}}, {{end}}{{getAtomicName $metric.Name $combination}}{{end}} atomic.Int64
