@@ -100,9 +100,7 @@ type DirInode interface {
 	// empty. Otherwise it will be non-empty. There is no guarantee about the
 	// number of entries returned; it may be zero even with a non-empty
 	// continuation token.
-	ReadEntryCores(
-		ctx context.Context,
-		tok string) (cores map[Name]*Core, newTok string, err error)
+	ReadEntryCores(ctx context.Context, tok string) (cores map[Name]*Core, newTok string, err error)
 
 	// Create an empty child file with the supplied (relative) name, failing with
 	// *gcs.PreconditionError if a backing object already exists in GCS.
@@ -788,9 +786,8 @@ func (d *dirInode) ReadEntries(
 	ctx context.Context,
 	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
 	var cores map[Name]*Core
-	cores, newTok, err = d.readObjects(ctx, tok)
+	cores, newTok, err = d.ReadEntryCores(ctx, tok)
 	if err != nil {
-		err = fmt.Errorf("read objects: %w", err)
 		return
 	}
 
@@ -810,14 +807,10 @@ func (d *dirInode) ReadEntries(
 		entries = append(entries, entry)
 	}
 
-	d.prevDirListingTimeStamp = d.cacheClock.Now()
 	return
 }
 
-func (d *dirInode) ReadEntryCores(
-	ctx context.Context,
-	tok string) (cores map[Name]*Core, newTok string, err error) {
-
+func (d *dirInode) ReadEntryCores(ctx context.Context, tok string) (cores map[Name]*Core, newTok string, err error) {
 	cores, newTok, err = d.readObjects(ctx, tok)
 	if err != nil {
 		err = fmt.Errorf("read objects: %w", err)

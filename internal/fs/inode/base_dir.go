@@ -192,9 +192,7 @@ func (d *baseDirInode) ReadEntries(
 }
 
 // LOCKS_REQUIRED(d)
-func (d *baseDirInode) ReadEntryCores(
-	ctx context.Context,
-	tok string) (cores map[Name]*Core, newTok string, err error) {
+func (d *baseDirInode) ReadEntryCores(ctx context.Context, tok string) (cores map[Name]*Core, newTok string, err error) {
 
 	// The subdirectories of the base directory should be all the accessible
 	// buckets. Although the user is allowed to visit each individual

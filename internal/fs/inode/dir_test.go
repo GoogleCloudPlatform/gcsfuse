@@ -16,6 +16,7 @@ package inode
 
 import (
 	"errors"
+	"maps"
 	"math"
 	"os"
 	"path"
@@ -182,14 +183,12 @@ func (t *DirTest) readAllEntryCores() (cores map[Name]*Core, err error) {
 	cores = make(map[Name]*Core)
 	tok := ""
 	for {
-		var tmp map[Name]*Core
-		tmp, tok, err = t.in.ReadEntryCores(t.ctx, tok)
-		for name, core := range tmp {
-			cores[name] = core
-		}
+		var fetchedCores map[Name]*Core
+		fetchedCores, tok, err = t.in.ReadEntryCores(t.ctx, tok)
 		if err != nil {
 			return
 		}
+		maps.Copy(cores, fetchedCores)
 
 		if tok == "" {
 			break
@@ -236,6 +235,21 @@ func (t *DirTest) createLocalFileInode(parent Name, name string, id fuseops.Inod
 
 func (t *DirTest) getLocalDirentKey(in Inode) string {
 	return path.Base(in.Name().LocalName())
+}
+
+func (t *DirTest) validateCore(cores map[Name]*Core, entryName string, isDir bool, expectedType metadata.Type, expectedFullName string) {
+	var name Name
+	if isDir {
+		name = NewDirName(t.in.Name(), entryName)
+	} else {
+		name = NewFileName(t.in.Name(), entryName)
+	}
+
+	core, ok := cores[name]
+	AssertTrue(ok, "entry for "+entryName+" not found")
+	ExpectEq(expectedFullName, core.FullName.GcsObjectName())
+	ExpectEq(expectedType, core.Type())
+	ExpectEq(expectedType, t.getTypeFromCache(entryName))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -1043,39 +1057,10 @@ func (t *DirTest) ReadEntryCores_NonEmpty_ImplicitDirsDisabled() {
 
 	AssertEq(nil, err)
 	AssertEq(4, len(cores))
-
-	// backed_dir_empty
-	name := NewDirName(t.in.Name(), "backed_dir_empty")
-	core, ok := cores[name]
-	AssertTrue(ok, "entry for backed_dir_empty not found")
-	ExpectEq(backedDirEmptyName, core.FullName.GcsObjectName())
-	ExpectEq(metadata.ExplicitDirType, core.Type())
-	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache("backed_dir_empty"))
-
-	// backed_dir_nonempty
-	name = NewDirName(t.in.Name(), "backed_dir_nonempty")
-	core, ok = cores[name]
-	AssertTrue(ok, "entry for backed_dir_nonempty not found")
-	ExpectEq(backedDirNonEmptyName, core.FullName.GcsObjectName())
-	ExpectEq(metadata.ExplicitDirType, core.Type())
-	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache("backed_dir_nonempty"))
-
-	// file
-	name = NewFileName(t.in.Name(), "file")
-	core, ok = cores[name]
-	AssertTrue(ok, "entry for file not found")
-	ExpectEq(testFileName, core.FullName.GcsObjectName())
-	ExpectEq(metadata.RegularFileType, core.Type())
-	ExpectEq(metadata.RegularFileType, t.getTypeFromCache("file"))
-
-	// symlink
-	name = NewFileName(t.in.Name(), "symlink")
-	core, ok = cores[name]
-	AssertTrue(ok, "entry for symlink not found")
-	ExpectEq(symlinkName, core.FullName.GcsObjectName())
-	ExpectEq(metadata.SymlinkType, core.Type())
-	ExpectEq(metadata.SymlinkType, t.getTypeFromCache("symlink"))
-
+	t.validateCore(cores, "backed_dir_empty", true, metadata.ExplicitDirType, backedDirEmptyName)
+	t.validateCore(cores, "backed_dir_nonempty", true, metadata.ExplicitDirType, backedDirNonEmptyName)
+	t.validateCore(cores, "file", false, metadata.RegularFileType, testFileName)
+	t.validateCore(cores, "symlink", false, metadata.SymlinkType, symlinkName)
 	// Make sure prevDirListingTimeStamp is initialized.
 	AssertFalse(d.prevDirListingTimeStamp.IsZero())
 }
@@ -1121,48 +1106,11 @@ func (t *DirTest) ReadEntryCores_NonEmpty_ImplicitDirsEnabled() {
 
 	AssertEq(nil, err)
 	AssertEq(5, len(cores))
-
-	// backed_dir_empty
-	name := NewDirName(t.in.Name(), "backed_dir_empty")
-	core, ok := cores[name]
-	AssertTrue(ok, "entry for backed_dir_empty not found")
-	ExpectEq(backedDirEmptyName, core.FullName.GcsObjectName())
-	ExpectEq(metadata.ExplicitDirType, core.Type())
-	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache("backed_dir_empty"))
-
-	// backed_dir_nonempty
-	name = NewDirName(t.in.Name(), "backed_dir_nonempty")
-	core, ok = cores[name]
-	AssertTrue(ok, "entry for backed_dir_nonempty not found")
-	ExpectEq(backedDirNonEmptyName, core.FullName.GcsObjectName())
-	ExpectEq(metadata.ExplicitDirType, core.Type())
-	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache("backed_dir_nonempty"))
-
-	// file
-	name = NewFileName(t.in.Name(), "file")
-	core, ok = cores[name]
-	AssertTrue(ok, "entry for file not found")
-	ExpectEq(testFileName, core.FullName.GcsObjectName())
-	ExpectEq(metadata.RegularFileType, core.Type())
-	ExpectEq(metadata.RegularFileType, t.getTypeFromCache("file"))
-
-	// implicit_dir
-	name = NewDirName(t.in.Name(), "implicit_dir")
-	core, ok = cores[name]
-	AssertTrue(ok, "entry for implicit_dir not found")
-	implicitDirFullNameInGCS := path.Join(dirInodeName, "implicit_dir") + "/"
-	ExpectEq(implicitDirFullNameInGCS, core.FullName.GcsObjectName())
-	ExpectEq(metadata.ImplicitDirType, core.Type())
-	ExpectEq(metadata.ImplicitDirType, t.getTypeFromCache("implicit_dir"))
-
-	// symlink
-	name = NewFileName(t.in.Name(), "symlink")
-	core, ok = cores[name]
-	AssertTrue(ok, "entry for symlink not found")
-	ExpectEq(symlinkName, core.FullName.GcsObjectName())
-	ExpectEq(metadata.SymlinkType, core.Type())
-	ExpectEq(metadata.SymlinkType, t.getTypeFromCache("symlink"))
-
+	t.validateCore(cores, "backed_dir_empty", true, metadata.ExplicitDirType, backedDirEmptyName)
+	t.validateCore(cores, "backed_dir_nonempty", true, metadata.ExplicitDirType, backedDirNonEmptyName)
+	t.validateCore(cores, "file", false, metadata.RegularFileType, testFileName)
+	t.validateCore(cores, "implicit_dir", true, metadata.ImplicitDirType, path.Join(dirInodeName, "implicit_dir")+"/")
+	t.validateCore(cores, "symlink", false, metadata.SymlinkType, symlinkName)
 	// Make sure prevDirListingTimeStamp is initialized.
 	AssertFalse(d.prevDirListingTimeStamp.IsZero())
 }
