@@ -42,6 +42,16 @@ type Block interface {
 	// Follows io.ReaderAt interface.
 	// Here, off is relative to the start of the block.
 	ReadAt(p []byte, off int64) (n int, err error)
+
+	// AbsStartOff returns the absolute start offset of the block.
+	// Panics if the absolute start offset is not set.
+	AbsStartOff() int64
+
+	// SetAbsStartOff sets the absolute start offset of the block.
+	// This should be called only once just after getting the block from the pool.
+	// It returns an error if the startOff is negative or if it is already set.
+	// TODO(princer): check if a way to set it as part of constructor.
+	SetAbsStartOff(startOff int64) error
 }
 
 // TODO: check if we need offset or just storing end is sufficient. We might need
@@ -54,6 +64,9 @@ type memoryBlock struct {
 	Block
 	buffer []byte
 	offset offset
+
+	// Stores the absolute start offset of the block-segment in the file.
+	absStartOff int64
 }
 
 func (m *memoryBlock) Reuse() {
@@ -61,6 +74,7 @@ func (m *memoryBlock) Reuse() {
 
 	m.offset.end = 0
 	m.offset.start = 0
+	m.absStartOff = -1
 }
 
 func (m *memoryBlock) Size() int64 {
@@ -108,8 +122,9 @@ func createBlock(blockSize int64) (Block, error) {
 	}
 
 	mb := memoryBlock{
-		buffer: addr,
-		offset: offset{0, 0},
+		buffer:      addr,
+		offset:      offset{0, 0},
+		absStartOff: -1,
 	}
 	return &mb, nil
 }
@@ -128,4 +143,25 @@ func (m *memoryBlock) ReadAt(p []byte, off int64) (n int, err error) {
 		return n, io.EOF
 	}
 	return n, nil
+}
+
+func (m *memoryBlock) AbsStartOff() int64 {
+	if m.absStartOff < 0 {
+		panic("AbsStartOff is not set, it should be set before calling this method.")
+	}
+	return m.absStartOff
+}
+
+func (m *memoryBlock) SetAbsStartOff(startOff int64) error {
+	if startOff < 0 {
+		return fmt.Errorf("startOff cannot be negative, got %d", startOff)
+	}
+
+	// If absStartOff is already set, then return an error.
+	if m.absStartOff >= 0 {
+		return fmt.Errorf("AbsStartOff is already set, it should be set only once.")
+	}
+
+	m.absStartOff = startOff
+	return nil
 }
