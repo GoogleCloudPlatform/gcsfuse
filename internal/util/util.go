@@ -15,6 +15,8 @@
 package util
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"math"
 	"os"
@@ -93,4 +95,16 @@ func BytesToHigherMiBs(bytes uint64) uint64 {
 	}
 	const bytesInOneMiB uint64 = 1 << 20
 	return uint64(math.Ceil(float64(bytes) / float64(bytesInOneMiB)))
+}
+
+func GenerateRandomID() string {
+	// Create 4 random bytes
+	bytes := make([]byte, 4)
+	if _, err := rand.Read(bytes); err != nil {
+		panic(err)
+	}
+
+	// Encode to an 8-character hex string
+	fastID := hex.EncodeToString(bytes)
+	return fastID
 }
