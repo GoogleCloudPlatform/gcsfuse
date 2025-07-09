@@ -600,8 +600,7 @@ func (rr *randomReader) getReadInfo(
 
 // readerType specifies the go-sdk interface to use for reads.
 func readerType(readType int64, start int64, end int64, bucketType gcs.BucketType) ReaderType {
-	bytesToBeRead := end - start
-	if readType == util.Random && bytesToBeRead < maxReadSize && bucketType.Zonal {
+	if readType == util.Random && bucketType.Zonal {
 		return MultiRangeReader
 	}
 	return RangeReader
