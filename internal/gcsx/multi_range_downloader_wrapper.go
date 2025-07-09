@@ -18,10 +18,10 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/clock"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
@@ -34,20 +34,21 @@ import (
 // it's refcount reaches 0.
 const multiRangeDownloaderTimeout = 60 * time.Second
 
-func NewMultiRangeDownloaderWrapper(bucket gcs.Bucket, object *gcs.MinObject) (MultiRangeDownloaderWrapper, error) {
-	return NewMultiRangeDownloaderWrapperWithClock(bucket, object, clock.RealClock{})
+func NewMultiRangeDownloaderWrapper(bucket gcs.Bucket, object *gcs.MinObject, enableTraceLogs bool) (MultiRangeDownloaderWrapper, error) {
+	return NewMultiRangeDownloaderWrapperWithClock(bucket, object, clock.RealClock{}, enableTraceLogs)
 }
 
-func NewMultiRangeDownloaderWrapperWithClock(bucket gcs.Bucket, object *gcs.MinObject, clock clock.Clock) (MultiRangeDownloaderWrapper, error) {
+func NewMultiRangeDownloaderWrapperWithClock(bucket gcs.Bucket, object *gcs.MinObject, clock clock.Clock, enableTraceLogs bool) (MultiRangeDownloaderWrapper, error) {
 	if object == nil {
 		return MultiRangeDownloaderWrapper{}, fmt.Errorf("NewMultiRangeDownloaderWrapperWithClock: Missing MinObject")
 	}
 	// In case of a local inode, MRDWrapper would be created with an empty minObject (i.e. with a minObject without any information)
 	// and when the object is actually created, MRDWrapper would be updated using SetMinObject method.
 	return MultiRangeDownloaderWrapper{
-		clock:  clock,
-		bucket: bucket,
-		object: object,
+		clock:           clock,
+		bucket:          bucket,
+		object:          object,
+		enableTraceLogs: enableTraceLogs,
 	}, nil
 }
 
@@ -72,7 +73,8 @@ type MultiRangeDownloaderWrapper struct {
 	// Holds the cancel function, which can be called to cancel the cleanup function.
 	cancelCleanup context.CancelFunc
 	// Used for waiting for timeout (helps us in mocking the functionality).
-	clock clock.Clock
+	clock           clock.Clock
+	enableTraceLogs bool
 }
 
 // Sets the gcs.MinObject stored in the wrapper to passed value, only if it's non nil.
@@ -216,9 +218,15 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 		mu.Unlock()
 	}()
 
-	requestId := uuid.New()
-	logger.Tracef("%.13v <- MultiRangeDownloader::Add (%s, [%d, %d))", requestId, mrdWrapper.object.Name, startOffset, endOffset)
-	start := time.Now()
+	var start time.Time
+	var requestId string
+	if mrdWrapper.enableTraceLogs {
+		requestId = util.GenerateRandomID()
+		var sb strings.Builder
+		_, _ = fmt.Fprintf(&sb, "%s <- MultiRangeDownloader::Add (%s, [%d, %d))", requestId, mrdWrapper.object.Name, startOffset, endOffset)
+		logger.Trace(sb.String())
+		start = time.Now()
+	}
 	mrdWrapper.Wrapped.Add(buffer, startOffset, endOffset-startOffset, func(offsetAddCallback int64, bytesReadAddCallback int64, e error) {
 		defer func() {
 			mu.Lock()
@@ -242,14 +250,20 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 		bytesRead = res.bytesRead
 		err = res.err
 	}
-	duration := time.Since(start)
-	monitor.CaptureMultiRangeDownloaderMetrics(ctx, metricHandle, "MultiRangeDownloader::Add", start)
 	errDesc := "OK"
 	if err != nil {
 		errDesc = err.Error()
 		err = fmt.Errorf("MultiRangeDownloaderWrapper::Read: %w", err)
-		logger.Errorf("%v", err)
+		logger.Error(err.Error())
 	}
-	logger.Tracef("%.13v -> MultiRangeDownloader::Add (%s, [%d, %d)) (%v): %v", requestId, mrdWrapper.object.Name, startOffset, endOffset, duration, errDesc)
+
+	if mrdWrapper.enableTraceLogs {
+		duration := time.Since(start)
+		var sb2 strings.Builder
+		_, _ = fmt.Fprintf(&sb2, "%s -> MultiRangeDownloader::Add (%s, [%d, %d)) (%v): %v", requestId, mrdWrapper.object.Name, startOffset, endOffset, duration, errDesc)
+		logger.Trace(sb2.String())
+	}
+	monitor.CaptureMultiRangeDownloaderMetrics(ctx, metricHandle, "MultiRangeDownloader::Add", start)
+
 	return
 }
