@@ -285,11 +285,11 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockCapAfterWrite() {
 func (testSuite *MemoryBlockTest) TestAwaitReadyWaitIfNotNotify() {
 	mb, err := createBlock(12)
 	require.Nil(testSuite.T(), err)
-
 	ctx, cancel := context.WithTimeout(testSuite.T().Context(), 100*time.Millisecond)
 	defer cancel()
 
 	_, err = mb.AwaitReady(ctx)
+
 	assert.NotNil(testSuite.T(), err)
 	assert.Equal(testSuite.T(), context.DeadlineExceeded, err)
 }
@@ -327,6 +327,7 @@ func (testSuite *MemoryBlockTest) TestAwaitReadyNotifyVariants() {
 			}()
 
 			status, err := mb.AwaitReady(context.Background())
+
 			require.Nil(t, err)
 			assert.Equal(t, tt.wantStatus, status)
 		})
@@ -381,7 +382,9 @@ func (testSuite *MemoryBlockTest) TestSingleNotifyAndMultipleAwaitReady() {
 		go func() {
 			defer wg.Done()
 			time.Sleep(1 * time.Millisecond)
+
 			status, err := mb.AwaitReady(ctx)
+
 			require.Nil(testSuite.T(), err)
 			assert.Equal(testSuite.T(), BlockStatusDownloaded, status)
 		}()
