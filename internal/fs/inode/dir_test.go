@@ -239,8 +239,18 @@ func (t *DirTest) LookupCount() {
 	ExpectTrue(t.in.DecrementLookupCount(1))
 }
 
-func (t *DirTest) Attributes() {
-	attrs, err := t.in.Attributes(t.ctx)
+func (t *DirTest) Attributes_WithClobberedCheckTrue() {
+	attrs, err := t.in.Attributes(t.ctx, true)
+
+	AssertEq(nil, err)
+	ExpectEq(uid, attrs.Uid)
+	ExpectEq(gid, attrs.Gid)
+	ExpectEq(dirMode|os.ModeDir, attrs.Mode)
+}
+
+func (t *DirTest) Attributes_WithClobberedCheckFalse() {
+	attrs, err := t.in.Attributes(t.ctx, false)
+
 	AssertEq(nil, err)
 	ExpectEq(uid, attrs.Uid)
 	ExpectEq(gid, attrs.Gid)

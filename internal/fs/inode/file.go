@@ -469,9 +469,8 @@ func (f *FileInode) Destroy() (err error) {
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Attributes(
-	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
+	ctx context.Context, clobberedCheck bool) (attrs fuseops.InodeAttributes, err error) {
 	attrs = f.attrs
-
 	// Obtain default information from the source object.
 	attrs.Mtime = f.src.Updated
 	attrs.Size = f.src.Size
@@ -519,18 +518,25 @@ func (f *FileInode) Attributes(
 	attrs.Atime = attrs.Mtime
 	attrs.Ctime = attrs.Mtime
 
-	// If the object has been clobbered, we reflect that as the inode being
-	// unlinked.
-	_, clobbered, err := f.clobbered(ctx, false, false)
-	if err != nil {
-		err = fmt.Errorf("clobbered: %w", err)
-		return
+	if clobberedCheck {
+		// If the object has been clobbered, we reflect that as the inode being
+		// unlinked.
+		var clobbered bool
+		_, clobbered, err = f.clobbered(ctx, false, false)
+		if err != nil {
+			err = fmt.Errorf("clobbered: %w", err)
+			return
+		}
+		if clobbered {
+			attrs.Nlink = 0
+			return
+		}
 	}
 
 	attrs.Nlink = 1
 
 	// For local files, also checking if file is unlinked locally.
-	if clobbered || (f.IsLocal() && f.IsUnlinked()) {
+	if f.IsLocal() && f.IsUnlinked() {
 		attrs.Nlink = 0
 	}
 

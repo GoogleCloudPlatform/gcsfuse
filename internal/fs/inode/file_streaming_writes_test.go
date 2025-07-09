@@ -345,7 +345,7 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWritesToLocalFileFallBackToTempF
 			assert.False(t.T(), gcsSynced)
 			require.NotNil(t.T(), t.in.bwh)
 			// validate attributes.
-			attrs, err := t.in.Attributes(t.ctx)
+			attrs, err := t.in.Attributes(t.ctx, true)
 			require.Nil(t.T(), err)
 			assert.WithinDuration(t.T(), attrs.Mtime, createTime, 0)
 			assert.Equal(t.T(), uint64(4), attrs.Size)
@@ -360,7 +360,7 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWritesToLocalFileFallBackToTempF
 			assert.Nil(t.T(), t.in.bwh)
 			assert.NotNil(t.T(), t.in.content)
 			// The inode should agree about the new mtime and size.
-			attrs, err = t.in.Attributes(t.ctx)
+			attrs, err = t.in.Attributes(t.ctx, true)
 			require.Nil(t.T(), err)
 			assert.Equal(t.T(), uint64(len(tc.expectedContent)), attrs.Size)
 			assert.WithinDuration(t.T(), attrs.Mtime, mtime, 0)
@@ -388,7 +388,7 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWriteFollowedByOrderedWrite() {
 	assert.Nil(t.T(), t.in.bwh)
 	assert.NotNil(t.T(), t.in.content)
 	// validate attributes.
-	attrs, err := t.in.Attributes(t.ctx)
+	attrs, err := t.in.Attributes(t.ctx, true)
 	require.Nil(t.T(), err)
 	assert.WithinDuration(t.T(), attrs.Mtime, createTime, 0)
 	assert.Equal(t.T(), uint64(10), attrs.Size)
@@ -402,7 +402,7 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWriteFollowedByOrderedWrite() {
 	// Ensure bwh not re-created.
 	assert.Nil(t.T(), t.in.bwh)
 	// The inode should agree about the new mtime and size.
-	attrs, err = t.in.Attributes(t.ctx)
+	attrs, err = t.in.Attributes(t.ctx, true)
 	require.Nil(t.T(), err)
 	assert.Equal(t.T(), uint64(len("hello\x00taco")), attrs.Size)
 	assert.WithinDuration(t.T(), attrs.Mtime, mtime, 0)
@@ -523,7 +523,7 @@ func (t *FileStreamingWritesTest) TestWriteToFileAndFlush() {
 			// Verify that fileInode is no more local
 			assert.False(t.T(), t.in.IsLocal())
 			// Check attributes.
-			attrs, err := t.in.Attributes(t.ctx)
+			attrs, err := t.in.Attributes(t.ctx, true)
 			require.NoError(t.T(), err)
 			assert.Equal(t.T(), uint64(len("tacos")), attrs.Size)
 			assert.Equal(t.T(), t.clock.Now().UTC(), attrs.Mtime.UTC())
@@ -578,7 +578,7 @@ func (t *FileStreamingWritesTest) TestFlushEmptyFile() {
 			// Verify that fileInode is no more local
 			assert.False(t.T(), t.in.IsLocal())
 			// Check attributes.
-			attrs, err := t.in.Attributes(t.ctx)
+			attrs, err := t.in.Attributes(t.ctx, true)
 			require.NoError(t.T(), err)
 			assert.Equal(t.T(), uint64(0), attrs.Size)
 			// For synced file, mtime is updated by SetInodeAttributes call.
@@ -744,7 +744,7 @@ func (t *FileStreamingWritesTest) TestTruncateOnFileUsingTempFileDoesNotRecreate
 	// Ensure bwh not re-created.
 	assert.Nil(t.T(), t.in.bwh)
 	// The inode should agree about the new size.
-	attrs, err := t.in.Attributes(t.ctx)
+	attrs, err := t.in.Attributes(t.ctx, true)
 	require.Nil(t.T(), err)
 	assert.Equal(t.T(), uint64(10), attrs.Size)
 	// sync file and validate content
