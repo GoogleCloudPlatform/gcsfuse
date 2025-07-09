@@ -294,6 +294,18 @@ func (testSuite *MemoryBlockTest) TestAwaitReadyWaitIfNotNotify() {
 	assert.Equal(testSuite.T(), context.DeadlineExceeded, err)
 }
 
+func (testSuite *MemoryBlockTest) TestAwaitReadyReturnsErrorOnContextCancellation() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+	ctx, cancel := context.WithCancel(testSuite.T().Context())
+	cancel() // Cancel the context immediately
+
+	_, err = mb.AwaitReady(ctx)
+
+	require.NotNil(testSuite.T(), err)
+	assert.Equal(testSuite.T(), context.Canceled, err)
+}
+
 func (testSuite *MemoryBlockTest) TestAwaitReadyNotifyVariants() {
 	tests := []struct {
 		name         string
