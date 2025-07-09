@@ -95,6 +95,12 @@ then
   echo checkout PR branch
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
+  # Get the commit-id of HEAD
+  commitId=$(git show -s --format="%H" HEAD)
+  echo "commitId: $commitId"
+  echo "Building and installing gcsfuse..."
+  ./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId
+
   echo "Running e2e tests on zonal bucket(s) ..."
 
   # Don't stop on failure.
