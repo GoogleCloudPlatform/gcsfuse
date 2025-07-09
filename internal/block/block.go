@@ -30,6 +30,9 @@ type Block interface {
 	// can be >= data_size.
 	Size() int64
 
+	// Cap returns the capacity of the block, kind of block-size.
+	Cap() int64
+
 	// Write writes the given data to block.
 	Write(bytes []byte) (n int, err error)
 
@@ -80,6 +83,11 @@ func (m *memoryBlock) Reuse() {
 func (m *memoryBlock) Size() int64 {
 	return m.offset.end - m.offset.start
 }
+
+func (m *memoryBlock) Cap() int64 {
+	return int64(cap(m.buffer))
+}
+
 func (m *memoryBlock) Write(bytes []byte) (int, error) {
 	if m.Size()+int64(len(bytes)) > int64(cap(m.buffer)) {
 		return 0, fmt.Errorf("received data more than capacity of the block")

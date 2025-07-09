@@ -260,3 +260,21 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockSetAbsStartOffsetTwiceInvalid()
 
 	assert.Error(testSuite.T(), err)
 }
+
+func (testSuite *MemoryBlockTest) TestMemoryBlockCap() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+
+	assert.Equal(testSuite.T(), int64(12), mb.Cap())
+}
+
+func (testSuite *MemoryBlockTest) TestMemoryBlockCapAfterWrite() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+	content := []byte("hi")
+	n, err := mb.Write(content)
+	require.Nil(testSuite.T(), err)
+	require.Equal(testSuite.T(), 2, n)
+
+	assert.Equal(testSuite.T(), int64(12), mb.Cap())
+}
