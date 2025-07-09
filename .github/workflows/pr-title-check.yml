@@ -7,6 +7,11 @@ on:
 jobs:
   check-title:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: write
+
     steps:
     - name: Check PR title format
       run: |
