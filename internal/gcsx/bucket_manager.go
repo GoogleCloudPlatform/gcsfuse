@@ -180,9 +180,9 @@ func (bm *bucketManager) SetUpBucket(
 	b = monitor.NewMonitoringBucket(b, metricHandle)
 
 	// Enable gcs logs.
-	if bm.config.EnableDebugBucket {
-		b = storage.NewDebugBucket(b)
-	}
+	//if bm.config.EnableDebugBucket {
+	b = storage.NewDebugBucket(b)
+	//}
 
 	// Limit to a requested prefix of the bucket, if any.
 	if bm.config.OnlyDir != "" {

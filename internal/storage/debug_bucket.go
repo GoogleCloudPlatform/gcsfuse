@@ -325,9 +325,7 @@ type debugMultiRangeDownloader struct {
 }
 
 func (dmrd *debugMultiRangeDownloader) Add(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
-	id, desc, start := dmrd.bucket.startRequest("MultiRangeDownloader.Add(%v,%v)", offset, length)
 	wrapperCallback := func(offset int64, length int64, err error) {
-		defer dmrd.bucket.finishRequest(id, desc, start, &err)
 		if callback != nil {
 			callback(offset, length, err)
 		}
