@@ -109,7 +109,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReuse() {
 	assert.Empty(testSuite.T(), output)
 	assert.Equal(testSuite.T(), int64(0), mb.Size())
 	assert.Panics(testSuite.T(), func() {
-		_ = mb.(*memoryBlock).AbsStartOff()
+		_ = mb.AbsStartOff()
 	})
 }
 
@@ -216,7 +216,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockAbsStartOffsetPanicsOnEmptyBloc
 
 	// The absolute start offset should be -1 initially.
 	assert.Panics(testSuite.T(), func() {
-		_ = mb.(*memoryBlock).AbsStartOff()
+		_ = mb.AbsStartOff()
 	})
 }
 
@@ -228,7 +228,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockAbsStartOffsetValid() {
 	mb.(*memoryBlock).absStartOff = 100
 
 	// The absolute start offset should return the set value.
-	assert.Equal(testSuite.T(), int64(100), mb.(*memoryBlock).AbsStartOff())
+	assert.Equal(testSuite.T(), int64(100), mb.AbsStartOff())
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockSetAbsStartOffsetInvalid() {
@@ -237,7 +237,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockSetAbsStartOffsetInvalid() {
 
 	err = mb.SetAbsStartOff(-23)
 
-	assert.NotNil(testSuite.T(), err)
+	assert.Error(testSuite.T(), err)
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockSetAbsStartOffsetValid() {
@@ -246,8 +246,8 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockSetAbsStartOffsetValid() {
 
 	err = mb.SetAbsStartOff(23)
 
-	assert.Nil(testSuite.T(), err)
-	assert.Equal(testSuite.T(), int64(23), mb.(*memoryBlock).AbsStartOff())
+	assert.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), int64(23), mb.AbsStartOff())
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockSetAbsStartOffsetTwiceInvalid() {
@@ -258,5 +258,5 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockSetAbsStartOffsetTwiceInvalid()
 
 	err = mb.SetAbsStartOff(42)
 
-	assert.NotNil(testSuite.T(), err)
+	assert.Error(testSuite.T(), err)
 }
