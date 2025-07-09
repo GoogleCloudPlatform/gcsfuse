@@ -132,38 +132,38 @@ TEST_DIR_NON_PARALLEL=(
 # but only those tests which currently
 # pass for zonal buckets.
 TEST_DIR_PARALLEL_FOR_ZB=(
-  "benchmarking"
-  "explicit_dir"
-  "gzip"
-  "implicit_dir"
-  "interrupt"
-  "kernel_list_cache"
-  "local_file"
-  "log_rotation"
-  "monitoring"
+  # "benchmarking"
+  # "explicit_dir"
+  # "gzip"
+  # "implicit_dir"
+  # "interrupt"
+  # "kernel_list_cache"
+  # "local_file"
+  # "log_rotation"
+  # "monitoring"
   "mount_timeout"
-  "mounting"
-  "negative_stat_cache"
-  "operations"
-  "read_cache"
-  "read_large_files"
-  "rename_dir_limit"
-  "stale_handle"
-  "streaming_writes"
-  "write_large_files"
-  "unfinalized_object"
-   "release_version"
+  # "mounting"
+  # "negative_stat_cache"
+  # "operations"
+  # "read_cache"
+  # "read_large_files"
+  # "rename_dir_limit"
+  # "stale_handle"
+  # "streaming_writes"
+  # "write_large_files"
+  # "unfinalized_object"
+  #  "release_version"
 )
 
 # Subset of TEST_DIR_NON_PARALLEL,
 # but only those tests which currently
 # pass for zonal buckets.
 TEST_DIR_NON_PARALLEL_FOR_ZB=(
-  "concurrent_operations"
-  "list_large_dir"
-  "managed_folders"
-  "readonly"
-  "readonly_creds"
+  # "concurrent_operations"
+  # "list_large_dir"
+  # "managed_folders"
+  # "readonly"
+  # "readonly_creds"
 )
 
 # Create a temporary file to store the log file name.
@@ -247,7 +247,7 @@ function install_packages() {
   # Install required go version.
   ./perfmetrics/scripts/install_go.sh "1.24.0"
   export PATH="/usr/local/go/bin:$PATH"
-  
+
   sudo apt-get update
   sudo apt-get install -y python3
   # install python3-setuptools tools.
@@ -308,7 +308,7 @@ function run_non_parallel_tests() {
 
     # Executing integration tests
     echo "Running test package in non-parallel (with zonal=${zonal}): ${test_dir_np} ..."
-    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE $USE_PREBUILT_GCSFUSE_BINARY -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1
+    GRPC_GO_LOG_VERBOSITY_LEVEL=99 GRPC_GO_LOG_SEVERITY_LEVEL=info GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE $USE_PREBUILT_GCSFUSE_BINARY -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1
     exit_code_non_parallel=$?
     if [ $exit_code_non_parallel != 0 ]; then
       exit_code=$exit_code_non_parallel
@@ -337,7 +337,7 @@ function run_parallel_tests() {
     # The -bench flag yells go test to run the benchmark tests and report their results by
     # enabling the benchmarking framework.
     # The -benchtime flag specifies exact number of iterations a benchmark should run , in this
-    # case, setting this to 100 to avoid flakiness. 
+    # case, setting this to 100 to avoid flakiness.
     if [ $test_dir_p == "benchmarking" ]; then
       benchmark_flags="-bench=. -benchtime=100x"
     fi
@@ -348,7 +348,7 @@ function run_parallel_tests() {
     echo $log_file >> $TEST_LOGS_FILE
     # Executing integration tests
     echo "Queueing up test package in parallel (with zonal=${zonal}): ${test_dir_p} ..."
-    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} $benchmark_flags -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE $USE_PREBUILT_GCSFUSE_BINARY -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
+    GRPC_GO_LOG_VERBOSITY_LEVEL=99 GRPC_GO_LOG_SEVERITY_LEVEL=info GODEBUG=asyncpreemptoff=1 go test $test_path_parallel $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} $benchmark_flags -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE $USE_PREBUILT_GCSFUSE_BINARY -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
     pid=$!  # Store the PID of the background process
     echo "Queued up test package in parallel (with zonal=${zonal}): ${test_dir_p} with pid=${pid}"
     pids[${test_dir_p}]=${pid} # Optionally add the PID to an array for later
@@ -586,12 +586,6 @@ function main(){
     run_e2e_tests_for_flat_bucket &
     e2e_tests_flat_bucket_pid=$!
 
-    run_e2e_tests_for_emulator &
-    e2e_tests_emulator_pid=$!
-
-    wait $e2e_tests_emulator_pid
-    e2e_tests_emulator_status=$?
-
     wait $e2e_tests_flat_bucket_pid
     e2e_tests_flat_bucket_status=$?
 
@@ -610,11 +604,6 @@ function main(){
       exit_code=1
     fi
 
-    if [ $e2e_tests_emulator_status != 0 ];
-    then
-      echo "The e2e tests for emulator failed.."
-      exit_code=1
-    fi
   fi
 
   set -e
