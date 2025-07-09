@@ -66,6 +66,7 @@ type BucketConfig struct {
 	ChunkTransferTimeoutSecs       int64
 	TmpObjectPrefix                string
 	ExperimentalEnableRapidAppends bool
+	EnableDebugBucket              bool
 }
 
 // BucketManager manages the lifecycle of buckets.
@@ -179,7 +180,9 @@ func (bm *bucketManager) SetUpBucket(
 	b = monitor.NewMonitoringBucket(b, metricHandle)
 
 	// Enable gcs logs.
-	b = storage.NewDebugBucket(b)
+	if bm.config.EnableDebugBucket {
+		b = storage.NewDebugBucket(b)
+	}
 
 	// Limit to a requested prefix of the bucket, if any.
 	if bm.config.OnlyDir != "" {
