@@ -69,14 +69,14 @@ type Block interface {
 
 	// AwaitReady waits for the block to be ready to consume.
 	// It returns the status of the block and an error if any.
-	AwaitReady(ctx context.Context) (int, error)
+	AwaitReady(ctx context.Context) (BlockStatus, error)
 
 	// NotifyReady is used by consumer to marks the block is ready to consume.
 	// The value indicates the status of the block:
 	// - BlockStatusDownloaded: Download of this block is complete.
 	// - BlockStatusDownloadFailed: Download of this block has failed.
 	// - BlockStatusDownloadCancelled: Download of this block has been cancelled.
-	NotifyReady(val int)
+	NotifyReady(val BlockStatus)
 }
 
 // TODO: check if we need offset or just storing end is sufficient. We might need
@@ -105,7 +105,7 @@ func (m *memoryBlock) Reuse() {
 
 	m.offset.end = 0
 	m.offset.start = 0
-	m.notification = make(chan int, 1)
+	m.notification = make(chan BlockStatus, 1)
 	m.status = BlockStatusInProgress
 	m.absStartOff = -1
 }
@@ -162,7 +162,7 @@ func createBlock(blockSize int64) (Block, error) {
 	mb := memoryBlock{
 		buffer:       addr,
 		offset:       offset{0, 0},
-		notification: make(chan int, 1),
+		notification: make(chan BlockStatus, 1),
 		status:       BlockStatusInProgress,
 		absStartOff:  -1,
 	}
@@ -230,7 +230,7 @@ func (m *memoryBlock) AwaitReady(ctx context.Context) (BlockStatus, error) {
 // This should be called only once to notify the consumer.
 // If called multiple times, it will panic - either because of writing to the
 // closed channel or blocking due to writing over full notification channel.
-func (m *memoryBlock) NotifyReady(val int) {
+func (m *memoryBlock) NotifyReady(val BlockStatus) {
 	select {
 	case m.notification <- val:
 	default:

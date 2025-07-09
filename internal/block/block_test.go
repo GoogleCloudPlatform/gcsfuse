@@ -297,8 +297,8 @@ func (testSuite *MemoryBlockTest) TestAwaitReadyWaitIfNotNotify() {
 func (testSuite *MemoryBlockTest) TestAwaitReadyNotifyVariants() {
 	tests := []struct {
 		name         string
-		notifyStatus int
-		wantStatus   int
+		notifyStatus BlockStatus
+		wantStatus   BlockStatus
 	}{
 		{
 			name:         "AfterNotifySuccess",
