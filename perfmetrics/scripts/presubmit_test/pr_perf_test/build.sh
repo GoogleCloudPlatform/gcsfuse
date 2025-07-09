@@ -118,37 +118,42 @@ then
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
   echo "Running e2e tests on zonal bucket(s) ..."
-  # $1 argument is refering to value of testInstalledPackage.
-  /usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --zonal --track-resource-usage
+
+  # Don't stop on failure.
+  set +e
+  /usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh  --bucket-location=$BUCKET_LOCATION --zonal --track-resource-usage
+
+  # wait after finishing for investigation of logs.
+  sleep inifinity
 fi
 
-# Execute integration tests on non-zonal bucket(s).
-if test -n "${integrationTestsStr}" ;
-then
-  echo checkout PR branch
-  git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
+# # Execute integration tests on non-zonal bucket(s).
+# if test -n "${integrationTestsStr}" ;
+# then
+#   echo checkout PR branch
+#   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
-  echo "Running e2e tests on non-zonal bucket(s) ..."
-  # $1 argument is refering to value of testInstalledPackage.
-  /usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --track-resource-usage
-fi
+#   echo "Running e2e tests on non-zonal bucket(s) ..."
+#   # $1 argument is refering to value of testInstalledPackage.
+#   /usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --track-resource-usage
+# fi
 
-# Execute package build tests.
-if [[ "$packageBuildTestsStr" == *"$EXECUTE_PACKAGE_BUILD_TEST_LABEL"* ]];
-then
-  echo checkout PR branch
-  git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
+# # Execute package build tests.
+# if [[ "$packageBuildTestsStr" == *"$EXECUTE_PACKAGE_BUILD_TEST_LABEL"* ]];
+# then
+#   echo checkout PR branch
+#   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
-  echo "Running package build tests...."
-  ./perfmetrics/scripts/build_and_install_gcsfuse.sh master
-fi
+#   echo "Running package build tests...."
+#   ./perfmetrics/scripts/build_and_install_gcsfuse.sh master
+# fi
 
-# Execute JAX checkpoints tests.
-if [[ "$checkpointTestStr" == *"$EXECUTE_CHECKPOINT_TEST_LABEL"* ]];
-then
-  echo checkout PR branch
-  git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
+# # Execute JAX checkpoints tests.
+# if [[ "$checkpointTestStr" == *"$EXECUTE_CHECKPOINT_TEST_LABEL"* ]];
+# then
+#   echo checkout PR branch
+#   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
-  echo "Running checkpoint tests...."
-  ./perfmetrics/scripts/ml_tests/checkpoint/Jax/run_checkpoints.sh
-fi
+#   echo "Running checkpoint tests...."
+#   ./perfmetrics/scripts/ml_tests/checkpoint/Jax/run_checkpoints.sh
+# fi

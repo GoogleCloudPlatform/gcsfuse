@@ -58,13 +58,13 @@ readonly TPCZERO_PROJECT_ID="tpczero-system:gcsfuse-test-project"
 readonly TPC_BUCKET_LOCATION="u-us-prp1"
 readonly BUCKET_PREFIX="gcsfuse-e2e"
 readonly INTEGRATION_TEST_PACKAGE_DIR="./tools/integration_tests"
-readonly INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS=60 
+readonly INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS=60
 readonly TMP_PREFIX="gcsfuse_e2e"
 readonly ZONAL_BUCKET_SUPPORTED_LOCATIONS=("us-central1" "us-west4")
 readonly DELETE_BUCKET_PARALLELISM=10 # Controls how many buckets are deleted in parallel.
 # 6 second delay between creating buckets as both hns and flat runs create buckets in parallel.
 # Ref: https://cloud.google.com/storage/quotas#buckets
-readonly DELAY_BETWEEN_BUCKET_CREATION=6 
+readonly DELAY_BETWEEN_BUCKET_CREATION=6
 readonly ZONAL="zonal"
 readonly FLAT="flat"
 readonly HNS="hns"
@@ -118,7 +118,7 @@ while (( $# >= 1 )); do
             ;;
         --test-installed-package)
             TEST_INSTALLED_PACKAGE=true
-            shift 
+            shift
             ;;
         --skip-non-essential-tests)
             SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=true
@@ -188,40 +188,41 @@ if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
 fi
 
 # Test packages which can be run for both Zonal and Regional buckets.
-# Sorted list descending run times. (Longest Processing Time first strategy) 
+# Sorted list descending run times. (Longest Processing Time first strategy)
 TEST_PACKAGES_COMMON=(
-  "managed_folders"
-  "operations"
-  "read_large_files"
-  "concurrent_operations"
-  "read_cache"
-  "list_large_dir"
+  # "managed_folders"
+  # "operations"
+  # "read_large_files"
+  # "concurrent_operations"
+  # "read_cache"
+  # "list_large_dir"
   "mount_timeout"
-  "write_large_files"
-  "implicit_dir"
-  "interrupt"
-  "local_file"
-  "readonly"
-  "readonly_creds"
-  "rename_dir_limit"
-  "kernel_list_cache"
-  "streaming_writes"
-  "benchmarking"
-  "explicit_dir"
-  "gzip"
-  "log_rotation"
-  "monitoring"
-  "mounting"
-  # "grpc_validation"
-  "negative_stat_cache"
-  "stale_handle"
-  "release_version"
+  # "write_large_files"
+  # "implicit_dir"
+  # "interrupt"
+  # "local_file"
+  # "readonly"
+  # "readonly_creds"
+  # "rename_dir_limit"
+  # "kernel_list_cache"
+  # "streaming_writes"
+  # "benchmarking"
+  # "explicit_dir"
+  # "gzip"
+  # "log_rotation"
+  # "monitoring"
+  # "mounting"
+  # # "grpc_validation"
+  # "negative_stat_cache"
+  # "stale_handle"
+  # "release_version"
 )
 
 # Test packages for regional buckets.
 TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "inactive_stream_timeout" "cloud_profiler")
 # Test packages for zonal buckets.
-TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "unfinalized_object")
+# TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "unfinalized_object")
+TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" )
 # Test packages for TPC buckets.
 TEST_PACKAGES_FOR_TPC=("operations")
 
@@ -301,13 +302,13 @@ create_bucket() {
   while : ; do
     attempt=$((attempt - 1))
     if [ $attempt -lt 0 ]; then
-      log_error "Unable to create bucket [${bucket_name}] after 5 attempts." 
+      log_error "Unable to create bucket [${bucket_name}] after 5 attempts."
       cat "$bucket_cmd_log"
       return 1
     fi
     eval "$bucket_cmd" > "$bucket_cmd_log" 2>&1
     if [ $? -eq 0 ]; then
-      sleep "$DELAY_BETWEEN_BUCKET_CREATION" # have 6 seconds gap between creating buckets. 
+      sleep "$DELAY_BETWEEN_BUCKET_CREATION" # have 6 seconds gap between creating buckets.
       break
     fi
   done
@@ -318,7 +319,7 @@ create_bucket() {
 
 # Helper method to create buckets for each of the package.
 setup_package_buckets () {
-  if [[ "$#" -ne 3 ]]; then 
+  if [[ "$#" -ne 3 ]]; then
     log_error "setup_buckets() called with incorrect number of arguments."
     exit 1
   fi
@@ -390,9 +391,9 @@ clean_up() {
         log_info "Successfully deleted all buckets."
     fi
   fi
-  if ! rm -rf /tmp/"${TMP_PREFIX}_"*; then 
+  if ! rm -rf /tmp/"${TMP_PREFIX}_"*; then
     log_error "Failed to delete temporary files"
-  else 
+  else
     log_info "Successfully cleaned up temporary files"
   fi
 }
@@ -477,7 +478,7 @@ test_package() {
   local bucket_type="$3"
 
   # Build go package test command.
-  local go_test_cmd_parts=("GODEBUG=asyncpreemptoff=1" "go" "test" "-v" "-timeout=${INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS}m" "${INTEGRATION_TEST_PACKAGE_DIR}/${package_name}")
+  local go_test_cmd_parts=("GRPC_GO_LOG_VERBOSITY_LEVEL=99 GRPC_GO_LOG_SEVERITY_LEVEL=info GODEBUG=asyncpreemptoff=1" "go" "test" "-v" "-timeout=${INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS}m" "${INTEGRATION_TEST_PACKAGE_DIR}/${package_name}")
   if ${SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE}; then
     go_test_cmd_parts+=("-short")
   fi
@@ -498,15 +499,15 @@ test_package() {
   if ${RUN_TEST_ON_TPC_ENDPOINT}; then
     go_test_cmd_parts+=("--testOnTPCEndPoint")
   fi
-  if [[ -n "$BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR" ]]; then 
+  if [[ -n "$BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR" ]]; then
     go_test_cmd_parts+=("--gcsfuse_prebuilt_dir=${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}")
   fi
   # Use printf %q to quote each argument safely for eval
   # This ensures spaces and special characters within arguments are handled correctly.
   local go_test_cmd=$(printf "%q " "${go_test_cmd_parts[@]}")
-  
+
   # Run the package test command
-  local start=$SECONDS exit_code=0 
+  local start=$SECONDS exit_code=0
   if ! eval "$go_test_cmd"; then
     exit_code=1
   fi
