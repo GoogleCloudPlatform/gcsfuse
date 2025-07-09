@@ -29,24 +29,6 @@ type ShutdownFn func(ctx context.Context) error
 // The unit can however change for different units i.e. for one metric the unit could be microseconds and for another it could be milliseconds.
 var defaultLatencyDistribution = metric.WithExplicitBucketBoundaries(1, 2, 3, 4, 5, 6, 8, 10, 13, 16, 20, 25, 30, 40, 50, 65, 80, 100, 130, 160, 200, 250, 300, 400, 500, 650, 800, 1000, 2000, 5000, 10000, 20000, 50000, 100000)
 
-const (
-	ReadTypeSequential = "Sequential"
-	ReadTypeRandom     = "Random"
-	ReadTypeParallel   = "Parallel"
-)
-
-// Pair of CacheHit and ReadType attributes
-type CacheHitReadType struct {
-	CacheHit string
-	ReadType string
-}
-
-// Pair of FSOp and ErrorCategory attributes
-type FSOpsErrorCategory struct {
-	FSOps         string
-	ErrorCategory string
-}
-
 // JoinShutdownFunc combines the provided shutdown functions into a single function.
 func JoinShutdownFunc(shutdownFns ...ShutdownFn) ShutdownFn {
 	return func(ctx context.Context) error {
@@ -72,23 +54,23 @@ func (a *MetricAttr) String() string {
 
 type GCSMetricHandle interface {
 	GCSReadBytesCount(ctx context.Context, inc int64)
-	GCSReaderCount(ctx context.Context, inc int64, ioMethod string)
-	GCSRequestCount(ctx context.Context, inc int64, gcsMethod string)
-	GCSRequestLatency(ctx context.Context, latency time.Duration, gcsMethod string)
-	GCSReadCount(ctx context.Context, inc int64, readType string)
-	GCSDownloadBytesCount(ctx context.Context, inc int64, readType string)
+	GCSReaderCount(ctx context.Context, inc int64, attrs []MetricAttr)
+	GCSRequestCount(ctx context.Context, inc int64, attrs []MetricAttr)
+	GCSRequestLatency(ctx context.Context, latency time.Duration, attrs []MetricAttr)
+	GCSReadCount(ctx context.Context, inc int64, attrs []MetricAttr)
+	GCSDownloadBytesCount(ctx context.Context, inc int64, attrs []MetricAttr)
 }
 
 type OpsMetricHandle interface {
-	OpsCount(ctx context.Context, inc int64, fsOp string)
-	OpsLatency(ctx context.Context, latency time.Duration, fsOp string)
-	OpsErrorCount(ctx context.Context, inc int64, attrs FSOpsErrorCategory)
+	OpsCount(ctx context.Context, inc int64, attrs []MetricAttr)
+	OpsLatency(ctx context.Context, latency time.Duration, attrs []MetricAttr)
+	OpsErrorCount(ctx context.Context, inc int64, attrs []MetricAttr)
 }
 
 type FileCacheMetricHandle interface {
-	FileCacheReadCount(ctx context.Context, inc int64, attrs CacheHitReadType)
-	FileCacheReadBytesCount(ctx context.Context, inc int64, readType string)
-	FileCacheReadLatency(ctx context.Context, latency time.Duration, cacheHit string)
+	FileCacheReadCount(ctx context.Context, inc int64, attrs []MetricAttr)
+	FileCacheReadBytesCount(ctx context.Context, inc int64, attrs []MetricAttr)
+	FileCacheReadLatency(ctx context.Context, latency time.Duration, attrs []MetricAttr)
 }
 type MetricHandle interface {
 	GCSMetricHandle
@@ -97,6 +79,6 @@ type MetricHandle interface {
 }
 
 func CaptureGCSReadMetrics(ctx context.Context, metricHandle MetricHandle, readType string, requestedDataSize int64) {
-	metricHandle.GCSReadCount(ctx, 1, readType)
-	metricHandle.GCSDownloadBytesCount(ctx, requestedDataSize, readType)
+	metricHandle.GCSReadCount(ctx, 1, []MetricAttr{{Key: ReadType, Value: readType}})
+	metricHandle.GCSDownloadBytesCount(ctx, requestedDataSize, []MetricAttr{{Key: ReadType, Value: readType}})
 }
