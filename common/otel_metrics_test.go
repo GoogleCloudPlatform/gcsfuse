@@ -19,8 +19,6 @@ package common
 import (
 	"context"
 	"fmt"
-	"sort"
-	"strings"
 	"testing"
 	"time"
 
@@ -45,15 +43,15 @@ func setupOTel(ctx context.Context, t *testing.T) (*otelMetrics, *metric.ManualR
 
 // gatherHistogramMetrics collects all histogram metrics from the reader.
 // It returns a map where the key is the metric name, and the value is another map.
-// The inner map's key is a sorted, semicolon-separated string of attributes,
+// The inner map's key is the set of attributes,
 // and the value is the HistogramDataPoint.
-func gatherHistogramMetrics(ctx context.Context, t *testing.T, rd *metric.ManualReader) map[string]map[string]metricdata.HistogramDataPoint[int64] {
+func gatherHistogramMetrics(ctx context.Context, t *testing.T, rd *metric.ManualReader) map[string]map[attribute.Set]metricdata.HistogramDataPoint[int64] {
 	t.Helper()
 	var rm metricdata.ResourceMetrics
 	err := rd.Collect(ctx, &rm)
 	require.NoError(t, err)
 
-	results := make(map[string]map[string]metricdata.HistogramDataPoint[int64])
+	results := make(map[string]map[attribute.Set]metricdata.HistogramDataPoint[int64])
 
 	for _, sm := range rm.ScopeMetrics {
 		for _, m := range sm.Metrics {
@@ -63,20 +61,13 @@ func gatherHistogramMetrics(ctx context.Context, t *testing.T, rd *metric.Manual
 				continue
 			}
 
-			metricMap := make(map[string]metricdata.HistogramDataPoint[int64])
+			metricMap := make(map[attribute.Set]metricdata.HistogramDataPoint[int64])
 			for _, dp := range hist.DataPoints {
 				if dp.Count == 0 {
 					continue
 				}
 
-				var parts []string
-				for _, kv := range dp.Attributes.ToSlice() {
-					parts = append(parts, fmt.Sprintf("%s=%s", kv.Key, kv.Value.AsString()))
-				}
-				sort.Strings(parts)
-				key := strings.Join(parts, ";")
-
-				metricMap[key] = dp
+				metricMap[dp.Attributes] = dp
 			}
 
 			if len(metricMap) > 0 {
@@ -90,15 +81,15 @@ func gatherHistogramMetrics(ctx context.Context, t *testing.T, rd *metric.Manual
 
 // gatherNonZeroCounterMetrics collects all non-zero counter metrics from the reader.
 // It returns a map where the key is the metric name, and the value is another map.
-// The inner map's key is a sorted, semicolon-separated string of attributes,
+// The inner map's key is the set of attributes,
 // and the value is the counter's value.
-func gatherNonZeroCounterMetrics(ctx context.Context, t *testing.T, rd *metric.ManualReader) map[string]map[string]int64 {
+func gatherNonZeroCounterMetrics(ctx context.Context, t *testing.T, rd *metric.ManualReader) map[string]map[attribute.Set]int64 {
 	t.Helper()
 	var rm metricdata.ResourceMetrics
 	err := rd.Collect(ctx, &rm)
 	require.NoError(t, err)
 
-	results := make(map[string]map[string]int64)
+	results := make(map[string]map[attribute.Set]int64)
 
 	for _, sm := range rm.ScopeMetrics {
 		for _, m := range sm.Metrics {
@@ -108,25 +99,14 @@ func gatherNonZeroCounterMetrics(ctx context.Context, t *testing.T, rd *metric.M
 				continue
 			}
 
-			metricMap := make(map[string]int64)
+			metricMap := make(map[attribute.Set]int64)
 			for _, dp := range sum.DataPoints {
 				if dp.Value == 0 {
 					continue
 				}
 
-				var parts []string
-				for _, kv := range dp.Attributes.ToSlice() {
-					switch kv.Value.Type() {
-					case attribute.STRING:
-						parts = append(parts, fmt.Sprintf("%s=%s", kv.Key, kv.Value.AsString()))
-					case attribute.BOOL:
-						parts = append(parts, fmt.Sprintf("%s=%v", kv.Key, kv.Value.AsBool()))
-					}
-				}
-				sort.Strings(parts)
-				key := strings.Join(parts, ";")
-
-				metricMap[key] = dp.Value
+				// The attribute.Set can be used as a map key directly.
+				metricMap[dp.Attributes] = dp.Value
 			}
 
 			if len(metricMap) > 0 {
@@ -142,15 +122,15 @@ func TestFsOpsCount(t *testing.T) {
 	tests := []struct {
 		name     string
 		f        func(m *otelMetrics)
-		expected map[string]int64
+		expected map[attribute.Set]int64
 	}{
 		{
 			name: "StatFS",
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "StatFS")
 			},
-			expected: map[string]int64{
-				"fs_op=StatFS": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "StatFS")): 3,
 			},
 		},
 		{
@@ -158,8 +138,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "LookUpInode")
 			},
-			expected: map[string]int64{
-				"fs_op=LookUpInode": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "LookUpInode")): 3,
 			},
 		},
 		{
@@ -167,8 +147,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "GetInodeAttributes")
 			},
-			expected: map[string]int64{
-				"fs_op=GetInodeAttributes": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "GetInodeAttributes")): 3,
 			},
 		},
 		{
@@ -176,8 +156,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "SetInodeAttributes")
 			},
-			expected: map[string]int64{
-				"fs_op=SetInodeAttributes": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "SetInodeAttributes")): 3,
 			},
 		},
 		{
@@ -185,8 +165,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "ForgetInode")
 			},
-			expected: map[string]int64{
-				"fs_op=ForgetInode": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "ForgetInode")): 3,
 			},
 		},
 		{
@@ -194,8 +174,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "BatchForget")
 			},
-			expected: map[string]int64{
-				"fs_op=BatchForget": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "BatchForget")): 3,
 			},
 		},
 		{
@@ -203,8 +183,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "MkDir")
 			},
-			expected: map[string]int64{
-				"fs_op=MkDir": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "MkDir")): 3,
 			},
 		},
 		{
@@ -212,8 +192,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "MkNode")
 			},
-			expected: map[string]int64{
-				"fs_op=MkNode": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "MkNode")): 3,
 			},
 		},
 		{
@@ -221,8 +201,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "CreateFile")
 			},
-			expected: map[string]int64{
-				"fs_op=CreateFile": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "CreateFile")): 3,
 			},
 		},
 		{
@@ -230,8 +210,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "CreateLink")
 			},
-			expected: map[string]int64{
-				"fs_op=CreateLink": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "CreateLink")): 3,
 			},
 		},
 		{
@@ -239,8 +219,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "CreateSymlink")
 			},
-			expected: map[string]int64{
-				"fs_op=CreateSymlink": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "CreateSymlink")): 3,
 			},
 		},
 		{
@@ -248,8 +228,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "Rename")
 			},
-			expected: map[string]int64{
-				"fs_op=Rename": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "Rename")): 3,
 			},
 		},
 		{
@@ -257,8 +237,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "RmDir")
 			},
-			expected: map[string]int64{
-				"fs_op=RmDir": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "RmDir")): 3,
 			},
 		},
 		{
@@ -266,8 +246,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "Unlink")
 			},
-			expected: map[string]int64{
-				"fs_op=Unlink": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "Unlink")): 3,
 			},
 		},
 		{
@@ -275,8 +255,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "OpenDir")
 			},
-			expected: map[string]int64{
-				"fs_op=OpenDir": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "OpenDir")): 3,
 			},
 		},
 		{
@@ -284,8 +264,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "ReadDir")
 			},
-			expected: map[string]int64{
-				"fs_op=ReadDir": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "ReadDir")): 3,
 			},
 		},
 		{
@@ -293,8 +273,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "ReleaseDirHandle")
 			},
-			expected: map[string]int64{
-				"fs_op=ReleaseDirHandle": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "ReleaseDirHandle")): 3,
 			},
 		},
 		{
@@ -302,8 +282,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "OpenFile")
 			},
-			expected: map[string]int64{
-				"fs_op=OpenFile": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "OpenFile")): 3,
 			},
 		},
 		{
@@ -311,8 +291,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "ReadFile")
 			},
-			expected: map[string]int64{
-				"fs_op=ReadFile": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "ReadFile")): 3,
 			},
 		},
 		{
@@ -320,8 +300,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "WriteFile")
 			},
-			expected: map[string]int64{
-				"fs_op=WriteFile": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "WriteFile")): 3,
 			},
 		},
 		{
@@ -329,8 +309,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "SyncFile")
 			},
-			expected: map[string]int64{
-				"fs_op=SyncFile": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "SyncFile")): 3,
 			},
 		},
 		{
@@ -338,8 +318,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "FlushFile")
 			},
-			expected: map[string]int64{
-				"fs_op=FlushFile": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "FlushFile")): 3,
 			},
 		},
 		{
@@ -347,8 +327,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "ReleaseFileHandle")
 			},
-			expected: map[string]int64{
-				"fs_op=ReleaseFileHandle": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "ReleaseFileHandle")): 3,
 			},
 		},
 		{
@@ -356,8 +336,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "ReadSymlink")
 			},
-			expected: map[string]int64{
-				"fs_op=ReadSymlink": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "ReadSymlink")): 3,
 			},
 		},
 		{
@@ -365,8 +345,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "RemoveXattr")
 			},
-			expected: map[string]int64{
-				"fs_op=RemoveXattr": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "RemoveXattr")): 3,
 			},
 		},
 		{
@@ -374,8 +354,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "GetXattr")
 			},
-			expected: map[string]int64{
-				"fs_op=GetXattr": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "GetXattr")): 3,
 			},
 		},
 		{
@@ -383,8 +363,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "ListXattr")
 			},
-			expected: map[string]int64{
-				"fs_op=ListXattr": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "ListXattr")): 3,
 			},
 		},
 		{
@@ -392,8 +372,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "SetXattr")
 			},
-			expected: map[string]int64{
-				"fs_op=SetXattr": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "SetXattr")): 3,
 			},
 		},
 		{
@@ -401,8 +381,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "Fallocate")
 			},
-			expected: map[string]int64{
-				"fs_op=Fallocate": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "Fallocate")): 3,
 			},
 		},
 		{
@@ -410,8 +390,8 @@ func TestFsOpsCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(3, "SyncFS")
 			},
-			expected: map[string]int64{
-				"fs_op=SyncFS": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "SyncFS")): 3,
 			},
 		},
 		{
@@ -421,9 +401,9 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(2, "CreateFile")
 				m.FsOpsCount(3, "BatchForget")
 			},
-			expected: map[string]int64{
-				"fs_op=BatchForget": 8,
-				"fs_op=CreateFile":  2,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "BatchForget")): 8,
+				attribute.NewSet(attribute.String("fs_op", "CreateFile")):  2,
 			},
 		},
 	}
@@ -473,8 +453,10 @@ func TestFsOpsErrorCount(t *testing.T) {
 				metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 				opsErrorCount, ok := metrics["fs/ops_error_count"]
 				require.True(t, ok, "fs/ops_error_count metric not found")
-				expectedKey := fmt.Sprintf("fs_error_category=%s;fs_op=%s", category, op)
-				expected := map[string]int64{
+				expectedKey := attribute.NewSet(
+					attribute.String("fs_error_category", category),
+					attribute.String("fs_op", op))
+				expected := map[attribute.Set]int64{
 					expectedKey: 5,
 				}
 				assert.Equal(t, expected, opsErrorCount)
@@ -495,8 +477,13 @@ func TestFsOpsErrorCountSummed(t *testing.T) {
 	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 	opsErrorCount, ok := metrics["fs/ops_error_count"]
 	assert.True(t, ok, "fs/ops_error_count metric not found")
-	assert.Equal(t, map[string]int64{"fs_error_category=IO_ERROR;fs_op=ReadFile": 8}, opsErrorCount)
+	expectedKey := attribute.NewSet(
+		attribute.String("fs_error_category", "IO_ERROR"),
+		attribute.String("fs_op", "ReadFile"),
+	)
+	assert.Equal(t, map[attribute.Set]int64{expectedKey: 8}, opsErrorCount)
 }
+
 func TestFsOpsErrorCountDifferentErrors(t *testing.T) {
 	ctx := context.Background()
 	m, rd := setupOTel(ctx, t)
@@ -508,8 +495,19 @@ func TestFsOpsErrorCountDifferentErrors(t *testing.T) {
 	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 	opsErrorCount, ok := metrics["fs/ops_error_count"]
 	assert.True(t, ok, "fs/ops_error_count metric not found")
-	assert.Equal(t, map[string]int64{"fs_error_category=IO_ERROR;fs_op=ReadFile": 5, "fs_error_category=NETWORK_ERROR;fs_op=WriteFile": 2}, opsErrorCount)
+	expected := map[attribute.Set]int64{
+		attribute.NewSet(
+			attribute.String("fs_error_category", "IO_ERROR"),
+			attribute.String("fs_op", "ReadFile"),
+		): 5,
+		attribute.NewSet(
+			attribute.String("fs_error_category", "NETWORK_ERROR"),
+			attribute.String("fs_op", "WriteFile"),
+		): 2,
+	}
+	assert.Equal(t, expected, opsErrorCount)
 }
+
 func TestFsOpsErrorCountDifferentErrorsSummed(t *testing.T) {
 	ctx := context.Background()
 	m, rd := setupOTel(ctx, t)
@@ -522,7 +520,17 @@ func TestFsOpsErrorCountDifferentErrorsSummed(t *testing.T) {
 	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 	opsErrorCount, ok := metrics["fs/ops_error_count"]
 	assert.True(t, ok, "fs/ops_error_count metric not found")
-	assert.Equal(t, map[string]int64{"fs_error_category=IO_ERROR;fs_op=ReadFile": 8, "fs_error_category=NETWORK_ERROR;fs_op=WriteFile": 2}, opsErrorCount)
+	expected := map[attribute.Set]int64{
+		attribute.NewSet(
+			attribute.String("fs_error_category", "IO_ERROR"),
+			attribute.String("fs_op", "ReadFile"),
+		): 8,
+		attribute.NewSet(
+			attribute.String("fs_error_category", "NETWORK_ERROR"),
+			attribute.String("fs_op", "WriteFile"),
+		): 2,
+	}
+	assert.Equal(t, expected, opsErrorCount)
 }
 
 func TestFsOpsLatency(t *testing.T) {
@@ -547,7 +555,7 @@ func TestFsOpsLatency(t *testing.T) {
 			metrics := gatherHistogramMetrics(ctx, t, rd)
 			opsLatency, ok := metrics["fs/ops_latency"]
 			require.True(t, ok, "fs/ops_latency metric not found")
-			expectedKey := fmt.Sprintf("fs_op=%s", op)
+			expectedKey := attribute.NewSet(attribute.String("fs_op", op))
 			dp, ok := opsLatency[expectedKey]
 			require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
 			assert.Equal(t, uint64(1), dp.Count)
@@ -569,7 +577,7 @@ func TestFsOpsLatencySummed(t *testing.T) {
 	metrics := gatherHistogramMetrics(ctx, t, rd)
 	opsLatency, ok := metrics["fs/ops_latency"]
 	require.True(t, ok, "fs/ops_latency metric not found")
-	dp, ok := opsLatency["fs_op=ReadFile"]
+	dp, ok := opsLatency[attribute.NewSet(attribute.String("fs_op", "ReadFile"))]
 	require.True(t, ok, "DataPoint not found for key: fs_op=ReadFile")
 	assert.Equal(t, uint64(2), dp.Count)
 	assert.Equal(t, latency1.Microseconds()+latency2.Microseconds(), dp.Sum)
@@ -579,15 +587,15 @@ func TestGcsReadCount(t *testing.T) {
 	tests := []struct {
 		name     string
 		f        func(m *otelMetrics)
-		expected map[string]int64
+		expected map[attribute.Set]int64
 	}{
 		{
 			name: "Sequential",
 			f: func(m *otelMetrics) {
 				m.GcsReadCount(5, "Sequential")
 			},
-			expected: map[string]int64{
-				"read_type=Sequential": 5,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("read_type", "Sequential")): 5,
 			},
 		},
 		{
@@ -595,8 +603,8 @@ func TestGcsReadCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.GcsReadCount(3, "Random")
 			},
-			expected: map[string]int64{
-				"read_type=Random": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("read_type", "Random")): 3,
 			},
 		},
 		{
@@ -604,8 +612,8 @@ func TestGcsReadCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.GcsReadCount(2, "Parallel")
 			},
-			expected: map[string]int64{
-				"read_type=Parallel": 2,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("read_type", "Parallel")): 2,
 			},
 		},
 		{
@@ -615,9 +623,9 @@ func TestGcsReadCount(t *testing.T) {
 				m.GcsReadCount(2, "Random")
 				m.GcsReadCount(3, "Sequential")
 			},
-			expected: map[string]int64{
-				"read_type=Sequential": 8,
-				"read_type=Random":     2,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("read_type", "Sequential")): 8,
+				attribute.NewSet(attribute.String("read_type", "Random")):     2,
 			},
 		},
 	}
@@ -642,15 +650,15 @@ func TestGcsDownloadBytesCount(t *testing.T) {
 	tests := []struct {
 		name     string
 		f        func(m *otelMetrics)
-		expected map[string]int64
+		expected map[attribute.Set]int64
 	}{
 		{
 			name: "Sequential",
 			f: func(m *otelMetrics) {
 				m.GcsDownloadBytesCount(500, "Sequential")
 			},
-			expected: map[string]int64{
-				"read_type=Sequential": 500,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("read_type", "Sequential")): 500,
 			},
 		},
 		{
@@ -658,8 +666,8 @@ func TestGcsDownloadBytesCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.GcsDownloadBytesCount(300, "Random")
 			},
-			expected: map[string]int64{
-				"read_type=Random": 300,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("read_type", "Random")): 300,
 			},
 		},
 		{
@@ -667,8 +675,8 @@ func TestGcsDownloadBytesCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.GcsDownloadBytesCount(200, "Parallel")
 			},
-			expected: map[string]int64{
-				"read_type=Parallel": 200,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("read_type", "Parallel")): 200,
 			},
 		},
 		{
@@ -678,9 +686,9 @@ func TestGcsDownloadBytesCount(t *testing.T) {
 				m.GcsDownloadBytesCount(200, "Random")
 				m.GcsDownloadBytesCount(300, "Sequential")
 			},
-			expected: map[string]int64{
-				"read_type=Sequential": 800,
-				"read_type=Random":     200,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("read_type", "Sequential")): 800,
+				attribute.NewSet(attribute.String("read_type", "Random")):     200,
 			},
 		},
 	}
@@ -712,22 +720,22 @@ func TestGcsReadBytesCount(t *testing.T) {
 	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 	readBytes, ok := metrics["gcs/read_bytes_count"]
 	require.True(t, ok, "gcs/read_bytes_count metric not found")
-	assert.Equal(t, map[string]int64{"": 3072}, readBytes)
+	assert.Equal(t, map[attribute.Set]int64{attribute.NewSet(): 3072}, readBytes)
 }
 
 func TestGcsReaderCount(t *testing.T) {
 	tests := []struct {
 		name     string
 		f        func(m *otelMetrics)
-		expected map[string]int64
+		expected map[attribute.Set]int64
 	}{
 		{
 			name: "opened",
 			f: func(m *otelMetrics) {
 				m.GcsReaderCount(5, "opened")
 			},
-			expected: map[string]int64{
-				"io_method=opened": 5,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("io_method", "opened")): 5,
 			},
 		},
 		{
@@ -735,8 +743,8 @@ func TestGcsReaderCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.GcsReaderCount(3, "closed")
 			},
-			expected: map[string]int64{
-				"io_method=closed": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("io_method", "closed")): 3,
 			},
 		},
 		{
@@ -746,9 +754,9 @@ func TestGcsReaderCount(t *testing.T) {
 				m.GcsReaderCount(2, "closed")
 				m.GcsReaderCount(3, "opened")
 			},
-			expected: map[string]int64{
-				"io_method=opened": 8,
-				"io_method=closed": 2,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("io_method", "opened")): 8,
+				attribute.NewSet(attribute.String("io_method", "closed")): 2,
 			},
 		},
 	}
@@ -788,8 +796,8 @@ func TestGcsRequestCount(t *testing.T) {
 			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 			requestCount, ok := metrics["gcs/request_count"]
 			require.True(t, ok, "gcs/request_count metric not found")
-			expectedKey := fmt.Sprintf("gcs_method=%s", method)
-			expected := map[string]int64{
+			expectedKey := attribute.NewSet(attribute.String("gcs_method", method))
+			expected := map[attribute.Set]int64{
 				expectedKey: 5,
 			}
 			assert.Equal(t, expected, requestCount)
@@ -809,7 +817,10 @@ func TestGcsRequestCountSummed(t *testing.T) {
 	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 	requestCount, ok := metrics["gcs/request_count"]
 	assert.True(t, ok, "gcs/request_count metric not found")
-	assert.Equal(t, map[string]int64{"gcs_method=StatObject": 8, "gcs_method=ListObjects": 2}, requestCount)
+	assert.Equal(t, map[attribute.Set]int64{
+		attribute.NewSet(attribute.String("gcs_method", "StatObject")):  8,
+		attribute.NewSet(attribute.String("gcs_method", "ListObjects")): 2,
+	}, requestCount)
 }
 
 func TestGcsRequestLatencies(t *testing.T) {
@@ -832,7 +843,7 @@ func TestGcsRequestLatencies(t *testing.T) {
 			metrics := gatherHistogramMetrics(ctx, t, rd)
 			requestLatencies, ok := metrics["gcs/request_latencies"]
 			require.True(t, ok, "gcs/request_latencies metric not found")
-			expectedKey := fmt.Sprintf("gcs_method=%s", method)
+			expectedKey := attribute.NewSet(attribute.String("gcs_method", method))
 			dp, ok := requestLatencies[expectedKey]
 			require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
 			assert.Equal(t, uint64(1), dp.Count)
@@ -854,7 +865,7 @@ func TestGcsRequestLatenciesSummed(t *testing.T) {
 	metrics := gatherHistogramMetrics(ctx, t, rd)
 	requestLatencies, ok := metrics["gcs/request_latencies"]
 	require.True(t, ok, "gcs/request_latencies metric not found")
-	dp, ok := requestLatencies["gcs_method=StatObject"]
+	dp, ok := requestLatencies[attribute.NewSet(attribute.String("gcs_method", "StatObject"))]
 	require.True(t, ok, "DataPoint not found for key: gcs_method=StatObject")
 	assert.Equal(t, uint64(2), dp.Count)
 	assert.Equal(t, latency1.Milliseconds()+latency2.Milliseconds(), dp.Sum)
@@ -864,15 +875,15 @@ func TestGcsRetryCount(t *testing.T) {
 	tests := []struct {
 		name     string
 		f        func(m *otelMetrics)
-		expected map[string]int64
+		expected map[attribute.Set]int64
 	}{
 		{
 			name: "STALLED_READ_REQUEST",
 			f: func(m *otelMetrics) {
 				m.GcsRetryCount(5, "STALLED_READ_REQUEST")
 			},
-			expected: map[string]int64{
-				"retry_error_category=STALLED_READ_REQUEST": 5,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("retry_error_category", "STALLED_READ_REQUEST")): 5,
 			},
 		},
 		{
@@ -880,8 +891,8 @@ func TestGcsRetryCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.GcsRetryCount(3, "OTHER_ERRORS")
 			},
-			expected: map[string]int64{
-				"retry_error_category=OTHER_ERRORS": 3,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("retry_error_category", "OTHER_ERRORS")): 3,
 			},
 		},
 		{
@@ -891,9 +902,9 @@ func TestGcsRetryCount(t *testing.T) {
 				m.GcsRetryCount(2, "OTHER_ERRORS")
 				m.GcsRetryCount(3, "STALLED_READ_REQUEST")
 			},
-			expected: map[string]int64{
-				"retry_error_category=STALLED_READ_REQUEST": 8,
-				"retry_error_category=OTHER_ERRORS":         2,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("retry_error_category", "STALLED_READ_REQUEST")): 8,
+				attribute.NewSet(attribute.String("retry_error_category", "OTHER_ERRORS")):         2,
 			},
 		},
 	}
@@ -918,15 +929,17 @@ func TestFileCacheReadCount(t *testing.T) {
 	tests := []struct {
 		name     string
 		f        func(m *otelMetrics)
-		expected map[string]int64
+		expected map[attribute.Set]int64
 	}{
 		{
 			name: "cache_hit_true_sequential",
 			f: func(m *otelMetrics) {
 				m.FileCacheReadCount(5, true, "Sequential")
 			},
-			expected: map[string]int64{
-				"cache_hit=true;read_type=Sequential": 5,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(
+					attribute.Bool("cache_hit", true),
+					attribute.String("read_type", "Sequential")): 5,
 			},
 		},
 		{
@@ -934,8 +947,10 @@ func TestFileCacheReadCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FileCacheReadCount(5, true, "Random")
 			},
-			expected: map[string]int64{
-				"cache_hit=true;read_type=Random": 5,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(
+					attribute.Bool("cache_hit", true),
+					attribute.String("read_type", "Random")): 5,
 			},
 		},
 		{
@@ -943,8 +958,10 @@ func TestFileCacheReadCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FileCacheReadCount(5, true, "Parallel")
 			},
-			expected: map[string]int64{
-				"cache_hit=true;read_type=Parallel": 5,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(
+					attribute.Bool("cache_hit", true),
+					attribute.String("read_type", "Parallel")): 5,
 			},
 		},
 		{
@@ -952,8 +969,10 @@ func TestFileCacheReadCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FileCacheReadCount(5, false, "Sequential")
 			},
-			expected: map[string]int64{
-				"cache_hit=false;read_type=Sequential": 5,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(
+					attribute.Bool("cache_hit", false),
+					attribute.String("read_type", "Sequential")): 5,
 			},
 		},
 		{
@@ -961,8 +980,10 @@ func TestFileCacheReadCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FileCacheReadCount(5, false, "Random")
 			},
-			expected: map[string]int64{
-				"cache_hit=false;read_type=Random": 5,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(
+					attribute.Bool("cache_hit", false),
+					attribute.String("read_type", "Random")): 5,
 			},
 		},
 		{
@@ -970,8 +991,10 @@ func TestFileCacheReadCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FileCacheReadCount(5, false, "Parallel")
 			},
-			expected: map[string]int64{
-				"cache_hit=false;read_type=Parallel": 5,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(
+					attribute.Bool("cache_hit", false),
+					attribute.String("read_type", "Parallel")): 5,
 			},
 		},
 		{
@@ -981,9 +1004,9 @@ func TestFileCacheReadCount(t *testing.T) {
 				m.FileCacheReadCount(2, false, "Random")
 				m.FileCacheReadCount(3, true, "Sequential")
 			},
-			expected: map[string]int64{
-				"cache_hit=false;read_type=Random":    2,
-				"cache_hit=true;read_type=Sequential": 8,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", "Random")):    2,
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Sequential")): 8,
 			},
 		},
 	}
@@ -1008,15 +1031,15 @@ func TestFileCacheReadBytesCount(t *testing.T) {
 	tests := []struct {
 		name     string
 		f        func(m *otelMetrics)
-		expected map[string]int64
+		expected map[attribute.Set]int64
 	}{
 		{
 			name: "Sequential",
 			f: func(m *otelMetrics) {
 				m.FileCacheReadBytesCount(500, "Sequential")
 			},
-			expected: map[string]int64{
-				"read_type=Sequential": 500,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("read_type", "Sequential")): 500,
 			},
 		},
 		{
@@ -1024,8 +1047,8 @@ func TestFileCacheReadBytesCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FileCacheReadBytesCount(300, "Random")
 			},
-			expected: map[string]int64{
-				"read_type=Random": 300,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("read_type", "Random")): 300,
 			},
 		},
 		{
@@ -1033,8 +1056,8 @@ func TestFileCacheReadBytesCount(t *testing.T) {
 			f: func(m *otelMetrics) {
 				m.FileCacheReadBytesCount(200, "Parallel")
 			},
-			expected: map[string]int64{
-				"read_type=Parallel": 200,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("read_type", "Parallel")): 200,
 			},
 		},
 		{
@@ -1044,9 +1067,9 @@ func TestFileCacheReadBytesCount(t *testing.T) {
 				m.FileCacheReadBytesCount(200, "Random")
 				m.FileCacheReadBytesCount(300, "Sequential")
 			},
-			expected: map[string]int64{
-				"read_type=Random":     200,
-				"read_type=Sequential": 800,
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("read_type", "Random")):     200,
+				attribute.NewSet(attribute.String("read_type", "Sequential")): 800,
 			},
 		},
 	}
@@ -1100,8 +1123,7 @@ func TestFileCacheReadLatencies(t *testing.T) {
 			metrics := gatherHistogramMetrics(ctx, t, rd)
 			readLatencies, ok := metrics["file_cache/read_latencies"]
 			require.True(t, ok, "file_cache/read_latencies metric not found")
-
-			expectedKey := fmt.Sprintf("cache_hit=%t", tc.cacheHit)
+			expectedKey := attribute.NewSet(attribute.Bool("cache_hit", tc.cacheHit))
 			dp, ok := readLatencies[expectedKey]
 			require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
 			assert.Equal(t, uint64(len(tc.latencies)), dp.Count)
