@@ -186,7 +186,7 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 
 		var objectData gcsx.ObjectData
 		readType := fh.reader.ReadType()
-		if !fh.inode.Bucket().BucketType().Zonal || readType == util.Sequential {
+		if !fh.inode.Bucket().BucketType().Zonal || readType == common.ReadTypeSequential {
 			fh.mu.Lock()
 			defer fh.mu.Unlock()
 		}
