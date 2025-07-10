@@ -104,6 +104,7 @@ def read_all_files(total_files: int, file_size_gb: int) -> int:
     except Exception as e:  # catch all exceptions
       print(f"Error reading file {path}: {e}")
       raise RuntimeError(f"Failed to read file: {path}") from e
+    print("test")
 
   return total_bytes
 
