@@ -13,7 +13,11 @@ Try mounting the gcsfuse with `--implicit-dirs` flag. Read the [semantics](https
 
 ### Mount failed with fusermount3 exit status 1
 
-It comes when the bucket is already mounted in a folder, and we try to mount it again. You need to unmount first and then remount.
+- It can come when the bucket is already mounted in a folder, and we try to mount it again. You need to unmount first and then remount.
+- It can also happen if you're trying to mount the bucket on a directory that has read-only permissions. Please provide write permissions to the directory and try mounting it again. You can use the below command to grant write permissions.
+  ```
+    chmod 755 mount_point
+  ```
 
 ### version GLIBC_x.yz not found
 
