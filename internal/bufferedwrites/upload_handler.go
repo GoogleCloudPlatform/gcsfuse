@@ -40,7 +40,7 @@ type UploadHandler struct {
 	wg sync.WaitGroup
 
 	// Used to release the free (uploaded) block back to the pool.
-	blockPool *block.BlockPool
+	blockPool *block.GenericBlockPool[block.Block]
 
 	// writer to resumable upload the blocks to GCS.
 	writer gcs.Writer
@@ -63,7 +63,7 @@ type CreateUploadHandlerRequest struct {
 	Object                   *gcs.Object
 	ObjectName               string
 	Bucket                   gcs.Bucket
-	BlockPool                *block.BlockPool
+	BlockPool                *block.GenericBlockPool[block.Block]
 	MaxBlocksPerFile         int64
 	BlockSize                int64
 	ChunkTransferTimeoutSecs int64

@@ -1,0 +1,179 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package block
+
+import (
+	"errors"
+	"fmt"
+
+	"golang.org/x/sync/semaphore"
+)
+
+type GenBlock interface {
+	Reuse()
+	Deallocate() error
+}
+
+var CantAllocateAnyBlockError error = errors.New("cant allocate any streaming write block as global max blocks limit is reached")
+
+// Create an interface for the Block pool
+// This interface defines the methods that a block pool must implement.
+type BlockPoolInterface[T GenBlock] interface {
+	// Get returns a block from the pool.
+	Get() (T, error)
+
+	// Release puts the block back into the free blocks channel for reuse.
+	Release(b T)
+
+	// BlockSize returns the block size used by the blockPool.
+	BlockSize() int64
+
+	// ClearFreeBlockChannel clears the free blocks channel and deallocates blocks.
+	ClearFreeBlockChannel(releaseLastBlock bool) error
+
+	// TotalFreeBlocks returns the total number of free blocks available in the pool.
+	TotalFreeBlocks() int
+}
+
+// GenericBlockPool handles the creation of blocks as per the user configuration.
+type GenericBlockPool[T GenBlock] struct {
+	// Channel holding free blocks.
+	freeBlocksCh chan T
+
+	// Size of each block this pool holds.
+	blockSize int64
+
+	// Max number of blocks this blockPool can create.
+	maxBlocks int64
+
+	// Total number of blocks created so far.
+	totalBlocks int64
+
+	// Semaphore used to limit the total number of blocks created across
+	// different files.
+	globalMaxBlocksSem *semaphore.Weighted
+
+	// createBlockFunc is a function that creates a new block of type T
+	createBlockFunc func(blockSize int64) (T, error)
+}
+
+// NewGenericBlockPool creates the blockPool based on the user configuration.
+func NewGenericBlockPool[T GenBlock](blockSize int64, maxBlocks int64, globalMaxBlocksSem *semaphore.Weighted, createBlockFunc func(blockSize int64) (T, error)) (bp *GenericBlockPool[T], err error) {
+	if blockSize <= 0 || maxBlocks <= 0 {
+		err = fmt.Errorf("invalid configuration provided for blockPool, blocksize: %d, maxBlocks: %d", blockSize, maxBlocks)
+		return
+	}
+
+	bp = &GenericBlockPool[T]{
+		freeBlocksCh:       make(chan T, maxBlocks),
+		blockSize:          blockSize,
+		maxBlocks:          maxBlocks,
+		totalBlocks:        0,
+		globalMaxBlocksSem: globalMaxBlocksSem,
+		createBlockFunc:    createBlockFunc,
+	}
+	semAcquired := bp.globalMaxBlocksSem.TryAcquire(1)
+	if !semAcquired {
+		return nil, CantAllocateAnyBlockError
+	}
+
+	return bp, nil
+}
+
+// Get returns a block. It returns an existing block if it's ready for reuse or
+// creates a new one if required.
+func (bp *GenericBlockPool[T]) Get() (T, error) {
+	for {
+		select {
+		case b := <-bp.freeBlocksCh:
+			// Reset the block for reuse.
+			b.Reuse()
+			return b, nil
+
+		default:
+			// No lock is required here since blockPool is per file and all write
+			// calls to a single file are serialized because of inode.lock().
+			if bp.canAllocateBlock() {
+				b, err := bp.createBlockFunc(bp.blockSize)
+				if err != nil {
+					var zero T
+					return zero, err
+				}
+
+				bp.totalBlocks++
+				return b, nil
+			}
+		}
+	}
+}
+
+// canAllocateBlock checks if a new block can be allocated.
+func (bp *GenericBlockPool[T]) canAllocateBlock() bool {
+	// If max blocks limit is reached, then no more blocks can be allocated.
+	if bp.totalBlocks >= bp.maxBlocks {
+		return false
+	}
+
+	// Always allow allocation if this is the first block for the file since it has been reserved at
+	// the time of block pool creation.
+	if bp.totalBlocks == 0 {
+		return true
+	}
+
+	// Otherwise, check if we can acquire a semaphore.
+	semAcquired := bp.globalMaxBlocksSem.TryAcquire(1)
+	return semAcquired
+}
+
+// Release puts the block back into the free blocks channel for reuse.
+func (bp *GenericBlockPool[T]) Release(b T) {
+	select {
+	case bp.freeBlocksCh <- b:
+	default:
+		panic("Block pool's free blocks channel is full, this should never happen")
+	}
+}
+
+// BlockSize returns the block size used by the blockPool.
+func (bp *GenericBlockPool[T]) BlockSize() int64 {
+	return bp.blockSize
+}
+
+func (bp *GenericBlockPool[T]) ClearFreeBlockChannel(releaseLastBlock bool) error {
+	for {
+		select {
+		case b := <-bp.freeBlocksCh:
+			err := b.Deallocate()
+			if err != nil {
+				// if we get here, there is likely memory corruption.
+				return fmt.Errorf("munmap error: %v", err)
+			}
+			bp.totalBlocks--
+			// Release semaphore for last block iff releaseLastBlock is true.
+			if bp.totalBlocks != 0 || releaseLastBlock {
+				bp.globalMaxBlocksSem.Release(1)
+			}
+		default:
+			// Return if there are no more blocks on the channel.
+			return nil
+		}
+	}
+}
+
+// TotalFreeBlocks returns the total number of free blocks available in the pool.
+// This is useful for testing and debugging purposes.
+func (bp *GenericBlockPool[T]) TotalFreeBlocks() int {
+	return len(bp.freeBlocksCh)
+}

@@ -64,7 +64,7 @@ type BufferedWriteHandler interface {
 // as it receives and handing over to uploadHandler which uploads to GCS.
 type bufferedWriteHandlerImpl struct {
 	current       block.Block
-	blockPool     *block.BlockPool
+	blockPool     *block.GenericBlockPool[block.Block]
 	uploadHandler *UploadHandler
 	// Total size of data buffered so far. Some part of buffered data might have
 	// been uploaded to GCS as well. Depending on the state we are in, it might or
