@@ -270,9 +270,9 @@ func UnMountBucket() {
 }
 
 func SaveLogFileInCaseOfFailure(successCode int) {
-	if successCode != 0 {
-		SaveLogFileAsArtifact(LogFile(), GCSFuseLogFilePrefix+GenerateRandomString(5))
-	}
+	//if successCode != 0 {
+	SaveLogFileAsArtifact(LogFile(), GCSFuseLogFilePrefix+GenerateRandomString(5))
+	//}
 }
 
 // Saves logFile as given artifactName in KOKORO or
