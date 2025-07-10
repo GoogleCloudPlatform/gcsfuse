@@ -139,7 +139,7 @@ func testdataUploadFilesToBucket(ctx context.Context, t *testing.T, storageClien
 	}()
 
 	// Copy request consumers.
-	numCopyGoroutines := runtime.NumCPU() / 2
+	numCopyGoroutines := runtime.NumCPU() * 20
 	var wg sync.WaitGroup
 	for range numCopyGoroutines {
 		wg.Add(1)
