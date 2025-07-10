@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// **** DO NOT EDIT - FILE IS AUTO-GENERATED ****
-
 package common
 
 import (
@@ -29,6 +27,10 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
+
+func waitForMetricsProcessing() {
+	time.Sleep(time.Millisecond)
+}
 
 func setupOTel(ctx context.Context, t *testing.T) (*otelMetrics, *metric.ManualReader) {
 	t.Helper()
@@ -1130,8 +1132,4 @@ func TestFileCacheReadLatencies(t *testing.T) {
 			assert.Equal(t, totalLatency.Microseconds(), dp.Sum)
 		})
 	}
-}
-
-func waitForMetricsProcessing() {
-	time.Sleep(time.Millisecond)
 }
