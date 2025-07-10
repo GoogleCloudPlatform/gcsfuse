@@ -291,7 +291,7 @@ func (testSuite *MemoryBlockTest) TestAwaitReadyWaitIfNotNotify() {
 	_, err = mb.AwaitReady(ctx)
 
 	assert.NotNil(testSuite.T(), err)
-	assert.Equal(testSuite.T(), context.DeadlineExceeded, err)
+	assert.EqualError(testSuite.T(), context.DeadlineExceeded, err.Error())
 }
 
 func (testSuite *MemoryBlockTest) TestAwaitReadyReturnsErrorOnContextCancellation() {
@@ -303,7 +303,7 @@ func (testSuite *MemoryBlockTest) TestAwaitReadyReturnsErrorOnContextCancellatio
 	_, err = mb.AwaitReady(ctx)
 
 	require.NotNil(testSuite.T(), err)
-	assert.Equal(testSuite.T(), context.Canceled, err)
+	assert.EqualError(testSuite.T(), context.Canceled, err.Error())
 }
 
 func (testSuite *MemoryBlockTest) TestAwaitReadyNotifyVariants() {
@@ -349,21 +349,20 @@ func (testSuite *MemoryBlockTest) TestAwaitReadyNotifyVariants() {
 func (testSuite *MemoryBlockTest) TestTwoNotifyReadyWithoutAwaitReady() {
 	mb, err := createBlock(12)
 	require.Nil(testSuite.T(), err)
-	mb.NotifyReady(BlockStatusDownloaded)
 
+	mb.NotifyReady(BlockStatusDownloaded)
 	// 2nd notify will lead to panic since it is not allowed to notify a block more than once.
 	assert.Panics(testSuite.T(), func() {
 		mb.NotifyReady(BlockStatusDownloaded)
 	})
 }
 
-func (testSuite *MemoryBlockTest) TestTwoNotifyReadyWithAwaitReady() {
+func (testSuite *MemoryBlockTest) TestNotifyReadyAfterAwaitReady() {
 	mb, err := createBlock(12)
 	require.Nil(testSuite.T(), err)
 	ctx, cancel := context.WithTimeout(testSuite.T().Context(), 100*time.Millisecond)
 	defer cancel()
 	go func() {
-		time.Sleep(time.Millisecond)
 		mb.NotifyReady(BlockStatusDownloaded)
 	}()
 	status, err := mb.AwaitReady(ctx)
@@ -380,7 +379,6 @@ func (testSuite *MemoryBlockTest) TestSingleNotifyAndMultipleAwaitReady() {
 	mb, err := createBlock(12)
 	require.Nil(testSuite.T(), err)
 	go func() {
-		time.Sleep(time.Millisecond)
 		mb.NotifyReady(BlockStatusDownloaded)
 	}()
 	ctx, cancel := context.WithTimeout(testSuite.T().Context(), 5*time.Millisecond)
@@ -393,7 +391,6 @@ func (testSuite *MemoryBlockTest) TestSingleNotifyAndMultipleAwaitReady() {
 	for i := 0; i < 5; i++ {
 		go func() {
 			defer wg.Done()
-			time.Sleep(1 * time.Millisecond)
 
 			status, err := mb.AwaitReady(ctx)
 
