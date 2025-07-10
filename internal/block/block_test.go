@@ -15,8 +15,11 @@
 package block
 
 import (
+	"context"
 	"io"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -277,4 +280,123 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockCapAfterWrite() {
 	require.Equal(testSuite.T(), 2, n)
 
 	assert.Equal(testSuite.T(), int64(12), mb.Cap())
+}
+
+func (testSuite *MemoryBlockTest) TestAwaitReadyWaitIfNotNotify() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+	ctx, cancel := context.WithTimeout(testSuite.T().Context(), 100*time.Millisecond)
+	defer cancel()
+
+	_, err = mb.AwaitReady(ctx)
+
+	assert.NotNil(testSuite.T(), err)
+	assert.EqualError(testSuite.T(), context.DeadlineExceeded, err.Error())
+}
+
+func (testSuite *MemoryBlockTest) TestAwaitReadyReturnsErrorOnContextCancellation() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+	ctx, cancel := context.WithCancel(testSuite.T().Context())
+	cancel() // Cancel the context immediately
+
+	_, err = mb.AwaitReady(ctx)
+
+	require.NotNil(testSuite.T(), err)
+	assert.EqualError(testSuite.T(), context.Canceled, err.Error())
+}
+
+func (testSuite *MemoryBlockTest) TestAwaitReadyNotifyVariants() {
+	tests := []struct {
+		name         string
+		notifyStatus BlockStatus
+		wantStatus   BlockStatus
+	}{
+		{
+			name:         "AfterNotifySuccess",
+			notifyStatus: BlockStatusDownloaded,
+			wantStatus:   BlockStatusDownloaded,
+		},
+		{
+			name:         "AfterNotifyError",
+			notifyStatus: BlockStatusDownloadFailed,
+			wantStatus:   BlockStatusDownloadFailed,
+		},
+		{
+			name:         "AfterNotifyCancelled",
+			notifyStatus: BlockStatusDownloadCancelled,
+			wantStatus:   BlockStatusDownloadCancelled,
+		},
+	}
+
+	for _, tt := range tests {
+		testSuite.T().Run(tt.name, func(t *testing.T) {
+			mb, err := createBlock(12)
+			require.Nil(t, err)
+			go func() {
+				time.Sleep(time.Millisecond)
+				mb.NotifyReady(tt.notifyStatus)
+			}()
+
+			status, err := mb.AwaitReady(context.Background())
+
+			require.Nil(t, err)
+			assert.Equal(t, tt.wantStatus, status)
+		})
+	}
+}
+
+func (testSuite *MemoryBlockTest) TestTwoNotifyReadyWithoutAwaitReady() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+
+	mb.NotifyReady(BlockStatusDownloaded)
+	// 2nd notify will lead to panic since it is not allowed to notify a block more than once.
+	assert.Panics(testSuite.T(), func() {
+		mb.NotifyReady(BlockStatusDownloaded)
+	})
+}
+
+func (testSuite *MemoryBlockTest) TestNotifyReadyAfterAwaitReady() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+	ctx, cancel := context.WithTimeout(testSuite.T().Context(), 100*time.Millisecond)
+	defer cancel()
+	go func() {
+		mb.NotifyReady(BlockStatusDownloaded)
+	}()
+	status, err := mb.AwaitReady(ctx)
+	require.Nil(testSuite.T(), err)
+	assert.Equal(testSuite.T(), BlockStatusDownloaded, status)
+
+	// 2nd notify will lead to panic since channel is closed after first await ready.
+	assert.Panics(testSuite.T(), func() {
+		mb.NotifyReady(BlockStatusDownloaded)
+	})
+}
+
+func (testSuite *MemoryBlockTest) TestSingleNotifyAndMultipleAwaitReady() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+	go func() {
+		mb.NotifyReady(BlockStatusDownloaded)
+	}()
+	ctx, cancel := context.WithTimeout(testSuite.T().Context(), 5*time.Millisecond)
+	defer cancel()
+	var wg sync.WaitGroup
+	wg.Add(5)
+
+	// Multiple goroutines waiting for the same block to be ready.
+	// They should all receive the same status once the block is notified.
+	for i := 0; i < 5; i++ {
+		go func() {
+			defer wg.Done()
+
+			status, err := mb.AwaitReady(ctx)
+
+			require.Nil(testSuite.T(), err)
+			assert.Equal(testSuite.T(), BlockStatusDownloaded, status)
+		}()
+	}
+	wg.Wait()
 }
