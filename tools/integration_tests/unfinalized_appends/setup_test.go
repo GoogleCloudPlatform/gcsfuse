@@ -74,20 +74,31 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
-	// flags to be set, as operations tests validates content from the bucket.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		gRootDir = setup.MountedDirectory()
-		setup.RunTestsForMountedDirectoryFlag(m)
-	}
-
-	// Set up gOtherRootDir directory.
+	// Set up gOtherRootDir directory for secondary mount.
 	setup.SetUpTestDirForTestBucketFlag()
 	gOtherRootDir = setup.MntDir()
 	gOtherTestDirPath = setup.SetupTestDirectory(testDirName)
 	gOtherLogFilePath = setup.LogFile()
+	// For reads to work for unfinalized object from secondary mount metadata cache ttl must be set to 0.
+	// and rapid appends should be enabled.
+	secondarMountFlags := []string{"--metadata-cache-ttl-secs=0", "--write-experimental-enable-rapid-appends=true"}
+	err := static_mounting.MountGcsfuseWithStaticMounting(secondarMountFlags)
+	if err != nil {
+		log.Fatalf("Unable to mount secondary mount: %v", err)
+	}
+	defer func() {
+		setup.UnmountGCSFuse(gOtherRootDir)
+	}()
 
-	// Set up gRootDir directory.
+	// To run mountedDirectory tests, we need both testBucket and mountedDirectory flags.
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		setup.SetMntDir(setup.MountedDirectory())
+		gRootDir = setup.MntDir()
+		gTestDirPath = setup.SetupTestDirectory(testDirName)
+		setup.RunTestsForMountedDirectoryFlag(m)
+	}
+
+	// Set up gRootDir directory for primary mount.
 	setup.SetUpTestDirForTestBucketFlag()
 	gRootDir = setup.MntDir()
 	gTestDirPath = setup.SetupTestDirectory(testDirName)
@@ -95,7 +106,7 @@ func TestMain(m *testing.M) {
 
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
-		{"--metadata-cache-ttl-secs=0", "--write-block-size-mb=1", "--write-global-max-blocks=-1", "--write-experimental-enable-rapid-appends=true"},
+		{"--metadata-cache-ttl-secs=0", "--write-experimental-enable-rapid-appends=true"},
 	}
 
 	log.Println("Running static mounting tests...")
