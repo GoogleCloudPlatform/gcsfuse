@@ -569,6 +569,345 @@ func TestFsOpsLatencySummed(t *testing.T) {
 	assert.Equal(t, latency1.Microseconds()+latency2.Microseconds(), dp.Sum)
 }
 
+func TestGcsReadCount(t *testing.T) {
+	tests := []struct {
+		name     string
+		f        func(m *otelMetrics)
+		expected map[string]int64
+	}{
+		{
+			name: "Sequential",
+			f: func(m *otelMetrics) {
+				m.GcsReadCount(5, "Sequential")
+			},
+			expected: map[string]int64{
+				"read_type=Sequential": 5,
+			},
+		},
+		{
+			name: "Random",
+			f: func(m *otelMetrics) {
+				m.GcsReadCount(3, "Random")
+			},
+			expected: map[string]int64{
+				"read_type=Random": 3,
+			},
+		},
+		{
+			name: "Parallel",
+			f: func(m *otelMetrics) {
+				m.GcsReadCount(2, "Parallel")
+			},
+			expected: map[string]int64{
+				"read_type=Parallel": 2,
+			},
+		},
+		{
+			name: "multiple_attributes_summed",
+			f: func(m *otelMetrics) {
+				m.GcsReadCount(5, "Sequential")
+				m.GcsReadCount(2, "Random")
+				m.GcsReadCount(3, "Sequential")
+			},
+			expected: map[string]int64{
+				"read_type=Sequential": 8,
+				"read_type=Random":     2,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			m, rd := setupOTel(ctx, t)
+
+			tc.f(m)
+			waitForMetricsProcessing()
+
+			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+			readCount, ok := metrics["gcs/read_count"]
+			assert.True(t, ok, "gcs/read_count metric not found")
+			assert.Equal(t, tc.expected, readCount)
+		})
+	}
+}
+
+func TestGcsDownloadBytesCount(t *testing.T) {
+	tests := []struct {
+		name     string
+		f        func(m *otelMetrics)
+		expected map[string]int64
+	}{
+		{
+			name: "Sequential",
+			f: func(m *otelMetrics) {
+				m.GcsDownloadBytesCount(500, "Sequential")
+			},
+			expected: map[string]int64{
+				"read_type=Sequential": 500,
+			},
+		},
+		{
+			name: "Random",
+			f: func(m *otelMetrics) {
+				m.GcsDownloadBytesCount(300, "Random")
+			},
+			expected: map[string]int64{
+				"read_type=Random": 300,
+			},
+		},
+		{
+			name: "Parallel",
+			f: func(m *otelMetrics) {
+				m.GcsDownloadBytesCount(200, "Parallel")
+			},
+			expected: map[string]int64{
+				"read_type=Parallel": 200,
+			},
+		},
+		{
+			name: "multiple_attributes_summed",
+			f: func(m *otelMetrics) {
+				m.GcsDownloadBytesCount(500, "Sequential")
+				m.GcsDownloadBytesCount(200, "Random")
+				m.GcsDownloadBytesCount(300, "Sequential")
+			},
+			expected: map[string]int64{
+				"read_type=Sequential": 800,
+				"read_type=Random":     200,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			m, rd := setupOTel(ctx, t)
+
+			tc.f(m)
+			waitForMetricsProcessing()
+
+			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+			downloadBytes, ok := metrics["gcs/download_bytes_count"]
+			assert.True(t, ok, "gcs/download_bytes_count metric not found")
+			assert.Equal(t, tc.expected, downloadBytes)
+		})
+	}
+}
+
+func TestGcsReadBytesCount(t *testing.T) {
+	ctx := context.Background()
+	m, rd := setupOTel(ctx, t)
+
+	m.GcsReadBytesCount(1024)
+	m.GcsReadBytesCount(2048)
+	waitForMetricsProcessing()
+
+	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+	readBytes, ok := metrics["gcs/read_bytes_count"]
+	require.True(t, ok, "gcs/read_bytes_count metric not found")
+	assert.Equal(t, map[string]int64{"": 3072}, readBytes)
+}
+
+func TestGcsReaderCount(t *testing.T) {
+	tests := []struct {
+		name     string
+		f        func(m *otelMetrics)
+		expected map[string]int64
+	}{
+		{
+			name: "opened",
+			f: func(m *otelMetrics) {
+				m.GcsReaderCount(5, "opened")
+			},
+			expected: map[string]int64{
+				"io_method=opened": 5,
+			},
+		},
+		{
+			name: "closed",
+			f: func(m *otelMetrics) {
+				m.GcsReaderCount(3, "closed")
+			},
+			expected: map[string]int64{
+				"io_method=closed": 3,
+			},
+		},
+		{
+			name: "multiple_attributes_summed",
+			f: func(m *otelMetrics) {
+				m.GcsReaderCount(5, "opened")
+				m.GcsReaderCount(2, "closed")
+				m.GcsReaderCount(3, "opened")
+			},
+			expected: map[string]int64{
+				"io_method=opened": 8,
+				"io_method=closed": 2,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			m, rd := setupOTel(ctx, t)
+
+			tc.f(m)
+			waitForMetricsProcessing()
+
+			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+			readerCount, ok := metrics["gcs/reader_count"]
+			assert.True(t, ok, "gcs/reader_count metric not found")
+			assert.Equal(t, tc.expected, readerCount)
+		})
+	}
+}
+
+func TestGcsRequestCount(t *testing.T) {
+	gcsMethods := []string{
+		"MultiRangeDownloader::Add", "ComposeObjects", "CreateFolder", "CreateObjectChunkWriter",
+		"DeleteFolder", "DeleteObject", "FinalizeUpload", "GetFolder", "ListObjects",
+		"MoveObject", "NewReader", "RenameFolder", "StatObject", "UpdateObject",
+	}
+
+	for _, method := range gcsMethods {
+		method := method
+		t.Run(method, func(t *testing.T) {
+			ctx := context.Background()
+			m, rd := setupOTel(ctx, t)
+
+			m.GcsRequestCount(5, method)
+			waitForMetricsProcessing()
+
+			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+			requestCount, ok := metrics["gcs/request_count"]
+			require.True(t, ok, "gcs/request_count metric not found")
+			expectedKey := fmt.Sprintf("gcs_method=%s", method)
+			expected := map[string]int64{
+				expectedKey: 5,
+			}
+			assert.Equal(t, expected, requestCount)
+		})
+	}
+}
+
+func TestGcsRequestCountSummed(t *testing.T) {
+	ctx := context.Background()
+	m, rd := setupOTel(ctx, t)
+
+	m.GcsRequestCount(5, "StatObject")
+	m.GcsRequestCount(3, "StatObject")
+	m.GcsRequestCount(2, "ListObjects")
+	waitForMetricsProcessing()
+
+	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+	requestCount, ok := metrics["gcs/request_count"]
+	assert.True(t, ok, "gcs/request_count metric not found")
+	assert.Equal(t, map[string]int64{"gcs_method=StatObject": 8, "gcs_method=ListObjects": 2}, requestCount)
+}
+
+func TestGcsRequestLatencies(t *testing.T) {
+	gcsMethods := []string{
+		"MultiRangeDownloader::Add", "ComposeObjects", "CreateFolder", "CreateObjectChunkWriter",
+		"DeleteFolder", "DeleteObject", "FinalizeUpload", "GetFolder", "ListObjects",
+		"MoveObject", "NewReader", "RenameFolder", "StatObject", "UpdateObject",
+	}
+
+	for _, method := range gcsMethods {
+		method := method
+		t.Run(method, func(t *testing.T) {
+			ctx := context.Background()
+			m, rd := setupOTel(ctx, t)
+			latency := 123 * time.Millisecond
+
+			m.GcsRequestLatencies(ctx, latency, method)
+			waitForMetricsProcessing()
+
+			metrics := gatherHistogramMetrics(ctx, t, rd)
+			requestLatencies, ok := metrics["gcs/request_latencies"]
+			require.True(t, ok, "gcs/request_latencies metric not found")
+			expectedKey := fmt.Sprintf("gcs_method=%s", method)
+			dp, ok := requestLatencies[expectedKey]
+			require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
+			assert.Equal(t, uint64(1), dp.Count)
+			assert.Equal(t, latency.Milliseconds(), dp.Sum)
+		})
+	}
+}
+
+func TestGcsRequestLatenciesSummed(t *testing.T) {
+	ctx := context.Background()
+	m, rd := setupOTel(ctx, t)
+	latency1 := 100 * time.Millisecond
+	latency2 := 200 * time.Millisecond
+
+	m.GcsRequestLatencies(ctx, latency1, "StatObject")
+	m.GcsRequestLatencies(ctx, latency2, "StatObject")
+	waitForMetricsProcessing()
+
+	metrics := gatherHistogramMetrics(ctx, t, rd)
+	requestLatencies, ok := metrics["gcs/request_latencies"]
+	require.True(t, ok, "gcs/request_latencies metric not found")
+	dp, ok := requestLatencies["gcs_method=StatObject"]
+	require.True(t, ok, "DataPoint not found for key: gcs_method=StatObject")
+	assert.Equal(t, uint64(2), dp.Count)
+	assert.Equal(t, latency1.Milliseconds()+latency2.Milliseconds(), dp.Sum)
+}
+
+func TestGcsRetryCount(t *testing.T) {
+	tests := []struct {
+		name     string
+		f        func(m *otelMetrics)
+		expected map[string]int64
+	}{
+		{
+			name: "STALLED_READ_REQUEST",
+			f: func(m *otelMetrics) {
+				m.GcsRetryCount(5, "STALLED_READ_REQUEST")
+			},
+			expected: map[string]int64{
+				"retry_error_category=STALLED_READ_REQUEST": 5,
+			},
+		},
+		{
+			name: "OTHER_ERRORS",
+			f: func(m *otelMetrics) {
+				m.GcsRetryCount(3, "OTHER_ERRORS")
+			},
+			expected: map[string]int64{
+				"retry_error_category=OTHER_ERRORS": 3,
+			},
+		},
+		{
+			name: "multiple_attributes_summed",
+			f: func(m *otelMetrics) {
+				m.GcsRetryCount(5, "STALLED_READ_REQUEST")
+				m.GcsRetryCount(2, "OTHER_ERRORS")
+				m.GcsRetryCount(3, "STALLED_READ_REQUEST")
+			},
+			expected: map[string]int64{
+				"retry_error_category=STALLED_READ_REQUEST": 8,
+				"retry_error_category=OTHER_ERRORS":         2,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			m, rd := setupOTel(ctx, t)
+
+			tc.f(m)
+			waitForMetricsProcessing()
+
+			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+			retryCount, ok := metrics["gcs/retry_count"]
+			assert.True(t, ok, "gcs/retry_count metric not found")
+			assert.Equal(t, tc.expected, retryCount)
+		})
+	}
+}
+
 func waitForMetricsProcessing() {
 	time.Sleep(time.Millisecond)
 }
