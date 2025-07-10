@@ -15,6 +15,7 @@
 package unfinalized_appends
 
 import (
+	"log"
 	"os"
 	"path"
 	"syscall"
@@ -47,29 +48,23 @@ type UnfinalizedAppendsSuite struct {
 // //////////////////////////////////////////////////////////////////////
 
 func (t *UnfinalizedAppendsSuite) SetupSuite() {
-	// Mounting secondary mount
-	setup.SetMntDir(gOtherRootDir)
-	setup.SetLogFile(gOtherLogFilePath)
-	setup.MountGCSFuseWithGivenMountFunc(gFlags, gMountFunc)
-	// Mounting primary mount
-	setup.SetMntDir(gRootDir)
-	setup.SetLogFile(gLogFilePath)
 	setup.MountGCSFuseWithGivenMountFunc(gFlags, gMountFunc)
 }
 
 func (t *UnfinalizedAppendsSuite) TearDownSuite() {
 	setup.UnmountGCSFuse(gRootDir)
-	setup.UnmountGCSFuse(gOtherRootDir)
-	// Save both Log File in case of failure.
 	setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
-	setup.SetLogFile(gOtherLogFilePath)
-	setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
+	if t.T().Failed() {
+		log.Println("Secondary mount log file:")
+		setup.SetLogFile(gOtherLogFilePath)
+		setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
+	}
 }
 
 func (t *UnfinalizedAppendsSuite) SetupTest() {
 	t.fileName = FileName1 + setup.GenerateRandomString(5)
 	var err error
-	// Create unfinalized object of
+	// Create unfinalized object.
 	t.appendableWriter = CreateUnfinalizedObject(gCtx, t.T(), gStorageClient, path.Join(testDirName, t.fileName), SizeOfFileContents)
 	t.fileSize = SizeOfFileContents
 
