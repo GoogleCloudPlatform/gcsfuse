@@ -132,5 +132,12 @@ def main():
       workload_type=workflow_type,
   )
 
+  # TODO: Remove this once alerts are configured.
+  bandwidth_mbps = total_bytes / duration / 1000 / 1000
+  # 80 Mbps is the minimum threshold based on the 3-runs average bandwidth
+  if bandwidth_mbps < 80:
+    print(f"Failure: Write bandwidth too low ({bandwidth_mbps} Mbps < 80 Mbps)")
+    sys.exit(1)
+
 if __name__ == "__main__":
   main()

@@ -146,5 +146,12 @@ def main():
       workload_type=workflow_type,
   )
 
+  # TODO: Remove this once alerts are configured.
+  bandwidth_mbps = total_bytes / duration / 1000 / 1000
+  # 160 Mbps is the minimum threshold based on the 3-runs average bandwidth
+  if bandwidth_mbps < 160:
+    print(f"Failure: Read bandwidth too low ({bandwidth_mbps} Mbps < 160 Mbps)")
+    sys.exit(1)
+
 if __name__ == "__main__":
   main()
