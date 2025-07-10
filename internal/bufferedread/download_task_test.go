@@ -32,6 +32,11 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/sync/semaphore"
+)
+
+const (
+	testBlockSize = 500
 )
 
 type DownloadTaskTestSuite struct {
@@ -39,19 +44,23 @@ type DownloadTaskTestSuite struct {
 	suite.Suite
 	object     *gcs.MinObject
 	mockBucket *storage.TestifyMockBucket
+	blockPool  *block.BlockPool
 }
 
 func TestDownloadTaskTestSuite(t *testing.T) {
 	suite.Run(t, new(DownloadTaskTestSuite))
 }
 
-func (pts *DownloadTaskTestSuite) SetupTest() {
-	pts.object = &gcs.MinObject{
+func (dts *DownloadTaskTestSuite) SetupTest() {
+	dts.object = &gcs.MinObject{
 		Name:       "test-object",
 		Size:       1024,
 		Generation: 1234567890,
 	}
-	pts.mockBucket = new(storage.TestifyMockBucket)
+	dts.mockBucket = new(storage.TestifyMockBucket)
+	var err error
+	dts.blockPool, err = block.NewBlockPool(testBlockSize, 10, semaphore.NewWeighted(100))
+	require.NoError(dts.T(), err, "Failed to create block pool")
 }
 
 func getReadCloser(content []byte) io.ReadCloser {
@@ -60,94 +69,122 @@ func getReadCloser(content []byte) io.ReadCloser {
 	return rc
 }
 
-func (pts *DownloadTaskTestSuite) TestExecuteSuccess() {
-	blockSize := 500
-	downloadBlock, err := block.CreateBlock(int64(blockSize))
-	require.Nil(pts.T(), err)
+func (dts *DownloadTaskTestSuite) TestExecuteSuccess() {
+	downloadBlock, err := dts.blockPool.Get()
+	require.Nil(dts.T(), err)
 	err = downloadBlock.SetAbsStartOff(0)
-	require.Nil(pts.T(), err)
-	task := NewDownloadTask(context.Background(), pts.object, pts.mockBucket, downloadBlock, nil)
-	testContent := testutil.GenerateRandomBytes(blockSize)
+	require.Nil(dts.T(), err)
+	task := NewDownloadTask(context.Background(), dts.object, dts.mockBucket, downloadBlock, nil)
+	testContent := testutil.GenerateRandomBytes(testBlockSize)
 	rc := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	readObjectRequest := &gcs.ReadObjectRequest{
-		Name:       pts.object.Name,
-		Generation: pts.object.Generation,
+		Name:       dts.object.Name,
+		Generation: dts.object.Generation,
 		Range: &gcs.ByteRange{
 			Start: uint64(0),
-			Limit: uint64(blockSize),
+			Limit: uint64(testBlockSize),
 		},
 	}
-	pts.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(rc, nil).Times(1)
+	dts.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(rc, nil).Times(1)
 
 	task.Execute()
 
-	assert.Equal(pts.T(), int64(len(testContent)), downloadBlock.Size())
-	assert.Equal(pts.T(), int64(blockSize), downloadBlock.Cap())
-	assert.NoError(pts.T(), err)
-	pts.mockBucket.AssertExpectations(pts.T())
+	assert.Equal(dts.T(), int64(len(testContent)), downloadBlock.Size())
+	assert.Equal(dts.T(), int64(testBlockSize), downloadBlock.Cap())
+	assert.NoError(dts.T(), err)
+	dts.mockBucket.AssertExpectations(dts.T())
 	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
 	defer cancelFunc()
 	status, err := downloadBlock.AwaitReady(ctx)
-	assert.Equal(pts.T(), block.BlockStatusDownloaded, status)
-	assert.NoError(pts.T(), err)
+	assert.Equal(dts.T(), block.BlockStatusDownloaded, status)
+	assert.NoError(dts.T(), err)
 }
 
-func (pts *DownloadTaskTestSuite) TestExecuteError() {
-	blockSize := 500
-	downloadBlock, err := block.CreateBlock(int64(blockSize))
-	require.Nil(pts.T(), err)
+func (dts *DownloadTaskTestSuite) TestExecuteError() {
+	downloadBlock, err := dts.blockPool.Get()
+	require.Nil(dts.T(), err)
 	err = downloadBlock.SetAbsStartOff(0)
-	require.Nil(pts.T(), err)
-	task := NewDownloadTask(context.Background(), pts.object, pts.mockBucket, downloadBlock, nil)
+	require.Nil(dts.T(), err)
+	task := NewDownloadTask(context.Background(), dts.object, dts.mockBucket, downloadBlock, nil)
 	readObjectRequest := &gcs.ReadObjectRequest{
-		Name:       pts.object.Name,
-		Generation: pts.object.Generation,
+		Name:       dts.object.Name,
+		Generation: dts.object.Generation,
 		Range: &gcs.ByteRange{
 			Start: uint64(0),
-			Limit: uint64(blockSize),
+			Limit: uint64(testBlockSize),
 		},
 	}
 	expectedError := errors.New("read error")
-	pts.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(nil, expectedError).Times(1)
+	dts.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(nil, expectedError).Times(1)
 
 	task.Execute()
 
-	assert.Error(pts.T(), expectedError)
-	pts.mockBucket.AssertExpectations(pts.T())
+	assert.Error(dts.T(), expectedError)
+	dts.mockBucket.AssertExpectations(dts.T())
 	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
 	defer cancelFunc()
 	status, err := downloadBlock.AwaitReady(ctx)
-	assert.Equal(pts.T(), block.BlockStatusDownloadFailed, status)
-	assert.NoError(pts.T(), err)
+	assert.Equal(dts.T(), block.BlockStatusDownloadFailed, status)
+	assert.NoError(dts.T(), err)
 }
 
-func (pts *DownloadTaskTestSuite) TestExecuteContextCancelledWhileReaderCreation() {
-	blockSize := 500
-	downloadBlock, err := block.CreateBlock(int64(blockSize))
-	require.Nil(pts.T(), err)
+func (dts *DownloadTaskTestSuite) TestExecuteContextDeadlineExceededByServerTreatedAsFailed() {
+	downloadBlock, err := dts.blockPool.Get()
+	require.Nil(dts.T(), err)
 	err = downloadBlock.SetAbsStartOff(0)
-	require.Nil(pts.T(), err)
-	task := NewDownloadTask(context.Background(), pts.object, pts.mockBucket, downloadBlock, nil)
-	rc := &fake.FakeReader{ReadCloser: getReadCloser(nil)} // No content since context is cancelled
+	require.Nil(dts.T(), err)
+	taskCtx, taskCancelFunc := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	defer taskCancelFunc() // Ensure the context is cancelled after the test.
+	task := NewDownloadTask(taskCtx, dts.object, dts.mockBucket, downloadBlock, nil)
 	readObjectRequest := &gcs.ReadObjectRequest{
-		Name:       pts.object.Name,
-		Generation: pts.object.Generation,
+		Name:       dts.object.Name,
+		Generation: dts.object.Generation,
 		Range: &gcs.ByteRange{
 			Start: uint64(0),
-			Limit: uint64(blockSize),
+			Limit: uint64(testBlockSize),
 		},
 	}
-	pts.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(rc, context.Canceled).Times(1)
+	dts.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(nil, context.DeadlineExceeded).Times(1)
 
 	task.Execute()
 
-	assert.Error(pts.T(), context.Canceled)
-	pts.mockBucket.AssertExpectations(pts.T())
+	assert.Error(dts.T(), context.DeadlineExceeded)
+	dts.mockBucket.AssertExpectations(dts.T())
 	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
 	defer cancelFunc()
 	status, err := downloadBlock.AwaitReady(ctx)
-	assert.Equal(pts.T(), block.BlockStatusDownloadCancelled, status)
-	assert.NoError(pts.T(), err)
+	assert.Equal(dts.T(), block.BlockStatusDownloadFailed, status)
+	assert.NoError(dts.T(), err)
+}
+
+func (dts *DownloadTaskTestSuite) TestExecuteContextCancelledWhileReaderCreation() {
+	downloadBlock, err := dts.blockPool.Get()
+	require.Nil(dts.T(), err)
+	err = downloadBlock.SetAbsStartOff(0)
+	require.Nil(dts.T(), err)
+	taskCtx, taskCancelFunc := context.WithCancel(context.TODO())
+	task := NewDownloadTask(taskCtx, dts.object, dts.mockBucket, downloadBlock, nil)
+	rc := &fake.FakeReader{ReadCloser: getReadCloser(nil)} // No content since context is cancelled
+	readObjectRequest := &gcs.ReadObjectRequest{
+		Name:       dts.object.Name,
+		Generation: dts.object.Generation,
+		Range: &gcs.ByteRange{
+			Start: uint64(0),
+			Limit: uint64(testBlockSize),
+		},
+	}
+	dts.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(rc, context.Canceled).Times(1)
+	taskCancelFunc() // Ensure client side cancellation.
+
+	task.Execute()
+
+	assert.Error(dts.T(), context.Canceled)
+	dts.mockBucket.AssertExpectations(dts.T())
+	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
+	defer cancelFunc()
+	status, err := downloadBlock.AwaitReady(ctx)
+	assert.Equal(dts.T(), block.BlockStatusDownloadCancelled, status)
+	assert.NoError(dts.T(), err)
 }
 
 // ctxCancelledReader is a mock reader that simulates a context cancellation error while reading.
@@ -164,31 +201,32 @@ func (r *ctxCancelledReader) Close() error {
 	return nil
 }
 
-func (pts *DownloadTaskTestSuite) TestExecuteContextCancelledWhileReadingFromReader() {
-	blockSize := 500
-	downloadBlock, err := block.CreateBlock(int64(blockSize))
-	require.Nil(pts.T(), err)
+func (dts *DownloadTaskTestSuite) TestExecuteContextCancelledWhileReadingFromReader() {
+	downloadBlock, err := dts.blockPool.Get()
+	require.Nil(dts.T(), err)
 	err = downloadBlock.SetAbsStartOff(0)
-	require.Nil(pts.T(), err)
-	task := NewDownloadTask(context.Background(), pts.object, pts.mockBucket, downloadBlock, nil)
+	require.Nil(dts.T(), err)
+	taskCtx, taskCancelFunc := context.WithCancel(context.TODO())
+	task := NewDownloadTask(taskCtx, dts.object, dts.mockBucket, downloadBlock, nil)
 	rc := &fake.FakeReader{ReadCloser: new(ctxCancelledReader)}
 	readObjectRequest := &gcs.ReadObjectRequest{
-		Name:       pts.object.Name,
-		Generation: pts.object.Generation,
+		Name:       dts.object.Name,
+		Generation: dts.object.Generation,
 		Range: &gcs.ByteRange{
 			Start: uint64(0),
-			Limit: uint64(blockSize),
+			Limit: uint64(testBlockSize),
 		},
 	}
-	pts.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(rc, nil).Times(1)
+	dts.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(rc, nil).Times(1)
+	taskCancelFunc() // Ensure client side cancellation.
 
 	task.Execute()
 
-	assert.Error(pts.T(), context.Canceled)
-	pts.mockBucket.AssertExpectations(pts.T())
+	assert.Error(dts.T(), context.Canceled)
+	dts.mockBucket.AssertExpectations(dts.T())
 	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
 	defer cancelFunc()
 	status, err := downloadBlock.AwaitReady(ctx)
-	assert.Equal(pts.T(), block.BlockStatusDownloadCancelled, status)
-	assert.NoError(pts.T(), err)
+	assert.Equal(dts.T(), block.BlockStatusDownloadCancelled, status)
+	assert.NoError(dts.T(), err)
 }

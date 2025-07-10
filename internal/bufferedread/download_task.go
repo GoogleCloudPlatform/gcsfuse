@@ -66,10 +66,15 @@ func (p *DownloadTask) Execute() {
 	stime := time.Now()
 	var err error
 	defer func() {
-		if err != nil {
-			logger.Tracef("Download: -> block (%s, %v) failed with error: %v.", p.object.Name, blockId, err)
+		if err == nil {
+			logger.Tracef("Download: -> block (%s, %v) completed in: %v.", p.object.Name, blockId, time.Since(stime))
+			p.block.NotifyReady(block.BlockStatusDownloaded)
+		} else if errors.Is(err, context.Canceled) && p.ctx.Err() == context.Canceled {
+			logger.Tracef("Download: -> block (%s, %v) cancelled: %v.", p.object.Name, blockId, err)
+			p.block.NotifyReady(block.BlockStatusDownloadCancelled)
 		} else {
-			logger.Tracef("Download: -> block (%s, %v): %v completed.", p.object.Name, blockId, time.Since(stime))
+			logger.Errorf("Download: -> block (%s, %v) failed: %v.", p.object.Name, blockId, err)
+			p.block.NotifyReady(block.BlockStatusDownloadFailed)
 		}
 	}()
 
@@ -91,27 +96,13 @@ func (p *DownloadTask) Execute() {
 			ReadHandle:     p.readHandle,
 		})
 	if err != nil {
-		if errors.Is(err, context.Canceled) {
-			logger.Warnf("Download block (%s, %v): %v failed with context cancelled while reader creation.", p.object.Name, blockId, err)
-			p.block.NotifyReady(block.BlockStatusDownloadCancelled)
-		} else {
-			err = fmt.Errorf("downloadRange: error in creating reader(%d, %d), error: %v", start, end, err)
-			p.block.NotifyReady(block.BlockStatusDownloadFailed)
-		}
+		err = fmt.Errorf("while reader-creations: %w", err)
 		return
 	}
 
 	_, err = io.CopyN(p.block, newReader, int64(end-start))
 	if err != nil {
-		if errors.Is(err, context.Canceled) {
-			logger.Warnf("Download block (%s, %v): %v failed with context cancelled while reading.", p.object.Name, blockId, err)
-			p.block.NotifyReady(block.BlockStatusDownloadCancelled)
-		} else {
-			err = fmt.Errorf("downloadRange: error copying the content to block: %v", err)
-			p.block.NotifyReady(block.BlockStatusDownloadFailed)
-		}
+		err = fmt.Errorf("while copying data: %w", err)
 		return
 	}
-
-	p.block.NotifyReady(block.BlockStatusDownloaded)
 }

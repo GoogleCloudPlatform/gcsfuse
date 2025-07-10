@@ -151,8 +151,8 @@ func (m *memoryBlock) Deallocate() error {
 	return nil
 }
 
-// CreateBlock creates a new block.
-func CreateBlock(blockSize int64) (Block, error) {
+// createBlock creates a new block.
+func createBlock(blockSize int64) (Block, error) {
 	prot, flags := syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_ANON|syscall.MAP_PRIVATE
 	addr, err := syscall.Mmap(-1, 0, int(blockSize), prot, flags)
 	if err != nil {
