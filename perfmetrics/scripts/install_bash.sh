@@ -29,6 +29,25 @@ fi
 BASH_VERSION="$1"
 INSTALL_DIR="/usr/local/" # Installation directory
 
+# Function to install dependencies like gcc and make if not present
+install_dependencies() {
+    if ! command -v gcc &>/dev/null || ! command -v make &>/dev/null; then
+        echo "GCC or make not found. Attempting to install build tools..."
+        if command -v apt-get &>/dev/null; then
+            sudo apt-get update && sudo apt-get install -y build-essential
+        elif command -v dnf &>/dev/null; then
+            sudo dnf install -y gcc make
+        elif command -v yum &>/dev/null; then
+            sudo yum install -y gcc make
+        else
+            echo "Error: Could not find a known package manager (apt, dnf, yum)."
+            echo "Please install gcc and make manually before running this script."
+            exit 1
+        fi
+        echo "Build tools installed successfully."
+    fi
+}
+
 # Function to download, compile, and install Bash
 install_bash() {
     local temp_dir
@@ -49,8 +68,11 @@ install_bash() {
 echo "Installing bash version ${BASH_VERSION} to ${INSTALL_DIR}bin/bash"
 INSTALLATION_LOG=$(mktemp /tmp/bash_install_log.XXXXXX)
 
+# Installing dependencies before installing Bash
+install_dependencies
+
 if ! install_bash >"$INSTALLATION_LOG" 2>&1; then
-    echo "Bash version ${BASH_VERSION} installation failed."
+    echo "Error: Bash version ${BASH_VERSION} installation failed."
     cat "$INSTALLATION_LOG"
     rm -f "$INSTALLATION_LOG"
     exit 1
