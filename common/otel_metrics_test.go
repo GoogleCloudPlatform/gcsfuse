@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
@@ -115,7 +116,12 @@ func gatherNonZeroCounterMetrics(ctx context.Context, t *testing.T, rd *metric.M
 
 				var parts []string
 				for _, kv := range dp.Attributes.ToSlice() {
-					parts = append(parts, fmt.Sprintf("%s=%s", kv.Key, kv.Value.AsString()))
+					switch kv.Value.Type() {
+					case attribute.STRING:
+						parts = append(parts, fmt.Sprintf("%s=%s", kv.Key, kv.Value.AsString()))
+					case attribute.BOOL:
+						parts = append(parts, fmt.Sprintf("%s=%v", kv.Key, kv.Value.AsBool()))
+					}
 				}
 				sort.Strings(parts)
 				key := strings.Join(parts, ";")
@@ -904,6 +910,202 @@ func TestGcsRetryCount(t *testing.T) {
 			retryCount, ok := metrics["gcs/retry_count"]
 			assert.True(t, ok, "gcs/retry_count metric not found")
 			assert.Equal(t, tc.expected, retryCount)
+		})
+	}
+}
+
+func TestFileCacheReadCount(t *testing.T) {
+	tests := []struct {
+		name     string
+		f        func(m *otelMetrics)
+		expected map[string]int64
+	}{
+		{
+			name: "cache_hit_true_sequential",
+			f: func(m *otelMetrics) {
+				m.FileCacheReadCount(5, true, "Sequential")
+			},
+			expected: map[string]int64{
+				"cache_hit=true;read_type=Sequential": 5,
+			},
+		},
+		{
+			name: "cache_hit_true_random",
+			f: func(m *otelMetrics) {
+				m.FileCacheReadCount(5, true, "Random")
+			},
+			expected: map[string]int64{
+				"cache_hit=true;read_type=Random": 5,
+			},
+		},
+		{
+			name: "cache_hit_true_parallel",
+			f: func(m *otelMetrics) {
+				m.FileCacheReadCount(5, true, "Parallel")
+			},
+			expected: map[string]int64{
+				"cache_hit=true;read_type=Parallel": 5,
+			},
+		},
+		{
+			name: "cache_hit_false_sequential",
+			f: func(m *otelMetrics) {
+				m.FileCacheReadCount(5, false, "Sequential")
+			},
+			expected: map[string]int64{
+				"cache_hit=false;read_type=Sequential": 5,
+			},
+		},
+		{
+			name: "cache_hit_false_random",
+			f: func(m *otelMetrics) {
+				m.FileCacheReadCount(5, false, "Random")
+			},
+			expected: map[string]int64{
+				"cache_hit=false;read_type=Random": 5,
+			},
+		},
+		{
+			name: "cache_hit_false_parallel",
+			f: func(m *otelMetrics) {
+				m.FileCacheReadCount(5, false, "Parallel")
+			},
+			expected: map[string]int64{
+				"cache_hit=false;read_type=Parallel": 5,
+			},
+		},
+		{
+			name: "multiple_attributes_summed",
+			f: func(m *otelMetrics) {
+				m.FileCacheReadCount(5, true, "Sequential")
+				m.FileCacheReadCount(2, false, "Random")
+				m.FileCacheReadCount(3, true, "Sequential")
+			},
+			expected: map[string]int64{
+				"cache_hit=false;read_type=Random":    2,
+				"cache_hit=true;read_type=Sequential": 8,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			m, rd := setupOTel(ctx, t)
+
+			tc.f(m)
+			waitForMetricsProcessing()
+
+			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+			readCount, ok := metrics["file_cache/read_count"]
+			assert.True(t, ok, "file_cache/read_count metric not found")
+			assert.Equal(t, tc.expected, readCount)
+		})
+	}
+}
+
+func TestFileCacheReadBytesCount(t *testing.T) {
+	tests := []struct {
+		name     string
+		f        func(m *otelMetrics)
+		expected map[string]int64
+	}{
+		{
+			name: "Sequential",
+			f: func(m *otelMetrics) {
+				m.FileCacheReadBytesCount(500, "Sequential")
+			},
+			expected: map[string]int64{
+				"read_type=Sequential": 500,
+			},
+		},
+		{
+			name: "Random",
+			f: func(m *otelMetrics) {
+				m.FileCacheReadBytesCount(300, "Random")
+			},
+			expected: map[string]int64{
+				"read_type=Random": 300,
+			},
+		},
+		{
+			name: "Parallel",
+			f: func(m *otelMetrics) {
+				m.FileCacheReadBytesCount(200, "Parallel")
+			},
+			expected: map[string]int64{
+				"read_type=Parallel": 200,
+			},
+		},
+		{
+			name: "multiple_attributes_summed",
+			f: func(m *otelMetrics) {
+				m.FileCacheReadBytesCount(500, "Sequential")
+				m.FileCacheReadBytesCount(200, "Random")
+				m.FileCacheReadBytesCount(300, "Sequential")
+			},
+			expected: map[string]int64{
+				"read_type=Random":     200,
+				"read_type=Sequential": 800,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			m, rd := setupOTel(ctx, t)
+
+			tc.f(m)
+			waitForMetricsProcessing()
+
+			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+			readBytesCount, ok := metrics["file_cache/read_bytes_count"]
+			assert.True(t, ok, "file_cache/read_bytes_count metric not found")
+			assert.Equal(t, tc.expected, readBytesCount)
+		})
+	}
+}
+
+func TestFileCacheReadLatencies(t *testing.T) {
+	tests := []struct {
+		name      string
+		cacheHit  bool
+		latencies []time.Duration
+	}{
+		{
+			name:      "cache_hit_true",
+			cacheHit:  true,
+			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
+		},
+		{
+			name:      "cache_hit_false",
+			cacheHit:  false,
+			latencies: []time.Duration{300 * time.Microsecond, 400 * time.Microsecond},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			m, rd := setupOTel(ctx, t)
+			var totalLatency time.Duration
+
+			for _, latency := range tc.latencies {
+				m.FileCacheReadLatencies(ctx, latency, tc.cacheHit)
+				totalLatency += latency
+			}
+			waitForMetricsProcessing()
+
+			metrics := gatherHistogramMetrics(ctx, t, rd)
+			readLatencies, ok := metrics["file_cache/read_latencies"]
+			require.True(t, ok, "file_cache/read_latencies metric not found")
+
+			expectedKey := fmt.Sprintf("cache_hit=%t", tc.cacheHit)
+			dp, ok := readLatencies[expectedKey]
+			require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
+			assert.Equal(t, uint64(len(tc.latencies)), dp.Count)
+			assert.Equal(t, totalLatency.Microseconds(), dp.Sum)
 		})
 	}
 }
