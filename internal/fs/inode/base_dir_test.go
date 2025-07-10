@@ -17,6 +17,7 @@ package inode
 import (
 	"fmt"
 	"os"
+	"syscall"
 	"testing"
 	"time"
 
@@ -227,4 +228,13 @@ func (t *BaseDirTest) Test_ShouldInvalidateKernelListCache_TtlExpired() {
 	t.clock.AdvanceTime(10 * time.Second)
 
 	AssertEq(true, t.in.ShouldInvalidateKernelListCache(ttl))
+}
+
+func (t *BaseDirTest) TestReadEntryCores() {
+	cores, newTok, err := t.in.ReadEntryCores(t.ctx, "")
+
+	// Should return ENOTSUP because listing is unsupported.
+	ExpectEq(nil, cores)
+	ExpectEq("", newTok)
+	ExpectEq(syscall.ENOTSUP, err)
 }
