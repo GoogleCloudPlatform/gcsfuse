@@ -15,12 +15,14 @@
 package storageutil
 
 import (
+	"context"
 	"errors"
 	"io"
 	"net"
 	"net/url"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/grpc/codes"
@@ -143,6 +145,85 @@ func TestShouldRetryReturnsTrueForUnauthenticatedGrpcErrors(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			actualResult := ShouldRetry(tc.err)
 			assert.Equal(t, tc.expectedResult, actualResult)
+		})
+	}
+}
+
+type fakeMetricHandle struct {
+	common.MetricHandle
+
+	gcsRetryCountCalled bool
+	gcsRetryCountInc    int64
+	gcsRetryCountVal    string
+}
+
+func (m *fakeMetricHandle) GCSRetryCount(ctx context.Context, inc int64, val string) {
+	m.gcsRetryCountCalled = true
+	m.gcsRetryCountInc = inc
+	m.gcsRetryCountVal = val
+}
+
+func TestShouldRetryWithMonitoringForNonRetryableErrors(t *testing.T) {
+	testCases := []struct {
+		name string
+		err  error
+	}{
+		{
+			name: "nil error",
+			err:  nil,
+		},
+		{
+			name: "non-retryable error",
+			err:  &googleapi.Error{Code: 400},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			fakeMetrics := &fakeMetricHandle{
+				MetricHandle: common.NewNoopMetrics(),
+			}
+
+			shouldRetry := ShouldRetryWithMonitoring(context.Background(), tc.err, fakeMetrics)
+
+			assert.False(t, shouldRetry)
+			assert.False(t, fakeMetrics.gcsRetryCountCalled)
+		})
+	}
+}
+
+func TestShouldRetryWithMonitoringForRetryableErrors(t *testing.T) {
+	retryableErr := &googleapi.Error{Code: 429}
+
+	testCases := []struct {
+		name                   string
+		err                    error
+		expectedMetricCategory string
+	}{
+		{
+			name:                   "retryable error, DeadlineExceeded",
+			err:                    context.DeadlineExceeded,
+			expectedMetricCategory: "STALLED_READ_REQUEST",
+		},
+		{
+			name:                   "retryable error, not DeadlineExceeded",
+			err:                    retryableErr,
+			expectedMetricCategory: "OTHER_ERRORS",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			fakeMetrics := &fakeMetricHandle{
+				MetricHandle: common.NewNoopMetrics(),
+			}
+
+			shouldRetry := ShouldRetryWithMonitoring(context.Background(), tc.err, fakeMetrics)
+
+			assert.True(t, shouldRetry)
+			assert.True(t, fakeMetrics.gcsRetryCountCalled)
+			assert.Equal(t, int64(1), fakeMetrics.gcsRetryCountInc)
+			assert.Equal(t, tc.expectedMetricCategory, fakeMetrics.gcsRetryCountVal)
 		})
 	}
 }

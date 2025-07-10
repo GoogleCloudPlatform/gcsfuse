@@ -31,7 +31,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/jacobsa/fuse/fuseops"
 	"golang.org/x/net/context"
 )
@@ -114,6 +113,9 @@ func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb i
 		bucket:                bucket,
 		start:                 -1,
 		limit:                 -1,
+		seeks:                 0,
+		totalReadBytes:        0,
+		readType:              common.ReadTypeSequential,
 		sequentialReadSizeMb:  sequentialReadSizeMb,
 		fileCacheHandler:      fileCacheHandler,
 		cacheFileForRangeRead: cacheFileForRangeRead,
@@ -260,9 +262,9 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 		// Here rr.fileCacheHandle will not be nil since we return from the above in those cases.
 		logger.Tracef("%.13v -> %s", requestId, requestOutput)
 
-		readType := util.Random
+		readType := common.ReadTypeRandom
 		if isSeq {
-			readType = util.Sequential
+			readType = common.ReadTypeSequential
 		}
 		captureFileCacheMetrics(ctx, rr.metricHandle, util.ReadTypeStringMap[int64(readType)], n, cacheHit, executionTime)
 	}()
@@ -279,6 +281,9 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 				// Fall back to GCS if it is a random read, cacheFileForRangeRead is
 				// False and there doesn't already exist file in cache.
 				isSeq = false
+				return 0, false, nil
+			} else if errors.Is(err, cacheutil.ErrFileExcludedFromCacheByRegex) {
+				// Fall back to GCS if the file is explicitly excluded from cache.
 				return 0, false, nil
 			}
 
@@ -529,7 +534,7 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 	rr.limit = end
 
 	requestedDataSize := end - start
-	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, util.ReadTypeStringMap[util.Sequential], requestedDataSize)
+	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, common.ReadTypeSequential, requestedDataSize)
 
 	return
 }
@@ -599,8 +604,8 @@ func (rr *randomReader) getReadInfo(
 }
 
 // readerType specifies the go-sdk interface to use for reads.
-func readerType(readType int64, start int64, end int64, bucketType gcs.BucketType) ReaderType {
-	if readType == util.Random && bucketType.Zonal {
+func readerType(readType string, start int64, end int64, bucketType gcs.BucketType) ReaderType {
+	if readType == common.ReadTypeRandom && bucketType.Zonal {
 		return MultiRangeReader
 	}
 	return RangeReader

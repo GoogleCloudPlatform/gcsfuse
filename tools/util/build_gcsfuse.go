@@ -73,7 +73,7 @@ func BuildGcsfuse(dstDir string) (err error) {
 			toolPath,
 			srcDir,
 			dstDir,
-			"fake_version",
+			"0.0.0",
 		)
 
 		var output []byte

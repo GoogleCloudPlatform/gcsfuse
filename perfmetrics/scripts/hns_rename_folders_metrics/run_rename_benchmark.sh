@@ -32,8 +32,9 @@ sudo bash add-google-cloud-ops-agent-repo.sh --also-install
 UPLOAD_FLAGS=$1
 gsutil cp gs://periodic-perf-tests/creds.json ../gsheet/
 
-echo "Upgrading gcloud version"
-../upgrade_gcloud.sh
+# Install latest gcloud.
+../install_latest_gcloud.sh
+export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
 
 #echo "Running renaming benchmark on flat bucket"
 #python3 renaming_benchmark.py config-flat.json flat "$UPLOAD_FLAGS"

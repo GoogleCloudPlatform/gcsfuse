@@ -18,7 +18,6 @@ import (
 	"context"
 	"log"
 	"path"
-	"syscall"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -55,19 +54,19 @@ func (t *unfinalizedObjectReads) TeardownTest() {}
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (t *unfinalizedObjectReads) TestUnfinalizedObjectsCantBeRead() {
+func (t *unfinalizedObjectReads) TestUnfinalizedObjectsCanBeRead() {
 	var size int = operations.MiB
+	writtenContent := setup.GenerateRandomString(size)
 	// Create un-finalized object via same mount.
 	fh := operations.CreateFile(path.Join(t.testDirPath, t.fileName), setup.FilePermission_0600, t.T())
-	operations.WriteWithoutClose(fh, setup.GenerateRandomString(size), t.T())
+	operations.WriteWithoutClose(fh, writtenContent, t.T())
 	defer operations.CloseFileShouldNotThrowError(t.T(), fh)
 
 	// Read un-finalized object.
-	content, err := operations.ReadFileSequentially(path.Join(t.testDirPath, t.fileName), util.MiB)
+	readContent, err := operations.ReadFileSequentially(path.Join(t.testDirPath, t.fileName), util.MiB)
 
-	require.Error(t.T(), err)
-	assert.ErrorContains(t.T(), err, syscall.ENOTSUP.Error())
-	assert.Empty(t.T(), content, "expected empty content, but got size: %v", len(content))
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), writtenContent, string(readContent))
 }
 
 ////////////////////////////////////////////////////////////////////////

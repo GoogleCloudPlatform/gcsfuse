@@ -113,6 +113,15 @@ func (bp *BlockPool) FreeBlocksChannel() chan Block {
 	return bp.freeBlocksCh
 }
 
+// Release puts the block back into the free blocks channel for reuse.
+func (bp *BlockPool) Release(b Block) {
+	select {
+	case bp.freeBlocksCh <- b:
+	default:
+		panic("Block pool's free blocks channel is full, this should never happen")
+	}
+}
+
 // BlockSize returns the block size used by the blockPool.
 func (bp *BlockPool) BlockSize() int64 {
 	return bp.blockSize
@@ -137,4 +146,10 @@ func (bp *BlockPool) ClearFreeBlockChannel(releaseLastBlock bool) error {
 			return nil
 		}
 	}
+}
+
+// TotalFreeBlocks returns the total number of free blocks available in the pool.
+// This is useful for testing and debugging purposes.
+func (bp *BlockPool) TotalFreeBlocks() int {
+	return len(bp.freeBlocksCh)
 }

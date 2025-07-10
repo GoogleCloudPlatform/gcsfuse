@@ -226,17 +226,17 @@ func categorize(err error) string {
 
 // Records file system operation count, failed operation count and the operation latency.
 func recordOp(ctx context.Context, metricHandle common.MetricHandle, method string, start time.Time, fsErr error) {
-	metricHandle.OpsCount(ctx, 1, []common.MetricAttr{{Key: common.FSOp, Value: method}})
+	metricHandle.OpsCount(ctx, 1, method)
 
 	// Recording opErrorCount.
 	if fsErr != nil {
 		errCategory := categorize(fsErr)
-		metricHandle.OpsErrorCount(ctx, 1, []common.MetricAttr{
-			{Key: common.FSOp, Value: method},
-			{Key: common.FSErrCategory, Value: errCategory}},
-		)
+		metricHandle.OpsErrorCount(ctx, 1, common.FSOpsErrorCategory{
+			FSOps:         method,
+			ErrorCategory: errCategory,
+		})
 	}
-	metricHandle.OpsLatency(ctx, time.Since(start), []common.MetricAttr{{Key: common.FSOp, Value: method}})
+	metricHandle.OpsLatency(ctx, time.Since(start), method)
 }
 
 // WithMonitoring takes a FileSystem, returns a FileSystem with monitoring
@@ -328,6 +328,10 @@ func (fs *monitoring) OpenDir(ctx context.Context, op *fuseops.OpenDirOp) error 
 
 func (fs *monitoring) ReadDir(ctx context.Context, op *fuseops.ReadDirOp) error {
 	return fs.invokeWrapped(ctx, "ReadDir", func(ctx context.Context) error { return fs.wrapped.ReadDir(ctx, op) })
+}
+
+func (fs *monitoring) ReadDirPlus(ctx context.Context, op *fuseops.ReadDirPlusOp) error {
+	return fs.invokeWrapped(ctx, "ReadDirPlus", func(ctx context.Context) error { return fs.wrapped.ReadDirPlus(ctx, op) })
 }
 
 func (fs *monitoring) ReleaseDirHandle(ctx context.Context, op *fuseops.ReleaseDirHandleOp) error {

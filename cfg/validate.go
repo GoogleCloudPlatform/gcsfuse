@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"regexp"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
@@ -76,6 +77,9 @@ func isValidFileCacheConfig(config *FileCacheConfig) error {
 	}
 	if config.DownloadChunkSizeMb < 1 {
 		return errors.New(DownloadChunkSizeMBInvalidValueError)
+	}
+	if _, err := regexp.Compile(config.ExperimentalExcludeRegex); err != nil {
+		return fmt.Errorf("invalid regex value %q provided for experimental-exclude-regex", config.ExperimentalExcludeRegex)
 	}
 
 	return nil

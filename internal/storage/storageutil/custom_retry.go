@@ -15,7 +15,11 @@
 package storageutil
 
 import (
+	"context"
+	"errors"
+
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/grpc/codes"
@@ -55,4 +59,23 @@ func ShouldRetry(err error) (b bool) {
 		}
 	}
 	return
+}
+
+func ShouldRetryWithMonitoring(ctx context.Context, err error, metricHandle common.MetricHandle) bool {
+	if err == nil {
+		return false
+	}
+
+	retry := ShouldRetry(err)
+	if !retry {
+		return false
+	}
+	// Record metrics
+	val := "OTHER_ERRORS"
+	if errors.Is(err, context.DeadlineExceeded) {
+		val = "STALLED_READ_REQUEST"
+	}
+
+	metricHandle.GCSRetryCount(ctx, 1, val)
+	return retry
 }

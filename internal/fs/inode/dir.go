@@ -91,6 +91,17 @@ type DirInode interface {
 		ctx context.Context,
 		tok string) (entries []fuseutil.Dirent, newTok string, err error)
 
+	// ReadEntryCores reads a batch of directory entries and returns them as a
+	// map of `inode.Core` objects along with a continuation token that can be
+	// used to pick up the read operation where it left off.
+	// Supply the empty token on the first call.
+	//
+	// At the end of the directory, the returned continuation token will be
+	// empty. Otherwise it will be non-empty. There is no guarantee about the
+	// number of entries returned; it may be zero even with a non-empty
+	// continuation token.
+	ReadEntryCores(ctx context.Context, tok string) (cores map[Name]*Core, newTok string, err error)
+
 	// Create an empty child file with the supplied (relative) name, failing with
 	// *gcs.PreconditionError if a backing object already exists in GCS.
 	// Return the full name of the child and the GCS object it backs up.
@@ -512,7 +523,7 @@ func (d *dirInode) Destroy() (err error) {
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) Attributes(
-	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
+	ctx context.Context, clobberedCheck bool) (attrs fuseops.InodeAttributes, err error) {
 	// Set up basic attributes.
 	attrs = d.attrs
 	attrs.Nlink = 1
@@ -775,9 +786,8 @@ func (d *dirInode) ReadEntries(
 	ctx context.Context,
 	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
 	var cores map[Name]*Core
-	cores, newTok, err = d.readObjects(ctx, tok)
+	cores, newTok, err = d.ReadEntryCores(ctx, tok)
 	if err != nil {
-		err = fmt.Errorf("read objects: %w", err)
 		return
 	}
 
@@ -795,6 +805,16 @@ func (d *dirInode) ReadEntries(
 			entry.Type = fuseutil.DT_Directory
 		}
 		entries = append(entries, entry)
+	}
+
+	return
+}
+
+func (d *dirInode) ReadEntryCores(ctx context.Context, tok string) (cores map[Name]*Core, newTok string, err error) {
+	cores, newTok, err = d.readObjects(ctx, tok)
+	if err != nil {
+		err = fmt.Errorf("read objects: %w", err)
+		return
 	}
 
 	d.prevDirListingTimeStamp = d.cacheClock.Now()

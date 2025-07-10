@@ -26,7 +26,6 @@ import (
 	cacheutil "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -61,7 +60,7 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 		}
 	}()
 
-	common.CaptureGCSReadMetrics(ctx, job.metricsHandle, util.ReadTypeStringMap[util.Parallel], end-start)
+	common.CaptureGCSReadMetrics(ctx, job.metricsHandle, common.ReadTypeParallel, end-start)
 
 	// Use standard copy function if O_DIRECT is disabled and memory aligned
 	// buffer otherwise.

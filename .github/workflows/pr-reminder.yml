@@ -1,0 +1,34 @@
+name: PR Review Reminder
+
+on:
+  # Allow manual runs.
+  workflow_dispatch:
+  schedule:
+    # Runs every hour from 9AM to 5PM IST weekdays.
+    - cron: '30 3-11 * * 1-5'
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    # These permissions are required for the action to post comments on pull requests.
+    permissions:
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        run: npm install @actions/github @actions/core
+
+      - name: Run Reminder Script
+        run: node .github/scripts/reminder.js
+        env:
+          # The GITHUB_TOKEN is automatically created by Actions.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

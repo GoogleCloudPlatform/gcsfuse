@@ -55,7 +55,7 @@ type StorageHandle interface {
 	// to that project rather than to the bucket's owning project.
 	//
 	// A user-project is required for all operations on Requester Pays buckets.
-	BucketHandle(ctx context.Context, bucketName string, billingProject string) (bh *bucketHandle, err error)
+	BucketHandle(ctx context.Context, bucketName string, billingProject string, enableRapidAppends bool) (bh *bucketHandle, err error)
 }
 
 type storageClient struct {
@@ -111,7 +111,7 @@ func createClientOptionForGRPCClient(clientConfig *storageutil.StorageClientConf
 	return
 }
 
-func setRetryConfig(sc *storage.Client, clientConfig *storageutil.StorageClientConfig) {
+func setRetryConfig(ctx context.Context, sc *storage.Client, clientConfig *storageutil.StorageClientConfig) {
 	if sc == nil || clientConfig == nil {
 		logger.Fatal("setRetryConfig: Empty storage client or clientConfig")
 		return
@@ -129,7 +129,9 @@ func setRetryConfig(sc *storage.Client, clientConfig *storageutil.StorageClientC
 		Multiplier: clientConfig.RetryMultiplier,
 	}),
 		storage.WithPolicy(storage.RetryAlways),
-		storage.WithErrorFunc(storageutil.ShouldRetry)}
+		storage.WithErrorFunc(func(err error) bool {
+			return storageutil.ShouldRetryWithMonitoring(ctx, err, clientConfig.MetricHandle)
+		})}
 
 	sc.SetRetry(retryOpts...)
 
@@ -156,7 +158,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	if err != nil {
 		err = fmt.Errorf("NewGRPCClient: %w", err)
 	} else {
-		setRetryConfig(sc, clientConfig)
+		setRetryConfig(ctx, sc, clientConfig)
 	}
 
 	// Unset the environment variable, since it's used only while creation of grpc client.
@@ -222,7 +224,7 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		err = fmt.Errorf("go http storage client creation failed: %w", err)
 		return
 	}
-	setRetryConfig(sc, clientConfig)
+	setRetryConfig(ctx, sc, clientConfig)
 	return
 }
 
@@ -318,7 +320,7 @@ func (sh *storageClient) getClient(ctx context.Context, isbucketZonal bool) (*st
 	return nil, fmt.Errorf("invalid client-protocol requested: %s", sh.clientConfig.ClientProtocol)
 }
 
-func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, billingProject string) (bh *bucketHandle, err error) {
+func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, billingProject string, enableRapidAppends bool) (bh *bucketHandle, err error) {
 	var client *storage.Client
 	bucketType, err := sh.lookupBucketType(bucketName)
 	if err != nil {
@@ -347,10 +349,11 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 	}
 
 	bh = &bucketHandle{
-		bucket:        storageBucketHandle,
-		bucketName:    bucketName,
-		controlClient: sh.storageControlClient,
-		bucketType:    bucketType,
+		bucket:             storageBucketHandle,
+		bucketName:         bucketName,
+		controlClient:      sh.storageControlClient,
+		bucketType:         bucketType,
+		enableRapidAppends: enableRapidAppends,
 	}
 
 	return

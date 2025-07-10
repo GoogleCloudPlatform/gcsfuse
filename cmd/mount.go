@@ -98,6 +98,7 @@ be interacting with the file system.`)
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
 		ChunkTransferTimeoutSecs:           newConfig.GcsRetries.ChunkTransferTimeoutSecs,
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
+		ExperimentalEnableRapidAppends:     newConfig.Write.ExperimentalEnableRapidAppends,
 	}
 	bm := gcsx.NewBucketManager(bucketCfg, storageHandle)
 
@@ -173,7 +174,18 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		DisableWritebackCaching: newConfig.Write.EnableStreamingWrites,
 	}
 
-	mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ")
-	mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelTrace, "fuse_debug: ")
+	// GCSFuse to Jacobsa Fuse Log Level mapping:
+	// OFF           OFF
+	// ERROR         ERROR
+	// WARNING       ERROR
+	// INFO          ERROR
+	// DEBUG         ERROR
+	// TRACE         TRACE
+	if newConfig.Logging.Severity.Rank() <= cfg.ErrorLogSeverity.Rank() {
+		mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ")
+	}
+	if newConfig.Logging.Severity.Rank() <= cfg.TraceLogSeverity.Rank() {
+		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelTrace, "fuse_debug: ")
+	}
 	return mountCfg
 }

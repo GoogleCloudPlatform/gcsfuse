@@ -442,8 +442,7 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 	}
 
 	// Put the object in cache.
-	o := storageutil.ConvertMinObjectToObject(m)
-	b.insert(o)
+	b.insertMinObject(m)
 
 	return
 }
@@ -514,4 +513,8 @@ func (b *fastStatBucket) NewMultiRangeDownloader(
 	ctx context.Context, req *gcs.MultiRangeDownloaderRequest) (mrd gcs.MultiRangeDownloader, err error) {
 	mrd, err = b.wrapped.NewMultiRangeDownloader(ctx, req)
 	return
+}
+
+func (b *fastStatBucket) GCSName(obj *gcs.MinObject) string {
+	return b.wrapped.GCSName(obj)
 }

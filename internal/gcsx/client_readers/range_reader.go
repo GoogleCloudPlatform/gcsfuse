@@ -27,7 +27,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
 
 const (
@@ -280,7 +279,7 @@ func (rr *RangeReader) startRead(start int64, end int64) error {
 	rr.limit = end
 
 	requestedDataSize := end - start
-	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, util.ReadTypeStringMap[util.Sequential], requestedDataSize)
+	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, common.ReadTypeSequential, requestedDataSize)
 
 	return nil
 }
@@ -311,17 +310,12 @@ func (rr *RangeReader) skipBytes(offset int64) {
 // offset) or cannot serve the full request within its limit, it is closed and discarded.
 //
 // It attempts to skip forward to the requested offset if possible to avoid creating
-// a new reader unnecessarily. If the reader is discarded due to misalignment, the method
-// returns true to signal that a seek should be recorded.
+// a new reader unnecessarily.
 //
 // Parameters:
 //   - offset: the starting byte position of the requested read.
 //   - p: the buffer representing the size of the requested read.
-//
-// Returns:
-//   - true if the reader was discarded due to being misaligned (seek should be counted).
-//   - false otherwise.
-func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(offset int64, p []byte) bool {
+func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(offset int64, p []byte) {
 	rr.skipBytes(offset)
 
 	// If we have an existing reader, but it's positioned at the wrong place,
@@ -332,14 +326,7 @@ func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(offset int64, p []
 		rr.closeReader()
 		rr.reader = nil
 		rr.cancel = nil
-		if rr.start != offset {
-			// Return true to increment the seek count when discarding a reader due to incorrect positioning.
-			// Discarding readers that can't fulfill the entire request without this check would prevent
-			// the reader size from growing appropriately in random read scenarios.
-			return true
-		}
 	}
-	return false
 }
 
 // readFromExistingReader attempts to read data from an existing reader if one is available.

@@ -66,3 +66,51 @@ func TestGetFuseMountConfig_MountOptionsFormattedCorrectly(t *testing.T) {
 		assert.True(t, fuseMountCfg.EnableParallelDirOps) // Default true unless explicitly disabled
 	}
 }
+
+func TestGetFuseMountConfig_LoggerInitializationInFuse(t *testing.T) {
+	testCases := []struct {
+		name                  string
+		gcsFuseLogLevel       string
+		shouldInitializeTrace bool
+		shouldInitializeError bool
+	}{
+		{
+			name:                  "GcsFuseOffLogLevelShouldNotInitializeAnyLogger",
+			gcsFuseLogLevel:       "OFF",
+			shouldInitializeTrace: false,
+			shouldInitializeError: false,
+		},
+		{
+			name:                  "GcsFuseErrorLogLevelShouldInitializeErrorLoggerOnly",
+			gcsFuseLogLevel:       "ERROR",
+			shouldInitializeTrace: false,
+			shouldInitializeError: true,
+		},
+		{
+			name:                  "GcsFuseDebugLogLevelShouldInitializeErrorLoggerOnly",
+			gcsFuseLogLevel:       "DEBUG",
+			shouldInitializeTrace: false,
+			shouldInitializeError: true,
+		},
+		{
+			name:                  "GcsFuseTraceLogLevelShouldInitializeBothLogger",
+			gcsFuseLogLevel:       "TRACE",
+			shouldInitializeTrace: true,
+			shouldInitializeError: true,
+		},
+	}
+
+	fsName := "mybucket"
+	for _, tc := range testCases {
+		newConfig := &cfg.Config{
+			Logging: cfg.LoggingConfig{
+				Severity: cfg.LogSeverity(tc.gcsFuseLogLevel),
+			},
+		}
+
+		fuseMountCfg := getFuseMountConfig(fsName, newConfig)
+
+		assert.Equal(t, tc.shouldInitializeError, fuseMountCfg.ErrorLogger != nil)
+		assert.Equal(t, tc.shouldInitializeTrace, fuseMountCfg.DebugLogger != nil)
+	}
+}

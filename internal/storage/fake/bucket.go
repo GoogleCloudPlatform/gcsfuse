@@ -392,18 +392,32 @@ func preconditionChecks(b *bucket, req *gcs.CreateObjectRequest, contents []byte
 }
 
 func createOrUpdateFakeObject(b *bucket, req *gcs.CreateObjectRequest, contents []byte) (o *gcs.Object, err error) {
-	// Create an object record from the given attributes.
-	var fo fakeObject = b.mintObject(req, contents)
-	o = copyObject(&fo.metadata)
-
+	var fo fakeObject
 	// Replace an entry in or add an entry to our list of objects.
 	existingIndex := b.objects.find(req.Name)
 	if existingIndex < len(b.objects) {
+		var content []byte
+		if b.bucketType.Zonal {
+			// If the bucket type is zonal, then we will update the fake object with the appended content.
+			b.mu.Unlock()
+			existingContent, err := storageutil.ReadObject(context.Background(), b, req.Name)
+			b.mu.Lock()
+			if err != nil {
+				return nil, fmt.Errorf("error while reading existing content in fake object : %v", err)
+			}
+			content = append(existingContent, contents...)
+		} else {
+			// If the bucket type is not zonal, then we will overwrite.
+			content = contents
+		}
+		fo = b.mintObject(req, content)
 		b.objects[existingIndex] = fo
 	} else {
+		fo = b.mintObject(req, contents)
 		b.objects = append(b.objects, fo)
 		sort.Sort(b.objects)
 	}
+	o = copyObject(&fo.metadata)
 
 	if b.BucketType().Hierarchical {
 		b.addFolderEntry(req.Name)
@@ -524,6 +538,7 @@ func copyMinObject(o *gcs.Object) *gcs.MinObject {
 	copy.Generation = o.Generation
 	copy.MetaGeneration = o.MetaGeneration
 	copy.Updated = o.Updated
+	copy.Finalized = o.Finalized
 	copy.Metadata = copyMetadata(o.Metadata)
 	copy.ContentEncoding = o.ContentEncoding
 	copy.CRC32C = o.CRC32C
@@ -706,7 +721,7 @@ func (b *bucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (*gcs.Min
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	offset, err := w.Flush()
+	_, err := w.Flush()
 	if err != nil {
 		return nil, err
 	}
@@ -715,7 +730,6 @@ func (b *bucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (*gcs.Min
 	if !ok {
 		return nil, fmt.Errorf("could not type assert gcs.Writer to FakeObjectWriter")
 	}
-	fakeObjectWriter.Object.Size = uint64(offset)
 	return fakeObjectWriter.Object, nil
 }
 
@@ -1250,4 +1264,8 @@ func (b *bucket) NewMultiRangeDownloader(
 	}
 
 	return &fakeMultiRangeDownloader{obj: &obj}, nil
+}
+
+func (b *bucket) GCSName(obj *gcs.MinObject) string {
+	return obj.Name
 }

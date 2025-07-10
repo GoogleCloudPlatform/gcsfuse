@@ -103,6 +103,10 @@ func (d dummyFS) ReadDir(_ context.Context, _ *fuseops.ReadDirOp) error {
 	return nil
 }
 
+func (d dummyFS) ReadDirPlus(_ context.Context, _ *fuseops.ReadDirPlusOp) error {
+	return nil
+}
+
 func (d dummyFS) ReleaseDirHandle(_ context.Context, _ *fuseops.ReleaseDirHandleOp) error {
 	return nil
 }

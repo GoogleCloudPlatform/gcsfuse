@@ -39,8 +39,8 @@ type UploadHandler struct {
 	// Wait group for waiting for the uploader goroutine to finish.
 	wg sync.WaitGroup
 
-	// Channel on which uploaded block will be posted for reuse.
-	freeBlocksCh chan block.Block
+	// Used to release the free (uploaded) block back to the pool.
+	blockPool *block.BlockPool
 
 	// writer to resumable upload the blocks to GCS.
 	writer gcs.Writer
@@ -63,7 +63,7 @@ type CreateUploadHandlerRequest struct {
 	Object                   *gcs.Object
 	ObjectName               string
 	Bucket                   gcs.Bucket
-	FreeBlocksCh             chan block.Block
+	BlockPool                *block.BlockPool
 	MaxBlocksPerFile         int64
 	BlockSize                int64
 	ChunkTransferTimeoutSecs int64
@@ -74,7 +74,7 @@ func newUploadHandler(req *CreateUploadHandlerRequest) *UploadHandler {
 	uh := &UploadHandler{
 		uploadCh:             make(chan block.Block, req.MaxBlocksPerFile),
 		wg:                   sync.WaitGroup{},
-		freeBlocksCh:         req.FreeBlocksCh,
+		blockPool:            req.BlockPool,
 		bucket:               req.Bucket,
 		objectName:           req.ObjectName,
 		obj:                  req.Object,
@@ -107,7 +107,16 @@ func (uh *UploadHandler) createObjectWriter() (err error) {
 	// (and context will be cancelled) by the time complete upload is done.
 	var ctx context.Context
 	ctx, uh.cancelFunc = context.WithCancel(context.Background())
-	uh.writer, err = uh.bucket.CreateObjectChunkWriter(ctx, req, int(uh.blockSize), nil)
+	if uh.bucket.BucketType().Zonal && (uh.obj != nil && uh.obj.Finalized.IsZero()) {
+		chunkWriterReq := gcs.CreateObjectChunkWriterRequest{
+			CreateObjectRequest: *req,
+			ChunkSize:           int(uh.blockSize),
+			Offset:              int64(uh.obj.Size),
+		}
+		uh.writer, err = uh.bucket.CreateAppendableObjectWriter(ctx, &chunkWriterReq)
+	} else {
+		uh.writer, err = uh.bucket.CreateObjectChunkWriter(ctx, req, int(uh.blockSize), nil)
+	}
 	return
 }
 
@@ -122,7 +131,7 @@ func (uh *UploadHandler) UploadError() (err error) {
 func (uh *UploadHandler) uploader() {
 	for currBlock := range uh.uploadCh {
 		if uh.UploadError() != nil {
-			uh.freeBlocksCh <- currBlock
+			uh.blockPool.Release(currBlock)
 			uh.wg.Done()
 			continue
 		}
@@ -138,8 +147,8 @@ func (uh *UploadHandler) uploader() {
 			err = gcs.GetGCSError(err)
 			uh.uploadError.Store(&err)
 		}
-		// Put back the uploaded block on the freeBlocksChannel for re-use.
-		uh.freeBlocksCh <- currBlock
+		// Put back the uploaded block on the block pool for re-use.
+		uh.blockPool.Release(currBlock)
 		uh.wg.Done()
 	}
 }
@@ -168,8 +177,7 @@ func (uh *UploadHandler) Finalize() (*gcs.MinObject, error) {
 
 func (uh *UploadHandler) ensureWriter() error {
 	if uh.writer == nil {
-		err := uh.createObjectWriter()
-		if err != nil {
+		if err := uh.createObjectWriter(); err != nil {
 			return fmt.Errorf("createObjectWriter failed for object %s: %w", uh.objectName, err)
 		}
 	}
@@ -219,7 +227,7 @@ func (uh *UploadHandler) Destroy() {
 			if !ok {
 				return
 			}
-			uh.freeBlocksCh <- currBlock
+			uh.blockPool.Release(currBlock)
 			// Marking as wg.Done to ensure any waiters are unblocked.
 			uh.wg.Done()
 		default:

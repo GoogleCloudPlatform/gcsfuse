@@ -17,6 +17,7 @@ package inode
 import (
 	"fmt"
 	"os"
+	"syscall"
 	"testing"
 	"time"
 
@@ -152,8 +153,18 @@ func (t *BaseDirTest) LookupCount() {
 	ExpectTrue(t.in.DecrementLookupCount(1))
 }
 
-func (t *BaseDirTest) Attributes() {
-	attrs, err := t.in.Attributes(t.ctx)
+func (t *BaseDirTest) Attributes_ClobberedCheckTrue() {
+	attrs, err := t.in.Attributes(t.ctx, true)
+
+	AssertEq(nil, err)
+	ExpectEq(uid, attrs.Uid)
+	ExpectEq(gid, attrs.Gid)
+	ExpectEq(dirMode|os.ModeDir, attrs.Mode)
+}
+
+func (t *BaseDirTest) Attributes_ClobberedCheckFalse() {
+	attrs, err := t.in.Attributes(t.ctx, false)
+
 	AssertEq(nil, err)
 	ExpectEq(uid, attrs.Uid)
 	ExpectEq(gid, attrs.Gid)
@@ -217,4 +228,13 @@ func (t *BaseDirTest) Test_ShouldInvalidateKernelListCache_TtlExpired() {
 	t.clock.AdvanceTime(10 * time.Second)
 
 	AssertEq(true, t.in.ShouldInvalidateKernelListCache(ttl))
+}
+
+func (t *BaseDirTest) TestReadEntryCores() {
+	cores, newTok, err := t.in.ReadEntryCores(t.ctx, "")
+
+	// Should return ENOTSUP because listing is unsupported.
+	ExpectEq(nil, cores)
+	ExpectEq("", newTok)
+	ExpectEq(syscall.ENOTSUP, err)
 }

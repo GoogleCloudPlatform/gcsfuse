@@ -29,7 +29,6 @@ import (
 	cacheUtil "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/jacobsa/fuse/fuseops"
 )
 
@@ -98,7 +97,7 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 		handleID = uint64(readOp.Handle)
 	}
 	requestID := uuid.New()
-	logger.Tracef("%.13v <- FileCache(%s:/%s, offset: %d, size: %d, handle: %d)", requestID, fc.bucket.Name(), fc.object.Name, offset, len(p), handleID)
+	logger.Tracef("%.13v <- FileCache(%s:/%s, offset: %d, size: %d handle: %d)", requestID, fc.bucket.Name(), fc.object.Name, offset, len(p), handleID)
 
 	startTime := time.Now()
 	var bytesRead int
@@ -119,9 +118,9 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 
 		logger.Tracef("%.13v -> %s", requestID, requestOutput)
 
-		readType := util.Random
+		readType := common.ReadTypeRandom
 		if isSequential {
-			readType = util.Sequential
+			readType = common.ReadTypeSequential
 		}
 		captureFileCacheMetrics(ctx, fc.metricHandle, util.ReadTypeStringMap[int64(readType)], bytesRead, cacheHit, executionTime)
 	}()
@@ -130,17 +129,24 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 	if fc.fileCacheHandle == nil {
 		fc.fileCacheHandle, err = fc.fileCacheHandler.GetCacheHandle(fc.object, fc.bucket, fc.cacheFileForRangeRead, offset)
 		if err != nil {
+			cacheHit = false
+			bytesRead = 0
 			switch {
 			case errors.Is(err, lru.ErrInvalidEntrySize):
 				logger.Warnf("tryReadingFromFileCache: while creating CacheHandle: %v", err)
+				err = nil
 				return 0, false, nil
 			case errors.Is(err, cacheUtil.ErrCacheHandleNotRequiredForRandomRead):
 				// Fall back to GCS if it is a random read, cacheFileForRangeRead is
 				// false and there doesn't already exist file in cache.
 				isSequential = false
+				err = nil
+				return 0, false, nil
+			case errors.Is(err, cacheUtil.ErrFileExcludedFromCacheByRegex):
 				return 0, false, nil
 			default:
-				return 0, false, fmt.Errorf("tryReadingFromFileCache: GetCacheHandle failed: %w", err)
+				err = fmt.Errorf("tryReadingFromFileCache: GetCacheHandle failed: %w", err)
+				return 0, false, err
 			}
 		}
 	}
@@ -161,7 +167,8 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 		}
 		fc.fileCacheHandle = nil
 	} else if !errors.Is(err, cacheUtil.ErrFallbackToGCS) {
-		return 0, false, fmt.Errorf("tryReadingFromFileCache: while reading via cache: %w", err)
+		err = fmt.Errorf("tryReadingFromFileCache: while reading via cache: %w", err)
+		return 0, false, err
 	}
 	err = nil
 
@@ -201,13 +208,13 @@ func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (
 }
 
 func captureFileCacheMetrics(ctx context.Context, metricHandle common.MetricHandle, readType string, readDataSize int, cacheHit bool, readLatency time.Duration) {
-	metricHandle.FileCacheReadCount(ctx, 1, []common.MetricAttr{
-		{Key: common.ReadType, Value: readType},
-		{Key: common.CacheHit, Value: strconv.FormatBool(cacheHit)},
+	metricHandle.FileCacheReadCount(ctx, 1, common.CacheHitReadType{
+		ReadType: readType,
+		CacheHit: strconv.FormatBool(cacheHit),
 	})
 
-	metricHandle.FileCacheReadBytesCount(ctx, int64(readDataSize), []common.MetricAttr{{Key: common.ReadType, Value: readType}})
-	metricHandle.FileCacheReadLatency(ctx, readLatency, []common.MetricAttr{{Key: common.CacheHit, Value: strconv.FormatBool(cacheHit)}})
+	metricHandle.FileCacheReadBytesCount(ctx, int64(readDataSize), readType)
+	metricHandle.FileCacheReadLatency(ctx, readLatency, strconv.FormatBool(cacheHit))
 }
 
 func (fc *FileCacheReader) Destroy() {
