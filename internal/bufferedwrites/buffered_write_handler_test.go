@@ -227,7 +227,7 @@ func (testSuite *BufferedWriteTest) TestFlushWithNonNilCurrentBlock() {
 	assert.NotNil(testSuite.T(), obj)
 	assert.Equal(testSuite.T(), uint64(2), obj.Size)
 	// Validate that all blocks have been freed up.
-	assert.Equal(testSuite.T(), 0, len(bwhImpl.blockPool.FreeBlocksChannel()))
+	assert.Equal(testSuite.T(), 0, bwhImpl.uploadHandler.blockPool.TotalFreeBlocks())
 }
 
 func (testSuite *BufferedWriteTest) TestFlushWithNilCurrentBlock() {
@@ -293,7 +293,7 @@ func (testSuite *BufferedWriteTest) TestSync5InProgressBlocks() {
 	assert.NoError(testSuite.T(), err)
 	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
 	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
-	assert.Equal(testSuite.T(), 0, len(bwhImpl.blockPool.FreeBlocksChannel()))
+	assert.Equal(testSuite.T(), 0, bwhImpl.uploadHandler.blockPool.TotalFreeBlocks())
 	assert.Nil(testSuite.T(), o)
 }
 
@@ -341,7 +341,7 @@ func (testSuite *BufferedWriteTest) TestSyncPartialBlockTableDriven() {
 			// Current block should also be uploaded.
 			assert.Nil(testSuite.T(), bwhImpl.current)
 			assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
-			assert.Equal(testSuite.T(), 0, len(bwhImpl.blockPool.FreeBlocksChannel()))
+			assert.Equal(testSuite.T(), 0, bwhImpl.uploadHandler.blockPool.TotalFreeBlocks())
 			// Read the object from back door.
 			content, err := storageutil.ReadObject(context.Background(), bwhImpl.uploadHandler.bucket, bwhImpl.uploadHandler.objectName)
 			if tc.bucketType.Zonal {
@@ -452,7 +452,7 @@ func (testSuite *BufferedWriteTest) TestDestroyShouldClearFreeBlockChannel() {
 
 	require.Nil(testSuite.T(), err)
 	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
-	assert.Equal(testSuite.T(), 0, len(bwhImpl.blockPool.FreeBlocksChannel()))
+	assert.Equal(testSuite.T(), 0, bwhImpl.uploadHandler.blockPool.TotalFreeBlocks())
 	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
 }
 
@@ -462,7 +462,7 @@ func (testSuite *BufferedWriteTest) TestUnlinkBeforeWrite() {
 	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
 	assert.Nil(testSuite.T(), bwhImpl.uploadHandler.cancelFunc)
 	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
-	assert.Equal(testSuite.T(), 0, len(bwhImpl.blockPool.FreeBlocksChannel()))
+	assert.Equal(testSuite.T(), 0, bwhImpl.uploadHandler.blockPool.TotalFreeBlocks())
 }
 
 func (testSuite *BufferedWriteTest) TestUnlinkAfterWrite() {
@@ -481,7 +481,7 @@ func (testSuite *BufferedWriteTest) TestUnlinkAfterWrite() {
 
 	assert.True(testSuite.T(), cancelCalled)
 	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
-	assert.Equal(testSuite.T(), 0, len(bwhImpl.blockPool.FreeBlocksChannel()))
+	assert.Equal(testSuite.T(), 0, bwhImpl.uploadHandler.blockPool.TotalFreeBlocks())
 }
 
 func (testSuite *BufferedWriteTest) TestReFlushAfterUploadFails() {

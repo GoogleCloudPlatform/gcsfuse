@@ -300,18 +300,6 @@ func (t *BlockPoolTest) validateGetBlockIsNotBlocked(bp *BlockPool) Block {
 	}
 }
 
-func (t *BlockPoolTest) TestFreeBlocksChannel() {
-	freeBlocksCh := make(chan Block)
-	bp := &BlockPool{
-		freeBlocksCh: freeBlocksCh,
-	}
-
-	ch := bp.FreeBlocksChannel()
-
-	assert.NotNil(t.T(), ch)
-	assert.Equal(t.T(), freeBlocksCh, ch)
-}
-
 func (t *BlockPoolTest) TestCanAllocateBlock() {
 	tests := []struct {
 		name        string
