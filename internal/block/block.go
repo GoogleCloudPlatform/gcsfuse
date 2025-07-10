@@ -71,7 +71,7 @@ type Block interface {
 	// It returns the status of the block and an error if any.
 	AwaitReady(ctx context.Context) (BlockStatus, error)
 
-	// NotifyReady is used by consumer to marks the block is ready to consume.
+	// NotifyReady is used by producer to mark the block as ready to consume.
 	// The value indicates the status of the block:
 	// - BlockStatusDownloaded: Download of this block is complete.
 	// - BlockStatusDownloadFailed: Download of this block has failed.
