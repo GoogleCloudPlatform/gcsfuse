@@ -42,6 +42,51 @@ func setupOTel(ctx context.Context, t *testing.T) (*otelMetrics, *metric.ManualR
 	return m, reader
 }
 
+// gatherHistogramMetrics collects all histogram metrics from the reader.
+// It returns a map where the key is the metric name, and the value is another map.
+// The inner map's key is a sorted, semicolon-separated string of attributes,
+// and the value is the HistogramDataPoint.
+func gatherHistogramMetrics(ctx context.Context, t *testing.T, rd *metric.ManualReader) map[string]map[string]metricdata.HistogramDataPoint[int64] {
+	t.Helper()
+	var rm metricdata.ResourceMetrics
+	err := rd.Collect(ctx, &rm)
+	require.NoError(t, err)
+
+	results := make(map[string]map[string]metricdata.HistogramDataPoint[int64])
+
+	for _, sm := range rm.ScopeMetrics {
+		for _, m := range sm.Metrics {
+			// We are interested in Histogram[int64].
+			hist, ok := m.Data.(metricdata.Histogram[int64])
+			if !ok {
+				continue
+			}
+
+			metricMap := make(map[string]metricdata.HistogramDataPoint[int64])
+			for _, dp := range hist.DataPoints {
+				if dp.Count == 0 {
+					continue
+				}
+
+				var parts []string
+				for _, kv := range dp.Attributes.ToSlice() {
+					parts = append(parts, fmt.Sprintf("%s=%s", kv.Key, kv.Value.AsString()))
+				}
+				sort.Strings(parts)
+				key := strings.Join(parts, ";")
+
+				metricMap[key] = dp
+			}
+
+			if len(metricMap) > 0 {
+				results[m.Name] = metricMap
+			}
+		}
+	}
+
+	return results
+}
+
 // gatherNonZeroCounterMetrics collects all non-zero counter metrics from the reader.
 // It returns a map where the key is the metric name, and the value is another map.
 // The inner map's key is a sorted, semicolon-separated string of attributes,
@@ -472,6 +517,56 @@ func TestFsOpsErrorCountDifferentErrorsSummed(t *testing.T) {
 	opsErrorCount, ok := metrics["fs/ops_error_count"]
 	assert.True(t, ok, "fs/ops_error_count metric not found")
 	assert.Equal(t, map[string]int64{"fs_error_category=IO_ERROR;fs_op=ReadFile": 8, "fs_error_category=NETWORK_ERROR;fs_op=WriteFile": 2}, opsErrorCount)
+}
+
+func TestFsOpsLatency(t *testing.T) {
+	fsOps := []string{
+		"StatFS", "LookUpInode", "GetInodeAttributes", "SetInodeAttributes", "ForgetInode",
+		"BatchForget", "MkDir", "MkNode", "CreateFile", "CreateLink", "CreateSymlink",
+		"Rename", "RmDir", "Unlink", "OpenDir", "ReadDir", "ReleaseDirHandle",
+		"OpenFile", "ReadFile", "WriteFile", "SyncFile", "FlushFile", "ReleaseFileHandle",
+		"ReadSymlink", "RemoveXattr", "GetXattr", "ListXattr", "SetXattr", "Fallocate", "SyncFS",
+	}
+
+	for _, op := range fsOps {
+		op := op
+		t.Run(op, func(t *testing.T) {
+			ctx := context.Background()
+			m, rd := setupOTel(ctx, t)
+			latency := 123 * time.Microsecond
+
+			m.FsOpsLatency(ctx, latency, op)
+			waitForMetricsProcessing()
+
+			metrics := gatherHistogramMetrics(ctx, t, rd)
+			opsLatency, ok := metrics["fs/ops_latency"]
+			require.True(t, ok, "fs/ops_latency metric not found")
+			expectedKey := fmt.Sprintf("fs_op=%s", op)
+			dp, ok := opsLatency[expectedKey]
+			require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
+			assert.Equal(t, uint64(1), dp.Count)
+			assert.Equal(t, latency.Microseconds(), dp.Sum)
+		})
+	}
+}
+
+func TestFsOpsLatencySummed(t *testing.T) {
+	ctx := context.Background()
+	m, rd := setupOTel(ctx, t)
+	latency1 := 100 * time.Microsecond
+	latency2 := 200 * time.Microsecond
+
+	m.FsOpsLatency(ctx, latency1, "ReadFile")
+	m.FsOpsLatency(ctx, latency2, "ReadFile")
+	waitForMetricsProcessing()
+
+	metrics := gatherHistogramMetrics(ctx, t, rd)
+	opsLatency, ok := metrics["fs/ops_latency"]
+	require.True(t, ok, "fs/ops_latency metric not found")
+	dp, ok := opsLatency["fs_op=ReadFile"]
+	require.True(t, ok, "DataPoint not found for key: fs_op=ReadFile")
+	assert.Equal(t, uint64(2), dp.Count)
+	assert.Equal(t, latency1.Microseconds()+latency2.Microseconds(), dp.Sum)
 }
 
 func waitForMetricsProcessing() {
