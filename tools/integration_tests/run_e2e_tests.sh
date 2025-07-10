@@ -247,7 +247,7 @@ function install_packages() {
   # Install required go version.
   ./perfmetrics/scripts/install_go.sh "1.24.0"
   export PATH="/usr/local/go/bin:$PATH"
-
+  
   sudo apt-get update
   sudo apt-get install -y python3
   # install python3-setuptools tools.
@@ -303,8 +303,8 @@ function run_non_parallel_tests() {
     test_path_non_parallel="./tools/integration_tests/$test_dir_np"
     # To make it clear whether tests are running on a flat or HNS bucket, We kept the log file naming
     # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
-    # local log_file="/tmp/${test_dir_np}_${bucket_name_non_parallel}.log"
-    # echo $log_file >> $TEST_LOGS_FILE
+    local log_file="/tmp/${test_dir_np}_${bucket_name_non_parallel}.log"
+    echo $log_file >> $TEST_LOGS_FILE
 
     # Executing integration tests
     echo "Running test package in non-parallel (with zonal=${zonal}): ${test_dir_np} ..."
@@ -337,15 +337,15 @@ function run_parallel_tests() {
     # The -bench flag yells go test to run the benchmark tests and report their results by
     # enabling the benchmarking framework.
     # The -benchtime flag specifies exact number of iterations a benchmark should run , in this
-    # case, setting this to 100 to avoid flakiness.
+    # case, setting this to 100 to avoid flakiness. 
     if [ $test_dir_p == "benchmarking" ]; then
       benchmark_flags="-bench=. -benchtime=100x"
     fi
     test_path_parallel="./tools/integration_tests/$test_dir_p"
     # To make it clear whether tests are running on a flat or HNS bucket, We kept the log file naming
     # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
-    # local log_file="/tmp/${test_dir_p}_${bucket_name_parallel}.log"
-    # echo $log_file >> $TEST_LOGS_FILE
+    local log_file="/tmp/${test_dir_p}_${bucket_name_parallel}.log"
+    echo $log_file >> $TEST_LOGS_FILE
     # Executing integration tests
     echo "Queueing up test package in parallel (with zonal=${zonal}): ${test_dir_p} ..."
     GRPC_GO_LOG_VERBOSITY_LEVEL=99 GRPC_GO_LOG_SEVERITY_LEVEL=info GODEBUG=asyncpreemptoff=1 go test $test_path_parallel $GO_TEST_SHORT_FLAG $PRESUBMIT_RUN_FLAG --zonal=${zonal} $benchmark_flags -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE $USE_PREBUILT_GCSFUSE_BINARY -timeout $INTEGRATION_TEST_TIMEOUT &

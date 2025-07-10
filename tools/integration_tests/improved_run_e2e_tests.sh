@@ -58,13 +58,13 @@ readonly TPCZERO_PROJECT_ID="tpczero-system:gcsfuse-test-project"
 readonly TPC_BUCKET_LOCATION="u-us-prp1"
 readonly BUCKET_PREFIX="gcsfuse-e2e"
 readonly INTEGRATION_TEST_PACKAGE_DIR="./tools/integration_tests"
-readonly INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS=60
+readonly INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS=60 
 readonly TMP_PREFIX="gcsfuse_e2e"
 readonly ZONAL_BUCKET_SUPPORTED_LOCATIONS=("us-central1" "us-west4")
 readonly DELETE_BUCKET_PARALLELISM=10 # Controls how many buckets are deleted in parallel.
 # 6 second delay between creating buckets as both hns and flat runs create buckets in parallel.
 # Ref: https://cloud.google.com/storage/quotas#buckets
-readonly DELAY_BETWEEN_BUCKET_CREATION=6
+readonly DELAY_BETWEEN_BUCKET_CREATION=6 
 readonly ZONAL="zonal"
 readonly FLAT="flat"
 readonly HNS="hns"
@@ -118,7 +118,7 @@ while (( $# >= 1 )); do
             ;;
         --test-installed-package)
             TEST_INSTALLED_PACKAGE=true
-            shift
+            shift 
             ;;
         --skip-non-essential-tests)
             SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=true
@@ -302,13 +302,13 @@ create_bucket() {
   while : ; do
     attempt=$((attempt - 1))
     if [ $attempt -lt 0 ]; then
-      log_error "Unable to create bucket [${bucket_name}] after 5 attempts."
+      log_error "Unable to create bucket [${bucket_name}] after 5 attempts." 
       cat "$bucket_cmd_log"
       return 1
     fi
     eval "$bucket_cmd" > "$bucket_cmd_log" 2>&1
     if [ $? -eq 0 ]; then
-      sleep "$DELAY_BETWEEN_BUCKET_CREATION" # have 6 seconds gap between creating buckets.
+      sleep "$DELAY_BETWEEN_BUCKET_CREATION" # have 6 seconds gap between creating buckets. 
       break
     fi
   done
@@ -319,7 +319,7 @@ create_bucket() {
 
 # Helper method to create buckets for each of the package.
 setup_package_buckets () {
-  if [[ "$#" -ne 3 ]]; then
+  if [[ "$#" -ne 3 ]]; then 
     log_error "setup_buckets() called with incorrect number of arguments."
     exit 1
   fi
@@ -391,9 +391,9 @@ clean_up() {
         log_info "Successfully deleted all buckets."
     fi
   fi
-  if ! rm -rf /tmp/"${TMP_PREFIX}_"*; then
+  if ! rm -rf /tmp/"${TMP_PREFIX}_"*; then 
     log_error "Failed to delete temporary files"
-  else
+  else 
     log_info "Successfully cleaned up temporary files"
   fi
 }
@@ -499,15 +499,15 @@ test_package() {
   if ${RUN_TEST_ON_TPC_ENDPOINT}; then
     go_test_cmd_parts+=("--testOnTPCEndPoint")
   fi
-  if [[ -n "$BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR" ]]; then
+  if [[ -n "$BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR" ]]; then 
     go_test_cmd_parts+=("--gcsfuse_prebuilt_dir=${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}")
   fi
   # Use printf %q to quote each argument safely for eval
   # This ensures spaces and special characters within arguments are handled correctly.
   local go_test_cmd=$(printf "%q " "${go_test_cmd_parts[@]}")
-
+  
   # Run the package test command
-  local start=$SECONDS exit_code=0
+  local start=$SECONDS exit_code=0 
   if ! eval "$go_test_cmd"; then
     exit_code=1
   fi
