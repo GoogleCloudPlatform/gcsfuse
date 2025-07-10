@@ -139,7 +139,7 @@ def main():
 
   # Log to BigQuery
   helper.log_to_bigquery(
-    start_time_sec=start,
+      start_time_sec=start,
       duration_sec=duration,
       total_bytes=total_bytes,
       gcsfuse_config=args.gcsfuse_config,
@@ -147,11 +147,8 @@ def main():
   )
 
   # TODO: Remove this once alerts are configured.
-  bandwidth_mbps = total_bytes / duration / 1000 / 1000
   # 160 Mbps is the minimum threshold based on the 3-runs average bandwidth
-  if bandwidth_mbps < 160:
-    print(f"Failure: Read bandwidth too low ({bandwidth_mbps} Mbps < 160 Mbps)")
-    sys.exit(1)
+  helper.check_and_alert_bandwidth(160, workflow_type)
 
 if __name__ == "__main__":
   main()

@@ -125,7 +125,7 @@ def main():
   helper.unmount_gcs_directory(MOUNT_DIR)
 
   helper.log_to_bigquery(
-     start_time_sec=start,
+      start_time_sec=start,
       duration_sec=duration,
       total_bytes=total_bytes,
       gcsfuse_config=args.gcsfuse_config,
@@ -133,11 +133,8 @@ def main():
   )
 
   # TODO: Remove this once alerts are configured.
-  bandwidth_mbps = total_bytes / duration / 1000 / 1000
   # 80 Mbps is the minimum threshold based on the 3-runs average bandwidth
-  if bandwidth_mbps < 80:
-    print(f"Failure: Write bandwidth too low ({bandwidth_mbps} Mbps < 80 Mbps)")
-    sys.exit(1)
+  helper.check_and_alert_bandwidth(80, workflow_type)
 
 if __name__ == "__main__":
   main()
