@@ -150,7 +150,7 @@ func testdataUploadFilesToBucket(ctx context.Context, t *testing.T, storageClien
 				if !ok {
 					break
 				}
-				client.CopyFileInBucket(ctx, storageClient, copyRequest.srcLocalFilePath, copyRequest.dstGCSObjectPath, bucketName)
+				client.CopyFileInBucketWithPreconditions(ctx, storageClient, copyRequest.srcLocalFilePath, copyRequest.dstGCSObjectPath, bucketName, &storage.Conditions{DoesNotExist: true})
 			}
 		}()
 	}
@@ -222,7 +222,7 @@ func testdataCreateImplicitDir(t *testing.T, ctx context.Context, storageClient 
 			sem <- struct{}{}        // acquire semaphore
 			defer func() { <-sem }() // release semaphore
 
-			client.CopyFileInBucket(ctx, storageClient, testFile, destinationPath, bucketName)
+			client.CopyFileInBucketWithPreconditions(ctx, storageClient, testFile, destinationPath, bucketName, &storage.Conditions{DoesNotExist: true})
 		}(objectPath)
 	}
 
