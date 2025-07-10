@@ -1,36 +1,42 @@
 name: PR Title Check
 
 on:
-  pull_request:
-    types: [opened, edited, synchronize, reopened]
+  pull_request_target:
+    types:
+    - opened
+    - edited
+
+permissions:
+  pull-requests: write
 
 jobs:
-  check-title:
+  main:
+    name: Validate PR title
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: read
-      checks: write
 
     steps:
-    - name: Check PR title format
-      run: |
-        PR_TITLE="${{ github.event.pull_request.title }}"
-        echo "PR Title: $PR_TITLE"
-        
-        # Updated regex pattern:
-        # Allows any non-empty string inside the first set of brackets.
-        # Example: [ANY_TEXT_HERE], [Bug Fix], [Feature]
-        if [[ "$PR_TITLE" =~ ^\[[^\]]+\](.+)$ ]]; then
-          echo "PR title '$PR_TITLE' adheres to the required format."
-          exit 0
-        else
-          echo "Error: PR title '$PR_TITLE' does not follow the required format."
-          echo "Please ensure the title starts with a category enclosed in square brackets. e.g., [Category] Your concise title."
-          echo "Examples:"
-          echo "  [Auth] Implement password reset feature"
-          echo "  [Bug Fix] Fix infinite loop in user login"
-          echo "  [Feature] Add dark mode toggle"
-          exit 1
-        fi
-      shell: bash
+    - uses: amannn/action-semantic-pull-request@v5
+      id: lint_pr_title
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - uses: marocchino/sticky-pull-request-comment@v2
+      if: always() && (steps.lint_pr_title.outputs.error_message != null)
+      with:
+        header: pr-title-lint-error
+        message: |
+          Hey there and thank you for opening this pull request! 👋🏼
+          
+          We require pull request titles to follow the [Conventional Commits specification](https://www.conventionalcommits.org/en/v1.0.0/) and it looks like your proposed title needs to be adjusted.
+          
+          Details:
+          
+          ```
+          ${{ steps.lint_pr_title.outputs.error_message }}
+          ```
+
+    - if: ${{ steps.lint_pr_title.outputs.error_message == null }}
+      uses: marocchino/sticky-pull-request-comment@v2
+      with:
+        header: pr-title-lint-error
+        delete: true

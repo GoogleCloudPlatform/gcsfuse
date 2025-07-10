@@ -1,5 +1,10 @@
-**Please ensure your PR title follows the format: `[Category] Your Title`**
-The `[Category]` can be anything that clearly describes the primary scope or type of the PR (e.g., Project Name, Bug Fix).
+**Please ensure your PR title follows the format:**
+```
+type(scope): subject
+```
+Example:
+feat(api): add user login endpoint
+
 ### Description
 
 ### Link to the issue in case of a bug fix.
