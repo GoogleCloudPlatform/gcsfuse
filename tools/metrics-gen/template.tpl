@@ -110,9 +110,11 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
   meter := otel.Meter("gcsfuse")
 {{- range $metric := .Metrics}}
 	{{- if isCounter $metric}}
-	var {{range $i, $combination := (index $.AttrCombinations $metric.Name)}}{{if $i}}, {{end}}{{getAtomicName $metric.Name $combination}}{{end}} atomic.Int64
+	var {{range $i, $combination := (index $.AttrCombinations $metric.Name)}}{{if $i}},
+	{{end}}{{getAtomicName $metric.Name $combination}}{{end}} atomic.Int64
 	{{- end}}
-{{- end}}
+
+{{end}}
 
 {{- range $i, $metric := .Metrics}}
 	{{- if isCounter $metric}}
@@ -158,32 +160,4 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		{{- end}}
 	{{- end}}
 	}, nil
-}
-
-func (o *otelMetrics) Flush(ctx context.Context) error {
-	// Flush the internal channel of metric updates.
-	// This ensures all pending updates are passed to the OTel SDK.
-	done := make(chan struct{})
-	select {
-	case o.ch <- func() {
-		close(done)
-	}:
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-
-	select {
-	case <-done:
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-
-	// Force flush the global meter provider to ensure metrics are exported.
-	type flusher interface {
-		ForceFlush(context.Context) error
-	}
-	if p, ok := otel.GetMeterProvider().(flusher); ok {
-		return p.ForceFlush(ctx)
-	}
-	return nil
 }
