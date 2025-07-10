@@ -16,10 +16,15 @@ package inode
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
+	"golang.org/x/sync/semaphore"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
@@ -237,4 +242,33 @@ func (t *BaseDirTest) TestReadEntryCores() {
 	ExpectEq(nil, cores)
 	ExpectEq("", newTok)
 	ExpectEq(syscall.ENOTSUP, err)
+}
+
+func (t *BaseDirTest) TestLocalFileEntriesPlus() {
+	dummyInode := NewFileInode(
+		fuseops.InodeID(99),
+		NewFileName(NewRootName("some-bucket"), "some_file"),
+		nil,
+		fuseops.InodeAttributes{},
+		nil,
+		false,
+		contentcache.New("", &t.clock),
+		&t.clock,
+		true,
+		&cfg.Config{},
+		semaphore.NewWeighted(math.MaxInt64),
+	)
+	localFileInodes := map[Name]Inode{
+		dummyInode.Name(): dummyInode,
+	}
+
+	// Call LocalFileEntriesPlus with a non-empty map.
+	result := t.in.LocalFileEntriesPlus(localFileInodes)
+
+	ExpectEq(nil, result)
+
+	// Also test with a nil map.
+	result = t.in.LocalFileEntriesPlus(nil)
+
+	ExpectEq(nil, result)
 }

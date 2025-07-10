@@ -237,6 +237,17 @@ func (t *DirTest) getLocalDirentKey(in Inode) string {
 	return path.Base(in.Name().LocalName())
 }
 
+func (t *DirTest) assertInodeAttributes(expected Inode, actual fuseops.ChildInodeEntry) {
+	AssertEq(expected.ID(), actual.Child)
+
+	attrs, err := expected.Attributes(context.Background(), false)
+
+	AssertEq(nil, err)
+	AssertEq(attrs.Uid, actual.Attributes.Uid)
+	AssertEq(attrs.Gid, actual.Attributes.Gid)
+	AssertEq(attrs.Mode, actual.Attributes.Mode)
+}
+
 func (t *DirTest) validateCore(cores map[Name]*Core, entryName string, isDir bool, expectedType metadata.Type, expectedFullName string) {
 	var name Name
 	if isDir {
@@ -1685,6 +1696,70 @@ func (t *DirTest) LocalFileEntriesWithUnlinkedLocalChildFiles() {
 	// Validate entries contains only linked child files.
 	AssertEq(1, len(entries))
 	AssertEq(entries[t.getLocalDirentKey(in1)].Name, "1_localChildInode")
+}
+
+func (t *DirTest) LocalFileEntriesPlusEmpty() {
+	localFileInodes := map[Name]Inode{}
+
+	entries := t.in.LocalFileEntriesPlus(localFileInodes)
+
+	AssertEq(0, len(entries))
+}
+
+func (t *DirTest) LocalFileEntriesPlusWith2LocalChildFiles() {
+	in1 := t.createLocalFileInode(t.in.Name(), "1_localChild", 1)
+	in2 := t.createLocalFileInode(t.in.Name(), "2_localChild", 2)
+	localFileInodes := map[Name]Inode{
+		in1.Name(): in1,
+		in2.Name(): in2,
+	}
+
+	entries := t.in.LocalFileEntriesPlus(localFileInodes)
+
+	AssertEq(2, len(entries))
+	e1 := entries[t.getLocalDirentKey(in1)]
+	AssertEq("1_localChild", e1.Dirent.Name)
+	AssertEq(fuseutil.DT_File, e1.Dirent.Type)
+	t.assertInodeAttributes(in1, e1.Entry)
+
+	e2 := entries[t.getLocalDirentKey(in2)]
+	AssertEq("2_localChild", e2.Dirent.Name)
+	AssertEq(fuseutil.DT_File, e2.Dirent.Type)
+	t.assertInodeAttributes(in2, e2.Entry)
+}
+
+func (t *DirTest) LocalFileEntriesPlusWithNoLocalChildFiles() {
+	in1 := t.createLocalFileInode(Name{bucketName: "abc", objectName: "x/"}, "not_child_1", 3)
+	in2 := t.createLocalFileInode(Name{bucketName: "abc", objectName: "x/"}, "not_child_2", 4)
+	localFileInodes := map[Name]Inode{
+		in1.Name(): in1,
+		in2.Name(): in2,
+	}
+
+	entries := t.in.LocalFileEntriesPlus(localFileInodes)
+
+	AssertEq(0, len(entries))
+}
+
+func (t *DirTest) LocalFileEntriesPlusWithUnlinkedLocalChildFiles() {
+	in1 := t.createLocalFileInode(t.in.Name(), "linked_child", 5)
+	in2 := t.createLocalFileInode(t.in.Name(), "unlinked_child", 6)
+	in3 := t.createLocalFileInode(Name{bucketName: "abc", objectName: "other/"}, "non_child", 7)
+	// Unlink in2
+	fileIn2, _ := in2.(*FileInode)
+	fileIn2.Unlink()
+	localFileInodes := map[Name]Inode{
+		in1.Name(): in1,
+		in2.Name(): in2,
+		in3.Name(): in3,
+	}
+
+	entries := t.in.LocalFileEntriesPlus(localFileInodes)
+
+	AssertEq(1, len(entries))
+	entry := entries[t.getLocalDirentKey(in1)]
+	AssertEq("linked_child", entry.Dirent.Name)
+	t.assertInodeAttributes(in1, entry.Entry)
 }
 
 func (t *DirTest) Test_ShouldInvalidateKernelListCache_ListingNotHappenedYet() {
