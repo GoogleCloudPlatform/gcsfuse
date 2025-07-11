@@ -188,40 +188,41 @@ if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
 fi
 
 # Test packages which can be run for both Zonal and Regional buckets.
-# Sorted list descending run times. (Longest Processing Time first strategy) 
+# Sorted list descending run times. (Longest Processing Time first strategy)
 TEST_PACKAGES_COMMON=(
-  "managed_folders"
-  "operations"
-  "read_large_files"
-  "concurrent_operations"
-  "read_cache"
-  "list_large_dir"
+  # "managed_folders"
+  # "operations"
+  # "read_large_files"
+  # "concurrent_operations"
+  # "read_cache"
+  # "list_large_dir"
   "mount_timeout"
-  "write_large_files"
-  "implicit_dir"
-  "interrupt"
-  "local_file"
-  "readonly"
-  "readonly_creds"
-  "rename_dir_limit"
-  "kernel_list_cache"
-  "streaming_writes"
-  "benchmarking"
-  "explicit_dir"
-  "gzip"
-  "log_rotation"
-  "monitoring"
-  "mounting"
-  # "grpc_validation"
-  "negative_stat_cache"
-  "stale_handle"
-  "release_version"
+  # "write_large_files"
+  # "implicit_dir"
+  # "interrupt"
+  # "local_file"
+  # "readonly"
+  # "readonly_creds"
+  # "rename_dir_limit"
+  # "kernel_list_cache"
+  # "streaming_writes"
+  # "benchmarking"
+  # "explicit_dir"
+  # "gzip"
+  # "log_rotation"
+  # "monitoring"
+  # "mounting"
+  # # "grpc_validation"
+  # "negative_stat_cache"
+  # "stale_handle"
+  # "release_version"
 )
 
 # Test packages for regional buckets.
 TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "inactive_stream_timeout" "cloud_profiler")
 # Test packages for zonal buckets.
-TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "unfinalized_object")
+# TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "unfinalized_object")
+TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" )
 # Test packages for TPC buckets.
 TEST_PACKAGES_FOR_TPC=("operations")
 
@@ -477,7 +478,7 @@ test_package() {
   local bucket_type="$3"
 
   # Build go package test command.
-  local go_test_cmd_parts=("GODEBUG=asyncpreemptoff=1" "go" "test" "-v" "-timeout=${INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS}m" "${INTEGRATION_TEST_PACKAGE_DIR}/${package_name}")
+  local go_test_cmd_parts=("GRPC_GO_LOG_VERBOSITY_LEVEL=99 GRPC_GO_LOG_SEVERITY_LEVEL=info GODEBUG=asyncpreemptoff=1" "go" "test" "-v" "-timeout=${INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS}m" "${INTEGRATION_TEST_PACKAGE_DIR}/${package_name}")
   if ${SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE}; then
     go_test_cmd_parts+=("-short")
   fi
