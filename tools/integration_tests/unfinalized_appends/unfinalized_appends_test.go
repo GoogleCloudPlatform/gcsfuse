@@ -49,6 +49,9 @@ type UnfinalizedAppendsSuite struct {
 
 func (t *UnfinalizedAppendsSuite) SetupSuite() {
 	setup.MountGCSFuseWithGivenMountFunc(gFlags, gMountFunc)
+	gRootDir = setup.MntDir()
+	gLogFilePath = setup.LogFile()
+	gTestDirPath = setup.SetupTestDirectory(testDirName)
 }
 
 func (t *UnfinalizedAppendsSuite) TearDownSuite() {
