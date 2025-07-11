@@ -681,7 +681,6 @@ main() {
       log_error "Failed to stop resource usage collection process (or it's already stopped)"
     fi
   fi
-  sleep infinity
   exit $overall_exit_code
 }
 

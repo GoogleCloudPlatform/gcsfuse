@@ -74,7 +74,7 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	// Set up gOtherRootDir directory for secondary mount.
+	// Set up test directory for secondary mount.
 	setup.SetUpTestDirForTestBucketFlag()
 	gOtherRootDir = setup.MntDir()
 	gOtherLogFilePath = setup.LogFile()
@@ -85,7 +85,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("Unable to mount secondary mount: %v", err)
 	}
-	// Setup Test Directory in secondary mount.
+	// Setup Package Test Directory for secondary mount.
 	gOtherTestDirPath = setup.SetupTestDirectory(testDirName)
 	defer func() {
 		setup.UnmountGCSFuse(gOtherRootDir)
@@ -99,11 +99,8 @@ func TestMain(m *testing.M) {
 		setup.RunTestsForMountedDirectoryFlag(m)
 	}
 
-	// Set up gRootDir directory for primary mount.
+	// Set up test directory for primary mount.
 	setup.SetUpTestDirForTestBucketFlag()
-	gRootDir = setup.MntDir()
-	gTestDirPath = setup.SetupTestDirectory(testDirName)
-	gLogFilePath = setup.LogFile()
 
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
