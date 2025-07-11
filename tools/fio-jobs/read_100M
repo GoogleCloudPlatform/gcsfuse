@@ -1,0 +1,26 @@
+[global]
+allrandrepeat=0
+create_serialize=0
+direct=1
+fadvise_hint=0
+file_service_type=random
+group_reporting=1
+iodepth=64
+ioengine=libaio
+invalidate=1
+numjobs=128
+openfiles=1
+# Change "read" to "randread" to test random reads.
+rw=read 
+thread=1
+filename_format=$jobname.$jobnum/$filenum
+
+[experiment]
+stonewall
+directory=/mnt/disks/pd/600mb
+# Update the block size value from the table for different experiments.
+bs=1M
+# Update the file size value from table(file size) for different experiments.
+filesize=100M
+# Set nrfiles per thread in such a way that the test runs for 1-2 min.
+nrfiles=30
