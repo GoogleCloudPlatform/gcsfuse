@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -210,11 +209,11 @@ func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (
 func captureFileCacheMetrics(ctx context.Context, metricHandle common.MetricHandle, readType string, readDataSize int, cacheHit bool, readLatency time.Duration) {
 	metricHandle.FileCacheReadCount(ctx, 1, common.CacheHitReadType{
 		ReadType: readType,
-		CacheHit: strconv.FormatBool(cacheHit),
+		CacheHit: cacheHit,
 	})
 
 	metricHandle.FileCacheReadBytesCount(ctx, int64(readDataSize), readType)
-	metricHandle.FileCacheReadLatency(ctx, readLatency, strconv.FormatBool(cacheHit))
+	metricHandle.FileCacheReadLatency(ctx, readLatency, cacheHit)
 }
 
 func (fc *FileCacheReader) Destroy() {
