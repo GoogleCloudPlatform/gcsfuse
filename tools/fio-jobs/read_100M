@@ -15,7 +15,7 @@ rw=read
 thread=1
 filename_format=$jobname.$jobnum/$filenum
 
-[experiment]
+[experiment_10MB]
 stonewall
 directory=/mnt/disks/pd/600mb
 # Update the block size value from the table for different experiments.
