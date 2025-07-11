@@ -338,9 +338,10 @@ func (rr *randomReader) ReadAt(
 		return
 	}
 
-	readType, averageReadBytes := rr.getReadType(offset)
+	readType, averageReadBytes := rr.getReadInfo(offset)
+	readerType := readerType(readType, rr.bucket.BucketType())
 
-	if !rr.bucket.BucketType().Zonal || readType == common.ReadTypeSequential {
+	if readerType == common.ReadTypeSequential {
 		rr.mu.Lock()
 		defer rr.mu.Unlock()
 
@@ -427,19 +428,16 @@ func (rr *randomReader) Destroy() {
 	}
 }
 
-func (rr *randomReader) getReadType(offset int64) (int64, int64) {
-	readType := rr.readType.Load()
-
-	// Perform calculation to determine the readType
-	// 2 ways to do this. With or without using the range reader
-
-	// with range reader
-	// 	check if range reader exists and can it serve the request. Will need mutex lock
-
-	// without range reader
-	// just check if it is a random read or not based on some heuristic
+func (rr *randomReader) getReadInfo(offset int64) (readType int64, averageReadBytes int64) {
+	readType = rr.readType.Load()
 	expOffset := rr.expectedOffset.Load()
-	if expOffset != 0 && expOffset != offset {
+
+	// Here, we will be different from existing algorithm in only one scenario
+	// When the read type is sequential but the reader has been closed (due to any reason)
+	seqReadSeekNeeded := (readType == common.ReadTypeSequential) && (expOffset < offset || expOffset > offset+maxReadSize)
+
+	randomReadSeekNeeded := (readType == common.ReadTypeRandom) && (expOffset != offset)
+	if expOffset != 0 && (seqReadSeekNeeded || randomReadSeekNeeded) {
 		rr.seeks.Add(1)
 	}
 
@@ -451,12 +449,54 @@ func (rr *randomReader) getReadType(offset int64) (int64, int64) {
 	if numSeeks == 0 {
 		numSeeks = 1
 	}
-	averageReadBytes := rr.totalReadBytes.Load() / numSeeks
+	averageReadBytes = int64(rr.totalReadBytes.Load() / numSeeks)
 	if averageReadBytes >= maxReadSize {
 		readType = common.ReadTypeSequential
 	}
 	rr.readType.Store(readType)
-	return readType, int64(averageReadBytes)
+	return
+}
+
+func (rr *randomReader) getEndOffset(readType, start, size, averageReadBytes int64) (end int64, err error) {
+	// Make sure start and size are legal.
+	if start < 0 || uint64(start) > rr.object.Size || size < 0 {
+		err = fmt.Errorf(
+			"range [%d, %d) is illegal for %d-byte object",
+			start,
+			start+size,
+			rr.object.Size)
+		return
+	}
+
+	if err != nil {
+		return
+	}
+
+	end = int64(rr.object.Size)
+	if readType == common.ReadTypeRandom {
+		if averageReadBytes < maxReadSize {
+			randomReadSize := int64(((averageReadBytes / MiB) + 1) * MiB)
+			if randomReadSize < minReadSize {
+				randomReadSize = minReadSize
+			}
+			if randomReadSize > maxReadSize {
+				randomReadSize = maxReadSize
+			}
+			end = start + randomReadSize
+		}
+	}
+
+	if end > int64(rr.object.Size) {
+		end = int64(rr.object.Size)
+	}
+
+	// To avoid overloading GCS and to have reasonable latencies, we will only
+	// fetch data of max size defined by sequentialReadSizeMb.
+	maxSizeToReadFromGCS := int64(rr.sequentialReadSizeMb * MiB)
+	if end-start > maxSizeToReadFromGCS {
+		end = start + maxSizeToReadFromGCS
+	}
+	return
 }
 
 // Like io.ReadFull, but deals with the cancellation issues.
@@ -554,114 +594,8 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 	return
 }
 
-// getReaderInfo determines the readType and provides the range to query GCS.
-// Range here is [start, end]. End is computed using the readType, start offset
-// and size of the data the callers needs.
-func (rr *randomReader) getReadInfo(
-	start int64,
-	size int64) (end int64, err error) {
-	// Make sure start and size are legal.
-	if start < 0 || uint64(start) > rr.object.Size || size < 0 {
-		err = fmt.Errorf(
-			"range [%d, %d) is illegal for %d-byte object",
-			start,
-			start+size,
-			rr.object.Size)
-		return
-	}
-
-	if err != nil {
-		return
-	}
-
-	// GCS requests are expensive. Prefer to issue read requests defined by
-	// sequentialReadSizeMb flag. Sequential reads will simply sip from the fire house
-	// with each call to ReadAt. In practice, GCS will fill the TCP buffers
-	// with about 6 MiB of data. Requests from outside GCP will be charged
-	// about 6MB of egress data, even if less data is read. Inside GCP
-	// regions, GCS egress is free. This logic should limit the number of
-	// GCS read requests, which are not free.
-
-	// But if we notice random read patterns after a minimum number of seeks,
-	// optimise for random reads. Random reads will read data in chunks of
-	// (average read size in bytes rounded up to the next MiB).
-	end = int64(rr.object.Size)
-	numSeeks := rr.seeks.Load()
-	if numSeeks >= minSeeksForRandom {
-		readType := common.ReadTypeRandom
-		averageReadBytes := rr.totalReadBytes.Load() / numSeeks
-		if averageReadBytes < maxReadSize {
-			randomReadSize := int64(((averageReadBytes / MiB) + 1) * MiB)
-			if randomReadSize < minReadSize {
-				randomReadSize = minReadSize
-			}
-			if randomReadSize > maxReadSize {
-				randomReadSize = maxReadSize
-			}
-			end = start + randomReadSize
-		} else {
-			readType = common.ReadTypeSequential
-		}
-		rr.readType.Store(int64(readType))
-	}
-	if end > int64(rr.object.Size) {
-		end = int64(rr.object.Size)
-	}
-
-	// To avoid overloading GCS and to have reasonable latencies, we will only
-	// fetch data of max size defined by sequentialReadSizeMb.
-	maxSizeToReadFromGCS := int64(rr.sequentialReadSizeMb * MiB)
-	if end-start > maxSizeToReadFromGCS {
-		end = start + maxSizeToReadFromGCS
-	}
-
-	return
-}
-
-func (rr *randomReader) getEndOffset(readType, start, size, averageReadBytes int64) (end int64, err error) {
-	// Make sure start and size are legal.
-	if start < 0 || uint64(start) > rr.object.Size || size < 0 {
-		err = fmt.Errorf(
-			"range [%d, %d) is illegal for %d-byte object",
-			start,
-			start+size,
-			rr.object.Size)
-		return
-	}
-
-	if err != nil {
-		return
-	}
-
-	end = int64(rr.object.Size)
-	if readType == common.ReadTypeRandom {
-		if averageReadBytes < maxReadSize {
-			randomReadSize := int64(((averageReadBytes / MiB) + 1) * MiB)
-			if randomReadSize < minReadSize {
-				randomReadSize = minReadSize
-			}
-			if randomReadSize > maxReadSize {
-				randomReadSize = maxReadSize
-			}
-			end = start + randomReadSize
-		}
-	}
-
-	if end > int64(rr.object.Size) {
-		end = int64(rr.object.Size)
-	}
-
-	// To avoid overloading GCS and to have reasonable latencies, we will only
-	// fetch data of max size defined by sequentialReadSizeMb.
-	maxSizeToReadFromGCS := int64(rr.sequentialReadSizeMb * MiB)
-	if end-start > maxSizeToReadFromGCS {
-		end = start + maxSizeToReadFromGCS
-	}
-	return
-}
-
 // readerType specifies the go-sdk interface to use for reads.
-func readerType(readType int64, start int64, end int64, bucketType gcs.BucketType) ReaderType {
+func readerType(readType int64, bucketType gcs.BucketType) ReaderType {
 	if readType == common.ReadTypeRandom && bucketType.Zonal {
 		return MultiRangeReader
 	}
