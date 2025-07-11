@@ -77,7 +77,6 @@ func TestMain(m *testing.M) {
 	// Set up gOtherRootDir directory for secondary mount.
 	setup.SetUpTestDirForTestBucketFlag()
 	gOtherRootDir = setup.MntDir()
-	gOtherTestDirPath = setup.SetupTestDirectory(testDirName)
 	gOtherLogFilePath = setup.LogFile()
 	// For reads to work for unfinalized object from secondary mount metadata cache ttl must be set to 0.
 	// and rapid appends should be enabled.
@@ -86,6 +85,8 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("Unable to mount secondary mount: %v", err)
 	}
+	// Setup Test Directory in secondary mount.
+	gOtherTestDirPath = setup.SetupTestDirectory(testDirName)
 	defer func() {
 		setup.UnmountGCSFuse(gOtherRootDir)
 	}()
