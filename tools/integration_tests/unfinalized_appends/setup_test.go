@@ -84,9 +84,6 @@ func TestMain(m *testing.M) {
 	secondarMountFlags := []string{"--metadata-cache-ttl-secs=0", "--write-experimental-enable-rapid-appends=true"}
 	err := static_mounting.MountGcsfuseWithStaticMounting(secondarMountFlags)
 	if err != nil {
-		setup.RunScriptForTestData("cat", gOtherLogFilePath)
-		setup.RunScriptForTestData("echo")
-		setup.RunScriptForTestData("cat", gOtherLogFilePath+".stderr")
 		log.Fatalf("Unable to mount secondary mount: %v", err)
 	}
 	defer func() {
