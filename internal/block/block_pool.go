@@ -108,11 +108,6 @@ func (bp *BlockPool) canAllocateBlock() bool {
 	return semAcquired
 }
 
-// FreeBlocksChannel returns the freeBlocksCh being used by the block pool.
-func (bp *BlockPool) FreeBlocksChannel() chan Block {
-	return bp.freeBlocksCh
-}
-
 // Release puts the block back into the free blocks channel for reuse.
 func (bp *BlockPool) Release(b Block) {
 	select {
