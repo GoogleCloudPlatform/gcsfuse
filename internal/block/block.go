@@ -22,16 +22,6 @@ import (
 	"syscall"
 )
 
-// BlockStatus represents the status of the block.
-type BlockStatus int
-
-const (
-	BlockStatusInProgress        BlockStatus = iota // Download of this block is in progress
-	BlockStatusDownloaded                           // Download of this block is complete
-	BlockStatusDownloadFailed                       // Download of this block has failed
-	BlockStatusDownloadCancelled                    // Download of this block has been cancelled
-)
-
 // Block represents the buffer which holds the data.
 type Block interface {
 	// Reuse resets the blocks for reuse.
@@ -106,7 +96,7 @@ func (m *memoryBlock) Reuse() {
 	m.offset.end = 0
 	m.offset.start = 0
 	m.notification = make(chan BlockStatus, 1)
-	m.status = BlockStatusInProgress
+	m.status = NewBlockStatus(BlockStateInProgress, nil)
 	m.absStartOff = -1
 }
 
@@ -163,7 +153,7 @@ func createBlock(blockSize int64) (Block, error) {
 		buffer:       addr,
 		offset:       offset{0, 0},
 		notification: make(chan BlockStatus, 1),
-		status:       BlockStatusInProgress,
+		status:       NewBlockStatus(BlockStateInProgress, nil),
 		absStartOff:  -1,
 	}
 	return &mb, nil
@@ -222,7 +212,7 @@ func (m *memoryBlock) AwaitReady(ctx context.Context) (BlockStatus, error) {
 
 		return m.status, nil
 	case <-ctx.Done():
-		return 0, ctx.Err()
+		return NewBlockStatus(BlockStateInProgress, nil), ctx.Err()
 	}
 }
 

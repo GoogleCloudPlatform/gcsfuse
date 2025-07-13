@@ -96,7 +96,7 @@ func (dts *DownloadTaskTestSuite) TestExecuteSuccess() {
 	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
 	defer cancelFunc()
 	status, err := downloadBlock.AwaitReady(ctx)
-	assert.Equal(dts.T(), block.BlockStatusDownloaded, status)
+	assert.Equal(dts.T(), block.NewBlockStatus(block.BlockStateDownloaded, nil), status)
 	assert.NoError(dts.T(), err)
 }
 
@@ -114,17 +114,16 @@ func (dts *DownloadTaskTestSuite) TestExecuteError() {
 			Limit: uint64(testBlockSize),
 		},
 	}
-	expectedError := errors.New("read error")
-	dts.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(nil, expectedError).Times(1)
+	dts.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(nil, errors.New("read error")).Times(1)
 
 	task.Execute()
 
-	assert.Error(dts.T(), expectedError)
 	dts.mockBucket.AssertExpectations(dts.T())
 	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
 	defer cancelFunc()
 	status, err := downloadBlock.AwaitReady(ctx)
-	assert.Equal(dts.T(), block.BlockStatusDownloadFailed, status)
+	assert.Equal(dts.T(), block.BlockStateDownloadFailed, status.State())
+	assert.NotNil(dts.T(), status.Error())
 	assert.NoError(dts.T(), err)
 }
 
@@ -153,8 +152,9 @@ func (dts *DownloadTaskTestSuite) TestExecuteContextDeadlineExceededByServerTrea
 	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
 	defer cancelFunc()
 	status, err := downloadBlock.AwaitReady(ctx)
-	assert.Equal(dts.T(), block.BlockStatusDownloadFailed, status)
 	assert.NoError(dts.T(), err)
+	assert.Equal(dts.T(), block.BlockStateDownloadFailed, status.State())
+	assert.NotNil(dts.T(), status.Error())
 }
 
 func (dts *DownloadTaskTestSuite) TestExecuteContextCancelledWhileReaderCreation() {
@@ -183,8 +183,9 @@ func (dts *DownloadTaskTestSuite) TestExecuteContextCancelledWhileReaderCreation
 	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
 	defer cancelFunc()
 	status, err := downloadBlock.AwaitReady(ctx)
-	assert.Equal(dts.T(), block.BlockStatusDownloadCancelled, status)
 	assert.NoError(dts.T(), err)
+	assert.Equal(dts.T(), block.BlockStateDownloadCancelled, status.State())
+	assert.NoError(dts.T(), status.Error())
 }
 
 // ctxCancelledReader is a mock reader that simulates a context cancellation error while reading.
@@ -227,6 +228,6 @@ func (dts *DownloadTaskTestSuite) TestExecuteContextCancelledWhileReadingFromRea
 	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
 	defer cancelFunc()
 	status, err := downloadBlock.AwaitReady(ctx)
-	assert.Equal(dts.T(), block.BlockStatusDownloadCancelled, status)
+	assert.Equal(dts.T(), block.NewBlockStatus(block.BlockStateDownloadCancelled, nil), status)
 	assert.NoError(dts.T(), err)
 }
