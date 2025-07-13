@@ -23,10 +23,18 @@ import (
 
 var CantAllocateAnyBlockError error = errors.New("cant allocate any streaming write block as global max blocks limit is reached")
 
-// BlockPool handles the creation of blocks as per the user configuration.
-type BlockPool struct {
+type GenBlock interface {
+	// Reuse resets the block for reuse.
+	Reuse()
+
+	// Deallocate releases the resources held by the block.
+	Deallocate() error
+}
+
+// GenBlockPool handles the creation of blocks as per the user configuration.
+type GenBlockPool[T GenBlock] struct {
 	// Channel holding free blocks.
-	freeBlocksCh chan Block
+	freeBlocksCh chan T
 
 	// Size of each block this pool holds.
 	blockSize int64
@@ -40,21 +48,25 @@ type BlockPool struct {
 	// Semaphore used to limit the total number of blocks created across
 	// different files.
 	globalMaxBlocksSem *semaphore.Weighted
+
+	// createBlockFunc is a function that creates a new block of type T
+	createBlockFunc func(blockSize int64) (T, error)
 }
 
-// NewBlockPool creates the blockPool based on the user configuration.
-func NewBlockPool(blockSize int64, maxBlocks int64, globalMaxBlocksSem *semaphore.Weighted) (bp *BlockPool, err error) {
+// NewGenBlockPool creates the blockPool based on the user configuration.
+func NewGenBlockPool[T GenBlock](blockSize int64, maxBlocks int64, globalMaxBlocksSem *semaphore.Weighted, createBlockFunc func(blockSize int64) (T, error)) (bp *GenBlockPool[T], err error) {
 	if blockSize <= 0 || maxBlocks <= 0 {
 		err = fmt.Errorf("invalid configuration provided for blockPool, blocksize: %d, maxBlocks: %d", blockSize, maxBlocks)
 		return
 	}
 
-	bp = &BlockPool{
-		freeBlocksCh:       make(chan Block, maxBlocks),
+	bp = &GenBlockPool[T]{
+		freeBlocksCh:       make(chan T, maxBlocks),
 		blockSize:          blockSize,
 		maxBlocks:          maxBlocks,
 		totalBlocks:        0,
 		globalMaxBlocksSem: globalMaxBlocksSem,
+		createBlockFunc:    createBlockFunc,
 	}
 	semAcquired := bp.globalMaxBlocksSem.TryAcquire(1)
 	if !semAcquired {
@@ -66,7 +78,9 @@ func NewBlockPool(blockSize int64, maxBlocks int64, globalMaxBlocksSem *semaphor
 
 // Get returns a block. It returns an existing block if it's ready for reuse or
 // creates a new one if required.
-func (bp *BlockPool) Get() (Block, error) {
+// Not thread-safe, calling from multiple goroutines may lead memory leaks because
+// of race conditions.
+func (bp *GenBlockPool[T]) Get() (T, error) {
 	for {
 		select {
 		case b := <-bp.freeBlocksCh:
@@ -75,12 +89,11 @@ func (bp *BlockPool) Get() (Block, error) {
 			return b, nil
 
 		default:
-			// No lock is required here since blockPool is per file and all write
-			// calls to a single file are serialized because of inode.lock().
 			if bp.canAllocateBlock() {
-				b, err := createBlock(bp.blockSize)
+				b, err := bp.createBlockFunc(bp.blockSize)
 				if err != nil {
-					return nil, err
+					var zero T
+					return zero, err
 				}
 
 				bp.totalBlocks++
@@ -91,7 +104,7 @@ func (bp *BlockPool) Get() (Block, error) {
 }
 
 // canAllocateBlock checks if a new block can be allocated.
-func (bp *BlockPool) canAllocateBlock() bool {
+func (bp *GenBlockPool[T]) canAllocateBlock() bool {
 	// If max blocks limit is reached, then no more blocks can be allocated.
 	if bp.totalBlocks >= bp.maxBlocks {
 		return false
@@ -109,7 +122,7 @@ func (bp *BlockPool) canAllocateBlock() bool {
 }
 
 // Release puts the block back into the free blocks channel for reuse.
-func (bp *BlockPool) Release(b Block) {
+func (bp *GenBlockPool[T]) Release(b T) {
 	select {
 	case bp.freeBlocksCh <- b:
 	default:
@@ -118,11 +131,11 @@ func (bp *BlockPool) Release(b Block) {
 }
 
 // BlockSize returns the block size used by the blockPool.
-func (bp *BlockPool) BlockSize() int64 {
+func (bp *GenBlockPool[T]) BlockSize() int64 {
 	return bp.blockSize
 }
 
-func (bp *BlockPool) ClearFreeBlockChannel(releaseLastBlock bool) error {
+func (bp *GenBlockPool[T]) ClearFreeBlockChannel(releaseLastBlock bool) error {
 	for {
 		select {
 		case b := <-bp.freeBlocksCh:
@@ -145,6 +158,16 @@ func (bp *BlockPool) ClearFreeBlockChannel(releaseLastBlock bool) error {
 
 // TotalFreeBlocks returns the total number of free blocks available in the pool.
 // This is useful for testing and debugging purposes.
-func (bp *BlockPool) TotalFreeBlocks() int {
+func (bp *GenBlockPool[T]) TotalFreeBlocks() int {
 	return len(bp.freeBlocksCh)
+}
+
+// NewBlockPool creates GenBlockPool for block.Block interface.
+func NewBlockPool(blockSize int64, maxBlocks int64, globalMaxBlocksSem *semaphore.Weighted) (bp *GenBlockPool[Block], err error) {
+	return NewGenBlockPool(blockSize, maxBlocks, globalMaxBlocksSem, createBlock)
+}
+
+// NewPrefetchBlockPool creates GenBlockPool for block.PrefetchBlock interface.
+func NewPrefetchBlockPool(blockSize int64, maxBlocks int64, globalMaxBlocksSem *semaphore.Weighted) (bp *GenBlockPool[PrefetchBlock], err error) {
+	return NewGenBlockPool(blockSize, maxBlocks, globalMaxBlocksSem, createPrefetchBlock)
 }

@@ -33,7 +33,7 @@ type DownloadTask struct {
 	bucket gcs.Bucket
 
 	// block is the block to which the data will be downloaded.
-	block block.Block
+	block block.PrefetchBlock
 
 	// ctx is the context for the download task. It is used to cancel the download.
 	ctx context.Context
@@ -42,7 +42,7 @@ type DownloadTask struct {
 	readHandle []byte
 }
 
-func NewDownloadTask(ctx context.Context, object *gcs.MinObject, bucket gcs.Bucket, block block.Block, readHandle []byte) *DownloadTask {
+func NewDownloadTask(ctx context.Context, object *gcs.MinObject, bucket gcs.Bucket, block block.PrefetchBlock, readHandle []byte) *DownloadTask {
 	return &DownloadTask{
 		ctx:        ctx,
 		object:     object,
