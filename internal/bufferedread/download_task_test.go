@@ -44,7 +44,7 @@ type DownloadTaskTestSuite struct {
 	suite.Suite
 	object     *gcs.MinObject
 	mockBucket *storage.TestifyMockBucket
-	blockPool  *block.BlockPool
+	blockPool  *block.GenBlockPool[block.Block]
 }
 
 func TestDownloadTaskTestSuite(t *testing.T) {
