@@ -431,17 +431,17 @@ func (rr *randomReader) Destroy() {
 func (rr *randomReader) getReadInfo(offset int64) (readType int64, averageReadBytes int64) {
 	readType = rr.readType.Load()
 	expOffset := rr.expectedOffset.Load()
+	numSeeks := rr.seeks.Load()
 
 	// Here, we will be different from existing algorithm in only one scenario
 	// When the read type is sequential but the reader has been closed (due to any reason)
-	seqReadSeekNeeded := (readType == common.ReadTypeSequential) && (expOffset < offset || expOffset > offset+maxReadSize)
+	seqReadSeekNeeded := (readType == common.ReadTypeSequential) && (offset < expOffset || offset > expOffset+maxReadSize)
 
 	randomReadSeekNeeded := (readType == common.ReadTypeRandom) && (expOffset != offset)
 	if expOffset != 0 && (seqReadSeekNeeded || randomReadSeekNeeded) {
-		rr.seeks.Add(1)
+		numSeeks = rr.seeks.Add(1)
 	}
 
-	numSeeks := rr.seeks.Load()
 	if numSeeks >= minSeeksForRandom {
 		readType = common.ReadTypeRandom
 	}
