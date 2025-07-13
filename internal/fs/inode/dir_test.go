@@ -237,17 +237,6 @@ func (t *DirTest) getLocalDirentKey(in Inode) string {
 	return path.Base(in.Name().LocalName())
 }
 
-func (t *DirTest) assertInodeAttributes(expected Inode, actual fuseops.ChildInodeEntry) {
-	AssertEq(expected.ID(), actual.Child)
-
-	attrs, err := expected.Attributes(context.Background(), false)
-
-	AssertEq(nil, err)
-	AssertEq(attrs.Uid, actual.Attributes.Uid)
-	AssertEq(attrs.Gid, actual.Attributes.Gid)
-	AssertEq(attrs.Mode, actual.Attributes.Mode)
-}
-
 func (t *DirTest) validateCore(cores map[Name]*Core, entryName string, isDir bool, expectedType metadata.Type, expectedFullName string) {
 	var name Name
 	if isDir {
@@ -1717,15 +1706,14 @@ func (t *DirTest) LocalFileEntriesPlusWith2LocalChildFiles() {
 	entries := t.in.LocalFileEntriesPlus(localFileInodes)
 
 	AssertEq(2, len(entries))
+	// validate entry for 1_localChild
 	e1 := entries[t.getLocalDirentKey(in1)]
 	AssertEq("1_localChild", e1.Dirent.Name)
 	AssertEq(fuseutil.DT_File, e1.Dirent.Type)
-	t.assertInodeAttributes(in1, e1.Entry)
-
+	// validate entry for 2_localChild
 	e2 := entries[t.getLocalDirentKey(in2)]
 	AssertEq("2_localChild", e2.Dirent.Name)
 	AssertEq(fuseutil.DT_File, e2.Dirent.Type)
-	t.assertInodeAttributes(in2, e2.Entry)
 }
 
 func (t *DirTest) LocalFileEntriesPlusWithNoLocalChildFiles() {
@@ -1759,7 +1747,6 @@ func (t *DirTest) LocalFileEntriesPlusWithUnlinkedLocalChildFiles() {
 	AssertEq(1, len(entries))
 	entry := entries[t.getLocalDirentKey(in1)]
 	AssertEq("linked_child", entry.Dirent.Name)
-	t.assertInodeAttributes(in1, entry.Entry)
 }
 
 func (t *DirTest) Test_ShouldInvalidateKernelListCache_ListingNotHappenedYet() {

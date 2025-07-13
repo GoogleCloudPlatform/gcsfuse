@@ -257,7 +257,7 @@ func (d *baseDirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEn
 	return nil
 }
 
-func (d *baseDirInode) LocalFileEntriesPlus(localFileInodes map[Name]Inode) (localEntries map[string]fuseutil.DirentPlus) {
+func (d *baseDirInode) LocalFileEntriesPlus(localFileInodes map[Name]Inode) (localEntriesPlus map[string]fuseutil.DirentPlus) {
 	// Base directory can not contain local files.
 	return nil
 }

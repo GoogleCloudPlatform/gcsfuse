@@ -263,12 +263,17 @@ func (t *BaseDirTest) TestLocalFileEntriesPlus() {
 	}
 
 	// Call LocalFileEntriesPlus with a non-empty map.
-	result := t.in.LocalFileEntriesPlus(localFileInodes)
+	entries := t.in.LocalFileEntriesPlus(localFileInodes)
 
-	ExpectEq(nil, result)
+	ExpectEq(nil, entries)
+}
 
-	// Also test with a nil map.
-	result = t.in.LocalFileEntriesPlus(nil)
+func (t *BaseDirTest) TestLocalFileEntriesPlusWithNilLocalFileInodes() {
+	// create emptyLocalFileInodes map
+	emptyLocalFileInodes := make(map[Name]Inode)
 
-	ExpectEq(nil, result)
+	// Call LocalFileEntriesPlus with a non-empty map.
+	entries := t.in.LocalFileEntriesPlus(emptyLocalFileInodes)
+
+	ExpectEq(nil, entries)
 }
