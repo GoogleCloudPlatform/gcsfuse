@@ -257,6 +257,11 @@ func (d *baseDirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEn
 	return nil
 }
 
+func (d *baseDirInode) LocalFileEntriesPlus(localFileInodes map[Name]Inode) (localEntries map[string]fuseutil.DirentPlus) {
+	// Base directory can not contain local files.
+	return nil
+}
+
 func (d *baseDirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
 	// Keeping the default behavior although list operation is not supported
 	// for baseDirInode.

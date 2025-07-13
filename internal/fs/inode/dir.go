@@ -157,6 +157,10 @@ type DirInode interface {
 	// Local means that the file is not yet present on GCS.
 	LocalFileEntries(localFileInodes map[Name]Inode) (localEntries map[string]fuseutil.Dirent)
 
+	// LocalFileEntriesPlus lists the local files present in the directory.
+	// Local means that the file is not yet present on GCS.
+	LocalFileEntriesPlus(localFileInodes map[Name]Inode) (localEntries map[string]fuseutil.DirentPlus)
+
 	// LockForChildLookup takes appropriate kind of lock when an inode's child is
 	// looked up.
 	LockForChildLookup()
@@ -1043,6 +1047,45 @@ func (d *dirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntrie
 				Type: fuseutil.DT_File,
 			}
 			localEntries[entry.Name] = entry
+		}
+	}
+	return
+}
+
+// LOCKS_REQUIRED(fs)
+func (d *dirInode) LocalFileEntriesPlus(localFileInodes map[Name]Inode) (localEntries map[string]fuseutil.DirentPlus) {
+	localEntries = make(map[string]fuseutil.DirentPlus)
+
+	for localInodeName, in := range localFileInodes {
+		// It is possible that the local file inode has been unlinked, but
+		// still present in localFileInodes map because of open file handle.
+		// So, if the inode has been unlinked, skip the entry.
+		file, ok := in.(*FileInode)
+		if ok && file.IsUnlinked() {
+			continue
+		}
+		if localInodeName.IsDirectChildOf(d.Name()) {
+			in.Lock()
+			in.IncrementLookupCount()
+			attrs, err := in.Attributes(context.Background(), false)
+			in.Unlock()
+			if err != nil {
+				continue
+			}
+
+			childInodeEntry := fuseops.ChildInodeEntry{
+				Child:      in.ID(),
+				Attributes: attrs,
+			}
+			entry := fuseutil.DirentPlus{
+				Dirent: fuseutil.Dirent{
+					Inode: in.ID(),
+					Name:  path.Base(localInodeName.LocalName()),
+					Type:  fuseutil.DT_File,
+				},
+				Entry: childInodeEntry,
+			}
+			localEntries[entry.Dirent.Name] = entry
 		}
 	}
 	return
