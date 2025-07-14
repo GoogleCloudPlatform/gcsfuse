@@ -28,6 +28,17 @@ import (
 )
 
 var (
+	fileCacheReadBytesCountReadTypeParallelAttrSet                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel")))
+	fileCacheReadBytesCountReadTypeRandomAttrSet                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random")))
+	fileCacheReadBytesCountReadTypeSequentialAttrSet                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential")))
+	fileCacheReadCountCacheHitTrueReadTypeParallelAttrSet                               = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Parallel")))
+	fileCacheReadCountCacheHitTrueReadTypeRandomAttrSet                                 = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Random")))
+	fileCacheReadCountCacheHitTrueReadTypeSequentialAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Sequential")))
+	fileCacheReadCountCacheHitFalseReadTypeParallelAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", "Parallel")))
+	fileCacheReadCountCacheHitFalseReadTypeRandomAttrSet                                = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", "Random")))
+	fileCacheReadCountCacheHitFalseReadTypeSequentialAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", "Sequential")))
+	fileCacheReadLatenciesCacheHitTrueAttrSet                                           = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true)))
+	fileCacheReadLatenciesCacheHitFalseAttrSet                                          = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false)))
 	fsOpsCountFsOpBatchForgetAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "BatchForget")))
 	fsOpsCountFsOpCreateFileAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "CreateFile")))
 	fsOpsCountFsOpCreateLinkAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "CreateLink")))
@@ -58,36 +69,6 @@ var (
 	fsOpsCountFsOpSyncFileAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "SyncFile")))
 	fsOpsCountFsOpUnlinkAttrSet                                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "Unlink")))
 	fsOpsCountFsOpWriteFileAttrSet                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "WriteFile")))
-	fsOpsLatencyFsOpBatchForgetAttrSet                                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "BatchForget")))
-	fsOpsLatencyFsOpCreateFileAttrSet                                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "CreateFile")))
-	fsOpsLatencyFsOpCreateLinkAttrSet                                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "CreateLink")))
-	fsOpsLatencyFsOpCreateSymlinkAttrSet                                                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "CreateSymlink")))
-	fsOpsLatencyFsOpFallocateAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "Fallocate")))
-	fsOpsLatencyFsOpFlushFileAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "FlushFile")))
-	fsOpsLatencyFsOpForgetInodeAttrSet                                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ForgetInode")))
-	fsOpsLatencyFsOpGetInodeAttributesAttrSet                                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "GetInodeAttributes")))
-	fsOpsLatencyFsOpGetXattrAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "GetXattr")))
-	fsOpsLatencyFsOpListXattrAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ListXattr")))
-	fsOpsLatencyFsOpLookUpInodeAttrSet                                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "LookUpInode")))
-	fsOpsLatencyFsOpMkDirAttrSet                                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "MkDir")))
-	fsOpsLatencyFsOpMkNodeAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "MkNode")))
-	fsOpsLatencyFsOpOpenDirAttrSet                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "OpenDir")))
-	fsOpsLatencyFsOpOpenFileAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "OpenFile")))
-	fsOpsLatencyFsOpReadDirAttrSet                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadDir")))
-	fsOpsLatencyFsOpReadFileAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadFile")))
-	fsOpsLatencyFsOpReadSymlinkAttrSet                                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadSymlink")))
-	fsOpsLatencyFsOpReleaseDirHandleAttrSet                                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReleaseDirHandle")))
-	fsOpsLatencyFsOpReleaseFileHandleAttrSet                                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReleaseFileHandle")))
-	fsOpsLatencyFsOpRemoveXattrAttrSet                                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "RemoveXattr")))
-	fsOpsLatencyFsOpRenameAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "Rename")))
-	fsOpsLatencyFsOpRmDirAttrSet                                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "RmDir")))
-	fsOpsLatencyFsOpSetInodeAttributesAttrSet                                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "SetInodeAttributes")))
-	fsOpsLatencyFsOpSetXattrAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "SetXattr")))
-	fsOpsLatencyFsOpStatFSAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "StatFS")))
-	fsOpsLatencyFsOpSyncFSAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "SyncFS")))
-	fsOpsLatencyFsOpSyncFileAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "SyncFile")))
-	fsOpsLatencyFsOpUnlinkAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "Unlink")))
-	fsOpsLatencyFsOpWriteFileAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "WriteFile")))
 	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpBatchForgetAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "BatchForget")))
 	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpCreateFileAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "CreateFile")))
 	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpCreateLinkAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "CreateLink")))
@@ -568,12 +549,42 @@ var (
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSyncFileAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "SyncFile")))
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpUnlinkAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "Unlink")))
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "WriteFile")))
-	gcsReadCountReadTypeParallelAttrSet                                                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel")))
-	gcsReadCountReadTypeRandomAttrSet                                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random")))
-	gcsReadCountReadTypeSequentialAttrSet                                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential")))
+	fsOpsLatencyFsOpBatchForgetAttrSet                                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "BatchForget")))
+	fsOpsLatencyFsOpCreateFileAttrSet                                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "CreateFile")))
+	fsOpsLatencyFsOpCreateLinkAttrSet                                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "CreateLink")))
+	fsOpsLatencyFsOpCreateSymlinkAttrSet                                                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "CreateSymlink")))
+	fsOpsLatencyFsOpFallocateAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "Fallocate")))
+	fsOpsLatencyFsOpFlushFileAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "FlushFile")))
+	fsOpsLatencyFsOpForgetInodeAttrSet                                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ForgetInode")))
+	fsOpsLatencyFsOpGetInodeAttributesAttrSet                                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "GetInodeAttributes")))
+	fsOpsLatencyFsOpGetXattrAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "GetXattr")))
+	fsOpsLatencyFsOpListXattrAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ListXattr")))
+	fsOpsLatencyFsOpLookUpInodeAttrSet                                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "LookUpInode")))
+	fsOpsLatencyFsOpMkDirAttrSet                                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "MkDir")))
+	fsOpsLatencyFsOpMkNodeAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "MkNode")))
+	fsOpsLatencyFsOpOpenDirAttrSet                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "OpenDir")))
+	fsOpsLatencyFsOpOpenFileAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "OpenFile")))
+	fsOpsLatencyFsOpReadDirAttrSet                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadDir")))
+	fsOpsLatencyFsOpReadFileAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadFile")))
+	fsOpsLatencyFsOpReadSymlinkAttrSet                                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadSymlink")))
+	fsOpsLatencyFsOpReleaseDirHandleAttrSet                                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReleaseDirHandle")))
+	fsOpsLatencyFsOpReleaseFileHandleAttrSet                                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReleaseFileHandle")))
+	fsOpsLatencyFsOpRemoveXattrAttrSet                                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "RemoveXattr")))
+	fsOpsLatencyFsOpRenameAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "Rename")))
+	fsOpsLatencyFsOpRmDirAttrSet                                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "RmDir")))
+	fsOpsLatencyFsOpSetInodeAttributesAttrSet                                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "SetInodeAttributes")))
+	fsOpsLatencyFsOpSetXattrAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "SetXattr")))
+	fsOpsLatencyFsOpStatFSAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "StatFS")))
+	fsOpsLatencyFsOpSyncFSAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "SyncFS")))
+	fsOpsLatencyFsOpSyncFileAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "SyncFile")))
+	fsOpsLatencyFsOpUnlinkAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "Unlink")))
+	fsOpsLatencyFsOpWriteFileAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "WriteFile")))
 	gcsDownloadBytesCountReadTypeParallelAttrSet                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel")))
 	gcsDownloadBytesCountReadTypeRandomAttrSet                                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random")))
 	gcsDownloadBytesCountReadTypeSequentialAttrSet                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential")))
+	gcsReadCountReadTypeParallelAttrSet                                                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel")))
+	gcsReadCountReadTypeRandomAttrSet                                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random")))
+	gcsReadCountReadTypeSequentialAttrSet                                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential")))
 	gcsReaderCountIoMethodClosedAttrSet                                                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("io_method", "closed")))
 	gcsReaderCountIoMethodOpenedAttrSet                                                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("io_method", "opened")))
 	gcsRequestCountGcsMethodComposeObjectsAttrSet                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "ComposeObjects")))
@@ -606,37 +617,35 @@ var (
 	gcsRequestLatenciesGcsMethodUpdateObjectAttrSet                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "UpdateObject")))
 	gcsRetryCountRetryErrorCategoryOTHERERRORSAttrSet                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("retry_error_category", "OTHER_ERRORS")))
 	gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("retry_error_category", "STALLED_READ_REQUEST")))
-	fileCacheReadCountCacheHitTrueReadTypeParallelAttrSet                               = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Parallel")))
-	fileCacheReadCountCacheHitTrueReadTypeRandomAttrSet                                 = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Random")))
-	fileCacheReadCountCacheHitTrueReadTypeSequentialAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Sequential")))
-	fileCacheReadCountCacheHitFalseReadTypeParallelAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", "Parallel")))
-	fileCacheReadCountCacheHitFalseReadTypeRandomAttrSet                                = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", "Random")))
-	fileCacheReadCountCacheHitFalseReadTypeSequentialAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", "Sequential")))
-	fileCacheReadBytesCountReadTypeParallelAttrSet                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel")))
-	fileCacheReadBytesCountReadTypeRandomAttrSet                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random")))
-	fileCacheReadBytesCountReadTypeSequentialAttrSet                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential")))
-	fileCacheReadLatenciesCacheHitTrueAttrSet                                           = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true)))
-	fileCacheReadLatenciesCacheHitFalseAttrSet                                          = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false)))
 )
 
 type MetricHandle interface {
+	FileCacheReadBytesCount(
+		inc int64, readType string,
+	)
+	FileCacheReadCount(
+		inc int64, cacheHit bool, readType string,
+	)
+	FileCacheReadLatencies(
+		ctx context.Context, duration time.Duration, cacheHit bool,
+	)
 	FsOpsCount(
 		inc int64, fsOp string,
-	)
-	FsOpsLatency(
-		ctx context.Context, duration time.Duration, fsOp string,
 	)
 	FsOpsErrorCount(
 		inc int64, fsErrorCategory string, fsOp string,
 	)
-	GcsReadCount(
-		inc int64, readType string,
+	FsOpsLatency(
+		ctx context.Context, duration time.Duration, fsOp string,
 	)
 	GcsDownloadBytesCount(
 		inc int64, readType string,
 	)
 	GcsReadBytesCount(
 		inc int64,
+	)
+	GcsReadCount(
+		inc int64, readType string,
 	)
 	GcsReaderCount(
 		inc int64, ioMethod string,
@@ -650,15 +659,6 @@ type MetricHandle interface {
 	GcsRetryCount(
 		inc int64, retryErrorCategory string,
 	)
-	FileCacheReadCount(
-		inc int64, cacheHit bool, readType string,
-	)
-	FileCacheReadBytesCount(
-		inc int64, readType string,
-	)
-	FileCacheReadLatencies(
-		ctx context.Context, duration time.Duration, cacheHit bool,
-	)
 }
 
 type histogramRecord struct {
@@ -670,6 +670,15 @@ type histogramRecord struct {
 
 type otelMetrics struct {
 	ch                                                                                 chan histogramRecord
+	fileCacheReadBytesCountReadTypeParallelAtomic                                      *atomic.Int64
+	fileCacheReadBytesCountReadTypeRandomAtomic                                        *atomic.Int64
+	fileCacheReadBytesCountReadTypeSequentialAtomic                                    *atomic.Int64
+	fileCacheReadCountCacheHitTrueReadTypeParallelAtomic                               *atomic.Int64
+	fileCacheReadCountCacheHitTrueReadTypeRandomAtomic                                 *atomic.Int64
+	fileCacheReadCountCacheHitTrueReadTypeSequentialAtomic                             *atomic.Int64
+	fileCacheReadCountCacheHitFalseReadTypeParallelAtomic                              *atomic.Int64
+	fileCacheReadCountCacheHitFalseReadTypeRandomAtomic                                *atomic.Int64
+	fileCacheReadCountCacheHitFalseReadTypeSequentialAtomic                            *atomic.Int64
 	fsOpsCountFsOpBatchForgetAtomic                                                    *atomic.Int64
 	fsOpsCountFsOpCreateFileAtomic                                                     *atomic.Int64
 	fsOpsCountFsOpCreateLinkAtomic                                                     *atomic.Int64
@@ -1180,13 +1189,13 @@ type otelMetrics struct {
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSyncFileAtomic                   *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpUnlinkAtomic                     *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAtomic                  *atomic.Int64
-	gcsReadCountReadTypeParallelAtomic                                                 *atomic.Int64
-	gcsReadCountReadTypeRandomAtomic                                                   *atomic.Int64
-	gcsReadCountReadTypeSequentialAtomic                                               *atomic.Int64
 	gcsDownloadBytesCountReadTypeParallelAtomic                                        *atomic.Int64
 	gcsDownloadBytesCountReadTypeRandomAtomic                                          *atomic.Int64
 	gcsDownloadBytesCountReadTypeSequentialAtomic                                      *atomic.Int64
 	gcsReadBytesCountAtomic                                                            *atomic.Int64
+	gcsReadCountReadTypeParallelAtomic                                                 *atomic.Int64
+	gcsReadCountReadTypeRandomAtomic                                                   *atomic.Int64
+	gcsReadCountReadTypeSequentialAtomic                                               *atomic.Int64
 	gcsReaderCountIoMethodClosedAtomic                                                 *atomic.Int64
 	gcsReaderCountIoMethodOpenedAtomic                                                 *atomic.Int64
 	gcsRequestCountGcsMethodComposeObjectsAtomic                                       *atomic.Int64
@@ -1205,18 +1214,66 @@ type otelMetrics struct {
 	gcsRequestCountGcsMethodUpdateObjectAtomic                                         *atomic.Int64
 	gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic                                   *atomic.Int64
 	gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic                            *atomic.Int64
-	fileCacheReadCountCacheHitTrueReadTypeParallelAtomic                               *atomic.Int64
-	fileCacheReadCountCacheHitTrueReadTypeRandomAtomic                                 *atomic.Int64
-	fileCacheReadCountCacheHitTrueReadTypeSequentialAtomic                             *atomic.Int64
-	fileCacheReadCountCacheHitFalseReadTypeParallelAtomic                              *atomic.Int64
-	fileCacheReadCountCacheHitFalseReadTypeRandomAtomic                                *atomic.Int64
-	fileCacheReadCountCacheHitFalseReadTypeSequentialAtomic                            *atomic.Int64
-	fileCacheReadBytesCountReadTypeParallelAtomic                                      *atomic.Int64
-	fileCacheReadBytesCountReadTypeRandomAtomic                                        *atomic.Int64
-	fileCacheReadBytesCountReadTypeSequentialAtomic                                    *atomic.Int64
+	fileCacheReadLatencies                                                             metric.Int64Histogram
 	fsOpsLatency                                                                       metric.Int64Histogram
 	gcsRequestLatencies                                                                metric.Int64Histogram
-	fileCacheReadLatencies                                                             metric.Int64Histogram
+}
+
+func (o *otelMetrics) FileCacheReadBytesCount(
+	inc int64, readType string,
+) {
+	switch readType {
+	case "Parallel":
+		o.fileCacheReadBytesCountReadTypeParallelAtomic.Add(inc)
+	case "Random":
+		o.fileCacheReadBytesCountReadTypeRandomAtomic.Add(inc)
+	case "Sequential":
+		o.fileCacheReadBytesCountReadTypeSequentialAtomic.Add(inc)
+	}
+
+}
+
+func (o *otelMetrics) FileCacheReadCount(
+	inc int64, cacheHit bool, readType string,
+) {
+	switch cacheHit {
+	case true:
+		switch readType {
+		case "Parallel":
+			o.fileCacheReadCountCacheHitTrueReadTypeParallelAtomic.Add(inc)
+		case "Random":
+			o.fileCacheReadCountCacheHitTrueReadTypeRandomAtomic.Add(inc)
+		case "Sequential":
+			o.fileCacheReadCountCacheHitTrueReadTypeSequentialAtomic.Add(inc)
+		}
+	case false:
+		switch readType {
+		case "Parallel":
+			o.fileCacheReadCountCacheHitFalseReadTypeParallelAtomic.Add(inc)
+		case "Random":
+			o.fileCacheReadCountCacheHitFalseReadTypeRandomAtomic.Add(inc)
+		case "Sequential":
+			o.fileCacheReadCountCacheHitFalseReadTypeSequentialAtomic.Add(inc)
+		}
+	}
+
+}
+
+func (o *otelMetrics) FileCacheReadLatencies(
+	ctx context.Context, latency time.Duration, cacheHit bool,
+) {
+	var record histogramRecord
+	switch cacheHit {
+	case true:
+		record = histogramRecord{ctx: ctx, instrument: o.fileCacheReadLatencies, value: latency.Microseconds(), attributes: fileCacheReadLatenciesCacheHitTrueAttrSet}
+	case false:
+		record = histogramRecord{ctx: ctx, instrument: o.fileCacheReadLatencies, value: latency.Microseconds(), attributes: fileCacheReadLatenciesCacheHitFalseAttrSet}
+	}
+
+	select {
+	case o.ch <- record: // Do nothing
+	default: // Unblock writes to channel if it's full.
+	}
 }
 
 func (o *otelMetrics) FsOpsCount(
@@ -1285,79 +1342,6 @@ func (o *otelMetrics) FsOpsCount(
 		o.fsOpsCountFsOpWriteFileAtomic.Add(inc)
 	}
 
-}
-
-func (o *otelMetrics) FsOpsLatency(
-	ctx context.Context, latency time.Duration, fsOp string,
-) {
-	var record histogramRecord
-	switch fsOp {
-	case "BatchForget":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpBatchForgetAttrSet}
-	case "CreateFile":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpCreateFileAttrSet}
-	case "CreateLink":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpCreateLinkAttrSet}
-	case "CreateSymlink":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpCreateSymlinkAttrSet}
-	case "Fallocate":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpFallocateAttrSet}
-	case "FlushFile":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpFlushFileAttrSet}
-	case "ForgetInode":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpForgetInodeAttrSet}
-	case "GetInodeAttributes":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpGetInodeAttributesAttrSet}
-	case "GetXattr":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpGetXattrAttrSet}
-	case "ListXattr":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpListXattrAttrSet}
-	case "LookUpInode":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpLookUpInodeAttrSet}
-	case "MkDir":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpMkDirAttrSet}
-	case "MkNode":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpMkNodeAttrSet}
-	case "OpenDir":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpOpenDirAttrSet}
-	case "OpenFile":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpOpenFileAttrSet}
-	case "ReadDir":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReadDirAttrSet}
-	case "ReadFile":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReadFileAttrSet}
-	case "ReadSymlink":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReadSymlinkAttrSet}
-	case "ReleaseDirHandle":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReleaseDirHandleAttrSet}
-	case "ReleaseFileHandle":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReleaseFileHandleAttrSet}
-	case "RemoveXattr":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpRemoveXattrAttrSet}
-	case "Rename":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpRenameAttrSet}
-	case "RmDir":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpRmDirAttrSet}
-	case "SetInodeAttributes":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpSetInodeAttributesAttrSet}
-	case "SetXattr":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpSetXattrAttrSet}
-	case "StatFS":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpStatFSAttrSet}
-	case "SyncFS":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpSyncFSAttrSet}
-	case "SyncFile":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpSyncFileAttrSet}
-	case "Unlink":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpUnlinkAttrSet}
-	case "WriteFile":
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpWriteFileAttrSet}
-	}
-
-	select {
-	case o.ch <- record: // Do nothing
-	default: // Unblock writes to channel if it's full.
-	}
 }
 
 func (o *otelMetrics) FsOpsErrorCount(
@@ -2376,18 +2360,77 @@ func (o *otelMetrics) FsOpsErrorCount(
 
 }
 
-func (o *otelMetrics) GcsReadCount(
-	inc int64, readType string,
+func (o *otelMetrics) FsOpsLatency(
+	ctx context.Context, latency time.Duration, fsOp string,
 ) {
-	switch readType {
-	case "Parallel":
-		o.gcsReadCountReadTypeParallelAtomic.Add(inc)
-	case "Random":
-		o.gcsReadCountReadTypeRandomAtomic.Add(inc)
-	case "Sequential":
-		o.gcsReadCountReadTypeSequentialAtomic.Add(inc)
+	var record histogramRecord
+	switch fsOp {
+	case "BatchForget":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpBatchForgetAttrSet}
+	case "CreateFile":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpCreateFileAttrSet}
+	case "CreateLink":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpCreateLinkAttrSet}
+	case "CreateSymlink":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpCreateSymlinkAttrSet}
+	case "Fallocate":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpFallocateAttrSet}
+	case "FlushFile":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpFlushFileAttrSet}
+	case "ForgetInode":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpForgetInodeAttrSet}
+	case "GetInodeAttributes":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpGetInodeAttributesAttrSet}
+	case "GetXattr":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpGetXattrAttrSet}
+	case "ListXattr":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpListXattrAttrSet}
+	case "LookUpInode":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpLookUpInodeAttrSet}
+	case "MkDir":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpMkDirAttrSet}
+	case "MkNode":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpMkNodeAttrSet}
+	case "OpenDir":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpOpenDirAttrSet}
+	case "OpenFile":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpOpenFileAttrSet}
+	case "ReadDir":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReadDirAttrSet}
+	case "ReadFile":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReadFileAttrSet}
+	case "ReadSymlink":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReadSymlinkAttrSet}
+	case "ReleaseDirHandle":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReleaseDirHandleAttrSet}
+	case "ReleaseFileHandle":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReleaseFileHandleAttrSet}
+	case "RemoveXattr":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpRemoveXattrAttrSet}
+	case "Rename":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpRenameAttrSet}
+	case "RmDir":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpRmDirAttrSet}
+	case "SetInodeAttributes":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpSetInodeAttributesAttrSet}
+	case "SetXattr":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpSetXattrAttrSet}
+	case "StatFS":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpStatFSAttrSet}
+	case "SyncFS":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpSyncFSAttrSet}
+	case "SyncFile":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpSyncFileAttrSet}
+	case "Unlink":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpUnlinkAttrSet}
+	case "WriteFile":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpWriteFileAttrSet}
 	}
 
+	select {
+	case o.ch <- record: // Do nothing
+	default: // Unblock writes to channel if it's full.
+	}
 }
 
 func (o *otelMetrics) GcsDownloadBytesCount(
@@ -2408,6 +2451,20 @@ func (o *otelMetrics) GcsReadBytesCount(
 	inc int64,
 ) {
 	o.gcsReadBytesCountAtomic.Add(inc)
+
+}
+
+func (o *otelMetrics) GcsReadCount(
+	inc int64, readType string,
+) {
+	switch readType {
+	case "Parallel":
+		o.gcsReadCountReadTypeParallelAtomic.Add(inc)
+	case "Random":
+		o.gcsReadCountReadTypeRandomAtomic.Add(inc)
+	case "Sequential":
+		o.gcsReadCountReadTypeSequentialAtomic.Add(inc)
+	}
 
 }
 
@@ -2512,63 +2569,6 @@ func (o *otelMetrics) GcsRetryCount(
 
 }
 
-func (o *otelMetrics) FileCacheReadCount(
-	inc int64, cacheHit bool, readType string,
-) {
-	switch cacheHit {
-	case true:
-		switch readType {
-		case "Parallel":
-			o.fileCacheReadCountCacheHitTrueReadTypeParallelAtomic.Add(inc)
-		case "Random":
-			o.fileCacheReadCountCacheHitTrueReadTypeRandomAtomic.Add(inc)
-		case "Sequential":
-			o.fileCacheReadCountCacheHitTrueReadTypeSequentialAtomic.Add(inc)
-		}
-	case false:
-		switch readType {
-		case "Parallel":
-			o.fileCacheReadCountCacheHitFalseReadTypeParallelAtomic.Add(inc)
-		case "Random":
-			o.fileCacheReadCountCacheHitFalseReadTypeRandomAtomic.Add(inc)
-		case "Sequential":
-			o.fileCacheReadCountCacheHitFalseReadTypeSequentialAtomic.Add(inc)
-		}
-	}
-
-}
-
-func (o *otelMetrics) FileCacheReadBytesCount(
-	inc int64, readType string,
-) {
-	switch readType {
-	case "Parallel":
-		o.fileCacheReadBytesCountReadTypeParallelAtomic.Add(inc)
-	case "Random":
-		o.fileCacheReadBytesCountReadTypeRandomAtomic.Add(inc)
-	case "Sequential":
-		o.fileCacheReadBytesCountReadTypeSequentialAtomic.Add(inc)
-	}
-
-}
-
-func (o *otelMetrics) FileCacheReadLatencies(
-	ctx context.Context, latency time.Duration, cacheHit bool,
-) {
-	var record histogramRecord
-	switch cacheHit {
-	case true:
-		record = histogramRecord{ctx: ctx, instrument: o.fileCacheReadLatencies, value: latency.Microseconds(), attributes: fileCacheReadLatenciesCacheHitTrueAttrSet}
-	case false:
-		record = histogramRecord{ctx: ctx, instrument: o.fileCacheReadLatencies, value: latency.Microseconds(), attributes: fileCacheReadLatenciesCacheHitFalseAttrSet}
-	}
-
-	select {
-	case o.ch <- record: // Do nothing
-	default: // Unblock writes to channel if it's full.
-	}
-}
-
 func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetrics, error) {
 	ch := make(chan histogramRecord, bufferSize)
 	for range workers {
@@ -2583,6 +2583,17 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		}()
 	}
 	meter := otel.Meter("gcsfuse")
+	var fileCacheReadBytesCountReadTypeParallelAtomic,
+		fileCacheReadBytesCountReadTypeRandomAtomic,
+		fileCacheReadBytesCountReadTypeSequentialAtomic atomic.Int64
+
+	var fileCacheReadCountCacheHitTrueReadTypeParallelAtomic,
+		fileCacheReadCountCacheHitTrueReadTypeRandomAtomic,
+		fileCacheReadCountCacheHitTrueReadTypeSequentialAtomic,
+		fileCacheReadCountCacheHitFalseReadTypeParallelAtomic,
+		fileCacheReadCountCacheHitFalseReadTypeRandomAtomic,
+		fileCacheReadCountCacheHitFalseReadTypeSequentialAtomic atomic.Int64
+
 	var fsOpsCountFsOpBatchForgetAtomic,
 		fsOpsCountFsOpCreateFileAtomic,
 		fsOpsCountFsOpCreateLinkAtomic,
@@ -3095,15 +3106,15 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpUnlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAtomic atomic.Int64
 
-	var gcsReadCountReadTypeParallelAtomic,
-		gcsReadCountReadTypeRandomAtomic,
-		gcsReadCountReadTypeSequentialAtomic atomic.Int64
-
 	var gcsDownloadBytesCountReadTypeParallelAtomic,
 		gcsDownloadBytesCountReadTypeRandomAtomic,
 		gcsDownloadBytesCountReadTypeSequentialAtomic atomic.Int64
 
 	var gcsReadBytesCountAtomic atomic.Int64
+
+	var gcsReadCountReadTypeParallelAtomic,
+		gcsReadCountReadTypeRandomAtomic,
+		gcsReadCountReadTypeSequentialAtomic atomic.Int64
 
 	var gcsReaderCountIoMethodClosedAtomic,
 		gcsReaderCountIoMethodOpenedAtomic atomic.Int64
@@ -3126,18 +3137,35 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 	var gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic,
 		gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic atomic.Int64
 
-	var fileCacheReadCountCacheHitTrueReadTypeParallelAtomic,
-		fileCacheReadCountCacheHitTrueReadTypeRandomAtomic,
-		fileCacheReadCountCacheHitTrueReadTypeSequentialAtomic,
-		fileCacheReadCountCacheHitFalseReadTypeParallelAtomic,
-		fileCacheReadCountCacheHitFalseReadTypeRandomAtomic,
-		fileCacheReadCountCacheHitFalseReadTypeSequentialAtomic atomic.Int64
+	_, err0 := meter.Int64ObservableCounter("file_cache/read_bytes_count",
+		metric.WithDescription("The cumulative number of bytes read from file cache along with read type - Sequential/Random"),
+		metric.WithUnit("By"),
+		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
+			obsrv.Observe(fileCacheReadBytesCountReadTypeParallelAtomic.Load(), fileCacheReadBytesCountReadTypeParallelAttrSet)
+			obsrv.Observe(fileCacheReadBytesCountReadTypeRandomAtomic.Load(), fileCacheReadBytesCountReadTypeRandomAttrSet)
+			obsrv.Observe(fileCacheReadBytesCountReadTypeSequentialAtomic.Load(), fileCacheReadBytesCountReadTypeSequentialAttrSet)
+			return nil
+		}))
 
-	var fileCacheReadBytesCountReadTypeParallelAtomic,
-		fileCacheReadBytesCountReadTypeRandomAtomic,
-		fileCacheReadBytesCountReadTypeSequentialAtomic atomic.Int64
+	_, err1 := meter.Int64ObservableCounter("file_cache/read_count",
+		metric.WithDescription("Specifies the number of read requests made via file cache along with type - Sequential/Random and cache hit - true/false"),
+		metric.WithUnit(""),
+		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
+			obsrv.Observe(fileCacheReadCountCacheHitTrueReadTypeParallelAtomic.Load(), fileCacheReadCountCacheHitTrueReadTypeParallelAttrSet)
+			obsrv.Observe(fileCacheReadCountCacheHitTrueReadTypeRandomAtomic.Load(), fileCacheReadCountCacheHitTrueReadTypeRandomAttrSet)
+			obsrv.Observe(fileCacheReadCountCacheHitTrueReadTypeSequentialAtomic.Load(), fileCacheReadCountCacheHitTrueReadTypeSequentialAttrSet)
+			obsrv.Observe(fileCacheReadCountCacheHitFalseReadTypeParallelAtomic.Load(), fileCacheReadCountCacheHitFalseReadTypeParallelAttrSet)
+			obsrv.Observe(fileCacheReadCountCacheHitFalseReadTypeRandomAtomic.Load(), fileCacheReadCountCacheHitFalseReadTypeRandomAttrSet)
+			obsrv.Observe(fileCacheReadCountCacheHitFalseReadTypeSequentialAtomic.Load(), fileCacheReadCountCacheHitFalseReadTypeSequentialAttrSet)
+			return nil
+		}))
 
-	_, err0 := meter.Int64ObservableCounter("fs/ops_count",
+	fileCacheReadLatencies, err2 := meter.Int64Histogram("file_cache/read_latencies",
+		metric.WithDescription("The cumulative distribution of the file cache read latencies along with cache hit - true/false."),
+		metric.WithUnit("us"),
+		metric.WithExplicitBucketBoundaries(1, 2, 3, 4, 5, 6, 8, 10, 13, 16, 20, 25, 30, 40, 50, 65, 80, 100, 130, 160, 200, 250, 300, 400, 500, 650, 800, 1000, 2000, 5000, 10000, 20000, 50000, 100000))
+
+	_, err3 := meter.Int64ObservableCounter("fs/ops_count",
 		metric.WithDescription("The cumulative number of ops processed by the file system."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3174,12 +3202,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	fsOpsLatency, err1 := meter.Int64Histogram("fs/ops_latency",
-		metric.WithDescription("The cumulative distribution of file system operation latencies"),
-		metric.WithUnit("us"),
-		metric.WithExplicitBucketBoundaries(1, 2, 3, 4, 5, 6, 8, 10, 13, 16, 20, 25, 30, 40, 50, 65, 80, 100, 130, 160, 200, 250, 300, 400, 500, 650, 800, 1000, 2000, 5000, 10000, 20000, 50000, 100000))
-
-	_, err2 := meter.Int64ObservableCounter("fs/ops_error_count",
+	_, err4 := meter.Int64ObservableCounter("fs/ops_error_count",
 		metric.WithDescription("The cumulative number of errors generated by file system operations."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3666,17 +3689,12 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err3 := meter.Int64ObservableCounter("gcs/read_count",
-		metric.WithDescription("Specifies the number of gcs reads made along with type - Sequential/Random"),
-		metric.WithUnit(""),
-		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
-			obsrv.Observe(gcsReadCountReadTypeParallelAtomic.Load(), gcsReadCountReadTypeParallelAttrSet)
-			obsrv.Observe(gcsReadCountReadTypeRandomAtomic.Load(), gcsReadCountReadTypeRandomAttrSet)
-			obsrv.Observe(gcsReadCountReadTypeSequentialAtomic.Load(), gcsReadCountReadTypeSequentialAttrSet)
-			return nil
-		}))
+	fsOpsLatency, err5 := meter.Int64Histogram("fs/ops_latency",
+		metric.WithDescription("The cumulative distribution of file system operation latencies"),
+		metric.WithUnit("us"),
+		metric.WithExplicitBucketBoundaries(1, 2, 3, 4, 5, 6, 8, 10, 13, 16, 20, 25, 30, 40, 50, 65, 80, 100, 130, 160, 200, 250, 300, 400, 500, 650, 800, 1000, 2000, 5000, 10000, 20000, 50000, 100000))
 
-	_, err4 := meter.Int64ObservableCounter("gcs/download_bytes_count",
+	_, err6 := meter.Int64ObservableCounter("gcs/download_bytes_count",
 		metric.WithDescription("The cumulative number of bytes downloaded from GCS along with type - Sequential/Random"),
 		metric.WithUnit("By"),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3686,7 +3704,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err5 := meter.Int64ObservableCounter("gcs/read_bytes_count",
+	_, err7 := meter.Int64ObservableCounter("gcs/read_bytes_count",
 		metric.WithDescription("The cumulative number of bytes read from GCS objects."),
 		metric.WithUnit("By"),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3694,7 +3712,17 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err6 := meter.Int64ObservableCounter("gcs/reader_count",
+	_, err8 := meter.Int64ObservableCounter("gcs/read_count",
+		metric.WithDescription("Specifies the number of gcs reads made along with type - Sequential/Random"),
+		metric.WithUnit(""),
+		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
+			obsrv.Observe(gcsReadCountReadTypeParallelAtomic.Load(), gcsReadCountReadTypeParallelAttrSet)
+			obsrv.Observe(gcsReadCountReadTypeRandomAtomic.Load(), gcsReadCountReadTypeRandomAttrSet)
+			obsrv.Observe(gcsReadCountReadTypeSequentialAtomic.Load(), gcsReadCountReadTypeSequentialAttrSet)
+			return nil
+		}))
+
+	_, err9 := meter.Int64ObservableCounter("gcs/reader_count",
 		metric.WithDescription("The cumulative number of GCS object readers opened or closed."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3703,7 +3731,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err7 := meter.Int64ObservableCounter("gcs/request_count",
+	_, err10 := meter.Int64ObservableCounter("gcs/request_count",
 		metric.WithDescription("The cumulative number of GCS requests processed along with the GCS method."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3724,12 +3752,12 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	gcsRequestLatencies, err8 := meter.Int64Histogram("gcs/request_latencies",
+	gcsRequestLatencies, err11 := meter.Int64Histogram("gcs/request_latencies",
 		metric.WithDescription("The cumulative distribution of the GCS request latencies."),
 		metric.WithUnit("ms"),
 		metric.WithExplicitBucketBoundaries(1, 2, 3, 4, 5, 6, 8, 10, 13, 16, 20, 25, 30, 40, 50, 65, 80, 100, 130, 160, 200, 250, 300, 400, 500, 650, 800, 1000, 2000, 5000, 10000, 20000, 50000, 100000))
 
-	_, err9 := meter.Int64ObservableCounter("gcs/retry_count",
+	_, err12 := meter.Int64ObservableCounter("gcs/retry_count",
 		metric.WithDescription("The cumulative number of retry requests made to GCS."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3738,41 +3766,23 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err10 := meter.Int64ObservableCounter("file_cache/read_count",
-		metric.WithDescription("Specifies the number of read requests made via file cache along with type - Sequential/Random and cache hit - true/false"),
-		metric.WithUnit(""),
-		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
-			obsrv.Observe(fileCacheReadCountCacheHitTrueReadTypeParallelAtomic.Load(), fileCacheReadCountCacheHitTrueReadTypeParallelAttrSet)
-			obsrv.Observe(fileCacheReadCountCacheHitTrueReadTypeRandomAtomic.Load(), fileCacheReadCountCacheHitTrueReadTypeRandomAttrSet)
-			obsrv.Observe(fileCacheReadCountCacheHitTrueReadTypeSequentialAtomic.Load(), fileCacheReadCountCacheHitTrueReadTypeSequentialAttrSet)
-			obsrv.Observe(fileCacheReadCountCacheHitFalseReadTypeParallelAtomic.Load(), fileCacheReadCountCacheHitFalseReadTypeParallelAttrSet)
-			obsrv.Observe(fileCacheReadCountCacheHitFalseReadTypeRandomAtomic.Load(), fileCacheReadCountCacheHitFalseReadTypeRandomAttrSet)
-			obsrv.Observe(fileCacheReadCountCacheHitFalseReadTypeSequentialAtomic.Load(), fileCacheReadCountCacheHitFalseReadTypeSequentialAttrSet)
-			return nil
-		}))
-
-	_, err11 := meter.Int64ObservableCounter("file_cache/read_bytes_count",
-		metric.WithDescription("The cumulative number of bytes read from file cache along with read type - Sequential/Random"),
-		metric.WithUnit("By"),
-		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
-			obsrv.Observe(fileCacheReadBytesCountReadTypeParallelAtomic.Load(), fileCacheReadBytesCountReadTypeParallelAttrSet)
-			obsrv.Observe(fileCacheReadBytesCountReadTypeRandomAtomic.Load(), fileCacheReadBytesCountReadTypeRandomAttrSet)
-			obsrv.Observe(fileCacheReadBytesCountReadTypeSequentialAtomic.Load(), fileCacheReadBytesCountReadTypeSequentialAttrSet)
-			return nil
-		}))
-
-	fileCacheReadLatencies, err12 := meter.Int64Histogram("file_cache/read_latencies",
-		metric.WithDescription("The cumulative distribution of the file cache read latencies along with cache hit - true/false."),
-		metric.WithUnit("us"),
-		metric.WithExplicitBucketBoundaries(1, 2, 3, 4, 5, 6, 8, 10, 13, 16, 20, 25, 30, 40, 50, 65, 80, 100, 130, 160, 200, 250, 300, 400, 500, 650, 800, 1000, 2000, 5000, 10000, 20000, 50000, 100000))
-
 	errs := []error{err0, err1, err2, err3, err4, err5, err6, err7, err8, err9, err10, err11, err12}
 	if err := errors.Join(errs...); err != nil {
 		return nil, err
 	}
 
 	return &otelMetrics{
-		ch:                                                                                 ch,
+		ch: ch,
+		fileCacheReadBytesCountReadTypeParallelAtomic:                                      &fileCacheReadBytesCountReadTypeParallelAtomic,
+		fileCacheReadBytesCountReadTypeRandomAtomic:                                        &fileCacheReadBytesCountReadTypeRandomAtomic,
+		fileCacheReadBytesCountReadTypeSequentialAtomic:                                    &fileCacheReadBytesCountReadTypeSequentialAtomic,
+		fileCacheReadCountCacheHitTrueReadTypeParallelAtomic:                               &fileCacheReadCountCacheHitTrueReadTypeParallelAtomic,
+		fileCacheReadCountCacheHitTrueReadTypeRandomAtomic:                                 &fileCacheReadCountCacheHitTrueReadTypeRandomAtomic,
+		fileCacheReadCountCacheHitTrueReadTypeSequentialAtomic:                             &fileCacheReadCountCacheHitTrueReadTypeSequentialAtomic,
+		fileCacheReadCountCacheHitFalseReadTypeParallelAtomic:                              &fileCacheReadCountCacheHitFalseReadTypeParallelAtomic,
+		fileCacheReadCountCacheHitFalseReadTypeRandomAtomic:                                &fileCacheReadCountCacheHitFalseReadTypeRandomAtomic,
+		fileCacheReadCountCacheHitFalseReadTypeSequentialAtomic:                            &fileCacheReadCountCacheHitFalseReadTypeSequentialAtomic,
+		fileCacheReadLatencies:                                                             fileCacheReadLatencies,
 		fsOpsCountFsOpBatchForgetAtomic:                                                    &fsOpsCountFsOpBatchForgetAtomic,
 		fsOpsCountFsOpCreateFileAtomic:                                                     &fsOpsCountFsOpCreateFileAtomic,
 		fsOpsCountFsOpCreateLinkAtomic:                                                     &fsOpsCountFsOpCreateLinkAtomic,
@@ -3803,7 +3813,6 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsCountFsOpSyncFileAtomic:                                                       &fsOpsCountFsOpSyncFileAtomic,
 		fsOpsCountFsOpUnlinkAtomic:                                                         &fsOpsCountFsOpUnlinkAtomic,
 		fsOpsCountFsOpWriteFileAtomic:                                                      &fsOpsCountFsOpWriteFileAtomic,
-		fsOpsLatency:                                                                       fsOpsLatency,
 		fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpBatchForgetAtomic:                     &fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpBatchForgetAtomic,
 		fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpCreateFileAtomic:                      &fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpCreateFileAtomic,
 		fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpCreateLinkAtomic:                      &fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpCreateLinkAtomic,
@@ -4284,13 +4293,14 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSyncFileAtomic:                   &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSyncFileAtomic,
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpUnlinkAtomic:                     &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpUnlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAtomic:                  &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAtomic,
-		gcsReadCountReadTypeParallelAtomic:                                                 &gcsReadCountReadTypeParallelAtomic,
-		gcsReadCountReadTypeRandomAtomic:                                                   &gcsReadCountReadTypeRandomAtomic,
-		gcsReadCountReadTypeSequentialAtomic:                                               &gcsReadCountReadTypeSequentialAtomic,
-		gcsDownloadBytesCountReadTypeParallelAtomic:                                        &gcsDownloadBytesCountReadTypeParallelAtomic,
-		gcsDownloadBytesCountReadTypeRandomAtomic:                                          &gcsDownloadBytesCountReadTypeRandomAtomic,
-		gcsDownloadBytesCountReadTypeSequentialAtomic:                                      &gcsDownloadBytesCountReadTypeSequentialAtomic,
+		fsOpsLatency: fsOpsLatency,
+		gcsDownloadBytesCountReadTypeParallelAtomic:             &gcsDownloadBytesCountReadTypeParallelAtomic,
+		gcsDownloadBytesCountReadTypeRandomAtomic:               &gcsDownloadBytesCountReadTypeRandomAtomic,
+		gcsDownloadBytesCountReadTypeSequentialAtomic:           &gcsDownloadBytesCountReadTypeSequentialAtomic,
 		gcsReadBytesCountAtomic:                                 &gcsReadBytesCountAtomic,
+		gcsReadCountReadTypeParallelAtomic:                      &gcsReadCountReadTypeParallelAtomic,
+		gcsReadCountReadTypeRandomAtomic:                        &gcsReadCountReadTypeRandomAtomic,
+		gcsReadCountReadTypeSequentialAtomic:                    &gcsReadCountReadTypeSequentialAtomic,
 		gcsReaderCountIoMethodClosedAtomic:                      &gcsReaderCountIoMethodClosedAtomic,
 		gcsReaderCountIoMethodOpenedAtomic:                      &gcsReaderCountIoMethodOpenedAtomic,
 		gcsRequestCountGcsMethodComposeObjectsAtomic:            &gcsRequestCountGcsMethodComposeObjectsAtomic,
@@ -4310,15 +4320,5 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		gcsRequestLatencies:                                     gcsRequestLatencies,
 		gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic:        &gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic,
 		gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic: &gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic,
-		fileCacheReadCountCacheHitTrueReadTypeParallelAtomic:    &fileCacheReadCountCacheHitTrueReadTypeParallelAtomic,
-		fileCacheReadCountCacheHitTrueReadTypeRandomAtomic:      &fileCacheReadCountCacheHitTrueReadTypeRandomAtomic,
-		fileCacheReadCountCacheHitTrueReadTypeSequentialAtomic:  &fileCacheReadCountCacheHitTrueReadTypeSequentialAtomic,
-		fileCacheReadCountCacheHitFalseReadTypeParallelAtomic:   &fileCacheReadCountCacheHitFalseReadTypeParallelAtomic,
-		fileCacheReadCountCacheHitFalseReadTypeRandomAtomic:     &fileCacheReadCountCacheHitFalseReadTypeRandomAtomic,
-		fileCacheReadCountCacheHitFalseReadTypeSequentialAtomic: &fileCacheReadCountCacheHitFalseReadTypeSequentialAtomic,
-		fileCacheReadBytesCountReadTypeParallelAtomic:           &fileCacheReadBytesCountReadTypeParallelAtomic,
-		fileCacheReadBytesCountReadTypeRandomAtomic:             &fileCacheReadBytesCountReadTypeRandomAtomic,
-		fileCacheReadBytesCountReadTypeSequentialAtomic:         &fileCacheReadBytesCountReadTypeSequentialAtomic,
-		fileCacheReadLatencies:                                  fileCacheReadLatencies,
 	}, nil
 }

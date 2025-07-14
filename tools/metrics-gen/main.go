@@ -181,45 +181,78 @@ func generateCombinations(attributes []Attribute) []AttrCombination {
 	return result
 }
 
+func validateMetric(m Metric) error {
+	if m.Name == "" {
+		return fmt.Errorf("metric-name is required")
+	}
+	if m.Description == "" {
+		return fmt.Errorf("description is required for metric %q", m.Name)
+	}
+	if m.Type != "int_counter" && m.Type != "int_histogram" {
+		return fmt.Errorf("type for metric %q must be 'int_counter' or 'int_histogram', got %q", m.Name, m.Type)
+	}
+
+	if m.Type == "int_histogram" {
+		if len(m.Boundaries) == 0 {
+			return fmt.Errorf("boundaries are required for histogram metric %q", m.Name)
+		}
+	} else { // int_counter
+		if len(m.Boundaries) > 0 {
+			return fmt.Errorf("boundaries should not be present for counter metric %q", m.Name)
+		}
+	}
+
+	for _, a := range m.Attributes {
+		if a.Name == "" {
+			return fmt.Errorf("attribute-name is required for an attribute in metric %q", m.Name)
+		}
+		if a.Type != "string" && a.Type != "bool" {
+			return fmt.Errorf("attribute-type for attribute %q in metric %q must be 'string' or 'bool', got %q", a.Name, m.Name, a.Type)
+		}
+
+		if a.Type == "string" {
+			if len(a.Values) == 0 {
+				return fmt.Errorf("values are required for string attribute %q in metric %q", a.Name, m.Name)
+			}
+		}
+		if a.Type == "bool" && len(a.Values) != 0 {
+			return fmt.Errorf("values should not be present for bool attribute %q in metric %q", a.Name, m.Name)
+		}
+	}
+	return nil
+}
+
+func validateForDuplicates(metrics []Metric) error {
+	names := make(map[string]bool)
+	for _, m := range metrics {
+		if names[m.Name] {
+			return fmt.Errorf("duplicate metric-name: %q", m.Name)
+		}
+		names[m.Name] = true
+	}
+	return nil
+}
+
+func validateSortOrder(metrics []Metric) error {
+	for i := 1; i < len(metrics); i++ {
+		if metrics[i-1].Name > metrics[i].Name {
+			return fmt.Errorf("metrics are not sorted by name. %q should come before %q", metrics[i].Name, metrics[i-1].Name)
+		}
+	}
+	return nil
+}
+
 // validateMetrics checks for correctness of the metric definitions.
 func validateMetrics(metrics []Metric) error {
+	if err := validateForDuplicates(metrics); err != nil {
+		return err
+	}
+	if err := validateSortOrder(metrics); err != nil {
+		return err
+	}
 	for _, m := range metrics {
-		if m.Name == "" {
-			return fmt.Errorf("metric-name is required")
-		}
-		if m.Description == "" {
-			return fmt.Errorf("description is required for metric %q", m.Name)
-		}
-		if m.Type != "int_counter" && m.Type != "int_histogram" {
-			return fmt.Errorf("type for metric %q must be 'int_counter' or 'int_histogram', got %q", m.Name, m.Type)
-		}
-
-		if m.Type == "int_histogram" {
-			if len(m.Boundaries) == 0 {
-				return fmt.Errorf("boundaries are required for histogram metric %q", m.Name)
-			}
-		} else { // int_counter
-			if len(m.Boundaries) > 0 {
-				return fmt.Errorf("boundaries should not be present for counter metric %q", m.Name)
-			}
-		}
-
-		for _, a := range m.Attributes {
-			if a.Name == "" {
-				return fmt.Errorf("attribute-name is required for an attribute in metric %q", m.Name)
-			}
-			if a.Type != "string" && a.Type != "bool" {
-				return fmt.Errorf("attribute-type for attribute %q in metric %q must be 'string' or 'bool', got %q", a.Name, m.Name, a.Type)
-			}
-
-			if a.Type == "string" {
-				if len(a.Values) == 0 {
-					return fmt.Errorf("values are required for string attribute %q in metric %q", a.Name, m.Name)
-				}
-			}
-			if a.Type == "bool" && len(a.Values) != 0 {
-				return fmt.Errorf("values should not be present for bool attribute %q in metric %q", a.Name, m.Name)
-			}
+		if err := validateMetric(m); err != nil {
+			return err
 		}
 	}
 	return nil
