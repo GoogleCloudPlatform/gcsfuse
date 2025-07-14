@@ -661,6 +661,12 @@ type MetricHandle interface {
 	)
 }
 
+type histogramRecord struct {
+	instrument *metric.Int64Histogram
+	value      int64
+	attributes metric.RecordOption
+}
+
 type otelMetrics struct {
 	ch                                                                                 chan func()
 	fsOpsCountFsOpBatchForgetAtomic                                                    *atomic.Int64
