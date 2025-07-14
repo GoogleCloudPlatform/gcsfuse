@@ -143,18 +143,18 @@ func (t *DirHandleTest) createTestDirentPlus(name string, dtype fuseutil.DirentT
 	}
 }
 
-func (t *DirHandleTest) validateEntryPlus(entry fuseutil.DirentPlus, name string, fileType fuseutil.DirentType, childInodeID fuseops.InodeID) {
-	AssertEq(name, entry.Dirent.Name)
-	AssertEq(fileType, entry.Dirent.Type)
-	AssertEq(childInodeID, entry.Entry.Child)
+func (t *DirHandleTest) validateEntryPlus(entry fuseutil.DirentPlus, expectedName string, expectedType fuseutil.DirentType, expectedChildInodeID fuseops.InodeID) {
+	AssertEq(expectedName, entry.Dirent.Name)
+	AssertEq(expectedType, entry.Dirent.Type)
+	AssertEq(expectedChildInodeID, entry.Entry.Child)
 }
 
-func (t *DirHandleTest) validateCore(core *inode.Core, name string, filetype metadata.Type, minObjectName string) {
+func (t *DirHandleTest) validateCore(core *inode.Core, expectedName string, expectedType metadata.Type, expectedMinObjectName string) {
 	AssertNe(nil, core)
 	AssertNe(nil, core.MinObject)
-	AssertEq(name, path.Base(core.FullName.LocalName()))
-	AssertEq(minObjectName, core.MinObject.Name)
-	AssertEq(filetype, core.Type())
+	AssertEq(expectedName, path.Base(core.FullName.LocalName()))
+	AssertEq(expectedMinObjectName, core.MinObject.Name)
+	AssertEq(expectedType, core.Type())
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -340,11 +340,9 @@ func (t *DirHandleTest) ReadAllEntryCoresReturnsAllEntryCores() {
 	// validations
 	AssertEq(nil, err)
 	AssertEq(2, len(cores))
-
 	entry1, ok := cores[inode.NewFileName(t.dh.in.Name(), "gcsObject1")]
 	AssertTrue(ok, "Core for gcsObject1 not found")
 	t.validateCore(entry1, "gcsObject1", metadata.RegularFileType, "testDir/gcsObject1")
-
 	entry2, ok := cores[inode.NewFileName(t.dh.in.Name(), "gcsObject2")]
 	AssertTrue(ok, "Core for gcsObject2 not found")
 	t.validateCore(entry2, "gcsObject2", metadata.RegularFileType, "testDir/gcsObject2")
@@ -362,7 +360,6 @@ func (t *DirHandleTest) FetchEntryCoresFetchesCores() {
 
 	AssertEq(nil, err)
 	AssertEq(1, len(cores))
-
 	entry, ok := cores[inode.NewFileName(t.dh.in.Name(), "testFile")]
 	AssertTrue(ok, "Core for gcsFile1 not found")
 	t.validateCore(entry, "testFile", metadata.RegularFileType, "testDir/testFile")
@@ -394,6 +391,9 @@ func (t *DirHandleTest) FetchEntryCoresNonZeroOffsetFetchesIfCacheInvalid() {
 
 	AssertEq(nil, err)
 	AssertEq(1, len(cores))
+	entry, ok := cores[inode.NewFileName(t.dh.in.Name(), "fetchThis")]
+	AssertTrue(ok, "Core for fetchThis not found")
+	t.validateCore(entry, "fetchThis", metadata.RegularFileType, "testDir/fetchThis")
 }
 
 func (t *DirHandleTest) ReadDirPlusResponseForNoFile() {
@@ -417,7 +417,6 @@ func (t *DirHandleTest) ReadDirPlusSameNameLocalAndGCSFile() {
 	}
 	gcsFile := t.createTestDirentPlus("sameName", fuseutil.DT_File, 1001, 10)
 	localFile := t.createTestDirentPlus("sameName", fuseutil.DT_File, 1002, 0)
-
 	gcsEntriesPlus := []fuseutil.DirentPlus{gcsFile}
 	localFileEntriesPlus := map[string]fuseutil.DirentPlus{"sameName": localFile}
 
@@ -434,7 +433,6 @@ func (t *DirHandleTest) ReadDirPlusSameNameLocalFileAndGCSDirectory() {
 	}
 	gcsDir := t.createTestDirentPlus("sameName", fuseutil.DT_Directory, 1001, 0)
 	gcsEntriesPlus := []fuseutil.DirentPlus{gcsDir}
-
 	localFile := t.createTestDirentPlus("sameName", fuseutil.DT_File, 2001, 20)
 	localFileEntriesPlus := map[string]fuseutil.DirentPlus{"sameName": localFile}
 
@@ -442,7 +440,6 @@ func (t *DirHandleTest) ReadDirPlusSameNameLocalFileAndGCSDirectory() {
 
 	AssertEq(nil, err)
 	AssertEq(2, len(t.dh.entriesPlus))
-
 	t.validateEntryPlus(t.dh.entriesPlus[0], "sameName", fuseutil.DT_Directory, 1001)
 	t.validateEntryPlus(t.dh.entriesPlus[1], "sameName"+inode.ConflictingFileNameSuffix, fuseutil.DT_File, 2001)
 	AssertEq(t.dh.entriesPlus[1].Dirent.Offset, t.dh.entriesPlus[0].Dirent.Offset+1)
