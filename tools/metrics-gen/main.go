@@ -242,12 +242,26 @@ func validateSortOrder(metrics []Metric) error {
 	return nil
 }
 
+func validateAttributeSortOrder(metrics []Metric) error {
+	for _, m := range metrics {
+		for i := 1; i < len(m.Attributes); i++ {
+			if m.Attributes[i-1].Name > m.Attributes[i].Name {
+				return fmt.Errorf("attributes for metric %q are not sorted by name. %q should come before %q", m.Name, m.Attributes[i].Name, m.Attributes[i-1].Name)
+			}
+		}
+	}
+	return nil
+}
+
 // validateMetrics checks for correctness of the metric definitions.
 func validateMetrics(metrics []Metric) error {
 	if err := validateForDuplicates(metrics); err != nil {
 		return err
 	}
 	if err := validateSortOrder(metrics); err != nil {
+		return err
+	}
+	if err := validateAttributeSortOrder(metrics); err != nil {
 		return err
 	}
 	for _, m := range metrics {

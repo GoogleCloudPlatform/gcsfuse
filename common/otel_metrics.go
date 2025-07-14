@@ -2573,11 +2573,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 	ch := make(chan histogramRecord, bufferSize)
 	for range workers {
 		go func() {
-			for {
-				record, ok := <-ch
-				if !ok {
-					return
-				}
+			for record := range ch {
 				record.instrument.Record(record.ctx, record.value, record.attributes)
 			}
 		}()
