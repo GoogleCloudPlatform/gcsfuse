@@ -27,16 +27,11 @@ commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 
 cd "./perfmetrics/scripts/micro_benchmarks"
 
-echo "Install latest python3.11"
-sudo apt update
-sudo apt install software-properties-commo
-sudo add-apt-repository ppa:deadsnakes/ppa
-sudo apt update
-sudo apt install python3.11
-sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
+echo "Upgrade python3 version"
+./perfmetrics/scripts/upgrade_python3.sh
 
 echo "Installing dependencies..."
-python3.11 -m venv venv
+python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
@@ -48,13 +43,13 @@ echo "Running Python scripts for hns bucket..."
 FILE_SIZE_READ_GB=15
 READ_LOG_FILE="${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-single-threaded-read-${FILE_SIZE_READ_GB}gb-test.txt"
 GCSFUSE_READ_FLAGS="--log-file $READ_LOG_FILE"
-python3.11 read_single_thread.py --bucket single-threaded-tests --gcsfuse-config "$GCSFUSE_READ_FLAGS" --total-files 10 --file-size-gb "$FILE_SIZE_READ_GB"
+python3 read_single_thread.py --bucket single-threaded-tests --gcsfuse-config "$GCSFUSE_READ_FLAGS" --total-files 10 --file-size-gb "$FILE_SIZE_READ_GB"
 exit_read_code=$?
 
 FILE_SIZE_WRITE_GB=15
 WRITE_LOG_FILE="${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-single-threaded-write-${FILE_SIZE_WRITE_GB}gb-test.txt"
 GCSFUSE_WRITE_FLAGS="--log-file $WRITE_LOG_FILE"
-python3.11 write_single_thread.py --bucket single-threaded-tests --gcsfuse-config "$GCSFUSE_WRITE_FLAGS" --total-files 1 --file-size-gb "$FILE_SIZE_WRITE_GB"
+python3 write_single_thread.py --bucket single-threaded-tests --gcsfuse-config "$GCSFUSE_WRITE_FLAGS" --total-files 1 --file-size-gb "$FILE_SIZE_WRITE_GB"
 exit_write_code=$?
 
 deactivate
