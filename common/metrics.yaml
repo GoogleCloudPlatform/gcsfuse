@@ -194,9 +194,6 @@
   attributes:
   - attribute-name: cache_hit
     attribute-type: bool
-    values:
-    - "true"
-    - "false"
   - attribute-name: read_type
     attribute-type: string
     values: *read_types_list
@@ -218,6 +215,3 @@
   attributes:
   - attribute-name: cache_hit
     attribute-type: bool
-    values:
-    - "true"
-    - "false"

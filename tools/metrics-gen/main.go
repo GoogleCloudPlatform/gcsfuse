@@ -181,6 +181,50 @@ func generateCombinations(attributes []Attribute) []AttrCombination {
 	return result
 }
 
+// validateMetrics checks for correctness of the metric definitions.
+func validateMetrics(metrics []Metric) error {
+	for _, m := range metrics {
+		if m.Name == "" {
+			return fmt.Errorf("metric-name is required")
+		}
+		if m.Description == "" {
+			return fmt.Errorf("description is required for metric %q", m.Name)
+		}
+		if m.Type != "int_counter" && m.Type != "int_histogram" {
+			return fmt.Errorf("type for metric %q must be 'int_counter' or 'int_histogram', got %q", m.Name, m.Type)
+		}
+
+		if m.Type == "int_histogram" {
+			if len(m.Boundaries) == 0 {
+				return fmt.Errorf("boundaries are required for histogram metric %q", m.Name)
+			}
+		} else { // int_counter
+			if len(m.Boundaries) > 0 {
+				return fmt.Errorf("boundaries should not be present for counter metric %q", m.Name)
+			}
+		}
+
+		for _, a := range m.Attributes {
+			if a.Name == "" {
+				return fmt.Errorf("attribute-name is required for an attribute in metric %q", m.Name)
+			}
+			if a.Type != "string" && a.Type != "bool" {
+				return fmt.Errorf("attribute-type for attribute %q in metric %q must be 'string' or 'bool', got %q", a.Name, m.Name, a.Type)
+			}
+
+			if a.Type == "string" {
+				if len(a.Values) == 0 {
+					return fmt.Errorf("values are required for string attribute %q in metric %q", a.Name, m.Name)
+				}
+			}
+			if a.Type == "bool" && len(a.Values) != 0 {
+				return fmt.Errorf("values should not be present for bool attribute %q in metric %q", a.Name, m.Name)
+			}
+		}
+	}
+	return nil
+}
+
 // buildSwitches generates the nested switch statement code for a metric method.
 func buildSwitches(metric Metric) string {
 	var builder strings.Builder
@@ -253,6 +297,11 @@ func main() {
 	err = yaml.Unmarshal(yamlFile, &metrics)
 	if err != nil {
 		log.Fatalf("error unmarshalling yaml: %v", err)
+	}
+
+	// Validate metrics
+	if err := validateMetrics(metrics); err != nil {
+		log.Fatalf("invalid metrics.yaml: %v", err)
 	}
 
 	// Sort attributes and their string values for deterministic output
