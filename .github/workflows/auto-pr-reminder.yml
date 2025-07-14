@@ -22,6 +22,20 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
+            // List of authors to exclude from reminders.
+            const excludedAuthors = [
+              'dependabot[bot]',
+            ];
+
+            const author = context.payload.pull_request.user.login;
+            console.log(`Pull Request author is: ${author}`);
+
+            // Check if the author is in the exclusion list.
+            if (excludedAuthors.includes(author)) {
+              console.log(`Author '${author}' is in the exclusion list. Skipping label addition.`);
+              return;
+            }
+
             github.rest.issues.addLabels({
               issue_number: context.issue.number,
               owner: context.repo.owner,
