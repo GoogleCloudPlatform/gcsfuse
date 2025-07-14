@@ -45,15 +45,16 @@ func setupOTel(ctx context.Context, t *testing.T) (*otelMetrics, *metric.ManualR
 
 // gatherHistogramMetrics collects all histogram metrics from the reader.
 // It returns a map where the key is the metric name, and the value is another map.
-// The inner map's key is the set of attributes,
+// The inner map's key is a string representation of the attributes,
 // and the value is the HistogramDataPoint.
-func gatherHistogramMetrics(ctx context.Context, t *testing.T, rd *metric.ManualReader) map[string]map[attribute.Set]metricdata.HistogramDataPoint[int64] {
+func gatherHistogramMetrics(ctx context.Context, t *testing.T, rd *metric.ManualReader) map[string]map[string]metricdata.HistogramDataPoint[int64] {
 	t.Helper()
 	var rm metricdata.ResourceMetrics
 	err := rd.Collect(ctx, &rm)
 	require.NoError(t, err)
 
-	results := make(map[string]map[attribute.Set]metricdata.HistogramDataPoint[int64])
+	results := make(map[string]map[string]metricdata.HistogramDataPoint[int64])
+	encoder := attribute.DefaultEncoder()
 
 	for _, sm := range rm.ScopeMetrics {
 		for _, m := range sm.Metrics {
@@ -63,13 +64,13 @@ func gatherHistogramMetrics(ctx context.Context, t *testing.T, rd *metric.Manual
 				continue
 			}
 
-			metricMap := make(map[attribute.Set]metricdata.HistogramDataPoint[int64])
+			metricMap := make(map[string]metricdata.HistogramDataPoint[int64])
 			for _, dp := range hist.DataPoints {
 				if dp.Count == 0 {
 					continue
 				}
 
-				metricMap[dp.Attributes] = dp
+				metricMap[dp.Attributes.Encoded(encoder)] = dp
 			}
 
 			if len(metricMap) > 0 {
@@ -83,15 +84,16 @@ func gatherHistogramMetrics(ctx context.Context, t *testing.T, rd *metric.Manual
 
 // gatherNonZeroCounterMetrics collects all non-zero counter metrics from the reader.
 // It returns a map where the key is the metric name, and the value is another map.
-// The inner map's key is the set of attributes,
+// The inner map's key is a string representation of the attributes,
 // and the value is the counter's value.
-func gatherNonZeroCounterMetrics(ctx context.Context, t *testing.T, rd *metric.ManualReader) map[string]map[attribute.Set]int64 {
+func gatherNonZeroCounterMetrics(ctx context.Context, t *testing.T, rd *metric.ManualReader) map[string]map[string]int64 {
 	t.Helper()
 	var rm metricdata.ResourceMetrics
 	err := rd.Collect(ctx, &rm)
 	require.NoError(t, err)
 
-	results := make(map[string]map[attribute.Set]int64)
+	results := make(map[string]map[string]int64)
+	encoder := attribute.DefaultEncoder()
 
 	for _, sm := range rm.ScopeMetrics {
 		for _, m := range sm.Metrics {
@@ -101,14 +103,13 @@ func gatherNonZeroCounterMetrics(ctx context.Context, t *testing.T, rd *metric.M
 				continue
 			}
 
-			metricMap := make(map[attribute.Set]int64)
+			metricMap := make(map[string]int64)
 			for _, dp := range sum.DataPoints {
 				if dp.Value == 0 {
 					continue
 				}
 
-				// The attribute.Set can be used as a map key directly.
-				metricMap[dp.Attributes] = dp.Value
+				metricMap[dp.Attributes.Encoded(encoder)] = dp.Value
 			}
 
 			if len(metricMap) > 0 {
@@ -413,6 +414,7 @@ func TestFsOpsCount(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
+			encoder := attribute.DefaultEncoder()
 			m, rd := setupOTel(ctx, t)
 
 			tc.f(m)
@@ -421,7 +423,11 @@ func TestFsOpsCount(t *testing.T) {
 			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 			opsCount, ok := metrics["fs/ops_count"]
 			assert.True(t, ok, "fs/ops_count metric not found")
-			assert.Equal(t, tc.expected, opsCount)
+			expectedMap := make(map[string]int64)
+			for k, v := range tc.expected {
+				expectedMap[k.Encoded(encoder)] = v
+			}
+			assert.Equal(t, opsCount, expectedMap)
 		})
 	}
 
@@ -447,6 +453,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 			op, category := op, category
 			t.Run(fmt.Sprintf("%s_%s", op, category), func(t *testing.T) {
 				ctx := context.Background()
+				encoder := attribute.DefaultEncoder()
 				m, rd := setupOTel(ctx, t)
 
 				m.FsOpsErrorCount(5, category, op)
@@ -455,11 +462,10 @@ func TestFsOpsErrorCount(t *testing.T) {
 				metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 				opsErrorCount, ok := metrics["fs/ops_error_count"]
 				require.True(t, ok, "fs/ops_error_count metric not found")
-				expectedKey := attribute.NewSet(
-					attribute.String("fs_error_category", category),
-					attribute.String("fs_op", op))
-				expected := map[attribute.Set]int64{
-					expectedKey: 5,
+				s := attribute.NewSet(
+					attribute.String("fs_error_category", category), attribute.String("fs_op", op))
+				expected := map[string]int64{
+					s.Encoded(encoder): 5,
 				}
 				assert.Equal(t, expected, opsErrorCount)
 			})
@@ -470,6 +476,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 
 func TestFsOpsErrorCountSummed(t *testing.T) {
 	ctx := context.Background()
+	encoder := attribute.DefaultEncoder()
 	m, rd := setupOTel(ctx, t)
 
 	m.FsOpsErrorCount(5, "IO_ERROR", "ReadFile")
@@ -479,15 +486,16 @@ func TestFsOpsErrorCountSummed(t *testing.T) {
 	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 	opsErrorCount, ok := metrics["fs/ops_error_count"]
 	assert.True(t, ok, "fs/ops_error_count metric not found")
-	expectedKey := attribute.NewSet(
+	s := attribute.NewSet(
 		attribute.String("fs_error_category", "IO_ERROR"),
 		attribute.String("fs_op", "ReadFile"),
 	)
-	assert.Equal(t, map[attribute.Set]int64{expectedKey: 8}, opsErrorCount)
+	assert.Equal(t, opsErrorCount, map[string]int64{s.Encoded(encoder): 8})
 }
 
 func TestFsOpsErrorCountDifferentErrors(t *testing.T) {
 	ctx := context.Background()
+	encoder := attribute.DefaultEncoder()
 	m, rd := setupOTel(ctx, t)
 
 	m.FsOpsErrorCount(5, "IO_ERROR", "ReadFile")
@@ -497,21 +505,21 @@ func TestFsOpsErrorCountDifferentErrors(t *testing.T) {
 	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 	opsErrorCount, ok := metrics["fs/ops_error_count"]
 	assert.True(t, ok, "fs/ops_error_count metric not found")
-	expected := map[attribute.Set]int64{
-		attribute.NewSet(
-			attribute.String("fs_error_category", "IO_ERROR"),
-			attribute.String("fs_op", "ReadFile"),
-		): 5,
-		attribute.NewSet(
-			attribute.String("fs_error_category", "NETWORK_ERROR"),
-			attribute.String("fs_op", "WriteFile"),
-		): 2,
-	}
-	assert.Equal(t, expected, opsErrorCount)
+	s1 := attribute.NewSet(
+		attribute.String("fs_error_category", "IO_ERROR"),
+		attribute.String("fs_op", "ReadFile"),
+	)
+	s2 := attribute.NewSet(
+		attribute.String("fs_error_category", "NETWORK_ERROR"),
+		attribute.String("fs_op", "WriteFile"),
+	)
+	expected := map[string]int64{s1.Encoded(encoder): 5, s2.Encoded(encoder): 2}
+	assert.Equal(t, opsErrorCount, expected)
 }
 
 func TestFsOpsErrorCountDifferentErrorsSummed(t *testing.T) {
 	ctx := context.Background()
+	encoder := attribute.DefaultEncoder()
 	m, rd := setupOTel(ctx, t)
 
 	m.FsOpsErrorCount(5, "IO_ERROR", "ReadFile")
@@ -522,16 +530,15 @@ func TestFsOpsErrorCountDifferentErrorsSummed(t *testing.T) {
 	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 	opsErrorCount, ok := metrics["fs/ops_error_count"]
 	assert.True(t, ok, "fs/ops_error_count metric not found")
-	expected := map[attribute.Set]int64{
-		attribute.NewSet(
-			attribute.String("fs_error_category", "IO_ERROR"),
-			attribute.String("fs_op", "ReadFile"),
-		): 8,
-		attribute.NewSet(
-			attribute.String("fs_error_category", "NETWORK_ERROR"),
-			attribute.String("fs_op", "WriteFile"),
-		): 2,
-	}
+	s1 := attribute.NewSet(
+		attribute.String("fs_error_category", "IO_ERROR"),
+		attribute.String("fs_op", "ReadFile"),
+	)
+	s2 := attribute.NewSet(
+		attribute.String("fs_error_category", "NETWORK_ERROR"),
+		attribute.String("fs_op", "WriteFile"),
+	)
+	expected := map[string]int64{s1.Encoded(encoder): 8, s2.Encoded(encoder): 2}
 	assert.Equal(t, expected, opsErrorCount)
 }
 
@@ -548,6 +555,7 @@ func TestFsOpsLatency(t *testing.T) {
 		op := op
 		t.Run(op, func(t *testing.T) {
 			ctx := context.Background()
+			encoder := attribute.DefaultEncoder()
 			m, rd := setupOTel(ctx, t)
 			latency := 123 * time.Microsecond
 
@@ -557,7 +565,8 @@ func TestFsOpsLatency(t *testing.T) {
 			metrics := gatherHistogramMetrics(ctx, t, rd)
 			opsLatency, ok := metrics["fs/ops_latency"]
 			require.True(t, ok, "fs/ops_latency metric not found")
-			expectedKey := attribute.NewSet(attribute.String("fs_op", op))
+			s := attribute.NewSet(attribute.String("fs_op", op))
+			expectedKey := s.Encoded(encoder)
 			dp, ok := opsLatency[expectedKey]
 			require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
 			assert.Equal(t, uint64(1), dp.Count)
@@ -568,6 +577,7 @@ func TestFsOpsLatency(t *testing.T) {
 
 func TestFsOpsLatencySummed(t *testing.T) {
 	ctx := context.Background()
+	encoder := attribute.DefaultEncoder()
 	m, rd := setupOTel(ctx, t)
 	latency1 := 100 * time.Microsecond
 	latency2 := 200 * time.Microsecond
@@ -579,7 +589,8 @@ func TestFsOpsLatencySummed(t *testing.T) {
 	metrics := gatherHistogramMetrics(ctx, t, rd)
 	opsLatency, ok := metrics["fs/ops_latency"]
 	require.True(t, ok, "fs/ops_latency metric not found")
-	dp, ok := opsLatency[attribute.NewSet(attribute.String("fs_op", "ReadFile"))]
+	s := attribute.NewSet(attribute.String("fs_op", "ReadFile"))
+	dp, ok := opsLatency[s.Encoded(encoder)]
 	require.True(t, ok, "DataPoint not found for key: fs_op=ReadFile")
 	assert.Equal(t, uint64(2), dp.Count)
 	assert.Equal(t, latency1.Microseconds()+latency2.Microseconds(), dp.Sum)
@@ -635,6 +646,7 @@ func TestGcsReadCount(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
+			encoder := attribute.DefaultEncoder()
 			m, rd := setupOTel(ctx, t)
 
 			tc.f(m)
@@ -643,7 +655,11 @@ func TestGcsReadCount(t *testing.T) {
 			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 			readCount, ok := metrics["gcs/read_count"]
 			assert.True(t, ok, "gcs/read_count metric not found")
-			assert.Equal(t, tc.expected, readCount)
+			expectedMap := make(map[string]int64)
+			for k, v := range tc.expected {
+				expectedMap[k.Encoded(encoder)] = v
+			}
+			assert.Equal(t, readCount, expectedMap)
 		})
 	}
 }
@@ -698,6 +714,7 @@ func TestGcsDownloadBytesCount(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
+			encoder := attribute.DefaultEncoder()
 			m, rd := setupOTel(ctx, t)
 
 			tc.f(m)
@@ -706,13 +723,18 @@ func TestGcsDownloadBytesCount(t *testing.T) {
 			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 			downloadBytes, ok := metrics["gcs/download_bytes_count"]
 			assert.True(t, ok, "gcs/download_bytes_count metric not found")
-			assert.Equal(t, tc.expected, downloadBytes)
+			expectedMap := make(map[string]int64)
+			for k, v := range tc.expected {
+				expectedMap[k.Encoded(encoder)] = v
+			}
+			assert.Equal(t, downloadBytes, expectedMap)
 		})
 	}
 }
 
 func TestGcsReadBytesCount(t *testing.T) {
 	ctx := context.Background()
+	encoder := attribute.DefaultEncoder()
 	m, rd := setupOTel(ctx, t)
 
 	m.GcsReadBytesCount(1024)
@@ -722,7 +744,8 @@ func TestGcsReadBytesCount(t *testing.T) {
 	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 	readBytes, ok := metrics["gcs/read_bytes_count"]
 	require.True(t, ok, "gcs/read_bytes_count metric not found")
-	assert.Equal(t, map[attribute.Set]int64{attribute.NewSet(): 3072}, readBytes)
+	s := attribute.NewSet()
+	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, readBytes)
 }
 
 func TestGcsReaderCount(t *testing.T) {
@@ -766,6 +789,7 @@ func TestGcsReaderCount(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
+			encoder := attribute.DefaultEncoder()
 			m, rd := setupOTel(ctx, t)
 
 			tc.f(m)
@@ -774,7 +798,11 @@ func TestGcsReaderCount(t *testing.T) {
 			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 			readerCount, ok := metrics["gcs/reader_count"]
 			assert.True(t, ok, "gcs/reader_count metric not found")
-			assert.Equal(t, tc.expected, readerCount)
+			expectedMap := make(map[string]int64)
+			for k, v := range tc.expected {
+				expectedMap[k.Encoded(encoder)] = v
+			}
+			assert.Equal(t, readerCount, expectedMap)
 		})
 	}
 }
@@ -790,6 +818,7 @@ func TestGcsRequestCount(t *testing.T) {
 		method := method
 		t.Run(method, func(t *testing.T) {
 			ctx := context.Background()
+			encoder := attribute.DefaultEncoder()
 			m, rd := setupOTel(ctx, t)
 
 			m.GcsRequestCount(5, method)
@@ -798,8 +827,9 @@ func TestGcsRequestCount(t *testing.T) {
 			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 			requestCount, ok := metrics["gcs/request_count"]
 			require.True(t, ok, "gcs/request_count metric not found")
-			expectedKey := attribute.NewSet(attribute.String("gcs_method", method))
-			expected := map[attribute.Set]int64{
+			s := attribute.NewSet(attribute.String("gcs_method", method))
+			expectedKey := s.Encoded(encoder)
+			expected := map[string]int64{
 				expectedKey: 5,
 			}
 			assert.Equal(t, expected, requestCount)
@@ -809,6 +839,7 @@ func TestGcsRequestCount(t *testing.T) {
 
 func TestGcsRequestCountSummed(t *testing.T) {
 	ctx := context.Background()
+	encoder := attribute.DefaultEncoder()
 	m, rd := setupOTel(ctx, t)
 
 	m.GcsRequestCount(5, "StatObject")
@@ -819,9 +850,11 @@ func TestGcsRequestCountSummed(t *testing.T) {
 	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 	requestCount, ok := metrics["gcs/request_count"]
 	assert.True(t, ok, "gcs/request_count metric not found")
-	assert.Equal(t, map[attribute.Set]int64{
-		attribute.NewSet(attribute.String("gcs_method", "StatObject")):  8,
-		attribute.NewSet(attribute.String("gcs_method", "ListObjects")): 2,
+	s1 := attribute.NewSet(attribute.String("gcs_method", "StatObject"))
+	s2 := attribute.NewSet(attribute.String("gcs_method", "ListObjects"))
+	assert.Equal(t, map[string]int64{
+		s1.Encoded(encoder): 8,
+		s2.Encoded(encoder): 2,
 	}, requestCount)
 }
 
@@ -836,6 +869,7 @@ func TestGcsRequestLatencies(t *testing.T) {
 		method := method
 		t.Run(method, func(t *testing.T) {
 			ctx := context.Background()
+			encoder := attribute.DefaultEncoder()
 			m, rd := setupOTel(ctx, t)
 			latency := 123 * time.Millisecond
 
@@ -845,7 +879,8 @@ func TestGcsRequestLatencies(t *testing.T) {
 			metrics := gatherHistogramMetrics(ctx, t, rd)
 			requestLatencies, ok := metrics["gcs/request_latencies"]
 			require.True(t, ok, "gcs/request_latencies metric not found")
-			expectedKey := attribute.NewSet(attribute.String("gcs_method", method))
+			s := attribute.NewSet(attribute.String("gcs_method", method))
+			expectedKey := s.Encoded(encoder)
 			dp, ok := requestLatencies[expectedKey]
 			require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
 			assert.Equal(t, uint64(1), dp.Count)
@@ -856,6 +891,7 @@ func TestGcsRequestLatencies(t *testing.T) {
 
 func TestGcsRequestLatenciesSummed(t *testing.T) {
 	ctx := context.Background()
+	encoder := attribute.DefaultEncoder()
 	m, rd := setupOTel(ctx, t)
 	latency1 := 100 * time.Millisecond
 	latency2 := 200 * time.Millisecond
@@ -867,7 +903,8 @@ func TestGcsRequestLatenciesSummed(t *testing.T) {
 	metrics := gatherHistogramMetrics(ctx, t, rd)
 	requestLatencies, ok := metrics["gcs/request_latencies"]
 	require.True(t, ok, "gcs/request_latencies metric not found")
-	dp, ok := requestLatencies[attribute.NewSet(attribute.String("gcs_method", "StatObject"))]
+	s := attribute.NewSet(attribute.String("gcs_method", "StatObject"))
+	dp, ok := requestLatencies[s.Encoded(encoder)]
 	require.True(t, ok, "DataPoint not found for key: gcs_method=StatObject")
 	assert.Equal(t, uint64(2), dp.Count)
 	assert.Equal(t, latency1.Milliseconds()+latency2.Milliseconds(), dp.Sum)
@@ -914,6 +951,7 @@ func TestGcsRetryCount(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
+			encoder := attribute.DefaultEncoder()
 			m, rd := setupOTel(ctx, t)
 
 			tc.f(m)
@@ -922,7 +960,11 @@ func TestGcsRetryCount(t *testing.T) {
 			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 			retryCount, ok := metrics["gcs/retry_count"]
 			assert.True(t, ok, "gcs/retry_count metric not found")
-			assert.Equal(t, tc.expected, retryCount)
+			expectedMap := make(map[string]int64)
+			for k, v := range tc.expected {
+				expectedMap[k.Encoded(encoder)] = v
+			}
+			assert.Equal(t, expectedMap, retryCount)
 		})
 	}
 }
@@ -1016,6 +1058,7 @@ func TestFileCacheReadCount(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
+			encoder := attribute.DefaultEncoder()
 			m, rd := setupOTel(ctx, t)
 
 			tc.f(m)
@@ -1024,7 +1067,11 @@ func TestFileCacheReadCount(t *testing.T) {
 			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 			readCount, ok := metrics["file_cache/read_count"]
 			assert.True(t, ok, "file_cache/read_count metric not found")
-			assert.Equal(t, tc.expected, readCount)
+			expectedMap := make(map[string]int64)
+			for k, v := range tc.expected {
+				expectedMap[k.Encoded(encoder)] = v
+			}
+			assert.Equal(t, expectedMap, readCount)
 		})
 	}
 }
@@ -1079,6 +1126,7 @@ func TestFileCacheReadBytesCount(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
+			encoder := attribute.DefaultEncoder()
 			m, rd := setupOTel(ctx, t)
 
 			tc.f(m)
@@ -1087,7 +1135,11 @@ func TestFileCacheReadBytesCount(t *testing.T) {
 			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 			readBytesCount, ok := metrics["file_cache/read_bytes_count"]
 			assert.True(t, ok, "file_cache/read_bytes_count metric not found")
-			assert.Equal(t, tc.expected, readBytesCount)
+			expectedMap := make(map[string]int64)
+			for k, v := range tc.expected {
+				expectedMap[k.Encoded(encoder)] = v
+			}
+			assert.Equal(t, readBytesCount, expectedMap)
 		})
 	}
 }
@@ -1113,6 +1165,7 @@ func TestFileCacheReadLatencies(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
+			encoder := attribute.DefaultEncoder()
 			m, rd := setupOTel(ctx, t)
 			var totalLatency time.Duration
 
@@ -1125,7 +1178,8 @@ func TestFileCacheReadLatencies(t *testing.T) {
 			metrics := gatherHistogramMetrics(ctx, t, rd)
 			readLatencies, ok := metrics["file_cache/read_latencies"]
 			require.True(t, ok, "file_cache/read_latencies metric not found")
-			expectedKey := attribute.NewSet(attribute.Bool("cache_hit", tc.cacheHit))
+			s := attribute.NewSet(attribute.Bool("cache_hit", tc.cacheHit))
+			expectedKey := s.Encoded(encoder)
 			dp, ok := readLatencies[expectedKey]
 			require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
 			assert.Equal(t, uint64(len(tc.latencies)), dp.Count)
