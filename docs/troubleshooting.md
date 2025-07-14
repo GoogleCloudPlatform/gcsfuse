@@ -106,8 +106,7 @@ Unable to mount with the following error `daemonize.Run: readFromProcess: sub-pr
 Fuse package is not installed. It may throw this error. Run the following command to install fuse <br/> <code> sudo apt-get install fuse </code> for Debian/Ubuntu <br/> <code> sudo yum install fuse </code> for RHEL/CentOs/Rocky <br/>
 
 ### Encountered unsupported prefixes during listing, or ls: reading directory \<mountpath>/\<path>:  Input/output error
-
-Unable to list unsupported objects in a mounted bucket, i.e. objects which have names with `//` in them or have names starting with `/` e.g. `gs://<bucket>//A` or `gs://<bucket>/A//B` etc. Such objects can be listed by the following command: `gcloud ls -r gs://<bucket>/**//**`.
+Unable to list unsupported objects in a mounted bucket, i.e. objects which have names with `//` in them or have names starting with `/` e.g. `gs://<bucket>//A` or `gs://<bucket>/A//B` etc. Such objects can be listed by the following command: `gcloud storage ls gs://<bucket>/**//**`.
 
 This error can be mitigated in one of the following two ways.
 
