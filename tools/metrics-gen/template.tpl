@@ -85,12 +85,16 @@ func (o *otelMetrics) {{toPascal .Name}}(
 		{{if $i}}, {{end}}{{toCamel $attr.Name}} {{getGoType $attr.Type}}
 	{{- end }},
 ) {
+{{- if isCounter . }}
+	{{buildSwitches .}}
+{{- else }}
 	select {
 	  case o.ch <- func() {
         {{buildSwitches .}}
       }: // Do nothing
       default: // Unblock writes to channel if it's full.
     }
+	{{- end}}
 }
 {{end}}
 
