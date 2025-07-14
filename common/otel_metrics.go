@@ -662,13 +662,14 @@ type MetricHandle interface {
 }
 
 type histogramRecord struct {
-	instrument *metric.Int64Histogram
+	ctx        context.Context
+	instrument metric.Int64Histogram
 	value      int64
 	attributes metric.RecordOption
 }
 
 type otelMetrics struct {
-	ch                                                                                 chan func()
+	ch                                                                                 chan histogramRecord
 	fsOpsCountFsOpBatchForgetAtomic                                                    *atomic.Int64
 	fsOpsCountFsOpCreateFileAtomic                                                     *atomic.Int64
 	fsOpsCountFsOpCreateLinkAtomic                                                     *atomic.Int64
@@ -1289,72 +1290,72 @@ func (o *otelMetrics) FsOpsCount(
 func (o *otelMetrics) FsOpsLatency(
 	ctx context.Context, latency time.Duration, fsOp string,
 ) {
-	select {
-	case o.ch <- func() {
-		switch fsOp {
-		case "BatchForget":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpBatchForgetAttrSet)
-		case "CreateFile":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpCreateFileAttrSet)
-		case "CreateLink":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpCreateLinkAttrSet)
-		case "CreateSymlink":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpCreateSymlinkAttrSet)
-		case "Fallocate":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpFallocateAttrSet)
-		case "FlushFile":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpFlushFileAttrSet)
-		case "ForgetInode":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpForgetInodeAttrSet)
-		case "GetInodeAttributes":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpGetInodeAttributesAttrSet)
-		case "GetXattr":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpGetXattrAttrSet)
-		case "ListXattr":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpListXattrAttrSet)
-		case "LookUpInode":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpLookUpInodeAttrSet)
-		case "MkDir":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpMkDirAttrSet)
-		case "MkNode":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpMkNodeAttrSet)
-		case "OpenDir":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpOpenDirAttrSet)
-		case "OpenFile":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpOpenFileAttrSet)
-		case "ReadDir":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpReadDirAttrSet)
-		case "ReadFile":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpReadFileAttrSet)
-		case "ReadSymlink":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpReadSymlinkAttrSet)
-		case "ReleaseDirHandle":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpReleaseDirHandleAttrSet)
-		case "ReleaseFileHandle":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpReleaseFileHandleAttrSet)
-		case "RemoveXattr":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpRemoveXattrAttrSet)
-		case "Rename":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpRenameAttrSet)
-		case "RmDir":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpRmDirAttrSet)
-		case "SetInodeAttributes":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpSetInodeAttributesAttrSet)
-		case "SetXattr":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpSetXattrAttrSet)
-		case "StatFS":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpStatFSAttrSet)
-		case "SyncFS":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpSyncFSAttrSet)
-		case "SyncFile":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpSyncFileAttrSet)
-		case "Unlink":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpUnlinkAttrSet)
-		case "WriteFile":
-			o.fsOpsLatency.Record(ctx, latency.Microseconds(), fsOpsLatencyFsOpWriteFileAttrSet)
-		}
+	var record histogramRecord
+	switch fsOp {
+	case "BatchForget":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpBatchForgetAttrSet}
+	case "CreateFile":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpCreateFileAttrSet}
+	case "CreateLink":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpCreateLinkAttrSet}
+	case "CreateSymlink":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpCreateSymlinkAttrSet}
+	case "Fallocate":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpFallocateAttrSet}
+	case "FlushFile":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpFlushFileAttrSet}
+	case "ForgetInode":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpForgetInodeAttrSet}
+	case "GetInodeAttributes":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpGetInodeAttributesAttrSet}
+	case "GetXattr":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpGetXattrAttrSet}
+	case "ListXattr":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpListXattrAttrSet}
+	case "LookUpInode":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpLookUpInodeAttrSet}
+	case "MkDir":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpMkDirAttrSet}
+	case "MkNode":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpMkNodeAttrSet}
+	case "OpenDir":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpOpenDirAttrSet}
+	case "OpenFile":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpOpenFileAttrSet}
+	case "ReadDir":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReadDirAttrSet}
+	case "ReadFile":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReadFileAttrSet}
+	case "ReadSymlink":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReadSymlinkAttrSet}
+	case "ReleaseDirHandle":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReleaseDirHandleAttrSet}
+	case "ReleaseFileHandle":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReleaseFileHandleAttrSet}
+	case "RemoveXattr":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpRemoveXattrAttrSet}
+	case "Rename":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpRenameAttrSet}
+	case "RmDir":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpRmDirAttrSet}
+	case "SetInodeAttributes":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpSetInodeAttributesAttrSet}
+	case "SetXattr":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpSetXattrAttrSet}
+	case "StatFS":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpStatFSAttrSet}
+	case "SyncFS":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpSyncFSAttrSet}
+	case "SyncFile":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpSyncFileAttrSet}
+	case "Unlink":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpUnlinkAttrSet}
+	case "WriteFile":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpWriteFileAttrSet}
+	}
 
-	}: // Do nothing
+	select {
+	case o.ch <- record: // Do nothing
 	default: // Unblock writes to channel if it's full.
 	}
 }
@@ -2461,40 +2462,40 @@ func (o *otelMetrics) GcsRequestCount(
 func (o *otelMetrics) GcsRequestLatencies(
 	ctx context.Context, latency time.Duration, gcsMethod string,
 ) {
-	select {
-	case o.ch <- func() {
-		switch gcsMethod {
-		case "ComposeObjects":
-			o.gcsRequestLatencies.Record(ctx, latency.Milliseconds(), gcsRequestLatenciesGcsMethodComposeObjectsAttrSet)
-		case "CreateFolder":
-			o.gcsRequestLatencies.Record(ctx, latency.Milliseconds(), gcsRequestLatenciesGcsMethodCreateFolderAttrSet)
-		case "CreateObjectChunkWriter":
-			o.gcsRequestLatencies.Record(ctx, latency.Milliseconds(), gcsRequestLatenciesGcsMethodCreateObjectChunkWriterAttrSet)
-		case "DeleteFolder":
-			o.gcsRequestLatencies.Record(ctx, latency.Milliseconds(), gcsRequestLatenciesGcsMethodDeleteFolderAttrSet)
-		case "DeleteObject":
-			o.gcsRequestLatencies.Record(ctx, latency.Milliseconds(), gcsRequestLatenciesGcsMethodDeleteObjectAttrSet)
-		case "FinalizeUpload":
-			o.gcsRequestLatencies.Record(ctx, latency.Milliseconds(), gcsRequestLatenciesGcsMethodFinalizeUploadAttrSet)
-		case "GetFolder":
-			o.gcsRequestLatencies.Record(ctx, latency.Milliseconds(), gcsRequestLatenciesGcsMethodGetFolderAttrSet)
-		case "ListObjects":
-			o.gcsRequestLatencies.Record(ctx, latency.Milliseconds(), gcsRequestLatenciesGcsMethodListObjectsAttrSet)
-		case "MoveObject":
-			o.gcsRequestLatencies.Record(ctx, latency.Milliseconds(), gcsRequestLatenciesGcsMethodMoveObjectAttrSet)
-		case "MultiRangeDownloader::Add":
-			o.gcsRequestLatencies.Record(ctx, latency.Milliseconds(), gcsRequestLatenciesGcsMethodMultiRangeDownloaderAddAttrSet)
-		case "NewReader":
-			o.gcsRequestLatencies.Record(ctx, latency.Milliseconds(), gcsRequestLatenciesGcsMethodNewReaderAttrSet)
-		case "RenameFolder":
-			o.gcsRequestLatencies.Record(ctx, latency.Milliseconds(), gcsRequestLatenciesGcsMethodRenameFolderAttrSet)
-		case "StatObject":
-			o.gcsRequestLatencies.Record(ctx, latency.Milliseconds(), gcsRequestLatenciesGcsMethodStatObjectAttrSet)
-		case "UpdateObject":
-			o.gcsRequestLatencies.Record(ctx, latency.Milliseconds(), gcsRequestLatenciesGcsMethodUpdateObjectAttrSet)
-		}
+	var record histogramRecord
+	switch gcsMethod {
+	case "ComposeObjects":
+		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodComposeObjectsAttrSet}
+	case "CreateFolder":
+		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodCreateFolderAttrSet}
+	case "CreateObjectChunkWriter":
+		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodCreateObjectChunkWriterAttrSet}
+	case "DeleteFolder":
+		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodDeleteFolderAttrSet}
+	case "DeleteObject":
+		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodDeleteObjectAttrSet}
+	case "FinalizeUpload":
+		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodFinalizeUploadAttrSet}
+	case "GetFolder":
+		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodGetFolderAttrSet}
+	case "ListObjects":
+		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodListObjectsAttrSet}
+	case "MoveObject":
+		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodMoveObjectAttrSet}
+	case "MultiRangeDownloader::Add":
+		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodMultiRangeDownloaderAddAttrSet}
+	case "NewReader":
+		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodNewReaderAttrSet}
+	case "RenameFolder":
+		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodRenameFolderAttrSet}
+	case "StatObject":
+		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodStatObjectAttrSet}
+	case "UpdateObject":
+		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodUpdateObjectAttrSet}
+	}
 
-	}: // Do nothing
+	select {
+	case o.ch <- record: // Do nothing
 	default: // Unblock writes to channel if it's full.
 	}
 }
@@ -2554,30 +2555,30 @@ func (o *otelMetrics) FileCacheReadBytesCount(
 func (o *otelMetrics) FileCacheReadLatencies(
 	ctx context.Context, latency time.Duration, cacheHit bool,
 ) {
-	select {
-	case o.ch <- func() {
-		switch cacheHit {
-		case true:
-			o.fileCacheReadLatencies.Record(ctx, latency.Microseconds(), fileCacheReadLatenciesCacheHitTrueAttrSet)
-		case false:
-			o.fileCacheReadLatencies.Record(ctx, latency.Microseconds(), fileCacheReadLatenciesCacheHitFalseAttrSet)
-		}
+	var record histogramRecord
+	switch cacheHit {
+	case true:
+		record = histogramRecord{ctx: ctx, instrument: o.fileCacheReadLatencies, value: latency.Microseconds(), attributes: fileCacheReadLatenciesCacheHitTrueAttrSet}
+	case false:
+		record = histogramRecord{ctx: ctx, instrument: o.fileCacheReadLatencies, value: latency.Microseconds(), attributes: fileCacheReadLatenciesCacheHitFalseAttrSet}
+	}
 
-	}: // Do nothing
+	select {
+	case o.ch <- record: // Do nothing
 	default: // Unblock writes to channel if it's full.
 	}
 }
 
 func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetrics, error) {
-	ch := make(chan func(), bufferSize)
+	ch := make(chan histogramRecord, bufferSize)
 	for range workers {
 		go func() {
 			for {
-				f, ok := <-ch
+				record, ok := <-ch
 				if !ok {
 					return
 				}
-				f()
+				record.instrument.Record(record.ctx, record.value, record.attributes)
 			}
 		}()
 	}

@@ -58,13 +58,14 @@ type MetricHandle interface {
 }
 
 type histogramRecord struct {
-	instrument *metric.Int64Histogram
+	ctx        context.Context
+	instrument metric.Int64Histogram
 	value      int64
 	attributes metric.RecordOption
 }
 
 type otelMetrics struct {
-    ch chan func()
+    ch chan histogramRecord
 	{{- range $metric := .Metrics}}
 		{{- if isCounter $metric}}
 			{{- range $combination := (index $.AttrCombinations $metric.Name)}}
@@ -94,26 +95,26 @@ func (o *otelMetrics) {{toPascal .Name}}(
 {{- if isCounter . }}
 	{{buildSwitches .}}
 {{- else }}
+	var record histogramRecord
+	{{buildSwitches .}}
 	select {
-	  case o.ch <- func() {
-        {{buildSwitches .}}
-      }: // Do nothing
-      default: // Unblock writes to channel if it's full.
-    }
+	  case o.ch <- record: // Do nothing
+	  default: // Unblock writes to channel if it's full.
+	}
 	{{- end}}
 }
 {{end}}
 
 func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetrics, error) {
-  ch := make(chan func(), bufferSize)
+  ch := make(chan histogramRecord, bufferSize)
   for range workers {
     go func() {
 	  for {
-	    f, ok := <-ch
+	    record, ok := <-ch
 		if !ok {
 		  return
 		}
-		f()
+		record.instrument.Record(record.ctx, record.value, record.attributes)
 	  }
 	}()
   }

@@ -196,7 +196,7 @@ func buildSwitches(metric Metric) string {
 			} else { // histogram
 				varName := getVarName(metric.Name, combo)
 				unitMethod := getUnitMethod(metric.Unit)
-				builder.WriteString(fmt.Sprintf("%so.%s.Record(ctx, latency%s, %s)\n", indent, toCamel(metric.Name), unitMethod, varName))
+				builder.WriteString(fmt.Sprintf("%srecord = histogramRecord{ctx: ctx, instrument: o.%s, value: latency%s, attributes: %s}\n", indent, toCamel(metric.Name), unitMethod, varName))
 			}
 			return
 		}
@@ -227,7 +227,7 @@ func buildSwitches(metric Metric) string {
 	if len(metric.Attributes) == 0 {
 		if metric.Type == "int_histogram" {
 			unitMethod := getUnitMethod(metric.Unit)
-			builder.WriteString(fmt.Sprintf("\to.%s.Record(ctx, latency%s)\n", toCamel(metric.Name), unitMethod))
+			builder.WriteString(fmt.Sprintf("\trecord = histogramRecord{ctx: ctx, instrument: o.%s, value: latency%s}\n", toCamel(metric.Name), unitMethod))
 		} else if metric.Type == "int_counter" {
 			atomicName := getAtomicName(metric.Name, AttrCombination{})
 			builder.WriteString(fmt.Sprintf("\to.%s.Add(inc)\n", atomicName))
