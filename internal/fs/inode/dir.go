@@ -782,6 +782,7 @@ func (d *dirInode) readObjects(
 	return
 }
 
+// LOCKS_REQUIRED(d)
 func (d *dirInode) ReadEntries(
 	ctx context.Context,
 	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
@@ -810,6 +811,7 @@ func (d *dirInode) ReadEntries(
 	return
 }
 
+// LOCKS_REQUIRED(d)
 func (d *dirInode) ReadEntryCores(ctx context.Context, tok string) (cores map[Name]*Core, newTok string, err error) {
 	cores, newTok, err = d.readObjects(ctx, tok)
 	if err != nil {
