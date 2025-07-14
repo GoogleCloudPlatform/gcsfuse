@@ -245,6 +245,7 @@ func (t *RandomReaderTest) NoExistingReader() {
 }
 
 func (t *RandomReaderTest) ExistingReader_ReadAtOffsetAfterTheReaderPosition() {
+	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
 	var currentStartOffset int64 = 2
 	var readerLimit int64 = 15
 	var readAtOffset int64 = 10
@@ -297,6 +298,7 @@ func (t *RandomReaderTest) ReaderFails() {
 }
 
 func (t *RandomReaderTest) ReaderNotExhausted() {
+	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
 	// Set up a reader that has three bytes left to give.
 	cc := &countingCloser{
 		Reader: strings.NewReader("abc"),
@@ -324,6 +326,7 @@ func (t *RandomReaderTest) ReaderNotExhausted() {
 }
 
 func (t *RandomReaderTest) ReaderExhausted_ReadFinished() {
+	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
 	// Set up a reader that has three bytes left to give.
 	rc := &countingCloser{
 		Reader: strings.NewReader("abc"),
@@ -350,6 +353,7 @@ func (t *RandomReaderTest) ReaderExhausted_ReadFinished() {
 }
 
 func (t *RandomReaderTest) PropagatesCancellation() {
+	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
 	// Set up a reader that will block until we tell it to return.
 	finishRead := make(chan struct{})
 	rc := io.NopCloser(&blockingReader{finishRead})
@@ -391,6 +395,7 @@ func (t *RandomReaderTest) PropagatesCancellation() {
 }
 
 func (t *RandomReaderTest) DoesntPropagateCancellationAfterReturning() {
+	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
 	// Set up a reader that will return three bytes.
 	t.rr.wrapped.reader = &fake.FakeReader{ReadCloser: getReadCloser([]byte("xxx"))}
 	t.rr.wrapped.start = 1
