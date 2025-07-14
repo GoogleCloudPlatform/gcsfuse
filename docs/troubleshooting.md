@@ -111,10 +111,10 @@ Unable to list unsupported objects in a mounted bucket, i.e. objects which have 
 
 This error can be mitigated in one of the following two ways.
 
-* move/rename such objects e.g. for object of name like `A//B`, use `gcloud storage mv gs://<bucket>/A//* gs://<bucket>/A/`), or 
-* delete such objects it e.g. for objects of name like `A//B`, use `gcloud storage rm -r A//`
+* Move/Rename such objects e.g. for object of names like `A//B`, use `gcloud storage mv gs://<bucket>/A//* gs://<bucket>/A/`), Or
+* Delete such objects e.g. for objects of names like `A//B`, use `gcloud storage rm -r A//`.
 
-. Refer [semantics](semantics.md#unsupported-object-names) for more details.
+Refer [semantics](semantics.md#unsupported-object-names) for more details.
 
 ### Experiencing hang while executing "ls" on a directory containing large number of files/directories.
 
