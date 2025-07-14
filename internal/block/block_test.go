@@ -37,47 +37,6 @@ func TestMemoryBlockTestSuite(t *testing.T) {
 	suite.Run(t, new(MemoryBlockTest))
 }
 
-func (testSuite *MemoryBlockTest) TestNewBlockStatus() {
-	tests := []struct {
-		name      string
-		state     BlockState
-		err       error
-		wantState BlockState
-		wantErr   error
-	}{
-		{
-			name:      "Downloaded",
-			state:     BlockStateDownloaded,
-			err:       fmt.Errorf("download complete"),
-			wantState: BlockStateDownloaded,
-			wantErr:   nil,
-		},
-		{
-			name:      "DownloadFailedWithError",
-			state:     BlockStateDownloadFailed,
-			err:       fmt.Errorf("download failed"),
-			wantState: BlockStateDownloadFailed,
-			wantErr:   fmt.Errorf("download failed"),
-		},
-		{
-			name:      "DownloadCancelledNoError",
-			state:     BlockStateDownloadCancelled,
-			err:       nil,
-			wantState: BlockStateDownloadCancelled,
-			wantErr:   nil,
-		},
-	}
-
-	for _, tt := range tests {
-		testSuite.T().Run(tt.name, func(t *testing.T) {
-			status := NewBlockStatus(tt.state, tt.err)
-
-			assert.Equal(t, tt.wantState, status.State())
-			assert.Equal(t, tt.wantErr, status.Error())
-		})
-	}
-}
-
 func (testSuite *MemoryBlockTest) TestMemoryBlockWrite() {
 	mb, err := createBlock(12)
 	require.Nil(testSuite.T(), err)
@@ -356,18 +315,18 @@ func (testSuite *MemoryBlockTest) TestAwaitReadyNotifyVariants() {
 	}{
 		{
 			name:         "AfterNotifySuccess",
-			notifyStatus: NewBlockStatus(BlockStateDownloaded, nil),
-			wantStatus:   NewBlockStatus(BlockStateDownloaded, nil),
+			notifyStatus: BlockStatus{State: BlockStateDownloaded, Err: nil},
+			wantStatus:   BlockStatus{State: BlockStateDownloaded, Err: nil},
 		},
 		{
 			name:         "AfterNotifyError",
-			notifyStatus: NewBlockStatus(BlockStateDownloadFailed, fmt.Errorf("download failed")),
-			wantStatus:   NewBlockStatus(BlockStateDownloadFailed, fmt.Errorf("download failed")),
+			notifyStatus: BlockStatus{State: BlockStateDownloadFailed, Err: fmt.Errorf("download failed")},
+			wantStatus:   BlockStatus{State: BlockStateDownloadFailed, Err: fmt.Errorf("download failed")},
 		},
 		{
 			name:         "AfterNotifyCancelled",
-			notifyStatus: NewBlockStatus(BlockStateDownloadCancelled, nil),
-			wantStatus:   NewBlockStatus(BlockStateDownloadCancelled, nil),
+			notifyStatus: BlockStatus{State: BlockStateDownloadCancelled, Err: nil},
+			wantStatus:   BlockStatus{State: BlockStateDownloadCancelled, Err: nil},
 		},
 	}
 
@@ -392,10 +351,10 @@ func (testSuite *MemoryBlockTest) TestTwoNotifyReadyWithoutAwaitReady() {
 	mb, err := createBlock(12)
 	require.Nil(testSuite.T(), err)
 
-	mb.NotifyReady(NewBlockStatus(BlockStateDownloaded, nil))
+	mb.NotifyReady(BlockStatus{State: BlockStateDownloaded, Err: nil})
 	// 2nd notify will lead to panic since it is not allowed to notify a block more than once.
 	assert.Panics(testSuite.T(), func() {
-		mb.NotifyReady(NewBlockStatus(BlockStateDownloaded, nil))
+		mb.NotifyReady(BlockStatus{State: BlockStateDownloaded, Err: nil})
 	})
 }
 
@@ -405,15 +364,15 @@ func (testSuite *MemoryBlockTest) TestNotifyReadyAfterAwaitReady() {
 	ctx, cancel := context.WithTimeout(testSuite.T().Context(), 100*time.Millisecond)
 	defer cancel()
 	go func() {
-		mb.NotifyReady(NewBlockStatus(BlockStateDownloaded, nil))
+		mb.NotifyReady(BlockStatus{State: BlockStateDownloaded, Err: nil})
 	}()
 	status, err := mb.AwaitReady(ctx)
 	require.Nil(testSuite.T(), err)
-	assert.Equal(testSuite.T(), NewBlockStatus(BlockStateDownloaded, nil), status)
+	assert.Equal(testSuite.T(), BlockStatus{State: BlockStateDownloaded, Err: nil}, status)
 
 	// 2nd notify will lead to panic since channel is closed after first await ready.
 	assert.Panics(testSuite.T(), func() {
-		mb.NotifyReady(NewBlockStatus(BlockStateDownloaded, nil))
+		mb.NotifyReady(BlockStatus{State: BlockStateDownloaded, Err: nil})
 	})
 }
 
@@ -421,7 +380,7 @@ func (testSuite *MemoryBlockTest) TestSingleNotifyAndMultipleAwaitReady() {
 	mb, err := createBlock(12)
 	require.Nil(testSuite.T(), err)
 	go func() {
-		mb.NotifyReady(NewBlockStatus(BlockStateDownloaded, nil))
+		mb.NotifyReady(BlockStatus{State: BlockStateDownloaded, Err: nil})
 	}()
 	ctx, cancel := context.WithTimeout(testSuite.T().Context(), 5*time.Millisecond)
 	defer cancel()
@@ -437,7 +396,7 @@ func (testSuite *MemoryBlockTest) TestSingleNotifyAndMultipleAwaitReady() {
 			status, err := mb.AwaitReady(ctx)
 
 			require.Nil(testSuite.T(), err)
-			assert.Equal(testSuite.T(), NewBlockStatus(BlockStateDownloaded, nil), status)
+			assert.Equal(testSuite.T(), BlockStatus{State: BlockStateDownloaded, Err: nil}, status)
 		}()
 	}
 	wg.Wait()

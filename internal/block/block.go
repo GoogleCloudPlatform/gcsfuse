@@ -22,6 +22,24 @@ import (
 	"syscall"
 )
 
+// BlockStatus represents the status of a block.
+// It contains the state of the block and an error
+// that may have occurred during the block's operation.
+type BlockStatus struct {
+	State BlockState
+	Err   error
+}
+
+// BlockState represents the state of the block.
+type BlockState int
+
+const (
+	BlockStateInProgress        BlockState = iota // Download of this block is in progress
+	BlockStateDownloaded                          // Download of this block is complete
+	BlockStateDownloadFailed                      // Download of this block has failed
+	BlockStateDownloadCancelled                   // Download of this block has been cancelled
+)
+
 // Block represents the buffer which holds the data.
 type Block interface {
 	// Reuse resets the blocks for reuse.
@@ -96,7 +114,7 @@ func (m *memoryBlock) Reuse() {
 	m.offset.end = 0
 	m.offset.start = 0
 	m.notification = make(chan BlockStatus, 1)
-	m.status = NewBlockStatus(BlockStateInProgress, nil)
+	m.status = BlockStatus{State: BlockStateInProgress, Err: nil}
 	m.absStartOff = -1
 }
 
@@ -153,7 +171,7 @@ func createBlock(blockSize int64) (Block, error) {
 		buffer:       addr,
 		offset:       offset{0, 0},
 		notification: make(chan BlockStatus, 1),
-		status:       NewBlockStatus(BlockStateInProgress, nil),
+		status:       BlockStatus{State: BlockStateInProgress, Err: nil},
 		absStartOff:  -1,
 	}
 	return &mb, nil
@@ -212,7 +230,7 @@ func (m *memoryBlock) AwaitReady(ctx context.Context) (BlockStatus, error) {
 
 		return m.status, nil
 	case <-ctx.Done():
-		return NewBlockStatus(BlockStateInProgress, nil), ctx.Err()
+		return BlockStatus{State: BlockStateInProgress, Err: nil}, ctx.Err()
 	}
 }
 

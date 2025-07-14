@@ -68,13 +68,13 @@ func (p *DownloadTask) Execute() {
 	defer func() {
 		if err == nil {
 			logger.Tracef("Download: -> block (%s, %v) completed in: %v.", p.object.Name, blockId, time.Since(stime))
-			p.block.NotifyReady(block.NewBlockStatus(block.BlockStateDownloaded, nil))
+			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloaded, Err: nil})
 		} else if errors.Is(err, context.Canceled) && p.ctx.Err() == context.Canceled {
 			logger.Tracef("Download: -> block (%s, %v) cancelled: %v.", p.object.Name, blockId, err)
-			p.block.NotifyReady(block.NewBlockStatus(block.BlockStateDownloadCancelled, nil))
+			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadCancelled, Err: nil})
 		} else {
 			logger.Errorf("Download: -> block (%s, %v) failed: %v.", p.object.Name, blockId, err)
-			p.block.NotifyReady(block.NewBlockStatus(block.BlockStateDownloadFailed, err))
+			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})
 		}
 	}()
 
