@@ -27,10 +27,6 @@ import (
 )
 
 var (
-	fsOpsMeter     = otel.Meter("fs_op")
-	gcsMeter       = otel.Meter("gcs")
-	fileCacheMeter = otel.Meter("file_cache")
-
 	// Attribute Keys
 	// ioMethodKey specifies the I/O method attribute (e.g., opened, closed).
 	ioMethodKey = attribute.Key("io_method")
@@ -193,6 +189,9 @@ func (o *otelMetrics) FileCacheReadLatency(ctx context.Context, latency time.Dur
 }
 
 func NewOTelMetrics() (MetricHandle, error) {
+	fsOpsMeter := otel.Meter("fs_op")
+	gcsMeter := otel.Meter("gcs")
+	fileCacheMeter := otel.Meter("file_cache")
 	fsOpsCount, err1 := fsOpsMeter.Int64Counter("fs/ops_count", metric.WithDescription("The cumulative number of ops processed by the file system."))
 	fsOpsLatency, err2 := fsOpsMeter.Float64Histogram("fs/ops_latency", metric.WithDescription("The cumulative distribution of file system operation latencies"), metric.WithUnit("us"),
 		defaultLatencyDistribution)
