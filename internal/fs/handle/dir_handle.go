@@ -451,14 +451,13 @@ func (dh *DirHandle) FetchEntryCores(ctx context.Context, op *fuseops.ReadDirPlu
 // of directory entries.
 // LOCKS_REQUIRED(dh.Mu)
 func (dh *DirHandle) ReadDirPlus(op *fuseops.ReadDirPlusOp, entries []fuseutil.DirentPlus, localEntries map[string]fuseutil.DirentPlus) (err error) {
-	// Sort, resolve conflicts, and set offsets.
-	entries, err = sortAndResolveEntries(entries, localEntries, func(e fuseutil.DirentPlus) *direntPlus { dp := direntPlus(e); return &dp }, func(w *direntPlus) fuseutil.DirentPlus { return fuseutil.DirentPlus(*w) })
-	if err != nil {
-		return
-	}
-
 	// If entriesPlus has not been populated yet, populate it.
 	if !dh.entriesPlusValid {
+		// Sort, resolve conflicts, and set offsets.
+		entries, err = sortAndResolveEntries(entries, localEntries, func(e fuseutil.DirentPlus) *direntPlus { dp := direntPlus(e); return &dp }, func(w *direntPlus) fuseutil.DirentPlus { return fuseutil.DirentPlus(*w) })
+		if err != nil {
+			return
+		}
 		// Update state.
 		dh.entriesPlus = entries
 		dh.entriesPlusValid = true
