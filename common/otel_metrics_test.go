@@ -28,6 +28,12 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
+// metricValueMap maps attribute sets to metric values.
+type metricValueMap map[string]int64
+
+// metricHistogramMap maps attribute sets to histogram data points.
+type metricHistogramMap map[string]metricdata.HistogramDataPoint[int64]
+
 func waitForMetricsProcessing() {
 	time.Sleep(time.Millisecond)
 }
@@ -46,7 +52,7 @@ func setupOTel(ctx context.Context, t *testing.T) (*otelMetrics, *metric.ManualR
 // gatherHistogramMetrics collects all histogram metrics from the reader.
 // It returns a map where the key is the metric name, and the value is another map.
 // The inner map's key is a string representation of the attributes,
-// and the value is the HistogramDataPoint.
+// and the value is the metricdata.HistogramDataPoint.
 func gatherHistogramMetrics(ctx context.Context, t *testing.T, rd *metric.ManualReader) map[string]map[string]metricdata.HistogramDataPoint[int64] {
 	t.Helper()
 	var rm metricdata.ResourceMetrics
@@ -54,7 +60,7 @@ func gatherHistogramMetrics(ctx context.Context, t *testing.T, rd *metric.Manual
 	require.NoError(t, err)
 
 	results := make(map[string]map[string]metricdata.HistogramDataPoint[int64])
-	encoder := attribute.DefaultEncoder()
+	encoder := attribute.DefaultEncoder() // Using default encoder
 
 	for _, sm := range rm.ScopeMetrics {
 		for _, m := range sm.Metrics {
@@ -64,7 +70,7 @@ func gatherHistogramMetrics(ctx context.Context, t *testing.T, rd *metric.Manual
 				continue
 			}
 
-			metricMap := make(map[string]metricdata.HistogramDataPoint[int64])
+			metricMap := make(metricHistogramMap) // Changed key type to map[string]interface{}
 			for _, dp := range hist.DataPoints {
 				if dp.Count == 0 {
 					continue
@@ -85,7 +91,7 @@ func gatherHistogramMetrics(ctx context.Context, t *testing.T, rd *metric.Manual
 // gatherNonZeroCounterMetrics collects all non-zero counter metrics from the reader.
 // It returns a map where the key is the metric name, and the value is another map.
 // The inner map's key is a string representation of the attributes,
-// and the value is the counter's value.
+// and the value is the metric's value.
 func gatherNonZeroCounterMetrics(ctx context.Context, t *testing.T, rd *metric.ManualReader) map[string]map[string]int64 {
 	t.Helper()
 	var rm metricdata.ResourceMetrics
@@ -103,7 +109,7 @@ func gatherNonZeroCounterMetrics(ctx context.Context, t *testing.T, rd *metric.M
 				continue
 			}
 
-			metricMap := make(map[string]int64)
+			metricMap := make(metricValueMap) // Changed key type to map[string]interface{}
 			for _, dp := range sum.DataPoints {
 				if dp.Value == 0 {
 					continue
