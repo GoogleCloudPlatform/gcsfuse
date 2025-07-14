@@ -27,6 +27,9 @@ commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 
 cd "./perfmetrics/scripts/micro_benchmarks"
 
+echo "Upgrade python3 version"
+./perfmetrics/scripts/upgrade_python3.sh
+
 echo "Installing dependencies..."
 python3 -m venv venv
 source venv/bin/activate
