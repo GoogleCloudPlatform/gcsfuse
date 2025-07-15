@@ -87,7 +87,6 @@ func (t *ReadDirPlusTest) TestDirectoryWithVariousEntryTypes() {
 	// Check entries.
 	for i, entry := range entries {
 		assert.Equal(t.T(), expectedEntries[i], entry.Name())
-
 		switch entry.Name() {
 		case "file.txt":
 			assert.False(t.T(), entry.IsDir())

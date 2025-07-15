@@ -18,12 +18,25 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	iofs "io/fs"
+	"math"
+	"os"
+	"path"
+	"reflect"
+	"strings"
+	"syscall"
+	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
+
+	"golang.org/x/sync/semaphore"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	cacheutil "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/handle"
@@ -37,16 +50,6 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/sync/semaphore"
-	"io"
-	iofs "io/fs"
-	"math"
-	"os"
-	"path"
-	"reflect"
-	"strings"
-	"syscall"
-	"time"
 )
 
 type ServerConfig struct {
@@ -1522,13 +1525,13 @@ func (fs *fileSystem) lookupAndFetchAttributesForLocalFileEntriesPlus(parentName
 		// Lookup the child inode under the parent directory.
 		child, _ := fs.lookUpLocalFileInode(parentName, localEntryName)
 		if child == nil {
-			return syscall.ENOENT
+			return fmt.Errorf("lookupAndFetchAttributesForLocalFileEntriesPlus: while looking up local file: %w", err)
 		}
 		// Fetch attributes from the child inode.
 		attrs, err := child.Attributes(context.Background(), false)
 		if err != nil {
 			child.Unlock()
-			return fmt.Errorf("unable to fetch attributes for %s: %w", localEntryName, err)
+			return fmt.Errorf("lookupAndFetchAttributesForLocalFileEntriesPlus: unable to fetch attributes for %s: %w", localEntryName, err)
 		}
 		// Unlock the inode after retrieving its attributes.
 		child.Unlock()
