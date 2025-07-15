@@ -123,11 +123,6 @@ func Tracef(format string, v ...interface{}) {
 	defaultLogger.Log(context.Background(), LevelTrace, fmt.Sprintf(format, v...))
 }
 
-// Trace prints the message with TRACE severity in the specified format.
-func Trace(message string, args ...any) {
-	defaultLogger.Log(context.Background(), LevelTrace, message, args...)
-}
-
 // Debugf prints the message with DEBUG severity in the specified format.
 func Debugf(format string, v ...interface{}) {
 	defaultLogger.Debug(fmt.Sprintf(format, v...))
