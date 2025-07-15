@@ -21,7 +21,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/clock"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
@@ -233,7 +232,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 		}
 	})
 
-	res := <-done:
+	res := <-done
 	bytesRead = res.bytesRead
 	err = res.err
 
@@ -248,12 +247,10 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 	}*/
 	//duration := time.Since(start)
 	monitor.CaptureMultiRangeDownloaderMetrics(ctx, metricHandle, "MultiRangeDownloader::Add", start)
-	errDesc := "OK"
 	if err != nil {
-		errDesc = err.Error()
 		err = fmt.Errorf("MultiRangeDownloaderWrapper::Read: %w", err)
 		logger.Errorf("%v", err)
 	}
-//	logger.Tracef("%.13v -> MultiRangeDownloader::Add (%s, [%d, %d)) (%v): %v", requestId, mrdWrapper.object.Name, startOffset, endOffset, duration, errDesc)
+	//	logger.Tracef("%.13v -> MultiRangeDownloader::Add (%s, [%d, %d)) (%v): %v", requestId, mrdWrapper.object.Name, startOffset, endOffset, duration, errDesc)
 	return
 }
