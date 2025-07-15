@@ -82,6 +82,8 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 		readWritePS:           readWritePS,
 	}
 
+	fh.readWritePS.IncrementTotalAccessedFileHandle("read")
+
 	fh.inode.RegisterFileHandle(fh.openMode == util.Read)
 	fh.mu = syncutil.NewInvariantMutex(fh.checkInvariants)
 

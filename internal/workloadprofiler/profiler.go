@@ -22,7 +22,7 @@ var gWorkloadProfiler *WorkloadProfiler
 
 // Please initialize the workload profiler in the init function of your application.
 func init() {
-	gWorkloadProfiler = newWorkloadProfiler(6*time.Second, yamlDumpingCallback) // Default to 10 seconds interval
+	gWorkloadProfiler = newWorkloadProfiler(15*time.Second, yamlDumpingCallback) // Default to 10 seconds interval
 	gWorkloadProfiler.Start()
 	logger.Info("Workload Profiler initialized. Use NewWorkloadProfiler to create an instance.")
 	if gWorkloadProfiler != nil {

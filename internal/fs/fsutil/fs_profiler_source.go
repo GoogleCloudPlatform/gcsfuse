@@ -6,8 +6,10 @@ import (
 )
 
 type DataAccessStats struct {
-	SequentialReadCount int64
-	RandomReadCount     int64
+	SequentialReadCount     int64
+	RandomReadCount         int64
+	TotalAccessedFileHandle int64
+	TotalAccessedInode      int64
 }
 
 type FileSystemProfilerSource struct {
@@ -42,6 +44,22 @@ func (fsps *FileSystemProfilerSource) IncrementRandomReadCount(op string) {
 	fsps.stats[op] = stats
 }
 
+func (fsps *FileSystemProfilerSource) IncrementTotalAccessedFileHandle(op string) {
+	fsps.mu.Lock()
+	defer fsps.mu.Unlock()
+	stats := fsps.stats[op]
+	stats.TotalAccessedFileHandle++
+	fsps.stats[op] = stats
+}
+
+func (fsps *FileSystemProfilerSource) IncrementTotalAccessedInode(op string) {
+	fsps.mu.Lock()
+	defer fsps.mu.Unlock()
+	stats := fsps.stats[op]
+	stats.TotalAccessedInode++
+	fsps.stats[op] = stats
+}
+
 func (fsps *FileSystemProfilerSource) GetProfileData() map[string]interface{} {
 	fsps.mu.RLock()
 	data := make(map[string]interface{})
@@ -49,6 +67,8 @@ func (fsps *FileSystemProfilerSource) GetProfileData() map[string]interface{} {
 		data[op] = map[string]int64{
 			"SequentialReadCount": stats.SequentialReadCount,
 			"RandomReadCount":     stats.RandomReadCount,
+			"TotalAccessedFileHandle": stats.TotalAccessedFileHandle,
+			"TotalAccessedInode":      stats.TotalAccessedInode,
 		}
 	}
 	fsps.mu.RUnlock()

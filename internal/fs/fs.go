@@ -817,7 +817,8 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			fs.mtimeClock,
 			ic.Local,
 			fs.newConfig,
-			fs.globalMaxWriteBlocksSem)
+			fs.globalMaxWriteBlocksSem,
+			fs.readwriteFSPS)
 	}
 
 	// Place it in our map of IDs to inodes.

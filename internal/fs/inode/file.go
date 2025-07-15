@@ -26,6 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedwrites"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/fsutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
@@ -118,6 +119,9 @@ type FileInode struct {
 	// Limits the max number of blocks that can be created across file system when
 	// streaming writes are enabled.
 	globalMaxWriteBlocksSem *semaphore.Weighted
+
+	// readWritePS is used to track the read/write operations on this file inode.
+	readWritePS *fsutil.FileSystemProfilerSource
 }
 
 var _ Inode = &FileInode{}
@@ -141,7 +145,8 @@ func NewFileInode(
 	mtimeClock timeutil.Clock,
 	localFile bool,
 	cfg *cfg.Config,
-	globalMaxBlocksSem *semaphore.Weighted) (f *FileInode) {
+	globalMaxBlocksSem *semaphore.Weighted,
+	readWritePS *fsutil.FileSystemProfilerSource) (f *FileInode) {
 	// Set up the basic struct.
 	var minObj gcs.MinObject
 	if m != nil {
@@ -160,7 +165,9 @@ func NewFileInode(
 		unlinked:                false,
 		config:                  cfg,
 		globalMaxWriteBlocksSem: globalMaxBlocksSem,
+		readWritePS:             readWritePS,
 	}
+	readWritePS.IncrementTotalAccessedInode("read")
 	var err error
 	f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj)
 	if err != nil {
