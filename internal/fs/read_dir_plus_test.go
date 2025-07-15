@@ -16,7 +16,6 @@
 package fs_test
 
 import (
-	"fmt"
 	"os"
 	"path"
 	"testing"
@@ -132,7 +131,6 @@ func (t *LocalFileEntriesReadDirPlusTest) SetupSuite() {
 }
 
 func (t *LocalFileEntriesReadDirPlusTest) TearDownTest() {
-	fmt.Println("done")
 	t.fsTest.TearDown()
 }
 
