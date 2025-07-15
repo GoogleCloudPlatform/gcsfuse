@@ -163,7 +163,7 @@ func NewFileInode(
 		globalMaxWriteBlocksSem: globalMaxBlocksSem,
 	}
 	var err error
-	f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj, config.Logging.Severity == cfg.TraceLogSeverity)
+	f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj, config)
 	if err != nil {
 		logger.Errorf("NewFileInode: Error in creating MRDWrapper %v", err)
 	}
