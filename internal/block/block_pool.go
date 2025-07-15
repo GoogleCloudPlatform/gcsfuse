@@ -67,27 +67,28 @@ func NewBlockPool(blockSize int64, maxBlocks int64, globalMaxBlocksSem *semaphor
 // Get returns a block. It returns an existing block if it's ready for reuse or
 // creates a new one if required.
 func (bp *BlockPool) Get() (Block, error) {
-	for {
-		select {
-		case b := <-bp.freeBlocksCh:
-			// Reset the block for reuse.
-			b.Reuse()
-			return b, nil
-
-		default:
-			// No lock is required here since blockPool is per file and all write
-			// calls to a single file are serialized because of inode.lock().
-			if bp.canAllocateBlock() {
-				b, err := createBlock(bp.blockSize)
-				if err != nil {
-					return nil, err
-				}
-
-				bp.totalBlocks++
-				return b, nil
-			}
-		}
+	// First, try a non-blocking read from the channel.
+	select {
+	case b := <-bp.freeBlocksCh:
+		return b, nil
+	default:
+		// Channel is empty, proceed to check if we can create a new block.
 	}
+
+	// No lock is required here since blockPool is per file and all write
+	// calls to a single file are serialized because of inode.lock().
+	if bp.canAllocateBlock() {
+		b, err := createBlock(bp.blockSize)
+		if err != nil {
+			return nil, err
+		}
+		bp.totalBlocks++
+		return b, nil
+	}
+
+	// If we can't create a new block, we must wait for one to be released.
+	// This is a blocking read that will wait until a block is available.
+	return <-bp.freeBlocksCh, nil
 }
 
 // canAllocateBlock checks if a new block can be allocated.
@@ -110,6 +111,8 @@ func (bp *BlockPool) canAllocateBlock() bool {
 
 // Release puts the block back into the free blocks channel for reuse.
 func (bp *BlockPool) Release(b Block) {
+	// Reset the block's state before putting it back in the pool for reuse.
+	b.Reuse()
 	select {
 	case bp.freeBlocksCh <- b:
 	default:

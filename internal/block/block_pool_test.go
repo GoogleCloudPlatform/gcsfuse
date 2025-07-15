@@ -112,7 +112,7 @@ func (t *BlockPoolTest) TestGetWhenTotalBlocksIsLessThanThanMaxBlocks() {
 	assert.Equal(t.T(), int64(0), block.Size())
 }
 
-func (t *BlockPoolTest) TestCreateBlockWithLargeSize() {
+func (t *BlockPoolTest) TestcreateBlockWithLargeSize() {
 	// Creating block of size 1TB
 	bp, err := NewBlockPool(1024*1024*1024*1024, 10, semaphore.NewWeighted(10))
 	require.Nil(t.T(), err)

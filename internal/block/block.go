@@ -199,7 +199,7 @@ func (m *memoryBlock) SetAbsStartOff(startOff int64) error {
 
 	// If absStartOff is already set, then return an error.
 	if m.absStartOff >= 0 {
-		return fmt.Errorf("AbsStartOff is already set, it should be set only once.")
+		return fmt.Errorf("AbsStartOff is already set, it should be set only once")
 	}
 
 	m.absStartOff = startOff
@@ -222,7 +222,18 @@ func (m *memoryBlock) AwaitReady(ctx context.Context) (BlockStatus, error) {
 
 		return m.status, nil
 	case <-ctx.Done():
-		return 0, ctx.Err()
+		// Context is cancelled. Check if a notification arrived in the meantime to avoid race.
+		select {
+		case val, ok := <-m.notification:
+			if !ok {
+				return m.status, nil
+			}
+			close(m.notification)
+			m.status = val
+			return m.status, nil
+		default:
+			return 0, ctx.Err()
+		}
 	}
 }
 

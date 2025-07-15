@@ -38,18 +38,27 @@ type DownloadTask struct {
 	// ctx is the context for the download task. It is used to cancel the download.
 	ctx context.Context
 
+	// cancelFunc is used to cancel the download of the block.
+	cancelFunc context.CancelFunc
+
 	// Used for zonal bucket to bypass the auth & metadata checks.
 	readHandle []byte
 }
 
 func NewDownloadTask(ctx context.Context, object *gcs.MinObject, bucket gcs.Bucket, block block.Block, readHandle []byte) *DownloadTask {
+	blockCtx, cancel := context.WithCancel(ctx)
 	return &DownloadTask{
-		ctx:        ctx,
+		ctx:        blockCtx,
+		cancelFunc: cancel,
 		object:     object,
 		bucket:     bucket,
 		block:      block,
 		readHandle: readHandle,
 	}
+}
+
+func (p *DownloadTask) Cancel() {
+	p.cancelFunc()
 }
 
 // Execute implements the workerpool.Task interface. It downloads the data from
@@ -66,6 +75,7 @@ func (p *DownloadTask) Execute() {
 	stime := time.Now()
 	var err error
 	defer func() {
+		p.cancelFunc()
 		if err == nil {
 			logger.Tracef("Download: -> block (%s, %v) completed in: %v.", p.object.Name, blockId, time.Since(stime))
 			p.block.NotifyReady(block.BlockStatusDownloaded)
