@@ -216,8 +216,8 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 		mu.Unlock()
 	}()
 
-	requestId := uuid.New()
-	logger.Tracef("%.13v <- MultiRangeDownloader::Add (%s, [%d, %d))", requestId, mrdWrapper.object.Name, startOffset, endOffset)
+	//requestId := uuid.New()
+	//logger.Tracef("%.13v <- MultiRangeDownloader::Add (%s, [%d, %d))", requestId, mrdWrapper.object.Name, startOffset, endOffset)
 	start := time.Now()
 	mrdWrapper.Wrapped.Add(buffer, startOffset, endOffset-startOffset, func(offsetAddCallback int64, bytesReadAddCallback int64, e error) {
 		defer func() {
@@ -233,7 +233,11 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 		}
 	})
 
-	select {
+	res := <-done:
+	bytesRead = res.bytesRead
+	err = res.err
+
+	/*select {
 	case <-time.After(timeout):
 		err = fmt.Errorf("Timeout")
 	case <-ctx.Done():
@@ -241,8 +245,8 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 	case res := <-done:
 		bytesRead = res.bytesRead
 		err = res.err
-	}
-	duration := time.Since(start)
+	}*/
+	//duration := time.Since(start)
 	monitor.CaptureMultiRangeDownloaderMetrics(ctx, metricHandle, "MultiRangeDownloader::Add", start)
 	errDesc := "OK"
 	if err != nil {
@@ -250,6 +254,6 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 		err = fmt.Errorf("MultiRangeDownloaderWrapper::Read: %w", err)
 		logger.Errorf("%v", err)
 	}
-	logger.Tracef("%.13v -> MultiRangeDownloader::Add (%s, [%d, %d)) (%v): %v", requestId, mrdWrapper.object.Name, startOffset, endOffset, duration, errDesc)
+//	logger.Tracef("%.13v -> MultiRangeDownloader::Add (%s, [%d, %d)) (%v): %v", requestId, mrdWrapper.object.Name, startOffset, endOffset, duration, errDesc)
 	return
 }
