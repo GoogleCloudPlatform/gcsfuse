@@ -105,6 +105,12 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("Failed to create cache dir for rapid append tests: %v", err)
 	}
+	defer func() {
+		err := os.RemoveAll(rapidAppendsCacheDir)
+		if err != nil {
+			log.Fatalf("Error while cleaning up cache dir: %v", err)
+		}
+	}()
 	// Define flag set for primary mount to run the tests.
 	flagsSet := [][]string{
 		{"--write-experimental-enable-rapid-appends=true"},
