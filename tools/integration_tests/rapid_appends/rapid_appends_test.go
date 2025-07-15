@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package unfinalized_appends
+package rapid_appends
 
 import (
 	"log"
@@ -21,7 +21,6 @@ import (
 	"syscall"
 	"testing"
 
-	"cloud.google.com/go/storage"
 	. "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
@@ -34,9 +33,8 @@ import (
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
 
-type UnfinalizedAppendsSuite struct {
+type RapidAppendsSuite struct {
 	appendFileHandle *os.File
-	appendableWriter *storage.Writer
 	fileName         string
 	fileSize         int
 	initialContent   string
@@ -47,41 +45,46 @@ type UnfinalizedAppendsSuite struct {
 // Helpers
 // //////////////////////////////////////////////////////////////////////
 
-func (t *UnfinalizedAppendsSuite) SetupSuite() {
-	setup.MountGCSFuseWithGivenMountFunc(gFlags, gMountFunc)
-	gRootDir = setup.MntDir()
-	gLogFilePath = setup.LogFile()
-	gTestDirPath = setup.SetupTestDirectory(testDirName)
+func (t *RapidAppendsSuite) SetupSuite() {
+	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
+	rootDir = setup.MntDir()
+	logFilePath = setup.LogFile()
+	testDirPath = setup.SetupTestDirectory(testDirName)
 }
 
-func (t *UnfinalizedAppendsSuite) TearDownSuite() {
-	setup.UnmountGCSFuse(gRootDir)
+func (t *RapidAppendsSuite) TearDownSuite() {
+	setup.UnmountGCSFuse(rootDir)
 	setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
 	if t.T().Failed() {
 		log.Println("Secondary mount log file:")
-		setup.SetLogFile(gOtherLogFilePath)
+		setup.SetLogFile(otherLogFilePath)
 		setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
 	}
 }
 
-func (t *UnfinalizedAppendsSuite) SetupTest() {
+func (t *RapidAppendsSuite) SetupTest() {
 	t.fileName = FileName1 + setup.GenerateRandomString(5)
-	var err error
 	// Create unfinalized object.
-	t.appendableWriter = CreateUnfinalizedObject(gCtx, t.T(), gStorageClient, path.Join(testDirName, t.fileName), SizeOfFileContents)
+	_ = CreateUnfinalizedObject(ctx, t.T(), storageClient, path.Join(testDirName, t.fileName), SizeOfFileContents)
 	t.fileSize = SizeOfFileContents
-
-	t.appendFileHandle, err = os.OpenFile(path.Join(gTestDirPath, t.fileName), os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, operations.FilePermission_0600)
+	// Create append file handle.
+	var err error
+	t.appendFileHandle, err = os.OpenFile(path.Join(testDirPath, t.fileName), os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, operations.FilePermission_0600)
 	require.NoError(t.T(), err)
-	initialContent, err := operations.ReadFile(path.Join(gTestDirPath, t.fileName))
+	initialContent, err := operations.ReadFile(path.Join(testDirPath, t.fileName))
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), SizeOfFileContents, len(initialContent))
 	t.initialContent = string(initialContent)
 }
 
+func (t *RapidAppendsSuite) TearDownTest() {
+	err := t.appendFileHandle.Close()
+	require.NoError(t.T(), err)
+}
+
 // AppendToFile appends "appendContent" using
 // existing appendFileHandle in the first mount.
-func (t *UnfinalizedAppendsSuite) AppendToFile(appendContent string) {
+func (t *RapidAppendsSuite) AppendToFile(appendContent string) {
 	n, err := t.appendFileHandle.WriteString(appendContent)
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), len(appendContent), n)
@@ -92,22 +95,21 @@ func (t *UnfinalizedAppendsSuite) AppendToFile(appendContent string) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *UnfinalizedAppendsSuite) TestAppendsFromSameMount() {
+func (t *RapidAppendsSuite) TestAppendsAndSequentialReadFromSameMount() {
 	expectedContent := t.initialContent
 	for range 3 {
 		t.AppendToFile(FileContents)
 		expectedContent += FileContents
 
 		// Read content of file from same mount.
-		gotContent, err := operations.ReadFile(path.Join(gTestDirPath, t.fileName))
+		gotContent, err := operations.ReadFile(path.Join(testDirPath, t.fileName))
 
-		assert.NoError(t.T(), err)
-		assert.Equal(t.T(), t.fileSize, len(gotContent))
+		require.NoError(t.T(), err)
 		assert.Equal(t.T(), expectedContent, string(gotContent))
 	}
 }
 
-func (t *UnfinalizedAppendsSuite) TestAppendsFromDifferentMount() {
+func (t *RapidAppendsSuite) TestAppendsAndSequentialReadFromDifferentMount() {
 	expectedContent := t.initialContent
 	for range 3 {
 		t.AppendToFile(FileContents)
@@ -115,10 +117,9 @@ func (t *UnfinalizedAppendsSuite) TestAppendsFromDifferentMount() {
 		operations.SyncFile(t.appendFileHandle, t.T())
 
 		// Read content of file from differnt mount.
-		gotContent, err := operations.ReadFile(path.Join(gOtherTestDirPath, t.fileName))
+		gotContent, err := operations.ReadFile(path.Join(otherTestDirPath, t.fileName))
 
-		assert.NoError(t.T(), err)
-		assert.Equal(t.T(), t.fileSize, len(gotContent))
+		require.NoError(t.T(), err)
 		assert.Equal(t.T(), expectedContent, string(gotContent))
 	}
 }
@@ -128,6 +129,6 @@ func (t *UnfinalizedAppendsSuite) TestAppendsFromDifferentMount() {
 ////////////////////////////////////////////////////////////////////////
 
 func TestUnfinalizedAppendsSuite(t *testing.T) {
-	appendSuite := new(UnfinalizedAppendsSuite)
+	appendSuite := new(RapidAppendsSuite)
 	suite.Run(t, appendSuite)
 }
