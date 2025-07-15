@@ -15,24 +15,16 @@
 package bufferedread
 
 import (
-	"context"
-
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 )
 
-type BlockQueueEntry struct {
-	block      block.Block
-	task       *DownloadTask
-	cancelFunc context.CancelFunc
-}
-
 type BlockQueue struct {
-	common.Queue[*BlockQueueEntry]
+	common.Queue[block.Block]
 }
 
 func NewBlockQueue() *BlockQueue {
 	return &BlockQueue{
-		common.NewLinkedListQueue[*BlockQueueEntry](),
+		common.NewLinkedListQueue[block.Block](),
 	}
 }

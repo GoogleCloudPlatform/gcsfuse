@@ -104,8 +104,8 @@ func (p *BufferedReader) shouldResetPrefetcher(offset int64) bool {
 	if p.blockQueue.IsEmpty() {
 		return false
 	}
-	startOffset := p.blockQueue.PeekStart().block.AbsStartOff()
-	endOffset := p.blockQueue.PeekEnd().block.AbsStartOff() + p.config.PrefetchBlockSizeBytes
+	startOffset := p.blockQueue.PeekStart().AbsStartOff()
+	endOffset := p.blockQueue.PeekEnd().AbsStartOff() + p.config.PrefetchBlockSizeBytes
 	return offset < startOffset || offset >= endOffset
 }
 
@@ -125,8 +125,7 @@ func (p *BufferedReader) readBlocksAt(ctx context.Context, inputBuffer []byte, o
 			prefetchTriggered = true
 		}
 
-		entry := p.blockQueue.PeekStart()
-		b := entry.block
+		b := p.blockQueue.PeekStart()
 
 		status, waitErr := b.AwaitReady(ctx)
 		if waitErr != nil {
@@ -158,7 +157,7 @@ func (p *BufferedReader) readBlocksAt(ctx context.Context, inputBuffer []byte, o
 
 		if blockConsumed {
 			consumed := p.blockQueue.Pop()
-			p.blockPool.Release(consumed.block)
+			p.blockPool.Release(consumed)
 
 			if !prefetchTriggered {
 				prefetchTriggered = true
@@ -173,15 +172,15 @@ func (p *BufferedReader) readBlocksAt(ctx context.Context, inputBuffer []byte, o
 
 func (p *BufferedReader) cleanupStaleBlocks(ctx context.Context, offset int64) error {
 	for !p.blockQueue.IsEmpty() {
-		entry := p.blockQueue.PeekStart()
-		if entry.block.AbsStartOff()+entry.block.Cap() <= offset {
-			entry = p.blockQueue.Pop()
-			entry.cancelFunc()
+		b := p.blockQueue.PeekStart()
+		if b.AbsStartOff()+b.Cap() <= offset {
+			b = p.blockQueue.Pop()
+			b.Cancel()
 
-			if _, err := entry.block.AwaitReady(ctx); err != nil && err != context.Canceled {
+			if _, err := b.AwaitReady(ctx); err != nil && err != context.Canceled {
 				return fmt.Errorf("error cleaning up stale block: %w", err)
 			}
-			p.blockPool.Release(entry.block)
+			p.blockPool.Release(b)
 		} else {
 			break
 		}
@@ -281,12 +280,12 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.Block, blockIndex int64,
 	if rhPtr != nil {
 		rh = *rhPtr
 	}
-
+	b.SetCancelFunc(cancel)
 	task := NewDownloadTask(blockCtx, p.object, p.bucket, b, rh, p)
 
 	logger.Debugf("Scheduling block (%s, offset %d).", p.object.Name, startOffset)
 
-	p.blockQueue.Push(&BlockQueueEntry{block: b, task: task, cancelFunc: cancel})
+	p.blockQueue.Push(b)
 	p.workerPool.Schedule(urgent, task)
 }
 
@@ -297,13 +296,13 @@ func (p *BufferedReader) Destroy() {
 	}
 
 	for !p.blockQueue.IsEmpty() {
-		entry := p.blockQueue.Pop()
+		b := p.blockQueue.Pop()
 		// We expect a context.Canceled error here, but we wait to ensure the
 		// block's worker goroutine has finished before releasing the block.
-		if _, err := entry.block.AwaitReady(p.ctx); err != nil && err != context.Canceled {
+		if _, err := b.AwaitReady(p.ctx); err != nil && err != context.Canceled {
 			logger.Warnf("bufferedread: error waiting for block on destroy: %v", err)
 		}
-		p.blockPool.Release(entry.block)
+		p.blockPool.Release(b)
 	}
 
 	p.blockPool = nil
@@ -312,15 +311,15 @@ func (p *BufferedReader) Destroy() {
 func (p *BufferedReader) resetPrefetcher() error {
 	var firstErr error
 	for !p.blockQueue.IsEmpty() {
-		entry := p.blockQueue.Pop()
-		entry.cancelFunc()
+		b := p.blockQueue.Pop()
+		b.Cancel()
 		// Use a background context because p.ctx is the overall reader context,
 		// and we are just clearing the prefetch queue, not closing the reader.
-		if _, err := entry.block.AwaitReady(context.Background()); err != nil && err != context.Canceled && firstErr == nil {
+		if _, err := b.AwaitReady(context.Background()); err != nil && err != context.Canceled && firstErr == nil {
 			firstErr = fmt.Errorf("bufferedread: error waiting for block on reset: %w", err)
 			logger.Warnf("%v", firstErr)
 		}
-		p.blockPool.Release(entry.block)
+		p.blockPool.Release(b)
 	}
 	return firstErr
 }
