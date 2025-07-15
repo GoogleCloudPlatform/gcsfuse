@@ -188,7 +188,7 @@ func (o *otelMetrics) FileCacheReadLatency(ctx context.Context, latency time.Dur
 	o.fileCacheReadLatency.Record(ctx, latency.Microseconds(), cacheHitAttrOption(cacheHit))
 }
 
-func NewOTelMetrics() (MetricHandle, error) {
+func NewOTelMetrics() (*otelMetrics, error) {
 	fsOpsMeter := otel.Meter("fs_op")
 	gcsMeter := otel.Meter("gcs")
 	fileCacheMeter := otel.Meter("file_cache")
