@@ -2,6 +2,7 @@ package workloadprofiler
 
 import (
 	"fmt"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"gopkg.in/yaml.v3"
 	"os"
 )
@@ -15,11 +16,17 @@ func yamlDumpingCallback(data map[string]interface{}, dumpDir string) {
 
 	// Write the yaml data to the file.
 	filePath := fmt.Sprintf("%s/profile_dump.yaml", dumpDir)
-	err = os.WriteFile(filePath, yamlData, 0644)
+	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
-		fmt.Printf("Error writing YAML to file: %v\n", err)
+		logger.Errorf("Error opening file for appending: %v\n", err)
 		return
 	}
+	defer file.Close()
 
-	fmt.Print(string(yamlData))
+	_, err = file.Write(yamlData)
+	if err != nil {
+		logger.Errorf("Error writing YAML to file: %v\n", err)
+		return
+	}
+	logger.Infof("Profile data dumped to %s", filePath)
 }
