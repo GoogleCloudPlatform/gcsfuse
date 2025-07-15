@@ -58,14 +58,20 @@ deactivate
 set -e
 
 # Final result
+exit_code=0
 if [[ $exit_read_code -ne 0 ]]; then
   echo "Read benchmark failed with exit code $exit_read_code"
-  exit $exit_read_code
+  exit_code=$exit_read_code
 fi
 
 if [[ $exit_write_code -ne 0 ]]; then
   echo "Write benchmark failed with exit code $exit_write_code"
-  exit $exit_write_code
+  exit_code=$exit_write_code
+fi
+
+if [[ $exit_code != 0 ]]; then
+  echo "Benchmarks failed."
+  exit $exit_code
 fi
 
 echo "Benchmarks completed successfully."
