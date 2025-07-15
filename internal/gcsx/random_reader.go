@@ -21,6 +21,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
@@ -226,7 +227,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 	isSeq := offset == 0
 
 	// Request log and start the execution timer.
-	requestId := util.GenerateRandomID()
+	requestId := uuid.New()
 	readOp := ctx.Value(ReadOp).(*fuseops.ReadFileOp)
 	logger.Tracef("%.13v <- FileCache(%s:/%s, offset: %d, size: %d handle: %d)", requestId, rr.bucket.Name(), rr.object.Name, offset, len(p), readOp.Handle)
 	startTime := time.Now()

@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"strings"
 	"sync"
 	"time"
 
@@ -75,7 +74,8 @@ type MultiRangeDownloaderWrapper struct {
 	// Holds the cancel function, which can be called to cancel the cleanup function.
 	cancelCleanup context.CancelFunc
 	// Used for waiting for timeout (helps us in mocking the functionality).
-	clock  clock.Clock
+	clock clock.Clock
+	// GCSFuse mount config.
 	config *cfg.Config
 }
 
@@ -220,15 +220,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 		mu.Unlock()
 	}()
 
-	var start time.Time
-	var requestId string
-	if mrdWrapper.config.Logging.Severity == cfg.TraceLogSeverity {
-		requestId = util.GenerateRandomID()
-		var sb strings.Builder
-		_, _ = fmt.Fprintf(&sb, "%s <- MultiRangeDownloader::Add (%s, [%d, %d))", requestId, mrdWrapper.object.Name, startOffset, endOffset)
-		logger.Trace(sb.String())
-		start = time.Now()
-	}
+	start := time.Now()
 	mrdWrapper.Wrapped.Add(buffer, startOffset, endOffset-startOffset, func(offsetAddCallback int64, bytesReadAddCallback int64, e error) {
 		defer func() {
 			mu.Lock()
@@ -243,7 +235,6 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 		}
 	})
 
-	errDesc := "OK"
 	if !mrdWrapper.config.FileSystem.IgnoreInterrupts {
 		select {
 		case <-time.After(timeout):
@@ -259,17 +250,9 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 		bytesRead = res.bytesRead
 		err = res.err
 	}
-
-	if mrdWrapper.config.Logging.Severity == cfg.TraceLogSeverity {
-		if err != nil {
-			errDesc = err.Error()
-			err = fmt.Errorf("MultiRangeDownloaderWrapper::Read: %w", err)
-			logger.Error(err.Error())
-		}
-		duration := time.Since(start)
-		var sb2 strings.Builder
-		_, _ = fmt.Fprintf(&sb2, "%s -> MultiRangeDownloader::Add (%s, [%d, %d)) (%v): %v", requestId, mrdWrapper.object.Name, startOffset, endOffset, duration, errDesc)
-		logger.Trace(sb2.String())
+	if err != nil {
+		err = fmt.Errorf("MultiRangeDownloaderWrapper::Read: %w", err)
+		logger.Error(err.Error())
 	}
 	monitor.CaptureMultiRangeDownloaderMetrics(ctx, metricHandle, "MultiRangeDownloader::Add", start)
 

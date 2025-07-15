@@ -317,6 +317,7 @@ func (b *debugBucket) RenameFolder(ctx context.Context, folderName string, desti
 }
 
 type debugMultiRangeDownloader struct {
+	object    string
 	bucket    *debugBucket
 	requestID uint64
 	desc      string
@@ -325,7 +326,9 @@ type debugMultiRangeDownloader struct {
 }
 
 func (dmrd *debugMultiRangeDownloader) Add(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+	id, desc, start := dmrd.bucket.startRequest("MultiRangeDownloader.Add(%s, [%v,%v))", dmrd.object, offset, offset+length)
 	wrapperCallback := func(offset int64, length int64, err error) {
+		defer dmrd.bucket.finishRequest(id, desc, start, &err)
 		if callback != nil {
 			callback(offset, length, err)
 		}
@@ -366,6 +369,7 @@ func (b *debugBucket) NewMultiRangeDownloader(
 
 	// Return a special reader that prints debug info.
 	mrd = &debugMultiRangeDownloader{
+		object:    req.Name,
 		bucket:    b,
 		requestID: id,
 		desc:      desc,
