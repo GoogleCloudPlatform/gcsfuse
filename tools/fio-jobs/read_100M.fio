@@ -8,7 +8,7 @@ group_reporting=1
 iodepth=64
 ioengine=libaio
 invalidate=1
-numjobs=128
+numjobs=16
 openfiles=1
 # Change "read" to "randread" to test random reads.
 rw=read 
