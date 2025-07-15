@@ -32,6 +32,8 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedread"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
@@ -44,6 +46,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -196,6 +199,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		metricHandle:               serverCfg.MetricHandle,
 		enableAtomicRenameObject:   serverCfg.NewConfig.EnableAtomicRenameObject,
 		globalMaxWriteBlocksSem:    semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
+		globalMaxReadBlocksSem:     semaphore.NewWeighted(serverCfg.NewConfig.Read.GlobalMaxBlocks),
 	}
 
 	// Set up root bucket
@@ -217,6 +221,23 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 	fs.implicitDirInodes[root.Name()] = root
 	fs.folderInodes[root.Name()] = root
 	root.Unlock()
+
+	// Initialize prefetcher block-pool and thread-pool if prefetch is enabled.
+	if serverCfg.NewConfig.Read.EnableBufferedRead {
+		var err error
+		fs.workerPool, err = workerpool.NewStaticWorkerPool(uint32(serverCfg.NewConfig.Read.PriorityWorkers), uint32(serverCfg.NewConfig.Read.NormalWorkers))
+		if err != nil {
+			return fs, fmt.Errorf("failed to create worker pool: %w", err)
+		}
+		fs.workerPool.Start()
+		logger.Infof("Prefetch config: max: %d", serverCfg.NewConfig.Read.GlobalMaxBlocks)
+		fs.blockPool, err = block.NewBlockPool(int64(serverCfg.NewConfig.Read.BlockSizeMb*1024*1024), int64(serverCfg.NewConfig.Read.MaxBlocksPerHandle), fs.globalMaxReadBlocksSem)
+		if err != nil {
+			// Clean up resources that were already created before returning the error.
+			fs.workerPool.Stop()
+			return nil, fmt.Errorf("failed to create block pool: %w", err)
+		}
+	}
 
 	// Set up invariant checking.
 	fs.mu = locker.New("FS", fs.checkInvariants)
@@ -492,6 +513,11 @@ type fileSystem struct {
 	// Limits the max number of blocks that can be created across file system when
 	// streaming writes are enabled.
 	globalMaxWriteBlocksSem *semaphore.Weighted
+
+	// Prefetch
+	workerPool             workerpool.WorkerPool
+	blockPool              *block.BlockPool
+	globalMaxReadBlocksSem *semaphore.Weighted
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -1448,6 +1474,13 @@ func (fs *fileSystem) Destroy() {
 	if fs.fileCacheHandler != nil {
 		_ = fs.fileCacheHandler.Destroy()
 	}
+
+	if fs.workerPool != nil {
+		fs.workerPool.Stop()
+	}
+	if fs.blockPool !=nil {
+		fs.blockPool.ClearFreeBlockChannel(true)
+	}
 }
 
 func (fs *fileSystem) StatFS(
@@ -1831,9 +1864,17 @@ func (fs *fileSystem) CreateFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
+	// Get prefetch config from the mount config.
+	bufferedReadConfig := &bufferedread.BufferedReadConfig{
+		PrefetchQueueCapacity:           fs.newConfig.Read.MaxBlocksPerHandle,
+		PrefetchBlockSizeBytes:       fs.newConfig.Read.BlockSizeMb * 1024 * 1024,
+		PrefetchMultiplier:      fs.newConfig.Read.PrefetchMultiplier,
+		InitialPrefetchBlockCnt: fs.newConfig.Read.InitialBlocksPerHandle,
+	}
+
 	// CreateFile() invoked to create new files, can be safely considered as filehandle
 	// opened in append mode.
-	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, util.Append, &fs.newConfig.Read)
+	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, util.Append, &fs.newConfig.Read, fs.workerPool, fs.blockPool, bufferedReadConfig)
 	op.Handle = handleID
 
 	fs.mu.Unlock()
@@ -2555,7 +2596,7 @@ func (fs *fileSystem) OpenFile(
 
 	// Figure out the mode in which the file is being opened.
 	openMode := util.FileOpenMode(op)
-	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, &fs.newConfig.Read)
+	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, &fs.newConfig.Read, fs.workerPool, fs.blockPool, &bufferedread.BufferedReadConfig{PrefetchQueueCapacity: fs.newConfig.Read.MaxBlocksPerHandle, PrefetchBlockSizeBytes: fs.newConfig.Read.BlockSizeMb * 1024 * 1024, PrefetchMultiplier: 2, InitialPrefetchBlockCnt: fs.newConfig.Read.InitialBlocksPerHandle})
 	op.Handle = handleID
 
 	// When we observe object generations that we didn't create, we assign them

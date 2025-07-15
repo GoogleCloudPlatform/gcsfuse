@@ -21,12 +21,15 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedread"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/read_manager"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 )
@@ -65,10 +68,14 @@ type FileHandle struct {
 
 	// Read related mounting configuration.
 	readConfig *cfg.ReadConfig
+
+	workerPool         workerpool.WorkerPool
+	blockPool          *block.BlockPool
+	bufferedReadConfig *bufferedread.BufferedReadConfig
 }
 
 // LOCKS_REQUIRED(fh.inode.mu)
-func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, openMode util.OpenMode, rc *cfg.ReadConfig) (fh *FileHandle) {
+func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, openMode util.OpenMode, rc *cfg.ReadConfig, workerPool workerpool.WorkerPool, blockPool *block.BlockPool, bufferedReadConfig *bufferedread.BufferedReadConfig) (fh *FileHandle) {
 	fh = &FileHandle{
 		inode:                 inode,
 		fileCacheHandler:      fileCacheHandler,
@@ -76,6 +83,9 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 		metricHandle:          metricHandle,
 		openMode:              openMode,
 		readConfig:            rc,
+		workerPool:            workerPool,
+		blockPool:             blockPool,
+		bufferedReadConfig:    bufferedReadConfig,
 	}
 
 	fh.inode.RegisterFileHandle(fh.openMode == util.Read)
@@ -315,6 +325,8 @@ func (fh *FileHandle) tryEnsureReadManager(ctx context.Context, sequentialReadSi
 		MetricHandle:          fh.metricHandle,
 		MrdWrapper:            &fh.inode.MRDWrapper,
 		ReadConfig:            fh.readConfig,
+		WorkerPool:            fh.workerPool,
+		BlockPool:             fh.blockPool,
 	})
 
 	return nil

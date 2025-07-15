@@ -40,15 +40,19 @@ type DownloadTask struct {
 
 	// Used for zonal bucket to bypass the auth & metadata checks.
 	readHandle []byte
+
+	// Pointer to bufferedReader
+	bufferedReader *BufferedReader
 }
 
-func NewDownloadTask(ctx context.Context, object *gcs.MinObject, bucket gcs.Bucket, block block.Block, readHandle []byte) *DownloadTask {
+func NewDownloadTask(ctx context.Context, object *gcs.MinObject, bucket gcs.Bucket, block block.Block, readHandle []byte, bufferedReader *BufferedReader) *DownloadTask {
 	return &DownloadTask{
 		ctx:        ctx,
 		object:     object,
 		bucket:     bucket,
 		block:      block,
 		readHandle: readHandle,
+		bufferedReader: bufferedReader,
 	}
 }
 

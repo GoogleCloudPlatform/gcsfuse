@@ -35,7 +35,7 @@ func TestLinkedListQueue_Push(t *testing.T) {
 	q.Push(4)
 	q.Push(5)
 
-	assert.Equal(t, 4, q.Peek())
+	assert.Equal(t, 4, q.PeekStart())
 	assert.False(t, q.IsEmpty())
 }
 
@@ -43,24 +43,24 @@ func TestLinkedListQueue_SinglePop(t *testing.T) {
 	q := NewLinkedListQueue[int]()
 	q.Push(4)
 	q.Push(5)
-	require.Equal(t, 4, q.Peek())
+	require.Equal(t, 4, q.PeekStart())
 	require.False(t, q.IsEmpty())
 
 	val := q.Pop()
 
 	assert.Equal(t, 4, val)
-	assert.Equal(t, 5, q.Peek())
+	assert.Equal(t, 5, q.PeekStart())
 }
 
 func TestLinkedListQueue_MultiplePops(t *testing.T) {
 	q := NewLinkedListQueue[int]()
 	q.Push(4)
 	q.Push(5)
-	require.Equal(t, 4, q.Peek())
+	require.Equal(t, 4, q.PeekStart())
 	require.False(t, q.IsEmpty())
 	val := q.Pop()
 	require.Equal(t, 4, val)
-	require.Equal(t, 5, q.Peek())
+	require.Equal(t, 5, q.PeekStart())
 
 	val = q.Pop()
 
@@ -79,7 +79,7 @@ func TestLinkedListQueue_Peek(t *testing.T) {
 	q.Push(4)
 	require.Equal(t, 1, q.Len())
 
-	val := q.Peek()
+	val := q.PeekStart()
 
 	assert.Equal(t, 4, val)
 	assert.Equal(t, 1, q.Len()) // Length should remain unchanged.
@@ -88,7 +88,7 @@ func TestLinkedListQueue_Peek(t *testing.T) {
 
 func TestLinkedListQueue_PeekEmptyQueue(t *testing.T) {
 	assert.Panics(t, func() {
-		NewLinkedListQueue[int]().Peek()
+		NewLinkedListQueue[int]().PeekStart()
 	}, "Peek should panic when called on an empty queue.")
 }
 

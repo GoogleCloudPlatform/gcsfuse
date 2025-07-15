@@ -21,10 +21,13 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedread"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	clientReaders "github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/client_readers"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 )
 
 type ReadManager struct {
@@ -44,6 +47,8 @@ type ReadManagerConfig struct {
 	MetricHandle          common.MetricHandle
 	MrdWrapper            *gcsx.MultiRangeDownloaderWrapper
 	ReadConfig            *cfg.ReadConfig
+	WorkerPool            workerpool.WorkerPool
+	BlockPool             *block.BlockPool
 }
 
 // NewReadManager creates a new ReadManager for the given GCS object,
@@ -63,6 +68,25 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 			config.MetricHandle,
 		)
 		readers = append(readers, fileCacheReader) // File cache reader is prioritized.
+	}
+
+	// If buffered reading is enabled, use the BufferedReader. Otherwise, use the standard GCSReader.
+	// The file cache will fall back to one of these if it can't serve the read.
+	if config.ReadConfig.EnableBufferedRead {
+		bufferedReadConfig := &bufferedread.BufferedReadConfig{
+			PrefetchQueueCapacity:   config.ReadConfig.MaxBlocksPerHandle,
+			PrefetchBlockSizeBytes:  config.ReadConfig.BlockSizeMb * 1024 * 1024,
+			InitialPrefetchBlockCnt: config.ReadConfig.InitialBlocksPerHandle,
+			PrefetchMultiplier:      config.ReadConfig.PrefetchMultiplier,
+		}
+		bufferedReader := bufferedread.NewBufferedReader(
+			object,
+			bucket,
+			bufferedReadConfig,
+			config.BlockPool,
+			config.WorkerPool,
+		)
+		readers = append(readers, bufferedReader)
 	}
 
 	// Initialize the GCS reader, which is always present.

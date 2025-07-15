@@ -19,9 +19,13 @@ type Queue[T any] interface {
 	// IsEmpty checks if the queue is empty.
 	IsEmpty() bool
 
-	// Peek returns the front of the queue without removing it.
+	// PeekStart returns the front of the queue without removing it.
 	// Panics if the queue is empty.
-	Peek() T
+	PeekStart() T
+
+	// PeekEnd returns the back of the queue without removing it.
+	// Panics if the queue is empty.
+	PeekEnd() T
 
 	// Push puts an item on the end of the queue.
 	Push(value T)
@@ -56,13 +60,22 @@ func (q *linkedListQueue[T]) IsEmpty() bool {
 	return q.size == 0
 }
 
-// Peek returns the front of the queue without removing it.
+// PeekStart returns the front of the queue without removing it.
 // Panics if the queue is empty.
-func (q *linkedListQueue[T]) Peek() T {
+func (q *linkedListQueue[T]) PeekStart() T {
 	if q.size == 0 {
-		panic("Peek called on an empty queue.")
+		panic("PeekStart called on an empty queue.")
 	}
 	return q.start.value
+}
+
+// PeekEnd returns the back of the queue without removing it.
+// Panics if the queue is empty.
+func (q *linkedListQueue[T]) PeekEnd() T {
+	if q.size == 0 {
+		panic("PeekEnd called on an empty queue.")
+	}
+	return q.end.value
 }
 
 // Push puts an item on the end of the queue.
