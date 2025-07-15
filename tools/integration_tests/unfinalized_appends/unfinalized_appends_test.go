@@ -79,6 +79,11 @@ func (t *UnfinalizedAppendsSuite) SetupTest() {
 	t.initialContent = string(initialContent)
 }
 
+func (t *UnfinalizedAppendsSuite) TearDownTest() {
+	t.appendableWriter.Close()
+	t.appendFileHandle.Close()
+}
+
 // AppendToFile appends "appendContent" using
 // existing appendFileHandle in the first mount.
 func (t *UnfinalizedAppendsSuite) AppendToFile(appendContent string) {
@@ -121,6 +126,36 @@ func (t *UnfinalizedAppendsSuite) TestAppendsFromDifferentMount() {
 		assert.Equal(t.T(), t.fileSize, len(gotContent))
 		assert.Equal(t.T(), expectedContent, string(gotContent))
 	}
+}
+
+func (t *UnfinalizedAppendsSuite) TestAppendSessionInvalidatedByAnotherClientUponTakeover() {
+	const contentToAppend = "appended content"
+	// Initiate an append session using the suite's primary file handle opened in append mode.
+	t.AppendToFile(FileContents)
+
+	// Open a new file handle from a different mount to the same file.
+	newAppendFileHandle, err := os.OpenFile(path.Join(gOtherTestDirPath, t.fileName), os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, operations.FilePermission_0600)
+	require.NoError(t.T(), err)
+	defer func() {
+		// Ensure that the new file handle is closed, regardless of test outcome.
+		assert.NoError(t.T(), newAppendFileHandle.Close())
+	}()
+
+	// Attempt to append using the newly opened file handle.
+	// This append should succeed, confirming the takeover.
+	_, err = newAppendFileHandle.WriteString(contentToAppend)
+	assert.NoError(t.T(), err)
+
+	// Attempt to append using the original file handle.
+	// This should now fail, as its append session has been invalidated by the takeover.
+	_, err = t.appendFileHandle.WriteString(contentToAppend)
+	err = t.appendFileHandle.Sync()
+	assert.Error(t.T(), err)
+
+	// Syncing from the newly created file handle must succeed since it holds the active
+	// append session.
+	err = newAppendFileHandle.Sync()
+	assert.NoError(t.T(), err)
 }
 
 ////////////////////////////////////////////////////////////////////////
