@@ -9,9 +9,9 @@ import (
 )
 
 type ResourceStats struct {
-	CPUCount  int64
-	DiskFree  int64
-	DiskTotal int64
+	CPUCount    int64
+	DiskFreeGB  int64
+	DiskTotalGB int64
 }
 
 type VMResourceSource struct {
@@ -34,10 +34,11 @@ func (vms *VMResourceSource) GetProfileData() map[string]interface{} {
 	var stat unix.Statfs_t
 	unix.Statfs("/", &stat)
 
+	GIB := int64(1024 * 1024 * 1024) // Convert bytes to GiB
 	data["vm_details_mb"] = ResourceStats{
-		CPUCount:  int64(runtime.NumCPU()),
-		DiskTotal: int64(stat.Blocks*uint64(stat.Bsize)) / (1024 * 1024), // Convert bytes to MB,
-		DiskFree:  int64(stat.Bfree*uint64(stat.Bsize)) / (1024 * 1024),  // Convert bytes to MB
+		CPUCount:    int64(runtime.NumCPU()),
+		DiskTotalGB: (int64(stat.Blocks*uint64(stat.Bsize)) + GIB - 1) / GIB, // Convert bytes to MB,
+		DiskFreeGB:  (int64(stat.Bfree*uint64(stat.Bsize)) + GIB - 1) / GIB,  // Convert bytes to MB
 	}
 
 	return data

@@ -72,13 +72,15 @@ func (fsps *FileSystemProfilerSource) IncrementTotalSizeReadAccessed(op string, 
 func (fsps *FileSystemProfilerSource) GetProfileData() map[string]interface{} {
 	fsps.mu.RLock()
 	data := make(map[string]interface{})
+
+	GIB := int64(1024 * 1024 * 1024) // Convert bytes to GiB
 	for op, stats := range fsps.stats {
 		data[op] = map[string]int64{
 			"SequentialReadCount":     stats.SequentialReadCount,
 			"RandomReadCount":         stats.RandomReadCount,
 			"TotalAccessedFileHandle": stats.TotalAccessedFileHandle,
 			"TotalAccessedInode":      stats.TotalAccessedInode,
-			"TotalSizeReadAccessedGB": stats.TotalSizeReadAccessed / (1024 * 1024 * 1024), // Convert bytes to GB
+			"TotalSizeReadAccessedGB": (stats.TotalSizeReadAccessed + GIB - 1) / (1024 * 1024 * 1024), // Convert bytes to GB
 		}
 	}
 	fsps.mu.RUnlock()
