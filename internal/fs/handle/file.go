@@ -68,6 +68,8 @@ type FileHandle struct {
 	readConfig *cfg.ReadConfig
 
 	readWritePS *fsutil.FileSystemProfilerSource // Profiler source for collecting read/write stats
+
+	accessed bool
 }
 
 // LOCKS_REQUIRED(fh.inode.mu)
@@ -180,6 +182,12 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 // LOCKS_REQUIRED(fh.inode.mu)
 // UNLOCK_FUNCTION(fh.inode.mu)
 func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequentialReadSizeMb int32) (output []byte, n int, err error) {
+
+	if !fh.accessed {
+		fh.readWritePS.IncrementTotalAccessedFileHandle("read")
+		fh.accessed = true
+	}
+
 	// fh.inode.mu is already locked to ensure that we have a reader for its current
 	// state, or clear fh.reader if it's not possible to create one (probably
 	// because the inode is dirty).

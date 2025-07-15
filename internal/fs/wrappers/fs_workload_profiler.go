@@ -52,15 +52,16 @@ func (fs *ProfilerWrapper) incrementCounter(op string) {
 func (fs *ProfilerWrapper) updateParallelism(op string, increment bool) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
-	stats := fs.temp[op]
+	tmp := fs.temp[op]
 	if increment {
-		stats.Parallelism++
+		tmp.Parallelism++
 	} else {
-		stats.Parallelism--
+		tmp.Parallelism--
 	}
-	if stats.Parallelism > fs.Stats[op].Parallelism {
+	fs.temp[op] = tmp
+	if tmp.Parallelism > fs.Stats[op].Parallelism {
 		ss := fs.Stats[op]
-		ss.Parallelism = stats.Parallelism
+		ss.Parallelism = tmp.Parallelism
 		fs.Stats[op] = ss
 	}
 }

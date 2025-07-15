@@ -122,6 +122,9 @@ type FileInode struct {
 
 	// readWritePS is used to track the read/write operations on this file inode.
 	readWritePS *fsutil.FileSystemProfilerSource
+
+	accessedRead  bool
+	accessedWrite bool
 }
 
 var _ Inode = &FileInode{}
@@ -599,6 +602,12 @@ func (f *FileInode) Write(
 	data []byte,
 	offset int64,
 	openMode util.OpenMode) (bool, error) {
+
+	if !f.accessedWrite {
+		f.readWritePS.IncrementTotalAccessedInode("write")
+		f.accessedWrite = true
+	}
+
 	if f.bwh != nil {
 		return f.writeUsingBufferedWrites(ctx, data, offset)
 	}
@@ -990,6 +999,10 @@ func (f *FileInode) Truncate(
 
 // Ensures cache content on read if content cache enabled
 func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
+	if !f.accessedRead {
+		f.readWritePS.IncrementTotalAccessedInode("read")
+		f.accessedRead = true
+	}
 	if f.localFileCache {
 		err = f.ensureContent(ctx)
 	}

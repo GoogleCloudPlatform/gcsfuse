@@ -1,0 +1,29 @@
+FlushFile:
+    Parallelism: 1
+    TotalCount: 1
+GetInodeAttributes:
+    Parallelism: 1
+    TotalCount: 1
+LookUpInode:
+    Parallelism: 1
+    TotalCount: 130
+OpenDir:
+    Parallelism: 1
+    TotalCount: 1
+OpenFile:
+    Parallelism: 1
+    TotalCount: 1
+ReadFile:
+    Parallelism: 1
+    TotalCount: 50
+ReleaseDirHandle:
+    Parallelism: 1
+    TotalCount: 1
+ReleaseFileHandle:
+    Parallelism: 1
+    TotalCount: 1
+read:
+    RandomReadCount: 1
+    SequentialReadCount: 0
+    TotalAccessedFileHandle: 2
+    TotalAccessedInode: 2
