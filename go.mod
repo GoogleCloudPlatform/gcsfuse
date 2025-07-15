@@ -106,4 +106,4 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250603155806-513f23925822 // indirect
 )
 
-replace cloud.google.com/go/storage v1.55.0 => github.com/cjc25/google-cloud-go/storage v0.0.0-20250709022412-3e467598fb29
+replace cloud.google.com/go/storage v1.55.0 => github.com/cjc25/google-cloud-go/storage v0.0.0-20250715012512-69a87d9dbd7b
