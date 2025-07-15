@@ -21,13 +21,13 @@ import (
 	"io"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	cacheUtil "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/jacobsa/fuse/fuseops"
 )
 
@@ -95,7 +95,7 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 	if readOp, ok := ctx.Value(ReadOp).(*fuseops.ReadFileOp); ok {
 		handleID = uint64(readOp.Handle)
 	}
-	requestID := util.GenerateRandomID()
+	requestID := uuid.New()
 	logger.Tracef("%.13v <- FileCache(%s:/%s, offset: %d, size: %d handle: %d)", requestID, fc.bucket.Name(), fc.object.Name, offset, len(p), handleID)
 
 	startTime := time.Now()
