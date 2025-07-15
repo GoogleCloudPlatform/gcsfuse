@@ -14,17 +14,10 @@
 
 package bufferedread
 
-import (
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
-)
+import "github.com/googlecloudplatform/gcsfuse/v3/common"
 
-type BlockQueue struct {
-	common.Queue[block.Block]
-}
+type TaskQueue common.Queue[*DownloadTask]
 
-func NewBlockQueue() *BlockQueue {
-	return &BlockQueue{
-		common.NewLinkedListQueue[block.Block](),
-	}
+func NewTaskQueue() TaskQueue {
+	return common.NewLinkedListQueue[*DownloadTask]()
 }

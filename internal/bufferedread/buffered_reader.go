@@ -16,6 +16,12 @@ import (
 	"golang.org/x/net/context"
 )
 
+const (
+	// RandomReadsThreshold is the number of random reads after which the reader
+	// will fall back to a GCS-throttled reader.
+	RandomReadsThreshold = 3
+)
+
 type BufferedReadConfig struct {
 	PrefetchQueueCapacity   int64 // Maximum number of blocks that can be prefetched.
 	PrefetchBlockSizeBytes  int64 // Size of each block to be prefetched.
@@ -24,13 +30,15 @@ type BufferedReadConfig struct {
 }
 
 type BufferedReader struct {
-	object                   *gcs.MinObject
-	bucket                   gcs.Bucket
-	config                   *BufferedReadConfig
+	object *gcs.MinObject
+	bucket gcs.Bucket
+	config *BufferedReadConfig
+
 	nextBlockIndexToPrefetch int64
+	randomSeekCount          int64
 	nextPrefetchBlockCount   int64
 
-	blockQueue *BlockQueue
+	taskQueue TaskQueue
 
 	readHandle atomic.Pointer[[]byte] // For zonal bucket optimization.
 
@@ -46,15 +54,15 @@ func (p *BufferedReader) Close() {
 	p.Destroy()
 }
 
-func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *BufferedReadConfig, blockPool *block.BlockPool, workerPool workerpool.WorkerPool) *BufferedReader {
+func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *BufferedReadConfig, blockPool *block.BlockPool, workerPool workerpool.WorkerPool, metricHandle common.MetricHandle) *BufferedReader {
 	reader := &BufferedReader{
 		object:       object,
 		bucket:       bucket,
 		config:       config,
-		blockQueue:   NewBlockQueue(),
+		taskQueue:    NewTaskQueue(),
 		blockPool:    blockPool,
 		workerPool:   workerPool,
-		metricHandle: nil,
+		metricHandle: metricHandle,
 	}
 
 	reader.ctx, reader.cancelFunc = context.WithCancel(context.Background())
@@ -89,7 +97,20 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuffer []byte, offset 
 		}
 	}()
 
-	if p.shouldResetPrefetcher(offset) {
+	// Detect random reads and fallback if the threshold is exceeded.
+	isReset := p.shouldResetPrefetcher(offset)
+	isRandom := isReset || (p.taskQueue.IsEmpty() && offset != 0)
+	if isRandom {
+		p.randomSeekCount++
+	}
+
+	if p.randomSeekCount > RandomReadsThreshold {
+		logger.Tracef("Fallback to GCS reader for object %q due to too many random reads (%d > %d).",
+			p.object.Name, p.randomSeekCount, RandomReadsThreshold)
+		return readerResponse, gcsx.FallbackToAnotherReader
+	}
+
+	if isReset {
 		if err = p.resetPrefetcher(); err != nil {
 			return readerResponse, fmt.Errorf("failed to reset prefetcher: %w", err)
 		}
@@ -101,11 +122,11 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuffer []byte, offset 
 }
 
 func (p *BufferedReader) shouldResetPrefetcher(offset int64) bool {
-	if p.blockQueue.IsEmpty() {
+	if p.taskQueue.IsEmpty() {
 		return false
 	}
-	startOffset := p.blockQueue.PeekStart().AbsStartOff()
-	endOffset := p.blockQueue.PeekEnd().AbsStartOff() + p.config.PrefetchBlockSizeBytes
+	startOffset := p.taskQueue.PeekStart().block.AbsStartOff()
+	endOffset := p.taskQueue.PeekEnd().block.AbsStartOff() + p.config.PrefetchBlockSizeBytes
 	return offset < startOffset || offset >= endOffset
 }
 
@@ -118,14 +139,15 @@ func (p *BufferedReader) readBlocksAt(ctx context.Context, inputBuffer []byte, o
 			return bytesRead, err
 		}
 
-		if p.blockQueue.IsEmpty() {
+		if p.taskQueue.IsEmpty() {
 			if err := p.freshStart(offset); err != nil {
 				return bytesRead, err
 			}
 			prefetchTriggered = true
 		}
 
-		b := p.blockQueue.PeekStart()
+		task := p.taskQueue.PeekStart()
+		b := task.block
 
 		status, waitErr := b.AwaitReady(ctx)
 		if waitErr != nil {
@@ -133,7 +155,7 @@ func (p *BufferedReader) readBlocksAt(ctx context.Context, inputBuffer []byte, o
 		}
 
 		if status != block.BlockStatusDownloaded {
-			p.blockQueue.Pop()
+			p.taskQueue.Pop()
 			p.blockPool.Release(b)
 			continue
 		}
@@ -156,8 +178,8 @@ func (p *BufferedReader) readBlocksAt(ctx context.Context, inputBuffer []byte, o
 		blockConsumed := offset >= b.AbsStartOff()+b.Cap()
 
 		if blockConsumed {
-			consumed := p.blockQueue.Pop()
-			p.blockPool.Release(consumed)
+			consumedTask := p.taskQueue.Pop()
+			p.blockPool.Release(consumedTask.block)
 
 			if !prefetchTriggered {
 				prefetchTriggered = true
@@ -171,16 +193,16 @@ func (p *BufferedReader) readBlocksAt(ctx context.Context, inputBuffer []byte, o
 }
 
 func (p *BufferedReader) cleanupStaleBlocks(ctx context.Context, offset int64) error {
-	for !p.blockQueue.IsEmpty() {
-		b := p.blockQueue.PeekStart()
-		if b.AbsStartOff()+b.Cap() <= offset {
-			b = p.blockQueue.Pop()
-			b.Cancel()
+	for !p.taskQueue.IsEmpty() {
+		task := p.taskQueue.PeekStart()
+		if task.block.AbsStartOff()+task.block.Cap() <= offset {
+			task = p.taskQueue.Pop()
+			task.Cancel()
 
-			if _, err := b.AwaitReady(ctx); err != nil && err != context.Canceled {
+			if _, err := task.block.AwaitReady(ctx); err != nil && err != context.Canceled {
 				return fmt.Errorf("error cleaning up stale block: %w", err)
 			}
-			p.blockPool.Release(b)
+			p.blockPool.Release(task.block)
 		} else {
 			break
 		}
@@ -190,7 +212,7 @@ func (p *BufferedReader) cleanupStaleBlocks(ctx context.Context, offset int64) e
 
 func (p *BufferedReader) prefetch() error {
 	// Do not schedule more blocks if the queue is already at capacity.
-	availableCapacity := p.config.PrefetchQueueCapacity - int64(p.blockQueue.Len())
+	availableCapacity := p.config.PrefetchQueueCapacity - int64(p.taskQueue.Len())
 	if availableCapacity <= 0 {
 		return nil
 	}
@@ -265,12 +287,10 @@ func (p *BufferedReader) scheduleNextBlock(urgent bool) error {
 }
 
 func (p *BufferedReader) scheduleBlockWithIndex(b block.Block, blockIndex int64, urgent bool) {
-	blockCtx, cancel := context.WithCancel(p.ctx)
 
 	startOffset := blockIndex * p.config.PrefetchBlockSizeBytes
 	if err := b.SetAbsStartOff(startOffset); err != nil {
 		logger.Errorf("Failed to set start offset on block: %v", err)
-		cancel()
 		p.blockPool.Release(b)
 		return
 	}
@@ -280,12 +300,11 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.Block, blockIndex int64,
 	if rhPtr != nil {
 		rh = *rhPtr
 	}
-	b.SetCancelFunc(cancel)
-	task := NewDownloadTask(blockCtx, p.object, p.bucket, b, rh, p)
+	task := NewDownloadTask(p.ctx, p.object, p.bucket, b, rh)
 
 	logger.Debugf("Scheduling block (%s, offset %d).", p.object.Name, startOffset)
 
-	p.blockQueue.Push(b)
+	p.taskQueue.Push(task)
 	p.workerPool.Schedule(urgent, task)
 }
 
@@ -295,14 +314,15 @@ func (p *BufferedReader) Destroy() {
 		p.cancelFunc = nil
 	}
 
-	for !p.blockQueue.IsEmpty() {
-		b := p.blockQueue.Pop()
+	for !p.taskQueue.IsEmpty() {
+		task := p.taskQueue.Pop()
+		task.Cancel()
 		// We expect a context.Canceled error here, but we wait to ensure the
 		// block's worker goroutine has finished before releasing the block.
-		if _, err := b.AwaitReady(p.ctx); err != nil && err != context.Canceled {
+		if _, err := task.block.AwaitReady(p.ctx); err != nil && err != context.Canceled {
 			logger.Warnf("bufferedread: error waiting for block on destroy: %v", err)
 		}
-		p.blockPool.Release(b)
+		p.blockPool.Release(task.block)
 	}
 
 	p.blockPool = nil
@@ -310,16 +330,16 @@ func (p *BufferedReader) Destroy() {
 
 func (p *BufferedReader) resetPrefetcher() error {
 	var firstErr error
-	for !p.blockQueue.IsEmpty() {
-		b := p.blockQueue.Pop()
-		b.Cancel()
+	for !p.taskQueue.IsEmpty() {
+		task := p.taskQueue.Pop()
+		task.Cancel()
 		// Use a background context because p.ctx is the overall reader context,
 		// and we are just clearing the prefetch queue, not closing the reader.
-		if _, err := b.AwaitReady(context.Background()); err != nil && err != context.Canceled && firstErr == nil {
+		if _, err := task.block.AwaitReady(context.Background()); err != nil && err != context.Canceled && firstErr == nil {
 			firstErr = fmt.Errorf("bufferedread: error waiting for block on reset: %w", err)
 			logger.Warnf("%v", firstErr)
 		}
-		p.blockPool.Release(b)
+		p.blockPool.Release(task.block)
 	}
 	return firstErr
 }
@@ -342,11 +362,11 @@ func (p *BufferedReader) CheckInvariants() {
 	if p.workerPool == nil {
 		panic("BufferedReader: workerPool is nil")
 	}
-	if p.blockQueue == nil {
-		panic("BufferedReader: blockQueue is nil")
+	if p.taskQueue == nil {
+		panic("BufferedReader: taskQueue is nil")
 	}
 	// The number of items in the queue should not exceed the configured capacity.
-	if int64(p.blockQueue.Len()) > p.config.PrefetchQueueCapacity {
-		panic(fmt.Sprintf("BufferedReader: blockQueue length %d exceeds capacity %d", p.blockQueue.Len(), p.config.PrefetchQueueCapacity))
+	if int64(p.taskQueue.Len()) > p.config.PrefetchQueueCapacity {
+		panic(fmt.Sprintf("BufferedReader: taskQueue length %d exceeds capacity %d", p.taskQueue.Len(), p.config.PrefetchQueueCapacity))
 	}
 }

@@ -85,6 +85,7 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 			bufferedReadConfig,
 			config.BlockPool,
 			config.WorkerPool,
+			config.MetricHandle,
 		)
 		readers = append(readers, bufferedReader)
 	}

@@ -77,12 +77,6 @@ type Block interface {
 	// - BlockStatusDownloadFailed: Download of this block has failed.
 	// - BlockStatusDownloadCancelled: Download of this block has been cancelled.
 	NotifyReady(val BlockStatus)
-
-	// SetCancelFunc sets the cancellation function for the block's download context.
-	SetCancelFunc(cancelFunc context.CancelFunc)
-
-	// Cancel triggers the cancellation of the block's download.
-	Cancel()
 }
 
 // TODO: check if we need offset or just storing end is sufficient. We might need
@@ -104,9 +98,6 @@ type memoryBlock struct {
 
 	// Stores the absolute start offset of the block-segment in the file.
 	absStartOff int64
-
-	// cancelFunc is used to cancel the download of the block.
-	cancelFunc context.CancelFunc
 }
 
 func (m *memoryBlock) Reuse() {
@@ -117,7 +108,6 @@ func (m *memoryBlock) Reuse() {
 	m.notification = make(chan BlockStatus, 1)
 	m.status = BlockStatusInProgress
 	m.absStartOff = -1
-	m.cancelFunc = nil
 }
 
 func (m *memoryBlock) Size() int64 {
@@ -161,8 +151,8 @@ func (m *memoryBlock) Deallocate() error {
 	return nil
 }
 
-// CreateBlock creates a new block.
-func CreateBlock(blockSize int64) (Block, error) {
+// createBlock creates a new block.
+func createBlock(blockSize int64) (Block, error) {
 	prot, flags := syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_ANON|syscall.MAP_PRIVATE
 	addr, err := syscall.Mmap(-1, 0, int(blockSize), prot, flags)
 	if err != nil {
@@ -175,7 +165,6 @@ func CreateBlock(blockSize int64) (Block, error) {
 		notification: make(chan BlockStatus, 1),
 		status:       BlockStatusInProgress,
 		absStartOff:  -1,
-		cancelFunc:   nil,
 	}
 	return &mb, nil
 }
@@ -257,17 +246,5 @@ func (m *memoryBlock) NotifyReady(val BlockStatus) {
 	case m.notification <- val:
 	default:
 		panic("Expected to notify only once, but got multiple notifications.")
-	}
-}
-
-// SetCancelFunc stores the cancel function for the download context associated with this block.
-func (m *memoryBlock) SetCancelFunc(cancelFunc context.CancelFunc) {
-	m.cancelFunc = cancelFunc
-}
-
-// Cancel invokes the stored cancel function, if it exists.
-func (m *memoryBlock) Cancel() {
-	if m.cancelFunc != nil {
-		m.cancelFunc()
 	}
 }

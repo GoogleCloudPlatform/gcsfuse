@@ -78,7 +78,7 @@ func (bp *BlockPool) Get() (Block, error) {
 	// No lock is required here since blockPool is per file and all write
 	// calls to a single file are serialized because of inode.lock().
 	if bp.canAllocateBlock() {
-		b, err := CreateBlock(bp.blockSize)
+		b, err := createBlock(bp.blockSize)
 		if err != nil {
 			return nil, err
 		}
