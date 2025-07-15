@@ -25,6 +25,7 @@ func init() {
 	gWorkloadProfiler = newWorkloadProfiler(30*time.Second, yamlDumpingCallback) // Default to 60 seconds interval
 	gWorkloadProfiler.Start()
 	logger.Info("Workload Profiler initialized. Use NewWorkloadProfiler to create an instance.")
+	AddProfilerSource(NewVMResourceSource())
 	if gWorkloadProfiler != nil {
 		runtime.SetFinalizer(gWorkloadProfiler, func(wp *WorkloadProfiler) {
 			gWorkloadProfiler.Stop()

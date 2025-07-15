@@ -10,6 +10,7 @@ type DataAccessStats struct {
 	RandomReadCount         int64
 	TotalAccessedFileHandle int64
 	TotalAccessedInode      int64
+	TotalSizeReadAccessed   int64
 }
 
 type FileSystemProfilerSource struct {
@@ -60,15 +61,24 @@ func (fsps *FileSystemProfilerSource) IncrementTotalAccessedInode(op string) {
 	fsps.stats[op] = stats
 }
 
+func (fsps *FileSystemProfilerSource) IncrementTotalSizeReadAccessed(op string, size int64) {
+	fsps.mu.Lock()
+	defer fsps.mu.Unlock()
+	stats := fsps.stats[op]
+	stats.TotalSizeReadAccessed += size
+	fsps.stats[op] = stats
+}
+
 func (fsps *FileSystemProfilerSource) GetProfileData() map[string]interface{} {
 	fsps.mu.RLock()
 	data := make(map[string]interface{})
 	for op, stats := range fsps.stats {
 		data[op] = map[string]int64{
-			"SequentialReadCount": stats.SequentialReadCount,
-			"RandomReadCount":     stats.RandomReadCount,
+			"SequentialReadCount":     stats.SequentialReadCount,
+			"RandomReadCount":         stats.RandomReadCount,
 			"TotalAccessedFileHandle": stats.TotalAccessedFileHandle,
 			"TotalAccessedInode":      stats.TotalAccessedInode,
+			"TotalSizeReadAccessedGB": stats.TotalSizeReadAccessed / (1024 * 1024 * 1024), // Convert bytes to GB
 		}
 	}
 	fsps.mu.RUnlock()

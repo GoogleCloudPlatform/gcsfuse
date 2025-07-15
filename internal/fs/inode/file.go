@@ -1001,6 +1001,7 @@ func (f *FileInode) Truncate(
 func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
 	if !f.accessedRead {
 		f.readWritePS.IncrementTotalAccessedInode("read")
+		f.readWritePS.IncrementTotalSizeReadAccessed("read", int64(f.SourceGeneration().Size))
 		f.accessedRead = true
 	}
 	if f.localFileCache {
