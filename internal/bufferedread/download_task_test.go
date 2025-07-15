@@ -96,7 +96,7 @@ func (dts *DownloadTaskTestSuite) TestExecuteSuccess() {
 	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
 	defer cancelFunc()
 	status, err := downloadBlock.AwaitReady(ctx)
-	assert.Equal(dts.T(), block.BlockStatus{State: block.BlockStateDownloaded, Err: nil}, status)
+	assert.Equal(dts.T(), block.BlockStatus{State: block.BlockStateDownloaded}, status)
 	assert.NoError(dts.T(), err)
 }
 
@@ -228,6 +228,6 @@ func (dts *DownloadTaskTestSuite) TestExecuteContextCancelledWhileReadingFromRea
 	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
 	defer cancelFunc()
 	status, err := downloadBlock.AwaitReady(ctx)
-	assert.Equal(dts.T(), block.BlockStatus{State: block.BlockStateDownloadCancelled, Err: nil}, status)
+	assert.Equal(dts.T(), block.BlockStatus{State: block.BlockStateDownloadCancelled}, status)
 	assert.NoError(dts.T(), err)
 }

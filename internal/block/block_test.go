@@ -315,8 +315,8 @@ func (testSuite *MemoryBlockTest) TestAwaitReadyNotifyVariants() {
 	}{
 		{
 			name:         "AfterNotifySuccess",
-			notifyStatus: BlockStatus{State: BlockStateDownloaded, Err: nil},
-			wantStatus:   BlockStatus{State: BlockStateDownloaded, Err: nil},
+			notifyStatus: BlockStatus{State: BlockStateDownloaded},
+			wantStatus:   BlockStatus{State: BlockStateDownloaded},
 		},
 		{
 			name:         "AfterNotifyError",
@@ -325,8 +325,8 @@ func (testSuite *MemoryBlockTest) TestAwaitReadyNotifyVariants() {
 		},
 		{
 			name:         "AfterNotifyCancelled",
-			notifyStatus: BlockStatus{State: BlockStateDownloadCancelled, Err: nil},
-			wantStatus:   BlockStatus{State: BlockStateDownloadCancelled, Err: nil},
+			notifyStatus: BlockStatus{State: BlockStateDownloadCancelled},
+			wantStatus:   BlockStatus{State: BlockStateDownloadCancelled},
 		},
 	}
 
@@ -351,10 +351,10 @@ func (testSuite *MemoryBlockTest) TestTwoNotifyReadyWithoutAwaitReady() {
 	mb, err := createBlock(12)
 	require.Nil(testSuite.T(), err)
 
-	mb.NotifyReady(BlockStatus{State: BlockStateDownloaded, Err: nil})
+	mb.NotifyReady(BlockStatus{State: BlockStateDownloaded})
 	// 2nd notify will lead to panic since it is not allowed to notify a block more than once.
 	assert.Panics(testSuite.T(), func() {
-		mb.NotifyReady(BlockStatus{State: BlockStateDownloaded, Err: nil})
+		mb.NotifyReady(BlockStatus{State: BlockStateDownloaded})
 	})
 }
 
@@ -364,15 +364,15 @@ func (testSuite *MemoryBlockTest) TestNotifyReadyAfterAwaitReady() {
 	ctx, cancel := context.WithTimeout(testSuite.T().Context(), 100*time.Millisecond)
 	defer cancel()
 	go func() {
-		mb.NotifyReady(BlockStatus{State: BlockStateDownloaded, Err: nil})
+		mb.NotifyReady(BlockStatus{State: BlockStateDownloaded})
 	}()
 	status, err := mb.AwaitReady(ctx)
 	require.Nil(testSuite.T(), err)
-	assert.Equal(testSuite.T(), BlockStatus{State: BlockStateDownloaded, Err: nil}, status)
+	assert.Equal(testSuite.T(), BlockStatus{State: BlockStateDownloaded}, status)
 
 	// 2nd notify will lead to panic since channel is closed after first await ready.
 	assert.Panics(testSuite.T(), func() {
-		mb.NotifyReady(BlockStatus{State: BlockStateDownloaded, Err: nil})
+		mb.NotifyReady(BlockStatus{State: BlockStateDownloaded})
 	})
 }
 
@@ -380,7 +380,7 @@ func (testSuite *MemoryBlockTest) TestSingleNotifyAndMultipleAwaitReady() {
 	mb, err := createBlock(12)
 	require.Nil(testSuite.T(), err)
 	go func() {
-		mb.NotifyReady(BlockStatus{State: BlockStateDownloaded, Err: nil})
+		mb.NotifyReady(BlockStatus{State: BlockStateDownloaded})
 	}()
 	ctx, cancel := context.WithTimeout(testSuite.T().Context(), 5*time.Millisecond)
 	defer cancel()
@@ -396,7 +396,7 @@ func (testSuite *MemoryBlockTest) TestSingleNotifyAndMultipleAwaitReady() {
 			status, err := mb.AwaitReady(ctx)
 
 			require.Nil(testSuite.T(), err)
-			assert.Equal(testSuite.T(), BlockStatus{State: BlockStateDownloaded, Err: nil}, status)
+			assert.Equal(testSuite.T(), BlockStatus{State: BlockStateDownloaded}, status)
 		}()
 	}
 	wg.Wait()
