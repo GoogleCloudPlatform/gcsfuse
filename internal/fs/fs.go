@@ -37,6 +37,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	cacheutil "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/fsutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/handle"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
@@ -220,6 +221,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 
 	// Set up invariant checking.
 	fs.mu = locker.New("FS", fs.checkInvariants)
+	fs.readwriteFSPS = fsutil.NewFileSystemProfilerSource()
 	return fs, nil
 }
 
@@ -492,6 +494,8 @@ type fileSystem struct {
 	// Limits the max number of blocks that can be created across file system when
 	// streaming writes are enabled.
 	globalMaxWriteBlocksSem *semaphore.Weighted
+
+	readwriteFSPS *fsutil.FileSystemProfilerSource
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -1833,7 +1837,7 @@ func (fs *fileSystem) CreateFile(
 
 	// CreateFile() invoked to create new files, can be safely considered as filehandle
 	// opened in append mode.
-	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, util.Append, &fs.newConfig.Read)
+	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, util.Append, &fs.newConfig.Read, fs.readwriteFSPS)
 	op.Handle = handleID
 
 	fs.mu.Unlock()
@@ -2555,7 +2559,7 @@ func (fs *fileSystem) OpenFile(
 
 	// Figure out the mode in which the file is being opened.
 	openMode := util.FileOpenMode(op)
-	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, &fs.newConfig.Read)
+	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, &fs.newConfig.Read, fs.readwriteFSPS)
 	op.Handle = handleID
 
 	// When we observe object generations that we didn't create, we assign them
