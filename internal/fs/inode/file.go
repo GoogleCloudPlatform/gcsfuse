@@ -140,7 +140,7 @@ func NewFileInode(
 	contentCache *contentcache.ContentCache,
 	mtimeClock timeutil.Clock,
 	localFile bool,
-	config *cfg.Config,
+	cfg *cfg.Config,
 	globalMaxBlocksSem *semaphore.Weighted) (f *FileInode) {
 	// Set up the basic struct.
 	var minObj gcs.MinObject
@@ -158,11 +158,11 @@ func NewFileInode(
 		src:                     minObj,
 		local:                   localFile,
 		unlinked:                false,
-		config:                  config,
+		config:                  cfg,
 		globalMaxWriteBlocksSem: globalMaxBlocksSem,
 	}
 	var err error
-	f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj, config.Logging.Severity == cfg.TraceLogSeverity)
+	f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj, cfg)
 	if err != nil {
 		logger.Errorf("NewFileInode: Error in creating MRDWrapper %v", err)
 	}

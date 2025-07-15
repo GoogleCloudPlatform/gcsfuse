@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/clock"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
@@ -57,7 +58,7 @@ func (t *mrdWrapperTest) SetupTest() {
 	// Create the bucket.
 	t.mockBucket = new(storage.TestifyMockBucket)
 	t.mrdTimeout = time.Millisecond
-	t.mrdWrapper, err = NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{WaitTime: t.mrdTimeout}, false)
+	t.mrdWrapper, err = NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{WaitTime: t.mrdTimeout}, &cfg.Config{})
 	assert.Nil(t.T(), err, "Error in creating MRDWrapper")
 	t.mrdWrapper.Wrapped = fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond)
 	t.mrdWrapper.refCount = 0
@@ -240,7 +241,7 @@ func (t *mrdWrapperTest) Test_NewMultiRangeDownloaderWrapper() {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
-			_, err := NewMultiRangeDownloaderWrapper(tc.bucket, tc.obj, false)
+			_, err := NewMultiRangeDownloaderWrapper(tc.bucket, tc.obj, &cfg.Config{})
 			if tc.err == nil {
 				assert.NoError(t.T(), err)
 			} else {
