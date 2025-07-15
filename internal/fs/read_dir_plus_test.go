@@ -20,7 +20,6 @@ import (
 	"os"
 	"path"
 	"testing"
-	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/jacobsa/fuse/fusetesting"
@@ -125,7 +124,6 @@ func TestLocalFileEntriesReadDirPlusTestSuite(t *testing.T) {
 
 func (t *LocalFileEntriesReadDirPlusTest) SetupSuite() {
 	t.mountCfg.EnableReaddirplus = true
-	t.serverCfg.InodeAttributeCacheTTL = 60 * time.Second
 	t.serverCfg.NewConfig = &cfg.Config{
 		Write: cfg.WriteConfig{
 			CreateEmptyFile: false,

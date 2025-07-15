@@ -1442,6 +1442,7 @@ func (fs *fileSystem) invalidateChildFileCacheIfExist(parentInode inode.DirInode
 }
 
 // coreToDirentPlus creates a fuseutil.DirentPlus entry from an inode core.
+// LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) coreToDirentPlus(
 	ctx context.Context,
 	fullName inode.Name,
@@ -1457,12 +1458,12 @@ func (fs *fileSystem) coreToDirentPlus(
 
 	// Extract the child's attributes.
 	attributes, err := child.Attributes(ctx, false)
-	expiration := time.Now().Add(fs.inodeAttributeCacheTTL)
 	if err != nil {
 		// The inode is valid, but we couldn't get attributes.
 		return nil, fmt.Errorf("child.Attributes(%q): %w", fullName.LocalName(), err)
 	}
 
+	expiration := time.Now().Add(fs.inodeAttributeCacheTTL)
 	entry = &fuseutil.DirentPlus{
 		Dirent: fuseutil.Dirent{
 			Name:  path.Base(fullName.LocalName()),
@@ -1490,7 +1491,8 @@ func (fs *fileSystem) coreToDirentPlus(
 }
 
 // LocalFileEntries lists the local files (file that is not yet present on GCS) present in the directory.
-func (fs *fileSystem) localFileEntriesPlus(parent inode.DirInode) (localEntriesPlus map[string]fuseutil.DirentPlus) {
+// LOCKS_REQUIRED(fs.mu)
+func (fs *fileSystem) localFileEntriesPlus(parent inode.Name) (localEntriesPlus map[string]fuseutil.DirentPlus) {
 	localEntriesPlus = make(map[string]fuseutil.DirentPlus)
 
 	for localInodeName, in := range fs.localFileInodes {
@@ -1501,7 +1503,7 @@ func (fs *fileSystem) localFileEntriesPlus(parent inode.DirInode) (localEntriesP
 		if ok && file.IsUnlinked() {
 			continue
 		}
-		if localInodeName.IsDirectChildOf(parent.Name()) {
+		if localInodeName.IsDirectChildOf(parent) {
 			entry := fuseutil.DirentPlus{
 				Dirent: fuseutil.Dirent{
 					Name:  path.Base(localInodeName.LocalName()),
@@ -1517,6 +1519,7 @@ func (fs *fileSystem) localFileEntriesPlus(parent inode.DirInode) (localEntriesP
 
 // lookupAndFetchAttributesForLocalFileEntriesPlus performs a lookup for each local file entry,
 // fetches its attributes, and updates the corresponding DirentPlus.Entry field.
+// LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) lookupAndFetchAttributesForLocalFileEntriesPlus(parent inode.DirInode, localFileEntriesPlus map[string]fuseutil.DirentPlus) {
 	for localEntryName, localEntryPlus := range localFileEntriesPlus {
 		// Lookup the child inode under the parent directory.
@@ -2630,7 +2633,7 @@ func (fs *fileSystem) ReadDirPlus(
 	in := fs.dirInodeOrDie(op.Inode)
 	// Fetch local file entries beforehand for passing it to directory handle as
 	// we need fs lock to fetch local file entries.
-	localFileEntriesPlus := fs.localFileEntriesPlus(in)
+	localFileEntriesPlus := fs.localFileEntriesPlus(in.Name())
 	// Unlock fs lock and fetch attributes for local file entries as it requires inode lock.
 	fs.mu.Unlock()
 	fs.lookupAndFetchAttributesForLocalFileEntriesPlus(in, localFileEntriesPlus)
