@@ -282,6 +282,9 @@ func (t *MainTest) TestForwardedEnvVars() {
 		expectedForwardedEnvVars: []string{"GOOGLE_APPLICATION_CREDENTIALS=goog-app-cred"},
 	}, {
 		expectedForwardedEnvVars: []string{"GCSFUSE_IN_BACKGROUND_MODE=true"},
+	}, {
+		inputEnvVars:             map[string]string{"GRPC_GO_LOG_VERBOSITY_LEVEL": "99", "GRPC_GO_LOG_SEVERITY_LEVEL": "INFO"},
+		expectedForwardedEnvVars: []string{"GRPC_GO_LOG_VERBOSITY_LEVEL=99", "GRPC_GO_LOG_SEVERITY_LEVEL=INFO"},
 	},
 	} {
 		for envvar, envval := range input.inputEnvVars {
