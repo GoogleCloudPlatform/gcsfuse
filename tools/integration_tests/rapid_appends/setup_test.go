@@ -31,26 +31,26 @@ const (
 )
 
 var (
-	// Flags for the mount options for rootDir and otherRootDir
+	// Flags for mount options for primaryMntRootDir
 	flags []string
 	// Mount function to be used for the mounting.
 	mountFunc func([]string) error
 
 	// Globals for primary mount which is used to append on existing unfinalized files.
 	// Root directory which is mounted by gcsfuse.
-	rootDir string
-	// Stores test directory path in the mounted path for rootDir.
-	testDirPath string
-	// Stores log file path for the mount rootDir.
-	logFilePath string
+	primaryMntRootDir string
+	// Stores test directory path in the mounted path for primaryMntRootDir.
+	primaryMntTestDirPath string
+	// Stores log file path for the mount primaryMntRootDir.
+	primaryMntLogFilePath string
 
 	// Globals for secondary mount which is used to verify reads.
 	// Other Root directory which is mounted by gcsfuse for multi-mount scenarios.
-	otherRootDir string
-	// Stores test directory path in the mounted path for otherRootDir.
-	otherTestDirPath string
-	// Stores log file path for the mount otherRootDir.
-	otherLogFilePath string
+	secondaryMntRootDir string
+	// Stores test directory path in the mounted path for secondaryMntRootDir.
+	secondaryMntTestDirPath string
+	// Stores log file path for the mount secondaryMntRootDirr.
+	secondaryMntLogFilePath string
 
 	// Clients to create the object in GCS.
 	storageClient *storage.Client
@@ -83,8 +83,8 @@ func TestMain(m *testing.M) {
 
 	// Set up test directory for secondary mount.
 	setup.SetUpTestDirForTestBucketFlag()
-	otherRootDir = setup.MntDir()
-	otherLogFilePath = setup.LogFile()
+	secondaryMntRootDir = setup.MntDir()
+	secondaryMntLogFilePath = setup.LogFile()
 	// For reads to work for unfinalized object from secondary mount metadata cache ttl must be set to 0.
 	// and rapid appends should be enabled.
 	secondaryMountFlags := []string{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0"}
@@ -93,9 +93,9 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Unable to mount secondary mount: %v", err)
 	}
 	// Setup Package Test Directory for secondary mount.
-	otherTestDirPath = setup.SetupTestDirectory(testDirName)
+	secondaryMntTestDirPath = setup.SetupTestDirectory(testDirName)
 	defer func() {
-		setup.UnmountGCSFuse(otherRootDir)
+		setup.UnmountGCSFuse(secondaryMntRootDir)
 	}()
 
 	// Set up test directory for primary mount.

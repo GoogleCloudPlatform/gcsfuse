@@ -34,10 +34,9 @@ import (
 // //////////////////////////////////////////////////////////////////////
 
 type RapidAppendsSuite struct {
-	appendFileHandle *os.File
-	fileName         string
-	fileSize         int
-	initialContent   string
+	fileName       string
+	fileSize       int
+	initialContent string
 	suite.Suite
 }
 
@@ -47,17 +46,18 @@ type RapidAppendsSuite struct {
 
 func (t *RapidAppendsSuite) SetupSuite() {
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
-	rootDir = setup.MntDir()
-	logFilePath = setup.LogFile()
-	testDirPath = setup.SetupTestDirectory(testDirName)
+	primaryMntRootDir = setup.MntDir()
+	primaryMntLogFilePath = setup.LogFile()
+	primaryMntTestDirPath = setup.SetupTestDirectory(testDirName)
 }
 
 func (t *RapidAppendsSuite) TearDownSuite() {
-	setup.UnmountGCSFuse(rootDir)
-	setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
+	setup.UnmountGCSFuse(primaryMntRootDir)
 	if t.T().Failed() {
+		log.Println("Primary mount log file:")
+		setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
 		log.Println("Secondary mount log file:")
-		setup.SetLogFile(otherLogFilePath)
+		setup.SetLogFile(secondaryMntLogFilePath)
 		setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
 	}
 }
@@ -67,25 +67,16 @@ func (t *RapidAppendsSuite) SetupTest() {
 	// Create unfinalized object.
 	_ = CreateUnfinalizedObject(ctx, t.T(), storageClient, path.Join(testDirName, t.fileName), SizeOfFileContents)
 	t.fileSize = SizeOfFileContents
-	// Create append file handle.
-	var err error
-	t.appendFileHandle, err = os.OpenFile(path.Join(testDirPath, t.fileName), os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, operations.FilePermission_0600)
-	require.NoError(t.T(), err)
-	initialContent, err := operations.ReadFile(path.Join(testDirPath, t.fileName))
+	initialContent, err := operations.ReadFile(path.Join(primaryMntTestDirPath, t.fileName))
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), SizeOfFileContents, len(initialContent))
 	t.initialContent = string(initialContent)
 }
 
-func (t *RapidAppendsSuite) TearDownTest() {
-	err := t.appendFileHandle.Close()
-	require.NoError(t.T(), err)
-}
-
-// AppendToFile appends "appendContent" using
-// existing appendFileHandle in the first mount.
-func (t *RapidAppendsSuite) AppendToFile(appendContent string) {
-	n, err := t.appendFileHandle.WriteString(appendContent)
+// AppendToFile appends "appendContent" to the given file.
+func (t *RapidAppendsSuite) AppendToFile(file *os.File, appendContent string) {
+	t.T().Helper()
+	n, err := file.WriteString(appendContent)
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), len(appendContent), n)
 	t.fileSize += n
@@ -95,33 +86,39 @@ func (t *RapidAppendsSuite) AppendToFile(appendContent string) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *RapidAppendsSuite) TestAppendsAndSequentialReadFromSameMount() {
+func (t *RapidAppendsSuite) TestAppendsAndSequentialReadFromPrimaryMount() {
+	appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(primaryMntTestDirPath, t.fileName), os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
 	expectedContent := t.initialContent
 	for range 3 {
-		t.AppendToFile(FileContents)
+		t.AppendToFile(appendFileHandle, FileContents)
 		expectedContent += FileContents
 
 		// Read content of file from same mount.
-		gotContent, err := operations.ReadFile(path.Join(testDirPath, t.fileName))
+		gotContent, err := operations.ReadFile(path.Join(primaryMntTestDirPath, t.fileName))
 
 		require.NoError(t.T(), err)
 		assert.Equal(t.T(), expectedContent, string(gotContent))
 	}
+	err := appendFileHandle.Close()
+	require.NoError(t.T(), err)
 }
 
-func (t *RapidAppendsSuite) TestAppendsAndSequentialReadFromDifferentMount() {
+func (t *RapidAppendsSuite) TestAppendsAndSequentialReadFromSecondaryMount() {
+	appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(primaryMntTestDirPath, t.fileName), os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
 	expectedContent := t.initialContent
 	for range 3 {
-		t.AppendToFile(FileContents)
+		t.AppendToFile(appendFileHandle, FileContents)
 		expectedContent += FileContents
-		operations.SyncFile(t.appendFileHandle, t.T())
+		operations.SyncFile(appendFileHandle, t.T())
 
 		// Read content of file from differnt mount.
-		gotContent, err := operations.ReadFile(path.Join(otherTestDirPath, t.fileName))
+		gotContent, err := operations.ReadFile(path.Join(secondaryMntTestDirPath, t.fileName))
 
 		require.NoError(t.T(), err)
 		assert.Equal(t.T(), expectedContent, string(gotContent))
 	}
+	err := appendFileHandle.Close()
+	require.NoError(t.T(), err)
 }
 
 ////////////////////////////////////////////////////////////////////////
