@@ -131,7 +131,7 @@ func (t *multiRangeReaderTest) Test_ReadFromMultiRangeReader_TimeoutExceeded() {
 	_, err = t.multiRangeReader.readFromMultiRangeReader(t.ctx, buf, 0, int64(t.object.Size), timeout)
 
 	assert.Error(t.T(), err)
-	assert.ErrorContains(t.T(), err, "Timeout")
+	assert.ErrorContains(t.T(), err, "timeout")
 }
 
 func (t *multiRangeReaderTest) Test_ReadFromMultiRangeReader_TimeoutNotExceeded() {
