@@ -43,7 +43,7 @@ func TestReadDirPlusTestSuite(t *testing.T) {
 func (t *ReadDirPlusTest) SetupSuite() {
 	t.mountCfg.EnableReaddirplus = true
 	t.serverCfg.ImplicitDirectories = true
-	t.serverCfg.InodeAttributeCacheTTL = 60 * time.Second
+	t.serverCfg.InodeAttributeCacheTTL = 5 * time.Second
 	t.serverCfg.NewConfig = &cfg.Config{
 		FileSystem: cfg.FileSystemConfig{
 			ExperimentalEnableDentryCache: true,
@@ -112,6 +112,39 @@ func (t *ReadDirPlusTest) TestDirectoryWithVariousEntryTypes() {
 			assert.FailNow(t.T(), "unexpected entry: %s", entry.Name())
 		}
 	}
+}
+
+// Test that stat after Readdirplus return the same attributes as Readdirplus even if data on GCS has changed
+func (t *ReadDirPlusTest) TestStatAfterReaddirplus() {
+	// Set up contents.
+	testFileName := "file.txt"
+	filePath := path.Join(mntDir, testFileName)
+	initialContent := generateRandomString(10)
+	updatedContent := generateRandomString(5)
+	assert.Nil(t.T(), t.createObjects(map[string]string{testFileName: initialContent}))
+
+	// Read the directory with Readdirplus.
+	_, _ = fusetesting.ReadDirPlusPicky(mntDir)
+	// Modify the file content in GCS.
+	assert.Nil(t.T(), t.createObjects(map[string]string{testFileName: updatedContent}))
+	// Stat the file before entry expires in cache.
+	// This should return the same attributes as Readdirplus.
+	fileInfo, err := os.Stat(filePath)
+
+	// Check that the stat returns the old attributes.
+	assert.Nil(t.T(), err)
+	assert.Equal(t.T(), testFileName, fileInfo.Name())
+	assert.Equal(t.T(), int64(len(initialContent)), fileInfo.Size())
+	// Check stat after cache expiry.
+	// Wait for a duration longer than the metadata cache TTL.
+	time.Sleep(6 * time.Second)
+	// Stat the file again.
+	// This should return the updated attributes.
+	fileInfo, err = os.Stat(filePath)
+	// Check that the stat returns the updated attributes.
+	assert.Nil(t.T(), err)
+	assert.Equal(t.T(), testFileName, fileInfo.Name())
+	assert.Equal(t.T(), int64(len(updatedContent)), fileInfo.Size())
 }
 
 ////////////////////////////////////////////////////////////////////////
