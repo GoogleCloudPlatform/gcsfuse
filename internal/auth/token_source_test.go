@@ -26,7 +26,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
-func Test_GetTokenSourceFromTokenUrl_Success(t *testing.T) {
+func Test_NewTokenSourceFromURL_Success(t *testing.T) {
 	// Create fake token server.
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := oauth2.Token{
@@ -37,7 +37,7 @@ func Test_GetTokenSourceFromTokenUrl_Success(t *testing.T) {
 	}))
 	defer server.Close()
 
-	ts, err := GetTokenSourceFromTokenUrl(context.Background(), server.URL, false)
+	ts, err := NewTokenSourceFromURL(context.Background(), server.URL, false)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, ts)
@@ -47,41 +47,41 @@ func Test_GetTokenSourceFromTokenUrl_Success(t *testing.T) {
 	assert.Equal(t, "test-access-token", token.AccessToken)
 }
 
-func Test_GetTokenSourceFromTokenUrl_InvalidEndpoint(t *testing.T) {
-	ts, err := GetTokenSourceFromTokenUrl(context.Background(), ":", false) // invalid URL
+func Test_NewTokenSourceFromURL_InvalidURL(t *testing.T) {
+	ts, err := NewTokenSourceFromURL(context.Background(), ":", false) // invalid URL
 
 	assert.Error(t, err)
 	assert.Nil(t, ts)
 }
 
-func Test_GetTokenSourceFromTokenUrl_ServerError(t *testing.T) {
+func TestProxyTokenSource_TokenFetch_ServerError(t *testing.T) {
 	// Simulate HTTP 500 error.
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "server error", http.StatusInternalServerError)
 	}))
 	defer server.Close()
+	ts, err := NewTokenSourceFromURL(context.Background(), server.URL, false)
+	require.NoError(t, err)
 
-	ts, err := GetTokenSourceFromTokenUrl(context.Background(), server.URL, false)
-
-	assert.NoError(t, err)
 	token, err := ts.Token()
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "server error")
 	assert.Nil(t, token)
 }
 
-func Test_GetTokenSourceFromTokenUrl_InvalidJSON(t *testing.T) {
+func TestProxyTokenSource_TokenFetch_InvalidJSON(t *testing.T) {
 	// Simulate invalid JSON.
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, err := w.Write([]byte("not-json"))
 		require.NoError(t, err)
 	}))
 	defer server.Close()
-
-	ts, err := GetTokenSourceFromTokenUrl(context.Background(), server.URL, false)
-
+	ts, err := NewTokenSourceFromURL(context.Background(), server.URL, false)
 	assert.NoError(t, err)
+
 	token, err := ts.Token()
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "decode body")
 	assert.Nil(t, token)

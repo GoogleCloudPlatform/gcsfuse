@@ -98,6 +98,6 @@ func (ts proxyTokenSource) Token() (token *oauth2.Token, err error) {
 	return
 }
 
-func GetTokenSourceFromTokenUrl(ctx context.Context, tokenUrl string, reuseTokenFromUrl bool) (tokenSrc oauth2.TokenSource, err error) {
+func NewTokenSourceFromURL(ctx context.Context, tokenUrl string, reuseTokenFromUrl bool) (tokenSrc oauth2.TokenSource, err error) {
 	return newProxyTokenSource(ctx, tokenUrl, reuseTokenFromUrl)
 }
