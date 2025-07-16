@@ -168,16 +168,24 @@ func (b *debugBucket) CreateObject(
 	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
 	id, desc, start := b.startRequest("CreateObject(%q)", req.Name)
 	defer b.finishRequest(id, desc, start, &err)
-
-	o, err = b.wrapped.CreateObject(context.WithValue(ctx, gcs.ReqIdField, id), req)
+	if req.CallBack == nil {
+		req.CallBack = func(bytesUploadedSoFar int64) {
+			logger.Tracef("gcs: Req %#16x: -- UploadBlock(%q): %20v bytes uploaded so far", id, req.Name, bytesUploadedSoFar)
+		}
+	}
+	o, err = b.wrapped.CreateObject(ctx, req)
 	return
 }
 
 func (b *debugBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (wc gcs.Writer, err error) {
 	id, desc, start := b.startRequest("CreateObjectChunkWriter(%q)", req.Name)
 	defer b.finishRequest(id, desc, start, &err)
-
-	wc, err = b.wrapped.CreateObjectChunkWriter(context.WithValue(ctx, gcs.ReqIdField, id), req, chunkSize, callBack)
+	if callBack == nil {
+		callBack = func(bytesUploadedSoFar int64) {
+			logger.Tracef("gcs: Req %#16x: -- UploadBlock(%q): %20v bytes uploaded so far", id, req.Name, bytesUploadedSoFar)
+		}
+	}
+	wc, err = b.wrapped.CreateObjectChunkWriter(ctx, req, chunkSize, callBack)
 	return
 }
 
@@ -185,8 +193,12 @@ func (b *debugBucket) CreateAppendableObjectWriter(ctx context.Context,
 	req *gcs.CreateObjectChunkWriterRequest) (wc gcs.Writer, err error) {
 	id, desc, start := b.startRequest("CreateAppendableObjectWriter(%q, %d)", req.Name, req.Offset)
 	defer b.finishRequest(id, desc, start, &err)
-
-	wc, err = b.wrapped.CreateAppendableObjectWriter(context.WithValue(ctx, gcs.ReqIdField, id), req)
+	if req.CallBack == nil {
+		req.CallBack = func(bytesUploadedSoFar int64) {
+			logger.Tracef("gcs: Req %#16x: -- UploadBlock(%q): %20v bytes uploaded so far", id, req.Name, bytesUploadedSoFar)
+		}
+	}
+	wc, err = b.wrapped.CreateAppendableObjectWriter(ctx, req)
 	return
 }
 
