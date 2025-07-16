@@ -18,7 +18,7 @@ verify=0
 filename_format=$jobname.$jobnum.$filenum
 
  
-[experiment_1M]
+[experiment_1M_write]
 stonewall
 directory=${DIR}
 # Every file is written only once. Set nrfiles per thread in such a way that the test runs for 1-2 min. 
