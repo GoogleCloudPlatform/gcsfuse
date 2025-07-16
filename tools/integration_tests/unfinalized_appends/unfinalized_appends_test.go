@@ -158,6 +158,42 @@ func (t *UnfinalizedAppendsSuite) TestAppendSessionInvalidatedByAnotherClientUpo
 	assert.NoError(t.T(), err)
 }
 
+func (t *UnfinalizedAppendsSuite) TestContentAppendedInNonAppendModeNotVisibleTillClose() {
+	// Skipping test for now until CreateObject() is supported for unfinalized objects.
+	// Ref: b/424253611
+	t.T().Skip()
+	fileName := "append_obj_" + setup.GenerateRandomString(5)
+	_ = CreateUnfinalizedObject(gCtx, t.T(), gStorageClient, path.Join(testDirName, fileName), SizeOfFileContents)
+	// TODO(anushkadhn): Close the writer created above after FinalizeOnClose for writer is set to false by default.
+
+	initialContent, err := operations.ReadFile(path.Join(gTestDirPath, fileName))
+	require.NoError(t.T(), err)
+	require.NotEmpty(t.T(), initialContent)
+
+	// Append to the file from the primary mount in non-append mode
+	wh, err := os.OpenFile(path.Join(gTestDirPath, fileName), os.O_WRONLY|syscall.O_DIRECT, operations.FilePermission_0600)
+	require.NoError(t.T(), err)
+	appendContent := []byte("Appended Content")
+	n, err := wh.WriteAt(appendContent, int64(len(initialContent)))
+	require.NoError(t.T(), err)
+	require.Equal(t.T(), len(appendContent), n)
+
+	// Read from secondary mount to validate that data is not visible in GCS in realtime
+	contentBeforeClose, err := operations.ReadFile(path.Join(gOtherTestDirPath, fileName))
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), initialContent, contentBeforeClose)
+
+	// Close() from primary mount to ensure data persists in GCS.
+	err = wh.Close()
+	require.NoError(t.T(), err)
+
+	// Read from secondary mount to validate that data is now visible.
+	expectedContent := append(initialContent, appendContent...)
+	contentAfterClose, err := operations.ReadFile(path.Join(gOtherTestDirPath, fileName))
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), expectedContent, contentAfterClose)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
