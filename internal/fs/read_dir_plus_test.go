@@ -19,6 +19,7 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/jacobsa/fuse/fusetesting"
@@ -42,6 +43,12 @@ func TestReadDirPlusTestSuite(t *testing.T) {
 func (t *ReadDirPlusTest) SetupSuite() {
 	t.mountCfg.EnableReaddirplus = true
 	t.serverCfg.ImplicitDirectories = true
+	t.serverCfg.InodeAttributeCacheTTL = 60 * time.Second
+	t.serverCfg.NewConfig = &cfg.Config{
+		FileSystem: cfg.FileSystemConfig{
+			ExperimentalEnableDentryCache: true,
+		},
+	}
 	t.fsTest.SetUpTestSuite()
 }
 
@@ -122,7 +129,11 @@ func TestLocalFileEntriesReadDirPlusTestSuite(t *testing.T) {
 
 func (t *LocalFileEntriesReadDirPlusTest) SetupSuite() {
 	t.mountCfg.EnableReaddirplus = true
+	t.serverCfg.InodeAttributeCacheTTL = 60 * time.Second
 	t.serverCfg.NewConfig = &cfg.Config{
+		FileSystem: cfg.FileSystemConfig{
+			ExperimentalEnableDentryCache: true,
+		},
 		Write: cfg.WriteConfig{
 			CreateEmptyFile: false,
 		}}

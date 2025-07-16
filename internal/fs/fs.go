@@ -1443,11 +1443,7 @@ func (fs *fileSystem) invalidateChildFileCacheIfExist(parentInode inode.DirInode
 
 // coreToDirentPlus creates a fuseutil.DirentPlus entry from an inode core.
 // LOCKS_EXCLUDED(fs.mu)
-func (fs *fileSystem) coreToDirentPlus(
-	ctx context.Context,
-	fullName inode.Name,
-	core inode.Core) (entry *fuseutil.DirentPlus, err error) {
-
+func (fs *fileSystem) coreToDirentPlus(ctx context.Context, fullName inode.Name, core inode.Core) (entryPlus *fuseutil.DirentPlus, err error) {
 	// Look up or create the inode for the core.
 	child := fs.lookUpOrCreateInodeIfNotStale(core)
 	if child == nil {
@@ -1463,7 +1459,7 @@ func (fs *fileSystem) coreToDirentPlus(
 	}
 
 	expiration := time.Now().Add(fs.inodeAttributeCacheTTL)
-	entry = &fuseutil.DirentPlus{
+	entryPlus = &fuseutil.DirentPlus{
 		Dirent: fuseutil.Dirent{
 			Name:  path.Base(fullName.LocalName()),
 			Type:  fuseutil.DT_Unknown,
@@ -1475,18 +1471,21 @@ func (fs *fileSystem) coreToDirentPlus(
 			AttributesExpiration: expiration,
 		},
 	}
+	if fs.newConfig.FileSystem.ExperimentalEnableDentryCache {
+		entryPlus.Entry.EntryExpiration = expiration
+	}
 
 	// Set the directory entry type based on the core type.
 	switch core.Type() {
 	case metadata.SymlinkType:
-		entry.Dirent.Type = fuseutil.DT_Link
+		entryPlus.Dirent.Type = fuseutil.DT_Link
 	case metadata.RegularFileType:
-		entry.Dirent.Type = fuseutil.DT_File
+		entryPlus.Dirent.Type = fuseutil.DT_File
 	case metadata.ImplicitDirType, metadata.ExplicitDirType:
-		entry.Dirent.Type = fuseutil.DT_Directory
+		entryPlus.Dirent.Type = fuseutil.DT_Directory
 	}
 
-	return entry, nil
+	return entryPlus, nil
 }
 
 // LocalFileEntries lists the local files (file that is not yet present on GCS) present in the directory.
@@ -1545,6 +1544,9 @@ func (fs *fileSystem) lookupAndFetchAttributesForLocalFileEntriesPlus(parentName
 			Child:                child.ID(),
 			Attributes:           attrs,
 			AttributesExpiration: expiration,
+		}
+		if fs.newConfig.FileSystem.ExperimentalEnableDentryCache {
+			childInodeEntry.EntryExpiration = expiration
 		}
 		localEntryPlus.Entry = childInodeEntry
 		localFileEntriesPlus[localEntryName] = localEntryPlus
@@ -1611,6 +1613,9 @@ func (fs *fileSystem) LookUpInode(
 	e := &op.Entry
 	e.Child = child.ID()
 	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
+	if fs.newConfig.FileSystem.ExperimentalEnableDentryCache {
+		e.EntryExpiration = e.AttributesExpiration
+	}
 
 	if err != nil {
 		return err
