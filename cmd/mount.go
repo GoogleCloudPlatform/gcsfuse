@@ -172,6 +172,9 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		EnableParallelDirOps: !(newConfig.FileSystem.DisableParallelDirops),
 		// We disable write-back cache when streaming writes are enabled.
 		DisableWritebackCaching: newConfig.Write.EnableStreamingWrites,
+		// Enables ReadDirPlus, allowing the kernel to retrieve directory entries and their
+		// attributes in a single operation.
+		EnableReaddirplus: newConfig.FileSystem.ExperimentalEnableReaddirplus,
 	}
 
 	// GCSFuse to Jacobsa Fuse Log Level mapping:

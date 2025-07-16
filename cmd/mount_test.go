@@ -114,3 +114,37 @@ func TestGetFuseMountConfig_LoggerInitializationInFuse(t *testing.T) {
 		assert.Equal(t, tc.shouldInitializeTrace, fuseMountCfg.DebugLogger != nil)
 	}
 }
+
+func TestGetFuseMountConfig_EnableReaddirplus(t *testing.T) {
+	testCases := []struct {
+		name              string
+		enableReaddirplus bool
+		expectedValue     bool
+	}{
+		{
+			name:              "ExperimentalEnableReaddirplusFlagFalse",
+			enableReaddirplus: false,
+			expectedValue:     false,
+		},
+		{
+			name:              "ExperimentalEnableReaddirplusFlagTrue",
+			enableReaddirplus: true,
+			expectedValue:     true,
+		},
+	}
+
+	fsName := "mybucket"
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			newConfig := &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					ExperimentalEnableReaddirplus: tc.enableReaddirplus,
+				},
+			}
+
+			fuseMountCfg := getFuseMountConfig(fsName, newConfig)
+
+			assert.Equal(t, tc.expectedValue, fuseMountCfg.EnableReaddirplus)
+		})
+	}
+}
