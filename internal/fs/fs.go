@@ -1451,7 +1451,7 @@ func (fs *fileSystem) coreToDirentPlus(
 	// Look up or create the inode for the core.
 	child := fs.lookUpOrCreateInodeIfNotStale(core)
 	if child == nil {
-		return nil, syscall.ENOENT
+		return nil, fmt.Errorf("coreToDirentPlus: stale record for %s", path.Base(fullName.LocalName()))
 	}
 	defer child.Unlock()
 
@@ -1459,7 +1459,7 @@ func (fs *fileSystem) coreToDirentPlus(
 	attributes, err := child.Attributes(ctx, false)
 	if err != nil {
 		// The inode is valid, but we couldn't get attributes.
-		return nil, err
+		return nil, fmt.Errorf("coreToDirentPlus: unable to fetch attributes for %s: %w", path.Base(fullName.LocalName()), err)
 	}
 
 	expiration := time.Now().Add(fs.inodeAttributeCacheTTL)
@@ -2636,9 +2636,10 @@ func (fs *fileSystem) ReadDirPlus(ctx context.Context, op *fuseops.ReadDirPlusOp
 	localFileEntriesPlus := fs.localFileEntriesPlus(in.Name())
 	// Unlock fs lock and fetch attributes for local file entries as it requires inode lock.
 	fs.mu.Unlock()
+
 	err = fs.lookupAndFetchAttributesForLocalFileEntriesPlus(in, localFileEntriesPlus)
 	if err != nil {
-		return
+		return err
 	}
 
 	dh.Mu.Lock()
@@ -2647,8 +2648,7 @@ func (fs *fileSystem) ReadDirPlus(ctx context.Context, op *fuseops.ReadDirPlusOp
 	var cores map[inode.Name]*inode.Core
 	cores, err = dh.FetchEntryCores(ctx, op)
 	if err != nil {
-		err = fmt.Errorf("FetchDirCores: %w", err)
-		return
+		return fmt.Errorf("FetchDirCores: %w", err)
 	}
 	// dh.mu lock is not required during iteration over cores, but was acquired earlier
 	// for code readability and to use a common defer unlock pattern. Holding the
@@ -2666,7 +2666,7 @@ func (fs *fileSystem) ReadDirPlus(ctx context.Context, op *fuseops.ReadDirPlusOp
 		return err
 	}
 
-	return
+	return nil
 }
 
 // LOCKS_EXCLUDED(fs.mu)
