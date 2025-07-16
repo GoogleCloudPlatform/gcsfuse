@@ -25,13 +25,16 @@ echo "Building and installing gcsfuse"
 commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 ./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId
 
-echo "Upgrade python3 version"
+echo "Upgrading Python3 version"
 ./perfmetrics/scripts/upgrade_python3.sh
+
+# Path to locally installed upgraded Python
+PYTHON_BIN="$HOME/.local/python-3.11.9/bin/python3.11"
 
 cd "./perfmetrics/scripts/micro_benchmarks"
 
-echo "Installing dependencies..."
-python3 -m venv venv
+echo "Installing dependencies using upgraded Python..."
+"$PYTHON_BIN" -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
