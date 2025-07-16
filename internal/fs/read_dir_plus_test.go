@@ -43,7 +43,7 @@ func TestReadDirPlusTestSuite(t *testing.T) {
 func (t *ReadDirPlusTest) SetupSuite() {
 	t.mountCfg.EnableReaddirplus = true
 	t.serverCfg.ImplicitDirectories = true
-	t.serverCfg.InodeAttributeCacheTTL = 5 * time.Second
+	t.serverCfg.InodeAttributeCacheTTL = 500 * time.Millisecond
 	t.serverCfg.NewConfig = &cfg.Config{
 		FileSystem: cfg.FileSystemConfig{
 			ExperimentalEnableDentryCache: true,
@@ -137,7 +137,7 @@ func (t *ReadDirPlusTest) TestStatAfterReaddirplus() {
 	assert.Equal(t.T(), int64(len(initialContent)), fileInfo.Size())
 	// Check stat after cache expiry.
 	// Wait for a duration longer than the metadata cache TTL.
-	time.Sleep(6 * time.Second)
+	time.Sleep(time.Second)
 	// Stat the file again.
 	// This should return the updated attributes.
 	fileInfo, err = os.Stat(filePath)
