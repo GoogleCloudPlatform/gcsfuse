@@ -36,20 +36,20 @@ var (
 	// Mount function to be used for the mounting.
 	mountFunc func([]string) error
 
-	// Globals for primary mount which is used to append on existing unfinalized files.
-	// Root directory which is mounted by gcsfuse.
+	// Globals for primary mount which is used to append content to files.
+	// Other Root directory which is mounted by gcsfuse for multi-mount scenarios.
 	primaryMntRootDir string
-	// Stores test directory path in the mounted path for primaryMntRootDir.
+	// Stores test directory path in the mounted path for secondaryMntRootDir.
 	primaryMntTestDirPath string
-	// Stores log file path for the mount primaryMntRootDir.
+	// Stores log file path for the mount secondaryMntRootDirr.
 	primaryMntLogFilePath string
 
-	// Globals for secondary mount which is used to verify reads.
-	// Other Root directory which is mounted by gcsfuse for multi-mount scenarios.
+	// Globals for secondary mount which is used to verify reads on existing unfinalized objects.
+	// Root directory which is mounted by gcsfuse.
 	secondaryMntRootDir string
-	// Stores test directory path in the mounted path for secondaryMntRootDir.
+	// Stores test directory path in the mounted path for primaryMntRootDir.
 	secondaryMntTestDirPath string
-	// Stores log file path for the mount secondaryMntRootDirr.
+	// Stores log file path for the mount primaryMntRootDir.
 	secondaryMntLogFilePath string
 
 	// Clients to create the object in GCS.
@@ -81,26 +81,25 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
+	// Set up test directory for primary mount.
+	setup.SetUpTestDirForTestBucketFlag()
+	primaryMntRootDir = setup.MntDir()
+	primaryMntLogFilePath = setup.LogFile()
+	primaryMountFlags := []string{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-global-max-blocks=-1"}
+	err := static_mounting.MountGcsfuseWithStaticMounting(primaryMountFlags)
+	if err != nil {
+		log.Fatalf("Unable to mount secondary mount: %v", err)
+	}
+	// Setup Package Test Directory for primary mount.
+	primaryMntTestDirPath = setup.SetupTestDirectory(testDirName)
+	defer func() {
+		setup.UnmountGCSFuse(primaryMntRootDir)
+	}()
+
 	// Set up test directory for secondary mount.
 	setup.SetUpTestDirForTestBucketFlag()
 	secondaryMntRootDir = setup.MntDir()
 	secondaryMntLogFilePath = setup.LogFile()
-	// For reads to work for unfinalized object from secondary mount metadata cache ttl must be set to 0.
-	// and rapid appends should be enabled.
-	secondaryMountFlags := []string{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0"}
-	err := static_mounting.MountGcsfuseWithStaticMounting(secondaryMountFlags)
-	if err != nil {
-		log.Fatalf("Unable to mount secondary mount: %v", err)
-	}
-	// Setup Package Test Directory for secondary mount.
-	secondaryMntTestDirPath = setup.SetupTestDirectory(testDirName)
-	defer func() {
-		setup.UnmountGCSFuse(secondaryMntRootDir)
-	}()
-
-	// Set up test directory for primary mount.
-	setup.SetUpTestDirForTestBucketFlag()
-
 	rapidAppendsCacheDir, err := os.MkdirTemp("", "rapid_appends_cache_dir_*")
 	if err != nil {
 		log.Fatalf("Failed to create cache dir for rapid append tests: %v", err)
@@ -111,11 +110,9 @@ func TestMain(m *testing.M) {
 			log.Fatalf("Error while cleaning up cache dir: %v", err)
 		}
 	}()
-	// Define flag set for primary mount to run the tests.
+	// Define flag set for secondary mount to run the tests.
 	flagsSet := [][]string{
-		{"--write-experimental-enable-rapid-appends=true"},
 		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0"},
-		{"--write-experimental-enable-rapid-appends=true", "--file-cache-max-size-mb=-1", "--cache-dir=" + rapidAppendsCacheDir},
 		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--file-cache-max-size-mb=-1", "--cache-dir=" + rapidAppendsCacheDir},
 	}
 

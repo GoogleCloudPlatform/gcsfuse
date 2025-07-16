@@ -46,18 +46,16 @@ type RapidAppendsSuite struct {
 
 func (t *RapidAppendsSuite) SetupSuite() {
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
-	primaryMntRootDir = setup.MntDir()
-	primaryMntLogFilePath = setup.LogFile()
-	primaryMntTestDirPath = setup.SetupTestDirectory(testDirName)
+	secondaryMntTestDirPath = setup.SetupTestDirectory(testDirName)
 }
 
 func (t *RapidAppendsSuite) TearDownSuite() {
-	setup.UnmountGCSFuse(primaryMntRootDir)
+	setup.UnmountGCSFuse(secondaryMntRootDir)
 	if t.T().Failed() {
-		log.Println("Primary mount log file:")
-		setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
 		log.Println("Secondary mount log file:")
-		setup.SetLogFile(secondaryMntLogFilePath)
+		setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
+		log.Println("Primary mount log file:")
+		setup.SetLogFile(primaryMntLogFilePath)
 		setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
 	}
 }
