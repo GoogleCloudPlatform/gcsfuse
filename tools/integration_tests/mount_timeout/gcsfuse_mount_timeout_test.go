@@ -189,7 +189,7 @@ func (testSuite *MountTimeoutTest) mountOrTimeout(bucketName, mountDir, clientPr
 	}
 
 	if minMountTime > expectedMountTime {
-		err = fmt.Errorf("mount took too long for bucket %q (client protocol: %s). expected: %f seconds, actual minimum mount time = %f seconds", bucketName, clientProtocol, expectedMountTime.Seconds(), minMountTime.Seconds())
+		err = fmt.Errorf("mount took too long for bucket %q (client protocol: %s). expected: %v, actual minimum mount time: %v", bucketName, clientProtocol, expectedMountTime, minMountTime)
 		return err
 	}
 	return nil
