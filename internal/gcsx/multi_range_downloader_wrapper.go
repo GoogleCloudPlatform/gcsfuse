@@ -230,7 +230,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 		}()
 
 		if e != nil && e != io.EOF {
-			e = fmt.Errorf("error in Add Call: %w", e)
+			e = fmt.Errorf("error in Add call: %w", e)
 		}
 	})
 
@@ -239,7 +239,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 		case <-time.After(timeout):
 			err = fmt.Errorf("timeout")
 		case <-ctx.Done():
-			err = fmt.Errorf("context cancelled: %w", ctx.Err())
+			err = ctx.Err()
 		case res := <-done:
 			bytesRead = res.bytesRead
 			err = res.err
