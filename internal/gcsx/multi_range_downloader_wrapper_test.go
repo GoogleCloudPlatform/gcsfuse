@@ -31,6 +31,7 @@ import (
 	testutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -183,20 +184,34 @@ func (t *mrdWrapperTest) Test_Read_Timeout() {
 
 	bytesRead, err := t.mrdWrapper.Read(context.Background(), make([]byte, t.object.Size), 0, int64(t.object.Size), t.mrdTimeout, common.NewNoopMetrics())
 
-	assert.ErrorContains(t.T(), err, "Timeout")
+	assert.ErrorContains(t.T(), err, "timeout")
 	assert.Equal(t.T(), 0, bytesRead)
 }
 
-func (t *mrdWrapperTest) Test_Read_ContextCancelled() {
+func (t *mrdWrapperTest) TestReadContextCancelledWithInterruptsEnabled() {
 	t.mrdWrapper.Wrapped = nil
+	t.mrdWrapper.config = &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: false}}
 	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond), nil).Once()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
 	bytesRead, err := t.mrdWrapper.Read(ctx, make([]byte, t.object.Size), 0, int64(t.object.Size), t.mrdTimeout, common.NewNoopMetrics())
 
-	assert.ErrorContains(t.T(), err, "Context Cancelled")
+	require.Error(t.T(), err)
+	assert.ErrorContains(t.T(), err, "context canceled")
 	assert.Equal(t.T(), 0, bytesRead)
+}
+
+func (t *mrdWrapperTest) TestReadContextCancelledWithInterruptsDisabled() {
+	t.mrdWrapper.config = &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: true}}
+	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond), nil).Once()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	bytesRead, err := t.mrdWrapper.Read(ctx, make([]byte, t.object.Size), 0, int64(t.object.Size), t.mrdTimeout, common.NewNoopMetrics())
+
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), 100, bytesRead)
 }
 
 func (t *mrdWrapperTest) Test_Read_EOF() {
@@ -214,7 +229,7 @@ func (t *mrdWrapperTest) Test_Read_Error() {
 
 	bytesRead, err := t.mrdWrapper.Read(context.Background(), make([]byte, t.object.Size), 0, int64(t.object.Size), t.mrdTimeout, common.NewNoopMetrics())
 
-	assert.ErrorContains(t.T(), err, "Error in Add Call")
+	assert.ErrorContains(t.T(), err, "error in Add call")
 	assert.Equal(t.T(), 0, bytesRead)
 }
 

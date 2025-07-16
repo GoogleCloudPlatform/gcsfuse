@@ -891,14 +891,14 @@ func (t *RandomReaderStretchrTest) Test_ReadFromMultiRangeReader_ValidateTimeout
 			dataSize:           100,
 			timeout:            5 * time.Millisecond,
 			sleepTime:          10 * time.Millisecond,
-			expectedErrKeyword: "Timeout",
+			expectedErrKeyword: "timeout",
 		},
 		{
 			name:               "TimeoutValue",
 			dataSize:           100,
 			timeout:            5 * time.Millisecond,
 			sleepTime:          5 * time.Millisecond,
-			expectedErrKeyword: "Timeout",
+			expectedErrKeyword: "timeout",
 		},
 	}
 
