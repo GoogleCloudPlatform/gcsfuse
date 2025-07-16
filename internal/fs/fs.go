@@ -1523,9 +1523,13 @@ func (fs *fileSystem) localFileEntriesPlus(parent inode.Name) (localEntriesPlus 
 func (fs *fileSystem) lookupAndFetchAttributesForLocalFileEntriesPlus(parentName inode.DirInode, localFileEntriesPlus map[string]fuseutil.DirentPlus) (err error) {
 	for localEntryName, localEntryPlus := range localFileEntriesPlus {
 		// Lookup the child inode under the parent directory.
-		child, _ := fs.lookUpLocalFileInode(parentName, localEntryName)
+		child, err := fs.lookUpLocalFileInode(parentName, localEntryName)
+		if err != nil {
+			return fmt.Errorf("lookupAndFetchAttributesForLocalFileEntriesPlus: while looking up local file %q: %w", localEntryName, err)
+		}
 		if child == nil {
-			return fmt.Errorf("lookupAndFetchAttributesForLocalFileEntriesPlus: while looking up local file: %w", err)
+			// This indicates a potential race condition where the file was removed after being listed.
+			return fmt.Errorf("lookupAndFetchAttributesForLocalFileEntriesPlus: local file %q disappeared", localEntryName)
 		}
 		// Fetch attributes from the child inode.
 		attrs, err := child.Attributes(context.Background(), false)
@@ -2018,17 +2022,17 @@ func (fs *fileSystem) CreateSymlink(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) RmDir(
-	// When rm -r or os.RemoveAll call is made, the following calls are made in order
-	//	 1. RmDir (only in the case of os.RemoveAll)
-	//	 2. Unlink all nested files,
-	//	 3. lookupInode call on implicit directory
-	//	 4. Rmdir on the directory.
-	//
-	// When type cache ttl is set, we construct an implicitDir even though one doesn't
-	// exist on GCS (https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/internal/fs/inode/dir.go#L452),
-	// and thus, we get rmDir call to GCSFuse.
-	// Whereas when ttl is zero, lookupInode call itself fails and RmDir is not called
-	// because object is not present in GCS.
+// When rm -r or os.RemoveAll call is made, the following calls are made in order
+//	 1. RmDir (only in the case of os.RemoveAll)
+//	 2. Unlink all nested files,
+//	 3. lookupInode call on implicit directory
+//	 4. Rmdir on the directory.
+//
+// When type cache ttl is set, we construct an implicitDir even though one doesn't
+// exist on GCS (https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/internal/fs/inode/dir.go#L452),
+// and thus, we get rmDir call to GCSFuse.
+// Whereas when ttl is zero, lookupInode call itself fails and RmDir is not called
+// because object is not present in GCS.
 
 	ctx context.Context,
 	op *fuseops.RmDirOp) (err error) {
@@ -2542,7 +2546,7 @@ func (fs *fileSystem) Unlink(
 	err = parent.DeleteChildFile(
 		ctx,
 		op.Name,
-		0,   // Latest generation
+		0, // Latest generation
 		nil) // No meta-generation precondition
 
 	if err != nil {
@@ -2644,7 +2648,6 @@ func (fs *fileSystem) ReadDirPlus(ctx context.Context, op *fuseops.ReadDirPlusOp
 	cores, err = dh.FetchEntryCores(ctx, op)
 	if err != nil {
 		err = fmt.Errorf("FetchDirCores: %w", err)
-		dh.Mu.Unlock()
 		return
 	}
 	// dh.mu lock is not required during iteration over cores, but was acquired earlier
