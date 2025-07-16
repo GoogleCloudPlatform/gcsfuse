@@ -21,6 +21,8 @@ import (
 	"path"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/canned"
@@ -45,6 +47,7 @@ type BucketConfig struct {
 	// Config for TTL of entries for non-existing file in stat cache
 	NegativeStatCacheTTL time.Duration
 	EnableMonitoring     bool
+	LogSeverity          cfg.LogSeverity
 
 	// Files backed by on object of length at least AppendThreshold that have
 	// only been appended to (i.e. none of the object's contents have been
@@ -178,8 +181,10 @@ func (bm *bucketManager) SetUpBucket(
 	// Enable monitoring.
 	b = monitor.NewMonitoringBucket(b, metricHandle)
 
-	// Enable gcs logs.
-	b = storage.NewDebugBucket(b)
+	if bm.config.LogSeverity == cfg.TraceLogSeverity {
+		// Enable gcs logs.
+		b = storage.NewDebugBucket(b)
+	}
 
 	// Limit to a requested prefix of the bucket, if any.
 	if bm.config.OnlyDir != "" {

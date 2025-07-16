@@ -225,9 +225,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	wc := obj.NewWriter(ctx)
 	wc.ChunkTransferTimeout = time.Duration(req.ChunkTransferTimeoutSecs) * time.Second
 	wc = storageutil.SetAttrsInWriter(wc, req)
-	wc.ProgressFunc = func(bytesUploadedSoFar int64) {
-		logger.Tracef("gcs: Req %#16x: -- CreateObject(%q): %20v bytes uploaded so far", ctx.Value(gcs.ReqIdField), req.Name, bytesUploadedSoFar)
-	}
+	wc.ProgressFunc = req.CallBack
 	// All objects in zonal buckets must be appendable.
 	wc.Append = bh.BucketType().Zonal
 	// FinalizeOnClose should be true for all writes for now.
@@ -260,11 +258,6 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	wc.Writer = storageutil.SetAttrsInWriter(wc.Writer, req)
 	// TODO(b/424091803): Uncomment once chunk transfer timeout issue in resumable uploads is fixed in dependencies.
 	// wc.ChunkTransferTimeout = time.Duration(req.ChunkTransferTimeoutSecs) * time.Second
-	if callBack == nil {
-		callBack = func(bytesUploadedSoFar int64) {
-			logger.Tracef("gcs: Req %#16x: -- UploadBlock(%q): %20v bytes uploaded so far", ctx.Value(gcs.ReqIdField), req.Name, bytesUploadedSoFar)
-		}
-	}
 	wc.ProgressFunc = callBack
 	// All objects in zonal buckets must be appendable.
 	wc.Append = bh.BucketType().Zonal
@@ -279,13 +272,10 @@ func (bh *bucketHandle) CreateAppendableObjectWriter(ctx context.Context,
 	obj := bh.getObjectHandleWithPreconditionsSet(&req.CreateObjectRequest)
 	// To create the takeover writer, the objectHandle.Generation must be set.
 	obj = obj.Generation(*req.CreateObjectRequest.GenerationPrecondition)
-	callBack := func(bytesUploadedSoFar int64) {
-		logger.Tracef("gcs: Req %#16x: -- UploadBlock(%q): %20v bytes uploaded so far", ctx.Value(gcs.ReqIdField), req.Name, bytesUploadedSoFar)
-	}
 
 	opts := storage.AppendableWriterOpts{
 		ChunkSize:       req.ChunkSize,
-		ProgressFunc:    callBack,
+		ProgressFunc:    req.CallBack,
 		FinalizeOnClose: false,
 	}
 

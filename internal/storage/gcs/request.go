@@ -84,6 +84,9 @@ type CreateObjectRequest struct {
 	// meta-generation for the object name is equal to the given value. This is
 	// only meaningful in conjunction with GenerationPrecondition.
 	MetaGenerationPrecondition *int64
+
+	// CallBack function is called after upload of each chunk.
+	CallBack func(bytesUploadedSoFar int64)
 }
 
 // A request to copy an object to a new name, preserving all metadata.
