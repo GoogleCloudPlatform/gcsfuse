@@ -15,11 +15,13 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 
 	"cloud.google.com/go/auth"
 	"cloud.google.com/go/auth/credentials"
 	"cloud.google.com/go/storage"
+	"golang.org/x/oauth2"
 )
 
 const scope = storage.ScopeFullControl
@@ -59,4 +61,8 @@ func getCredentials(keyFile string, detectCredential func(*credentials.DetectOpt
 //	error: An error if credential detection fails.
 func GetCredentials(keyFile string) (*auth.Credentials, error) {
 	return getCredentials(keyFile, credentials.DetectDefault)
+}
+
+func GetTokenSourceFromTokenUrl(ctx context.Context, tokenUrl string, reuseTokenFromUrl bool) (tokenSrc oauth2.TokenSource, err error) {
+	return newProxyTokenSource(ctx, tokenUrl, reuseTokenFromUrl)
 }

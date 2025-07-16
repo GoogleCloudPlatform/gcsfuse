@@ -31,6 +31,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"golang.org/x/net/context"
+	"golang.org/x/oauth2"
 	option "google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -92,7 +93,13 @@ func createClientOptionForGRPCClient(clientConfig *storageutil.StorageClientConf
 	if clientConfig.AnonymousAccess {
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
 	} else {
-		tokenSrc, tokenCreationErr := storageutil.CreateTokenSource(clientConfig)
+		var tokenSrc oauth2.TokenSource
+		var tokenCreationErr error
+		if clientConfig.EnableGoogleLibAuth {
+			tokenSrc, tokenCreationErr = storageutil.CreateCredentialForClient(clientConfig, clientOpts)
+		} else {
+			tokenSrc, tokenCreationErr = storageutil.CreateTokenSource(clientConfig)
+		}
 		if tokenCreationErr != nil {
 			err = fmt.Errorf("while fetching tokenSource: %w", tokenCreationErr)
 			return
@@ -171,10 +178,17 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig) (sc *storage.Client, err error) {
 	var clientOpts []option.ClientOption
-
 	// Add WithHttpClient option.
 	var httpClient *http.Client
-	httpClient, err = storageutil.CreateHttpClient(clientConfig)
+	var tokenSrc oauth2.TokenSource = nil
+
+	if clientConfig.EnableGoogleLibAuth {
+		tokenSrc, err = storageutil.CreateCredentialForClient(clientConfig, clientOpts)
+		if err != nil {
+			return
+		}
+	}
+	httpClient, err = storageutil.CreateHttpClient(clientConfig, tokenSrc)
 	if err != nil {
 		err = fmt.Errorf("while creating http endpoint: %w", err)
 		return
