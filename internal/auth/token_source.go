@@ -92,8 +92,12 @@ func (ts proxyTokenSource) Token() (token *oauth2.Token, err error) {
 	err = json.Unmarshal(body, token)
 	if err != nil {
 		err = fmt.Errorf("proxyTokenSource cannot decode body: %w", err)
-		return
+		return nil, err
 	}
 
 	return
+}
+
+func GetTokenSourceFromTokenUrl(ctx context.Context, tokenUrl string, reuseTokenFromUrl bool) (tokenSrc oauth2.TokenSource, err error) {
+	return newProxyTokenSource(ctx, tokenUrl, reuseTokenFromUrl)
 }
