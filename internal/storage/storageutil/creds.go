@@ -25,44 +25,52 @@ import (
 	"google.golang.org/api/option"
 )
 
-// CreateTokenSourceFromTokenUrl creates a token-source from the provided token-url.
-// It returns nil if the token-url is empty.
-func createTokenSourceFromTokenUrl(storageClientConfig *StorageClientConfig) (oauth2.TokenSource, error) {
-	if storageClientConfig.TokenUrl == "" {
+// createTokenSourceFromTokenUrl returns a token source based on the token URL in config.
+// Returns nil if no token URL is provided.
+func createTokenSourceFromTokenUrl(config *StorageClientConfig) (oauth2.TokenSource, error) {
+	if config.TokenUrl == "" {
 		return nil, nil
 	}
-
-	return auth2.GetTokenSourceFromTokenUrl(context.Background(), storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
+	return auth2.GetTokenSourceFromTokenUrl(context.Background(), config.TokenUrl, config.ReuseTokenFromUrl)
 }
 
-// CreateCredentials creates credentials from the provided key-file or using ADC.
-func createCredentials(storageClientConfig *StorageClientConfig) (*auth.Credentials, error) {
-	return auth2.GetCredentials(storageClientConfig.KeyFile)
+// createCredentials returns credentials from the provided key file or ADC.
+func createCredentials(config *StorageClientConfig) (*auth.Credentials, error) {
+	return auth2.GetCredentials(config.KeyFile)
 }
 
-func CreateCredentialForClient(storageClientConfig *StorageClientConfig, clientOpts []option.ClientOption) (oauth2.TokenSource, error) {
-	var tokenSrc oauth2.TokenSource
-	var err error
-	tokenSrc, err = createTokenSourceFromTokenUrl(storageClientConfig)
+// CreateCredentialForClient returns a token source after checking token URL or fallback to key file/ADC.
+// It also updates clientOpts appropriately for the generated token source or credentials.
+func CreateCredentialForClient(config *StorageClientConfig, clientOpts []option.ClientOption) (oauth2.TokenSource, error) {
+	// Try to create token source from token URL.
+	tokenSrc, err := createTokenSourceFromTokenUrl(config)
 	if err != nil {
-		return nil, fmt.Errorf("while fetching tokenSource: %w", err)
+		return nil, fmt.Errorf("while fetching token source: %w", err)
 	}
+
 	if tokenSrc != nil {
 		clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
-	} else {
-		var cred *auth.Credentials
-		cred, err = createCredentials(storageClientConfig)
-		if err != nil {
-			return nil, fmt.Errorf("while fetching credentials: %w", err)
-		}
-		tokenSrc = oauth2adapt.TokenSourceFromTokenProvider(cred.TokenProvider)
-		var domain string
-		domain, err = cred.UniverseDomain(context.Background())
-		if err != nil {
-			return nil, fmt.Errorf("failed to get UniverseDomain: %v", err)
-		}
-		clientOpts = append(clientOpts, option.WithUniverseDomain(domain), option.WithAuthCredentials(cred))
+		return tokenSrc, nil
 	}
+
+	// Fallback to credentials (key file or ADC).
+	cred, err := createCredentials(config)
+	if err != nil {
+		return nil, fmt.Errorf("while fetching credentials: %w", err)
+	}
+
+	tokenSrc = oauth2adapt.TokenSourceFromTokenProvider(cred.TokenProvider)
+
+	domain, err := cred.UniverseDomain(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get UniverseDomain: %w", err)
+	}
+
+	clientOpts = append(
+		clientOpts,
+		option.WithUniverseDomain(domain),
+		option.WithAuthCredentials(cred),
+	)
 
 	return tokenSrc, nil
 }

@@ -94,15 +94,13 @@ func createClientOptionForGRPCClient(clientConfig *storageutil.StorageClientConf
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
 	} else {
 		var tokenSrc oauth2.TokenSource
-		var tokenCreationErr error
 		if clientConfig.EnableGoogleLibAuth {
-			tokenSrc, tokenCreationErr = storageutil.CreateCredentialForClient(clientConfig, clientOpts)
+			tokenSrc, err = storageutil.CreateCredentialForClient(clientConfig, clientOpts)
 		} else {
-			tokenSrc, tokenCreationErr = storageutil.CreateTokenSource(clientConfig)
+			tokenSrc, err = storageutil.CreateTokenSource(clientConfig)
 		}
-		if tokenCreationErr != nil {
-			err = fmt.Errorf("while fetching tokenSource: %w", tokenCreationErr)
-			return
+		if err != nil {
+			return nil, fmt.Errorf("while fetching token source: %w", err)
 		}
 		clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
 	}
@@ -181,17 +179,19 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	// Add WithHttpClient option.
 	var httpClient *http.Client
 	var tokenSrc oauth2.TokenSource = nil
-
 	if clientConfig.EnableGoogleLibAuth {
 		tokenSrc, err = storageutil.CreateCredentialForClient(clientConfig, clientOpts)
 		if err != nil {
-			return
+			return nil, fmt.Errorf("failed to create credentials: %w", err)
 		}
 	}
+
+	// If EnableGoogleLibAuth is false, tokenSrc will remain nil here.
+	// In that case, CreateHttpClient will handle authentication using the oAuth2 authentication method
+	// and generate the token source internally as needed.
 	httpClient, err = storageutil.CreateHttpClient(clientConfig, tokenSrc)
 	if err != nil {
-		err = fmt.Errorf("while creating http endpoint: %w", err)
-		return
+		return nil, fmt.Errorf("failed to create HTTP client: %w", err)
 	}
 
 	clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
