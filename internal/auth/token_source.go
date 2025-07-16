@@ -36,7 +36,7 @@ func newProxyTokenSource(
 	u, err := url.Parse(endpoint)
 	if err != nil {
 		err = fmt.Errorf("newProxyTokenSource cannot parse endpoint %s: %w", endpoint, err)
-		return
+		return nil, err
 	}
 
 	client := &http.Client{}
@@ -71,13 +71,13 @@ func (ts proxyTokenSource) Token() (token *oauth2.Token, err error) {
 	resp, err := ts.client.Get(ts.endpoint)
 	if err != nil {
 		err = fmt.Errorf("proxyTokenSource cannot fetch token: %w", err)
-		return
+		return nil, err
 	}
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
 		err = fmt.Errorf("proxyTokenSource cannot load body: %w", err)
-		return
+		return nil, err
 	}
 
 	if c := resp.StatusCode; c < 200 || c >= 300 {
@@ -85,7 +85,7 @@ func (ts proxyTokenSource) Token() (token *oauth2.Token, err error) {
 			Response: resp,
 			Body:     body,
 		}
-		return
+		return nil, err
 	}
 
 	token = &oauth2.Token{}
@@ -95,7 +95,7 @@ func (ts proxyTokenSource) Token() (token *oauth2.Token, err error) {
 		return nil, err
 	}
 
-	return
+	return token, nil
 }
 
 func NewTokenSourceFromURL(ctx context.Context, tokenUrl string, reuseTokenFromUrl bool) (tokenSrc oauth2.TokenSource, err error) {
