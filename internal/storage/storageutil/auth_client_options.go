@@ -25,36 +25,41 @@ import (
 	"google.golang.org/api/option"
 )
 
-// createTokenSourceFromTokenUrl returns a token source based on the token URL in config.
-// Returns nil if no token URL is provided.
-func createTokenSourceFromTokenUrl(config *StorageClientConfig) (oauth2.TokenSource, error) {
-	if config.TokenUrl == "" {
+var (
+	createTokenSourceFromTokenUrlFn = createTokenSourceFromTokenUrl
+	createCredentialsFn             = createCredentials
+)
+
+// createTokenSourceFromTokenUrl returns a token source using tokenUrl and reuse flag.
+// Returns nil if tokenUrl is empty.
+func createTokenSourceFromTokenUrl(tokenUrl string, reuse bool) (oauth2.TokenSource, error) {
+	if tokenUrl == "" {
 		return nil, nil
 	}
-	return auth2.GetTokenSourceFromTokenUrl(context.Background(), config.TokenUrl, config.ReuseTokenFromUrl)
+	return auth2.GetTokenSourceFromTokenUrl(context.Background(), tokenUrl, reuse)
 }
 
-// createCredentials returns credentials from the provided key file or ADC.
-func createCredentials(config *StorageClientConfig) (*auth.Credentials, error) {
-	return auth2.GetCredentials(config.KeyFile)
+// createCredentials returns credentials from the provided key file.
+func createCredentials(keyFile string) (*auth.Credentials, error) {
+	return auth2.GetCredentials(keyFile)
 }
 
-// CreateCredentialForClient returns a token source after checking token URL or fallback to key file/ADC.
-// It also updates clientOpts appropriately for the generated token source or credentials.
-func CreateCredentialForClient(config *StorageClientConfig, clientOpts []option.ClientOption) (oauth2.TokenSource, error) {
-	// Try to create token source from token URL.
-	tokenSrc, err := createTokenSourceFromTokenUrl(config)
+// ConfigureClientAuth returns a token source using either token URL or fallback to key file/ADC.
+// It also updates clientOpts via pointer, so changes are visible to the caller.
+func ConfigureClientAuth(config *StorageClientConfig, clientOpts *[]option.ClientOption) (oauth2.TokenSource, error) {
+	// Try token source via token URL.
+	tokenSrc, err := createTokenSourceFromTokenUrlFn(config.TokenUrl, config.ReuseTokenFromUrl)
 	if err != nil {
 		return nil, fmt.Errorf("while fetching token source: %w", err)
 	}
 
 	if tokenSrc != nil {
-		clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
+		*clientOpts = append(*clientOpts, option.WithTokenSource(tokenSrc))
 		return tokenSrc, nil
 	}
 
-	// Fallback to credentials (key file or ADC).
-	cred, err := createCredentials(config)
+	// Fallback to credentials.
+	cred, err := createCredentialsFn(config.KeyFile)
 	if err != nil {
 		return nil, fmt.Errorf("while fetching credentials: %w", err)
 	}
@@ -66,11 +71,7 @@ func CreateCredentialForClient(config *StorageClientConfig, clientOpts []option.
 		return nil, fmt.Errorf("failed to get UniverseDomain: %w", err)
 	}
 
-	clientOpts = append(
-		clientOpts,
-		option.WithUniverseDomain(domain),
-		option.WithAuthCredentials(cred),
-	)
+	*clientOpts = append(*clientOpts, option.WithUniverseDomain(domain), option.WithAuthCredentials(cred))
 
 	return tokenSrc, nil
 }

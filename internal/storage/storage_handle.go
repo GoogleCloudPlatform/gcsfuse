@@ -95,7 +95,7 @@ func createClientOptionForGRPCClient(clientConfig *storageutil.StorageClientConf
 	} else {
 		var tokenSrc oauth2.TokenSource
 		if clientConfig.EnableGoogleLibAuth {
-			tokenSrc, err = storageutil.CreateCredentialForClient(clientConfig, clientOpts)
+			tokenSrc, err = storageutil.ConfigureClientAuth(clientConfig, clientOpts)
 		} else {
 			tokenSrc, err = storageutil.CreateTokenSource(clientConfig)
 		}
@@ -180,7 +180,7 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	var httpClient *http.Client
 	var tokenSrc oauth2.TokenSource = nil
 	if clientConfig.EnableGoogleLibAuth {
-		tokenSrc, err = storageutil.CreateCredentialForClient(clientConfig, clientOpts)
+		tokenSrc, err = storageutil.ConfigureClientAuth(clientConfig, clientOpts)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create credentials: %w", err)
 		}
