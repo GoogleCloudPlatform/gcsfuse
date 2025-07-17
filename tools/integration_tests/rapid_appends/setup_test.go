@@ -68,6 +68,32 @@ var (
 )
 
 ////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func flagsFromScenario(scenario scenarioConfig, rapidAppendsCacheDir string) []string {
+	// TODO: Make these constant literals somewhere.
+	metadataCacheEnableFlags := []string{"--metadata-cache-ttl-secs=60"}
+	metadataCacheDisableFlags := []string{"--metadata-cache-ttl-secs=0"}
+	fileCacheEnableFlags := []string{"--file-cache-max-size-mb=-1", "--cache-dir=" + rapidAppendsCacheDir}
+	fileCacheDisableFlags := []string{}
+	commonFlags := []string{"--write-experimental-enable-rapid-appends=true"}
+
+	flags := commonFlags
+	if scenario.enableMetadataCache {
+		flags = append(flags, metadataCacheEnableFlags...)
+	} else {
+		flags = append(flags, metadataCacheDisableFlags...)
+	}
+	if scenario.enableFileCache {
+		flags = append(flags, fileCacheEnableFlags...)
+	} else {
+		flags = append(flags, fileCacheDisableFlags...)
+	}
+	return flags
+}
+
+////////////////////////////////////////////////////////////////////////
 // TestMain
 ////////////////////////////////////////////////////////////////////////
 
@@ -124,13 +150,6 @@ func TestMain(m *testing.M) {
 	log.Println("Running static mounting tests...")
 	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
 
-	// TODO: Make these constant literals somewhere.
-	metadataCacheEnableFlags := []string{"--metadata-cache-ttl-secs=60"}
-	metadataCacheDisableFlags := []string{"--metadata-cache-ttl-secs=0"}
-	fileCacheEnableFlags := []string{"--file-cache-max-size-mb=-1", "--cache-dir=" + rapidAppendsCacheDir}
-	fileCacheDisableFlags := []string{}
-	commonFlags := []string{"--write-experimental-enable-rapid-appends=true"}
-
 	var successCode int
 	for _, scenario = range []scenarioConfig{{
 		// all default configs
@@ -143,18 +162,7 @@ func TestMain(m *testing.M) {
 		enableFileCache: true,
 	},
 	} {
-		flags = commonFlags
-		if scenario.enableMetadataCache {
-			flags = append(flags, metadataCacheEnableFlags...)
-		} else {
-			flags = append(flags, metadataCacheDisableFlags...)
-		}
-		if scenario.enableFileCache {
-			flags = append(flags, fileCacheEnableFlags...)
-		} else {
-			flags = append(flags, fileCacheDisableFlags...)
-		}
-
+		flags = flagsFromScenario(scenario, rapidAppendsCacheDir)
 		log.Printf("Running tests with flags: %v", flags)
 		successCode = m.Run()
 		if successCode != 0 {
