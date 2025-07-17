@@ -591,6 +591,7 @@ func readerType(readType string, start int64, end int64, bucketType gcs.BucketTy
 func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType string) (n int, err error) {
 	// If we don't have a reader, start a read operation.
 	if rr.reader == nil {
+		logger.Infof("reader was nil, recreating")
 		err = rr.startRead(offset, end)
 		if err != nil {
 			err = fmt.Errorf("startRead: %w", err)
