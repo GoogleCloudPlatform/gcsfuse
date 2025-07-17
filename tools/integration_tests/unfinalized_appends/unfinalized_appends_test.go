@@ -194,6 +194,36 @@ func (t *UnfinalizedAppendsSuite) TestContentAppendedInNonAppendModeNotVisibleTi
 	assert.Equal(t.T(), expectedContent, contentAfterClose)
 }
 
+func (t *UnfinalizedAppendsSuite) TestAppendedDataNotVisibleUntilClose() {
+	fileName := "append_obj_" + setup.GenerateRandomString(5)
+	initialContent := []byte("dummy content")
+	CreateObjectInGCSTestDir(
+		gCtx, gStorageClient, testDirName, fileName, string(initialContent), t.T())
+
+	// Append to the finalized object from the primary mount.
+	filePath := path.Join(gTestDirPath, fileName)
+	fh, err := os.OpenFile(filePath, os.O_APPEND|os.O_RDWR|syscall.O_DIRECT, operations.FilePermission_0600)
+	require.NoError(t.T(), err, "failed to open file in append mode")
+	appendedContent := []byte("appended content")
+	_, err = fh.Write(appendedContent)
+	require.NoError(t.T(), err, "failed to append to file")
+
+	// Read the object from secondary mount to validate that appended content is yet not visible on GCS.
+	secondaryPath := path.Join(gOtherTestDirPath, fileName)
+	contentBeforeClose, err := operations.ReadFile(secondaryPath)
+	require.NoError(t.T(), err, "failed to read file before close")
+	assert.Equal(t.T(), initialContent, contentBeforeClose, "appended data should not be visible before close")
+
+	// Close the file handle used for appending.
+	require.NoError(t.T(), fh.Close(), "failed to close file")
+
+	// Read the object from secondary mount to validate that appended content is now visible on GCS.
+	expectedContent := append(initialContent, appendedContent...)
+	contentAfterClose, err := operations.ReadFile(secondaryPath)
+	require.NoError(t.T(), err, "failed to read file after close")
+	assert.Equal(t.T(), expectedContent, contentAfterClose, "appended data should be visible after close")
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
