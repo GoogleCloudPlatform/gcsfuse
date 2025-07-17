@@ -16,66 +16,49 @@
 package readdirplus
 
 import (
+	"log"
 	"os"
 	"path"
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
 	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/stretchr/testify/assert"
 )
 
-func createDirectoryStructureForTest(t *testing.T) {
-	t.Helper()
-
-	testDir := setup.SetupTestDirectory(DirForReaddirplusTest)
-
-	// Directory structure
-	// testBucket/dirForReaddirplusTest                                                        -- Dir
-	// testBucket/dirForReaddirplusTest/file		                                           -- File
-	// testBucket/dirForReaddirplusTest/emptySubDirectory                                      -- Dir
-	// testBucket/dirForReaddirplusTest/subDirectory                                           -- Dir
-	// testBucket/dirForReaddirplusTest/subDirectory/file1                                     -- File
-
-	// Create a file in the test directory.
-	filePath := path.Join(testDir, "file")
-	file, err := os.Create(filePath)
-	if err != nil {
-		t.Fatalf("Create file at %q: %v", testDir, err)
-	}
-	err = file.Close()
-	if err != nil {
-		t.Fatalf("Close file at %q: %v", filePath, err)
-	}
-
-	// Create an empty subdirectory.
-	subDirPath := path.Join(testDir, "emptySubDirectory")
-	err = os.Mkdir(subDirPath, 0755)
-	if err != nil {
-		t.Fatalf("Create empty subdirectory at %q: %v", subDirPath, err)
-	}
-
-	// Create a subdirectory with file.
-	subDirWithFilesPath := path.Join(testDir, "subDirectory")
-	err = os.Mkdir(subDirWithFilesPath, 0755)
-	if err != nil {
-		t.Fatalf("Create subdirectory with files at %q: %v", subDirWithFilesPath, err)
-	}
-	filePath = path.Join(subDirWithFilesPath, "file1")
-	file, err = os.Create(filePath)
-	if err != nil {
-		t.Fatalf("Create file in subdirectory at %q: %v", filePath, err)
-	}
-	err = file.Close()
-	if err != nil {
-		t.Fatalf("Close file in subdirectory at %q: %v", filePath, err)
-	}
+type readdirplusTest struct {
+	flags              []string
+	dentryCacheEnabled bool
 }
 
-func TestLongListingWithReaddirplus(t *testing.T) {
-	// Create directory structure for testing.
-	createDirectoryStructureForTest(t)
+func (s *readdirplusTest) Setup(t *testing.T) {
+	mountGCSFuseAndSetupTestDir(t, s.flags, testDirName)
+}
+
+func (s *readdirplusTest) Teardown(t *testing.T) {
+	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
+	setup.UnmountGCSFuse(rootDir)
+}
+
+func (s *readdirplusTest) TestReaddirplusResponseAndValidateLogs(t *testing.T) {
+	// Create directory structure
+	// testBucket/target_dir/                                                       -- Dir
+	// testBucket/target_dir/file		                                            -- File
+	// testBucket/target_dir/emptySubDirectory                                      -- Dir
+	// testBucket/target_dir/subDirectory                                           -- Dir
+	// testBucket/target_dir/subDirectory/file1                                     -- File
+	targetDir := path.Join(testDirPath, "target_dir")
+	operations.CreateDirectory(targetDir, t)
+	// Create a file in the target directory.
+	f1 := operations.CreateFile(path.Join(targetDir, "file"), setup.FilePermission_0600, t)
+	operations.CloseFileShouldNotThrowError(t, f1)
+	// Create an empty subdirectory
+	operations.CreateDirectory(path.Join(targetDir, "emptySubDirectory"), t)
+	// Create a subdirectory with file
+	operations.CreateDirectoryWithNFiles(1, path.Join(targetDir, "subDirectory"), "file", t)
 	expectedEntries := []struct {
 		name  string
 		isDir bool
@@ -88,7 +71,7 @@ func TestLongListingWithReaddirplus(t *testing.T) {
 
 	// Call Readdirplus to list the directory.
 	startTime := time.Now()
-	entries, err := fusetesting.ReadDirPlusPicky(path.Join(setup.MntDir(), DirForReaddirplusTest))
+	entries, err := fusetesting.ReadDirPlusPicky(targetDir)
 	endTime := time.Now()
 
 	if err != nil {
@@ -103,5 +86,32 @@ func TestLongListingWithReaddirplus(t *testing.T) {
 		assert.Equal(t, expected.mode, entry.Mode(), "Mode mismatch for entry %s", entry.Name())
 	}
 	// Validate logs to check that ReadDirPlus was called and ReadDir, LookUpInode were not called.
-	validateLogsForReaddirplus(t, setup.LogFile(), startTime, endTime)
+	validateLogsForReaddirplus(t, setup.LogFile(), s.dentryCacheEnabled, startTime, endTime)
+}
+
+func TestReaddirplusTest(t *testing.T) {
+	ts := &readdirplusTest{}
+
+	// Run tests for mounted directory if the flag is set.
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		test_setup.RunTests(t, ts)
+		return
+	}
+
+	// Define flag set to run the tests.
+	testScenarios := []struct {
+		flags              []string
+		dentryCacheEnabled bool
+	}{
+		{[]string{"--implicit-dirs", "--experimental-enable-readdirplus", "--experimental-enable-dentry-cache"}, true},
+		{[]string{"--implicit-dirs", "--experimental-enable-readdirplus"}, false},
+	}
+
+	// Run tests.
+	for _, tc := range testScenarios {
+		ts.flags = tc.flags
+		ts.dentryCacheEnabled = tc.dentryCacheEnabled
+		log.Printf("Running tests with flags: %s", ts.flags)
+		test_setup.RunTests(t, ts)
+	}
 }

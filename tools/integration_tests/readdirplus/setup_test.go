@@ -20,7 +20,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"path"
 	"strings"
 	"testing"
 	"time"
@@ -33,11 +32,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const DirForReaddirplusTest = "dirForReaddirplusTest"
+const testDirName = "dirForReaddirplusTest"
 
 var (
 	storageClient *storage.Client
 	ctx           context.Context
+	testDirPath   string
+	mountFunc     func([]string) error
+	// mount directory is where our tests run.
+	mountDir string
+	// root directory is the directory to be unmounted.
+	rootDir string
 )
 
 func loadLogLines(reader io.Reader) ([]string, error) {
@@ -48,12 +53,12 @@ func loadLogLines(reader io.Reader) ([]string, error) {
 	return strings.Split(string(content), "\n"), nil
 }
 
-func validateLogsForReaddirplus(t *testing.T, logFile string, startTime, endTime time.Time) {
+func validateLogsForReaddirplus(t *testing.T, logFile string, dentryCacheEnabled bool, startTime, endTime time.Time) {
 	t.Helper()
 
-	expectedLogForReadDirPlus := "ReadDirPlus ("
-	unexpectedLogForReadDir := "ReadDir ("
-	unexpectedLogForLookUpInode := "LookUpInode ("
+	logForReadDirPlus := "ReadDirPlus ("
+	logForReadDir := "ReadDir ("
+	logForLookUpInode := "LookUpInode ("
 
 	file, err := os.Open(logFile)
 	require.NoError(t, err, "Failed to open log file")
@@ -74,13 +79,13 @@ func validateLogsForReaddirplus(t *testing.T, logFile string, startTime, endTime
 			// Check if the log entry's timestamp is within the expected window.
 			if (logEntry.Timestamp.After(startTime) || logEntry.Timestamp.Equal(startTime)) &&
 				(logEntry.Timestamp.Before(endTime) || logEntry.Timestamp.Equal(endTime)) {
-				if strings.Contains(logEntry.Message, expectedLogForReadDirPlus) {
+				if strings.Contains(logEntry.Message, logForReadDirPlus) {
 					foundReadDirPlus = true
 				}
-				if strings.Contains(logEntry.Message, unexpectedLogForReadDir) {
+				if strings.Contains(logEntry.Message, logForReadDir) {
 					foundReadDir = true
 				}
-				if strings.Contains(logEntry.Message, unexpectedLogForLookUpInode) {
+				if strings.Contains(logEntry.Message, logForLookUpInode) {
 					foundLookUpInode = true
 				}
 			}
@@ -89,7 +94,23 @@ func validateLogsForReaddirplus(t *testing.T, logFile string, startTime, endTime
 
 	require.True(t, foundReadDirPlus, "ReadDirPlus not called")
 	require.False(t, foundReadDir, "ReadDir called unexpectedly")
-	require.False(t, foundLookUpInode, "LookupInode called unexpectedly")
+	if dentryCacheEnabled {
+		require.False(t, foundLookUpInode, "LookUpInode called unexpectedly")
+	} else {
+		require.True(t, foundLookUpInode, "LookUpInode not called")
+	}
+}
+
+func mountGCSFuseAndSetupTestDir(t *testing.T, flags []string, testDirName string) {
+	t.Helper()
+
+	// When tests are running in GKE environment, use the mounted directory provided as test flag.
+	if setup.MountedDirectory() != "" {
+		mountDir = setup.MountedDirectory()
+	}
+	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
+	setup.SetMntDir(mountDir)
+	testDirPath = setup.SetupTestDirectory(testDirName)
 }
 
 func TestMain(m *testing.M) {
@@ -106,18 +127,18 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	flags := [][]string{{"--implicit-dirs", "--experimental-enable-readdirplus", "--experimental-enable-dentry-cache"}}
-
 	// If Mounted Directory flag is set, run tests for mounted directory.
 	setup.RunTestsForMountedDirectoryFlag(m)
 	// Else run tests for testBucket.
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
 
-	successCode := static_mounting.RunTests(flags, m)
+	// Save mount and root directory variables.
+	mountDir, rootDir = setup.MntDir(), setup.MntDir()
 
-	// Clean up test directory created.
-	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), DirForReaddirplusTest))
+	log.Println("Running static mounting tests...")
+	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
+	successCode := m.Run()
 
 	os.Exit(successCode)
 }

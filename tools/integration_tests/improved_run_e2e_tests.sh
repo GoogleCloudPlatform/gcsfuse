@@ -216,6 +216,7 @@ TEST_PACKAGES_COMMON=(
   "negative_stat_cache"
   "stale_handle"
   "release_version"
+  "readdirplus"
 )
 
 # Test packages for regional buckets.
