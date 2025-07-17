@@ -65,6 +65,17 @@ func (t *RapidAppendsSuite) TearDownSuite() {
 	}
 }
 
+func (t *RapidAppendsSuite) createUnfinalizedObject() {
+	t.fileName = client.FileName1 + setup.GenerateRandomString(5)
+	// Create unfinalized object.
+	t.fileContent = setup.GenerateRandomString(client.SizeOfFileContents)
+	_ = client.CreateUnfinalizedObject(ctx, t.T(), storageClient, path.Join(testDirName, t.fileName), t.fileContent)
+}
+
+func (t *RapidAppendsSuite) SetupTest() {
+	t.createUnfinalizedObject()
+}
+
 func (t *RapidAppendsSuite) SetupSubTest() {
 	t.fileName = fileNamePrefix + setup.GenerateRandomString(5)
 	// Create unfinalized object.

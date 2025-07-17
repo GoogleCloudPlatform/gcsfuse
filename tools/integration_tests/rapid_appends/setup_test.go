@@ -68,7 +68,7 @@ var (
 	storageClient *storage.Client
 	ctx           context.Context
 
-	// Scenario being run by the current test
+	// Scenario being run by the current test.
 	scenario scenarioConfig
 )
 
@@ -157,7 +157,7 @@ func TestMain(m *testing.M) {
 	setup.SetUpTestDirForTestBucketFlag()
 	secondaryMntRootDir = setup.MntDir()
 	secondaryMntLogFilePath = setup.LogFile()
-	// Define flag set for secondary mount to run the tests.
+
 	log.Println("Running static mounting tests...")
 	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
 
