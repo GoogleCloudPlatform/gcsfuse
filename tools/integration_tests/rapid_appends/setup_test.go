@@ -31,40 +31,31 @@ import (
 const (
 	testDirName    = "RapidAppendsTest"
 	fileNamePrefix = "rapid-append-file-"
-	initialContent = "dummy content"
-	appendContent  = "appended content"
 	// Minimum content size to write in order to trigger block upload while writing ; calculated as (2*blocksize+1) mb.
 	// Block size for buffered writes is set to 1MiB.
 	contentSizeForBW = 3
 	blockSize        = operations.OneMiB
+	// metadataCacheTTLSecs is applicable only for those tests for which enableMetadataCache is true.
+	metadataCacheTTLSecs          = 10
+	metadataCacheEnableFlagPrefix = "--metadata-cache-ttl-secs="
+	metadataCacheDisableFlag      = "--metadata-cache-ttl-secs=0"
+	fileCacheMaxSizeFlag          = "--file-cache-max-size-mb=-1"
+	cacheDirFlagPrefix            = "--cache-dir="
+	writeRapidAppendsEnableFlag   = "--write-experimental-enable-rapid-appends=true"
 )
 
 var (
-	// Flags for mount options for primaryMntRootDir
-	flags []string
 	// Mount function to be used for the mounting.
 	mountFunc func([]string) error
-
-	// Globals for primary mount which is used to append content to files.
-	// Other Root directory which is mounted by gcsfuse for multi-mount scenarios.
-	primaryMntRootDir string
-	// Stores test directory path in the mounted path for primaryMntRootDir.
-	primaryMntTestDirPath string
-	// Stores log file path for the mount primaryMntRootDir.
-	primaryMntLogFilePath string
-
-	// Globals for secondary mount which is used to verify reads on existing unfinalized objects.
-	// Root directory which is mounted by gcsfuse.
-	secondaryMntRootDir string
-	// Stores test directory path in the mounted path for secondaryMntRootDir.
-	secondaryMntTestDirPath string
-	// Stores log file path for the mount secondaryMntRootDir.
-	secondaryMntLogFilePath string
 
 	// Clients to create the object in GCS.
 	storageClient *storage.Client
 	ctx           context.Context
 )
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////
 // TestMain
@@ -90,53 +81,9 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	// Set up test directory for primary mount.
-	setup.SetUpTestDirForTestBucketFlag()
-	primaryMntRootDir = setup.MntDir()
-	primaryMntLogFilePath = setup.LogFile()
-	// TODO(b/432179045): `--write-global-max-blocks=-1` is needed right now because of a bug in global semaphore release.
-	// Remove this flag once bug is fixed.
-	primaryMountFlags := []string{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-global-max-blocks=-1", "--write-block-size-mb=1"}
-	err := static_mounting.MountGcsfuseWithStaticMounting(primaryMountFlags)
-	if err != nil {
-		log.Fatalf("Unable to mount primary mount: %v", err)
-	}
-	// Setup Package Test Directory for primary mount.
-	primaryMntTestDirPath = setup.SetupTestDirectory(testDirName)
-	defer setup.UnmountGCSFuse(primaryMntRootDir)
-
-	// Set up test directory for secondary mount.
-	setup.SetUpTestDirForTestBucketFlag()
-	secondaryMntRootDir = setup.MntDir()
-	secondaryMntLogFilePath = setup.LogFile()
-	rapidAppendsCacheDir, err := os.MkdirTemp("", "rapid_appends_cache_dir_*")
-	if err != nil {
-		log.Fatalf("Failed to create cache dir for rapid append tests: %v", err)
-	}
-	defer func() {
-		err := os.RemoveAll(rapidAppendsCacheDir)
-		if err != nil {
-			log.Fatalf("Error while cleaning up cache dir %q: %v", rapidAppendsCacheDir, err)
-		}
-	}()
-	// Define flag set for secondary mount to run the tests.
-	flagsSet := [][]string{
-		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-block-size-mb=1"},
-		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-block-size-mb=1", "--file-cache-max-size-mb=-1", "--cache-dir=" + rapidAppendsCacheDir},
-	}
-
 	log.Println("Running static mounting tests...")
 	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
-
-	var successCode int
-	for i := range flagsSet {
-		log.Printf("Running tests with flags: %v", flagsSet[i])
-		flags = flagsSet[i]
-		successCode = m.Run()
-		if successCode != 0 {
-			break
-		}
-	}
+	successCode := m.Run()
 	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
 }
