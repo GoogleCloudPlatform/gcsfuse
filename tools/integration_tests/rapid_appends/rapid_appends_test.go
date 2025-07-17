@@ -29,15 +29,16 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+const numAppends = 3
+
 // //////////////////////////////////////////////////////////////////////
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
 
 type RapidAppendsSuite struct {
-	fileName       string
-	fileSize       int
-	initialContent string
 	suite.Suite
+	fileName    string
+	fileContent string
 }
 
 // //////////////////////////////////////////////////////////////////////
@@ -64,31 +65,38 @@ func (t *RapidAppendsSuite) SetupTest() {
 	t.fileName = FileName1 + setup.GenerateRandomString(5)
 	// Create unfinalized object.
 	_ = CreateUnfinalizedObject(ctx, t.T(), storageClient, path.Join(testDirName, t.fileName), SizeOfFileContents)
-	t.fileSize = SizeOfFileContents
 	initialContent, err := operations.ReadFile(path.Join(primaryMntTestDirPath, t.fileName))
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), SizeOfFileContents, len(initialContent))
-	t.initialContent = string(initialContent)
+	t.fileContent = string(initialContent)
 }
 
-// AppendToFile appends "appendContent" to the given file.
-func (t *RapidAppendsSuite) AppendToFile(file *os.File, appendContent string) {
+func (t *RapidAppendsSuite) TearDownTest() {
+	err := os.Remove(path.Join(primaryMntTestDirPath, t.fileName))
+	require.NoError(t.T(), err)
+}
+
+// appendToFile appends "appendContent" to the given file.
+func (t *RapidAppendsSuite) appendToFile(file *os.File, appendContent string) {
 	t.T().Helper()
 	n, err := file.WriteString(appendContent)
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), len(appendContent), n)
-	t.fileSize += n
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *RapidAppendsSuite) TestAppendsAndSequentialReadFromPrimaryMount() {
+func (t *RapidAppendsSuite) TestAppendsAndSequentialReadFromSameMount() {
 	appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(primaryMntTestDirPath, t.fileName), os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
-	expectedContent := t.initialContent
-	for range 3 {
-		t.AppendToFile(appendFileHandle, FileContents)
+	defer func() {
+		err := appendFileHandle.Close()
+		require.NoError(t.T(), err)
+	}()
+	expectedContent := t.fileContent
+	for range numAppends {
+		t.appendToFile(appendFileHandle, FileContents)
 		expectedContent += FileContents
 
 		// Read content of file from same mount.
@@ -97,15 +105,17 @@ func (t *RapidAppendsSuite) TestAppendsAndSequentialReadFromPrimaryMount() {
 		require.NoError(t.T(), err)
 		assert.Equal(t.T(), expectedContent, string(gotContent))
 	}
-	err := appendFileHandle.Close()
-	require.NoError(t.T(), err)
 }
 
-func (t *RapidAppendsSuite) TestAppendsAndSequentialReadFromSecondaryMount() {
+func (t *RapidAppendsSuite) TestAppendsAndSequentialReadFromDifferentMount() {
 	appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(primaryMntTestDirPath, t.fileName), os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
-	expectedContent := t.initialContent
-	for range 3 {
-		t.AppendToFile(appendFileHandle, FileContents)
+	defer func() {
+		err := appendFileHandle.Close()
+		require.NoError(t.T(), err)
+	}()
+	expectedContent := t.fileContent
+	for range numAppends {
+		t.appendToFile(appendFileHandle, FileContents)
 		expectedContent += FileContents
 		operations.SyncFile(appendFileHandle, t.T())
 
@@ -115,15 +125,13 @@ func (t *RapidAppendsSuite) TestAppendsAndSequentialReadFromSecondaryMount() {
 		require.NoError(t.T(), err)
 		assert.Equal(t.T(), expectedContent, string(gotContent))
 	}
-	err := appendFileHandle.Close()
-	require.NoError(t.T(), err)
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestUnfinalizedAppendsSuite(t *testing.T) {
-	appendSuite := new(RapidAppendsSuite)
-	suite.Run(t, appendSuite)
+func TestRapidAppendsSuite(t *testing.T) {
+	rapidAppendsSuite := new(RapidAppendsSuite)
+	suite.Run(t, rapidAppendsSuite)
 }

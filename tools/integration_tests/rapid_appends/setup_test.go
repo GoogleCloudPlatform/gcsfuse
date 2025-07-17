@@ -18,6 +18,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"path"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -39,17 +40,17 @@ var (
 	// Globals for primary mount which is used to append content to files.
 	// Other Root directory which is mounted by gcsfuse for multi-mount scenarios.
 	primaryMntRootDir string
-	// Stores test directory path in the mounted path for secondaryMntRootDir.
+	// Stores test directory path in the mounted path for primaryMntRootDir.
 	primaryMntTestDirPath string
-	// Stores log file path for the mount secondaryMntRootDirr.
+	// Stores log file path for the mount primaryMntRootDir.
 	primaryMntLogFilePath string
 
 	// Globals for secondary mount which is used to verify reads on existing unfinalized objects.
 	// Root directory which is mounted by gcsfuse.
 	secondaryMntRootDir string
-	// Stores test directory path in the mounted path for primaryMntRootDir.
+	// Stores test directory path in the mounted path for secondaryMntRootDir.
 	secondaryMntTestDirPath string
-	// Stores log file path for the mount primaryMntRootDir.
+	// Stores log file path for the mount secondaryMntRootDir.
 	secondaryMntLogFilePath string
 
 	// Clients to create the object in GCS.
@@ -70,7 +71,7 @@ func TestMain(m *testing.M) {
 	// package has multi-mount scenario tests and currently we only
 	// pass single mountedDir to test package.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		log.Fatalf("This package doesn't support mountedDir tests.")
+		log.Fatalf("This package doesn't support --mountedDirectory option currently.")
 	}
 	ctx = context.Background()
 	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
@@ -85,10 +86,12 @@ func TestMain(m *testing.M) {
 	setup.SetUpTestDirForTestBucketFlag()
 	primaryMntRootDir = setup.MntDir()
 	primaryMntLogFilePath = setup.LogFile()
+	// TODO(b/432179045): `--write-global-max-blocks=-1` is needed right now because of a bug in global semaphore release.
+	// Remove this flag once bug is fixed.
 	primaryMountFlags := []string{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-global-max-blocks=-1"}
 	err := static_mounting.MountGcsfuseWithStaticMounting(primaryMountFlags)
 	if err != nil {
-		log.Fatalf("Unable to mount secondary mount: %v", err)
+		log.Fatalf("Unable to mount primary mount: %v", err)
 	}
 	// Setup Package Test Directory for primary mount.
 	primaryMntTestDirPath = setup.SetupTestDirectory(testDirName)
@@ -107,7 +110,7 @@ func TestMain(m *testing.M) {
 	defer func() {
 		err := os.RemoveAll(rapidAppendsCacheDir)
 		if err != nil {
-			log.Fatalf("Error while cleaning up cache dir: %v", err)
+			log.Fatalf("Error while cleaning up cache dir %q: %v", rapidAppendsCacheDir, err)
 		}
 	}()
 	// Define flag set for secondary mount to run the tests.
@@ -128,5 +131,6 @@ func TestMain(m *testing.M) {
 			break
 		}
 	}
+	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
 }
