@@ -609,7 +609,6 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 
 	// Now we have a reader positioned at the correct place. Consume as much from
 	// it as possible.
-	time.Sleep(100 * time.Millisecond)
 	n, err = rr.readFull(ctx, p)
 	logger.Infof("range reader read %d bytes and returned err %v", n, err)
 	rr.start += int64(n)
