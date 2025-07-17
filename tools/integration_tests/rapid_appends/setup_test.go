@@ -28,8 +28,13 @@ import (
 )
 
 const (
-	testDirName    = "RapidAppendsTest"
-	fileNamePrefix = "rapid-append-file-"
+	testDirName                 = "RapidAppendsTest"
+	fileNamePrefix              = "rapid-append-file-"
+	metadataCacheEnableFlag     = "--metadata-cache-ttl-secs=60"
+	metadataCacheDisableFlag    = "--metadata-cache-ttl-secs=0"
+	fileCacheMaxSizeFlag        = "--file-cache-max-size-mb=-1"
+	cacheDirFlagPrefix          = "--cache-dir="
+	writeRapidAppendsEnableFlag = "--write-experimental-enable-rapid-appends=true"
 )
 
 type scenarioConfig struct {
@@ -89,12 +94,11 @@ func scenariosToBeRun() []scenarioConfig {
 }
 
 func flagsFromScenario(scenario scenarioConfig, rapidAppendsCacheDir string) []string {
-	// TODO: Make these constant literals somewhere.
-	metadataCacheEnableFlags := []string{"--metadata-cache-ttl-secs=60"}
-	metadataCacheDisableFlags := []string{"--metadata-cache-ttl-secs=0"}
-	fileCacheEnableFlags := []string{"--file-cache-max-size-mb=-1", "--cache-dir=" + rapidAppendsCacheDir}
+	metadataCacheEnableFlags := []string{metadataCacheEnableFlag}
+	metadataCacheDisableFlags := []string{metadataCacheDisableFlag}
+	fileCacheEnableFlags := []string{fileCacheMaxSizeFlag, cacheDirFlagPrefix + rapidAppendsCacheDir}
 	fileCacheDisableFlags := []string{}
-	commonFlags := []string{"--write-experimental-enable-rapid-appends=true"}
+	commonFlags := []string{writeRapidAppendsEnableFlag}
 
 	flags := commonFlags
 	if scenario.enableMetadataCache {
