@@ -16,6 +16,7 @@ package rapid_appends
 
 import (
 	"log"
+	"math/rand/v2"
 	"os"
 	"path"
 	"strings"
@@ -38,11 +39,63 @@ const unfinalizedObjectSize = 10 // Size in bytes of initial unfinalized Object.
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
 
+// declare a function type for readfile
+type ReadFileFunc func(filePath string) ([]byte, error)
+
+func readFileSequentially(filePath string) ([]byte, error) {
+	return operations.ReadFileSequentially(filePath, 1024*1024)
+}
+
+func readFileRandomly(filePath string) ([]byte, error) {
+	file, err := operations.OpenFileAsReadonly(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		err = file.Close()
+		if err != nil {
+			log.Printf("Error closing file %q: %v", filePath, err)
+		}
+	}()
+
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	fileSize := fileInfo.Size()
+
+	var contentBuilder strings.Builder
+	for i := 0; i < 50; i++ {
+		if fileSize == 0 {
+			break
+		}
+
+		offset := rand.IntN(int(fileSize))
+		readSize := rand.IntN(int(fileSize - int64(offset)))
+		if readSize == 0 { // Ensure readSize is at least 1 if possible
+			if int(fileSize)-offset > 0 {
+				readSize = 1
+			} else {
+				break
+			}
+		}
+
+		buffer := make([]byte, readSize)
+		n, err := file.ReadAt(buffer, int64(offset))
+		if err != nil {
+			return nil, err
+		}
+		contentBuilder.Write(buffer[:n])
+	}
+	return []byte(contentBuilder.String()), nil
+}
+
 // TODO: Split the suite in two suites single mount and multi-mount.
 type RapidAppendsSuite struct {
 	suite.Suite
-	fileName    string
-	fileContent string
+	fileName     string
+	fileContent  string
+	readFileFunc ReadFileFunc
 }
 
 // //////////////////////////////////////////////////////////////////////
@@ -126,7 +179,7 @@ func (t *RapidAppendsSuite) TestAppendsAndRead() {
 					operations.SyncFile(appendFileHandle, t.T())
 				}
 
-				gotContent, err := operations.ReadFile(readPath)
+				gotContent, err := t.readFileFunc(readPath)
 
 				require.NoError(t.T(), err)
 				readContent := string(gotContent)
@@ -145,7 +198,14 @@ func (t *RapidAppendsSuite) TestAppendsAndRead() {
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestRapidAppendsSuite(t *testing.T) {
+func TestRapidAppendsSequentialReadsSuite(t *testing.T) {
 	rapidAppendsSuite := new(RapidAppendsSuite)
+	rapidAppendsSuite.readFileFunc = readFileSequentially
+	suite.Run(t, rapidAppendsSuite)
+}
+
+func TestRapidAppendsRandomReadsSuite(t *testing.T) {
+	rapidAppendsSuite := new(RapidAppendsSuite)
+	rapidAppendsSuite.readFileFunc = readFileRandomly
 	suite.Run(t, rapidAppendsSuite)
 }
