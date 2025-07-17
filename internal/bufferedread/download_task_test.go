@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"sync"
 	"testing"
 	"time"
 
@@ -230,4 +231,61 @@ func (dts *DownloadTaskTestSuite) TestExecuteContextCancelledWhileReadingFromRea
 	status, err := downloadBlock.AwaitReady(ctx)
 	assert.Equal(dts.T(), block.BlockStatus{State: block.BlockStateDownloadCancelled}, status)
 	assert.NoError(dts.T(), err)
+}
+
+// blockingReader is a mock reader that blocks in Read until its context is
+// cancelled. This helps simulate a slow, in-progress download.
+type blockingReader struct {
+	ctx context.Context
+}
+
+func (r *blockingReader) Read(p []byte) (n int, err error) {
+	// This will block until the context is canceled.
+	<-r.ctx.Done()
+	return 0, r.ctx.Err()
+}
+
+func (r *blockingReader) Close() error {
+	return nil
+}
+
+func (dts *DownloadTaskTestSuite) TestDownloadTaskCancelMethod() {
+	downloadBlock, err := dts.blockPool.Get()
+	require.Nil(dts.T(), err)
+	err = downloadBlock.SetAbsStartOff(0)
+	require.Nil(dts.T(), err)
+
+	// NewDownloadTask creates its own internal context that we can cancel via task.Cancel().
+	task := NewDownloadTask(context.Background(), dts.object, dts.mockBucket, downloadBlock, nil)
+	readObjectRequest := &gcs.ReadObjectRequest{
+		Name:       dts.object.Name,
+		Generation: dts.object.Generation,
+		Range: &gcs.ByteRange{
+			Start: uint64(0),
+			Limit: uint64(testBlockSize),
+		},
+	}
+
+	rc := &fake.FakeReader{ReadCloser: &blockingReader{ctx: task.ctx}}
+	readStarted := make(chan struct{})
+	dts.mockBucket.On("NewReaderWithReadHandle", task.ctx, readObjectRequest).Return(rc, nil).Run(func(args mock.Arguments) {
+		close(readStarted)
+	}).Once()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		task.Execute()
+	}()
+
+	<-readStarted
+	task.Cancel()
+	wg.Wait()
+
+	status, err := downloadBlock.AwaitReady(context.Background())
+	assert.NoError(dts.T(), err, "AwaitReady should not return an error")
+	assert.Equal(dts.T(), block.BlockStateDownloadCancelled, status.State, "Block state should be cancelled")
+	assert.NoError(dts.T(), status.Err, "Status error should be nil for cancellation")
+	dts.mockBucket.AssertExpectations(dts.T())
 }
