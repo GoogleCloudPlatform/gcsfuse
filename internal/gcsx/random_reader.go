@@ -30,7 +30,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/jacobsa/fuse/fuseops"
 	"golang.org/x/net/context"
 )
@@ -380,6 +379,7 @@ func (rr *randomReader) ReadAt(
 	}
 
 	readerType := readerType(rr.readType, offset, end, rr.bucket.BucketType())
+	logger.Infof("ReaderType is %v", readerType)
 	if readerType == RangeReader {
 		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, rr.readType)
 		return
@@ -464,31 +464,31 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 	// Begin the read.
 	ctx, cancel := context.WithCancel(context.Background())
 
-	if rr.config != nil && rr.config.InactiveStreamTimeout > 0 {
-		rr.reader, err = NewInactiveTimeoutReader(
-			ctx,
-			rr.bucket,
-			rr.object,
-			rr.readHandle,
-			gcs.ByteRange{
+	//if rr.config != nil && rr.config.InactiveStreamTimeout > 0 {
+	//	rr.reader, err = NewInactiveTimeoutReader(
+	//		ctx,
+	//		rr.bucket,
+	//		rr.object,
+	//		rr.readHandle,
+	//		gcs.ByteRange{
+	//			Start: uint64(start),
+	//			Limit: uint64(end),
+	//		},
+	//		rr.config.InactiveStreamTimeout)
+	//} else {
+	rr.reader, err = rr.bucket.NewReaderWithReadHandle(
+		ctx,
+		&gcs.ReadObjectRequest{
+			Name:       rr.object.Name,
+			Generation: rr.object.Generation,
+			Range: &gcs.ByteRange{
 				Start: uint64(start),
 				Limit: uint64(end),
 			},
-			rr.config.InactiveStreamTimeout)
-	} else {
-		rr.reader, err = rr.bucket.NewReaderWithReadHandle(
-			ctx,
-			&gcs.ReadObjectRequest{
-				Name:       rr.object.Name,
-				Generation: rr.object.Generation,
-				Range: &gcs.ByteRange{
-					Start: uint64(start),
-					Limit: uint64(end),
-				},
-				ReadCompressed: rr.object.HasContentEncodingGzip(),
-				ReadHandle:     rr.readHandle,
-			})
-	}
+			ReadCompressed: rr.object.HasContentEncodingGzip(),
+			ReadHandle:     rr.readHandle,
+		})
+	//}
 
 	// If a file handle is open locally, but the corresponding object doesn't exist
 	// in GCS, it indicates a file clobbering scenario. This likely occurred because:
@@ -591,7 +591,7 @@ func readerType(readType string, start int64, end int64, bucketType gcs.BucketTy
 func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType string) (n int, err error) {
 	// If we don't have a reader, start a read operation.
 	if rr.reader == nil {
-		logger.Infof("reader was nil, recreating")
+		logger.Infof("reader was nil, recreating for offset %d, end %d", offset, end)
 		err = rr.startRead(offset, end)
 		if err != nil {
 			err = fmt.Errorf("startRead: %w", err)
@@ -601,10 +601,6 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 
 	// Now we have a reader positioned at the correct place. Consume as much from
 	// it as possible.
-	if rr.limit-rr.start == int64(rr.sequentialReadSizeMb)*util.MiB {
-		logger.Infof("sleeping for limit %d", rr.limit)
-		time.Sleep(500 * time.Millisecond)
-	}
 	n, err = rr.readFull(ctx, p)
 	if err != nil {
 		logger.Infof("rr.readfull returned n = %d  err = %v len(p) = %d", n, err, len(p))
