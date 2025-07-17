@@ -592,7 +592,9 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 	// If we don't have a reader, start a read operation.
 	if rr.reader == nil {
 		logger.Infof("reader was nil, recreating for offset %d, end %d", offset, end)
+		time.Sleep(100 * time.Millisecond)
 		err = rr.startRead(offset, end)
+		time.Sleep(100 * time.Millisecond)
 		if err != nil {
 			err = fmt.Errorf("startRead: %w", err)
 			return
