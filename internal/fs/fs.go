@@ -2213,7 +2213,7 @@ func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, oldO
 	if err != nil {
 		return fmt.Errorf("flushPendingWrites: %w", err)
 	}
-	if (oldObject.Bucket().BucketType().Hierarchical && fs.enableAtomicRenameObject) || oldObject.Bucket().BucketType().Zonal {
+	if fs.enableAtomicRenameObject || oldObject.Bucket().BucketType().Zonal {
 		return fs.renameHierarchicalFile(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
 	}
 	return fs.renameNonHierarchicalFile(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
