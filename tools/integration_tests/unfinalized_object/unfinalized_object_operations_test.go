@@ -55,8 +55,8 @@ func (t *unfinalizedObjectOperations) TeardownTest() {}
 ////////////////////////////////////////////////////////////////////////
 
 func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCreatedOutsideOfMountReports0Size() {
-	var size int64 = operations.MiB
-	writer := client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, t.fileName), size)
+	size := operations.MiB
+	writer := client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, t.fileName), setup.GenerateRandomString(size))
 
 	statRes, err := operations.StatFile(path.Join(t.testDirPath, t.fileName))
 
@@ -96,8 +96,8 @@ func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCreatedFromSameMountR
 func (t *unfinalizedObjectOperations) TestOverWritingUnfinalizedObjectsReturnsESTALE() {
 	// TODO(b/411333280): Enable the test once flush on unfinalized Object is fixed.
 	t.T().Skip("Skipping the test due to b/411333280")
-	var size int64 = operations.MiB
-	_ = client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, t.fileName), size)
+	size := operations.MiB
+	_ = client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, t.fileName), setup.GenerateRandomString(size))
 	fh := operations.OpenFile(path.Join(t.testDirPath, t.fileName), t.T())
 
 	// Overwrite unfinalized object.
@@ -127,8 +127,8 @@ func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCanBeRenamedIfCreated
 }
 
 func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCantBeRenamedIfCreatedFromDifferentMount() {
-	var size int64 = operations.MiB
-	_ = client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, t.fileName), size)
+	size := operations.MiB
+	_ = client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, t.fileName), setup.GenerateRandomString(size))
 
 	// Overwrite unfinalized object.
 	err := operations.RenameFile(path.Join(t.testDirPath, t.fileName), path.Join(t.testDirPath, "New"+t.fileName))

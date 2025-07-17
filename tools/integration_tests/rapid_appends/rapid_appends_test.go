@@ -21,7 +21,7 @@ import (
 	"syscall"
 	"testing"
 
-	. "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
@@ -29,12 +29,14 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+// Number of appends to perform on test file.
 const numAppends = 3
 
 // //////////////////////////////////////////////////////////////////////
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
 
+// TODO: Split the suite in two suites single mount and multi-mount.
 type RapidAppendsSuite struct {
 	suite.Suite
 	fileName    string
@@ -62,13 +64,10 @@ func (t *RapidAppendsSuite) TearDownSuite() {
 }
 
 func (t *RapidAppendsSuite) SetupTest() {
-	t.fileName = FileName1 + setup.GenerateRandomString(5)
+	t.fileName = client.FileName1 + setup.GenerateRandomString(5)
 	// Create unfinalized object.
-	_ = CreateUnfinalizedObject(ctx, t.T(), storageClient, path.Join(testDirName, t.fileName), SizeOfFileContents)
-	initialContent, err := operations.ReadFile(path.Join(primaryMntTestDirPath, t.fileName))
-	require.NoError(t.T(), err)
-	assert.Equal(t.T(), SizeOfFileContents, len(initialContent))
-	t.fileContent = string(initialContent)
+	t.fileContent = setup.GenerateRandomString(client.SizeOfFileContents)
+	_ = client.CreateUnfinalizedObject(ctx, t.T(), storageClient, path.Join(testDirName, t.fileName), t.fileContent)
 }
 
 func (t *RapidAppendsSuite) TearDownTest() {
@@ -96,8 +95,8 @@ func (t *RapidAppendsSuite) TestAppendsAndSequentialReadFromSameMount() {
 	}()
 	expectedContent := t.fileContent
 	for range numAppends {
-		t.appendToFile(appendFileHandle, FileContents)
-		expectedContent += FileContents
+		t.appendToFile(appendFileHandle, client.FileContents)
+		expectedContent += client.FileContents
 
 		// Read content of file from same mount.
 		gotContent, err := operations.ReadFile(path.Join(primaryMntTestDirPath, t.fileName))
@@ -115,8 +114,8 @@ func (t *RapidAppendsSuite) TestAppendsAndSequentialReadFromDifferentMount() {
 	}()
 	expectedContent := t.fileContent
 	for range numAppends {
-		t.appendToFile(appendFileHandle, FileContents)
-		expectedContent += FileContents
+		t.appendToFile(appendFileHandle, client.FileContents)
+		expectedContent += client.FileContents
 		operations.SyncFile(appendFileHandle, t.T())
 
 		// Read content of file from differnt mount.
