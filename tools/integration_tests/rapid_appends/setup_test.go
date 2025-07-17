@@ -97,8 +97,6 @@ func flagsFromScenario(scenario scenarioConfig, rapidAppendsCacheDir string) []s
 	}
 	if scenario.enableFileCache {
 		flags = append(flags, fileCacheMaxSizeFlag, cacheDirFlagPrefix+rapidAppendsCacheDir)
-	} else {
-		flags = append(flags)
 	}
 	return flags
 }
