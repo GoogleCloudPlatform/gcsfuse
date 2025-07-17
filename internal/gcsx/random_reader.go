@@ -602,7 +602,7 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 	// it as possible.
 	if rr.limit-rr.start == int64(rr.sequentialReadSizeMb)*util.MiB {
 		logger.Infof("sleeping for limit %d", rr.limit)
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(200 * time.Millisecond)
 	}
 	n, err = rr.readFull(ctx, p)
 	rr.start += int64(n)
@@ -636,7 +636,7 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 		// if the reader peters out early. That's fine, but it means we should
 		// have hit the limit above.
 		if rr.reader != nil {
-			err = fmt.Errorf("random reader returned early by skipping %d bytes", rr.limit-rr.start)
+			err = fmt.Errorf("random reader returned early by skipping %d bytes at offset %d and limit %d", rr.limit-rr.start, rr.start, rr.limit)
 			return
 		}
 
