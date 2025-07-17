@@ -30,6 +30,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/jacobsa/fuse/fuseops"
 	"golang.org/x/net/context"
 )
@@ -599,6 +600,10 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 
 	// Now we have a reader positioned at the correct place. Consume as much from
 	// it as possible.
+	if rr.limit-rr.start == int64(rr.sequentialReadSizeMb)*util.MiB {
+		logger.Infof("sleeping for limit %d", rr.limit)
+		time.Sleep(100 * time.Millisecond)
+	}
 	n, err = rr.readFull(ctx, p)
 	rr.start += int64(n)
 	rr.totalReadBytes += uint64(n)
