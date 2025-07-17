@@ -20,6 +20,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -76,6 +77,10 @@ func registerTerminatingSignalHandler(mountPoint string, c *cfg.Config) {
 
 			err := fuse.Unmount(mountPoint)
 			if err != nil {
+				if errors.Is(err, fuse.ErrExternallyManagedMountPoint) {
+					logger.Infof("Mount point %s is externally managed; gcsfuse will not unmount it.", mountPoint)
+					return
+				}
 				logger.Errorf("Failed to unmount in response to %s: %v", sigName, err)
 			} else {
 				logger.Infof("Successfully unmounted in response to %s.", sigName)
