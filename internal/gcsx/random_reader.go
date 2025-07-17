@@ -341,6 +341,7 @@ func (rr *randomReader) ReadAt(
 	// For parallel sequential reads to a single file, not throwing away the connections
 	// is a 15-20x improvement in throughput: 150-200 MiB/s instead of 10 MiB/s.
 	if rr.reader != nil && rr.start < offset && offset-rr.start < maxReadSize {
+		logger.Infof("discarding bytes")
 		bytesToSkip := offset - rr.start
 		discardedBytes, copyError := io.CopyN(io.Discard, rr.reader, bytesToSkip)
 		// io.EOF is expected if the reader is shorter than the requested offset to read.
@@ -355,13 +356,16 @@ func (rr *randomReader) ReadAt(
 	// We will also clean up the existing reader if it can't serve the entire request.
 	dataToRead := math.Min(float64(offset+int64(len(p))), float64(rr.object.Size))
 	if rr.reader != nil && (rr.start != offset || int64(dataToRead) > rr.limit) {
+		logger.Infof("destroying reader")
 		rr.closeReader()
 		rr.reader = nil
 		rr.cancel = nil
 	}
 
 	if rr.reader != nil {
+		logger.Infof("reading from existing reader")
 		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, -1, rr.readType)
+		logger.Infof("reading from existing reader completed with err: %v", err)
 		return
 	}
 
@@ -369,10 +373,12 @@ func (rr *randomReader) ReadAt(
 	// If current offset is not same as expected offset, its a random read.
 	if rr.expectedOffset != 0 && rr.expectedOffset != offset {
 		rr.seeks++
+		logger.Infof("updated seeks to %d", rr.seeks)
 	}
 
 	// If we don't have a reader, determine whether to read from NewReader or MRR.
 	end, err := rr.getReadInfo(offset, int64(len(p)))
+	logger.Infof("got read info: end: %d, err: %v", end, err)
 	if err != nil {
 		err = fmt.Errorf("ReadAt: getReaderInfo: %w", err)
 		return
@@ -380,10 +386,12 @@ func (rr *randomReader) ReadAt(
 
 	readerType := readerType(rr.readType, offset, end, rr.bucket.BucketType())
 	if readerType == RangeReader {
+		logger.Infof("reading from range reader")
 		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, rr.readType)
 		return
 	}
 
+	logger.Infof("reading from multi range reader")
 	objectData.Size, err = rr.readFromMultiRangeReader(ctx, p, offset, end, TimeoutForMultiRangeRead)
 	return
 }
@@ -590,7 +598,9 @@ func readerType(readType string, start int64, end int64, bucketType gcs.BucketTy
 func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType string) (n int, err error) {
 	// If we don't have a reader, start a read operation.
 	if rr.reader == nil {
+		logger.Infof("range reader in nil")
 		err = rr.startRead(offset, end)
+		logger.Infof("range reader initialized")
 		if err != nil {
 			err = fmt.Errorf("startRead: %w", err)
 			return
@@ -599,13 +609,16 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 
 	// Now we have a reader positioned at the correct place. Consume as much from
 	// it as possible.
+	time.Sleep(100 * time.Millisecond)
 	n, err = rr.readFull(ctx, p)
+	logger.Infof("range reader read %d bytes and returned err %v", n, err)
 	rr.start += int64(n)
 	rr.totalReadBytes += uint64(n)
 
 	// Sanity check.
 	if rr.start > rr.limit {
 		err = fmt.Errorf("Reader returned extra bytes: %d", rr.start-rr.limit)
+		logger.Infof("destroying reader because it returned extra bytes")
 
 		// Don't attempt to reuse the reader when it's behaving wackily.
 		rr.closeReader()
