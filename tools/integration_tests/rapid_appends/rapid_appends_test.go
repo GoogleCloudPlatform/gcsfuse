@@ -50,18 +50,22 @@ type RapidAppendsSuite struct {
 // //////////////////////////////////////////////////////////////////////
 
 func (t *RapidAppendsSuite) SetupSuite() {
+	// Create secondary mount.
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	secondaryMount.testDirPath = setup.SetupTestDirectory(testDirName)
 }
 
 func (t *RapidAppendsSuite) TearDownSuite() {
+	// Undo secondary mount.
 	setup.UnmountGCSFuse(secondaryMount.rootDir)
+	// Clean up.
 	if t.T().Failed() {
-		log.Println("Secondary mount log file:")
+		setup.SetLogFile(secondaryMount.logFilePath)
+		log.Printf("Saving secondary mount log file ...")
 		setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
 
-		log.Println("Primary mount log file:")
 		setup.SetLogFile(primaryMount.logFilePath)
+		log.Println("Saving primary mount log file ...")
 		setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
 	}
 }
