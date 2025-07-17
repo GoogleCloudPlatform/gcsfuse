@@ -188,6 +188,7 @@
     - "ListObjects"
     - "MoveObject"
     - "MultiRangeDownloader::Add"
+    - "NewMultiRangeDownloader"
     - "NewReader"
     - "RenameFolder"
     - "StatObject"
