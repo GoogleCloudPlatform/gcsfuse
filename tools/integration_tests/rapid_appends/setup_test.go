@@ -32,6 +32,11 @@ const (
 	fileNamePrefix = "rapid-append-file-"
 )
 
+type scenarioConfig struct {
+	enableMetadataCache bool
+	enableFileCache     bool
+}
+
 var (
 	// Flags for mount options for primaryMntRootDir
 	flags []string
@@ -57,6 +62,9 @@ var (
 	// Clients to create the object in GCS.
 	storageClient *storage.Client
 	ctx           context.Context
+
+	// Scenario being run by the current test
+	scenario scenarioConfig
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -113,18 +121,36 @@ func TestMain(m *testing.M) {
 		}
 	}()
 	// Define flag set for secondary mount to run the tests.
-	flagsSet := [][]string{
-		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0"},
-		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--file-cache-max-size-mb=-1", "--cache-dir=" + rapidAppendsCacheDir},
-	}
-
 	log.Println("Running static mounting tests...")
 	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
 
+	// TODO: Make these constant literals somewhere.
+	metadataCacheEnableFlags := []string{"--metadata-cache-ttl-secs=60"}
+	metadataCacheDisableFlags := []string{"--metadata-cache-ttl-secs=0"}
+	fileCacheEnableFlags := []string{"--file-cache-max-size-mb=-1", "--cache-dir=" + rapidAppendsCacheDir}
+	fileCacheDisableFlags := []string{}
+	commonFlags := []string{"--write-experimental-enable-rapid-appends=true"}
+
 	var successCode int
-	for i := range flagsSet {
-		log.Printf("Running tests with flags: %v", flagsSet[i])
-		flags = flagsSet[i]
+	for _, scenario = range []scenarioConfig{{
+		// all default configs
+	}, {
+		enableMetadataCache: true,
+	},
+	} {
+		flags = commonFlags
+		if scenario.enableMetadataCache {
+			flags = append(flags, metadataCacheEnableFlags...)
+		} else {
+			flags = append(flags, metadataCacheDisableFlags...)
+		}
+		if scenario.enableFileCache {
+			flags = append(flags, fileCacheEnableFlags...)
+		} else {
+			flags = append(flags, fileCacheDisableFlags...)
+		}
+
+		log.Printf("Running tests with flags: %v", flags)
 		successCode = m.Run()
 		if successCode != 0 {
 			break

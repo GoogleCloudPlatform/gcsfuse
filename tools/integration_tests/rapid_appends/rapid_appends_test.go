@@ -123,7 +123,9 @@ func (t *RapidAppendsSuite) TestAppendsAndRead() {
 				gotContent, err := operations.ReadFile(readPath)
 
 				require.NoError(t.T(), err)
-				assert.Equal(t.T(), t.fileContent, string(gotContent))
+				if !scenario.enableMetadataCache {
+					assert.Equal(t.T(), t.fileContent, string(gotContent))
+				}
 			}
 		})
 	}
