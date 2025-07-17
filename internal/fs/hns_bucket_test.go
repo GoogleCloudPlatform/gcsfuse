@@ -38,7 +38,7 @@ import (
 
 type HNSBucketTests struct {
 	fsTest
-	HNSBucketCommonTest
+	RenameFileTests
 }
 
 type dirEntry struct {

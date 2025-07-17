@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type HNSBucketCommonTest struct {
+type RenameFileTests struct {
 	suite.Suite
 }
 
@@ -32,7 +32,7 @@ type HNSBucketCommonTest struct {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *HNSBucketCommonTest) TestRenameFileWithSrcFileDoesNotExist() {
+func (t *RenameFileTests) TestRenameFileWithSrcFileDoesNotExist() {
 	oldFilePath := path.Join(mntDir, "file")
 	newFilePath := path.Join(mntDir, "file_rename")
 
@@ -45,7 +45,7 @@ func (t *HNSBucketCommonTest) TestRenameFileWithSrcFileDoesNotExist() {
 	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
 }
 
-func (t *HNSBucketCommonTest) TestRenameFileWithDstDestFileExist() {
+func (t *RenameFileTests) TestRenameFileWithDstDestFileExist() {
 	oldFilePath := path.Join(mntDir, "foo", "file1.txt")
 	_, err := os.Stat(oldFilePath)
 	assert.NoError(t.T(), err)
@@ -64,7 +64,7 @@ func (t *HNSBucketCommonTest) TestRenameFileWithDstDestFileExist() {
 	assert.Equal(t.T(), file1Content, string(content))
 }
 
-func (t *HNSBucketCommonTest) TestRenameFile() {
+func (t *RenameFileTests) TestRenameFile() {
 	testCases := []struct {
 		name        string
 		oldFilePath string
