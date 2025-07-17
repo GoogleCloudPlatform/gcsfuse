@@ -602,7 +602,7 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 	// it as possible.
 	if rr.limit-rr.start == int64(rr.sequentialReadSizeMb)*util.MiB {
 		logger.Infof("sleeping for limit %d", rr.limit)
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 	}
 	n, err = rr.readFull(ctx, p)
 	rr.start += int64(n)
