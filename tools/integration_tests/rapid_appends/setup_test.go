@@ -42,27 +42,22 @@ type scenarioConfig struct {
 	enableFileCache     bool
 }
 
+// Struct to store the details of a mount point
+type mountPoint struct {
+	rootDir     string
+	testDirPath string
+	logFilePath string
+}
+
 var (
-	// Flags for mount options for primaryMntRootDir
+	// Flags for mount options for primary mount.
 	flags []string
 	// Mount function to be used for the mounting.
 	mountFunc func([]string) error
 
-	// Globals for primary mount which is used to append content to files.
-	// Other Root directory which is mounted by gcsfuse for multi-mount scenarios.
-	primaryMntRootDir string
-	// Stores test directory path in the mounted path for primaryMntRootDir.
-	primaryMntTestDirPath string
-	// Stores log file path for the mount primaryMntRootDir.
-	primaryMntLogFilePath string
-
-	// Globals for secondary mount which is used to verify reads on existing unfinalized objects.
-	// Root directory which is mounted by gcsfuse.
-	secondaryMntRootDir string
-	// Stores test directory path in the mounted path for secondaryMntRootDir.
-	secondaryMntTestDirPath string
-	// Stores log file path for the mount secondaryMntRootDir.
-	secondaryMntLogFilePath string
+	// Structs for primary and secondary mounts to store their details
+	primaryMount   mountPoint
+	secondaryMount mountPoint
 
 	// Clients to create the object in GCS.
 	storageClient *storage.Client
@@ -140,8 +135,8 @@ func TestMain(m *testing.M) {
 
 	// Set up test directory for primary mount.
 	setup.SetUpTestDirForTestBucketFlag()
-	primaryMntRootDir = setup.MntDir()
-	primaryMntLogFilePath = setup.LogFile()
+	primaryMount.rootDir = setup.MntDir()
+	primaryMount.logFilePath = setup.LogFile()
 	// TODO(b/432179045): `--write-global-max-blocks=-1` is needed right now because of a bug in global semaphore release.
 	// Remove this flag once bug is fixed.
 	primaryMountFlags := []string{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-global-max-blocks=-1"}
@@ -150,13 +145,13 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Unable to mount primary mount: %v", err)
 	}
 	// Setup Package Test Directory for primary mount.
-	primaryMntTestDirPath = setup.SetupTestDirectory(testDirName)
-	defer setup.UnmountGCSFuse(primaryMntRootDir)
+	primaryMount.testDirPath = setup.SetupTestDirectory(testDirName)
+	defer setup.UnmountGCSFuse(primaryMount.rootDir)
 
 	// Set up test directory for secondary mount.
 	setup.SetUpTestDirForTestBucketFlag()
-	secondaryMntRootDir = setup.MntDir()
-	secondaryMntLogFilePath = setup.LogFile()
+	secondaryMount.rootDir = setup.MntDir()
+	secondaryMount.logFilePath = setup.LogFile()
 
 	log.Println("Running static mounting tests...")
 	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
