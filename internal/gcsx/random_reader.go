@@ -605,6 +605,7 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 		time.Sleep(500 * time.Millisecond)
 	}
 	n, err = rr.readFull(ctx, p)
+	logger.Infof("rr.readfull returned n = %d  err = %v len(p) = %d", n, err, len(p))
 	rr.start += int64(n)
 	rr.totalReadBytes += uint64(n)
 
