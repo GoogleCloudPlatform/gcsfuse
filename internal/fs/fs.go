@@ -2214,9 +2214,9 @@ func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, oldO
 		return fmt.Errorf("flushPendingWrites: %w", err)
 	}
 	if fs.enableAtomicRenameObject || oldObject.Bucket().BucketType().Zonal {
-		return fs.renameHierarchicalFile(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
+		return fs.atomicRename(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
 	}
-	return fs.renameNonHierarchicalFile(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
+	return fs.nonAtomicRename(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
 }
 
 // LOCKS_EXCLUDED(fileInode)
@@ -2237,7 +2237,7 @@ func (fs *fileSystem) flushPendingWrites(ctx context.Context, fileInode *inode.F
 
 // LOCKS_EXCLUDED(oldParent)
 // LOCKS_EXCLUDED(newParent)
-func (fs *fileSystem) renameHierarchicalFile(ctx context.Context, oldParent inode.DirInode, oldName string, oldObject *gcs.MinObject, newParent inode.DirInode, newName string) error {
+func (fs *fileSystem) atomicRename(ctx context.Context, oldParent inode.DirInode, oldName string, oldObject *gcs.MinObject, newParent inode.DirInode, newName string) error {
 	oldParent.Lock()
 	defer oldParent.Unlock()
 
@@ -2253,7 +2253,7 @@ func (fs *fileSystem) renameHierarchicalFile(ctx context.Context, oldParent inod
 	}
 
 	if err := fs.invalidateChildFileCacheIfExist(oldParent, oldName); err != nil {
-		return fmt.Errorf("renameHierarchicalFile: while invalidating cache for delete file: %w", err)
+		return fmt.Errorf("atomicRename: while invalidating cache for delete file: %w", err)
 	}
 
 	// Insert new file in type cache.
@@ -2264,7 +2264,7 @@ func (fs *fileSystem) renameHierarchicalFile(ctx context.Context, oldParent inod
 
 // LOCKS_EXCLUDED(oldParent)
 // LOCKS_EXCLUDED(newParent)
-func (fs *fileSystem) renameNonHierarchicalFile(
+func (fs *fileSystem) nonAtomicRename(
 	ctx context.Context,
 	oldParent inode.DirInode,
 	oldName string,
@@ -2291,7 +2291,7 @@ func (fs *fileSystem) renameNonHierarchicalFile(
 		&oldObject.MetaGeneration)
 
 	if err := fs.invalidateChildFileCacheIfExist(oldParent, oldObject.Name); err != nil {
-		return fmt.Errorf("renameNonHierarchicalFile: while invalidating cache for delete file: %w", err)
+		return fmt.Errorf("nonAtomicRename: while invalidating cache for delete file: %w", err)
 	}
 
 	oldParent.Unlock()
