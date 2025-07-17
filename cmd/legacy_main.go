@@ -80,9 +80,8 @@ func registerTerminatingSignalHandler(mountPoint string, c *cfg.Config) {
 				if errors.Is(err, fuse.ErrExternallyManagedMountPoint) {
 					logger.Infof("Mount point %s is externally managed; gcsfuse will not unmount it.", mountPoint)
 					return
-				} else {
-					logger.Errorf("Failed to unmount in response to %s: %v", sigName, err)
 				}
+				logger.Errorf("Failed to unmount in response to %s: %v", sigName, err)
 			} else {
 				logger.Infof("Successfully unmounted in response to %s.", sigName)
 				return
