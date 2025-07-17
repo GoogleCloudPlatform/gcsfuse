@@ -185,7 +185,16 @@ type randomReader struct {
 	// expectedOffset int64
 	expectedOffset atomic.Int64
 
-	mu sync.Mutex
+	mu          sync.Mutex
+	filecacheMu sync.Mutex
+
+	callsServedFromRangeReader atomic.Int64
+	callsServedFromMRD         atomic.Int64
+}
+
+type readInfo struct {
+	readType       int64
+	expectedOffset int64
 }
 
 func (rr *randomReader) CheckInvariants() {
@@ -263,7 +272,11 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 
 	// Create fileCacheHandle if not already.
 	if rr.fileCacheHandle == nil {
-		rr.fileCacheHandle, err = rr.fileCacheHandler.GetCacheHandle(rr.object, rr.bucket, rr.cacheFileForRangeRead, offset)
+		rr.filecacheMu.Lock()
+		if rr.fileCacheHandle == nil {
+			rr.fileCacheHandle, err = rr.fileCacheHandler.GetCacheHandle(rr.object, rr.bucket, rr.cacheFileForRangeRead, offset)
+		}
+		rr.filecacheMu.Unlock()
 		if err != nil {
 			// We fall back to GCS if file size is greater than the cache size
 			if errors.Is(err, lru.ErrInvalidEntrySize) {
@@ -338,61 +351,74 @@ func (rr *randomReader) ReadAt(
 		return
 	}
 
-	readType, averageReadBytes := rr.getReadInfo(offset)
-	readerType := readerType(readType, rr.bucket.BucketType())
+	info := rr.getReadInfo(offset)
+	readerType := readerType(info.readType, rr.bucket.BucketType())
 
 	if readerType == common.ReadTypeSequential {
 		rr.mu.Lock()
-		defer rr.mu.Unlock()
-
-		// Check first if we can read using existing reader. if not, determine which
-		// api to use and call gcs accordingly.
-
-		// When the offset is AFTER the reader position, try to seek forward, within reason.
-		// This happens when the kernel page cache serves some data. It's very common for
-		// concurrent reads, often by only a few 128kB fuse read requests. The aim is to
-		// re-use GCS connection and avoid throwing away already read data.
-		// For parallel sequential reads to a single file, not throwing away the connections
-		// is a 15-20x improvement in throughput: 150-200 MiB/s instead of 10 MiB/s.
-		if rr.reader != nil && rr.start < offset && offset-rr.start < maxReadSize {
-			bytesToSkip := offset - rr.start
-			discardedBytes, copyError := io.CopyN(io.Discard, rr.reader, bytesToSkip)
-			// io.EOF is expected if the reader is shorter than the requested offset to read.
-			if copyError != nil && !errors.Is(copyError, io.EOF) {
-				logger.Warnf("Error while skipping reader bytes: %v", copyError)
+		expOffset := rr.expectedOffset.Load()
+		if info.expectedOffset != expOffset {
+			// check the values again as last read has changed the values
+			info = rr.getReadInfo(offset)
+			if info.readType == common.ReadTypeRandom {
+				rr.mu.Unlock()
 			}
-			rr.start += discardedBytes
 		}
+		if info.readType == common.ReadTypeSequential {
+			defer rr.mu.Unlock()
+			rr.callsServedFromRangeReader.Add(1)
 
-		// If we have an existing reader, but it's positioned at the wrong place,
-		// clean it up and throw it away.
-		// We will also clean up the existing reader if it can't serve the entire request.
-		dataToRead := math.Min(float64(offset+int64(len(p))), float64(rr.object.Size))
-		if rr.reader != nil && (rr.start != offset || int64(dataToRead) > rr.limit) {
-			rr.closeReader()
-			rr.reader = nil
-			rr.cancel = nil
-		}
+			// Check first if we can read using existing reader. if not, determine which
+			// api to use and call gcs accordingly.
 
-		if rr.reader != nil {
-			objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, -1, readType)
+			// When the offset is AFTER the reader position, try to seek forward, within reason.
+			// This happens when the kernel page cache serves some data. It's very common for
+			// concurrent reads, often by only a few 128kB fuse read requests. The aim is to
+			// re-use GCS connection and avoid throwing away already read data.
+			// For parallel sequential reads to a single file, not throwing away the connections
+			// is a 15-20x improvement in throughput: 150-200 MiB/s instead of 10 MiB/s.
+			if rr.reader != nil && rr.start < offset && offset-rr.start < maxReadSize {
+				bytesToSkip := offset - rr.start
+				discardedBytes, copyError := io.CopyN(io.Discard, rr.reader, bytesToSkip)
+				// io.EOF is expected if the reader is shorter than the requested offset to read.
+				if copyError != nil && !errors.Is(copyError, io.EOF) {
+					logger.Warnf("Error while skipping reader bytes: %v", copyError)
+				}
+				rr.start += discardedBytes
+			}
+
+			// If we have an existing reader, but it's positioned at the wrong place,
+			// clean it up and throw it away.
+			// We will also clean up the existing reader if it can't serve the entire request.
+			dataToRead := math.Min(float64(offset+int64(len(p))), float64(rr.object.Size))
+			if rr.reader != nil && (rr.start != offset || int64(dataToRead) > rr.limit) {
+				rr.closeReader()
+				rr.reader = nil
+				rr.cancel = nil
+			}
+
+			if rr.reader != nil {
+				objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, -1, info.readType)
+				return
+			}
+
+			// reader does not exist and need to be created, get the end offset
+			var end int64
+			end, err = rr.getEndOffset(info.readType, offset, int64(len(p)))
+			if err != nil {
+				err = fmt.Errorf("ReadAt: getEndOffset: %w", err)
+				return
+			}
+			objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, info.readType)
 			return
 		}
-
-		// reader does not exist and need to be created, get the end offset
-		var end int64
-		end, err = rr.getEndOffset(readType, offset, int64(len(p)), averageReadBytes)
-		if err != nil {
-			err = fmt.Errorf("ReadAt: getEndOffset: %w", err)
-			return
-		}
-		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, readType)
-		return
-
-	} else {
+	}
+	if info.readType == common.ReadTypeRandom {
+		rr.callsServedFromMRD.Add(1)
 		objectData.Size, err = rr.readFromMultiRangeReader(ctx, p, offset, offset+int64(len(p)), TimeoutForMultiRangeRead)
 		return
 	}
+	return
 }
 
 func (rr *randomReader) Object() (o *gcs.MinObject) {
@@ -411,6 +437,9 @@ func (rr *randomReader) Destroy() {
 		}
 	}()
 
+	fmt.Printf("calls served from RangeReader: %d\n", rr.callsServedFromRangeReader.Load())
+	fmt.Printf("calls served from MRD: %d\n", rr.callsServedFromMRD.Load())
+	fmt.Printf("Numseeks is %d\n", rr.seeks.Load())
 	// Close out the reader, if we have one.
 	if rr.reader != nil {
 		rr.closeReader()
@@ -428,13 +457,14 @@ func (rr *randomReader) Destroy() {
 	}
 }
 
-func (rr *randomReader) getReadInfo(offset int64) (readType int64, averageReadBytes int64) {
-	readType = rr.readType.Load()
+func (rr *randomReader) getReadInfo(offset int64) readInfo {
+	readType := rr.readType.Load()
 	expOffset := rr.expectedOffset.Load()
 	numSeeks := rr.seeks.Load()
 
 	// Here, we will be different from existing algorithm in only one scenario
 	// When the read type is sequential but the reader has been closed (due to any reason)
+	// fmt.Printf("Expected Offset is %d; Offset is %d\n", expOffset, offset)
 	seqReadSeekNeeded := (readType == common.ReadTypeSequential) && (offset < expOffset || offset > expOffset+maxReadSize)
 
 	randomReadSeekNeeded := (readType == common.ReadTypeRandom) && (expOffset != offset)
@@ -449,15 +479,18 @@ func (rr *randomReader) getReadInfo(offset int64) (readType int64, averageReadBy
 	if numSeeks == 0 {
 		numSeeks = 1
 	}
-	averageReadBytes = int64(rr.totalReadBytes.Load() / numSeeks)
+	averageReadBytes := int64(rr.totalReadBytes.Load() / numSeeks)
 	if averageReadBytes >= maxReadSize {
 		readType = common.ReadTypeSequential
 	}
 	rr.readType.Store(readType)
-	return
+	return readInfo{
+		readType:       readType,
+		expectedOffset: expOffset,
+	}
 }
 
-func (rr *randomReader) getEndOffset(readType, start, size, averageReadBytes int64) (end int64, err error) {
+func (rr *randomReader) getEndOffset(readType, start, size int64) (end int64, err error) {
 	// Make sure start and size are legal.
 	if start < 0 || uint64(start) > rr.object.Size || size < 0 {
 		err = fmt.Errorf(
@@ -472,8 +505,11 @@ func (rr *randomReader) getEndOffset(readType, start, size, averageReadBytes int
 		return
 	}
 
+	totalReadBytes := rr.totalReadBytes.Load()
+	numSeeks := rr.seeks.Load()
 	end = int64(rr.object.Size)
-	if readType == common.ReadTypeRandom {
+	if numSeeks > minSeeksForRandom {
+		averageReadBytes := totalReadBytes / numSeeks
 		if averageReadBytes < maxReadSize {
 			randomReadSize := int64(((averageReadBytes / MiB) + 1) * MiB)
 			if randomReadSize < minReadSize {
