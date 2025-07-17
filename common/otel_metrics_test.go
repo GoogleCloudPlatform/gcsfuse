@@ -5507,6 +5507,15 @@ func TestGcsRequestCount(t *testing.T) {
 			},
 		},
 		{
+			name: "gcs_method_NewMultiRangeDownloader",
+			f: func(m *otelMetrics) {
+				m.GcsRequestCount(5, "NewMultiRangeDownloader")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("gcs_method", "NewMultiRangeDownloader")): 5,
+			},
+		},
+		{
 			name: "gcs_method_NewReader",
 			f: func(m *otelMetrics) {
 				m.GcsRequestCount(5, "NewReader")
@@ -5632,6 +5641,11 @@ func TestGcsRequestLatencies(t *testing.T) {
 			name:      "gcs_method_MultiRangeDownloader::Add",
 			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
 			gcsMethod: "MultiRangeDownloader::Add",
+		},
+		{
+			name:      "gcs_method_NewMultiRangeDownloader",
+			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
+			gcsMethod: "NewMultiRangeDownloader",
 		},
 		{
 			name:      "gcs_method_NewReader",

@@ -41,6 +41,7 @@ func logPanic() {
 //
 //go:generate go run -C tools/config-gen . --paramsFile=../../cfg/params.yaml --outDir=../../cfg --templateDir=templates
 //go:generate go run -C tools/metrics-gen . --input=../../common/metrics.yaml --output=../../common/otel_metrics.go
+//go:generate go run -C tools/metrics-test-gen . --input=../../common/metrics.yaml --output=../../common/otel_metrics_test.go
 func main() {
 	// Common configuration for all commands
 	defer logPanic()

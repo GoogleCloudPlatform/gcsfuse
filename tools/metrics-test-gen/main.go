@@ -3,6 +3,7 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -368,12 +369,11 @@ func cartesianProduct(lists [][]string) [][]string {
 }
 
 func main() {
-	if len(os.Args) != 2 {
-		log.Fatalf("Usage: %s <path/to/metrics.yaml>", os.Args[0])
-	}
-	yamlFile := os.Args[1]
+	inputFile := flag.String("input", "metrics.yaml", "Input YAML file")
+	outputFile := flag.String("output", "otel_metrics_test.go", "Output Go test file")
+	flag.Parse()
 
-	data, err := os.ReadFile(yamlFile)
+	data, err := os.ReadFile(*inputFile)
 	if err != nil {
 		log.Fatalf("ReadFile: %v", err)
 	}
@@ -499,9 +499,7 @@ func main() {
 
 	// This assumes the generator is in a sub-directory of the project root.
 	// Adjust if necessary.
-	outFile := "otel_metrics_test.go"
-	if err := os.WriteFile(outFile, generatedCode.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(*outputFile, generatedCode.Bytes(), 0644); err != nil {
 		log.Fatalf("writing to file: %v", err)
 	}
-	fmt.Printf("Successfully generated %s\n", outFile)
 }
