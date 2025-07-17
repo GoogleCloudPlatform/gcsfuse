@@ -59,6 +59,7 @@ func (t *RapidAppendsSuite) TearDownSuite() {
 	if t.T().Failed() {
 		log.Println("Secondary mount log file:")
 		setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
+
 		log.Println("Primary mount log file:")
 		setup.SetLogFile(primaryMount.logFilePath)
 		setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
