@@ -89,22 +89,16 @@ func scenariosToBeRun() []scenarioConfig {
 }
 
 func flagsFromScenario(scenario scenarioConfig, rapidAppendsCacheDir string) []string {
-	metadataCacheEnableFlags := []string{metadataCacheEnableFlag}
-	metadataCacheDisableFlags := []string{metadataCacheDisableFlag}
-	fileCacheEnableFlags := []string{fileCacheMaxSizeFlag, cacheDirFlagPrefix + rapidAppendsCacheDir}
-	fileCacheDisableFlags := []string{}
-	commonFlags := []string{writeRapidAppendsEnableFlag}
-
-	flags := commonFlags
+	flags := []string{writeRapidAppendsEnableFlag}
 	if scenario.enableMetadataCache {
-		flags = append(flags, metadataCacheEnableFlags...)
+		flags = append(flags, metadataCacheEnableFlag)
 	} else {
-		flags = append(flags, metadataCacheDisableFlags...)
+		flags = append(flags, metadataCacheDisableFlag)
 	}
 	if scenario.enableFileCache {
-		flags = append(flags, fileCacheEnableFlags...)
+		flags = append(flags, fileCacheMaxSizeFlag, cacheDirFlagPrefix+rapidAppendsCacheDir)
 	} else {
-		flags = append(flags, fileCacheDisableFlags...)
+		flags = append(flags)
 	}
 	return flags
 }
