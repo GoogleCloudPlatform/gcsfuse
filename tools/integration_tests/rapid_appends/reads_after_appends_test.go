@@ -1,0 +1,109 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package rapid_appends
+
+import (
+	"fmt"
+	"log"
+	"os"
+	"path"
+	"syscall"
+	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+////////////////////////////////////////////////////////////////////////
+// Tests
+////////////////////////////////////////////////////////////////////////
+
+func (t *RapidAppendsSuite) TestAppendsAndReads() {
+	testCases := []struct {
+		name string
+	}{
+		{
+			name: "SequentialRead",
+		},
+	}
+
+	for _, scenario := range []struct {
+		enableMetadataCache bool
+		enableFileCache     bool
+		flags               []string
+	}{{
+		// all cache disabled
+		enableMetadataCache: false,
+		enableFileCache:     false,
+		flags:               []string{writeRapidAppendsEnableFlag, infiniteWriteGlobalMaxBlocks, metadataCacheDisableFlag},
+	}, {
+		enableMetadataCache: true,
+		enableFileCache:     false,
+		flags:               []string{writeRapidAppendsEnableFlag, infiniteWriteGlobalMaxBlocks, fmt.Sprintf("%s%v", metadataCacheEnableFlagPrefix, metadataCacheTTLSecs)},
+	}, {
+		enableMetadataCache: true,
+		enableFileCache:     true,
+		flags:               []string{writeRapidAppendsEnableFlag, infiniteWriteGlobalMaxBlocks, fmt.Sprintf("%s%v", metadataCacheEnableFlagPrefix, metadataCacheTTLSecs), fileCacheMaxSizeFlag, cacheDirFlagPrefix + getNewEmptyCacheDir(t.primaryMount.rootDir)},
+	}, {
+		enableMetadataCache: false,
+		enableFileCache:     true,
+		flags:               []string{writeRapidAppendsEnableFlag, infiniteWriteGlobalMaxBlocks, metadataCacheDisableFlag, fileCacheMaxSizeFlag, cacheDirFlagPrefix + getNewEmptyCacheDir(t.primaryMount.rootDir)},
+	}} {
+		func() {
+			t.mountPrimaryMount(scenario.flags)
+			defer t.unmountPrimaryMount()
+
+			log.Printf("Running tests with flags: %v", scenario.flags)
+
+			for _, tc := range testCases {
+				t.Run(tc.name, func() {
+					// Initially create an unfinalized object.
+					t.createUnfinalizedObject()
+					defer t.deleteUnfinalizedObject()
+
+					// Open this object as a file for appending on the appropriate mount.
+					appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(t.appendMountPath, t.fileName), os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
+					defer operations.CloseFileShouldNotThrowError(t.T(), appendFileHandle)
+
+					readPath := path.Join(t.primaryMount.testDirPath, t.fileName)
+					for i := range numAppends {
+						sizeBeforeAppend := len(t.fileContent)
+						t.appendToFile(appendFileHandle, setup.GenerateRandomString(appendSize))
+						sizeAfterAppend := len(t.fileContent)
+
+						gotContent, err := operations.ReadFile(readPath)
+
+						require.NoError(t.T(), err)
+						readContent := string(gotContent)
+						if !scenario.enableMetadataCache || !t.isSyncNeededAfterAppend || (i == 0) {
+							assert.Equalf(t.T(), t.fileContent, readContent, "failed to match full content in non-metadata-cache/single-mount after %v appends", i+1)
+						} else {
+							assert.Equalf(t.T(), t.fileContent[:sizeBeforeAppend], readContent, "failed to match partial content in metadata-cache dual-mount after %v appends", i+1)
+
+							time.Sleep(time.Duration(metadataCacheTTLSecs) * time.Second) // Wait for metadata cache to get expired.
+							gotContent, err = operations.ReadFile(readPath)
+
+							require.NoError(t.T(), err)
+							readContent = string(gotContent)
+							assert.Equalf(t.T(), t.fileContent[:sizeAfterAppend], readContent, "failed to match full content in metadata-cache dual-mount after %v appends", i+1)
+						}
+					}
+				})
+			}
+		}()
+	}
+}
