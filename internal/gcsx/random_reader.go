@@ -464,31 +464,31 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 	// Begin the read.
 	ctx, cancel := context.WithCancel(context.Background())
 
-	//if rr.config != nil && rr.config.InactiveStreamTimeout > 0 {
-	//	rr.reader, err = NewInactiveTimeoutReader(
-	//		ctx,
-	//		rr.bucket,
-	//		rr.object,
-	//		rr.readHandle,
-	//		gcs.ByteRange{
-	//			Start: uint64(start),
-	//			Limit: uint64(end),
-	//		},
-	//		rr.config.InactiveStreamTimeout)
-	//} else {
-	rr.reader, err = rr.bucket.NewReaderWithReadHandle(
-		ctx,
-		&gcs.ReadObjectRequest{
-			Name:       rr.object.Name,
-			Generation: rr.object.Generation,
-			Range: &gcs.ByteRange{
+	if rr.config != nil && rr.config.InactiveStreamTimeout > 0 {
+		rr.reader, err = NewInactiveTimeoutReader(
+			ctx,
+			rr.bucket,
+			rr.object,
+			rr.readHandle,
+			gcs.ByteRange{
 				Start: uint64(start),
 				Limit: uint64(end),
 			},
-			ReadCompressed: rr.object.HasContentEncodingGzip(),
-			ReadHandle:     rr.readHandle,
-		})
-	//}
+			rr.config.InactiveStreamTimeout)
+		//} else {
+		rr.reader, err = rr.bucket.NewReaderWithReadHandle(
+			ctx,
+			&gcs.ReadObjectRequest{
+				Name:       rr.object.Name,
+				Generation: rr.object.Generation,
+				Range: &gcs.ByteRange{
+					Start: uint64(start),
+					Limit: uint64(end),
+				},
+				ReadCompressed: rr.object.HasContentEncodingGzip(),
+				ReadHandle:     rr.readHandle,
+			})
+	}
 
 	// If a file handle is open locally, but the corresponding object doesn't exist
 	// in GCS, it indicates a file clobbering scenario. This likely occurred because:
@@ -592,9 +592,7 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 	// If we don't have a reader, start a read operation.
 	if rr.reader == nil {
 		logger.Infof("reader was nil, recreating for offset %d, end %d", offset, end)
-		time.Sleep(100 * time.Millisecond)
 		err = rr.startRead(offset, end)
-		time.Sleep(100 * time.Millisecond)
 		if err != nil {
 			err = fmt.Errorf("startRead: %w", err)
 			return
