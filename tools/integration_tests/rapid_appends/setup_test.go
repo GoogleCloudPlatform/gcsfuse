@@ -153,25 +153,32 @@ func TestMain(m *testing.M) {
 	setup.SetUpTestDirForTestBucketFlag()
 	secondaryMntRootDir = setup.MntDir()
 	secondaryMntLogFilePath = setup.LogFile()
-	rapidAppendsCacheDir, err := os.MkdirTemp("", "rapid_appends_cache_dir_*")
-	if err != nil {
-		log.Fatalf("Failed to create cache dir for rapid append tests: %v", err)
-	}
-	defer func() {
-		err := os.RemoveAll(rapidAppendsCacheDir)
-		if err != nil {
-			log.Fatalf("Error while cleaning up cache dir %q: %v", rapidAppendsCacheDir, err)
-		}
-	}()
 	// Define flag set for secondary mount to run the tests.
 	log.Println("Running static mounting tests...")
 	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
 
 	var successCode int
 	for _, scenario = range scenariosToBeRun() {
-		flags = flagsFromScenario(scenario, rapidAppendsCacheDir)
-		log.Printf("Running tests with flags: %v", flags)
-		successCode = m.Run()
+		successCode = func() int {
+			// Create a cache-dir if needed.
+			var rapidAppendsCacheDir string
+			if scenario.enableFileCache {
+				rapidAppendsCacheDir, err = os.MkdirTemp("", "rapid_appends_cache_dir_*")
+				if err != nil {
+					log.Fatalf("Failed to create cache dir for rapid append tests: %v", err)
+				}
+				defer func() {
+					err := os.RemoveAll(rapidAppendsCacheDir)
+					if err != nil {
+						log.Fatalf("Error while cleaning up cache dir %q: %v", rapidAppendsCacheDir, err)
+					}
+				}()
+			}
+
+			flags = flagsFromScenario(scenario, rapidAppendsCacheDir)
+			log.Printf("Running tests with flags: %v", flags)
+			return m.Run()
+		}()
 		if successCode != 0 {
 			break
 		}
