@@ -58,13 +58,13 @@ type MetricHandle interface {
 }
 
 type histogramRecord struct {
-	ctx        context.Context
 	instrument metric.Int64Histogram
 	value      int64
 	attributes metric.RecordOption
 }
 
 type otelMetrics struct {
+	ctx context.Context
     ch chan histogramRecord
 	{{- range $metric := .Metrics}}
 		{{- if isCounter $metric}}
@@ -110,7 +110,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
   for range workers {
     go func() {
 	  for record := range ch {
-		record.instrument.Record(record.ctx, record.value, record.attributes)
+		record.instrument.Record(ctx, record.value, record.attributes)
 	  }
 	}()
   }
@@ -156,15 +156,15 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 	}
 
 	return &otelMetrics{
-	ch : ch,
-	{{- range $metric := .Metrics}}
-		{{- if isCounter $metric}}
-			{{- range $combination := (index $.AttrCombinations $metric.Name)}}
-		{{getAtomicName $metric.Name $combination}}: &{{getAtomicName $metric.Name $combination}},
+		ch : ch,
+		{{- range $metric := .Metrics}}
+			{{- if isCounter $metric}}
+				{{- range $combination := (index $.AttrCombinations $metric.Name)}}
+			{{getAtomicName $metric.Name $combination}}: &{{getAtomicName $metric.Name $combination}},
+				{{- end}}
+			{{- else}}
+			{{toCamel $metric.Name}}: {{toCamel $metric.Name}},
 			{{- end}}
-		{{- else}}
-		{{toCamel $metric.Name}}: {{toCamel $metric.Name}},
 		{{- end}}
-	{{- end}}
 	}, nil
 }
