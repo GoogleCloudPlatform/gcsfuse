@@ -475,7 +475,7 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 				Limit: uint64(end),
 			},
 			rr.config.InactiveStreamTimeout)
-		//} else {
+	} else {
 		rr.reader, err = rr.bucket.NewReaderWithReadHandle(
 			ctx,
 			&gcs.ReadObjectRequest{
