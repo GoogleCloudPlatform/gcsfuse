@@ -136,6 +136,11 @@ func TestMain(m *testing.M) {
 		// all default configs
 	}, {
 		enableMetadataCache: true,
+	}, {
+		enableMetadataCache: true,
+		enableFileCache:     true,
+	}, {
+		enableFileCache: true,
 	},
 	} {
 		flags = commonFlags
