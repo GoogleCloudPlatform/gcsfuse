@@ -18,6 +18,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 	"syscall"
 	"testing"
 
@@ -123,8 +124,12 @@ func (t *RapidAppendsSuite) TestAppendsAndRead() {
 				gotContent, err := operations.ReadFile(readPath)
 
 				require.NoError(t.T(), err)
+				readContent := string(gotContent)
+				expectedContent := t.fileContent
 				if !scenario.enableMetadataCache {
-					assert.Equal(t.T(), t.fileContent, string(gotContent))
+					assert.Equal(t.T(), expectedContent, string(gotContent))
+				} else {
+					assert.Truef(t.T(), strings.HasPrefix(expectedContent, readContent), "With metadata-enabled, read content expected to be a prefix of the written content, but failed. Written content = %q, Read content = %q", expectedContent, readContent)
 				}
 			}
 		})
