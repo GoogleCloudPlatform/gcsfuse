@@ -71,6 +71,23 @@ var (
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
+func scenariosToBeRun() []scenarioConfig {
+	return []scenarioConfig{
+		{ // Default scenario with no caches enabled.
+		},
+		{ // Metadata cache enabled.
+			enableMetadataCache: true,
+		},
+		{ // Both metadata and file cache enabled.
+			enableMetadataCache: true,
+			enableFileCache:     true,
+		},
+		{ // File cache enabled.
+			enableFileCache: true,
+		},
+	}
+}
+
 func flagsFromScenario(scenario scenarioConfig, rapidAppendsCacheDir string) []string {
 	// TODO: Make these constant literals somewhere.
 	metadataCacheEnableFlags := []string{"--metadata-cache-ttl-secs=60"}
@@ -151,17 +168,7 @@ func TestMain(m *testing.M) {
 	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
 
 	var successCode int
-	for _, scenario = range []scenarioConfig{{
-		// all default configs
-	}, {
-		enableMetadataCache: true,
-	}, {
-		enableMetadataCache: true,
-		enableFileCache:     true,
-	}, {
-		enableFileCache: true,
-	},
-	} {
+	for _, scenario = range scenariosToBeRun() {
 		flags = flagsFromScenario(scenario, rapidAppendsCacheDir)
 		log.Printf("Running tests with flags: %v", flags)
 		successCode = m.Run()
