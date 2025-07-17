@@ -100,7 +100,6 @@ func (bh *bucketHandle) NewReaderWithReadHandle(
 	if err == nil {
 		reader = newGCSFullReadCloser(storageReader)
 	}
-	time.Sleep(10 * time.Millisecond)
 	return
 }
 

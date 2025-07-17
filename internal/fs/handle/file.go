@@ -176,7 +176,6 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 		err = fmt.Errorf("tryEnsureReader: %w", err)
 		return
 	}
-	logger.Infof("fh.reader created %v", fh.reader)
 
 	// If we have an appropriate reader, unlock the inode and use that. This
 	// allows reads to proceed concurrently with other operations; in particular,
@@ -186,9 +185,7 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 		fh.inode.Unlock()
 
 		var objectData gcsx.ObjectData
-		logger.Infof("calling fh.reader.ReadAt")
 		objectData, err = fh.reader.ReadAt(ctx, dst, offset)
-		logger.Infof("fh.reader.ReadAt returned with err %v", err)
 		switch {
 		case errors.Is(err, io.EOF):
 			if err != io.EOF {
