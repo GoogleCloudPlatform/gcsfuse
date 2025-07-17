@@ -7,16 +7,30 @@ on:
   pull_request:
     branches:
       - '*'
-    paths-ignore:
-      - '.github/**'
-      - 'docs/**'
-      - '*.md'
-      - 'tools/**'
-      - 'perfmetrics/**'
-      - 'samples/**'
+permissions:
+  contents: read
 
 jobs:
+  filter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run_tests: ${{ steps.filter.outputs.run_tests }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3.0.2
+        id: filter
+        with:
+          predicate-quantifier: 'every'
+          filters: |
+            run_tests:
+              - '!**/*.md'
+              - '!tools/**'
+              - '!perfmetrics/**'
+              - '!samples/**'
   format-test:
+    needs: filter
+    if: ${{ needs.filter.outputs.run_tests == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -31,6 +45,8 @@ jobs:
       run: go fmt ./... && go mod tidy && git diff --exit-code --name-only
 
   linux-tests:
+    needs: filter
+    if: ${{ needs.filter.outputs.run_tests == 'true' }}
     strategy:
       matrix:
         go: [ 1.24.x ]
@@ -63,6 +79,8 @@ jobs:
         flags: unittests
 
   lint:
+    needs: filter
+    if: ${{ needs.filter.outputs.run_tests == 'true' }}
     name: Lint
     runs-on: ubuntu-latest
     steps:
