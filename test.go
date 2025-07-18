@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 
 	"cloud.google.com/go/storage"
 	"cloud.google.com/go/storage/experimental"
@@ -32,10 +33,11 @@ func main() {
 	}
 	gotRH := storageReader.ReadHandle()
 	p := make([]byte, 1024*1024*200)
-	_, err = storageReader.Read(p)
+	_, err = io.ReadFull(storageReader, p)
 	if err != nil {
 		fmt.Printf("Read 1 err: %v\n", err)
 	}
+	fmt.Println("Read1 complete")
 	//fmt.Println("Read1 = ", string(p))
 	err = storageReader.Close()
 	if err != nil {
@@ -51,11 +53,12 @@ func main() {
 		return
 	}
 	p = make([]byte, 1024*1024*200)
-	_, err = storageReader.Read(p)
+	_, err = io.ReadFull(storageReader, p)
 	if err != nil {
 		fmt.Printf("Read 2 err: %v\n", err)
 	}
 	//fmt.Println("Read2 = ", string(p))
+	fmt.Println("Read2 complete")
 	err = storageReader.Close()
 	if err != nil {
 		fmt.Printf("Close2 err: %v\n", err)
@@ -70,10 +73,11 @@ func main() {
 		return
 	}
 	p = make([]byte, 1024*1024*200)
-	_, err = storageReader.Read(p)
+	_, err = io.ReadFull(storageReader, p)
 	if err != nil {
 		fmt.Printf("Read 3 err: %v\n", err)
 	}
+	fmt.Println("Read3 complete")
 	//fmt.Println("Read3 = ", string(p))
 	err = storageReader.Close()
 	if err != nil {
