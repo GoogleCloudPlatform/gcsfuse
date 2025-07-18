@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"slices"
 
 	"cloud.google.com/go/storage"
 	"cloud.google.com/go/storage/experimental"
@@ -46,6 +47,7 @@ func main() {
 	}
 
 	fmt.Println("Creating with reader.ReadHandle (closed)")
+	fmt.Println("compare: ", slices.Compare(storageReader.ReadHandle(), gotRH))
 	obj.ReadHandle(storageReader.ReadHandle())
 	storageReader, err = obj.NewRangeReader(ctx, 200*1024*1024, 200*1024*1024)
 	if err != nil {
