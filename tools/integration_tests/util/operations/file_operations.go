@@ -363,6 +363,14 @@ func OpenFileAsReadonly(filepath string) (*os.File, error) {
 	return f, nil
 }
 
+// Open file in mode opens the given file in the flag mode provided.
+func OpenFileInMode(t *testing.T, filepath string, flag int) *os.File {
+	t.Helper()
+	fh, err := os.OpenFile(filepath, flag, FilePermission_0600)
+	require.NoError(t, err)
+	return fh
+}
+
 func readBytesFromFile(f *os.File, numBytesToRead int, b []byte) error {
 	numBytesRead, err := f.Read(b)
 	if err != nil {

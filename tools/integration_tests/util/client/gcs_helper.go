@@ -166,17 +166,20 @@ func GetCRCFromGCS(objectPath string, ctx context.Context, storageClient *storag
 	return attr.CRC32C, nil
 }
 
-func CreateUnfinalizedObject(ctx context.Context, t *testing.T, client *storage.Client, object string, size int64) *storage.Writer {
+// This method creates an Unfinalized Object with given content using appendable writer
+// and performs a flush with Zonal Bucket Flush API for content to be available for read
+// and returns the writer.
+func CreateUnfinalizedObject(ctx context.Context, t *testing.T, client *storage.Client, object, content string) *storage.Writer {
 	writer, err := AppendableWriter(ctx, client, object, storage.Conditions{})
 	require.NoError(t, err)
 
-	bytesWritten, err := writer.Write([]byte(setup.GenerateRandomString(int(size))))
+	bytesWritten, err := writer.Write([]byte(content))
 	require.NoError(t, err)
-	assert.EqualValues(t, size, bytesWritten)
+	assert.EqualValues(t, len(content), bytesWritten)
 
 	flushOffset, err := writer.Flush()
 	require.NoError(t, err)
-	assert.Equal(t, size, flushOffset)
+	assert.Equal(t, int64(len(content)), flushOffset)
 
 	return writer
 }
