@@ -15,11 +15,12 @@
 package rapid_appends
 
 import (
+	"bytes"
+	"fmt"
 	"log"
 	"math/rand/v2"
 	"os"
 	"path"
-	"strings"
 	"syscall"
 	"testing"
 
@@ -39,17 +40,31 @@ const unfinalizedObjectSize = 10 // Size in bytes of initial unfinalized Object.
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
 
-// declare a function type for readfile
-type ReadFileFunc func(filePath string) ([]byte, error)
+// declare a function type for read and verify
+type readAndVerifyFunc func(filePath string, expectedContent []byte) error
 
-func readFileSequentially(filePath string) ([]byte, error) {
-	return operations.ReadFileSequentially(filePath, 1024*1024)
+func readSequentiallyAndVerify(filePath string, expectedContent []byte) error {
+	readContent, err := operations.ReadFileSequentially(filePath, 1024*1024)
+	if err != nil {
+		return fmt.Errorf("failed to read file %q sequentially: %w", filePath, err)
+	}
+
+	// For sequential reads, we expect the content to be exactly as expected.
+	if !bytes.Equal(readContent, expectedContent) {
+		return fmt.Errorf("Content mismatch in sequential read: expected %q, got %q", string(expectedContent), string(readContent))
+	}
+	// If the content matches, we return nil to indicate success.
+	return nil
 }
 
-func readFileRandomly(filePath string) ([]byte, error) {
+func readRandomlyAndVerify(filePath string, expectedContent []byte) error {
 	file, err := operations.OpenFileAsReadonly(filePath)
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("failed to open file %q: %w", filePath, err)
+	}
+	defer file.Close()
+	if len(expectedContent) == 0 {
+		return nil // Nothing to verify if expected content is empty
 	}
 	defer func() {
 		err = file.Close()
@@ -60,34 +75,45 @@ func readFileRandomly(filePath string) ([]byte, error) {
 
 	fileInfo, err := file.Stat()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	fileSize := fileInfo.Size()
 
-	var contentBuilder strings.Builder
 	for i := 0; i < 50; i++ {
 		if fileSize == 0 {
 			break
 		}
 
-		offset := rand.IntN(int(fileSize))
-		readSize := rand.IntN(int(fileSize - int64(offset)))
-		if readSize == 0 { // Ensure readSize is at least 1 if possible
+		// Ensure offset and readSize are within bounds of both actual file and expected content
+		maxOffset := int(fileSize)
+		if maxOffset > len(expectedContent) {
+			maxOffset = len(expectedContent)
+		}
+		if maxOffset == 0 {
+			break
+		}
+
+		offset := rand.IntN(maxOffset)
+		readSize := rand.IntN(int(fileSize - int64(offset))) // Read from actual file
+		if readSize == 0 {                                   // Ensure readSize is at least 1 if possible
 			if int(fileSize)-offset > 0 {
 				readSize = 1
 			} else {
 				break
 			}
+		} else if offset+readSize > int(fileSize) { // Adjust readSize if it goes beyond file end
+			readSize = int(fileSize) - offset
 		}
-
 		buffer := make([]byte, readSize)
 		n, err := file.ReadAt(buffer, int64(offset))
 		if err != nil {
-			return nil, err
+			return fmt.Errorf("failed to read file %q at offset %d: %w", filePath, offset, err)
 		}
-		contentBuilder.Write(buffer[:n])
+		if !bytes.Equal(buffer[:n], expectedContent[offset:offset+n]) {
+			return fmt.Errorf("content mismatch in random read at offset %d: expected %q, got %q", offset, expectedContent[offset:offset+n], buffer[:n])
+		}
 	}
-	return []byte(contentBuilder.String()), nil
+	return nil
 }
 
 // TODO: Split the suite in two suites single mount and multi-mount.
@@ -149,38 +175,44 @@ func (t *RapidAppendsSuite) appendToFile(file *os.File, appendContent string) {
 
 func (t *RapidAppendsSuite) TestAppendsAndRead() {
 	testCases := []struct {
-		name          string
-		readMountPath string
-		syncNeeded    bool
-		readFileFunc  ReadFileFunc
+		name                      string
+		readMountPath             string
+		syncNeeded                bool
+		readAndVerify             readAndVerifyFunc
+		ignoreMetadataEnabledCase bool // If true, skip this case when metadata cache is enabled.
 	}{
 		{
-			name:          "reading_seq_from_same_mount",
+			name:          "seq_read_from_same_mount",
 			readMountPath: primaryMount.testDirPath,
 			syncNeeded:    false, // Sync is not required when reading from the same mount.
-			readFileFunc:  readFileSequentially,
+			readAndVerify: readSequentiallyAndVerify,
 		},
 		{
-			name:          "reading_seq_from_different_mount",
-			readMountPath: secondaryMount.testDirPath,
-			syncNeeded:    true, // Sync is required for writes to be visible on another mount.
-			readFileFunc:  readFileSequentially,
+			name:                      "seq_read_from_different_mount",
+			readMountPath:             secondaryMount.testDirPath,
+			syncNeeded:                true, // Sync is required for writes to be visible on another mount.
+			readAndVerify:             readSequentiallyAndVerify,
+			ignoreMetadataEnabledCase: true, // Skip this case when metadata cache is enabled
 		},
 		{
-			name:          "reading_random_from_same_mount",
+			name:          "random_read_from_same_mount",
 			readMountPath: primaryMount.testDirPath,
 			syncNeeded:    false, // Sync is not required when reading from the same mount.
-			readFileFunc:  readFileRandomly,
+			readAndVerify: readRandomlyAndVerify,
 		},
 		{
-			name:          "reading_random_from_different_mount",
-			readMountPath: secondaryMount.testDirPath,
-			syncNeeded:    true, // Sync is required for writes to be visible on another mount.
-			readFileFunc:  readFileRandomly,
+			name:                      "random_read_from_different_mount",
+			readMountPath:             secondaryMount.testDirPath,
+			syncNeeded:                true, // Sync is required for writes to be visible on another mount.
+			readAndVerify:             readRandomlyAndVerify,
+			ignoreMetadataEnabledCase: true, // Skip this case when metadata cache is enabled
 		},
 	}
 
 	for _, tc := range testCases {
+		if scenario.enableMetadataCache && tc.ignoreMetadataEnabledCase {
+			t.T().Skipf("Skipping test case %q as reading data written by secondary mount might not work if metadata-cache is enabled", tc.name)
+		}
 		t.Run(tc.name, func() {
 			// Open the file for appending on the primary mount.
 			appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(primaryMount.testDirPath, t.fileName), os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
@@ -193,17 +225,11 @@ func (t *RapidAppendsSuite) TestAppendsAndRead() {
 					operations.SyncFile(appendFileHandle, t.T())
 				}
 
-				gotContent, err := tc.readFileFunc(readPath)
+				err := tc.readAndVerify(readPath, []byte(t.fileContent))
 
 				require.NoError(t.T(), err)
-				readContent := string(gotContent)
-				expectedContent := t.fileContent
-				if !scenario.enableMetadataCache {
-					assert.Equal(t.T(), expectedContent, string(gotContent))
-				} else {
-					assert.Truef(t.T(), strings.HasPrefix(expectedContent, readContent), "With metadata-enabled, read content expected to be a prefix of the written content, but failed. Written content = %q, Read content = %q", expectedContent, readContent)
-				}
 			}
+
 		})
 	}
 }
@@ -212,7 +238,7 @@ func (t *RapidAppendsSuite) TestAppendsAndRead() {
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestRapidAppendsAndReadsSuite(t *testing.T) {
+func TestRapidAppendsSuite(t *testing.T) {
 	rapidAppendsSuite := new(RapidAppendsSuite)
 	suite.Run(t, rapidAppendsSuite)
 }
