@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Provides integration tests for long listing directory with Readdirplus
 package readdirplus
 
 import (
@@ -67,7 +66,6 @@ func (s *readdirplusWithDentryCacheTest) TestReaddirplusWithDentryCache(t *testi
 	entries, err := fusetesting.ReadDirPlusPicky(targetDir)
 	endTime := time.Now()
 
-	// Verify the entries.
 	require.NoError(t, err, "ReadDirPlusPicky failed")
 	expectedEntries := []struct {
 		name  string
