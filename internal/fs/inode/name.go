@@ -123,3 +123,28 @@ func (name Name) IsDirectChildOf(parent Name) bool {
 	cleanDiff := strings.TrimSuffix(diff, "/")
 	return !strings.Contains(cleanDiff, "/")
 }
+
+// ParentName returns the Name of the parent directory of the current Name.
+// If the current Name is the root, it panics.
+func (name Name) ParentName() Name {
+	if name.IsBucketRoot() {
+		panic("Root has no parent")
+	}
+
+	objectName := strings.TrimSuffix(name.objectName, "/") // normalize for dir or file
+	lastSlash := strings.LastIndex(objectName, "/")
+
+	if lastSlash == -1 {
+		// Direct child of bucket root
+		return Name{
+			bucketName: name.bucketName,
+			objectName: "",
+		}
+	}
+
+	parentObjectName := objectName[:lastSlash+1] // include trailing slash for dir
+	return Name{
+		bucketName: name.bucketName,
+		objectName: parentObjectName,
+	}
+}

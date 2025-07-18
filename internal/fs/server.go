@@ -36,5 +36,8 @@ func NewServer(ctx context.Context, cfg *ServerConfig) (fuse.Server, error) {
 		fs = wrappers.WithTracing(fs)
 	}
 	fs = wrappers.WithMonitoring(fs, cfg.MetricHandle)
+	if cfg.Notifier != nil {
+		return fuse.NewServerWithNotifier(cfg.Notifier, fuseutil.NewFileSystemServer(fs)), nil
+	}
 	return fuseutil.NewFileSystemServer(fs), nil
 }

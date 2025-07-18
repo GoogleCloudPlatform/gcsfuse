@@ -122,6 +122,9 @@ be interacting with the file system.`)
 		NewConfig:                  newConfig,
 		MetricHandle:               metricHandle,
 	}
+	if serverCfg.NewConfig.FileSystem.ExperimentalEnableDentryCache {
+		serverCfg.Notifier = fuse.NewNotifier()
+	}
 
 	logger.Infof("Creating a new server...\n")
 	server, err := fs.NewServer(ctx, serverCfg)
