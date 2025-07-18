@@ -224,6 +224,47 @@ func (t *UnfinalizedAppendsSuite) TestAppendedDataNotVisibleUntilClose() {
 	assert.Equal(t.T(), expectedContent, contentAfterClose, "appended data should be visible after close")
 }
 
+func (t *UnfinalizedAppendsSuite) TestAppendsVisibleInRealTimeWithConcurrentRPlusHandle() {
+	fileName := "append_obj_" + setup.GenerateRandomString(5)
+	fullPath := path.Join(testDirName, fileName)
+
+	// Create an unfinalized object
+	_ = CreateUnfinalizedObject(gCtx, t.T(), gStorageClient, fullPath, 0)
+
+	primaryPath := path.Join(gTestDirPath, fileName)
+
+	// Open first handle in append mode.
+	ah, err := os.OpenFile(primaryPath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, operations.FilePermission_0600)
+	require.NoError(t.T(), err)
+	defer ah.Close()
+
+	// Open second handle in "r+" mode.
+	rh, err := os.OpenFile(primaryPath, os.O_RDWR, operations.FilePermission_0600)
+	require.NoError(t.T(), err)
+	defer rh.Close()
+
+	// Write initial content using append handle to trigger BW workflow.
+	initialContent := []byte("dummy content")
+	n, err := ah.Write(initialContent)
+	require.NoError(t.T(), err)
+	require.NotZero(t.T(), n)
+
+	// Append additional content using "r+" handle.
+	appendedContent := []byte("appended content")
+	_, err = rh.WriteAt(appendedContent, int64(len(initialContent)))
+	require.NoError(t.T(), err)
+
+	// Sync changes
+	operations.SyncFile(rh, t.T())
+
+	// Read back content from secondary mount to validate visibility.
+	secondaryPath := path.Join(gOtherTestDirPath, fileName)
+	readContent, err := operations.ReadFile(secondaryPath)
+	require.NoError(t.T(), err)
+	expectedContent := append(initialContent, appendedContent...)
+	assert.Equal(t.T(), expectedContent, readContent)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
