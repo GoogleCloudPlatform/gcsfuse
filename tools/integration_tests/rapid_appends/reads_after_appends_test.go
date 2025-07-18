@@ -177,6 +177,9 @@ func (t *CommonAppendsSuite) TestAppendsAndReads() {
 						t.appendToFile(appendFileHandle, setup.GenerateRandomString(appendSize))
 						sizeAfterAppend := len(t.fileContent)
 						fmt.Printf("Did append#%d just now. fileSize now at %v bytes\n", i, len(t.fileContent))
+						sleepDur := 0 * time.Second
+						fmt.Printf("Now sleeping for %v to let the append settle ....", sleepDur)
+						time.Sleep(sleepDur)
 
 						if !scenario.enableMetadataCache || !t.isSyncNeededAfterAppend || (i == 0) {
 							err := tc.readAndVerify(readPath, []byte(t.fileContent))
