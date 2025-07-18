@@ -24,6 +24,7 @@ func main() {
 	bucket := "ashmeen-zb"
 	object := "a.txt"
 	obj := client.Bucket(bucket).Object(object)
+	fmt.Println("Creating with nil read handle")
 	obj = obj.ReadHandle(nil)
 	storageReader, err := obj.NewRangeReader(ctx, 0, 2)
 	if err != nil {
@@ -36,14 +37,14 @@ func main() {
 		fmt.Printf("Read 1 err: %v\n", err)
 	}
 	fmt.Println("Read1 = ", string(p))
-
 	err = storageReader.Close()
 	if err != nil {
-		fmt.Printf("Close err: %v\n", err)
+		fmt.Printf("Close1 err: %v\n", err)
 		return
 	}
 
-	obj.ReadHandle(nil)
+	fmt.Println("Creating with reader.ReadHandle (closed)")
+	obj.ReadHandle(storageReader.ReadHandle())
 	storageReader, err = obj.NewRangeReader(ctx, 2, 4)
 	if err != nil {
 		fmt.Printf("Close err: %v\n", err)
@@ -55,13 +56,13 @@ func main() {
 		fmt.Printf("Read 2 err: %v\n", err)
 	}
 	fmt.Println("Read2 = ", string(p))
-
 	err = storageReader.Close()
 	if err != nil {
-		fmt.Printf("Close err: %v\n", err)
+		fmt.Printf("Close2 err: %v\n", err)
 		return
 	}
 
+	fmt.Println("Creating with stored read handle")
 	obj.ReadHandle(gotRH)
 	storageReader, err = obj.NewRangeReader(ctx, 4, 6)
 	if err != nil {
@@ -74,6 +75,11 @@ func main() {
 		fmt.Printf("Read 3 err: %v\n", err)
 	}
 	fmt.Println("Read3 = ", string(p))
+	err = storageReader.Close()
+	if err != nil {
+		fmt.Printf("Close2 err: %v\n", err)
+		return
+	}
 
 	return
 }
