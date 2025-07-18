@@ -147,6 +147,9 @@ func (bh *bucketHandle) StatObject(ctx context.Context,
 			err = fmt.Errorf("failed to fetch the latest size of unfinalized object %q: %w", attrs.Name, err)
 			return
 		}
+		logger.Tracef("UnFinalized: object %q is unfinalized, with size = %v bytes", req.Name, attrs.Size)
+	} else {
+		logger.Tracef("Finalized: object %q is finalized, with size = %v bytes", req.Name, attrs.Size)
 	}
 
 	// Converting attrs to type *Object

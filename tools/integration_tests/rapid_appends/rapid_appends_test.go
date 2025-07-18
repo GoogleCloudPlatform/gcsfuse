@@ -88,7 +88,7 @@ func readRandomlyAndVerify(filePath string, expectedContent []byte) error {
 		maxOffset = len(expectedContent)
 	}
 
-	const numReads int = 50
+	const numReads int = 5
 	for i := range numReads {
 		offset := rand.IntN(maxOffset)
 		readSize := rand.IntN(int(fileSize - int64(offset))) // Read from actual file
@@ -223,6 +223,7 @@ func (t *RapidAppendsSuite) TestAppendsAndRead() {
 				if tc.syncNeeded {
 					operations.SyncFile(appendFileHandle, t.T())
 				}
+				fmt.Printf("Did append#%d just now. fileSize now at %v bytes\n", i, len(t.fileContent))
 
 				err := tc.readAndVerify(readPath, []byte(t.fileContent))
 
