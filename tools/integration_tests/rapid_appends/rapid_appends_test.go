@@ -39,8 +39,8 @@ const numAppends = 3
 // TODO: Split the suite in two suites single mount and multi-mount.
 type RapidAppendsSuite struct {
 	suite.Suite
-	fileName         string
-	fileContent      string
+	fileName    string
+	fileContent string
 }
 
 // //////////////////////////////////////////////////////////////////////
