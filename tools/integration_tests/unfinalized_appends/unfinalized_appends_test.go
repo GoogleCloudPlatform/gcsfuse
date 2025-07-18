@@ -265,6 +265,54 @@ func (t *UnfinalizedAppendsSuite) TestAppendsVisibleInRealTimeWithConcurrentRPlu
 	assert.Equal(t.T(), expectedContent, readContent)
 }
 
+func (t *UnfinalizedAppendsSuite) TestRandomWritesVisibleAfterCloseWithConcurrentRPlusHandle() {
+	// Skipping test for now until CreateObject() is supported for unfinalized objects.
+	// Ref: b/424253611
+	t.T().Skip()
+	fileName := "append_obj_" + setup.GenerateRandomString(5)
+	fullPath := path.Join(testDirName, fileName)
+
+	// Create an unfinalized object
+	_ = CreateUnfinalizedObject(gCtx, t.T(), gStorageClient, fullPath, 0)
+
+	primaryPath := path.Join(gTestDirPath, fileName)
+
+	// Open first handle in append mode.
+	ah, err := os.OpenFile(primaryPath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT, operations.FilePermission_0600)
+	require.NoError(t.T(), err)
+	defer ah.Close()
+
+	// Open second handle in "r+" mode.
+	rh, err := os.OpenFile(primaryPath, os.O_RDWR, operations.FilePermission_0600)
+	require.NoError(t.T(), err)
+
+	// Write initial content using append handle to trigger BW workflow.
+	initialContent := []byte("dummy content")
+	n, err := ah.Write(initialContent)
+	require.NoError(t.T(), err)
+	require.NotZero(t.T(), n)
+
+	// Random write additional content using "r+" handle.
+	appendedContent := []byte("appended content")
+	_, err = rh.WriteAt(appendedContent, int64(len(initialContent))+1)
+	require.NoError(t.T(), err)
+
+	// Read back content from secondary mount to validate data not visible before close().
+	secondaryPath := path.Join(gOtherTestDirPath, fileName)
+	contentBeforeClose, err := operations.ReadFile(secondaryPath)
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), initialContent, contentBeforeClose)
+
+	// Close the file handle.
+	rh.Close()
+
+	// Read back content from secondary mount to validate data visible after close().
+	contentAfterClose, err := operations.ReadFile(secondaryPath)
+	require.NoError(t.T(), err)
+	expectedContent := append(initialContent, appendedContent...)
+	assert.Equal(t.T(), expectedContent, contentAfterClose)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
