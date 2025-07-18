@@ -214,16 +214,16 @@ func (t *RapidAppendsSuite) TestAppendsAndRead() {
 			t.T().Skipf("Skipping test case %q as reading data written by secondary mount might not work if metadata-cache is enabled", tc.name)
 		}
 		t.Run(tc.name, func() {
-			// Open the file for appending on the primary mount.
-			appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(primaryMount.testDirPath, t.fileName), os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
-			defer operations.CloseFileShouldNotThrowError(t.T(), appendFileHandle)
 			readPath := path.Join(tc.readMountPath, t.fileName)
 			for i := range numAppends {
+				// Open the file for appending on the primary mount.
+				appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(primaryMount.testDirPath, t.fileName), os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
 				t.appendToFile(appendFileHandle, setup.GenerateRandomString(appendSize))
 				// Sync the file if the test case requires it.
 				if tc.syncNeeded {
 					operations.SyncFile(appendFileHandle, t.T())
 				}
+				operations.CloseFileShouldNotThrowError(t.T(), appendFileHandle)
 				fmt.Printf("Did append#%d just now. fileSize now at %v bytes\n", i, len(t.fileContent))
 				sleepDur := 0 * time.Second
 				fmt.Printf("Now sleeping for %v to let the append settle ....", sleepDur)
