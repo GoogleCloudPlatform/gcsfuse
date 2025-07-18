@@ -15,31 +15,14 @@
 package bufferedread
 
 import (
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 )
 
-// blockQueueEntry represents a block of object data and the associated task
-// responsible for downloading it.
+// blockQueueEntry holds a data block with a function
+// to cancel its in-flight download.
 type blockQueueEntry struct {
-	Block block.Block
-	Task  *DownloadTask
-}
-
-// newBlockQueueEntry creates a new entry for the block queue.
-func newBlockQueueEntry(b block.Block, t *DownloadTask) *blockQueueEntry {
-	return &blockQueueEntry{
-		Block: b,
-		Task:  t,
-	}
-}
-
-// blockQueue is a queue of blockQueueEntry instances.
-type blockQueue struct {
-	q common.Queue[*blockQueueEntry]
-}
-
-// newBlockQueue creates a new, empty queue for managing block download tasks.
-func newBlockQueue() *blockQueue {
-	return &blockQueue{q: common.NewLinkedListQueue[*blockQueueEntry]()}
+	block      block.Block
+	cancelFunc context.CancelFunc
 }
