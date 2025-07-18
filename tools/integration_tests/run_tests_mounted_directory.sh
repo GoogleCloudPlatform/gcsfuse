@@ -661,7 +661,7 @@ sudo umount $MOUNT_DIR
 
 # Test package: readdirplus
 # Readdirplus test with dentry cache enabled (--experimental-enable-dentry-cache=true)
-test_case = "TestReaddirplusWithDentryCacheTest/TestReaddirplusWithDentryCache"
+test_case="TestReaddirplusWithDentryCacheTest/TestReaddirplusWithDentryCache"
 log_dir="/tmp/readdirplus_logs"
 mkdir -p $log_dir
 log_file="$log_dir/log.json"
@@ -671,7 +671,7 @@ sudo umount "$MOUNT_DIR"
 rm -rf $log_dir
 
 # Readdirplus test with dentry cache disabled (--experimental-enable-dentry-cache=false)
-test_case = "TestReaddirplusWithoutDentryCacheTest/TestReaddirplusWithoutDentryCache"
+test_case="TestReaddirplusWithoutDentryCacheTest/TestReaddirplusWithoutDentryCache"
 log_dir="/tmp/readdirplus_logs"
 mkdir -p $log_dir
 log_file="$log_dir/log.json"
