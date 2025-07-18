@@ -194,6 +194,15 @@ func RemoveFile(filePath string) {
 	}
 }
 
+// RemoveFileStrictly deletes the given files,
+// and logs fatally if the delete failed for any reason.
+func RemoveFileStrictly(filePath string) {
+	err := os.Remove(filePath)
+	if err != nil {
+		log.Fatalf("os.Remove(%s): %v", filePath, err)
+	}
+}
+
 func ReadFileSequentially(filePath string, chunkSize int64) (content []byte, err error) {
 	chunk := make([]byte, chunkSize)
 	var offset int64 = 0

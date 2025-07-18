@@ -28,36 +28,78 @@ import (
 )
 
 const (
-	testDirName    = "RapidAppendsTest"
-	fileNamePrefix = "rapid-append-file-"
+	testDirName                 = "RapidAppendsTest"
+	fileNamePrefix              = "rapid-append-file-"
+	metadataCacheEnableFlag     = "--metadata-cache-ttl-secs=60"
+	metadataCacheDisableFlag    = "--metadata-cache-ttl-secs=0"
+	fileCacheMaxSizeFlag        = "--file-cache-max-size-mb=-1"
+	cacheDirFlagPrefix          = "--cache-dir="
+	writeRapidAppendsEnableFlag = "--write-experimental-enable-rapid-appends=true"
 )
 
+type scenarioConfig struct {
+	enableMetadataCache bool
+	enableFileCache     bool
+}
+
+// Struct to store the details of a mount point
+type mountPoint struct {
+	rootDir     string
+	testDirPath string
+	logFilePath string
+}
+
 var (
-	// Flags for mount options for primaryMntRootDir
+	// Flags for mount options for primary mount.
 	flags []string
 	// Mount function to be used for the mounting.
 	mountFunc func([]string) error
 
-	// Globals for primary mount which is used to append content to files.
-	// Other Root directory which is mounted by gcsfuse for multi-mount scenarios.
-	primaryMntRootDir string
-	// Stores test directory path in the mounted path for primaryMntRootDir.
-	primaryMntTestDirPath string
-	// Stores log file path for the mount primaryMntRootDir.
-	primaryMntLogFilePath string
-
-	// Globals for secondary mount which is used to verify reads on existing unfinalized objects.
-	// Root directory which is mounted by gcsfuse.
-	secondaryMntRootDir string
-	// Stores test directory path in the mounted path for secondaryMntRootDir.
-	secondaryMntTestDirPath string
-	// Stores log file path for the mount secondaryMntRootDir.
-	secondaryMntLogFilePath string
+	// Structs for primary and secondary mounts to store their details
+	primaryMount   mountPoint
+	secondaryMount mountPoint
 
 	// Clients to create the object in GCS.
 	storageClient *storage.Client
 	ctx           context.Context
+
+	// Scenario being run by the current test.
+	scenario scenarioConfig
 )
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func scenariosToBeRun() []scenarioConfig {
+	return []scenarioConfig{
+		{ // Default scenario with no caches enabled.
+		},
+		{ // Metadata cache enabled.
+			enableMetadataCache: true,
+		},
+		{ // Both metadata and file cache enabled.
+			enableMetadataCache: true,
+			enableFileCache:     true,
+		},
+		{ // File cache enabled.
+			enableFileCache: true,
+		},
+	}
+}
+
+func flagsFromScenario(scenario scenarioConfig, rapidAppendsCacheDir string) []string {
+	flags := []string{writeRapidAppendsEnableFlag}
+	if scenario.enableMetadataCache {
+		flags = append(flags, metadataCacheEnableFlag)
+	} else {
+		flags = append(flags, metadataCacheDisableFlag)
+	}
+	if scenario.enableFileCache {
+		flags = append(flags, fileCacheMaxSizeFlag, cacheDirFlagPrefix+rapidAppendsCacheDir)
+	}
+	return flags
+}
 
 ////////////////////////////////////////////////////////////////////////
 // TestMain
@@ -85,8 +127,8 @@ func TestMain(m *testing.M) {
 
 	// Set up test directory for primary mount.
 	setup.SetUpTestDirForTestBucketFlag()
-	primaryMntRootDir = setup.MntDir()
-	primaryMntLogFilePath = setup.LogFile()
+	primaryMount.rootDir = setup.MntDir()
+	primaryMount.logFilePath = setup.LogFile()
 	// TODO(b/432179045): `--write-global-max-blocks=-1` is needed right now because of a bug in global semaphore release.
 	// Remove this flag once bug is fixed.
 	primaryMountFlags := []string{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-global-max-blocks=-1"}
@@ -95,37 +137,39 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Unable to mount primary mount: %v", err)
 	}
 	// Setup Package Test Directory for primary mount.
-	primaryMntTestDirPath = setup.SetupTestDirectory(testDirName)
-	defer setup.UnmountGCSFuse(primaryMntRootDir)
+	primaryMount.testDirPath = setup.SetupTestDirectory(testDirName)
+	defer setup.UnmountGCSFuse(primaryMount.rootDir)
 
 	// Set up test directory for secondary mount.
 	setup.SetUpTestDirForTestBucketFlag()
-	secondaryMntRootDir = setup.MntDir()
-	secondaryMntLogFilePath = setup.LogFile()
-	rapidAppendsCacheDir, err := os.MkdirTemp("", "rapid_appends_cache_dir_*")
-	if err != nil {
-		log.Fatalf("Failed to create cache dir for rapid append tests: %v", err)
-	}
-	defer func() {
-		err := os.RemoveAll(rapidAppendsCacheDir)
-		if err != nil {
-			log.Fatalf("Error while cleaning up cache dir %q: %v", rapidAppendsCacheDir, err)
-		}
-	}()
-	// Define flag set for secondary mount to run the tests.
-	flagsSet := [][]string{
-		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0"},
-		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--file-cache-max-size-mb=-1", "--cache-dir=" + rapidAppendsCacheDir},
-	}
+	secondaryMount.rootDir = setup.MntDir()
+	secondaryMount.logFilePath = setup.LogFile()
 
 	log.Println("Running static mounting tests...")
 	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
 
 	var successCode int
-	for i := range flagsSet {
-		log.Printf("Running tests with flags: %v", flagsSet[i])
-		flags = flagsSet[i]
-		successCode = m.Run()
+	for _, scenario = range scenariosToBeRun() {
+		successCode = func() int {
+			// Create a cache-dir if needed.
+			var rapidAppendsCacheDir string
+			if scenario.enableFileCache {
+				rapidAppendsCacheDir, err = os.MkdirTemp("", "rapid_appends_cache_dir_*")
+				if err != nil {
+					log.Fatalf("Failed to create cache dir for rapid append tests: %v", err)
+				}
+				defer func() {
+					err := os.RemoveAll(rapidAppendsCacheDir)
+					if err != nil {
+						log.Fatalf("Error while cleaning up cache dir %q: %v", rapidAppendsCacheDir, err)
+					}
+				}()
+			}
+
+			flags = flagsFromScenario(scenario, rapidAppendsCacheDir)
+			log.Printf("Running tests with flags: %v", flags)
+			return m.Run()
+		}()
 		if successCode != 0 {
 			break
 		}

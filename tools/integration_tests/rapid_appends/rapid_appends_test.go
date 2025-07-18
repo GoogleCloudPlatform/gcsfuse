@@ -18,6 +18,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 	"syscall"
 	"testing"
 
@@ -49,17 +50,22 @@ type RapidAppendsSuite struct {
 // //////////////////////////////////////////////////////////////////////
 
 func (t *RapidAppendsSuite) SetupSuite() {
+	// Create secondary mount.
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
-	secondaryMntTestDirPath = setup.SetupTestDirectory(testDirName)
+	secondaryMount.testDirPath = setup.SetupTestDirectory(testDirName)
 }
 
 func (t *RapidAppendsSuite) TearDownSuite() {
-	setup.UnmountGCSFuse(secondaryMntRootDir)
+	// Undo secondary mount.
+	setup.UnmountGCSFuse(secondaryMount.rootDir)
+	// Clean up.
 	if t.T().Failed() {
-		log.Println("Secondary mount log file:")
+		setup.SetLogFile(secondaryMount.logFilePath)
+		log.Printf("Saving secondary mount log file ...")
 		setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
-		log.Println("Primary mount log file:")
-		setup.SetLogFile(primaryMntLogFilePath)
+
+		setup.SetLogFile(primaryMount.logFilePath)
+		log.Println("Saving primary mount log file ...")
 		setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
 	}
 }
@@ -72,7 +78,7 @@ func (t *RapidAppendsSuite) SetupSubTest() {
 }
 
 func (t *RapidAppendsSuite) TearDownSubTest() {
-	err := os.Remove(path.Join(primaryMntTestDirPath, t.fileName))
+	err := os.Remove(path.Join(primaryMount.testDirPath, t.fileName))
 	require.NoError(t.T(), err)
 }
 
@@ -97,12 +103,12 @@ func (t *RapidAppendsSuite) TestAppendsAndRead() {
 	}{
 		{
 			name:          "reading_seq_from_same_mount",
-			readMountPath: primaryMntTestDirPath,
+			readMountPath: primaryMount.testDirPath,
 			syncNeeded:    false, // Sync is not required when reading from the same mount.
 		},
 		{
 			name:          "reading_seq_from_different_mount",
-			readMountPath: secondaryMntTestDirPath,
+			readMountPath: secondaryMount.testDirPath,
 			syncNeeded:    true, // Sync is required for writes to be visible on another mount.
 		},
 	}
@@ -110,7 +116,7 @@ func (t *RapidAppendsSuite) TestAppendsAndRead() {
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
 			// Open the file for appending on the primary mount.
-			appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(primaryMntTestDirPath, t.fileName), os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
+			appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(primaryMount.testDirPath, t.fileName), os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
 			defer operations.CloseFileShouldNotThrowError(t.T(), appendFileHandle)
 			readPath := path.Join(tc.readMountPath, t.fileName)
 			for range numAppends {
@@ -123,7 +129,13 @@ func (t *RapidAppendsSuite) TestAppendsAndRead() {
 				gotContent, err := operations.ReadFile(readPath)
 
 				require.NoError(t.T(), err)
-				assert.Equal(t.T(), t.fileContent, string(gotContent))
+				readContent := string(gotContent)
+				expectedContent := t.fileContent
+				if !scenario.enableMetadataCache {
+					assert.Equal(t.T(), expectedContent, string(gotContent))
+				} else {
+					assert.Truef(t.T(), strings.HasPrefix(expectedContent, readContent), "With metadata-enabled, read content expected to be a prefix of the written content, but failed. Written content = %q, Read content = %q", expectedContent, readContent)
+				}
 			}
 		})
 	}
