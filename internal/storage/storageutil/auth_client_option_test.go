@@ -15,7 +15,11 @@
 package storageutil
 
 import (
+	"context"
 	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"cloud.google.com/go/auth"
@@ -37,31 +41,20 @@ func TestCreateCredentials(t *testing.T) {
 	assert.NotNil(t, cred)
 }
 
-func Test_CreateTokenSourceFromTokenUrl(t *testing.T) {
-	t.Run("empty token URL returns nil", func(t *testing.T) {
-		tokenSrc, err := createTokenSourceFromTokenUrl("", false)
-		assert.NoError(t, err)
-		assert.Nil(t, tokenSrc)
-	})
-
-	t.Run("valid token URL returns token source", func(t *testing.T) {
-		// Ideally, you'd mock auth2.GetTokenSourceFromTokenUrl.
-		// For now, assume it works or wrap it in an interface for testability.
-		tokenSrc, err := createTokenSourceFromTokenUrl("https://example.com/token", false)
-		assert.NoError(t, err)
-		assert.NotNil(t, tokenSrc)
-	})
-}
-
 func Test_CreateCredentialForClient_TokenUrlPreferredSuccess(t *testing.T) {
 	var clientOpts []option.ClientOption
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintln(w, `{"access_token":"dummy-token","token_type":"Bearer"}`)
+	}))
+	defer server.Close()
 	config := &StorageClientConfig{
-		TokenUrl:          "https://example.com/token",
+		TokenUrl:          server.URL,
 		ReuseTokenFromUrl: false,
 		KeyFile:           "/path/to/keyfile.json",
 	}
 
-	tokenSrc, err := ConfigureClientAuth(config, &clientOpts)
+	tokenSrc, err := ConfigureClientAuth(context.TODO(), config, &clientOpts)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, tokenSrc)
@@ -69,47 +62,45 @@ func Test_CreateCredentialForClient_TokenUrlPreferredSuccess(t *testing.T) {
 }
 
 func Test_ConfigureClientAuth_TokenUrlPreferredError(t *testing.T) {
-	createTokenSourceFromTokenUrlFn = func(tokenUrl string, reuse bool) (oauth2.TokenSource, error) {
+	createTokenSourceFromTokenUrlFn = func(ctx context.Context, tokenUrl string, reuse bool) (oauth2.TokenSource, error) {
 		return nil, errors.New("simulated token source error")
 	}
 	defer resetInjectedFunctions()
 	config := &StorageClientConfig{TokenUrl: "fake-url"}
 	var clientOpts []option.ClientOption
 
-	_, err := ConfigureClientAuth(config, &clientOpts)
+	_, err := ConfigureClientAuth(context.TODO(), config, &clientOpts)
 
 	assert.ErrorContains(t, err, "simulated token source error")
 	assert.Empty(t, clientOpts)
 }
 
-func TestCreateCredentialForClient_FallbackToKeyFile_Success(t *testing.T) {
+func Test_CreateCredentialForClient_FallbackToKeyFileSuccess(t *testing.T) {
 	var clientOpts []option.ClientOption
 	config := &StorageClientConfig{
 		TokenUrl: "", // triggers fallback
 		KeyFile:  "testdata/key.json",
 	}
 
-	tokenSrc, err := ConfigureClientAuth(config, &clientOpts)
+	tokenSrc, err := ConfigureClientAuth(context.TODO(), config, &clientOpts)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, tokenSrc)
 	assert.Len(t, clientOpts, 2) // UniverseDomain + AuthCredentials
 }
 
-func TestConfigureClientAuth_FallbackToKeyFile_Error(t *testing.T) {
-	createTokenSourceFromTokenUrlFn = func(tokenUrl string, reuse bool) (oauth2.TokenSource, error) {
+func Test_ConfigureClientAuth_FallbackToKeyFileError(t *testing.T) {
+	createTokenSourceFromTokenUrlFn = func(ctx context.Context, tokenUrl string, reuse bool) (oauth2.TokenSource, error) {
 		return nil, nil
 	}
 	createCredentialsFn = func(keyFile string) (*auth.Credentials, error) {
-		return &auth.Credentials{
-			TokenProvider: nil,
-		}, errors.New("error in getting credentials")
+		return nil, errors.New("error in getting credentials")
 	}
 	defer resetInjectedFunctions()
 	config := &StorageClientConfig{TokenUrl: "", KeyFile: "fake-key"}
 	var clientOpts []option.ClientOption
 
-	_, err := ConfigureClientAuth(config, &clientOpts)
+	_, err := ConfigureClientAuth(context.TODO(), config, &clientOpts)
 
 	assert.Error(t, err)
 	assert.Empty(t, clientOpts)

@@ -32,11 +32,11 @@ var (
 
 // createTokenSourceFromTokenUrl returns a token source using tokenUrl and reuse flag.
 // Returns nil if tokenUrl is empty.
-func createTokenSourceFromTokenUrl(tokenUrl string, reuse bool) (oauth2.TokenSource, error) {
+func createTokenSourceFromTokenUrl(ctx context.Context, tokenUrl string, reuse bool) (oauth2.TokenSource, error) {
 	if tokenUrl == "" {
 		return nil, nil
 	}
-	return auth2.NewTokenSourceFromURL(context.Background(), tokenUrl, reuse)
+	return auth2.NewTokenSourceFromURL(ctx, tokenUrl, reuse)
 }
 
 // createCredentials returns credentials from the provided key file.
@@ -46,9 +46,13 @@ func createCredentials(keyFile string) (*auth.Credentials, error) {
 
 // ConfigureClientAuth returns a token source using either token URL or fallback to key file/ADC.
 // It also updates clientOpts via pointer, so changes are visible to the caller.
-func ConfigureClientAuth(config *StorageClientConfig, clientOpts *[]option.ClientOption) (oauth2.TokenSource, error) {
+func ConfigureClientAuth(ctx context.Context, config *StorageClientConfig, clientOpts *[]option.ClientOption) (oauth2.TokenSource, error) {
+	if clientOpts == nil {
+		return nil, fmt.Errorf("clientOpts cannot be nil")
+	}
+
 	// Try token source via token URL.
-	tokenSrc, err := createTokenSourceFromTokenUrlFn(config.TokenUrl, config.ReuseTokenFromUrl)
+	tokenSrc, err := createTokenSourceFromTokenUrlFn(ctx, config.TokenUrl, config.ReuseTokenFromUrl)
 	if err != nil {
 		return nil, fmt.Errorf("while fetching token source: %w", err)
 	}
