@@ -78,7 +78,7 @@ func TestProxyTokenSource_TokenFetch_InvalidJSON(t *testing.T) {
 	}))
 	defer server.Close()
 	ts, err := NewTokenSourceFromURL(context.Background(), server.URL, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	token, err := ts.Token()
 
