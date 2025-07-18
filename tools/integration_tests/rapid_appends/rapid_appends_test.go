@@ -93,9 +93,8 @@ func readFileRandomly(filePath string) ([]byte, error) {
 // TODO: Split the suite in two suites single mount and multi-mount.
 type RapidAppendsSuite struct {
 	suite.Suite
-	fileName     string
-	fileContent  string
-	readFileFunc ReadFileFunc
+	fileName    string
+	fileContent string
 }
 
 // //////////////////////////////////////////////////////////////////////
@@ -153,16 +152,31 @@ func (t *RapidAppendsSuite) TestAppendsAndRead() {
 		name          string
 		readMountPath string
 		syncNeeded    bool
+		readFileFunc  ReadFileFunc
 	}{
 		{
 			name:          "reading_seq_from_same_mount",
 			readMountPath: primaryMount.testDirPath,
 			syncNeeded:    false, // Sync is not required when reading from the same mount.
+			readFileFunc:  readFileSequentially,
 		},
 		{
 			name:          "reading_seq_from_different_mount",
 			readMountPath: secondaryMount.testDirPath,
 			syncNeeded:    true, // Sync is required for writes to be visible on another mount.
+			readFileFunc:  readFileSequentially,
+		},
+		{
+			name:          "reading_random_from_same_mount",
+			readMountPath: primaryMount.testDirPath,
+			syncNeeded:    false, // Sync is not required when reading from the same mount.
+			readFileFunc:  readFileRandomly,
+		},
+		{
+			name:          "reading_random_from_different_mount",
+			readMountPath: secondaryMount.testDirPath,
+			syncNeeded:    true, // Sync is required for writes to be visible on another mount.
+			readFileFunc:  readFileRandomly,
 		},
 	}
 
@@ -179,7 +193,7 @@ func (t *RapidAppendsSuite) TestAppendsAndRead() {
 					operations.SyncFile(appendFileHandle, t.T())
 				}
 
-				gotContent, err := t.readFileFunc(readPath)
+				gotContent, err := tc.readFileFunc(readPath)
 
 				require.NoError(t.T(), err)
 				readContent := string(gotContent)
@@ -198,14 +212,7 @@ func (t *RapidAppendsSuite) TestAppendsAndRead() {
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestRapidAppendsSequentialReadsSuite(t *testing.T) {
+func TestRapidAppendsAndReadsSuite(t *testing.T) {
 	rapidAppendsSuite := new(RapidAppendsSuite)
-	rapidAppendsSuite.readFileFunc = readFileSequentially
-	suite.Run(t, rapidAppendsSuite)
-}
-
-func TestRapidAppendsRandomReadsSuite(t *testing.T) {
-	rapidAppendsSuite := new(RapidAppendsSuite)
-	rapidAppendsSuite.readFileFunc = readFileRandomly
 	suite.Run(t, rapidAppendsSuite)
 }
