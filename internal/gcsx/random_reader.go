@@ -469,7 +469,7 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 			ctx,
 			rr.bucket,
 			rr.object,
-			nil,
+			rr.readHandle,
 			gcs.ByteRange{
 				Start: uint64(start),
 				Limit: uint64(end),
@@ -486,7 +486,7 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 					Limit: uint64(end),
 				},
 				ReadCompressed: rr.object.HasContentEncodingGzip(),
-				ReadHandle:     nil,
+				ReadHandle:     rr.readHandle,
 			})
 	}
 
