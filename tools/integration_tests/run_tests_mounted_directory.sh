@@ -658,3 +658,24 @@ random_profile_label="test"
 gcsfuse --enable-cloud-profiling --profiling-goroutines --profiling-cpu --profiling-heap --profiling-allocated-heap --profiling-mutex --profiling-label $random_profile_label $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/cloud_profiler/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --profile_label=$random_profile_label
 sudo umount $MOUNT_DIR
+
+# Test package: readdirplus
+# Readdirplus test with dentry cache enabled (--experimental-enable-dentry-cache=true)
+test_case = "TestReaddirplusWithDentryCacheTest/TestReaddirplusWithDentryCache"
+log_dir="/tmp/readdirplus_logs"
+mkdir -p $log_dir
+log_file="$log_dir/log.json"
+gcsfuse --implicit-dirs --experimental-enable-readdirplus --experimental-enable-dentry-cache --log-file $log_file --log-severity=trace --log-format=json "$TEST_BUCKET_NAME" "$MOUNT_DIR"
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readdirplus/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run $test_case
+sudo umount "$MOUNT_DIR"
+rm -rf $log_dir
+
+# Readdirplus test with dentry cache disabled (--experimental-enable-dentry-cache=false)
+test_case = "TestReaddirplusWithoutDentryCacheTest/TestReaddirplusWithoutDentryCache"
+log_dir="/tmp/readdirplus_logs"
+mkdir -p $log_dir
+log_file="$log_dir/log.json"
+gcsfuse --implicit-dirs --experimental-enable-readdirplus --log-file $log_file --log-severity=trace --log-format=json "$TEST_BUCKET_NAME" "$MOUNT_DIR"
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readdirplus/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run $test_case
+sudo umount "$MOUNT_DIR"
+rm -rf $log_dir
