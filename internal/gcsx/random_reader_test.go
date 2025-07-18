@@ -357,6 +357,7 @@ func (t *RandomReaderTest) PropagatesCancellation() {
 	t.rr.wrapped.reader = &fake.FakeReader{ReadCloser: rc}
 	t.rr.wrapped.start = 1
 	t.rr.wrapped.limit = 4
+	t.rr.wrapped.config = &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: false}}
 
 	// Snoop on when cancel is called.
 	cancelCalled := make(chan struct{})
