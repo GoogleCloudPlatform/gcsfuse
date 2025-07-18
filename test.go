@@ -34,10 +34,11 @@ func main() {
 	}
 	gotRH := storageReader.ReadHandle()
 	p := make([]byte, 1024*1024*200)
-	_, err = io.ReadFull(storageReader, p)
+	n, err := io.ReadFull(storageReader, p)
 	if err != nil {
 		fmt.Printf("Read 1 err: %v\n", err)
 	}
+	fmt.Println("Read %n bytes", n)
 	fmt.Println("Read1 complete")
 	//fmt.Println("Read1 = ", string(p))
 	err = storageReader.Close()
@@ -45,6 +46,7 @@ func main() {
 		fmt.Printf("Close1 err: %v\n", err)
 		return
 	}
+	obj1 = nil
 
 	obj2 := client.Bucket(bucket).Object(object)
 	fmt.Println("Creating with reader.ReadHandle (closed)")
@@ -56,17 +58,19 @@ func main() {
 		return
 	}
 	p = make([]byte, 1024*1024*200)
-	_, err = io.ReadFull(storageReader, p)
+	n, err = io.ReadFull(storageReader, p)
 	if err != nil {
 		fmt.Printf("Read 2 err: %v\n", err)
 	}
 	//fmt.Println("Read2 = ", string(p))
+	fmt.Println("Read %n bytes", n)
 	fmt.Println("Read2 complete")
 	err = storageReader.Close()
 	if err != nil {
 		fmt.Printf("Close2 err: %v\n", err)
 		return
 	}
+	obj2 = nil
 
 	obj3 := client.Bucket(bucket).Object(object)
 	fmt.Println("Creating with stored read handle")
@@ -77,10 +81,11 @@ func main() {
 		return
 	}
 	p = make([]byte, 1024*1024*200)
-	_, err = io.ReadFull(storageReader, p)
+	n, err = io.ReadFull(storageReader, p)
 	if err != nil {
 		fmt.Printf("Read 3 err: %v\n", err)
 	}
+	fmt.Println("Read %n bytes", n)
 	fmt.Println("Read3 complete")
 	//fmt.Println("Read3 = ", string(p))
 	err = storageReader.Close()
@@ -88,6 +93,7 @@ func main() {
 		fmt.Printf("Close2 err: %v\n", err)
 		return
 	}
+	obj3 = nil
 
 	return
 }
