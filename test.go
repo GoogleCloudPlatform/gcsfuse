@@ -22,21 +22,21 @@ func main() {
 	}(client)
 
 	bucket := "ashmeen-zb"
-	object := "a.txt"
+	object := "experiment.1.0"
 	obj := client.Bucket(bucket).Object(object)
 	fmt.Println("Creating with nil read handle")
 	obj = obj.ReadHandle(nil)
-	storageReader, err := obj.NewRangeReader(ctx, 0, 2)
+	storageReader, err := obj.NewRangeReader(ctx, 0, 200*1024*1024)
 	if err != nil {
 		fmt.Printf("NewRangeReader err: %v\n", err)
 	}
 	gotRH := storageReader.ReadHandle()
-	p := make([]byte, 2)
+	p := make([]byte, 1024*1024*200)
 	_, err = storageReader.Read(p)
 	if err != nil {
 		fmt.Printf("Read 1 err: %v\n", err)
 	}
-	fmt.Println("Read1 = ", string(p))
+	//fmt.Println("Read1 = ", string(p))
 	err = storageReader.Close()
 	if err != nil {
 		fmt.Printf("Close1 err: %v\n", err)
@@ -45,17 +45,17 @@ func main() {
 
 	fmt.Println("Creating with reader.ReadHandle (closed)")
 	obj.ReadHandle(storageReader.ReadHandle())
-	storageReader, err = obj.NewRangeReader(ctx, 2, 4)
+	storageReader, err = obj.NewRangeReader(ctx, 200*1024*1024, 200*1024*1024)
 	if err != nil {
 		fmt.Printf("Close err: %v\n", err)
 		return
 	}
-	p = make([]byte, 2)
+	p = make([]byte, 1024*1024*200)
 	_, err = storageReader.Read(p)
 	if err != nil {
 		fmt.Printf("Read 2 err: %v\n", err)
 	}
-	fmt.Println("Read2 = ", string(p))
+	//fmt.Println("Read2 = ", string(p))
 	err = storageReader.Close()
 	if err != nil {
 		fmt.Printf("Close2 err: %v\n", err)
@@ -64,17 +64,17 @@ func main() {
 
 	fmt.Println("Creating with stored read handle")
 	obj.ReadHandle(gotRH)
-	storageReader, err = obj.NewRangeReader(ctx, 4, 6)
+	storageReader, err = obj.NewRangeReader(ctx, 400*1024*1024, 200*1024*1024)
 	if err != nil {
 		fmt.Printf("Close err: %v\n", err)
 		return
 	}
-	p = make([]byte, 2)
+	p = make([]byte, 1024*1024*200)
 	_, err = storageReader.Read(p)
 	if err != nil {
 		fmt.Printf("Read 3 err: %v\n", err)
 	}
-	fmt.Println("Read3 = ", string(p))
+	//fmt.Println("Read3 = ", string(p))
 	err = storageReader.Close()
 	if err != nil {
 		fmt.Printf("Close2 err: %v\n", err)
