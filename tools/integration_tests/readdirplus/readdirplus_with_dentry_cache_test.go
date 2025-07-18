@@ -17,13 +17,16 @@ package readdirplus
 
 import (
 	"log"
+	"os"
 	"path"
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
 	"github.com/jacobsa/fuse/fusetesting"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,8 +46,21 @@ func (s *readdirplusWithDentryCacheTest) Teardown(t *testing.T) {
 }
 
 func (s *readdirplusWithDentryCacheTest) TestReaddirplusWithDentryCache(t *testing.T) {
+	// Create directory structure
+	// testBucket/target_dir/                                                       -- Dir
+	// testBucket/target_dir/file		                                            -- File
+	// testBucket/target_dir/emptySubDirectory                                      -- Dir
+	// testBucket/target_dir/subDirectory                                           -- Dir
+	// testBucket/target_dir/subDirectory/file1                                     -- File
 	targetDir := path.Join(testDirPath, targetDirName)
-	expected := createDirectoryStructure(t)
+	operations.CreateDirectory(targetDir, t)
+	// Create a file in the target directory.
+	f1 := operations.CreateFile(path.Join(targetDir, "file"), setup.FilePermission_0600, t)
+	operations.CloseFileShouldNotThrowError(t, f1)
+	// Create an empty subdirectory
+	operations.CreateDirectory(path.Join(targetDir, "emptySubDirectory"), t)
+	// Create a subdirectory with file
+	operations.CreateDirectoryWithNFiles(1, path.Join(targetDir, "subDirectory"), "file", t)
 
 	// Call Readdirplus to list the directory.
 	startTime := time.Now()
@@ -53,7 +69,23 @@ func (s *readdirplusWithDentryCacheTest) TestReaddirplusWithDentryCache(t *testi
 
 	// Verify the entries.
 	require.NoError(t, err, "ReadDirPlusPicky failed")
-	validateEntries(entries, expected, t)
+	expectedEntries := []struct {
+		name  string
+		isDir bool
+		mode  os.FileMode
+	}{
+		{name: "emptySubDirectory", isDir: true, mode: os.ModeDir | 0755},
+		{name: "file", isDir: false, mode: 0644},
+		{name: "subDirectory", isDir: true, mode: os.ModeDir | 0755},
+	}
+	// Verify the entries.
+	assert.Equal(t, len(expectedEntries), len(entries), "Number of entries mismatch")
+	for i, expected := range expectedEntries {
+		entry := entries[i]
+		assert.Equal(t, expected.name, entry.Name(), "Name mismatch for entry %d", i)
+		assert.Equal(t, expected.isDir, entry.IsDir(), "IsDir mismatch for entry %s", entry.Name())
+		assert.Equal(t, expected.mode, entry.Mode(), "Mode mismatch for entry %s", entry.Name())
+	}
 	// Dentry cache is enabled, so LookUpInode should also not be called.
 	// This applies even to the parent directory, as its inode is cached during
 	// the test setup phase when the directory structure is created.
