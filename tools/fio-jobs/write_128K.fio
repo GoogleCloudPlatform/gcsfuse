@@ -20,7 +20,7 @@ filename_format=$jobname.$jobnum.$filenum
  
 [experiment_128K_write]
 stonewall
-directory=${DIR}
+directory=/mnt/disks/pd/600mb
 # Every file is written only once. Set nrfiles per thread in such a way that the test runs for 1-2 min. 
 # This will vary based on file size. 
 nrfiles=30
