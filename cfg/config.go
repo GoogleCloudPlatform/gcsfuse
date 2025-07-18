@@ -196,6 +196,8 @@ type LogRotateLoggingConfig struct {
 }
 
 type LoggingConfig struct {
+	ExperimentalEnableCloudLogging bool `yaml:"experimental-enable-cloud-logging"`
+
 	FilePath ResolvedPath `yaml:"file-path"`
 
 	Format string `yaml:"format"`
@@ -406,6 +408,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.BoolP("enable-streaming-writes", "", true, "Enables streaming uploads during write file operation.")
+
+	flagSet.BoolP("experimental-enable-cloud-logging", "", false, "Experimental: Enables logging to Google Cloud Logging. This is mutually exclusive with --log-file.")
+
+	if err := flagSet.MarkHidden("experimental-enable-cloud-logging"); err != nil {
+		return err
+	}
 
 	flagSet.BoolP("experimental-enable-dentry-cache", "", false, "When enabled, it sets the Dentry cache entry timeout same as metadata-cache-ttl. This enables kernel to use cached entry to map the file paths to inodes, instead of making LookUpInode calls to GCSFuse.")
 
@@ -801,6 +809,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("write.enable-streaming-writes", flagSet.Lookup("enable-streaming-writes")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("logging.experimental-enable-cloud-logging", flagSet.Lookup("experimental-enable-cloud-logging")); err != nil {
 		return err
 	}
 

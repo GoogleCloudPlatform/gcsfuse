@@ -487,6 +487,13 @@
   default: false
   hide-flag: true
 
+- config-path: "logging.experimental-enable-cloud-logging"
+  flag-name: "experimental-enable-cloud-logging"
+  type: "bool"
+  usage: "Experimental: Enables logging to Google Cloud Logging. This is mutually exclusive with --log-file."
+  default: false
+  hide-flag: true
+
 - config-path: "logging.file-path"
   flag-name: "log-file"
   type: "resolvedPath"
