@@ -106,10 +106,10 @@ func readRandomlyAndVerify(filePath string, expectedContent []byte) error {
 		n, err := file.ReadAt(buffer, int64(offset))
 
 		if err != nil {
-			return fmt.Errorf("failed to read file %q at offset %d: %w", filePath, offset, err)
+			return fmt.Errorf("Random-read failed at iter#%d to read file %q at [%d, %d): %w", i, filePath, offset, offset+readSize, err)
 		}
 		if !bytes.Equal(buffer[:n], expectedContent[offset:offset+n]) {
-			return fmt.Errorf("content mismatch in random read at offset %d: expected %q, got %q", offset, expectedContent[offset:offset+n], buffer[:n])
+			return fmt.Errorf("content mismatch in random read at iter#%d at offset [%d, %d): expected %q, got %q", i, offset, offset+readSize, expectedContent[offset:offset+n], buffer[:n])
 		}
 	}
 	return nil
@@ -217,7 +217,7 @@ func (t *RapidAppendsSuite) TestAppendsAndRead() {
 			appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(primaryMount.testDirPath, t.fileName), os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
 			defer operations.CloseFileShouldNotThrowError(t.T(), appendFileHandle)
 			readPath := path.Join(tc.readMountPath, t.fileName)
-			for range numAppends {
+			for _, i := range numAppends {
 				t.appendToFile(appendFileHandle, setup.GenerateRandomString(appendSize))
 				// Sync the file if the test case requires it.
 				if tc.syncNeeded {
@@ -226,7 +226,7 @@ func (t *RapidAppendsSuite) TestAppendsAndRead() {
 
 				err := tc.readAndVerify(readPath, []byte(t.fileContent))
 
-				require.NoError(t.T(), err)
+				require.NoErrorf(t.T(), err, "failed reading after append#%d: %v", i, err)
 			}
 
 		})
