@@ -24,7 +24,7 @@ func main() {
 	}(client)
 
 	bucket := "ashmeen-zb"
-	object := "experiment.1.0"
+	object := "experiment.0.0"
 	obj1 := client.Bucket(bucket).Object(object)
 	fmt.Println("Creating with nil read handle")
 	obj1 = obj1.ReadHandle(nil)
