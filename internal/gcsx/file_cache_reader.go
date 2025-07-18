@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -56,6 +57,7 @@ type FileCacheReader struct {
 	fileCacheHandle *file.CacheHandle
 
 	metricHandle common.MetricHandle
+	mu           sync.Mutex
 }
 
 func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle) *FileCacheReader {
@@ -127,7 +129,11 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 
 	// Create fileCacheHandle if not already.
 	if fc.fileCacheHandle == nil {
-		fc.fileCacheHandle, err = fc.fileCacheHandler.GetCacheHandle(fc.object, fc.bucket, fc.cacheFileForRangeRead, offset)
+		fc.mu.Lock()
+		if fc.fileCacheHandle == nil {
+			fc.fileCacheHandle, err = fc.fileCacheHandler.GetCacheHandle(fc.object, fc.bucket, fc.cacheFileForRangeRead, offset)
+		}
+		fc.mu.Unlock()
 		if err != nil {
 			cacheHit = false
 			bytesRead = 0

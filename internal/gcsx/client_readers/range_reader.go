@@ -123,6 +123,13 @@ func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (
 		return readerResponse, err
 	}
 
+	rr.invalidateReaderIfMisalignedOrTooSmall(req.Offset, req.Buffer)
+	readerResponse.Size, err = rr.readFromExistingReader(ctx, req)
+
+	if err != gcsx.FallbackToAnotherReader {
+		return readerResponse, err
+	}
+
 	readerResponse.Size, err = rr.readFromRangeReader(ctx, req.Buffer, req.Offset, req.EndOffset, rr.readType)
 
 	return readerResponse, err
@@ -333,13 +340,10 @@ func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(offset int64, p []
 // If a reader exists and the read is successful, the data is returned.
 // Otherwise, it returns an error indicating that a fallback to another reader is needed.
 // Make sure to call invalidateReaderIfMisalignedOrTooSmall before using this method.
-func (rr *RangeReader) readFromExistingReader(ctx context.Context, req *gcsx.GCSReaderRequest) (gcsx.ReaderResponse, error) {
+func (rr *RangeReader) readFromExistingReader(ctx context.Context, req *gcsx.GCSReaderRequest) (int, error) {
 	if rr.reader != nil {
-		return rr.ReadAt(ctx, req)
+		return rr.readFromRangeReader(ctx, req.Buffer, req.Offset, req.EndOffset, rr.readType)
 	}
 
-	return gcsx.ReaderResponse{
-		DataBuf: req.Buffer,
-		Size:    0,
-	}, gcsx.FallbackToAnotherReader
+	return 0, gcsx.FallbackToAnotherReader
 }

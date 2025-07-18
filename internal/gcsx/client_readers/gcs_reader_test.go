@@ -107,7 +107,7 @@ func (t *gcsReaderTest) Test_NewGCSReader() {
 
 	assert.Equal(t.T(), object, gcsReader.object)
 	assert.Equal(t.T(), t.mockBucket, gcsReader.bucket)
-	assert.Equal(t.T(), common.ReadTypeMap[common.ReadTypeSequential], gcsReader.readType)
+	assert.Equal(t.T(), common.ReadTypeSequential, gcsReader.readType.Load())
 }
 
 func (t *gcsReaderTest) Test_ReadAt_InvalidOffset() {
@@ -171,8 +171,8 @@ func (t *gcsReaderTest) Test_ReadAt_ExistingReaderLimitIsLessThanRequestedDataSi
 	assert.Equal(t.T(), rc, t.gcsReader.rangeReader.reader)
 	assert.Equal(t.T(), requestSize, readerResponse.Size)
 	assert.Equal(t.T(), content, string(readerResponse.DataBuf[:readerResponse.Size]))
-	assert.Equal(t.T(), uint64(requestSize), t.gcsReader.totalReadBytes)
-	assert.Equal(t.T(), int64(2+requestSize), t.gcsReader.expectedOffset)
+	assert.Equal(t.T(), uint64(requestSize), t.gcsReader.totalReadBytes.Load())
+	assert.Equal(t.T(), int64(2+requestSize), t.gcsReader.expectedOffset.Load())
 	assert.Equal(t.T(), expectedHandleInRequest, t.gcsReader.rangeReader.readHandle)
 }
 
@@ -206,7 +206,7 @@ func (t *gcsReaderTest) Test_ReadAt_ExistingReaderLimitIsLessThanRequestedObject
 	assert.Nil(t.T(), t.gcsReader.rangeReader.reader)
 	assert.Equal(t.T(), int(t.object.Size), readerResponse.Size)
 	assert.Equal(t.T(), content, string(readerResponse.DataBuf[:readerResponse.Size]))
-	assert.Equal(t.T(), int64(t.object.Size), t.gcsReader.expectedOffset)
+	assert.Equal(t.T(), int64(t.object.Size), t.gcsReader.expectedOffset.Load())
 	assert.Equal(t.T(), []byte(nil), t.gcsReader.rangeReader.readHandle)
 }
 
@@ -217,7 +217,7 @@ func (t *gcsReaderTest) Test_ReadAt_ExistingReaderIsFine() {
 	t.gcsReader.rangeReader.reader = &fake.FakeReader{ReadCloser: getReadCloser([]byte(content)), Handle: []byte("fake")}
 	t.gcsReader.rangeReader.cancel = func() {}
 	t.gcsReader.rangeReader.start = 2
-	t.gcsReader.totalReadBytes = 2
+	t.gcsReader.totalReadBytes.Store(2)
 	t.gcsReader.rangeReader.limit = 5
 	requestSize := 3
 
@@ -226,8 +226,8 @@ func (t *gcsReaderTest) Test_ReadAt_ExistingReaderIsFine() {
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), 3, readerResponse.Size)
 	assert.Equal(t.T(), content, string(readerResponse.DataBuf[:readerResponse.Size]))
-	assert.Equal(t.T(), uint64(5), t.gcsReader.totalReadBytes)
-	assert.Equal(t.T(), int64(5), t.gcsReader.expectedOffset)
+	assert.Equal(t.T(), uint64(5), t.gcsReader.totalReadBytes.Load())
+	assert.Equal(t.T(), int64(5), t.gcsReader.expectedOffset.Load())
 	assert.Equal(t.T(), []byte("fake"), t.gcsReader.rangeReader.readHandle)
 }
 
@@ -324,9 +324,9 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateReadType() {
 			t.SetupTest()
 			require.Equal(t.T(), len(tc.readRanges), len(tc.expectedReadTypes), "Test Parameter Error: readRanges and expectedReadTypes should have same length")
 			t.gcsReader.mrr.isMRDInUse = false
-			t.gcsReader.seeks = 0
-			t.gcsReader.rangeReader.readType = common.ReadTypeMap[common.ReadTypeSequential]
-			t.gcsReader.expectedOffset = 0
+			t.gcsReader.seeks.Store(0)
+			t.gcsReader.rangeReader.readType.Store(common.ReadTypeSequential)
+			t.gcsReader.expectedOffset.Store(0)
 			t.object.Size = uint64(tc.dataSize)
 			testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
 			fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{})
@@ -341,9 +341,9 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateReadType() {
 				_, err = t.readAt(int64(readRange[0]), int64(readRange[1]-readRange[0]))
 
 				assert.NoError(t.T(), err)
-				assert.Equal(t.T(), common.ReadTypeMap[int(tc.expectedReadTypes[i])], t.gcsReader.readType)
-				assert.Equal(t.T(), int64(readRange[1]), t.gcsReader.expectedOffset)
-				assert.Equal(t.T(), uint64(tc.expectedSeeks[i]), t.gcsReader.seeks)
+				assert.Equal(t.T(), int(tc.expectedReadTypes[i]), t.gcsReader.readType.Load())
+				assert.Equal(t.T(), int64(readRange[1]), t.gcsReader.expectedOffset.Load())
+				assert.Equal(t.T(), uint64(tc.expectedSeeks[i]), t.gcsReader.seeks.Load())
 			}
 		})
 	}
@@ -519,12 +519,12 @@ func (t *gcsReaderTest) Test_ReadInfo_Random() {
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
 			t.object.Size = tc.objectSize
-			t.gcsReader.totalReadBytes = tc.totalReadBytes
+			t.gcsReader.totalReadBytes.Store(tc.totalReadBytes)
 
 			end, err := t.gcsReader.getReadInfo(tc.start, int64(tc.objectSize))
 
 			assert.NoError(t.T(), err)
-			assert.Equal(t.T(), random, t.gcsReader.readType)
+			assert.Equal(t.T(), random, t.gcsReader.readType.Load())
 			assert.Equal(t.T(), tc.expectedEnd, end)
 		})
 	}
@@ -607,10 +607,10 @@ func (t *gcsReaderTest) Test_ReadAt_WithAndWithoutReadConfig() {
 func (t *gcsReaderTest) Test_ReadAt_ValidateZonalRandomReads() {
 	t.gcsReader.rangeReader.reader = nil
 	t.gcsReader.mrr.isMRDInUse = false
-	t.gcsReader.seeks = 0
+	t.gcsReader.seeks.Store(0)
 	t.gcsReader.rangeReader.readType = common.ReadTypeMap[common.ReadTypeSequential]
-	t.gcsReader.expectedOffset = 0
-	t.gcsReader.totalReadBytes = 0
+	t.gcsReader.expectedOffset.Store(0)
+	t.gcsReader.totalReadBytes.Store(0)
 	t.object.Size = 20 * MiB
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true})
 	testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
@@ -639,8 +639,8 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateZonalRandomReads() {
 		_, err := t.gcsReader.ReadAt(t.ctx, buf, int64(readRange[0]))
 
 		assert.NoError(t.T(), err)
-		assert.Equal(t.T(), uint64(seeks), t.gcsReader.seeks)
-		assert.Equal(t.T(), common.ReadTypeMap[common.ReadTypeRandom], t.gcsReader.readType)
-		assert.Equal(t.T(), int64(readRange[1]), t.gcsReader.expectedOffset)
+		assert.Equal(t.T(), uint64(seeks), t.gcsReader.seeks.Load())
+		assert.Equal(t.T(), common.ReadTypeRandom, t.gcsReader.readType.Load())
+		assert.Equal(t.T(), int64(readRange[1]), t.gcsReader.expectedOffset.Load())
 	}
 }
