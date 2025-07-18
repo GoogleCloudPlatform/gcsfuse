@@ -19,7 +19,7 @@ import (
 	"testing"
 
 	"cloud.google.com/go/auth"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 )
@@ -33,23 +33,23 @@ func resetInjectedFunctions() {
 func TestCreateCredentials(t *testing.T) {
 	cred, err := createCredentials("testdata/key.json")
 
-	require.NoError(t, err)
-	require.NotNil(t, cred)
+	assert.NoError(t, err)
+	assert.NotNil(t, cred)
 }
 
 func Test_CreateTokenSourceFromTokenUrl(t *testing.T) {
 	t.Run("empty token URL returns nil", func(t *testing.T) {
 		tokenSrc, err := createTokenSourceFromTokenUrl("", false)
-		require.NoError(t, err)
-		require.Nil(t, tokenSrc)
+		assert.NoError(t, err)
+		assert.Nil(t, tokenSrc)
 	})
 
 	t.Run("valid token URL returns token source", func(t *testing.T) {
 		// Ideally, you'd mock auth2.GetTokenSourceFromTokenUrl.
 		// For now, assume it works or wrap it in an interface for testability.
 		tokenSrc, err := createTokenSourceFromTokenUrl("https://example.com/token", false)
-		require.NoError(t, err)
-		require.NotNil(t, tokenSrc)
+		assert.NoError(t, err)
+		assert.NotNil(t, tokenSrc)
 	})
 }
 
@@ -63,9 +63,9 @@ func Test_CreateCredentialForClient_TokenUrlPreferredSuccess(t *testing.T) {
 
 	tokenSrc, err := ConfigureClientAuth(config, &clientOpts)
 
-	require.NoError(t, err)
-	require.NotNil(t, tokenSrc)
-	require.Len(t, clientOpts, 1) // Only tokenSource option attached
+	assert.NoError(t, err)
+	assert.NotNil(t, tokenSrc)
+	assert.Len(t, clientOpts, 1) // Only tokenSource option attached
 }
 
 func Test_ConfigureClientAuth_TokenUrlPreferredError(t *testing.T) {
@@ -78,8 +78,8 @@ func Test_ConfigureClientAuth_TokenUrlPreferredError(t *testing.T) {
 
 	_, err := ConfigureClientAuth(config, &clientOpts)
 
-	require.ErrorContains(t, err, "simulated token source error")
-	require.Empty(t, clientOpts)
+	assert.ErrorContains(t, err, "simulated token source error")
+	assert.Empty(t, clientOpts)
 }
 
 func TestCreateCredentialForClient_FallbackToKeyFile_Success(t *testing.T) {
@@ -91,9 +91,9 @@ func TestCreateCredentialForClient_FallbackToKeyFile_Success(t *testing.T) {
 
 	tokenSrc, err := ConfigureClientAuth(config, &clientOpts)
 
-	require.NoError(t, err)
-	require.NotNil(t, tokenSrc)
-	require.Len(t, clientOpts, 2) // UniverseDomain + AuthCredentials
+	assert.NoError(t, err)
+	assert.NotNil(t, tokenSrc)
+	assert.Len(t, clientOpts, 2) // UniverseDomain + AuthCredentials
 }
 
 func TestConfigureClientAuth_FallbackToKeyFile_Error(t *testing.T) {
@@ -111,6 +111,6 @@ func TestConfigureClientAuth_FallbackToKeyFile_Error(t *testing.T) {
 
 	_, err := ConfigureClientAuth(config, &clientOpts)
 
-	require.Error(t, err)
-	require.Empty(t, clientOpts)
+	assert.Error(t, err)
+	assert.Empty(t, clientOpts)
 }
