@@ -23,6 +23,7 @@ import (
 	"path"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
@@ -224,6 +225,9 @@ func (t *RapidAppendsSuite) TestAppendsAndRead() {
 					operations.SyncFile(appendFileHandle, t.T())
 				}
 				fmt.Printf("Did append#%d just now. fileSize now at %v bytes\n", i, len(t.fileContent))
+				sleepDur := 0 * time.Second
+				fmt.Printf("Now sleeping for %v to let the append settle ....", sleepDur)
+				time.Sleep(sleepDur)
 
 				err := tc.readAndVerify(readPath, []byte(t.fileContent))
 
