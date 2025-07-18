@@ -28,7 +28,8 @@ import (
 )
 
 const (
-	testDirName = "RapidAppendsTest"
+	testDirName    = "RapidAppendsTest"
+	fileNamePrefix = "rapid-append-file-"
 )
 
 var (

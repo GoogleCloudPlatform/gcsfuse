@@ -29,8 +29,9 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-// Number of appends to perform on test file.
-const numAppends = 3
+const numAppends = 3             // Number of appends to perform on test file.
+const appendSize = 10            // Size in bytes for each append.
+const unfinalizedObjectSize = 10 // Size in bytes of initial unfinalized Object.
 
 // //////////////////////////////////////////////////////////////////////
 // Boilerplate
@@ -62,19 +63,17 @@ func (t *RapidAppendsSuite) TearDownSuite() {
 		setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
 	}
 }
-func (t *RapidAppendsSuite) createUnfinalizedObject() {
-	t.fileName = client.FileName1 + setup.GenerateRandomString(5)
-	// Create unfinalized object.
-	t.fileContent = setup.GenerateRandomString(client.SizeOfFileContents)
-	_ = client.CreateUnfinalizedObject(ctx, t.T(), storageClient, path.Join(testDirName, t.fileName), t.fileContent)
-}
-
-func (t *RapidAppendsSuite) SetupTest() {
-	t.createUnfinalizedObject()
-}
 
 func (t *RapidAppendsSuite) SetupSubTest() {
-	t.createUnfinalizedObject()
+	t.fileName = fileNamePrefix + setup.GenerateRandomString(5)
+	// Create unfinalized object.
+	t.fileContent = setup.GenerateRandomString(unfinalizedObjectSize)
+	client.CreateUnfinalizedObject(ctx, t.T(), storageClient, path.Join(testDirName, t.fileName), t.fileContent)
+}
+
+func (t *RapidAppendsSuite) TearDownSubTest() {
+	err := os.Remove(path.Join(primaryMntTestDirPath, t.fileName))
+	require.NoError(t.T(), err)
 }
 
 // appendToFile appends "appendContent" to the given file.
@@ -113,14 +112,14 @@ func (t *RapidAppendsSuite) TestAppendsAndRead() {
 			// Open the file for appending on the primary mount.
 			appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(primaryMntTestDirPath, t.fileName), os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
 			defer operations.CloseFileShouldNotThrowError(t.T(), appendFileHandle)
+			readPath := path.Join(tc.readMountPath, t.fileName)
 			for range numAppends {
-				t.appendToFile(appendFileHandle, client.FileContents)
+				t.appendToFile(appendFileHandle, setup.GenerateRandomString(appendSize))
 				// Sync the file if the test case requires it.
 				if tc.syncNeeded {
 					operations.SyncFile(appendFileHandle, t.T())
 				}
 
-				readPath := path.Join(tc.readMountPath, t.fileName)
 				gotContent, err := operations.ReadFile(readPath)
 
 				require.NoError(t.T(), err)
