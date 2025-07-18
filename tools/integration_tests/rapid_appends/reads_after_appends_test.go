@@ -82,7 +82,7 @@ func readRandomlyAndVerify(filePath string, expectedContent []byte) error {
 	}
 
 	const numReads int = 50
-	for range numReads {
+	for i := range numReads {
 		offset := rand.IntN(maxOffset)
 		readSize := rand.IntN(int(fileSize - int64(offset))) // Read from actual file
 		if readSize == 0 {                                   // Ensure readSize is at least 1 if possible
@@ -99,10 +99,10 @@ func readRandomlyAndVerify(filePath string, expectedContent []byte) error {
 		n, err := file.ReadAt(buffer, int64(offset))
 
 		if err != nil {
-			return fmt.Errorf("failed to read file %q at offset %d: %w", filePath, offset, err)
+			return fmt.Errorf("Random-read failed at iter#%d to read file %q at [%d, %d): %w", i, filePath, offset, offset+readSize, err)
 		}
 		if !bytes.Equal(buffer[:n], expectedContent[offset:offset+n]) {
-			return fmt.Errorf("content mismatch in random read at offset %d: expected %q, got %q", offset, expectedContent[offset:offset+n], buffer[:n])
+			return fmt.Errorf("content mismatch in random read at iter#%d at offset [%d, %d): expected %q, got %q", i, offset, offset+readSize, expectedContent[offset:offset+n], buffer[:n])
 		}
 	}
 	return nil
