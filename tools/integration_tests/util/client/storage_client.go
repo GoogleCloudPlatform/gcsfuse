@@ -311,14 +311,11 @@ func StatObject(ctx context.Context, client *storage.Client, object string) (*st
 	return attrs, nil
 }
 
-// UploadGcsObjectWithPreconditions uploads a local file to a specified GCS bucket and object with given preconditions.
+// UploadGcsObject uploads a local file to a specified GCS bucket and object with precondition DoesNotExist.
 // Handles gzip compression if requested.
-func UploadGcsObjectWithPreconditions(ctx context.Context, client *storage.Client, localPath, bucketName, objectName string, uploadGzipEncoded bool, preconditions *storage.Conditions) error {
+func UploadGcsObject(ctx context.Context, client *storage.Client, localPath, bucketName, objectName string, uploadGzipEncoded bool) error {
 	// Create a writer to upload the object.
-	obj := client.Bucket(bucketName).Object(objectName)
-	if preconditions != nil {
-		obj = obj.If(*preconditions)
-	}
+	obj := client.Bucket(bucketName).Object(objectName).If(storage.Conditions{DoesNotExist: true})
 	w, err := NewWriter(ctx, obj, client)
 	if err != nil {
 		return fmt.Errorf("failed to open writer for GCS object gs://%s/%s: %w", bucketName, objectName, err)
@@ -384,21 +381,8 @@ func ClearCacheControlOnGcsObject(ctx context.Context, client *storage.Client, o
 	return nil
 }
 
-// UploadGcsObject uploads a local file to a specified GCS bucket and object without any preconditions.
-// Handles gzip compression if requested.
-func UploadGcsObject(ctx context.Context, client *storage.Client, localPath, bucketName, objectName string, uploadGzipEncoded bool) error {
-	return UploadGcsObjectWithPreconditions(ctx, client, localPath, bucketName, objectName, uploadGzipEncoded, nil)
-}
-
 func CopyFileInBucket(ctx context.Context, storageClient *storage.Client, srcfilePath, destFilePath, bucket string) {
 	err := UploadGcsObject(ctx, storageClient, srcfilePath, bucket, destFilePath, false)
-	if err != nil {
-		log.Fatalf("Error while copying file %q to GCS object \"gs://%s/%s\" : %v", srcfilePath, bucket, destFilePath, err)
-	}
-}
-
-func CopyFileInBucketWithPreconditions(ctx context.Context, storageClient *storage.Client, srcfilePath, destFilePath, bucket string, preconditions *storage.Conditions) {
-	err := UploadGcsObjectWithPreconditions(ctx, storageClient, srcfilePath, bucket, destFilePath, false, preconditions)
 	if err != nil {
 		log.Fatalf("Error while copying file %q to GCS object \"gs://%s/%s\" : %v", srcfilePath, bucket, destFilePath, err)
 	}
