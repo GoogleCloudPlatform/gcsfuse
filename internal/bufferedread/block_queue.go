@@ -35,9 +35,11 @@ func newBlockQueueEntry(b block.Block, t *DownloadTask) *blockQueueEntry {
 }
 
 // blockQueue is a queue of blockQueueEntry instances.
-type blockQueue common.Queue[*blockQueueEntry]
+type blockQueue struct {
+	q common.Queue[*blockQueueEntry]
+}
 
 // newBlockQueue creates a new, empty queue for managing block download tasks.
-func newBlockQueue() blockQueue {
-	return common.NewLinkedListQueue[*blockQueueEntry]()
+func newBlockQueue() *blockQueue {
+	return &blockQueue{q: common.NewLinkedListQueue[*blockQueueEntry]()}
 }
