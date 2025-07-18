@@ -28,12 +28,12 @@ func main() {
 	obj1 := client.Bucket(bucket).Object(object)
 	fmt.Println("Creating with nil read handle")
 	obj1 = obj1.ReadHandle(nil)
-	storageReader1, err := obj1.NewRangeReader(ctx, 0, 200*1024*1024)
+	storageReader1, err := obj1.NewRangeReader(ctx, 3238002688, 200*1024*1024)
 	if err != nil {
 		fmt.Printf("NewRangeReader err: %v\n", err)
 	}
 	gotRH := storageReader1.ReadHandle()
-	p := make([]byte, 1024*1024*200)
+	p := make([]byte, 1048576)
 	n, err := io.ReadFull(storageReader1, p)
 	if err != nil {
 		fmt.Printf("Read 1 err: %v\n", err)
@@ -49,15 +49,14 @@ func main() {
 	obj1 = nil
 
 	obj2 := client.Bucket(bucket).Object(object)
-	fmt.Println("Creating with reader.ReadHandle (closed)")
 	obj2.ReadHandle(gotRH)
-	storageReader2, err := obj2.NewRangeReader(ctx, 200*1024*1024, 200*1024*1024)
+	storageReader2, err := obj2.NewRangeReader(ctx, 39743127552, 200*1024*1024)
 	if err != nil {
 		fmt.Printf("Close err: %v\n", err)
 		return
 	}
 	fmt.Println("compare new returned rh vs prev rh: ", slices.Compare(storageReader2.ReadHandle(), gotRH))
-	p = make([]byte, 1024*1024*200)
+	p = make([]byte, 1048576)
 	n, err = io.ReadFull(storageReader2, p)
 	if err != nil {
 		fmt.Printf("Read 2 err: %v\n", err)
@@ -75,12 +74,12 @@ func main() {
 	obj3 := client.Bucket(bucket).Object(object)
 	fmt.Println("Creating with stored read handle")
 	obj3.ReadHandle(gotRH)
-	storageReader3, err := obj3.NewRangeReader(ctx, 400*1024*1024, 200*1024*1024)
+	storageReader3, err := obj3.NewRangeReader(ctx, 20, 200*1024*1024)
 	if err != nil {
 		fmt.Printf("Close err: %v\n", err)
 		return
 	}
-	p = make([]byte, 1024*1024*200)
+	p = make([]byte, 1048576)
 	n, err = io.ReadFull(storageReader3, p)
 	if err != nil {
 		fmt.Printf("Read 3 err: %v\n", err)
