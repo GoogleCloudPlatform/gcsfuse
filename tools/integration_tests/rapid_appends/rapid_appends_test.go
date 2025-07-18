@@ -77,11 +77,6 @@ func (t *RapidAppendsSuite) TearDownSubTest() {
 	require.NoError(t.T(), err)
 }
 
-//func (t *RapidAppendsSuite) TearDownTest() {
-//err := os.Remove(path.Join(primaryMount.testDirPath, t.fileName))
-//require.NoError(t.T(), err)
-//}
-
 // appendToFile appends "appendContent" to the given file.
 func (t *RapidAppendsSuite) appendToFile(file *os.File, appendContent string) {
 	t.T().Helper()
