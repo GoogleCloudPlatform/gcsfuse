@@ -245,6 +245,7 @@ func (t *RandomReaderTest) NoExistingReader() {
 }
 
 func (t *RandomReaderTest) ExistingReader_ReadAtOffsetAfterTheReaderPosition() {
+	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
 	var currentStartOffset int64 = 2
 	var readerLimit int64 = 15
 	var readAtOffset int64 = 10
@@ -297,6 +298,7 @@ func (t *RandomReaderTest) ReaderFails() {
 }
 
 func (t *RandomReaderTest) ReaderNotExhausted() {
+	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
 	// Set up a reader that has three bytes left to give.
 	cc := &countingCloser{
 		Reader: strings.NewReader("abc"),
@@ -324,6 +326,7 @@ func (t *RandomReaderTest) ReaderNotExhausted() {
 }
 
 func (t *RandomReaderTest) ReaderExhausted_ReadFinished() {
+	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
 	// Set up a reader that has three bytes left to give.
 	rc := &countingCloser{
 		Reader: strings.NewReader("abc"),
@@ -350,6 +353,7 @@ func (t *RandomReaderTest) ReaderExhausted_ReadFinished() {
 }
 
 func (t *RandomReaderTest) PropagatesCancellation() {
+	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
 	// Set up a reader that will block until we tell it to return.
 	finishRead := make(chan struct{})
 	rc := io.NopCloser(&blockingReader{finishRead})
@@ -391,6 +395,7 @@ func (t *RandomReaderTest) PropagatesCancellation() {
 }
 
 func (t *RandomReaderTest) DoesntPropagateCancellationAfterReturning() {
+	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
 	// Set up a reader that will return three bytes.
 	t.rr.wrapped.reader = &fake.FakeReader{ReadCloser: getReadCloser([]byte("xxx"))}
 	t.rr.wrapped.start = 1
@@ -466,13 +471,13 @@ func (t *RandomReaderTest) UpgradeReadsToAverageSize() {
 	const readSize = 2 * minReadSize
 
 	// Simulate an existing reader at a mismatched offset.
-	t.rr.wrapped.seeks = numReads
-	t.rr.wrapped.totalReadBytes = totalReadBytes
+	t.rr.wrapped.seeks.Store(numReads)
+	t.rr.wrapped.totalReadBytes.Store(totalReadBytes)
 	t.rr.wrapped.reader = &fake.FakeReader{ReadCloser: getReadCloser([]byte("xxx"))}
 	t.rr.wrapped.cancel = func() {}
 	t.rr.wrapped.start = 2
 	t.rr.wrapped.limit = 5
-	t.rr.wrapped.expectedOffset = 2
+	t.rr.wrapped.expectedOffset.Store(2)
 
 	// The bucket should be asked to read expectedBytesToRead bytes.
 	r := strings.NewReader(strings.Repeat("x", expectedBytesToRead))
