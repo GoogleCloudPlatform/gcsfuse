@@ -147,6 +147,7 @@ func (t *CommonAppendsSuite) TestAppendsAndReads() {
 						sizeBeforeAppend := len(t.fileContent)
 						t.appendToFile(appendFileHandle, setup.GenerateRandomString(appendSize))
 						sizeAfterAppend := len(t.fileContent)
+						fmt.Printf("Did append#%d just now. fileSize now at %v bytes\n", i, len(t.fileContent))
 
 						// If metadata cache is enabled, gcsfuse reads up to the cached file size.
 						// For same-mount appends/reads, file size is always current.
