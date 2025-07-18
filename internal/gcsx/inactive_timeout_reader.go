@@ -116,6 +116,7 @@ func NewInactiveTimeoutReaderWithClock(ctx context.Context, bucket gcs.Bucket, o
 
 // createGCSReader is a helper method to create the underlined reader from itr.start + itr.seen offset.
 func (itr *InactiveTimeoutReader) createGCSReader() (gcs.StorageReader, error) {
+	logger.Infof("Creating with read handle: %s", string(itr.readHandle))
 	reader, err := itr.bucket.NewReaderWithReadHandle(
 		itr.ctx,
 		&gcs.ReadObjectRequest{
@@ -131,6 +132,7 @@ func (itr *InactiveTimeoutReader) createGCSReader() (gcs.StorageReader, error) {
 	if err != nil {
 		return nil, fmt.Errorf("NewReaderWithReadHandle: %w", err)
 	}
+	logger.Infof("read handle created: %v", string(reader.ReadHandle()))
 	return reader, nil
 }
 
