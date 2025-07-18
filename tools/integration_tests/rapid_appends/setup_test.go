@@ -95,9 +95,7 @@ func TestMain(m *testing.M) {
 	}
 	// Setup Package Test Directory for primary mount.
 	primaryMntTestDirPath = setup.SetupTestDirectory(testDirName)
-	defer func() {
-		setup.UnmountGCSFuse(primaryMntRootDir)
-	}()
+	defer setup.UnmountGCSFuse(primaryMntRootDir)
 
 	// Set up test directory for secondary mount.
 	setup.SetUpTestDirForTestBucketFlag()

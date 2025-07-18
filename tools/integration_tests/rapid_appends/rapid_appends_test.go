@@ -39,8 +39,8 @@ const numAppends = 3
 // TODO: Split the suite in two suites single mount and multi-mount.
 type RapidAppendsSuite struct {
 	suite.Suite
-	fileName    string
-	fileContent string
+	fileName         string
+	fileContent      string
 }
 
 // //////////////////////////////////////////////////////////////////////
@@ -62,17 +62,19 @@ func (t *RapidAppendsSuite) TearDownSuite() {
 		setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
 	}
 }
-
-func (t *RapidAppendsSuite) SetupTest() {
+func (t *RapidAppendsSuite) createUnfinalizedObject() {
 	t.fileName = client.FileName1 + setup.GenerateRandomString(5)
 	// Create unfinalized object.
 	t.fileContent = setup.GenerateRandomString(client.SizeOfFileContents)
 	_ = client.CreateUnfinalizedObject(ctx, t.T(), storageClient, path.Join(testDirName, t.fileName), t.fileContent)
 }
 
-func (t *RapidAppendsSuite) TearDownTest() {
-	err := os.Remove(path.Join(primaryMntTestDirPath, t.fileName))
-	require.NoError(t.T(), err)
+func (t *RapidAppendsSuite) SetupTest() {
+	t.createUnfinalizedObject()
+}
+
+func (t *RapidAppendsSuite) SetupSubTest() {
+	t.createUnfinalizedObject()
 }
 
 // appendToFile appends "appendContent" to the given file.
@@ -81,48 +83,50 @@ func (t *RapidAppendsSuite) appendToFile(file *os.File, appendContent string) {
 	n, err := file.WriteString(appendContent)
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), len(appendContent), n)
+	t.fileContent += appendContent
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *RapidAppendsSuite) TestAppendsAndSequentialReadFromSameMount() {
-	appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(primaryMntTestDirPath, t.fileName), os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
-	defer func() {
-		err := appendFileHandle.Close()
-		require.NoError(t.T(), err)
-	}()
-	expectedContent := t.fileContent
-	for range numAppends {
-		t.appendToFile(appendFileHandle, client.FileContents)
-		expectedContent += client.FileContents
-
-		// Read content of file from same mount.
-		gotContent, err := operations.ReadFile(path.Join(primaryMntTestDirPath, t.fileName))
-
-		require.NoError(t.T(), err)
-		assert.Equal(t.T(), expectedContent, string(gotContent))
+func (t *RapidAppendsSuite) TestAppendsAndRead() {
+	testCases := []struct {
+		name          string
+		readMountPath string
+		syncNeeded    bool
+	}{
+		{
+			name:          "reading_seq_from_same_mount",
+			readMountPath: primaryMntTestDirPath,
+			syncNeeded:    false, // Sync is not required when reading from the same mount.
+		},
+		{
+			name:          "reading_seq_from_different_mount",
+			readMountPath: secondaryMntTestDirPath,
+			syncNeeded:    true, // Sync is required for writes to be visible on another mount.
+		},
 	}
-}
 
-func (t *RapidAppendsSuite) TestAppendsAndSequentialReadFromDifferentMount() {
-	appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(primaryMntTestDirPath, t.fileName), os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
-	defer func() {
-		err := appendFileHandle.Close()
-		require.NoError(t.T(), err)
-	}()
-	expectedContent := t.fileContent
-	for range numAppends {
-		t.appendToFile(appendFileHandle, client.FileContents)
-		expectedContent += client.FileContents
-		operations.SyncFile(appendFileHandle, t.T())
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			// Open the file for appending on the primary mount.
+			appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(primaryMntTestDirPath, t.fileName), os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
+			defer operations.CloseFileShouldNotThrowError(t.T(), appendFileHandle)
+			for range numAppends {
+				t.appendToFile(appendFileHandle, client.FileContents)
+				// Sync the file if the test case requires it.
+				if tc.syncNeeded {
+					operations.SyncFile(appendFileHandle, t.T())
+				}
 
-		// Read content of file from differnt mount.
-		gotContent, err := operations.ReadFile(path.Join(secondaryMntTestDirPath, t.fileName))
+				readPath := path.Join(tc.readMountPath, t.fileName)
+				gotContent, err := operations.ReadFile(readPath)
 
-		require.NoError(t.T(), err)
-		assert.Equal(t.T(), expectedContent, string(gotContent))
+				require.NoError(t.T(), err)
+				assert.Equal(t.T(), t.fileContent, string(gotContent))
+			}
+		})
 	}
 }
 
