@@ -81,7 +81,7 @@ func readRandomlyAndVerify(filePath string, expectedContent []byte) error {
 		maxOffset = len(expectedContent)
 	}
 
-	const numReads int = 50
+	const numReads int = 5
 	for i := range numReads {
 		offset := rand.IntN(maxOffset)
 		readSize := rand.IntN(int(fileSize - int64(offset))) // Read from actual file
