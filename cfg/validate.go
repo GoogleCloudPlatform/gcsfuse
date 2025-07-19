@@ -273,3 +273,14 @@ func ValidateConfig(v isSet, config *Config) error {
 
 	return nil
 }
+
+// IsCloudLoggingEnabledValid returns an error if the cloud logging configuration is invalid.
+func IsCloudLoggingEnabledValid(c *Config) error {
+	if c.Logging.ExperimentalEnableCloudLogging && c.Logging.FilePath != "" {
+		return errors.New("logging.experimental-enable-cloud-logging and logging.file-path are mutually exclusive")
+	}
+	if c.Logging.ExperimentalEnableCloudLogging && c.Logging.Format != "json" {
+		return errors.New("logging.format must be 'json' when logging.experimental-enable-cloud-logging is true")
+	}
+	return nil
+}

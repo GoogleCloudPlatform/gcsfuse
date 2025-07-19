@@ -211,3 +211,10 @@ If you observe that GCSFuse is still utilizing staged writes despite streaming w
   - Truncating a file downwards while writes are in progress (this action also finalizes the object and subsequent writes will fall back).
 
 An informational log message will be emitted by GCSFuse whenever a fallback to staged writes occurs, providing details on the reason.
+
+### No logs in Google Cloud Logging when enabled
+
+If you have enabled Cloud Logging but don't see logs in the Google Cloud console:
+*   **Check IAM Permissions:** Ensure the service account or user running GCSFuse has the `roles/logging.logWriter` IAM role for the project.
+*   **Check for Errors:** Run GCSFuse with `--foreground` to see startup logs on the console. Look for any errors related to authentication or connecting to the Cloud Logging service.
+*   **Network Connectivity:** Verify that the machine has outbound network access to `logging.googleapis.com`.

@@ -53,7 +53,9 @@ func InitLogFile(newLogConfig cfg.LoggingConfig) error {
 	var f *os.File
 	var sysWriter *syslog.Writer
 	var fileWriter *lumberjack.Logger
+	var cloudWriter *cloudLogWriter
 	var err error
+
 	if newLogConfig.FilePath != "" {
 		f, err = os.OpenFile(
 			string(newLogConfig.FilePath),
@@ -70,7 +72,12 @@ func InitLogFile(newLogConfig cfg.LoggingConfig) error {
 			Compress:   newLogConfig.LogRotate.Compress,
 		}
 	} else {
-		if _, ok := os.LookupEnv(GCSFuseInBackgroundMode); ok {
+		if newLogConfig.ExperimentalEnableCloudLogging {
+			cloudWriter, err = NewCloudLogWriter("gcs-fuse-test", "gcsfuse-log")
+			if err != nil {
+				return fmt.Errorf("failed to create cloud log writer: %w", err)
+			}
+		} else if _, ok := os.LookupEnv(GCSFuseInBackgroundMode); ok {
 			// Priority consist of facility and severity, here facility to specify the
 			// type of system that is logging the message to syslog and severity is log-level.
 			// User applications are allowed to take facility value between LOG_LOCAL0
@@ -85,12 +92,13 @@ func InitLogFile(newLogConfig cfg.LoggingConfig) error {
 	}
 
 	defaultLoggerFactory = &loggerFactory{
-		file:       f,
-		sysWriter:  sysWriter,
-		fileWriter: fileWriter,
-		format:     newLogConfig.Format,
-		level:      string(newLogConfig.Severity),
-		logRotate:  newLogConfig.LogRotate,
+		file:           f,
+		sysWriter:      sysWriter,
+		fileWriter:     fileWriter,
+		format:         newLogConfig.Format,
+		level:          string(newLogConfig.Severity),
+		logRotate:      newLogConfig.LogRotate,
+		cloudLogWriter: cloudWriter,
 	}
 	defaultLogger = defaultLoggerFactory.newLogger(string(newLogConfig.Severity))
 
@@ -162,12 +170,13 @@ func Fatal(format string, v ...interface{}) {
 
 type loggerFactory struct {
 	// If nil, log to stdout or stderr. Otherwise, log to this file.
-	file       *os.File
-	sysWriter  *syslog.Writer
-	format     string
-	level      string
-	logRotate  cfg.LogRotateLoggingConfig
-	fileWriter *lumberjack.Logger
+	file           *os.File
+	sysWriter      *syslog.Writer
+	format         string
+	level          string
+	logRotate      cfg.LogRotateLoggingConfig
+	fileWriter     *lumberjack.Logger
+	cloudLogWriter *cloudLogWriter
 }
 
 func (f *loggerFactory) newLogger(level string) *slog.Logger {
@@ -194,5 +203,10 @@ func (f *loggerFactory) handler(levelVar *slog.LevelVar, prefix string) slog.Han
 	if f.sysWriter != nil {
 		return f.createJsonOrTextHandler(f.sysWriter, levelVar, prefix)
 	}
+
+	if f.cloudLogWriter != nil {
+		return f.createJsonOrTextHandler(f.cloudLogWriter, levelVar, prefix)
+	}
+
 	return f.createJsonOrTextHandler(os.Stdout, levelVar, prefix)
 }
