@@ -21,9 +21,9 @@ import (
 	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
 
 // ReaderType represents different types of go-sdk gcs readers.
@@ -76,7 +76,7 @@ type GCSReader struct {
 }
 
 type GCSReaderConfig struct {
-	MetricHandle         common.MetricHandle
+	MetricHandle         metrics.MetricHandle
 	MrdWrapper           *gcsx.MultiRangeDownloaderWrapper
 	SequentialReadSizeMb int32
 	ReadConfig           *cfg.ReadConfig
@@ -89,7 +89,7 @@ func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, config *GCSReaderConfig
 		sequentialReadSizeMb: config.SequentialReadSizeMb,
 		rangeReader:          NewRangeReader(obj, bucket, config.ReadConfig, config.MetricHandle),
 		mrr:                  NewMultiRangeReader(obj, config.MetricHandle, config.MrdWrapper),
-		readType:             common.ReadTypeSequential,
+		readType:             metrics.ReadTypeSequential,
 	}
 }
 
@@ -149,7 +149,7 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.R
 // readerType specifies the go-sdk interface to use for reads.
 func (gr *GCSReader) readerType(start int64, end int64, bucketType gcs.BucketType) ReaderType {
 	bytesToBeRead := end - start
-	if gr.readType == common.ReadTypeRandom && bytesToBeRead < maxReadSize && bucketType.Zonal {
+	if gr.readType == metrics.ReadTypeRandom && bytesToBeRead < maxReadSize && bucketType.Zonal {
 		return MultiRangeReaderType
 	}
 	return RangeReaderType
@@ -177,7 +177,7 @@ func (gr *GCSReader) getReadInfo(start int64, size int64) (int64, error) {
 func (gr *GCSReader) determineEnd(start int64) int64 {
 	end := int64(gr.object.Size)
 	if gr.seeks >= minSeeksForRandom {
-		gr.readType = common.ReadTypeRandom
+		gr.readType = metrics.ReadTypeRandom
 		averageReadBytes := gr.totalReadBytes / gr.seeks
 		if averageReadBytes < maxReadSize {
 			randomReadSize := int64(((averageReadBytes / MB) + 1) * MB)

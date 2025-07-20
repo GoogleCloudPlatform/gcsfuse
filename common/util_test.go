@@ -14,6 +14,8 @@
 package common
 
 import (
+	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -77,6 +79,70 @@ func TestIsKLCacheEvictionUnSupported(t *testing.T) {
 			skip, err := IsKLCacheEvictionUnSupported()
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedSkip, skip)
+		})
+	}
+}
+
+func TestJoinShutdownFunc(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name         string
+		fns          []ShutdownFn
+		expectedErrs []string
+	}{
+		{
+			name:         "normal",
+			fns:          []ShutdownFn{func(_ context.Context) error { return nil }},
+			expectedErrs: nil,
+		},
+		{
+			name:         "one_err",
+			fns:          []ShutdownFn{func(_ context.Context) error { return fmt.Errorf("err") }},
+			expectedErrs: []string{"err"},
+		},
+		{
+			name: "two_err",
+			fns: []ShutdownFn{
+				func(_ context.Context) error { return fmt.Errorf("err1") },
+				func(_ context.Context) error { return fmt.Errorf("err2") },
+			},
+			expectedErrs: []string{"err1", "err2"},
+		},
+		{
+			name: "two_err_one_normal",
+			fns: []ShutdownFn{
+				func(_ context.Context) error { return fmt.Errorf("err1") },
+				func(_ context.Context) error { return nil },
+				func(_ context.Context) error { return fmt.Errorf("err2") },
+			},
+			expectedErrs: []string{"err1", "err2"},
+		},
+		{
+			name: "nil",
+			fns: []ShutdownFn{
+				func(_ context.Context) error { return fmt.Errorf("err1") },
+				nil,
+				func(_ context.Context) error { return fmt.Errorf("err2") },
+			},
+			expectedErrs: []string{"err1", "err2"},
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := JoinShutdownFunc(tc.fns...)(context.Background())
+
+			if len(tc.expectedErrs) == 0 {
+				assert.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				for _, e := range tc.expectedErrs {
+					assert.ErrorContains(t, err, e)
+				}
+			}
 		})
 	}
 }

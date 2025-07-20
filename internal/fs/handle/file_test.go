@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
@@ -32,6 +31,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
@@ -167,7 +167,7 @@ func (t *fileTest) Test_Read_Success() {
 	expectedData := []byte("hello from reader")
 	parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
 	in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, "test_obj_reader", expectedData, false)
-	fh := NewFileHandle(in, nil, false, common.NewNoopMetrics(), util.Read, &cfg.ReadConfig{})
+	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.ReadConfig{})
 	buf := make([]byte, len(expectedData))
 	fh.inode.Lock()
 
@@ -183,7 +183,7 @@ func (t *fileTest) Test_ReadWithReadManager_Success() {
 	expectedData := []byte("hello from readManager")
 	parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
 	in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, "test_obj_readManager", expectedData, false)
-	fh := NewFileHandle(in, nil, false, common.NewNoopMetrics(), util.Read, &cfg.ReadConfig{})
+	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.ReadConfig{})
 	buf := make([]byte, len(expectedData))
 	fh.inode.Lock()
 
@@ -215,7 +215,7 @@ func (t *fileTest) Test_ReadWithReadManager_ErrorScenarios() {
 			t.SetupTest()
 			parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
 			testInode := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, []byte("data"), false)
-			fh := NewFileHandle(testInode, nil, false, common.NewNoopMetrics(), util.Read, &cfg.ReadConfig{})
+			fh := NewFileHandle(testInode, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.ReadConfig{})
 			fh.inode.Lock()
 			mockRM := new(read_manager.MockReadManager)
 			mockRM.On("ReadAt", t.ctx, dst, int64(0)).Return(gcsx.ReaderResponse{}, tc.returnErr)
@@ -253,7 +253,7 @@ func (t *fileTest) Test_Read_ErrorScenarios() {
 			t.SetupTest()
 			parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
 			testInode := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, []byte("data"), false)
-			fh := NewFileHandle(testInode, nil, false, common.NewNoopMetrics(), util.Read, &cfg.ReadConfig{})
+			fh := NewFileHandle(testInode, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.ReadConfig{})
 			fh.inode.Lock()
 			mockReader := new(gcsx.MockRandomReader)
 			mockReader.On("ReadAt", t.ctx, dst, int64(0)).Return(gcsx.ObjectData{}, tc.returnErr)
@@ -278,7 +278,7 @@ func (t *fileTest) Test_ReadWithReadManager_FallbackToInode() {
 	object := gcs.MinObject{Name: "test_obj", Generation: 0}
 	parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
 	in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, objectData, true)
-	fh := NewFileHandle(in, nil, false, common.NewNoopMetrics(), util.Read, &cfg.ReadConfig{})
+	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.ReadConfig{})
 	fh.inode.Lock()
 	mockRM := new(read_manager.MockReadManager)
 	mockRM.On("Destroy").Return()
@@ -300,7 +300,7 @@ func (t *fileTest) Test_Read_FallbackToInode() {
 	object := gcs.MinObject{Name: "test_obj", Generation: 0}
 	parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
 	in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, objectData, true)
-	fh := NewFileHandle(in, nil, false, common.NewNoopMetrics(), util.Read, &cfg.ReadConfig{})
+	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.ReadConfig{})
 	fh.inode.Lock()
 	mockR := new(gcsx.MockRandomReader)
 	mockR.On("Destroy").Return()
