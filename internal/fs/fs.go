@@ -133,6 +133,10 @@ type ServerConfig struct {
 
 	MetricHandle metrics.MetricHandle
 
+	// Notifier allows the file system to send invalidation messages to the FUSE
+	// kernel module. This enables proactive cache invalidation (e.g., for dentries)
+	// when underlying content changes, improving consistency while still leveraging
+	// kernel caching.
 	Notifier *fuse.Notifier
 }
 
@@ -501,6 +505,9 @@ type fileSystem struct {
 	// streaming writes are enabled.
 	globalMaxWriteBlocksSem *semaphore.Weighted
 
+	// notifier allows sending invalidation messages to the FUSE kernel module.
+	// It is used to invalidate the kernel's dentry cache,
+	// providing feedback to the kernel about dynamic content changes.
 	notifier *fuse.Notifier
 }
 
@@ -1562,12 +1569,17 @@ func (fs *fileSystem) lookupAndFetchAttributesForLocalFileEntriesPlus(parentName
 	return
 }
 
-// invalidateCachedEntry invalidates a specific directory entry in the kernel's cache,
-// corresponding to the child inode identified by childID.
+// invalidateCachedEntry sends a notification to the kernel to invalidate a stale
+// directory entry, ensuring consistency when file content changes dynamically.
+// It identifies the parent of the given child inode and sends a notification
+// to the kernel to remove the entry corresponding to the child's
+// name within that parent directory.
 //
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) invalidateCachedEntry(childID fuseops.InodeID) error {
+	fs.mu.Lock()
 	childInode, ok := fs.inodes[childID]
+	fs.mu.Unlock()
 	if !ok {
 		return fmt.Errorf("inode with ID %d not found", childID)
 	}
@@ -2820,6 +2832,10 @@ func (fs *fileSystem) ReadFile(
 		op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
 	}
 
+	// A FileClobberedError indicates the underlying GCS object has changed,
+	// making the kernel's dentry for this file stale. We use the notifier to
+	// invalidate this entry, providing feedback to the kernel about the dynamic
+	// content change and ensuring subsequent lookups fetch the correct metadata.
 	if err != nil && fs.newConfig.FileSystem.ExperimentalEnableDentryCache {
 		var clobberedErr *gcsfuse_errors.FileClobberedError
 		if errors.As(err, &clobberedErr) {
@@ -2874,6 +2890,10 @@ func (fs *fileSystem) WriteFile(
 	in.Lock()
 	defer in.Unlock()
 	if err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in, fh.OpenMode()); err != nil {
+		// A FileClobberedError on write indicates the file was modified in GCS,
+		// making the kernel's dentry stale. By invalidating the cache
+		// entry, we ensure the filesystem corrects the inconsistency caused by this
+		// dynamic content change.
 		if fs.newConfig.FileSystem.ExperimentalEnableDentryCache {
 			var clobberedErr *gcsfuse_errors.FileClobberedError
 			if errors.As(err, &clobberedErr) {

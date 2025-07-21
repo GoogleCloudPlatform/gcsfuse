@@ -109,16 +109,16 @@ func (t *NotifierTest) TestWriteFileWithNonRootDirParent() {
 }
 
 func (t *NotifierTest) TestReadFileDoNotFailPersistently() {
-	filePath := path.Join(mntDir, "foo")
+	filePath := path.Join(mntDir, fileName)
 	// Create a file in GCS.
-	_, err := storageutil.CreateObject(ctx, bucket, "foo", []byte("initial content"))
+	_, err := storageutil.CreateObject(ctx, bucket, fileName, []byte("initial content"))
 	assert.NoError(t.T(), err)
 	// Stat file to cache its entry.
 	_, err = os.Stat(filePath)
 	assert.NoError(t.T(), err)
 	// Clobber the file in GCS. This changes the object's generation, making
 	// our file handle stale.
-	_, err = storageutil.CreateObject(ctx, bucket, "foo", []byte("modified"))
+	_, err = storageutil.CreateObject(ctx, bucket, fileName, []byte("modified"))
 	assert.NoError(t.T(), err)
 
 	// Attempt to read file.
