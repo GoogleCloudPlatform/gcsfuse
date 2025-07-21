@@ -16,15 +16,15 @@
 package fs_test
 
 import (
-	"github.com/jacobsa/fuse"
-	"math"
 	"os"
 	"path"
 	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
+	"github.com/jacobsa/fuse"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -39,7 +39,6 @@ func TestNotifierTestSuite(t *testing.T) {
 }
 
 func (t *NotifierTest) SetupSuite() {
-	t.mountCfg.DisableWritebackCaching = true
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.InodeAttributeCacheTTL = 1000 * time.Second
 	t.serverCfg.Notifier = fuse.NewNotifier()
@@ -48,16 +47,8 @@ func (t *NotifierTest) SetupSuite() {
 			ExperimentalEnableDentryCache: true,
 			PreconditionErrors:            true,
 		},
-		MetadataCache: cfg.MetadataCacheConfig{
-			StatCacheMaxSizeMb: 33,
-			TtlSecs:            1000,
-			TypeCacheMaxSizeMb: 4,
-		},
 		Write: cfg.WriteConfig{
 			EnableStreamingWrites: true,
-			BlockSizeMb:           operations.MiB,
-			MaxBlocksPerFile:      1,
-			GlobalMaxBlocks:       math.MaxInt,
 		},
 	}
 	t.fsTest.SetUpTestSuite()
@@ -72,56 +63,70 @@ func (t *NotifierTest) TearDownSuite() {
 }
 
 func (t *NotifierTest) TestWriteFileWithRootDirParent() {
-	// Create an empty object on bucket.
-	t.f1 = createGCSObject(t.T(), "foo", "")
-	_, err := os.Stat(path.Join(mntDir, "foo"))
-	assert.Nil(t.T(), err)
-	// Replace the underlying object with a new generation.
-	clobberFile(t.T(), "foo", "foobar")
-	// Writing to file will return Stale File Handle Error.
-	data, err := operations.GenerateRandomData(operations.MiB * 4)
+	filePath := path.Join(mntDir, "foo")
+	// Create a file in GCS.
+	_, err := storageutil.CreateObject(ctx, bucket, fileName, []byte("initial content"))
+	assert.NoError(t.T(), err)
+	// Stat file to cache its entry.
+	_, err = os.Stat(filePath)
+	assert.NoError(t.T(), err)
+	// Clobber the file in GCS. This changes the object's generation, making
+	// our file handle stale.
+	_, err = storageutil.CreateObject(ctx, bucket, fileName, []byte("modified"))
 	assert.NoError(t.T(), err)
 
-	_, err = t.f1.WriteAt(data, 0)
+	// Attempt to write.
+	err = operations.WriteFile(filePath, "new data")
 
+	// Should return stale file handle error.
 	operations.ValidateESTALEError(t.T(), err)
-	// attempt to write again, the entry has now been invalidated.
-	_, err = t.f1.WriteAt(data, 0)
+	// Attempt to write again, the entry has now been invalidated.
+	err = operations.WriteFile(filePath, "new data")
 	assert.NoError(t.T(), err)
 }
 
-//func (t *NotifierTest) TestWriteFileWithNonRootDirParent() {
-//	// Create an empty object on bucket.
-//	assert.Nil(t.T(), t.createObjects(map[string]string{"dir/foo": ""}))
-//	_, err := os.Stat(path.Join(mntDir, "dir/foo"))
-//	assert.Nil(t.T(), err)
-//	// Replace the underlying object with a new generation.
-//	assert.Nil(t.T(), t.createObjects(map[string]string{"dir/foo": "foobar"}))
-//	// Writing to file will return Stale File Handle Error.
-//	data, err := operations.GenerateRandomData(operations.MiB * 4)
-//	assert.NoError(t.T(), err)
-//
-//	err = os.WriteFile(path.Join(mntDir, "dir/foo"), data, 0644)
-//
-//	operations.ValidateESTALEError(t.T(), err)
-//	// attempt to write again, the entry has now been invalidated.
-//	err = os.WriteFile(path.Join(mntDir, "dir/foo"), data, 0644)
-//	assert.NoError(t.T(), err)
-//}
-//
-//func (t *NotifierTest) TestReadFileDoNotFailPersistently() {
-//	// Create an empty object on bucket.
-//	assert.Nil(t.T(), t.createObjects(map[string]string{"foo": ""}))
-//	_, err := os.Stat(path.Join(mntDir, "foo"))
-//	assert.Nil(t.T(), err)
-//	// Replace the underlying object with a new generation.
-//	assert.Nil(t.T(), t.createObjects(map[string]string{"foo": "foobar"}))
-//
-//	// attempt to ReadFile, should give Stale File Handle error
-//	_, err = os.ReadFile(path.Join(mntDir, "foo"))
-//
-//	operations.ValidateESTALEError(t.T(), err)
-//	// attempt to write again, the entry has now been invalidated.
-//	_, err = os.ReadFile(path.Join(mntDir, "foo"))
-//	assert.NoError(t.T(), err)
-//}
+func (t *NotifierTest) TestWriteFileWithNonRootDirParent() {
+	filePath := path.Join(mntDir, "dir/foo")
+	// Create a file in GCS.
+	_, err := storageutil.CreateObject(ctx, bucket, "dir/foo", []byte("initial content"))
+	assert.NoError(t.T(), err)
+	// Stat file to cache its entry.
+	_, err = os.Stat(filePath)
+	assert.NoError(t.T(), err)
+	// Clobber the file in GCS. This changes the object's generation, making
+	// our file handle stale.
+	_, err = storageutil.CreateObject(ctx, bucket, "dir/foo", []byte("modified"))
+	assert.NoError(t.T(), err)
+
+	// Attempt to write.
+	err = operations.WriteFile(filePath, "new data")
+
+	// Should return stale file handle error.
+	operations.ValidateESTALEError(t.T(), err)
+	// Attempt to write again, the entry has now been invalidated.
+	err = operations.WriteFile(filePath, "new data")
+	assert.NoError(t.T(), err)
+}
+
+func (t *NotifierTest) TestReadFileDoNotFailPersistently() {
+	filePath := path.Join(mntDir, "foo")
+	// Create a file in GCS.
+	_, err := storageutil.CreateObject(ctx, bucket, "foo", []byte("initial content"))
+	assert.NoError(t.T(), err)
+	// Stat file to cache its entry.
+	_, err = os.Stat(filePath)
+	assert.NoError(t.T(), err)
+	// Clobber the file in GCS. This changes the object's generation, making
+	// our file handle stale.
+	_, err = storageutil.CreateObject(ctx, bucket, "foo", []byte("modified"))
+	assert.NoError(t.T(), err)
+
+	// Attempt to read file.
+	_, err = operations.ReadFile(filePath)
+
+	// Should return error.
+	assert.NotNil(t.T(), err)
+	// Attempt to read again, the entry has now been invalidated.
+	_, err = operations.ReadFile(filePath)
+	assert.NoError(t.T(), err)
+}
