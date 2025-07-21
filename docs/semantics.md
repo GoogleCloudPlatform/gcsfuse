@@ -349,7 +349,7 @@ HNS-enabled buckets offer several advantages over standard buckets when used wit
 
 ___
 
-# Generations
+# Generation
 
 With each record in Cloud Storage is stored object and metadata [generation numbers](https://cloud.google.com/storage/docs/generations-preconditions). These provide a total order on requests to modify an object's contents and metadata, compatible with causality. So if insert operation A happens before insert operation B, then the generation number resulting from A will be less than that resulting from B.
 
