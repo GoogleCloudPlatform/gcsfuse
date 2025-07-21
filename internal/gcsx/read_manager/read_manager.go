@@ -43,7 +43,7 @@ type ReadManagerConfig struct {
 	CacheFileForRangeRead bool
 	MetricHandle          metrics.MetricHandle
 	MrdWrapper            *gcsx.MultiRangeDownloaderWrapper
-	ReadConfig            *cfg.ReadConfig
+	Config                *cfg.Config
 }
 
 // NewReadManager creates a new ReadManager for the given GCS object,
@@ -73,7 +73,7 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 			MetricHandle:         config.MetricHandle,
 			MrdWrapper:           config.MrdWrapper,
 			SequentialReadSizeMb: config.SequentialReadSizeMB,
-			ReadConfig:           config.ReadConfig,
+			Config:               config.Config,
 		},
 	)
 	// Add the GCS reader as a fallback.

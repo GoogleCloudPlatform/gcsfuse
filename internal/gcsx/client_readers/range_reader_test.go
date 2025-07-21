@@ -24,6 +24,7 @@ import (
 	"testing/iotest"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
@@ -418,6 +419,7 @@ func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenReaderReturnedMoreData() 
 }
 
 func (t *rangeReaderTest) Test_ReadAt_PropagatesCancellation() {
+	t.rangeReader = NewRangeReader(t.object, t.mockBucket, &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: false}}, metrics.NewNoopMetrics())
 	// Set up a blocking reader
 	finishRead := make(chan struct{})
 	blocking := &blockingReader{c: finishRead}

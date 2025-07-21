@@ -78,7 +78,7 @@ func (t *gcsReaderTest) SetupTest() {
 		MetricHandle:         metrics.NewNoopMetrics(),
 		MrdWrapper:           nil,
 		SequentialReadSizeMb: sequentialReadSizeInMb,
-		ReadConfig:           nil,
+		Config:               nil,
 	})
 	t.ctx = context.Background()
 }
@@ -102,7 +102,7 @@ func (t *gcsReaderTest) Test_NewGCSReader() {
 		MetricHandle:         metrics.NewNoopMetrics(),
 		MrdWrapper:           nil,
 		SequentialReadSizeMb: 200,
-		ReadConfig:           nil,
+		Config:               nil,
 	})
 
 	assert.Equal(t.T(), object, gcsReader.object)
@@ -350,6 +350,12 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateReadType() {
 }
 
 func (t *gcsReaderTest) Test_ReadAt_PropagatesCancellation() {
+	t.gcsReader = NewGCSReader(t.object, t.mockBucket, &GCSReaderConfig{
+		MetricHandle:         metrics.NewNoopMetrics(),
+		MrdWrapper:           nil,
+		SequentialReadSizeMb: sequentialReadSizeInMb,
+		Config:               &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: false}},
+	})
 	// Set up a blocking reader
 	finishRead := make(chan struct{})
 	blocking := &blockingReader{c: finishRead}
@@ -536,7 +542,7 @@ func (t *gcsReaderTest) Test_ReadInfo_Random() {
 func (t *gcsReaderTest) Test_ReadAt_WithAndWithoutReadConfig() {
 	testCases := []struct {
 		name                        string
-		config                      *cfg.ReadConfig
+		config                      *cfg.Config
 		expectInactiveTimeoutReader bool
 	}{
 		{
@@ -546,12 +552,12 @@ func (t *gcsReaderTest) Test_ReadAt_WithAndWithoutReadConfig() {
 		},
 		{
 			name:                        "WithReadConfigAndZeroTimeout",
-			config:                      &cfg.ReadConfig{InactiveStreamTimeout: 0},
+			config:                      &cfg.Config{Read: cfg.ReadConfig{InactiveStreamTimeout: 0}},
 			expectInactiveTimeoutReader: false,
 		},
 		{
 			name:                        "WithReadConfigAndPositiveTimeout",
-			config:                      &cfg.ReadConfig{InactiveStreamTimeout: 10 * time.Millisecond},
+			config:                      &cfg.Config{Read: cfg.ReadConfig{InactiveStreamTimeout: 10 * time.Millisecond}},
 			expectInactiveTimeoutReader: true,
 		},
 	}
@@ -565,7 +571,7 @@ func (t *gcsReaderTest) Test_ReadAt_WithAndWithoutReadConfig() {
 			t.SetupTest() // Resets mockBucket, rr, etc. for each sub-test
 			defer t.TearDownTest()
 
-			t.gcsReader.rangeReader.readConfig = tc.config
+			t.gcsReader.rangeReader.config = tc.config
 			t.gcsReader.rangeReader.reader = nil // Ensure startRead path is taken in ReadAt
 			t.object.Size = objectSize
 			// Prepare fake content for the GCS object.
