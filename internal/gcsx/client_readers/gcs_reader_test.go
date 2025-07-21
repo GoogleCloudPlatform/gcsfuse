@@ -351,7 +351,7 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateReadType() {
 
 func (t *gcsReaderTest) Test_ReadAt_PropagatesCancellation() {
 	t.gcsReader = NewGCSReader(t.object, t.mockBucket, &GCSReaderConfig{
-		MetricHandle:         common.NewNoopMetrics(),
+		MetricHandle:         metrics.NewNoopMetrics(),
 		MrdWrapper:           nil,
 		SequentialReadSizeMb: sequentialReadSizeInMb,
 		Config:               &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: false}},

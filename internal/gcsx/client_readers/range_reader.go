@@ -61,7 +61,7 @@ type RangeReader struct {
 	cancel     func()
 
 	readType     string
-	readConfig   *cfg.Config
+	config       *cfg.Config
 	metricHandle metrics.MetricHandle
 }
 
