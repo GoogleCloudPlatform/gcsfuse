@@ -15,6 +15,7 @@
 package caching
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -214,6 +215,11 @@ func (b *fastStatBucket) NewReaderWithReadHandle(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rd gcs.StorageReader, err error) {
 	rd, err = b.wrapped.NewReaderWithReadHandle(ctx, req)
+
+	var notFoundError *gcs.NotFoundError
+	if errors.As(err, &notFoundError) {
+		b.invalidate(req.Name)
+	}
 	return
 }
 

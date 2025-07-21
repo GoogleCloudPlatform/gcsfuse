@@ -17,6 +17,8 @@ package caching_test
 import (
 	"errors"
 	"fmt"
+	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -24,6 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching/mock_gcscaching"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
@@ -1229,4 +1232,47 @@ func (t *MoveObjectTest) MoveObjectSucceeds() {
 
 	AssertEq(nil, err)
 	ExpectEq(obj, o)
+}
+
+////////////////////////////////////////////////////////////////////////
+// NewReaderWithReadHandleTest
+////////////////////////////////////////////////////////////////////////
+
+type NewReaderWithReadHandleTest struct {
+	fastStatBucketTest
+}
+
+func init() { RegisterTestSuite(&NewReaderWithReadHandleTest{}) }
+
+func (t *NewReaderWithReadHandleTest) CallsWrappedAndInvalidatesOnNotFound() {
+	const name = "some-name"
+	// Expect: wrapped bucket returns NotFoundError
+	var wrappedReq *gcs.ReadObjectRequest
+	ExpectCall(t.wrapped, "NewReaderWithReadHandle")(Any(), Any()).
+		WillOnce(DoAll(SaveArg(1, &wrappedReq), Return(nil, &gcs.NotFoundError{Err: errors.New("not found")})))
+	// Expect: cache invalidate is called
+	ExpectCall(t.cache, "Erase")(name)
+
+	// Call
+	req := &gcs.ReadObjectRequest{Name: name}
+	rd, err := t.bucket.NewReaderWithReadHandle(context.TODO(), req)
+
+	AssertEq(nil, rd)
+	ExpectThat(err, Error(HasSubstr("not found")))
+	AssertEq(name, wrappedReq.Name)
+}
+
+func (t *NewReaderWithReadHandleTest) CallsWrappedAndDoesNotInvalidateOnSuccess() {
+	const name = "some-name"
+	expectedReader := &fake.FakeReader{ReadCloser: io.NopCloser(strings.NewReader("abc")), Handle: []byte("fake")}
+	// Expect: wrapped returns reader, no error
+	ExpectCall(t.wrapped, "NewReaderWithReadHandle")(Any(), Any()).
+		WillOnce(Return(expectedReader, nil))
+
+	// Call
+	req := &gcs.ReadObjectRequest{Name: name}
+	rd, err := t.bucket.NewReaderWithReadHandle(context.TODO(), req)
+
+	AssertEq(nil, err)
+	ExpectEq(expectedReader, rd)
 }
