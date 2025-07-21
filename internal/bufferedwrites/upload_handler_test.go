@@ -42,7 +42,7 @@ var finalized = time.Date(2025, time.June, 18, 23, 30, 0, 0, time.UTC)
 
 type UploadHandlerTest struct {
 	uh         *UploadHandler
-	blockPool  *block.BlockPool
+	blockPool  *block.GenBlockPool[block.Block]
 	mockBucket *storagemock.TestifyMockBucket
 	suite.Suite
 }
