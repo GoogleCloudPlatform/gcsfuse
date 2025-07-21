@@ -6,11 +6,11 @@ import (
 )
 
 type DataAccessStats struct {
-	SequentialReadCount     int64
-	RandomReadCount         int64
-	TotalAccessedFileHandle int64
-	TotalAccessedInode      int64
-	TotalSizeReadAccessed   int64
+	SequentialReadCount     int64  `yaml:"sequential_read_count"`
+	RandomReadCount         int64  `yaml:"random_read_count"`
+	TotalAccessedFileHandle int64  `yaml:"total_accessed_file_handle"`
+	TotalAccessedInode      int64  `yaml:"total_accessed_inode"`
+	TotalSizeReadAccessed   int64  `yaml:"total_size_read_accessed"`
 }
 
 type FileSystemProfilerSource struct {
@@ -76,11 +76,11 @@ func (fsps *FileSystemProfilerSource) GetProfileData() map[string]interface{} {
 	GIB := int64(1024 * 1024 * 1024) // Convert bytes to GiB
 	for op, stats := range fsps.stats {
 		data[op] = map[string]int64{
-			"SequentialReadCount":     stats.SequentialReadCount,
-			"RandomReadCount":         stats.RandomReadCount,
-			"TotalAccessedFileHandle": stats.TotalAccessedFileHandle,
-			"TotalAccessedInode":      stats.TotalAccessedInode,
-			"TotalSizeReadAccessedGB": (stats.TotalSizeReadAccessed + GIB - 1) / (1024 * 1024 * 1024), // Convert bytes to GB
+			"sequential_read_count":     stats.SequentialReadCount,
+			"random_read_count":         stats.RandomReadCount,
+			"total_accessed_file_handle": stats.TotalAccessedFileHandle,
+			"total_accessed_inode":      stats.TotalAccessedInode,
+			"total_size_read_accessed_gb": (stats.TotalSizeReadAccessed + GIB - 1) / (1024 * 1024 * 1024), // Convert bytes to GB
 		}
 	}
 	fsps.mu.RUnlock()

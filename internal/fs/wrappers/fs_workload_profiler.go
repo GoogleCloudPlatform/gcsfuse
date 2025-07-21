@@ -87,8 +87,8 @@ func (fs *ProfilerWrapper) GetProfileData() map[string]interface{} {
 	data := make(map[string]interface{})
 	for op, stats := range fs.Stats {
 		data[op] = map[string]int64{
-			"TotalCount":  stats.TotalCount,
-			"Parallelism": stats.Parallelism,
+			"operation_count":  stats.TotalCount,
+			"parallelism": stats.Parallelism,
 		}
 	}
 	fs.Stats = make(map[string]OperationStats) // Reset stats after collecting data

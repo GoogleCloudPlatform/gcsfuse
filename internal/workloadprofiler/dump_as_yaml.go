@@ -15,7 +15,7 @@ func yamlDumpingCallback(data map[string]interface{}, dumpDir string) {
 	}
 
 	// Write the yaml data to the file.
-	filePath := fmt.Sprintf("%s/profile_dump.yaml", dumpDir)
+	filePath := fmt.Sprintf("%s/workload_insight.yaml", dumpDir)
 	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		logger.Errorf("Error opening file for appending: %v\n", err)
