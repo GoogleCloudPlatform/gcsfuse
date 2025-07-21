@@ -1245,6 +1245,7 @@ func (fs *fileSystem) createBufferedWriteHandlerAndSyncOrTempWriter(ctx context.
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(f.mu)
 func (fs *fileSystem) initBufferedWriteHandlerAndSyncFileIfEligible(ctx context.Context, f *inode.FileInode, openMode util.OpenMode) error {
+	fmt.Println("reached in initbuffered1")
 	initialized, err := f.InitBufferedWriteHandlerIfEligible(ctx, openMode)
 	if err != nil {
 		return err
@@ -1580,6 +1581,9 @@ func (fs *fileSystem) invalidateCachedEntry(childID fuseops.InodeID) error {
 	// If the parent path resolves to the current directory ".", it means the parent
 	// is the root of the file system.
 	if parentPath == "." || parentPath == "/" || parentPath == "" {
+		fmt.Println("here just")
+		fmt.Println(fuseops.RootInodeID)
+		fmt.Println(path.Base(childInode.Name().LocalName()))
 		return fs.notifier.InvalidateEntry(fuseops.RootInodeID, path.Base(childInode.Name().LocalName()))
 	}
 
@@ -1646,6 +1650,7 @@ func (fs *fileSystem) LookUpInode(
 		// cancellable by parent context.
 		ctx = context.Background()
 	}
+	fmt.Println("im lookup for ", op.Name)
 	// Find the parent directory in question.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -2860,14 +2865,16 @@ func (fs *fileSystem) WriteFile(
 	fh := fs.handles[op.Handle].(*handle.FileHandle)
 	in := fs.fileInodeOrDie(op.Inode)
 	fs.mu.Unlock()
-
+	fmt.Println("im inside write for ", in.Name())
 	var gcsSynced bool
 	in.Lock()
 	defer in.Unlock()
 	if err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in, fh.OpenMode()); err != nil {
+		fmt.Println("im inside first error")
 		if fs.newConfig.FileSystem.ExperimentalEnableDentryCache {
 			var clobberedErr *gcsfuse_errors.FileClobberedError
 			if errors.As(err, &clobberedErr) {
+				fmt.Println("im inside error")
 				if invalidateErr := fs.invalidateCachedEntry(op.Inode); invalidateErr != nil {
 					err = fmt.Errorf("%w; additionally failed to invalidate entry: %w", err, invalidateErr)
 				}
