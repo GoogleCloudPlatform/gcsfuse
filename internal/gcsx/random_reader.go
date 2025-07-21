@@ -76,6 +76,8 @@ type RandomReader interface {
 	// Clean up any resources associated with the reader, which must not be used
 	// again.
 	Destroy()
+
+	IsSequential() bool
 }
 
 // ObjectData specifies the response returned as part of ReadAt call.
@@ -179,6 +181,10 @@ type randomReader struct {
 	// Specifies the next expected offset for the reads. Used to distinguish between
 	// sequential and random reads.
 	expectedOffset int64
+}
+
+func (rr *randomReader) IsSequential() bool {
+	return rr.readType == common.ReadTypeSequential
 }
 
 func (rr *randomReader) CheckInvariants() {

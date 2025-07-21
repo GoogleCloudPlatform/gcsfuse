@@ -5,18 +5,20 @@ direct=1
 fadvise_hint=0
 iodepth=64
 invalidate=1
-nrfiles=${NRFILES}
+nrfiles=1
 thread=1
 openfiles=1
 group_reporting=1
 create_serialize=0
 allrandrepeat=0
 file_service_type=random
-numjobs=${NUMJOBS}
+numjobs=48
+time_based=1
+runtime=30s
 filename_format=$jobname.$jobnum/$filenum
 
 [Workload]
-directory=${DIR}
-bs=${BLOCK_SIZE}
-filesize=${FILE_SIZE}
-rw=${READ_TYPE}
+directory=5G
+bs=1M
+filesize=5G
+rw=randread

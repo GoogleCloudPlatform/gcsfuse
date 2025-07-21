@@ -22,6 +22,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/fsutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/read_manager"
@@ -65,10 +66,14 @@ type FileHandle struct {
 
 	// Read related mounting configuration.
 	readConfig *cfg.ReadConfig
+
+	readWritePS *fsutil.FileSystemProfilerSource // Profiler source for collecting read/write stats
+
+	accessed bool
 }
 
 // LOCKS_REQUIRED(fh.inode.mu)
-func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, openMode util.OpenMode, rc *cfg.ReadConfig) (fh *FileHandle) {
+func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, openMode util.OpenMode, rc *cfg.ReadConfig, readWritePS *fsutil.FileSystemProfilerSource) (fh *FileHandle) {
 	fh = &FileHandle{
 		inode:                 inode,
 		fileCacheHandler:      fileCacheHandler,
@@ -76,7 +81,10 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 		metricHandle:          metricHandle,
 		openMode:              openMode,
 		readConfig:            rc,
+		readWritePS:           readWritePS,
 	}
+
+	fh.readWritePS.IncrementTotalAccessedFileHandle("read")
 
 	fh.inode.RegisterFileHandle(fh.openMode == util.Read)
 	fh.mu = syncutil.NewInvariantMutex(fh.checkInvariants)
@@ -95,6 +103,13 @@ func (fh *FileHandle) Destroy() {
 	fh.inode.DeRegisterFileHandle(fh.openMode == util.Read)
 	fh.inode.Unlock()
 	if fh.reader != nil {
+		if fh.readWritePS != nil {
+			if fh.reader.IsSequential() {
+				fh.readWritePS.IncrementSequentialReadCount("read")
+			} else {
+				fh.readWritePS.IncrementRandomReadCount("read")
+			}
+		}
 		fh.reader.Destroy()
 	}
 }
@@ -167,6 +182,12 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 // LOCKS_REQUIRED(fh.inode.mu)
 // UNLOCK_FUNCTION(fh.inode.mu)
 func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequentialReadSizeMb int32) (output []byte, n int, err error) {
+
+	if !fh.accessed {
+		fh.readWritePS.IncrementTotalAccessedFileHandle("read")
+		fh.accessed = true
+	}
+
 	// fh.inode.mu is already locked to ensure that we have a reader for its current
 	// state, or clear fh.reader if it's not possible to create one (probably
 	// because the inode is dirty).
