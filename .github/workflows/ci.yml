@@ -29,8 +29,6 @@ jobs:
               - '!perfmetrics/**'
               - '!samples/**'
   format-test:
-    needs: filter
-    if: ${{ needs.filter.outputs.run_tests == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -79,8 +77,6 @@ jobs:
         flags: unittests
 
   lint:
-    needs: filter
-    if: ${{ needs.filter.outputs.run_tests == 'true' }}
     name: Lint
     runs-on: ubuntu-latest
     steps:
