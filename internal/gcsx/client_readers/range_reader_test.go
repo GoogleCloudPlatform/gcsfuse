@@ -65,7 +65,7 @@ func (t *rangeReaderTest) SetupTest() {
 		Generation: 1234,
 	}
 	t.mockBucket = new(storage.TestifyMockBucket)
-	t.rangeReader = NewRangeReader(t.object, t.mockBucket, &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: false}}, metrics.NewNoopMetrics())
+	t.rangeReader = NewRangeReader(t.object, t.mockBucket, nil, metrics.NewNoopMetrics())
 	t.ctx = context.Background()
 }
 
@@ -419,6 +419,7 @@ func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenReaderReturnedMoreData() 
 }
 
 func (t *rangeReaderTest) Test_ReadAt_PropagatesCancellation() {
+	t.rangeReader = NewRangeReader(t.object, t.mockBucket, &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: false}}, common.NewNoopMetrics())
 	// Set up a blocking reader
 	finishRead := make(chan struct{})
 	blocking := &blockingReader{c: finishRead}

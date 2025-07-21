@@ -78,7 +78,7 @@ func (t *gcsReaderTest) SetupTest() {
 		MetricHandle:         metrics.NewNoopMetrics(),
 		MrdWrapper:           nil,
 		SequentialReadSizeMb: sequentialReadSizeInMb,
-		Config:               &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: false}},
+		Config:               nil,
 	})
 	t.ctx = context.Background()
 }
@@ -350,6 +350,12 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateReadType() {
 }
 
 func (t *gcsReaderTest) Test_ReadAt_PropagatesCancellation() {
+	t.gcsReader = NewGCSReader(t.object, t.mockBucket, &GCSReaderConfig{
+		MetricHandle:         common.NewNoopMetrics(),
+		MrdWrapper:           nil,
+		SequentialReadSizeMb: sequentialReadSizeInMb,
+		Config:               &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: false}},
+	})
 	// Set up a blocking reader
 	finishRead := make(chan struct{})
 	blocking := &blockingReader{c: finishRead}
