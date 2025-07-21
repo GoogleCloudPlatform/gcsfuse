@@ -22,12 +22,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	cacheUtil "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/fuse/fuseops"
 )
 
@@ -54,10 +54,10 @@ type FileCacheReader struct {
 	// using fileCacheHandler for the given object and bucket.
 	fileCacheHandle *file.CacheHandle
 
-	metricHandle common.MetricHandle
+	metricHandle metrics.MetricHandle
 }
 
-func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle) *FileCacheReader {
+func NewFileCacheReader(o *gcs.MinObject, bucket gcs.Bucket, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle) *FileCacheReader {
 	return &FileCacheReader{
 		object:                o,
 		bucket:                bucket,
@@ -117,9 +117,9 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 
 		logger.Tracef("%.13v -> %s", requestID, requestOutput)
 
-		readType := common.ReadTypeRandom
+		readType := metrics.ReadTypeRandom
 		if isSequential {
-			readType = common.ReadTypeSequential
+			readType = metrics.ReadTypeSequential
 		}
 		captureFileCacheMetrics(ctx, fc.metricHandle, readType, bytesRead, cacheHit, executionTime)
 	}()
@@ -207,8 +207,8 @@ func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (
 	return readerResponse, err
 }
 
-func captureFileCacheMetrics(ctx context.Context, metricHandle common.MetricHandle, readType string, readDataSize int, cacheHit bool, readLatency time.Duration) {
-	metricHandle.FileCacheReadCount(ctx, 1, common.CacheHitReadType{
+func captureFileCacheMetrics(ctx context.Context, metricHandle metrics.MetricHandle, readType string, readDataSize int, cacheHit bool, readLatency time.Duration) {
+	metricHandle.FileCacheReadCount(ctx, 1, metrics.CacheHitReadType{
 		ReadType: readType,
 		CacheHit: cacheHit,
 	})

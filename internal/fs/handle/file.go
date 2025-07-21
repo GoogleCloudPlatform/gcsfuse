@@ -20,13 +20,13 @@ import (
 	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/read_manager"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 )
@@ -59,7 +59,7 @@ type FileHandle struct {
 	// cacheFileForRangeRead is also valid for cache workflow, if true, object content
 	// will be downloaded for random reads as well too.
 	cacheFileForRangeRead bool
-	metricHandle          common.MetricHandle
+	metricHandle          metrics.MetricHandle
 	// openMode is used to store the mode in which the file is opened.
 	openMode util.OpenMode
 
@@ -68,7 +68,7 @@ type FileHandle struct {
 }
 
 // LOCKS_REQUIRED(fh.inode.mu)
-func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, openMode util.OpenMode, rc *cfg.ReadConfig) (fh *FileHandle) {
+func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, openMode util.OpenMode, rc *cfg.ReadConfig) (fh *FileHandle) {
 	fh = &FileHandle{
 		inode:                 inode,
 		fileCacheHandler:      fileCacheHandler,

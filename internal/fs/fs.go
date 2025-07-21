@@ -29,11 +29,11 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 
 	"golang.org/x/sync/semaphore"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
@@ -130,7 +130,7 @@ type ServerConfig struct {
 	// NewConfig has all the config specified by the user using config-file or CLI flags.
 	NewConfig *cfg.Config
 
-	MetricHandle common.MetricHandle
+	MetricHandle metrics.MetricHandle
 }
 
 // Create a fuse file system server according to the supplied configuration.
@@ -487,7 +487,7 @@ type fileSystem struct {
 	// random file access.
 	cacheFileForRangeRead bool
 
-	metricHandle common.MetricHandle
+	metricHandle metrics.MetricHandle
 
 	enableAtomicRenameObject bool
 

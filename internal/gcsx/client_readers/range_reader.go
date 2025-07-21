@@ -22,11 +22,11 @@ import (
 	"math"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
 
 const (
@@ -62,10 +62,10 @@ type RangeReader struct {
 
 	readType     string
 	readConfig   *cfg.ReadConfig
-	metricHandle common.MetricHandle
+	metricHandle metrics.MetricHandle
 }
 
-func NewRangeReader(object *gcs.MinObject, bucket gcs.Bucket, readConfig *cfg.ReadConfig, metricHandle common.MetricHandle) *RangeReader {
+func NewRangeReader(object *gcs.MinObject, bucket gcs.Bucket, readConfig *cfg.ReadConfig, metricHandle metrics.MetricHandle) *RangeReader {
 	return &RangeReader{
 		object:       object,
 		bucket:       bucket,
@@ -187,7 +187,7 @@ func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset
 	}
 
 	requestedDataSize := end - offset
-	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, readType, requestedDataSize)
+	metrics.CaptureGCSReadMetrics(ctx, rr.metricHandle, readType, requestedDataSize)
 
 	return n, err
 }
@@ -279,7 +279,7 @@ func (rr *RangeReader) startRead(start int64, end int64) error {
 	rr.limit = end
 
 	requestedDataSize := end - start
-	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, common.ReadTypeSequential, requestedDataSize)
+	metrics.CaptureGCSReadMetrics(ctx, rr.metricHandle, metrics.ReadTypeSequential, requestedDataSize)
 
 	return nil
 }

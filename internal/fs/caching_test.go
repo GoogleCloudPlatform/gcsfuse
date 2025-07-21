@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
@@ -29,6 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -479,7 +479,7 @@ func (t *MultiBucketMountCachingTest) SetUpTestSuite() {
 
 	// Enable directory type caching.
 	t.serverCfg.DirTypeCacheTTL = ttl
-	t.serverCfg.MetricHandle = common.NewNoopMetrics()
+	t.serverCfg.MetricHandle = metrics.NewNoopMetrics()
 
 	// Call through.
 	t.fsTest.SetUpTestSuite()

@@ -15,10 +15,28 @@
 package common
 
 import (
+	"context"
+	"errors"
 	"os/exec"
 	"regexp"
 	"strings"
 )
+
+type ShutdownFn func(ctx context.Context) error
+
+// JoinShutdownFunc combines the provided shutdown functions into a single function.
+func JoinShutdownFunc(shutdownFns ...ShutdownFn) ShutdownFn {
+	return func(ctx context.Context) error {
+		var err error
+		for _, fn := range shutdownFns {
+			if fn == nil {
+				continue
+			}
+			err = errors.Join(err, fn(ctx))
+		}
+		return err
+	}
+}
 
 // GetKernelVersion returns the kernel version.
 func GetKernelVersion() (string, error) {

@@ -22,6 +22,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -44,7 +45,7 @@ func (t *MainTest) TestCreateStorageHandle() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	storageHandle, err := createStorageHandle(newConfig, "AppName", common.NewNoopMetrics())
+	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics())
 
 	assert.Equal(t.T(), nil, err)
 	assert.NotEqual(t.T(), nil, storageHandle)
@@ -56,7 +57,7 @@ func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPC() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	storageHandle, err := createStorageHandle(newConfig, "AppName", common.NewNoopMetrics())
+	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics())
 
 	assert.Equal(t.T(), nil, err)
 	assert.NotEqual(t.T(), nil, storageHandle)
