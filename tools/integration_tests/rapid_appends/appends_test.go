@@ -169,6 +169,37 @@ func (t *RapidAppendsSuite) TestAppendSessionInvalidatedByAnotherClientUponTakeo
 	assert.Equal(t.T(), expectedContent, string(content))
 }
 
+func (t *RapidAppendsSuite) TestContentAppendedInNonAppendModeNotVisibleTillClose() {
+	// Skipping test for now until CreateObject() is supported for unfinalized objects.
+	// Ref: b/424253611
+	t.T().Skip()
+	t.SetupSubTest()
+	defer t.TearDownSubTest()
+
+	initialContent := t.fileContent
+	// Append to the file from the primary mount in non-append mode
+	wh, err := os.OpenFile(path.Join(primaryMntTestDirPath, t.fileName), os.O_WRONLY|syscall.O_DIRECT, operations.FilePermission_0600)
+	require.NoError(t.T(), err)
+	n, err := wh.WriteAt([]byte(appendContent), int64(len(initialContent)))
+	require.NoError(t.T(), err)
+	require.Equal(t.T(), len(appendContent), n)
+
+	// Read from secondary mount to validate that data is not visible in GCS in realtime
+	contentBeforeClose, err := operations.ReadFile(path.Join(secondaryMntTestDirPath, t.fileName))
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), initialContent, contentBeforeClose)
+
+	// Close() from primary mount to ensure data persists in GCS.
+	err = wh.Close()
+	require.NoError(t.T(), err)
+
+	// Read from secondary mount to validate that data is now visible.
+	expectedContent := initialContent + appendContent
+	contentAfterClose, err := operations.ReadFile(path.Join(secondaryMntTestDirPath, t.fileName))
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), expectedContent, contentAfterClose)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
