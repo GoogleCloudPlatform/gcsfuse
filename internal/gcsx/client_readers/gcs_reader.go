@@ -79,7 +79,7 @@ type GCSReaderConfig struct {
 	MetricHandle         metrics.MetricHandle
 	MrdWrapper           *gcsx.MultiRangeDownloaderWrapper
 	SequentialReadSizeMb int32
-	ReadConfig           *cfg.ReadConfig
+	Config               *cfg.Config
 }
 
 func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, config *GCSReaderConfig) *GCSReader {
@@ -87,7 +87,7 @@ func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, config *GCSReaderConfig
 		object:               obj,
 		bucket:               bucket,
 		sequentialReadSizeMb: config.SequentialReadSizeMb,
-		rangeReader:          NewRangeReader(obj, bucket, config.ReadConfig, config.MetricHandle),
+		rangeReader:          NewRangeReader(obj, bucket, config.Config, config.MetricHandle),
 		mrr:                  NewMultiRangeReader(obj, config.MetricHandle, config.MrdWrapper),
 		readType:             metrics.ReadTypeSequential,
 	}

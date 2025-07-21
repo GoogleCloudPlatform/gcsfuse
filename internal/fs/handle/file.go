@@ -314,7 +314,7 @@ func (fh *FileHandle) tryEnsureReadManager(ctx context.Context, sequentialReadSi
 		CacheFileForRangeRead: fh.cacheFileForRangeRead,
 		MetricHandle:          fh.metricHandle,
 		MrdWrapper:            &fh.inode.MRDWrapper,
-		ReadConfig:            &fh.config.Read,
+		Config:                fh.config,
 	})
 
 	return nil
