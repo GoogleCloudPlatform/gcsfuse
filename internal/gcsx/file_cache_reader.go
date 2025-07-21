@@ -21,7 +21,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	cacheUtil "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"

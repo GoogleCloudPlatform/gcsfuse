@@ -119,6 +119,7 @@ func (dr *debugReader) Close() (err error) {
 }
 
 func (dr *debugReader) ReadHandle() storagev2.ReadHandle {
+	// TODO: b/432639555 fix code to use read handle from previous read.
 	hd := "opaque-handle"
 	return []byte(hd)
 }

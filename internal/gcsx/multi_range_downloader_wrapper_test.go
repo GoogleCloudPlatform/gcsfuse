@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/clock"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
@@ -209,7 +208,7 @@ func (t *mrdWrapperTest) TestReadContextCancelledWithInterruptsDisabled() {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	bytesRead, err := t.mrdWrapper.Read(ctx, make([]byte, t.object.Size), 0, int64(t.object.Size), t.mrdTimeout, common.NewNoopMetrics())
+	bytesRead, err := t.mrdWrapper.Read(ctx, make([]byte, t.object.Size), 0, int64(t.object.Size), t.mrdTimeout, metrics.NewNoopMetrics())
 
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), 100, bytesRead)
