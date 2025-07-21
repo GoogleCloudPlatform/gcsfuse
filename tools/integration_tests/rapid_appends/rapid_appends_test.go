@@ -129,6 +129,40 @@ func (t *RapidAppendsSuite) TestAppendsAndRead() {
 	}
 }
 
+func (t *RapidAppendsSuite) TestAppendSessionInvalidatedByAnotherClientUponTakeover() {
+	t.SetupSubTest()
+	defer t.TearDownSubTest()
+
+	// Initiate an append session using the primary file handle opened in append mode.
+	appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(primaryMntTestDirPath, t.fileName), os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
+	defer func() {
+		// Closing file handle purely for resource cleanup.
+		// FlushFile() triggered on Close() is expected to error out with stale NFS file handle.
+		operations.CloseFileShouldThrowError(t.T(), appendFileHandle)
+	}()
+	t.appendToFile(appendFileHandle, initialContent)
+
+	// Open a new file handle from the secondary mount to the same file.
+	newAppendFileHandle := operations.OpenFileInMode(t.T(), path.Join(secondaryMntTestDirPath, t.fileName), os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
+	defer operations.CloseFileShouldNotThrowError(t.T(), newAppendFileHandle)
+
+	// Attempt to append using the newly opened file handle.
+	// This append should succeed, confirming the takeover.
+	_, err := newAppendFileHandle.WriteString(appendContent)
+	assert.NoError(t.T(), err)
+
+	// Attempt to append using the original file handle.
+	// This should now fail, as its append session has been invalidated by the takeover.
+	_, _ = appendFileHandle.WriteString(appendContent)
+	err = appendFileHandle.Sync()
+	assert.Error(t.T(), err)
+
+	// Syncing from the newly created file handle must succeed since it holds the active
+	// append session.
+	err = newAppendFileHandle.Sync()
+	assert.NoError(t.T(), err)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////

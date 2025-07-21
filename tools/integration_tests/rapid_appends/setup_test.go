@@ -30,6 +30,8 @@ import (
 const (
 	testDirName    = "RapidAppendsTest"
 	fileNamePrefix = "rapid-append-file-"
+	initialContent = "dummy content"
+	appendContent  = "appended content"
 )
 
 var (
