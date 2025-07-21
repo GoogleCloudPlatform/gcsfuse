@@ -38,7 +38,7 @@ type BufferedReadConfig struct {
 // blockQueueEntry holds a data block with a function
 // to cancel its in-flight download.
 type blockQueueEntry struct {
-	block  block.Block
+	block  block.PrefetchBlock
 	cancel context.CancelFunc
 }
 
@@ -62,7 +62,7 @@ type BufferedReader struct {
 
 	// TODO: Add readHandle for zonal bucket optimization.
 
-	blockPool    *block.BlockPool
+	blockPool    *block.GenBlockPool[block.PrefetchBlock]
 	workerPool   workerpool.WorkerPool
 	metricHandle metrics.MetricHandle
 
@@ -70,7 +70,7 @@ type BufferedReader struct {
 	cancelFunc context.CancelFunc
 }
 
-func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *BufferedReadConfig, blockPool *block.BlockPool, workerPool workerpool.WorkerPool, metricHandle metrics.MetricHandle) *BufferedReader {
+func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *BufferedReadConfig, blockPool *block.GenBlockPool[block.PrefetchBlock], workerPool workerpool.WorkerPool, metricHandle metrics.MetricHandle) *BufferedReader {
 	reader := &BufferedReader{
 		object:                   object,
 		bucket:                   bucket,
