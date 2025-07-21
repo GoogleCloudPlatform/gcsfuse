@@ -20,9 +20,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 )
 
-// blockQueueEntry holds a data block with a function
+// BlockQueueEntry holds a data block with a function
 // to cancel its in-flight download.
-type blockQueueEntry struct {
+type BlockQueueEntry struct {
 	block      block.Block
 	cancelFunc context.CancelFunc
 }
