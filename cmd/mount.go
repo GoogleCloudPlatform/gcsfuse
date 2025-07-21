@@ -20,9 +20,9 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs"
@@ -42,7 +42,7 @@ func mountWithStorageHandle(
 	mountPoint string,
 	newConfig *cfg.Config,
 	storageHandle storage.StorageHandle,
-	metricHandle common.MetricHandle) (mfs *fuse.MountedFileSystem, err error) {
+	metricHandle metrics.MetricHandle) (mfs *fuse.MountedFileSystem, err error) {
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
 	// errors when reading files in the future.
@@ -172,6 +172,9 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		EnableParallelDirOps: !(newConfig.FileSystem.DisableParallelDirops),
 		// We disable write-back cache when streaming writes are enabled.
 		DisableWritebackCaching: newConfig.Write.EnableStreamingWrites,
+		// Enables ReadDirPlus, allowing the kernel to retrieve directory entries and their
+		// attributes in a single operation.
+		EnableReaddirplus: newConfig.FileSystem.ExperimentalEnableReaddirplus,
 	}
 
 	// GCSFuse to Jacobsa Fuse Log Level mapping:

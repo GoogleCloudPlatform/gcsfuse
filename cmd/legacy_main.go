@@ -20,6 +20,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -28,6 +29,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"golang.org/x/sys/unix"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -76,6 +78,10 @@ func registerTerminatingSignalHandler(mountPoint string, c *cfg.Config) {
 
 			err := fuse.Unmount(mountPoint)
 			if err != nil {
+				if errors.Is(err, fuse.ErrExternallyManagedMountPoint) {
+					logger.Infof("Mount point %s is externally managed; gcsfuse will not unmount it.", mountPoint)
+					return
+				}
 				logger.Errorf("Failed to unmount in response to %s: %v", sigName, err)
 			} else {
 				logger.Infof("Successfully unmounted in response to %s.", sigName)
@@ -117,7 +123,7 @@ func getConfigForUserAgent(mountConfig *cfg.Config) string {
 	}
 	return fmt.Sprintf("%s:%s:%s:%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled, isParallelDownloadsEnabled, areStreamingWritesEnabled)
 }
-func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle common.MetricHandle) (storageHandle storage.StorageHandle, err error) {
+func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle metrics.MetricHandle) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
 		ClientProtocol:             newConfig.GcsConnection.ClientProtocol,
 		MaxConnsPerHost:            int(newConfig.GcsConnection.MaxConnsPerHost),
@@ -148,7 +154,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle c
 ////////////////////////////////////////////////////////////////////////
 
 // Mount the file system according to arguments in the supplied context.
-func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, metricHandle common.MetricHandle) (mfs *fuse.MountedFileSystem, err error) {
+func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, metricHandle metrics.MetricHandle) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if newConfig.Debug.ExitOnInvariantViolation {
 		locker.EnableInvariantsCheck()
@@ -284,7 +290,8 @@ func forwardedEnvVars() []string {
 	// also be included to know for which hosts the use of proxies
 	// should be ignored.
 	// Forward GCE_METADATA_HOST, GCE_METADATA_ROOT, GCE_METADATA_IP as these are used for mocked metadata services.
-	for _, envvar := range []string{"GOOGLE_APPLICATION_CREDENTIALS", "no_proxy", "GCE_METADATA_HOST", "GCE_METADATA_ROOT", "GCE_METADATA_IP"} {
+	// Forward GRPC_GO_LOG_VERBOSITY_LEVEL and GRPC_GO_LOG_SEVERITY_LEVEL as these are used to enable grpc debug logs.
+	for _, envvar := range []string{"GOOGLE_APPLICATION_CREDENTIALS", "no_proxy", "GCE_METADATA_HOST", "GCE_METADATA_ROOT", "GCE_METADATA_IP", "GRPC_GO_LOG_VERBOSITY_LEVEL", "GRPC_GO_LOG_SEVERITY_LEVEL"} {
 		if envval, ok := os.LookupEnv(envvar); ok {
 			env = append(env, fmt.Sprintf("%s=%s", envvar, envval))
 			fmt.Fprintf(
@@ -386,11 +393,11 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 
 	ctx := context.Background()
 	var metricExporterShutdownFn common.ShutdownFn
-	metricHandle := common.NewNoopMetrics()
+	metricHandle := metrics.NewNoopMetrics()
 	if cfg.IsMetricsEnabled(&newConfig.Metrics) {
 		metricExporterShutdownFn = monitor.SetupOTelMetricExporters(ctx, newConfig)
-		if metricHandle, err = common.NewOTelMetrics(); err != nil {
-			metricHandle = common.NewNoopMetrics()
+		if metricHandle, err = metrics.NewOTelMetrics(); err != nil {
+			metricHandle = metrics.NewNoopMetrics()
 		}
 	}
 	shutdownTracingFn := monitor.SetupTracing(ctx, newConfig)

@@ -17,13 +17,14 @@ package inode
 import (
 	"fmt"
 	"os"
+	"syscall"
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
@@ -92,7 +93,7 @@ type fakeBucketManager struct {
 
 func (bm *fakeBucketManager) SetUpBucket(
 	ctx context.Context,
-	name string, isMultibucketMount bool, _ common.MetricHandle) (sb gcsx.SyncerBucket, err error) {
+	name string, isMultibucketMount bool, _ metrics.MetricHandle) (sb gcsx.SyncerBucket, err error) {
 	bm.setupTimes++
 
 	var ok bool
@@ -124,7 +125,7 @@ func (t *BaseDirTest) resetInode() {
 			Mode: dirMode,
 		},
 		t.bm,
-		common.NewNoopMetrics())
+		metrics.NewNoopMetrics())
 
 	t.in.Lock()
 }
@@ -152,8 +153,18 @@ func (t *BaseDirTest) LookupCount() {
 	ExpectTrue(t.in.DecrementLookupCount(1))
 }
 
-func (t *BaseDirTest) Attributes() {
-	attrs, err := t.in.Attributes(t.ctx)
+func (t *BaseDirTest) Attributes_ClobberedCheckTrue() {
+	attrs, err := t.in.Attributes(t.ctx, true)
+
+	AssertEq(nil, err)
+	ExpectEq(uid, attrs.Uid)
+	ExpectEq(gid, attrs.Gid)
+	ExpectEq(dirMode|os.ModeDir, attrs.Mode)
+}
+
+func (t *BaseDirTest) Attributes_ClobberedCheckFalse() {
+	attrs, err := t.in.Attributes(t.ctx, false)
+
 	AssertEq(nil, err)
 	ExpectEq(uid, attrs.Uid)
 	ExpectEq(gid, attrs.Gid)
@@ -217,4 +228,13 @@ func (t *BaseDirTest) Test_ShouldInvalidateKernelListCache_TtlExpired() {
 	t.clock.AdvanceTime(10 * time.Second)
 
 	AssertEq(true, t.in.ShouldInvalidateKernelListCache(ttl))
+}
+
+func (t *BaseDirTest) TestReadEntryCores() {
+	cores, newTok, err := t.in.ReadEntryCores(t.ctx, "")
+
+	// Should return ENOTSUP because listing is unsupported.
+	ExpectEq(nil, cores)
+	ExpectEq("", newTok)
+	ExpectEq(syscall.ENOTSUP, err)
 }

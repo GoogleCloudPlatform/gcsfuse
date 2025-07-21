@@ -24,12 +24,12 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -65,7 +65,7 @@ func (t *HNSBucketTests) SetupSuite() {
 		EnableHns:                true,
 		EnableAtomicRenameObject: true,
 	}
-	t.serverCfg.MetricHandle = common.NewNoopMetrics()
+	t.serverCfg.MetricHandle = metrics.NewNoopMetrics()
 	bucketType = gcs.BucketType{Hierarchical: true}
 	t.fsTest.SetUpTestSuite()
 }

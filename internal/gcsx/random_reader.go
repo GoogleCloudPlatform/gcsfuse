@@ -23,13 +23,13 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	cacheutil "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/fuse/fuseops"
 	"golang.org/x/net/context"
 )
@@ -103,7 +103,7 @@ const (
 
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle common.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper, config *cfg.ReadConfig) RandomReader {
+func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper, config *cfg.Config) RandomReader {
 	return &randomReader{
 		object:                o,
 		bucket:                bucket,
@@ -111,7 +111,7 @@ func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb i
 		limit:                 -1,
 		seeks:                 0,
 		totalReadBytes:        0,
-		readType:              common.ReadTypeSequential,
+		readType:              metrics.ReadTypeSequential,
 		sequentialReadSizeMb:  sequentialReadSizeMb,
 		fileCacheHandler:      fileCacheHandler,
 		cacheFileForRangeRead: cacheFileForRangeRead,
@@ -172,9 +172,9 @@ type randomReader struct {
 	// boolean variable to determine if MRD is being used or not.
 	isMRDInUse bool
 
-	metricHandle common.MetricHandle
+	metricHandle metrics.MetricHandle
 
-	config *cfg.ReadConfig
+	config *cfg.Config
 
 	// Specifies the next expected offset for the reads. Used to distinguish between
 	// sequential and random reads.
@@ -247,9 +247,9 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 		// Here rr.fileCacheHandle will not be nil since we return from the above in those cases.
 		logger.Tracef("%.13v -> %s", requestId, requestOutput)
 
-		readType := common.ReadTypeRandom
+		readType := metrics.ReadTypeRandom
 		if isSeq {
-			readType = common.ReadTypeSequential
+			readType = metrics.ReadTypeSequential
 		}
 		captureFileCacheMetrics(ctx, rr.metricHandle, readType, n, cacheHit, executionTime)
 	}()
@@ -427,28 +427,30 @@ func (rr *randomReader) Destroy() {
 func (rr *randomReader) readFull(
 	ctx context.Context,
 	p []byte) (n int, err error) {
-	// Start a goroutine that will cancel the read operation we block on below if
-	// the calling context is cancelled, but only if this method has not already
-	// returned (to avoid souring the reader for the next read if this one is
-	// successful, since the calling context will eventually be cancelled).
-	readDone := make(chan struct{})
-	defer close(readDone)
+	if rr.config != nil && !rr.config.FileSystem.IgnoreInterrupts {
+		// Start a goroutine that will cancel the read operation we block on below if
+		// the calling context is cancelled, but only if this method has not already
+		// returned (to avoid souring the reader for the next read if this one is
+		// successful, since the calling context will eventually be cancelled).
+		readDone := make(chan struct{})
+		defer close(readDone)
 
-	go func() {
-		select {
-		case <-readDone:
-			return
-
-		case <-ctx.Done():
+		go func() {
 			select {
 			case <-readDone:
 				return
 
-			default:
-				rr.cancel()
+			case <-ctx.Done():
+				select {
+				case <-readDone:
+					return
+
+				default:
+					rr.cancel()
+				}
 			}
-		}
-	}()
+		}()
+	}
 
 	// Call through.
 	n, err = io.ReadFull(rr.reader, p)
@@ -463,7 +465,7 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 	// Begin the read.
 	ctx, cancel := context.WithCancel(context.Background())
 
-	if rr.config != nil && rr.config.InactiveStreamTimeout > 0 {
+	if rr.config != nil && rr.config.Read.InactiveStreamTimeout > 0 {
 		rr.reader, err = NewInactiveTimeoutReader(
 			ctx,
 			rr.bucket,
@@ -473,7 +475,7 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 				Start: uint64(start),
 				Limit: uint64(end),
 			},
-			rr.config.InactiveStreamTimeout)
+			rr.config.Read.InactiveStreamTimeout)
 	} else {
 		rr.reader, err = rr.bucket.NewReaderWithReadHandle(
 			ctx,
@@ -511,7 +513,7 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 	rr.limit = end
 
 	requestedDataSize := end - start
-	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, common.ReadTypeSequential, requestedDataSize)
+	metrics.CaptureGCSReadMetrics(ctx, rr.metricHandle, metrics.ReadTypeSequential, requestedDataSize)
 
 	return
 }
@@ -549,7 +551,7 @@ func (rr *randomReader) getReadInfo(
 	// (average read size in bytes rounded up to the next MiB).
 	end = int64(rr.object.Size)
 	if rr.seeks >= minSeeksForRandom {
-		rr.readType = common.ReadTypeRandom
+		rr.readType = metrics.ReadTypeRandom
 		averageReadBytes := rr.totalReadBytes / rr.seeks
 		if averageReadBytes < maxReadSize {
 			randomReadSize := int64(((averageReadBytes / MiB) + 1) * MiB)
@@ -579,7 +581,7 @@ func (rr *randomReader) getReadInfo(
 // readerType specifies the go-sdk interface to use for reads.
 func readerType(readType string, start int64, end int64, bucketType gcs.BucketType) ReaderType {
 	bytesToBeRead := end - start
-	if readType == common.ReadTypeRandom && bytesToBeRead < maxReadSize && bucketType.Zonal {
+	if readType == metrics.ReadTypeRandom && bytesToBeRead < maxReadSize && bucketType.Zonal {
 		return MultiRangeReader
 	}
 	return RangeReader
@@ -644,7 +646,7 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 	}
 
 	requestedDataSize := end - offset
-	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, readType, requestedDataSize)
+	metrics.CaptureGCSReadMetrics(ctx, rr.metricHandle, readType, requestedDataSize)
 	rr.updateExpectedOffset(offset + int64(n))
 
 	return

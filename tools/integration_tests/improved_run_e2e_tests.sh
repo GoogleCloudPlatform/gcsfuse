@@ -216,12 +216,13 @@ TEST_PACKAGES_COMMON=(
   "negative_stat_cache"
   "stale_handle"
   "release_version"
+  "readdirplus"
 )
 
 # Test packages for regional buckets.
 TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "inactive_stream_timeout" "cloud_profiler")
 # Test packages for zonal buckets.
-TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "unfinalized_object" "unfinalized_appends")
+TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "unfinalized_object" "rapid_appends")
 # Test packages for TPC buckets.
 TEST_PACKAGES_FOR_TPC=("operations")
 

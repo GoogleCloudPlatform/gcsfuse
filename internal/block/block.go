@@ -23,12 +23,15 @@ import (
 
 // Block represents the buffer which holds the data.
 type Block interface {
-	// Reuse resets the blocks for reuse.
-	Reuse()
+	// GenBlock defines reuse and deallocation of the block.
+	GenBlock
 
 	// Size provides the current data size of the block. The capacity of the block
 	// can be >= data_size.
 	Size() int64
+
+	// Cap returns the capacity of the block, kind of block-size.
+	Cap() int64
 
 	// Write writes the given data to block.
 	Write(bytes []byte) (n int, err error)
@@ -36,12 +39,6 @@ type Block interface {
 	// Reader interface helps in copying the data directly to storage.writer
 	// while uploading to GCS.
 	Reader() io.Reader
-
-	Deallocate() error
-
-	// Follows io.ReaderAt interface.
-	// Here, off is relative to the start of the block.
-	ReadAt(p []byte, off int64) (n int, err error)
 }
 
 // TODO: check if we need offset or just storing end is sufficient. We might need
@@ -66,6 +63,11 @@ func (m *memoryBlock) Reuse() {
 func (m *memoryBlock) Size() int64 {
 	return m.offset.end - m.offset.start
 }
+
+func (m *memoryBlock) Cap() int64 {
+	return int64(cap(m.buffer))
+}
+
 func (m *memoryBlock) Write(bytes []byte) (int, error) {
 	if m.Size()+int64(len(bytes)) > int64(cap(m.buffer)) {
 		return 0, fmt.Errorf("received data more than capacity of the block")

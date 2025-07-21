@@ -1,3 +1,10 @@
+**Please ensure your PR title follows the format:**
+```
+type(scope): subject
+```
+Example:
+feat(api): add user login endpoint
+
 ### Description
 
 ### Link to the issue in case of a bug fix.

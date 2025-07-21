@@ -18,8 +18,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/jacobsa/fuse"
@@ -62,7 +62,7 @@ type baseDirInode struct {
 	// GUARDED_BY(mu)
 	buckets map[string]gcsx.SyncerBucket
 
-	metricHandle common.MetricHandle
+	metricHandle metrics.MetricHandle
 }
 
 // NewBaseDirInode returns a baseDirInode that acts as the directory of
@@ -72,7 +72,7 @@ func NewBaseDirInode(
 	name Name,
 	attrs fuseops.InodeAttributes,
 	bm gcsx.BucketManager,
-	metricHandle common.MetricHandle) (d DirInode) {
+	metricHandle metrics.MetricHandle) (d DirInode) {
 	typed := &baseDirInode{
 		id:            id,
 		name:          NewRootName(""),
@@ -147,7 +147,7 @@ func (d *baseDirInode) Destroy() (err error) {
 
 // LOCKS_REQUIRED(d)
 func (d *baseDirInode) Attributes(
-	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
+	ctx context.Context, clobberedCheck bool) (attrs fuseops.InodeAttributes, err error) {
 	// Set up basic attributes.
 	attrs = d.attrs
 	attrs.Nlink = 1
@@ -183,6 +183,16 @@ func (d *baseDirInode) ReadDescendants(ctx context.Context, limit int) (map[Name
 func (d *baseDirInode) ReadEntries(
 	ctx context.Context,
 	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
+
+	// The subdirectories of the base directory should be all the accessible
+	// buckets. Although the user is allowed to visit each individual
+	// subdirectory, listing all the subdirectories (i.e. the buckets) can be
+	// very expensive and currently not supported.
+	return nil, "", syscall.ENOTSUP
+}
+
+// LOCKS_REQUIRED(d)
+func (d *baseDirInode) ReadEntryCores(ctx context.Context, tok string) (cores map[Name]*Core, newTok string, err error) {
 
 	// The subdirectories of the base directory should be all the accessible
 	// buckets. Although the user is allowed to visit each individual

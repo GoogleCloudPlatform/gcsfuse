@@ -19,8 +19,8 @@ import (
 	"errors"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -61,7 +61,7 @@ func ShouldRetry(err error) (b bool) {
 	return
 }
 
-func ShouldRetryWithMonitoring(ctx context.Context, err error, metricHandle common.MetricHandle) bool {
+func ShouldRetryWithMonitoring(ctx context.Context, err error, metricHandle metrics.MetricHandle) bool {
 	if err == nil {
 		return false
 	}

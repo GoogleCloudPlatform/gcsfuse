@@ -20,7 +20,7 @@ generate:
 	go generate ./...
 
 imports: generate
-	goimports -w .
+	
 
 fmt: imports
 	go mod tidy && go fmt ./...
