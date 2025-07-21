@@ -44,7 +44,6 @@ jobs:
 
   linux-tests:
     needs: filter
-    if: ${{ needs.filter.outputs.run_tests == 'true' }}
     strategy:
       matrix:
         go: [ 1.24.x ]
@@ -60,13 +59,16 @@ jobs:
     - name: Install fuse
       run: sudo apt-get update && sudo apt-get install -y fuse3 libfuse-dev
     - name: Build
+      if: ${{ needs.filter.outputs.run_tests == 'true' }}
       run: |
         CGO_ENABLED=0 go build ./...
         go install ./tools/build_gcsfuse
         build_gcsfuse . /tmp ${GITHUB_SHA}
     - name: Test all
+      if: ${{ needs.filter.outputs.run_tests == 'true' }}
       run: CGO_ENABLED=0 go test -p 1 -count 1 -covermode=atomic -coverprofile=coverage.out -coverpkg=./... -v -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./...`
     - name: RaceDetector Test
+      if: ${{ needs.filter.outputs.run_tests == 'true' }}
       run: go test -p 1 -count 1 -v -race -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` ./internal/cache/... ./internal/gcsx/...
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v4.3.1
