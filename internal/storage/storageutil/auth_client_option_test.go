@@ -28,11 +28,18 @@ import (
 	"google.golang.org/api/option"
 )
 
-// --- Helper to reset after test ---
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
 func resetInjectedFunctions() {
 	createTokenSourceFromTokenUrlFn = createTokenSourceFromTokenUrl
 	createCredentialsFn = createCredentials
 }
+
+////////////////////////////////////////////////////////////////////////
+// Tests
+////////////////////////////////////////////////////////////////////////
 
 func TestCreateCredentials(t *testing.T) {
 	cred, err := createCredentials("testdata/key.json")
@@ -71,8 +78,18 @@ func Test_ConfigureClientAuth_TokenUrlPreferredError(t *testing.T) {
 
 	_, err := ConfigureClientAuth(context.TODO(), config, &clientOpts)
 
+	assert.Error(t, err)
 	assert.ErrorContains(t, err, "simulated token source error")
 	assert.Empty(t, clientOpts)
+}
+
+func Test_ConfigureClientAuth_NilClientOption(t *testing.T) {
+	config := &StorageClientConfig{TokenUrl: "fake-url"}
+
+	_, err := ConfigureClientAuth(context.TODO(), config, nil)
+
+	assert.Error(t, err)
+	assert.ErrorContains(t, err, "clientOpts cannot be nil")
 }
 
 func Test_CreateCredentialForClient_FallbackToKeyFileSuccess(t *testing.T) {
