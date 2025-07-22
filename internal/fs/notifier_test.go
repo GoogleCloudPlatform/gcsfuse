@@ -18,14 +18,16 @@ package fs_test
 import (
 	"os"
 	"path"
+	"syscall"
 	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/jacobsa/fuse"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -63,25 +65,26 @@ func (t *NotifierTest) TearDownSuite() {
 }
 
 func (t *NotifierTest) TestWriteFileWithRootDirParent() {
-	filePath := path.Join(mntDir, "foo")
+	filePath := path.Join(mntDir, fileName)
 	// Create a file in GCS.
 	_, err := storageutil.CreateObject(ctx, bucket, fileName, []byte("initial content"))
-	assert.NoError(t.T(), err)
+	require.NoError(t.T(), err)
 	// Stat file to cache its entry.
 	_, err = os.Stat(filePath)
-	assert.NoError(t.T(), err)
+	require.NoError(t.T(), err)
 	// Clobber the file in GCS. This changes the object's generation, making
 	// our file handle stale.
 	_, err = storageutil.CreateObject(ctx, bucket, fileName, []byte("modified"))
-	assert.NoError(t.T(), err)
+	require.NoError(t.T(), err)
 
 	// Attempt to write.
-	err = operations.WriteFile(filePath, "new data")
+	err = common.WriteFile(filePath, "new data")
 
 	// Should return stale file handle error.
-	operations.ValidateESTALEError(t.T(), err)
+	require.Error(t.T(), err)
+	assert.Regexp(t.T(), syscall.ESTALE.Error(), err.Error())
 	// Attempt to write again, the entry has now been invalidated.
-	err = operations.WriteFile(filePath, "new data")
+	err = common.WriteFile(filePath, "new data")
 	assert.NoError(t.T(), err)
 }
 
@@ -89,22 +92,23 @@ func (t *NotifierTest) TestWriteFileWithNonRootDirParent() {
 	filePath := path.Join(mntDir, "dir/foo")
 	// Create a file in GCS.
 	_, err := storageutil.CreateObject(ctx, bucket, "dir/foo", []byte("initial content"))
-	assert.NoError(t.T(), err)
+	require.NoError(t.T(), err)
 	// Stat file to cache its entry.
 	_, err = os.Stat(filePath)
-	assert.NoError(t.T(), err)
+	require.NoError(t.T(), err)
 	// Clobber the file in GCS. This changes the object's generation, making
 	// our file handle stale.
 	_, err = storageutil.CreateObject(ctx, bucket, "dir/foo", []byte("modified"))
-	assert.NoError(t.T(), err)
+	require.NoError(t.T(), err)
 
 	// Attempt to write.
-	err = operations.WriteFile(filePath, "new data")
+	err = common.WriteFile(filePath, "new data")
 
 	// Should return stale file handle error.
-	operations.ValidateESTALEError(t.T(), err)
+	require.Error(t.T(), err)
+	assert.Regexp(t.T(), syscall.ESTALE.Error(), err.Error())
 	// Attempt to write again, the entry has now been invalidated.
-	err = operations.WriteFile(filePath, "new data")
+	err = common.WriteFile(filePath, "new data")
 	assert.NoError(t.T(), err)
 }
 
@@ -112,21 +116,21 @@ func (t *NotifierTest) TestReadFileDoNotFailPersistently() {
 	filePath := path.Join(mntDir, fileName)
 	// Create a file in GCS.
 	_, err := storageutil.CreateObject(ctx, bucket, fileName, []byte("initial content"))
-	assert.NoError(t.T(), err)
+	require.NoError(t.T(), err)
 	// Stat file to cache its entry.
 	_, err = os.Stat(filePath)
-	assert.NoError(t.T(), err)
+	require.NoError(t.T(), err)
 	// Clobber the file in GCS. This changes the object's generation, making
 	// our file handle stale.
 	_, err = storageutil.CreateObject(ctx, bucket, fileName, []byte("modified"))
-	assert.NoError(t.T(), err)
+	require.NoError(t.T(), err)
 
 	// Attempt to read file.
-	_, err = operations.ReadFile(filePath)
+	_, err = common.ReadFile(filePath)
 
 	// Should return error.
 	assert.NotNil(t.T(), err)
 	// Attempt to read again, the entry has now been invalidated.
-	_, err = operations.ReadFile(filePath)
+	_, err = common.ReadFile(filePath)
 	assert.NoError(t.T(), err)
 }

@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -105,4 +106,38 @@ func TestNameAsMapKey(t *testing.T) {
 	ExpectEq(2, count[foo])
 	_, ok := count[bar]
 	ExpectFalse(ok)
+}
+
+func TestParentName(t *testing.T) {
+	for _, bucketName := range []string{"", "bucketx"} {
+		// Setup
+		root := inode.NewRootName(bucketName) // ""
+		foo := inode.NewDirName(root, "foo")  // "foo/"
+		bar := inode.NewDirName(foo, "bar")   // "foo/bar/"
+		baz := inode.NewFileName(root, "baz") // "baz"
+		qux := inode.NewFileName(bar, "qux")  // "foo/bar/qux"
+		// Test cases
+		testCases := []struct {
+			name               inode.Name
+			expectedParentName inode.Name
+			panics             bool
+		}{
+			{name: foo, expectedParentName: root, panics: false},
+			{name: bar, expectedParentName: foo, panics: false},
+			{name: baz, expectedParentName: root, panics: false},
+			{name: qux, expectedParentName: bar, panics: false},
+			{name: root, expectedParentName: inode.Name{}, panics: true},
+		}
+
+		for _, tc := range testCases {
+			if tc.panics {
+				ExpectThat(func() { tc.name.ParentName() }, Panics(HasSubstr("Root has no parent")))
+			} else {
+				parent := tc.name.ParentName()
+
+				ExpectEq(tc.expectedParentName.GcsObjectName(), parent.GcsObjectName())
+				ExpectEq(tc.expectedParentName.LocalName(), parent.LocalName())
+			}
+		}
+	}
 }

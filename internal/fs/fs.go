@@ -1581,18 +1581,14 @@ func (fs *fileSystem) invalidateCachedEntry(childID fuseops.InodeID) error {
 	childInode, ok := fs.inodes[childID]
 	fs.mu.Unlock()
 	if !ok {
-		return fmt.Errorf("inode with ID %d not found", childID)
-	}
-
-	if childID == fuseops.RootInodeID {
-		return fmt.Errorf("cannot invalidate root inode %d", childID)
+		return fmt.Errorf("invalidateCachedEntry: inode with ID %d not found", childID)
 	}
 
 	childName := childInode.Name()
 	parentPath := path.Dir(childName.LocalName())
 	// If the parent path resolves to the current directory ".", it means the parent
 	// is the root of the file system.
-	if parentPath == "." || parentPath == "/" || parentPath == "" {
+	if parentPath == "." {
 		return fs.notifier.InvalidateEntry(fuseops.RootInodeID, path.Base(childInode.Name().LocalName()))
 	}
 
@@ -1611,7 +1607,7 @@ func (fs *fileSystem) invalidateCachedEntry(childID fuseops.InodeID) error {
 	} else if parentInode, ok := fs.generationBackedInodes[parentName]; ok {
 		parentInodeID = parentInode.ID()
 	} else {
-		return fmt.Errorf("failed to invalidate the entry, parent inode not found for child ID %d (parent: %s)", childID, parentName.String())
+		return fmt.Errorf("invalidateCachedEntry: failed to invalidate the entry, parent inode not found for child ID %d (parent: %s)", childID, parentName.String())
 	}
 
 	return fs.notifier.InvalidateEntry(parentInodeID, childBase)
