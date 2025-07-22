@@ -16,4 +16,6 @@
 echo Running fio test..
 fio ./perfmetrics/scripts/job_files/presubmit_perf_test.fio --lat_percentiles 1 --output-format=json --output='output.json'
 echo fetching results..
+# remove the error lins from output.json
+sed -i '/Interrupted system call/d' output.json
 python3 ./perfmetrics/scripts/presubmit/fetch_results.py output.json
