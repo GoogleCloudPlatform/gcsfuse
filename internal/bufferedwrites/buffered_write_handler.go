@@ -303,7 +303,9 @@ func (wh *bufferedWriteHandlerImpl) writeDataForTruncatedSize() error {
 
 func (wh *bufferedWriteHandlerImpl) Unlink() {
 	wh.uploadHandler.CancelUpload()
-	err := wh.blockPool.ClearFreeBlockChannel(true)
+	// Since bwh is not cleared after unlink, we will not release last block yet.
+	// Last block will be released when file handle for this file is closed.
+	err := wh.blockPool.ClearFreeBlockChannel(false)
 	if err != nil {
 		// Only logging an error in case of resource leak.
 		logger.Errorf("blockPool.ClearFreeBlockChannel() failed: %v", err)

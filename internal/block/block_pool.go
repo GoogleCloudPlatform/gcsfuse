@@ -119,6 +119,10 @@ func (bp *BlockPool) BlockSize() int64 {
 }
 
 func (bp *BlockPool) ClearFreeBlockChannel(releaseLastBlock bool) error {
+	if len(bp.freeBlocksCh) == 0 && releaseLastBlock {
+		bp.globalMaxBlocksSem.Release(1)
+		return nil
+	}
 	for {
 		select {
 		case b := <-bp.freeBlocksCh:
