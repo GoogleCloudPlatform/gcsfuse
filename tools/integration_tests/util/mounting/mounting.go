@@ -30,14 +30,6 @@ func MountGcsfuse(binaryFile string, flags []string) error {
 		flags...,
 	)
 
-	// TODO remove this later: enable grpc info logs in gcsfuse mount.
-	mountCmd.Dir = "."
-	mountCmd.Env = append(
-		mountCmd.Environ(),
-		"GRPC_GO_LOG_VERBOSITY_LEVEL=99",
-		"GRPC_GO_LOG_SEVERITY_LEVEL=info",
-	)
-
 	// Adding mount command in LogFile
 	file, err := os.OpenFile(setup.LogFile(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
