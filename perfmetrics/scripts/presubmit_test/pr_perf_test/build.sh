@@ -66,9 +66,8 @@ function execute_perf_test() {
   go mod vendor
   # manually replace the file
   wget -O ./vendor/google.golang.org/api/internal/gensupport/resumable.go https://raw.githubusercontent.com/meet2mky/google-api-go-client/refs/heads/main/internal/gensupport/resumable.go
-  ./vendor/google.golang.org/api/internal/gensupport/resumable.go
-  # The VM will itself exit if the gcsfuse mount fails.
-  go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
+  go build .
+  ./gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
   # Running FIO test
   time ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
   sudo umount gcs
