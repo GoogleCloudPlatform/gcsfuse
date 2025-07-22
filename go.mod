@@ -106,4 +106,4 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250715232539-7130f93afb79 // indirect
 )
 
-replace google.golang.org/api => github.com/meet2mky/google-api-go-client v0.0.0-20250722053435-0df59a4d4a88
+replace google.golang.org/api => github.com/meet2mky/google-api-go-client v0.0.0-20250722064457-5c4641f3ae30
