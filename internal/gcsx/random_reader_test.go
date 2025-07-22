@@ -482,14 +482,22 @@ func (t *RandomReaderTest) UpgradeReadsToAverageSize() {
 	// The bucket should be asked to read expectedBytesToRead bytes.
 	r := strings.NewReader(strings.Repeat("x", expectedBytesToRead))
 	rc := &fake.FakeReader{ReadCloser: io.NopCloser(r)}
-
-	ExpectCall(t.bucket, "NewReaderWithReadHandle")(
-		Any(),
-		AllOf(
-			rangeStartIs(start),
-			rangeLimitIs(start+expectedBytesToRead),
-		)).WillOnce(Return(rc, nil))
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
+	if t.bucketType.Zonal {
+		fakeMRDWrapper, err := NewMultiRangeDownloaderWrapper(t.bucket, t.object)
+		AssertEq(nil, err)
+		t.rr.wrapped.mrdWrapper = &fakeMRDWrapper
+		ExpectCall(t.bucket, "NewMultiRangeDownloader")(
+			Any(), Any(),
+		).WillOnce(Return(fake.NewFakeMultiRangeDownloader(t.object, rc.Handle)))
+	} else {
+		ExpectCall(t.bucket, "NewReaderWithReadHandle")(
+			Any(),
+			AllOf(
+				rangeStartIs(start),
+				rangeLimitIs(start+expectedBytesToRead),
+			)).WillOnce(Return(rc, nil))
+	}
+	ExpectCall(t.bucket, "BucketType")().WillRepeatedly(Return(t.bucketType))
 
 	// Call through.
 	buf := make([]byte, readSize)

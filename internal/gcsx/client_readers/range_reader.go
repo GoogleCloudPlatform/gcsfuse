@@ -43,6 +43,8 @@ type RangeReader struct {
 	object *gcs.MinObject
 	bucket gcs.Bucket
 
+	sequentialReadSizeMb int32
+
 	// start is the current read offset of the reader.
 	start int64
 
@@ -60,19 +62,20 @@ type RangeReader struct {
 	readHandle []byte
 	cancel     func()
 
-	readType     string
+	readType     int64
 	readConfig   *cfg.ReadConfig
 	metricHandle common.MetricHandle
 }
 
-func NewRangeReader(object *gcs.MinObject, bucket gcs.Bucket, readConfig *cfg.ReadConfig, metricHandle common.MetricHandle) *RangeReader {
+func NewRangeReader(object *gcs.MinObject, bucket gcs.Bucket, readConfig *cfg.ReadConfig, metricHandle common.MetricHandle, sequentialReadSizeMb int32) *RangeReader {
 	return &RangeReader{
-		object:       object,
-		bucket:       bucket,
-		metricHandle: metricHandle,
-		readConfig:   readConfig,
-		start:        -1,
-		limit:        -1,
+		object:               object,
+		bucket:               bucket,
+		metricHandle:         metricHandle,
+		readConfig:           readConfig,
+		start:                -1,
+		limit:                -1,
+		sequentialReadSizeMb: sequentialReadSizeMb,
 	}
 }
 
@@ -138,7 +141,7 @@ func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (
 // readFromRangeReader reads using the NewReader interface of go-sdk. It uses
 // the existing reader if available, otherwise makes a call to GCS.
 // Before calling this method we have to use invalidateReaderIfMisalignedOrTooSmall to get the reader start at the correct position.
-func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType string) (int, error) {
+func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType int64) (int, error) {
 	var err error
 	// If we don't have a reader, start a read operation.
 	if rr.reader == nil {
@@ -194,7 +197,7 @@ func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset
 	}
 
 	requestedDataSize := end - offset
-	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, readType, requestedDataSize)
+	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, common.ReadTypeMap[int(readType)], requestedDataSize)
 
 	return n, err
 }

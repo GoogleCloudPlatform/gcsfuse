@@ -64,7 +64,7 @@ func (t *rangeReaderTest) SetupTest() {
 		Generation: 1234,
 	}
 	t.mockBucket = new(storage.TestifyMockBucket)
-	t.rangeReader = NewRangeReader(t.object, t.mockBucket, nil, common.NewNoopMetrics())
+	t.rangeReader = NewRangeReader(t.object, t.mockBucket, nil, common.NewNoopMetrics(), sequentialReadSizeInMb)
 	t.ctx = context.Background()
 }
 
@@ -146,7 +146,7 @@ func (t *rangeReaderTest) Test_NewRangeReader() {
 		Generation: 4321,
 	}
 
-	reader := NewRangeReader(object, t.mockBucket, nil, common.NewNoopMetrics())
+	reader := NewRangeReader(object, t.mockBucket, nil, common.NewNoopMetrics(), sequentialReadSizeInMb)
 
 	assert.Equal(t.T(), object, reader.object)
 	assert.Equal(t.T(), t.mockBucket, reader.bucket)
@@ -405,7 +405,7 @@ func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenReaderReturnedMoreData() 
 			}
 			t.rangeReader.cancel = func() {}
 
-			n, err := t.rangeReader.readFromRangeReader(t.ctx, make([]byte, 10), 0, 10, "unhandled")
+			n, err := t.rangeReader.readFromRangeReader(t.ctx, make([]byte, 10), 0, 10, -1)
 
 			assert.Error(t.T(), err)
 			assert.Zero(t.T(), n)
@@ -475,8 +475,8 @@ func (t *rangeReaderTest) Test_ReadAt_DoesntPropagateCancellationAfterReturning(
 	// Set up a reader that will return three bytes.
 	content := "xyz"
 	t.rangeReader.reader = &fake.FakeReader{ReadCloser: getReadCloser([]byte(content))}
-	t.rangeReader.start = 1
-	t.rangeReader.limit = 4
+	t.rangeReader.start = 0
+	t.rangeReader.limit = 3
 	// Snoop on when cancel is called.
 	cancelCalled := make(chan struct{})
 	t.rangeReader.cancel = func() { close(cancelCalled) }
@@ -533,7 +533,7 @@ func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenAllDataFromReaderIsRead()
 			t.rangeReader.cancel = func() {}
 			buf := make([]byte, dataSize)
 
-			n, err := t.rangeReader.readFromRangeReader(t.ctx, buf, 4, 10, "unhandled")
+			n, err := t.rangeReader.readFromRangeReader(t.ctx, buf, 4, 10, -1)
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), dataSize, n)
@@ -576,7 +576,7 @@ func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenReaderHasLessDataThanRequ
 			t.rangeReader.cancel = func() {}
 			buf := make([]byte, 10)
 
-			n, err := t.rangeReader.readFromRangeReader(t.ctx, buf, 0, 10, "unhandled")
+			n, err := t.rangeReader.readFromRangeReader(t.ctx, buf, 0, 10, -1)
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), dataSize, n)

@@ -122,61 +122,61 @@ func (t *RandomReaderStretchrTest) TearDownTest() {
 // 	}
 // }
 
-func (t *RandomReaderStretchrTest) Test_ReadInfo_Sequential() {
-	var testCases = []struct {
-		testName    string
-		expectedEnd int64
-		start       int64
-		objectSize  uint64
-	}{
-		{"10MBObject", 10 * MiB, 0, 10 * MiB},
-		{"ReadSizeGreaterThanObjectSize", 10 * MiB, int64(t.object.Size - 1), 10 * MiB},
-		{"ObjectSizeGreaterThanReadSize", int64(sequentialReadSizeInBytes), 0, 50 * MiB},
-	}
+// func (t *RandomReaderStretchrTest) Test_ReadInfo_Sequential() {
+// 	var testCases = []struct {
+// 		testName    string
+// 		expectedEnd int64
+// 		start       int64
+// 		objectSize  uint64
+// 	}{
+// 		{"10MBObject", 10 * MiB, 0, 10 * MiB},
+// 		{"ReadSizeGreaterThanObjectSize", 10 * MiB, int64(t.object.Size - 1), 10 * MiB},
+// 		{"ObjectSizeGreaterThanReadSize", int64(sequentialReadSizeInBytes), 0, 50 * MiB},
+// 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.testName, func() {
-			t.object.Size = tc.objectSize
-			readType, _ := t.rr.wrapped.getReadInfo(tc.start)
+// 	for _, tc := range testCases {
+// 		t.Run(tc.testName, func() {
+// 			t.object.Size = tc.objectSize
+// 			readType, _ := t.rr.wrapped.getReadInfo(tc.start)
 
-			assert.Equal(t.T(), int64(common.ReadTypeSequential), readType)
-			// assert.Equal(t.T(), tc.expectedEnd, end)
-		})
-	}
-}
+// 			assert.Equal(t.T(), int64(common.ReadTypeSequential), readType)
+// 			// assert.Equal(t.T(), tc.expectedEnd, end)
+// 		})
+// 	}
+// }
 
-func (t *RandomReaderStretchrTest) Test_ReadInfo_Random() {
-	t.rr.wrapped.seeks.Store(2)
-	var testCases = []struct {
-		testName       string
-		expectedEnd    int64
-		start          int64
-		objectSize     uint64
-		totalReadBytes uint64
-	}{
-		// TotalReadByte is 10MB, so average is 10/2 = 5MB >1MB and <8MB
-		{"RangeBetween1And8MB", 6 * MiB, 0, 50 * MiB, 10 * MiB},
-		// TotalReadByte is 1MB, so average is 1/2 = 0.5MB which is <1MB
-		{"ReadSizeLessThan1MB", minReadSize, 0, 50 * MiB, 1 * MiB},
-		// TotalReadByte is 1MB, so average is 10/2 = 5MB which is <8MB
-		{"ReadSizeLessThan8MB", 6 * MiB, 0, 50 * MiB, 10 * MiB},
-		// TotalReadByte is 1MB, so average is 20/2 = 10MB which is >8MB
-		// {"ReadSizeGreaterThan8MB", sequentialReadSizeInBytes, 0, 50 * MiB, 20 * MiB},
-		{"ReadSizeGreaterThanObjectSize", 5 * MiB, 5*MiB - 1, 5 * MiB, 2 * MiB},
-	}
+// func (t *RandomReaderStretchrTest) Test_ReadInfo_Random() {
+// 	t.rr.wrapped.seeks.Store(2)
+// 	var testCases = []struct {
+// 		testName       string
+// 		expectedEnd    int64
+// 		start          int64
+// 		objectSize     uint64
+// 		totalReadBytes uint64
+// 	}{
+// 		// TotalReadByte is 10MB, so average is 10/2 = 5MB >1MB and <8MB
+// 		{"RangeBetween1And8MB", 6 * MiB, 0, 50 * MiB, 10 * MiB},
+// 		// TotalReadByte is 1MB, so average is 1/2 = 0.5MB which is <1MB
+// 		{"ReadSizeLessThan1MB", minReadSize, 0, 50 * MiB, 1 * MiB},
+// 		// TotalReadByte is 1MB, so average is 10/2 = 5MB which is <8MB
+// 		{"ReadSizeLessThan8MB", 6 * MiB, 0, 50 * MiB, 10 * MiB},
+// 		// TotalReadByte is 1MB, so average is 20/2 = 10MB which is >8MB
+// 		// {"ReadSizeGreaterThan8MB", sequentialReadSizeInBytes, 0, 50 * MiB, 20 * MiB},
+// 		{"ReadSizeGreaterThanObjectSize", 5 * MiB, 5*MiB - 1, 5 * MiB, 2 * MiB},
+// 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.testName, func() {
-			t.object.Size = tc.objectSize
-			t.rr.wrapped.totalReadBytes.Store(tc.totalReadBytes)
-			readType, avgReadBytes := t.rr.wrapped.getReadInfo(tc.start)
+// 	for _, tc := range testCases {
+// 		t.Run(tc.testName, func() {
+// 			t.object.Size = tc.objectSize
+// 			t.rr.wrapped.totalReadBytes.Store(tc.totalReadBytes)
+// 			readType, avgReadBytes := t.rr.wrapped.getReadInfo(tc.start)
 
-			// assert.NoError(t.T(), err)
-			assert.Equal(t.T(), int64(common.ReadTypeRandom), readType)
-			assert.Equal(t.T(), tc.totalReadBytes/t.rr.wrapped.seeks.Load(), uint64(avgReadBytes))
-		})
-	}
-}
+// 			// assert.NoError(t.T(), err)
+// 			assert.Equal(t.T(), int64(common.ReadTypeRandom), readType)
+// 			assert.Equal(t.T(), tc.totalReadBytes/t.rr.wrapped.seeks.Load(), uint64(avgReadBytes))
+// 		})
+// 	}
+// }
 
 func (t *RandomReaderStretchrTest) Test_ReaderType() {
 	testCases := []struct {

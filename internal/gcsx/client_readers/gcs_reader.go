@@ -16,6 +16,7 @@ package gcsx
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"sync"
 	"sync/atomic"
@@ -94,7 +95,7 @@ func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, config *GCSReaderConfig
 		object:               obj,
 		bucket:               bucket,
 		sequentialReadSizeMb: config.SequentialReadSizeMb,
-		rangeReader:          NewRangeReader(obj, bucket, config.ReadConfig, config.MetricHandle),
+		rangeReader:          NewRangeReader(obj, bucket, config.ReadConfig, config.MetricHandle, config.SequentialReadSizeMb),
 		mrr:                  NewMultiRangeReader(obj, config.MetricHandle, config.MrdWrapper),
 	}
 }
@@ -105,6 +106,8 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.R
 
 	if offset >= int64(gr.object.Size) {
 		return readerResponse, io.EOF
+	} else if offset < 0 {
+		return readerResponse, fmt.Errorf("Illegal offset %d for read", offset)
 	}
 
 	readInfo := gr.getReadInfo(offset)
@@ -113,7 +116,7 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.R
 	readReq := &gcsx.GCSReaderRequest{
 		Buffer:    p,
 		Offset:    offset,
-		EndOffset: -1,
+		EndOffset: offset + int64(len(p)),
 	}
 	defer func() {
 		gr.updateExpectedOffset(offset + int64(readerResponse.Size))
@@ -123,14 +126,17 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.R
 	if reader == RangeReaderType {
 		gr.rrMu.Lock()
 
-		readInfo = gr.getReadInfo(offset)
-		reader = gr.readerType(readInfo.readType, gr.bucket.BucketType())
+		if readInfo.expectedOffset != gr.expectedOffset.Load() {
+			readInfo = gr.getReadInfo(offset)
+			reader = gr.readerType(readInfo.readType, gr.bucket.BucketType())
+		}
 
-		if reader == RangeReaderType {
-			defer gr.rrMu.Unlock()
-			readerResponse, err = gr.rangeReader.ReadAt(ctx, readReq)
-		} else {
+		if reader == MultiRangeReaderType {
 			gr.rrMu.Unlock()
+		} else if reader == RangeReaderType {
+			defer gr.rrMu.Unlock()
+			readReq.EndOffset = gr.getEndOffsetForRangeReader(offset)
+			readerResponse, err = gr.rangeReader.ReadAt(ctx, readReq)
 		}
 	}
 
@@ -148,24 +154,6 @@ func (gr *GCSReader) readerType(readType int64, bucketType gcs.BucketType) Reade
 	}
 	return RangeReaderType
 }
-
-// getReadInfo determines the readType and provides the range to query GCS.
-// Range here is [start, end]. end is computed using the readType, start offset
-// and size of the data the caller needs.
-// func (gr *GCSReader) getReadInfo(start int64, size int64) (int64, error) {
-// 	// Make sure start and size are legal.
-// 	if start < 0 || uint64(start) > gr.object.Size || size < 0 {
-// 		return 0, fmt.Errorf("range [%d, %d) is illegal for %d-byte object", start, start+size, gr.object.Size)
-// 	}
-
-// 	// Determine the end position based on the read pattern.
-// 	end := gr.determineEnd(start)
-
-// 	// Limit the end position to sequentialReadSizeMb.
-// 	end = gr.limitEnd(start, end)
-
-// 	return end, nil
-// }
 
 func (gr *GCSReader) getReadInfo(offset int64) readInfo {
 	readType := gr.readType.Load()
@@ -200,38 +188,6 @@ func (gr *GCSReader) getReadInfo(offset int64) readInfo {
 	}
 }
 
-// // determineEnd calculates the end position for a read operation based on the current read pattern.
-// func (gr *GCSReader) determineEnd(start int64) int64 {
-// 	end := int64(gr.object.Size)
-// 	if gr.seeks >= minSeeksForRandom {
-// 		gr.readType = common.ReadTypeMap[common.ReadTypeRandom]
-// 		averageReadBytes := gr.totalReadBytes / gr.seeks
-// 		if averageReadBytes < maxReadSize {
-// 			randomReadSize := int64(((averageReadBytes / MB) + 1) * MB)
-// 			if randomReadSize < minReadSize {
-// 				randomReadSize = minReadSize
-// 			}
-// 			if randomReadSize > maxReadSize {
-// 				randomReadSize = maxReadSize
-// 			}
-// 			end = start + randomReadSize
-// 		}
-// 	}
-// 	if end > int64(gr.object.Size) {
-// 		end = int64(gr.object.Size)
-// 	}
-// 	return end
-// }
-
-// // Limit the read end to ensure it doesn't exceed the maximum sequential read size.
-// func (gr *GCSReader) limitEnd(start, currentEnd int64) int64 {
-// 	maxSize := int64(gr.sequentialReadSizeMb) * MB
-// 	if currentEnd-start > maxSize {
-// 		return start + maxSize
-// 	}
-// 	return currentEnd
-// }
-
 func (gr *GCSReader) updateExpectedOffset(offset int64) {
 	gr.expectedOffset.Store(offset)
 }
@@ -243,4 +199,35 @@ func (gr *GCSReader) Destroy() {
 
 func (gr *GCSReader) CheckInvariants() {
 	gr.rangeReader.checkInvariants()
+}
+
+func (gr *GCSReader) getEndOffsetForRangeReader(start int64) (end int64) {
+	totalReadBytes := gr.totalReadBytes.Load()
+	numSeeks := gr.seeks.Load()
+	end = int64(gr.object.Size)
+	if numSeeks > minSeeksForRandom {
+		averageReadBytes := totalReadBytes / numSeeks
+		if averageReadBytes < maxReadSize {
+			randomReadSize := int64(((averageReadBytes / MiB) + 1) * MiB)
+			if randomReadSize < minReadSize {
+				randomReadSize = minReadSize
+			}
+			if randomReadSize > maxReadSize {
+				randomReadSize = maxReadSize
+			}
+			end = start + randomReadSize
+		}
+	}
+
+	if end > int64(gr.object.Size) {
+		end = int64(gr.object.Size)
+	}
+
+	// To avoid overloading GCS and to have reasonable latencies, we will only
+	// fetch data of max size defined by sequentialReadSizeMb.
+	maxSizeToReadFromGCS := int64(gr.sequentialReadSizeMb * MiB)
+	if end-start > maxSizeToReadFromGCS {
+		end = start + maxSizeToReadFromGCS
+	}
+	return
 }

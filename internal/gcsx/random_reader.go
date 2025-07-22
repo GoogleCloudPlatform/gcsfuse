@@ -185,8 +185,7 @@ type randomReader struct {
 	// expectedOffset int64
 	expectedOffset atomic.Int64
 
-	mu          sync.Mutex
-	filecacheMu sync.Mutex
+	mu sync.Mutex
 
 	callsServedFromRangeReader atomic.Int64
 	callsServedFromMRD         atomic.Int64
@@ -272,11 +271,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 
 	// Create fileCacheHandle if not already.
 	if rr.fileCacheHandle == nil {
-		rr.filecacheMu.Lock()
-		if rr.fileCacheHandle == nil {
-			rr.fileCacheHandle, err = rr.fileCacheHandler.GetCacheHandle(rr.object, rr.bucket, rr.cacheFileForRangeRead, offset)
-		}
-		rr.filecacheMu.Unlock()
+		rr.fileCacheHandle, err = rr.fileCacheHandler.GetCacheHandle(rr.object, rr.bucket, rr.cacheFileForRangeRead, offset)
 		if err != nil {
 			// We fall back to GCS if file size is greater than the cache size
 			if errors.Is(err, lru.ErrInvalidEntrySize) {
@@ -352,19 +347,20 @@ func (rr *randomReader) ReadAt(
 	}
 
 	info := rr.getReadInfo(offset)
-	readerType := readerType(info.readType, rr.bucket.BucketType())
+	readerTypeLocal := readerType(info.readType, rr.bucket.BucketType())
 
-	if readerType == common.ReadTypeSequential {
+	if readerTypeLocal == RangeReader {
 		rr.mu.Lock()
 		expOffset := rr.expectedOffset.Load()
 		if info.expectedOffset != expOffset {
 			// check the values again as last read has changed the values
 			info = rr.getReadInfo(offset)
-			if info.readType == common.ReadTypeRandom {
+			readerTypeLocal = readerType(info.readType, rr.bucket.BucketType())
+			if readerTypeLocal == MultiRangeReader {
 				rr.mu.Unlock()
 			}
 		}
-		if info.readType == common.ReadTypeSequential {
+		if readerTypeLocal == RangeReader {
 			defer rr.mu.Unlock()
 			rr.callsServedFromRangeReader.Add(1)
 
@@ -413,7 +409,7 @@ func (rr *randomReader) ReadAt(
 			return
 		}
 	}
-	if info.readType == common.ReadTypeRandom {
+	if readerTypeLocal == MultiRangeReader {
 		rr.callsServedFromMRD.Add(1)
 		objectData.Size, err = rr.readFromMultiRangeReader(ctx, p, offset, offset+int64(len(p)), TimeoutForMultiRangeRead)
 		return
