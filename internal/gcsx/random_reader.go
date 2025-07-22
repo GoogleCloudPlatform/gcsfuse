@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -109,9 +110,6 @@ func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb i
 		bucket:                bucket,
 		start:                 -1,
 		limit:                 -1,
-		seeks:                 0,
-		totalReadBytes:        0,
-		readType:              metrics.ReadTypeSequential,
 		sequentialReadSizeMb:  sequentialReadSizeMb,
 		fileCacheHandler:      fileCacheHandler,
 		cacheFileForRangeRead: cacheFileForRangeRead,
@@ -141,11 +139,11 @@ type randomReader struct {
 	// reads from cache.
 	start          int64
 	limit          int64
-	seeks          uint64
-	totalReadBytes uint64
+	seeks          atomic.Uint64
+	totalReadBytes atomic.Uint64
 
 	// ReadType of the reader. Will be sequential by default.
-	readType string
+	readType atomic.Int64
 
 	sequentialReadSizeMb int32
 
@@ -178,7 +176,7 @@ type randomReader struct {
 
 	// Specifies the next expected offset for the reads. Used to distinguish between
 	// sequential and random reads.
-	expectedOffset int64
+	expectedOffset atomic.Int64
 }
 
 func (rr *randomReader) CheckInvariants() {
@@ -251,7 +249,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 		if isSeq {
 			readType = metrics.ReadTypeSequential
 		}
-		captureFileCacheMetrics(ctx, rr.metricHandle, readType, n, cacheHit, executionTime)
+		captureFileCacheMetrics(ctx, rr.metricHandle, metrics.ReadTypeNames[readType], n, cacheHit, executionTime)
 	}()
 
 	// Create fileCacheHandle if not already.
@@ -361,14 +359,14 @@ func (rr *randomReader) ReadAt(
 	}
 
 	if rr.reader != nil {
-		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, -1, rr.readType)
+		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, -1, rr.readType.Load())
 		return
 	}
 
 	// If the data can't be served from the existing reader, then we need to update the seeks.
 	// If current offset is not same as expected offset, its a random read.
-	if rr.expectedOffset != 0 && rr.expectedOffset != offset {
-		rr.seeks++
+	if rr.expectedOffset.Load() != 0 && rr.expectedOffset.Load() != offset {
+		rr.seeks.Add(1)
 	}
 
 	// If we don't have a reader, determine whether to read from NewReader or MRR.
@@ -378,9 +376,9 @@ func (rr *randomReader) ReadAt(
 		return
 	}
 
-	readerType := readerType(rr.readType, offset, end, rr.bucket.BucketType())
+	readerType := readerType(rr.readType.Load(), offset, end, rr.bucket.BucketType())
 	if readerType == RangeReader {
-		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, rr.readType)
+		objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, rr.readType.Load())
 		return
 	}
 
@@ -513,7 +511,7 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 	rr.limit = end
 
 	requestedDataSize := end - start
-	metrics.CaptureGCSReadMetrics(ctx, rr.metricHandle, metrics.ReadTypeSequential, requestedDataSize)
+	metrics.CaptureGCSReadMetrics(ctx, rr.metricHandle, metrics.ReadTypeNames[metrics.ReadTypeSequential], requestedDataSize)
 
 	return
 }
@@ -550,9 +548,9 @@ func (rr *randomReader) getReadInfo(
 	// optimise for random reads. Random reads will read data in chunks of
 	// (average read size in bytes rounded up to the next MiB).
 	end = int64(rr.object.Size)
-	if rr.seeks >= minSeeksForRandom {
-		rr.readType = metrics.ReadTypeRandom
-		averageReadBytes := rr.totalReadBytes / rr.seeks
+	if rr.seeks.Load() >= minSeeksForRandom {
+		rr.readType.Store(metrics.ReadTypeRandom)
+		averageReadBytes := rr.totalReadBytes.Load() / rr.seeks.Load()
 		if averageReadBytes < maxReadSize {
 			randomReadSize := int64(((averageReadBytes / MiB) + 1) * MiB)
 			if randomReadSize < minReadSize {
@@ -579,7 +577,7 @@ func (rr *randomReader) getReadInfo(
 }
 
 // readerType specifies the go-sdk interface to use for reads.
-func readerType(readType string, start int64, end int64, bucketType gcs.BucketType) ReaderType {
+func readerType(readType int64, start int64, end int64, bucketType gcs.BucketType) ReaderType {
 	bytesToBeRead := end - start
 	if readType == metrics.ReadTypeRandom && bytesToBeRead < maxReadSize && bucketType.Zonal {
 		return MultiRangeReader
@@ -589,7 +587,7 @@ func readerType(readType string, start int64, end int64, bucketType gcs.BucketTy
 
 // readFromRangeReader reads using the NewReader interface of go-sdk. Its uses
 // the existing reader if available, otherwise makes a call to GCS.
-func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType string) (n int, err error) {
+func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType int64) (n int, err error) {
 	// If we don't have a reader, start a read operation.
 	if rr.reader == nil {
 		err = rr.startRead(offset, end)
@@ -603,7 +601,7 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 	// it as possible.
 	n, err = rr.readFull(ctx, p)
 	rr.start += int64(n)
-	rr.totalReadBytes += uint64(n)
+	rr.totalReadBytes.Add(uint64(n))
 
 	// Sanity check.
 	if rr.start > rr.limit {
@@ -646,7 +644,7 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 	}
 
 	requestedDataSize := end - offset
-	metrics.CaptureGCSReadMetrics(ctx, rr.metricHandle, readType, requestedDataSize)
+	metrics.CaptureGCSReadMetrics(ctx, rr.metricHandle, metrics.ReadTypeNames[readType], requestedDataSize)
 	rr.updateExpectedOffset(offset + int64(n))
 
 	return
@@ -663,7 +661,7 @@ func (rr *randomReader) readFromMultiRangeReader(ctx context.Context, p []byte, 
 	}
 
 	bytesRead, err = rr.mrdWrapper.Read(ctx, p, offset, end, timeout, rr.metricHandle)
-	rr.totalReadBytes += uint64(bytesRead)
+	rr.totalReadBytes.Add(uint64(bytesRead))
 	rr.updateExpectedOffset(offset + int64(bytesRead))
 	return
 }
@@ -678,5 +676,5 @@ func (rr *randomReader) closeReader() {
 }
 
 func (rr *randomReader) updateExpectedOffset(offset int64) {
-	rr.expectedOffset = offset
+	rr.expectedOffset.Store(offset)
 }

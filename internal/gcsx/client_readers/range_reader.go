@@ -60,7 +60,7 @@ type RangeReader struct {
 	readHandle []byte
 	cancel     func()
 
-	readType     string
+	readType     int64
 	config       *cfg.Config
 	metricHandle metrics.MetricHandle
 }
@@ -131,7 +131,7 @@ func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (
 // readFromRangeReader reads using the NewReader interface of go-sdk. It uses
 // the existing reader if available, otherwise makes a call to GCS.
 // Before calling this method we have to use invalidateReaderIfMisalignedOrTooSmall to get the reader start at the correct position.
-func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType string) (int, error) {
+func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType int64) (int, error) {
 	var err error
 	// If we don't have a reader, start a read operation.
 	if rr.reader == nil {
@@ -187,7 +187,7 @@ func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset
 	}
 
 	requestedDataSize := end - offset
-	metrics.CaptureGCSReadMetrics(ctx, rr.metricHandle, readType, requestedDataSize)
+	metrics.CaptureGCSReadMetrics(ctx, rr.metricHandle, metrics.ReadTypeNames[readType], requestedDataSize)
 
 	return n, err
 }
@@ -281,7 +281,7 @@ func (rr *RangeReader) startRead(start int64, end int64) error {
 	rr.limit = end
 
 	requestedDataSize := end - start
-	metrics.CaptureGCSReadMetrics(ctx, rr.metricHandle, metrics.ReadTypeSequential, requestedDataSize)
+	metrics.CaptureGCSReadMetrics(ctx, rr.metricHandle, metrics.ReadTypeNames[metrics.ReadTypeSequential], requestedDataSize)
 
 	return nil
 }
