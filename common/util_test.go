@@ -16,6 +16,7 @@ package common
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -145,4 +146,49 @@ func TestJoinShutdownFunc(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCloseFile(t *testing.T) {
+	// Setup
+	f, err := os.CreateTemp("", "testFile-*")
+	require.NoError(t, err)
+
+	// Close file and assert
+	assert.NotPanics(t, func() { CloseFile(f) })
+}
+
+func TestWriteFile(t *testing.T) {
+	// Setup
+	tmpFile, err := os.CreateTemp("", "testFile-*")
+	require.NoError(t, err)
+	filePath := tmpFile.Name()
+	defer os.Remove(filePath)
+	require.NoError(t, tmpFile.Close())
+
+	// Call WriteFile
+	err = WriteFile(filePath, "content")
+
+	// Assertions
+	assert.NoError(t, err)
+	data, err := ReadFile(filePath)
+	require.NoError(t, err)
+	assert.Equal(t, "content", string(data))
+}
+
+func TestReadFile(t *testing.T) {
+	// Setup
+	file, err := os.CreateTemp("", "testFile-*")
+	require.NoError(t, err)
+	fileName := file.Name()
+	defer os.Remove(fileName)
+	_, err = file.WriteString("content")
+	require.NoError(t, err)
+	require.NoError(t, file.Close())
+
+	// Call ReadFile
+	content, err := ReadFile(fileName)
+
+	// Assertions
+	assert.NoError(t, err)
+	assert.Equal(t, "content", string(content))
 }
