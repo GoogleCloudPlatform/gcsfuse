@@ -120,6 +120,7 @@ TEST_DIR_PARALLEL=(
   "cloud_profiler"
   "release_version"
   "readdirplus"
+  "dentry_cache"
 )
 
 # These tests never become parallel as it is changing bucket permissions.
