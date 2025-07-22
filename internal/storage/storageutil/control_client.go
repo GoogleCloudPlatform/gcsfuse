@@ -38,7 +38,7 @@ func storageControlClientRetryOptions(clientConfig *StorageClientConfig) []gax.C
 				codes.Internal,
 				codes.Unknown,
 			}, gax.Backoff{
-				Max:        clientConfig.MaxRetrySleep,
+				Max:        10 * time.Second,
 				Multiplier: clientConfig.RetryMultiplier,
 			})
 		}),
