@@ -62,6 +62,11 @@ function execute_perf_test() {
   GCSFUSE_FLAGS="--implicit-dirs --prometheus-port=48341"
   BUCKET_NAME=presubmit-perf-tests
   MOUNT_POINT=gcs
+  # get vendors
+  go mod vendor
+  # manually replace the file
+  wget -O ./vendor/google.golang.org/api/internal/gensupport/resumable.go https://raw.githubusercontent.com/meet2mky/google-api-go-client/refs/heads/main/internal/gensupport/resumable.go
+  ./vendor/google.golang.org/api/internal/gensupport/resumable.go
   # The VM will itself exit if the gcsfuse mount fails.
   go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
   # Running FIO test
@@ -110,7 +115,6 @@ then
  # Show results
  echo showing results...
  python3 ./perfmetrics/scripts/presubmit/print_results.py
- sleep 86400 # Sleep for 24 hours.
  set -e
  set +x
 fi
