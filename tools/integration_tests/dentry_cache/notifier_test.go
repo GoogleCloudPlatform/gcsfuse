@@ -15,7 +15,6 @@
 package dentry_cache
 
 import (
-	"github.com/stretchr/testify/require"
 	"log"
 	"os"
 	"path"
@@ -28,6 +27,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type notifierTest struct {
@@ -55,8 +55,8 @@ func (s *notifierTest) TestWriteFileWithDentryCacheEnabled(t *testing.T) {
 	// Modify the object on GCS.
 	objectName := path.Join(testDirName, testFileName)
 	smallContent, err := operations.GenerateRandomData(updatedContentSize)
-	err = client.WriteToObject(ctx, storageClient, objectName, string(smallContent), storage.Conditions{})
 	require.Nil(t, err)
+	require.Nil(t, client.WriteToObject(ctx, storageClient, objectName, string(smallContent), storage.Conditions{}))
 
 	// First Write File attempt.
 	err = operations.WriteFile(filePath, "ShouldNotWrite")
@@ -80,8 +80,8 @@ func (s *notifierTest) TestReadFileWithDentryCacheEnabled(t *testing.T) {
 	// Modify the object on GCS.
 	objectName := path.Join(testDirName, testFileName)
 	smallContent, err := operations.GenerateRandomData(updatedContentSize)
-	err = client.WriteToObject(ctx, storageClient, objectName, string(smallContent), storage.Conditions{})
 	require.Nil(t, err)
+	require.Nil(t, client.WriteToObject(ctx, storageClient, objectName, string(smallContent), storage.Conditions{}))
 
 	// First Read File attempt.
 	_, err = operations.ReadFile(filePath)

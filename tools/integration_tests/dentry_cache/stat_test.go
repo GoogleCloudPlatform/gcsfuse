@@ -15,7 +15,6 @@
 package dentry_cache
 
 import (
-	"github.com/stretchr/testify/require"
 	"log"
 	"os"
 	"path"
@@ -29,6 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type statWithDentryCacheEnabledTest struct {
@@ -56,8 +56,8 @@ func (s *statWithDentryCacheEnabledTest) TestStatWithDentryCacheEnabled(t *testi
 	// Modify the object on GCS.
 	objectName := path.Join(testDirName, testFileName)
 	smallContent, err := operations.GenerateRandomData(updatedContentSize)
-	err = client.WriteToObject(ctx, storageClient, objectName, string(smallContent), storage.Conditions{})
 	require.Nil(t, err)
+	require.Nil(t, client.WriteToObject(ctx, storageClient, objectName, string(smallContent), storage.Conditions{}))
 
 	// Stat again, it should give old cached attributes.
 	fileInfo, err := os.Stat(filePath)
@@ -65,7 +65,7 @@ func (s *statWithDentryCacheEnabledTest) TestStatWithDentryCacheEnabled(t *testi
 	assert.Nil(t, err)
 	assert.Equal(t, int64(initialContentSize), fileInfo.Size())
 	// Wait until entry expires in cache.
-	time.Sleep(1 * time.Second)
+	time.Sleep(1100 * time.Millisecond)
 	// Stat again, it should give updated attributes.
 	fileInfo, err = os.Stat(filePath)
 	assert.Nil(t, err)
