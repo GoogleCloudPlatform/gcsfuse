@@ -89,7 +89,7 @@ func (t *BufferedReaderTest) TestNewBufferedReader() {
 	assert.Equal(t.T(), t.object, reader.object, "object should match")
 	assert.Equal(t.T(), t.bucket, reader.bucket, "bucket should match")
 	assert.Equal(t.T(), t.config, reader.config, "config should match")
-	assert.Equal(t.T(), int64(0), reader.nextBlockIndexToPrefetch, "nextBlockIndexToPrefetch should be 0")
+	assert.Equal(t.T(), int64(-1), reader.nextBlockIndexToPrefetch, "nextBlockIndexToPrefetch should be -1")
 	assert.Equal(t.T(), int64(0), reader.randomSeekCount, "randomSeekCount should be 0")
 	assert.Equal(t.T(), testInitialPrefetchBlockCnt, reader.numPrefetchBlocks, "numPrefetchBlocks should match")
 	assert.NotNil(t.T(), reader.blockQueue, "blockQueue should not be nil")
