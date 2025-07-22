@@ -1592,7 +1592,10 @@ func (fs *fileSystem) invalidateCachedEntry(childID fuseops.InodeID) error {
 		return fs.notifier.InvalidateEntry(fuseops.RootInodeID, path.Base(childInode.Name().LocalName()))
 	}
 
-	parentName := childName.ParentName()
+	parentName, err := childName.ParentName()
+	if err != nil {
+		return fmt.Errorf("invalidateCachedEntry: cannot find Parent name: %w", err)
+	}
 	childBase := path.Base(childName.LocalName())
 
 	var parentInodeID fuseops.InodeID
@@ -2832,9 +2835,9 @@ func (fs *fileSystem) ReadFile(
 	// making the kernel's dentry for this file stale. We use the notifier to
 	// invalidate this entry, providing feedback to the kernel about the dynamic
 	// content change and ensuring subsequent lookups fetch the correct metadata.
-	if err != nil && fs.newConfig.FileSystem.ExperimentalEnableDentryCache {
+	if fs.newConfig.FileSystem.ExperimentalEnableDentryCache {
 		var clobberedErr *gcsfuse_errors.FileClobberedError
-		if errors.As(err, &clobberedErr) {
+		if err != nil && errors.As(err, &clobberedErr) {
 			if invalidateErr := fs.invalidateCachedEntry(op.Inode); invalidateErr != nil {
 				err = fmt.Errorf("%w; additionally failed to invalidate entry: %w", err, invalidateErr)
 			}

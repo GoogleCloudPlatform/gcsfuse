@@ -15,6 +15,7 @@
 package inode
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -125,9 +126,9 @@ func (name Name) IsDirectChildOf(parent Name) bool {
 }
 
 // ParentName returns the Name of the parent directory of the current Name.
-func (name Name) ParentName() Name {
+func (name Name) ParentName() (Name, error) {
 	if name.IsBucketRoot() {
-		panic("Root has no parent")
+		return Name{}, errors.New("root has no parent")
 	}
 
 	objectName := strings.TrimSuffix(name.objectName, "/") // normalize for dir or file
@@ -138,12 +139,12 @@ func (name Name) ParentName() Name {
 		return Name{
 			bucketName: name.bucketName,
 			objectName: "",
-		}
+		}, nil
 	}
 
 	parentObjectName := objectName[:lastSlash+1] // include trailing slash for dir
 	return Name{
 		bucketName: name.bucketName,
 		objectName: parentObjectName,
-	}
+	}, nil
 }

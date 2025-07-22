@@ -120,24 +120,33 @@ func TestParentName(t *testing.T) {
 		testCases := []struct {
 			name               inode.Name
 			expectedParentName inode.Name
-			panics             bool
 		}{
-			{name: foo, expectedParentName: root, panics: false},
-			{name: bar, expectedParentName: foo, panics: false},
-			{name: baz, expectedParentName: root, panics: false},
-			{name: qux, expectedParentName: bar, panics: false},
-			{name: root, expectedParentName: inode.Name{}, panics: true},
+			{name: foo, expectedParentName: root},
+			{name: bar, expectedParentName: foo},
+			{name: baz, expectedParentName: root},
+			{name: qux, expectedParentName: bar},
 		}
 
 		for _, tc := range testCases {
-			if tc.panics {
-				ExpectThat(func() { tc.name.ParentName() }, Panics(HasSubstr("Root has no parent")))
-			} else {
-				parent := tc.name.ParentName()
+			parent, err := tc.name.ParentName()
 
-				ExpectEq(tc.expectedParentName.GcsObjectName(), parent.GcsObjectName())
-				ExpectEq(tc.expectedParentName.LocalName(), parent.LocalName())
-			}
+			ExpectEq(nil, err)
+			ExpectEq(tc.expectedParentName.GcsObjectName(), parent.GcsObjectName())
+			ExpectEq(tc.expectedParentName.LocalName(), parent.LocalName())
 		}
+	}
+}
+
+func TestParentNameReturnsErrorOnBucketRoot(t *testing.T) {
+	for _, bucketName := range []string{"", "bucketx"} {
+		// Setup
+		root := inode.NewRootName(bucketName) // ""
+
+		// Call ParentName on bucket root
+		_, err := root.ParentName()
+
+		// Expect an error
+		ExpectNe(nil, err)
+		ExpectThat(err, Error(HasSubstr("root has no parent")))
 	}
 }
