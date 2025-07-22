@@ -29,7 +29,7 @@ import (
 func ShouldRetry(err error) (b bool) {
 	b = storage.ShouldRetry(err)
 	if b {
-		logger.Infof("Retrying for the error: %v", err)
+		logger.Warnf("Retrying for the error: %v", err)
 		return
 	}
 
@@ -43,7 +43,7 @@ func ShouldRetry(err error) (b bool) {
 	if typed, ok := err.(*googleapi.Error); ok {
 		if typed.Code == 401 {
 			b = true
-			logger.Infof("Retrying for error-code 401: %v", err)
+			logger.Warnf("Retrying for error-code 401: %v", err)
 			return
 		}
 	}
@@ -54,7 +54,7 @@ func ShouldRetry(err error) (b bool) {
 	if status, ok := status.FromError(err); ok {
 		if status.Code() == codes.Unauthenticated {
 			b = true
-			logger.Infof("Retrying for UNAUTHENTICATED error: %v", err)
+			logger.Warnf("Retrying for UNAUTHENTICATED error: %v", err)
 			return
 		}
 	}
