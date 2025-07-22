@@ -88,6 +88,10 @@ function install_requirements() {
 # execute perf tests.
 if [[ "$perfTestStr" == *"$EXECUTE_PERF_TEST_LABEL"* ]];
 then
+ # log current id, did and directory before proceeding...
+ echo "UID: $(id -u), GID: $(id -g), PWD: $(pwd)"
+ set +e
+ set -x
  # Executing perf tests for master branch
  install_requirements
  git checkout master
@@ -106,6 +110,9 @@ then
  # Show results
  echo showing results...
  python3 ./perfmetrics/scripts/presubmit/print_results.py
+ sleep 86400 # Sleep for 24 hours.
+ set -e
+ set +x
 fi
 
 # Install required bash version for e2e script as kokoro has outdated bash versions.
