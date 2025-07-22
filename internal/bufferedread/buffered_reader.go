@@ -64,7 +64,7 @@ type BufferedReader struct {
 
 	blockQueue common.Queue[*blockQueueEntry]
 
-	// TODO: Add readHandle for zonal bucket optimization.
+	readHandle []byte // For zonal bucket.
 
 	blockPool    *block.GenBlockPool[block.PrefetchBlock]
 	workerPool   workerpool.WorkerPool
@@ -96,6 +96,42 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 
 	reader.ctx, reader.cancelFunc = context.WithCancel(context.Background())
 	return reader, nil
+}
+
+// ScheduleNextBlock schedules the next block for prefetch.
+func (p *BufferedReader) ScheduleNextBlock(urgent bool) error {
+	b, err := p.blockPool.Get()
+	if err != nil {
+		return fmt.Errorf("unable to get block: %w", err)
+	}
+	if b == nil {
+		return fmt.Errorf("received nil block from blockPool without error")
+	}
+	
+	p.scheduleBlockWithIndex(b, p.nextBlockIndexToPrefetch, urgent)
+	p.nextBlockIndexToPrefetch++
+	return nil
+}
+
+// ScheduleBlockWithIndex schedules a block with a specific index.
+func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockIndex int64, urgent bool) {
+	startOffset := blockIndex * p.config.PrefetchBlockSizeBytes
+	if err := b.SetAbsStartOff(startOffset); err != nil {
+		logger.Errorf("Failed to set start offset on block: %v", err)
+		p.blockPool.Release(b)
+		return
+	}
+
+	ctx, cancel := context.WithCancel(p.ctx)
+	task := NewDownloadTask(ctx, p.object, p.bucket, b, p.readHandle)
+
+	logger.Debugf("Scheduling block (%s, offset %d).", p.object.Name, startOffset)
+
+	p.blockQueue.Push(&blockQueueEntry{
+		block:  b,
+		cancel: cancel,
+	})
+	p.workerPool.Schedule(urgent, task)
 }
 
 func (p *BufferedReader) Destroy() {
