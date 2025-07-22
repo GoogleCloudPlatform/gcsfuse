@@ -23,7 +23,6 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
-	"syscall"
 )
 
 type ShutdownFn func(ctx context.Context) error
@@ -90,7 +89,7 @@ func CloseFile(file *os.File) {
 }
 
 func WriteFile(fileName string, content string) (err error) {
-	f, err := os.OpenFile(fileName, os.O_RDWR|syscall.O_DIRECT, 0600)
+	f, err := os.OpenFile(fileName, os.O_RDWR, 0600)
 	if err != nil {
 		err = fmt.Errorf("open file for write at start: %v", err)
 		return
@@ -105,7 +104,7 @@ func WriteFile(fileName string, content string) (err error) {
 }
 
 func ReadFile(filePath string) (content []byte, err error) {
-	f, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, 0600)
+	f, err := os.OpenFile(filePath, os.O_RDONLY, 0600)
 	if err != nil {
 		err = fmt.Errorf("error in the opening the file %v", err)
 		return
