@@ -25,11 +25,6 @@ import (
 	"google.golang.org/api/option"
 )
 
-var (
-	createTokenSourceFromTokenUrlFn = createTokenSourceFromTokenUrl
-	createCredentialsFn             = createCredentials
-)
-
 // createTokenSourceFromTokenUrl returns a token source using tokenUrl and reuse flag.
 // Returns nil if tokenUrl is empty.
 func createTokenSourceFromTokenUrl(ctx context.Context, tokenUrl string, reuse bool) (oauth2.TokenSource, error) {
@@ -44,38 +39,36 @@ func createCredentials(keyFile string) (*auth.Credentials, error) {
 	return auth2.GetCredentials(keyFile)
 }
 
-// ConfigureClientAuth returns a token source using either token URL or fallback to key file/ADC.
-// It also updates clientOpts via pointer, so changes are visible to the caller.
-func ConfigureClientAuth(ctx context.Context, config *StorageClientConfig, clientOpts *[]option.ClientOption) (oauth2.TokenSource, error) {
-	if clientOpts == nil {
-		return nil, fmt.Errorf("clientOpts cannot be nil")
+// GetClientAuthOptionsAndToken returns a token source using either a token URL or falling back to key file/ADC.
+// It also returns client options containing the token source, universe domain, and credentials.
+func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConfig) ([]option.ClientOption, oauth2.TokenSource, error) {
+	// Attempt to create token source via token URL.
+	tokenSrc, err := createTokenSourceFromTokenUrl(ctx, config.TokenUrl, config.ReuseTokenFromUrl)
+	if err != nil {
+		return nil, nil, fmt.Errorf("while fetching token source: %w", err)
 	}
 
-	// Try token source via token URL.
-	tokenSrc, err := createTokenSourceFromTokenUrlFn(ctx, config.TokenUrl, config.ReuseTokenFromUrl)
-	if err != nil {
-		return nil, fmt.Errorf("while fetching token source: %w", err)
-	}
+	var clientOpts []option.ClientOption
 
 	if tokenSrc != nil {
-		*clientOpts = append(*clientOpts, option.WithTokenSource(tokenSrc))
-		return tokenSrc, nil
+		clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
+		return clientOpts, tokenSrc, nil
 	}
 
-	// Fallback to credentials.
-	cred, err := createCredentialsFn(config.KeyFile)
+	// Fallback to key file credentials.
+	cred, err := createCredentials(config.KeyFile)
 	if err != nil {
-		return nil, fmt.Errorf("while fetching credentials: %w", err)
+		return nil, nil, fmt.Errorf("while fetching credentials: %w", err)
 	}
 
 	tokenSrc = oauth2adapt.TokenSourceFromTokenProvider(cred.TokenProvider)
 
-	domain, err := cred.UniverseDomain(context.Background())
+	domain, err := cred.UniverseDomain(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get UniverseDomain: %w", err)
+		return nil, nil, fmt.Errorf("failed to get UniverseDomain: %w", err)
 	}
 
-	*clientOpts = append(*clientOpts, option.WithUniverseDomain(domain), option.WithAuthCredentials(cred))
+	clientOpts = append(clientOpts, option.WithUniverseDomain(domain), option.WithAuthCredentials(cred))
 
-	return tokenSrc, nil
+	return clientOpts, tokenSrc, nil
 }
