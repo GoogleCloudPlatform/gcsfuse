@@ -18,57 +18,39 @@ import (
 	"context"
 	"fmt"
 
-	"cloud.google.com/go/auth"
 	"cloud.google.com/go/auth/oauth2adapt"
 	auth2 "github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 )
 
-// createTokenSourceFromTokenUrl returns a token source using tokenUrl and reuse flag.
-// Returns nil if tokenUrl is empty.
-func createTokenSourceFromTokenUrl(ctx context.Context, tokenUrl string, reuse bool) (oauth2.TokenSource, error) {
-	if tokenUrl == "" {
-		return nil, nil
-	}
-	return auth2.NewTokenSourceFromURL(ctx, tokenUrl, reuse)
-}
-
-// createCredentials returns credentials from the provided key file.
-func createCredentials(keyFile string) (*auth.Credentials, error) {
-	return auth2.GetCredentials(keyFile)
-}
-
-// GetClientAuthOptionsAndToken returns a token source using either a token URL or falling back to key file/ADC.
-// It also returns client options containing the token source, universe domain, and credentials.
+// GetClientAuthOptionsAndToken returns client options and a token source using either a token URL or fallback to key file/ADC.
 func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConfig) ([]option.ClientOption, oauth2.TokenSource, error) {
-	// Attempt to create token source via token URL.
-	tokenSrc, err := createTokenSourceFromTokenUrl(ctx, config.TokenUrl, config.ReuseTokenFromUrl)
-	if err != nil {
-		return nil, nil, fmt.Errorf("while fetching token source: %w", err)
-	}
+	// If Token URL is provided, attempt to fetch token source directly.
+	if config.TokenUrl != "" {
+		tokenSrc, err := auth2.NewTokenSourceFromURL(ctx, config.TokenUrl, config.ReuseTokenFromUrl)
+		if err != nil {
+			return nil, nil, fmt.Errorf("while fetching token source: %w", err)
+		}
 
-	var clientOpts []option.ClientOption
-
-	if tokenSrc != nil {
-		clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
+		clientOpts := []option.ClientOption{option.WithTokenSource(tokenSrc)}
 		return clientOpts, tokenSrc, nil
 	}
 
-	// Fallback to key file credentials.
-	cred, err := createCredentials(config.KeyFile)
+	// Fallback: Use key file credentials.
+	cred, err := auth2.GetCredentials(config.KeyFile)
 	if err != nil {
 		return nil, nil, fmt.Errorf("while fetching credentials: %w", err)
 	}
 
-	tokenSrc = oauth2adapt.TokenSourceFromTokenProvider(cred.TokenProvider)
+	tokenSrc := oauth2adapt.TokenSourceFromTokenProvider(cred.TokenProvider)
 
 	domain, err := cred.UniverseDomain(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get UniverseDomain: %w", err)
 	}
 
-	clientOpts = append(clientOpts, option.WithUniverseDomain(domain), option.WithAuthCredentials(cred))
+	clientOpts := []option.ClientOption{option.WithUniverseDomain(domain), option.WithAuthCredentials(cred)}
 
 	return clientOpts, tokenSrc, nil
 }

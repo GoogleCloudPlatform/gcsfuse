@@ -38,7 +38,7 @@ func Test_GetClientAuthOptionsAndToken_TokenUrlPreferredSuccess(t *testing.T) {
 	config := &StorageClientConfig{
 		TokenUrl:          server.URL,
 		ReuseTokenFromUrl: false,
-		KeyFile:           "/path/to/keyfile.json",
+		KeyFile:           "testdata/key.json",
 	}
 
 	clientOpts, tokenSrc, err := GetClientAuthOptionsAndToken(context.TODO(), config)
@@ -51,9 +51,10 @@ func Test_GetClientAuthOptionsAndToken_TokenUrlPreferredSuccess(t *testing.T) {
 func Test_GetClientAuthOptionsAndToken_TokenUrlPreferredError(t *testing.T) {
 	config := &StorageClientConfig{TokenUrl: ":"}
 
-	clientOpts, _, err := GetClientAuthOptionsAndToken(context.TODO(), config)
+	clientOpts, tokenSrc, err := GetClientAuthOptionsAndToken(context.TODO(), config)
 
 	assert.Error(t, err)
+	assert.Nil(t, tokenSrc)
 	assert.Empty(t, clientOpts)
 }
 
@@ -74,9 +75,9 @@ func Test_GetClientAuthOptionsAndToken_FallbackToKeyFileError(t *testing.T) {
 	config := &StorageClientConfig{TokenUrl: "", KeyFile: "fake-key"}
 	var clientOpts []option.ClientOption
 
-	clientOpts, ts, err := GetClientAuthOptionsAndToken(context.TODO(), config)
+	clientOpts, tokenSrc, err := GetClientAuthOptionsAndToken(context.TODO(), config)
 
 	assert.Error(t, err)
-	assert.Nil(t, ts)
+	assert.Nil(t, tokenSrc)
 	assert.Empty(t, clientOpts)
 }
