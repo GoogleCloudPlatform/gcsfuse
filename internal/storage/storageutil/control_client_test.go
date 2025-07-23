@@ -40,7 +40,7 @@ func (testSuite *ControlClientTest) TearDownTest() {
 func (testSuite *ControlClientTest) TestStorageControlClientRetryOptions() {
 	clientConfig := GetDefaultStorageClientConfig()
 
-	gaxOpts := storageControlClientRetryOptions(&clientConfig)
+	gaxOpts := storageControlClientRetryOptions(&clientConfig, "UnspecifiedOperation")
 
 	assert.NotNil(testSuite.T(), gaxOpts)
 }
