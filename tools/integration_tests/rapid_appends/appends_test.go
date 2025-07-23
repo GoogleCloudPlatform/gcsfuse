@@ -173,8 +173,6 @@ func (t *RapidAppendsSuite) TestContentAppendedInNonAppendModeNotVisibleTillClos
 	// Skipping test for now until CreateObject() is supported for unfinalized objects.
 	// Ref: b/424253611
 	t.T().Skip()
-	t.SetupSubTest()
-	defer t.TearDownSubTest()
 
 	initialContent := t.fileContent
 	// Append to the file from the primary mount in non-append mode
@@ -193,9 +191,9 @@ func (t *RapidAppendsSuite) TestContentAppendedInNonAppendModeNotVisibleTillClos
 	err = wh.Close()
 	require.NoError(t.T(), err)
 
-	// Read from secondary mount to validate that data is now visible.
+	// Validate that appended content is visible in GCS.
 	expectedContent := initialContent + appendContent
-	contentAfterClose, err := operations.ReadFile(path.Join(secondaryMntTestDirPath, t.fileName))
+	contentAfterClose, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(path.Join(testDirName, t.fileName)))
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), expectedContent, contentAfterClose)
 }
