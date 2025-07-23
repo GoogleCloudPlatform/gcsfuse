@@ -123,7 +123,7 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.R
 
 	// If the data can't be served from the existing reader, then we need to update the seeks.
 	// If current offset is not same as expected offset, it's a random read.
-	if gr.expectedOffset.Load() != 0 && gr.expectedOffset.Load() != offset {
+	if expectedOffset := gr.expectedOffset.Load(); expectedOffset != 0 && expectedOffset != offset {
 		gr.seeks.Add(1)
 	}
 
@@ -176,9 +176,9 @@ func (gr *GCSReader) getReadInfo(start int64, size int64) (int64, error) {
 // determineEnd calculates the end position for a read operation based on the current read pattern.
 func (gr *GCSReader) determineEnd(start int64) int64 {
 	end := int64(gr.object.Size)
-	if gr.seeks.Load() >= minSeeksForRandom {
+	if seeks := gr.seeks.Load(); seeks >= minSeeksForRandom { {
 		gr.readType.Store(metrics.ReadTypeRandom)
-		averageReadBytes := gr.totalReadBytes.Load() / gr.seeks.Load()
+		averageReadBytes := gr.totalReadBytes.Load() / seeks
 		if averageReadBytes < maxReadSize {
 			randomReadSize := int64(((averageReadBytes / MB) + 1) * MB)
 			if randomReadSize < minReadSize {

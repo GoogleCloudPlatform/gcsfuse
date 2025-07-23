@@ -365,7 +365,7 @@ func (rr *randomReader) ReadAt(
 
 	// If the data can't be served from the existing reader, then we need to update the seeks.
 	// If current offset is not same as expected offset, its a random read.
-	if rr.expectedOffset.Load() != 0 && rr.expectedOffset.Load() != offset {
+	if expectedOffset := rr.expectedOffset.Load(); expectedOffset != 0 && expectedOffset != offset {
 		rr.seeks.Add(1)
 	}
 
@@ -548,9 +548,9 @@ func (rr *randomReader) getReadInfo(
 	// optimise for random reads. Random reads will read data in chunks of
 	// (average read size in bytes rounded up to the next MiB).
 	end = int64(rr.object.Size)
-	if rr.seeks.Load() >= minSeeksForRandom {
+	if seeks := rr.seeks.Load(); seeks >= minSeeksForRandom {
 		rr.readType.Store(metrics.ReadTypeRandom)
-		averageReadBytes := rr.totalReadBytes.Load() / rr.seeks.Load()
+		averageReadBytes := rr.totalReadBytes.Load() / seeks
 		if averageReadBytes < maxReadSize {
 			randomReadSize := int64(((averageReadBytes / MiB) + 1) * MiB)
 			if randomReadSize < minReadSize {
