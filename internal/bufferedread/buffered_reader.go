@@ -30,7 +30,7 @@ import (
 )
 
 type BufferedReadConfig struct {
-	PrefetchQueueCapacity   int64 // Maximum number of blocks that can be prefetched
+	MaxPrefetchBlockCnt     int64 // Maximum number of blocks that can be prefetched
 	PrefetchBlockSizeBytes  int64 // Size of each block to be prefetched.
 	InitialPrefetchBlockCnt int64 // Number of blocks to prefetch initially.
 	PrefetchMultiplier      int64 // Multiplier for number of blocks to prefetch.
@@ -76,7 +76,7 @@ type BufferedReader struct {
 
 // NewBufferedReader returns a new bufferedReader instance.
 func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *BufferedReadConfig, globalMaxBlocksSem *semaphore.Weighted, workerPool workerpool.WorkerPool, metricHandle metrics.MetricHandle) (*BufferedReader, error) {
-	blockpool, err := block.NewPrefetchBlockPool(config.PrefetchBlockSizeBytes, config.PrefetchQueueCapacity, globalMaxBlocksSem)
+	blockpool, err := block.NewPrefetchBlockPool(config.PrefetchBlockSizeBytes, config.MaxPrefetchBlockCnt, globalMaxBlocksSem)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create worker pool: %w", err)
 	}
@@ -126,9 +126,9 @@ func (p *BufferedReader) Destroy() {
 // CheckInvariants checks for internal consistency of the reader.
 func (p *BufferedReader) CheckInvariants() {
 
-	// The number of items in the blockQueue should not exceed the configured capacity.
-	if int64(p.blockQueue.Len()) > p.config.PrefetchQueueCapacity {
-		panic(fmt.Sprintf("BufferedReader: blockQueue length %d exceeds capacity %d", p.blockQueue.Len(), p.config.PrefetchQueueCapacity))
+	// The number of items in the blockQueue should not exceed the configured limit.
+	if int64(p.blockQueue.Len()) > p.config.MaxPrefetchBlockCnt {
+		panic(fmt.Sprintf("BufferedReader: blockQueue length %d exceeds limit %d", p.blockQueue.Len(), p.config.MaxPrefetchBlockCnt))
 	}
 
 	// The random seek count should never exceed the configured threshold.

@@ -32,8 +32,8 @@ import (
 )
 
 const (
-	testPrefetchQueueCapacity   int64 = 2
-	testGlobalMaxBlocks         int64 = 4
+	testMaxPrefetchBlockCnt     int64 = 10
+	testGlobalMaxBlocks         int64 = 20
 	testPrefetchBlockSizeBytes  int64 = 4096
 	testInitialPrefetchBlockCnt int64 = 2
 	testPrefetchMultiplier      int64 = 2
@@ -64,7 +64,7 @@ func (t *BufferedReaderTest) SetupTest() {
 	t.bucket = new(storage.TestifyMockBucket)
 	t.globalMaxBlocksSem = semaphore.NewWeighted(testGlobalMaxBlocks)
 	t.config = &BufferedReadConfig{
-		PrefetchQueueCapacity:   testPrefetchQueueCapacity,
+		MaxPrefetchBlockCnt:     testMaxPrefetchBlockCnt,
 		PrefetchBlockSizeBytes:  testPrefetchBlockSizeBytes,
 		InitialPrefetchBlockCnt: testInitialPrefetchBlockCnt,
 		PrefetchMultiplier:      testPrefetchMultiplier,
@@ -135,13 +135,13 @@ func (t *BufferedReaderTest) TestDestroyAwaitReadyError() {
 	assert.Nil(t.T(), reader.blockPool)
 }
 
-func (t *BufferedReaderTest) TestCheckInvariantsBlockQueueExceedsCapacity() {
+func (t *BufferedReaderTest) TestCheckInvariantsBlockQueueExceedsLimit() {
 	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
 	require.NoError(t.T(), err, "NewBufferedReader should not return error")
 	b, err := reader.blockPool.Get()
 	require.NoError(t.T(), err, "Failed to get block from pool")
 
-	for range int(t.config.PrefetchQueueCapacity + 1) {
+	for range int(t.config.MaxPrefetchBlockCnt + 1) {
 		reader.blockQueue.Push(&blockQueueEntry{
 			block:  b,
 			cancel: func() {},
