@@ -136,7 +136,7 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockInde
 	ctx, cancel := context.WithCancel(p.ctx)
 	task := NewDownloadTask(ctx, p.object, p.bucket, b, p.readHandle)
 
-	logger.Debugf("Scheduling block (%s, offset %d).", p.object.Name, startOffset)
+	logger.Tracef("Scheduling block (%s, offset %d).", p.object.Name, startOffset)
 
 	p.blockQueue.Push(&blockQueueEntry{
 		block:  b,
