@@ -2,6 +2,8 @@
 ```
 type(scope): subject
 ```
+Example:
+feat(api): add user login endpoint
 
 Available types:
 - `feat`: A new feature
@@ -15,13 +17,10 @@ Available types:
 - `ci`: Changes to our CI configuration files and scripts (example scopes: Travis, Circle, BrowserStack, SauceLabs)
 - `chore`: Other changes that don't modify src or test files
 - `revert`: Reverts a previous commit
-Example:
-feat(api): add user login endpoint
 
 ### Description
 
 ### Link to the issue in case of a bug fix.
-
 
 ### Testing details
 1. Manual - NA
