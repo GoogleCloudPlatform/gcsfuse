@@ -441,6 +441,7 @@ Cloud Storage FUSE represents symlinks with empty Cloud Storage objects that con
 
 
 **Note**
+
 While GCSFuse supports symlinks that point to paths external to the mount point, it should be avoided as it could lead to broken links and security issues.
 
 
