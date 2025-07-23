@@ -15,19 +15,13 @@
 package metadata
 
 import (
-	"fmt"
 	"math"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
-
-func fullEpoch(time time.Time) string {
-	return fmt.Sprintf("%v.%v", time.Unix(), time.Nanosecond())
-}
 
 // A cache mapping from name to most recent known record for the object of that
 // name. External synchronization must be provided.
@@ -196,7 +190,6 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 		key:        name,
 	}
 
-	logger.Tracef("Inserting stat-cache for %q: expiration = %v", m.Name, fullEpoch(e.expiration))
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
 		panic(err)
 	}
@@ -212,7 +205,6 @@ func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration ti
 		key:        name,
 	}
 
-	logger.Tracef("Inserting negative stat-cache entry for %q: expiration = %v", objectName, fullEpoch(e.expiration))
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
 		panic(err)
 	}
@@ -234,7 +226,6 @@ func (sc *statCacheBucketView) AddNegativeEntryForFolder(folderName string, expi
 }
 
 func (sc *statCacheBucketView) Erase(objectName string) {
-	logger.Tracef("Erasing stat-cache entry for %q at epoch %v", objectName, fullEpoch(time.Now()))
 	name := sc.key(objectName)
 	sc.sharedCache.Erase(name)
 }
@@ -265,10 +256,8 @@ func (sc *statCacheBucketView) LookUpFolder(
 }
 
 func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (bool, *entry) {
-	logger.Tracef("Looking up stat-cache entry for %q at %v ...", key, fullEpoch(now))
 	value := sc.sharedCache.LookUp(sc.key(key))
 	if value == nil {
-		logger.Tracef("No stat-cache entry found for %q at %v", key, fullEpoch(now))
 		return false, nil
 	}
 
@@ -276,12 +265,10 @@ func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (boo
 
 	// Has this entry expired?
 	if e.expiration.Before(now) {
-		logger.Tracef("Removing expired stat-cache entry for %q at %v: expiration = %v ...", key, now, fullEpoch(e.expiration))
 		sc.Erase(key)
 		return false, nil
 	}
 
-	logger.Tracef("Found stat-cache entry for %q at %v: expiration = %v", key, now, fullEpoch(e.expiration))
 	return true, &e
 }
 
