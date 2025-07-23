@@ -258,6 +258,8 @@ func (t *RandomReaderTest) ExistingReader_ReadAtOffsetAfterTheReaderPosition() {
 	t.rr.wrapped.start = currentStartOffset
 	t.rr.wrapped.limit = readerLimit
 
+	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
+
 	buf := make([]byte, readSize)
 	_, err := t.rr.ReadAt(buf, readAtOffset)
 
@@ -303,6 +305,8 @@ func (t *RandomReaderTest) ReaderNotExhausted() {
 	}
 	rc := &fake.FakeReader{ReadCloser: cc}
 
+	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
+
 	t.rr.wrapped.reader = rc
 	t.rr.wrapped.cancel = func() {}
 	t.rr.wrapped.start = 1
@@ -329,6 +333,8 @@ func (t *RandomReaderTest) ReaderExhausted_ReadFinished() {
 		Reader: strings.NewReader("abc"),
 	}
 
+	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
+
 	t.rr.wrapped.reader = &fake.FakeReader{ReadCloser: rc}
 	t.rr.wrapped.cancel = func() {}
 	t.rr.wrapped.start = 1
@@ -353,6 +359,8 @@ func (t *RandomReaderTest) PropagatesCancellation() {
 	// Set up a reader that will block until we tell it to return.
 	finishRead := make(chan struct{})
 	rc := io.NopCloser(&blockingReader{finishRead})
+
+	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
 
 	t.rr.wrapped.reader = &fake.FakeReader{ReadCloser: rc}
 	t.rr.wrapped.start = 1
@@ -396,6 +404,8 @@ func (t *RandomReaderTest) DoesntPropagateCancellationAfterReturning() {
 	t.rr.wrapped.reader = &fake.FakeReader{ReadCloser: getReadCloser([]byte("xxx"))}
 	t.rr.wrapped.start = 1
 	t.rr.wrapped.limit = 4
+
+	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
 
 	// Snoop on when cancel is called.
 	cancelCalled := make(chan struct{})

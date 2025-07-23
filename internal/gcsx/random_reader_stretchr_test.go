@@ -17,7 +17,6 @@ package gcsx
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path"
@@ -87,95 +86,120 @@ func (t *RandomReaderStretchrTest) TearDownTest() {
 	t.rr.Destroy()
 }
 
-func (t *RandomReaderStretchrTest) Test_ReadInfo() {
-	t.object.Size = 10 * MiB
+func (t *RandomReaderStretchrTest) Test_GetReadInfo() {
 	testCases := []struct {
-		name  string
-		start int64
-		size  int64
+		name                  string
+		offset                int64
+		initialReadType       int64
+		initialExpOffset      int64
+		initialNumSeeks       uint64
+		initialTotalReadBytes uint64
+		expectedReadType      int64
+		expectedNumSeeks      uint64
 	}{
 		{
-			name:  "startLessThanZero",
-			start: -1,
-			size:  10,
+			name:                  "First Read",
+			offset:                0,
+			initialReadType:       metrics.ReadTypeSequential,
+			initialExpOffset:      0,
+			initialNumSeeks:       0,
+			initialTotalReadBytes: 0,
+			expectedReadType:      metrics.ReadTypeSequential,
+			expectedNumSeeks:      0,
 		},
 		{
-			name:  "sizeLessThanZero",
-			start: -0,
-			size:  -1,
+			name:                  "Sequential Read",
+			offset:                10,
+			initialReadType:       metrics.ReadTypeSequential,
+			initialExpOffset:      10,
+			initialNumSeeks:       0,
+			initialTotalReadBytes: 100,
+			expectedReadType:      metrics.ReadTypeSequential,
+			expectedNumSeeks:      0,
 		},
 		{
-			name:  "startGreaterThanObjectSize",
-			start: int64(t.object.Size + 1),
-			size:  int64(t.object.Size),
+			name:                  "Sequential read with small forward jump and high average read bytes is still sequential",
+			offset:                100,
+			initialReadType:       metrics.ReadTypeSequential,
+			initialExpOffset:      10,
+			initialNumSeeks:       0,
+			initialTotalReadBytes: 10000000,
+			expectedReadType:      metrics.ReadTypeSequential,
+			expectedNumSeeks:      0,
+		},
+		{
+			name:                  "Sequential read with large forward jump is a seek",
+			offset:                50 + maxReadSize + 1,
+			initialReadType:       metrics.ReadTypeSequential,
+			initialExpOffset:      50,
+			initialNumSeeks:       0,
+			initialTotalReadBytes: 50 * 1024,
+			expectedReadType:      metrics.ReadTypeSequential,
+			expectedNumSeeks:      1,
+		},
+		{
+			name:                  "Sequential read with backward jump is a seek",
+			offset:                49,
+			initialReadType:       metrics.ReadTypeSequential,
+			initialExpOffset:      50,
+			initialNumSeeks:       0,
+			initialTotalReadBytes: 50 * 1024,
+			expectedReadType:      metrics.ReadTypeSequential,
+			expectedNumSeeks:      1,
+		},
+		{
+			name:                  "Contiguous random read is not a seek",
+			offset:                50,
+			initialReadType:       metrics.ReadTypeRandom,
+			initialExpOffset:      50,
+			initialNumSeeks:       minSeeksForRandom,
+			initialTotalReadBytes: 50 * 1024,
+			expectedReadType:      metrics.ReadTypeRandom,
+			expectedNumSeeks:      minSeeksForRandom,
+		},
+		{
+			name:                  "Non-contiguous random read is a seek",
+			offset:                100,
+			initialReadType:       metrics.ReadTypeRandom,
+			initialExpOffset:      50,
+			initialNumSeeks:       minSeeksForRandom,
+			initialTotalReadBytes: 50 * 1024,
+			expectedReadType:      metrics.ReadTypeRandom,
+			expectedNumSeeks:      minSeeksForRandom + 1,
+		},
+		{
+			name:                  "Switches to random read after enough seeks",
+			offset:                50 + maxReadSize + 1,
+			initialReadType:       metrics.ReadTypeSequential,
+			initialExpOffset:      50,
+			initialNumSeeks:       minSeeksForRandom - 1,
+			initialTotalReadBytes: 1000,
+			expectedReadType:      metrics.ReadTypeRandom,
+			expectedNumSeeks:      minSeeksForRandom,
+		},
+		{
+			name:                  "Switches back to sequential with high average read bytes",
+			offset:                100,
+			initialReadType:       metrics.ReadTypeRandom,
+			initialExpOffset:      50,
+			initialNumSeeks:       minSeeksForRandom,
+			initialTotalReadBytes: maxReadSize * (minSeeksForRandom + 1),
+			expectedReadType:      metrics.ReadTypeSequential,
+			expectedNumSeeks:      minSeeksForRandom + 1,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
-			_, err := t.rr.wrapped.getReadInfo(tc.start, tc.size)
+			rr := &randomReader{}
+			rr.readType.Store(tc.initialReadType)
+			rr.expectedOffset.Store(tc.initialExpOffset)
+			rr.seeks.Store(tc.initialNumSeeks)
+			rr.totalReadBytes.Store(tc.initialTotalReadBytes)
 
-			assert.Error(t.T(), err)
-			errorString := fmt.Sprintf(
-				"range [%d, %d) is illegal for %d-byte object", tc.start, tc.start+tc.size, t.object.Size)
-			assert.Equal(t.T(), errorString, err.Error())
-		})
-	}
-}
-
-func (t *RandomReaderStretchrTest) Test_ReadInfo_Sequential() {
-	var testCases = []struct {
-		testName    string
-		expectedEnd int64
-		start       int64
-		objectSize  uint64
-	}{
-		{"10MBObject", 10 * MiB, 0, 10 * MiB},
-		{"ReadSizeGreaterThanObjectSize", 10 * MiB, int64(t.object.Size - 1), 10 * MiB},
-		{"ObjectSizeGreaterThanReadSize", int64(sequentialReadSizeInBytes), 0, 50 * MiB},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.testName, func() {
-			t.object.Size = tc.objectSize
-			end, err := t.rr.wrapped.getReadInfo(tc.start, 10)
-
-			assert.NoError(t.T(), err)
-			assert.Equal(t.T(), metrics.ReadTypeSequential, t.rr.wrapped.readType.Load())
-			assert.Equal(t.T(), tc.expectedEnd, end)
-		})
-	}
-}
-
-func (t *RandomReaderStretchrTest) Test_ReadInfo_Random() {
-	t.rr.wrapped.seeks.Store(2)
-	var testCases = []struct {
-		testName       string
-		expectedEnd    int64
-		start          int64
-		objectSize     uint64
-		totalReadBytes uint64
-	}{
-		// TotalReadByte is 10MB, so average is 10/2 = 5MB >1MB and <8MB
-		{"RangeBetween1And8MB", 6 * MiB, 0, 50 * MiB, 10 * MiB},
-		// TotalReadByte is 1MB, so average is 1/2 = 0.5MB which is <1MB
-		{"ReadSizeLessThan1MB", minReadSize, 0, 50 * MiB, 1 * MiB},
-		// TotalReadByte is 1MB, so average is 10/2 = 5MB which is <8MB
-		{"ReadSizeLessThan8MB", 6 * MiB, 0, 50 * MiB, 10 * MiB},
-		// TotalReadByte is 1MB, so average is 20/2 = 10MB which is >8MB
-		{"ReadSizeGreaterThan8MB", sequentialReadSizeInBytes, 0, 50 * MiB, 20 * MiB},
-		{"ReadSizeGreaterThanObjectSize", 5 * MiB, 5*MiB - 1, 5 * MiB, 2 * MiB},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.testName, func() {
-			t.object.Size = tc.objectSize
-			t.rr.wrapped.totalReadBytes.Store(tc.totalReadBytes)
-			end, err := t.rr.wrapped.getReadInfo(tc.start, 10)
-
-			assert.NoError(t.T(), err)
-			assert.Equal(t.T(), metrics.ReadTypeRandom, t.rr.wrapped.readType.Load())
-			assert.Equal(t.T(), tc.expectedEnd, end)
+			readInfo := rr.getReadInfo(tc.offset)
+			assert.Equal(t.T(), tc.expectedReadType, readInfo.readType, "Read type mismatch")
+			assert.Equal(t.T(), tc.expectedNumSeeks, rr.seeks.Load(), "Number of seeks mismatch")
 		})
 	}
 }
@@ -196,14 +220,6 @@ func (t *RandomReaderStretchrTest) Test_ReaderType() {
 			end:        68,
 			bucketType: gcs.BucketType{Zonal: true},
 			readerType: MultiRangeReader,
-		},
-		{
-			name:       "ZonalBucketRandomReadLargerThan8MB",
-			readType:   metrics.ReadTypeRandom,
-			start:      0,
-			end:        9 * MiB,
-			bucketType: gcs.BucketType{Zonal: true},
-			readerType: RangeReader,
 		},
 		{
 			name:       "ZonalBucketSequentialRead",
@@ -233,8 +249,98 @@ func (t *RandomReaderStretchrTest) Test_ReaderType() {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
-			readerType := readerType(tc.readType, tc.start, tc.end, tc.bucketType)
+			readerType := readerType(tc.readType, tc.bucketType)
 			assert.Equal(t.T(), readerType, tc.readerType)
+		})
+	}
+}
+
+func (t *RandomReaderStretchrTest) Test_GetEndOffset() {
+	testCases := []struct {
+		name                  string
+		start                 int64
+		objectSize            int64
+		initialReadType       int64
+		initialNumSeeks       uint64
+		initialTotalReadBytes uint64
+		sequentialReadSizeMb  int32
+		expectedEnd           int64
+	}{
+		{
+			name:                  "Sequential Read, Fits in sequentialReadSizeMb",
+			start:                 0,
+			objectSize:            10 * MiB,
+			initialReadType:       metrics.ReadTypeSequential,
+			initialNumSeeks:       0,
+			initialTotalReadBytes: 0,
+			sequentialReadSizeMb:  22,
+			expectedEnd:           10 * MiB,
+		},
+		{
+			name:                  "Sequential Read, Object Larger than sequentialReadSizeMb",
+			start:                 0,
+			objectSize:            50 * MiB,
+			initialReadType:       metrics.ReadTypeSequential,
+			initialNumSeeks:       0,
+			initialTotalReadBytes: 0,
+			sequentialReadSizeMb:  22,
+			expectedEnd:           22 * MiB,
+		},
+		{
+			name:                  "Sequential Read, Respects object size",
+			start:                 5 * MiB,
+			objectSize:            7 * MiB,
+			initialReadType:       metrics.ReadTypeSequential,
+			initialNumSeeks:       0,
+			initialTotalReadBytes: 0,
+			sequentialReadSizeMb:  22,
+			expectedEnd:           7 * MiB,
+		},
+		{
+			name:                  "Random Read, Min read size",
+			start:                 0,
+			objectSize:            5 * MiB,
+			initialReadType:       metrics.ReadTypeRandom,
+			initialNumSeeks:       minSeeksForRandom,
+			initialTotalReadBytes: 1000,
+			sequentialReadSizeMb:  22,
+			expectedEnd:           minReadSize,
+		},
+		{
+			name:                  "Random Read, Averages less than minReadSize",
+			start:                 0,
+			objectSize:            50 * MiB,
+			initialReadType:       metrics.ReadTypeRandom,
+			initialNumSeeks:       minSeeksForRandom,
+			initialTotalReadBytes: 100 * 1024, // 100KiB
+			sequentialReadSizeMb:  22,
+			expectedEnd:           minReadSize, // Should be atleast minReadSize
+		},
+		{
+			name:                  "Random Read, Start Offset Non-Zero",
+			start:                 5 * MiB,
+			objectSize:            50 * MiB,
+			initialReadType:       metrics.ReadTypeRandom,
+			initialNumSeeks:       minSeeksForRandom,
+			initialTotalReadBytes: 2 * MiB, // avg read bytes = 1MiB
+			sequentialReadSizeMb:  22,
+			expectedEnd:           5*MiB + 2*MiB, // avg read bytes + 1MiB
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			rr := &randomReader{
+				object:               &gcs.MinObject{Size: uint64(tc.objectSize)},
+				sequentialReadSizeMb: tc.sequentialReadSizeMb,
+			}
+			rr.readType.Store(tc.initialReadType)
+			rr.seeks.Store(tc.initialNumSeeks)
+			rr.totalReadBytes.Store(tc.initialTotalReadBytes)
+
+			end := rr.getEndOffset(tc.start)
+
+			assert.Equal(t.T(), tc.expectedEnd, end, "End offset mismatch")
 		})
 	}
 }
