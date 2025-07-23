@@ -768,6 +768,26 @@ func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 
 	if f.bwh != nil {
 		// bwh.Sync does not finalize the upload, so return gcsSynced as false.
+		if f.bwh.WriteFileInfo().TotalSize > 0 {
+			var minObj *gcs.MinObject
+			minObj, err = f.bwh.Flush()
+			var preconditionErr *gcs.PreconditionError
+			if errors.As(err, &preconditionErr) {
+				err = &gcsfuse_errors.FileClobberedError{
+					Err: fmt.Errorf("FlushObjectNonZeroSizeDuringSyncClobbered: %w", err),
+				}
+				return false, err
+			}
+
+			// Propagate other errors.
+			if err != nil {
+				err = fmt.Errorf("FlushObjectNonZeroSizeDuringSyncOtherError: %w", err)
+				return false, err
+			}
+			// If we wrote out a new object, we need to update our state.
+			f.updateInodeStateAfterSync(minObj)
+			return true, nil
+		}
 		return false, f.bwh.Sync()
 	}
 	err = f.syncUsingContent(ctx)
