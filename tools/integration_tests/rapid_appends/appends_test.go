@@ -65,15 +65,18 @@ func (t *RapidAppendsSuite) TearDownSuite() {
 }
 
 func (t *RapidAppendsSuite) SetupSubTest() {
+	t.createUnfinalizedObject()
+}
+
+func (t *RapidAppendsSuite) SetupTest() {
+	t.createUnfinalizedObject()
+}
+
+func (t *RapidAppendsSuite) createUnfinalizedObject() {
 	t.fileName = fileNamePrefix + setup.GenerateRandomString(5)
 	// Create unfinalized object.
 	t.fileContent = setup.GenerateRandomString(unfinalizedObjectSize)
 	client.CreateUnfinalizedObject(ctx, t.T(), storageClient, path.Join(testDirName, t.fileName), t.fileContent)
-}
-
-func (t *RapidAppendsSuite) TearDownSubTest() {
-	err := os.Remove(path.Join(primaryMntTestDirPath, t.fileName))
-	require.NoError(t.T(), err)
 }
 
 // appendToFile appends "appendContent" to the given file.
@@ -130,9 +133,6 @@ func (t *RapidAppendsSuite) TestAppendsAndRead() {
 }
 
 func (t *RapidAppendsSuite) TestAppendSessionInvalidatedByAnotherClientUponTakeover() {
-	t.SetupSubTest()
-	defer t.TearDownSubTest()
-
 	// Initiate an append session using the primary file handle opened in append mode.
 	appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(primaryMntTestDirPath, t.fileName), os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
 	_, err := appendFileHandle.WriteString(initialContent)
@@ -151,8 +151,7 @@ func (t *RapidAppendsSuite) TestAppendSessionInvalidatedByAnotherClientUponTakeo
 	// This should now fail, as its append session has been invalidated by the takeover.
 	_, _ = appendFileHandle.WriteString(appendContent)
 	err = appendFileHandle.Sync()
-	assert.Error(t.T(), err)
-	assert.Regexp(t.T(), syscall.ESTALE.Error(), err.Error())
+	operations.ValidateESTALEError(t.T(), err)
 
 	// Syncing from the newly created file handle must succeed since it holds the active
 	// append session.
