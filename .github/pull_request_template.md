@@ -3,7 +3,7 @@
 type(scope): subject
 ```
 Example:
-feat(api): add user login endpoint
+`feat(api): add user login endpoint`
 
 Available types:
 - `feat`: A new feature
