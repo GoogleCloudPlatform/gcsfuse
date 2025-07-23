@@ -102,24 +102,25 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 func (p *BufferedReader) ScheduleNextBlock(urgent bool) error {
 	b, err := p.blockPool.Get()
 	if err != nil {
-		return fmt.Errorf("unable to get block: %w", err)
+		return fmt.Errorf("failed to get block from pool: %w", err)
 	}
 	if b == nil {
 		return fmt.Errorf("received nil block from blockPool without error")
 	}
 
-	p.scheduleBlockWithIndex(b, p.nextBlockIndexToPrefetch, urgent)
+	if err := p.scheduleBlockWithIndex(b, p.nextBlockIndexToPrefetch, urgent); err != nil {
+		p.blockPool.Release(b)
+		return err
+	}
 	p.nextBlockIndexToPrefetch++
 	return nil
 }
 
 // ScheduleBlockWithIndex schedules a block with a specific index.
-func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockIndex int64, urgent bool) {
+func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockIndex int64, urgent bool) error {
 	startOffset := blockIndex * p.config.PrefetchBlockSizeBytes
 	if err := b.SetAbsStartOff(startOffset); err != nil {
-		logger.Errorf("Failed to set start offset on block: %v", err)
-		p.blockPool.Release(b)
-		return
+		return fmt.Errorf("failed to set start offset on block: %w", err)
 	}
 
 	ctx, cancel := context.WithCancel(p.ctx)
@@ -132,6 +133,7 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockInde
 		cancel: cancel,
 	})
 	p.workerPool.Schedule(urgent, task)
+	return nil
 }
 
 func (p *BufferedReader) Destroy() {
