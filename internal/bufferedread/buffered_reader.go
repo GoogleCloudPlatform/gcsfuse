@@ -15,9 +15,9 @@
 package bufferedread
 
 import (
-	"fmt"
-
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
@@ -29,8 +29,13 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
+// ErrPrefetchBlockNotAvailable is returned when a block cannot be
+// acquired from the pool for prefetching. This can be used by callers to
+// implement a fallback mechanism, e.g. falling back to a direct GCS read.
+var ErrPrefetchBlockNotAvailable = errors.New("block for prefetching not available")
+
 type BufferedReadConfig struct {
-	MaxPrefetchBlockCnt     int64 // Maximum number of blocks that can be prefetched
+	MaxPrefetchBlockCnt     int64 // Maximum number of blocks that can be prefetched.
 	PrefetchBlockSizeBytes  int64 // Size of each block to be prefetched.
 	InitialPrefetchBlockCnt int64 // Number of blocks to prefetch initially.
 	PrefetchMultiplier      int64 // Multiplier for number of blocks to prefetch.
@@ -64,7 +69,7 @@ type BufferedReader struct {
 
 	blockQueue common.Queue[*blockQueueEntry]
 
-	// TODO: Add readHandle for zonal bucket optimization.
+	readHandle []byte // For zonal bucket.
 
 	blockPool    *block.GenBlockPool[block.PrefetchBlock]
 	workerPool   workerpool.WorkerPool
@@ -96,6 +101,44 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 
 	reader.ctx, reader.cancelFunc = context.WithCancel(context.Background())
 	return reader, nil
+}
+
+// scheduleNextBlock schedules the next block for prefetch.
+func (p *BufferedReader) scheduleNextBlock(urgent bool) error {
+	// TODO(b/426060431): Replace Get() with TryGet(). Assuming, the current blockPool.Get() gets blocked if block is not available.
+	b, err := p.blockPool.Get()
+	if err != nil || b == nil {
+		if err != nil {
+			logger.Warnf("failed to get block from pool: %v", err)
+		}
+		return ErrPrefetchBlockNotAvailable
+	}
+
+	if err := p.scheduleBlockWithIndex(b, p.nextBlockIndexToPrefetch, urgent); err != nil {
+		p.blockPool.Release(b)
+		return err
+	}
+	p.nextBlockIndexToPrefetch++
+	return nil
+}
+
+// scheduleBlockWithIndex schedules a block with a specific index.
+func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockIndex int64, urgent bool) error {
+	startOffset := blockIndex * p.config.PrefetchBlockSizeBytes
+	if err := b.SetAbsStartOff(startOffset); err != nil {
+		return fmt.Errorf("failed to set start offset on block: %w", err)
+	}
+
+	ctx, cancel := context.WithCancel(p.ctx)
+	task := NewDownloadTask(ctx, p.object, p.bucket, b, p.readHandle)
+
+	logger.Tracef("Scheduling block (%s, offset %d).", p.object.Name, startOffset)
+	p.blockQueue.Push(&blockQueueEntry{
+		block:  b,
+		cancel: cancel,
+	})
+	p.workerPool.Schedule(urgent, task)
+	return nil
 }
 
 func (p *BufferedReader) Destroy() {
