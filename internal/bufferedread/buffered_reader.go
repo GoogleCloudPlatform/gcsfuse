@@ -103,6 +103,78 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 	return reader, nil
 }
 
+func (p *BufferedReader) prefetch() error {
+	// Do not schedule more blocks if the queue is already at capacity.
+	availableCapacity := p.config.MaxPrefetchBlockCnt - int64(p.blockQueue.Len())
+	if availableCapacity <= 0 {
+		return nil
+	}
+
+	// Determine the number of blocks for this prefetch operation, respecting
+	// both the multiplicative growth and the available capacity.
+	blockCountToPrefetch := min(p.numPrefetchBlocks, availableCapacity)
+	if blockCountToPrefetch <= 0 {
+		return nil
+	}
+
+	logger.Tracef("Prefetching %d blocks", blockCountToPrefetch)
+
+	for i := int64(0); i < blockCountToPrefetch; i++ {
+		if p.nextBlockIndexToPrefetch >= p.maxBlockCount() {
+			break
+		}
+		if err := p.scheduleNextBlock(false); err != nil {
+			return fmt.Errorf("failed to schedule block index %d: %v", p.nextBlockIndexToPrefetch, err)
+		}
+	}
+	// Set the size for the next multiplicative prefetch.
+	p.numPrefetchBlocks *= p.config.PrefetchMultiplier
+	if p.numPrefetchBlocks > p.config.MaxPrefetchBlockCnt {
+		p.numPrefetchBlocks = p.config.MaxPrefetchBlockCnt
+	}
+	return nil
+}
+
+func (p *BufferedReader) maxBlockCount() int64 {
+	if p.config.PrefetchBlockSizeBytes <= 0 {
+
+		// A non-positive chunk size is an invalid configuration.
+		// Log a warning and return 0 to prevent division by zero.
+		logger.Warnf("Invalid PrefetchChunkSizeBytes (%d); must be positive.", p.config.PrefetchBlockSizeBytes)
+		return 0
+	}
+	return (int64(p.object.Size) + p.config.PrefetchBlockSizeBytes - 1) / p.config.PrefetchBlockSizeBytes
+}
+
+func (p *BufferedReader) freshStart(currentOffset int64) error {
+	blockIndex := currentOffset / p.config.PrefetchBlockSizeBytes
+	p.nextBlockIndexToPrefetch = blockIndex
+
+	// Determine the number of blocks for the initial prefetch.
+	numToPrefetch := p.config.InitialPrefetchBlockCnt
+	if numToPrefetch <= 0 {
+		numToPrefetch = 1 // Default to at least 1.
+	}
+
+	// But don't prefetch more than the total capacity.
+	numToPrefetch = min(numToPrefetch, p.config.MaxPrefetchBlockCnt)
+
+	// Schedule the initial blocks.
+	for i := int64(0); i < numToPrefetch; i++ {
+		if p.nextBlockIndexToPrefetch >= p.maxBlockCount() {
+			break
+		}
+
+		// The first block is considered urgent to unblock the current read.
+		isUrgent := (i == 0)
+		if err := p.scheduleNextBlock(isUrgent); err != nil {
+			return fmt.Errorf("initial scheduling failed: %w", err)
+		}
+	}
+	return nil
+}
+
+
 // scheduleNextBlock schedules the next block for prefetch.
 func (p *BufferedReader) scheduleNextBlock(urgent bool) error {
 	// TODO(b/426060431): Replace Get() with TryGet(). Assuming, the current blockPool.Get() gets blocked if block is not available.
