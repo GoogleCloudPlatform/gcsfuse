@@ -62,8 +62,12 @@ function execute_perf_test() {
   GCSFUSE_FLAGS="--implicit-dirs --prometheus-port=48341"
   BUCKET_NAME=presubmit-perf-tests
   MOUNT_POINT=gcs
-  # The VM will itself exit if the gcsfuse mount fails.
-  go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
+  # get vendors
+  go mod vendor
+  # manually replace the file
+  wget -O ./vendor/google.golang.org/api/internal/gensupport/resumable.go https://raw.githubusercontent.com/meet2mky/google-api-go-client/refs/heads/main/internal/gensupport/resumable.go
+  go build .
+  ./gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
   # Running FIO test
   time ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
   sudo umount gcs
@@ -88,6 +92,10 @@ function install_requirements() {
 # execute perf tests.
 if [[ "$perfTestStr" == *"$EXECUTE_PERF_TEST_LABEL"* ]];
 then
+ # log current id, did and directory before proceeding...
+ echo "UID: $(id -u), GID: $(id -g), PWD: $(pwd)"
+ set +e
+ set -x
  # Executing perf tests for master branch
  install_requirements
  git checkout master
@@ -106,6 +114,8 @@ then
  # Show results
  echo showing results...
  python3 ./perfmetrics/scripts/presubmit/print_results.py
+ set -e
+ set +x
 fi
 
 # Install required bash version for e2e script as kokoro has outdated bash versions.
