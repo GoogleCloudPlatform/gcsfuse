@@ -133,7 +133,6 @@ func (name Name) ParentName() (Name, error) {
 
 	objectName := strings.TrimSuffix(name.objectName, "/") // normalize for dir or file
 	lastSlash := strings.LastIndex(objectName, "/")
-
 	if lastSlash == -1 {
 		// Direct child of bucket root
 		return Name{

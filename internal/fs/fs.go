@@ -1598,10 +1598,10 @@ func (fs *fileSystem) invalidateCachedEntry(childID fuseops.InodeID) error {
 	}
 	childBase := path.Base(childName.LocalName())
 
-	var parentInodeID fuseops.InodeID
-
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
+
+	var parentInodeID fuseops.InodeID
 	// Check in all maps: implicit dirs → folders → generation-backed
 	if parentInode, ok := fs.implicitDirInodes[parentName]; ok {
 		parentInodeID = parentInode.ID()
