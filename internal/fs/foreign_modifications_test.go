@@ -601,7 +601,7 @@ func (t *ForeignModsTest) ReadBeyondEndOfFile() {
 	AssertEq(contents[contentLen-1], buf[0])
 
 	if err == nil {
-		n, err = f.Read(buf)
+		n, _ = f.Read(buf)
 		AssertEq(0, n)
 	}
 }

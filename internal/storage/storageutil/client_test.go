@@ -15,12 +15,10 @@
 package storageutil
 
 import (
-	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	"golang.org/x/oauth2"
 )
 
 func TestClient(t *testing.T) {
@@ -29,20 +27,6 @@ func TestClient(t *testing.T) {
 
 type clientTest struct {
 	suite.Suite
-}
-
-// Helpers
-
-func (t *clientTest) validateProxyInTransport(httpClient *http.Client) {
-	userAgentRT, ok := httpClient.Transport.(*userAgentRoundTripper)
-	assert.True(t.T(), ok)
-	oauthTransport, ok := userAgentRT.wrapped.(*oauth2.Transport)
-	assert.True(t.T(), ok)
-	transport, ok := oauthTransport.Base.(*http.Transport)
-	assert.True(t.T(), ok)
-	if ok {
-		assert.Equal(t.T(), http.ProxyFromEnvironment, transport.Proxy)
-	}
 }
 
 // Tests

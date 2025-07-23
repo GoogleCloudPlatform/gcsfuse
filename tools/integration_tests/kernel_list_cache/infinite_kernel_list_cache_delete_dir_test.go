@@ -37,7 +37,7 @@ type infiniteKernelListCacheDeleteDirTest struct {
 }
 
 func (s *infiniteKernelListCacheDeleteDirTest) Setup(t *testing.T) {
-	mountGCSFuseAndSetupTestDir(s.flags, ctx, storageClient, testDirName)
+	mountGCSFuseAndSetupTestDir(s.flags, testDirName)
 }
 
 func (s *infiniteKernelListCacheDeleteDirTest) Teardown(t *testing.T) {

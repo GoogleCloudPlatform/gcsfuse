@@ -52,7 +52,7 @@ func verifyFileSizeAndFullFileRead(t *testing.T, filename string) {
 			mountedFilePath, (*fi).Size(), gcsObjectPath, gcsObjectSize)
 	}
 
-	localCopy, err := downloadGzipGcsObjectAsCompressed(t, setup.TestBucket(), path.Join(TestBucketPrefixPath, filename))
+	localCopy, err := downloadGzipGcsObjectAsCompressed(t, path.Join(TestBucketPrefixPath, filename))
 	if err != nil {
 		t.Fatalf("failed to download gcs object (gs:/%s) to local-disk: %v", gcsObjectPath, err)
 	}
@@ -83,7 +83,7 @@ func verifyRangedRead(t *testing.T, filename string) {
 		t.Fatalf("Failed to open local mounted file %s: %v", mountedFilePath, err)
 	}
 
-	localCopy, err := downloadGzipGcsObjectAsCompressed(t, setup.TestBucket(), path.Join(TestBucketPrefixPath, filename))
+	localCopy, err := downloadGzipGcsObjectAsCompressed(t, path.Join(TestBucketPrefixPath, filename))
 	if err != nil {
 		t.Fatalf("failed to download gcs object (gs:/%s) to local-disk: %v", gcsObjectPath, err)
 	}
@@ -117,7 +117,7 @@ func verifyRangedRead(t *testing.T, filename string) {
 // Uses go storage client library to download object. Use of gsutil/gcloud is not
 // possible as they both always read back objects with content-encoding: gzip as
 // uncompressed/decompressed irrespective of any argument passed.
-func downloadGzipGcsObjectAsCompressed(t *testing.T, bucketName, objPathInBucket string) (tempfile string, err error) {
+func downloadGzipGcsObjectAsCompressed(t *testing.T, objPathInBucket string) (tempfile string, err error) {
 	gcsObjectSize, err := client.GetGcsObjectSize(ctx, storageClient, objPathInBucket)
 
 	if err != nil {

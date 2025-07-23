@@ -211,7 +211,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		if err != nil {
 			return nil, fmt.Errorf("SetUpBucket: %w", err)
 		}
-		root = makeRootForBucket(ctx, fs, syncerBucket)
+		root = makeRootForBucket(fs, syncerBucket)
 	}
 	root.Lock()
 	root.IncrementLookupCount()
@@ -256,7 +256,6 @@ func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.Cac
 }
 
 func makeRootForBucket(
-	ctx context.Context,
 	fs *fileSystem,
 	syncerBucket gcsx.SyncerBucket) inode.DirInode {
 	return inode.NewDirInode(
@@ -1795,7 +1794,7 @@ func (fs *fileSystem) MkNode(
 	}
 
 	// Create the child.
-	child, err := fs.createFile(ctx, op.Parent, op.Name, op.Mode)
+	child, err := fs.createFile(ctx, op.Parent, op.Name)
 	if err != nil {
 		return err
 	}
@@ -1823,8 +1822,7 @@ func (fs *fileSystem) MkNode(
 func (fs *fileSystem) createFile(
 	ctx context.Context,
 	parentID fuseops.InodeID,
-	name string,
-	mode os.FileMode) (child inode.Inode, err error) {
+	name string) (child inode.Inode, err error) {
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(parentID)
@@ -1932,7 +1930,7 @@ func (fs *fileSystem) CreateFile(
 	// Create the child.
 	var child inode.Inode
 	if fs.newConfig.Write.CreateEmptyFile {
-		child, err = fs.createFile(ctx, op.Parent, op.Name, op.Mode)
+		child, err = fs.createFile(ctx, op.Parent, op.Name)
 	} else {
 		child, err = fs.createLocalFile(ctx, op.Parent, op.Name)
 	}

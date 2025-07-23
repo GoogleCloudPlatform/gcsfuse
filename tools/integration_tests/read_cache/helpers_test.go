@@ -166,7 +166,7 @@ func validateFileIsNotCached(fileName string, t *testing.T) {
 	}
 }
 
-func remountGCSFuse(flags []string, t *testing.T) {
+func remountGCSFuse(flags []string) {
 	setup.SetMntDir(rootDir)
 	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 
