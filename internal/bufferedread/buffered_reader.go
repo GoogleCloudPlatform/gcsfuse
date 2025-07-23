@@ -108,9 +108,6 @@ func (p *BufferedReader) scheduleNextBlock(urgent bool) error {
 	b, err := p.blockPool.Get()
 
 	// TODO(b/426060431): Replace Get() with TryGet(). Assuming, the current blockPool.Get() gets blocked if block is not available.
-        // TODO(b/426060431): Replace Get() with TryGet(). Assuming, the current blockPool.Get() gets blocked if block is not available.
-	b, err := p.blockPool.Get()
-	if err != nil || b == nil {
 	if err != nil || b == nil {
 		if err != nil {
 			logger.Warnf("failed to get block from pool: %v", err)
@@ -126,7 +123,7 @@ func (p *BufferedReader) scheduleNextBlock(urgent bool) error {
 	return nil
 }
 
-// ScheduleBlockWithIndex schedules a block with a specific index.
+// scheduleBlockWithIndex schedules a block with a specific index.
 func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockIndex int64, urgent bool) error {
 	startOffset := blockIndex * p.config.PrefetchBlockSizeBytes
 	if err := b.SetAbsStartOff(startOffset); err != nil {
