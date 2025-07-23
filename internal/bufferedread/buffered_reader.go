@@ -107,7 +107,7 @@ func (p *BufferedReader) ScheduleNextBlock(urgent bool) error {
 	if b == nil {
 		return fmt.Errorf("received nil block from blockPool without error")
 	}
-	
+
 	p.scheduleBlockWithIndex(b, p.nextBlockIndexToPrefetch, urgent)
 	p.nextBlockIndexToPrefetch++
 	return nil
