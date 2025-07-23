@@ -133,7 +133,7 @@ def main():
   )
 
   # TODO: Remove this once alerts are configured.
-  # 70 Mbps is the minimum threshold based on the 3-runs average bandwidth
+  # 70 MB/s is the minimum threshold based on the 3-runs average bandwidth
   helper.check_and_alert_bandwidth(70, workflow_type)
 
 if __name__ == "__main__":
