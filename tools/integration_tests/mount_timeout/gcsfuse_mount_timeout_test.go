@@ -166,7 +166,7 @@ func (testSuite *MountTimeoutTest) mountOrTimeout(bucketName, mountDir, clientPr
 	logFile := setup.LogFile()
 	defer func() {
 		if err != nil {
-			setup.SaveLogFileAsArtifact(logFile, setup.GCSFuseLogFilePrefix+filepath.Base(logFile))
+			setup.SaveLogFileAsArtifact(logFile, setup.GCSFuseLogFilePrefix+setup.GenerateRandomString(5)+"-"+filepath.Base(logFile))
 		}
 	}()
 
