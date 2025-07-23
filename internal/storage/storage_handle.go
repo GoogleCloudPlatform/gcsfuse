@@ -31,6 +31,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"golang.org/x/net/context"
+	"golang.org/x/oauth2"
 	option "google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -92,12 +93,21 @@ func createClientOptionForGRPCClient(clientConfig *storageutil.StorageClientConf
 	if clientConfig.AnonymousAccess {
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
 	} else {
-		tokenSrc, tokenCreationErr := storageutil.CreateTokenSource(clientConfig)
-		if tokenCreationErr != nil {
-			err = fmt.Errorf("while fetching tokenSource: %w", tokenCreationErr)
-			return
+		if clientConfig.EnableGoogleLibAuth {
+			var authOpts []option.ClientOption
+			authOpts, _, err = storageutil.GetClientAuthOptionsAndToken(context.Background(), clientConfig)
+			if err != nil {
+				return nil, fmt.Errorf("GetClientAuthOptionsAndToken:%w", err)
+			}
+			clientOpts = append(clientOpts, authOpts...)
+		} else {
+			tokenSrc, tokenCreationErr := storageutil.CreateTokenSource(clientConfig)
+			if tokenCreationErr != nil {
+				err = fmt.Errorf("while fetching tokenSource: %w", tokenCreationErr)
+				return
+			}
+			clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
 		}
-		clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
 	}
 
 	if enableBidiConfig {
@@ -171,10 +181,20 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig) (sc *storage.Client, err error) {
 	var clientOpts []option.ClientOption
+	var tokenSrc oauth2.TokenSource = nil
+
+	if clientConfig.EnableGoogleLibAuth {
+		var authOpts []option.ClientOption
+		authOpts, tokenSrc, err = storageutil.GetClientAuthOptionsAndToken(context.Background(), clientConfig)
+		if err != nil {
+			return nil, fmt.Errorf("GetClientAuthOptionsAndToken:%w", err)
+		}
+		clientOpts = append(clientOpts, authOpts...)
+	}
 
 	// Add WithHttpClient option.
 	var httpClient *http.Client
-	httpClient, err = storageutil.CreateHttpClient(clientConfig)
+	httpClient, err = storageutil.CreateHttpClient(clientConfig, tokenSrc)
 	if err != nil {
 		err = fmt.Errorf("while creating http endpoint: %w", err)
 		return

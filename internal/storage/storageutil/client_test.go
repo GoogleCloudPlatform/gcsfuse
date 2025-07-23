@@ -50,7 +50,7 @@ func (t *clientTest) validateProxyInTransport(httpClient *http.Client) {
 func (t *clientTest) TestCreateHttpClientWithHttp1() {
 	sc := GetDefaultStorageClientConfig() // By default http1 enabled
 
-	httpClient, err := CreateHttpClient(&sc)
+	httpClient, err := CreateHttpClient(&sc, nil)
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), httpClient)
@@ -60,7 +60,7 @@ func (t *clientTest) TestCreateHttpClientWithHttp1() {
 func (t *clientTest) TestCreateHttpClientWithHttp2() {
 	sc := GetDefaultStorageClientConfig()
 
-	httpClient, err := CreateHttpClient(&sc)
+	httpClient, err := CreateHttpClient(&sc, nil)
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), httpClient)
@@ -72,7 +72,7 @@ func (t *clientTest) TestCreateHttpClientWithHttp1AndAuthEnabled() {
 	sc.AnonymousAccess = false
 
 	// Act: this method add tokenSource and clientOptions.
-	httpClient, err := CreateHttpClient(&sc)
+	httpClient, err := CreateHttpClient(&sc, nil)
 
 	assert.Error(t.T(), err)
 	assert.ErrorContains(t.T(), err, "no such file or directory")
@@ -83,7 +83,7 @@ func (t *clientTest) TestCreateHttpClientWithHttp2AndAuthEnabled() {
 	sc := GetDefaultStorageClientConfig()
 	sc.AnonymousAccess = false
 	// Act: this method add tokenSource and clientOptions.
-	httpClient, err := CreateHttpClient(&sc)
+	httpClient, err := CreateHttpClient(&sc, nil)
 
 	assert.Error(t.T(), err)
 	assert.ErrorContains(t.T(), err, "no such file or directory")
