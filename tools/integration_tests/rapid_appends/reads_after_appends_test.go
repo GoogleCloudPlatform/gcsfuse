@@ -91,9 +91,7 @@ func (t *CommonAppendsSuite) TestAppendsAndReads() {
 						t.appendToFile(appendFileHandle, setup.GenerateRandomString(appendSize))
 						sizeAfterAppend := len(t.fileContent)
 
-						log.Printf("Reading %q right after append#%v ...\n", readPath, i)
 						gotContent, err := operations.ReadFile(readPath)
-						log.Printf("... finished reading %q right after append#%v\n", readPath, i)
 
 						require.NoError(t.T(), err)
 						readContent := string(gotContent)
@@ -102,11 +100,8 @@ func (t *CommonAppendsSuite) TestAppendsAndReads() {
 						} else {
 							assert.Equalf(t.T(), t.fileContent[:sizeBeforeAppend], readContent, "failed to match partial content in metadata-cache dual-mount after %v appends", i+1)
 
-							log.Printf("Sleeping for %v seconds to let metadata cache to expire ...", metadataCacheTTLSecs)
 							time.Sleep(time.Duration(metadataCacheTTLSecs) * time.Second) // Wait for metadata cache to get expired.
-							log.Printf("Reading %q right after sleep ...\n", readPath)
 							gotContent, err = operations.ReadFile(readPath)
-							log.Printf("... finished reading %q right after sleep\n", readPath)
 
 							require.NoError(t.T(), err)
 							readContent = string(gotContent)
