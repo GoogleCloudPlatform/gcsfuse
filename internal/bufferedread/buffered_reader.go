@@ -107,7 +107,6 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 func (p *BufferedReader) scheduleNextBlock(urgent bool) error {
 	// TODO(b/426060431): Replace Get() with TryGet(). Assuming, the current blockPool.Get() gets blocked if block is not available.
 	b, err := p.blockPool.Get()
-
 	if err != nil || b == nil {
 		if err != nil {
 			logger.Warnf("failed to get block from pool: %v", err)
