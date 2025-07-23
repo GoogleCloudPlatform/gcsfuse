@@ -187,7 +187,7 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		var authOpts []option.ClientOption
 		authOpts, tokenSrc, err = storageutil.GetClientAuthOptionsAndToken(context.Background(), clientConfig)
 		if err != nil {
-			return nil, fmt.Errorf("GetClientAuthOptionsAndToken:%w", err)
+			return nil, fmt.Errorf("failed to get client auth options and token: %w", err)
 		}
 		clientOpts = append(clientOpts, authOpts...)
 	}

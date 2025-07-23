@@ -56,7 +56,7 @@ type StorageClientConfig struct {
 
 	// Enabling new API flow for HNS bucket.
 	EnableHNS bool
-	// Enable google lib auth flow
+	// EnableGoogleLibAuth indicates whether to use the google library authentication flow
 	EnableGoogleLibAuth bool
 
 	ReadStallRetryConfig cfg.ReadStallGcsRetriesConfig
@@ -100,6 +100,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 		}
 	} else {
 		if tokenSrc == nil {
+			// CreateTokenSource only if tokenSrc is nil, meaning it wasn't provided externally
 			tokenSrc, err = CreateTokenSource(storageClientConfig)
 			if err != nil {
 				err = fmt.Errorf("while fetching tokenSource: %w", err)

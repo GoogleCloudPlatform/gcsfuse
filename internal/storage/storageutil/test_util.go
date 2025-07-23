@@ -21,7 +21,7 @@ import (
 )
 
 const CustomEndpoint = "https://localhost:9000"
-const DummyKeyFile = "test/test_creds.json"
+const DummyKeyFile = "storageutil/testdata/key.json"
 const CustomTokenUrl = "http://custom-token-url"
 
 // GetDefaultStorageClientConfig is only for test.
@@ -42,6 +42,7 @@ func GetDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
 		ExperimentalEnableJsonRead: false,
 		AnonymousAccess:            true,
 		EnableHNS:                  false,
+		EnableGoogleLibAuth:        true,
 		ReadStallRetryConfig: cfg.ReadStallGcsRetriesConfig{
 			Enable:              false,
 			InitialReqTimeout:   20 * time.Second,
