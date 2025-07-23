@@ -195,7 +195,10 @@ func (t *BufferedReaderTest) TestScheduleNextBlock() {
 			require.NoError(t.T(), err)
 
 			bqe := reader.blockQueue.Peek()
+			assert.Equal(t.T(), int64(1), reader.nextBlockIndexToPrefetch)
 			blockstatus, err := bqe.block.AwaitReady(t.ctx)
+			require.NoError(t.T(), err)
+			assert.Equal(t.T(), block.BlockStatus{State: block.BlockStateDownloaded}, blockstatus)
 			assert.Equal(t.T(), int64(1), reader.nextBlockIndexToPrefetch)
 			require.NoError(t.T(), err)
 			assert.Equal(t.T(), block.BlockStatus{State: block.BlockStateDownloaded}, blockstatus)
