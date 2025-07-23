@@ -204,7 +204,6 @@ func (t *BufferedReaderTest) TestScheduleNextBlock() {
 			assert.Equal(t.T(), block.BlockStatus{State: block.BlockStateDownloaded}, blockstatus)
 			assert.Equal(t.T(), initialBlockCount+1, reader.blockQueue.Len())
 			assert.Equal(t.T(), int64(0), bqe.block.AbsStartOff())
-
 			t.bucket.AssertExpectations(t.T())
 		})
 	}
