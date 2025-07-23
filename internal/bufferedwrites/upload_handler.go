@@ -139,7 +139,7 @@ func (uh *UploadHandler) uploader() {
 	}
 }
 
-// uploadBlock uploads the block to GCS.
+// uploadBlock uploads the block content to GCS writer.
 // It is called by the uploader goroutine.
 // If the block is nil, it logs a warning and returns.
 // If there is already an error in uploadError, it returns without doing anything.

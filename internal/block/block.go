@@ -97,6 +97,7 @@ func (m *memoryBlock) Read(bytes []byte) (int, error) {
 //   - io.SeekStart: offset is relative to the start of the block.
 //   - io.SeekCurrent: offset is relative to the current readSeek position.
 //   - io.SeekEnd: offset is relative to the end of the block.
+//
 // It returns an error if the whence value is invalid or if the new
 // readSeek position is out of bounds.
 func (m *memoryBlock) Seek(offset int64, whence int) (int64, error) {

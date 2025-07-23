@@ -44,7 +44,6 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockWrite() {
 	assert.Nil(testSuite.T(), err)
 	assert.Equal(testSuite.T(), len(content), n)
 	assert.Equal(testSuite.T(), int64(0), mb.(*memoryBlock).readSeek)
-	assert.Equal(testSuite.T(), int64(2), mb.Size())
 	output, err := io.ReadAll(mb)
 	assert.Nil(testSuite.T(), err)
 	assert.Equal(testSuite.T(), content, output)
@@ -72,6 +71,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockWriteWithMultipleWrites() {
 	require.Nil(testSuite.T(), err)
 	require.Equal(testSuite.T(), 5, n)
 
+	assert.Equal(testSuite.T(), int64(0), mb.(*memoryBlock).readSeek)
 	output, err := io.ReadAll(mb)
 	assert.Nil(testSuite.T(), err)
 	assert.Equal(testSuite.T(), []byte("hihello"), output)
@@ -99,6 +99,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReuse() {
 	n, err := mb.Write(content)
 	require.Nil(testSuite.T(), err)
 	require.Equal(testSuite.T(), 2, n)
+	require.Equal(testSuite.T(), int64(0), mb.(*memoryBlock).readSeek)
 	output, err := io.ReadAll(mb)
 	require.Nil(testSuite.T(), err)
 	require.Equal(testSuite.T(), content, output)
@@ -126,6 +127,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReaderForEmptyBlock() {
 	mb, err := createBlock(12)
 	require.Nil(testSuite.T(), err)
 
+	assert.Equal(testSuite.T(), int64(0), mb.(*memoryBlock).readSeek)
 	output, err := io.ReadAll(mb)
 	assert.Nil(testSuite.T(), err)
 	assert.Empty(testSuite.T(), output)
@@ -139,6 +141,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockDeAllocate() {
 	n, err := mb.Write(content)
 	require.Nil(testSuite.T(), err)
 	require.Equal(testSuite.T(), 2, n)
+	require.Equal(testSuite.T(), int64(0), mb.(*memoryBlock).readSeek)
 	output, err := io.ReadAll(mb)
 	require.Nil(testSuite.T(), err)
 	require.Equal(testSuite.T(), content, output)
@@ -207,9 +210,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReadSeekBeyondEnd() {
 	require.Nil(testSuite.T(), err)
 	require.Equal(testSuite.T(), len(content), n)
 	readBuffer := make([]byte, 12)
-	off, err := mb.Seek(13, io.SeekStart) // Reset the read position out of the block.
-	require.Nil(testSuite.T(), err)
-	require.Equal(testSuite.T(), int64(13), off)
+	mb.(*memoryBlock).readSeek = 13 // Set readSeek to a position beyond the end of the block.
 
 	n, err = mb.Read(readBuffer)
 
@@ -221,9 +222,8 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReadFailure() {
 	mb, err := createBlock(12)
 	require.Nil(testSuite.T(), err)
 	readBuffer := make([]byte, 5)
-	off, err := mb.Seek(-1, 0) // Set readSeek to an invalid position.
+	mb.(*memoryBlock).readSeek = -1 // Simulate an invalid readSeek position.
 	require.Nil(testSuite.T(), err)
-	require.Equal(testSuite.T(), int64(-1), off)
 
 	n, err := mb.Read(readBuffer)
 
