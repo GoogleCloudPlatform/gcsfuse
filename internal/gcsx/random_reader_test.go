@@ -467,13 +467,13 @@ func (t *RandomReaderTest) UpgradeReadsToAverageSize() {
 	const readSize = 2 * minReadSize
 
 	// Simulate an existing reader at a mismatched offset.
-	t.rr.wrapped.seeks = numReads
-	t.rr.wrapped.totalReadBytes = totalReadBytes
+	t.rr.wrapped.seeks.Store(numReads)
+	t.rr.wrapped.totalReadBytes.Store(totalReadBytes)
 	t.rr.wrapped.reader = &fake.FakeReader{ReadCloser: getReadCloser([]byte("xxx"))}
 	t.rr.wrapped.cancel = func() {}
 	t.rr.wrapped.start = 2
 	t.rr.wrapped.limit = 5
-	t.rr.wrapped.expectedOffset = 2
+	t.rr.wrapped.expectedOffset.Store(2)
 
 	// The bucket should be asked to read expectedBytesToRead bytes.
 	r := strings.NewReader(strings.Repeat("x", expectedBytesToRead))
