@@ -583,7 +583,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithCustomEndpointAndEna
 func (testSuite *StorageHandleTest) TestCreateClientOptionForGRPCClient() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 
-	clientOption, err := createClientOptionForGRPCClient(&sc, false)
+	clientOption, err := createClientOptionForGRPCClient(context.TODO(), &sc, false)
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), clientOption)
