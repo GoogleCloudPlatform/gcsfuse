@@ -438,7 +438,9 @@ ___
 # Symlink inodes
 
 Cloud Storage FUSE represents symlinks with empty Cloud Storage objects that contain the custom metadata key ```gcsfuse_symlink_target```, with the value giving the target of a symlink. In other respects they work like a file inode, including receiving the same permissions. 
-> 📝 While GCSFuse supports symlinks that point to paths external to mount point, it should be avoided as it could lead to broken links and security issues.
+**Note**
+
+While GCSFuse supports symlinks that point to paths external to the mount point, it should be avoided as it could lead to broken links and security issues.
 
 
 ___
