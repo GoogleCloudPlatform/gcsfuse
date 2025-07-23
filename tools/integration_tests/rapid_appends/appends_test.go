@@ -206,10 +206,6 @@ func (t *RapidAppendsSuite) TestAppendsToFinalizedObjectNotVisibleUntilClose() {
 	// Create Finalized Object in the GCS bucket.
 	client.CreateObjectInGCSTestDir(
 		ctx, storageClient, testDirName, t.fileName, initialContent, t.T())
-	defer func() {
-		err := os.Remove(path.Join(primaryMntTestDirPath, t.fileName))
-		require.NoError(t.T(), err)
-	}()
 
 	// Append to the finalized object from the primary mount.
 	filePath := path.Join(primaryMntTestDirPath, t.fileName)
@@ -218,18 +214,17 @@ func (t *RapidAppendsSuite) TestAppendsToFinalizedObjectNotVisibleUntilClose() {
 	_, err = fh.Write([]byte(appendContent))
 	require.NoError(t.T(), err)
 
-	// Read the object from secondary mount to validate that appended content is yet not visible on GCS.
-	secondaryPath := path.Join(secondaryMntTestDirPath, t.fileName)
-	contentBeforeClose, err := operations.ReadFile(secondaryPath)
+	// Read from back-door to validate that appended content is yet not visible on GCS.
+	contentBeforeClose, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), initialContent, string(contentBeforeClose))
 
 	// Close the file handle used for appending.
 	require.NoError(t.T(), fh.Close())
 
-	// Read the object from secondary mount to validate that appended content is now visible on GCS.
+	// Read from back-door to validate that appended content is now visible on GCS.
 	expectedContent := initialContent + appendContent
-	contentAfterClose, err := operations.ReadFile(secondaryPath)
+	contentAfterClose, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), expectedContent, string(contentAfterClose))
 }
