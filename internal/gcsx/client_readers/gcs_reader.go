@@ -176,7 +176,7 @@ func (gr *GCSReader) getReadInfo(start int64, size int64) (int64, error) {
 // determineEnd calculates the end position for a read operation based on the current read pattern.
 func (gr *GCSReader) determineEnd(start int64) int64 {
 	end := int64(gr.object.Size)
-	if seeks := gr.seeks.Load(); seeks >= minSeeksForRandom { {
+	if seeks := gr.seeks.Load(); seeks >= minSeeksForRandom {
 		gr.readType.Store(metrics.ReadTypeRandom)
 		averageReadBytes := gr.totalReadBytes.Load() / seeks
 		if averageReadBytes < maxReadSize {
