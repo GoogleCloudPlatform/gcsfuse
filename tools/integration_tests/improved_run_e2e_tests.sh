@@ -222,7 +222,7 @@ TEST_PACKAGES_COMMON=(
 # Test packages for regional buckets.
 TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "inactive_stream_timeout" "cloud_profiler")
 # Test packages for zonal buckets.
-TEST_PACKAGES_FOR_ZB=("rapid_appends")
+TEST_PACKAGES_FOR_ZB=("unfinalized_object" "rapid_appends")
 # Test packages for TPC buckets.
 TEST_PACKAGES_FOR_TPC=("operations")
 
