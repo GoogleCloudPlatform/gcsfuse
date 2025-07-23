@@ -91,17 +91,32 @@ func (m *memoryBlock) Read(bytes []byte) (int, error) {
 	return n, nil
 }
 
+// Seek sets the readSeek position in the block.
+// It returns the new readSeek position and an error if any.
+// The whence argument specifies how the offset should be interpreted:
+//   - io.SeekStart: offset is relative to the start of the block.
+//   - io.SeekCurrent: offset is relative to the current readSeek position.
+//   - io.SeekEnd: offset is relative to the end of the block.
+// It returns an error if the whence value is invalid or if the new
+// readSeek position is out of bounds.
 func (m *memoryBlock) Seek(offset int64, whence int) (int64, error) {
+	newReadSeek := m.readSeek
 	switch whence {
 	case io.SeekStart:
 		m.readSeek = m.offset.start + offset
 	case io.SeekCurrent:
-		m.readSeek += offset
+		newReadSeek += offset
 	case io.SeekEnd:
-		m.readSeek = m.offset.end + offset
+		newReadSeek = m.offset.end + offset
 	default:
 		return 0, fmt.Errorf("invalid whence value: %d", whence)
 	}
+
+	if newReadSeek < m.offset.start || newReadSeek > m.offset.end {
+		return 0, fmt.Errorf("new readSeek position %d is out of bounds", newReadSeek)
+	}
+
+	m.readSeek = newReadSeek
 	return m.readSeek, nil
 }
 

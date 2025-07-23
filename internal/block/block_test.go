@@ -43,9 +43,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockWrite() {
 
 	assert.Nil(testSuite.T(), err)
 	assert.Equal(testSuite.T(), len(content), n)
-	off, err := mb.Seek(0, io.SeekStart) // Reset the read position to the start of the block.
-	require.Nil(testSuite.T(), err)
-	assert.Equal(testSuite.T(), int64(0), off)
+	assert.Equal(testSuite.T(), int64(0), mb.(*memoryBlock).readSeek)
 	assert.Equal(testSuite.T(), int64(2), mb.Size())
 	output, err := io.ReadAll(mb)
 	assert.Nil(testSuite.T(), err)
@@ -108,9 +106,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReuse() {
 
 	mb.Reuse()
 
-	off, err := mb.Seek(0, io.SeekStart) // Reset the read position to the start of the block.
-	require.Nil(testSuite.T(), err)
-	require.Equal(testSuite.T(), int64(0), off)
+	assert.Equal(testSuite.T(), int64(0), mb.(*memoryBlock).readSeek)
 	output, err = io.ReadAll(mb)
 	assert.Nil(testSuite.T(), err)
 	assert.Empty(testSuite.T(), output)
