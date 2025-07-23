@@ -155,6 +155,8 @@ TEST_DIR_PARALLEL_FOR_ZB=(
   "write_large_files"
   "unfinalized_object"
    "release_version"
+   "readdirplus"
+   "dentry_cache"
 )
 
 # Subset of TEST_DIR_NON_PARALLEL,

@@ -54,7 +54,10 @@ func mountGCSFuseAndSetupTestDir(flags []string, testDirName string) {
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
-	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
+	if setup.TestBucket() == "" {
+		log.Print("--testbucket must be specified")
+		os.Exit(1)
+	}
 
 	// Create common storage client to be used in test.
 	ctx = context.Background()
