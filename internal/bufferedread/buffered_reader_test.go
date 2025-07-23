@@ -166,3 +166,78 @@ func (t *BufferedReaderTest) TestCheckInvariantsNoPanic() {
 
 	assert.NotPanics(t.T(), func() { reader.CheckInvariants() })
 }
+
+// mockWorkerPool is a mock implementation of workerpool.WorkerPool for testing.
+type mockWorkerPool struct {
+	scheduleCalled bool
+	urgent         bool
+	task           workerpool.Task
+}
+
+func (mwp *mockWorkerPool) Schedule(urgent bool, task workerpool.Task) {
+	mwp.scheduleCalled = true
+	mwp.urgent = urgent
+	mwp.task = task
+}
+
+func (mwp *mockWorkerPool) Start() {}
+func (mwp *mockWorkerPool) Stop()  {}
+
+func (t *BufferedReaderTest) TestScheduleNextBlockSuccess() {
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	mockWP := &mockWorkerPool{}
+	reader.workerPool = mockWP // Replace with mock
+
+	err = reader.ScheduleNextBlock(false)
+
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), int64(1), reader.nextBlockIndexToPrefetch)
+	assert.Equal(t.T(), 1, reader.blockQueue.Len())
+	assert.True(t.T(), mockWP.scheduleCalled)
+	assert.False(t.T(), mockWP.urgent)
+
+	task, ok := mockWP.task.(*DownloadTask)
+	require.True(t.T(), ok)
+	assert.NotNil(t.T(), task)
+	assert.Equal(t.T(), int64(0), task.block.AbsStartOff())
+}
+
+func (t *BufferedReaderTest) TestScheduleNextBlockUrgent() {
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	mockWP := &mockWorkerPool{}
+	reader.workerPool = mockWP // Replace with mock
+
+	err = reader.ScheduleNextBlock(true)
+
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), int64(1), reader.nextBlockIndexToPrefetch)
+	assert.Equal(t.T(), 1, reader.blockQueue.Len())
+	assert.True(t.T(), mockWP.scheduleCalled)
+	assert.True(t.T(), mockWP.urgent)
+
+	task, ok := mockWP.task.(*DownloadTask)
+	require.True(t.T(), ok)
+	assert.NotNil(t.T(), task)
+	assert.Equal(t.T(), int64(0), task.block.AbsStartOff())
+}
+
+func (t *BufferedReaderTest) TestScheduleNextBlockSuccessiveCalls() {
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	mockWP := &mockWorkerPool{}
+	reader.workerPool = mockWP // Replace with mock
+
+	err = reader.ScheduleNextBlock(false)
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), int64(1), reader.nextBlockIndexToPrefetch)
+	assert.Equal(t.T(), int64(0), (mockWP.task.(*DownloadTask)).block.AbsStartOff())
+
+	err = reader.ScheduleNextBlock(true)
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), int64(2), reader.nextBlockIndexToPrefetch)
+	expectedOffset := 1 * t.config.PrefetchBlockSizeBytes
+	assert.Equal(t.T(), expectedOffset, (mockWP.task.(*DownloadTask)).block.AbsStartOff())
+	assert.True(t.T(), mockWP.urgent)
+}

@@ -30,7 +30,7 @@ import (
 )
 
 type BufferedReadConfig struct {
-	MaxPrefetchBlockCnt     int64 // Maximum number of blocks that can be prefetched
+	MaxPrefetchBlockCnt     int64 // Maximum number of blocks that can be prefetched.
 	PrefetchBlockSizeBytes  int64 // Size of each block to be prefetched.
 	InitialPrefetchBlockCnt int64 // Number of blocks to prefetch initially.
 	PrefetchMultiplier      int64 // Multiplier for number of blocks to prefetch.
@@ -64,7 +64,7 @@ type BufferedReader struct {
 
 	blockQueue common.Queue[*blockQueueEntry]
 
-	// TODO: Add readHandle for zonal bucket optimization.
+	readHandle []byte // For zonal bucket.
 
 	blockPool    *block.GenBlockPool[block.PrefetchBlock]
 	workerPool   workerpool.WorkerPool
@@ -96,6 +96,44 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 
 	reader.ctx, reader.cancelFunc = context.WithCancel(context.Background())
 	return reader, nil
+}
+
+// ScheduleNextBlock schedules the next block for prefetch.
+func (p *BufferedReader) ScheduleNextBlock(urgent bool) error {
+	b, err := p.blockPool.Get()
+	if err != nil {
+		return fmt.Errorf("failed to get block from pool: %w", err)
+	}
+	if b == nil {
+		return fmt.Errorf("received nil block from blockPool without error")
+	}
+
+	if err := p.scheduleBlockWithIndex(b, p.nextBlockIndexToPrefetch, urgent); err != nil {
+		p.blockPool.Release(b)
+		return err
+	}
+	p.nextBlockIndexToPrefetch++
+	return nil
+}
+
+// ScheduleBlockWithIndex schedules a block with a specific index.
+func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockIndex int64, urgent bool) error {
+	startOffset := blockIndex * p.config.PrefetchBlockSizeBytes
+	if err := b.SetAbsStartOff(startOffset); err != nil {
+		return fmt.Errorf("failed to set start offset on block: %w", err)
+	}
+
+	ctx, cancel := context.WithCancel(p.ctx)
+	task := NewDownloadTask(ctx, p.object, p.bucket, b, p.readHandle)
+
+	logger.Debugf("Scheduling block (%s, offset %d).", p.object.Name, startOffset)
+
+	p.blockQueue.Push(&blockQueueEntry{
+		block:  b,
+		cancel: cancel,
+	})
+	p.workerPool.Schedule(urgent, task)
+	return nil
 }
 
 func (p *BufferedReader) Destroy() {
