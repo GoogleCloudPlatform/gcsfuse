@@ -16,15 +16,20 @@
 package bufferedread
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"io"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/stretchr/testify/mock"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -34,7 +39,7 @@ import (
 const (
 	testMaxPrefetchBlockCnt     int64 = 10
 	testGlobalMaxBlocks         int64 = 20
-	testPrefetchBlockSizeBytes  int64 = 4096
+	testPrefetchBlockSizeBytes  int64 = 1024
 	testInitialPrefetchBlockCnt int64 = 2
 	testPrefetchMultiplier      int64 = 2
 	testRandomReadsThreshold    int64 = 3
@@ -58,7 +63,7 @@ func TestBufferedReaderTestSuite(t *testing.T) {
 func (t *BufferedReaderTest) SetupTest() {
 	t.object = &gcs.MinObject{
 		Name:       "test_object",
-		Size:       1024,
+		Size:       8192,
 		Generation: 1234567890,
 	}
 	t.bucket = new(storage.TestifyMockBucket)
@@ -71,7 +76,7 @@ func (t *BufferedReaderTest) SetupTest() {
 		RandomReadsThreshold:    testRandomReadsThreshold,
 	}
 	var err error
-	t.workerPool, err = workerpool.NewStaticWorkerPool(2, 5)
+	t.workerPool, err = workerpool.NewStaticWorkerPool(5, 10)
 	require.NoError(t.T(), err, "Failed to create worker pool")
 	t.workerPool.Start()
 	t.metricHandle = metrics.NewNoopMetrics()
@@ -167,77 +172,116 @@ func (t *BufferedReaderTest) TestCheckInvariantsNoPanic() {
 	assert.NotPanics(t.T(), func() { reader.CheckInvariants() })
 }
 
-// mockWorkerPool is a mock implementation of workerpool.WorkerPool for testing.
-type mockWorkerPool struct {
-	scheduleCalled bool
-	urgent         bool
-	task           workerpool.Task
+func (t *BufferedReaderTest) TestScheduleNextBlock() {
+	testCases := []struct {
+		name   string
+		urgent bool
+	}{
+		{name: "non-urgent", urgent: false},
+		{name: "urgent", urgent: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+			require.NoError(t.T(), err)
+			initialBlockCount := reader.blockQueue.Len()
+			t.bucket.On("NewReaderWithReadHandle",
+				mock.Anything,
+				mock.AnythingOfType("*gcs.ReadObjectRequest"),
+			).Return(&fake.FakeReader{ReadCloser: io.NopCloser(bytes.NewReader(make([]byte, testPrefetchBlockSizeBytes)))}, nil).Once()
+
+			err = reader.scheduleNextBlock(tc.urgent)
+			require.NoError(t.T(), err)
+
+			bqe := reader.blockQueue.Peek()
+			blockstatus, err := bqe.block.AwaitReady(t.ctx)
+			assert.Equal(t.T(), int64(1), reader.nextBlockIndexToPrefetch)
+			require.NoError(t.T(), err)
+			assert.Equal(t.T(), block.BlockStatus{State: block.BlockStateDownloaded}, blockstatus)
+			assert.Equal(t.T(), initialBlockCount+1, reader.blockQueue.Len())
+			assert.Equal(t.T(), int64(0), bqe.block.AbsStartOff())
+
+			t.bucket.AssertExpectations(t.T())
+		})
+	}
 }
 
-func (mwp *mockWorkerPool) Schedule(urgent bool, task workerpool.Task) {
-	mwp.scheduleCalled = true
-	mwp.urgent = urgent
-	mwp.task = task
-}
-
-func (mwp *mockWorkerPool) Start() {}
-func (mwp *mockWorkerPool) Stop()  {}
-
-func (t *BufferedReaderTest) TestScheduleNextBlockSuccess() {
+func (t *BufferedReaderTest) TestScheduleNextBlockSuccessive() {
 	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
 	require.NoError(t.T(), err)
-	mockWP := &mockWorkerPool{}
-	reader.workerPool = mockWP // Replace with mock
+	initialBlockCount := reader.blockQueue.Len()
 
-	err = reader.ScheduleNextBlock(false)
+	t.bucket.On("NewReaderWithReadHandle",
+		mock.Anything,
+		mock.AnythingOfType("*gcs.ReadObjectRequest"),
+	).Return(&fake.FakeReader{ReadCloser: io.NopCloser(bytes.NewReader(make([]byte, testPrefetchBlockSizeBytes)))}, nil).Once()
 
+	err = reader.scheduleNextBlock(false)
 	require.NoError(t.T(), err)
-	assert.Equal(t.T(), int64(1), reader.nextBlockIndexToPrefetch)
-	assert.Equal(t.T(), 1, reader.blockQueue.Len())
-	assert.True(t.T(), mockWP.scheduleCalled)
-	assert.False(t.T(), mockWP.urgent)
 
-	task, ok := mockWP.task.(*DownloadTask)
-	require.True(t.T(), ok)
-	assert.NotNil(t.T(), task)
-	assert.Equal(t.T(), int64(0), task.block.AbsStartOff())
-}
-
-func (t *BufferedReaderTest) TestScheduleNextBlockUrgent() {
-	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	bqe1 := reader.blockQueue.Pop()
+	status1, err := bqe1.block.AwaitReady(t.ctx)
 	require.NoError(t.T(), err)
-	mockWP := &mockWorkerPool{}
-	reader.workerPool = mockWP // Replace with mock
+	assert.Equal(t.T(), block.BlockStateDownloaded, status1.State)
+	assert.Equal(t.T(), int64(0), bqe1.block.AbsStartOff())
 
-	err = reader.ScheduleNextBlock(true)
+	t.bucket.On("NewReaderWithReadHandle",
+		mock.Anything,
+		mock.AnythingOfType("*gcs.ReadObjectRequest"),
+	).Return(&fake.FakeReader{ReadCloser: io.NopCloser(bytes.NewReader(make([]byte, testPrefetchBlockSizeBytes)))}, nil).Once()
 
+	err = reader.scheduleNextBlock(false)
 	require.NoError(t.T(), err)
-	assert.Equal(t.T(), int64(1), reader.nextBlockIndexToPrefetch)
-	assert.Equal(t.T(), 1, reader.blockQueue.Len())
-	assert.True(t.T(), mockWP.scheduleCalled)
-	assert.True(t.T(), mockWP.urgent)
 
-	task, ok := mockWP.task.(*DownloadTask)
-	require.True(t.T(), ok)
-	assert.NotNil(t.T(), task)
-	assert.Equal(t.T(), int64(0), task.block.AbsStartOff())
-}
-
-func (t *BufferedReaderTest) TestScheduleNextBlockSuccessiveCalls() {
-	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	bqe2 := reader.blockQueue.Pop()
+	status2, err := bqe2.block.AwaitReady(t.ctx)
 	require.NoError(t.T(), err)
-	mockWP := &mockWorkerPool{}
-	reader.workerPool = mockWP // Replace with mock
+	assert.Equal(t.T(), block.BlockStateDownloaded, status2.State)
+	assert.Equal(t.T(), int64(testPrefetchBlockSizeBytes), bqe2.block.AbsStartOff())
 
-	err = reader.ScheduleNextBlock(false)
-	require.NoError(t.T(), err)
-	assert.Equal(t.T(), int64(1), reader.nextBlockIndexToPrefetch)
-	assert.Equal(t.T(), int64(0), (mockWP.task.(*DownloadTask)).block.AbsStartOff())
-
-	err = reader.ScheduleNextBlock(true)
-	require.NoError(t.T(), err)
 	assert.Equal(t.T(), int64(2), reader.nextBlockIndexToPrefetch)
-	expectedOffset := 1 * t.config.PrefetchBlockSizeBytes
-	assert.Equal(t.T(), expectedOffset, (mockWP.task.(*DownloadTask)).block.AbsStartOff())
-	assert.True(t.T(), mockWP.urgent)
+	assert.Equal(t.T(), initialBlockCount, reader.blockQueue.Len())
+
+	t.bucket.AssertExpectations(t.T())
+}
+
+func (t *BufferedReaderTest) TestScheduleBlockWithIndex() {
+	testCases := []struct {
+		name       string
+		urgent     bool
+		blockIndex int64
+	}{
+		{name: "non-urgent", urgent: false, blockIndex: 5},
+		{name: "urgent", urgent: true, blockIndex: 3},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+			require.NoError(t.T(), err)
+			initialBlockCount := reader.blockQueue.Len()
+			startOffset := tc.blockIndex * reader.config.PrefetchBlockSizeBytes
+
+			t.bucket.On("NewReaderWithReadHandle",
+				mock.Anything,
+				mock.AnythingOfType("*gcs.ReadObjectRequest"),
+			).Return(&fake.FakeReader{ReadCloser: io.NopCloser(bytes.NewReader(make([]byte, testPrefetchBlockSizeBytes)))}, nil).Once()
+
+			b, err := reader.blockPool.Get()
+			require.NoError(t.T(), err)
+
+			err = reader.scheduleBlockWithIndex(b, tc.blockIndex, tc.urgent)
+			require.NoError(t.T(), err)
+
+			bqe := reader.blockQueue.Peek()
+			blockstatus, err := bqe.block.AwaitReady(t.ctx)
+			require.NoError(t.T(), err)
+			assert.Equal(t.T(), block.BlockStatus{State: block.BlockStateDownloaded}, blockstatus)
+			assert.Equal(t.T(), initialBlockCount+1, reader.blockQueue.Len())
+			assert.Equal(t.T(), startOffset, bqe.block.AbsStartOff())
+
+			t.bucket.AssertExpectations(t.T())
+		})
+	}
 }

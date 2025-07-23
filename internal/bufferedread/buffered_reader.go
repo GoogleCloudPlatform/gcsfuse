@@ -15,9 +15,9 @@
 package bufferedread
 
 import (
-	"fmt"
-
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
@@ -28,6 +28,11 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"golang.org/x/sync/semaphore"
 )
+
+// ErrPrefetchBlockNotAvailable is returned when a block cannot be
+// acquired from the pool for prefetching. This can be used by callers to
+// implement a fallback mechanism, e.g. falling back to a direct GCS read.
+var ErrPrefetchBlockNotAvailable = errors.New("block for prefetching not available")
 
 type BufferedReadConfig struct {
 	MaxPrefetchBlockCnt     int64 // Maximum number of blocks that can be prefetched.
@@ -98,14 +103,17 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 	return reader, nil
 }
 
-// ScheduleNextBlock schedules the next block for prefetch.
-func (p *BufferedReader) ScheduleNextBlock(urgent bool) error {
+// scheduleNextBlock schedules the next block for prefetch.
+func (p *BufferedReader) scheduleNextBlock(urgent bool) error {
 	b, err := p.blockPool.Get()
-	if err != nil {
-		return fmt.Errorf("failed to get block from pool: %w", err)
-	}
-	if b == nil {
-		return fmt.Errorf("received nil block from blockPool without error")
+
+	// TODO(b/426060431): Replace Get() with TryGet(). Assuming, the current blockPool.Get() gets blocked if block is not available.
+
+	if err != nil || b == nil {
+		if err != nil {
+			logger.Warnf("failed to get block from pool: %v", err)
+		}
+		return ErrPrefetchBlockNotAvailable
 	}
 
 	if err := p.scheduleBlockWithIndex(b, p.nextBlockIndexToPrefetch, urgent); err != nil {
