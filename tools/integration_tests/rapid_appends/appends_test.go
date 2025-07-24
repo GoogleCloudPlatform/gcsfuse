@@ -178,12 +178,15 @@ func (t *RapidAppendsSuite) TestContentAppendedInNonAppendModeNotVisibleTillClos
 	// Append to the file from the primary mount in non-append mode
 	wh, err := os.OpenFile(path.Join(primaryMntTestDirPath, t.fileName), os.O_WRONLY|syscall.O_DIRECT, operations.FilePermission_0600)
 	require.NoError(t.T(), err)
-	n, err := wh.WriteAt([]byte(appendContent), int64(len(initialContent)))
-	require.NoError(t.T(), err)
-	require.Equal(t.T(), len(appendContent), n)
 
-	// Read from secondary mount to validate that data is not visible in GCS in realtime
-	contentBeforeClose, err := operations.ReadFile(path.Join(secondaryMntTestDirPath, t.fileName))
+	// Write sufficient data to the end of file.
+	data := setup.GenerateRandomString(contentSizeForBW * operations.OneMiB)
+	n, err := wh.WriteAt([]byte(data), int64(len(initialContent)))
+	require.NoError(t.T(), err)
+	require.Equal(t.T(), len(data), n)
+
+	// Read from back-door to validate that appended content is yet not visible on GCS.
+	contentBeforeClose, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), initialContent, contentBeforeClose)
 
@@ -192,7 +195,7 @@ func (t *RapidAppendsSuite) TestContentAppendedInNonAppendModeNotVisibleTillClos
 	require.NoError(t.T(), err)
 
 	// Validate that appended content is visible in GCS.
-	expectedContent := initialContent + appendContent
+	expectedContent := initialContent + data
 	contentAfterClose, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(path.Join(testDirName, t.fileName)))
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), expectedContent, contentAfterClose)
