@@ -103,8 +103,10 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 	return reader, nil
 }
 
+// prefetch schedules the next set of blocks for prefetching starting from
+// the nextBlockIndexToPrefetch.
 func (p *BufferedReader) prefetch() error {
-	// Do not schedule more blocks if the prefetch queue has reached its maximum configured size.
+	// Do not schedule more than MaxPrefetchBlockCnt.
 	availableSlots := p.config.MaxPrefetchBlockCnt - int64(p.blockQueue.Len())
 	if availableSlots <= 0 {
 		return nil
@@ -114,31 +116,30 @@ func (p *BufferedReader) prefetch() error {
 		return nil
 	}
 
-	logger.Debugf("Prefetching %d blocks", blockCountToPrefetch)
+	logger.Tracef("Prefetching %d blocks", blockCountToPrefetch)
 
+	totalBlockCount := (int64(p.object.Size) + p.config.PrefetchBlockSizeBytes - 1) / p.config.PrefetchBlockSizeBytes
 	for i := int64(0); i < blockCountToPrefetch; i++ {
-		if p.nextBlockIndexToPrefetch >= p.totalBlockCount() {
+		if p.nextBlockIndexToPrefetch >= totalBlockCount {
 			break
 		}
 		if err := p.scheduleNextBlock(false); err != nil {
-			return fmt.Errorf("failed to schedule block index %d: %v", p.nextBlockIndexToPrefetch, err)
+			return fmt.Errorf("prefetch: failed to schedule block index %d: %v", p.nextBlockIndexToPrefetch, err)
 		}
 	}
 
 	// Set the size for the next multiplicative prefetch.
 	p.numPrefetchBlocks *= p.config.PrefetchMultiplier
 
-	// Ensure the number of blocks for the next prefetch does not exceed the configured maximum.
+	// Do not prefetch more than MaxPrefetchBlockCnt blocks.
 	if p.numPrefetchBlocks > p.config.MaxPrefetchBlockCnt {
 		p.numPrefetchBlocks = p.config.MaxPrefetchBlockCnt
 	}
 	return nil
 }
 
-func (p *BufferedReader) totalBlockCount() int64 {
-	return (int64(p.object.Size) + p.config.PrefetchBlockSizeBytes - 1) / p.config.PrefetchBlockSizeBytes
-}
-
+// freshStart resets the prefetching state and schedules the initial set of
+// blocks starting from the given offset.
 func (p *BufferedReader) freshStart(currentOffset int64) error {
 	blockIndex := currentOffset / p.config.PrefetchBlockSizeBytes
 	p.nextBlockIndexToPrefetch = blockIndex
@@ -148,7 +149,7 @@ func (p *BufferedReader) freshStart(currentOffset int64) error {
 
 	// Schedule the first block as urgent.
 	if err := p.scheduleNextBlock(true); err != nil {
-		return fmt.Errorf("initial scheduling failed: %w", err)
+		return fmt.Errorf("freshStart: initial scheduling failed: %w", err)
 	}
 
 	// Prefetch the initial blocks.
@@ -224,12 +225,17 @@ func (p *BufferedReader) Destroy() {
 // CheckInvariants checks for internal consistency of the reader.
 func (p *BufferedReader) CheckInvariants() {
 
-	// The number of items in the blockQueue should not exceed the configured limit.
+	// The prefetch block size must be positive.
+	if p.config.PrefetchBlockSizeBytes <= 0 {
+		panic(fmt.Sprintf("BufferedReader: PrefetchBlockSizeBytes must be positive, but is %d", p.config.PrefetchBlockSizeBytes))
+	}
+
+	// The number of items in the blockQueue should not exceed MaxPrefetchBlockCnt.
 	if int64(p.blockQueue.Len()) > p.config.MaxPrefetchBlockCnt {
 		panic(fmt.Sprintf("BufferedReader: blockQueue length %d exceeds limit %d", p.blockQueue.Len(), p.config.MaxPrefetchBlockCnt))
 	}
 
-	// The random seek count should never exceed the configured threshold.
+	// The random seek count should never exceed RandomReadsThreshold.
 	if p.randomSeekCount > p.config.RandomReadsThreshold {
 		panic(fmt.Sprintf("BufferedReader: randomSeekCount %d exceeds threshold %d", p.randomSeekCount, p.config.RandomReadsThreshold))
 	}
