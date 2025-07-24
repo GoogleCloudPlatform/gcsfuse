@@ -647,19 +647,6 @@ func (bh *bucketHandle) RenameFolder(ctx context.Context, folderName string, des
 	return
 }
 
-// TODO: Consider adding this method to the bucket interface if additional
-// layout options are needed in the future.
-func (bh *bucketHandle) getStorageLayout() (*controlpb.StorageLayout, error) {
-	var callOptions []gax.CallOption
-	stoargeLayout, err := bh.controlClient.GetStorageLayout(context.Background(), &controlpb.GetStorageLayoutRequest{
-		Name:      fmt.Sprintf("projects/_/buckets/%s/storageLayout", bh.bucketName),
-		Prefix:    "",
-		RequestId: "",
-	}, callOptions...)
-
-	return stoargeLayout, err
-}
-
 func (bh *bucketHandle) GetFolder(ctx context.Context, folderName string) (folder *gcs.Folder, err error) {
 	defer func() {
 		err = gcs.GetGCSError(err)

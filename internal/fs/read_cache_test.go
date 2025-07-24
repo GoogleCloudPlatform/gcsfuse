@@ -142,7 +142,7 @@ func cacheFilePermissionTest(t *fsTest, fileMode os.FileMode) {
 	AssertEq(fileMode, stat.Mode())
 }
 
-func writeShouldNotPopulateCache(t *fsTest) {
+func writeShouldNotPopulateCache() {
 	objectContent := generateRandomString(DefaultObjectSizeInMb * util.MiB)
 	filePath := path.Join(mntDir, DefaultObjectName)
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT|os.O_CREATE, util.DefaultFilePerm)
@@ -290,7 +290,7 @@ func (t *FileCacheTest) CacheFilePermission() {
 }
 
 func (t *FileCacheTest) WriteShouldNotPopulateCache() {
-	writeShouldNotPopulateCache(&t.fsTest)
+	writeShouldNotPopulateCache()
 }
 
 func (t *FileCacheTest) FileSizeGreaterThanCacheSize() {
@@ -689,7 +689,7 @@ func (t *FileCacheWithCacheForRangeRead) CacheFilePermission() {
 }
 
 func (t *FileCacheWithCacheForRangeRead) WriteShouldNotPopulateCache() {
-	writeShouldNotPopulateCache(&t.fsTest)
+	writeShouldNotPopulateCache()
 }
 
 func (t *FileCacheWithCacheForRangeRead) SequentialToRandomReadShouldPopulateCache() {

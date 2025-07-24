@@ -49,7 +49,7 @@ var (
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client, testDirName string) {
+func mountGCSFuseAndSetupTestDir(flags []string, testDirName string) {
 	// When tests are running in GKE environment, use the mounted directory provided as test flag.
 	if setup.MountedDirectory() != "" {
 		mountDir = setup.MountedDirectory()
