@@ -32,6 +32,9 @@ const (
 	fileNamePrefix = "rapid-append-file-"
 	initialContent = "dummy content"
 	appendContent  = "appended content"
+	// Minimum content size to write in order to trigger block upload while writing ; calculated as (2*blocksize+1) mb.
+	// Block size for buffered writes is set to 1MiB.
+	contentSizeForBW = 3
 )
 
 var (
@@ -91,7 +94,7 @@ func TestMain(m *testing.M) {
 	primaryMntLogFilePath = setup.LogFile()
 	// TODO(b/432179045): `--write-global-max-blocks=-1` is needed right now because of a bug in global semaphore release.
 	// Remove this flag once bug is fixed.
-	primaryMountFlags := []string{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-global-max-blocks=-1"}
+	primaryMountFlags := []string{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-global-max-blocks=-1", "--write-block-size-mb=1"}
 	err := static_mounting.MountGcsfuseWithStaticMounting(primaryMountFlags)
 	if err != nil {
 		log.Fatalf("Unable to mount primary mount: %v", err)
@@ -116,8 +119,8 @@ func TestMain(m *testing.M) {
 	}()
 	// Define flag set for secondary mount to run the tests.
 	flagsSet := [][]string{
-		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0"},
-		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--file-cache-max-size-mb=-1", "--cache-dir=" + rapidAppendsCacheDir},
+		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-block-size-mb=1"},
+		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-block-size-mb=1", "--file-cache-max-size-mb=-1", "--cache-dir=" + rapidAppendsCacheDir},
 	}
 
 	log.Println("Running static mounting tests...")

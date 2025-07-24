@@ -169,6 +169,38 @@ func (t *RapidAppendsSuite) TestAppendSessionInvalidatedByAnotherClientUponTakeo
 	assert.Equal(t.T(), expectedContent, string(content))
 }
 
+func (t *RapidAppendsSuite) TestContentAppendedInNonAppendModeNotVisibleTillClose() {
+	// Skipping test for now until CreateObject() is supported for unfinalized objects.
+	// Ref: b/424253611
+	t.T().Skip()
+
+	initialContent := t.fileContent
+	// Append to the file from the primary mount in non-append mode
+	wh, err := os.OpenFile(path.Join(primaryMntTestDirPath, t.fileName), os.O_WRONLY|syscall.O_DIRECT, operations.FilePermission_0600)
+	require.NoError(t.T(), err)
+
+	// Write sufficient data to the end of file.
+	data := setup.GenerateRandomString(contentSizeForBW * operations.OneMiB)
+	n, err := wh.WriteAt([]byte(data), int64(len(initialContent)))
+	require.NoError(t.T(), err)
+	require.Equal(t.T(), len(data), n)
+
+	// Read from back-door to validate that appended content is yet not visible on GCS.
+	contentBeforeClose, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), initialContent, contentBeforeClose)
+
+	// Close() from primary mount to ensure data persists in GCS.
+	err = wh.Close()
+	require.NoError(t.T(), err)
+
+	// Validate that appended content is visible in GCS.
+	expectedContent := initialContent + data
+	contentAfterClose, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(path.Join(testDirName, t.fileName)))
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), expectedContent, contentAfterClose)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
