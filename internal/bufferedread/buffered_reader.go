@@ -121,7 +121,7 @@ func (p *BufferedReader) prefetch() error {
 			break
 		}
 		if err := p.scheduleNextBlock(false); err != nil {
-			return fmt.Errorf("failed to schedule block index %d: %v", p.nextBlockIndexToPrefetch, err)
+			return fmt.Errorf("prefetch: failed to schedule block index %d: %v", p.nextBlockIndexToPrefetch, err)
 		}
 	}
 
