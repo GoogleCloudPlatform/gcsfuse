@@ -114,7 +114,7 @@ func (p *BufferedReader) prefetch() error {
 		return nil
 	}
 
-	logger.Debugf("Prefetching %d blocks", blockCountToPrefetch)
+	logger.Tracef("Prefetching %d blocks", blockCountToPrefetch)
 
 	for i := int64(0); i < blockCountToPrefetch; i++ {
 		if p.nextBlockIndexToPrefetch >= p.totalBlockCount() {
