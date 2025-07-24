@@ -1807,7 +1807,7 @@ func (fs *fileSystem) CreateFile(
 		err = fmt.Errorf("getAttributes: %w", err)
 		return err
 	}
-
+	logger.Infof("CustomLog: CreateFile: [%s] timestamp: [%v]", op.Name, time.Now().UnixMicro())
 	return
 }
 
@@ -2048,12 +2048,27 @@ func (fs *fileSystem) Rename(
 		// If 'enable-hns' flag is false, the bucket type is set to 'NonHierarchical' even for HNS buckets because the control client is nil.
 		// Therefore, an additional 'enable hns' check is not required here.
 		if child.Bucket.BucketType().Hierarchical {
-			return fs.renameHierarchicalDir(ctx, oldParent, op.OldName, newParent, op.NewName)
+			err = fs.renameHierarchicalDir(ctx, oldParent, op.OldName, newParent, op.NewName)
+			if err != nil {
+				return
+			}
+			logger.Infof("CustomLog: RenameHierarichalDir: [from %s to %s] timestamp: [%v]", op.OldName, op.NewName, time.Now().UnixMicro())
+			return
 		}
-		return fs.renameNonHierarchicalDir(ctx, oldParent, op.OldName, newParent, op.NewName)
+		err = fs.renameNonHierarchicalDir(ctx, oldParent, op.OldName, newParent, op.NewName)
+		if err != nil {
+			return
+		}
+		logger.Infof("CustomLog: RenameNonHierarichalDir: [from %s to %s] timestamp: [%v]", op.OldName, op.NewName, time.Now().UnixMicro())
+		return
 	}
 
-	return fs.renameFile(ctx, op, child, oldParent, newParent)
+	err = fs.renameFile(ctx, op, child, oldParent, newParent)
+	if err != nil {
+		return
+	}
+	logger.Infof("CustomLog: RenameFile: [rename %s to %s] timestamp: [%v]", op.OldName, op.NewName, time.Now().UnixMicro())
+	return
 }
 
 // LOCKS_EXCLUDED(oldParent)
@@ -2540,7 +2555,7 @@ func (fs *fileSystem) OpenFile(
 
 	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, op.OpenFlags.IsReadOnly())
 	op.Handle = handleID
-
+	logger.Infof("CustomLog: OpenFile: [%s] timestamp: [%v]", in.Name(), time.Now().UnixMicro())
 	// When we observe object generations that we didn't create, we assign them
 	// new inode IDs. So for a given inode, all modifications go through the
 	// kernel. Therefore it's safe to tell the kernel to keep the page cache from
@@ -2657,7 +2672,7 @@ func (fs *fileSystem) SyncFile(
 	if err := fs.syncFile(ctx, file); err != nil {
 		return err
 	}
-
+	logger.Infof("CustomLog: SyncFile: [%s] timestamp: [%v]", in.Name(), time.Now().UnixMicro())
 	return
 }
 
