@@ -65,15 +65,18 @@ func (t *RapidAppendsSuite) TearDownSuite() {
 }
 
 func (t *RapidAppendsSuite) SetupSubTest() {
+	t.createUnfinalizedObject()
+}
+
+func (t *RapidAppendsSuite) SetupTest() {
+	t.createUnfinalizedObject()
+}
+
+func (t *RapidAppendsSuite) createUnfinalizedObject() {
 	t.fileName = fileNamePrefix + setup.GenerateRandomString(5)
 	// Create unfinalized object.
 	t.fileContent = setup.GenerateRandomString(unfinalizedObjectSize)
 	client.CreateUnfinalizedObject(ctx, t.T(), storageClient, path.Join(testDirName, t.fileName), t.fileContent)
-}
-
-func (t *RapidAppendsSuite) TearDownSubTest() {
-	err := os.Remove(path.Join(primaryMntTestDirPath, t.fileName))
-	require.NoError(t.T(), err)
 }
 
 // appendToFile appends "appendContent" to the given file.
@@ -127,6 +130,43 @@ func (t *RapidAppendsSuite) TestAppendsAndRead() {
 			}
 		})
 	}
+}
+
+func (t *RapidAppendsSuite) TestAppendSessionInvalidatedByAnotherClientUponTakeover() {
+	// Initiate an append session using the primary file handle opened in append mode.
+	appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(primaryMntTestDirPath, t.fileName), os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
+	_, err := appendFileHandle.WriteString(initialContent)
+	require.NoError(t.T(), err)
+
+	// Open a new file handle from the secondary mount to the same file.
+	newAppendFileHandle := operations.OpenFileInMode(t.T(), path.Join(secondaryMntTestDirPath, t.fileName), os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
+	defer operations.CloseFileShouldNotThrowError(t.T(), newAppendFileHandle)
+
+	// Attempt to append using the newly opened file handle.
+	// This append should succeed, confirming the takeover.
+	_, err = newAppendFileHandle.WriteString(appendContent)
+	assert.NoError(t.T(), err)
+
+	// Attempt to append using the original file handle.
+	// This should now fail, as its append session has been invalidated by the takeover.
+	_, _ = appendFileHandle.WriteString(appendContent)
+	err = appendFileHandle.Sync()
+	operations.ValidateESTALEError(t.T(), err)
+
+	// Syncing from the newly created file handle must succeed since it holds the active
+	// append session.
+	err = newAppendFileHandle.Sync()
+	assert.NoError(t.T(), err)
+
+	// Read from primary mount to validate the contents which has persisted in GCS after
+	// takeover from the secondary mount.
+	// Close the open append handle before issuing read on the file as Sync() triggered on
+	// ReadFile() due to BWH still being initialized, is expected to error out with stale NFS file handle.
+	operations.CloseFileShouldThrowError(t.T(), appendFileHandle)
+	expectedContent := t.fileContent + appendContent
+	content, err := operations.ReadFile(path.Join(primaryMntTestDirPath, t.fileName))
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), expectedContent, string(content))
 }
 
 ////////////////////////////////////////////////////////////////////////
