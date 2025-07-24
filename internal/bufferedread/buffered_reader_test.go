@@ -312,3 +312,291 @@ func (t *BufferedReaderTest) TestScheduleBlockWithIndex() {
 		})
 	}
 }
+
+func (t *BufferedReaderTest) TestTotalBlockCountLogic() {
+	testCases := []struct {
+		name                   string
+		objectSize             uint64
+		prefetchBlockSizeBytes int64
+		expectedBlockCount     int64
+	}{
+		{
+			name:                   "object size is a multiple of block size",
+			objectSize:             uint64(testPrefetchBlockSizeBytes * 5),
+			prefetchBlockSizeBytes: testPrefetchBlockSizeBytes,
+			expectedBlockCount:     5,
+		},
+		{
+			name:                   "object size is not a multiple of block size",
+			objectSize:             uint64(testPrefetchBlockSizeBytes*5 + 1),
+			prefetchBlockSizeBytes: testPrefetchBlockSizeBytes,
+			expectedBlockCount:     6,
+		},
+		{
+			name:                   "object size is zero",
+			objectSize:             0,
+			prefetchBlockSizeBytes: testPrefetchBlockSizeBytes,
+			expectedBlockCount:     0,
+		},
+		{
+			name:                   "object size is less than block size",
+			objectSize:             uint64(testPrefetchBlockSizeBytes - 1),
+			prefetchBlockSizeBytes: testPrefetchBlockSizeBytes,
+			expectedBlockCount:     1,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.object.Size = tc.objectSize
+			t.config.PrefetchBlockSizeBytes = tc.prefetchBlockSizeBytes
+			reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+			require.NoError(t.T(), err)
+
+			blockCount := reader.totalBlockCount()
+
+			assert.Equal(t.T(), tc.expectedBlockCount, blockCount)
+		})
+	}
+}
+
+func (t *BufferedReaderTest) TestFreshStart() {
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	currentOffset := int64(2 * testPrefetchBlockSizeBytes)
+	expectedStartBlockIndex := currentOffset / testPrefetchBlockSizeBytes
+	for i := 0; i < int(testInitialPrefetchBlockCnt+1); i++ {
+		t.bucket.On("NewReaderWithReadHandle",
+			mock.Anything,
+			mock.AnythingOfType("*gcs.ReadObjectRequest"),
+		).Return(createFakeReader(t.T(), int(testPrefetchBlockSizeBytes)), nil).Once()
+	}
+
+	err = reader.freshStart(currentOffset)
+
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), expectedStartBlockIndex+testInitialPrefetchBlockCnt+1, reader.nextBlockIndexToPrefetch)
+	assert.Equal(t.T(), testInitialPrefetchBlockCnt*testPrefetchMultiplier, reader.numPrefetchBlocks)
+	assert.Equal(t.T(), int(testInitialPrefetchBlockCnt+1), reader.blockQueue.Len())
+	for i := int64(0); i < testInitialPrefetchBlockCnt+1; i++ {
+		bqe := reader.blockQueue.Pop()
+		expectedOffset := (expectedStartBlockIndex + i) * testPrefetchBlockSizeBytes
+		assert.Equal(t.T(), expectedOffset, bqe.block.AbsStartOff())
+		status, err := bqe.block.AwaitReady(t.ctx)
+		require.NoError(t.T(), err)
+		assert.Equal(t.T(), block.BlockStateDownloaded, status.State)
+	}
+	t.bucket.AssertExpectations(t.T())
+}
+
+func (t *BufferedReaderTest) TestFreshStartWhenInitialCountGreaterThanMax() {
+	t.config.InitialPrefetchBlockCnt = testMaxPrefetchBlockCnt + 5
+	t.object.Size = uint64((testMaxPrefetchBlockCnt + 5) * testPrefetchBlockSizeBytes)
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	// With InitialPrefetchBlockCnt > MaxPrefetchBlockCnt, freshStart will schedule
+	// 1 urgent block, then prefetch will schedule MaxPrefetchBlockCnt - 1 blocks.
+	expectedTotalPrefetchCount := testMaxPrefetchBlockCnt
+	for i := 0; i < int(expectedTotalPrefetchCount); i++ {
+		t.bucket.On("NewReaderWithReadHandle",
+			mock.Anything,
+			mock.AnythingOfType("*gcs.ReadObjectRequest"),
+		).Return(createFakeReader(t.T(), int(testPrefetchBlockSizeBytes)), nil).Once()
+	}
+
+	err = reader.freshStart(0)
+
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), expectedTotalPrefetchCount, reader.nextBlockIndexToPrefetch)
+	assert.Equal(t.T(), testMaxPrefetchBlockCnt, reader.numPrefetchBlocks)
+	assert.Equal(t.T(), int(expectedTotalPrefetchCount), reader.blockQueue.Len())
+	for i := 0; i < int(expectedTotalPrefetchCount); i++ {
+		bqe := reader.blockQueue.Pop()
+		status, err := bqe.block.AwaitReady(t.ctx)
+		require.NoError(t.T(), err)
+		assert.Equal(t.T(), block.BlockStateDownloaded, status.State)
+	}
+	t.bucket.AssertExpectations(t.T())
+}
+
+func (t *BufferedReaderTest) TestFreshStartStopsAtObjectEnd() {
+	t.object.Size = uint64(3 * testPrefetchBlockSizeBytes)
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	currentOffset := int64(2 * testPrefetchBlockSizeBytes)
+	expectedPrefetchCount := 1
+	t.bucket.On("NewReaderWithReadHandle",
+		mock.Anything,
+		mock.AnythingOfType("*gcs.ReadObjectRequest"),
+	).Return(createFakeReader(t.T(), int(testPrefetchBlockSizeBytes)), nil).Once()
+
+	err = reader.freshStart(currentOffset)
+
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), int64(3), reader.nextBlockIndexToPrefetch)
+	assert.Equal(t.T(), testInitialPrefetchBlockCnt*testPrefetchMultiplier, reader.numPrefetchBlocks)
+	assert.Equal(t.T(), expectedPrefetchCount, reader.blockQueue.Len())
+	bqe := reader.blockQueue.Pop()
+	assert.Equal(t.T(), currentOffset, bqe.block.AbsStartOff())
+	status, err := bqe.block.AwaitReady(t.ctx)
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), block.BlockStateDownloaded, status.State)
+	t.bucket.AssertExpectations(t.T())
+}
+
+func (t *BufferedReaderTest) TestPrefetch() {
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	for i := 0; i < int(testInitialPrefetchBlockCnt); i++ {
+		t.bucket.On("NewReaderWithReadHandle",
+			mock.Anything,
+			mock.AnythingOfType("*gcs.ReadObjectRequest"),
+		).Return(createFakeReader(t.T(), int(testPrefetchBlockSizeBytes)), nil).Once()
+	}
+
+	err = reader.prefetch()
+
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), testInitialPrefetchBlockCnt, reader.nextBlockIndexToPrefetch)
+	assert.Equal(t.T(), testInitialPrefetchBlockCnt*testPrefetchMultiplier, reader.numPrefetchBlocks)
+	assert.Equal(t.T(), int(testInitialPrefetchBlockCnt), reader.blockQueue.Len())
+	// Wait for all downloads to complete.
+	for i := int64(0); i < testInitialPrefetchBlockCnt; i++ {
+		bqe := reader.blockQueue.Pop()
+		status, err := bqe.block.AwaitReady(t.ctx)
+		require.NoError(t.T(), err)
+		assert.Equal(t.T(), block.BlockStateDownloaded, status.State)
+	}
+	t.bucket.AssertExpectations(t.T())
+}
+
+func (t *BufferedReaderTest) TestPrefetchWithMultiplicativeIncrease() {
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	for i := 0; i < int(testInitialPrefetchBlockCnt); i++ {
+		t.bucket.On("NewReaderWithReadHandle",
+			mock.Anything,
+			mock.AnythingOfType("*gcs.ReadObjectRequest"),
+		).Return(createFakeReader(t.T(), int(testPrefetchBlockSizeBytes)), nil).Once()
+	}
+	err = reader.prefetch()
+	require.NoError(t.T(), err)
+	// Wait for first prefetch to complete and drain the queue.
+	for i := int64(0); i < testInitialPrefetchBlockCnt; i++ {
+		bqe := reader.blockQueue.Pop()
+		_, err := bqe.block.AwaitReady(t.ctx)
+		require.NoError(t.T(), err)
+	}
+	expectedNextPrefetchCount := testInitialPrefetchBlockCnt * testPrefetchMultiplier
+	for i := 0; i < int(expectedNextPrefetchCount); i++ {
+		t.bucket.On("NewReaderWithReadHandle",
+			mock.Anything,
+			mock.AnythingOfType("*gcs.ReadObjectRequest"),
+		).Return(createFakeReader(t.T(), int(testPrefetchBlockSizeBytes)), nil).Once()
+	}
+
+	err = reader.prefetch()
+
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), testInitialPrefetchBlockCnt+expectedNextPrefetchCount, reader.nextBlockIndexToPrefetch)
+	assert.Equal(t.T(), expectedNextPrefetchCount*testPrefetchMultiplier, reader.numPrefetchBlocks)
+	assert.Equal(t.T(), int(expectedNextPrefetchCount), reader.blockQueue.Len())
+	// Wait for second prefetch to complete.
+	for i := int64(0); i < expectedNextPrefetchCount; i++ {
+		bqe := reader.blockQueue.Pop()
+		status, err := bqe.block.AwaitReady(t.ctx)
+		require.NoError(t.T(), err)
+		assert.Equal(t.T(), block.BlockStateDownloaded, status.State)
+	}
+	t.bucket.AssertExpectations(t.T())
+}
+
+func (t *BufferedReaderTest) TestPrefetchWhenQueueIsFull() {
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	for i := int64(0); i < testMaxPrefetchBlockCnt; i++ {
+		b, err := reader.blockPool.Get()
+		require.NoError(t.T(), err)
+		reader.blockQueue.Push(&blockQueueEntry{block: b})
+	}
+
+	err = reader.prefetch()
+
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), int64(0), reader.nextBlockIndexToPrefetch)
+	assert.Equal(t.T(), int(testMaxPrefetchBlockCnt), reader.blockQueue.Len())
+	assert.Equal(t.T(), testInitialPrefetchBlockCnt, reader.numPrefetchBlocks)
+	t.bucket.AssertNotCalled(t.T(), "NewReaderWithReadHandle", mock.Anything, mock.Anything)
+}
+
+func (t *BufferedReaderTest) TestPrefetchWhenQueueIsPartiallyFull() {
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	numAlreadyInQueue := 5
+	for i := 0; i < numAlreadyInQueue; i++ {
+		b, err := reader.blockPool.Get()
+		require.NoError(t.T(), err)
+		reader.blockQueue.Push(&blockQueueEntry{block: b})
+	}
+	expectedPrefetchCount := int(min(testInitialPrefetchBlockCnt, testMaxPrefetchBlockCnt-int64(numAlreadyInQueue)))
+	for i := 0; i < expectedPrefetchCount; i++ {
+		t.bucket.On("NewReaderWithReadHandle",
+			mock.Anything,
+			mock.AnythingOfType("*gcs.ReadObjectRequest"),
+		).Return(createFakeReader(t.T(), int(testPrefetchBlockSizeBytes)), nil).Once()
+	}
+
+	err = reader.prefetch()
+
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), int64(expectedPrefetchCount), reader.nextBlockIndexToPrefetch)
+	assert.Equal(t.T(), numAlreadyInQueue+expectedPrefetchCount, reader.blockQueue.Len())
+	assert.Equal(t.T(), testInitialPrefetchBlockCnt*testPrefetchMultiplier, reader.numPrefetchBlocks)
+	// Wait for the newly scheduled downloads to complete. The old blocks are
+	// dummies and not downloaded, so we pop them first.
+	for i := 0; i < numAlreadyInQueue; i++ {
+		bqe := reader.blockQueue.Pop()
+		reader.blockPool.Release(bqe.block)
+	}
+	for i := 0; i < expectedPrefetchCount; i++ {
+		bqe := reader.blockQueue.Pop()
+		_, err := bqe.block.AwaitReady(t.ctx)
+		require.NoError(t.T(), err)
+	}
+	t.bucket.AssertExpectations(t.T())
+}
+
+func (t *BufferedReaderTest) TestPrefetchLimitedByAvailableSlots() {
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	reader.numPrefetchBlocks = 4
+	numAlreadyInQueue := 7
+	for i := 0; i < numAlreadyInQueue; i++ {
+		b, err := reader.blockPool.Get()
+		require.NoError(t.T(), err)
+		reader.blockQueue.Push(&blockQueueEntry{block: b})
+	}
+	expectedPrefetchCount := 3
+	for i := 0; i < expectedPrefetchCount; i++ {
+		t.bucket.On("NewReaderWithReadHandle",
+			mock.Anything,
+			mock.AnythingOfType("*gcs.ReadObjectRequest"),
+		).Return(createFakeReader(t.T(), int(testPrefetchBlockSizeBytes)), nil).Once()
+	}
+
+	err = reader.prefetch()
+
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), int64(expectedPrefetchCount), reader.nextBlockIndexToPrefetch)
+	assert.Equal(t.T(), numAlreadyInQueue+expectedPrefetchCount, reader.blockQueue.Len())
+	assert.Equal(t.T(), (testInitialPrefetchBlockCnt*testPrefetchMultiplier)*testPrefetchMultiplier, reader.numPrefetchBlocks)
+	for i := 0; i < numAlreadyInQueue; i++ {
+		bqe := reader.blockQueue.Pop()
+		reader.blockPool.Release(bqe.block)
+	}
+	for i := 0; i < expectedPrefetchCount; i++ {
+		bqe := reader.blockQueue.Pop()
+		_, err := bqe.block.AwaitReady(t.ctx)
+		require.NoError(t.T(), err)
+	}
+	t.bucket.AssertExpectations(t.T())
+}
