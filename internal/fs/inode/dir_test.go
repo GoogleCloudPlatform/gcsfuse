@@ -1027,7 +1027,7 @@ func (t *DirTest) ReadEntryCores_NonEmpty_ImplicitDirsDisabled() {
 	// Set up contents.
 	backedDirEmptyName := path.Join(dirInodeName, "backed_dir_empty") + "/"
 	backedDirNonEmptyName := path.Join(dirInodeName, "backed_dir_nonempty") + "/"
-	backedDirNonEmptyFileName := path.Join(backedDirNonEmptyName)
+	backedDirNonEmptyFileName := path.Join(backedDirNonEmptyName, "blah")
 	testFileName := path.Join(dirInodeName, "file")
 	implicitDirObjName := path.Join(dirInodeName, "implicit_dir") + "/blah"
 	symlinkName := path.Join(dirInodeName, "symlink")
@@ -1076,7 +1076,7 @@ func (t *DirTest) ReadEntryCores_NonEmpty_ImplicitDirsEnabled() {
 	// Set up contents.
 	backedDirEmptyName := path.Join(dirInodeName, "backed_dir_empty") + "/"
 	backedDirNonEmptyName := path.Join(dirInodeName, "backed_dir_nonempty") + "/"
-	backedDirNonEmptyFileName := path.Join(backedDirNonEmptyName)
+	backedDirNonEmptyFileName := path.Join(backedDirNonEmptyName, "blah")
 	testFileName := path.Join(dirInodeName, "file")
 	implicitDirObjName := path.Join(dirInodeName, "implicit_dir") + "/blah"
 	symlinkName := path.Join(dirInodeName, "symlink")
