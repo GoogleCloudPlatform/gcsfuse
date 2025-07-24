@@ -148,7 +148,7 @@ func (p *BufferedReader) freshStart(currentOffset int64) error {
 
 	// Schedule the first block as urgent.
 	if err := p.scheduleNextBlock(true); err != nil {
-		return fmt.Errorf("initial scheduling failed: %w", err)
+		return fmt.Errorf("freshStart: initial scheduling failed: %w", err)
 	}
 
 	// Prefetch the initial blocks.
