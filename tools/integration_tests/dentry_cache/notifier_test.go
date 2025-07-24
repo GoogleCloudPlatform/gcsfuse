@@ -62,7 +62,7 @@ func (s *notifierTest) TestWriteFileWithDentryCacheEnabled(t *testing.T) {
 	err = operations.WriteFile(filePath, "ShouldNotWrite")
 
 	// First Write File attempt should fail because file has been clobbered.
-	assert.NotNil(t, err)
+	operations.ValidateESTALEError(t, err)
 	// Second Write File attempt.
 	err = operations.WriteFile(filePath, "ShouldWrite")
 	// The notifier is triggered after the first write failure, invalidating the kernel cache entry.
@@ -87,7 +87,7 @@ func (s *notifierTest) TestReadFileWithDentryCacheEnabled(t *testing.T) {
 	_, err = operations.ReadFile(filePath)
 
 	// First Read File attempt should fail because file has been clobbered.
-	assert.NotNil(t, err)
+	operations.ValidateESTALEError(t, err)
 	// Second Read File attempt.
 	_, err = operations.ReadFile(filePath)
 	// The notifier is triggered after the first read failure, invalidating the kernel cache entry.

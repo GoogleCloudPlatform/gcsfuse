@@ -40,6 +40,15 @@ func errno(err error, preconditionErrCfg bool) error {
 		return nil
 	}
 
+	// The object is modified or deleted by a concurrent process.
+	var clobberedErr *gcsfuse_errors.FileClobberedError
+	if errors.As(err, &clobberedErr) {
+		if preconditionErrCfg {
+			return syscall.ESTALE
+		}
+		return nil
+	}
+
 	// Use existing em errno
 	var errno syscall.Errno
 	if errors.As(err, &errno) {
@@ -49,15 +58,6 @@ func errno(err error, preconditionErrCfg bool) error {
 	// The fuse op is interrupted
 	if errors.Is(err, context.Canceled) {
 		return syscall.EINTR
-	}
-
-	// The object is modified or deleted by a concurrent process.
-	var clobberedErr *gcsfuse_errors.FileClobberedError
-	if errors.As(err, &clobberedErr) {
-		if preconditionErrCfg {
-			return syscall.ESTALE
-		}
-		return nil
 	}
 
 	if errors.Is(err, storage.ErrObjectNotExist) {
