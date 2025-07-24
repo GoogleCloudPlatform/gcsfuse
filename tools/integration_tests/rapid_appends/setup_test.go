@@ -33,6 +33,7 @@ const (
 	initialContent = "dummy content"
 	appendContent  = "appended content"
 	// Minimum content size to write in order to trigger block upload while writing ; calculated as (2*blocksize+1) mb.
+	// Block size for buffered writes is set to 1MiB.
 	contentSizeForBW = 3
 )
 
