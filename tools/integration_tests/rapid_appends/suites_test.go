@@ -78,34 +78,6 @@ func (t *RapidAppendsSuite) TearDownSuite() {
 	}
 }
 
-func (t *RapidAppendsSuite) deleteUnfinalizedObject() {
-	if t.fileName != "" {
-		err := os.Remove(path.Join(t.primaryMount.testDirPath, t.fileName))
-		require.NoError(t.T(), err)
-		t.fileName = ""
-	}
-}
-
-func (t *RapidAppendsSuite) createUnfinalizedObject() {
-	t.fileName = fileNamePrefix + setup.GenerateRandomString(5)
-	// Create unfinalized object.
-	t.fileContent = setup.GenerateRandomString(unfinalizedObjectSize)
-	client.CreateUnfinalizedObject(ctx, t.T(), storageClient, path.Join(testDirName, t.fileName), t.fileContent)
-}
-
-func (t *RapidAppendsSuite) mountPrimaryMount(flags []string) {
-	// Create primary mountpoint.
-	setup.SetMntDir(t.primaryMount.mntDir)
-	setup.SetLogFile(t.primaryMount.logFilePath)
-	err := static_mounting.MountGcsfuseWithStaticMounting(flags)
-	require.NoError(t.T(), err, "Unable to mount gcsfuse with flags %v: %v", flags, err)
-	setup.SetupTestDirectory(testDirName)
-}
-
-func (t *RapidAppendsSuite) unmountPrimaryMount() {
-	setup.UnmountGCSFuse(t.primaryMount.mntDir)
-}
-
 // SingleMountRapidAppendsSuite is the suite for rapid appends tests with a single mount,
 // i.e. primary mount for both reading and writing/appending.
 type SingleMountRapidAppendsSuite struct {
@@ -161,6 +133,34 @@ func (t *DualMountRapidAppendsSuite) TearDownSuite() {
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
+
+func (t *RapidAppendsSuite) deleteUnfinalizedObject() {
+	if t.fileName != "" {
+		err := os.Remove(path.Join(t.primaryMount.testDirPath, t.fileName))
+		require.NoError(t.T(), err)
+		t.fileName = ""
+	}
+}
+
+func (t *RapidAppendsSuite) createUnfinalizedObject() {
+	t.fileName = fileNamePrefix + setup.GenerateRandomString(5)
+	// Create unfinalized object.
+	t.fileContent = setup.GenerateRandomString(unfinalizedObjectSize)
+	client.CreateUnfinalizedObject(ctx, t.T(), storageClient, path.Join(testDirName, t.fileName), t.fileContent)
+}
+
+func (t *RapidAppendsSuite) mountPrimaryMount(flags []string) {
+	// Create primary mountpoint.
+	setup.SetMntDir(t.primaryMount.mntDir)
+	setup.SetLogFile(t.primaryMount.logFilePath)
+	err := static_mounting.MountGcsfuseWithStaticMounting(flags)
+	require.NoError(t.T(), err, "Unable to mount gcsfuse with flags %v: %v", flags, err)
+	setup.SetupTestDirectory(testDirName)
+}
+
+func (t *RapidAppendsSuite) unmountPrimaryMount() {
+	setup.UnmountGCSFuse(t.primaryMount.mntDir)
+}
 
 // appendToFile appends the given "appendContent" to the given file.
 func (t *RapidAppendsSuite) appendToFile(file *os.File, appendContent string) {
