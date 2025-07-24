@@ -24,13 +24,14 @@ import (
 	"testing/iotest"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	testUtil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -64,7 +65,7 @@ func (t *rangeReaderTest) SetupTest() {
 		Generation: 1234,
 	}
 	t.mockBucket = new(storage.TestifyMockBucket)
-	t.rangeReader = NewRangeReader(t.object, t.mockBucket, nil, common.NewNoopMetrics())
+	t.rangeReader = NewRangeReader(t.object, t.mockBucket, nil, metrics.NewNoopMetrics())
 	t.ctx = context.Background()
 }
 
@@ -146,11 +147,11 @@ func (t *rangeReaderTest) Test_NewRangeReader() {
 		Generation: 4321,
 	}
 
-	reader := NewRangeReader(object, t.mockBucket, nil, common.NewNoopMetrics())
+	reader := NewRangeReader(object, t.mockBucket, nil, metrics.NewNoopMetrics())
 
 	assert.Equal(t.T(), object, reader.object)
 	assert.Equal(t.T(), t.mockBucket, reader.bucket)
-	assert.Equal(t.T(), common.NewNoopMetrics(), reader.metricHandle)
+	assert.Equal(t.T(), metrics.NewNoopMetrics(), reader.metricHandle)
 	assert.Equal(t.T(), int64(-1), reader.start)
 	assert.Equal(t.T(), int64(-1), reader.limit)
 }
@@ -405,7 +406,7 @@ func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenReaderReturnedMoreData() 
 			}
 			t.rangeReader.cancel = func() {}
 
-			n, err := t.rangeReader.readFromRangeReader(t.ctx, make([]byte, 10), 0, 10, "unhandled")
+			n, err := t.rangeReader.readFromRangeReader(t.ctx, make([]byte, 10), 0, 10, metrics.ReadTypeUnknown)
 
 			assert.Error(t.T(), err)
 			assert.Zero(t.T(), n)
@@ -418,6 +419,7 @@ func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenReaderReturnedMoreData() 
 }
 
 func (t *rangeReaderTest) Test_ReadAt_PropagatesCancellation() {
+	t.rangeReader = NewRangeReader(t.object, t.mockBucket, &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: false}}, metrics.NewNoopMetrics())
 	// Set up a blocking reader
 	finishRead := make(chan struct{})
 	blocking := &blockingReader{c: finishRead}
@@ -533,7 +535,7 @@ func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenAllDataFromReaderIsRead()
 			t.rangeReader.cancel = func() {}
 			buf := make([]byte, dataSize)
 
-			n, err := t.rangeReader.readFromRangeReader(t.ctx, buf, 4, 10, "unhandled")
+			n, err := t.rangeReader.readFromRangeReader(t.ctx, buf, 4, 10, metrics.ReadTypeUnknown)
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), dataSize, n)
@@ -576,7 +578,7 @@ func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenReaderHasLessDataThanRequ
 			t.rangeReader.cancel = func() {}
 			buf := make([]byte, 10)
 
-			n, err := t.rangeReader.readFromRangeReader(t.ctx, buf, 0, 10, "unhandled")
+			n, err := t.rangeReader.readFromRangeReader(t.ctx, buf, 0, 10, metrics.ReadTypeUnknown)
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), dataSize, n)

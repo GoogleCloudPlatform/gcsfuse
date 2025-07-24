@@ -22,11 +22,11 @@ import (
 	"math"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
 
 const (
@@ -60,17 +60,17 @@ type RangeReader struct {
 	readHandle []byte
 	cancel     func()
 
-	readType     string
-	readConfig   *cfg.ReadConfig
-	metricHandle common.MetricHandle
+	readType     int64
+	config       *cfg.Config
+	metricHandle metrics.MetricHandle
 }
 
-func NewRangeReader(object *gcs.MinObject, bucket gcs.Bucket, readConfig *cfg.ReadConfig, metricHandle common.MetricHandle) *RangeReader {
+func NewRangeReader(object *gcs.MinObject, bucket gcs.Bucket, config *cfg.Config, metricHandle metrics.MetricHandle) *RangeReader {
 	return &RangeReader{
 		object:       object,
 		bucket:       bucket,
 		metricHandle: metricHandle,
-		readConfig:   readConfig,
+		config:       config,
 		start:        -1,
 		limit:        -1,
 	}
@@ -131,7 +131,7 @@ func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (
 // readFromRangeReader reads using the NewReader interface of go-sdk. It uses
 // the existing reader if available, otherwise makes a call to GCS.
 // Before calling this method we have to use invalidateReaderIfMisalignedOrTooSmall to get the reader start at the correct position.
-func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType string) (int, error) {
+func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType int64) (int, error) {
 	var err error
 	// If we don't have a reader, start a read operation.
 	if rr.reader == nil {
@@ -187,7 +187,7 @@ func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset
 	}
 
 	requestedDataSize := end - offset
-	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, readType, requestedDataSize)
+	metrics.CaptureGCSReadMetrics(ctx, rr.metricHandle, metrics.ReadTypeNames[readType], requestedDataSize)
 
 	return n, err
 }
@@ -196,28 +196,30 @@ func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset
 //
 // REQUIRES: rr.reader != nil
 func (rr *RangeReader) readFull(ctx context.Context, p []byte) (int, error) {
-	// Start a goroutine that will cancel the read operation we block on below if
-	// the calling context is cancelled, but only if this method has not already
-	// returned (to avoid souring the reader for the next read if this one is
-	// successful, since the calling context will eventually be cancelled).
-	readDone := make(chan struct{})
-	defer close(readDone)
+	if rr.config != nil && !rr.config.FileSystem.IgnoreInterrupts {
+		// Start a goroutine that will cancel the read operation we block on below if
+		// the calling context is cancelled, but only if this method has not already
+		// returned (to avoid souring the reader for the next read if this one is
+		// successful, since the calling context will eventually be cancelled).
+		readDone := make(chan struct{})
+		defer close(readDone)
 
-	go func() {
-		select {
-		case <-readDone:
-			return
-
-		case <-ctx.Done():
+		go func() {
 			select {
 			case <-readDone:
 				return
 
-			default:
-				rr.cancel()
+			case <-ctx.Done():
+				select {
+				case <-readDone:
+					return
+
+				default:
+					rr.cancel()
+				}
 			}
-		}
-	}()
+		}()
+	}
 
 	return io.ReadFull(rr.reader, p)
 }
@@ -229,7 +231,7 @@ func (rr *RangeReader) startRead(start int64, end int64) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	var err error
 
-	if rr.readConfig != nil && rr.readConfig.InactiveStreamTimeout > 0 {
+	if rr.config != nil && rr.config.Read.InactiveStreamTimeout > 0 {
 		rr.reader, err = gcsx.NewInactiveTimeoutReader(
 			ctx,
 			rr.bucket,
@@ -239,7 +241,7 @@ func (rr *RangeReader) startRead(start int64, end int64) error {
 				Start: uint64(start),
 				Limit: uint64(end),
 			},
-			rr.readConfig.InactiveStreamTimeout)
+			rr.config.Read.InactiveStreamTimeout)
 	} else {
 		rr.reader, err = rr.bucket.NewReaderWithReadHandle(
 			ctx,
@@ -279,7 +281,7 @@ func (rr *RangeReader) startRead(start int64, end int64) error {
 	rr.limit = end
 
 	requestedDataSize := end - start
-	common.CaptureGCSReadMetrics(ctx, rr.metricHandle, common.ReadTypeSequential, requestedDataSize)
+	metrics.CaptureGCSReadMetrics(ctx, rr.metricHandle, metrics.ReadTypeNames[metrics.ReadTypeSequential], requestedDataSize)
 
 	return nil
 }

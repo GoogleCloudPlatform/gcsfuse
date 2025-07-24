@@ -22,11 +22,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/clock"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"golang.org/x/net/context"
 )
 
@@ -186,7 +186,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader() (err
 
 // Reads the data using MultiRangeDownloader.
 func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []byte,
-	startOffset int64, endOffset int64, timeout time.Duration, metricHandle common.MetricHandle) (bytesRead int, err error) {
+	startOffset int64, endOffset int64, timeout time.Duration, metricHandle metrics.MetricHandle) (bytesRead int, err error) {
 	// Bidi Api with 0 as read_limit means no limit whereas we do not want to read anything with empty buffer.
 	// Hence, handling it separately.
 	if len(buf) == 0 {

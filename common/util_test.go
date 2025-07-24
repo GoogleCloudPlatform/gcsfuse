@@ -14,6 +14,9 @@
 package common
 
 import (
+	"context"
+	"fmt"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -79,4 +82,113 @@ func TestIsKLCacheEvictionUnSupported(t *testing.T) {
 			assert.Equal(t, tc.expectedSkip, skip)
 		})
 	}
+}
+
+func TestJoinShutdownFunc(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name         string
+		fns          []ShutdownFn
+		expectedErrs []string
+	}{
+		{
+			name:         "normal",
+			fns:          []ShutdownFn{func(_ context.Context) error { return nil }},
+			expectedErrs: nil,
+		},
+		{
+			name:         "one_err",
+			fns:          []ShutdownFn{func(_ context.Context) error { return fmt.Errorf("err") }},
+			expectedErrs: []string{"err"},
+		},
+		{
+			name: "two_err",
+			fns: []ShutdownFn{
+				func(_ context.Context) error { return fmt.Errorf("err1") },
+				func(_ context.Context) error { return fmt.Errorf("err2") },
+			},
+			expectedErrs: []string{"err1", "err2"},
+		},
+		{
+			name: "two_err_one_normal",
+			fns: []ShutdownFn{
+				func(_ context.Context) error { return fmt.Errorf("err1") },
+				func(_ context.Context) error { return nil },
+				func(_ context.Context) error { return fmt.Errorf("err2") },
+			},
+			expectedErrs: []string{"err1", "err2"},
+		},
+		{
+			name: "nil",
+			fns: []ShutdownFn{
+				func(_ context.Context) error { return fmt.Errorf("err1") },
+				nil,
+				func(_ context.Context) error { return fmt.Errorf("err2") },
+			},
+			expectedErrs: []string{"err1", "err2"},
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := JoinShutdownFunc(tc.fns...)(context.Background())
+
+			if len(tc.expectedErrs) == 0 {
+				assert.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				for _, e := range tc.expectedErrs {
+					assert.ErrorContains(t, err, e)
+				}
+			}
+		})
+	}
+}
+
+func TestCloseFile(t *testing.T) {
+	// Setup
+	f, err := os.CreateTemp("", "testFile-*")
+	require.NoError(t, err)
+
+	// Close file and assert
+	assert.NotPanics(t, func() { CloseFile(f) })
+}
+
+func TestWriteFile(t *testing.T) {
+	// Setup
+	tmpFile, err := os.CreateTemp("", "testFile-*")
+	require.NoError(t, err)
+	filePath := tmpFile.Name()
+	defer os.Remove(filePath)
+	require.NoError(t, tmpFile.Close())
+
+	// Call WriteFile
+	err = WriteFile(filePath, "content")
+
+	// Assertions
+	assert.NoError(t, err)
+	data, err := ReadFile(filePath)
+	require.NoError(t, err)
+	assert.Equal(t, "content", string(data))
+}
+
+func TestReadFile(t *testing.T) {
+	// Setup
+	file, err := os.CreateTemp("", "testFile-*")
+	require.NoError(t, err)
+	fileName := file.Name()
+	defer os.Remove(fileName)
+	_, err = file.WriteString("content")
+	require.NoError(t, err)
+	require.NoError(t, file.Close())
+
+	// Call ReadFile
+	content, err := ReadFile(fileName)
+
+	// Assertions
+	assert.NoError(t, err)
+	assert.Equal(t, "content", string(content))
 }

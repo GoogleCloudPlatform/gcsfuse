@@ -18,8 +18,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/jacobsa/fuse"
@@ -62,7 +62,7 @@ type baseDirInode struct {
 	// GUARDED_BY(mu)
 	buckets map[string]gcsx.SyncerBucket
 
-	metricHandle common.MetricHandle
+	metricHandle metrics.MetricHandle
 }
 
 // NewBaseDirInode returns a baseDirInode that acts as the directory of
@@ -72,7 +72,7 @@ func NewBaseDirInode(
 	name Name,
 	attrs fuseops.InodeAttributes,
 	bm gcsx.BucketManager,
-	metricHandle common.MetricHandle) (d DirInode) {
+	metricHandle metrics.MetricHandle) (d DirInode) {
 	typed := &baseDirInode{
 		id:            id,
 		name:          NewRootName(""),

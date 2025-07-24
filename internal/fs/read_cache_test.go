@@ -26,9 +26,9 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	testutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -76,7 +76,7 @@ func (t *FileCacheTest) SetUpTestSuite() {
 		},
 		CacheDir: cfg.ResolvedPath(CacheDir),
 	}
-	t.serverCfg.MetricHandle = common.NewNoopMetrics()
+	t.serverCfg.MetricHandle = metrics.NewNoopMetrics()
 	t.fsTest.SetUpTestSuite()
 }
 

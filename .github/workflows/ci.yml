@@ -7,8 +7,27 @@ on:
   pull_request:
     branches:
       - '*'
+permissions:
+  contents: read
 
 jobs:
+  filter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run_tests: ${{ steps.filter.outputs.run_tests }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3.0.2
+        id: filter
+        with:
+          predicate-quantifier: 'every'
+          filters: |
+            run_tests:
+              - '!**/*.md'
+              - '!tools/**'
+              - '!perfmetrics/**'
+              - '!samples/**'
   format-test:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -24,6 +43,7 @@ jobs:
       run: go fmt ./... && go mod tidy && git diff --exit-code --name-only
 
   linux-tests:
+    needs: filter
     strategy:
       matrix:
         go: [ 1.24.x ]
@@ -39,13 +59,16 @@ jobs:
     - name: Install fuse
       run: sudo apt-get update && sudo apt-get install -y fuse3 libfuse-dev
     - name: Build
+      if: ${{ needs.filter.outputs.run_tests == 'true' }}
       run: |
         CGO_ENABLED=0 go build ./...
         go install ./tools/build_gcsfuse
         build_gcsfuse . /tmp ${GITHUB_SHA}
     - name: Test all
+      if: ${{ needs.filter.outputs.run_tests == 'true' }}
       run: CGO_ENABLED=0 go test -p 1 -count 1 -covermode=atomic -coverprofile=coverage.out -coverpkg=./... -v -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./...`
     - name: RaceDetector Test
+      if: ${{ needs.filter.outputs.run_tests == 'true' }}
       run: go test -p 1 -count 1 -v -race -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` ./internal/cache/... ./internal/gcsx/...
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v4.3.1
@@ -57,6 +80,7 @@ jobs:
 
   lint:
     name: Lint
+    if: github.ref != 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
     - name: Setup Go

@@ -4,6 +4,7 @@ go 1.24.0
 
 require (
 	cloud.google.com/go/auth v0.16.1
+	cloud.google.com/go/auth/oauth2adapt v0.2.8
 	cloud.google.com/go/compute/metadata v0.7.0
 	cloud.google.com/go/iam v1.5.2
 	cloud.google.com/go/profiler v0.4.2
@@ -56,7 +57,6 @@ require (
 require (
 	cel.dev/expr v0.24.0 // indirect
 	cloud.google.com/go v0.121.2 // indirect
-	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/longrunning v0.6.7 // indirect
 	cloud.google.com/go/monitoring v1.24.2 // indirect
 	cloud.google.com/go/pubsub v1.49.0 // indirect

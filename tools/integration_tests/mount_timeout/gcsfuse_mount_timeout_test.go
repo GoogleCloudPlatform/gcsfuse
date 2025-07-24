@@ -19,6 +19,7 @@ import (
 	"math"
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -160,28 +161,36 @@ func (testSuite *ZBMountTimeoutTest) TearDownTest() {
 
 // mountOrTimeout mounts the bucket with the given client protocol. If the time taken
 // exceeds the expected for the particular test case , an error is thrown and test will fail.
-func (testSuite *MountTimeoutTest) mountOrTimeout(bucketName, mountDir, clientProtocol string, expectedMountTime time.Duration) error {
+func (testSuite *MountTimeoutTest) mountOrTimeout(bucketName, mountDir, clientProtocol string, expectedMountTime time.Duration) (err error) {
 	minMountTime := time.Duration(math.MaxInt64)
+	logFile := setup.LogFile()
+	defer func() {
+		if err != nil {
+			setup.SaveLogFileAsArtifact(logFile, setup.GCSFuseLogFilePrefix+filepath.Base(logFile))
+		}
+	}()
 
 	// Iterating 10 times to account for randomness in time taken to mount.
+	args := []string{"--client-protocol", clientProtocol, "--log-file=" + logFile, bucketName, testSuite.dir}
 	for i := 0; i < iterations; i++ {
-		args := []string{"--client-protocol", clientProtocol, bucketName, testSuite.dir}
 		start := time.Now()
-		if err := mounting.MountGcsfuse(testSuite.gcsfusePath, args); err != nil {
+		if err = mounting.MountGcsfuse(testSuite.gcsfusePath, args); err != nil {
+			err = fmt.Errorf("mount failed for bucket %q (client protocol: %s) on attempt#%v: %w", bucketName, clientProtocol, i, err)
 			return err
 		}
 		mountTime := time.Since(start)
 
 		minMountTime = time.Duration(math.Min(float64(minMountTime), float64(mountTime)))
 
-		if err := util.Unmount(mountDir); err != nil {
-			err = fmt.Errorf("Warning: unmount failed: %v\n", err)
+		if err = util.Unmount(mountDir); err != nil {
+			err = fmt.Errorf("unmount failed for bucket %q on attempt#%v: %w", bucketName, i, err)
 			return err
 		}
 	}
 
 	if minMountTime > expectedMountTime {
-		return fmt.Errorf("[Client Protocol: %s] Mounting failed due to timeout (exceeding %f seconds). Time taken for mounting %s: %f sec", clientProtocol, expectedMountTime.Seconds(), bucketName, minMountTime.Seconds())
+		err = fmt.Errorf("mount took too long for bucket %q (client protocol: %s). expected: %v, actual minimum mount time: %v", bucketName, clientProtocol, expectedMountTime, minMountTime)
+		return err
 	}
 	return nil
 }

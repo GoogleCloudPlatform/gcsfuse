@@ -25,13 +25,13 @@ import (
 	"syscall"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	cacheutil "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"golang.org/x/net/context"
 	"golang.org/x/sync/semaphore"
 )
@@ -96,7 +96,7 @@ type Job struct {
 	// downloaded when parallel download is enabled.
 	rangeChan chan data.ObjectRange
 
-	metricsHandle common.MetricHandle
+	metricsHandle metrics.MetricHandle
 }
 
 // JobStatus represents the status of job.
@@ -122,7 +122,7 @@ func NewJob(
 	removeJobCallback func(),
 	fileCacheConfig *cfg.FileCacheConfig,
 	maxParallelismSem *semaphore.Weighted,
-	metricHandle common.MetricHandle,
+	metricHandle metrics.MetricHandle,
 ) (job *Job) {
 	job = &Job{
 		object:               object,
@@ -326,7 +326,7 @@ func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
 			if newReader != nil {
 				readHandle = newReader.ReadHandle()
 			}
-			common.CaptureGCSReadMetrics(job.cancelCtx, job.metricsHandle, common.ReadTypeSequential, newReaderLimit-start)
+			metrics.CaptureGCSReadMetrics(job.cancelCtx, job.metricsHandle, metrics.ReadTypeNames[metrics.ReadTypeSequential], newReaderLimit-start)
 		}
 
 		maxRead := min(ReadChunkSize, newReaderLimit-start)

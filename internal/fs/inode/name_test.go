@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -105,4 +106,47 @@ func TestNameAsMapKey(t *testing.T) {
 	ExpectEq(2, count[foo])
 	_, ok := count[bar]
 	ExpectFalse(ok)
+}
+
+func TestParentName(t *testing.T) {
+	for _, bucketName := range []string{"", "bucketx"} {
+		// Setup
+		root := inode.NewRootName(bucketName) // ""
+		foo := inode.NewDirName(root, "foo")  // "foo/"
+		bar := inode.NewDirName(foo, "bar")   // "foo/bar/"
+		baz := inode.NewFileName(root, "baz") // "baz"
+		qux := inode.NewFileName(bar, "qux")  // "foo/bar/qux"
+		// Test cases
+		testCases := []struct {
+			name               inode.Name
+			expectedParentName inode.Name
+		}{
+			{name: foo, expectedParentName: root},
+			{name: bar, expectedParentName: foo},
+			{name: baz, expectedParentName: root},
+			{name: qux, expectedParentName: bar},
+		}
+
+		for _, tc := range testCases {
+			parent, err := tc.name.ParentName()
+
+			ExpectEq(nil, err)
+			ExpectEq(tc.expectedParentName.GcsObjectName(), parent.GcsObjectName())
+			ExpectEq(tc.expectedParentName.LocalName(), parent.LocalName())
+		}
+	}
+}
+
+func TestParentNameReturnsErrorOnBucketRoot(t *testing.T) {
+	for _, bucketName := range []string{"", "bucketx"} {
+		// Setup
+		root := inode.NewRootName(bucketName) // ""
+
+		// Call ParentName on bucket root
+		_, err := root.ParentName()
+
+		// Expect an error
+		ExpectNe(nil, err)
+		ExpectThat(err, Error(HasSubstr("root has no parent")))
+	}
 }

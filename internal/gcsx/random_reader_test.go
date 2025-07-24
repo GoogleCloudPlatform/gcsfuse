@@ -27,7 +27,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
@@ -37,6 +36,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	testutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/fuse/fuseops"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
@@ -181,11 +181,11 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 	lruCache := lru.NewCache(cacheMaxSize)
 	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, &cfg.FileCacheConfig{
 		EnableCrc: false,
-	}, common.NewNoopMetrics())
+	}, metrics.NewNoopMetrics())
 	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "")
 
 	// Set up the reader.
-	rr := NewRandomReader(t.object, t.bucket, sequentialReadSizeInMb, nil, false, common.NewNoopMetrics(), nil, nil)
+	rr := NewRandomReader(t.object, t.bucket, sequentialReadSizeInMb, nil, false, metrics.NewNoopMetrics(), nil, nil)
 	t.rr.wrapped = rr.(*randomReader)
 }
 
@@ -357,6 +357,7 @@ func (t *RandomReaderTest) PropagatesCancellation() {
 	t.rr.wrapped.reader = &fake.FakeReader{ReadCloser: rc}
 	t.rr.wrapped.start = 1
 	t.rr.wrapped.limit = 4
+	t.rr.wrapped.config = &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: false}}
 
 	// Snoop on when cancel is called.
 	cancelCalled := make(chan struct{})
@@ -466,13 +467,13 @@ func (t *RandomReaderTest) UpgradeReadsToAverageSize() {
 	const readSize = 2 * minReadSize
 
 	// Simulate an existing reader at a mismatched offset.
-	t.rr.wrapped.seeks = numReads
-	t.rr.wrapped.totalReadBytes = totalReadBytes
+	t.rr.wrapped.seeks.Store(numReads)
+	t.rr.wrapped.totalReadBytes.Store(totalReadBytes)
 	t.rr.wrapped.reader = &fake.FakeReader{ReadCloser: getReadCloser([]byte("xxx"))}
 	t.rr.wrapped.cancel = func() {}
 	t.rr.wrapped.start = 2
 	t.rr.wrapped.limit = 5
-	t.rr.wrapped.expectedOffset = 2
+	t.rr.wrapped.expectedOffset.Store(2)
 
 	// The bucket should be asked to read expectedBytesToRead bytes.
 	r := strings.NewReader(strings.Repeat("x", expectedBytesToRead))
@@ -536,7 +537,7 @@ func (t *RandomReaderTest) UpgradesSequentialReads_NoExistingReader() {
 	t.object.Size = 1 << 40
 	const readSize = 1 * MiB
 	// Set up the custom randomReader.
-	rr := NewRandomReader(t.object, t.bucket, readSize/MiB, nil, false, common.NewNoopMetrics(), nil, nil)
+	rr := NewRandomReader(t.object, t.bucket, readSize/MiB, nil, false, metrics.NewNoopMetrics(), nil, nil)
 	t.rr.wrapped = rr.(*randomReader)
 
 	// Simulate a previous exhausted reader that ended at the offset from which

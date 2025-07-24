@@ -19,12 +19,12 @@ import (
 	"os"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -61,12 +61,12 @@ type JobManager struct {
 	jobs              map[string]*Job
 	mu                locker.Locker
 	maxParallelismSem *semaphore.Weighted
-	metricHandle      common.MetricHandle
+	metricHandle      metrics.MetricHandle
 }
 
 func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, dirPerm os.FileMode,
 	cacheDir string, sequentialReadSizeMb int32, c *cfg.FileCacheConfig,
-	metricHandle common.MetricHandle) (jm *JobManager) {
+	metricHandle metrics.MetricHandle) (jm *JobManager) {
 	maxParallelDownloads := int64(math.MaxInt64)
 	if c.MaxParallelDownloads > 0 {
 		maxParallelDownloads = c.MaxParallelDownloads

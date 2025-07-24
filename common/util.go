@@ -15,10 +15,31 @@
 package common
 
 import (
+	"context"
+	"errors"
+	"fmt"
+	"log"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
 )
+
+type ShutdownFn func(ctx context.Context) error
+
+// JoinShutdownFunc combines the provided shutdown functions into a single function.
+func JoinShutdownFunc(shutdownFns ...ShutdownFn) ShutdownFn {
+	return func(ctx context.Context) error {
+		var err error
+		for _, fn := range shutdownFns {
+			if fn == nil {
+				continue
+			}
+			err = errors.Join(err, fn(ctx))
+		}
+		return err
+	}
+}
 
 // GetKernelVersion returns the kernel version.
 func GetKernelVersion() (string, error) {
@@ -59,4 +80,43 @@ func IsKLCacheEvictionUnSupported() (bool, error) {
 	}
 
 	return false, nil
+}
+
+func CloseFile(file *os.File) {
+	if err := file.Close(); err != nil {
+		log.Fatalf("error in closing: %v", err)
+	}
+}
+
+func WriteFile(fileName string, content string) (err error) {
+	f, err := os.OpenFile(fileName, os.O_RDWR, 0600)
+	if err != nil {
+		err = fmt.Errorf("open file for write at start: %v", err)
+		return
+	}
+
+	// Closing file at the end.
+	defer CloseFile(f)
+
+	_, err = f.WriteAt([]byte(content), 0)
+
+	return
+}
+
+func ReadFile(filePath string) (content []byte, err error) {
+	f, err := os.OpenFile(filePath, os.O_RDONLY, 0600)
+	if err != nil {
+		err = fmt.Errorf("error in the opening the file %v", err)
+		return
+	}
+
+	// Closing file at the end.
+	defer CloseFile(f)
+
+	content, err = os.ReadFile(f.Name())
+	if err != nil {
+		err = fmt.Errorf("ReadAll: %v", err)
+		return
+	}
+	return
 }

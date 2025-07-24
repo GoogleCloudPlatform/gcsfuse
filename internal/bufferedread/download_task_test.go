@@ -44,7 +44,7 @@ type DownloadTaskTestSuite struct {
 	suite.Suite
 	object     *gcs.MinObject
 	mockBucket *storage.TestifyMockBucket
-	blockPool  *block.BlockPool
+	blockPool  *block.GenBlockPool[block.PrefetchBlock]
 }
 
 func TestDownloadTaskTestSuite(t *testing.T) {
@@ -59,7 +59,7 @@ func (dts *DownloadTaskTestSuite) SetupTest() {
 	}
 	dts.mockBucket = new(storage.TestifyMockBucket)
 	var err error
-	dts.blockPool, err = block.NewBlockPool(testBlockSize, 10, semaphore.NewWeighted(100))
+	dts.blockPool, err = block.NewPrefetchBlockPool(testBlockSize, 10, semaphore.NewWeighted(100))
 	require.NoError(dts.T(), err, "Failed to create block pool")
 }
 
