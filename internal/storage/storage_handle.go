@@ -188,7 +188,7 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 	if clientConfig.EnableGoogleLibAuth {
 		var authOpts []option.ClientOption
-		authOpts, tokenSrc, err = storageutil.GetClientAuthOptionsAndToken(context.Background(), clientConfig)
+		authOpts, tokenSrc, err = storageutil.GetClientAuthOptionsAndToken(ctx, clientConfig)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get client auth options and token: %w", err)
 		}
