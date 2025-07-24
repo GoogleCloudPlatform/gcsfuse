@@ -266,29 +266,43 @@ func (t *MainTest) TestIsDynamicMount() {
 
 func (t *MainTest) TestForwardedEnvVars() {
 	for _, input := range []struct {
-		inputEnvVars             map[string]string
-		expectedForwardedEnvVars []string
+		inputEnvVars                   map[string]string
+		expectedForwardedEnvVars       []string
+		unexpectedForwardedEnvVarNames []string
 	}{{
 		inputEnvVars:             map[string]string{"GCE_METADATA_HOST": "www.metadata-host.com", "GCE_METADATA_ROOT": "metadata-root", "GCE_METADATA_IP": "99.100.101.102"},
 		expectedForwardedEnvVars: []string{"GCE_METADATA_HOST=www.metadata-host.com", "GCE_METADATA_ROOT=metadata-root", "GCE_METADATA_IP=99.100.101.102"},
 	}, {
-		inputEnvVars:             map[string]string{"https_proxy": "https-proxy-123", "http_proxy": "http-proxy-123", "no_proxy": "no-proxy-123"},
-		expectedForwardedEnvVars: []string{"https_proxy=https-proxy-123", "no_proxy=no-proxy-123"},
+		inputEnvVars:                   map[string]string{"https_proxy": "https-proxy-123", "http_proxy": "http-proxy-123", "no_proxy": "no-proxy-123"},
+		expectedForwardedEnvVars:       []string{"https_proxy=https-proxy-123", "no_proxy=no-proxy-123"},
+		unexpectedForwardedEnvVarNames: []string{"http_proxy"},
 	}, {
-		inputEnvVars:             map[string]string{"http_proxy": "http-proxy-123", "no_proxy": "no-proxy-123"},
-		expectedForwardedEnvVars: []string{"http_proxy=http-proxy-123", "no_proxy=no-proxy-123"},
+		inputEnvVars:                   map[string]string{"http_proxy": "http-proxy-123", "no_proxy": "no-proxy-123"},
+		expectedForwardedEnvVars:       []string{"http_proxy=http-proxy-123", "no_proxy=no-proxy-123"},
+		unexpectedForwardedEnvVarNames: []string{"https_proxy"},
 	}, {
 		inputEnvVars:             map[string]string{"GOOGLE_APPLICATION_CREDENTIALS": "goog-app-cred"},
 		expectedForwardedEnvVars: []string{"GOOGLE_APPLICATION_CREDENTIALS=goog-app-cred"},
 	}, {
-		expectedForwardedEnvVars: []string{"GCSFUSE_IN_BACKGROUND_MODE=true"},
+		expectedForwardedEnvVars:       []string{"GCSFUSE_IN_BACKGROUND_MODE=true"},
+		unexpectedForwardedEnvVarNames: []string{"GRPC_GO_LOG_VERBOSITY_LEVEL", "GRPC_GO_LOG_SEVERITY_LEVEL", "GCE_METADATA_HOST", "GCE_METADATA_IP", "GCE_METADATA_ROOT", "http_proxy", "https_proxy", "no_proxy", "GOOGLE_APPLICATION_CREDENTIALS"},
+	}, {
+		inputEnvVars:             map[string]string{"GRPC_GO_LOG_VERBOSITY_LEVEL": "99", "GRPC_GO_LOG_SEVERITY_LEVEL": "INFO"},
+		expectedForwardedEnvVars: []string{"GRPC_GO_LOG_VERBOSITY_LEVEL=99", "GRPC_GO_LOG_SEVERITY_LEVEL=INFO"},
 	},
 	} {
 		for envvar, envval := range input.inputEnvVars {
 			os.Setenv(envvar, envval)
 		}
+
 		forwardedEnvVars := forwardedEnvVars()
+
 		assert.Subset(t.T(), forwardedEnvVars, input.expectedForwardedEnvVars)
+		for _, forwardedEnvVar := range forwardedEnvVars {
+			forwardedEnvVarName, _, ok := strings.Cut(forwardedEnvVar, "=")
+			assert.True(t.T(), ok)
+			assert.NotContains(t.T(), input.unexpectedForwardedEnvVarNames, forwardedEnvVarName)
+		}
 		assert.Contains(t.T(), forwardedEnvVars, fmt.Sprintf("PATH=%s", os.Getenv("PATH")))
 		for envvar := range input.inputEnvVars {
 			os.Unsetenv(envvar)
