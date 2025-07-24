@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync/atomic"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
@@ -60,19 +61,19 @@ type GCSReader struct {
 	mrr         *MultiRangeReader
 
 	// ReadType of the reader. Will be sequential by default.
-	readType string
+	readType atomic.Int64
 
 	sequentialReadSizeMb int32
 
 	// Specifies the next expected offset for the reads. Used to distinguish between
 	// sequential and random reads.
-	expectedOffset int64
+	expectedOffset atomic.Int64
 
 	// seeks represents the number of random reads performed by the reader.
-	seeks uint64
+	seeks atomic.Uint64
 
 	// totalReadBytes is the total number of bytes read by the reader.
-	totalReadBytes uint64
+	totalReadBytes atomic.Uint64
 }
 
 type GCSReaderConfig struct {
@@ -89,7 +90,6 @@ func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, config *GCSReaderConfig
 		sequentialReadSizeMb: config.SequentialReadSizeMb,
 		rangeReader:          NewRangeReader(obj, bucket, config.Config, config.MetricHandle),
 		mrr:                  NewMultiRangeReader(obj, config.MetricHandle, config.MrdWrapper),
-		readType:             metrics.ReadTypeSequential,
 	}
 }
 
@@ -109,7 +109,7 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.R
 	}
 	defer func() {
 		gr.updateExpectedOffset(offset + int64(readerResponse.Size))
-		gr.totalReadBytes += uint64(readerResponse.Size)
+		gr.totalReadBytes.Add(uint64(readerResponse.Size))
 	}()
 
 	var err error
@@ -123,8 +123,8 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.R
 
 	// If the data can't be served from the existing reader, then we need to update the seeks.
 	// If current offset is not same as expected offset, it's a random read.
-	if gr.expectedOffset != 0 && gr.expectedOffset != offset {
-		gr.seeks++
+	if expectedOffset := gr.expectedOffset.Load(); expectedOffset != 0 && expectedOffset != offset {
+		gr.seeks.Add(1)
 	}
 
 	// If we don't have a reader, determine whether to read from RangeReader or MultiRangeReader.
@@ -149,7 +149,7 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.R
 // readerType specifies the go-sdk interface to use for reads.
 func (gr *GCSReader) readerType(start int64, end int64, bucketType gcs.BucketType) ReaderType {
 	bytesToBeRead := end - start
-	if gr.readType == metrics.ReadTypeRandom && bytesToBeRead < maxReadSize && bucketType.Zonal {
+	if gr.readType.Load() == metrics.ReadTypeRandom && bytesToBeRead < maxReadSize && bucketType.Zonal {
 		return MultiRangeReaderType
 	}
 	return RangeReaderType
@@ -176,9 +176,9 @@ func (gr *GCSReader) getReadInfo(start int64, size int64) (int64, error) {
 // determineEnd calculates the end position for a read operation based on the current read pattern.
 func (gr *GCSReader) determineEnd(start int64) int64 {
 	end := int64(gr.object.Size)
-	if gr.seeks >= minSeeksForRandom {
-		gr.readType = metrics.ReadTypeRandom
-		averageReadBytes := gr.totalReadBytes / gr.seeks
+	if seeks := gr.seeks.Load(); seeks >= minSeeksForRandom {
+		gr.readType.Store(metrics.ReadTypeRandom)
+		averageReadBytes := gr.totalReadBytes.Load() / seeks
 		if averageReadBytes < maxReadSize {
 			randomReadSize := int64(((averageReadBytes / MB) + 1) * MB)
 			if randomReadSize < minReadSize {
@@ -206,7 +206,7 @@ func (gr *GCSReader) limitEnd(start, currentEnd int64) int64 {
 }
 
 func (gr *GCSReader) updateExpectedOffset(offset int64) {
-	gr.expectedOffset = offset
+	gr.expectedOffset.Store(offset)
 }
 
 func (gr *GCSReader) Destroy() {

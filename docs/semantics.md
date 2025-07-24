@@ -342,7 +342,7 @@ Cloud Storage Fuse also offers seamless support for buckets with hierarchical na
 
 HNS-enabled buckets offer several advantages over standard buckets when used with cloud storage fuse:
 
-- HNS-enabled buckets eliminates the need for --implicit-dirs flag. HNS buckets inherently understand directories, so gcsfuse does not need to simulate directories using placeholder objects ( 0-byte objects ending with '/' ). Users will see consistent directory listings with or without the flag.
+- HNS-enabled buckets eliminate the need for --implicit-dirs flag. HNS buckets inherently understand directories, so gcsfuse does not need to simulate directories using placeholder objects ( 0-byte objects ending with '/' ). Users will see consistent directory listings with or without the flag.
 - In HNS buckets, renaming a folder and its child folders is an atomic operation, meaning all associated resources—including objects and managed folders—are renamed in a single step. This ensures data consistency and significantly improves operation performance.
 - HNS buckets treat folders as first-class entities, closely aligning with traditional file system semantics. Commands like mkdir now directly create folder resources within the bucket, unlike with traditional buckets where directories were simulated using prefixes and 0-byte objects.
 - List object calls ([BucketHandle.Objects](https://cloud.google.com/storage/docs/json_api/v1/objects/list)), are replaced with [get folder](https://cloud.google.com/storage/docs/json_api/v1/folders/getfoldermetadata) calls, resulting in quicker response times and fewer overall list calls for every lookup operation.
@@ -437,7 +437,13 @@ ___
 
 # Symlink inodes
 
-Cloud Storage FUSE represents symlinks with empty Cloud Storage objects that contain the custom metadata key ```gcsfuse_symlink_target```, with the value giving the target of a symlink. In other respects they work like a file inode, including receiving the same permissions. 
+Cloud Storage FUSE represents symlinks with empty Cloud Storage objects that contain the custom metadata key ```gcsfuse_symlink_target```, with the value giving the target of a symlink. In other respects they work like a file inode, including receiving the same permissions.
+
+
+**Note**
+
+While GCSFuse supports symlinks that point to paths external to the mount point, it should be avoided as it could lead to broken links and security issues.
+
 
 ___
 

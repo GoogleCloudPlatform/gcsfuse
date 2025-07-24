@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 
 	"golang.org/x/sync/semaphore"
@@ -131,6 +132,12 @@ type ServerConfig struct {
 	NewConfig *cfg.Config
 
 	MetricHandle metrics.MetricHandle
+
+	// Notifier allows the file system to send invalidation messages to the FUSE
+	// kernel module. This enables proactive cache invalidation (e.g., for dentries)
+	// when underlying content changes, improving consistency while still leveraging
+	// kernel caching.
+	Notifier *fuse.Notifier
 }
 
 // Create a fuse file system server according to the supplied configuration.
@@ -198,6 +205,9 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		metricHandle:               serverCfg.MetricHandle,
 		enableAtomicRenameObject:   serverCfg.NewConfig.EnableAtomicRenameObject,
 		globalMaxWriteBlocksSem:    semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
+	}
+	if serverCfg.Notifier != nil {
+		fs.notifier = serverCfg.Notifier
 	}
 
 	// Set up root bucket
@@ -494,6 +504,11 @@ type fileSystem struct {
 	// Limits the max number of blocks that can be created across file system when
 	// streaming writes are enabled.
 	globalMaxWriteBlocksSem *semaphore.Weighted
+
+	// notifier allows sending invalidation messages to the FUSE kernel module.
+	// It is used to invalidate the kernel's dentry cache,
+	// providing feedback to the kernel about dynamic content changes.
+	notifier *fuse.Notifier
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -1552,6 +1567,53 @@ func (fs *fileSystem) lookupAndFetchAttributesForLocalFileEntriesPlus(parentName
 		localFileEntriesPlus[localEntryName] = localEntryPlus
 	}
 	return
+}
+
+// invalidateCachedEntry sends a notification to the kernel to invalidate a stale
+// directory entry, ensuring consistency when file content changes dynamically.
+// It identifies the parent of the given child inode and sends a notification
+// to the kernel to remove the entry corresponding to the child's
+// name within that parent directory.
+//
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *fileSystem) invalidateCachedEntry(childID fuseops.InodeID) error {
+	fs.mu.Lock()
+	childInode, ok := fs.inodes[childID]
+	fs.mu.Unlock()
+	if !ok {
+		return fmt.Errorf("invalidateCachedEntry: inode with ID %d not found", childID)
+	}
+
+	childName := childInode.Name()
+	parentPath := path.Dir(childName.LocalName())
+	// If the parent path resolves to the current directory ".", it means the parent
+	// is the root of the file system.
+	if parentPath == "." {
+		return fs.notifier.InvalidateEntry(fuseops.RootInodeID, path.Base(childInode.Name().LocalName()))
+	}
+
+	parentName, err := childName.ParentName()
+	if err != nil {
+		return fmt.Errorf("invalidateCachedEntry: cannot find Parent name: %w", err)
+	}
+	childBase := path.Base(childName.LocalName())
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	var parentInodeID fuseops.InodeID
+	// Check in all maps: implicit dirs → folders → generation-backed
+	if parentInode, ok := fs.implicitDirInodes[parentName]; ok {
+		parentInodeID = parentInode.ID()
+	} else if parentInode, ok := fs.folderInodes[parentName]; ok {
+		parentInodeID = parentInode.ID()
+	} else if parentInode, ok := fs.generationBackedInodes[parentName]; ok {
+		parentInodeID = parentInode.ID()
+	} else {
+		return fmt.Errorf("invalidateCachedEntry: failed to invalidate the entry, parent inode not found for child ID %d (parent: %s)", childID, parentName.String())
+	}
+
+	return fs.notifier.InvalidateEntry(parentInodeID, childBase)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -2769,6 +2831,18 @@ func (fs *fileSystem) ReadFile(
 		op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
 	}
 
+	// A FileClobberedError indicates the underlying GCS object has changed,
+	// making the kernel's dentry for this file stale. We use the notifier to
+	// invalidate this entry, providing feedback to the kernel about the dynamic
+	// content change and ensuring subsequent lookups fetch the correct metadata.
+	if fs.newConfig.FileSystem.ExperimentalEnableDentryCache {
+		var clobberedErr *gcsfuse_errors.FileClobberedError
+		if err != nil && errors.As(err, &clobberedErr) {
+			if invalidateErr := fs.invalidateCachedEntry(op.Inode); invalidateErr != nil {
+				err = fmt.Errorf("%w; additionally failed to invalidate entry: %w", err, invalidateErr)
+			}
+		}
+	}
 	// As required by fuse, we don't treat EOF as an error.
 	if err == io.EOF {
 		err = nil
@@ -2815,7 +2889,19 @@ func (fs *fileSystem) WriteFile(
 	in.Lock()
 	defer in.Unlock()
 	if err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in, fh.OpenMode()); err != nil {
-		return
+		// A FileClobberedError on write indicates the file was modified in GCS,
+		// making the kernel's dentry stale. By invalidating the cache
+		// entry, we ensure the filesystem corrects the inconsistency caused by this
+		// dynamic content change.
+		if fs.newConfig.FileSystem.ExperimentalEnableDentryCache {
+			var clobberedErr *gcsfuse_errors.FileClobberedError
+			if errors.As(err, &clobberedErr) {
+				if invalidateErr := fs.invalidateCachedEntry(op.Inode); invalidateErr != nil {
+					err = fmt.Errorf("%w; additionally failed to invalidate entry: %w", err, invalidateErr)
+				}
+			}
+		}
+		return err
 	}
 	if fs.newConfig.Write.ExperimentalEnableRapidAppends {
 		// Serve the request via the file handle.
