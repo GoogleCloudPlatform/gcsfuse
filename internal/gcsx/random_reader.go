@@ -186,6 +186,7 @@ type randomReader struct {
 type readInfo struct {
 	readType       int64
 	expectedOffset int64
+	seekRecorded   bool
 }
 
 func (rr *randomReader) CheckInvariants() {
@@ -344,14 +345,14 @@ func (rr *randomReader) ReadAt(
 		return
 	}
 
-	readInfo := rr.getReadInfo(offset)
+	readInfo := rr.getReadInfo(offset, false)
 	reqReaderType := readerType(readInfo.readType, rr.bucket.BucketType())
 
 	if reqReaderType == RangeReader {
 		rr.mu.Lock()
 		expectedOffset := rr.expectedOffset.Load()
 		if readInfo.expectedOffset != expectedOffset {
-			readInfo = rr.getReadInfo(offset)
+			readInfo = rr.getReadInfo(offset, !readInfo.seekRecorded)
 			reqReaderType = readerType(readInfo.readType, rr.bucket.BucketType())
 		}
 
@@ -554,25 +555,25 @@ func isSeekNeeded(readType, offset, expectedOffset int64) bool {
 // getReadInfo determines the read strategy (sequential or random) for a read
 // request at a given offset and returns read metadata. It also updates the
 // reader's internal state based on the read pattern.
-func (rr *randomReader) getReadInfo(offset int64) readInfo {
+func (rr *randomReader) getReadInfo(offset int64, seekRecorded bool) readInfo {
 	readType := rr.readType.Load()
 	expOffset := rr.expectedOffset.Load()
 	numSeeks := rr.seeks.Load()
 
-	if isSeekNeeded(readType, offset, expOffset) {
+	if !seekRecorded && isSeekNeeded(readType, offset, expOffset) {
 		numSeeks = rr.seeks.Add(1)
+		seekRecorded = true
 	}
 
 	if numSeeks >= minSeeksForRandom {
 		readType = metrics.ReadTypeRandom
 	}
 
-	divisor := numSeeks
-	if divisor == 0 {
-		divisor = 1
+	averageReadBytes := rr.totalReadBytes.Load()
+	if numSeeks > 0 {
+		averageReadBytes /= numSeeks
 	}
 
-	averageReadBytes := int64(rr.totalReadBytes.Load() / divisor)
 	if averageReadBytes >= maxReadSize {
 		readType = metrics.ReadTypeSequential
 	}
@@ -581,6 +582,7 @@ func (rr *randomReader) getReadInfo(offset int64) readInfo {
 	return readInfo{
 		readType:       readType,
 		expectedOffset: expOffset,
+		seekRecorded:   seekRecorded,
 	}
 }
 

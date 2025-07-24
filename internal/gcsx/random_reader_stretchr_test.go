@@ -90,6 +90,7 @@ func (t *RandomReaderStretchrTest) Test_GetReadInfo() {
 	testCases := []struct {
 		name                  string
 		offset                int64
+		seekRecorded          bool
 		initialReadType       int64
 		initialExpOffset      int64
 		initialNumSeeks       uint64
@@ -100,6 +101,7 @@ func (t *RandomReaderStretchrTest) Test_GetReadInfo() {
 		{
 			name:                  "First Read",
 			offset:                0,
+			seekRecorded:          false,
 			initialReadType:       metrics.ReadTypeSequential,
 			initialExpOffset:      0,
 			initialNumSeeks:       0,
@@ -110,6 +112,7 @@ func (t *RandomReaderStretchrTest) Test_GetReadInfo() {
 		{
 			name:                  "Sequential Read",
 			offset:                10,
+			seekRecorded:          false,
 			initialReadType:       metrics.ReadTypeSequential,
 			initialExpOffset:      10,
 			initialNumSeeks:       0,
@@ -120,6 +123,7 @@ func (t *RandomReaderStretchrTest) Test_GetReadInfo() {
 		{
 			name:                  "Sequential read with small forward jump and high average read bytes is still sequential",
 			offset:                100,
+			seekRecorded:          false,
 			initialReadType:       metrics.ReadTypeSequential,
 			initialExpOffset:      10,
 			initialNumSeeks:       0,
@@ -130,6 +134,7 @@ func (t *RandomReaderStretchrTest) Test_GetReadInfo() {
 		{
 			name:                  "Sequential read with large forward jump is a seek",
 			offset:                50 + maxReadSize + 1,
+			seekRecorded:          false,
 			initialReadType:       metrics.ReadTypeSequential,
 			initialExpOffset:      50,
 			initialNumSeeks:       0,
@@ -140,6 +145,7 @@ func (t *RandomReaderStretchrTest) Test_GetReadInfo() {
 		{
 			name:                  "Sequential read with backward jump is a seek",
 			offset:                49,
+			seekRecorded:          false,
 			initialReadType:       metrics.ReadTypeSequential,
 			initialExpOffset:      50,
 			initialNumSeeks:       0,
@@ -150,6 +156,7 @@ func (t *RandomReaderStretchrTest) Test_GetReadInfo() {
 		{
 			name:                  "Contiguous random read is not a seek",
 			offset:                50,
+			seekRecorded:          false,
 			initialReadType:       metrics.ReadTypeRandom,
 			initialExpOffset:      50,
 			initialNumSeeks:       minSeeksForRandom,
@@ -160,6 +167,7 @@ func (t *RandomReaderStretchrTest) Test_GetReadInfo() {
 		{
 			name:                  "Non-contiguous random read is a seek",
 			offset:                100,
+			seekRecorded:          false,
 			initialReadType:       metrics.ReadTypeRandom,
 			initialExpOffset:      50,
 			initialNumSeeks:       minSeeksForRandom,
@@ -170,6 +178,7 @@ func (t *RandomReaderStretchrTest) Test_GetReadInfo() {
 		{
 			name:                  "Switches to random read after enough seeks",
 			offset:                50 + maxReadSize + 1,
+			seekRecorded:          false,
 			initialReadType:       metrics.ReadTypeSequential,
 			initialExpOffset:      50,
 			initialNumSeeks:       minSeeksForRandom - 1,
@@ -180,12 +189,57 @@ func (t *RandomReaderStretchrTest) Test_GetReadInfo() {
 		{
 			name:                  "Switches back to sequential with high average read bytes",
 			offset:                100,
+			seekRecorded:          false,
 			initialReadType:       metrics.ReadTypeRandom,
 			initialExpOffset:      50,
 			initialNumSeeks:       minSeeksForRandom,
 			initialTotalReadBytes: maxReadSize * (minSeeksForRandom + 1),
 			expectedReadType:      metrics.ReadTypeSequential,
 			expectedNumSeeks:      minSeeksForRandom + 1,
+		},
+		{
+			name:                  "Seek recorded: sequential large forward jump",
+			offset:                50 + maxReadSize + 1,
+			seekRecorded:          true,
+			initialReadType:       metrics.ReadTypeSequential,
+			initialExpOffset:      50,
+			initialNumSeeks:       0,
+			initialTotalReadBytes: 50 * 1024,
+			expectedReadType:      metrics.ReadTypeSequential,
+			expectedNumSeeks:      0, // Not incremented
+		},
+		{
+			name:                  "Seek recorded: sequential backward jump",
+			offset:                49,
+			seekRecorded:          true,
+			initialReadType:       metrics.ReadTypeSequential,
+			initialExpOffset:      50,
+			initialNumSeeks:       1,
+			initialTotalReadBytes: 50 * 1024,
+			expectedReadType:      metrics.ReadTypeSequential,
+			expectedNumSeeks:      1, // Not incremented
+		},
+		{
+			name:                  "Seek recorded: non-contiguous random read",
+			offset:                100,
+			seekRecorded:          true,
+			initialReadType:       metrics.ReadTypeRandom,
+			initialExpOffset:      50,
+			initialNumSeeks:       minSeeksForRandom,
+			initialTotalReadBytes: 50 * 1024,
+			expectedReadType:      metrics.ReadTypeRandom,
+			expectedNumSeeks:      minSeeksForRandom, // Not incremented
+		},
+		{
+			name:                  "Seek recorded: does not switch to random",
+			offset:                50 + maxReadSize + 1,
+			seekRecorded:          true,
+			initialReadType:       metrics.ReadTypeSequential,
+			initialExpOffset:      50,
+			initialNumSeeks:       minSeeksForRandom - 1,
+			initialTotalReadBytes: 1000,
+			expectedReadType:      metrics.ReadTypeSequential, // Does not switch
+			expectedNumSeeks:      minSeeksForRandom - 1,      // Not incremented
 		},
 	}
 
@@ -197,7 +251,7 @@ func (t *RandomReaderStretchrTest) Test_GetReadInfo() {
 			rr.seeks.Store(tc.initialNumSeeks)
 			rr.totalReadBytes.Store(tc.initialTotalReadBytes)
 
-			readInfo := rr.getReadInfo(tc.offset)
+			readInfo := rr.getReadInfo(tc.offset, tc.seekRecorded)
 			assert.Equal(t.T(), tc.expectedReadType, readInfo.readType, "Read type mismatch")
 			assert.Equal(t.T(), tc.expectedNumSeeks, rr.seeks.Load(), "Number of seeks mismatch")
 		})
