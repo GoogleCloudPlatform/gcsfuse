@@ -1,0 +1,69 @@
+{
+  "_comment": "_ in the starting of element name indicates comment.",
+  "TestConfig": {
+    "workloadConfig": {
+      "_description": "workloadConfig has an optional field runOnSSD (default true if missing), and an array of workloads.",
+      "runOnSSD": false,
+      "workloads": [
+        {
+          "_comment": "File-cache enabled"
+        },
+        {
+          "fioWorkload": {
+            "fileSize": "10G",
+            "filesPerThread": 16,
+            "numThreads": 1,
+            "blockSize": "1M",
+            "readTypes": ["read", "randread"]
+          },
+          "gcsfuseMountOptions": "implicit-dirs,metadata-cache:ttl-secs:-1,metadata-cache:type-cache-max-size-mb:-1,metadata-cache:stat-cache-max-size-mb:-1,file-cache:max-size-mb:-1,file-cache:cache-file-for-range-read:true",
+          "bucket":"fio-10g-500-us-west1"
+        },
+        {
+          "fioWorkload": {
+            "fileSize": "10G",
+            "filesPerThread": 2,
+            "numThreads": 8,
+            "blockSize": "1M",
+            "readTypes": ["read"]
+          },
+          "gcsfuseMountOptions": "implicit-dirs,metadata-cache:ttl-secs:-1,metadata-cache:type-cache-max-size-mb:-1,metadata-cache:stat-cache-max-size-mb:-1,file-cache:max-size-mb:-1,file-cache:cache-file-for-range-read:true",
+          "bucket":"fio-10g-500-us-west1"
+        },
+        {
+          "fioWorkload": {
+            "fileSize": "10G",
+            "filesPerThread": 2,
+            "numThreads": 16,
+            "blockSize": "1M",
+            "readTypes": ["read", "randread"]
+          },
+          "gcsfuseMountOptions": "implicit-dirs,metadata-cache:ttl-secs:-1,metadata-cache:type-cache-max-size-mb:-1,metadata-cache:stat-cache-max-size-mb:-1,file-cache:max-size-mb:-1,file-cache:cache-file-for-range-read:true",
+          "bucket":"fio-10g-500-us-west1"
+        },
+        {
+          "fioWorkload": {
+            "fileSize": "10G",
+            "filesPerThread": 1,
+            "numThreads": 64,
+            "blockSize": "1M",
+            "readTypes": ["read"]
+          },
+          "gcsfuseMountOptions": "implicit-dirs,metadata-cache:ttl-secs:-1,metadata-cache:type-cache-max-size-mb:-1,metadata-cache:stat-cache-max-size-mb:-1,file-cache:max-size-mb:-1,file-cache:cache-file-for-range-read:true",
+          "bucket":"fio-10g-500-us-west1"
+        },
+        {
+          "fioWorkload": {
+            "fileSize": "10G",
+            "filesPerThread": 1,
+            "numThreads": 96,
+            "blockSize": "1M",
+            "readTypes": ["read", "randread"]
+          },
+          "gcsfuseMountOptions": "implicit-dirs,metadata-cache:ttl-secs:-1,metadata-cache:type-cache-max-size-mb:-1,metadata-cache:stat-cache-max-size-mb:-1,file-cache:max-size-mb:-1,file-cache:cache-file-for-range-read:true",
+          "bucket":"fio-10g-500-us-west1"
+        }
+      ]
+    }
+  }
+}
