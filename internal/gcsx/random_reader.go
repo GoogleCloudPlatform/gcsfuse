@@ -345,14 +345,19 @@ func (rr *randomReader) ReadAt(
 		return
 	}
 
+	// Not taking any lock for getting reader type to ensure random read requests do not wait.
 	readInfo := rr.getReadInfo(offset, false)
 	reqReaderType := readerType(readInfo.readType, rr.bucket.BucketType())
 
 	if reqReaderType == RangeReader {
 		rr.mu.Lock()
 		expectedOffset := rr.expectedOffset.Load()
-		if readInfo.expectedOffset != expectedOffset {
-			readInfo = rr.getReadInfo(offset, !readInfo.seekRecorded)
+
+		// Calculating reader type again for zonal buckets in case another read has been served
+		// since last computation. This is to ensure that we don't use range reader incorrectly
+		// when MRD should've been used.
+		if rr.bucket.BucketType().Zonal && readInfo.expectedOffset != expectedOffset {
+			readInfo = rr.getReadInfo(offset, readInfo.seekRecorded)
 			reqReaderType = readerType(readInfo.readType, rr.bucket.BucketType())
 		}
 
@@ -395,7 +400,7 @@ func (rr *randomReader) ReadAt(
 				return
 			}
 
-			// reader does not exist and need to be created, get the end offset
+			// reader does not exist and need to be created, get the end offset.
 			end := rr.getEndOffset(offset)
 			objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, readInfo.readType)
 			return
@@ -540,7 +545,7 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 }
 
 // isSeekNeeded determines if the current read at `offset` should be considered a
-// seek, given the previous read pattern & the expected offset
+// seek, given the previous read pattern & the expected offset.
 func isSeekNeeded(readType, offset, expectedOffset int64) bool {
 	if expectedOffset == 0 {
 		return false
