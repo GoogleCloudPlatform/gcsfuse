@@ -85,7 +85,7 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 	if clientConfig.CustomEndpoint != "" {
 		clientOpts = append(clientOpts, option.WithEndpoint(storageutil.StripScheme(clientConfig.CustomEndpoint)))
 
-		// Use insecure credentials for anonymous access with custom endpoint.
+		// TODO(b/390799251): Check if this line can be merged with below anonymousAccess check.
 		if clientConfig.AnonymousAccess {
 			clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())))
 		}
@@ -162,7 +162,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	}
 
 	var clientOpts []option.ClientOption
-	clientOpts, err = createClientOptionForGRPCClient(context.TODO(), clientConfig, enableBidiConfig)
+	clientOpts, err = createClientOptionForGRPCClient(ctx, clientConfig, enableBidiConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 	}

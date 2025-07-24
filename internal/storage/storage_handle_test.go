@@ -599,6 +599,36 @@ func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_Anonymo
 	assert.NotNil(testSuite.T(), clientOption)
 }
 
+func (testSuite *StorageHandleTest) Test_createHTTPClientHandle_AnonymousAccess() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.AnonymousAccess = true
+
+	httpClient, err := createHTTPClientHandle(context.TODO(), &sc)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), httpClient)
+}
+
+func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithoutGoogleAuth() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.EnableGoogleLibAuth = false
+
+	clientOption, err := createClientOptionForGRPCClient(context.TODO(), &sc, false)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), clientOption)
+}
+
+func (testSuite *StorageHandleTest) Test_createHTTPClientHandle_WithoutGoogleAuth() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.EnableGoogleLibAuth = false
+
+	httpClient, err := createHTTPClientHandle(context.TODO(), &sc)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), httpClient)
+}
+
 func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_AuthFailures() {
 	tests := []struct {
 		name          string
@@ -607,15 +637,33 @@ func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_AuthFai
 		expectNilOpts bool
 	}{
 		{
-			name: "Invalid Token URL",
+			name: "Invalid token URL with google auth",
 			modifyConfig: func(sc *storageutil.StorageClientConfig) {
 				sc.TokenUrl = ":"
+				sc.KeyFile = ""
+				sc.EnableGoogleLibAuth = true
 			},
 		},
 		{
-			name: "Invalid Key File Path",
+			name: "Invalid token URL without google auth",
+			modifyConfig: func(sc *storageutil.StorageClientConfig) {
+				sc.TokenUrl = ":"
+				sc.KeyFile = ""
+				sc.EnableGoogleLibAuth = false
+			},
+		},
+		{
+			name: "Invalid key file path with google auth",
 			modifyConfig: func(sc *storageutil.StorageClientConfig) {
 				sc.KeyFile = "incorrect_path"
+				sc.EnableGoogleLibAuth = true
+			},
+		},
+		{
+			name: "Invalid key file path without google auth",
+			modifyConfig: func(sc *storageutil.StorageClientConfig) {
+				sc.KeyFile = "incorrect_path"
+				sc.EnableGoogleLibAuth = false
 			},
 		},
 	}
@@ -642,15 +690,33 @@ func (testSuite *StorageHandleTest) Test_CreateHTTPClientHandle_AuthFailures() {
 		expectNilOpts bool
 	}{
 		{
-			name: "Invalid Token URL",
+			name: "Invalid token URL with google auth",
 			modifyConfig: func(sc *storageutil.StorageClientConfig) {
 				sc.TokenUrl = ":"
+				sc.KeyFile = ""
+				sc.EnableGoogleLibAuth = true
 			},
 		},
 		{
-			name: "Invalid Key File Path",
+			name: "Invalid token URL without google auth",
+			modifyConfig: func(sc *storageutil.StorageClientConfig) {
+				sc.TokenUrl = ":"
+				sc.KeyFile = ""
+				sc.EnableGoogleLibAuth = false
+			},
+		},
+		{
+			name: "Invalid key file path with google auth",
 			modifyConfig: func(sc *storageutil.StorageClientConfig) {
 				sc.KeyFile = "incorrect_path"
+				sc.EnableGoogleLibAuth = true
+			},
+		},
+		{
+			name: "Invalid Key File Path without google auth",
+			modifyConfig: func(sc *storageutil.StorageClientConfig) {
+				sc.KeyFile = "incorrect_path"
+				sc.EnableGoogleLibAuth = false
 			},
 		},
 	}
