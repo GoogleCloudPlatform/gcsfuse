@@ -104,7 +104,7 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 }
 
 func (p *BufferedReader) prefetch() error {
-	// Do not schedule more blocks if the prefetch queue has reached its maximum configured size.
+	// Do not schedule more than MaxPrefetchBlockCnt.
 	availableSlots := p.config.MaxPrefetchBlockCnt - int64(p.blockQueue.Len())
 	if availableSlots <= 0 {
 		return nil
