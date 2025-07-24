@@ -39,7 +39,7 @@ type staleFileHandleStreamingWritesSyncedFile struct {
 
 func (t *staleFileHandleStreamingWritesSyncedFile) SetupTest() {
 	// Create an empty object on bucket.
-	t.f1 = createGCSObject(t.T(), "foo", "")
+	t.f1 = createGCSObject(t.T(), "")
 }
 
 // //////////////////////////////////////////////////////////////////////
@@ -48,7 +48,7 @@ func (t *staleFileHandleStreamingWritesSyncedFile) SetupTest() {
 
 func (t *staleFileHandleStreamingWritesSyncedFile) TestWriteToClobberedFileThrowsStaleFileHandleError() {
 	// Replace the underlying object with a new generation.
-	clobberFile(t.T(), "foo", "foobar")
+	clobberFile(t.T(), "foobar")
 	// Writing to file will return Stale File Handle Error.
 	data, err := operations.GenerateRandomData(operations.MiB * 4)
 	assert.NoError(t.T(), err)

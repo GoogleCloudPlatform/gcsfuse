@@ -209,17 +209,17 @@ func readChunkAndValidateObjectContentsFromGCS(ctx context.Context, storageClien
 }
 
 func readFileAndValidateFileIsNotCached(ctx context.Context, storageClient *storage.Client,
-	filename string, readFullFile bool, offset int64, t *testing.T) (expectedOutcome *Expected) {
+	readFullFile bool, offset int64, t *testing.T) (expectedOutcome *Expected) {
 	// Read file via gcsfuse mount.
-	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, filename, readFullFile, offset, t)
+	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, largeFileName, readFullFile, offset, t)
 	// Validate that the file is not cached.
-	validateFileIsNotCached(filename, t)
+	validateFileIsNotCached(largeFileName, t)
 	// validate the content read matches the content on GCS.
 	if readFullFile {
-		client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, filename,
+		client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, largeFileName,
 			expectedOutcome.content, t)
 	} else {
-		client.ValidateObjectChunkFromGCS(ctx, storageClient, testDirName, filename,
+		client.ValidateObjectChunkFromGCS(ctx, storageClient, testDirName, largeFileName,
 			offset, chunkSizeToRead, expectedOutcome.content, t)
 	}
 	return expectedOutcome
@@ -247,7 +247,7 @@ func validateCacheSizeWithinLimit(cacheCapacity int64, t *testing.T) {
 	}
 }
 
-func setupFileInTestDir(ctx context.Context, storageClient *storage.Client, testDirName string, fileSize int64, t *testing.T) (fileName string) {
+func setupFileInTestDir(ctx context.Context, storageClient *storage.Client, fileSize int64, t *testing.T) (fileName string) {
 	testFileName := testFileName + setup.GenerateRandomString(testFileNameSuffixLength)
 	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, testFileName, fileSize, t)
 

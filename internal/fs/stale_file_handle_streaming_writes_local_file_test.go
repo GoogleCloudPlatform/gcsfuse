@@ -46,7 +46,7 @@ func (t *staleFileHandleStreamingWritesLocalFile) SetupTest() {
 
 func (t *staleFileHandleStreamingWritesLocalFile) TestClobberedWriteFileSyncAndCloseThrowsStaleFileHandleError() {
 	// Replace the underlying object with a new generation.
-	clobberFile(t.T(), "foo", "foobar")
+	clobberFile(t.T(), "foobar")
 	// Writing to file will return Stale File Handle Error.
 	data, err := operations.GenerateRandomData(operations.MiB * 4)
 	assert.NoError(t.T(), err)

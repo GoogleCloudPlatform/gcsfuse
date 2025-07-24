@@ -47,7 +47,7 @@ func (s *cacheFileForRangeReadFalseTest) Setup(t *testing.T) {
 	setupForMountedDirectoryTests()
 	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
 	operations.RemoveDir(cacheDirPath)
-	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient, testDirName)
+	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
 }
 
 func (s *cacheFileForRangeReadFalseTest) Teardown(t *testing.T) {
@@ -80,7 +80,7 @@ func readFileBetweenOffset(t *testing.T, file *os.File, startOffset, endOffSet i
 ////////////////////////////////////////////////////////////////////////
 
 func (s *cacheFileForRangeReadFalseTest) TestRangeReadsWithCacheMiss(t *testing.T) {
-	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeForRangeRead, t)
+	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSizeForRangeRead, t)
 
 	// Do a random read on file and validate from gcs.
 	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset5000, t)
@@ -96,8 +96,8 @@ func (s *cacheFileForRangeReadFalseTest) TestRangeReadsWithCacheMiss(t *testing.
 func (s *cacheFileForRangeReadFalseTest) TestReadIsTreatedNonSequentialAfterFileIsRemovedFromCache(t *testing.T) {
 	var testFileNames [2]string
 	var expectedOutcome [4]*Expected
-	testFileNames[0] = setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeSameAsCacheCapacity, t)
-	testFileNames[1] = setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeSameAsCacheCapacity, t)
+	testFileNames[0] = setupFileInTestDir(s.ctx, s.storageClient, fileSizeSameAsCacheCapacity, t)
+	testFileNames[1] = setupFileInTestDir(s.ctx, s.storageClient, fileSizeSameAsCacheCapacity, t)
 	randomReadChunkCount := fileSizeSameAsCacheCapacity / chunkSizeToRead
 	readTillChunk := randomReadChunkCount / 2
 	fh1 := operations.OpenFile(path.Join(testDirPath, testFileNames[0]), t)

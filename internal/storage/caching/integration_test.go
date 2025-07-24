@@ -103,7 +103,7 @@ func (t *IntegrationTest) CreateInsertsIntoCache() {
 }
 
 func (t *IntegrationTest) StatInsertsIntoCache() {
-	const name = "taco"
+	const name = "foo"
 	var err error
 
 	// Create an object through the back door.
