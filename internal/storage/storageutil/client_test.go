@@ -49,6 +49,7 @@ func (t *clientTest) validateProxyInTransport(httpClient *http.Client) {
 
 func (t *clientTest) TestCreateHttpClientWithHttp1() {
 	sc := GetDefaultStorageClientConfig() // By default http1 enabled
+	sc.KeyFile = "testdata/key.json"
 
 	httpClient, err := CreateHttpClient(&sc, nil)
 
@@ -59,6 +60,7 @@ func (t *clientTest) TestCreateHttpClientWithHttp1() {
 
 func (t *clientTest) TestCreateHttpClientWithHttp2() {
 	sc := GetDefaultStorageClientConfig()
+	sc.KeyFile = "testdata/key.json"
 
 	httpClient, err := CreateHttpClient(&sc, nil)
 
