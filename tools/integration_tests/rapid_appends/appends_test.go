@@ -208,10 +208,11 @@ func (t *RapidAppendsSuite) TestAppendsToFinalizedObjectNotVisibleUntilClose() {
 		ctx, storageClient, testDirName, t.fileName, initialContent, t.T())
 
 	// Append to the finalized object from the primary mount.
+	data := setup.GenerateRandomString(contentSizeForBW * operations.OneMiB)
 	filePath := path.Join(primaryMntTestDirPath, t.fileName)
 	fh, err := os.OpenFile(filePath, os.O_APPEND|os.O_RDWR|syscall.O_DIRECT, operations.FilePermission_0600)
 	require.NoError(t.T(), err)
-	_, err = fh.Write([]byte(appendContent))
+	_, err = fh.Write([]byte(data))
 	require.NoError(t.T(), err)
 
 	// Read from back-door to validate that appended content is yet not visible on GCS.
@@ -223,7 +224,7 @@ func (t *RapidAppendsSuite) TestAppendsToFinalizedObjectNotVisibleUntilClose() {
 	require.NoError(t.T(), fh.Close())
 
 	// Read from back-door to validate that appended content is now visible on GCS.
-	expectedContent := initialContent + appendContent
+	expectedContent := initialContent + data
 	contentAfterClose, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), expectedContent, string(contentAfterClose))
