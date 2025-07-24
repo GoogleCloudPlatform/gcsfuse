@@ -15,7 +15,6 @@
 package block
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"syscall"
@@ -23,6 +22,13 @@ import (
 
 // Block represents the buffer which holds the data.
 type Block interface {
+	// ReadSeeker is the interface that groups the basic Read and Seek methods.
+	// It is used to read data from the block.
+	io.ReadSeeker
+
+	// Writer provides a way to write data to the block.
+	io.Writer
+
 	// GenBlock defines reuse and deallocation of the block.
 	GenBlock
 
@@ -35,10 +41,6 @@ type Block interface {
 
 	// Write writes the given data to block.
 	Write(bytes []byte) (n int, err error)
-
-	// Reader interface helps in copying the data directly to storage.writer
-	// while uploading to GCS.
-	Reader() io.Reader
 }
 
 // TODO: check if we need offset or just storing end is sufficient. We might need
@@ -51,6 +53,9 @@ type memoryBlock struct {
 	Block
 	buffer []byte
 	offset offset
+
+	// readSeek is used to track the position for reading data.
+	readSeek int64
 }
 
 func (m *memoryBlock) Reuse() {
@@ -58,6 +63,7 @@ func (m *memoryBlock) Reuse() {
 
 	m.offset.end = 0
 	m.offset.start = 0
+	m.readSeek = 0
 }
 
 func (m *memoryBlock) Size() int64 {
@@ -66,6 +72,53 @@ func (m *memoryBlock) Size() int64 {
 
 func (m *memoryBlock) Cap() int64 {
 	return int64(cap(m.buffer))
+}
+
+// Read reads data from the block into the provided byte slice.
+// Please make sure to call Seek before calling Read if you want to read from a specific position.
+func (m *memoryBlock) Read(bytes []byte) (int, error) {
+	if m.readSeek < m.offset.start {
+		return 0, fmt.Errorf("readSeek %d is less than start offset %d", m.readSeek, m.offset.start)
+	}
+
+	if m.readSeek >= m.offset.end {
+		return 0, io.EOF
+	}
+
+	n := copy(bytes, m.buffer[m.readSeek:m.offset.end])
+	m.readSeek += int64(n)
+
+	return n, nil
+}
+
+// Seek sets the readSeek position in the block.
+// It returns the new readSeek position and an error if any.
+// The whence argument specifies how the offset should be interpreted:
+//   - io.SeekStart: offset is relative to the start of the block.
+//   - io.SeekCurrent: offset is relative to the current readSeek position.
+//   - io.SeekEnd: offset is relative to the end of the block.
+//
+// It returns an error if the whence value is invalid or if the new
+// readSeek position is out of bounds.
+func (m *memoryBlock) Seek(offset int64, whence int) (int64, error) {
+	newReadSeek := m.readSeek
+	switch whence {
+	case io.SeekStart:
+		m.readSeek = m.offset.start + offset
+	case io.SeekCurrent:
+		newReadSeek += offset
+	case io.SeekEnd:
+		newReadSeek = m.offset.end + offset
+	default:
+		return 0, fmt.Errorf("invalid whence value: %d", whence)
+	}
+
+	if newReadSeek < m.offset.start || newReadSeek > m.offset.end {
+		return 0, fmt.Errorf("new readSeek position %d is out of bounds", newReadSeek)
+	}
+
+	m.readSeek = newReadSeek
+	return m.readSeek, nil
 }
 
 func (m *memoryBlock) Write(bytes []byte) (int, error) {
@@ -80,10 +133,6 @@ func (m *memoryBlock) Write(bytes []byte) (int, error) {
 
 	m.offset.end += int64(len(bytes))
 	return n, nil
-}
-
-func (m *memoryBlock) Reader() io.Reader {
-	return bytes.NewReader(m.buffer[0:m.offset.end])
 }
 
 func (m *memoryBlock) Deallocate() error {
@@ -114,20 +163,4 @@ func createBlock(blockSize int64) (Block, error) {
 		offset: offset{0, 0},
 	}
 	return &mb, nil
-}
-
-// ReadAt reads data from the block at the specified offset.
-// The offset is relative to the start of the block.
-// It returns the number of bytes read and an error if any.
-func (m *memoryBlock) ReadAt(p []byte, off int64) (n int, err error) {
-	if off < 0 || off >= m.Size() {
-		return 0, fmt.Errorf("offset %d is out of bounds for block size %d", off, m.Size())
-	}
-
-	n = copy(p, m.buffer[m.offset.start+off:m.offset.end])
-
-	if n < len(p) {
-		return n, io.EOF
-	}
-	return n, nil
 }
