@@ -217,6 +217,7 @@ TEST_PACKAGES_COMMON=(
   "stale_handle"
   "release_version"
   "readdirplus"
+  "dentry_cache"
 )
 
 # Test packages for regional buckets.
