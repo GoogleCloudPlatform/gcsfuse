@@ -589,6 +589,85 @@ func (testSuite *StorageHandleTest) TestCreateClientOptionForGRPCClient() {
 	assert.NotNil(testSuite.T(), clientOption)
 }
 
+func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_AnonymousAccess() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.AnonymousAccess = true
+
+	clientOption, err := createClientOptionForGRPCClient(context.TODO(), &sc, false)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), clientOption)
+}
+
+func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_AuthFailures() {
+	tests := []struct {
+		name          string
+		modifyConfig  func(sc *storageutil.StorageClientConfig)
+		expectError   bool
+		expectNilOpts bool
+	}{
+		{
+			name: "Invalid Token URL",
+			modifyConfig: func(sc *storageutil.StorageClientConfig) {
+				sc.TokenUrl = ":"
+			},
+		},
+		{
+			name: "Invalid Key File Path",
+			modifyConfig: func(sc *storageutil.StorageClientConfig) {
+				sc.KeyFile = "incorrect_path"
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		testSuite.T().Run(tt.name, func(t *testing.T) {
+			sc := storageutil.GetDefaultStorageClientConfig()
+			sc.ClientProtocol = cfg.GRPC
+			tt.modifyConfig(&sc)
+
+			clientOption, err := createClientOptionForGRPCClient(context.TODO(), &sc, false)
+
+			assert.Error(t, err)
+			assert.Nil(t, clientOption)
+		})
+	}
+}
+
+func (testSuite *StorageHandleTest) Test_CreateHTTPClientHandle_AuthFailures() {
+	tests := []struct {
+		name          string
+		modifyConfig  func(sc *storageutil.StorageClientConfig)
+		expectError   bool
+		expectNilOpts bool
+	}{
+		{
+			name: "Invalid Token URL",
+			modifyConfig: func(sc *storageutil.StorageClientConfig) {
+				sc.TokenUrl = ":"
+			},
+		},
+		{
+			name: "Invalid Key File Path",
+			modifyConfig: func(sc *storageutil.StorageClientConfig) {
+				sc.KeyFile = "incorrect_path"
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		testSuite.T().Run(tt.name, func(t *testing.T) {
+			sc := storageutil.GetDefaultStorageClientConfig()
+			tt.modifyConfig(&sc)
+
+			httpClient, err := createHTTPClientHandle(context.TODO(), &sc)
+
+			assert.Error(t, err)
+			assert.Nil(t, httpClient)
+		})
+	}
+}
+
 func (testSuite *StorageHandleTest) TestNewStorageHandleWithMaxRetryAttemptsNotZero() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.MaxRetryAttempts = 100
