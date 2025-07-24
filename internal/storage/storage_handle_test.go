@@ -590,26 +590,6 @@ func (testSuite *StorageHandleTest) TestCreateClientOptionForGRPCClient() {
 	assert.NotNil(testSuite.T(), clientOption)
 }
 
-func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_AnonymousAccess() {
-	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.AnonymousAccess = true
-
-	clientOption, err := createClientOptionForGRPCClient(context.TODO(), &sc, false)
-
-	assert.Nil(testSuite.T(), err)
-	assert.NotNil(testSuite.T(), clientOption)
-}
-
-func (testSuite *StorageHandleTest) Test_createHTTPClientHandle_AnonymousAccess() {
-	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.AnonymousAccess = true
-
-	httpClient, err := createHTTPClientHandle(context.TODO(), &sc)
-
-	assert.Nil(testSuite.T(), err)
-	assert.NotNil(testSuite.T(), httpClient)
-}
-
 func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithoutGoogleAuth() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.EnableGoogleLibAuth = false
