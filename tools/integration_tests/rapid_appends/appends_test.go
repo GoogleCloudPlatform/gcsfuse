@@ -230,6 +230,39 @@ func (t *RapidAppendsSuite) TestAppendsToFinalizedObjectNotVisibleUntilClose() {
 	assert.Equal(t.T(), expectedContent, string(contentAfterClose))
 }
 
+func (t *RapidAppendsSuite) TestAppendsVisibleInRealTimeWithConcurrentRPlusHandle() {
+	primaryPath := path.Join(primaryMntTestDirPath, t.fileName)
+	// Open first handle in append mode.
+	appendFileHandle := operations.OpenFileInMode(t.T(), primaryPath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
+	defer appendFileHandle.Close()
+
+	// Open second handle in "r+" mode.
+	readHandle := operations.OpenFileInMode(t.T(), primaryPath, os.O_RDWR|syscall.O_DIRECT)
+	defer readHandle.Close()
+
+	// Write initial content using append handle to trigger BW workflow.
+	n, err := appendFileHandle.Write([]byte(initialContent))
+	require.NoError(t.T(), err)
+	require.NotZero(t.T(), n)
+
+	// Append additional content using "r+" handle.
+	data := setup.GenerateRandomString(contentSizeForBW * blockSize)
+	appendOffset := int64(unfinalizedObjectSize + len(initialContent))
+	_, err = readHandle.WriteAt([]byte(data), appendOffset)
+	require.NoError(t.T(), err)
+
+	// Read from back-door to validate visibility on GCS.
+	// The first 1MiB block is guaranteed to be flushed due to implicit behavior.
+	// That block includes both the initial content (written via "a" file handle )
+	// and some part of data written by the "r+" file handle.
+	dataInBlockOffset := blockSize - len(initialContent)
+	expectedContent := t.fileContent + initialContent + data[0:dataInBlockOffset]
+	contentRead, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
+	require.NoError(t.T(), err)
+	// Assert only on the data which is guranteed to have been uploaded to GCS.
+	assert.Equal(t.T(), expectedContent, string(contentRead[0:len(expectedContent)]))
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
