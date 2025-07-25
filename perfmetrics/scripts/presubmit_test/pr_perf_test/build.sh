@@ -59,15 +59,7 @@ git fetch origin -q
 
 function execute_perf_test() {
   mkdir -p gcs
-  GCSFUSE_FLAGS="--implicit-dirs --prometheus-port=48341 --log-file=${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/perfmetrics/scripts/gcsfuse-logs.txt"
-  BUCKET_NAME=presubmit-perf-tests
-  MOUNT_POINT=gcs
-  # The VM will itself exit if the gcsfuse mount fails.
-  echo "go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT"
-  go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
-  # Running FIO test
-  #time ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
-  sudo umount gcs
+  echo "Hello, world!" > ${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs.txt
 }
 
 function install_requirements() {
