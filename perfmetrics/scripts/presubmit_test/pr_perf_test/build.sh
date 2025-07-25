@@ -98,8 +98,8 @@ then
 
 
  # Executing perf tests for PR branch
- echo checkout PR branch
- git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
+ echo checkout master again
+ git checkout master
  echo Mounting gcs bucket from pr branch and execute tests
  execute_perf_test
 
