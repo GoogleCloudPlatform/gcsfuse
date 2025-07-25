@@ -344,3 +344,75 @@ func (t *fileTest) TestOpenMode() {
 		assert.Equal(t.T(), tc.openMode, openMode)
 	}
 }
+
+func (t *fileTest) TestFileHandle_Destroy_WithReaderAndReadManager() {
+	parent := createDirInode(&t.bucket, &t.clock)
+	config := &cfg.Config{}
+	fileInode := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "destroy_test_obj", nil, false)
+	// Create mocks
+	mockReader := new(gcsx.MockRandomReader)
+	mockReadManager := new(read_manager.MockReadManager)
+	// Expect Destroy to be called on both
+	mockReader.On("Destroy").Once()
+	mockReadManager.On("Destroy").Once()
+	// Construct file handle with mocks
+	fh := NewFileHandle(fileInode, nil, false, nil, util.Read, config)
+	fh.reader = mockReader
+	fh.readManager = mockReadManager
+
+	fh.Destroy()
+
+	// Assert expectations
+	mockReader.AssertExpectations(t.T())
+	mockReadManager.AssertExpectations(t.T())
+}
+
+func (t *fileTest) TestFileHandle_Destroy_WithNilReaderAndReadManager() {
+	parent := createDirInode(&t.bucket, &t.clock)
+	config := &cfg.Config{}
+	fileInode := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "destroy_test_nil_obj", nil, false)
+	// Construct file handle with nils
+	fh := NewFileHandle(fileInode, nil, false, nil, util.Read, config)
+	fh.reader = nil
+	fh.readManager = nil
+
+	// Should not panic
+	assert.NotPanics(t.T(), func() {
+		fh.Destroy()
+	})
+}
+
+func (t *fileTest) TestFileHandle_CheckInvariants_WithNonNilReaderAndManager() {
+	parent := createDirInode(&t.bucket, &t.clock)
+	config := &cfg.Config{}
+	fileInode := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "destroy_test_obj", nil, false)
+	// Create mocks
+	mockReader := new(gcsx.MockRandomReader)
+	mockRM := new(read_manager.MockReadManager)
+	// Expectations
+	mockReader.On("CheckInvariants").Once()
+	mockRM.On("CheckInvariants").Once()
+	fh := NewFileHandle(fileInode, nil, false, nil, util.Read, config)
+	fh.reader = mockReader
+	fh.readManager = mockRM
+
+	assert.NotPanics(t.T(), func() {
+		fh.checkInvariants()
+	})
+
+	mockReader.AssertExpectations(t.T())
+	mockRM.AssertExpectations(t.T())
+}
+
+func (t *fileTest) TestFileHandle_CheckInvariants_WithNilReaderAndManager() {
+	parent := createDirInode(&t.bucket, &t.clock)
+	config := &cfg.Config{}
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_check_invariants_nil", nil, false)
+
+	fh := NewFileHandle(in, nil, false, nil, util.Read, config)
+
+	// Should not panic even if both are nil
+	assert.NotPanics(t.T(), func() {
+		fh.checkInvariants()
+	})
+}

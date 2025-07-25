@@ -236,6 +236,7 @@ func (fh *FileHandle) checkInvariants() {
 		fh.reader.CheckInvariants()
 	}
 
+	// INVARIANT: If readManager != nil, readManager.CheckInvariants() doesn't panic.
 	if fh.readManager != nil {
 		fh.readManager.CheckInvariants()
 	}
