@@ -39,7 +39,6 @@ type mountPoint struct {
 
 const (
 	// TODO(b/432179045): `--write-global-max-blocks=-1` is needed right now because of a bug in global semaphore release.
-	// Remove this flag once bug is fixed.
 	infiniteWriteGlobalMaxBlocks = "--write-global-max-blocks=-1"
 )
 
