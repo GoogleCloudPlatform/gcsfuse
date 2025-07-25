@@ -21,11 +21,10 @@ import (
 )
 
 const CustomEndpoint = "https://localhost:9000"
-const DummyKeyFile = "test/test_creds.json"
 const CustomTokenUrl = "http://custom-token-url"
 
 // GetDefaultStorageClientConfig is only for test.
-func GetDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
+func GetDefaultStorageClientConfig(keyFile string) (clientConfig StorageClientConfig) {
 	return StorageClientConfig{
 		ClientProtocol:             cfg.HTTP1,
 		MaxConnsPerHost:            10,
@@ -36,12 +35,13 @@ func GetDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
 		RetryMultiplier:            2,
 		UserAgent:                  "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) (GCP:gcsfuse)",
 		CustomEndpoint:             "",
-		KeyFile:                    DummyKeyFile,
+		KeyFile:                    keyFile,
 		TokenUrl:                   "",
 		ReuseTokenFromUrl:          true,
 		ExperimentalEnableJsonRead: false,
-		AnonymousAccess:            true,
-		EnableHNS:                  false,
+		AnonymousAccess:            false,
+		EnableHNS:                  true,
+		EnableGoogleLibAuth:        true,
 		ReadStallRetryConfig: cfg.ReadStallGcsRetriesConfig{
 			Enable:              false,
 			InitialReqTimeout:   20 * time.Second,

@@ -31,6 +31,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"golang.org/x/net/context"
+	"golang.org/x/oauth2"
 	option "google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -79,36 +80,48 @@ func (pd *gRPCDirectPathDetector) isDirectPathPossible(ctx context.Context, buck
 }
 
 // Return clientOpts for both gRPC client and control client.
-func createClientOptionForGRPCClient(clientConfig *storageutil.StorageClientConfig, enableBidiConfig bool) (clientOpts []option.ClientOption, err error) {
-	// Add Custom endpoint option.
+func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageutil.StorageClientConfig, enableBidiConfig bool) (clientOpts []option.ClientOption, err error) {
+	// Add custom endpoint if provided.
 	if clientConfig.CustomEndpoint != "" {
 		clientOpts = append(clientOpts, option.WithEndpoint(storageutil.StripScheme(clientConfig.CustomEndpoint)))
+
 		// TODO(b/390799251): Check if this line can be merged with below anonymousAccess check.
 		if clientConfig.AnonymousAccess {
 			clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())))
 		}
 	}
 
+	// Configure authentication.
 	if clientConfig.AnonymousAccess {
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
+	} else if clientConfig.EnableGoogleLibAuth {
+		var authOpts []option.ClientOption
+		authOpts, _, err = storageutil.GetClientAuthOptionsAndToken(ctx, clientConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get client auth options and token: %w", err)
+		}
+		clientOpts = append(clientOpts, authOpts...)
 	} else {
-		tokenSrc, tokenCreationErr := storageutil.CreateTokenSource(clientConfig)
-		if tokenCreationErr != nil {
-			err = fmt.Errorf("while fetching tokenSource: %w", tokenCreationErr)
-			return
+		var tokenSrc oauth2.TokenSource
+		tokenSrc, err = storageutil.CreateTokenSource(clientConfig)
+		if err != nil {
+			return nil, fmt.Errorf("while fetching token source: %w", err)
 		}
 		clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
 	}
 
+	// Additional client options.
 	if enableBidiConfig {
 		clientOpts = append(clientOpts, experimental.WithGRPCBidiReads())
 	}
+
 	clientOpts = append(clientOpts, option.WithGRPCConnectionPool(clientConfig.GrpcConnPoolSize))
 	clientOpts = append(clientOpts, option.WithUserAgent(clientConfig.UserAgent))
 	// Turning off the go-sdk metrics exporter to prevent any problems.
 	// TODO (kislaykishore) - to revisit here for monitoring support.
 	clientOpts = append(clientOpts, storage.WithDisabledClientMetrics())
-	return
+
+	return clientOpts, nil
 }
 
 func setRetryConfig(ctx context.Context, sc *storage.Client, clientConfig *storageutil.StorageClientConfig) {
@@ -149,7 +162,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	}
 
 	var clientOpts []option.ClientOption
-	clientOpts, err = createClientOptionForGRPCClient(clientConfig, enableBidiConfig)
+	clientOpts, err = createClientOptionForGRPCClient(ctx, clientConfig, enableBidiConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 	}
@@ -171,10 +184,20 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig) (sc *storage.Client, err error) {
 	var clientOpts []option.ClientOption
+	var tokenSrc oauth2.TokenSource = nil
+
+	if clientConfig.EnableGoogleLibAuth {
+		var authOpts []option.ClientOption
+		authOpts, tokenSrc, err = storageutil.GetClientAuthOptionsAndToken(ctx, clientConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get client auth options and token: %w", err)
+		}
+		clientOpts = append(clientOpts, authOpts...)
+	}
 
 	// Add WithHttpClient option.
 	var httpClient *http.Client
-	httpClient, err = storageutil.CreateHttpClient(clientConfig)
+	httpClient, err = storageutil.CreateHttpClient(clientConfig, tokenSrc)
 	if err != nil {
 		err = fmt.Errorf("while creating http endpoint: %w", err)
 		return
@@ -272,7 +295,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	// Control-client is needed for folder APIs and for getting storage-layout of the bucket.
 	// GetStorageLayout API is not supported for storage-testbench, which are identified by custom-endpoint containing localhost.
 	if clientConfig.EnableHNS && !strings.Contains(clientConfig.CustomEndpoint, "localhost") {
-		clientOpts, err = createClientOptionForGRPCClient(&clientConfig, false)
+		clientOpts, err = createClientOptionForGRPCClient(ctx, &clientConfig, false)
 		if err != nil {
 			return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 		}
