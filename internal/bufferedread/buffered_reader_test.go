@@ -502,7 +502,7 @@ func (t *BufferedReaderTest) TestPrefetchWithMultiplicativeIncrease() {
 	bqe1 := reader.blockQueue.Pop()
 	_, err1 := bqe1.block.AwaitReady(t.ctx)
 	require.NoError(t.T(), err1)
-	// Second prefetch schedules 2 blocks due to multiplicative increase.
+	// Second prefetch should schedule 2 blocks due to multiplicative increase.
 	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.AnythingOfType("*gcs.ReadObjectRequest")).Return(createFakeReader(t.T(), int(testPrefetchBlockSizeBytes)), nil).Once()
 	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.AnythingOfType("*gcs.ReadObjectRequest")).Return(createFakeReader(t.T(), int(testPrefetchBlockSizeBytes)), nil).Once()
 
