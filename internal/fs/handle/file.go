@@ -235,6 +235,10 @@ func (fh *FileHandle) checkInvariants() {
 	if fh.reader != nil {
 		fh.reader.CheckInvariants()
 	}
+
+	if fh.readManager != nil {
+		fh.readManager.CheckInvariants()
+	}
 }
 
 // If possible, ensure that fh.reader is set to an appropriate random reader
