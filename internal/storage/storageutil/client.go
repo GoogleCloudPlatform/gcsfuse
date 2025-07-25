@@ -102,6 +102,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 		if tokenSrc == nil {
 			// CreateTokenSource only if tokenSrc is nil, which means it wasn't provided externally.
 			// This indicates the EnableGoogleLibAuth flag is disabled.
+			tokenSrc, err = CreateTokenSource(storageClientConfig)
 			if err != nil {
 				err = fmt.Errorf("while fetching tokenSource: %w", err)
 				return

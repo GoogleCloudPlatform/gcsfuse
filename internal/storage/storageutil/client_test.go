@@ -23,6 +23,8 @@ import (
 	"golang.org/x/oauth2"
 )
 
+var keyFile = "testdata/key.json"
+
 func TestClient(t *testing.T) {
 	suite.Run(t, new(clientTest))
 }
@@ -48,8 +50,7 @@ func (t *clientTest) validateProxyInTransport(httpClient *http.Client) {
 // Tests
 
 func (t *clientTest) TestCreateHttpClientWithHttp1() {
-	sc := GetDefaultStorageClientConfig() // By default http1 enabled
-	sc.KeyFile = "testdata/key.json"
+	sc := GetDefaultStorageClientConfig(keyFile) // By default http1 enabled
 
 	httpClient, err := CreateHttpClient(&sc, nil)
 
@@ -59,8 +60,7 @@ func (t *clientTest) TestCreateHttpClientWithHttp1() {
 }
 
 func (t *clientTest) TestCreateHttpClientWithHttp2() {
-	sc := GetDefaultStorageClientConfig()
-	sc.KeyFile = "testdata/key.json"
+	sc := GetDefaultStorageClientConfig(keyFile)
 
 	httpClient, err := CreateHttpClient(&sc, nil)
 
@@ -70,36 +70,33 @@ func (t *clientTest) TestCreateHttpClientWithHttp2() {
 }
 
 func (t *clientTest) TestCreateHttpClientWithHttp1AndAuthEnabled() {
-	sc := GetDefaultStorageClientConfig() // By default http1 enabled
+	sc := GetDefaultStorageClientConfig(keyFile) // By default http1 enabled
 	sc.AnonymousAccess = false
 
 	// Act: this method add tokenSource and clientOptions.
 	httpClient, err := CreateHttpClient(&sc, nil)
 
-	assert.Error(t.T(), err)
-	assert.ErrorContains(t.T(), err, "no such file or directory")
-	assert.Nil(t.T(), httpClient)
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), httpClient)
 }
 
 func (t *clientTest) TestCreateHttpClientWithHttp2AndAuthEnabled() {
-	sc := GetDefaultStorageClientConfig()
+	sc := GetDefaultStorageClientConfig(keyFile)
 	sc.AnonymousAccess = false
 	// Act: this method add tokenSource and clientOptions.
 	httpClient, err := CreateHttpClient(&sc, nil)
 
-	assert.Error(t.T(), err)
-	assert.ErrorContains(t.T(), err, "no such file or directory")
-	assert.Nil(t.T(), httpClient)
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), httpClient)
 }
 
 func (t *clientTest) TestCreateTokenSrc() {
-	sc := GetDefaultStorageClientConfig()
+	sc := GetDefaultStorageClientConfig(keyFile)
 
 	tokenSrc, err := CreateTokenSource(&sc)
 
-	assert.Error(t.T(), err)
-	assert.ErrorContains(t.T(), err, "no such file or directory")
-	assert.NotEqual(t.T(), nil, &tokenSrc)
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), &tokenSrc)
 }
 
 func (t *clientTest) TestStripScheme() {
