@@ -32,14 +32,9 @@ const (
 	testDirName    = "RapidAppendsTest"
 	fileNamePrefix = "rapid-append-file-"
 	// Minimum content size to write in order to trigger block upload while writing ; calculated as (2*blocksize+1) mb.
-	// Block size for buffered writes is set to 1MiB.
 	contentSizeForBW              = 3
+	// Block size for buffered writes is set to 1MiB.
 	blockSize                     = operations.OneMiB
-	metadataCacheEnableFlagPrefix = "--metadata-cache-ttl-secs="
-	metadataCacheDisableFlag      = "--metadata-cache-ttl-secs=0"
-	fileCacheMaxSizeFlag          = "--file-cache-max-size-mb=-1"
-	cacheDirFlagPrefix            = "--cache-dir="
-	writeRapidAppendsEnableFlag   = "--write-experimental-enable-rapid-appends=true"
 )
 
 var (

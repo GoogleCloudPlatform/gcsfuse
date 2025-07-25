@@ -34,9 +34,9 @@ import (
 
 func (t *CommonAppendsSuite) TestAppendsAndReads() {
 	const metadataCacheTTLSecs = 10
-	metadataCacheEnableFlag := fmt.Sprintf("%s%v", metadataCacheEnableFlagPrefix, metadataCacheTTLSecs)
+	metadataCacheEnableFlag := fmt.Sprintf("%s%v", "--metadata-cache-ttl-secs=", metadataCacheTTLSecs)
 	fileCacheDirFlag := func() string {
-		return cacheDirFlagPrefix + getNewEmptyCacheDir(t.primaryMount.rootDir)
+		return "--cache-dir=" + getNewEmptyCacheDir(t.primaryMount.rootDir)
 	}
 
 	testCases := []struct {
@@ -55,19 +55,19 @@ func (t *CommonAppendsSuite) TestAppendsAndReads() {
 		// all cache disabled
 		enableMetadataCache: false,
 		enableFileCache:     false,
-		flags:               []string{writeRapidAppendsEnableFlag, infiniteWriteGlobalMaxBlocks, metadataCacheDisableFlag},
+		flags:               []string{"--write-experimental-enable-rapid-appends=true", "--write-global-max-blocks=-1", "--metadata-cache-ttl-secs=0"},
 	}, {
 		enableMetadataCache: true,
 		enableFileCache:     false,
-		flags:               []string{writeRapidAppendsEnableFlag, infiniteWriteGlobalMaxBlocks, metadataCacheEnableFlag},
+		flags:               []string{"--write-experimental-enable-rapid-appends=true", "--write-global-max-blocks=-1", metadataCacheEnableFlag},
 	}, {
 		enableMetadataCache: true,
 		enableFileCache:     true,
-		flags:               []string{writeRapidAppendsEnableFlag, infiniteWriteGlobalMaxBlocks, metadataCacheEnableFlag, fileCacheMaxSizeFlag, fileCacheDirFlag()},
+		flags:               []string{"--write-experimental-enable-rapid-appends=true", "--write-global-max-blocks=-1", metadataCacheEnableFlag, "--file-cache-max-size-mb=-1", fileCacheDirFlag()},
 	}, {
 		enableMetadataCache: false,
 		enableFileCache:     true,
-		flags:               []string{writeRapidAppendsEnableFlag, infiniteWriteGlobalMaxBlocks, metadataCacheDisableFlag, fileCacheMaxSizeFlag, fileCacheDirFlag()},
+		flags:               []string{"--write-experimental-enable-rapid-appends=true", "--write-global-max-blocks=-1", "--metadata-cache-ttl-secs=0", "--file-cache-max-size-mb=-1", fileCacheDirFlag()},
 	}} {
 		func() {
 			t.mountPrimaryMount(scenario.flags)
