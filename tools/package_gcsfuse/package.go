@@ -24,8 +24,6 @@ func packageFpm(
 	packageType string,
 	binDir string,
 	version string,
-	osys string,
-	arch string,
 	outputDir string) (err error) {
 	// Call fpm.
 	cmd := exec.Command(
@@ -63,7 +61,7 @@ func packageDeb(
 	outputDir string) (err error) {
 	log.Println("Building a .deb package.")
 
-	err = packageFpm("deb", binDir, version, osys, arch, outputDir)
+	err = packageFpm("deb", binDir, version, outputDir)
 	return
 }
 
@@ -77,6 +75,6 @@ func packageRpm(
 	outputDir string) (err error) {
 	log.Println("Building a .rpm package.")
 
-	err = packageFpm("rpm", binDir, version, osys, arch, outputDir)
+	err = packageFpm("rpm", binDir, version, outputDir)
 	return
 }

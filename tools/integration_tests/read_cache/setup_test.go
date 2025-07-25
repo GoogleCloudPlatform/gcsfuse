@@ -106,7 +106,7 @@ func setupForMountedDirectoryTests() {
 	}
 }
 
-func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client, testDirName string) {
+func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) {
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	setup.SetMntDir(mountDir)
 	testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)

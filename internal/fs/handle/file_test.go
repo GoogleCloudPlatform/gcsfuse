@@ -39,6 +39,8 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
+const testDirName = "parentRoot"
+
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
@@ -71,11 +73,10 @@ func (t *fileTest) TearDownTest() {
 // which will be used for testing methods defined on the fileHandle.
 func createDirInode(
 	bucket *gcsx.SyncerBucket,
-	clock *timeutil.SimulatedClock,
-	dirName string) inode.DirInode {
+	clock *timeutil.SimulatedClock) inode.DirInode {
 	return inode.NewDirInode(
 		1,
-		inode.NewDirName(inode.NewRootName(""), dirName),
+		inode.NewDirName(inode.NewRootName(""), testDirName),
 		fuseops.InodeAttributes{
 			Uid:  0,
 			Gid:  0,
@@ -141,7 +142,7 @@ func createFileInode(
 ////////////////////////////////////////////////////////////////////////
 
 func (t *fileTest) TestFileHandleWrite() {
-	parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
+	parent := createDirInode(&t.bucket, &t.clock)
 	config := &cfg.Config{Write: cfg.WriteConfig{EnableStreamingWrites: false}}
 	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj", nil, false)
 	fh := NewFileHandle(in, nil, false, nil, util.Write, &cfg.Config{})
@@ -165,7 +166,7 @@ func (t *fileTest) TestFileHandleWrite() {
 // Test_Read_Success validates successful read behavior using the random reader.
 func (t *fileTest) Test_Read_Success() {
 	expectedData := []byte("hello from reader")
-	parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
+	parent := createDirInode(&t.bucket, &t.clock)
 	in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, "test_obj_reader", expectedData, false)
 	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{})
 	buf := make([]byte, len(expectedData))
@@ -181,7 +182,7 @@ func (t *fileTest) Test_Read_Success() {
 // Test_ReadWithReadManager_Success validates successful read behavior using the readManager.
 func (t *fileTest) Test_ReadWithReadManager_Success() {
 	expectedData := []byte("hello from readManager")
-	parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
+	parent := createDirInode(&t.bucket, &t.clock)
 	in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, "test_obj_readManager", expectedData, false)
 	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{})
 	buf := make([]byte, len(expectedData))
@@ -213,7 +214,7 @@ func (t *fileTest) Test_ReadWithReadManager_ErrorScenarios() {
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
 			t.SetupTest()
-			parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
+			parent := createDirInode(&t.bucket, &t.clock)
 			testInode := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, []byte("data"), false)
 			fh := NewFileHandle(testInode, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{})
 			fh.inode.Lock()
@@ -251,7 +252,7 @@ func (t *fileTest) Test_Read_ErrorScenarios() {
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
 			t.SetupTest()
-			parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
+			parent := createDirInode(&t.bucket, &t.clock)
 			testInode := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, []byte("data"), false)
 			fh := NewFileHandle(testInode, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{})
 			fh.inode.Lock()
@@ -276,7 +277,7 @@ func (t *fileTest) Test_ReadWithReadManager_FallbackToInode() {
 	dst := make([]byte, 100)
 	objectData := []byte("fallback data")
 	object := gcs.MinObject{Name: "test_obj", Generation: 0}
-	parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
+	parent := createDirInode(&t.bucket, &t.clock)
 	in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, objectData, true)
 	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{})
 	fh.inode.Lock()
@@ -298,7 +299,7 @@ func (t *fileTest) Test_Read_FallbackToInode() {
 	dst := make([]byte, 100)
 	objectData := []byte("fallback data")
 	object := gcs.MinObject{Name: "test_obj", Generation: 0}
-	parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
+	parent := createDirInode(&t.bucket, &t.clock)
 	in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, objectData, true)
 	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{})
 	fh.inode.Lock()
@@ -333,7 +334,7 @@ func (t *fileTest) TestOpenMode() {
 		},
 	}
 	for _, tc := range testCases {
-		parent := createDirInode(&t.bucket, &t.clock, "parentRoot")
+		parent := createDirInode(&t.bucket, &t.clock)
 		config := &cfg.Config{Write: cfg.WriteConfig{EnableStreamingWrites: false}}
 		in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj", nil, false)
 		fh := NewFileHandle(in, nil, false, nil, tc.openMode, &cfg.Config{})

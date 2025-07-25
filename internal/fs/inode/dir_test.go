@@ -52,6 +52,7 @@ const dirInodeID = 17
 const dirInodeName = "foo/bar/"
 const dirMode os.FileMode = 0712 | os.ModeDir
 const typeCacheTTL = time.Second
+const testSymlinkTarget = "blah"
 
 type DirTest struct {
 	ctx    context.Context
@@ -77,7 +78,7 @@ func (t *DirTest) SetUp(ti *TestInfo) {
 		".gcsfuse_tmp/",
 		bucket)
 	// Create the inode. No implicit dirs by default.
-	t.resetInode(false, false, true)
+	t.resetInode(false, false)
 }
 
 func (t *DirTest) TearDown() {
@@ -97,8 +98,8 @@ func (p DirentSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 // NOTE: A limitation in the fake bucket's API prevents the direct creation of managed folders.
 // This poses a challenge for writing unit tests for includeFoldersAsPrefixes.
 
-func (t *DirTest) resetInode(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing bool) {
-	t.resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing, 4, typeCacheTTL)
+func (t *DirTest) resetInode(implicitDirs, enableNonexistentTypeCache bool) {
+	t.resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, true, 4, typeCacheTTL)
 }
 
 func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing bool, typeCacheMaxSizeMB int64, typeCacheTTL time.Duration) {
@@ -199,8 +200,8 @@ func (t *DirTest) readAllEntryCores() (cores map[Name]*Core, err error) {
 }
 
 func (t *DirTest) setSymlinkTarget(
-	objName string,
-	target string) (err error) {
+	objName string) (err error) {
+	target := testSymlinkTarget
 	_, err = t.bucket.UpdateObject(
 		t.ctx,
 		&gcs.UpdateObjectRequest{
@@ -390,7 +391,7 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Enabled() {
 	var err error
 
 	// Enable implicit dirs.
-	t.resetInode(true, false, true)
+	t.resetInode(true, false)
 
 	// Create an object that implicitly defines the directory.
 	otherObjName := path.Join(objName, "asdf")
@@ -464,7 +465,7 @@ func (t *DirTest) LookUpChild_SymlinkAndDir() {
 	linkObj, err := storageutil.CreateObject(t.ctx, t.bucket, linkObjName, []byte("taco"))
 	AssertEq(nil, err)
 
-	err = t.setSymlinkTarget(linkObjName, "blah")
+	err = t.setSymlinkTarget(linkObjName)
 	AssertEq(nil, err)
 
 	dirObj, err := storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
@@ -554,7 +555,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
 	var err error
 
 	// Enable implicit dirs.
-	t.resetInode(true, false, true)
+	t.resetInode(true, false)
 
 	// Create backing objects.
 	fileObj, err := storageutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
@@ -642,7 +643,7 @@ func (t *DirTest) LookUpChild_TypeCaching() {
 
 func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsDisabled() {
 	// Enable enableNonexistentTypeCache for type cache
-	t.resetInode(false, true, true)
+	t.resetInode(false, true)
 
 	const name = "qux"
 	objName := path.Join(dirInodeName, name) + "/"
@@ -682,7 +683,7 @@ func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsDisabled() {
 
 func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsEnabled() {
 	// Enable implicitDirs and enableNonexistentTypeCache for type cache
-	t.resetInode(true, true, true)
+	t.resetInode(true, true)
 
 	const name = "qux"
 	objName := path.Join(dirInodeName, name) + "/"
@@ -854,7 +855,7 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsDisabled() {
 	AssertEq(nil, err)
 
 	// Set up the symlink target.
-	err = t.setSymlinkTarget(dirInodeName+"symlink", "blah")
+	err = t.setSymlinkTarget(dirInodeName + "symlink")
 	AssertEq(nil, err)
 
 	// Nil prevDirListingTimeStamp
@@ -897,7 +898,7 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
 	var entry fuseutil.Dirent
 
 	// Enable implicit dirs.
-	t.resetInode(true, false, true)
+	t.resetInode(true, false)
 
 	// Set up contents.
 	objs := []string{
@@ -913,7 +914,7 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
 	AssertEq(nil, err)
 
 	// Set up the symlink target.
-	err = t.setSymlinkTarget(dirInodeName+"symlink", "blah")
+	err = t.setSymlinkTarget(dirInodeName + "symlink")
 	AssertEq(nil, err)
 
 	// Nil prevDirListingTimeStamp
@@ -1044,7 +1045,7 @@ func (t *DirTest) ReadEntryCores_NonEmpty_ImplicitDirsDisabled() {
 	AssertEq(nil, err)
 
 	// Set up the symlink target.
-	err = t.setSymlinkTarget(dirInodeName+"symlink", "blah")
+	err = t.setSymlinkTarget(dirInodeName + "symlink")
 	AssertEq(nil, err)
 
 	// Nil prevDirListingTimeStamp
@@ -1070,7 +1071,7 @@ func (t *DirTest) ReadEntryCores_NonEmpty_ImplicitDirsEnabled() {
 	var cores map[Name]*Core
 
 	// Enable implicit dirs.
-	t.resetInode(true, false, true)
+	t.resetInode(true, false)
 
 	// Set up contents.
 	backedDirEmptyName := path.Join(dirInodeName, "backed_dir_empty") + "/"
@@ -1093,7 +1094,7 @@ func (t *DirTest) ReadEntryCores_NonEmpty_ImplicitDirsEnabled() {
 	AssertEq(nil, err)
 
 	// Set up the symlink target.
-	err = t.setSymlinkTarget(dirInodeName+"symlink", "blah")
+	err = t.setSymlinkTarget(dirInodeName + "symlink")
 	AssertEq(nil, err)
 
 	// Nil prevDirListingTimeStamp

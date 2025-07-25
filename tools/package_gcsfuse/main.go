@@ -65,7 +65,7 @@ func run(args []string) (err error) {
 	}
 
 	// Assemble binaries, mount(8) helper scripts, etc.
-	buildDir, err := build(commit, version, osys)
+	buildDir, err := build(commit, version)
 	if err != nil {
 		err = fmt.Errorf("build: %w", err)
 		return

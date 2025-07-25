@@ -81,7 +81,7 @@ func (t *FileStreamingWritesCommon) setupTest() {
 	syncutil.EnableInvariantChecking()
 	t.ctx = context.Background()
 	// Create the inode.
-	t.createInode(fileName, localFile)
+	t.createInode(localFile)
 }
 
 func (t *FileStreamingWritesZonalBucketTest) SetupTest() {
@@ -104,7 +104,7 @@ func (t *FileStreamingWritesTest) SetupSubTest() {
 	t.SetupTest()
 }
 
-func (t *FileStreamingWritesCommon) createInode(fileName string, fileType string) {
+func (t *FileStreamingWritesCommon) createInode(fileType string) {
 	if fileType != emptyGCSFile && fileType != localFile {
 		t.T().Errorf("fileType should be either local or empty")
 	}
@@ -469,7 +469,7 @@ func (t *FileStreamingWritesTest) TestUnlinkLocalFileAfterWrite() {
 }
 
 func (t *FileStreamingWritesTest) TestUnlinkEmptySyncedFile() {
-	t.createInode(fileName, emptyGCSFile)
+	t.createInode(emptyGCSFile)
 	assert.False(t.T(), t.in.IsLocal())
 	t.createBufferedWriteHandler()
 	// Write some content to temp file.
@@ -504,7 +504,7 @@ func (t *FileStreamingWritesTest) TestWriteToFileAndFlush() {
 			if tc.isLocal {
 				assert.True(t.T(), t.in.IsLocal())
 			} else {
-				t.createInode(fileName, emptyGCSFile)
+				t.createInode(emptyGCSFile)
 				assert.False(t.T(), t.in.IsLocal())
 			}
 			t.createBufferedWriteHandler()
@@ -564,7 +564,7 @@ func (t *FileStreamingWritesTest) TestFlushEmptyFile() {
 			if tc.isLocal {
 				assert.True(t.T(), t.in.IsLocal())
 			} else {
-				t.createInode(fileName, emptyGCSFile)
+				t.createInode(emptyGCSFile)
 				assert.False(t.T(), t.in.IsLocal())
 			}
 			t.clock.AdvanceTime(10 * time.Second)
@@ -622,7 +622,7 @@ func (t *FileStreamingWritesTest) TestFlushClobberedFile() {
 			if tc.isLocal {
 				assert.True(t.T(), t.in.IsLocal())
 			} else {
-				t.createInode(fileName, emptyGCSFile)
+				t.createInode(emptyGCSFile)
 				assert.False(t.T(), t.in.IsLocal())
 			}
 			t.createBufferedWriteHandler()
@@ -665,7 +665,7 @@ func (t *FileStreamingWritesTest) TestWriteToFileAndSync() {
 			if tc.isLocal {
 				assert.True(t.T(), t.in.IsLocal())
 			} else {
-				t.createInode(fileName, emptyGCSFile)
+				t.createInode(emptyGCSFile)
 				assert.False(t.T(), t.in.IsLocal())
 			}
 			t.createBufferedWriteHandler()
@@ -713,7 +713,7 @@ func (t *FileStreamingWritesTest) TestSourceGenerationSizeForLocalFileIsReflecte
 }
 
 func (t *FileStreamingWritesTest) TestSourceGenerationSizeForSyncedFileIsReflected() {
-	t.createInode(fileName, emptyGCSFile)
+	t.createInode(emptyGCSFile)
 	assert.False(t.T(), t.in.IsLocal())
 	t.createBufferedWriteHandler()
 	gcsSynced, err := t.in.Write(context.Background(), []byte(setup.GenerateRandomString(5)), 0, util.Write)
