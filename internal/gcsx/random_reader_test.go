@@ -236,7 +236,7 @@ func (t *RandomReaderTest) NoExistingReader() {
 	// The bucket should be called to set up a new reader.
 	ExpectCall(t.bucket, "NewReaderWithReadHandle")(Any(), Any()).
 		WillOnce(Return(nil, errors.New("")))
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
+	ExpectCall(t.bucket, "BucketType")().Times(2).WillOnce(Return(t.bucketType))
 	buf := make([]byte, 1)
 
 	_, err := t.rr.ReadAt(buf, 0)
@@ -258,7 +258,7 @@ func (t *RandomReaderTest) ExistingReader_ReadAtOffsetAfterTheReaderPosition() {
 	t.rr.wrapped.start = currentStartOffset
 	t.rr.wrapped.limit = readerLimit
 
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
+	ExpectCall(t.bucket, "BucketType")().Times(2).WillOnce(Return(t.bucketType))
 
 	buf := make([]byte, readSize)
 	_, err := t.rr.ReadAt(buf, readAtOffset)
@@ -272,7 +272,7 @@ func (t *RandomReaderTest) ExistingReader_ReadAtOffsetAfterTheReaderPosition() {
 func (t *RandomReaderTest) NewReaderReturnsError() {
 	ExpectCall(t.bucket, "NewReaderWithReadHandle")(Any(), Any()).
 		WillOnce(Return(nil, errors.New("taco")))
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
+	ExpectCall(t.bucket, "BucketType")().Times(2).WillOnce(Return(t.bucketType))
 	buf := make([]byte, 1)
 
 	_, err := t.rr.ReadAt(buf, 0)
@@ -288,7 +288,7 @@ func (t *RandomReaderTest) ReaderFails() {
 
 	ExpectCall(t.bucket, "NewReaderWithReadHandle")(Any(), Any()).
 		WillOnce(Return(rc, nil))
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
+	ExpectCall(t.bucket, "BucketType")().Times(2).WillOnce(Return(t.bucketType))
 
 	// Call
 	buf := make([]byte, 3)
@@ -305,7 +305,7 @@ func (t *RandomReaderTest) ReaderNotExhausted() {
 	}
 	rc := &fake.FakeReader{ReadCloser: cc}
 
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
+	ExpectCall(t.bucket, "BucketType")().Times(2).WillOnce(Return(t.bucketType))
 
 	t.rr.wrapped.reader = rc
 	t.rr.wrapped.cancel = func() {}
@@ -333,7 +333,7 @@ func (t *RandomReaderTest) ReaderExhausted_ReadFinished() {
 		Reader: strings.NewReader("abc"),
 	}
 
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
+	ExpectCall(t.bucket, "BucketType")().Times(2).WillOnce(Return(t.bucketType))
 
 	t.rr.wrapped.reader = &fake.FakeReader{ReadCloser: rc}
 	t.rr.wrapped.cancel = func() {}
@@ -360,7 +360,7 @@ func (t *RandomReaderTest) PropagatesCancellation() {
 	finishRead := make(chan struct{})
 	rc := io.NopCloser(&blockingReader{finishRead})
 
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
+	ExpectCall(t.bucket, "BucketType")().Times(2).WillOnce(Return(t.bucketType))
 
 	t.rr.wrapped.reader = &fake.FakeReader{ReadCloser: rc}
 	t.rr.wrapped.start = 1
@@ -405,7 +405,7 @@ func (t *RandomReaderTest) DoesntPropagateCancellationAfterReturning() {
 	t.rr.wrapped.start = 1
 	t.rr.wrapped.limit = 4
 
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
+	ExpectCall(t.bucket, "BucketType")().Times(2).WillOnce(Return(t.bucketType))
 
 	// Snoop on when cancel is called.
 	cancelCalled := make(chan struct{})
@@ -453,7 +453,7 @@ func (t *RandomReaderTest) UpgradesReadsToObjectSize() {
 		Any(),
 		AllOf(rangeStartIs(1), rangeLimitIs(objectSize))).
 		WillOnce(Return(rc, nil))
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
+	ExpectCall(t.bucket, "BucketType")().Times(2).WillOnce(Return(t.bucketType))
 
 	// Call through.
 	buf := make([]byte, readSize)
@@ -495,7 +495,7 @@ func (t *RandomReaderTest) UpgradeReadsToAverageSize() {
 			rangeStartIs(start),
 			rangeLimitIs(start+expectedBytesToRead),
 		)).WillOnce(Return(rc, nil))
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
+	ExpectCall(t.bucket, "BucketType")().Times(2).WillOnce(Return(t.bucketType))
 
 	// Call through.
 	buf := make([]byte, readSize)
@@ -529,7 +529,7 @@ func (t *RandomReaderTest) UpgradesSequentialReads_ExistingReader() {
 		Any(),
 		AllOf(rangeStartIs(1), rangeLimitIs(1+sequentialReadSizeInBytes))).
 		WillOnce(Return(rc, nil))
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
+	ExpectCall(t.bucket, "BucketType")().Times(2).WillOnce(Return(t.bucketType))
 
 	// Call through.
 	buf := make([]byte, readSize)
@@ -564,7 +564,7 @@ func (t *RandomReaderTest) UpgradesSequentialReads_NoExistingReader() {
 		Any(),
 		AllOf(rangeStartIs(1), rangeLimitIs(1+readSize))).
 		WillOnce(Return(rc, nil))
-	ExpectCall(t.bucket, "BucketType")().WillOnce(Return(t.bucketType))
+	ExpectCall(t.bucket, "BucketType")().Times(2).WillOnce(Return(t.bucketType))
 
 	// Call through.
 	buf := make([]byte, readSize)

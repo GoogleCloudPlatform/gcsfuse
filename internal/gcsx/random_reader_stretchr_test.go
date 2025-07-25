@@ -674,7 +674,7 @@ func (t *RandomReaderStretchrTest) Test_ExistingReader_WrongOffset() {
 				On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).
 				Return(nil, errors.New(string(tc.readHandle))).
 				Times(1)
-			t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(1)
+			t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(2)
 
 			buf := make([]byte, 1)
 
@@ -706,7 +706,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ExistingReaderLimitIsLessThanRequ
 		ReadHandle:     expectedHandleInRequest,
 	}
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(rc, nil)
-	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(1)
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(2)
 	requestSize := 6
 	buf := make([]byte, requestSize)
 
@@ -741,7 +741,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ExistingReaderLimitIsLessThanRequ
 		ReadHandle:     expectedHandleInRequest,
 	}
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(rc, nil)
-	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(1)
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(2)
 	requestSize := 6
 	buf := make([]byte, requestSize)
 
@@ -844,7 +844,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ValidateReadType() {
 			assert.Nil(t.T(), err, "Error in creating MRDWrapper")
 			t.rr.wrapped.mrdWrapper = &fakeMRDWrapper
 			t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, testContent, time.Microsecond))
-			t.mockBucket.On("BucketType", mock.Anything).Return(tc.bucketType).Times(len(tc.readRanges))
+			t.mockBucket.On("BucketType", mock.Anything).Return(tc.bucketType).Times(len(tc.readRanges) * 2)
 
 			for i, readRange := range tc.readRanges {
 				t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(&fake.FakeReader{ReadCloser: getReadCloser(testContent)}, nil).Once()
@@ -1143,7 +1143,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_WithAndWithoutReadConfig() {
 			}
 			t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, expectedReadObjectRequest).Return(rc, nil).Once()
 			// BucketType is called by ReadAt -> getReadInfo -> readerType to determine reader strategy.
-			t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false}).Once()
+			t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false}).Twice()
 			buf := make([]byte, readLength)
 
 			objectData, err := t.rr.ReadAt(buf, readOffset)
