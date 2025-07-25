@@ -263,6 +263,44 @@ func (t *RapidAppendsSuite) TestAppendsVisibleInRealTimeWithConcurrentRPlusHandl
 	assert.Equal(t.T(), expectedContent, string(contentRead[0:len(expectedContent)]))
 }
 
+func (t *RapidAppendsSuite) TestRandomWritesVisibleAfterCloseWithConcurrentRPlusHandle() {
+	// Skipping test for now until CreateObject() is supported for unfinalized objects.
+	// Ref: b/424253611
+	t.T().Skip()
+
+	primaryPath := path.Join(primaryMntTestDirPath, t.fileName)
+	// Open first handle in append mode.
+	appendFileHandle := operations.OpenFileInMode(t.T(), primaryPath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
+	defer appendFileHandle.Close()
+
+	// Open second handle in "r+" mode.
+	readHandle := operations.OpenFileInMode(t.T(), primaryPath, os.O_RDWR|syscall.O_DIRECT)
+
+	// Write initial content using append handle to trigger BW workflow.
+	n, err := appendFileHandle.Write([]byte(initialContent))
+	require.NoError(t.T(), err)
+	require.NotZero(t.T(), n)
+
+	// Random write additional content using "r+" handle by writing to incorrect offset.
+	data := setup.GenerateRandomString(contentSizeForBW * blockSize)
+	_, err = readHandle.WriteAt([]byte(data), int64(len(initialContent))+1)
+	require.NoError(t.T(), err)
+
+	// Read from back-door to validate that appended content is yet not visible on GCS before close().
+	contentBeforeClose, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), initialContent, string(contentBeforeClose))
+
+	// Close the file handle.
+	readHandle.Close()
+
+	// Read from back-door to validate that appended content is now visible on GCS after close().
+	expectedContent := t.fileContent + initialContent + "\x00" + data
+	contentAfterClose, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), expectedContent, contentAfterClose)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
