@@ -51,8 +51,10 @@ var (
 // Suite Setup and Teardown
 // //////////////////////////////////////////////////////////////////////
 
-// RapidAppendsSuite is the base suite for rapid appends tests.
-type RapidAppendsSuite struct {
+// CommonAppendsSuite is the base suite for rapid appends tests.
+// Adding any tests (.e. Test*() member functions) to this struct will add it
+// for all structs that encapsulate it, e.g. SingleMountAppendsSuite.
+type CommonAppendsSuite struct {
 	suite.Suite
 	primaryMount            mountPoint
 	fileName                string
@@ -61,80 +63,80 @@ type RapidAppendsSuite struct {
 	appendMountPath         string
 }
 
-func (t *RapidAppendsSuite) SetupSuite() {
-	// Set up test directory for primary mount.
-	setup.SetUpTestDirForTestBucketFlag()
-	t.primaryMount.rootDir = setup.TestDir()
-	t.primaryMount.mntDir = setup.MntDir()
-	t.primaryMount.logFilePath = setup.LogFile()
-	t.primaryMount.testDirPath = path.Join(setup.MntDir(), testDirName)
+func (t *CommonAppendsSuite) SetupSuite() {
+	t.primaryMount.setupTestDir()
 }
 
-func (t *RapidAppendsSuite) TearDownSuite() {
-	if t.T().Failed() {
-		setup.SetLogFile(t.primaryMount.logFilePath)
-		log.Printf("Saving primary mount log file %q ...", t.primaryMount.logFilePath)
-		setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
-	}
+func (t *CommonAppendsSuite) TearDownSuite() {
+	t.tearDownMount(&t.primaryMount)
 }
 
-// SingleMountRapidAppendsSuite is the suite for rapid appends tests with a single mount,
-// i.e. primary mount for both reading and writing/appending.
-type SingleMountRapidAppendsSuite struct {
-	RapidAppendsSuite
+// SingleMountAppendsSuite is the suite for rapid appends tests with a single mount,
+// i.e. primary mount.
+// Adding any tests (.e. Test*() member functions) to this struct will run
+// only for single-mount.
+type SingleMountAppendsSuite struct {
+	CommonAppendsSuite
 }
 
-func (t *SingleMountRapidAppendsSuite) SetupSuite() {
-	t.RapidAppendsSuite.SetupSuite()
-
+func (t *SingleMountAppendsSuite) SetupSuite() {
+	t.CommonAppendsSuite.SetupSuite()
+	// Set up appends to work through secondary mount.
 	t.appendMountPath = t.primaryMount.testDirPath
 	//  fsync is not needed after append if append is from the same mount point as the read mount point.
 	t.isSyncNeededAfterAppend = false
 }
 
-func (t *SingleMountRapidAppendsSuite) TearDownSuite() {
-	t.RapidAppendsSuite.TearDownSuite()
+func (t *SingleMountAppendsSuite) TearDownSuite() {
+	t.CommonAppendsSuite.TearDownSuite()
 }
 
-// DualMountRapidAppendsSuite is the suite for rapid appends tests with two mounts,
+// DualMountAppendsSuite is the suite for rapid appends tests with two mounts,
 // primary for reading and secondary for writing/appending.
-type DualMountRapidAppendsSuite struct {
-	RapidAppendsSuite
+// Adding any tests (.e. Test*() member functions) to this struct will run
+// only for dual-mount.
+type DualMountAppendsSuite struct {
+	CommonAppendsSuite
 	secondaryMount mountPoint
 }
 
-func (t *DualMountRapidAppendsSuite) SetupSuite() {
-	t.RapidAppendsSuite.SetupSuite()
-
-	// Create secondary mount.
-	setup.SetUpTestDirForTestBucketFlag()
-	t.secondaryMount.rootDir = setup.TestDir()
-	t.secondaryMount.mntDir = setup.MntDir()
-	t.secondaryMount.logFilePath = setup.LogFile()
-	setup.MountGCSFuseWithGivenMountFunc(secondaryMountFlags, mountFunc)
-	t.secondaryMount.testDirPath = setup.SetupTestDirectory(testDirName)
+func (t *DualMountAppendsSuite) SetupSuite() {
+	t.CommonAppendsSuite.SetupSuite()
+	t.secondaryMount.setupTestDir()
+	t.mountSecondaryMount(secondaryMountFlags)
 
 	t.appendMountPath = t.secondaryMount.testDirPath
 	// fsync is needed after append if append is from a different mount point (secondary mount) from the read mount point (primary mount).
 	t.isSyncNeededAfterAppend = true
 }
 
-func (t *DualMountRapidAppendsSuite) TearDownSuite() {
-	// Clean up of secondary mount.
-	setup.UnmountGCSFuse(t.secondaryMount.mntDir)
-	if t.T().Failed() {
-		setup.SetLogFile(t.secondaryMount.logFilePath)
-		log.Printf("Saving secondary mount log file %q ...", t.secondaryMount.logFilePath)
-		setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
-	}
-	t.RapidAppendsSuite.TearDownSuite()
+func (t *DualMountAppendsSuite) TearDownSuite() {
+	t.unmountSecondaryMount()
+	t.tearDownMount(&t.secondaryMount)
+	t.CommonAppendsSuite.TearDownSuite()
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func (t *RapidAppendsSuite) deleteUnfinalizedObject() {
+func (mnt *mountPoint) setupTestDir() {
+	setup.SetUpTestDirForTestBucketFlag()
+	mnt.rootDir = setup.TestDir()
+	mnt.mntDir = setup.MntDir()
+	mnt.logFilePath = setup.LogFile()
+	mnt.testDirPath = path.Join(setup.MntDir(), testDirName)
+}
+
+func (t *CommonAppendsSuite) tearDownMount(mnt *mountPoint) {
+	if t.T().Failed() {
+		setup.SetLogFile(mnt.logFilePath)
+		log.Printf("Saving mnt at %q mount log file %q ...", t.primaryMount.mntDir, t.primaryMount.logFilePath)
+		setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
+	}
+}
+
+func (t *CommonAppendsSuite) deleteUnfinalizedObject() {
 	if t.fileName != "" {
 		err := os.Remove(path.Join(t.primaryMount.testDirPath, t.fileName))
 		require.NoError(t.T(), err)
@@ -142,14 +144,14 @@ func (t *RapidAppendsSuite) deleteUnfinalizedObject() {
 	}
 }
 
-func (t *RapidAppendsSuite) createUnfinalizedObject() {
+func (t *CommonAppendsSuite) createUnfinalizedObject() {
 	t.fileName = fileNamePrefix + setup.GenerateRandomString(5)
 	// Create unfinalized object.
 	t.fileContent = setup.GenerateRandomString(unfinalizedObjectSize)
 	client.CreateUnfinalizedObject(ctx, t.T(), storageClient, path.Join(testDirName, t.fileName), t.fileContent)
 }
 
-func (t *RapidAppendsSuite) mountPrimaryMount(flags []string) {
+func (t *CommonAppendsSuite) mountPrimaryMount(flags []string) {
 	// Create primary mountpoint.
 	setup.SetMntDir(t.primaryMount.mntDir)
 	setup.SetLogFile(t.primaryMount.logFilePath)
@@ -158,12 +160,26 @@ func (t *RapidAppendsSuite) mountPrimaryMount(flags []string) {
 	setup.SetupTestDirectory(testDirName)
 }
 
-func (t *RapidAppendsSuite) unmountPrimaryMount() {
+func (t *CommonAppendsSuite) unmountPrimaryMount() {
 	setup.UnmountGCSFuse(t.primaryMount.mntDir)
 }
 
+func (t *DualMountAppendsSuite) mountSecondaryMount(flags []string) {
+	// Create secondary mountpoint.
+	setup.SetMntDir(t.secondaryMount.mntDir)
+	setup.SetLogFile(t.secondaryMount.logFilePath)
+	err := static_mounting.MountGcsfuseWithStaticMounting(flags)
+	require.NoError(t.T(), err, "Unable to mount gcsfuse with flags %v: %v", flags, err)
+	//setup.SetupTestDirectory(testDirName)
+	t.secondaryMount.testDirPath = setup.SetupTestDirectory(testDirName)
+}
+
+func (t *DualMountAppendsSuite) unmountSecondaryMount() {
+	setup.UnmountGCSFuse(t.secondaryMount.mntDir)
+}
+
 // appendToFile appends the given "appendContent" to the given file.
-func (t *RapidAppendsSuite) appendToFile(file *os.File, appendContent string) {
+func (t *CommonAppendsSuite) appendToFile(file *os.File, appendContent string) {
 	t.T().Helper()
 	n, err := file.WriteString(appendContent)
 	assert.NoError(t.T(), err)
@@ -186,10 +202,10 @@ func getNewEmptyCacheDir(rootDir string) string {
 // Test Functions (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestRapidAppendsSingleMountSuite(t *testing.T) {
-	suite.Run(t, new(SingleMountRapidAppendsSuite))
+func TestSingleMountAppendsSuite(t *testing.T) {
+	suite.Run(t, new(SingleMountAppendsSuite))
 }
 
-func TestRapidAppendsDualMountSuite(t *testing.T) {
-	suite.Run(t, new(DualMountRapidAppendsSuite))
+func TestDualMountAppendsSuite(t *testing.T) {
+	suite.Run(t, new(DualMountAppendsSuite))
 }

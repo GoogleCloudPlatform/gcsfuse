@@ -32,7 +32,13 @@ import (
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *RapidAppendsSuite) TestAppendsAndReads() {
+func (t *CommonAppendsSuite) TestAppendsAndReads() {
+	const metadataCacheTTLSecs = 10
+	metadataCacheEnableFlag := fmt.Sprintf("%s%v", metadataCacheEnableFlagPrefix, metadataCacheTTLSecs)
+	fileCacheDirFlag := func() string {
+		return cacheDirFlagPrefix + getNewEmptyCacheDir(t.primaryMount.rootDir)
+	}
+
 	testCases := []struct {
 		name string
 	}{
@@ -53,15 +59,15 @@ func (t *RapidAppendsSuite) TestAppendsAndReads() {
 	}, {
 		enableMetadataCache: true,
 		enableFileCache:     false,
-		flags:               []string{writeRapidAppendsEnableFlag, infiniteWriteGlobalMaxBlocks, fmt.Sprintf("%s%v", metadataCacheEnableFlagPrefix, metadataCacheTTLSecs)},
+		flags:               []string{writeRapidAppendsEnableFlag, infiniteWriteGlobalMaxBlocks, metadataCacheEnableFlag},
 	}, {
 		enableMetadataCache: true,
 		enableFileCache:     true,
-		flags:               []string{writeRapidAppendsEnableFlag, infiniteWriteGlobalMaxBlocks, fmt.Sprintf("%s%v", metadataCacheEnableFlagPrefix, metadataCacheTTLSecs), fileCacheMaxSizeFlag, cacheDirFlagPrefix + getNewEmptyCacheDir(t.primaryMount.rootDir)},
+		flags:               []string{writeRapidAppendsEnableFlag, infiniteWriteGlobalMaxBlocks, metadataCacheEnableFlag, fileCacheMaxSizeFlag, fileCacheDirFlag()},
 	}, {
 		enableMetadataCache: false,
 		enableFileCache:     true,
-		flags:               []string{writeRapidAppendsEnableFlag, infiniteWriteGlobalMaxBlocks, metadataCacheDisableFlag, fileCacheMaxSizeFlag, cacheDirFlagPrefix + getNewEmptyCacheDir(t.primaryMount.rootDir)},
+		flags:               []string{writeRapidAppendsEnableFlag, infiniteWriteGlobalMaxBlocks, metadataCacheDisableFlag, fileCacheMaxSizeFlag, fileCacheDirFlag()},
 	}} {
 		func() {
 			t.mountPrimaryMount(scenario.flags)

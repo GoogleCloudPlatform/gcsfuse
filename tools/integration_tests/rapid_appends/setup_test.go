@@ -33,10 +33,8 @@ const (
 	fileNamePrefix = "rapid-append-file-"
 	// Minimum content size to write in order to trigger block upload while writing ; calculated as (2*blocksize+1) mb.
 	// Block size for buffered writes is set to 1MiB.
-	contentSizeForBW = 3
-	blockSize        = operations.OneMiB
-	// metadataCacheTTLSecs is applicable only for those tests for which enableMetadataCache is true.
-	metadataCacheTTLSecs          = 10
+	contentSizeForBW              = 3
+	blockSize                     = operations.OneMiB
 	metadataCacheEnableFlagPrefix = "--metadata-cache-ttl-secs="
 	metadataCacheDisableFlag      = "--metadata-cache-ttl-secs=0"
 	fileCacheMaxSizeFlag          = "--file-cache-max-size-mb=-1"
