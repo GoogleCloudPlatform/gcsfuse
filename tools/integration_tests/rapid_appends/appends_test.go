@@ -301,6 +301,40 @@ func (t *RapidAppendsSuite) TestRandomWritesVisibleAfterCloseWithConcurrentRPlus
 	assert.Equal(t.T(), expectedContent, contentAfterClose)
 }
 
+func (t *RapidAppendsSuite) TestFallbackHappensWhenNonAppendHandleDoesFirstWrite() {
+	// Skipping test for now until CreateObject() is supported for unfinalized objects.
+	// Ref: b/424253611
+	t.T().Skip()
+
+	primaryPath := path.Join(primaryMntTestDirPath, t.fileName)
+	// Open first handle in append mode.
+	appendFileHandle := operations.OpenFileInMode(t.T(), primaryPath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
+	defer appendFileHandle.Close()
+
+	// Open second handle in "r+" mode.
+	readHandle := operations.OpenFileInMode(t.T(), primaryPath, os.O_RDWR|syscall.O_DIRECT)
+
+	// Append content using "r+" handle.
+	data := setup.GenerateRandomString(contentSizeForBW * blockSize)
+	n, err := readHandle.WriteAt([]byte(data), int64(len(t.fileContent)))
+	require.NoError(t.T(), err)
+	assert.NotZero(t.T(), n)
+
+	// Read from back-door to validate that appended content is yet not visible on GCS before close().
+	contentBeforeClose, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), t.fileContent, contentBeforeClose)
+
+	// Close the file handle.
+	readHandle.Close()
+
+	// Read from back-door to validate that appended content is now visible on GCS after close().
+	expectedContent := t.fileContent + data
+	contentAfterClose, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), expectedContent, contentAfterClose)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
