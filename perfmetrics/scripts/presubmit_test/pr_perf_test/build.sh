@@ -59,7 +59,7 @@ git fetch origin -q
 
 function execute_perf_test() {
   mkdir -p gcs
-  GCSFUSE_FLAGS="--implicit-dirs --prometheus-port=48341"
+  GCSFUSE_FLAGS="--implicit-dirs --prometheus-port=48341 --log-file=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs.txt"
   BUCKET_NAME=presubmit-perf-tests
   MOUNT_POINT=gcs
   # The VM will itself exit if the gcsfuse mount fails.
