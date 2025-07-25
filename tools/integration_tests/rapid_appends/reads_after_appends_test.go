@@ -138,13 +138,14 @@ func (t *CommonAppendsSuite) TestAppendsAndReads() {
 					t.createUnfinalizedObject()
 					defer t.deleteUnfinalizedObject()
 
+					// Open this object as a file for appending on the appropriate mount.
+					appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(t.appendMountPath, t.fileName), os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
+					defer operations.CloseFileShouldNotThrowError(t.T(), appendFileHandle)
+
 					readPath := path.Join(t.primaryMount.testDirPath, t.fileName)
 					for i := range numAppends {
 						sizeBeforeAppend := len(t.fileContent)
-						// Open this object as a file for appending on the appropriate mount.
-						appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(t.appendMountPath, t.fileName), os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
 						t.appendToFile(appendFileHandle, setup.GenerateRandomString(appendSize))
-						operations.CloseFileShouldNotThrowError(t.T(), appendFileHandle)
 						sizeAfterAppend := len(t.fileContent)
 						fmt.Printf("Did append#%d just now. fileSize now at %v bytes\n", i, len(t.fileContent))
 						sleepDur := 0 * time.Second
