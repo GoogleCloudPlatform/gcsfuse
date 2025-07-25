@@ -97,6 +97,9 @@ func (fh *FileHandle) Destroy() {
 	if fh.reader != nil {
 		fh.reader.Destroy()
 	}
+	if fh.readManager != nil {
+		fh.readManager.Destroy()
+	}
 }
 
 // Inode returns the inode backing this handle.
