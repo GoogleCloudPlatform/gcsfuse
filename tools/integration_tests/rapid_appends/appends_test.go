@@ -294,7 +294,6 @@ func (t *SingleMountAppendsSuite) TestFallbackHappensWhenNonAppendHandleDoesFirs
 	// Ref: b/424253611
 	t.T().Skip()
 
-	const initialContent = "dummy content"
 	for _, flags := range [][]string{
 		{writeRapidAppendsEnableFlag, metadataCacheDisableFlag, infiniteWriteGlobalMaxBlocks, "--write-block-size-mb=1"},
 		{writeRapidAppendsEnableFlag, metadataCacheDisableFlag, infiniteWriteGlobalMaxBlocks, "--write-block-size-mb=1", fileCacheMaxSizeFlag, cacheDirFlagPrefix + getNewEmptyCacheDir(t.primaryMount.rootDir)},
