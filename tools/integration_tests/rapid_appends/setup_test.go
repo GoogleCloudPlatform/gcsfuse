@@ -32,9 +32,9 @@ const (
 	testDirName    = "RapidAppendsTest"
 	fileNamePrefix = "rapid-append-file-"
 	// Minimum content size to write in order to trigger block upload while writing ; calculated as (2*blocksize+1) mb.
-	contentSizeForBW              = 3
+	contentSizeForBW = 3
 	// Block size for buffered writes is set to 1MiB.
-	blockSize                     = operations.OneMiB
+	blockSize = operations.OneMiB
 )
 
 var (
