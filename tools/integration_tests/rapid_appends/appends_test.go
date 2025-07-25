@@ -37,7 +37,7 @@ const (
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *DualMountRapidAppendsSuite) TestAppendSessionInvalidatedByAnotherClientUponTakeover() {
+func (t *DualMountAppendsSuite) TestAppendSessionInvalidatedByAnotherClientUponTakeover() {
 	const initialContent = "dummy content"
 	const appendContent = "appended content"
 	for _, flags := range [][]string{
@@ -93,7 +93,7 @@ func (t *DualMountRapidAppendsSuite) TestAppendSessionInvalidatedByAnotherClient
 	}
 }
 
-func (t *SingleMountRapidAppendsSuite) TestContentAppendedInNonAppendModeNotVisibleTillClose() {
+func (t *SingleMountAppendsSuite) TestContentAppendedInNonAppendModeNotVisibleTillClose() {
 	// Skipping test for now until CreateObject() is supported for unfinalized objects.
 	// Ref: b/424253611
 	t.T().Skip()
@@ -141,7 +141,7 @@ func (t *SingleMountRapidAppendsSuite) TestContentAppendedInNonAppendModeNotVisi
 	}
 }
 
-func (t *SingleMountRapidAppendsSuite) TestAppendsToFinalizedObjectNotVisibleUntilClose() {
+func (t *SingleMountAppendsSuite) TestAppendsToFinalizedObjectNotVisibleUntilClose() {
 	const initialContent = "dummy content"
 	for _, flags := range [][]string{
 		{writeRapidAppendsEnableFlag, metadataCacheDisableFlag, infiniteWriteGlobalMaxBlocks, "--write-block-size-mb=1"},
@@ -183,7 +183,7 @@ func (t *SingleMountRapidAppendsSuite) TestAppendsToFinalizedObjectNotVisibleUnt
 	}
 }
 
-func (t *SingleMountRapidAppendsSuite) TestAppendsVisibleInRealTimeWithConcurrentRPlusHandle() {
+func (t *SingleMountAppendsSuite) TestAppendsVisibleInRealTimeWithConcurrentRPlusHandle() {
 	const initialContent = "dummy content"
 	for _, flags := range [][]string{
 		{writeRapidAppendsEnableFlag, metadataCacheDisableFlag, infiniteWriteGlobalMaxBlocks, "--write-block-size-mb=1"},
@@ -194,6 +194,15 @@ func (t *SingleMountRapidAppendsSuite) TestAppendsVisibleInRealTimeWithConcurren
 			defer t.unmountPrimaryMount()
 
 			log.Printf("Running tests with flags: %v", flags)
+
+			// Initially create an unfinalized object.
+			t.createUnfinalizedObject()
+			defer t.deleteUnfinalizedObject()
+
+			primaryPath := path.Join(t.primaryMount.testDirPath, t.fileName)
+			// Open first handle in append mode.
+			appendFileHandle := operations.OpenFileInMode(t.T(), primaryPath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
+			defer appendFileHandle.Close()
 
 			// Open second handle in "r+" mode.
 			readHandle := operations.OpenFileInMode(t.T(), primaryPath, os.O_RDWR|syscall.O_DIRECT)
@@ -219,12 +228,13 @@ func (t *SingleMountRapidAppendsSuite) TestAppendsVisibleInRealTimeWithConcurren
 			contentRead, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
 			require.NoError(t.T(), err)
 			// Assert only on the data which is guranteed to have been uploaded to GCS.
+			require.GreaterOrEqual(t.T(), len(contentRead), len(expectedContent))
 			assert.Equal(t.T(), expectedContent, string(contentRead[0:len(expectedContent)]))
 		}()
 	}
 }
 
-func (t *SingleMountRapidAppendsSuite) TestRandomWritesVisibleAfterCloseWithConcurrentRPlusHandle() {
+func (t *SingleMountAppendsSuite) TestRandomWritesVisibleAfterCloseWithConcurrentRPlusHandle() {
 	// Skipping test for now until CreateObject() is supported for unfinalized objects.
 	// Ref: b/424253611
 	t.T().Skip()
@@ -279,36 +289,53 @@ func (t *SingleMountRapidAppendsSuite) TestRandomWritesVisibleAfterCloseWithConc
 	}
 }
 
-func (t *SingleMountRapidAppendsSuite) TestFallbackHappensWhenNonAppendHandleDoesFirstWrite() {
+func (t *SingleMountAppendsSuite) TestFallbackHappensWhenNonAppendHandleDoesFirstWrite() {
 	// Skipping test for now until CreateObject() is supported for unfinalized objects.
 	// Ref: b/424253611
 	t.T().Skip()
 
-	primaryPath := path.Join(primaryMntTestDirPath, t.fileName)
-	// Open first handle in append mode.
-	appendFileHandle := operations.OpenFileInMode(t.T(), primaryPath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
-	defer appendFileHandle.Close()
+	const initialContent = "dummy content"
+	for _, flags := range [][]string{
+		{writeRapidAppendsEnableFlag, metadataCacheDisableFlag, infiniteWriteGlobalMaxBlocks, "--write-block-size-mb=1"},
+		{writeRapidAppendsEnableFlag, metadataCacheDisableFlag, infiniteWriteGlobalMaxBlocks, "--write-block-size-mb=1", fileCacheMaxSizeFlag, cacheDirFlagPrefix + getNewEmptyCacheDir(t.primaryMount.rootDir)},
+	} {
+		func() {
+			t.mountPrimaryMount(flags)
+			defer t.unmountPrimaryMount()
 
-	// Open second handle in "r+" mode.
-	readHandle := operations.OpenFileInMode(t.T(), primaryPath, os.O_RDWR|syscall.O_DIRECT)
+			log.Printf("Running tests with flags: %v", flags)
 
-	// Append content using "r+" handle.
-	data := setup.GenerateRandomString(contentSizeForBW * blockSize)
-	n, err := readHandle.WriteAt([]byte(data), int64(len(t.fileContent)))
-	require.NoError(t.T(), err)
-	assert.NotZero(t.T(), n)
+			// Initially create an unfinalized object.
+			t.createUnfinalizedObject()
+			defer t.deleteUnfinalizedObject()
 
-	// Read from back-door to validate that appended content is yet not visible on GCS before close().
-	contentBeforeClose, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
-	require.NoError(t.T(), err)
-	assert.Equal(t.T(), t.fileContent, contentBeforeClose)
+			primaryPath := path.Join(t.primaryMount.testDirPath, t.fileName)
+			// Open first handle in append mode.
+			appendFileHandle := operations.OpenFileInMode(t.T(), primaryPath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
+			defer appendFileHandle.Close()
 
-	// Close the file handle.
-	readHandle.Close()
+			// Open second handle in "r+" mode.
+			readHandle := operations.OpenFileInMode(t.T(), primaryPath, os.O_RDWR|syscall.O_DIRECT)
 
-	// Read from back-door to validate that appended content is now visible on GCS after close().
-	expectedContent := t.fileContent + data
-	contentAfterClose, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
-	require.NoError(t.T(), err)
-	assert.Equal(t.T(), expectedContent, contentAfterClose)
+			// Append content using "r+" handle.
+			data := setup.GenerateRandomString(contentSizeForBW * blockSize)
+			n, err := readHandle.WriteAt([]byte(data), int64(len(t.fileContent)))
+			require.NoError(t.T(), err)
+			assert.NotZero(t.T(), n)
+
+			// Read from back-door to validate that appended content is yet not visible on GCS before close().
+			contentBeforeClose, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
+			require.NoError(t.T(), err)
+			assert.Equal(t.T(), t.fileContent, contentBeforeClose)
+
+			// Close the file handle.
+			readHandle.Close()
+
+			// Read from back-door to validate that appended content is now visible on GCS after close().
+			expectedContent := t.fileContent + data
+			contentAfterClose, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
+			require.NoError(t.T(), err)
+			assert.Equal(t.T(), expectedContent, contentAfterClose)
+		}()
+	}
 }
