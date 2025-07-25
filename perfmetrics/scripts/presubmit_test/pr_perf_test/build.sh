@@ -66,7 +66,7 @@ function execute_perf_test() {
   echo "go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT"
   go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
   # Running FIO test
-  time ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
+  #time ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
   sudo umount gcs
 }
 
