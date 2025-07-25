@@ -90,7 +90,7 @@ if [[ "$perfTestStr" == *"$EXECUTE_PERF_TEST_LABEL"* ]];
 then
  # Executing perf tests for master branch
  install_requirements
- git checkout master
+ git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
  # Store results
  touch result.txt
  echo Mounting gcs bucket for master branch and execute tests
