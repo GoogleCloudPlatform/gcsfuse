@@ -160,10 +160,10 @@ func getMachineType(isSet isValueSet) (string, error) {
 	return "", fmt.Errorf("failed to get machine type from any metadata endpoint after retries")
 }
 
-func applyMachineTypeOptimizations(config *optimizationConfig, cfg *Config, isSet isValueSet) ([]string, error) {
+func applyMachineTypeOptimizations(config *optimizationConfig, cfg *Config, isSet isValueSet) []string {
 	currentMachineType, err := getMachineType(isSet)
 	if err != nil {
-		return nil, nil // Non-fatal error, continue with default settings.
+		return nil // Non-fatal error, continue with default settings.
 	}
 	var optimizedFlags []string
 
@@ -176,7 +176,7 @@ func applyMachineTypeOptimizations(config *optimizationConfig, cfg *Config, isSe
 
 	// If no matching machine type is found, return.
 	if mtIndex == -1 {
-		return optimizedFlags, nil
+		return optimizedFlags
 	}
 	mt := &config.machineTypes[mtIndex]
 
@@ -187,7 +187,7 @@ func applyMachineTypeOptimizations(config *optimizationConfig, cfg *Config, isSe
 
 	// If no matching flag override set is found, return.
 	if flgOverrideSetIndex == -1 {
-		return optimizedFlags, nil
+		return optimizedFlags
 	}
 	flgOverrideSet := &config.flagOverrideSets[flgOverrideSetIndex]
 
@@ -198,17 +198,17 @@ func applyMachineTypeOptimizations(config *optimizationConfig, cfg *Config, isSe
 			optimizedFlags = append(optimizedFlags, flag)
 		}
 	}
-	return optimizedFlags, nil
+	return optimizedFlags
 }
 
 // Optimize applies machine-type specific optimizations.
-func Optimize(cfg *Config, isSet isValueSet) ([]string, error) {
+func Optimize(cfg *Config, isSet isValueSet) []string {
 	// Check if disable-autoconfig is set to true.
 	if isSet.GetBool("disable-autoconfig") {
-		return nil, nil
+		return nil
 	}
-	optimizedFlags, err := applyMachineTypeOptimizations(&defaultOptimizationConfig, cfg, isSet)
-	return optimizedFlags, err
+	optimizedFlags := applyMachineTypeOptimizations(&defaultOptimizationConfig, cfg, isSet)
+	return optimizedFlags
 }
 
 // convertToCamelCase converts a string from snake-case to CamelCase.
