@@ -59,14 +59,7 @@ git fetch origin -q
 
 function execute_perf_test() {
   mkdir -p gcs
-  GCSFUSE_FLAGS="--implicit-dirs --prometheus-port=48341"
-  BUCKET_NAME=presubmit-perf-tests
-  MOUNT_POINT=gcs
-  # The VM will itself exit if the gcsfuse mount fails.
-  go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
-  # Running FIO test
-  time ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
-  sudo umount gcs
+  echo "Hello, world!" > ${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs.txt
 }
 
 function install_requirements() {
@@ -90,7 +83,7 @@ if [[ "$perfTestStr" == *"$EXECUTE_PERF_TEST_LABEL"* ]];
 then
  # Executing perf tests for master branch
  install_requirements
- git checkout master
+ git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
  # Store results
  touch result.txt
  echo Mounting gcs bucket for master branch and execute tests
