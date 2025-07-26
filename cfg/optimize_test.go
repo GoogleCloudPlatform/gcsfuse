@@ -162,9 +162,8 @@ func TestOptimize_DisableAutoConfig(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{"disable-autoconfig": true}, boolFlags: map[string]bool{"disable-autoconfig": true}}
 
-	_, err := Optimize(cfg, isSet)
+	_ = Optimize(cfg, isSet)
 
-	require.NoError(t, err)
 	assert.False(t, cfg.Write.EnableStreamingWrites)
 	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
 	assert.EqualValues(t, 0, cfg.MetadataCache.TtlSecs)
@@ -187,9 +186,8 @@ func TestApplyMachineTypeOptimizations_MatchingMachineType(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	optimizedFlags, err := applyMachineTypeOptimizations(&config, cfg, isSet)
+	optimizedFlags := applyMachineTypeOptimizations(&config, cfg, isSet)
 
-	require.NoError(t, err)
 	assert.NotEmpty(t, optimizedFlags)
 	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
 	assert.EqualValues(t, -1, cfg.MetadataCache.TtlSecs)
@@ -212,9 +210,8 @@ func TestApplyMachineTypeOptimizations_NonMatchingMachineType(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	optimizedFlags, err := applyMachineTypeOptimizations(&config, cfg, isSet)
+	optimizedFlags := applyMachineTypeOptimizations(&config, cfg, isSet)
 
-	require.NoError(t, err)
 	assert.Empty(t, optimizedFlags)
 	assert.False(t, cfg.Write.EnableStreamingWrites)
 }
@@ -234,9 +231,8 @@ func TestApplyMachineTypeOptimizations_UserSetFlag(t *testing.T) {
 	// Simulate setting config value by user
 	cfg.FileSystem.RenameDirLimit = 10000
 
-	optimizedFlags, err := applyMachineTypeOptimizations(&config, cfg, isSet)
+	optimizedFlags := applyMachineTypeOptimizations(&config, cfg, isSet)
 
-	require.NoError(t, err)
 	assert.NotEmpty(t, optimizedFlags)
 	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
 	assert.EqualValues(t, -1, cfg.MetadataCache.TtlSecs)
@@ -267,9 +263,9 @@ func TestApplyMachineTypeOptimizations_MissingFlagOverrideSet(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	_, err := applyMachineTypeOptimizations(&config, cfg, isSet)
+	optimizedFlags := applyMachineTypeOptimizations(&config, cfg, isSet)
 
-	require.NoError(t, err)
+	require.Empty(t, optimizedFlags)
 }
 
 func TestApplyMachineTypeOptimizations_GetMachineTypeError(t *testing.T) {
@@ -285,9 +281,9 @@ func TestApplyMachineTypeOptimizations_GetMachineTypeError(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	_, err := applyMachineTypeOptimizations(&config, cfg, isSet)
+	optimizedFlags := applyMachineTypeOptimizations(&config, cfg, isSet)
 
-	assert.NoError(t, err)
+	assert.Empty(t, optimizedFlags)
 }
 
 func TestApplyMachineTypeOptimizations_NoError(t *testing.T) {
@@ -303,9 +299,9 @@ func TestApplyMachineTypeOptimizations_NoError(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	_, err := applyMachineTypeOptimizations(&config, cfg, isSet)
+	optimizedFlags := applyMachineTypeOptimizations(&config, cfg, isSet)
 
-	assert.NoError(t, err)
+	assert.NotEmpty(t, optimizedFlags)
 }
 
 func TestSetFlagValue_Bool(t *testing.T) {
@@ -370,9 +366,8 @@ func TestApplyMachineTypeOptimizations_NoMachineTypes(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	_, err := applyMachineTypeOptimizations(&config, cfg, isSet)
+	_ = applyMachineTypeOptimizations(&config, cfg, isSet)
 
-	require.NoError(t, err)
 	// Check that no optimizations were applied as no machine mapping is set.
 	assert.False(t, cfg.Write.EnableStreamingWrites)
 }
@@ -389,9 +384,8 @@ func TestOptimize_Success(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	optimizedFlags, err := Optimize(cfg, isSet)
+	optimizedFlags := Optimize(cfg, isSet)
 
-	require.NoError(t, err)
 	assert.True(t, isFlagPresent(optimizedFlags, "write.global-max-blocks"))
 	assert.EqualValues(t, 1600, cfg.Write.GlobalMaxBlocks)
 	assert.True(t, isFlagPresent(optimizedFlags, "metadata-cache.negative-ttl-secs"))
