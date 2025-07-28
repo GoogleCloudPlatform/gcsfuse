@@ -1388,6 +1388,41 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 	}
 }
 
+func TestArgParsing_ExperimentalEnableEfficientMetrics(t *testing.T) {
+	tests := []struct {
+		name           string
+		args           []string
+		expectedConfig *cfg.Config
+	}{
+		{
+			name: "happy_case",
+			args: []string{"gcsfuse", "--experimental-enable-efficient-metrics"},
+			expectedConfig: &cfg.Config{
+				Metrics: cfg.MetricsConfig{
+					ExperimentalEnableEfficientMetrics: true,
+				},
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotConfig *cfg.Config
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				gotConfig = cfg
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedConfig.Metrics, gotConfig.Metrics)
+			}
+		})
+	}
+}
+
 func TestArgsParsing_ProfilerFlags(t *testing.T) {
 	tests := []struct {
 		name           string

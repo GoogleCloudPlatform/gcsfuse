@@ -228,6 +228,8 @@ type MetadataCacheConfig struct {
 type MetricsConfig struct {
 	CloudMetricsExportIntervalSecs int64 `yaml:"cloud-metrics-export-interval-secs"`
 
+	ExperimentalEnableEfficientMetrics bool `yaml:"experimental-enable-efficient-metrics"`
+
 	PrometheusPort int64 `yaml:"prometheus-port"`
 
 	StackdriverExportInterval time.Duration `yaml:"stackdriver-export-interval"`
@@ -410,6 +412,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("experimental-enable-dentry-cache", "", false, "When enabled, it sets the Dentry cache entry timeout same as metadata-cache-ttl. This enables kernel to use cached entry to map the file paths to inodes, instead of making LookUpInode calls to GCSFuse.")
 
 	if err := flagSet.MarkHidden("experimental-enable-dentry-cache"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("experimental-enable-efficient-metrics", "", false, "Enables a more efficient implementation of metrics")
+
+	if err := flagSet.MarkDeprecated("experimental-enable-efficient-metrics", "Experimental flag - could be removed without notice."); err != nil {
 		return err
 	}
 
@@ -805,6 +813,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.experimental-enable-dentry-cache", flagSet.Lookup("experimental-enable-dentry-cache")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("metrics.experimental-enable-efficient-metrics", flagSet.Lookup("experimental-enable-efficient-metrics")); err != nil {
 		return err
 	}
 

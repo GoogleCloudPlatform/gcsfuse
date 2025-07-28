@@ -642,6 +642,14 @@
   usage: "Specifies the interval at which the metrics are uploaded to cloud monitoring"
   default: 0
 
+- config-path: "metrics.experimental-enable-efficient-metrics"
+  flag-name: "experimental-enable-efficient-metrics"
+  type: "bool"
+  usage: "Enables a more efficient implementation of metrics"
+  default: false
+  deprecated: true
+  deprecation-warning: "Experimental flag - could be removed without notice."
+
 - config-path: "metrics.prometheus-port"
   flag-name: "prometheus-port"
   type: "int"
