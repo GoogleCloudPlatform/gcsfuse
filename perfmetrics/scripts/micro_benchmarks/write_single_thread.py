@@ -52,8 +52,12 @@ def write_random_file(file_path, file_size_in_bytes):
       bool: True on success; False on failure.
   """
   try:
+    start = time.time()
     with open(file_path, 'wb') as f:
       f.write(os.urandom(file_size_in_bytes))
+    duration = time.time() - start
+    bandwidth_mbps = file_size_in_bytes / duration / 1000 / 1000
+    print(f"Duration: {duration:.2f}s | Data: {file_size_in_bytes / (1000 ** 3):.2f} GB | Bandwidth: {bandwidth_mbps:.2f} MB/s")
     print(f"Created {file_path} of size {file_size_in_bytes / (1000 ** 3):.4f} GB")
     return True
   except Exception as e:
@@ -76,6 +80,7 @@ def create_files(file_paths, file_size_in_gb):
 
   for file_path in file_paths:
     try:
+      start = time.time()
       success = write_random_file(file_path, file_size_in_bytes)
       if not success:
         print("Write failed. Exiting.")
@@ -113,14 +118,15 @@ def main():
       sys.exit(1)
 
   print(f"Starting write of {args.total_files} files...")
-  start = time.time()
+
   try:
+    start = time.perf_counter() # Start timing *just before* the core operation
     total_bytes = create_files(file_paths, args.file_size_gb)
+    duration = time.perf_counter() - start # End timing *just after* the core operation
   except RuntimeError as e:
     print(f"Failed during file write: {e}")
     helper.unmount_gcs_directory(MOUNT_DIR)
-    sys.exit(1)  # Exit with error status
-  duration = time.time() - start
+    sys.exit(1) # Exit with error status
 
   helper.unmount_gcs_directory(MOUNT_DIR)
 

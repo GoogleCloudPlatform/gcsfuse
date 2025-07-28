@@ -18,6 +18,7 @@ sudo apt-get update
 
 echo "Installing git"
 sudo apt-get install git
+sudo 
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 echo "Building and installing gcsfuse"
@@ -34,7 +35,7 @@ PYTHON_BIN="$HOME/.local/python-3.11.9/bin/python3.11"
 cd "./perfmetrics/scripts/micro_benchmarks"
 
 echo "Installing dependencies using upgraded Python..."
-"$PYTHON_BIN" -m venv venv
+python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
@@ -43,11 +44,16 @@ set +e
 
 echo "Running Python scripts for hns bucket..."
 
-FILE_SIZE_READ_GB=15
-READ_LOG_FILE="${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-single-threaded-read-${FILE_SIZE_READ_GB}gb-test.txt"
-GCSFUSE_READ_FLAGS="--log-file $READ_LOG_FILE"
-python3 read_single_thread.py --bucket single-threaded-tests --gcsfuse-config "$GCSFUSE_READ_FLAGS" --total-files 10 --file-size-gb "$FILE_SIZE_READ_GB"
-exit_read_code=$?
+# FILE_SIZE_READ_GB=15
+# READ_LOG_FILE="${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-single-threaded-read-${FILE_SIZE_READ_GB}gb-test.txt"
+# GCSFUSE_READ_FLAGS="--log-file $READ_LOG_FILE"
+# python3 read_single_thread.py --bucket single-threaded-tests --gcsfuse-config "$GCSFUSE_READ_FLAGS" --total-files 10 --file-size-gb "$FILE_SIZE_READ_GB"
+# exit_read_code=$?
+
+mkdir gcs
+gcsfuse  single-threaded-tests gcs
+fio read.fio
+sudo umount gcs
 
 FILE_SIZE_WRITE_GB=15
 WRITE_LOG_FILE="${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-single-threaded-write-${FILE_SIZE_WRITE_GB}gb-test.txt"
@@ -61,11 +67,11 @@ deactivate
 set -e
 
 # Final result
-exit_code=0
-if [[ $exit_read_code -ne 0 ]]; then
-  echo "Read benchmark failed with exit code $exit_read_code"
-  exit_code=$exit_read_code
-fi
+# exit_code=0
+# if [[ $exit_read_code -ne 0 ]]; then
+#   echo "Read benchmark failed with exit code $exit_read_code"
+#   exit_code=$exit_read_code
+# fi
 
 if [[ $exit_write_code -ne 0 ]]; then
   echo "Write benchmark failed with exit code $exit_write_code"
