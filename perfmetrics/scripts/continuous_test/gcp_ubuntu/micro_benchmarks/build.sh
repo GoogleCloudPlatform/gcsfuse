@@ -18,7 +18,8 @@ sudo apt-get update
 
 echo "Installing git"
 sudo apt-get install git
-sudo apt-get install fio
+echo "Installing FIO"
+sudo apt-get install fio -y
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 echo "Building and installing gcsfuse"
