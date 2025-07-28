@@ -58,11 +58,8 @@ func readRandomlyAndVerify(t *testing.T, filePath string, expectedContent []byte
 
 	// Ensure offset and readSize are within bounds of expected content to be read.
 	maxOffset := int(len(expectedContent))
-	numReads := maxOffset
-	// Limit number of reads to 10 if file is bigger than 10 bytes.
-	if numReads > 10 {
-		numReads = 10
-	}
+	// Limit number of reads if the file is too small.
+	numReads := min(maxOffset, 10)
 	for i := range numReads {
 		offset := rand.IntN(maxOffset)
 		readSize := rand.IntN(int(fileSize - int64(offset)))
