@@ -105,7 +105,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 			tokenSrc, err = CreateTokenSource(storageClientConfig)
 			if err != nil {
 				err = fmt.Errorf("while fetching tokenSource: %w", err)
-				return
+				return nil, err
 			}
 		}
 
