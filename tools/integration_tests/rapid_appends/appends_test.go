@@ -41,8 +41,8 @@ func (t *DualMountAppendsSuite) TestAppendSessionInvalidatedByAnotherClientUponT
 	const initialContent = "dummy content"
 	const appendContent = "appended content"
 	for _, flags := range [][]string{
-		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-global-max-blocks=-1", "--write-block-size-mb=1"},
-		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-global-max-blocks=-1", "--write-block-size-mb=1", "--file-cache-max-size-mb=-1", "--cache-dir=" + getNewEmptyCacheDir(t.primaryMount.rootDir)},
+		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-block-size-mb=1"},
+		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-block-size-mb=1", "--file-cache-max-size-mb=-1", "--cache-dir=" + getNewEmptyCacheDir(t.primaryMount.rootDir)},
 	} {
 		var err error
 		func() {
@@ -99,8 +99,8 @@ func (t *SingleMountAppendsSuite) TestContentAppendedInNonAppendModeNotVisibleTi
 	t.T().Skip()
 
 	for _, flags := range [][]string{
-		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-global-max-blocks=-1", "--write-block-size-mb=1"},
-		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-global-max-blocks=-1", "--write-block-size-mb=1", "--file-cache-max-size-mb=-1", "--cache-dir=" + getNewEmptyCacheDir(t.primaryMount.rootDir)},
+		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-block-size-mb=1"},
+		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-block-size-mb=1", "--file-cache-max-size-mb=-1", "--cache-dir=" + getNewEmptyCacheDir(t.primaryMount.rootDir)},
 	} {
 		func() {
 			t.mountPrimaryMount(flags)
@@ -144,8 +144,8 @@ func (t *SingleMountAppendsSuite) TestContentAppendedInNonAppendModeNotVisibleTi
 func (t *SingleMountAppendsSuite) TestAppendsToFinalizedObjectNotVisibleUntilClose() {
 	const initialContent = "dummy content"
 	for _, flags := range [][]string{
-		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-global-max-blocks=-1", "--write-block-size-mb=1"},
-		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-global-max-blocks=-1", "--write-block-size-mb=1", "--file-cache-max-size-mb=-1", "--cache-dir=" + getNewEmptyCacheDir(t.primaryMount.rootDir)},
+		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-block-size-mb=1"},
+		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-block-size-mb=1", "--file-cache-max-size-mb=-1", "--cache-dir=" + getNewEmptyCacheDir(t.primaryMount.rootDir)},
 	} {
 		func() {
 			t.mountPrimaryMount(flags)
@@ -186,8 +186,8 @@ func (t *SingleMountAppendsSuite) TestAppendsToFinalizedObjectNotVisibleUntilClo
 func (t *SingleMountAppendsSuite) TestAppendsVisibleInRealTimeWithConcurrentRPlusHandle() {
 	const initialContent = "dummy content"
 	for _, flags := range [][]string{
-		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-global-max-blocks=-1", "--write-block-size-mb=1"},
-		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-global-max-blocks=-1", "--write-block-size-mb=1", "--file-cache-max-size-mb=-1", "--cache-dir=" + getNewEmptyCacheDir(t.primaryMount.rootDir)},
+		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-block-size-mb=1"},
+		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-block-size-mb=1", "--file-cache-max-size-mb=-1", "--cache-dir=" + getNewEmptyCacheDir(t.primaryMount.rootDir)},
 	} {
 		func() {
 			t.mountPrimaryMount(flags)
@@ -241,8 +241,8 @@ func (t *SingleMountAppendsSuite) TestRandomWritesVisibleAfterCloseWithConcurren
 
 	const initialContent = "dummy content"
 	for _, flags := range [][]string{
-		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-global-max-blocks=-1", "--write-block-size-mb=1"},
-		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-global-max-blocks=-1", "--write-block-size-mb=1", "--file-cache-max-size-mb=-1", "--cache-dir=" + getNewEmptyCacheDir(t.primaryMount.rootDir)},
+		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-block-size-mb=1"},
+		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-block-size-mb=1", "--file-cache-max-size-mb=-1", "--cache-dir=" + getNewEmptyCacheDir(t.primaryMount.rootDir)},
 	} {
 		func() {
 			t.mountPrimaryMount(flags)
@@ -295,8 +295,8 @@ func (t *SingleMountAppendsSuite) TestFallbackHappensWhenNonAppendHandleDoesFirs
 	t.T().Skip()
 
 	for _, flags := range [][]string{
-		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-global-max-blocks=-1", "--write-block-size-mb=1"},
-		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-global-max-blocks=-1", "--write-block-size-mb=1", "--file-cache-max-size-mb=-1", "--cache-dir=" + getNewEmptyCacheDir(t.primaryMount.rootDir)},
+		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-block-size-mb=1"},
+		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-block-size-mb=1", "--file-cache-max-size-mb=-1", "--cache-dir=" + getNewEmptyCacheDir(t.primaryMount.rootDir)},
 	} {
 		func() {
 			t.mountPrimaryMount(flags)
