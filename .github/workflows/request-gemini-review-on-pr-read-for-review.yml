@@ -30,10 +30,19 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-      - name: Add Gemini review and summary comment
+      - name: Add Gemini review comment
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
-          body: |
-            /gemini summary
-            /gemini review
+          body: "/gemini review"
+  add-gemini-comment:
+    if: github.base_ref == 'master'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Add Gemini summary comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: "/gemini summary"
