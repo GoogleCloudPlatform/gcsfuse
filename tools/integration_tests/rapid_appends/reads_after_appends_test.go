@@ -105,7 +105,7 @@ func (t *CommonAppendsSuite) TestAppendsAndReads() {
 							assert.Equalf(t.T(), t.fileContent[:sizeBeforeAppend], readContent, "failed to match partial content in metadata-cache dual-mount after %v appends", i+1)
 
 							// Wait for metadata cache to expire to fetch the latest size for the next read.
-							time.Sleep(time.Duration(metadataCacheTTLSecs) * time.Second) // Wait for metadata cache to get expired.
+							time.Sleep(time.Duration(metadataCacheTTLSecs) * time.Second)
 							gotContent, err = operations.ReadFile(readPath)
 
 							// Expect read up to the latest file size which is the size after the append.
