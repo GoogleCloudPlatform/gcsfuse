@@ -122,14 +122,17 @@ func (t *CommonAppendsSuite) TestAppendsAndReads() {
 	testCases := []struct {
 		name          string
 		readAndVerify readAndVerifyFunc
+		isRandomRead  bool
 	}{
 		{
 			name:          "SequentialRead",
 			readAndVerify: readSequentiallyAndVerify,
+			isRandomRead:  false,
 		},
 		{
 			name:          "RandomRead",
 			readAndVerify: readRandomlyAndVerify,
+			isRandomRead:  true,
 		},
 	}
 
@@ -163,6 +166,9 @@ func (t *CommonAppendsSuite) TestAppendsAndReads() {
 
 			for _, tc := range testCases {
 				t.Run(tc.name, func() {
+					if tc.isRandomRead && !t.isSyncNeededAfterAppend {
+						t.T().Skip("Skipping as random read is not supported for ZB right away")
+					}
 					// Initially create an unfinalized object.
 					t.createUnfinalizedObject()
 					defer t.deleteUnfinalizedObject()
