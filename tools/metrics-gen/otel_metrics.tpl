@@ -89,7 +89,7 @@ func (o *otelMetrics) {{toPascal .Name}}(
 }
 {{end}}
 
-func NewEfficientOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetrics, error) {
+func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetrics, error) {
   ch := make(chan histogramRecord, bufferSize)
   for range workers {
     go func() {
@@ -151,4 +151,8 @@ func NewEfficientOTelMetrics(ctx context.Context, workers int, bufferSize int) (
 			{{- end}}
 		{{- end}}
 	}, nil
+}
+
+func (o *otelMetrics) Close() {
+	close(o.ch)
 }
