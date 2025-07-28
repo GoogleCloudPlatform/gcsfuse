@@ -35,3 +35,4 @@ type MetricHandle interface {
 	)
 {{- end}}
 }
+

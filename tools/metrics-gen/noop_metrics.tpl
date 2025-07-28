@@ -34,3 +34,4 @@ type noopMetrics struct {}
 		{{- end }},
 	){}
 {{end}}
+
