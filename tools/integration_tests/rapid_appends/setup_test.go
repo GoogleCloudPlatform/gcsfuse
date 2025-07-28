@@ -123,6 +123,7 @@ func TestMain(m *testing.M) {
 	// Define flag set for secondary mount to run the tests.
 	flagsSet := [][]string{
 		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-block-size-mb=1"},
+		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=2", "--write-block-size-mb=1"},
 		{"--write-experimental-enable-rapid-appends=true", "--metadata-cache-ttl-secs=0", "--write-block-size-mb=1", "--file-cache-max-size-mb=-1", "--cache-dir=" + rapidAppendsCacheDir},
 	}
 
