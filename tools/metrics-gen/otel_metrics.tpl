@@ -14,7 +14,7 @@
 
 // **** DO NOT EDIT - FILE IS AUTO-GENERATED ****
 
-package common
+package optimizedmetrics
 
 import (
 	"context"
@@ -41,29 +41,13 @@ var (
 {{- end -}}
 )
 
-type MetricHandle interface {
-{{- range .Metrics}}
-	{{toPascal .Name}}(
-		{{- if isCounter . }}
-			inc int64
-		{{- else }}
-			ctx context.Context, duration time.Duration
-		{{- end }}
-		{{- if .Attributes}}, {{end}}
-		{{- range $i, $attr := .Attributes -}}
-			{{if $i}}, {{end}}{{toCamel $attr.Name}} {{getGoType $attr.Type}}
-		{{- end }},
-	)
-{{- end}}
-}
-
 type histogramRecord struct {
 	instrument metric.Int64Histogram
 	value      int64
 	attributes metric.RecordOption
 }
 
-type efficientOtelMetrics struct {
+type otelMetrics struct {
 	ctx context.Context
     ch chan histogramRecord
 	{{- range $metric := .Metrics}}
@@ -81,7 +65,7 @@ type efficientOtelMetrics struct {
 }
 
 {{range .Metrics}}
-func (o *efficientOtelMetrics) {{toPascal .Name}}(
+func (o *otelMetrics) {{toPascal .Name}}(
 	{{- if isCounter . }}
 		inc int64
 	{{- else }}
@@ -105,7 +89,7 @@ func (o *efficientOtelMetrics) {{toPascal .Name}}(
 }
 {{end}}
 
-func NewEfficientOTelMetrics(ctx context.Context, workers int, bufferSize int) (*efficientOtelMetrics, error) {
+func NewEfficientOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetrics, error) {
   ch := make(chan histogramRecord, bufferSize)
   for range workers {
     go func() {
@@ -155,7 +139,7 @@ func NewEfficientOTelMetrics(ctx context.Context, workers int, bufferSize int) (
 		return nil, err
 	}
 
-	return &efficientOtelMetrics{
+	return &otelMetrics{
 		ch : ch,
 		{{- range $metric := .Metrics}}
 			{{- if isCounter $metric}}

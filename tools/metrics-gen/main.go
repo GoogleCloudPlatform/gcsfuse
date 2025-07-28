@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -332,7 +331,7 @@ func buildSwitches(metric Metric) string {
 
 func main() {
 	inputFile := flag.String("input", "metrics.yaml", "Input YAML file")
-	outputFile := flag.String("output", "otel_metrics.go", "Output Go file")
+	outputDir := flag.String("outDir", ".", "Output directory to dump artifacts.")
 	flag.Parse()
 
 	yamlFile, err := os.ReadFile(*inputFile)
@@ -368,30 +367,32 @@ func main() {
 		attrCombinations[m.Name] = generateCombinations(m.Attributes)
 	}
 
+	// Create the directory if it doesn't exist
+	if err := os.MkdirAll(*outputDir, 0755); err != nil {
+		log.Fatalf("error creating output directory: %v", err)
+	}
 	data := TemplateData{
 		Metrics:          metrics,
 		AttrCombinations: attrCombinations,
 	}
+	createFile(&data, fmt.Sprintf("%s/metric_handle.go", *outputDir), "metric_handle.tpl")
+	createFile(&data, fmt.Sprintf("%s/noop_metrics.go", *outputDir), "noop_metrics.tpl")
+	createFile(&data, fmt.Sprintf("%s/otel_metrics.go", *outputDir), "otel_metrics.tpl")
 
-	tmpl, err := template.New("template.tpl").Funcs(funcMap).ParseFiles("template.tpl")
+}
+
+func createFile(data *TemplateData, fName string, templateName string) {
+	tmpl, err := template.New(templateName).Funcs(funcMap).ParseFiles(templateName)
 	if err != nil {
 		log.Fatalf("error parsing template: %v", err)
 	}
-
 	var buf bytes.Buffer
 	err = tmpl.Execute(&buf, data)
 	if err != nil {
 		log.Fatalf("error executing template: %v", err)
 	}
 
-	// Create the directory if it doesn't exist
-	outputDir := filepath.Dir(*outputFile)
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		log.Fatalf("error creating output directory: %v", err)
-	}
-
-	err = os.WriteFile(*outputFile, buf.Bytes(), 0644)
-	if err != nil {
+	if err := os.WriteFile(fName, buf.Bytes(), 0644); err != nil {
 		log.Fatalf("error writing output file: %v", err)
 	}
 }
