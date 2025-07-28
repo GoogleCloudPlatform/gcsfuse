@@ -95,6 +95,27 @@ func (s *notifierTest) TestReadFileWithDentryCacheEnabled(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func (s *notifierTest) TestDeleteFileWithDentryCacheEnabled(t *testing.T) {
+	// Create a file with initial content directly in GCS.
+	filePath := path.Join(setup.MntDir(), testDirName, testFileName)
+	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, testFileName, initialContentSize, t)
+	// Stat file to cache the entry
+	_, err := os.Stat(filePath)
+	require.Nil(t, err)
+	// Delete the object directly from GCS.
+	objectName := path.Join(testDirName, testFileName)
+	require.Nil(t, client.DeleteObjectOnGCS(ctx, storageClient, objectName))
+	// Read File to call the notifier to invalidate entry.
+	_, err = operations.ReadFile(filePath)
+	// The notifier is triggered after the first read failure, invalidating the kernel cache entry.
+	operations.ValidateESTALEError(t, err)
+
+	// Stat again, it should give error as entry does not exist.
+	_, err = os.Stat(filePath)
+
+	assert.NotNil(t, err)
+}
+
 func TestNotifierTest(t *testing.T) {
 	ts := &notifierTest{}
 

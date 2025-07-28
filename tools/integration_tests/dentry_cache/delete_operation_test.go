@@ -19,7 +19,6 @@ import (
 	"os"
 	"path"
 	"testing"
-	"time"
 
 	"cloud.google.com/go/storage"
 
@@ -31,22 +30,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type statWithDentryCacheEnabledTest struct {
+type deleteOperationTest struct {
 	flags []string
 }
 
-func (s *statWithDentryCacheEnabledTest) Setup(t *testing.T) {
+func (s *deleteOperationTest) Setup(t *testing.T) {
 	mountGCSFuseAndSetupTestDir(s.flags, testDirName)
 }
 
-func (s *statWithDentryCacheEnabledTest) Teardown(t *testing.T) {
+func (s *deleteOperationTest) Teardown(t *testing.T) {
 	if setup.MountedDirectory() == "" { // Only unmount if not using a pre-mounted directory
 		setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
 		setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 	}
 }
 
-func (s *statWithDentryCacheEnabledTest) TestStatWithDentryCacheEnabled(t *testing.T) {
+func (s *deleteOperationTest) TestDeleteFileWhenFileIsClobbered(t *testing.T) {
 	// Create a file with initial content directly in GCS.
 	filePath := path.Join(setup.MntDir(), testDirName, testFileName)
 	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, testFileName, initialContentSize, t)
@@ -59,44 +58,14 @@ func (s *statWithDentryCacheEnabledTest) TestStatWithDentryCacheEnabled(t *testi
 	require.Nil(t, err)
 	require.Nil(t, client.WriteToObject(ctx, storageClient, objectName, string(smallContent), storage.Conditions{}))
 
-	// Stat again, it should give old cached attributes.
-	fileInfo, err := os.Stat(filePath)
+	// Deleting the file should not give error
+	err = os.Remove(filePath)
 
 	assert.Nil(t, err)
-	assert.Equal(t, int64(initialContentSize), fileInfo.Size())
-	// Wait until entry expires in cache.
-	time.Sleep(1100 * time.Millisecond)
-	// Stat again, it should give updated attributes.
-	fileInfo, err = os.Stat(filePath)
-	assert.Nil(t, err)
-	assert.Equal(t, int64(updatedContentSize), fileInfo.Size())
 }
 
-func (s *statWithDentryCacheEnabledTest) TestStatWhenFileIsDeletedDirectlyFromGCS(t *testing.T) {
-	// Create a file with initial content directly in GCS.
-	filePath := path.Join(setup.MntDir(), testDirName, testFileName)
-	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, testFileName, initialContentSize, t)
-	// Stat file to cache the entry
-	_, err := os.Stat(filePath)
-	require.Nil(t, err)
-	// Delete the object directly from GCS.
-	objectName := path.Join(testDirName, testFileName)
-	require.Nil(t, client.DeleteObjectOnGCS(ctx, storageClient, objectName))
-
-	// Stat again, it should give old cached attributes rather than giving not found error.
-	fileInfo, err := os.Stat(filePath)
-
-	assert.Nil(t, err)
-	assert.Equal(t, int64(initialContentSize), fileInfo.Size())
-	// Wait until entry expires in cache.
-	time.Sleep(1100 * time.Millisecond)
-	// Stat again, it should give error as file does not exist.
-	fileInfo, err = os.Stat(filePath)
-	assert.NotNil(t, err)
-}
-
-func TestStatWithDentryCacheEnabledTest(t *testing.T) {
-	ts := &statWithDentryCacheEnabledTest{}
+func TestDeleteOperationTest(t *testing.T) {
+	ts := &deleteOperationTest{}
 
 	// Run tests for mounted directory if the flag is set.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
@@ -105,7 +74,7 @@ func TestStatWithDentryCacheEnabledTest(t *testing.T) {
 	}
 
 	// Setup flags and run tests.
-	ts.flags = []string{"--implicit-dirs", "--experimental-enable-dentry-cache", "--metadata-cache-ttl-secs=1"}
+	ts.flags = []string{"--implicit-dirs", "--experimental-enable-dentry-cache", "--metadata-cache-ttl-secs=1000"}
 	log.Printf("Running tests with flags: %s", ts.flags)
 	test_setup.RunTests(t, ts)
 }
