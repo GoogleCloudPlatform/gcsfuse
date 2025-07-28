@@ -18,7 +18,7 @@ sudo apt-get update
 
 echo "Installing git"
 sudo apt-get install git
-sudo 
+sudo apt-get install fio
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 echo "Building and installing gcsfuse"
@@ -35,7 +35,7 @@ PYTHON_BIN="$HOME/.local/python-3.11.9/bin/python3.11"
 cd "./perfmetrics/scripts/micro_benchmarks"
 
 echo "Installing dependencies using upgraded Python..."
-python3 -m venv venv
+${PYTHON_BIN} -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
