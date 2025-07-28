@@ -20,11 +20,14 @@ import (
 	"time"
 )
 
+// MetricHandle provides an interface for recording metrics.
+// The methods of this interface are auto-generated from metrics.yaml.
+// Each method corresponds to a metric defined in metrics.yaml.
 type MetricHandle interface {
+	// FileCacheReadBytesCount - The cumulative number of bytes read from file cache along with read type - Sequential/Random
 	FileCacheReadBytesCount(
-		inc int64, readType string,
-	)
+		inc int64, readType string)
+	// FileCacheReadLatencies - The cumulative distribution of the file cache read latencies along with cache hit - true/false.
 	FileCacheReadLatencies(
-		ctx context.Context, duration time.Duration, cacheHit bool,
-	)
+		ctx context.Context, duration time.Duration, cacheHit bool)
 }

@@ -20,8 +20,12 @@ import (
 	"time"
 )
 
+// MetricHandle provides an interface for recording metrics.
+// The methods of this interface are auto-generated from metrics.yaml.
+// Each method corresponds to a metric defined in metrics.yaml.
 type MetricHandle interface {
 {{- range .Metrics}}
+	// {{toPascal .Name}} - {{.Description}}
 	{{toPascal .Name}}(
 		{{- if isCounter . }}
 			inc int64
@@ -31,8 +35,6 @@ type MetricHandle interface {
 		{{- if .Attributes}}, {{end}}
 		{{- range $i, $attr := .Attributes -}}
 			{{if $i}}, {{end}}{{toCamel $attr.Name}} {{getGoType $attr.Type}}
-		{{- end }},
-	)
+		{{- end }})
 {{- end}}
 }
-

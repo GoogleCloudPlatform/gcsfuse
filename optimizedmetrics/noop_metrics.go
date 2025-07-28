@@ -29,3 +29,8 @@ func (*noopMetrics) FileCacheReadBytesCount(
 func (*noopMetrics) FileCacheReadLatencies(
 	ctx context.Context, duration time.Duration, cacheHit bool) {
 }
+
+func NewNoopMetrics() MetricHandle {
+	var n noopMetrics
+	return &n
+}

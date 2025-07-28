@@ -33,3 +33,8 @@ type noopMetrics struct {}
 			{{if $i}}, {{end}}{{toCamel $attr.Name}} {{getGoType $attr.Type}}
 		{{- end }}){}
 {{end}}
+
+func NewNoopMetrics() MetricHandle {
+	var n noopMetrics
+	return &n
+}

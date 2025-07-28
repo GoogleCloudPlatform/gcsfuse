@@ -76,8 +76,7 @@ func (o *otelMetrics) {{toPascal .Name}}(
 	{{- if .Attributes}}, {{end}}
 	{{- range $i, $attr := .Attributes -}}
 		{{if $i}}, {{end}}{{toCamel $attr.Name}} {{getGoType $attr.Type}}
-	{{- end }},
-) {
+	{{- end }}) {
 {{- if isCounter . }}
 	{{buildSwitches .}}
 {{- else }}

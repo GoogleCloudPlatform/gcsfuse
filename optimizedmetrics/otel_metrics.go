@@ -53,8 +53,7 @@ type otelMetrics struct {
 }
 
 func (o *otelMetrics) FileCacheReadBytesCount(
-	inc int64, readType string,
-) {
+	inc int64, readType string) {
 	switch readType {
 	case "Parallel":
 		o.fileCacheReadBytesCountReadTypeParallelAtomic.Add(inc)
@@ -67,8 +66,7 @@ func (o *otelMetrics) FileCacheReadBytesCount(
 }
 
 func (o *otelMetrics) FileCacheReadLatencies(
-	ctx context.Context, latency time.Duration, cacheHit bool,
-) {
+	ctx context.Context, latency time.Duration, cacheHit bool) {
 	var record histogramRecord
 	switch cacheHit {
 	case true:
