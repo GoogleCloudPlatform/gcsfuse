@@ -242,12 +242,17 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		if status.State != block.BlockStateDownloaded {
 			p.blockQueue.Pop()
 			p.blockPool.Release(blk)
+			entry.cancel()
 
 			switch status.State {
 			case block.BlockStateDownloadFailed:
-				err = fmt.Errorf("ReadAt: download failed: %w", status.Err)
-			case block.BlockStateDownloadCancelled:
-				err = context.Canceled
+				// If a download is cancelled, it's reported as a failed download with a
+				// `context.Canceled` error. We unwrap it to return the specific error.
+				if errors.Is(status.Err, context.Canceled) {
+					err = context.Canceled
+				} else {
+					err = fmt.Errorf("ReadAt: download failed: %w", status.Err)
+				}
 			default:
 				err = fmt.Errorf("ReadAt: unexpected block state: %d", status.State)
 			}

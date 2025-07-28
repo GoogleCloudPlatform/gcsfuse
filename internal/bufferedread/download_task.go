@@ -58,7 +58,6 @@ func NewDownloadTask(ctx context.Context, object *gcs.MinObject, bucket gcs.Buck
 // download task. The status can be one of the following:
 // - BlockStatusDownloaded: The download was successful.
 // - BlockStatusDownloadFailed: The download failed due to an error.
-// - BlockStatusDownloadCancelled: The download was cancelled due to context cancellation.
 func (p *DownloadTask) Execute() {
 	startOff := p.block.AbsStartOff()
 	blockId := startOff / p.block.Cap()
