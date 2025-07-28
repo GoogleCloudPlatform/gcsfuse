@@ -347,7 +347,7 @@ delete_bucket() {
     return 1
   fi
   local bucket="$1"
-  if ! gcloud -q storage rm -r "gs://${bucket}"; then
+  if ! gcloud --no-user-output-disabled -q storage rm -r gs://${bucket}/** || ! gcloud -q storage buckets delete gs://${bucket} ; then
     return 1
   fi
   return 0
