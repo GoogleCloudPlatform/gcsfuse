@@ -24,7 +24,7 @@ on:
       - ready_for_review
 
 jobs:
-  add-gemini-comment:
+  add-gemini-review:
     if: github.base_ref == 'master'
     runs-on: ubuntu-latest
     permissions:
@@ -35,7 +35,7 @@ jobs:
         with:
           issue-number: ${{ github.event.pull_request.number }}
           body: "/gemini review"
-  add-gemini-comment:
+  add-gemini-summary:
     if: github.base_ref == 'master'
     runs-on: ubuntu-latest
     permissions:
