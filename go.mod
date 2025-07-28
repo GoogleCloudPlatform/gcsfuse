@@ -7,7 +7,7 @@ require (
 	cloud.google.com/go/auth/oauth2adapt v0.2.8
 	cloud.google.com/go/compute/metadata v0.7.0
 	cloud.google.com/go/iam v1.5.2
-	cloud.google.com/go/profiler v0.4.2
+	cloud.google.com/go/profiler v0.4.3
 	cloud.google.com/go/secretmanager v1.14.7
 	cloud.google.com/go/storage v1.55.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.53.0
