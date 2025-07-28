@@ -18,7 +18,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
@@ -101,6 +104,186 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 
 	reader.ctx, reader.cancelFunc = context.WithCancel(context.Background())
 	return reader, nil
+}
+
+// handleRandomRead detects and handles random read patterns. A read is considered
+// random if the requested offset is outside the currently prefetched window.
+// If the number of detected random reads exceeds a configured threshold, it
+// returns a gcsx.FallbackToAnotherReader error to signal that a simpler GCS
+// reader should be used.
+func (p *BufferedReader) handleRandomRead(offset int64) error {
+	isRandom := p.blockQueue.IsEmpty() && offset != 0
+
+	if !p.blockQueue.IsEmpty() {
+		start := p.blockQueue.Peek().block.AbsStartOff()
+		end := start + int64(p.blockQueue.Len())*p.config.PrefetchBlockSizeBytes
+		if offset < start || offset >= end {
+			isRandom = true
+		}
+	}
+
+	if isRandom {
+		p.randomSeekCount++
+	}
+
+	if p.randomSeekCount > p.config.RandomReadsThreshold {
+		logger.Tracef("Too many random reads for object %q (count: %d, threshold: %d); falling back to GCS reader.",
+			p.object.Name, p.randomSeekCount, p.config.RandomReadsThreshold)
+		return gcsx.FallbackToAnotherReader
+	}
+
+	return nil
+}
+
+// prepareQueueForOffset cleans the head of the block queue by discarding any
+// blocks that are no longer relevant for the given read offset. This occurs on
+// seeks (both forward and backward) that land outside the current block.
+// For each discarded block, its download is cancelled, and it is returned to
+// the block pool.
+func (p *BufferedReader) prepareQueueForOffset(offset int64) {
+	for !p.blockQueue.IsEmpty() {
+		entry := p.blockQueue.Peek()
+		block := entry.block
+		blockStart := block.AbsStartOff()
+		blockEnd := blockStart + block.Cap()
+
+		if offset < blockStart || offset >= blockEnd {
+			// Offset is either before or beyond this block – discard.
+			p.blockQueue.Pop()
+			entry.cancel()
+
+			if _, waitErr := block.AwaitReady(context.Background()); waitErr != nil && !errors.Is(waitErr, context.Canceled) {
+				logger.Warnf("prepareQueueForOffset: AwaitReady error during discard (offset=%d): %v", offset, waitErr)
+			}
+
+			p.blockPool.Release(block)
+		} else {
+			break
+		}
+	}
+}
+
+// ReadAt reads data from the GCS object into the provided buffer starting at
+// the given offset. It implements the gcsx.Reader interface.
+//
+// The read is satisfied by reading from in-memory blocks that are prefetched
+// in the background. The core logic is as follows:
+// 1. Detect if the read pattern is random. If so, and if the random read
+//    threshold is exceeded, it returns a FallbackToAnotherReader error.
+// 2. Prepare the internal block queue by discarding any stale blocks from the
+//    head of the queue that are before the requested offset.
+// 3. If the queue becomes empty (e.g., on a fresh read or a large seek), it
+//    initiates a "fresh start" to prefetch blocks starting from the current
+//    offset.
+// 4. It then enters a loop to fill the destination buffer:
+//    a. It waits for the block at the head of the queue to be downloaded.
+//    b. If the download failed or was cancelled, it returns an appropriate error.
+//    c. If successful, it copies data from the downloaded block into the buffer.
+//    d. If a block is fully consumed, it is removed from the queue, and a new
+//       prefetch operation is triggered to keep the pipeline full.
+// 5. The loop continues until the buffer is full, the end of the file is
+//    reached, or an error occurs.
+func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64) (gcsx.ReaderResponse, error) {
+	resp := gcsx.ReaderResponse{DataBuf: inputBuf}
+	reqID := uuid.New()
+	start := time.Now()
+	initOff := off
+	blockIdx := initOff / p.config.PrefetchBlockSizeBytes
+
+	var bytesRead int
+	var err error
+
+	logger.Tracef("%.13v <- ReadAt(offset=%d, len=%d, blockIdx=%d)", reqID, off, len(inputBuf), blockIdx)
+
+	if off >= int64(p.object.Size) {
+		err = io.EOF
+		return resp, err
+	}
+	if len(inputBuf) == 0 {
+		return resp, nil
+	}
+
+	defer func() {
+		dur := time.Since(start)
+		if err != nil && err != io.EOF {
+			logger.Errorf("%.13v -> ReadAt failed (offset=%d, len=%d, blockIdx=%d): err: %v (%v)", reqID, initOff, len(inputBuf), blockIdx, err, dur)
+		} else {
+			logger.Tracef("%.13v -> ReadAt OK (offset=%d, len=%d, read=%d) (%v)", reqID, initOff, len(inputBuf), bytesRead, dur)
+		}
+	}()
+
+	if err = p.handleRandomRead(off); err != nil {
+		err = fmt.Errorf("ReadAt: handleRandomRead failed: %w", err)
+		return resp, err
+	}
+
+	prefetchTriggered := false
+
+	for bytesRead < len(inputBuf) {
+		p.prepareQueueForOffset(off)
+
+		if p.blockQueue.IsEmpty() {
+			if err = p.freshStart(off); err != nil {
+				err = fmt.Errorf("ReadAt: freshStart failed: %w", err)
+				break
+			}
+			prefetchTriggered = true
+		}
+
+		entry := p.blockQueue.Peek()
+		blk := entry.block
+
+		status, waitErr := blk.AwaitReady(ctx)
+		if waitErr != nil {
+			err = fmt.Errorf("ReadAt: AwaitReady failed: %w", waitErr)
+			break
+		}
+
+		if status.State != block.BlockStateDownloaded {
+			p.blockQueue.Pop()
+			p.blockPool.Release(blk)
+
+			switch status.State {
+			case block.BlockStateDownloadFailed:
+				err = fmt.Errorf("ReadAt: download failed: %w", status.Err)
+			case block.BlockStateDownloadCancelled:
+				err = context.Canceled
+			default:
+				err = fmt.Errorf("ReadAt: unexpected block state: %d", status.State)
+			}
+			break
+		}
+
+		relOff := off - blk.AbsStartOff()
+		n, readErr := blk.ReadAt(inputBuf[bytesRead:], relOff)
+		bytesRead += n
+		off += int64(n)
+
+		if readErr != nil && !errors.Is(readErr, io.EOF) {
+			err = fmt.Errorf("ReadAt: block.ReadAt failed: %w", readErr)
+			break
+		}
+
+		if off >= int64(p.object.Size) {
+			err = io.EOF
+			break
+		}
+
+		if off >= blk.AbsStartOff()+blk.Cap() {
+			p.blockQueue.Pop()
+			p.blockPool.Release(blk)
+
+			if !prefetchTriggered {
+				prefetchTriggered = true
+				if pfErr := p.prefetch(); pfErr != nil {
+					logger.Warnf("Prefetch failed: %v", pfErr)
+				}
+			}
+		}
+	}
+
+	resp.Size = bytesRead
+	return resp, err
 }
 
 // prefetch schedules the next set of blocks for prefetching starting from

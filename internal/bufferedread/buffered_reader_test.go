@@ -60,6 +60,7 @@ type BufferedReaderTest struct {
 ////////////////////////////////////////////////////////////////////////
 
 // createFakeReader returns a FakeReader with deterministic, non-zero content.
+// It's used for mocking GCS object reads.
 func createFakeReader(t *testing.T, size int) *fake.FakeReader {
 	t.Helper()
 	content := make([]byte, size)
@@ -634,5 +635,253 @@ func (t *BufferedReaderTest) TestPrefetchLimitedByAvailableSlots() {
 	status4, err4 := bqe4.block.AwaitReady(t.ctx)
 	require.NoError(t.T(), err4)
 	assert.Equal(t.T(), block.BlockStateDownloaded, status4.State)
+	t.bucket.AssertExpectations(t.T())
+}
+
+func (t *BufferedReaderTest) TestReadAtOffsetBeyondEOF() {
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	buf := make([]byte, 10)
+
+	resp, err := reader.ReadAt(t.ctx, buf, int64(t.object.Size+1))
+
+	assert.ErrorIs(t.T(), err, io.EOF)
+	assert.Zero(t.T(), resp.Size)
+}
+
+func (t *BufferedReaderTest) TestReadAtEmptyBuffer() {
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	buf := make([]byte, 0)
+
+	resp, err := reader.ReadAt(t.ctx, buf, 0)
+
+	assert.NoError(t.T(), err)
+	assert.Zero(t.T(), resp.Size)
+}
+
+func (t *BufferedReaderTest) TestReadAtBackwardSeekIsRandomRead() {
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	startOffset := 3 * testPrefetchBlockSizeBytes
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == uint64(startOffset) })).Return(createFakeReader(t.T(), int(testPrefetchBlockSizeBytes)), nil).Once()
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool {
+		return r.Range.Start == uint64(startOffset+testPrefetchBlockSizeBytes)
+	})).Return(createFakeReader(t.T(), int(testPrefetchBlockSizeBytes)), nil).Once()
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool {
+		return r.Range.Start == uint64(startOffset+2*testPrefetchBlockSizeBytes)
+	})).Return(createFakeReader(t.T(), int(testPrefetchBlockSizeBytes)), nil).Once()
+	_, err = reader.ReadAt(t.ctx, make([]byte, 10), startOffset)
+	require.NoError(t.T(), err)
+	require.Equal(t.T(), 3, reader.blockQueue.Len())
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 0 })).Return(createFakeReader(t.T(), int(testPrefetchBlockSizeBytes)), nil).Once()
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReader(t.T(), int(testPrefetchBlockSizeBytes)), nil).Once()
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 2*uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReader(t.T(), int(testPrefetchBlockSizeBytes)), nil).Once()
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 3*uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReader(t.T(), int(testPrefetchBlockSizeBytes)), nil).Once()
+	readSize := testPrefetchBlockSizeBytes
+	buf := make([]byte, readSize)
+
+	resp, err := reader.ReadAt(t.ctx, buf, 0)
+
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), int(readSize), resp.Size)
+	assert.Equal(t.T(), int64(1), reader.randomSeekCount)
+	assert.Equal(t.T(), 3, reader.blockQueue.Len())
+	expectedContent := make([]byte, readSize)
+	for i := 0; i < int(readSize); i++ {
+		expectedContent[i] = byte('A' + (i % 26))
+	}
+	assert.Equal(t.T(), expectedContent, buf)
+	t.bucket.AssertExpectations(t.T())
+}
+
+func (t *BufferedReaderTest) TestReadAtForwardSeekDiscardsPreviousBlocks() {
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	var cancelCount int
+	addBlockToQueue := func(offset int64) {
+		b, err := reader.blockPool.Get()
+		require.NoError(t.T(), err)
+		err = b.SetAbsStartOff(offset)
+		require.NoError(t.T(), err)
+		b.NotifyReady(block.BlockStatus{State: block.BlockStateDownloaded})
+		reader.blockQueue.Push(&blockQueueEntry{
+			block: b,
+			cancel: func() {
+				cancelCount++
+			},
+		})
+	}
+	addBlockToQueue(0)
+	addBlockToQueue(testPrefetchBlockSizeBytes)
+	addBlockToQueue(2 * testPrefetchBlockSizeBytes)
+	require.Equal(t.T(), 3, reader.blockQueue.Len())
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 3*uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReader(t.T(), int(testPrefetchBlockSizeBytes)), nil).Once()
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 4*uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReader(t.T(), int(testPrefetchBlockSizeBytes)), nil).Once()
+	readOffset := 2 * testPrefetchBlockSizeBytes
+	readSize := 10
+
+	_, err = reader.ReadAt(t.ctx, make([]byte, readSize), readOffset)
+
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), 2, cancelCount)
+	assert.Equal(t.T(), 2, reader.blockQueue.Len())
+	t.bucket.AssertExpectations(t.T())
+}
+
+func (t *BufferedReaderTest) TestReadAtInitialDownloadFails() {
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	downloadError := errors.New("gcs error")
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.AnythingOfType("*gcs.ReadObjectRequest")).Return(nil, downloadError).Once()
+	buf := make([]byte, 10)
+
+	_, err = reader.ReadAt(t.ctx, buf, 0)
+
+	assert.ErrorContains(t.T(), err, "freshStart failed")
+	assert.ErrorIs(t.T(), err, downloadError)
+	t.bucket.AssertExpectations(t.T())
+}
+
+func (t *BufferedReaderTest) TestReadAtAwaitReadyCancelled() {
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	b, _ := reader.blockPool.Get()
+	b.SetAbsStartOff(0)
+	reader.blockQueue.Push(&blockQueueEntry{block: b, cancel: func() {}})
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err = reader.ReadAt(ctx, make([]byte, 10), 0)
+
+	assert.ErrorIs(t.T(), err, context.Canceled)
+}
+
+func (t *BufferedReaderTest) TestReadAtBlockStateDownloadFailed() {
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	b, _ := reader.blockPool.Get()
+	err = b.SetAbsStartOff(0)
+	require.NoError(t.T(), err)
+	downloadError := errors.New("simulated download error")
+	b.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: downloadError})
+	reader.blockQueue.Push(&blockQueueEntry{block: b, cancel: func() {}})
+
+	_, err = reader.ReadAt(t.ctx, make([]byte, 10), 0)
+
+	assert.ErrorIs(t.T(), err, downloadError)
+	assert.True(t.T(), reader.blockQueue.IsEmpty())
+}
+
+func (t *BufferedReaderTest) TestReadAtBlockStateCancelled() {
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	b, _ := reader.blockPool.Get()
+	err = b.SetAbsStartOff(0)
+	require.NoError(t.T(), err)
+	b.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadCancelled})
+	reader.blockQueue.Push(&blockQueueEntry{block: b, cancel: func() {}})
+
+	_, err = reader.ReadAt(t.ctx, make([]byte, 10), 0)
+
+	assert.ErrorIs(t.T(), err, context.Canceled)
+	assert.True(t.T(), reader.blockQueue.IsEmpty())
+}
+
+func (t *BufferedReaderTest) TestReadAtBlockStateUnexpected() {
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	b, _ := reader.blockPool.Get()
+	b.SetAbsStartOff(0)
+	// Use a state that is not handled in the switch case.
+	b.NotifyReady(block.BlockStatus{State: block.BlockStateInProgress})
+	reader.blockQueue.Push(&blockQueueEntry{block: b, cancel: func() {}})
+
+	_, err = reader.ReadAt(t.ctx, make([]byte, 10), 0)
+
+	assert.ErrorContains(t.T(), err, "unexpected block state")
+	assert.True(t.T(), reader.blockQueue.IsEmpty())
+}
+
+func (t *BufferedReaderTest) TestReadAtFromDownloadedBlock() {
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	b, _ := reader.blockPool.Get()
+	err = b.SetAbsStartOff(0)
+	require.NoError(t.T(), err)
+	content := []byte("hello world")
+	_, err = b.Write(content)
+	require.NoError(t.T(), err)
+	b.NotifyReady(block.BlockStatus{State: block.BlockStateDownloaded})
+	reader.blockQueue.Push(&blockQueueEntry{block: b, cancel: func() {}})
+	buf := make([]byte, 5)
+
+	resp, err := reader.ReadAt(t.ctx, buf, 0)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 5, resp.Size)
+	assert.Equal(t.T(), "hello", string(buf))
+	assert.False(t.T(), reader.blockQueue.IsEmpty())
+}
+
+func (t *BufferedReaderTest) TestReadAtExactlyToEndOfFile() {
+	t.object.Size = uint64(testPrefetchBlockSizeBytes + 50) // 1 full block and 50 bytes
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 0 })).Return(createFakeReader(t.T(), int(testPrefetchBlockSizeBytes)), nil).Once()
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReader(t.T(), 50), nil).Once()
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 2*uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReader(t.T(), 0), nil).Once()
+	buf := make([]byte, t.object.Size)
+
+	resp, err := reader.ReadAt(t.ctx, buf, 0)
+
+	assert.ErrorIs(t.T(), err, io.EOF)
+	assert.Equal(t.T(), int(t.object.Size), resp.Size)
+	expectedContent := make([]byte, t.object.Size)
+	for i := 0; i < int(t.object.Size); i++ {
+		expectedContent[i] = byte('A' + (i % 26))
+	}
+	assert.Equal(t.T(), expectedContent, buf)
+	t.bucket.AssertExpectations(t.T())
+}
+
+func (t *BufferedReaderTest) TestReadAtSucceedsWhenPrefetchFails() {
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 0 })).Return(createFakeReader(t.T(), int(testPrefetchBlockSizeBytes)), nil).Once()
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReader(t.T(), int(testPrefetchBlockSizeBytes)), nil).Once()
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 2*uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReader(t.T(), int(testPrefetchBlockSizeBytes)), nil).Once()
+	prefetchError := errors.New("prefetch failed")
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 3*uint64(testPrefetchBlockSizeBytes) })).Return(nil, prefetchError).Once()
+	buf := make([]byte, testPrefetchBlockSizeBytes)
+
+	resp, err := reader.ReadAt(t.ctx, buf, 0)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), int(testPrefetchBlockSizeBytes), resp.Size)
+	assert.Equal(t.T(), 2, reader.blockQueue.Len())
+	t.bucket.AssertExpectations(t.T())
+}
+
+func (t *BufferedReaderTest) TestReadAtSequentialReadAcrossBlocks() {
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 0 })).Return(createFakeReader(t.T(), int(testPrefetchBlockSizeBytes)), nil).Once()
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReader(t.T(), int(testPrefetchBlockSizeBytes)), nil).Once()
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 2*uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReader(t.T(), int(testPrefetchBlockSizeBytes)), nil).Once()
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 3*uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReader(t.T(), int(testPrefetchBlockSizeBytes)), nil).Once()
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 4*uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReader(t.T(), int(testPrefetchBlockSizeBytes)), nil).Once()
+	buf1 := make([]byte, testPrefetchBlockSizeBytes)
+
+	_, err = reader.ReadAt(t.ctx, buf1, 0)
+
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), int64(0), reader.randomSeekCount)
+	buf2 := make([]byte, testPrefetchBlockSizeBytes)
+
+	_, err = reader.ReadAt(t.ctx, buf2, testPrefetchBlockSizeBytes)
+
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), int64(0), reader.randomSeekCount)
 	t.bucket.AssertExpectations(t.T())
 }
