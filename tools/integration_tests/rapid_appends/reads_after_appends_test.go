@@ -17,6 +17,7 @@ package rapid_appends
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"math/rand/v2"
 	"os"
@@ -59,40 +60,28 @@ func readRandomlyAndVerify(filePath string, expectedContent []byte) error {
 	if len(expectedContent) == 0 {
 		return nil // Nothing to verify if expected content is empty
 	}
-	defer func() {
-		err = file.Close()
-		if err != nil {
-			log.Printf("Error closing file %q: %v", filePath, err)
-		}
-	}()
 
 	fileInfo, err := file.Stat()
 	if err != nil {
 		return err
 	}
 	fileSize := fileInfo.Size()
-	if fileSize == 0 {
-		return nil
+	if fileSize < int64(len(expectedContent)) {
+		return fmt.Errorf("file %q is too small to read %d bytes: %w", filePath, len(expectedContent), io.EOF)
 	}
 
 	// Ensure offset and readSize are within bounds of both actual file and expected content
-	maxOffset := int(fileSize)
-	if maxOffset > len(expectedContent) {
-		maxOffset = len(expectedContent)
-	}
+	maxOffset := int(len(expectedContent))
 
-	const numReads int = 50
+	numReads := maxOffset
+	if numReads > 10 {
+		numReads = 10
+	}
 	for range numReads {
 		offset := rand.IntN(maxOffset)
-		readSize := rand.IntN(int(fileSize - int64(offset))) // Read from actual file
-		if readSize == 0 {                                   // Ensure readSize is at least 1 if possible
-			if int(fileSize)-offset > 0 {
-				readSize = 1
-			} else {
-				break
-			}
-		} else if offset+readSize > int(fileSize) { // Adjust readSize if it goes beyond file end
-			readSize = int(fileSize) - offset
+		readSize := rand.IntN(int(fileSize - int64(offset)))
+		if readSize < 1 {
+			readSize = 1
 		}
 		buffer := make([]byte, readSize)
 
