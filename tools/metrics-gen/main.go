@@ -286,7 +286,7 @@ func buildSwitches(metric Metric) string {
 			} else { // histogram
 				varName := getVarName(metric.Name, combo)
 				unitMethod := getUnitMethod(metric.Unit)
-				builder.WriteString(fmt.Sprintf("%srecord = histogramRecord{instrument: o.%s, value: latency%s, attributes: %s}\n", indent, toCamel(metric.Name), unitMethod, varName))
+				builder.WriteString(fmt.Sprintf("%srecord = histogramRecord{ctx: ctx,instrument: o.%s, value: latency%s, attributes: %s}\n", indent, toCamel(metric.Name), unitMethod, varName))
 			}
 			return
 		}

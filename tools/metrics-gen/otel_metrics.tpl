@@ -42,13 +42,13 @@ var (
 )
 
 type histogramRecord struct {
+	ctx context.Context
 	instrument metric.Int64Histogram
 	value      int64
 	attributes metric.RecordOption
 }
 
 type otelMetrics struct {
-	ctx context.Context
     ch chan histogramRecord
 	{{- range $metric := .Metrics}}
 		{{- if isCounter $metric}}
@@ -82,7 +82,7 @@ func (o *otelMetrics) {{toPascal .Name}}(
 	var record histogramRecord
 	{{buildSwitches .}}
 	select {
-	  case o.ch <- record: // Do nothing
+	  case o.ch <- histogramRecord{instrument: record.instrument, value: record.value, attributes: record.attributes, ctx: ctx}: // Do nothing
 	  default: // Unblock writes to channel if it's full.
 	}
 	{{- end}}
@@ -94,7 +94,7 @@ func NewEfficientOTelMetrics(ctx context.Context, workers int, bufferSize int) (
   for range workers {
     go func() {
 	  for record := range ch {
-		record.instrument.Record(ctx, record.value, record.attributes)
+		record.instrument.Record(record.ctx, record.value, record.attributes)
 	  }
 	}()
   }

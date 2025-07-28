@@ -36,13 +36,13 @@ var (
 )
 
 type histogramRecord struct {
+	ctx        context.Context
 	instrument metric.Int64Histogram
 	value      int64
 	attributes metric.RecordOption
 }
 
 type otelMetrics struct {
-	ctx                                             context.Context
 	ch                                              chan histogramRecord
 	fileCacheReadBytesCountReadTypeParallelAtomic   *atomic.Int64
 	fileCacheReadBytesCountReadTypeRandomAtomic     *atomic.Int64
@@ -70,13 +70,13 @@ func (o *otelMetrics) FileCacheReadLatencies(
 	var record histogramRecord
 	switch cacheHit {
 	case true:
-		record = histogramRecord{instrument: o.fileCacheReadLatencies, value: latency.Microseconds(), attributes: fileCacheReadLatenciesCacheHitTrueAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.fileCacheReadLatencies, value: latency.Microseconds(), attributes: fileCacheReadLatenciesCacheHitTrueAttrSet}
 	case false:
-		record = histogramRecord{instrument: o.fileCacheReadLatencies, value: latency.Microseconds(), attributes: fileCacheReadLatenciesCacheHitFalseAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.fileCacheReadLatencies, value: latency.Microseconds(), attributes: fileCacheReadLatenciesCacheHitFalseAttrSet}
 	}
 
 	select {
-	case o.ch <- record: // Do nothing
+	case o.ch <- histogramRecord{instrument: record.instrument, value: record.value, attributes: record.attributes, ctx: ctx}: // Do nothing
 	default: // Unblock writes to channel if it's full.
 	}
 }
@@ -86,7 +86,7 @@ func NewEfficientOTelMetrics(ctx context.Context, workers int, bufferSize int) (
 	for range workers {
 		go func() {
 			for record := range ch {
-				record.instrument.Record(ctx, record.value, record.attributes)
+				record.instrument.Record(record.ctx, record.value, record.attributes)
 			}
 		}()
 	}
