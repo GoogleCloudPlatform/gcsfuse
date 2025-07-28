@@ -225,7 +225,7 @@ TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "inactive_stream_timeout" "cl
 # Test packages for zonal buckets.
 TEST_PACKAGES_FOR_ZB=("rapid_appends")
 # Test packages for TPC buckets.
-TEST_PACKAGES_FOR_TPC=()
+TEST_PACKAGES_FOR_TPC=("operations")
 
 # acquire_lock: Acquires exclusive lock or exits script on failure.
 # Args: $1 = path to lock file.
@@ -288,7 +288,7 @@ create_bucket() {
   local package="$1"
   local bucket_type="$2"
   local bucket_name="${BUCKET_PREFIX}-${package}-${bucket_type}-$(date +%s%N)"
-  local bucket_cmd_parts=("gcloud" "storage" "buckets" "create" "gs://${bucket_name}" "--project=${PROJECT_ID}" "--location=${BUCKET_LOCATION}" "--uniform-bucket-level-access")
+  local bucket_cmd_parts=("gcloud" "alpha" "storage" "buckets" "create" "gs://${bucket_name}" "--project=${PROJECT_ID}" "--location=${BUCKET_LOCATION}" "--uniform-bucket-level-access")
   if [[ "$bucket_type" == "$HNS" ]]; then
     bucket_cmd_parts+=("--enable-hierarchical-namespace")
   elif [[ "$bucket_type" == "$ZONAL" ]]; then
@@ -611,13 +611,13 @@ run_e2e_tests_for_emulator() {
 main() {
   # Clean up everything on exit.
   trap clean_up EXIT
-  # log_info ""
-  # log_info "------ Upgrading gcloud and installing packages ------"
-  # log_info ""
-  # set -e
-  # install_packages
-  # set +e
-  # log_info "------ Upgrading gcloud and installing packages took $SECONDS seconds ------"
+  log_info ""
+  log_info "------ Upgrading gcloud and installing packages ------"
+  log_info ""
+  set -e
+  install_packages
+  set +e
+  log_info "------ Upgrading gcloud and installing packages took $SECONDS seconds ------"
 
   log_info ""
   log_info "------ Started running E2E test packages ------"
