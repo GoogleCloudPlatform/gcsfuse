@@ -95,14 +95,22 @@ func (t *CommonAppendsSuite) TestAppendsAndReads() {
 
 						require.NoError(t.T(), err)
 						readContent := string(gotContent)
+						// If metadata cache is enabled, then gcsfuse will only try to read up to the cached file-size.
+						// Though if the appends and reads are happening from the same mount, then file-size
+						// will always be up to date.
+						// On the very first read (i=0) also, the cache entry will not be there, so that read will also see the
+						// latest file-size.
 						if !scenario.enableMetadataCache || !t.isSyncNeededAfterAppend || (i == 0) {
 							assert.Equalf(t.T(), t.fileContent, readContent, "failed to match full content in non-metadata-cache/single-mount after %v appends", i+1)
 						} else {
+							// Expect read only up to the cached file size which is the size before the append.
 							assert.Equalf(t.T(), t.fileContent[:sizeBeforeAppend], readContent, "failed to match partial content in metadata-cache dual-mount after %v appends", i+1)
 
-							time.Sleep(time.Duration(metadataCacheTTLSecs) * time.Second) // Wait for metadata cache to get expired.
+							// Wait for metadata cache to get expired to fetch the latest size (size after append) for the next read.
+							time.Sleep(time.Duration(metadataCacheTTLSecs) * time.Second)
 							gotContent, err = operations.ReadFile(readPath)
 
+							// Expect read up to the latest file size which is the size after the append.
 							require.NoError(t.T(), err)
 							readContent = string(gotContent)
 							assert.Equalf(t.T(), t.fileContent[:sizeAfterAppend], readContent, "failed to match full content in metadata-cache dual-mount after %v appends", i+1)
