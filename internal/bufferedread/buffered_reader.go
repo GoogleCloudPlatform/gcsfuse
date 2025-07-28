@@ -168,21 +168,21 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 //
 // The read is satisfied by reading from in-memory blocks that are prefetched
 // in the background. The core logic is as follows:
-// 1. Detect if the read pattern is random. If so, and if the random read
-//    threshold is exceeded, it returns a FallbackToAnotherReader error.
-// 2. Prepare the internal block queue by discarding any stale blocks from the
-//    head of the queue that are before the requested offset.
-// 3. If the queue becomes empty (e.g., on a fresh read or a large seek), it
-//    initiates a "fresh start" to prefetch blocks starting from the current
-//    offset.
-// 4. It then enters a loop to fill the destination buffer:
-//    a. It waits for the block at the head of the queue to be downloaded.
-//    b. If the download failed or was cancelled, it returns an appropriate error.
-//    c. If successful, it copies data from the downloaded block into the buffer.
-//    d. If a block is fully consumed, it is removed from the queue, and a new
-//       prefetch operation is triggered to keep the pipeline full.
-// 5. The loop continues until the buffer is full, the end of the file is
-//    reached, or an error occurs.
+//  1. Detect if the read pattern is random. If so, and if the random read
+//     threshold is exceeded, it returns a FallbackToAnotherReader error.
+//  2. Prepare the internal block queue by discarding any stale blocks from the
+//     head of the queue that are before the requested offset.
+//  3. If the queue becomes empty (e.g., on a fresh read or a large seek), it
+//     initiates a "fresh start" to prefetch blocks starting from the current
+//     offset.
+//  4. It then enters a loop to fill the destination buffer:
+//     a. It waits for the block at the head of the queue to be downloaded.
+//     b. If the download failed or was cancelled, it returns an appropriate error.
+//     c. If successful, it copies data from the downloaded block into the buffer.
+//     d. If a block is fully consumed, it is removed from the queue, and a new
+//     prefetch operation is triggered to keep the pipeline full.
+//  5. The loop continues until the buffer is full, the end of the file is
+//     reached, or an error occurs.
 func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64) (gcsx.ReaderResponse, error) {
 	resp := gcsx.ReaderResponse{DataBuf: inputBuf}
 	reqID := uuid.New()
