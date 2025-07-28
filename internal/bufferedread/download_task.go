@@ -71,7 +71,7 @@ func (p *DownloadTask) Execute() {
 			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloaded})
 		} else if errors.Is(err, context.Canceled) && p.ctx.Err() == context.Canceled {
 			logger.Tracef("Download: -> block (%s, %v) cancelled: %v.", p.object.Name, blockId, err)
-			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadCancelled})
+			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})
 		} else {
 			logger.Errorf("Download: -> block (%s, %v) failed: %v.", p.object.Name, blockId, err)
 			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})

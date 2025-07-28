@@ -164,7 +164,7 @@ func (t *BufferedReaderTest) TestDestroyAwaitReadyError() {
 		cancel: func() {},
 	})
 
-	b.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadCancelled, Err: errors.New("test error")})
+	b.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: errors.New("test error")})
 	reader.Destroy()
 
 	assert.Nil(t.T(), reader.cancelFunc)

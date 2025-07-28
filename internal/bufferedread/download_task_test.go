@@ -184,8 +184,8 @@ func (dts *DownloadTaskTestSuite) TestExecuteContextCancelledWhileReaderCreation
 	defer cancelFunc()
 	status, err := downloadBlock.AwaitReady(ctx)
 	assert.NoError(dts.T(), err)
-	assert.Equal(dts.T(), block.BlockStateDownloadCancelled, status.State)
-	assert.NoError(dts.T(), status.Err)
+	assert.Equal(dts.T(), block.BlockStateDownloadFailed, status.State)
+	assert.ErrorIs(dts.T(), status.Err, context.Canceled)
 }
 
 // ctxCancelledReader is a mock reader that simulates a context cancellation error while reading.
@@ -228,6 +228,6 @@ func (dts *DownloadTaskTestSuite) TestExecuteContextCancelledWhileReadingFromRea
 	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
 	defer cancelFunc()
 	status, err := downloadBlock.AwaitReady(ctx)
-	assert.Equal(dts.T(), block.BlockStatus{State: block.BlockStateDownloadCancelled}, status)
-	assert.NoError(dts.T(), err)
+	assert.Equal(dts.T(), block.BlockStateDownloadFailed, status.State)
+	assert.ErrorIs(dts.T(), status.Err, context.Canceled)
 }
