@@ -91,7 +91,7 @@ func (s *statWithDentryCacheEnabledTest) TestStatWhenFileIsDeletedDirectlyFromGC
 	// Wait until entry expires in cache.
 	time.Sleep(1100 * time.Millisecond)
 	// Stat again, it should give error as file does not exist.
-	fileInfo, err = os.Stat(filePath)
+	_, err = os.Stat(filePath)
 	assert.NotNil(t, err)
 }
 
