@@ -15,7 +15,7 @@ require (
 	github.com/fsouza/fake-gcs-server v1.52.2
 	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/google/uuid v1.6.0
-	github.com/googleapis/gax-go/v2 v2.14.2
+	github.com/googleapis/gax-go/v2 v2.15.0
 	github.com/jacobsa/daemonize v0.0.0-20240917082746-f35568b6c3ec
 	github.com/jacobsa/fuse v0.0.0-20250717091043-15503eb5696d
 	github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd
@@ -47,7 +47,7 @@ require (
 	golang.org/x/sys v0.34.0
 	golang.org/x/text v0.26.0
 	golang.org/x/time v0.12.0
-	google.golang.org/api v0.235.0
+	google.golang.org/api v0.239.0
 	google.golang.org/grpc v1.73.0
 	google.golang.org/protobuf v1.36.6
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
@@ -103,7 +103,7 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.61.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.39.0 // indirect
-	google.golang.org/genproto v0.0.0-20250528174236-200df99c418a // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20250528174236-200df99c418a // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250528174236-200df99c418a // indirect
+	google.golang.org/genproto v0.0.0-20250603155806-513f23925822 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20250603155806-513f23925822 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250603155806-513f23925822 // indirect
 )
