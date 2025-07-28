@@ -16,7 +16,6 @@ package rapid_appends
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"math/rand/v2"
 	"os"
@@ -55,17 +54,19 @@ func readRandomlyAndVerify(t *testing.T, filePath string, expectedContent []byte
 	fileInfo, err := file.Stat()
 	require.NoError(t, err)
 	fileSize := fileInfo.Size()
-	require.GreaterOrEqualf(t, fileSize, int64(len(expectedContent)), "file %q is too small to read %d bytes: %v", filePath, len(expectedContent), io.EOF)
+	require.GreaterOrEqualf(t, fileSize, int64(len(expectedContent)), "file %q is too small to read %d bytes", filePath, len(expectedContent))
 
-	// Ensure offset and readSize are within bounds of both actual file and expected content
+	// Ensure offset and readSize are within bounds of expected content to be read.
 	maxOffset := int(len(expectedContent))
 	numReads := maxOffset
+	// Limit number of reads to 10 if file is bigger than 10 bytes.
 	if numReads > 10 {
 		numReads = 10
 	}
 	for i := range numReads {
 		offset := rand.IntN(maxOffset)
 		readSize := rand.IntN(int(fileSize - int64(offset)))
+		// Read minimum 1 byte.
 		if readSize < 1 {
 			readSize = 1
 		}
@@ -73,7 +74,7 @@ func readRandomlyAndVerify(t *testing.T, filePath string, expectedContent []byte
 
 		n, err := file.ReadAt(buffer, int64(offset))
 
-		require.NoErrorf(t, err, "Random-read failed at iter#%d to read file %q at [%d, %d): %w", i, filePath, offset, offset+readSize, err)
+		require.NoErrorf(t, err, "Random-read failed at iter#%d to read file %q at [%d, %d): %v", i, filePath, offset, offset+readSize, err)
 		require.Equalf(t, buffer[:n], expectedContent[offset:offset+n], "content mismatch in random read at iter#%d at offset [%d, %d): expected %q, got %q", i, offset, offset+readSize, expectedContent[offset:offset+n], buffer[:n])
 	}
 }
