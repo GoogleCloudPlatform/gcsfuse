@@ -213,11 +213,6 @@ func (testSuite *PrefetchMemoryBlockTest) TestAwaitReadyNotifyVariants() {
 			notifyStatus: BlockStatus{State: BlockStateDownloadFailed},
 			wantStatus:   BlockStatus{State: BlockStateDownloadFailed},
 		},
-		{
-			name:         "AfterNotifyCancelled",
-			notifyStatus: BlockStatus{State: BlockStateDownloadCancelled},
-			wantStatus:   BlockStatus{State: BlockStateDownloadCancelled},
-		},
 	}
 
 	for _, tt := range tests {

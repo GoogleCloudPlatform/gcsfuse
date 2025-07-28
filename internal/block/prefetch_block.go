@@ -33,10 +33,9 @@ type BlockStatus struct {
 type BlockState int
 
 const (
-	BlockStateInProgress        BlockState = iota // Download of this block is in progress
-	BlockStateDownloaded                          // Download of this block is complete
-	BlockStateDownloadFailed                      // Download of this block has failed
-	BlockStateDownloadCancelled                   // Download of this block has been cancelled
+	BlockStateInProgress     BlockState = iota // Download of this block is in progress
+	BlockStateDownloaded                       // Download of this block is complete
+	BlockStateDownloadFailed                   // Download of this block has failed
 )
 
 type PrefetchBlock interface {
