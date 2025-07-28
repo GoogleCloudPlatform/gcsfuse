@@ -19,6 +19,7 @@ package optimizedmetrics
 import (
 	"context"
 	"errors"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -44,6 +45,7 @@ type histogramRecord struct {
 
 type otelMetrics struct {
 	ch                                              chan histogramRecord
+	wg                                              *sync.WaitGroup
 	fileCacheReadBytesCountReadTypeParallelAtomic   *atomic.Int64
 	fileCacheReadBytesCountReadTypeRandomAtomic     *atomic.Int64
 	fileCacheReadBytesCountReadTypeSequentialAtomic *atomic.Int64
@@ -83,8 +85,11 @@ func (o *otelMetrics) FileCacheReadLatencies(
 
 func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetrics, error) {
 	ch := make(chan histogramRecord, bufferSize)
+	var wg sync.WaitGroup
 	for range workers {
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			for record := range ch {
 				record.instrument.Record(record.ctx, record.value, record.attributes)
 			}
@@ -117,6 +122,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 
 	return &otelMetrics{
 		ch: ch,
+		wg: &wg,
 		fileCacheReadBytesCountReadTypeParallelAtomic:   &fileCacheReadBytesCountReadTypeParallelAtomic,
 		fileCacheReadBytesCountReadTypeRandomAtomic:     &fileCacheReadBytesCountReadTypeRandomAtomic,
 		fileCacheReadBytesCountReadTypeSequentialAtomic: &fileCacheReadBytesCountReadTypeSequentialAtomic,
@@ -126,4 +132,5 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 
 func (o *otelMetrics) Close() {
 	close(o.ch)
+	o.wg.Wait()
 }
