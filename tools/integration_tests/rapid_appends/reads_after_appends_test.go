@@ -48,7 +48,7 @@ func readSequentiallyAndVerify(t *testing.T, filePath string, expectedContent []
 func readRandomlyAndVerify(t *testing.T, filePath string, expectedContent []byte) {
 	file, err := operations.OpenFileAsReadonly(filePath)
 	require.NoErrorf(t, err, "failed to open file %q: %v", filePath, err)
-	defer operations.CloseFileShouldThrowError(t, file)
+	defer operations.CloseFileShouldNotThrowError(t, file)
 	if len(expectedContent) == 0 {
 		t.SkipNow()
 	}
@@ -151,21 +151,15 @@ func (t *CommonAppendsSuite) TestAppendsAndReads() {
 						// For same-mount appends/reads, file size is always current.
 						// The initial read (i=0) bypasses cache, seeing the latest file size.
 						if !scenario.enableMetadataCache || !t.isSyncNeededAfterAppend || (i == 0) {
-							err := tc.readAndVerify(t.T(), readPath, []byte(t.fileContent))
-
-							require.NoErrorf(t.T(), err, "failed to match full content in non-metadata-cache/single-mount after %v appends: %v", i+1, err)
+							tc.readAndVerify(t.T(), readPath, []byte(t.fileContent))
 						} else {
 							// Read only up to the cached file size (before append).
-							err := tc.readAndVerify(t.T(), readPath, []byte(t.fileContent[:sizeBeforeAppend]))
-
-							require.NoErrorf(t.T(), err, "failed to match partial content in metadata-cache dual-mount after %v appends: %v", i+1, err)
+							tc.readAndVerify(t.T(), readPath, []byte(t.fileContent[:sizeBeforeAppend]))
 
 							// Wait for metadata cache to expire to fetch the latest size for the next read.
 							time.Sleep(time.Duration(metadataCacheTTLSecs) * time.Second)
 							// Expect read up to the latest file size which is the size after the append.
-							err = tc.readAndVerify(t.T(), readPath, []byte(t.fileContent[:sizeAfterAppend]))
-
-							require.NoErrorf(t.T(), err, "failed to match full content in metadata-cache dual-mount after %v appends: %v", i+1, err)
+							tc.readAndVerify(t.T(), readPath, []byte(t.fileContent[:sizeAfterAppend]))
 						}
 					}
 				})
