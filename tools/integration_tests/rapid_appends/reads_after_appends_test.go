@@ -72,6 +72,7 @@ func readRandomlyAndVerify(t *testing.T, filePath string, expectedContent []byte
 		n, err := file.ReadAt(buffer, int64(offset))
 
 		require.NoErrorf(t, err, "Random-read failed at iter#%d to read file %q at [%d, %d): %v", i, filePath, offset, offset+readSize, err)
+		require.Equalf(t, n, readSize, "failed to read %v bytes from %q at offset %v. Read bytes = %v.", readSize, filePath, offset, n)
 		require.Equalf(t, buffer[:n], expectedContent[offset:offset+n], "content mismatch in random read at iter#%d at offset [%d, %d): expected %q, got %q", i, offset, offset+readSize, expectedContent[offset:offset+n], buffer[:n])
 	}
 }
