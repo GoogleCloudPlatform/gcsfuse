@@ -31,7 +31,5 @@ type noopMetrics struct {}
 		{{- if .Attributes}}, {{end}}
 		{{- range $i, $attr := .Attributes -}}
 			{{if $i}}, {{end}}{{toCamel $attr.Name}} {{getGoType $attr.Type}}
-		{{- end }},
-	){}
+		{{- end }}){}
 {{end}}
-

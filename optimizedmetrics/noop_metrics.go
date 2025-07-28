@@ -23,11 +23,9 @@ import (
 type noopMetrics struct{}
 
 func (*noopMetrics) FileCacheReadBytesCount(
-	inc int64, readType string,
-) {
+	inc int64, readType string) {
 }
 
 func (*noopMetrics) FileCacheReadLatencies(
-	ctx context.Context, duration time.Duration, cacheHit bool,
-) {
+	ctx context.Context, duration time.Duration, cacheHit bool) {
 }
