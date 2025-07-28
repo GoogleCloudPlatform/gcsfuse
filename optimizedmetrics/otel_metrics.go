@@ -102,9 +102,9 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		metric.WithDescription("The cumulative number of bytes read from file cache along with read type - Sequential/Random"),
 		metric.WithUnit("By"),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
-			obsrv.Observe(fileCacheReadBytesCountReadTypeParallelAtomic.Load(), fileCacheReadBytesCountReadTypeParallelAttrSet)
-			obsrv.Observe(fileCacheReadBytesCountReadTypeRandomAtomic.Load(), fileCacheReadBytesCountReadTypeRandomAttrSet)
-			obsrv.Observe(fileCacheReadBytesCountReadTypeSequentialAtomic.Load(), fileCacheReadBytesCountReadTypeSequentialAttrSet)
+			conditionallyObserve(obsrv, &fileCacheReadBytesCountReadTypeParallelAtomic, fileCacheReadBytesCountReadTypeParallelAttrSet)
+			conditionallyObserve(obsrv, &fileCacheReadBytesCountReadTypeRandomAtomic, fileCacheReadBytesCountReadTypeRandomAttrSet)
+			conditionallyObserve(obsrv, &fileCacheReadBytesCountReadTypeSequentialAtomic, fileCacheReadBytesCountReadTypeSequentialAttrSet)
 			return nil
 		}))
 
@@ -131,4 +131,11 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 func (o *otelMetrics) Close() {
 	close(o.ch)
 	o.wg.Wait()
+}
+
+func conditionallyObserve(obsrv metric.Int64Observer, counter *atomic.Int64, attrSet metric.ObserveOption) {
+	if val := counter.Load(); val > 0 {
+		obsrv.Observe(val, attrSet)
+	}
+
 }
