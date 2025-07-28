@@ -20,6 +20,7 @@ import (
 	"path"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
@@ -333,6 +334,45 @@ func (t *RapidAppendsSuite) TestFallbackHappensWhenNonAppendHandleDoesFirstWrite
 	contentAfterClose, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), expectedContent, contentAfterClose)
+}
+
+func (t *RapidAppendsSuite) TestKernelShouldSeeUpdatedSizeWhenAppe() {
+	filePath := path.Join(primaryMntTestDirPath, t.fileName)
+	expectedFileSize := unfinalizedObjectSize + len(initialContent)
+	// Initiate the append session.
+	appendFileHandle := operations.OpenFileInMode(t.T(), filePath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
+	defer appendFileHandle.Close()
+
+	n, err := appendFileHandle.Write([]byte(initialContent))
+	require.NoError(t.T(), err)
+	require.NotZero(t.T(), n)
+
+	// While the append is in progress, stat() the file to assert on the
+	// file size as viewed by the kernel.
+	fileInfo, err := operations.StatFile(filePath)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), expectedFileSize, (*fileInfo).Size())
+}
+
+func (t *RapidAppendsSuite) TestKernelShouldSeeUpdatedSizeWhenFileIsReopenedAfterStatCacheExpires() {
+	filePath := path.Join(primaryMntTestDirPath, t.fileName)
+	expectedFileSize := unfinalizedObjectSize + len(initialContent)
+	// Initiate the append session.
+	appendFileHandle := operations.OpenFileInMode(t.T(), filePath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
+	defer appendFileHandle.Close()
+
+	n, err := appendFileHandle.Write([]byte(initialContent))
+	require.NoError(t.T(), err)
+	require.NotZero(t.T(), n)
+
+	// Note: To ensure that stat cache has expired.
+	time.Sleep(statCacheTTL * time.Second)
+
+	// While the append is in progress, stat() the file to assert on the
+	// file size as viewed by the kernel.
+	fileInfo, err := operations.StatFile(filePath)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), expectedFileSize, (*fileInfo).Size())
 }
 
 ////////////////////////////////////////////////////////////////////////

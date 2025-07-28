@@ -37,6 +37,7 @@ const (
 	// Block size for buffered writes is set to 1MiB.
 	contentSizeForBW = 3
 	blockSize        = operations.OneMiB
+	statCacheTTL     = 2
 )
 
 var (
