@@ -56,17 +56,15 @@ func readRandomlyAndVerify(t *testing.T, filePath string, expectedContent []byte
 	fileSize := fileInfo.Size()
 	require.GreaterOrEqualf(t, fileSize, int64(len(expectedContent)), "file %q is too small to read %d bytes", filePath, len(expectedContent))
 
-	// Ensure offset and readSize are within bounds of expected content to be read.
-	maxOffset := int(len(expectedContent))
-	// Limit number of reads if the file is too small.
+	// Content to be read from [0, maxOffset) .
+	maxOffset := len(expectedContent)
+	// Limit number of reads if the content to read is too small.
 	numReads := min(maxOffset, 10)
 	for i := range numReads {
+		// Ensure offset <= maxOffset-1 .
 		offset := rand.IntN(maxOffset)
-		readSize := rand.IntN(int(fileSize - int64(offset)))
-		// Read minimum 1 byte.
-		if readSize < 1 {
-			readSize = 1
-		}
+		// Ensure (offset+readSize) <= maxOffset and readSize >= 1.
+		readSize := rand.IntN(maxOffset-offset) + 1
 		buffer := make([]byte, readSize)
 
 		n, err := file.ReadAt(buffer, int64(offset))
@@ -150,7 +148,7 @@ func (t *CommonAppendsSuite) TestAppendsAndReads() {
 						// For same-mount appends/reads, file size is always current.
 						// The initial read (i=0) bypasses cache, seeing the latest file size.
 						if !scenario.enableMetadataCache || !t.isSyncNeededAfterAppend || (i == 0) {
-							tc.readAndVerify(t.T(), readPath, []byte(t.fileContent))
+							tc.readAndVerify(t.T(), readPath, []byte(t.fileContent[:sizeAfterAppend]))
 						} else {
 							// Read only up to the cached file size (before append).
 							tc.readAndVerify(t.T(), readPath, []byte(t.fileContent[:sizeBeforeAppend]))
