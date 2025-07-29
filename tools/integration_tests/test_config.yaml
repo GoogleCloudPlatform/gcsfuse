@@ -1,0 +1,21 @@
+explicit_dir:
+  - mounted_directory: "/tmp/mnt" # To be passed by GKE after mounting
+    test_bucket: "ashmeenbkt" # To be passed by both gcsfuse and gke tests
+    log_file: # Optional flag required by some tests where log parsing is done to validate end behavior
+    flags:
+      - "--implicit-dirs=false"
+      - "--implicit-dirs=false --client-protocol=grpc"
+    bucket_type:
+      - flat
+
+#gzip:
+#  - mounted_directory: # To be passed by GKE after mounting
+#    test_bucket: "ashmeenbkt" # To be passed by both gcsfuse and gke tests
+#    log_file: # Optional flag required by some tests where log parsing is done to validate end behavior
+#    flags:
+#      - "--implicit-dirs=false"
+#      - "--implicit-dirs=false --client-protocol=grpc"
+#    bucket_type:
+#      - flat
+#      - hns
+#      - zonal

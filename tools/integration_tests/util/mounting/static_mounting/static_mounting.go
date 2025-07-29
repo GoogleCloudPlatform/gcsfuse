@@ -21,6 +21,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 func MountGcsfuseWithStaticMounting(flags []string) (err error) {
@@ -33,6 +34,27 @@ func MountGcsfuseWithStaticMounting(flags []string) (err error) {
 	defaultArg = append(defaultArg, "--log-severity=trace",
 		"--log-file="+setup.LogFile(),
 		setup.TestBucket(),
+		setup.MntDir())
+
+	for i := 0; i < len(defaultArg); i++ {
+		flags = append(flags, defaultArg[i])
+	}
+
+	err = mounting.MountGcsfuse(setup.BinFile(), flags)
+
+	return err
+}
+
+func MountGcsfuseWithStaticMountingWithConfigFile(config test_suite.TestConfig, flags []string) (err error) {
+	var defaultArg []string
+	if setup.TestOnTPCEndPoint() {
+		defaultArg = append(defaultArg, "--custom-endpoint=storage.apis-tpczero.goog:443",
+			"--key-file=/tmp/sa.key.json")
+	}
+
+	defaultArg = append(defaultArg, "--log-severity=trace",
+		"--log-file="+setup.LogFile(),
+		config.TestBucket,
 		setup.MntDir())
 
 	for i := 0; i < len(defaultArg); i++ {
@@ -60,10 +82,36 @@ func executeTestsForStaticMounting(flagsSet [][]string, m *testing.M) (successCo
 	return
 }
 
+func executeTestsForStaticMountingWithConfigFile(config test_suite.TestConfig, flagsSet [][]string, m *testing.M) (successCode int) {
+	var err error
+
+	for i := 0; i < len(flagsSet); i++ {
+		if err = MountGcsfuseWithStaticMountingWithConfigFile(config, flagsSet[i]); err != nil {
+			setup.LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
+		}
+		log.Printf("Running static mounting tests with flags: %s", flagsSet[i])
+		successCode = setup.ExecuteTestForFlagsSet(flagsSet[i], m)
+		if successCode != 0 {
+			return
+		}
+	}
+	return
+}
+
 func RunTests(flagsSet [][]string, m *testing.M) (successCode int) {
 	log.Println("Running static mounting tests...")
 
 	successCode = executeTestsForStaticMounting(flagsSet, m)
+
+	log.Printf("Test log: %s\n", setup.LogFile())
+
+	return successCode
+}
+
+func RunTestsWithConfigFile(config test_suite.TestConfig, flagsSet [][]string, m *testing.M) (successCode int) {
+	log.Println("Running static mounting tests...")
+
+	successCode = executeTestsForStaticMountingWithConfigFile(config, flagsSet, m)
 
 	log.Printf("Test log: %s\n", setup.LogFile())
 

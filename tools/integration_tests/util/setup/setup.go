@@ -48,6 +48,7 @@ var testInstalledPackage = flag.Bool("testInstalledPackage", false, "[Optional] 
 var testOnTPCEndPoint = flag.Bool("testOnTPCEndPoint", false, "Run tests on TPC endpoint only when the flag value is true.")
 var gcsfusePreBuiltDir = flag.String("gcsfuse_prebuilt_dir", "", "Path to the pre-built GCSFuse directory containing bin/gcsfuse and sbin/mount.gcsfuse.")
 var profileLabelForMountedDirTest = flag.String("profile_label", "", "To pass profile-label for the cloud-profile test.")
+var configFile = flag.String("config-file", "", "Common GCSFuse config file to run tests with.")
 
 const (
 	FilePermission_0600      = 0600
@@ -338,6 +339,10 @@ func ParseSetUpFlags() {
 	}
 }
 
+func ConfigFile() string {
+	return *configFile
+}
+
 func IgnoreTestIfIntegrationTestFlagIsSet(t *testing.T) {
 	flag.Parse()
 
@@ -397,10 +402,24 @@ func RunTestsForMountedDirectoryFlag(m *testing.M) {
 	}
 }
 
+func RunTestsForMountedDirectoryWithConfigFile(mountedDir string, m *testing.M) {
+	// Execute tests for the mounted directory.
+	mntDir = mountedDir
+	successCode := ExecuteTest(m)
+	os.Exit(successCode)
+}
+
 func SetUpTestDirForTestBucketFlag() {
 	if TestBucket() == "" {
 		log.Fatal("Not running TestBucket tests as --testBucket flag is not set.")
 	}
+	if err := SetUpTestDir(); err != nil {
+		log.Printf("setUpTestDir: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func SetUpTestDirForTestBucketFlagWithConfigFile() {
 	if err := SetUpTestDir(); err != nil {
 		log.Printf("setUpTestDir: %v\n", err)
 		os.Exit(1)
