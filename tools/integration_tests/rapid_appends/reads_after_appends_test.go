@@ -41,7 +41,7 @@ func readSequentiallyAndVerify(t *testing.T, filePath string, expectedContent []
 
 	// For sequential reads, we expect the content to be exactly as expected.
 	require.NoErrorf(t, err, "failed to read file %q sequentially: %v", filePath, err)
-	require.Equal(t, readContent, expectedContent)
+	require.Equal(t, expectedContent, readContent)
 }
 
 func readRandomlyAndVerify(t *testing.T, filePath string, expectedContent []byte) {
@@ -70,8 +70,8 @@ func readRandomlyAndVerify(t *testing.T, filePath string, expectedContent []byte
 		n, err := file.ReadAt(buffer, int64(offset))
 
 		require.NoErrorf(t, err, "Random-read failed at iter#%d to read file %q at [%d, %d): %v", i, filePath, offset, offset+readSize, err)
-		require.Equalf(t, n, readSize, "failed to read %v bytes from %q at offset %v. Read bytes = %v.", readSize, filePath, offset, n)
-		require.Equalf(t, buffer[:n], expectedContent[offset:offset+n], "content mismatch in random read at iter#%d at offset [%d, %d): expected %q, got %q", i, offset, offset+readSize, expectedContent[offset:offset+n], buffer[:n])
+		require.Equalf(t, readSize, n, "failed to read %v bytes from %q at offset %v. Read bytes = %v.", readSize, filePath, offset, n)
+		require.Equalf(t, expectedContent[offset:offset+n], buffer[:n], "content mismatch in random read at iter#%d at offset [%d, %d): expected %q, got %q", i, offset, offset+readSize, expectedContent[offset:offset+n], buffer[:n])
 	}
 }
 
