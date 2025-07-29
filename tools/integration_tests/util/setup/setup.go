@@ -48,6 +48,7 @@ var testInstalledPackage = flag.Bool("testInstalledPackage", false, "[Optional] 
 var testOnTPCEndPoint = flag.Bool("testOnTPCEndPoint", false, "Run tests on TPC endpoint only when the flag value is true.")
 var gcsfusePreBuiltDir = flag.String("gcsfuse_prebuilt_dir", "", "Path to the pre-built GCSFuse directory containing bin/gcsfuse and sbin/mount.gcsfuse.")
 var profileLabelForMountedDirTest = flag.String("profile_label", "", "To pass profile-label for the cloud-profile test.")
+var configFile = flag.String("config-file", "", "Common GCSFuse config file to run tests with.")
 
 const (
 	FilePermission_0600               = 0600
@@ -339,6 +340,10 @@ func ParseSetUpFlags() {
 	}
 }
 
+func ConfigFile() string {
+	return *configFile
+}
+
 func IgnoreTestIfIntegrationTestFlagIsSet(t *testing.T) {
 	flag.Parse()
 
@@ -389,17 +394,34 @@ func ExitWithFailureIfMountedDirectoryIsSetOrTestBucketIsNotSet() {
 	}
 }
 
+// Deprecated: Use RunTestsForMountedDirectory instead.
 func RunTestsForMountedDirectoryFlag(m *testing.M) {
 	// Execute tests for the mounted directory.
 	if *mountedDirectory != "" {
-		mntDir = *mountedDirectory
-		successCode := ExecuteTest(m)
-		os.Exit(successCode)
+		os.Exit(RunTestsForMountedDirectory(*mountedDirectory, m))
 	}
 }
 
+// RunTestsForMountedDirectory executes tests for the mounted directory.
+// User is expected to ensure that this function is called when mounted directory is set.
+// Returns exit code.
+func RunTestsForMountedDirectory(mountedDirectory string, m *testing.M) int {
+	// Execute tests for the mounted directory.
+	if mountedDirectory == "" {
+		log.Println("RunTestsForMountedDirectory failed: Mounted directory is not set.")
+		return 1
+	}
+	mntDir = mountedDirectory
+	return ExecuteTest(m)
+}
+
+// Deprecated: Use SetUpTestDirForTestBucket instead.
 func SetUpTestDirForTestBucketFlag() {
-	testBucketName := TestBucket()
+	SetUpTestDirForTestBucket(TestBucket())
+}
+
+func SetUpTestDirForTestBucket(testBucket string) {
+	testBucketName := testBucket
 	if testBucketName == "" {
 		log.Fatal("Not running TestBucket tests as --testBucket flag is not set.")
 	}
@@ -509,8 +531,13 @@ func AreBothMountedDirectoryAndTestBucketFlagsSet() bool {
 	return false
 }
 
+// Deprecated: use ResolveIsHierarchicalBucket instead.
 func IsHierarchicalBucket(ctx context.Context, storageClient *storage.Client) bool {
-	attrs, err := storageClient.Bucket(TestBucket()).Attrs(ctx)
+	return ResolveIsHierarchicalBucket(ctx, TestBucket(), storageClient)
+}
+
+func ResolveIsHierarchicalBucket(ctx context.Context, testBucket string, storageClient *storage.Client) bool {
+	attrs, err := storageClient.Bucket(testBucket).Attrs(ctx)
 	if err != nil {
 		return false
 	}
