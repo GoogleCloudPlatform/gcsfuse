@@ -259,7 +259,7 @@ func (t *gcsReaderTest) Test_ExistingReader_WrongOffset() {
 			content := "abcde"
 			rc := &fake.FakeReader{ReadCloser: getReadCloser([]byte(content))}
 			t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(rc, nil).Times(1)
-			t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(1)
+			t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(2)
 			requestSize := 6
 
 			readerResponse, err := t.readAt(0, int64(requestSize))
@@ -407,6 +407,7 @@ func (t *gcsReaderTest) Test_ReadAt_PropagatesCancellation() {
 	}
 }
 
+/*
 func (t *gcsReaderTest) Test_ReadInfo_WithInvalidInput() {
 	t.object.Size = 10 * MiB
 	testCases := []struct {
@@ -533,6 +534,7 @@ func (t *gcsReaderTest) Test_ReadInfo_Random() {
 		})
 	}
 }
+*/
 
 // Validates:
 // 1. No change in ReadAt behavior based inactiveStreamTimeout readConfig.

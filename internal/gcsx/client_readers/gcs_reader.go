@@ -16,9 +16,9 @@ package gcsx
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
+	"sync"
 	"sync/atomic"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -52,6 +52,12 @@ const (
 	MultiRangeReaderType
 )
 
+type readInfo struct {
+	readType       int64
+	expectedOffset int64
+	seekRecorded   bool
+}
+
 type GCSReader struct {
 	gcsx.Reader
 	object *gcs.MinObject
@@ -74,6 +80,9 @@ type GCSReader struct {
 
 	// totalReadBytes is the total number of bytes read by the reader.
 	totalReadBytes atomic.Uint64
+
+	// mu synchronizes reads through range reader.
+	mu sync.Mutex
 }
 
 type GCSReaderConfig struct {
@@ -98,79 +107,101 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.R
 
 	if offset >= int64(gr.object.Size) {
 		return readerResponse, io.EOF
+	} else if offset < 0 {
+		err := fmt.Errorf(
+			"illegal offset %d for %d-byte object",
+			offset,
+			gr.object.Size)
+		return readerResponse, err
 	}
-
-	gr.rangeReader.invalidateReaderIfMisalignedOrTooSmall(offset, p)
 
 	readReq := &gcsx.GCSReaderRequest{
 		Buffer:    p,
 		Offset:    offset,
-		EndOffset: -1,
+		EndOffset: offset + int64(len(p)),
 	}
 	defer func() {
 		gr.updateExpectedOffset(offset + int64(readerResponse.Size))
 		gr.totalReadBytes.Add(uint64(readerResponse.Size))
 	}()
 
-	var err error
-	readerResponse, err = gr.rangeReader.readFromExistingReader(ctx, readReq)
-	if err == nil {
-		return readerResponse, nil
-	}
-	if !errors.Is(err, gcsx.FallbackToAnotherReader) {
-		return readerResponse, err
-	}
+	// Not taking any lock for getting reader type to ensure random read requests do not wait.
+	readInfo := gr.getReadInfo(offset, false)
+	reqReaderType := gr.readerType(readInfo.readType, gr.bucket.BucketType())
 
-	// If the data can't be served from the existing reader, then we need to update the seeks.
-	// If current offset is not same as expected offset, it's a random read.
-	if expectedOffset := gr.expectedOffset.Load(); expectedOffset != 0 && expectedOffset != offset {
-		gr.seeks.Add(1)
-	}
-
-	// If we don't have a reader, determine whether to read from RangeReader or MultiRangeReader.
-	end, err := gr.getReadInfo(offset, int64(len(p)))
-	if err != nil {
-		err = fmt.Errorf("ReadAt: getReaderInfo: %w", err)
-		return readerResponse, err
+	if reqReaderType == RangeReaderType {
+		gr.mu.Lock()
+		if gr.bucket.BucketType().Zonal && readInfo.expectedOffset != gr.expectedOffset.Load() {
+			readInfo = gr.getReadInfo(offset, readInfo.seekRecorded)
+			reqReaderType = gr.readerType(readInfo.readType, gr.bucket.BucketType())
+		}
+		if reqReaderType == RangeReaderType {
+			defer gr.mu.Unlock()
+			return gr.rangeReader.ReadAt(ctx, readReq)
+		}
+		gr.mu.Unlock()
 	}
 
-	readReq.EndOffset = end
-	readerType := gr.readerType(offset, end, gr.bucket.BucketType())
-	if readerType == RangeReaderType {
-		readerResponse, err = gr.rangeReader.ReadAt(ctx, readReq)
-		return readerResponse, err
+	if reqReaderType == MultiRangeReaderType {
+		return gr.mrr.ReadAt(ctx, readReq)
 	}
 
-	readerResponse, err = gr.mrr.ReadAt(ctx, readReq)
-
-	return readerResponse, err
+	return readerResponse, nil
 }
 
 // readerType specifies the go-sdk interface to use for reads.
-func (gr *GCSReader) readerType(start int64, end int64, bucketType gcs.BucketType) ReaderType {
-	bytesToBeRead := end - start
-	if gr.readType.Load() == metrics.ReadTypeRandom && bytesToBeRead < maxReadSize && bucketType.Zonal {
+func (gr *GCSReader) readerType(start int64, bucketType gcs.BucketType) ReaderType {
+	if gr.readType.Load() == metrics.ReadTypeRandom && bucketType.Zonal {
 		return MultiRangeReaderType
 	}
 	return RangeReaderType
 }
 
-// getReadInfo determines the readType and provides the range to query GCS.
-// Range here is [start, end]. end is computed using the readType, start offset
-// and size of the data the caller needs.
-func (gr *GCSReader) getReadInfo(start int64, size int64) (int64, error) {
-	// Make sure start and size are legal.
-	if start < 0 || uint64(start) > gr.object.Size || size < 0 {
-		return 0, fmt.Errorf("range [%d, %d) is illegal for %d-byte object", start, start+size, gr.object.Size)
+// isSeekNeeded determines if the current read at `offset` should be considered a
+// seek, given the previous read pattern & the expected offset.
+func isSeekNeeded(readType, offset, expectedOffset int64) bool {
+	if expectedOffset == 0 {
+		return false
+	} else if readType == metrics.ReadTypeRandom {
+		return offset != expectedOffset
+	} else if readType == metrics.ReadTypeSequential {
+		return offset < expectedOffset || offset > expectedOffset+maxReadSize
+	}
+	return false
+}
+
+// getReadInfo determines the read strategy (sequential or random) for a read
+// request at a given offset and returns read metadata. It also updates the
+// reader's internal state based on the read pattern.
+func (gr *GCSReader) getReadInfo(offset int64, seekRecorded bool) readInfo {
+	readType := gr.readType.Load()
+	expOffset := gr.expectedOffset.Load()
+	numSeeks := gr.seeks.Load()
+
+	if !seekRecorded && isSeekNeeded(readType, offset, expOffset) {
+		numSeeks = gr.seeks.Add(1)
+		seekRecorded = true
 	}
 
-	// Determine the end position based on the read pattern.
-	end := gr.determineEnd(start)
+	if numSeeks >= minSeeksForRandom {
+		readType = metrics.ReadTypeRandom
+	}
 
-	// Limit the end position to sequentialReadSizeMb.
-	end = gr.limitEnd(start, end)
+	averageReadBytes := gr.totalReadBytes.Load()
+	if numSeeks > 0 {
+		averageReadBytes /= numSeeks
+	}
 
-	return end, nil
+	if averageReadBytes >= maxReadSize {
+		readType = metrics.ReadTypeSequential
+	}
+
+	gr.readType.Store(readType)
+	return readInfo{
+		readType:       readType,
+		expectedOffset: expOffset,
+		seekRecorded:   seekRecorded,
+	}
 }
 
 // determineEnd calculates the end position for a read operation based on the current read pattern.
