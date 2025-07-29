@@ -54,6 +54,8 @@ const minSeeksForRandom = 2
 // TODO(b/385826024): Revert timeout to an appropriate value
 const TimeoutForMultiRangeRead = time.Hour
 
+var FallbackToNewRangeReader = errors.New("fallback to new rnage reader is required")
+
 // RandomReader is an object that knows how to read ranges within a particular
 // generation of a particular GCS object. Optimised for (large) sequential reads.
 //
@@ -366,43 +368,13 @@ func (rr *randomReader) ReadAt(
 		} else {
 			defer rr.mu.Unlock()
 
-			// Check first if we can read using existing reader. if not, determine which
-			// api to use and call gcs accordingly.
-
-			// When the offset is AFTER the reader position, try to seek forward, within reason.
-			// This happens when the kernel page cache serves some data. It's very common for
-			// concurrent reads, often by only a few 128kB fuse read requests. The aim is to
-			// re-use GCS connection and avoid throwing away already read data.
-			// For parallel sequential reads to a single file, not throwing away the connections
-			// is a 15-20x improvement in throughput: 150-200 MiB/s instead of 10 MiB/s.
-			if rr.reader != nil && rr.start < offset && offset-rr.start < maxReadSize {
-				bytesToSkip := offset - rr.start
-				discardedBytes, copyError := io.CopyN(io.Discard, rr.reader, bytesToSkip)
-				// io.EOF is expected if the reader is shorter than the requested offset to read.
-				if copyError != nil && !errors.Is(copyError, io.EOF) {
-					logger.Warnf("Error while skipping reader bytes: %v", copyError)
-				}
-				rr.start += discardedBytes
+			// Check first if we can read using existing reader. if not, create a new range reader
+			objectData.Size, err = rr.readFromExistingRangeReader(ctx, p, offset)
+			if errors.Is(err, FallbackToNewRangeReader) {
+				// reader does not exist and need to be created, get the end offset.
+				end := rr.getEndOffset(offset)
+				objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, readInfo.readType)
 			}
-
-			// If we have an existing reader, but it's positioned at the wrong place,
-			// clean it up and throw it away.
-			// We will also clean up the existing reader if it can't serve the entire request.
-			dataToRead := math.Min(float64(offset+int64(len(p))), float64(rr.object.Size))
-			if rr.reader != nil && (rr.start != offset || int64(dataToRead) > rr.limit) {
-				rr.closeReader()
-				rr.reader = nil
-				rr.cancel = nil
-			}
-
-			if rr.reader != nil {
-				objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, -1, rr.readType.Load())
-				return
-			}
-
-			// reader does not exist and need to be created, get the end offset.
-			end := rr.getEndOffset(offset)
-			objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, end, readInfo.readType)
 			return
 		}
 	}
@@ -641,6 +613,45 @@ func readerType(readType int64, bucketType gcs.BucketType) ReaderType {
 		return MultiRangeReader
 	}
 	return RangeReader
+}
+
+func (rr *randomReader) skipBytes(offset int64) {
+	// When the offset is AFTER the reader position, try to seek forward, within reason.
+	// This happens when the kernel page cache serves some data. It's very common for
+	// concurrent reads, often by only a few 128kB fuse read requests. The aim is to
+	// re-use GCS connection and avoid throwing away already read data.
+	// For parallel sequential reads to a single file, not throwing away the connections
+	// is a 15-20x improvement in throughput: 150-200 MiB/s instead of 10 MiB/s.
+	if rr.reader != nil && rr.start < offset && offset-rr.start < maxReadSize {
+		bytesToSkip := offset - rr.start
+		discardedBytes, copyError := io.CopyN(io.Discard, rr.reader, bytesToSkip)
+		// io.EOF is expected if the reader is shorter than the requested offset to read.
+		if copyError != nil && !errors.Is(copyError, io.EOF) {
+			logger.Warnf("Error while skipping reader bytes: %v", copyError)
+		}
+		rr.start += discardedBytes
+	}
+}
+
+func (rr *randomReader) invalidateReaderIfMisalignedOrTooSmall(startOffset, endOffset int64) {
+	// If we have an existing reader, but it's positioned at the wrong place,
+	// clean it up and throw it away.
+	// We will also clean up the existing reader if it can't serve the entire request.
+	dataToRead := math.Min(float64(endOffset), float64(rr.object.Size))
+	if rr.reader != nil && (rr.start != startOffset || int64(dataToRead) > rr.limit) {
+		rr.closeReader()
+		rr.reader = nil
+		rr.cancel = nil
+	}
+}
+
+func (rr *randomReader) readFromExistingRangeReader(ctx context.Context, p []byte, offset int64) (n int, err error) {
+	rr.skipBytes(offset)
+	rr.invalidateReaderIfMisalignedOrTooSmall(offset, offset+int64(len(p)))
+	if rr.reader != nil {
+		return rr.readFromRangeReader(ctx, p, offset, offset+int64(len(p)), rr.readType.Load())
+	}
+	return 0, FallbackToNewRangeReader
 }
 
 // readFromRangeReader reads using the NewReader interface of go-sdk. Its uses
