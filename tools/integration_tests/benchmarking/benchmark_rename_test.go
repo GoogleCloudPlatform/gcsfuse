@@ -58,7 +58,7 @@ func (s *benchmarkRenameTest) Benchmark_Rename(b *testing.B) {
 	}
 	averageRenameLatency := time.Duration(int(b.Elapsed()) / b.N)
 	if averageRenameLatency > expectedRenameLatency {
-		b.Errorf("RenameFile took more time on an average (%v) than expected %v", averageRenameLatency, expectedRenameLatency)
+		b.Errorf("RenameFile took more time on average (%v) than expected %v", averageRenameLatency, expectedRenameLatency)
 	}
 }
 

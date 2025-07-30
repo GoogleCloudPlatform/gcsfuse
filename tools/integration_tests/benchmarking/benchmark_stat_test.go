@@ -61,12 +61,12 @@ func (s *benchmarkStatTest) Benchmark_Stat(b *testing.B) {
 	for range b.N {
 		filePath := path.Join(testDirPath, "a.txt")
 		if _, err := operations.StatFile(filePath); err != nil {
-			b.Errorf("failed to stat %s: %v", filePath, err)
+			b.Errorf("failed to stat %q: %v", filePath, err)
 		}
 	}
 	averageStatLatency := time.Duration(int(b.Elapsed()) / b.N)
 	if averageStatLatency > expectedStatLatency {
-		b.Errorf("StatFile took more time (%d msec) than expected (%d msec)", averageStatLatency.Milliseconds(), expectedStatLatency.Milliseconds())
+		b.Errorf("StatFile took more time on average (%d msec) than expected (%d msec)", averageStatLatency.Milliseconds(), expectedStatLatency.Milliseconds())
 	}
 }
 
