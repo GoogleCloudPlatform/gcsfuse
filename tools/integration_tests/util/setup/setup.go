@@ -50,14 +50,15 @@ var gcsfusePreBuiltDir = flag.String("gcsfuse_prebuilt_dir", "", "Path to the pr
 var profileLabelForMountedDirTest = flag.String("profile_label", "", "To pass profile-label for the cloud-profile test.")
 
 const (
-	FilePermission_0600      = 0600
-	DirPermission_0755       = 0755
-	Charset                  = "abcdefghijklmnopqrstuvwxyz0123456789"
-	PathEnvVariable          = "PATH"
-	GCSFuseLogFilePrefix     = "gcsfuse-failed-integration-test-logs-"
-	ProxyServerLogFilePrefix = "proxy-server-failed-integration-test-logs-"
-	zoneMatcherRegex         = "^[a-z]+-[a-z0-9]+-[a-z]$"
-	regionMatcherRegex       = "^[a-z]+-[a-z0-9]+$"
+	FilePermission_0600               = 0600
+	DirPermission_0755                = 0755
+	Charset                           = "abcdefghijklmnopqrstuvwxyz0123456789"
+	PathEnvVariable                   = "PATH"
+	GCSFuseLogFilePrefix              = "gcsfuse-failed-integration-test-logs-"
+	ProxyServerLogFilePrefix          = "proxy-server-failed-integration-test-logs-"
+	zoneMatcherRegex                  = "^[a-z]+-[a-z0-9]+-[a-z]$"
+	regionMatcherRegex                = "^[a-z]+-[a-z0-9]+$"
+	unsupportedCharactersInTestBucket = " /"
 )
 
 var (
@@ -400,6 +401,9 @@ func RunTestsForMountedDirectoryFlag(m *testing.M) {
 func SetUpTestDirForTestBucketFlag() {
 	if TestBucket() == "" {
 		log.Fatal("Not running TestBucket tests as --testBucket flag is not set.")
+	}
+	if strings.ContainsAny(TestBucket(), unsupportedCharactersInTestBucket) {
+		log.Fatalf("Passed testBucket %q contains one or more of the following unsupported character(s): %q", TestBucket(), unsupportedCharactersInTestBucket)
 	}
 	if err := SetUpTestDir(); err != nil {
 		log.Printf("setUpTestDir: %v\n", err)
