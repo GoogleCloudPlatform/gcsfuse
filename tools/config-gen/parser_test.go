@@ -29,7 +29,6 @@ func TestCheckFlagName_Valid(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			assert.NoError(t, checkFlagName(name))
 		})
-
 	}
 }
 
