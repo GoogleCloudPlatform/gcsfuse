@@ -82,6 +82,7 @@ func TestMain(m *testing.M) {
 	}
 
 	successCode := implicit_and_explicit_dir_setup.RunTestsForImplicitDirAndExplicitDir(flagsSet, m)
+	setup.SaveLogFileInCaseOfFailure(successCode)
 
 	// Clean up test directory created.
 	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))
