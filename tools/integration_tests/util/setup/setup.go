@@ -58,7 +58,7 @@ const (
 	ProxyServerLogFilePrefix          = "proxy-server-failed-integration-test-logs-"
 	zoneMatcherRegex                  = "^[a-z]+-[a-z0-9]+-[a-z]$"
 	regionMatcherRegex                = "^[a-z]+-[a-z0-9]+$"
-	unsupportedCharactersInTestBucket = " /"
+	unsupportedCharactersInTestBucket = " "
 )
 
 var (
