@@ -64,7 +64,7 @@ func (s *statWithDentryCacheEnabledTest) TestStatWithDentryCacheEnabled(t *testi
 
 	assert.Nil(t, err)
 	assert.Equal(t, int64(initialContentSize), fileInfo.Size())
-	// Wait until entry expires in cache.
+	// Wait for a period more than the timeout (1 second), so that entry expires in cache.
 	time.Sleep(1100 * time.Millisecond)
 	// Stat again, it should give updated attributes.
 	fileInfo, err = os.Stat(filePath)
@@ -88,7 +88,7 @@ func (s *statWithDentryCacheEnabledTest) TestStatWhenFileIsDeletedDirectlyFromGC
 
 	assert.Nil(t, err)
 	assert.Equal(t, int64(initialContentSize), fileInfo.Size())
-	// Wait until entry expires in cache.
+	// Wait for a period more than the timeout (1 second), so that entry expires in cache.
 	time.Sleep(1100 * time.Millisecond)
 	// Stat again, it should give error as file does not exist.
 	_, err = os.Stat(filePath)
