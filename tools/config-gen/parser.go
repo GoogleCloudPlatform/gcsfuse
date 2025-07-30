@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"regexp"
 	"slices"
 
 	"gopkg.in/yaml.v3"
@@ -55,7 +56,24 @@ func parseParamsConfig() ([]Param, error) {
 	return paramsConfig, nil
 }
 
+func checkFlagName(name string) error {
+	if name == "" {
+		return fmt.Errorf("flag-name cannot be empty")
+	}
+
+	// A valid name should contain only lower-case characters with hyphens as
+	// separators. It must start and end with an alphabet.
+	regex := `^[a-z]+([-_][a-z]+)*$`
+	if matched, _ := regexp.MatchString(regex, name); !matched {
+		return fmt.Errorf("flag-name %q does not conform to the regex: %s", name, regex)
+	}
+	return nil
+}
+
 func validateParam(param Param) error {
+	if err := checkFlagName(param.FlagName); err != nil {
+		return err
+	}
 	if param.IsDeprecated && param.DeprecationWarning == "" {
 		return fmt.Errorf("param %s is marked deprecated but deprecation-warning is not set", param.FlagName)
 	}
