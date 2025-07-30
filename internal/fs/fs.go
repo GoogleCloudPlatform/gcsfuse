@@ -2472,17 +2472,24 @@ func (fs *fileSystem) renameNonHierarchicalDir(
 		if nameDiff == descendant.FullName.GcsObjectName() {
 			return fmt.Errorf("unwanted descendant %q not from dir %q", descendant.FullName, oldDir.Name())
 		}
+
 		o := descendant.MinObject
-		if _, err = oldDir.RenameFile(ctx, o, path.Join(newDir.Name().GcsObjectName(), nameDiff)); err != nil {
-			return fmt.Errorf("renameFile: while renaming file: %w", err)
+		if descendant.Type() == metadata.ExplicitDirType || descendant.Type() == metadata.ImplicitDirType || descendant.Type() == metadata.UnknownType {
+			if _, err := newDir.CloneToChildFile(ctx, nameDiff, o); err != nil {
+				return fmt.Errorf("copy file %q: %w", o.Name, err)
+			}
+			if err := oldDir.DeleteChildFile(ctx, nameDiff, o.Generation, &o.MetaGeneration); err != nil {
+				return fmt.Errorf("delete file %q: %w", o.Name, err)
+			}
+		} else {
+			if _, err = oldDir.RenameFile(ctx, o, path.Join(newDir.Name().GcsObjectName(), nameDiff)); err != nil {
+				return fmt.Errorf("renameFile: while renaming file: %w", err)
+			}
 		}
 
-		if err = fs.invalidateChildFileCacheIfExist(oldParent, oldName); err != nil {
-			return fmt.Errorf("atomicRename: while invalidating cache for delete file: %w", err)
+		if err = fs.invalidateChildFileCacheIfExist(oldDir, o.Name); err != nil {
+			return fmt.Errorf("unlink: while invalidating cache for delete file: %w", err)
 		}
-
-		// Insert new file in type cache.
-		newDir.InsertFileIntoTypeCache(newName)
 	}
 
 	fs.releaseInodes(&pendingInodes)
