@@ -526,6 +526,90 @@ func Test_isValidWriteStreamingConfig_ErrorScenarios(t *testing.T) {
 	}
 }
 
+func Test_isValidBufferedReadConfig_ErrorScenarios(t *testing.T) {
+	var testCases = []struct {
+		testName string
+		read     ReadConfig
+	}{
+		{"negative_block_size", ReadConfig{
+			BlockSizeMb:          -1,
+			EnableBufferedRead:   true,
+			GlobalMaxBlocks:      -1,
+			MaxBlocksPerHandle:   -1,
+			StartBlocksPerHandle: 1,
+		}},
+		{"zero_block_size", ReadConfig{
+			BlockSizeMb:          0,
+			EnableBufferedRead:   true,
+			GlobalMaxBlocks:      -1,
+			MaxBlocksPerHandle:   -1,
+			StartBlocksPerHandle: 1,
+		}},
+		{"negative_global_max_blocks", ReadConfig{
+			BlockSizeMb:          16,
+			EnableBufferedRead:   true,
+			GlobalMaxBlocks:      -2,
+			MaxBlocksPerHandle:   -1,
+			StartBlocksPerHandle: 1,
+		}},
+		{"negative_max_blocks_per_handle", ReadConfig{
+			BlockSizeMb:          16,
+			EnableBufferedRead:   true,
+			GlobalMaxBlocks:      -1,
+			MaxBlocksPerHandle:   -2,
+			StartBlocksPerHandle: 1,
+		}},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.testName, func(t *testing.T) {
+			assert.Error(t, isValidBufferedReadConfig(&tc.read))
+		})
+	}
+}
+
+func Test_isValidBufferedReadConfig_ValidScenarios(t *testing.T) {
+	var testCases = []struct {
+		testName string
+		read     ReadConfig
+	}{
+		{"valid_config_1", ReadConfig{
+			BlockSizeMb:          16,
+			EnableBufferedRead:   true,
+			GlobalMaxBlocks:      -1,
+			MaxBlocksPerHandle:   -1,
+			StartBlocksPerHandle: 1,
+		}},
+		{"valid_config_2", ReadConfig{
+			BlockSizeMb:          16,
+			EnableBufferedRead:   true,
+			GlobalMaxBlocks:      10,
+			MaxBlocksPerHandle:   -1,
+			StartBlocksPerHandle: 1,
+		}},
+		{"valid_config_3", ReadConfig{
+			BlockSizeMb:          16,
+			EnableBufferedRead:   true,
+			GlobalMaxBlocks:      10,
+			MaxBlocksPerHandle:   5,
+			StartBlocksPerHandle: 1,
+		}},
+		{"valid_config_4", ReadConfig{
+			BlockSizeMb:          16,
+			EnableBufferedRead:   false,
+			GlobalMaxBlocks:      10,
+			MaxBlocksPerHandle:   5,
+			StartBlocksPerHandle: 10,
+		}},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.testName, func(t *testing.T) {
+			assert.NoError(t, isValidBufferedReadConfig(&tc.read))
+		})
+	}
+}
+
 func Test_isValidWriteStreamingConfig_SuccessScenarios(t *testing.T) {
 	var testCases = []struct {
 		testName    string

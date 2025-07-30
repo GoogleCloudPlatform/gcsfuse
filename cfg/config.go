@@ -258,7 +258,17 @@ type ProfilingConfig struct {
 }
 
 type ReadConfig struct {
+	BlockSizeMb int64 `yaml:"block-size-mb"`
+
+	EnableBufferedRead bool `yaml:"enable-buffered-read"`
+
+	GlobalMaxBlocks int64 `yaml:"global-max-blocks"`
+
 	InactiveStreamTimeout time.Duration `yaml:"inactive-stream-timeout"`
+
+	MaxBlocksPerHandle int64 `yaml:"max-blocks-per-handle"`
+
+	StartBlocksPerHandle int64 `yaml:"start-blocks-per-handle"`
 }
 
 type ReadStallGcsRetriesConfig struct {
@@ -364,6 +374,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("enable-atomic-rename-object", "", true, "Enables support for atomic rename object operation on HNS bucket.")
 
 	if err := flagSet.MarkHidden("enable-atomic-rename-object"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("enable-buffered-read", "", false, "When enabled, read starts using buffer to prefetch (asynchronous and in parallel) data from GCS. This improves performance for large file sequential reads. Note: Enabling this flag can increase the memory usage significantly.")
+
+	if err := flagSet.MarkHidden("enable-buffered-read"); err != nil {
 		return err
 	}
 
@@ -601,9 +617,27 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
 
+	flagSet.IntP("read-block-size-mb", "", 16, "Specifies the block size for buffered reads. The value should be more than  0. This is used to read data in chunks from GCS.")
+
+	if err := flagSet.MarkHidden("read-block-size-mb"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("read-global-max-blocks", "", 20, "Specifies the maximum number of blocks available for buffered reads across all file-handles. The value should be >= 0 or -1 (for infinite blocks). A value of 0 disables buffered reads.")
+
+	if err := flagSet.MarkHidden("read-global-max-blocks"); err != nil {
+		return err
+	}
+
 	flagSet.DurationP("read-inactive-stream-timeout", "", 10000000000*time.Nanosecond, "Duration of inactivity after which an open GCS read stream is automatically closed. This helps conserve resources when a file handle remains open without active Read calls. A value of '0s' disables this timeout.")
 
 	if err := flagSet.MarkHidden("read-inactive-stream-timeout"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("read-max-blocks-per-handle", "", 20, "Specifies the maximum number of blocks to be used by a single file handle for  buffered reads. The value should be >= 0 or -1 (for infinite blocks). A value of 0 disables buffered reads.")
+
+	if err := flagSet.MarkHidden("read-max-blocks-per-handle"); err != nil {
 		return err
 	}
 
@@ -634,6 +668,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.Float64P("read-stall-req-target-percentile", "", 0.99, "Retry the request which take more than p(targetPercentile * 100) of past similar request.")
 
 	if err := flagSet.MarkHidden("read-stall-req-target-percentile"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("read-start-blocks-per-handle", "", 1, "Specifies the number of blocks to be prefetched on the first read.")
+
+	if err := flagSet.MarkHidden("read-start-blocks-per-handle"); err != nil {
 		return err
 	}
 
@@ -769,6 +809,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("enable-atomic-rename-object", flagSet.Lookup("enable-atomic-rename-object")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.enable-buffered-read", flagSet.Lookup("enable-buffered-read")); err != nil {
 		return err
 	}
 
@@ -1012,7 +1056,19 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("read.block-size-mb", flagSet.Lookup("read-block-size-mb")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.global-max-blocks", flagSet.Lookup("read-global-max-blocks")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("read.inactive-stream-timeout", flagSet.Lookup("read-inactive-stream-timeout")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.max-blocks-per-handle", flagSet.Lookup("read-max-blocks-per-handle")); err != nil {
 		return err
 	}
 
@@ -1033,6 +1089,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-retries.read-stall.req-target-percentile", flagSet.Lookup("read-stall-req-target-percentile")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.start-blocks-per-handle", flagSet.Lookup("read-start-blocks-per-handle")); err != nil {
 		return err
 	}
 
