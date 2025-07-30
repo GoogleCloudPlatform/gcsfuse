@@ -173,6 +173,6 @@ func CreateImplicitDirectoryInExplicitDirectoryStructureUsingStorageClient(ctx c
 	// CreateExplicitDirectoryStructure writes files using GCSFuse.
 	CreateExplicitDirectoryStructure(testDir, t)
 
-	dirPathInBucket := path.Join(setup.TestBucket(), testDir, ExplicitDirectory)
+	dirPathInBucket := path.Join(testDir, ExplicitDirectory)
 	testdataCreateObjects(ctx, t, storageClient, dirPathInBucket)
 }
