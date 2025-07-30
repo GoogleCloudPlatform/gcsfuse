@@ -2247,6 +2247,7 @@ func (fs *fileSystem) atomicRename(ctx context.Context, oldParent inode.DirInode
 	}
 
 	newFileName := inode.NewFileName(newParent.Name(), newName)
+	fmt.Println("New file name: ", newFileName)
 
 	if _, err := oldParent.RenameFile(ctx, oldObject, newFileName.GcsObjectName()); err != nil {
 		return fmt.Errorf("renameFile: while renaming file: %w", err)
@@ -2466,24 +2467,19 @@ func (fs *fileSystem) renameNonHierarchicalDir(
 		return err
 	}
 
-	// Move all the files from the old directory to the new directory, keeping both directories locked.
+	// Rename each descendant atomically
 	for _, descendant := range descendants {
-		nameDiff := strings.TrimPrefix(descendant.FullName.GcsObjectName(), oldDir.Name().GcsObjectName())
-		if nameDiff == descendant.FullName.GcsObjectName() {
-			return fmt.Errorf("unwanted descendant %q not from dir %q", descendant.FullName, oldDir.Name())
+		relativeName := strings.TrimPrefix(descendant.FullName.GcsObjectName(), oldDir.Name().GcsObjectName())
+		if _, err = oldDir.RenameFile(ctx, descendant.MinObject, path.Join(newDir.Name().GcsObjectName(), relativeName)); err != nil {
+			return fmt.Errorf("renameFile: while renaming file: %w", err)
 		}
 
-		o := descendant.MinObject
-		if _, err := newDir.CloneToChildFile(ctx, nameDiff, o); err != nil {
-			return fmt.Errorf("copy file %q: %w", o.Name, err)
-		}
-		if err := oldDir.DeleteChildFile(ctx, nameDiff, o.Generation, &o.MetaGeneration); err != nil {
-			return fmt.Errorf("delete file %q: %w", o.Name, err)
+		if err := fs.invalidateChildFileCacheIfExist(oldParent, oldName); err != nil {
+			return fmt.Errorf("atomicRename: while invalidating cache for delete file: %w", err)
 		}
 
-		if err = fs.invalidateChildFileCacheIfExist(oldDir, o.Name); err != nil {
-			return fmt.Errorf("unlink: while invalidating cache for delete file: %w", err)
-		}
+		// Insert new file in type cache.
+		newDir.InsertFileIntoTypeCache(newName)
 	}
 
 	fs.releaseInodes(&pendingInodes)
