@@ -29,7 +29,7 @@ import (
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func Test_GetClientAuthOptionsAndToken_TokenUrlPreferredSuccess(t *testing.T) {
+func Test_GetClientAuthOptionsAndToken_TokenUrlSuccess(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintln(w, `{"access_token":"dummy-token","token_type":"Bearer"}`)
@@ -48,7 +48,7 @@ func Test_GetClientAuthOptionsAndToken_TokenUrlPreferredSuccess(t *testing.T) {
 	assert.Len(t, clientOpts, 1) // Only tokenSource option attached
 }
 
-func Test_GetClientAuthOptionsAndToken_TokenUrlPreferredError(t *testing.T) {
+func Test_GetClientAuthOptionsAndToken_TokenUrlError(t *testing.T) {
 	config := &StorageClientConfig{TokenUrl: ":"}
 
 	clientOpts, tokenSrc, err := GetClientAuthOptionsAndToken(context.TODO(), config)
