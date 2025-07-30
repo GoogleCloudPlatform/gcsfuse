@@ -27,14 +27,15 @@ type MetricHandle interface {
 {{- range .Metrics}}
 	// {{toPascal .Name}} - {{.Description}}
 	{{toPascal .Name}}(
-		{{- if isCounter . }}
+		{{- if isCounter . -}}
 			inc int64
-		{{- else }}
+		{{- else -}}
 			ctx context.Context, duration time.Duration
 		{{- end }}
 		{{- if .Attributes}}, {{end}}
 		{{- range $i, $attr := .Attributes -}}
 			{{if $i}}, {{end}}{{toCamel $attr.Name}} {{getGoType $attr.Type}}
 		{{- end }})
-{{- end}}
+
+{{end}}
 }

@@ -23,9 +23,9 @@ import (
 type noopMetrics struct {}
 {{- range .Metrics}}
 	func (*noopMetrics) {{toPascal .Name}}(
-		{{- if isCounter . }}
+		{{- if isCounter . -}}
 			inc int64
-		{{- else }}
+		{{- else -}}
 			ctx context.Context, duration time.Duration
 		{{- end }}
 		{{- if .Attributes}}, {{end}}
