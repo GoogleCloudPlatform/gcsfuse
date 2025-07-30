@@ -66,7 +66,7 @@ func (s *benchmarkStatTest) Benchmark_Stat(b *testing.B) {
 	}
 	averageStatLatency := time.Duration(int(b.Elapsed()) / b.N)
 	if averageStatLatency > expectedStatLatency {
-		b.Errorf("StatFile took more time on average (%d msec) than expected (%d msec)", averageStatLatency.Milliseconds(), expectedStatLatency.Milliseconds())
+		b.Errorf("StatFile took more time on average (%v) than expected (%v)", averageStatLatency, expectedStatLatency)
 	}
 }
 
