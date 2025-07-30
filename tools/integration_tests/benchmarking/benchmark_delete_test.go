@@ -48,16 +48,29 @@ func (s *benchmarkDeleteTest) TeardownB(b *testing.B) {
 
 func (s *benchmarkDeleteTest) Benchmark_Delete(b *testing.B) {
 	createFiles(b)
+	var totalTimeElapsedTillPrevIter time.Duration
+	var maxElapsedDuration time.Duration
+	maxElapsedIteration := -1
 	b.ResetTimer()
 	for i := range b.N {
 		filePath := path.Join(testDirPath, fmt.Sprintf("a%d.txt", i))
 		if err := os.Remove(filePath); err != nil {
 			b.Errorf("error while deleting %q: %v", filePath, err)
 		}
+
+		// Update maxElapsedIteration and totalTimeElapsedTillPrevIter.
+		totalTimeElapsedSoFar := b.Elapsed()
+		timeElapsedThisIter := totalTimeElapsedSoFar - totalTimeElapsedTillPrevIter
+		if maxElapsedDuration < timeElapsedThisIter {
+			maxElapsedDuration = timeElapsedThisIter
+			maxElapsedIteration = i
+		}
+		totalTimeElapsedTillPrevIter = totalTimeElapsedSoFar
 	}
 	averageDeleteLatency := time.Duration(int(b.Elapsed()) / b.N)
 	if averageDeleteLatency > expectedDeleteLatency {
 		b.Errorf("DeleteFile took more time on average (%v) than expected (%v).", averageDeleteLatency, expectedDeleteLatency)
+		b.Errorf("Maximum time taken by a single iteration = %v, in iteration # %v.", maxElapsedDuration, maxElapsedIteration)
 	}
 }
 

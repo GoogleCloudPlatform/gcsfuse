@@ -57,16 +57,29 @@ func createFilesToStat(b *testing.B) {
 
 func (s *benchmarkStatTest) Benchmark_Stat(b *testing.B) {
 	createFilesToStat(b)
+	var totalTimeElapsedTillPrevIter time.Duration
+	var maxElapsedDuration time.Duration
+	maxElapsedIteration := -1
 	b.ResetTimer()
 	for range b.N {
 		filePath := path.Join(testDirPath, "a.txt")
 		if _, err := operations.StatFile(filePath); err != nil {
 			b.Errorf("failed to stat %q: %v", filePath, err)
 		}
+
+		// Update maxElapsedIteration and totalTimeElapsedTillPrevIter.
+		totalTimeElapsedSoFar := b.Elapsed()
+		timeElapsedThisIter := totalTimeElapsedSoFar - totalTimeElapsedTillPrevIter
+		if maxElapsedDuration < timeElapsedThisIter {
+			maxElapsedDuration = timeElapsedThisIter
+			maxElapsedIteration = i
+		}
+		totalTimeElapsedTillPrevIter = totalTimeElapsedSoFar
 	}
 	averageStatLatency := time.Duration(int(b.Elapsed()) / b.N)
 	if averageStatLatency > expectedStatLatency {
 		b.Errorf("StatFile took more time on average (%v) than expected (%v)", averageStatLatency, expectedStatLatency)
+		b.Errorf("Maximum time taken by a single iteration = %v, in iteration # %v.", maxElapsedDuration, maxElapsedIteration)
 	}
 }
 

@@ -48,6 +48,9 @@ func (s *benchmarkRenameTest) TeardownB(b *testing.B) {
 
 func (s *benchmarkRenameTest) Benchmark_Rename(b *testing.B) {
 	createFiles(b)
+	var totalTimeElapsedTillPrevIter time.Duration
+	var maxElapsedDuration time.Duration
+	maxElapsedIteration := -1
 	b.ResetTimer()
 	for i := range b.N {
 		sourceFilePath := path.Join(testDirPath, fmt.Sprintf("a%d.txt", i))
@@ -55,10 +58,20 @@ func (s *benchmarkRenameTest) Benchmark_Rename(b *testing.B) {
 		if err := os.Rename(sourceFilePath, dstFilePath); err != nil {
 			b.Errorf("failed to rename %q to %q: %v", sourceFilePath, dstFilePath, err)
 		}
+
+		// Update maxElapsedIteration and totalTimeElapsedTillPrevIter.
+		totalTimeElapsedSoFar := b.Elapsed()
+		timeElapsedThisIter := totalTimeElapsedSoFar - totalTimeElapsedTillPrevIter
+		if maxElapsedDuration < timeElapsedThisIter {
+			maxElapsedDuration = timeElapsedThisIter
+			maxElapsedIteration = i
+		}
+		totalTimeElapsedTillPrevIter = totalTimeElapsedSoFar
 	}
 	averageRenameLatency := time.Duration(int(b.Elapsed()) / b.N)
 	if averageRenameLatency > expectedRenameLatency {
 		b.Errorf("RenameFile took more time on average (%v) than expected %v", averageRenameLatency, expectedRenameLatency)
+		b.Errorf("Maximum time taken by a single iteration = %v, in iteration # %v.", maxElapsedDuration, maxElapsedIteration)
 	}
 }
 
