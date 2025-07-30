@@ -50,15 +50,14 @@ func (s *benchmarkDeleteTest) Benchmark_Delete(b *testing.B) {
 	createFiles(b)
 	b.ResetTimer()
 	for i := range b.N {
-		fileName := fmt.Sprintf("a%d.txt", i)
-		filePath := path.Join(testDirPath, fileName)
+		filePath := path.Join(testDirPath, fmt.Sprintf("a%d.txt", i))
 		if err := os.Remove(filePath); err != nil {
 			b.Errorf("error while deleting %q: %v", filePath, err)
 		}
 	}
 	averageDeleteLatency := time.Duration(int(b.Elapsed()) / b.N)
 	if averageDeleteLatency > expectedDeleteLatency {
-		b.Errorf("DeleteFile took more time on an average %v than expected (%v).", averageDeleteLatency, expectedDeleteLatency)
+		b.Errorf("DeleteFile took more time on an average (%v) than expected (%v).", averageDeleteLatency, expectedDeleteLatency)
 	}
 }
 
