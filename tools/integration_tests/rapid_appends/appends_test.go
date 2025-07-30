@@ -334,69 +334,53 @@ func (t *SingleMountAppendsSuite) TestFallbackHappensWhenNonAppendHandleDoesFirs
 	}
 }
 
-func (t *SingleMountAppendsSuite) TestKernelShouldSeeUpdatedSizeOnAppendWithValidStatCache() {
+func (t *SingleMountAppendsSuite) TestKernelShouldSeeUpdatedSizeOnAppends() {
 	const initialContent = "dummy content"
-	for _, flags := range [][]string{
-		{"--write-experimental-enable-rapid-appends=true", "--write-block-size-mb=1"},
-	} {
-		func() {
-			t.mountPrimaryMount(flags)
-			defer t.unmountPrimaryMount()
+	flags := []string{"--write-experimental-enable-rapid-appends=true", "--write-block-size-mb=1"}
+	log.Printf("Running test with flags: %v", flags)
 
-			log.Printf("Running tests with flags: %v", flags)
-
-			// Initially create an unfinalized object.
-			t.createUnfinalizedObject()
-			defer t.deleteUnfinalizedObject()
-
-			filePath := path.Join(t.primaryMount.testDirPath, t.fileName)
-			// Append to the unfinalized object and then close the file handle.
-			appendFileHandle := operations.OpenFileInMode(t.T(), filePath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
-			n, err := appendFileHandle.Write([]byte(initialContent))
-			require.NoError(t.T(), err)
-			require.NotZero(t.T(), n)
-			appendFileHandle.Close()
-
-			// stat() the file to assert on the file size as viewed by the kernel.
-			expectedFileSize := int64(unfinalizedObjectSize + len(initialContent))
-			fileInfo, err := operations.StatFile(filePath)
-			assert.NoError(t.T(), err)
-			assert.Equal(t.T(), expectedFileSize, (*fileInfo).Size())
-		}()
+	testCases := []struct {
+		name        string
+		expireCache bool
+	}{
+		{
+			name:        "validStatCache",
+			expireCache: false,
+		},
+		{
+			name:        "expiredStatCache",
+			expireCache: true,
+		},
 	}
-}
 
-func (t *SingleMountAppendsSuite) TestKernelShouldSeeUpdatedSizeOnAppendWithExpiredStatCache() {
-	const initialContent = "dummy content"
-	for _, flags := range [][]string{
-		{"--write-experimental-enable-rapid-appends=true", "--write-block-size-mb=1"},
-	} {
-		func() {
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
 			t.mountPrimaryMount(flags)
 			defer t.unmountPrimaryMount()
-
-			log.Printf("Running tests with flags: %v", flags)
 
 			// Initially create an unfinalized object.
 			t.createUnfinalizedObject()
 			defer t.deleteUnfinalizedObject()
 
 			filePath := path.Join(t.primaryMount.testDirPath, t.fileName)
-			// Append to the unfinalized object and then close the file handle.
+
+			// Append to the unfinalized object and close the file handle.
 			appendFileHandle := operations.OpenFileInMode(t.T(), filePath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
 			n, err := appendFileHandle.Write([]byte(initialContent))
 			require.NoError(t.T(), err)
 			require.NotZero(t.T(), n)
 			appendFileHandle.Close()
 
-			// To ensure that stat cache has expired. By default, the stat cache ttl is 1 sec.
-			time.Sleep(time.Second)
+			// Expire stat cache if required by the test case. By default, stat cache ttl is 1 sec.
+			if tc.expireCache {
+				time.Sleep(time.Second)
+			}
 
 			// stat() the file to assert on the file size as viewed by the kernel.
 			expectedFileSize := int64(unfinalizedObjectSize + len(initialContent))
 			fileInfo, err := operations.StatFile(filePath)
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), expectedFileSize, (*fileInfo).Size())
-		}()
+		})
 	}
 }
