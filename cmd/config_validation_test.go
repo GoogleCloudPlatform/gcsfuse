@@ -237,7 +237,7 @@ func TestValidateConfigFile_ReadConfig(t *testing.T) {
 					InactiveStreamTimeout: 10 * time.Second,
 					BlockSizeMb:           16,
 					EnableBufferedRead:    false,
-					GlobalMaxBlocks:       4,
+					GlobalMaxBlocks:       20,
 					MaxBlocksPerHandle:    20,
 					StartBlocksPerHandle:  1,
 				},

@@ -301,12 +301,6 @@ type WriteConfig struct {
 
 func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
-	flagSet.BoolP("--enable-buffered-read", "", false, "When enabled, read starts using buffer to prefetch (asynchronous and in parallel) data from GCS. This improves performance for large file sequential reads. Note: Enabling this flag can increase memory usage significantly.")
-
-	if err := flagSet.MarkHidden("--enable-buffered-read"); err != nil {
-		return err
-	}
-
 	flagSet.BoolP("anonymous-access", "", false, "This flag disables authentication.")
 
 	flagSet.StringP("app-name", "", "", "The application name of this mount.")
@@ -380,6 +374,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("enable-atomic-rename-object", "", true, "Enables support for atomic rename object operation on HNS bucket.")
 
 	if err := flagSet.MarkHidden("enable-atomic-rename-object"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("enable-buffered-read", "", false, "When enabled, read starts using buffer to prefetch (asynchronous and in parallel) data from GCS. This improves performance for large file sequential reads. Note: Enabling this flag can increase memory usage significantly.")
+
+	if err := flagSet.MarkHidden("enable-buffered-read"); err != nil {
 		return err
 	}
 
@@ -623,7 +623,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("read-global-max-blocks", "", 4, "Specifies the maximum number of blocks available for buffered reads across all file-handles. The value should be >= 0 or -1 (for infinite blocks). A value of 0 disables buffered reads.")
+	flagSet.IntP("read-global-max-blocks", "", 20, "Specifies the maximum number of blocks available for buffered reads across all file-handles. The value should be >= 0 or -1 (for infinite blocks). A value of 0 disables buffered reads.")
 
 	if err := flagSet.MarkHidden("read-global-max-blocks"); err != nil {
 		return err
@@ -744,10 +744,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 
-	if err := v.BindPFlag("read.enable-buffered-read", flagSet.Lookup("--enable-buffered-read")); err != nil {
-		return err
-	}
-
 	if err := v.BindPFlag("gcs-auth.anonymous-access", flagSet.Lookup("anonymous-access")); err != nil {
 		return err
 	}
@@ -813,6 +809,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("enable-atomic-rename-object", flagSet.Lookup("enable-atomic-rename-object")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.enable-buffered-read", flagSet.Lookup("enable-buffered-read")); err != nil {
 		return err
 	}
 

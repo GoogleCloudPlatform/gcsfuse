@@ -746,7 +746,7 @@
   hide-flag: true
 
 - config-path: "read.enable-buffered-read"
-  flag-name: "--enable-buffered-read"
+  flag-name: "enable-buffered-read"
   type: "bool"
   usage: >-
     When enabled, read starts using buffer to prefetch (asynchronous and in parallel)
@@ -762,7 +762,7 @@
     Specifies the maximum number of blocks available for buffered reads across all file-handles.
     The value should be >= 0 or -1 (for infinite blocks).
     A value of 0 disables buffered reads.
-  default: 4
+  default: 20
   hide-flag: true
 
 - config-path: "read.inactive-stream-timeout"
