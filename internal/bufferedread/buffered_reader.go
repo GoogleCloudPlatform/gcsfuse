@@ -112,9 +112,19 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 // returns a gcsx.FallbackToAnotherReader error to signal that a simpler GCS
 // reader should be used.
 func (p *BufferedReader) handleRandomRead(offset int64) error {
-	isRandom := p.blockQueue.IsEmpty() && offset != 0
+	// Exit early if we have already decided to fall back to a GCS reader. This
+	// avoids re-evaluating the read pattern on every call when the random read
+	// threshold has been met.
+	if p.randomSeekCount > p.config.RandomReadsThreshold {
+		return gcsx.FallbackToAnotherReader
+	}
 
-	if !p.blockQueue.IsEmpty() {
+	var isRandom bool
+	if p.blockQueue.IsEmpty() {
+		if offset != 0 {
+			isRandom = true
+		}
+	} else {
 		start := p.blockQueue.Peek().block.AbsStartOff()
 		end := start + int64(p.blockQueue.Len())*p.config.PrefetchBlockSizeBytes
 		if offset < start || offset >= end {
@@ -122,8 +132,19 @@ func (p *BufferedReader) handleRandomRead(offset int64) error {
 		}
 	}
 
-	if isRandom {
-		p.randomSeekCount++
+	if !isRandom {
+		return nil
+	}
+
+	p.randomSeekCount++
+
+	for !p.blockQueue.IsEmpty() {
+		entry := p.blockQueue.Pop()
+		entry.cancel()
+		if _, waitErr := entry.block.AwaitReady(context.Background()); waitErr != nil {
+			logger.Warnf("handleRandomRead: AwaitReady error during discard (offset=%d): %v", offset, waitErr)
+		}
+		p.blockPool.Release(entry.block)
 	}
 
 	if p.randomSeekCount > p.config.RandomReadsThreshold {
@@ -152,7 +173,7 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 			p.blockQueue.Pop()
 			entry.cancel()
 
-			if _, waitErr := block.AwaitReady(context.Background()); waitErr != nil && !errors.Is(waitErr, context.Canceled) {
+			if _, waitErr := block.AwaitReady(context.Background()); waitErr != nil {
 				logger.Warnf("prepareQueueForOffset: AwaitReady error during discard (offset=%d): %v", offset, waitErr)
 			}
 
@@ -199,6 +220,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		err = io.EOF
 		return resp, err
 	}
+
 	if len(inputBuf) == 0 {
 		return resp, nil
 	}
@@ -246,13 +268,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 			switch status.State {
 			case block.BlockStateDownloadFailed:
-				// If a download is cancelled, it's reported as a failed download with a
-				// `context.Canceled` error. We unwrap it to return the specific error.
-				if errors.Is(status.Err, context.Canceled) {
-					err = context.Canceled
-				} else {
-					err = fmt.Errorf("ReadAt: download failed: %w", status.Err)
-				}
+				err = fmt.Errorf("ReadAt: download failed: %w", status.Err)
 			default:
 				err = fmt.Errorf("ReadAt: unexpected block state: %d", status.State)
 			}
@@ -274,7 +290,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 			break
 		}
 
-		if off >= blk.AbsStartOff()+blk.Cap() {
+		if off >= blk.AbsStartOff()+blk.Size() {
 			p.blockQueue.Pop()
 			p.blockPool.Release(blk)
 
@@ -416,6 +432,11 @@ func (p *BufferedReader) CheckInvariants() {
 	// The prefetch block size must be positive.
 	if p.config.PrefetchBlockSizeBytes <= 0 {
 		panic(fmt.Sprintf("BufferedReader: PrefetchBlockSizeBytes must be positive, but is %d", p.config.PrefetchBlockSizeBytes))
+	}
+
+	// The prefetch block size must be at least 1 MiB.
+	if p.config.PrefetchBlockSizeBytes < 1<<20 {
+		panic(fmt.Sprintf("BufferedReader: PrefetchBlockSizeBytes must be at least 1 MiB, but is %d", p.config.PrefetchBlockSizeBytes))
 	}
 
 	// The number of items in the blockQueue should not exceed MaxPrefetchBlockCnt.
