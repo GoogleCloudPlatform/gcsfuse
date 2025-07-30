@@ -49,14 +49,16 @@ func (s *benchmarkRenameTest) TeardownB(b *testing.B) {
 func (s *benchmarkRenameTest) Benchmark_Rename(b *testing.B) {
 	createFiles(b)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		if err := os.Rename(path.Join(testDirPath, fmt.Sprintf("a%d.txt", i)), path.Join(testDirPath, fmt.Sprintf("b%d.txt", i))); err != nil {
-			b.Errorf("testing error: %v", err)
+	for i := range b.N {
+		sourceFilePath := path.Join(testDirPath, fmt.Sprintf("a%d.txt", i))
+		dstFilePath := path.Join(testDirPath, fmt.Sprintf("b%d.txt", i))
+		if err := os.Rename(sourceFilePath, dstFilePath); err != nil {
+			b.Errorf("failed to rename %q to %q: %v", sourceFilePath, dstFilePath, err)
 		}
 	}
 	averageRenameLatency := time.Duration(int(b.Elapsed()) / b.N)
 	if averageRenameLatency > expectedRenameLatency {
-		b.Errorf("RenameFile took more time (%d msec) than expected (%d msec)", averageRenameLatency.Milliseconds(), expectedRenameLatency.Milliseconds())
+		b.Errorf("RenameFile took more time on an average (%v) than expected %v", averageRenameLatency, expectedRenameLatency)
 	}
 }
 
