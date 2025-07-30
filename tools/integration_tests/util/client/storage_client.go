@@ -171,7 +171,7 @@ func WriteToObject(ctx context.Context, client *storage.Client, object, content 
 		return fmt.Errorf("Failed to open writer for object %q: %w", object, err)
 	}
 	if _, err := io.WriteString(wc, content); err != nil {
-		return fmt.Errorf("io.WriteSTring failed for object %q: %w", object, err)
+		return fmt.Errorf("io.WriteString failed for object %q: %w", object, err)
 	}
 	if err := wc.Close(); err != nil {
 		return fmt.Errorf("Writer.Close failed for object %q: %w", object, err)
