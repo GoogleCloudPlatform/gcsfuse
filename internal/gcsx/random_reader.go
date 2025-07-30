@@ -54,7 +54,7 @@ const minSeeksForRandom = 2
 // TODO(b/385826024): Revert timeout to an appropriate value
 const TimeoutForMultiRangeRead = time.Hour
 
-var FallbackToNewRangeReader = errors.New("fallback to new rnage reader is required")
+var FallbackToNewRangeReader = errors.New("fallback to new range reader is required")
 
 // RandomReader is an object that knows how to read ranges within a particular
 // generation of a particular GCS object. Optimised for (large) sequential reads.
@@ -325,7 +325,7 @@ func (rr *randomReader) ReadAt(
 		return
 	} else if offset < 0 {
 		err = fmt.Errorf(
-			"illegal offset %d for %d-byte object",
+			"illegal offset %d for %d byte object",
 			offset,
 			rr.object.Size)
 		return
@@ -404,7 +404,11 @@ func (rr *randomReader) Destroy() {
 
 	// Close out the reader, if we have one.
 	if rr.reader != nil {
-		rr.closeReader()
+		rr.mu.Lock()
+		defer rr.mu.Unlock()
+		if rr.reader != nil {
+			rr.closeReader()
+		}
 		rr.reader = nil
 		rr.cancel = nil
 	}
@@ -521,11 +525,16 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 func isSeekNeeded(readType, offset, expectedOffset int64) bool {
 	if expectedOffset == 0 {
 		return false
-	} else if readType == metrics.ReadTypeRandom {
+	}
+
+	if readType == metrics.ReadTypeRandom {
 		return offset != expectedOffset
-	} else if readType == metrics.ReadTypeSequential {
+	}
+
+	if readType == metrics.ReadTypeSequential {
 		return offset < expectedOffset || offset > expectedOffset+maxReadSize
 	}
+
 	return false
 }
 
@@ -617,6 +626,7 @@ func readerType(readType int64, bucketType gcs.BucketType) ReaderType {
 
 // skipBytes attempts to advance the reader position to the given offset without
 // discarding the existing reader.
+// LOCKS_REQUIRED (rr.mu)
 func (rr *randomReader) skipBytes(offset int64) {
 	// When the offset is AFTER the reader position, try to seek forward, within reason.
 	// This happens when the kernel page cache serves some data. It's very common for
@@ -638,6 +648,7 @@ func (rr *randomReader) skipBytes(offset int64) {
 // invalidateReaderIfMisalignedOrTooSmall ensures that the existing reader is valid
 // for the requested offset and length. If the reader is misaligned (not at the requested
 // offset) or cannot serve the full request within its limit, it is closed and discarded.
+// LOCKS_REQUIRED (rr.mu)
 func (rr *randomReader) invalidateReaderIfMisalignedOrTooSmall(startOffset, endOffset int64) {
 	// If we have an existing reader, but it's positioned at the wrong place,
 	// clean it up and throw it away.
@@ -653,6 +664,7 @@ func (rr *randomReader) invalidateReaderIfMisalignedOrTooSmall(startOffset, endO
 // readFromExistingRangeReader attempts to read data from an existing reader if one is available.
 // If a reader exists and the read is successful, the data is returned.
 // Otherwise, it returns an error indicating that a new reader is needed.
+// LOCKS_REQUIRED (rr.mu)
 func (rr *randomReader) readFromExistingRangeReader(ctx context.Context, p []byte, offset int64) (n int, err error) {
 	rr.skipBytes(offset)
 	rr.invalidateReaderIfMisalignedOrTooSmall(offset, offset+int64(len(p)))
@@ -664,6 +676,7 @@ func (rr *randomReader) readFromExistingRangeReader(ctx context.Context, p []byt
 
 // readFromRangeReader reads using the NewReader interface of go-sdk. Its uses
 // the existing reader if available, otherwise makes a call to GCS.
+// LOCKS_REQUIRED (rr.mu)
 func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType int64) (n int, err error) {
 	// If we don't have a reader, start a read operation.
 	if rr.reader == nil {
@@ -744,6 +757,7 @@ func (rr *randomReader) readFromMultiRangeReader(ctx context.Context, p []byte, 
 }
 
 // closeReader fetches the readHandle before closing the reader instance.
+// LOCKS_REQUIRED (rr.mu)
 func (rr *randomReader) closeReader() {
 	rr.readHandle = rr.reader.ReadHandle()
 	err := rr.reader.Close()
