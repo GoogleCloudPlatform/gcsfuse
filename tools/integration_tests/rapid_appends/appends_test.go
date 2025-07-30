@@ -15,7 +15,6 @@
 package rapid_appends
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path"
@@ -335,10 +334,10 @@ func (t *SingleMountAppendsSuite) TestFallbackHappensWhenNonAppendHandleDoesFirs
 	}
 }
 
-func (t *SingleMountAppendsSuite) TestKernelShouldSeeUpdatedSizeWhenAppendIsInProgress() {
+func (t *SingleMountAppendsSuite) TestKernelShouldSeeUpdatedSizeOnAppendWithValidStatCache() {
 	const initialContent = "dummy content"
 	for _, flags := range [][]string{
-		{"--write-experimental-enable-rapid-appends=true", "--write-block-size-mb=1", "--metadata-cache-ttl-secs=2"},
+		{"--write-experimental-enable-rapid-appends=true", "--write-block-size-mb=1"},
 	} {
 		func() {
 			t.mountPrimaryMount(flags)
@@ -351,17 +350,15 @@ func (t *SingleMountAppendsSuite) TestKernelShouldSeeUpdatedSizeWhenAppendIsInPr
 			defer t.deleteUnfinalizedObject()
 
 			filePath := path.Join(t.primaryMount.testDirPath, t.fileName)
-			expectedFileSize := int64(unfinalizedObjectSize + len(initialContent))
-			// Initiate the append session.
+			// Append to the unfinalized object and then close the file handle.
 			appendFileHandle := operations.OpenFileInMode(t.T(), filePath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
-			defer appendFileHandle.Close()
-
 			n, err := appendFileHandle.Write([]byte(initialContent))
 			require.NoError(t.T(), err)
 			require.NotZero(t.T(), n)
+			appendFileHandle.Close()
 
-			// While the append is in progress, stat() the file to assert on the
-			// file size as viewed by the kernel.
+			// stat() the file to assert on the file size as viewed by the kernel.
+			expectedFileSize := int64(unfinalizedObjectSize + len(initialContent))
 			fileInfo, err := operations.StatFile(filePath)
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), expectedFileSize, (*fileInfo).Size())
@@ -369,11 +366,10 @@ func (t *SingleMountAppendsSuite) TestKernelShouldSeeUpdatedSizeWhenAppendIsInPr
 	}
 }
 
-func (t *SingleMountAppendsSuite) TestKernelShouldSeeUpdatedSizeWhenFileIsReopenedAfterStatCacheExpires() {
+func (t *SingleMountAppendsSuite) TestKernelShouldSeeUpdatedSizeOnAppendWithExpiredStatCache() {
 	const initialContent = "dummy content"
-	const statCacheTTL = 2
 	for _, flags := range [][]string{
-		{"--write-experimental-enable-rapid-appends=true", "--write-block-size-mb=1", fmt.Sprintf("--metadata-cache-ttl-secs=%d", statCacheTTL)},
+		{"--write-experimental-enable-rapid-appends=true", "--write-block-size-mb=1"},
 	} {
 		func() {
 			t.mountPrimaryMount(flags)
@@ -386,20 +382,18 @@ func (t *SingleMountAppendsSuite) TestKernelShouldSeeUpdatedSizeWhenFileIsReopen
 			defer t.deleteUnfinalizedObject()
 
 			filePath := path.Join(t.primaryMount.testDirPath, t.fileName)
-			expectedFileSize := int64(unfinalizedObjectSize + len(initialContent))
-			// Initiate the append session.
+			// Append to the unfinalized object and then close the file handle.
 			appendFileHandle := operations.OpenFileInMode(t.T(), filePath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
-			defer appendFileHandle.Close()
-
 			n, err := appendFileHandle.Write([]byte(initialContent))
 			require.NoError(t.T(), err)
 			require.NotZero(t.T(), n)
+			appendFileHandle.Close()
 
-			// To ensure that stat cache has expired.
-			time.Sleep(statCacheTTL * time.Second)
+			// To ensure that stat cache has expired. By default, the stat cache ttl is 1 sec.
+			time.Sleep(time.Second)
 
-			// While the append is in progress, stat() the file to assert on the
-			// file size as viewed by the kernel.
+			// stat() the file to assert on the file size as viewed by the kernel.
+			expectedFileSize := int64(unfinalizedObjectSize + len(initialContent))
 			fileInfo, err := operations.StatFile(filePath)
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), expectedFileSize, (*fileInfo).Size())
