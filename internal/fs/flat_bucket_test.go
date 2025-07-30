@@ -65,7 +65,7 @@ func (t *FlatBucketTests) TearDownTest() {
 	t.fsTest.TearDown()
 }
 
-func (t *FlatBucketTests) TestRenameFolderWithSourceDirectoryHaveLocalFiles() {
+func (t *FlatBucketTests) TestRenameDirWithSourceDirectoryHaveLocalFiles() {
 	oldDirPath := path.Join(mntDir, "foo", "test")
 	_, err := os.Stat(oldDirPath)
 	assert.NoError(t.T(), err)
@@ -83,7 +83,7 @@ func (t *FlatBucketTests) TestRenameFolderWithSourceDirectoryHaveLocalFiles() {
 	assert.True(t.T(), strings.Contains(err.Error(), "operation not supported"))
 }
 
-func (t *FlatBucketTests) TestRenameFolderWithSameParent() {
+func (t *FlatBucketTests) TestRenameDirWithSameParent() {
 	oldDirPath := path.Join(mntDir, "foo")
 	_, err := os.Stat(oldDirPath)
 	require.NoError(t.T(), err)
@@ -113,7 +113,7 @@ func (t *FlatBucketTests) TestRenameFolderWithSameParent() {
 	assert.ElementsMatch(t.T(), actualDirEntries, expectedFooDirEntriesFlatBucket)
 }
 
-func (t *FlatBucketTests) TestRenameFolderWithDifferentParents() {
+func (t *FlatBucketTests) TestRenameDirWithDifferentParents() {
 	oldDirPath := path.Join(mntDir, "foo")
 	_, err := os.Stat(oldDirPath)
 	assert.NoError(t.T(), err)
@@ -140,7 +140,7 @@ func (t *FlatBucketTests) TestRenameFolderWithDifferentParents() {
 	assert.ElementsMatch(t.T(), actualDirEntries, expectedFooDirEntriesFlatBucket)
 }
 
-func (t *FlatBucketTests) TestRenameFolderWithOpenGCSFile() {
+func (t *FlatBucketTests) TestRenameDirWithOpenGCSFile() {
 	oldDirPath := path.Join(mntDir, "bar")
 	_, err := os.Stat(oldDirPath)
 	assert.NoError(t.T(), err)

@@ -2253,7 +2253,7 @@ func (fs *fileSystem) atomicRename(ctx context.Context, oldParent inode.DirInode
 	}
 
 	if err := fs.invalidateChildFileCacheIfExist(oldParent, oldName); err != nil {
-		return fmt.Errorf("atomicRename: while invalidating cache for delete file: %w", err)
+		return fmt.Errorf("invalidateChildFileCacheIfExist: while invalidating cache for renamed file: %w", err)
 	}
 
 	// Insert new file in type cache.
