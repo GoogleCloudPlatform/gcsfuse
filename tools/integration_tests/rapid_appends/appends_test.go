@@ -15,10 +15,12 @@
 package rapid_appends
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path"
 	"syscall"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
@@ -329,6 +331,78 @@ func (t *SingleMountAppendsSuite) TestFallbackHappensWhenNonAppendHandleDoesFirs
 			contentAfterClose, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
 			require.NoError(t.T(), err)
 			assert.Equal(t.T(), expectedContent, contentAfterClose)
+		}()
+	}
+}
+
+func (t *SingleMountAppendsSuite) TestKernelShouldSeeUpdatedSizeWhenAppendIsInProgress() {
+	const initialContent = "dummy content"
+	for _, flags := range [][]string{
+		{"--write-experimental-enable-rapid-appends=true", "--write-block-size-mb=1", "--metadata-cache-ttl-secs=2"},
+	} {
+		func() {
+			t.mountPrimaryMount(flags)
+			defer t.unmountPrimaryMount()
+
+			log.Printf("Running tests with flags: %v", flags)
+
+			// Initially create an unfinalized object.
+			t.createUnfinalizedObject()
+			defer t.deleteUnfinalizedObject()
+
+			filePath := path.Join(t.primaryMount.testDirPath, t.fileName)
+			expectedFileSize := int64(unfinalizedObjectSize + len(initialContent))
+			// Initiate the append session.
+			appendFileHandle := operations.OpenFileInMode(t.T(), filePath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
+			defer appendFileHandle.Close()
+
+			n, err := appendFileHandle.Write([]byte(initialContent))
+			require.NoError(t.T(), err)
+			require.NotZero(t.T(), n)
+
+			// While the append is in progress, stat() the file to assert on the
+			// file size as viewed by the kernel.
+			fileInfo, err := operations.StatFile(filePath)
+			assert.NoError(t.T(), err)
+			assert.Equal(t.T(), expectedFileSize, (*fileInfo).Size())
+		}()
+	}
+}
+
+func (t *SingleMountAppendsSuite) TestKernelShouldSeeUpdatedSizeWhenFileIsReopenedAfterStatCacheExpires() {
+	const initialContent = "dummy content"
+	const statCacheTTL = 2
+	for _, flags := range [][]string{
+		{"--write-experimental-enable-rapid-appends=true", "--write-block-size-mb=1", fmt.Sprintf("--metadata-cache-ttl-secs=%d", statCacheTTL)},
+	} {
+		func() {
+			t.mountPrimaryMount(flags)
+			defer t.unmountPrimaryMount()
+
+			log.Printf("Running tests with flags: %v", flags)
+
+			// Initially create an unfinalized object.
+			t.createUnfinalizedObject()
+			defer t.deleteUnfinalizedObject()
+
+			filePath := path.Join(t.primaryMount.testDirPath, t.fileName)
+			expectedFileSize := int64(unfinalizedObjectSize + len(initialContent))
+			// Initiate the append session.
+			appendFileHandle := operations.OpenFileInMode(t.T(), filePath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
+			defer appendFileHandle.Close()
+
+			n, err := appendFileHandle.Write([]byte(initialContent))
+			require.NoError(t.T(), err)
+			require.NotZero(t.T(), n)
+
+			// To ensure that stat cache has expired.
+			time.Sleep(statCacheTTL * time.Second)
+
+			// While the append is in progress, stat() the file to assert on the
+			// file size as viewed by the kernel.
+			fileInfo, err := operations.StatFile(filePath)
+			assert.NoError(t.T(), err)
+			assert.Equal(t.T(), expectedFileSize, (*fileInfo).Size())
 		}()
 	}
 }
