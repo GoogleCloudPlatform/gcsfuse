@@ -682,18 +682,30 @@ rm -rf $log_dir
 
 # Test package: dentry_cache
 # Run stat with dentry cache enabled
-test_case="TestStatWithDentryCacheEnabledTest/TestStatWithDentryCacheEnabled"
-gcsfuse --implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=1 "$TEST_BUCKET_NAME" "$MOUNT_DIR"
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/dentry_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run $test_case
-sudo umount "$MOUNT_DIR"
+test_cases=(
+"TestStatWithDentryCacheEnabledTest/TestStatWithDentryCacheEnabled"
+"TestStatWithDentryCacheEnabledTest/TestStatWhenFileIsDeletedDirectlyFromGCS"
+)
+for test_case in "${test_cases[@]}"; do
+  gcsfuse --implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=1 "$TEST_BUCKET_NAME" "$MOUNT_DIR"
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/dentry_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run $test_case
+  sudo umount "$MOUNT_DIR"
+done
 
 # Run notifier tests
 test_cases=(
   "TestNotifierTest/TestReadFileWithDentryCacheEnabled"
   "TestNotifierTest/TestWriteFileWithDentryCacheEnabled"
+  "TestNotifierTest/TestDeleteFileWithDentryCacheEnabled"
 )
 for test_case in "${test_cases[@]}"; do
   gcsfuse --implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=1000 "$TEST_BUCKET_NAME" "$MOUNT_DIR"
   GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/dentry_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run $test_case
   sudo umount "$MOUNT_DIR"
 done
+
+# Run delete operation tests when dentry cache is enabled
+test_case="TestDeleteOperationTest/TestDeleteFileWhenFileIsClobbered"
+gcsfuse --implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=1000 "$TEST_BUCKET_NAME" "$MOUNT_DIR"
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/dentry_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run $test_case
+sudo umount "$MOUNT_DIR"
