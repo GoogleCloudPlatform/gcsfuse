@@ -20,7 +20,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -41,7 +40,6 @@ var expectedFooDirEntriesFlatBucket = []dirEntry{
 func TestFlatBucketTests(t *testing.T) { suite.Run(t, new(FlatBucketTests)) }
 
 func (t *FlatBucketTests) SetupSuite() {
-	t.serverCfg.MetricHandle = common.NewNoopMetrics()
 	t.serverCfg.RenameDirLimit = 20
 	t.serverCfg.ImplicitDirectories = true
 	t.fsTest.SetUpTestSuite()
