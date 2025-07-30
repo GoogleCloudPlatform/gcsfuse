@@ -399,11 +399,12 @@ func RunTestsForMountedDirectoryFlag(m *testing.M) {
 }
 
 func SetUpTestDirForTestBucketFlag() {
-	if TestBucket() == "" {
+	testBucketName := TestBucket()
+	if TestBucketName == "" {
 		log.Fatal("Not running TestBucket tests as --testBucket flag is not set.")
 	}
-	if strings.ContainsAny(TestBucket(), unsupportedCharactersInTestBucket) {
-		log.Fatalf("Passed testBucket %q contains one or more of the following unsupported character(s): %q", TestBucket(), unsupportedCharactersInTestBucket)
+	if strings.ContainsAny(TestBucketName, unsupportedCharactersInTestBucket) {
+		log.Fatalf("Passed testBucket %q contains one or more of the following unsupported character(s): %q", TestBucketName, unsupportedCharactersInTestBucket)
 	}
 	if err := SetUpTestDir(); err != nil {
 		log.Printf("setUpTestDir: %v\n", err)
