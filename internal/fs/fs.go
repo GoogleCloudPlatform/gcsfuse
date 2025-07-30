@@ -1213,8 +1213,10 @@ func (fs *fileSystem) syncFile(
 
 	// Sync the inode.
 	gcsSynced, err := f.Sync(ctx)
+	objectName := f.Source().Name
 	if err != nil {
-		err = fmt.Errorf("FileInode.Sync: %w", err)
+		err = fmt.Errorf("FileInode.Sync(%s): %w", objectName, err)
+
 		// If the inode was local file inode, treat it as unlinked.
 		fs.mu.Lock()
 		delete(fs.localFileInodes, f.Name())
