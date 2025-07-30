@@ -189,7 +189,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNilA
 	assert.NotNil(testSuite.T(), handleCreated)
 }
 
-func (testSuite *StorageHandleTest) TestNewStorageHandleWhenKeyFileIsEmpty() {
+func (testSuite *StorageHandleTest) TestNewStorageHandleWhenAnonymousAccessTrue() {
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
 	sc.KeyFile = ""
 	sc.AnonymousAccess = true
