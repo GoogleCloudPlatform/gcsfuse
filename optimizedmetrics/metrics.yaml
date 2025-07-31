@@ -170,7 +170,6 @@
     - "closed"
     - "opened"
 
-
 - metric-name: "gcs/request_count"
   description: "The cumulative number of GCS requests processed along with the GCS method."
   type: "int_counter"
