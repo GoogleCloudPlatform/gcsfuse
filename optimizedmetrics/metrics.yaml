@@ -63,7 +63,7 @@
   - attribute-name: cache_hit
     attribute-type: bool
 
-- metric-name: fs/ops_count
+- metric-name: "fs/ops_count"
   description: "The cumulative number of ops processed by the file system."
   type: "int_counter"
   attributes:
@@ -128,7 +128,7 @@
     attribute-type: string
     values: *fs_ops_list
 
-- metric-name: fs/ops_latency
+- metric-name: "fs/ops_latency"
   description: "The cumulative distribution of file system operation latencies"
   type: "int_histogram"
   unit: "us"
@@ -194,7 +194,7 @@
     - "StatObject"
     - "UpdateObject"
 
-- metric-name: gcs/request_latencies
+- metric-name: "gcs/request_latencies"
   description: "The cumulative distribution of the GCS request latencies."
   type: "int_histogram"
   unit: "ms"
