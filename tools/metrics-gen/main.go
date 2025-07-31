@@ -161,7 +161,7 @@ func getTestName(combo AttrCombination) string {
 	if len(combo) == 0 {
 		return "no_attributes"
 	}
-	var parts []string
+	var parts = make([]string, 0, len(combo)*2)
 	for _, pair := range combo {
 		parts = append(parts, pair.Name)
 		parts = append(parts, pair.Value)
