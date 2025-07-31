@@ -119,6 +119,7 @@ func (dr *debugReader) Close() (err error) {
 }
 
 func (dr *debugReader) ReadHandle() storagev2.ReadHandle {
+	// TODO: b/432639555 fix code to use read handle from previous read.
 	hd := "opaque-handle"
 	return []byte(hd)
 }
@@ -168,16 +169,24 @@ func (b *debugBucket) CreateObject(
 	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
 	id, desc, start := b.startRequest("CreateObject(%q)", req.Name)
 	defer b.finishRequest(id, desc, start, &err)
-
-	o, err = b.wrapped.CreateObject(context.WithValue(ctx, gcs.ReqIdField, id), req)
+	if req.CallBack == nil {
+		req.CallBack = func(bytesUploadedSoFar int64) {
+			logger.Tracef("gcs: Req %#16x: -- UploadBlock(%q): %20v bytes uploaded so far", id, req.Name, bytesUploadedSoFar)
+		}
+	}
+	o, err = b.wrapped.CreateObject(ctx, req)
 	return
 }
 
 func (b *debugBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (wc gcs.Writer, err error) {
 	id, desc, start := b.startRequest("CreateObjectChunkWriter(%q)", req.Name)
 	defer b.finishRequest(id, desc, start, &err)
-
-	wc, err = b.wrapped.CreateObjectChunkWriter(context.WithValue(ctx, gcs.ReqIdField, id), req, chunkSize, callBack)
+	if callBack == nil {
+		callBack = func(bytesUploadedSoFar int64) {
+			logger.Tracef("gcs: Req %#16x: -- UploadBlock(%q): %20v bytes uploaded so far", id, req.Name, bytesUploadedSoFar)
+		}
+	}
+	wc, err = b.wrapped.CreateObjectChunkWriter(ctx, req, chunkSize, callBack)
 	return
 }
 
@@ -185,8 +194,12 @@ func (b *debugBucket) CreateAppendableObjectWriter(ctx context.Context,
 	req *gcs.CreateObjectChunkWriterRequest) (wc gcs.Writer, err error) {
 	id, desc, start := b.startRequest("CreateAppendableObjectWriter(%q, %d)", req.Name, req.Offset)
 	defer b.finishRequest(id, desc, start, &err)
-
-	wc, err = b.wrapped.CreateAppendableObjectWriter(context.WithValue(ctx, gcs.ReqIdField, id), req)
+	if req.CallBack == nil {
+		req.CallBack = func(bytesUploadedSoFar int64) {
+			logger.Tracef("gcs: Req %#16x: -- UploadBlock(%q): %20v bytes uploaded so far", id, req.Name, bytesUploadedSoFar)
+		}
+	}
+	wc, err = b.wrapped.CreateAppendableObjectWriter(ctx, req)
 	return
 }
 
@@ -317,6 +330,7 @@ func (b *debugBucket) RenameFolder(ctx context.Context, folderName string, desti
 }
 
 type debugMultiRangeDownloader struct {
+	object    string
 	bucket    *debugBucket
 	requestID uint64
 	desc      string
@@ -325,7 +339,7 @@ type debugMultiRangeDownloader struct {
 }
 
 func (dmrd *debugMultiRangeDownloader) Add(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
-	id, desc, start := dmrd.bucket.startRequest("MultiRangeDownloader.Add(%v,%v)", offset, length)
+	id, desc, start := dmrd.bucket.startRequest("MultiRangeDownloader.Add(%s, [%v,%v))", dmrd.object, offset, offset+length)
 	wrapperCallback := func(offset int64, length int64, err error) {
 		defer dmrd.bucket.finishRequest(id, desc, start, &err)
 		if callback != nil {
@@ -368,6 +382,7 @@ func (b *debugBucket) NewMultiRangeDownloader(
 
 	// Return a special reader that prints debug info.
 	mrd = &debugMultiRangeDownloader{
+		object:    req.Name,
 		bucket:    b,
 		requestID: id,
 		desc:      desc,

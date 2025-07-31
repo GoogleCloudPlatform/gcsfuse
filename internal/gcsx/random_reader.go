@@ -631,7 +631,7 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 		// if the reader peters out early. That's fine, but it means we should
 		// have hit the limit above.
 		if rr.reader != nil {
-			err = fmt.Errorf("Reader returned early by skipping %d bytes", rr.limit-rr.start)
+			err = fmt.Errorf("random reader returned early by skipping %d bytes", rr.limit-rr.start)
 			return
 		}
 
