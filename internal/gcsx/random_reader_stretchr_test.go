@@ -21,6 +21,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -258,6 +259,59 @@ func (t *RandomReaderStretchrTest) Test_GetReadInfo() {
 	}
 }
 
+func (t *RandomReaderStretchrTest) Test_ReadAt_ParallelMRDReads() {
+	// Setup
+	t.rr.wrapped.reader = nil
+	t.rr.wrapped.seeks.Store(minSeeksForRandom)
+	t.rr.wrapped.readType.Store(metrics.ReadTypeRandom)
+	t.object.Size = 20 * MiB
+	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
+
+	// Mock bucket and MRD
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true})
+	fakeMRDWrapper, err := NewMultiRangeDownloaderWrapper(t.mockBucket, t.object)
+	require.NoError(t.T(), err)
+	t.rr.wrapped.mrdWrapper = &fakeMRDWrapper
+	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloader(t.object, testContent), nil)
+
+	// Parallel reads
+	tasks := []struct {
+		offset int64
+		size   int
+	}{
+		{0, 1 * MiB},
+		{2 * MiB, 2 * MiB},
+		{5 * MiB, 1 * MiB},
+		{10 * MiB, 5 * MiB},
+	}
+
+	var wg sync.WaitGroup
+	var totalBytesReadFromTasks uint64
+
+	for _, task := range tasks {
+		wg.Add(1)
+		totalBytesReadFromTasks += uint64(task.size)
+		go func(offset int64, size int) {
+			defer wg.Done()
+			buf := make([]byte, size)
+			// Each goroutine gets its own context.
+			ctx := context.Background()
+			objData, err := t.rr.wrapped.ReadAt(ctx, buf, offset)
+
+			require.NoError(t.T(), err)
+			require.Equal(t.T(), size, objData.Size)
+			require.Equal(t.T(), testContent[offset:offset+int64(size)], buf)
+		}(task.offset, task.size)
+	}
+
+	wg.Wait()
+
+	// Validation
+	assert.Equal(t.T(), totalBytesReadFromTasks, t.rr.wrapped.totalReadBytes.Load())
+	assert.Equal(t.T(), 1, t.rr.wrapped.mrdWrapper.GetRefCount())
+	assert.True(t.T(), t.rr.wrapped.isMRDInUse.Load())
+}
+
 func (t *RandomReaderStretchrTest) Test_ReaderType() {
 	testCases := []struct {
 		name       string
@@ -395,6 +449,87 @@ func (t *RandomReaderStretchrTest) Test_GetEndOffset() {
 			end := rr.getEndOffset(tc.start)
 
 			assert.Equal(t.T(), tc.expectedEnd, end, "End offset mismatch")
+		})
+	}
+}
+
+func (t *RandomReaderStretchrTest) Test_IsSeekNeeded() {
+	testCases := []struct {
+		name           string
+		readType       int64
+		offset         int64
+		expectedOffset int64
+		want           bool
+	}{
+		{
+			name:           "First read, expectedOffset is 0",
+			readType:       metrics.ReadTypeSequential,
+			offset:         100,
+			expectedOffset: 0,
+			want:           false,
+		},
+		{
+			name:           "Random read, same offset",
+			readType:       metrics.ReadTypeRandom,
+			offset:         100,
+			expectedOffset: 100,
+			want:           false,
+		},
+		{
+			name:           "Random read, different offset",
+			readType:       metrics.ReadTypeRandom,
+			offset:         200,
+			expectedOffset: 100,
+			want:           true,
+		},
+		{
+			name:           "Sequential read, same offset",
+			readType:       metrics.ReadTypeSequential,
+			offset:         100,
+			expectedOffset: 100,
+			want:           false,
+		},
+		{
+			name:           "Sequential read, small forward jump within maxReadSize",
+			readType:       metrics.ReadTypeSequential,
+			offset:         100 + maxReadSize/2,
+			expectedOffset: 100,
+			want:           false,
+		},
+		{
+			name:           "Sequential read, forward jump to boundary of maxReadSize",
+			readType:       metrics.ReadTypeSequential,
+			offset:         100 + maxReadSize,
+			expectedOffset: 100,
+			want:           false,
+		},
+		{
+			name:           "Sequential read, large forward jump beyond maxReadSize",
+			readType:       metrics.ReadTypeSequential,
+			offset:         100 + maxReadSize + 1,
+			expectedOffset: 100,
+			want:           true,
+		},
+		{
+			name:           "Sequential read, backward jump",
+			readType:       metrics.ReadTypeSequential,
+			offset:         99,
+			expectedOffset: 100,
+			want:           true,
+		},
+		{
+			name:           "Unknown read type",
+			readType:       -1, // An invalid read type
+			offset:         200,
+			expectedOffset: 100,
+			want:           false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			got := isSeekNeeded(tc.readType, tc.offset, tc.expectedOffset)
+			assert.Equal(t.T(), tc.want, got)
 		})
 	}
 }
@@ -834,7 +969,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ValidateReadType() {
 		t.Run(tc.name, func() {
 			assert.Equal(t.T(), len(tc.readRanges), len(tc.expectedReadTypes), "Test Parameter Error: readRanges and expectedReadTypes should have same length")
 			t.rr.wrapped.reader = nil
-			t.rr.wrapped.isMRDInUse = false
+			t.rr.wrapped.isMRDInUse.Store(false)
 			t.rr.wrapped.seeks.Store(0)
 			t.rr.wrapped.readType.Store(metrics.ReadTypeSequential)
 			t.rr.wrapped.expectedOffset.Store(0)
@@ -864,7 +999,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ValidateReadType() {
 // This test validates the bug fix where seeks are not updated correctly in case of zonal bucket random reads (b/410904634).
 func (t *RandomReaderStretchrTest) Test_ReadAt_ValidateZonalRandomReads() {
 	t.rr.wrapped.reader = nil
-	t.rr.wrapped.isMRDInUse = false
+	t.rr.wrapped.isMRDInUse.Store(false)
 	t.rr.wrapped.seeks.Store(0)
 	t.rr.wrapped.readType.Store(metrics.ReadTypeSequential)
 	t.rr.wrapped.expectedOffset.Store(0)
@@ -927,7 +1062,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_MRDRead() {
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
 			t.rr.wrapped.reader = nil
-			t.rr.wrapped.isMRDInUse = false
+			t.rr.wrapped.isMRDInUse.Store(false)
 			t.rr.wrapped.expectedOffset.Store(10)
 			t.rr.wrapped.seeks.Store(minSeeksForRandom + 1)
 			t.object.Size = uint64(tc.dataSize)
@@ -974,7 +1109,7 @@ func (t *RandomReaderStretchrTest) Test_ReadFromMultiRangeReader_ReadFull() {
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
 			t.rr.wrapped.reader = nil
-			t.rr.wrapped.isMRDInUse = false
+			t.rr.wrapped.isMRDInUse.Store(false)
 			t.object.Size = uint64(tc.dataSize)
 			testContent := testutil.GenerateRandomBytes(int(t.object.Size))
 			fakeMRDWrapper, err := NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{})
@@ -1065,7 +1200,7 @@ func (t *RandomReaderStretchrTest) Test_ReadFromMultiRangeReader_ValidateTimeout
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
 			t.rr.wrapped.reader = nil
-			t.rr.wrapped.isMRDInUse = false
+			t.rr.wrapped.isMRDInUse.Store(false)
 			t.object.Size = uint64(tc.dataSize)
 			testContent := testutil.GenerateRandomBytes(int(t.object.Size))
 			fakeMRDWrapper, err := NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{})
