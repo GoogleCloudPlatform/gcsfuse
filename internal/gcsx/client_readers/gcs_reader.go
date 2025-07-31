@@ -102,8 +102,7 @@ func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, config *GCSReaderConfig
 	}
 }
 
-func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.ReaderResponse, error) {
-	var readerResponse gcsx.ReaderResponse
+func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (readerResponse gcsx.ReaderResponse, err error) {
 
 	if offset >= int64(gr.object.Size) {
 		return readerResponse, io.EOF
@@ -137,16 +136,18 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.R
 		}
 		if reqReaderType == RangeReaderType {
 			defer gr.mu.Unlock()
-			return gr.rangeReader.ReadAt(ctx, readReq)
+			readReq.EndOffset = gr.getEndOffset(readReq.Offset)
+			readerResponse, err = gr.rangeReader.ReadAt(ctx, readReq)
+			return
 		}
 		gr.mu.Unlock()
 	}
 
 	if reqReaderType == MultiRangeReaderType {
-		return gr.mrr.ReadAt(ctx, readReq)
+		readerResponse, err = gr.mrr.ReadAt(ctx, readReq)
 	}
 
-	return readerResponse, nil
+	return
 }
 
 // readerType specifies the go-sdk interface to use for reads.
@@ -162,12 +163,25 @@ func (gr *GCSReader) readerType(start int64, bucketType gcs.BucketType) ReaderTy
 func isSeekNeeded(readType, offset, expectedOffset int64) bool {
 	if expectedOffset == 0 {
 		return false
-	} else if readType == metrics.ReadTypeRandom {
+	}
+
+	if readType == metrics.ReadTypeRandom {
 		return offset != expectedOffset
-	} else if readType == metrics.ReadTypeSequential {
+	}
+
+	if readType == metrics.ReadTypeSequential {
 		return offset < expectedOffset || offset > expectedOffset+maxReadSize
 	}
+
 	return false
+}
+
+func (gr *GCSReader) getEndOffset(
+	start int64) (end int64) {
+
+	end = gr.determineEnd(start)
+	end = gr.limitEnd(start, end)
+	return
 }
 
 // getReadInfo determines the read strategy (sequential or random) for a read

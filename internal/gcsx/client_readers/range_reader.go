@@ -332,9 +332,9 @@ func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(startOffset, endOf
 // Make sure to call invalidateReaderIfMisalignedOrTooSmall before using this method.
 func (rr *RangeReader) readFromExistingReader(ctx context.Context, req *gcsx.GCSReaderRequest) (int, error) {
 	rr.skipBytes(req.Offset)
-	rr.invalidateReaderIfMisalignedOrTooSmall(req.Offset, req.EndOffset)
+	rr.invalidateReaderIfMisalignedOrTooSmall(req.Offset, req.Offset+int64(len(req.Buffer)))
 	if rr.reader != nil {
-		return rr.readFromRangeReader(ctx, req.Buffer, req.Offset, req.EndOffset, rr.readType)
+		return rr.readFromRangeReader(ctx, req.Buffer, req.Offset, req.Offset+int64(len(req.Buffer)), rr.readType)
 	}
 
 	return 0, gcsx.FallbackToAnotherReader
