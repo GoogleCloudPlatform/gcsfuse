@@ -2944,9 +2944,9 @@ func (fs *fileSystem) SyncFile(
 
 	// Sync it.
 	if err := fs.syncFile(ctx, file); err != nil {
-		err = fmt.Errorf("syncFile: %w", err)
 		return err
 	}
+
 	return
 }
 
