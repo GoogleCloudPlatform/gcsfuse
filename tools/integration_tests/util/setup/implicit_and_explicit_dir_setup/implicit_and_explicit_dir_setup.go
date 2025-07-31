@@ -80,9 +80,10 @@ func RemoveAndCheckIfDirIsDeleted(dirPath string, dirName string, t *testing.T) 
 
 // testdataCreateObjects is equivalent of the script tools/integration_tests/util/setup/implicit_and_explicit_dir_setup/testdata/create_objects.sh .
 // That script uses gcloud, but this function instead uses go client library.
-// Note: testDirWithBucketName is of the form <bucket>/<object-name>.
 func testdataCreateObjects(ctx context.Context, t *testing.T, storageClient *storage.Client, testDirWithoutBucketName string) {
 	t.Helper()
+	// Following is needed for error log, and because
+	// TestBucket can be of the form <bucket>/<onlydir> .
 	bucketName, _, _ := strings.Cut(setup.TestBucket(), "/")
 
 	objectName := path.Join(testDirWithoutBucketName, ImplicitDirectory, FileInImplicitDirectory)

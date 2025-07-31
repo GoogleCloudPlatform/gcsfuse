@@ -73,13 +73,15 @@ func TestMain(m *testing.M) {
 
 	flagsSet := [][]string{{"--implicit-dirs"}}
 
+	// No need to run enable-hns and client-protocol GRPC configuration for ZB,
+	// as those are both by default enabled for ZB.
 	if !setup.IsZonalBucketRun() {
 		if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(testEnv.ctx, testEnv.storageClient); err == nil {
 			flagsSet = append(flagsSet, hnsFlagSet)
 		}
 
 		if !testing.Short() {
-			flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=true"})
+			flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs"})
 		}
 	}
 
