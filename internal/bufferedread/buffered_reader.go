@@ -45,6 +45,8 @@ type BufferedReadConfig struct {
 	RandomReadsThreshold    int64 // Number of random reads after which the reader falls back to GCS reader.
 }
 
+const MiB = 1 << 20
+
 // blockQueueEntry holds a data block with a function
 // to cancel its in-flight download.
 type blockQueueEntry struct {
@@ -119,19 +121,7 @@ func (p *BufferedReader) handleRandomRead(offset int64) error {
 		return gcsx.FallbackToAnotherReader
 	}
 
-	var isRandom bool
-	if p.blockQueue.IsEmpty() {
-		if offset != 0 {
-			isRandom = true
-		}
-	} else {
-		start := p.blockQueue.Peek().block.AbsStartOff()
-		end := start + int64(p.blockQueue.Len())*p.config.PrefetchBlockSizeBytes
-		if offset < start || offset >= end {
-			isRandom = true
-		}
-	}
-
+	isRandom := p.isRandomRead(offset)
 	if !isRandom {
 		return nil
 	}
@@ -154,6 +144,21 @@ func (p *BufferedReader) handleRandomRead(offset int64) error {
 	}
 
 	return nil
+}
+
+// isRandomRead checks if the read for the given offset is random or not.
+func (p *BufferedReader) isRandomRead(offset int64) bool {
+	if p.blockQueue.IsEmpty() {
+		return offset != 0
+	}
+
+	start := p.blockQueue.Peek().block.AbsStartOff()
+	end := start + int64(p.blockQueue.Len())*p.config.PrefetchBlockSizeBytes
+	if offset < start || offset >= end {
+		return true
+	}
+
+	return false
 }
 
 // prepareQueueForOffset cleans the head of the block queue by discarding any
@@ -435,7 +440,7 @@ func (p *BufferedReader) CheckInvariants() {
 	}
 
 	// The prefetch block size must be at least 1 MiB.
-	if p.config.PrefetchBlockSizeBytes < 1<<20 {
+	if p.config.PrefetchBlockSizeBytes < MiB {
 		panic(fmt.Sprintf("BufferedReader: PrefetchBlockSizeBytes must be at least 1 MiB, but is %d", p.config.PrefetchBlockSizeBytes))
 	}
 

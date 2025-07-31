@@ -234,13 +234,13 @@ func (t *BufferedReaderTest) TestCheckInvariantsPrefetchBlockSizeTooSmall() {
 	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
 	require.NoError(t.T(), err, "NewBufferedReader should not return error")
 
-	reader.config.PrefetchBlockSizeBytes = (1 << 20) - 1
+	reader.config.PrefetchBlockSizeBytes = MiB - 1
 
 	assert.Panics(t.T(), func() { reader.CheckInvariants() }, "Should panic for block size less than 1 MiB")
 }
 
 func (t *BufferedReaderTest) TestCheckInvariantsNoPanic() {
-	t.config.PrefetchBlockSizeBytes = 1 << 20
+	t.config.PrefetchBlockSizeBytes = MiB
 	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
 	require.NoError(t.T(), err, "NewBufferedReader should not return error")
 
