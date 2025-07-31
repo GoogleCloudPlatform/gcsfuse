@@ -121,13 +121,15 @@ func (p *BufferedReader) handleRandomRead(offset int64) error {
 		return gcsx.FallbackToAnotherReader
 	}
 
-	isRandom := p.isRandomRead(offset)
-	if !isRandom {
+	if !p.isRandomSeek(offset) {
 		return nil
 	}
 
 	p.randomSeekCount++
 
+	// When a random seek is detected, the prefetched blocks in the queue become
+	// irrelevant. We must clear the queue, cancel any ongoing downloads, and
+	// release the blocks back to the pool.
 	for !p.blockQueue.IsEmpty() {
 		entry := p.blockQueue.Pop()
 		entry.cancel()
@@ -146,8 +148,8 @@ func (p *BufferedReader) handleRandomRead(offset int64) error {
 	return nil
 }
 
-// isRandomRead checks if the read for the given offset is random or not.
-func (p *BufferedReader) isRandomRead(offset int64) bool {
+// isRandomSeek checks if the read for the given offset is random or not.
+func (p *BufferedReader) isRandomSeek(offset int64) bool {
 	if p.blockQueue.IsEmpty() {
 		return offset != 0
 	}
