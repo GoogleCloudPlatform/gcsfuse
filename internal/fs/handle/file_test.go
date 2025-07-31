@@ -145,7 +145,7 @@ func (t *fileTest) TestFileHandleWrite() {
 	parent := createDirInode(&t.bucket, &t.clock)
 	config := &cfg.Config{Write: cfg.WriteConfig{EnableStreamingWrites: false}}
 	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj", nil, false)
-	fh := NewFileHandle(in, nil, false, nil, util.Write, &cfg.Config{})
+	fh := NewFileHandle(in, nil, false, nil, util.Write, &cfg.Config{}, nil, nil)
 	data := []byte("hello")
 
 	_, err := fh.Write(t.ctx, data, 0)
@@ -168,7 +168,7 @@ func (t *fileTest) Test_Read_Success() {
 	expectedData := []byte("hello from reader")
 	parent := createDirInode(&t.bucket, &t.clock)
 	in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, "test_obj_reader", expectedData, false)
-	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{})
+	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{}, nil, nil)
 	buf := make([]byte, len(expectedData))
 	fh.inode.Lock()
 
@@ -184,7 +184,7 @@ func (t *fileTest) Test_ReadWithReadManager_Success() {
 	expectedData := []byte("hello from readManager")
 	parent := createDirInode(&t.bucket, &t.clock)
 	in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, "test_obj_readManager", expectedData, false)
-	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{})
+	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{}, nil, nil)
 	buf := make([]byte, len(expectedData))
 	fh.inode.Lock()
 
@@ -216,7 +216,7 @@ func (t *fileTest) Test_ReadWithReadManager_ErrorScenarios() {
 			t.SetupTest()
 			parent := createDirInode(&t.bucket, &t.clock)
 			testInode := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, []byte("data"), false)
-			fh := NewFileHandle(testInode, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{})
+			fh := NewFileHandle(testInode, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{}, nil, nil)
 			fh.inode.Lock()
 			mockRM := new(read_manager.MockReadManager)
 			mockRM.On("ReadAt", t.ctx, dst, int64(0)).Return(gcsx.ReaderResponse{}, tc.returnErr)
@@ -254,7 +254,7 @@ func (t *fileTest) Test_Read_ErrorScenarios() {
 			t.SetupTest()
 			parent := createDirInode(&t.bucket, &t.clock)
 			testInode := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, []byte("data"), false)
-			fh := NewFileHandle(testInode, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{})
+			fh := NewFileHandle(testInode, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{}, nil, nil)
 			fh.inode.Lock()
 			mockReader := new(gcsx.MockRandomReader)
 			mockReader.On("ReadAt", t.ctx, dst, int64(0)).Return(gcsx.ObjectData{}, tc.returnErr)
@@ -279,7 +279,7 @@ func (t *fileTest) Test_ReadWithReadManager_FallbackToInode() {
 	object := gcs.MinObject{Name: "test_obj", Generation: 0}
 	parent := createDirInode(&t.bucket, &t.clock)
 	in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, objectData, true)
-	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{})
+	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{}, nil, nil)
 	fh.inode.Lock()
 	mockRM := new(read_manager.MockReadManager)
 	mockRM.On("Destroy").Return()
@@ -301,7 +301,7 @@ func (t *fileTest) Test_Read_FallbackToInode() {
 	object := gcs.MinObject{Name: "test_obj", Generation: 0}
 	parent := createDirInode(&t.bucket, &t.clock)
 	in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, objectData, true)
-	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{})
+	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{}, nil, nil)
 	fh.inode.Lock()
 	mockR := new(gcsx.MockRandomReader)
 	mockR.On("Destroy").Return()
@@ -337,7 +337,7 @@ func (t *fileTest) TestOpenMode() {
 		parent := createDirInode(&t.bucket, &t.clock)
 		config := &cfg.Config{Write: cfg.WriteConfig{EnableStreamingWrites: false}}
 		in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj", nil, false)
-		fh := NewFileHandle(in, nil, false, nil, tc.openMode, &cfg.Config{})
+		fh := NewFileHandle(in, nil, false, nil, tc.openMode, &cfg.Config{}, nil, nil)
 
 		openMode := fh.OpenMode()
 
@@ -356,7 +356,7 @@ func (t *fileTest) TestFileHandle_Destroy_WithReaderAndReadManager() {
 	mockReader.On("Destroy").Once()
 	mockReadManager.On("Destroy").Once()
 	// Construct file handle with mocks
-	fh := NewFileHandle(fileInode, nil, false, nil, util.Read, config)
+	fh := NewFileHandle(fileInode, nil, false, nil, util.Read, config, nil, nil)
 	fh.reader = mockReader
 	fh.readManager = mockReadManager
 
@@ -372,7 +372,7 @@ func (t *fileTest) TestFileHandle_Destroy_WithNilReaderAndReadManager() {
 	config := &cfg.Config{}
 	fileInode := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "destroy_test_nil_obj", nil, false)
 	// Construct file handle with nils
-	fh := NewFileHandle(fileInode, nil, false, nil, util.Read, config)
+	fh := NewFileHandle(fileInode, nil, false, nil, util.Read, config, nil, nil)
 	fh.reader = nil
 	fh.readManager = nil
 
@@ -392,7 +392,7 @@ func (t *fileTest) TestFileHandle_CheckInvariants_WithNonNilReaderAndManager() {
 	// Expectations
 	mockReader.On("CheckInvariants").Once()
 	mockRM.On("CheckInvariants").Once()
-	fh := NewFileHandle(fileInode, nil, false, nil, util.Read, config)
+	fh := NewFileHandle(fileInode, nil, false, nil, util.Read, config, nil, nil)
 	fh.reader = mockReader
 	fh.readManager = mockRM
 
@@ -409,7 +409,7 @@ func (t *fileTest) TestFileHandle_CheckInvariants_WithNilReaderAndManager() {
 	config := &cfg.Config{}
 	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_check_invariants_nil", nil, false)
 
-	fh := NewFileHandle(in, nil, false, nil, util.Read, config)
+	fh := NewFileHandle(in, nil, false, nil, util.Read, config, nil, nil)
 
 	// Should not panic even if both are nil
 	assert.NotPanics(t.T(), func() {
