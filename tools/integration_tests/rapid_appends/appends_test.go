@@ -19,6 +19,7 @@ import (
 	"os"
 	"path"
 	"syscall"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
@@ -330,5 +331,56 @@ func (t *SingleMountAppendsSuite) TestFallbackHappensWhenNonAppendHandleDoesFirs
 			require.NoError(t.T(), err)
 			assert.Equal(t.T(), expectedContent, contentAfterClose)
 		}()
+	}
+}
+
+func (t *SingleMountAppendsSuite) TestKernelShouldSeeUpdatedSizeOnAppends() {
+	const initialContent = "dummy content"
+	flags := []string{"--write-experimental-enable-rapid-appends=true", "--write-block-size-mb=1"}
+	log.Printf("Running test with flags: %v", flags)
+
+	testCases := []struct {
+		name        string
+		expireCache bool
+	}{
+		{
+			name:        "validStatCache",
+			expireCache: false,
+		},
+		{
+			name:        "expiredStatCache",
+			expireCache: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.mountPrimaryMount(flags)
+			defer t.unmountPrimaryMount()
+
+			// Initially create an unfinalized object.
+			t.createUnfinalizedObject()
+			defer t.deleteUnfinalizedObject()
+
+			filePath := path.Join(t.primaryMount.testDirPath, t.fileName)
+
+			// Append to the unfinalized object and close the file handle.
+			appendFileHandle := operations.OpenFileInMode(t.T(), filePath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
+			n, err := appendFileHandle.Write([]byte(initialContent))
+			require.NoError(t.T(), err)
+			require.NotZero(t.T(), n)
+			appendFileHandle.Close()
+
+			// Expire stat cache if required by the test case. By default, stat cache ttl is 1 sec.
+			if tc.expireCache {
+				time.Sleep(time.Second)
+			}
+
+			// stat() the file to assert on the file size as viewed by the kernel.
+			expectedFileSize := int64(unfinalizedObjectSize + len(initialContent))
+			fileInfo, err := operations.StatFile(filePath)
+			assert.NoError(t.T(), err)
+			assert.Equal(t.T(), expectedFileSize, (*fileInfo).Size())
+		})
 	}
 }
