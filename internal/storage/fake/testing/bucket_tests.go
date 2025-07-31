@@ -342,7 +342,7 @@ func readMultipleUsingMultiRangeDownloader(
 	contents = make([]*bytes.Buffer, len(ranges))
 	errs = make([]error, len(ranges))
 
-	handleRequest := func(ctx context.Context, i int) {
+	handleRequest := func(i int) {
 		if ranges[i].Limit > ranges[i].Start {
 			size := ranges[i].Limit - ranges[i].Start
 			contents[i] = bytes.NewBuffer(make([]byte, 0, size))
@@ -367,7 +367,7 @@ func readMultipleUsingMultiRangeDownloader(
 	for i := 0; i < parallelism; i++ {
 		group.Go(func() (err error) {
 			for i := range indices {
-				handleRequest(ctx, i)
+				handleRequest(i)
 			}
 
 			return

@@ -43,7 +43,7 @@ func (s *rangeReadTest) Setup(t *testing.T) {
 	setupForMountedDirectoryTests()
 	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
 	operations.RemoveDir(cacheDirPath)
-	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient, testDirName)
+	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
 }
 
 func (s *rangeReadTest) Teardown(t *testing.T) {
@@ -62,7 +62,7 @@ func (s *rangeReadTest) TestRangeReadsWithinReadChunkSize(t *testing.T) {
 		// we skip this test when parallel downloads are enabled.
 		t.SkipNow()
 	}
-	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, largeFileSize, t)
+	testFileName := setupFileInTestDir(s.ctx, s.storageClient, largeFileSize, t)
 
 	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
 	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offsetForRangeReadWithin8MB, t)
@@ -73,7 +73,7 @@ func (s *rangeReadTest) TestRangeReadsWithinReadChunkSize(t *testing.T) {
 }
 
 func (s *rangeReadTest) TestRangeReadsBeyondReadChunkSizeWithFileCached(t *testing.T) {
-	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, largeFileSize, t)
+	testFileName := setupFileInTestDir(s.ctx, s.storageClient, largeFileSize, t)
 
 	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
 	validateFileInCacheDirectory(testFileName, largeFileSize, ctx, s.storageClient, t)

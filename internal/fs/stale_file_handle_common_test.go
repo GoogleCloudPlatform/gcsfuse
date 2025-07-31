@@ -53,7 +53,7 @@ func commonServerConfig() *cfg.Config {
 
 }
 
-func clobberFile(t *testing.T, fileName, content string) {
+func clobberFile(t *testing.T, content string) {
 	t.Helper()
 	_, err := storageutil.CreateObject(
 		ctx,
@@ -63,7 +63,7 @@ func clobberFile(t *testing.T, fileName, content string) {
 	assert.NoError(t, err)
 }
 
-func createGCSObject(t *testing.T, fileName, content string) *os.File {
+func createGCSObject(t *testing.T, content string) *os.File {
 	t.Helper()
 	_, err := storageutil.CreateObject(
 		ctx,
@@ -101,7 +101,7 @@ func (t *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHand
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), 4, n)
 	// Replace the underlying object with a new generation.
-	clobberFile(t.T(), "foo", "foobar")
+	clobberFile(t.T(), "foobar")
 
 	err = t.f1.Sync()
 

@@ -77,7 +77,7 @@ func (s *InactiveTimeoutReaderTestSuite) TearDownTest() {
 
 // setupReader is a helper within the suite to create the reader under test.
 // Tests should call this after setting specific suite properties like initialData or timeout.
-func (s *InactiveTimeoutReaderTestSuite) setupReader(startOffset int64) {
+func (s *InactiveTimeoutReaderTestSuite) setupReader() {
 	s.object.Size = uint64(len(s.initialData)) // Ensure object size matches data
 	readCloser := getReadCloser(s.initialData)
 	s.initialFakeReader = &fake.FakeReader{ReadCloser: readCloser, Handle: s.readHandle}
@@ -86,7 +86,7 @@ func (s *InactiveTimeoutReaderTestSuite) setupReader(startOffset int64) {
 		Name:       s.object.Name,
 		Generation: s.object.Generation,
 		Range: &gcs.ByteRange{
-			Start: uint64(startOffset),
+			Start: uint64(0),
 			Limit: s.object.Size,
 		},
 		ReadCompressed: s.object.HasContentEncodingGzip(),
@@ -96,7 +96,7 @@ func (s *InactiveTimeoutReaderTestSuite) setupReader(startOffset int64) {
 
 	var err error
 	// Use NewInactiveTimeoutReader directly as NewStorageReaderWithInactiveTimeout is deprecated.
-	s.reader, err = NewInactiveTimeoutReaderWithClock(s.ctx, s.mockBucket, s.object, s.readHandle, gcs.ByteRange{Start: uint64(startOffset), Limit: s.object.Size}, s.timeout, s.simulatedClock)
+	s.reader, err = NewInactiveTimeoutReaderWithClock(s.ctx, s.mockBucket, s.object, s.readHandle, gcs.ByteRange{Start: uint64(0), Limit: s.object.Size}, s.timeout, s.simulatedClock)
 	time.Sleep(5 * time.Millisecond) // Allow time to schedule and create a timer.
 	s.Require().Nil(err)
 	s.Require().NotNil(s.reader)
@@ -134,7 +134,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_NewInactiveTimeoutReader_ZeroTimeo
 func (s *InactiveTimeoutReaderTestSuite) Test_Read_InitialReadNoError() {
 	s.initialData = []byte("hello world")
 	s.timeout = 100 * time.Millisecond
-	s.setupReader(0)
+	s.setupReader()
 	buf := make([]byte, 5)
 
 	n, err := s.reader.Read(buf)
@@ -147,7 +147,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Read_InitialReadNoError() {
 func (s *InactiveTimeoutReaderTestSuite) Test_NoReadCloserWithinTimeout() {
 	s.initialData = []byte("hello world!")
 	s.timeout = 100 * time.Millisecond
-	s.setupReader(0)
+	s.setupReader()
 	buf := make([]byte, 6)
 	n1, err1 := s.reader.Read(buf)
 	s.NoError(err1)
@@ -169,7 +169,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_ReadFull_Succeeds() {
 	buf := make([]byte, 16)
 	s.initialData = []byte("hello world!")
 	s.timeout = 100 * time.Millisecond
-	s.setupReader(0)
+	s.setupReader()
 
 	n, err := s.reader.Read(buf)
 
@@ -181,7 +181,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Read_ReconnectFails() {
 	buf := make([]byte, 5)
 	s.initialData = []byte("reconnect failure")
 	s.timeout = 50 * time.Millisecond
-	s.setupReader(0)
+	s.setupReader()
 	n, err := s.reader.Read(buf)
 	s.Require().NoError(err)
 	s.Require().Equal(5, n)
@@ -221,7 +221,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Read_ReconnectFails() {
 func (s *InactiveTimeoutReaderTestSuite) Test_Read_TimeoutAndSuccessfulReconnect() {
 	s.initialData = []byte("abcdefghijklmnopqrstuvwxyz")
 	s.timeout = 50 * time.Second
-	s.setupReader(0)
+	s.setupReader()
 	buf := make([]byte, 10)
 	n, err := s.reader.Read(buf)
 	s.Require().NoError(err)
@@ -271,7 +271,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Read_TimeoutAndSuccessfulReconnect
 func (s *InactiveTimeoutReaderTestSuite) Test_Close_ExplicitClose() {
 	s.initialData = []byte("close me")
 	s.timeout = 100 * time.Millisecond
-	s.setupReader(0)
+	s.setupReader()
 
 	err := s.reader.Close()
 
@@ -284,7 +284,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_handleTimeout_InactiveClose() {
 	s.initialData = []byte("simple close test")
 	s.timeout = 50 * time.Millisecond
 	s.readHandle = []byte("handle-before-close")
-	s.setupReader(0) // Sets up s.reader and s.initialFakeReader
+	s.setupReader() // Sets up s.reader and s.initialFakeReader
 	expectedHandleAfterClose := []byte("handle-after-close")
 	s.initialFakeReader.Handle = expectedHandleAfterClose
 	itr := s.reader.(*InactiveTimeoutReader)
@@ -301,7 +301,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_handleTimeout_ActiveBecomeInactive
 	s.initialData = []byte("simple close test")
 	s.timeout = 50 * time.Millisecond
 	s.readHandle = []byte("handle-before-close")
-	s.setupReader(0) // Sets up s.reader and s.initialFakeReader
+	s.setupReader() // Sets up s.reader and s.initialFakeReader
 	expectedHandleAfterClose := []byte("handle-after-close")
 	s.initialFakeReader.Handle = expectedHandleAfterClose
 	itr := s.reader.(*InactiveTimeoutReader)
@@ -317,7 +317,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_closeGCSReader_NilReader() {
 	s.initialData = []byte("simple close test")
 	s.timeout = 50 * time.Millisecond
 	s.readHandle = []byte("handle-before-close")
-	s.setupReader(0) // Sets up s.reader and s.initialFakeReader
+	s.setupReader() // Sets up s.reader and s.initialFakeReader
 	itr := s.reader.(*InactiveTimeoutReader)
 	itr.gcsReader = nil
 
@@ -331,7 +331,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_closeGCSReader_NonNilReader() {
 	s.initialData = []byte("simple close test")
 	s.timeout = 50 * time.Millisecond
 	s.readHandle = []byte("handle-before-close")
-	s.setupReader(0) // Sets up s.reader and s.initialFakeReader
+	s.setupReader() // Sets up s.reader and s.initialFakeReader
 	expectedHandleAfterClose := []byte("handle-after-close")
 	s.initialFakeReader.Handle = expectedHandleAfterClose
 	itr := s.reader.(*InactiveTimeoutReader)
@@ -348,7 +348,7 @@ func (s *InactiveTimeoutReaderTestSuite) TestRaceCondition() {
 	s.initialData = []byte(strings.Repeat("abc", 1000))
 	s.timeout = time.Second
 	s.readHandle = []byte("handle-before-close")
-	s.setupReader(0) // Sets up s.reader and s.initialFakeReader
+	s.setupReader() // Sets up s.reader and s.initialFakeReader
 
 	// Read()
 	go func() {

@@ -215,6 +215,30 @@ func isValidChunkTransferTimeoutForRetriesConfig(chunkTransferTimeoutSecs int64)
 	return nil
 }
 
+func isValidBufferedReadConfig(rc *ReadConfig) error {
+	if !rc.EnableBufferedRead {
+		return nil
+	}
+
+	if rc.BlockSizeMb <= 0 || rc.BlockSizeMb > util.MaxMiBsInInt64 {
+		return fmt.Errorf("invalid value of read-block-size-mb; can't be less than 1 or more than %d", util.MaxMiBsInInt64)
+	}
+
+	if rc.GlobalMaxBlocks < -1 {
+		return fmt.Errorf("invalid value of read-global-max-blocks: %d; should be >=0 or -1 (for infinite)", rc.GlobalMaxBlocks)
+	}
+
+	if rc.StartBlocksPerHandle < 1 && rc.StartBlocksPerHandle != -1 {
+		return fmt.Errorf("invalid value of read-start-blocks-per-handle: %d; should be >=1 or -1 (for infinite)", rc.StartBlocksPerHandle)
+	}
+
+	if rc.MaxBlocksPerHandle < 1 && rc.MaxBlocksPerHandle != -1 {
+		return fmt.Errorf("invalid value of read-max-blocks-per-handle: %d; should be >=1 or -1 (for infinite)", rc.MaxBlocksPerHandle)
+	}
+
+	return nil
+}
+
 // ValidateConfig returns a non-nil error if the config is invalid.
 func ValidateConfig(v isSet, config *Config) error {
 	var err error
@@ -269,6 +293,10 @@ func ValidateConfig(v isSet, config *Config) error {
 
 	if err = isValidParallelDownloadConfig(config); err != nil {
 		return fmt.Errorf("error parsing parallel download config: %w", err)
+	}
+
+	if err = isValidBufferedReadConfig(&config.Read); err != nil {
+		return fmt.Errorf("error parsing buffered read config: %w", err)
 	}
 
 	return nil

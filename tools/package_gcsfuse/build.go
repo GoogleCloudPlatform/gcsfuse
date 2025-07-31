@@ -28,8 +28,7 @@ import (
 // root-relative file system structure we desire.
 func build(
 	commit string,
-	version string,
-	osys string) (dir string, err error) {
+	version string) (dir string, err error) {
 	log.Printf("Building version %s from %s.", version, commit)
 
 	// Create a directory to become GOCACHE below.

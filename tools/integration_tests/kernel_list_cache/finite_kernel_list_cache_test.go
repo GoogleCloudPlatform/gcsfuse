@@ -38,7 +38,7 @@ type finiteKernelListCacheTest struct {
 }
 
 func (s *finiteKernelListCacheTest) Setup(t *testing.T) {
-	mountGCSFuseAndSetupTestDir(s.flags, ctx, storageClient, testDirName)
+	mountGCSFuseAndSetupTestDir(s.flags, testDirName)
 }
 
 func (s *finiteKernelListCacheTest) Teardown(t *testing.T) {

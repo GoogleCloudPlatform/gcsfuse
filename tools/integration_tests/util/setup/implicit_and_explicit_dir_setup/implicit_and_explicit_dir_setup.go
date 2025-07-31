@@ -19,6 +19,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	storage "cloud.google.com/go/storage"
@@ -79,11 +80,11 @@ func RemoveAndCheckIfDirIsDeleted(dirPath string, dirName string, t *testing.T) 
 
 // testdataCreateObjects is equivalent of the script tools/integration_tests/util/setup/implicit_and_explicit_dir_setup/testdata/create_objects.sh .
 // That script uses gcloud, but this function instead uses go client library.
-// Note: testDirWithBucketName is of the form <bucket>/<object-name>.
-func testdataCreateObjects(ctx context.Context, t *testing.T, storageClient *storage.Client, testDirWithBucketName string) {
+func testdataCreateObjects(ctx context.Context, t *testing.T, storageClient *storage.Client, testDirWithoutBucketName string) {
 	t.Helper()
-
-	bucketName, testDirWithoutBucketName := operations.SplitBucketNameAndDirPath(t, testDirWithBucketName)
+	// Following is needed for error log, and because
+	// TestBucket can be of the form <bucket>/<onlydir> .
+	bucketName, _, _ := strings.Cut(setup.TestBucket(), "/")
 
 	objectName := path.Join(testDirWithoutBucketName, ImplicitDirectory, FileInImplicitDirectory)
 	err := client.CreateObjectOnGCS(ctx, storageClient, objectName, "This is from directory fileInImplicitDir1 file implicitDirectory")
@@ -108,7 +109,7 @@ func CreateImplicitDirectoryStructureUsingStorageClient(ctx context.Context, t *
 	// testBucket/testDir/implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
 
 	// Create implicit directory in bucket for testing.
-	testdataCreateObjects(ctx, t, storageClient, path.Join(setup.TestBucket(), testDir))
+	testdataCreateObjects(ctx, t, storageClient, testDir)
 }
 
 func CreateImplicitDirectoryStructure(testDir string) {
@@ -173,6 +174,6 @@ func CreateImplicitDirectoryInExplicitDirectoryStructureUsingStorageClient(ctx c
 	// CreateExplicitDirectoryStructure writes files using GCSFuse.
 	CreateExplicitDirectoryStructure(testDir, t)
 
-	dirPathInBucket := path.Join(setup.TestBucket(), testDir, ExplicitDirectory)
+	dirPathInBucket := path.Join(testDir, ExplicitDirectory)
 	testdataCreateObjects(ctx, t, storageClient, dirPathInBucket)
 }

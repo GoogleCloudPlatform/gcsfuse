@@ -60,7 +60,7 @@ var (
 	ctx                             context.Context
 )
 
-func setup_testdata(m *testing.M) error {
+func setup_testdata() error {
 	fmds := []struct {
 		filename                    string
 		filesize                    int
@@ -168,7 +168,7 @@ func setup_testdata(m *testing.M) error {
 	return nil
 }
 
-func destroy_testdata(m *testing.M, storageClient *storage.Client) error {
+func destroy_testdata(storageClient *storage.Client) error {
 	for _, gcsObjectPath := range gcsObjectsToBeDeletedEventually {
 		err := client.DeleteObjectOnGCS(ctx, storageClient, gcsObjectPath)
 		if err != nil {
@@ -218,13 +218,13 @@ func TestMain(m *testing.M) {
 		log.Fatal("Please pass the name of bucket mounted at mountedDirectory to --testBucket flag.")
 	}
 
-	err = setup_testdata(m)
+	err = setup_testdata()
 	if err != nil {
 		log.Fatalf("Failed to setup test data: %v", err)
 	}
 
 	defer func() {
-		err := destroy_testdata(m, storageClient)
+		err := destroy_testdata(storageClient)
 		if err != nil {
 			log.Printf("Failed to destoy gzip test data: %v", err)
 		}

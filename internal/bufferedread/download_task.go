@@ -58,7 +58,6 @@ func NewDownloadTask(ctx context.Context, object *gcs.MinObject, bucket gcs.Buck
 // download task. The status can be one of the following:
 // - BlockStatusDownloaded: The download was successful.
 // - BlockStatusDownloadFailed: The download failed due to an error.
-// - BlockStatusDownloadCancelled: The download was cancelled due to context cancellation.
 func (p *DownloadTask) Execute() {
 	startOff := p.block.AbsStartOff()
 	blockId := startOff / p.block.Cap()
@@ -71,7 +70,7 @@ func (p *DownloadTask) Execute() {
 			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloaded})
 		} else if errors.Is(err, context.Canceled) && p.ctx.Err() == context.Canceled {
 			logger.Tracef("Download: -> block (%s, %v) cancelled: %v.", p.object.Name, blockId, err)
-			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadCancelled})
+			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})
 		} else {
 			logger.Errorf("Download: -> block (%s, %v) failed: %v.", p.object.Name, blockId, err)
 			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})

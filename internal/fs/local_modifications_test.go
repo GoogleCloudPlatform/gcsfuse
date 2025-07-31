@@ -1244,6 +1244,7 @@ func (t *DirectoryTest) Rmdir_OpenedForReading() {
 
 	// We should still be able to stat the open file handle.
 	fi, err := t.f1.Stat()
+	AssertEq(nil, err)
 	ExpectEq("dir", fi.Name())
 
 	// Attempt to read from the directory. Unfortunately we can't implement the

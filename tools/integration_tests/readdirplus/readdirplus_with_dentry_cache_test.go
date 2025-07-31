@@ -34,7 +34,7 @@ type readdirplusWithDentryCacheTest struct {
 }
 
 func (s *readdirplusWithDentryCacheTest) Setup(t *testing.T) {
-	mountGCSFuseAndSetupTestDir(t, s.flags, testDirName)
+	mountGCSFuseAndSetupTestDir(s.flags, testDirName)
 }
 
 func (s *readdirplusWithDentryCacheTest) Teardown(t *testing.T) {

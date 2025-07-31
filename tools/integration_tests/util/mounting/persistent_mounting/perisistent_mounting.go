@@ -25,7 +25,7 @@ import (
 )
 
 // Change e.g --log_severity=trace to log_severity=trace
-func makePersistentMountingArgs(flags []string) (args []string, err error) {
+func makePersistentMountingArgs(flags []string) (args []string) {
 	var s string
 	for i := range flags {
 		// We are already passing flags with -o flag.
@@ -48,10 +48,7 @@ func mountGcsfuseWithPersistentMounting(flags []string) (err error) {
 		"log_file=" + setup.LogFile(),
 	}
 
-	persistentMountingArgs, err := makePersistentMountingArgs(flags)
-	if err != nil {
-		setup.LogAndExit("Error in converting flags for persistent mounting.")
-	}
+	persistentMountingArgs := makePersistentMountingArgs(flags)
 
 	for i := 0; i < len(persistentMountingArgs); i++ {
 		// e.g. -o flag1, -o flag2, ...

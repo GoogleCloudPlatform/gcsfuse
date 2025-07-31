@@ -58,7 +58,7 @@ const (
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func registerTerminatingSignalHandler(mountPoint string, c *cfg.Config) {
+func registerTerminatingSignalHandler(mountPoint string) {
 	// Register for SIGINT.
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt, unix.SIGTERM)
@@ -141,6 +141,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		ExperimentalEnableJsonRead: newConfig.GcsConnection.ExperimentalEnableJsonRead,
 		GrpcConnPoolSize:           int(newConfig.GcsConnection.GrpcConnPoolSize),
 		EnableHNS:                  newConfig.EnableHns,
+		EnableGoogleLibAuth:        newConfig.EnableGoogleLibAuth,
 		ReadStallRetryConfig:       newConfig.GcsRetries.ReadStall,
 		MetricHandle:               metricHandle,
 	}
@@ -461,7 +462,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	}
 
 	// Let the user unmount with Ctrl-C (SIGINT).
-	registerTerminatingSignalHandler(mfs.Dir(), newConfig)
+	registerTerminatingSignalHandler(mfs.Dir())
 
 	// Wait for the file system to be unmounted.
 	if err = mfs.Join(ctx); err != nil {

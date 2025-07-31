@@ -17,7 +17,9 @@ package operations
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"os/exec"
@@ -92,8 +94,8 @@ func RenameDir(dirName string, newDirName string) (err error) {
 
 func CreateDirectoryWithNFiles(numberOfFiles int, dirPath string, prefix string, t *testing.T) {
 	err := os.Mkdir(dirPath, FilePermission_0777)
-	if err != nil && !strings.Contains(err.Error(), "file exists") {
-		t.Errorf("Error in creating directory: %v", err)
+	if err != nil && !errors.Is(err, fs.ErrExist) {
+		t.Fatalf("Error in creating directory %q: %v", dirPath, err)
 	}
 
 	for i := 1; i <= numberOfFiles; i++ {
@@ -102,7 +104,7 @@ func CreateDirectoryWithNFiles(numberOfFiles int, dirPath string, prefix string,
 		filePath := path.Join(dirPath, prefix+strconv.Itoa(i))
 		file, err := os.Create(filePath)
 		if err != nil {
-			t.Errorf("Create file at %q: %v", dirPath, err)
+			t.Fatalf("Failed to create file %q: %v", filePath, err)
 		}
 
 		// Closing file at the end.

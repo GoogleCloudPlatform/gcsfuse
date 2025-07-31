@@ -15,13 +15,13 @@
 package storageutil
 
 import (
-	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	"golang.org/x/oauth2"
 )
+
+var keyFile = "testdata/key.json"
 
 func TestClient(t *testing.T) {
 	suite.Run(t, new(clientTest))
@@ -31,26 +31,12 @@ type clientTest struct {
 	suite.Suite
 }
 
-// Helpers
-
-func (t *clientTest) validateProxyInTransport(httpClient *http.Client) {
-	userAgentRT, ok := httpClient.Transport.(*userAgentRoundTripper)
-	assert.True(t.T(), ok)
-	oauthTransport, ok := userAgentRT.wrapped.(*oauth2.Transport)
-	assert.True(t.T(), ok)
-	transport, ok := oauthTransport.Base.(*http.Transport)
-	assert.True(t.T(), ok)
-	if ok {
-		assert.Equal(t.T(), http.ProxyFromEnvironment, transport.Proxy)
-	}
-}
-
 // Tests
 
 func (t *clientTest) TestCreateHttpClientWithHttp1() {
-	sc := GetDefaultStorageClientConfig() // By default http1 enabled
+	sc := GetDefaultStorageClientConfig(keyFile) // By default http1 enabled
 
-	httpClient, err := CreateHttpClient(&sc)
+	httpClient, err := CreateHttpClient(&sc, nil)
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), httpClient)
@@ -58,9 +44,9 @@ func (t *clientTest) TestCreateHttpClientWithHttp1() {
 }
 
 func (t *clientTest) TestCreateHttpClientWithHttp2() {
-	sc := GetDefaultStorageClientConfig()
+	sc := GetDefaultStorageClientConfig(keyFile)
 
-	httpClient, err := CreateHttpClient(&sc)
+	httpClient, err := CreateHttpClient(&sc, nil)
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), httpClient)
@@ -68,36 +54,33 @@ func (t *clientTest) TestCreateHttpClientWithHttp2() {
 }
 
 func (t *clientTest) TestCreateHttpClientWithHttp1AndAuthEnabled() {
-	sc := GetDefaultStorageClientConfig() // By default http1 enabled
+	sc := GetDefaultStorageClientConfig(keyFile) // By default http1 enabled
 	sc.AnonymousAccess = false
 
 	// Act: this method add tokenSource and clientOptions.
-	httpClient, err := CreateHttpClient(&sc)
+	httpClient, err := CreateHttpClient(&sc, nil)
 
-	assert.Error(t.T(), err)
-	assert.ErrorContains(t.T(), err, "no such file or directory")
-	assert.Nil(t.T(), httpClient)
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), httpClient)
 }
 
 func (t *clientTest) TestCreateHttpClientWithHttp2AndAuthEnabled() {
-	sc := GetDefaultStorageClientConfig()
+	sc := GetDefaultStorageClientConfig(keyFile)
 	sc.AnonymousAccess = false
 	// Act: this method add tokenSource and clientOptions.
-	httpClient, err := CreateHttpClient(&sc)
+	httpClient, err := CreateHttpClient(&sc, nil)
 
-	assert.Error(t.T(), err)
-	assert.ErrorContains(t.T(), err, "no such file or directory")
-	assert.Nil(t.T(), httpClient)
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), httpClient)
 }
 
 func (t *clientTest) TestCreateTokenSrc() {
-	sc := GetDefaultStorageClientConfig()
+	sc := GetDefaultStorageClientConfig(keyFile)
 
 	tokenSrc, err := CreateTokenSource(&sc)
 
-	assert.Error(t.T(), err)
-	assert.ErrorContains(t.T(), err, "no such file or directory")
-	assert.NotEqual(t.T(), nil, &tokenSrc)
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), &tokenSrc)
 }
 
 func (t *clientTest) TestStripScheme() {

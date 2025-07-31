@@ -43,7 +43,7 @@ func (s *cacheFileForExcludeRegexTest) Setup(t *testing.T) {
 	setupForMountedDirectoryTests()
 	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
 	operations.RemoveDir(cacheDirPath)
-	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient, testDirName)
+	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
 }
 
 func (s *cacheFileForExcludeRegexTest) Teardown(t *testing.T) {
@@ -56,7 +56,7 @@ func (s *cacheFileForExcludeRegexTest) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *cacheFileForExcludeRegexTest) TestReadsForExcludedFile(t *testing.T) {
-	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeForRangeRead, t)
+	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSizeForRangeRead, t)
 
 	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
 	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset1000, t)

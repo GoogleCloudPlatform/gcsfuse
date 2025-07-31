@@ -206,6 +206,8 @@ TEST_DIR_PARALLEL=(
   "negative_stat_cache"
   "streaming_writes"
   "release_version"
+  "readdirplus"
+  "dentry_cache"
 )
 
 # These tests never become parallel as they are changing bucket permissions.

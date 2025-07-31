@@ -37,7 +37,7 @@ type disabledKernelListCacheTest struct {
 }
 
 func (s *disabledKernelListCacheTest) Setup(t *testing.T) {
-	mountGCSFuseAndSetupTestDir(s.flags, ctx, storageClient, testDirName)
+	mountGCSFuseAndSetupTestDir(s.flags, testDirName)
 }
 
 func (s *disabledKernelListCacheTest) Teardown(t *testing.T) {

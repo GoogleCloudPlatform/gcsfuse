@@ -130,26 +130,49 @@ func (uh *UploadHandler) UploadError() (err error) {
 // uploader is the single-threaded goroutine that uploads blocks.
 func (uh *UploadHandler) uploader() {
 	for currBlock := range uh.uploadCh {
-		if uh.UploadError() != nil {
-			uh.blockPool.Release(currBlock)
-			uh.wg.Done()
-			continue
-		}
-		_, err := io.Copy(uh.writer, currBlock.Reader())
-		if errors.Is(err, context.Canceled) {
-			// Context canceled error indicates that the file was deleted from the
-			// same mount. In this case, we suppress the error to match local
-			// filesystem behavior.
-			err = nil
-		}
-		if err != nil {
-			logger.Errorf("buffered write upload failed for object %s: error in io.Copy: %v", uh.objectName, err)
-			err = gcs.GetGCSError(err)
-			uh.uploadError.Store(&err)
-		}
-		// Put back the uploaded block on the block pool for re-use.
+		uh.uploadBlock(currBlock)
+
+		// Put back the uploaded block to the pool for re-use,
+		// irrespective of whether the upload was successful or not.
 		uh.blockPool.Release(currBlock)
 		uh.wg.Done()
+	}
+}
+
+// uploadBlock uploads the block content to GCS writer.
+// It is called by the uploader goroutine.
+// If the block is nil, it logs a warning and returns.
+// If there is already an error in uploadError, it returns without doing anything.
+// If there is an error during upload, it returns after storing the error in uploadError.
+func (uh *UploadHandler) uploadBlock(b block.Block) {
+	if b == nil {
+		logger.Warnf("uploadBlock: received nil block for object %s", uh.objectName)
+		return
+	}
+
+	if uh.UploadError() != nil {
+		return
+	}
+
+	// Reset the readSeek to 0 before uploading.
+	if off, err := b.Seek(0, io.SeekStart); err != nil || off != 0 {
+		err := fmt.Errorf("buffered write upload failed for object %s: error in block.Seek: %v with offset: %d", uh.objectName, err, off)
+		uh.uploadError.Store(&err)
+		logger.Errorf("uploadBlock: %v", err)
+		return
+	}
+
+	_, err := io.Copy(uh.writer, b)
+	if errors.Is(err, context.Canceled) {
+		// Context canceled error indicates that the file was deleted from the
+		// same mount. In this case, we suppress the error to match local
+		// filesystem behavior.
+		err = nil
+	}
+	if err != nil {
+		err = gcs.GetGCSError(err)
+		uh.uploadError.Store(&err)
+		logger.Errorf("uploadBlock: failed for object %s: error in io.Copy: %v", uh.objectName, err)
 	}
 }
 

@@ -19,29 +19,18 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"google.golang.org/api/googleapi"
-	storagev1 "google.golang.org/api/storage/v1"
 )
 
 var (
-	// pointerSize represents the size of the pointer of any type.
-	pointerSize                             int
-	emptyStringSize                         int
-	emptyStringArraySize                    int
-	emptyObjectAccessControlSize            int
-	emptyObjectAccessControlProjectTeamSize int
+	emptyStringSize      int
+	emptyStringArraySize int
 )
 
 func init() {
-	var i int
-	pointerSize = int(reflect.TypeOf(&i).Size())
 	var s string
 	emptyStringSize = int(reflect.TypeOf(s).Size())
 	var sArray []string
 	emptyStringArraySize = int(reflect.TypeOf(sArray).Size())
-	var emptyObjectAccessControl storagev1.ObjectAccessControl
-	emptyObjectAccessControlSize = int(reflect.TypeOf(emptyObjectAccessControl).Size())
-	var emptyObjectAccessControlProjectTeam storagev1.ObjectAccessControlProjectTeam
-	emptyObjectAccessControlProjectTeamSize = int(reflect.TypeOf(emptyObjectAccessControlProjectTeam).Size())
 }
 
 // Definitions/conventions (not based on a standard, but just made up for convenience).

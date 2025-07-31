@@ -56,13 +56,15 @@ type StorageClientConfig struct {
 
 	// Enabling new API flow for HNS bucket.
 	EnableHNS bool
+	// EnableGoogleLibAuth indicates whether to use the google library authentication flow
+	EnableGoogleLibAuth bool
 
 	ReadStallRetryConfig cfg.ReadStallGcsRetriesConfig
 
 	MetricHandle metrics.MetricHandle
 }
 
-func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *http.Client, err error) {
+func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.TokenSource) (httpClient *http.Client, err error) {
 	var transport *http.Transport
 	// Using http1 makes the client more performant.
 	if storageClientConfig.ClientProtocol == cfg.HTTP1 {
@@ -97,11 +99,14 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 			Timeout: storageClientConfig.HttpClientTimeout,
 		}
 	} else {
-		var tokenSrc oauth2.TokenSource
-		tokenSrc, err = CreateTokenSource(storageClientConfig)
-		if err != nil {
-			err = fmt.Errorf("while fetching tokenSource: %w", err)
-			return
+		if tokenSrc == nil {
+			// CreateTokenSource only if tokenSrc is nil, which means it wasn't provided externally.
+			// This indicates the EnableGoogleLibAuth flag is disabled.
+			tokenSrc, err = CreateTokenSource(storageClientConfig)
+			if err != nil {
+				err = fmt.Errorf("while fetching tokenSource: %w", err)
+				return nil, err
+			}
 		}
 
 		// Custom http client for Go Client.

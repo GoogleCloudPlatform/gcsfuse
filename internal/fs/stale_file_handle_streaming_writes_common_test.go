@@ -72,7 +72,7 @@ func (t *staleFileHandleStreamingWritesCommon) TestWriteFileSyncFileClobberedFlu
 	err = t.f1.Sync()
 	assert.NoError(t.T(), err)
 	// Replace the underlying object with a new generation.
-	clobberFile(t.T(), "foo", "foobar")
+	clobberFile(t.T(), "foobar")
 
 	err = t.f1.Close()
 

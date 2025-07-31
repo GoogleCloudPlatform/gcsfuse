@@ -134,7 +134,7 @@ def get_last_n_days_bandwidth_entries(
     days: int = 3
 ) -> list[float]:
   """
-  Fetches bandwidth measurements (in Mbps) for a given workload type
+  Fetches bandwidth measurements (in MB/s) for a given workload type
   from the last 'n' days of records in the specified BigQuery table.
 
   Args:
@@ -144,7 +144,7 @@ def get_last_n_days_bandwidth_entries(
       days (int): Number of past days to look back from the current time.
 
   Returns:
-      list[float]: A list of bandwidth values (in Mbps). Returns an empty list if no data is found or an error occurs.
+      list[float]: A list of bandwidth values (in MB/s). Returns an empty list if no data is found or an error occurs.
   """
   full_table_name = f"`{table_ref.project}.{table_ref.dataset_id}.{table_ref.table_id}`"
   time_ago = datetime.now() - timedelta(days=days)
@@ -177,7 +177,7 @@ def check_and_alert_bandwidth(bandwidth_threshold_mbps: float, workload_type: st
   the defined threshold, the function prints a warning and exits with status code 1.
 
   Args:
-      bandwidth_threshold_mbps (float): Minimum acceptable bandwidth (in Mbps).
+      bandwidth_threshold_mbps (float): Minimum acceptable bandwidth (in MB/s).
       workload_type (str): The type of workload being evaluated (e.g., "read" or "write").
   """
   client = bigquery.Client(project=PROJECT_ID)
@@ -191,8 +191,8 @@ def check_and_alert_bandwidth(bandwidth_threshold_mbps: float, workload_type: st
   if last_three_days_bandwidths:
     avg_past_bandwidth = sum(last_three_days_bandwidths) / len(last_three_days_bandwidths)
     print(f"Workload Type       : {workload_type}")
-    print(f"3-Day Average       : {avg_past_bandwidth:.2f} Mbps")
-    print(f"Configured Threshold: {bandwidth_threshold_mbps:.2f} Mbps")
+    print(f"3-Day Average       : {avg_past_bandwidth:.2f} MB/s")
+    print(f"Configured Threshold: {bandwidth_threshold_mbps:.2f} MB/s")
 
     if avg_past_bandwidth < bandwidth_threshold_mbps:
       print("FAILURE: 3-day average bandwidth is below the threshold.")

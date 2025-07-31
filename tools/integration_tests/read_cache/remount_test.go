@@ -43,7 +43,7 @@ type remountTest struct {
 
 func (s *remountTest) Setup(t *testing.T) {
 	operations.RemoveDir(cacheDirPath)
-	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient, testDirName)
+	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
 }
 
 func (s *remountTest) Teardown(t *testing.T) {
@@ -69,14 +69,14 @@ func readFileAndValidateCacheWithGCSForDynamicMount(bucketName string, ctx conte
 ////////////////////////////////////////////////////////////////////////
 
 func (s *remountTest) TestCacheIsNotReusedOnRemount(t *testing.T) {
-	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
+	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSize, t)
 
 	// Run read operations on GCSFuse mount.
 	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, t)
 	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, t)
 	structuredReadLogsMount1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	// Re-mount GCSFuse.
-	remountGCSFuse(s.flags, t)
+	remountGCSFuse(s.flags)
 	// Run read operations again on GCSFuse mount.
 	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, false, t)
 	expectedOutcome4 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, false, t)
@@ -91,7 +91,7 @@ func (s *remountTest) TestCacheIsNotReusedOnRemount(t *testing.T) {
 func (s *remountTest) TestCacheIsNotReusedOnDynamicRemount(t *testing.T) {
 	runTestsOnlyForDynamicMount(t)
 	testBucket1 := setup.TestBucket()
-	testFileName1 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
+	testFileName1 := setupFileInTestDir(s.ctx, s.storageClient, fileSize, t)
 	testBucket2, err := dynamic_mounting.CreateTestBucketForDynamicMounting(ctx, storageClient)
 	if err != nil {
 		t.Fatalf("Failed to create bucket for dynamic mounting test: %v", err)
@@ -106,13 +106,13 @@ func (s *remountTest) TestCacheIsNotReusedOnDynamicRemount(t *testing.T) {
 	// Introducing a sleep of 10 seconds after bucket creation to address propagation delays.
 	time.Sleep(10 * time.Second)
 	client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
-	testFileName2 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
+	testFileName2 := setupFileInTestDir(s.ctx, s.storageClient, fileSize, t)
 
 	// Reading files in different buckets.
 	expectedOutcome1 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket1, s.ctx, s.storageClient, testFileName1, true, t)
 	expectedOutcome2 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket2, s.ctx, s.storageClient, testFileName2, true, t)
 	structuredReadLogs1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	remountGCSFuse(s.flags, t)
+	remountGCSFuse(s.flags)
 	// Reading files in different buckets again.
 	expectedOutcome3 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket1, s.ctx, s.storageClient, testFileName1, false, t)
 	expectedOutcome4 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket2, s.ctx, s.storageClient, testFileName2, false, t)

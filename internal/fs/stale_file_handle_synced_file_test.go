@@ -39,7 +39,7 @@ type staleFileHandleSyncedFile struct {
 
 func (t *staleFileHandleSyncedFile) SetupTest() {
 	// Create an object on bucket.
-	t.f1 = createGCSObject(t.T(), "foo", "bar")
+	t.f1 = createGCSObject(t.T(), "bar")
 }
 
 // //////////////////////////////////////////////////////////////////////
@@ -48,7 +48,7 @@ func (t *staleFileHandleSyncedFile) SetupTest() {
 
 func (t *staleFileHandleSyncedFile) TestClobberedFileReadThrowsStaleFileHandleError() {
 	// Replace the underlying object with a new generation.
-	clobberFile(t.T(), "foo", "foobar")
+	clobberFile(t.T(), "foobar")
 
 	buffer := make([]byte, 6)
 	_, err := t.f1.Read(buffer)
@@ -62,7 +62,7 @@ func (t *staleFileHandleSyncedFile) TestClobberedFileReadThrowsStaleFileHandleEr
 
 func (t *staleFileHandleSyncedFile) TestClobberedFileFirstWriteThrowsStaleFileHandleError() {
 	// Replace the underlying object with a new generation.
-	clobberFile(t.T(), "foo", "foobar")
+	clobberFile(t.T(), "foobar")
 
 	_, err := t.f1.Write([]byte("taco"))
 
