@@ -232,17 +232,17 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	wc.Append = bh.BucketType().Zonal
 	// FinalizeOnClose should be true for all writes for now.
 	wc.FinalizeOnClose = true
-
+	objectName := req.Name
 	// Copy the contents to the writer.
 	if _, err = io.Copy(wc, req.Contents); err != nil {
-		err = fmt.Errorf("error in io.Copy: %w", err)
+		err = fmt.Errorf("error in io.Copy(%s): %w", objectName, err)
 		return
 	}
 
 	// We can't use defer to close the writer, because we need to close the
 	// writer successfully before calling Attrs() method of writer.
 	if err = wc.Close(); err != nil {
-		err = fmt.Errorf("error in closing writer : %w", err)
+		err = fmt.Errorf("error in closing writer(%s) : %w", objectName, err)
 		return
 	}
 

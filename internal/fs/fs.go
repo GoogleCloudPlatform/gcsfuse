@@ -2943,9 +2943,8 @@ func (fs *fileSystem) SyncFile(
 	defer file.Unlock()
 
 	// Sync it.
-	objectName := file.Source().Name
 	if err := fs.syncFile(ctx, file); err != nil {
-		err = fmt.Errorf("syncFile(%s): %w", objectName, err)
+		err = fmt.Errorf("syncFile: %w", err)
 		return err
 	}
 	return
