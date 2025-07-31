@@ -1289,12 +1289,12 @@ func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 		{
 			name:     "default",
 			cfgFile:  "empty.yml",
-			expected: &cfg.MetricsConfig{},
+			expected: &cfg.MetricsConfig{Workers: 3, BufferSize: 256},
 		},
 		{
 			name:     "cloud-metrics-export-interval-secs-positive",
 			cfgFile:  "metrics_export_interval_positive.yml",
-			expected: &cfg.MetricsConfig{CloudMetricsExportIntervalSecs: 100},
+			expected: &cfg.MetricsConfig{CloudMetricsExportIntervalSecs: 100, Workers: 3, BufferSize: 256},
 		},
 		{
 			name:    "stackdriver-export-interval-positive",
@@ -1302,6 +1302,8 @@ func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 			expected: &cfg.MetricsConfig{
 				CloudMetricsExportIntervalSecs: 12 * 3600,
 				StackdriverExportInterval:      12 * time.Hour,
+				Workers:                        3,
+				BufferSize:                     256,
 			},
 		},
 	}

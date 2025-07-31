@@ -69,6 +69,10 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "disabled",
 				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
+				},
 			},
 		},
 		{
@@ -83,6 +87,10 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "disabled",
 				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
+				},
 			},
 		},
 		{
@@ -95,6 +103,10 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				},
 				GcsConnection: GcsConnectionConfig{
 					SequentialReadSizeMb: 200,
+				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
 				},
 			},
 		},
@@ -109,6 +121,10 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				GcsConnection: GcsConnectionConfig{
 					SequentialReadSizeMb: 200,
 				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
+				},
 			},
 		},
 		{
@@ -122,18 +138,9 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				GcsConnection: GcsConnectionConfig{
 					SequentialReadSizeMb: 200,
 				},
-			},
-		},
-		{
-			name: "Valid Sequential read size MB",
-			config: &Config{
-				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
-				FileCache: validFileCacheConfig(t),
-				GcsConnection: GcsConnectionConfig{
-					SequentialReadSizeMb: 10,
-				},
-				MetadataCache: MetadataCacheConfig{
-					ExperimentalMetadataPrefetchOnMount: "sync",
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
 				},
 			},
 		},
@@ -147,6 +154,27 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				},
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
+				},
+			},
+		},
+		{
+			name: "Valid Sequential read size MB",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 10,
+				},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
 				},
 			},
 		},
@@ -160,6 +188,10 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				},
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
 				},
 				FileSystem: FileSystemConfig{KernelListCacheTtlSecs: 30},
 			},
@@ -184,6 +216,10 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "disabled",
 				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
+				},
 			},
 		},
 		{
@@ -199,6 +235,10 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "disabled",
 				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
+				},
 			},
 		},
 		{
@@ -211,6 +251,10 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				},
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
 				},
 				FileSystem: FileSystemConfig{KernelListCacheTtlSecs: 30},
 				GcsRetries: GcsRetriesConfig{ChunkTransferTimeoutSecs: 15},
