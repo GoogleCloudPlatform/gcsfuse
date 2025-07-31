@@ -118,7 +118,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		metric.WithUnit("{{.Unit}}"),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
 			{{- range $combination := (index $.AttrCombinations $metric.Name)}}
-			conditionallyObserve(obsrv, &{{getAtomicName $metric.Name $combination}}, {{getVarName $metric.Name $combination}})
+			conditionallyObserve(obsrv, &{{getAtomicName $metric.Name $combination}}{{if $metric.Attributes}}, {{getVarName $metric.Name $combination}}{{end}})
 			{{- end}}
 			return nil
 		}))
@@ -163,9 +163,9 @@ func (o *otelMetrics) Close() {
 	o.wg.Wait()
 }
 
-func conditionallyObserve(obsrv metric.Int64Observer, counter *atomic.Int64, attrSet metric.ObserveOption) {
+func conditionallyObserve(obsrv metric.Int64Observer, counter *atomic.Int64, obsrvOptions ...metric.ObserveOption) {
 	if val := counter.Load(); val > 0 {
-		obsrv.Observe(val, attrSet)
+		obsrv.Observe(val, obsrvOptions...)
 	}
 
 }
