@@ -99,7 +99,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) GetRefCount() int {
 	return mrdWrapper.refCount
 }
 
-// IncrementRefCount increment the refcount and cancel any running cleanup function.
+// IncrementRefCount increments the refcount and cancel any running cleanup function.
 // This method should be called exactly once per user of this wrapper.
 // It has to be called before using the MultiRangeDownloader.
 func (mrdWrapper *MultiRangeDownloaderWrapper) IncrementRefCount() {
