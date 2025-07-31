@@ -2253,7 +2253,7 @@ func (fs *fileSystem) atomicRename(ctx context.Context, oldParent inode.DirInode
 	}
 
 	if err := fs.invalidateChildFileCacheIfExist(oldParent, oldName); err != nil {
-		return fmt.Errorf("invalidateChildFileCacheIfExist: while invalidating cache for renamed file: %w", err)
+		return fmt.Errorf("atomicRename: while invalidating cache for renamed file: %w", err)
 	}
 
 	// Insert new file in type cache.
@@ -2466,7 +2466,7 @@ func (fs *fileSystem) renameNonHierarchicalDir(
 		return err
 	}
 
-	// Rename each descendant atomically
+	// Move all the files from the old directory to the new directory, keeping both directories locked.
 	for _, descendant := range descendants {
 		nameDiff := strings.TrimPrefix(descendant.FullName.GcsObjectName(), oldDir.Name().GcsObjectName())
 		if nameDiff == descendant.FullName.GcsObjectName() {
@@ -2474,14 +2474,16 @@ func (fs *fileSystem) renameNonHierarchicalDir(
 		}
 
 		o := descendant.MinObject
-		if descendant.Type() == metadata.ExplicitDirType || descendant.Type() == metadata.ImplicitDirType || descendant.Type() == metadata.UnknownType {
-			if _, err := newDir.CloneToChildFile(ctx, nameDiff, o); err != nil {
+		// If the descendant is a directory (ExplicitDirType) or has an unknown type, handle it by cloning and deleting.
+		if descendant.Type() == metadata.ExplicitDirType || descendant.Type() == metadata.UnknownType {
+			if _, err = newDir.CloneToChildFile(ctx, nameDiff, o); err != nil {
 				return fmt.Errorf("copy file %q: %w", o.Name, err)
 			}
-			if err := oldDir.DeleteChildFile(ctx, nameDiff, o.Generation, &o.MetaGeneration); err != nil {
+			if err = oldDir.DeleteChildFile(ctx, nameDiff, o.Generation, &o.MetaGeneration); err != nil {
 				return fmt.Errorf("delete file %q: %w", o.Name, err)
 			}
 		} else {
+			// For regular files, perform an in-place rename to the new directory.
 			if _, err = oldDir.RenameFile(ctx, o, path.Join(newDir.Name().GcsObjectName(), nameDiff)); err != nil {
 				return fmt.Errorf("renameFile: while renaming file: %w", err)
 			}

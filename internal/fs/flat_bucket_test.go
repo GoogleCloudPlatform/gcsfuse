@@ -15,29 +15,26 @@
 package fs_test
 
 import (
-	"os"
-	"path"
-	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
 type FlatBucketTests struct {
+	suite.Suite
 	fsTest
+	RenameDirTests
 	RenameFileTests
 }
 
-var expectedFooDirEntriesFlatBucket = []dirEntry{
-	{name: "test", isDir: true},
-	{name: "file1.txt", isDir: false},
-	{name: "file2.txt", isDir: false},
-	{name: "implicit_dir", isDir: true},
-}
-
 func TestFlatBucketTests(t *testing.T) { suite.Run(t, new(FlatBucketTests)) }
+
+func (t *FlatBucketTests) SetT(testingT *testing.T) {
+	t.Suite.SetT(testingT)
+	t.RenameDirTests.SetT(testingT)
+	t.RenameFileTests.SetT(testingT)
+}
 
 func (t *FlatBucketTests) SetupSuite() {
 	t.serverCfg.RenameDirLimit = 20
@@ -52,6 +49,8 @@ func (t *FlatBucketTests) TearDownSuite() {
 func (t *FlatBucketTests) SetupTest() {
 	err := t.createObjects(
 		map[string]string{
+			"foo/test2/":                 "",
+			"foo/test/":                  "",
 			"foo/file1.txt":              file1Content,
 			"foo/file2.txt":              file2Content,
 			"foo/test/file3.txt":         "xyz",
@@ -63,155 +62,4 @@ func (t *FlatBucketTests) SetupTest() {
 
 func (t *FlatBucketTests) TearDownTest() {
 	t.fsTest.TearDown()
-}
-
-func (t *FlatBucketTests) TestRenameDirWithSourceDirectoryHaveLocalFiles() {
-	oldDirPath := path.Join(mntDir, "foo", "test")
-	_, err := os.Stat(oldDirPath)
-	assert.NoError(t.T(), err)
-	file, err := os.OpenFile(path.Join(oldDirPath, "file4.txt"), os.O_RDWR|os.O_CREATE, filePerms)
-	assert.NoError(t.T(), err)
-	defer file.Close()
-	newDirPath := path.Join(mntDir, "bar", "foo_rename")
-
-	err = os.Rename(oldDirPath, newDirPath)
-
-	assert.Error(t.T(), err)
-	// In the logs, we encountered the following error:
-	// "Rename: operation not supported, can't rename directory 'test' with open files: operation not supported."
-	// This was translated to an "operation not supported" error at the kernel level.
-	assert.True(t.T(), strings.Contains(err.Error(), "operation not supported"))
-}
-
-func (t *FlatBucketTests) TestRenameDirWithSameParent() {
-	oldDirPath := path.Join(mntDir, "foo")
-	_, err := os.Stat(oldDirPath)
-	require.NoError(t.T(), err)
-	newDirPath := path.Join(mntDir, "foo_rename")
-	_, err = os.Stat(newDirPath)
-	require.Error(t.T(), err)
-	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
-
-	err = os.Rename(oldDirPath, newDirPath)
-
-	assert.NoError(t.T(), err)
-	_, err = os.Stat(oldDirPath)
-	assert.Error(t.T(), err)
-	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
-	_, err = os.Stat(newDirPath)
-	assert.NoError(t.T(), err)
-	dirEntries, err := os.ReadDir(newDirPath)
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), 4, len(dirEntries))
-	actualDirEntries := []dirEntry{}
-	for _, d := range dirEntries {
-		actualDirEntries = append(actualDirEntries, dirEntry{
-			name:  d.Name(),
-			isDir: d.IsDir(),
-		})
-	}
-	assert.ElementsMatch(t.T(), actualDirEntries, expectedFooDirEntriesFlatBucket)
-}
-
-func (t *FlatBucketTests) TestRenameDirWithDifferentParents() {
-	oldDirPath := path.Join(mntDir, "foo")
-	_, err := os.Stat(oldDirPath)
-	assert.NoError(t.T(), err)
-	newDirPath := path.Join(mntDir, "bar", "foo_rename")
-
-	err = os.Rename(oldDirPath, newDirPath)
-
-	assert.NoError(t.T(), err)
-	_, err = os.Stat(oldDirPath)
-	assert.Error(t.T(), err)
-	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
-	_, err = os.Stat(newDirPath)
-	assert.NoError(t.T(), err)
-	dirEntries, err := os.ReadDir(newDirPath)
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), 4, len(dirEntries))
-	actualDirEntries := []dirEntry{}
-	for _, d := range dirEntries {
-		actualDirEntries = append(actualDirEntries, dirEntry{
-			name:  d.Name(),
-			isDir: d.IsDir(),
-		})
-	}
-	assert.ElementsMatch(t.T(), actualDirEntries, expectedFooDirEntriesFlatBucket)
-}
-
-func (t *FlatBucketTests) TestRenameDirWithOpenGCSFile() {
-	oldDirPath := path.Join(mntDir, "bar")
-	_, err := os.Stat(oldDirPath)
-	assert.NoError(t.T(), err)
-	newDirPath := path.Join(mntDir, "bar_rename")
-	filePath := path.Join(oldDirPath, "file1.txt")
-	f, err := os.Open(filePath)
-	require.NoError(t.T(), err)
-
-	err = os.Rename(oldDirPath, newDirPath)
-
-	require.NoError(t.T(), err)
-	_, err = f.WriteString("test")
-	assert.Error(t.T(), err)
-	assert.True(t.T(), strings.Contains(err.Error(), "bad file descriptor"))
-	assert.NoError(t.T(), f.Close())
-	_, err = os.Stat(oldDirPath)
-	assert.Error(t.T(), err)
-	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
-	_, err = os.Stat(newDirPath)
-	assert.NoError(t.T(), err)
-	dirEntries, err := os.ReadDir(newDirPath)
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), 1, len(dirEntries))
-	assert.Equal(t.T(), "file1.txt", dirEntries[0].Name())
-	assert.False(t.T(), dirEntries[0].IsDir())
-}
-
-// Create directory foo.
-// Stat the directory foo.
-// Rename directory foo --> foo_rename
-// Stat the old directory.
-// Stat the new directory.
-// Read new directory and validate.
-// Create old directory again with same name - foo
-// Stat the directory - foo
-// Read directory again and validate it is empty.
-func (t *FlatBucketTests) TestCreateDirectoryWithSameNameAfterRename() {
-	oldDirPath := path.Join(mntDir, "foo")
-	_, err := os.Stat(oldDirPath)
-	require.NoError(t.T(), err)
-	newDirPath := path.Join(mntDir, "foo_rename")
-	// Rename directory foo --> foo_rename
-	err = os.Rename(oldDirPath, newDirPath)
-	require.NoError(t.T(), err)
-	// Stat old directory.
-	_, err = os.Stat(oldDirPath)
-	require.Error(t.T(), err)
-	require.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
-	// Stat new directory.
-	_, err = os.Stat(newDirPath)
-	require.NoError(t.T(), err)
-	// Read new directory and validate.
-	dirEntries, err := os.ReadDir(newDirPath)
-	require.NoError(t.T(), err)
-	//require.Equal(t.T(), 5, len(dirEntries))
-	actualDirEntries := []dirEntry{}
-	for _, d := range dirEntries {
-		actualDirEntries = append(actualDirEntries, dirEntry{
-			name:  d.Name(),
-			isDir: d.IsDir(),
-		})
-	}
-	require.ElementsMatch(t.T(), actualDirEntries, expectedFooDirEntriesFlatBucket)
-
-	// Create old directory again.
-	err = os.Mkdir(oldDirPath, dirPerms)
-
-	assert.NoError(t.T(), err)
-	_, err = os.Stat(oldDirPath)
-	assert.NoError(t.T(), err)
-	dirEntries, err = os.ReadDir(oldDirPath)
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), 0, len(dirEntries))
 }
