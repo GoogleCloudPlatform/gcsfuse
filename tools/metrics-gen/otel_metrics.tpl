@@ -167,5 +167,4 @@ func conditionallyObserve(obsrv metric.Int64Observer, counter *atomic.Int64, obs
 	if val := counter.Load(); val > 0 {
 		obsrv.Observe(val, obsrvOptions...)
 	}
-
 }

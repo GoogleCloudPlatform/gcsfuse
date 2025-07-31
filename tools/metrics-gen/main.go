@@ -62,16 +62,22 @@ type TemplateData struct {
 
 // Helper functions for the template.
 var funcMap = template.FuncMap{
-	"toPascal":      toPascal,
-	"toCamel":       toCamel,
-	"getVarName":    getVarName,
-	"getAtomicName": getAtomicName,
-	"getGoType":     getGoType,
-	"getUnitMethod": getUnitMethod,
-	"joinInts":      joinInts,
-	"isCounter":     func(m Metric) bool { return m.Type == "int_counter" },
-	"isHistogram":   func(m Metric) bool { return m.Type == "int_histogram" },
-	"buildSwitches": buildSwitches,
+	"toPascal":                    toPascal,
+	"toCamel":                     toCamel,
+	"getVarName":                  getVarName,
+	"getAtomicName":               getAtomicName,
+	"getGoType":                   getGoType,
+	"getUnitMethod":               getUnitMethod,
+	"joinInts":                    joinInts,
+	"isCounter":                   func(m Metric) bool { return m.Type == "int_counter" },
+	"isHistogram":                 func(m Metric) bool { return m.Type == "int_histogram" },
+	"buildSwitches":               buildSwitches,
+	"getTestName":                 getTestName,
+	"getTestFuncArgs":             getTestFuncArgs,
+	"getExpectedAttrs":            getExpectedAttrs,
+	"getLatencyUnit":              getLatencyUnit,
+	"getLatencyMethod":            getLatencyMethod,
+	"getTestFuncArgsForHistogram": getTestFuncArgsForHistogram,
 }
 
 func toPascal(s string) string {
@@ -148,6 +154,70 @@ func joinInts(nums []int64) string {
 		s = append(s, strconv.FormatInt(n, 10))
 	}
 	return strings.Join(s, ", ")
+}
+
+// getTestName generates a test name from an attribute combination.
+func getTestName(combo AttrCombination) string {
+	if len(combo) == 0 {
+		return "no_attributes"
+	}
+	var parts = make([]string, 0, len(combo)*2)
+	for _, pair := range combo {
+		parts = append(parts, pair.Name)
+		parts = append(parts, pair.Value)
+	}
+	return strings.Join(parts, "_")
+}
+
+// getTestFuncArgs generates arguments for the metric function call in tests.
+func getTestFuncArgs(combo AttrCombination) string {
+	var parts []string
+	for _, pair := range combo {
+		if pair.Type == "string" {
+			parts = append(parts, `"`+pair.Value+`"`)
+		} else {
+			parts = append(parts, pair.Value)
+		}
+	}
+	return strings.Join(parts, ", ")
+}
+
+// getExpectedAttrs generates attribute set for test expectations.
+func getExpectedAttrs(combo AttrCombination) string {
+	var parts []string
+	for _, pair := range combo {
+		if pair.Type == "string" {
+			parts = append(parts, fmt.Sprintf(`attribute.String("%s", "%s")`, pair.Name, pair.Value))
+		} else { // bool
+			parts = append(parts, fmt.Sprintf(`attribute.Bool("%s", %s)`, pair.Name, pair.Value))
+		}
+	}
+	return strings.Join(parts, ", ")
+}
+
+func getLatencyUnit(unit string) string {
+	switch unit {
+	case "us":
+		return "Microsecond"
+	case "ms":
+		return "Millisecond"
+	case "s":
+		return "Second"
+	default:
+		return ""
+	}
+}
+
+func getLatencyMethod(unit string) string {
+	return toPascal(getLatencyUnit(unit)) + "s"
+}
+
+func getTestFuncArgsForHistogram(prefix string, attrs []Attribute) string {
+	var parts []string
+	for _, attr := range attrs {
+		parts = append(parts, prefix+"."+toCamel(attr.Name))
+	}
+	return strings.Join(parts, ", ")
 }
 
 // generateCombinations creates all possible combinations of attribute values.
@@ -378,6 +448,7 @@ func main() {
 	createFile(&data, fmt.Sprintf("%s/metric_handle.go", *outputDir), "metric_handle.tpl")
 	createFile(&data, fmt.Sprintf("%s/noop_metrics.go", *outputDir), "noop_metrics.tpl")
 	createFile(&data, fmt.Sprintf("%s/otel_metrics.go", *outputDir), "otel_metrics.tpl")
+	createFile(&data, fmt.Sprintf("%s/otel_metrics_test.go", *outputDir), "otel_metrics_test.tpl")
 
 }
 
