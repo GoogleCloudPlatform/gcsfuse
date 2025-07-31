@@ -269,7 +269,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ParallelMRDReads() {
 
 	// Mock bucket and MRD
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true})
-	fakeMRDWrapper, err := NewMultiRangeDownloaderWrapper(t.mockBucket, t.object)
+	fakeMRDWrapper, err := NewMultiRangeDownloaderWrapper(t.mockBucket, t.object, &cfg.Config{})
 	require.NoError(t.T(), err)
 	t.rr.wrapped.mrdWrapper = &fakeMRDWrapper
 	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloader(t.object, testContent), nil)
