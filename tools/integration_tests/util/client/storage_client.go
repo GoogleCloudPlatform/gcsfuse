@@ -168,13 +168,13 @@ func WriteToObject(ctx context.Context, client *storage.Client, object, content 
 	// Upload an object with storage.Writer.
 	wc, err := NewWriter(ctx, o, client)
 	if err != nil {
-		return fmt.Errorf("Failed to open writer for object %q: %w", o.ObjectName(), err)
+		return fmt.Errorf("Failed to open writer for object %q: %w", object, err)
 	}
 	if _, err := io.WriteString(wc, content); err != nil {
-		return fmt.Errorf("io.WriteSTring: %w", err)
+		return fmt.Errorf("io.WriteString failed for object %q: %w", object, err)
 	}
 	if err := wc.Close(); err != nil {
-		return fmt.Errorf("Writer.Close: %w", err)
+		return fmt.Errorf("Writer.Close failed for object %q: %w", object, err)
 	}
 
 	return nil

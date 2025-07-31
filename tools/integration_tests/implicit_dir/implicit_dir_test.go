@@ -73,15 +73,20 @@ func TestMain(m *testing.M) {
 
 	flagsSet := [][]string{{"--implicit-dirs"}}
 
-	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(testEnv.ctx, testEnv.storageClient); err == nil {
-		flagsSet = append(flagsSet, hnsFlagSet)
-	}
+	// No need to run enable-hns and client-protocol GRPC configuration for ZB,
+	// as those are both by default enabled for ZB.
+	if !setup.IsZonalBucketRun() {
+		if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(testEnv.ctx, testEnv.storageClient); err == nil {
+			flagsSet = append(flagsSet, hnsFlagSet)
+		}
 
-	if !testing.Short() {
-		flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=true"})
+		if !testing.Short() {
+			flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs"})
+		}
 	}
 
 	successCode := implicit_and_explicit_dir_setup.RunTestsForImplicitDirAndExplicitDir(flagsSet, m)
+	setup.SaveLogFileInCaseOfFailure(successCode)
 
 	// Clean up test directory created.
 	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))
