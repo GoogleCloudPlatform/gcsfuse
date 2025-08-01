@@ -175,7 +175,7 @@ write end-to-end tests for GCSFuse.
        GODEBUG=asyncpreemptoff=1 CGO_ENABLED=0 go test ./tools/integration_tests/$TEST_PACKAGE_NAME/... -p 1 -short --integrationTest -v --testbucket=$TEST_BUCKET_NAME --timeout=60m -run $TEST_NAME
        ```
 4. **Run all tests as pre-submit:** Existing GCSFuse end-to-end tests can be run
-   as a pre-submit check by adding the `execute-integration-tests` label to your
+   as a pre-submit check by adding the `execute-integration-tests` and `kokoro:run` label to your
    pull request. Ask one of your assigned code reviewers to apply this label,
    which will trigger the tests. Your reviewer will share any test failure
    details on the pull request.
