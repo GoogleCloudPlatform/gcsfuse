@@ -52,6 +52,7 @@ var (
 type CommonAppendsSuite struct {
 	suite.Suite
 	primaryMount            mountPoint
+	secondaryMount          mountPoint
 	fileName                string
 	fileContent             string
 	isSyncNeededAfterAppend bool
@@ -92,7 +93,6 @@ func (t *SingleMountAppendsSuite) TearDownSuite() {
 // only for dual-mount.
 type DualMountAppendsSuite struct {
 	CommonAppendsSuite
-	secondaryMount mountPoint
 }
 
 func (t *DualMountAppendsSuite) SetupSuite() {
@@ -159,7 +159,7 @@ func (t *CommonAppendsSuite) unmountPrimaryMount() {
 	setup.UnmountGCSFuse(t.primaryMount.mntDir)
 }
 
-func (t *DualMountAppendsSuite) mountSecondaryMount(flags []string) {
+func (t *CommonAppendsSuite) mountSecondaryMount(flags []string) {
 	// Create secondary mountpoint.
 	setup.SetMntDir(t.secondaryMount.mntDir)
 	setup.SetLogFile(t.secondaryMount.logFilePath)
@@ -169,7 +169,7 @@ func (t *DualMountAppendsSuite) mountSecondaryMount(flags []string) {
 	t.secondaryMount.testDirPath = setup.SetupTestDirectory(testDirName)
 }
 
-func (t *DualMountAppendsSuite) unmountSecondaryMount() {
+func (t *CommonAppendsSuite) unmountSecondaryMount() {
 	setup.UnmountGCSFuse(t.secondaryMount.mntDir)
 }
 
