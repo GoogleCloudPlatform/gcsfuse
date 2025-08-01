@@ -379,7 +379,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 		// logfile.stderr will capture the standard error (stderr) output of the gcsfuse background process.
 		var stderrFile *os.File
 		if newConfig.Logging.FilePath != "" {
-			stderrFileName := string(newConfig.Logging.FilePath)
+			stderrFileName := string(newConfig.Logging.FilePath) + ".stderr"
 			if stderrFile, err = os.OpenFile(stderrFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644); err != nil {
 				return err
 			}
