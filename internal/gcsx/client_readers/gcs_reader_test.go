@@ -18,6 +18,7 @@ import (
 	"context"
 	"io"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -860,4 +861,55 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateZonalRandomReads() {
 		assert.Equal(t.T(), metrics.ReadTypeRandom, t.gcsReader.readType.Load())
 		assert.Equal(t.T(), int64(readRange[1]), t.gcsReader.expectedOffset.Load())
 	}
+}
+
+func (t *gcsReaderTest) Test_ReadAt_ParallelReads() {
+	// Setup
+	// t.rr.wrapped.reader = nil
+	t.gcsReader.seeks.Store(minSeeksForRandom)
+	t.gcsReader.readType.Store(metrics.ReadTypeRandom)
+	t.object.Size = 20 * MiB
+	testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
+
+	// Mock bucket and MRD
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true})
+	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapper(t.mockBucket, t.object)
+	require.NoError(t.T(), err)
+	t.gcsReader.mrr.mrdWrapper = &fakeMRDWrapper
+	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloader(t.object, testContent), nil)
+
+	// Parallel reads
+	tasks := []struct {
+		offset int64
+		size   int
+	}{
+		{0, 1 * MiB},
+		{2 * MiB, 2 * MiB},
+		{5 * MiB, 1 * MiB},
+		{10 * MiB, 5 * MiB},
+	}
+
+	var wg sync.WaitGroup
+	var totalBytesReadFromTasks uint64
+
+	for _, task := range tasks {
+		wg.Add(1)
+		totalBytesReadFromTasks += uint64(task.size)
+		go func(offset int64, size int) {
+			defer wg.Done()
+			buf := make([]byte, size)
+			// Each goroutine gets its own context.
+			ctx := context.Background()
+			objData, err := t.gcsReader.ReadAt(ctx, buf, offset)
+
+			require.NoError(t.T(), err)
+			require.Equal(t.T(), size, objData.Size)
+			require.Equal(t.T(), testContent[offset:offset+int64(size)], buf)
+		}(task.offset, task.size)
+	}
+
+	wg.Wait()
+
+	// Validation
+	assert.Equal(t.T(), totalBytesReadFromTasks, t.gcsReader.totalReadBytes.Load())
 }

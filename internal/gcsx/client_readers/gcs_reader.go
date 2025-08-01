@@ -108,7 +108,7 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (reader
 		return readerResponse, io.EOF
 	} else if offset < 0 {
 		err := fmt.Errorf(
-			"illegal offset %d for %d-byte object",
+			"illegal offset %d for %d byte object",
 			offset,
 			gr.object.Size)
 		return readerResponse, err
@@ -151,8 +151,8 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (reader
 }
 
 // readerType specifies the go-sdk interface to use for reads.
-func (gr *GCSReader) readerType(start int64, bucketType gcs.BucketType) ReaderType {
-	if gr.readType.Load() == metrics.ReadTypeRandom && bucketType.Zonal {
+func (gr *GCSReader) readerType(readType int64, bucketType gcs.BucketType) ReaderType {
+	if readType == metrics.ReadTypeRandom && bucketType.Zonal {
 		return MultiRangeReaderType
 	}
 	return RangeReaderType
