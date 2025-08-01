@@ -25,24 +25,30 @@ import (
 func TestFileClobberedError(t *testing.T) {
 	testCases := []struct {
 		name       string
+		fileName   string
 		err        error
 		wantErrMsg string
 	}{
 		{
 			name:       "with_underlying_error",
+			fileName:   "foo.txt",
 			err:        fmt.Errorf("some error"),
-			wantErrMsg: "The file was modified or deleted by another process, possibly due to concurrent modification: some error",
+			wantErrMsg: "The file \"foo.txt\" was modified or deleted by another process, possibly due to concurrent modification: some error",
 		},
 		{
 			name:       "without_underlying_error",
+			fileName:   "bar.txt",
 			err:        nil,
-			wantErrMsg: "The file was modified or deleted by another process, possibly due to concurrent modification: <nil>",
+			wantErrMsg: "The file \"bar.txt\" was modified or deleted by another process, possibly due to concurrent modification: <nil>",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			clobberedErr := &FileClobberedError{Err: tc.err}
+			clobberedErr := &FileClobberedError{
+				Err:      tc.err,
+				FileName: tc.fileName,
+			}
 
 			gotErrMsg := clobberedErr.Error()
 

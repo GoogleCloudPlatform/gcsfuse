@@ -497,6 +497,7 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 	if errors.As(err, &notFoundError) {
 		err = &gcsfuse_errors.FileClobberedError{
 			Err: fmt.Errorf("NewReader: %w", err),
+			FileName: rr.object.Name,
 		}
 		return
 	}
