@@ -103,6 +103,33 @@ func (bp *GenBlockPool[T]) Get() (T, error) {
 	}
 }
 
+// TryGet returns a block if available, or an error if no blocks can be allocated.
+// It returns an existing block if it's ready for reuse or creates a new one if required.
+// Not thread-safe, calling from multiple goroutines may lead to memory leaks because
+// of race conditions.
+func (bp *GenBlockPool[T]) TryGet() (T, error) {
+	select {
+	case b := <-bp.freeBlocksCh:
+		// Reset the block for reuse.
+		b.Reuse()
+		return b, nil
+
+	default:
+		if bp.canAllocateBlock() {
+			b, err := bp.createBlockFunc(bp.blockSize)
+			if err != nil {
+				var zero T
+				return zero, err
+			}
+
+			bp.totalBlocks++
+			return b, nil
+		}
+		var zero T
+		return zero, CantAllocateAnyBlockError
+	}
+}
+
 // canAllocateBlock checks if a new block can be allocated.
 func (bp *GenBlockPool[T]) canAllocateBlock() bool {
 	// If max blocks limit is reached, then no more blocks can be allocated.
