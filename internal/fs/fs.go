@@ -24,7 +24,6 @@ import (
 	"os"
 	"path"
 	"reflect"
-	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -142,27 +141,6 @@ type ServerConfig struct {
 	Notifier *fuse.Notifier
 }
 
-// newBufferedReadWorkerPool creates and starts a new worker pool for buffered reads.
-// The number of workers is determined based on the number of available CPUs.
-func newBufferedReadWorkerPool() (workerpool.WorkerPool, error) {
-	// It's a general heuristic to use 2-3 times the number of CPUs for I/O-bound tasks.
-	// We use 3x here as a balance between parallelism and resource consumption.
-	const workersPerCPU = 3
-	numCPU := runtime.NumCPU()
-	totalWorkers := workersPerCPU * numCPU
-
-	// 10% of total workers for priority, rounded up.
-	priorityWorkers := (totalWorkers + 9) / 10
-	normalWorkers := totalWorkers - priorityWorkers
-
-	wp, err := workerpool.NewStaticWorkerPool(uint32(priorityWorkers), uint32(normalWorkers))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create static worker pool: %w", err)
-	}
-	wp.Start()
-	return wp, nil
-}
-
 // Create a fuse file system server according to the supplied configuration.
 func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileSystem, error) {
 	// Check permissions bits.
@@ -236,7 +214,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 
 	if serverCfg.NewConfig.Read.EnableBufferedRead {
 		var err error
-		fs.bufferedReadWorkerPool, err = newBufferedReadWorkerPool()
+		fs.bufferedReadWorkerPool, err = workerpool.NewStaticWorkerPoolForCurrentCPU()
 		if err != nil {
 			return nil, fmt.Errorf("failed to create worker pool for buffered read: %w", err)
 		}

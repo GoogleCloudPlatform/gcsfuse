@@ -16,6 +16,7 @@ package workerpool
 
 import (
 	"fmt"
+	"runtime"
 	"sync"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
@@ -57,6 +58,27 @@ func NewStaticWorkerPool(priorityWorker uint32, normalWorker uint32) (*staticWor
 		priorityCh: make(chan Task, priorityWorker*200),
 		normalCh:   make(chan Task, normalWorker*5000),
 	}, nil
+}
+
+// NewStaticWorkerPoolForCurrentCPU creates and starts a new worker pool. The
+// number of workers is determined based on the number of available CPUs.
+func NewStaticWorkerPoolForCurrentCPU() (WorkerPool, error) {
+	// It's a general heuristic to use 2-3 times the number of CPUs for I/O-bound tasks.
+	// We use 3x here as a balance between parallelism and resource consumption.
+	const workersPerCPU = 3
+	totalWorkers := workersPerCPU * runtime.NumCPU()
+
+	// 10% of total workers for priority, rounded up.
+	priorityWorkers := (totalWorkers + 9) / 10
+	normalWorkers := totalWorkers - priorityWorkers
+
+	wp, err := NewStaticWorkerPool(uint32(priorityWorkers), uint32(normalWorkers))
+	if err != nil {
+		return nil, err
+	}
+
+	wp.Start()
+	return wp, nil
 }
 
 // Start all the workers and wait till they start receiving requests
