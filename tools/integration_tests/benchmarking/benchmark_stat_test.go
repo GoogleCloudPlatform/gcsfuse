@@ -58,14 +58,15 @@ func createFilesToStat(b *testing.B) {
 func (s *benchmarkStatTest) Benchmark_Stat(b *testing.B) {
 	createFilesToStat(b)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		if _, err := operations.StatFile(path.Join(testDirPath, "a.txt")); err != nil {
-			b.Errorf("testing error: %v", err)
+	for range b.N {
+		filePath := path.Join(testDirPath, "a.txt")
+		if _, err := operations.StatFile(filePath); err != nil {
+			b.Errorf("failed to stat %q: %v", filePath, err)
 		}
 	}
 	averageStatLatency := time.Duration(int(b.Elapsed()) / b.N)
 	if averageStatLatency > expectedStatLatency {
-		b.Errorf("StatFile took more time (%d msec) than expected (%d msec)", averageStatLatency.Milliseconds(), expectedStatLatency.Milliseconds())
+		b.Errorf("StatFile took more time on average (%v) than expected (%v)", averageStatLatency, expectedStatLatency)
 	}
 }
 
