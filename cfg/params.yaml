@@ -636,6 +636,13 @@
   usage: "Max size of type-cache maps which are maintained at a per-directory level."
   default: "4"
 
+- config-path: "metrics.buffer-size"
+  flag-name: "metrics-buffer-size"
+  type: "int"
+  usage: "The maximum number of histogram metric updates in the queue."
+  default: "256"
+  hide-flag: true
+
 - config-path: "metrics.cloud-metrics-export-interval-secs"
   flag-name: "cloud-metrics-export-interval-secs"
   type: "int"
@@ -663,6 +670,13 @@
   type: "bool"
   usage: "Use the new metric names."
   default: false
+  hide-flag: true
+
+- config-path: "metrics.workers"
+  flag-name: "metrics-workers"
+  type: "int"
+  usage: "The number of workers that update histogram metrics concurrently."
+  default: "3"
   hide-flag: true
 
 - config-path: "monitoring.experimental-tracing-mode"

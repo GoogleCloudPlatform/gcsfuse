@@ -69,6 +69,10 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "disabled",
 				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
+				},
 			},
 		},
 		{
@@ -83,6 +87,10 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "disabled",
 				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
+				},
 			},
 		},
 		{
@@ -95,6 +103,10 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				},
 				GcsConnection: GcsConnectionConfig{
 					SequentialReadSizeMb: 200,
+				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
 				},
 			},
 		},
@@ -109,6 +121,10 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				GcsConnection: GcsConnectionConfig{
 					SequentialReadSizeMb: 200,
 				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
+				},
 			},
 		},
 		{
@@ -122,18 +138,9 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				GcsConnection: GcsConnectionConfig{
 					SequentialReadSizeMb: 200,
 				},
-			},
-		},
-		{
-			name: "Valid Sequential read size MB",
-			config: &Config{
-				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
-				FileCache: validFileCacheConfig(t),
-				GcsConnection: GcsConnectionConfig{
-					SequentialReadSizeMb: 10,
-				},
-				MetadataCache: MetadataCacheConfig{
-					ExperimentalMetadataPrefetchOnMount: "sync",
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
 				},
 			},
 		},
@@ -147,6 +154,27 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				},
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
+				},
+			},
+		},
+		{
+			name: "Valid Sequential read size MB",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 10,
+				},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
 				},
 			},
 		},
@@ -160,6 +188,10 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				},
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
 				},
 				FileSystem: FileSystemConfig{KernelListCacheTtlSecs: 30},
 			},
@@ -184,6 +216,10 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "disabled",
 				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
+				},
 			},
 		},
 		{
@@ -199,6 +235,10 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "disabled",
 				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
+				},
 			},
 		},
 		{
@@ -211,6 +251,10 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				},
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
 				},
 				FileSystem: FileSystemConfig{KernelListCacheTtlSecs: 30},
 				GcsRetries: GcsRetriesConfig{ChunkTransferTimeoutSecs: 15},
@@ -714,6 +758,8 @@ func TestValidateMetrics(t *testing.T) {
 			name: "neg_cloud_metrics_export_interval",
 			metricsConfig: MetricsConfig{
 				CloudMetricsExportIntervalSecs: -1,
+				Workers:                        10,
+				BufferSize:                     100,
 			},
 			wantErr: false,
 		},
@@ -721,6 +767,8 @@ func TestValidateMetrics(t *testing.T) {
 			name: "neg_stackdriver_export_interval",
 			metricsConfig: MetricsConfig{
 				StackdriverExportInterval: -1 * time.Second,
+				Workers:                   10,
+				BufferSize:                100,
 			},
 			wantErr: false,
 		},
@@ -728,6 +776,8 @@ func TestValidateMetrics(t *testing.T) {
 			name: "neg_cloud_metrics_export_interval",
 			metricsConfig: MetricsConfig{
 				CloudMetricsExportIntervalSecs: 10,
+				Workers:                        10,
+				BufferSize:                     100,
 			},
 			wantErr: false,
 		},
@@ -742,6 +792,8 @@ func TestValidateMetrics(t *testing.T) {
 			name: "valid_prom_port",
 			metricsConfig: MetricsConfig{
 				PrometheusPort: 5550,
+				Workers:        10,
+				BufferSize:     100,
 			},
 			wantErr: false,
 		},
@@ -749,6 +801,8 @@ func TestValidateMetrics(t *testing.T) {
 			name: "prom_disabled_0",
 			metricsConfig: MetricsConfig{
 				PrometheusPort: 0,
+				Workers:        10,
+				BufferSize:     100,
 			},
 			wantErr: false,
 		},
@@ -756,6 +810,30 @@ func TestValidateMetrics(t *testing.T) {
 			name: "prom_disabled_less_than_0",
 			metricsConfig: MetricsConfig{
 				PrometheusPort: -21,
+				Workers:        10,
+				BufferSize:     100,
+			},
+			wantErr: false,
+		},
+		{
+			name: "metrics_workers_less_than_1",
+			metricsConfig: MetricsConfig{
+				Workers: 0,
+			},
+			wantErr: true,
+		},
+		{
+			name: "metrics_buffer_size_less_than_1",
+			metricsConfig: MetricsConfig{
+				BufferSize: 0,
+			},
+			wantErr: true,
+		},
+		{
+			name: "valid_workers_and_buffer_size",
+			metricsConfig: MetricsConfig{
+				Workers:    10,
+				BufferSize: 100,
 			},
 			wantErr: false,
 		},

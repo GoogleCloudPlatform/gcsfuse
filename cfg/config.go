@@ -226,6 +226,8 @@ type MetadataCacheConfig struct {
 }
 
 type MetricsConfig struct {
+	BufferSize int64 `yaml:"buffer-size"`
+
 	CloudMetricsExportIntervalSecs int64 `yaml:"cloud-metrics-export-interval-secs"`
 
 	PrometheusPort int64 `yaml:"prometheus-port"`
@@ -233,6 +235,8 @@ type MetricsConfig struct {
 	StackdriverExportInterval time.Duration `yaml:"stackdriver-export-interval"`
 
 	UseNewNames bool `yaml:"use-new-names"`
+
+	Workers int64 `yaml:"workers"`
 }
 
 type MonitoringConfig struct {
@@ -563,9 +567,21 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("metadata-cache-ttl-secs", "", 60, "The ttl value in seconds to be used for expiring items in metadata-cache. It can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled metadata-cache. Any value set below -1 will throw an error.")
 
+	flagSet.IntP("metrics-buffer-size", "", 256, "The maximum number of histogram metric updates in the queue.")
+
+	if err := flagSet.MarkHidden("metrics-buffer-size"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("metrics-use-new-names", "", false, "Use the new metric names.")
 
 	if err := flagSet.MarkHidden("metrics-use-new-names"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("metrics-workers", "", 3, "The number of workers that update histogram metrics concurrently.")
+
+	if err := flagSet.MarkHidden("metrics-workers"); err != nil {
 		return err
 	}
 
@@ -1012,7 +1028,15 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("metrics.buffer-size", flagSet.Lookup("metrics-buffer-size")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("metrics.use-new-names", flagSet.Lookup("metrics-use-new-names")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("metrics.workers", flagSet.Lookup("metrics-workers")); err != nil {
 		return err
 	}
 
