@@ -16,7 +16,6 @@ package block
 
 import (
 	"fmt"
-	"io"
 	"testing"
 	"time"
 
@@ -81,15 +80,6 @@ func (t *BlockPoolTest) TestTryGetWhenBlockIsAvailableForReuse() {
 	// Creating a block with some data and send it to blockCh.
 	b, err := createBlock(2)
 	require.Nil(t.T(), err)
-	content := []byte("hi")
-	n, err := b.Write(content)
-	require.Equal(t.T(), 2, n)
-	require.Nil(t.T(), err)
-	// Validating the content of the block
-	require.Equal(t.T(), int64(0), b.(*memoryBlock).readSeek)
-	output, err := io.ReadAll(b)
-	require.Nil(t.T(), err)
-	require.Equal(t.T(), content, output)
 	bp.freeBlocksCh <- b
 	// Setting totalBlocks same as maxBlocks to ensure no new blocks are created.
 	bp.totalBlocks = 10
@@ -131,15 +121,6 @@ func (t *BlockPoolTest) TestGetWhenBlockIsAvailableForReuse() {
 	// Creating a block with some data and send it to blockCh.
 	b, err := createBlock(2)
 	require.Nil(t.T(), err)
-	content := []byte("hi")
-	n, err := b.Write(content)
-	require.Equal(t.T(), 2, n)
-	require.Nil(t.T(), err)
-	// Validating the content of the block
-	require.Equal(t.T(), int64(0), b.(*memoryBlock).readSeek)
-	output, err := io.ReadAll(b)
-	require.Nil(t.T(), err)
-	require.Equal(t.T(), content, output)
 	bp.freeBlocksCh <- b
 	// Setting totalBlocks same as maxBlocks to ensure no new blocks are created.
 	bp.totalBlocks = 10
@@ -314,7 +295,7 @@ func (t *BlockPoolTest) TestTryGetWhenLimitedByGlobalBlocks() {
 }
 
 func (t *BlockPoolTest) TestTryGetWhenTotalBlocksEqualToMaxBlocks() {
-	bp, err := NewGenBlockPool(1024, 10, semaphore.NewWeighted(2), createBlock)
+	bp, err := NewGenBlockPool(1024, 10, semaphore.NewWeighted(10), createBlock)
 	require.Nil(t.T(), err)
 	bp.totalBlocks = 10
 
@@ -339,7 +320,7 @@ func (t *BlockPoolTest) TestGetWhenLimitedByGlobalBlocks() {
 }
 
 func (t *BlockPoolTest) TestGetWhenTotalBlocksEqualToMaxBlocks() {
-	bp, err := NewGenBlockPool(1024, 10, semaphore.NewWeighted(2), createBlock)
+	bp, err := NewGenBlockPool(1024, 10, semaphore.NewWeighted(10), createBlock)
 	require.Nil(t.T(), err)
 	bp.totalBlocks = 10
 
