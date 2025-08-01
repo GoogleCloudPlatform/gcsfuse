@@ -154,6 +154,8 @@ type GcsConnectionConfig struct {
 
 	CustomEndpoint string `yaml:"custom-endpoint"`
 
+	ExperimentalControlClientOnDirectPath bool `yaml:"experimental-control-client-on-direct-path"`
+
 	ExperimentalEnableJsonRead bool `yaml:"experimental-enable-json-read"`
 
 	GrpcConnPoolSize int64 `yaml:"grpc-conn-pool-size"`
@@ -428,6 +430,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.BoolP("enable-streaming-writes", "", true, "Enables streaming uploads during write file operation.")
+
+	flagSet.BoolP("experimental-control-client-on-direct-path", "", true, "This enables direct-path for storage control-client calls.")
+
+	if err := flagSet.MarkHidden("experimental-control-client-on-direct-path"); err != nil {
+		return err
+	}
 
 	flagSet.BoolP("experimental-enable-dentry-cache", "", false, "When enabled, it sets the Dentry cache entry timeout same as metadata-cache-ttl. This enables kernel to use cached entry to map the file paths to inodes, instead of making LookUpInode calls to GCSFuse.")
 
@@ -861,6 +869,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("write.enable-streaming-writes", flagSet.Lookup("enable-streaming-writes")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("gcs-connection.experimental-control-client-on-direct-path", flagSet.Lookup("experimental-control-client-on-direct-path")); err != nil {
 		return err
 	}
 
