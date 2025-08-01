@@ -333,8 +333,8 @@
 
 - config-path: "gcs-connection.experimental-control-client-on-direct-path"
   flag-name: "experimental-control-client-on-direct-path"
-  type: bool
-  usage: This enables direct-path for storage control-client calls. 
+  type: "bool"
+  usage: "This enables direct-path for storage control-client calls."
   default: true
   hide-flag: true
 
