@@ -532,7 +532,7 @@ type fileSystem struct {
 	bufferedReadWorkerPool workerpool.WorkerPool
 
 	// globalMaxReadBlocksSem is a semaphore that limits the total number of blocks
-	// that can be allocated for buffered read across all files in the file system.
+	// that can be allocated for buffered read across all files in the file-handles.
 	// This helps control the overall memory usage for buffered reads.
 	globalMaxReadBlocksSem *semaphore.Weighted
 }
