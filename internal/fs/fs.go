@@ -2931,7 +2931,7 @@ func (fs *fileSystem) WriteFile(
 		}
 		return err
 	}
-	if fs.newConfig.Write.ExperimentalEnableRapidAppends {
+	if fs.newConfig.Write.EnableRapidAppends {
 		// Serve the request via the file handle.
 		gcsSynced, err = fh.Write(ctx, op.Data, op.Offset)
 	} else {

@@ -311,8 +311,8 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteMaxBlocksPerFile:          1,
 		},
 		{
-			name:                                   "Test experimental-enable-rapid-appends flag true.",
-			args:                                   []string{"gcsfuse", "--write-experimental-enable-rapid-appends", "abc", "pqr"},
+			name:                                   "Test enable-rapid-appends flag true.",
+			args:                                   []string{"gcsfuse", "--enable-rapid-appends", "abc", "pqr"},
 			expectedCreateEmptyFile:                false,
 			expectedEnableStreamingWrites:          true,
 			expectedExperimentalEnableRapidAppends: true,
