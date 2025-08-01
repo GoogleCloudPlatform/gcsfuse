@@ -63,7 +63,6 @@ type PrefetchBlock interface {
 	// The value indicates the status of the block:
 	// - BlockStatusDownloaded: Download of this block is complete.
 	// - BlockStatusDownloadFailed: Download of this block has failed.
-	// - BlockStatusDownloadCancelled: Download of this block has been cancelled.
 	NotifyReady(val BlockStatus)
 }
 

@@ -1,6 +1,11 @@
 app-name: hello
 read:
   inactive-stream-timeout: 10s
+  enable-buffered-read: true
+  global-max-blocks: 40
+  block-size-mb: 16
+  start-blocks-per-handle: 4
+  max-blocks-per-handle: 20
 write:
   create-empty-file: true
   enable-streaming-writes: true
@@ -71,3 +76,5 @@ metadata-cache:
 
 metrics:
   cloud-metrics-export-interval-secs: 10
+  workers: 10
+  buffer-size: 128

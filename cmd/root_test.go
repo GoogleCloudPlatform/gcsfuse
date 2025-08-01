@@ -392,6 +392,95 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 	}
 }
 
+func TestArgsParsing_ReadConfigFlags(t *testing.T) {
+	tests := []struct {
+		name                             string
+		args                             []string
+		expectedReadBlockSizeMB          int64
+		expectedReadGlobalMaxBlocks      int64
+		expectedReadMaxBlocksPerHandle   int64
+		expectedReadStartBlocksPerHandle int64
+	}{
+		{
+			name:                             "Test default flags.",
+			args:                             []string{"gcsfuse", "abc", "pqr"},
+			expectedReadBlockSizeMB:          16,
+			expectedReadGlobalMaxBlocks:      20,
+			expectedReadMaxBlocksPerHandle:   20,
+			expectedReadStartBlocksPerHandle: 1,
+		},
+		{
+			name:                             "Test enable buffered read flag true.",
+			args:                             []string{"gcsfuse", "--enable-buffered-read", "abc", "pqr"},
+			expectedReadBlockSizeMB:          16,
+			expectedReadGlobalMaxBlocks:      20,
+			expectedReadMaxBlocksPerHandle:   20,
+			expectedReadStartBlocksPerHandle: 1,
+		},
+		{
+			name:                             "Test enable buffered read flag false.",
+			args:                             []string{"gcsfuse", "--enable-buffered-read=false", "abc", "pqr"},
+			expectedReadBlockSizeMB:          16,
+			expectedReadGlobalMaxBlocks:      20,
+			expectedReadMaxBlocksPerHandle:   20,
+			expectedReadStartBlocksPerHandle: 1,
+		},
+		{
+			name:                             "Test positive read-block-size-mb flag.",
+			args:                             []string{"gcsfuse", "--read-block-size-mb=10", "abc", "pqr"},
+			expectedReadBlockSizeMB:          10,
+			expectedReadGlobalMaxBlocks:      20,
+			expectedReadMaxBlocksPerHandle:   20,
+			expectedReadStartBlocksPerHandle: 1,
+		},
+		{
+			name:                             "Test positive read-global-max-blocks flag.",
+			args:                             []string{"gcsfuse", "--read-global-max-blocks=10", "abc", "pqr"},
+			expectedReadBlockSizeMB:          16,
+			expectedReadGlobalMaxBlocks:      10,
+			expectedReadMaxBlocksPerHandle:   20,
+			expectedReadStartBlocksPerHandle: 1,
+		},
+		{
+			name:                             "Test positive read-max-blocks-per-handle flag.",
+			args:                             []string{"gcsfuse", "--read-max-blocks-per-handle=10", "abc", "pqr"},
+			expectedReadBlockSizeMB:          16,
+			expectedReadGlobalMaxBlocks:      20,
+			expectedReadMaxBlocksPerHandle:   10,
+			expectedReadStartBlocksPerHandle: 1,
+		},
+		{
+			name:                             "Test positive read-start-blocks-per-handle flag.",
+			args:                             []string{"gcsfuse", "--read-start-blocks-per-handle=10", "abc", "pqr"},
+			expectedReadBlockSizeMB:          16,
+			expectedReadGlobalMaxBlocks:      20,
+			expectedReadMaxBlocksPerHandle:   20,
+			expectedReadStartBlocksPerHandle: 10,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var rc cfg.ReadConfig
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				rc = cfg.Read
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedReadBlockSizeMB, rc.BlockSizeMb)
+				assert.Equal(t, tc.expectedReadGlobalMaxBlocks, rc.GlobalMaxBlocks)
+				assert.Equal(t, tc.expectedReadMaxBlocksPerHandle, rc.MaxBlocksPerHandle)
+				assert.Equal(t, tc.expectedReadStartBlocksPerHandle, rc.StartBlocksPerHandle)
+			}
+		})
+	}
+}
+
 func TestArgsParsing_FileCacheFlags(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -1132,6 +1221,8 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--cloud-metrics-export-interval-secs=10", "abc", "pqr"},
 			expected: &cfg.MetricsConfig{
 				CloudMetricsExportIntervalSecs: 10,
+				Workers:                        3,
+				BufferSize:                     256,
 			},
 		},
 		{
@@ -1140,6 +1231,8 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 			expected: &cfg.MetricsConfig{
 				CloudMetricsExportIntervalSecs: 10 * 3600,
 				StackdriverExportInterval:      time.Duration(10) * time.Hour,
+				Workers:                        3,
+				BufferSize:                     256,
 			},
 		},
 		{
@@ -1147,6 +1240,24 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--metrics-use-new-names=true", "abc", "pqr"},
 			expected: &cfg.MetricsConfig{
 				UseNewNames: true,
+				Workers:     3,
+				BufferSize:  256,
+			},
+		},
+		{
+			name: "metrics_workers_non_default",
+			args: []string{"gcsfuse", "--metrics-workers=10", "abc", "pqr"},
+			expected: &cfg.MetricsConfig{
+				Workers:    10,
+				BufferSize: 256,
+			},
+		},
+		{
+			name: "metrics_buffer_size_non_default",
+			args: []string{"gcsfuse", "--metrics-buffer-size=1024", "abc", "pqr"},
+			expected: &cfg.MetricsConfig{
+				Workers:    3,
+				BufferSize: 1024,
 			},
 		},
 	}
@@ -1178,12 +1289,12 @@ func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 		{
 			name:     "default",
 			cfgFile:  "empty.yml",
-			expected: &cfg.MetricsConfig{},
+			expected: &cfg.MetricsConfig{Workers: 3, BufferSize: 256},
 		},
 		{
 			name:     "cloud-metrics-export-interval-secs-positive",
 			cfgFile:  "metrics_export_interval_positive.yml",
-			expected: &cfg.MetricsConfig{CloudMetricsExportIntervalSecs: 100},
+			expected: &cfg.MetricsConfig{CloudMetricsExportIntervalSecs: 100, Workers: 3, BufferSize: 256},
 		},
 		{
 			name:    "stackdriver-export-interval-positive",
@@ -1191,6 +1302,8 @@ func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 			expected: &cfg.MetricsConfig{
 				CloudMetricsExportIntervalSecs: 12 * 3600,
 				StackdriverExportInterval:      12 * time.Hour,
+				Workers:                        3,
+				BufferSize:                     256,
 			},
 		},
 	}

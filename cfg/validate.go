@@ -205,6 +205,12 @@ func isValidMetricsConfig(m *MetricsConfig) error {
 	if m.PrometheusPort > maxPortNumber {
 		return fmt.Errorf("prometheus-port must not be higher than the maximum allowed port number: %d but received: %d instead", maxPortNumber, m.PrometheusPort)
 	}
+	if m.Workers < 1 {
+		return fmt.Errorf("number of metrics workers cannot be less than 1")
+	}
+	if m.BufferSize < 1 {
+		return fmt.Errorf("metrics buffer size cannot be less than 1")
+	}
 	return nil
 }
 
@@ -212,6 +218,30 @@ func isValidChunkTransferTimeoutForRetriesConfig(chunkTransferTimeoutSecs int64)
 	if chunkTransferTimeoutSecs < 0 || chunkTransferTimeoutSecs > maxSupportedTTLInSeconds {
 		return fmt.Errorf("invalid value of ChunkTransferTimeout: %d; should be > 0 or 0 (for infinite)", chunkTransferTimeoutSecs)
 	}
+	return nil
+}
+
+func isValidBufferedReadConfig(rc *ReadConfig) error {
+	if !rc.EnableBufferedRead {
+		return nil
+	}
+
+	if rc.BlockSizeMb <= 0 || rc.BlockSizeMb > util.MaxMiBsInInt64 {
+		return fmt.Errorf("invalid value of read-block-size-mb; can't be less than 1 or more than %d", util.MaxMiBsInInt64)
+	}
+
+	if rc.GlobalMaxBlocks < -1 {
+		return fmt.Errorf("invalid value of read-global-max-blocks: %d; should be >=0 or -1 (for infinite)", rc.GlobalMaxBlocks)
+	}
+
+	if rc.StartBlocksPerHandle < 1 && rc.StartBlocksPerHandle != -1 {
+		return fmt.Errorf("invalid value of read-start-blocks-per-handle: %d; should be >=1 or -1 (for infinite)", rc.StartBlocksPerHandle)
+	}
+
+	if rc.MaxBlocksPerHandle < 1 && rc.MaxBlocksPerHandle != -1 {
+		return fmt.Errorf("invalid value of read-max-blocks-per-handle: %d; should be >=1 or -1 (for infinite)", rc.MaxBlocksPerHandle)
+	}
+
 	return nil
 }
 
@@ -269,6 +299,10 @@ func ValidateConfig(v isSet, config *Config) error {
 
 	if err = isValidParallelDownloadConfig(config); err != nil {
 		return fmt.Errorf("error parsing parallel download config: %w", err)
+	}
+
+	if err = isValidBufferedReadConfig(&config.Read); err != nil {
+		return fmt.Errorf("error parsing buffered read config: %w", err)
 	}
 
 	return nil

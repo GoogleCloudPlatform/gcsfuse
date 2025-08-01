@@ -223,6 +223,53 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 	}
 }
 
+func TestValidateConfigFile_ReadConfig(t *testing.T) {
+	testCases := []struct {
+		name           string
+		configFile     string
+		expectedConfig *cfg.Config
+	}{
+		{
+			name:       "Empty config file [default values].",
+			configFile: "testdata/empty_file.yaml",
+			expectedConfig: &cfg.Config{
+				Read: cfg.ReadConfig{
+					InactiveStreamTimeout: 10 * time.Second,
+					BlockSizeMb:           16,
+					EnableBufferedRead:    false,
+					GlobalMaxBlocks:       20,
+					MaxBlocksPerHandle:    20,
+					StartBlocksPerHandle:  1,
+				},
+			},
+		},
+		{
+			name:       "Valid config file.",
+			configFile: "testdata/valid_config.yaml",
+			expectedConfig: &cfg.Config{
+				Read: cfg.ReadConfig{
+					InactiveStreamTimeout: 10 * time.Second,
+					BlockSizeMb:           16,
+					EnableBufferedRead:    true,
+					MaxBlocksPerHandle:    20,
+					GlobalMaxBlocks:       40,
+					StartBlocksPerHandle:  4,
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
+
+			if assert.NoError(t, err) {
+				assert.EqualValues(t, tc.expectedConfig.Read, gotConfig.Read)
+			}
+		})
+	}
+}
+
 func TestValidateConfigFile_InvalidConfigThrowsError(t *testing.T) {
 	testCases := []struct {
 		name       string
@@ -805,6 +852,8 @@ func TestValidateConfigFile_MetricsConfigSuccessful(t *testing.T) {
 				StackdriverExportInterval:      0,
 				CloudMetricsExportIntervalSecs: 0,
 				PrometheusPort:                 0,
+				Workers:                        3,
+				BufferSize:                     256,
 			},
 		},
 		{
@@ -812,6 +861,8 @@ func TestValidateConfigFile_MetricsConfigSuccessful(t *testing.T) {
 			configFile: "testdata/valid_config.yaml",
 			expectedConfig: &cfg.MetricsConfig{
 				CloudMetricsExportIntervalSecs: 10,
+				Workers:                        10,
+				BufferSize:                     128,
 			},
 		},
 	}

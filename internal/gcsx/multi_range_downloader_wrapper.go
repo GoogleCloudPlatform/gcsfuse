@@ -21,7 +21,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/clock"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
@@ -34,11 +34,11 @@ import (
 // it's refcount reaches 0.
 const multiRangeDownloaderTimeout = 60 * time.Second
 
-func NewMultiRangeDownloaderWrapper(bucket gcs.Bucket, object *gcs.MinObject) (MultiRangeDownloaderWrapper, error) {
-	return NewMultiRangeDownloaderWrapperWithClock(bucket, object, clock.RealClock{})
+func NewMultiRangeDownloaderWrapper(bucket gcs.Bucket, object *gcs.MinObject, config *cfg.Config) (MultiRangeDownloaderWrapper, error) {
+	return NewMultiRangeDownloaderWrapperWithClock(bucket, object, clock.RealClock{}, config)
 }
 
-func NewMultiRangeDownloaderWrapperWithClock(bucket gcs.Bucket, object *gcs.MinObject, clock clock.Clock) (MultiRangeDownloaderWrapper, error) {
+func NewMultiRangeDownloaderWrapperWithClock(bucket gcs.Bucket, object *gcs.MinObject, clock clock.Clock, config *cfg.Config) (MultiRangeDownloaderWrapper, error) {
 	if object == nil {
 		return MultiRangeDownloaderWrapper{}, fmt.Errorf("NewMultiRangeDownloaderWrapperWithClock: Missing MinObject")
 	}
@@ -48,6 +48,7 @@ func NewMultiRangeDownloaderWrapperWithClock(bucket gcs.Bucket, object *gcs.MinO
 		clock:  clock,
 		bucket: bucket,
 		object: object,
+		config: config,
 	}, nil
 }
 
@@ -68,14 +69,16 @@ type MultiRangeDownloaderWrapper struct {
 	// Refcount is used to determine when to close the MultiRangeDownloader.
 	refCount int
 	// Mutex is used to synchronize access over refCount.
-	mu sync.Mutex
+	mu sync.RWMutex
 	// Holds the cancel function, which can be called to cancel the cleanup function.
 	cancelCleanup context.CancelFunc
 	// Used for waiting for timeout (helps us in mocking the functionality).
 	clock clock.Clock
+	// GCSFuse mount config.
+	config *cfg.Config
 }
 
-// Sets the gcs.MinObject stored in the wrapper to passed value, only if it's non nil.
+// SetMinObject sets the gcs.MinObject stored in the wrapper to passed value, only if it's non nil.
 func (mrdWrapper *MultiRangeDownloaderWrapper) SetMinObject(minObj *gcs.MinObject) error {
 	if minObj == nil {
 		return fmt.Errorf("MultiRangeDownloaderWrapper::SetMinObject: Missing MinObject")
@@ -84,19 +87,19 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) SetMinObject(minObj *gcs.MinObjec
 	return nil
 }
 
-// Returns the minObject stored in MultiRangeDownloaderWrapper. Used only for unit testing.
+// GetMinObject returns the minObject stored in MultiRangeDownloaderWrapper. Used only for unit testing.
 func (mrdWrapper *MultiRangeDownloaderWrapper) GetMinObject() *gcs.MinObject {
 	return mrdWrapper.object
 }
 
-// Returns current refcount.
+// GetRefCount returns current refcount.
 func (mrdWrapper *MultiRangeDownloaderWrapper) GetRefCount() int {
-	mrdWrapper.mu.Lock()
-	defer mrdWrapper.mu.Unlock()
+	mrdWrapper.mu.RLock()
+	defer mrdWrapper.mu.RUnlock()
 	return mrdWrapper.refCount
 }
 
-// Increment the refcount and cancel any running cleanup function.
+// IncrementRefCount increments the refcount and cancel any running cleanup function.
 // This method should be called exactly once per user of this wrapper.
 // It has to be called before using the MultiRangeDownloader.
 func (mrdWrapper *MultiRangeDownloaderWrapper) IncrementRefCount() {
@@ -110,7 +113,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) IncrementRefCount() {
 	}
 }
 
-// Decrement the refcount. In case refcount reaches 0, cleanup the MRD.
+// DecrementRefCount decrements the refcount. In case refcount reaches 0, cleanup the MRD.
 // Returns error on invalid usage.
 // This method should be called exactly once per user of this wrapper
 // when MultiRangeDownloader is no longer needed & can be cleaned up.
@@ -162,11 +165,15 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader() (err
 	if mrdWrapper.object == nil || mrdWrapper.bucket == nil {
 		return fmt.Errorf("ensureMultiRangeDownloader error: Missing minObject or bucket")
 	}
+
+	mrdWrapper.mu.RLock()
 	// Create the MRD if it does not exist.
 	// In case the existing MRD is unusable due to closed stream, recreate the MRD.
 	if mrdWrapper.Wrapped == nil || mrdWrapper.Wrapped.Error() != nil {
+		mrdWrapper.mu.RUnlock()
 		mrdWrapper.mu.Lock()
 		defer mrdWrapper.mu.Unlock()
+
 		// Checking if the mrdWrapper state is same after taking the lock.
 		if mrdWrapper.Wrapped == nil || mrdWrapper.Wrapped.Error() != nil {
 			var mrd gcs.MultiRangeDownloader
@@ -180,6 +187,8 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader() (err
 				mrdWrapper.Wrapped = mrd
 			}
 		}
+	} else {
+		mrdWrapper.mu.RUnlock()
 	}
 	return
 }
@@ -216,8 +225,6 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 		mu.Unlock()
 	}()
 
-	requestId := uuid.New()
-	logger.Tracef("%.13v <- MultiRangeDownloader::Add (%s, [%d, %d))", requestId, mrdWrapper.object.Name, startOffset, endOffset)
 	start := time.Now()
 	mrdWrapper.Wrapped.Add(buffer, startOffset, endOffset-startOffset, func(offsetAddCallback int64, bytesReadAddCallback int64, e error) {
 		defer func() {
@@ -229,27 +236,30 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 		}()
 
 		if e != nil && e != io.EOF {
-			e = fmt.Errorf("Error in Add Call: %w", e)
+			e = fmt.Errorf("error in Add call: %w", e)
 		}
 	})
 
-	select {
-	case <-time.After(timeout):
-		err = fmt.Errorf("Timeout")
-	case <-ctx.Done():
-		err = fmt.Errorf("Context Cancelled: %w", ctx.Err())
-	case res := <-done:
+	if !mrdWrapper.config.FileSystem.IgnoreInterrupts {
+		select {
+		case <-time.After(timeout):
+			err = fmt.Errorf("timeout")
+		case <-ctx.Done():
+			err = ctx.Err()
+		case res := <-done:
+			bytesRead = res.bytesRead
+			err = res.err
+		}
+	} else {
+		res := <-done
 		bytesRead = res.bytesRead
 		err = res.err
 	}
-	duration := time.Since(start)
-	monitor.CaptureMultiRangeDownloaderMetrics(ctx, metricHandle, "MultiRangeDownloader::Add", start)
-	errDesc := "OK"
 	if err != nil {
-		errDesc = err.Error()
 		err = fmt.Errorf("MultiRangeDownloaderWrapper::Read: %w", err)
-		logger.Errorf("%v", err)
+		logger.Error(err.Error())
 	}
-	logger.Tracef("%.13v -> MultiRangeDownloader::Add (%s, [%d, %d)) (%v): %v", requestId, mrdWrapper.object.Name, startOffset, endOffset, duration, errDesc)
+	monitor.CaptureMultiRangeDownloaderMetrics(ctx, metricHandle, "MultiRangeDownloader::Add", start)
+
 	return
 }

@@ -95,6 +95,7 @@ be interacting with the file system.`)
 		StatCacheTTL:                       time.Duration(newConfig.MetadataCache.TtlSecs) * time.Second,
 		NegativeStatCacheTTL:               time.Duration(newConfig.MetadataCache.NegativeTtlSecs) * time.Second,
 		EnableMonitoring:                   cfg.IsMetricsEnabled(&newConfig.Metrics),
+		LogSeverity:                        newConfig.Logging.Severity,
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
 		ChunkTransferTimeoutSecs:           newConfig.GcsRetries.ChunkTransferTimeoutSecs,
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",

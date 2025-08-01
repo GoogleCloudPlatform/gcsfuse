@@ -123,7 +123,7 @@ Close and fsync create a new generation of the object before returning, as long 
 Examples:
 
 - Machine A opens a file and writes then successfully closes or syncs it, and the file was not concurrently unlinked from the point of view of A. Machine B then opens the file after machine A finishes closing or syncing. Machine B will observe a version of the file at least as new as the one created by machine A.
-- Machine A and B both open the same file, which contains the text ‘ABC’. Machine A modifies the file to ‘ABC-123’ and closes/syncs the file which gets written back to Cloud Storage. After, Machine B, which still has the file open, instead modifies the file to ‘ABC-XYZ’, and saves and closes the file. As the last writer wins, the current state of the file will read ‘ABC-XYZ’.
+- Machine A and B both open the same file, which contains the text ‘ABC’. Machine A modifies the file to ‘ABC-123’ and closes/syncs the file which gets written back to Cloud Storage. Afterward, Machine B, which still has the file open, modifies its local copy to ‘ABC-XYZ’, then tries to save and close the file. Since the first writer wins, the final state of the file in the cloud storage will be 'ABC-123'. Consequently, Machine B's file descriptor will receive an ESTALE error.
 
 ### Stale File Handle Errors
 
