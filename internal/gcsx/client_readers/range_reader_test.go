@@ -615,11 +615,3 @@ func (t *rangeReaderTest) Test_ReadAt_ReaderNotExhausted() {
 	assert.Equal(t.T(), rc, t.rangeReader.reader)
 	assert.Equal(t.T(), offset+bufSize, t.rangeReader.start)
 }
-
-// func (t *rangeReaderTest) Test_ReadAt_InvalidOffset() {
-// 	t.object.Size = 50
-
-// 	_, err := t.readAt(65, int64(t.object.Size))
-
-// 	assert.True(t.T(), errors.Is(err, io.EOF), "expected %v error got %v", io.EOF, err)
-// }
