@@ -294,9 +294,9 @@ type WriteConfig struct {
 
 	CreateEmptyFile bool `yaml:"create-empty-file"`
 
-	EnableStreamingWrites bool `yaml:"enable-streaming-writes"`
+	EnableRapidAppends bool `yaml:"enable-rapid-appends"`
 
-	ExperimentalEnableRapidAppends bool `yaml:"experimental-enable-rapid-appends"`
+	EnableStreamingWrites bool `yaml:"enable-streaming-writes"`
 
 	GlobalMaxBlocks int64 `yaml:"global-max-blocks"`
 
@@ -418,6 +418,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.")
+
+	flagSet.BoolP("enable-rapid-appends", "", true, "Enables support for appends to unfinalized object using streaming writes")
 
 	flagSet.BoolP("enable-read-stall-retry", "", true, "To turn on/off retries for stalled read requests. This is based on a timeout that changes depending on how long similar requests took in the past.")
 
@@ -741,12 +743,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("write-experimental-enable-rapid-appends", "", false, "Enables support for appends to unfinalized object using streaming writes")
-
-	if err := flagSet.MarkHidden("write-experimental-enable-rapid-appends"); err != nil {
-		return err
-	}
-
 	flagSet.IntP("write-global-max-blocks", "", 4, "Specifies the maximum number of blocks available for streaming writes across all files.  The value should be >= 0 or -1 (for infinite blocks). A value of 0 disables streaming writes.")
 
 	flagSet.IntP("write-max-blocks-per-file", "", 1, "Specifies the maximum number of blocks to be used by a single file for  streaming writes. The value should be >= 1 or -1 (for infinite blocks).")
@@ -853,6 +849,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metadata-cache.enable-nonexistent-type-cache", flagSet.Lookup("enable-nonexistent-type-cache")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("write.enable-rapid-appends", flagSet.Lookup("enable-rapid-appends")); err != nil {
 		return err
 	}
 
@@ -1173,10 +1173,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("write.block-size-mb", flagSet.Lookup("write-block-size-mb")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("write.experimental-enable-rapid-appends", flagSet.Lookup("write-experimental-enable-rapid-appends")); err != nil {
 		return err
 	}
 

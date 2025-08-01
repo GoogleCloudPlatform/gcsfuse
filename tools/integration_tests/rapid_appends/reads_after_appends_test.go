@@ -108,19 +108,19 @@ func (t *CommonAppendsSuite) TestAppendsAndReads() {
 		// all cache disabled
 		enableMetadataCache: false,
 		enableFileCache:     false,
-		flags:               []string{"--write-experimental-enable-rapid-appends=true", "--write-global-max-blocks=-1", "--metadata-cache-ttl-secs=0"},
+		flags:               []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1", "--metadata-cache-ttl-secs=0"},
 	}, {
 		enableMetadataCache: true,
 		enableFileCache:     false,
-		flags:               []string{"--write-experimental-enable-rapid-appends=true", "--write-global-max-blocks=-1", metadataCacheEnableFlag},
+		flags:               []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1", metadataCacheEnableFlag},
 	}, {
 		enableMetadataCache: true,
 		enableFileCache:     true,
-		flags:               []string{"--write-experimental-enable-rapid-appends=true", "--write-global-max-blocks=-1", metadataCacheEnableFlag, "--file-cache-max-size-mb=-1", fileCacheDirFlag()},
+		flags:               []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1", metadataCacheEnableFlag, "--file-cache-max-size-mb=-1", fileCacheDirFlag()},
 	}, {
 		enableMetadataCache: false,
 		enableFileCache:     true,
-		flags:               []string{"--write-experimental-enable-rapid-appends=true", "--write-global-max-blocks=-1", "--metadata-cache-ttl-secs=0", "--file-cache-max-size-mb=-1", fileCacheDirFlag()},
+		flags:               []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1", "--metadata-cache-ttl-secs=0", "--file-cache-max-size-mb=-1", fileCacheDirFlag()},
 	}} {
 		func() {
 			t.mountPrimaryMount(scenario.flags)
