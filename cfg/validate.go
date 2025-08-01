@@ -205,8 +205,11 @@ func isValidMetricsConfig(m *MetricsConfig) error {
 	if m.PrometheusPort > maxPortNumber {
 		return fmt.Errorf("prometheus-port must not be higher than the maximum allowed port number: %d but received: %d instead", maxPortNumber, m.PrometheusPort)
 	}
-	if m.Workers < 1 || m.BufferSize < 1 {
-		return fmt.Errorf("number of metrics workers or metrics buffer size cannot be less than 1")
+	if m.Workers < 1 {
+		return fmt.Errorf("number of metrics workers cannot be less than 1")
+	}
+	if m.BufferSize < 1 {
+		return fmt.Errorf("metrics buffer size cannot be less than 1")
 	}
 	return nil
 }
