@@ -69,7 +69,7 @@ type MultiRangeDownloaderWrapper struct {
 	// Refcount is used to determine when to close the MultiRangeDownloader.
 	refCount int
 	// Mutex is used to synchronize access over refCount.
-	mu sync.Mutex
+	mu sync.RWMutex
 	// Holds the cancel function, which can be called to cancel the cleanup function.
 	cancelCleanup context.CancelFunc
 	// Used for waiting for timeout (helps us in mocking the functionality).
@@ -94,8 +94,8 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) GetMinObject() *gcs.MinObject {
 
 // GetRefCount returns current refcount.
 func (mrdWrapper *MultiRangeDownloaderWrapper) GetRefCount() int {
-	mrdWrapper.mu.Lock()
-	defer mrdWrapper.mu.Unlock()
+	mrdWrapper.mu.RLock()
+	defer mrdWrapper.mu.RUnlock()
 	return mrdWrapper.refCount
 }
 
@@ -165,11 +165,15 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader() (err
 	if mrdWrapper.object == nil || mrdWrapper.bucket == nil {
 		return fmt.Errorf("ensureMultiRangeDownloader error: Missing minObject or bucket")
 	}
+
+	mrdWrapper.mu.RLock()
 	// Create the MRD if it does not exist.
 	// In case the existing MRD is unusable due to closed stream, recreate the MRD.
 	if mrdWrapper.Wrapped == nil || mrdWrapper.Wrapped.Error() != nil {
+		mrdWrapper.mu.RUnlock()
 		mrdWrapper.mu.Lock()
 		defer mrdWrapper.mu.Unlock()
+
 		// Checking if the mrdWrapper state is same after taking the lock.
 		if mrdWrapper.Wrapped == nil || mrdWrapper.Wrapped.Error() != nil {
 			var mrd gcs.MultiRangeDownloader
@@ -183,6 +187,8 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader() (err
 				mrdWrapper.Wrapped = mrd
 			}
 		}
+	} else {
+		mrdWrapper.mu.RUnlock()
 	}
 	return
 }
