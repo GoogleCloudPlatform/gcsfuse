@@ -117,9 +117,24 @@ then
   echo checkout PR branch
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
+  # Get the commit-id of HEAD
+  commitId=$(git show -s --format="%H" HEAD)
+  echo "commitId: $commitId"
+  echo "Building and installing gcsfuse..."
+  ./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId
+
   echo "Running e2e tests on zonal bucket(s) ..."
-  # $1 argument is refering to value of testInstalledPackage.
-  /usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --zonal --track-resource-usage
+
+  # # Don't stop on failure.
+  # set +e
+
+  # # $1 argument is refering to value of testInstalledPackage.
+  # /usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --zonal --track-resource-usage
+
+  /usr/local/bin/bash ./tools/integration_tests/run_e2e_tests.sh true false ${BUCKET_LOCATION} false false true
+
+  # # wait after finishing for investigation of logs.
+  # sleep infinity
 fi
 
 # Execute integration tests on non-zonal bucket(s).
