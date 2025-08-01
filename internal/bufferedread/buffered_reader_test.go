@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
@@ -230,13 +231,13 @@ func (t *BufferedReaderTest) TestCheckInvariantsPrefetchBlockSizeTooSmall() {
 	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
 	require.NoError(t.T(), err, "NewBufferedReader should not return error")
 
-	reader.config.PrefetchBlockSizeBytes = MiB - 1
+	reader.config.PrefetchBlockSizeBytes = util.MiB - 1
 
 	assert.Panics(t.T(), func() { reader.CheckInvariants() }, "Should panic for block size less than 1 MiB")
 }
 
 func (t *BufferedReaderTest) TestCheckInvariantsNoPanic() {
-	t.config.PrefetchBlockSizeBytes = MiB
+	t.config.PrefetchBlockSizeBytes = util.MiB
 	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
 	require.NoError(t.T(), err, "NewBufferedReader should not return error")
 

@@ -24,6 +24,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
@@ -44,8 +45,6 @@ type BufferedReadConfig struct {
 }
 
 const (
-	MiB = 1 << 20
-
 	defaultRandomReadsThreshold = 3
 	defaultPrefetchMultiplier   = 2
 )
@@ -454,7 +453,7 @@ func (p *BufferedReader) CheckInvariants() {
 	}
 
 	// The prefetch block size must be at least 1 MiB.
-	if p.config.PrefetchBlockSizeBytes < MiB {
+	if p.config.PrefetchBlockSizeBytes < util.MiB {
 		panic(fmt.Sprintf("BufferedReader: PrefetchBlockSizeBytes must be at least 1 MiB, but is %d", p.config.PrefetchBlockSizeBytes))
 	}
 

@@ -20,9 +20,10 @@ import (
 	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedread"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedread"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	clientReaders "github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/client_readers"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
@@ -73,11 +74,11 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 	}
 
 	// If buffered read is enabled, initialize the buffered reader and add it to the readers.
-	readConfig := config.Config.Read
 	if config.Config.Read.EnableBufferedRead {
+		readConfig := config.Config.Read
 		bufferedReadConfig := &bufferedread.BufferedReadConfig{
 			MaxPrefetchBlockCnt:     readConfig.MaxBlocksPerHandle,
-			PrefetchBlockSizeBytes:  readConfig.BlockSizeMb * 1024 * 1024,
+			PrefetchBlockSizeBytes:  readConfig.BlockSizeMb * util.MiB,
 			InitialPrefetchBlockCnt: readConfig.StartBlocksPerHandle,
 		}
 		bufferedReader, err := bufferedread.NewBufferedReader(
@@ -89,7 +90,7 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 			config.MetricHandle,
 		)
 		if err != nil {
-			logger.Warnf("Failed to create bufferedReader: %v. Falling back to another reader.", err)
+			logger.Warnf("Failed to create bufferedReader: %v. Buffered reading will be disabled for this file handle.", err)
 		} else {
 			readers = append(readers, bufferedReader)
 		}
