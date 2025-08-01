@@ -2809,7 +2809,6 @@ func (fs *fileSystem) ReadFile(
 	if fh.Inode().IsUsingBWH() {
 		// Flush Pending streaming writes and issue read within same inode lock.
 		err = fs.flushFile(ctx, fh.Inode())
-		// test comment
 		if err != nil {
 			fh.Inode().Unlock()
 			return err
