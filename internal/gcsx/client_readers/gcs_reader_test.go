@@ -863,9 +863,8 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateZonalRandomReads() {
 	}
 }
 
-func (t *gcsReaderTest) Test_ReadAt_ParallelReads() {
+func (t *gcsReaderTest) Test_ReadAt_ParallelRandomReads() {
 	// Setup
-	// t.rr.wrapped.reader = nil
 	t.gcsReader.seeks.Store(minSeeksForRandom)
 	t.gcsReader.readType.Store(metrics.ReadTypeRandom)
 	t.object.Size = 20 * MiB
@@ -873,7 +872,7 @@ func (t *gcsReaderTest) Test_ReadAt_ParallelReads() {
 
 	// Mock bucket and MRD
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true})
-	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapper(t.mockBucket, t.object)
+	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapper(t.mockBucket, t.object, &cfg.Config{})
 	require.NoError(t.T(), err)
 	t.gcsReader.mrr.mrdWrapper = &fakeMRDWrapper
 	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloader(t.object, testContent), nil)
