@@ -59,8 +59,12 @@ func CreateGRPCControlClient(ctx context.Context, clientOpts []option.ClientOpti
 		logger.Fatal("error setting direct path env var: %v", err)
 	}
 
-	opts := append(clientOpts, internaloption.EnableDirectPath(true), internaloption.AllowNonDefaultServiceAccount(true), internaloption.EnableDirectPathXds())
-	controlClient, err = control.NewStorageControlClient(ctx, opts...)
+	if clientConfig.ExperimentalControlClientOnDirectPath {
+		logger.Info("Using direct-path for control-client")
+		clientOpts = append(clientOpts, internaloption.EnableDirectPath(true), internaloption.AllowNonDefaultServiceAccount(true), internaloption.EnableDirectPathXds())
+	}
+
+	controlClient, err = control.NewStorageControlClient(ctx, clientOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("NewStorageControlClient: %w", err)
 	}
