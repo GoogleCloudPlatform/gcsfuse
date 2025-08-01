@@ -17,16 +17,63 @@ package rapid_appends
 import (
 	"fmt"
 	"log"
+	"math/rand/v2"
 	"os"
 	"path"
 	"syscall"
+	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+// declare a function type for read and verify
+type readAndVerifyFunc func(t *testing.T, filePath string, expectedContent []byte)
+
+func readSequentiallyAndVerify(t *testing.T, filePath string, expectedContent []byte) {
+	readContent, err := operations.ReadFileSequentially(filePath, 1024*1024)
+
+	// For sequential reads, we expect the content to be exactly as expected.
+	require.NoErrorf(t, err, "failed to read file %q sequentially: %v", filePath, err)
+	require.Equal(t, expectedContent, readContent)
+}
+
+func readRandomlyAndVerify(t *testing.T, filePath string, expectedContent []byte) {
+	file, err := operations.OpenFileAsReadonly(filePath)
+	require.NoErrorf(t, err, "failed to open file %q: %v", filePath, err)
+	defer operations.CloseFileShouldNotThrowError(t, file)
+	if len(expectedContent) == 0 {
+		t.SkipNow()
+	}
+	fileInfo, err := file.Stat()
+	require.NoError(t, err)
+	fileSize := fileInfo.Size()
+	require.GreaterOrEqualf(t, fileSize, int64(len(expectedContent)), "file %q is too small to read %d bytes", filePath, len(expectedContent))
+
+	// Content to be read from [0, maxOffset) .
+	maxOffset := len(expectedContent)
+	// Limit number of reads if the content to read is too small.
+	numReads := min(maxOffset, 10)
+	for i := range numReads {
+		// Ensure offset <= maxOffset-1 .
+		offset := rand.IntN(maxOffset)
+		// Ensure (offset+readSize) <= maxOffset and readSize >= 1.
+		readSize := rand.IntN(maxOffset-offset) + 1
+		buffer := make([]byte, readSize)
+
+		n, err := file.ReadAt(buffer, int64(offset))
+
+		require.NoErrorf(t, err, "Random-read failed at iter#%d to read file %q at [%d, %d): %v", i, filePath, offset, offset+readSize, err)
+		require.Equalf(t, readSize, n, "failed to read %v bytes from %q at offset %v. Read bytes = %v.", readSize, filePath, offset, n)
+		require.Equalf(t, expectedContent[offset:offset+n], buffer[:n], "content mismatch in random read at iter#%d at offset [%d, %d): expected %q, got %q", i, offset, offset+readSize, expectedContent[offset:offset+n], buffer[:n])
+	}
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
@@ -40,10 +87,16 @@ func (t *CommonAppendsSuite) TestAppendsAndReads() {
 	}
 
 	testCases := []struct {
-		name string
+		name          string
+		readAndVerify readAndVerifyFunc
 	}{
 		{
-			name: "SequentialRead",
+			name:          "SequentialRead",
+			readAndVerify: readSequentiallyAndVerify,
+		},
+		{
+			name:          "RandomRead",
+			readAndVerify: readRandomlyAndVerify,
 		},
 	}
 
@@ -91,27 +144,19 @@ func (t *CommonAppendsSuite) TestAppendsAndReads() {
 						t.appendToFile(appendFileHandle, setup.GenerateRandomString(appendSize))
 						sizeAfterAppend := len(t.fileContent)
 
-						gotContent, err := operations.ReadFile(readPath)
-
-						require.NoError(t.T(), err)
-						readContent := string(gotContent)
 						// If metadata cache is enabled, gcsfuse reads up to the cached file size.
 						// For same-mount appends/reads, file size is always current.
 						// The initial read (i=0) bypasses cache, seeing the latest file size.
 						if !scenario.enableMetadataCache || !t.isSyncNeededAfterAppend || (i == 0) {
-							assert.Equalf(t.T(), t.fileContent, readContent, "failed to match full content in non-metadata-cache/single-mount after %v appends", i+1)
+							tc.readAndVerify(t.T(), readPath, []byte(t.fileContent[:sizeAfterAppend]))
 						} else {
 							// Read only up to the cached file size (before append).
-							assert.Equalf(t.T(), t.fileContent[:sizeBeforeAppend], readContent, "failed to match partial content in metadata-cache dual-mount after %v appends", i+1)
+							tc.readAndVerify(t.T(), readPath, []byte(t.fileContent[:sizeBeforeAppend]))
 
 							// Wait for metadata cache to expire to fetch the latest size for the next read.
 							time.Sleep(time.Duration(metadataCacheTTLSecs) * time.Second)
-							gotContent, err = operations.ReadFile(readPath)
-
 							// Expect read up to the latest file size which is the size after the append.
-							require.NoError(t.T(), err)
-							readContent = string(gotContent)
-							assert.Equalf(t.T(), t.fileContent[:sizeAfterAppend], readContent, "failed to match full content in metadata-cache dual-mount after %v appends", i+1)
+							tc.readAndVerify(t.T(), readPath, []byte(t.fileContent[:sizeAfterAppend]))
 						}
 					}
 				})
