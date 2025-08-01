@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync/atomic"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
@@ -40,7 +41,7 @@ type MultiRangeReader struct {
 	mrdWrapper *gcsx.MultiRangeDownloaderWrapper
 
 	// boolean variable to determine if MRD is being used or not.
-	isMRDInUse bool
+	isMRDInUse atomic.Bool
 
 	metricHandle metrics.MetricHandle
 }
@@ -73,8 +74,7 @@ func (mrd *MultiRangeReader) readFromMultiRangeReader(ctx context.Context, p []b
 		return 0, fmt.Errorf("readFromMultiRangeReader: Invalid MultiRangeDownloaderWrapper")
 	}
 
-	if !mrd.isMRDInUse {
-		mrd.isMRDInUse = true
+	if mrd.isMRDInUse.CompareAndSwap(false, true) {
 		mrd.mrdWrapper.IncrementRefCount()
 	}
 
@@ -99,11 +99,11 @@ func (mrd *MultiRangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequ
 }
 
 func (mrd *MultiRangeReader) destroy() {
-	if mrd.isMRDInUse {
+	if mrd.isMRDInUse.Load() {
 		err := mrd.mrdWrapper.DecrementRefCount()
 		if err != nil {
 			logger.Errorf("randomReader::Destroy:%v", err)
 		}
-		mrd.isMRDInUse = false
+		mrd.isMRDInUse.Store(false)
 	}
 }
