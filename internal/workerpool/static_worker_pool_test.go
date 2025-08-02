@@ -15,6 +15,7 @@
 package workerpool
 
 import (
+	"runtime"
 	"testing"
 	"time"
 
@@ -153,4 +154,23 @@ func TestStaticWorkerPool_Stop(t *testing.T) {
 	assert.Panics(t, func() { pool.stop <- true }, "normalCh channel is not closed.")
 	assert.Panics(t, func() { pool.normalCh <- &dummyTask{} }, "normalCh channel is not closed.")
 	assert.Panics(t, func() { pool.priorityCh <- &dummyTask{} }, "priorityCh channel is not closed.")
+}
+
+func TestNewStaticWorkerPoolForCurrentCPU(t *testing.T) {
+	pool, err := NewStaticWorkerPoolForCurrentCPU()
+	require.NoError(t, err)
+	require.NotNil(t, pool)
+	defer pool.Stop()
+	staticPool, ok := pool.(*staticWorkerPool)
+	require.True(t, ok, "The returned pool should be of type *staticWorkerPool")
+	totalWorkers := 3 * runtime.NumCPU()
+	expectedPriorityWorkers := (3*runtime.NumCPU() + 9) / 10
+	expectedNormalWorkers := totalWorkers - expectedPriorityWorkers
+	dt := &dummyTask{}
+
+	pool.Schedule(true, dt)
+
+	assert.Equal(t, uint32(expectedPriorityWorkers), staticPool.priorityWorker)
+	assert.Equal(t, uint32(expectedNormalWorkers), staticPool.normalWorker)
+	assert.Eventually(t, func() bool { return dt.executed }, 100*time.Millisecond, time.Millisecond, "Task was not executed in time.")
 }

@@ -26,9 +26,11 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/read_manager"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
+	"golang.org/x/sync/semaphore"
 )
 
 type FileHandle struct {
@@ -65,17 +67,26 @@ type FileHandle struct {
 
 	// Mount configuration.
 	config *cfg.Config
+
+	// bufferedReadWorkerPool is used to execute download tasks for buffered reads.
+	bufferedReadWorkerPool workerpool.WorkerPool
+
+	// globalMaxReadBlocksSem is a semaphore that limits the total number of blocks
+	// that can be allocated for buffered read across all files in the file system.
+	globalMaxReadBlocksSem *semaphore.Weighted
 }
 
 // LOCKS_REQUIRED(fh.inode.mu)
-func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, openMode util.OpenMode, c *cfg.Config) (fh *FileHandle) {
+func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, openMode util.OpenMode, c *cfg.Config, bufferedReadWorkerPool workerpool.WorkerPool, globalMaxReadBlocksSem *semaphore.Weighted) (fh *FileHandle) {
 	fh = &FileHandle{
-		inode:                 inode,
-		fileCacheHandler:      fileCacheHandler,
-		cacheFileForRangeRead: cacheFileForRangeRead,
-		metricHandle:          metricHandle,
-		openMode:              openMode,
-		config:                c,
+		inode:                  inode,
+		fileCacheHandler:       fileCacheHandler,
+		cacheFileForRangeRead:  cacheFileForRangeRead,
+		metricHandle:           metricHandle,
+		openMode:               openMode,
+		config:                 c,
+		bufferedReadWorkerPool: bufferedReadWorkerPool,
+		globalMaxReadBlocksSem: globalMaxReadBlocksSem,
 	}
 
 	fh.inode.RegisterFileHandle(fh.openMode == util.Read)
@@ -323,6 +334,8 @@ func (fh *FileHandle) tryEnsureReadManager(ctx context.Context, sequentialReadSi
 		MetricHandle:          fh.metricHandle,
 		MrdWrapper:            &fh.inode.MRDWrapper,
 		Config:                fh.config,
+		WorkerPool:            fh.bufferedReadWorkerPool,
+		GlobalMaxBlocksSem:    fh.globalMaxReadBlocksSem,
 	})
 
 	return nil

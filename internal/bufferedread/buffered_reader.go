@@ -24,6 +24,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
@@ -34,18 +35,19 @@ import (
 
 // ErrPrefetchBlockNotAvailable is returned when a block cannot be
 // acquired from the pool for prefetching. This can be used by callers to
-// implement a fallback mechanism, e.g. falling back to a direct GCS read.
+// implement a fallback mechanism, e.g. falling back to another reader.
 var ErrPrefetchBlockNotAvailable = errors.New("block for prefetching not available")
 
 type BufferedReadConfig struct {
 	MaxPrefetchBlockCnt     int64 // Maximum number of blocks that can be prefetched.
 	PrefetchBlockSizeBytes  int64 // Size of each block to be prefetched.
 	InitialPrefetchBlockCnt int64 // Number of blocks to prefetch initially.
-	PrefetchMultiplier      int64 // Multiplier for number of blocks to prefetch.
-	RandomReadsThreshold    int64 // Number of random reads after which the reader falls back to GCS reader.
 }
 
-const MiB = 1 << 20
+const (
+	defaultRandomReadsThreshold = 3
+	defaultPrefetchMultiplier   = 2
+)
 
 // blockQueueEntry holds a data block with a function
 // to cancel its in-flight download.
@@ -65,7 +67,7 @@ type BufferedReader struct {
 	nextBlockIndexToPrefetch int64
 
 	// randomSeekCount is the number of random seeks performed. This is used to
-	// detect if the read pattern is random and fall back to a simpler GCS reader.
+	// detect if the read pattern is random and fall back to another reader.
 	randomSeekCount int64
 
 	// numPrefetchBlocks is the number of blocks to prefetch in the next
@@ -82,6 +84,10 @@ type BufferedReader struct {
 
 	ctx        context.Context
 	cancelFunc context.CancelFunc
+
+	prefetchMultiplier int64 // Multiplier for number of blocks to prefetch.
+
+	randomReadsThreshold int64 // Number of random reads after which the reader falls back to another reader.
 }
 
 // NewBufferedReader returns a new bufferedReader instance.
@@ -102,6 +108,8 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 		blockPool:                blockpool,
 		workerPool:               workerPool,
 		metricHandle:             metricHandle,
+		prefetchMultiplier:       defaultPrefetchMultiplier,
+		randomReadsThreshold:     defaultRandomReadsThreshold,
 	}
 
 	reader.ctx, reader.cancelFunc = context.WithCancel(context.Background())
@@ -111,13 +119,13 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 // handleRandomRead detects and handles random read patterns. A read is considered
 // random if the requested offset is outside the currently prefetched window.
 // If the number of detected random reads exceeds a configured threshold, it
-// returns a gcsx.FallbackToAnotherReader error to signal that a simpler GCS
-// reader should be used.
+// returns a gcsx.FallbackToAnotherReader error to signal that another reader
+// should be used.
 func (p *BufferedReader) handleRandomRead(offset int64) error {
-	// Exit early if we have already decided to fall back to a GCS reader. This
-	// avoids re-evaluating the read pattern on every call when the random read
-	// threshold has been met.
-	if p.randomSeekCount > p.config.RandomReadsThreshold {
+	// Exit early if we have already decided to fall back to another reader.
+	// This avoids re-evaluating the read pattern on every call when the random
+	// read threshold has been met.
+	if p.randomSeekCount > p.randomReadsThreshold {
 		return gcsx.FallbackToAnotherReader
 	}
 
@@ -139,9 +147,9 @@ func (p *BufferedReader) handleRandomRead(offset int64) error {
 		p.blockPool.Release(entry.block)
 	}
 
-	if p.randomSeekCount > p.config.RandomReadsThreshold {
-		logger.Tracef("Too many random reads for object %q (count: %d, threshold: %d); falling back to GCS reader.",
-			p.object.Name, p.randomSeekCount, p.config.RandomReadsThreshold)
+	if p.randomSeekCount > p.randomReadsThreshold {
+		logger.Tracef("Too many random reads for object %q (count: %d, threshold: %d); falling back to another reader.",
+			p.object.Name, p.randomSeekCount, p.randomReadsThreshold)
 		return gcsx.FallbackToAnotherReader
 	}
 
@@ -253,6 +261,9 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 		if p.blockQueue.IsEmpty() {
 			if err = p.freshStart(off); err != nil {
+				if errors.Is(err, ErrPrefetchBlockNotAvailable) {
+					return resp, gcsx.FallbackToAnotherReader
+				}
 				err = fmt.Errorf("ReadAt: freshStart failed: %w", err)
 				break
 			}
@@ -340,7 +351,7 @@ func (p *BufferedReader) prefetch() error {
 	}
 
 	// Set the size for the next multiplicative prefetch.
-	p.numPrefetchBlocks *= p.config.PrefetchMultiplier
+	p.numPrefetchBlocks *= p.prefetchMultiplier
 
 	// Do not prefetch more than MaxPrefetchBlockCnt blocks.
 	if p.numPrefetchBlocks > p.config.MaxPrefetchBlockCnt {
@@ -442,7 +453,7 @@ func (p *BufferedReader) CheckInvariants() {
 	}
 
 	// The prefetch block size must be at least 1 MiB.
-	if p.config.PrefetchBlockSizeBytes < MiB {
+	if p.config.PrefetchBlockSizeBytes < util.MiB {
 		panic(fmt.Sprintf("BufferedReader: PrefetchBlockSizeBytes must be at least 1 MiB, but is %d", p.config.PrefetchBlockSizeBytes))
 	}
 
@@ -451,8 +462,8 @@ func (p *BufferedReader) CheckInvariants() {
 		panic(fmt.Sprintf("BufferedReader: blockQueue length %d exceeds limit %d", p.blockQueue.Len(), p.config.MaxPrefetchBlockCnt))
 	}
 
-	// The random seek count should never exceed RandomReadsThreshold.
-	if p.randomSeekCount > p.config.RandomReadsThreshold {
-		panic(fmt.Sprintf("BufferedReader: randomSeekCount %d exceeds threshold %d", p.randomSeekCount, p.config.RandomReadsThreshold))
+	// The random seek count should never exceed randomReadsThreshold.
+	if p.randomSeekCount > p.randomReadsThreshold {
+		panic(fmt.Sprintf("BufferedReader: randomSeekCount %d exceeds threshold %d", p.randomSeekCount, p.randomReadsThreshold))
 	}
 }

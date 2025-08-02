@@ -30,6 +30,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 
 	"golang.org/x/sync/semaphore"
@@ -205,9 +206,18 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		metricHandle:               serverCfg.MetricHandle,
 		enableAtomicRenameObject:   serverCfg.NewConfig.EnableAtomicRenameObject,
 		globalMaxWriteBlocksSem:    semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
+		globalMaxReadBlocksSem:     semaphore.NewWeighted(serverCfg.NewConfig.Read.GlobalMaxBlocks),
 	}
 	if serverCfg.Notifier != nil {
 		fs.notifier = serverCfg.Notifier
+	}
+
+	if serverCfg.NewConfig.Read.EnableBufferedRead {
+		var err error
+		fs.bufferedReadWorkerPool, err = workerpool.NewStaticWorkerPoolForCurrentCPU()
+		if err != nil {
+			return nil, fmt.Errorf("failed to create worker pool for buffered read: %w", err)
+		}
 	}
 
 	// Set up root bucket
@@ -508,6 +518,15 @@ type fileSystem struct {
 	// It is used to invalidate the kernel's dentry cache,
 	// providing feedback to the kernel about dynamic content changes.
 	notifier *fuse.Notifier
+
+	// bufferedReadWorkerPool is used for asynchronous prefetching of data for buffered reads.
+	// It executes download tasks associated with prefetch blocks.
+	bufferedReadWorkerPool workerpool.WorkerPool
+
+	// globalMaxReadBlocksSem is a semaphore that limits the total number of blocks
+	// that can be allocated for buffered read across all file-handles in the file system.
+	// This helps control the overall memory usage for buffered reads.
+	globalMaxReadBlocksSem *semaphore.Weighted
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -1624,6 +1643,9 @@ func (fs *fileSystem) Destroy() {
 	if fs.fileCacheHandler != nil {
 		_ = fs.fileCacheHandler.Destroy()
 	}
+	if fs.bufferedReadWorkerPool != nil {
+		fs.bufferedReadWorkerPool.Stop()
+	}
 }
 
 func (fs *fileSystem) StatFS(
@@ -2011,7 +2033,7 @@ func (fs *fileSystem) CreateFile(
 
 	// CreateFile() invoked to create new files, can be safely considered as filehandle
 	// opened in append mode.
-	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, util.Append, fs.newConfig)
+	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, util.Append, fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem)
 	op.Handle = handleID
 
 	fs.mu.Unlock()
@@ -2774,7 +2796,7 @@ func (fs *fileSystem) OpenFile(
 
 	// Figure out the mode in which the file is being opened.
 	openMode := util.FileOpenMode(op)
-	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, fs.newConfig)
+	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem)
 	op.Handle = handleID
 
 	// When we observe object generations that we didn't create, we assign them

@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
@@ -41,8 +42,6 @@ const (
 	testGlobalMaxBlocks         int64 = 20
 	testPrefetchBlockSizeBytes  int64 = 1024
 	testInitialPrefetchBlockCnt int64 = 2
-	testPrefetchMultiplier      int64 = 2
-	testRandomReadsThreshold    int64 = 3
 )
 
 type BufferedReaderTest struct {
@@ -113,8 +112,6 @@ func (t *BufferedReaderTest) SetupTest() {
 		MaxPrefetchBlockCnt:     testMaxPrefetchBlockCnt,
 		PrefetchBlockSizeBytes:  testPrefetchBlockSizeBytes,
 		InitialPrefetchBlockCnt: testInitialPrefetchBlockCnt,
-		PrefetchMultiplier:      testPrefetchMultiplier,
-		RandomReadsThreshold:    testRandomReadsThreshold,
 	}
 	var err error
 	t.workerPool, err = workerpool.NewStaticWorkerPool(5, 10)
@@ -200,7 +197,7 @@ func (t *BufferedReaderTest) TestCheckInvariantsRandomSeekCountExceedsThreshold(
 	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
 	require.NoError(t.T(), err, "NewBufferedReader should not return error")
 
-	reader.randomSeekCount = t.config.RandomReadsThreshold + 1
+	reader.randomSeekCount = reader.randomReadsThreshold + 1
 
 	assert.Panics(t.T(), func() { reader.CheckInvariants() })
 }
@@ -234,13 +231,13 @@ func (t *BufferedReaderTest) TestCheckInvariantsPrefetchBlockSizeTooSmall() {
 	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
 	require.NoError(t.T(), err, "NewBufferedReader should not return error")
 
-	reader.config.PrefetchBlockSizeBytes = MiB - 1
+	reader.config.PrefetchBlockSizeBytes = util.MiB - 1
 
 	assert.Panics(t.T(), func() { reader.CheckInvariants() }, "Should panic for block size less than 1 MiB")
 }
 
 func (t *BufferedReaderTest) TestCheckInvariantsNoPanic() {
-	t.config.PrefetchBlockSizeBytes = MiB
+	t.config.PrefetchBlockSizeBytes = util.MiB
 	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
 	require.NoError(t.T(), err, "NewBufferedReader should not return error")
 
@@ -542,7 +539,6 @@ func (t *BufferedReaderTest) TestPrefetch() {
 
 func (t *BufferedReaderTest) TestPrefetchWithMultiplicativeIncrease() {
 	t.config.InitialPrefetchBlockCnt = 1
-	t.config.PrefetchMultiplier = 2
 	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
 	require.NoError(t.T(), err)
 	// First prefetch schedules 1 block.
@@ -990,7 +986,6 @@ func (t *BufferedReaderTest) TestReadAtSpanningMultipleBlocks() {
 
 func (t *BufferedReaderTest) TestReadAtSequentialReadAcrossBlocks() {
 	t.config.InitialPrefetchBlockCnt = 1
-	t.config.PrefetchMultiplier = 2
 	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
 	require.NoError(t.T(), err)
 	// Mock reads for all blocks that will be downloaded.
@@ -1032,9 +1027,9 @@ func (t *BufferedReaderTest) TestReadAtSequentialReadAcrossBlocks() {
 }
 
 func (t *BufferedReaderTest) TestReadAtFallsBackAfterRandomReads() {
-	t.config.RandomReadsThreshold = 2
 	t.config.InitialPrefetchBlockCnt = 1
 	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	reader.randomReadsThreshold = 2
 	require.NoError(t.T(), err)
 	buf := make([]byte, 10)
 	// Mock GCS calls for the first random read, which will download block 2 and prefetch block 3.
