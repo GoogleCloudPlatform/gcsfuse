@@ -137,7 +137,7 @@ func (b *debugBucket) BucketType() gcs.BucketType {
 }
 
 func setupReader(ctx context.Context, b *debugBucket, req *gcs.ReadObjectRequest, method string) (gcs.StorageReader, error) {
-	id, desc, start := b.startRequest("%q(%q, %v)", method, req.Name, req.Range)
+	id, desc, start := b.startRequest("%s(%q, %v)", method, req.Name, req.Range)
 
 	// Call through.
 	rc, err := b.wrapped.NewReaderWithReadHandle(ctx, req)
