@@ -12,6 +12,7 @@ write:
   global-max-blocks: 20
   block-size-mb: 10
   max-blocks-per-file: 2
+  enable-rapid-appends: false
 file-cache:
   cache-file-for-range-read: true
   download-chunk-size-mb: 300
