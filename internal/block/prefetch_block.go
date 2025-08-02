@@ -92,7 +92,7 @@ func createPrefetchBlock(blockSize int64) (PrefetchBlock, error) {
 	prot, flags := syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_ANON|syscall.MAP_PRIVATE
 	addr, err := syscall.Mmap(-1, 0, int(blockSize), prot, flags)
 	if err != nil {
-		return nil, fmt.Errorf("mmap error: %v", err)
+		return nil, fmt.Errorf("createPrefetchBlock: mmap error: %w", err)
 	}
 
 	mb := memoryBlock{
@@ -115,7 +115,7 @@ func createPrefetchBlock(blockSize int64) (PrefetchBlock, error) {
 // It returns the number of bytes read and an error if any.
 func (pmb *prefetchMemoryBlock) ReadAt(p []byte, off int64) (n int, err error) {
 	if off < 0 || off >= pmb.Size() {
-		return 0, fmt.Errorf("offset %d is out of bounds for block size %d", off, pmb.Size())
+		return 0, fmt.Errorf("prefetchMemoryBlock.ReadAt: offset %d is out of bounds for block size %d", off, pmb.Size())
 	}
 
 	n = copy(p, pmb.buffer[pmb.offset.start+off:pmb.offset.end])
@@ -135,12 +135,12 @@ func (pmb *prefetchMemoryBlock) AbsStartOff() int64 {
 
 func (pmb *prefetchMemoryBlock) SetAbsStartOff(startOff int64) error {
 	if startOff < 0 {
-		return fmt.Errorf("startOff cannot be negative, got %d", startOff)
+		return fmt.Errorf("SetAbsStartOff: startOff cannot be negative, got %d", startOff)
 	}
 
 	// If absStartOff is already set, then return an error.
 	if pmb.absStartOff >= 0 {
-		return fmt.Errorf("AbsStartOff is already set, it should be set only once.")
+		return fmt.Errorf("SetAbsStartOff: AbsStartOff is already set, it should be set only once.")
 	}
 
 	pmb.absStartOff = startOff
