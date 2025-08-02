@@ -17,36 +17,40 @@ package fs_test
 import (
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
-type ZonalBucketTests struct {
-	RenameFileTests
+type FlatBucketTests struct {
+	suite.Suite
 	fsTest
+	RenameDirTests
+	RenameFileTests
 }
 
-func TestZonalBucketTests(t *testing.T) { suite.Run(t, new(ZonalBucketTests)) }
+func TestFlatBucketTests(t *testing.T) { suite.Run(t, new(FlatBucketTests)) }
 
-func (t *ZonalBucketTests) SetupSuite() {
-	t.serverCfg.ImplicitDirectories = false
-	t.serverCfg.MetricHandle = metrics.NewNoopMetrics()
-	bucketType = gcs.BucketType{Zonal: true}
+func (t *FlatBucketTests) SetT(testingT *testing.T) {
+	t.Suite.SetT(testingT)
+	t.RenameDirTests.SetT(testingT)
+	t.RenameFileTests.SetT(testingT)
+}
+
+func (t *FlatBucketTests) SetupSuite() {
+	t.serverCfg.RenameDirLimit = 20
+	t.serverCfg.ImplicitDirectories = true
 	t.fsTest.SetUpTestSuite()
 }
 
-func (t *ZonalBucketTests) TearDownSuite() {
+func (t *FlatBucketTests) TearDownSuite() {
 	t.fsTest.TearDownTestSuite()
 }
 
-func (t *ZonalBucketTests) SetupTest() {
-	err := t.createFolders([]string{"foo/", "bar/", "foo/test2/", "foo/test/"})
-	require.NoError(t.T(), err)
-
-	err = t.createObjects(
+func (t *FlatBucketTests) SetupTest() {
+	err := t.createObjects(
 		map[string]string{
+			"foo/test2/":                 "",
+			"foo/test/":                  "",
 			"foo/file1.txt":              file1Content,
 			"foo/file2.txt":              file2Content,
 			"foo/test/file3.txt":         "xyz",
@@ -56,6 +60,6 @@ func (t *ZonalBucketTests) SetupTest() {
 	require.NoError(t.T(), err)
 }
 
-func (t *ZonalBucketTests) TearDownTest() {
+func (t *FlatBucketTests) TearDownTest() {
 	t.fsTest.TearDown()
 }

@@ -151,7 +151,9 @@ func (t *fsTest) SetUpTestSuite() {
 		chunkTransferTimeoutSecs: 10,
 		tmpObjectPrefix:          ".gcsfuse_tmp/",
 	}
-	t.serverCfg.RenameDirLimit = RenameDirLimit
+	if t.serverCfg.RenameDirLimit == 0 {
+		t.serverCfg.RenameDirLimit = RenameDirLimit
+	}
 	t.serverCfg.SequentialReadSizeMb = SequentialReadSizeMb
 
 	if t.serverCfg.NewConfig == nil {
