@@ -14,15 +14,12 @@
 # limitations under the License.
 
 set -e
-#!/bin/bash
-set -e
 
-# --- Config ---
 VM_NAME="gcsfuse-micro-benchmark-tests"
 ZONE="us-west1-b"
 SCRIPT_LOCAL_PATH="./perfmetrics/scripts/micro_benchmarks/run_microbenchmark.sh"
 SCRIPT_REMOTE_PATH="/tmp/run_microbenchmark.sh"
-
+q
 # --- Upload script to VM ---
 echo "Copying script to VM..."
 gcloud compute scp "$SCRIPT_LOCAL_PATH" "$VM_NAME:$SCRIPT_REMOTE_PATH" --zone "$ZONE"
@@ -32,4 +29,3 @@ echo "Running script on VM..."
 gcloud compute ssh "$VM_NAME" --zone "$ZONE" --command "bash $SCRIPT_REMOTE_PATH"
 
 echo "Script executed successfully on VM."
-
