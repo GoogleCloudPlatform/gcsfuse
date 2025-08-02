@@ -194,7 +194,9 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 					BlockSizeMb:           32 * util.MiB,
 					EnableStreamingWrites: true,
 					GlobalMaxBlocks:       4,
-					MaxBlocksPerFile:      1},
+					MaxBlocksPerFile:      1,
+					EnableRapidAppends:    true,
+				},
 			},
 		},
 		{

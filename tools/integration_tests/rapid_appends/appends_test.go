@@ -42,7 +42,7 @@ func (t *DualMountAppendsSuite) TestAppendSessionInvalidatedByAnotherClientUponT
 	const initialContent = "dummy content"
 	const appendContent = "appended content"
 	for _, flags := range [][]string{
-		{"--write-experimental-enable-rapid-appends=true", "--write-block-size-mb=1"},
+		{"--enable-rapid-appends=true", "--write-block-size-mb=1"},
 	} {
 		var err error
 		func() {
@@ -99,7 +99,7 @@ func (t *SingleMountAppendsSuite) TestContentAppendedInNonAppendModeNotVisibleTi
 	t.T().Skip()
 
 	for _, flags := range [][]string{
-		{"--write-experimental-enable-rapid-appends=true", "--write-block-size-mb=1"},
+		{"--enable-rapid-appends=true", "--write-block-size-mb=1"},
 	} {
 		func() {
 			t.mountPrimaryMount(flags)
@@ -143,7 +143,7 @@ func (t *SingleMountAppendsSuite) TestContentAppendedInNonAppendModeNotVisibleTi
 func (t *SingleMountAppendsSuite) TestAppendsToFinalizedObjectNotVisibleUntilClose() {
 	const initialContent = "dummy content"
 	for _, flags := range [][]string{
-		{"--write-experimental-enable-rapid-appends=true", "--write-block-size-mb=1"},
+		{"--enable-rapid-appends=true", "--write-block-size-mb=1"},
 	} {
 		func() {
 			t.mountPrimaryMount(flags)
@@ -184,7 +184,7 @@ func (t *SingleMountAppendsSuite) TestAppendsToFinalizedObjectNotVisibleUntilClo
 func (t *SingleMountAppendsSuite) TestAppendsVisibleInRealTimeWithConcurrentRPlusHandle() {
 	const initialContent = "dummy content"
 	for _, flags := range [][]string{
-		{"--write-experimental-enable-rapid-appends=true", "--write-block-size-mb=1"},
+		{"--enable-rapid-appends=true", "--write-block-size-mb=1"},
 	} {
 		func() {
 			t.mountPrimaryMount(flags)
@@ -238,7 +238,7 @@ func (t *SingleMountAppendsSuite) TestRandomWritesVisibleAfterCloseWithConcurren
 
 	const initialContent = "dummy content"
 	for _, flags := range [][]string{
-		{"--write-experimental-enable-rapid-appends=true", "--write-block-size-mb=1"},
+		{"--enable-rapid-appends=true", "--write-block-size-mb=1"},
 	} {
 		func() {
 			t.mountPrimaryMount(flags)
@@ -291,7 +291,7 @@ func (t *SingleMountAppendsSuite) TestFallbackHappensWhenNonAppendHandleDoesFirs
 	t.T().Skip()
 
 	for _, flags := range [][]string{
-		{"--write-experimental-enable-rapid-appends=true", "--write-block-size-mb=1"},
+		{"--enable-rapid-appends=true", "--write-block-size-mb=1"},
 	} {
 		func() {
 			t.mountPrimaryMount(flags)
@@ -336,7 +336,7 @@ func (t *SingleMountAppendsSuite) TestFallbackHappensWhenNonAppendHandleDoesFirs
 
 func (t *SingleMountAppendsSuite) TestKernelShouldSeeUpdatedSizeOnAppends() {
 	const initialContent = "dummy content"
-	flags := []string{"--write-experimental-enable-rapid-appends=true", "--write-block-size-mb=1"}
+	flags := []string{"--enable-rapid-appends=true", "--write-block-size-mb=1"}
 	log.Printf("Running test with flags: %v", flags)
 
 	testCases := []struct {

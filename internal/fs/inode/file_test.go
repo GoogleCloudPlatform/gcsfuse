@@ -246,7 +246,7 @@ func (t *FileTest) TestAreBufferedWritesSupported() {
 		object.Finalized = tc.finalized
 		t.backingObj = storageutil.ConvertObjToMinObject(object)
 		t.createInode()
-		t.in.config.Write.ExperimentalEnableRapidAppends = true
+		t.in.config.Write.EnableRapidAppends = true
 
 		isSupported := t.in.areBufferedWritesSupported(tc.openMode, object)
 
@@ -1898,9 +1898,9 @@ func getWriteConfig() *cfg.WriteConfig {
 
 func getWriteConfigWithEnabledRapidAppends() *cfg.WriteConfig {
 	return &cfg.WriteConfig{
-		MaxBlocksPerFile:               10,
-		BlockSizeMb:                    10,
-		EnableStreamingWrites:          true,
-		ExperimentalEnableRapidAppends: true,
+		MaxBlocksPerFile:      10,
+		BlockSizeMb:           10,
+		EnableStreamingWrites: true,
+		EnableRapidAppends:    true,
 	}
 }
