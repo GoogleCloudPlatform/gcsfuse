@@ -19,6 +19,22 @@ import (
 	"sync"
 )
 
+func init() {
+	// Initialize the default predictor.
+	defaultPredictor = NewHeuristicReaderPredictor()
+}
+
+var defaultPredictor ReaderPredictor
+
+func ProcessInput(input PredictorInput) {
+	// Record the read type in the default predictor.
+	defaultPredictor.RecordRead(input)
+}
+
+func Predict() ReadType {
+	return defaultPredictor.PredictReadType()
+}
+
 type ReadType int64
 
 const (

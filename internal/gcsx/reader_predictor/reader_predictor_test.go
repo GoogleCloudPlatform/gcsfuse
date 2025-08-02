@@ -120,6 +120,7 @@ func (hrp *HeuristicReaderPredictorSuite) TestPredictReadType_SmallFile() {
 
 	assert.Equal(hrp.T(), Sequential, predictor.PredictReadType())
 }
+
 func (hrp *HeuristicReaderPredictorSuite) TestPredictReadType_LargeFile() {
 	predictor := NewHeuristicReaderPredictor()
 
