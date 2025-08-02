@@ -23,6 +23,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/reader_predictor"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
@@ -84,13 +85,22 @@ type GCSReaderConfig struct {
 }
 
 func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, config *GCSReaderConfig) *GCSReader {
-	return &GCSReader{
+	gr := &GCSReader{
 		object:               obj,
 		bucket:               bucket,
 		sequentialReadSizeMb: config.SequentialReadSizeMb,
 		rangeReader:          NewRangeReader(obj, bucket, config.Config, config.MetricHandle),
 		mrr:                  NewMultiRangeReader(obj, config.MetricHandle, config.MrdWrapper),
 	}
+
+	if reader_predictor.Predict() == reader_predictor.Random {
+		// Setting it for random read.
+		gr.readType.Store(metrics.ReadTypeRandom)
+		gr.totalReadBytes.Store(2 * MB) // Default to 2 MB for random reads.
+		gr.seeks.Store(2)
+	}
+
+	return gr
 }
 
 func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.ReaderResponse, error) {
@@ -210,6 +220,7 @@ func (gr *GCSReader) updateExpectedOffset(offset int64) {
 }
 
 func (gr *GCSReader) Destroy() {
+	reader_predictor.ProcessInput(reader_predictor.NewReaderPredictorInput(reader_predictor.ReadType(gr.readType.Load())))
 	gr.rangeReader.destroy()
 	gr.mrr.destroy()
 }
