@@ -94,7 +94,7 @@ type BufferedReader struct {
 func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *BufferedReadConfig, globalMaxBlocksSem *semaphore.Weighted, workerPool workerpool.WorkerPool, metricHandle metrics.MetricHandle) (*BufferedReader, error) {
 	blockpool, err := block.NewPrefetchBlockPool(config.PrefetchBlockSizeBytes, config.MaxPrefetchBlockCnt, globalMaxBlocksSem)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create worker pool: %w", err)
+		return nil, fmt.Errorf("NewBufferedReader: failed to create block-pool: %w", err)
 	}
 
 	reader := &BufferedReader{
@@ -148,8 +148,7 @@ func (p *BufferedReader) handleRandomRead(offset int64) error {
 	}
 
 	if p.randomSeekCount > p.randomReadsThreshold {
-		logger.Tracef("Too many random reads for object %q (count: %d, threshold: %d); falling back to another reader.",
-			p.object.Name, p.randomSeekCount, p.randomReadsThreshold)
+		logger.Warnf("handleRandomRead: random seek count %d exceeded threshold %d, falling back to another reader", p.randomSeekCount, p.randomReadsThreshold)
 		return gcsx.FallbackToAnotherReader
 	}
 
@@ -228,8 +227,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 	var bytesRead int
 	var err error
-
-	logger.Tracef("%.13v <- ReadAt(offset=%d, len=%d, blockIdx=%d)", reqID, off, len(inputBuf), blockIdx)
+	logger.Tracef("%.13v <- ReadAt(%d, %d, %d)", reqID, off, len(inputBuf), blockIdx)
 
 	if off >= int64(p.object.Size) {
 		err = io.EOF
@@ -243,9 +241,9 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 	defer func() {
 		dur := time.Since(start)
 		if err != nil && err != io.EOF {
-			logger.Errorf("%.13v -> ReadAt failed (offset=%d, len=%d, blockIdx=%d): err: %v (%v)", reqID, initOff, len(inputBuf), blockIdx, err, dur)
+			logger.Errorf("%.13v -> ReadAt(%d, %d, %d): failed in %v with: %v", reqID, initOff, len(inputBuf), blockIdx, dur, err)
 		} else {
-			logger.Tracef("%.13v -> ReadAt OK (offset=%d, len=%d, read=%d) (%v)", reqID, initOff, len(inputBuf), bytesRead, dur)
+			logger.Tracef("%.13v -> ReadAt(%d, %d, %d): Ok(%v)", reqID, initOff, len(inputBuf), blockIdx, dur)
 		}
 	}()
 
@@ -315,7 +313,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 			if !prefetchTriggered {
 				prefetchTriggered = true
 				if pfErr := p.prefetch(); pfErr != nil {
-					logger.Warnf("Prefetch failed: %v", pfErr)
+					logger.Warnf("ReadAt: prefetch failed: %v", pfErr)
 				}
 			}
 		}
@@ -337,8 +335,6 @@ func (p *BufferedReader) prefetch() error {
 	if blockCountToPrefetch <= 0 {
 		return nil
 	}
-
-	logger.Tracef("Prefetching %d blocks", blockCountToPrefetch)
 
 	totalBlockCount := (int64(p.object.Size) + p.config.PrefetchBlockSizeBytes - 1) / p.config.PrefetchBlockSizeBytes
 	for i := int64(0); i < blockCountToPrefetch; i++ {
@@ -404,13 +400,13 @@ func (p *BufferedReader) scheduleNextBlock(urgent bool) error {
 func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockIndex int64, urgent bool) error {
 	startOffset := blockIndex * p.config.PrefetchBlockSizeBytes
 	if err := b.SetAbsStartOff(startOffset); err != nil {
-		return fmt.Errorf("failed to set start offset on block: %w", err)
+		return fmt.Errorf("scheduleBlockWithIndex: failed to set start offset: %w", err)
 	}
 
 	ctx, cancel := context.WithCancel(p.ctx)
 	task := NewDownloadTask(ctx, p.object, p.bucket, b, p.readHandle)
 
-	logger.Tracef("Scheduling block (%s, offset %d).", p.object.Name, startOffset)
+	logger.Tracef("Scheduling block: (%s, %d, %t).", p.object.Name, blockIndex, urgent)
 	p.blockQueue.Push(&blockQueueEntry{
 		block:  b,
 		cancel: cancel,
