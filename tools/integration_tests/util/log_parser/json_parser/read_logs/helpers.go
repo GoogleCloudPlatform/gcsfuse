@@ -64,12 +64,14 @@ func parseReadFileLog(startTimeStampSec, startTimeStampNanos int64, logs []strin
 	_, ok := structuredLogs[handle]
 	if !ok {
 		structuredLogs[handle] = &StructuredReadLogEntry{
-			Handle:           handle,
-			StartTimeSeconds: startTimeStampSec,
-			StartTimeNanos:   startTimeStampNanos,
-			ProcessID:        pid,
-			InodeID:          inodeID,
-			Chunks:           []ReadChunkData{},
+			CommonReadLog: CommonReadLog{
+				Handle:           handle,
+				StartTimeSeconds: startTimeStampSec,
+				StartTimeNanos:   startTimeStampNanos,
+				ProcessID:        pid,
+				InodeID:          inodeID,
+			},
+			Chunks: []ReadChunkData{},
 		}
 	}
 	return nil
