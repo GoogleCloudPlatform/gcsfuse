@@ -73,12 +73,15 @@ sudo apt-get update -y
 sudo apt-get install -y git
 sudo apt-get install gnupg
 sudo apt install -y python3.13-venv
-cd "$HOME/github/gcsfuse/perfmetrics/scripts"
 
-log "Building and installing gcsfuse..."
-COMMIT_ID=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
-./build_and_install_gcsfuse.sh "$COMMIT_ID"
+cd "$HOME/github/gcsfuse"
+# Get the latest commitId of yesterday in the log file. Build gcsfuse and run
+commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
+./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId
 
+
+
+cd "/perfmetrics/scripts"
 # Cleanup previous mounts if any
 cleanup_mounts
 
