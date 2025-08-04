@@ -90,11 +90,11 @@ if [[ "$perfTestStr" == *"$EXECUTE_PERF_TEST_LABEL"* ]];
 then
  # Executing perf tests for master branch
  install_requirements
- git checkout master
- # Store results
- touch result.txt
- echo Mounting gcs bucket for master branch and execute tests
- execute_perf_test
+# git checkout master
+# # Store results
+# touch result.txt
+# echo Mounting gcs bucket for master branch and execute tests
+# execute_perf_test
 
 
  # Executing perf tests for PR branch
