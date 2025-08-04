@@ -46,8 +46,8 @@ func TestFileClobberedError(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			clobberedErr := &FileClobberedError{
-				Err:      tc.err,
-				FileName: tc.fileName,
+				Err:        tc.err,
+				ObjectName: tc.objectName,
 			}
 
 			gotErrMsg := clobberedErr.Error()

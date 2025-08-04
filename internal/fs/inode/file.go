@@ -626,8 +626,8 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
 		return false, &gcsfuse_errors.FileClobberedError{
-			Err:      fmt.Errorf("f.bwh.Write(): %w", err),
-			FileName: f.src.Name,
+			Err:        fmt.Errorf("f.bwh.Write(): %w", err),
+			ObjectName: f.src.Name,
 		}
 	}
 	// Fall back to temp file for Out-Of-Order Writes.
@@ -655,8 +655,8 @@ func (f *FileInode) flushUsingBufferedWriteHandler() error {
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
 		return &gcsfuse_errors.FileClobberedError{
-			Err:      fmt.Errorf("f.bwh.Flush(): %w", err),
-			FileName: f.src.Name,
+			Err:        fmt.Errorf("f.bwh.Flush(): %w", err),
+			ObjectName: f.src.Name,
 		}
 	}
 	if err != nil {
@@ -679,8 +679,8 @@ func (f *FileInode) SyncPendingBufferedWrites() (gcsSynced bool, err error) {
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
 		err = &gcsfuse_errors.FileClobberedError{
-			Err:      fmt.Errorf("f.bwh.Sync(): %w", err),
-			FileName: f.src.Name,
+			Err:        fmt.Errorf("f.bwh.Sync(): %w", err),
+			ObjectName: f.src.Name,
 		}
 		return
 	}
@@ -800,8 +800,8 @@ func (f *FileInode) fetchLatestGcsObject(ctx context.Context) (*gcs.Object, erro
 	}
 	if isClobbered {
 		return nil, &gcsfuse_errors.FileClobberedError{
-			Err:      fmt.Errorf("file was clobbered"),
-			FileName: f.src.Name,
+			Err:        fmt.Errorf("file was clobbered"),
+			ObjectName: f.src.Name,
 		}
 	}
 	return latestGcsObj, nil
@@ -863,8 +863,8 @@ func (f *FileInode) syncUsingContent(ctx context.Context) error {
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
 		return &gcsfuse_errors.FileClobberedError{
-			Err:      fmt.Errorf("SyncObject: %w", err),
-			FileName: f.src.Name,
+			Err:        fmt.Errorf("SyncObject: %w", err),
+			ObjectName: f.src.Name,
 		}
 	}
 
