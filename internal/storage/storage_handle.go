@@ -303,6 +303,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		if err != nil {
 			return nil, fmt.Errorf("could not create StorageControl Client: %w", err)
 		}
+		controlClient = withRetryOnStorageLayoutStall(controlClient, 10*time.Second, time.Minute, 2.0, 5*time.Minute)
 		// special handling for requester-pays buckets and for mounts created with custom billing projects.
 		controlClient = withBillingProject(controlClient, billingProject)
 	} else {
