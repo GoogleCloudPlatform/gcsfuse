@@ -106,8 +106,6 @@ if ! run_benchmark "write" "write_single_thread.py" "$WRITE_GB" "$TOTAL_WRITE_FI
   exit_code=1
 fi
 
-exit_code=1
-
 deactivate || true
 cleanup_mounts
 

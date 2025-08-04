@@ -30,11 +30,11 @@ initialize_ssh_key() {
   log "Cleaning up old OS Login SSH keys..."
 
   local existing_keys
-  existing_keys=$(gcloud compute os-login ssh-keys list --format="value(key)" || true)
+  existing_keys=$(sudo gcloud compute os-login ssh-keys list --format="value(key)" || true)
 
   if [[ -n "$existing_keys" ]]; then
     while IFS= read -r key; do
-      gcloud compute os-login ssh-keys remove --key="$key"
+      sudo gcloud compute os-login ssh-keys remove --key="$key"
     done <<< "$existing_keys"
   else
     log "No SSH keys to remove."
@@ -46,7 +46,7 @@ initialize_ssh_key() {
 
   while (( attempt <= max_attempts )); do
     log "SSH connection attempt $attempt..."
-    if gcloud compute ssh "$VM_NAME" --zone "$ZONE" --internal-ip --quiet --command "echo 'SSH OK on $VM_NAME'" &>/dev/null; then
+    if sudo gcloud compute ssh "$VM_NAME" --zone "$ZONE" --internal-ip --quiet --command "echo 'SSH OK on $VM_NAME'"; then
       log "SSH connection established."
       return 0
     fi
@@ -64,7 +64,7 @@ initialize_ssh_key() {
 run_script_on_vm() {
   log "Running benchmark script on VM with clean setup..."
 
-  gcloud compute ssh "$VM_NAME" --zone "$ZONE" --internal-ip --command "
+  sudo gcloud compute ssh "$VM_NAME" --zone "$ZONE" --internal-ip --command "
     set -euxo pipefail
 
     sudo apt-get update -y
