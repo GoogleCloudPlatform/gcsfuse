@@ -2295,10 +2295,10 @@ func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, oldO
 	if err != nil {
 		return fmt.Errorf("flushPendingWrites: %w", err)
 	}
-	if (oldObject.Bucket().BucketType().Hierarchical && fs.enableAtomicRenameObject) || oldObject.Bucket().BucketType().Zonal {
-		return fs.renameHierarchicalFile(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
+	if fs.enableAtomicRenameObject || oldObject.Bucket().BucketType().Zonal {
+		return fs.atomicRename(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
 	}
-	return fs.renameNonHierarchicalFile(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
+	return fs.nonAtomicRename(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
 }
 
 // LOCKS_EXCLUDED(fileInode)
@@ -2319,7 +2319,7 @@ func (fs *fileSystem) flushPendingWrites(ctx context.Context, fileInode *inode.F
 
 // LOCKS_EXCLUDED(oldParent)
 // LOCKS_EXCLUDED(newParent)
-func (fs *fileSystem) renameHierarchicalFile(ctx context.Context, oldParent inode.DirInode, oldName string, oldObject *gcs.MinObject, newParent inode.DirInode, newName string) error {
+func (fs *fileSystem) atomicRename(ctx context.Context, oldParent inode.DirInode, oldName string, oldObject *gcs.MinObject, newParent inode.DirInode, newName string) error {
 	oldParent.Lock()
 	defer oldParent.Unlock()
 
@@ -2335,7 +2335,7 @@ func (fs *fileSystem) renameHierarchicalFile(ctx context.Context, oldParent inod
 	}
 
 	if err := fs.invalidateChildFileCacheIfExist(oldParent, oldName); err != nil {
-		return fmt.Errorf("renameHierarchicalFile: while invalidating cache for delete file: %w", err)
+		return fmt.Errorf("atomicRename: while invalidating cache for renamed file: %w", err)
 	}
 
 	// Insert new file in type cache.
@@ -2346,7 +2346,7 @@ func (fs *fileSystem) renameHierarchicalFile(ctx context.Context, oldParent inod
 
 // LOCKS_EXCLUDED(oldParent)
 // LOCKS_EXCLUDED(newParent)
-func (fs *fileSystem) renameNonHierarchicalFile(
+func (fs *fileSystem) nonAtomicRename(
 	ctx context.Context,
 	oldParent inode.DirInode,
 	oldName string,
@@ -2373,7 +2373,7 @@ func (fs *fileSystem) renameNonHierarchicalFile(
 		&oldObject.MetaGeneration)
 
 	if err := fs.invalidateChildFileCacheIfExist(oldParent, oldObject.Name); err != nil {
-		return fmt.Errorf("renameNonHierarchicalFile: while invalidating cache for delete file: %w", err)
+		return fmt.Errorf("nonAtomicRename: while invalidating cache for delete file: %w", err)
 	}
 
 	oldParent.Unlock()
@@ -2556,11 +2556,19 @@ func (fs *fileSystem) renameNonHierarchicalDir(
 		}
 
 		o := descendant.MinObject
-		if _, err := newDir.CloneToChildFile(ctx, nameDiff, o); err != nil {
-			return fmt.Errorf("copy file %q: %w", o.Name, err)
-		}
-		if err := oldDir.DeleteChildFile(ctx, nameDiff, o.Generation, &o.MetaGeneration); err != nil {
-			return fmt.Errorf("delete file %q: %w", o.Name, err)
+		// If the descendant is a directory (ExplicitDirType) or has an unknown type, handle it by cloning and deleting.
+		if descendant.Type() == metadata.ExplicitDirType || descendant.Type() == metadata.UnknownType {
+			if _, err = newDir.CloneToChildFile(ctx, nameDiff, o); err != nil {
+				return fmt.Errorf("copy file %q: %w", o.Name, err)
+			}
+			if err = oldDir.DeleteChildFile(ctx, nameDiff, o.Generation, &o.MetaGeneration); err != nil {
+				return fmt.Errorf("delete file %q: %w", o.Name, err)
+			}
+		} else {
+			// For regular files, perform an in-place rename to the new directory.
+			if _, err = oldDir.RenameFile(ctx, o, path.Join(newDir.Name().GcsObjectName(), nameDiff)); err != nil {
+				return fmt.Errorf("renameFile: while renaming file: %w", err)
+			}
 		}
 
 		if err = fs.invalidateChildFileCacheIfExist(oldDir, o.Name); err != nil {
