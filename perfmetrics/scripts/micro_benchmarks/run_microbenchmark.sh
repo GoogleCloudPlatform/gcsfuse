@@ -13,8 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#!/bin/bash
-
 set -euo pipefail  # Exit on error, unset variables are errors, pipe fails propagate
 
 log() {
@@ -59,7 +57,7 @@ run_benchmark() {
   local gcsfuse_flags="--log-file $log_file"
 
   log "Running $type benchmark..."
-  if ! python3 "$script" --bucket single-threaded-tests --gcsfuse-config "$gcsfuse_flags" --total-files $total_files --file-size-gb "$file_size_gb"; then
+  if ! python3 "$script" --bucket single-threaded-tests --gcsfuse-config "$gcsfuse_flags" --total-files 1 --file-size-gb "$file_size_gb"; then
     log "$type benchmark failed. Copying log to GCS..."
     gcloud storage cp "$log_file" "gs://$ARTIFACT_BUCKET_PATH/$DATE/"
     return 1
