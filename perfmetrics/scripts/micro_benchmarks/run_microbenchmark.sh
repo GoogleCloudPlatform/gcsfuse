@@ -97,16 +97,16 @@ TOTAL_WRITE_FILES=1
 exit_code=0
 
 if ! run_benchmark "read" "read_single_thread.py" "$READ_GB" "$TOTAL_READ_FILES"; then
-  gcloud storage cp "/tmp/gcsfuse-logs-single-threaded-read-${READ_GB}gb-test.txt" "gs://$ARTIFACT_BUCKET_PATH/$DATE/"
   echo "Read benchmark failed."
   exit_code=1
 fi
 
 if ! run_benchmark "write" "write_single_thread.py" "$WRITE_GB" "$TOTAL_WRITE_FILES"; then
-  gcloud storage cp "/tmp/gcsfuse-logs-single-threaded-write-${WRITE_GB}gb-test.txt" "gs://$ARTIFACT_BUCKET_PATH/$DATE/"
   echo "Write benchmark failed."
   exit_code=1
 fi
+
+exit_code=1
 
 deactivate || true
 cleanup_mounts
