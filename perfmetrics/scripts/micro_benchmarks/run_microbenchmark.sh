@@ -91,10 +91,14 @@ WRITE_GB=15
 exit_code=0
 
 if ! run_benchmark "read" "read_single_thread.py" "$READ_GB"; then
+  gcloud storage cp "/tmp/gcsfuse-logs-single-threaded-read-${READ_GB}gb-test.txt" "gs://$ARTIFACT_BUCKET_PATH/$DATE/"
+  echo "Read benchmark failed."
   exit_code=1
 fi
 
 if ! run_benchmark "write" "write_single_thread.py" "$WRITE_GB"; then
+  gcloud storage cp "/tmp/gcsfuse-logs-single-threaded-write-${WRITE_GB}gb-test.txt" "gs://$ARTIFACT_BUCKET_PATH/$DATE/"
+  echo "Write benchmark failed."
   exit_code=1
 fi
 
