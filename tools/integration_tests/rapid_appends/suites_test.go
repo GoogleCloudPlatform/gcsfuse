@@ -39,7 +39,7 @@ type mountPoint struct {
 
 var (
 	// TODO(b/432179045): `--write-global-max-blocks=-1` is needed right now because of a bug in global semaphore release.
-	secondaryMountFlags = []string{"--write-experimental-enable-rapid-appends=true", "--write-global-max-blocks=-1"}
+	secondaryMountFlags = []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1"}
 )
 
 // //////////////////////////////////////////////////////////////////////

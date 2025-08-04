@@ -822,19 +822,18 @@
   usage: "For a new file, it creates an empty file in Cloud Storage bucket as a hold."
   default: false
 
+- config-path: "write.enable-rapid-appends"
+  flag-name: "enable-rapid-appends"
+  type: "bool"
+  usage: "Enables support for appends to unfinalized object using streaming writes"
+  default: true
+
 - config-path: "write.enable-streaming-writes"
   flag-name: "enable-streaming-writes"
   type: "bool"
   usage: "Enables streaming uploads during write file operation."
   default: true
   hide-flag: false
-
-- config-path: "write.experimental-enable-rapid-appends"
-  flag-name: "write-experimental-enable-rapid-appends"
-  type: "bool"
-  usage: "Enables support for appends to unfinalized object using streaming writes"
-  default: false
-  hide-flag: true
 
 - config-path: "write.global-max-blocks"
   flag-name: "write-global-max-blocks"
