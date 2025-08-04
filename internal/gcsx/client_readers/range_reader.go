@@ -312,8 +312,8 @@ func (rr *RangeReader) skipBytes(offset int64) {
 // a new reader unnecessarily.
 //
 // Parameters:
-//   - offset: the starting byte position of the requested read.
-//   - p: the buffer representing the size of the requested read.
+//   - startOffset: the starting byte position of the requested read.
+//   - endOffset: the ending byte positino of the requested read.
 func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(startOffset, endOffset int64) {
 	// If we have an existing reader, but it's positioned at the wrong place,
 	// clean it up and throw it away.
@@ -332,9 +332,12 @@ func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(startOffset, endOf
 // Make sure to call invalidateReaderIfMisalignedOrTooSmall before using this method.
 func (rr *RangeReader) readFromExistingReader(ctx context.Context, req *gcsx.GCSReaderRequest) (int, error) {
 	rr.skipBytes(req.Offset)
-	rr.invalidateReaderIfMisalignedOrTooSmall(req.Offset, req.Offset+int64(len(req.Buffer)))
+	// Since we are reading from an existing reader, we only need to read what was requested.
+	endOffset := min(req.Offset + int64(len(req.Buffer)))
+
+	rr.invalidateReaderIfMisalignedOrTooSmall(req.Offset, endOffset)
 	if rr.reader != nil {
-		return rr.readFromRangeReader(ctx, req.Buffer, req.Offset, req.Offset+int64(len(req.Buffer)), rr.readType)
+		return rr.readFromRangeReader(ctx, req.Buffer, req.Offset, endOffset, rr.readType)
 	}
 
 	return 0, gcsx.FallbackToAnotherReader

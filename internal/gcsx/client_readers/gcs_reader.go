@@ -130,6 +130,12 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (reader
 
 	if reqReaderType == RangeReaderType {
 		gr.mu.Lock()
+
+		// In case of multiple threads reading parallely, it is possible that many of them might be waiting
+		// at this lock and hence the earlier calculated value of readerType might not be valid once they
+		// acquire the lock. Hence, needs to be calculated again.
+		// Recalculating only for ZB and only when another read had been performed between now and
+		// the time when readerType was calculated for this request
 		if gr.bucket.BucketType().Zonal && readInfo.expectedOffset != gr.expectedOffset.Load() {
 			readInfo = gr.getReadInfo(offset, readInfo.seekRecorded)
 			reqReaderType = gr.readerType(readInfo.readType, gr.bucket.BucketType())
@@ -138,7 +144,7 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (reader
 			defer gr.mu.Unlock()
 			readReq.EndOffset = gr.getEndOffset(readReq.Offset)
 			readerResponse, err = gr.rangeReader.ReadAt(ctx, readReq)
-			return
+			return readerResponse, err
 		}
 		gr.mu.Unlock()
 	}
@@ -147,7 +153,7 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (reader
 		readerResponse, err = gr.mrr.ReadAt(ctx, readReq)
 	}
 
-	return
+	return readerResponse, err
 }
 
 // readerType specifies the go-sdk interface to use for reads.
@@ -181,12 +187,13 @@ func (gr *GCSReader) getEndOffset(
 
 	end = gr.determineEnd(start)
 	end = gr.limitEnd(start, end)
-	return
+	return end
 }
 
 // getReadInfo determines the read strategy (sequential or random) for a read
 // request at a given offset and returns read metadata. It also updates the
 // reader's internal state based on the read pattern.
+// seekRecorded parameter describes whether a seek has already been recorded for this request.
 func (gr *GCSReader) getReadInfo(offset int64, seekRecorded bool) readInfo {
 	readType := gr.readType.Load()
 	expOffset := gr.expectedOffset.Load()
@@ -255,6 +262,8 @@ func (gr *GCSReader) updateExpectedOffset(offset int64) {
 }
 
 func (gr *GCSReader) Destroy() {
+	gr.mu.Lock()
+	defer gr.mu.Unlock()
 	gr.rangeReader.destroy()
 	gr.mrr.destroy()
 }

@@ -94,6 +94,7 @@ func (fh *FileHandle) Destroy() {
 	fh.inode.Lock()
 	fh.inode.DeRegisterFileHandle(fh.openMode == util.Read)
 	fh.inode.Unlock()
+
 	if fh.reader != nil {
 		fh.reader.Destroy()
 	}
@@ -131,6 +132,8 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 		return nil, 0, fmt.Errorf("tryEnsureReadManager: %w", err)
 	}
 
+	fh.mu.RLock()
+	defer fh.mu.RUnlock()
 	// If we have an appropriate readManager, unlock the inode and use that. This
 	// allows reads to proceed concurrently with other operations; in particular,
 	// multiple reads can run concurrently. It's safe because the user can't tell
@@ -180,6 +183,8 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 		return
 	}
 
+	fh.mu.RLock()
+	defer fh.mu.RUnlock()
 	// If we have an appropriate reader, unlock the inode and use that. This
 	// allows reads to proceed concurrently with other operations; in particular,
 	// multiple reads can run concurrently. It's safe because the user can't tell
@@ -257,6 +262,8 @@ func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb 
 	// If the inode is dirty, there's nothing we can do. Throw away our reader if
 	// we have one.
 	if !fh.inode.SourceGenerationIsAuthoritative() {
+		fh.mu.Lock()
+		defer fh.mu.Unlock()
 		if fh.reader != nil {
 			fh.reader.Destroy()
 			fh.reader = nil
@@ -273,11 +280,15 @@ func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb 
 			fh.reader.Object().Size = fh.inode.SourceGeneration().Size
 			return
 		}
+		fh.mu.Lock()
 		fh.reader.Destroy()
 		fh.reader = nil
+		fh.mu.Unlock()
 	}
 
 	// Attempt to create an appropriate reader.
+	fh.mu.Lock()
+	defer fh.mu.Unlock()
 	rr := gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, &fh.inode.MRDWrapper, fh.config)
 
 	fh.reader = rr
@@ -316,6 +327,8 @@ func (fh *FileHandle) tryEnsureReadManager(ctx context.Context, sequentialReadSi
 	fh.destroyReadManager()
 
 	// Create a new read manager for the current inode state.
+	fh.mu.Lock()
+	defer fh.mu.Unlock()
 	fh.readManager = read_manager.NewReadManager(fh.inode.Source(), fh.inode.Bucket(), &read_manager.ReadManagerConfig{
 		SequentialReadSizeMB:  sequentialReadSizeMb,
 		FileCacheHandler:      fh.fileCacheHandler,
@@ -334,6 +347,8 @@ func (fh *FileHandle) destroyReadManager() {
 	if fh.readManager == nil {
 		return
 	}
+	fh.mu.Lock()
+	defer fh.mu.Unlock()
 	fh.readManager.Destroy()
 	fh.readManager = nil
 }
