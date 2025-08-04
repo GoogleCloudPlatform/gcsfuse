@@ -23,6 +23,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -143,7 +144,7 @@ func (bh *bucketHandle) StatObject(ctx context.Context,
 		err = fmt.Errorf("error in fetching object attributes: %w", err)
 		return
 	}
-	if attrs.Finalized.IsZero() {
+	if attrs.Finalized.IsZero() && isGCSObject(attrs) {
 		if err = bh.fetchLatestSizeOfUnfinalizedObject(ctx, attrs); err != nil {
 			err = fmt.Errorf("failed to fetch the latest size of unfinalized object %q: %w", attrs.Name, err)
 			return
@@ -423,7 +424,7 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 			err = fmt.Errorf("error in iterating through objects: %w", err)
 			return
 		}
-		if attrs.Finalized.IsZero() {
+		if attrs.Finalized.IsZero() && isGCSObject(attrs) {
 			if err = bh.fetchLatestSizeOfUnfinalizedObject(ctx, attrs); err != nil {
 				err = fmt.Errorf("failed to fetch the latest size of unfinalized object %q: %w", attrs.Name, err)
 				return
@@ -706,4 +707,13 @@ func (bh *bucketHandle) GCSName(obj *gcs.MinObject) string {
 
 func isStorageConditionsNotEmpty(conditions storage.Conditions) bool {
 	return conditions != (storage.Conditions{})
+}
+
+// isGCSObject determines whether the GCS resource represented by attrs is a GCS object
+// and not a folder/directory resource.
+func isGCSObject(attrs *storage.ObjectAttrs) bool {
+	if !strings.HasSuffix(attrs.Name, "/") && attrs.Prefix == "" && attrs.Name != "" {
+		return true
+	}
+	return false
 }
