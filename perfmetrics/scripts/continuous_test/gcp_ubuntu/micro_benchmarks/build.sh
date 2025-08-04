@@ -13,19 +13,64 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -e
+#!/bin/bash
+set -euo pipefail
 
-VM_NAME="gcsfuse-micro-benchmark-tests"
+VM_NAME="periodic-micro-benchmark-tests"
 ZONE="us-west1-b"
-SCRIPT_LOCAL_PATH="./perfmetrics/scripts/micro_benchmarks/run_microbenchmark.sh"
-SCRIPT_REMOTE_PATH="/tmp/run_microbenchmark.sh"
-q
-# --- Upload script to VM ---
-echo "Copying script to VM..."
-gcloud compute scp "$SCRIPT_LOCAL_PATH" "$VM_NAME:$SCRIPT_REMOTE_PATH" --zone "$ZONE"
+TEST_SCRIPT_PATH="github/gcsfuse/perfmetrics/scripts/micro_benchmarks/run_microbenchmark.sh"
 
-# --- Run script on VM ---
-echo "Running script on VM..."
-gcloud compute ssh "$VM_NAME" --zone "$ZONE" --command "bash $SCRIPT_REMOTE_PATH"
+log() {
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
+}
 
-echo "Script executed successfully on VM."
+initialize_ssh_key() {
+  log "Cleaning up old OS Login SSH keys..."
+
+  local existing_keys
+  existing_keys=$(sudo gcloud compute os-login ssh-keys list --format="value(key)")
+
+  if [[ -n "$existing_keys" ]]; then
+    while IFS= read -r key; do
+      sudo gcloud compute os-login ssh-keys remove --key="$key"
+    done <<< "$existing_keys"
+  else
+    log "No SSH keys to remove."
+  fi
+
+  log "Attempting to initialize SSH access to VM: $VM_NAME..."
+
+  local delay=1
+  local max_delay=10
+  local attempt=1
+  local max_attempts=5
+
+  while (( attempt <= max_attempts )); do
+    log "SSH connection attempt $attempt..."
+    if sudo gcloud compute ssh "$VM_NAME" --zone "$ZONE" --internal-ip --quiet --command "echo 'SSH OK on $VM_NAME'" 2>/dev/null; then
+      log "SSH connection established."
+      return 0
+    fi
+    log "SSH connection failed. Retrying in ${delay}s..."
+    sleep "$delay"
+    delay=$((delay * 2))
+    (( delay > max_delay )) && delay=$max_delay
+    attempt=$((attempt + 1))
+  done
+
+  log "ERROR: All SSH connection attempts failed."
+  return 1
+}
+
+run_script_on_vm() {
+  log "Executing script on VM..."
+    sudo gcloud compute ssh $VM_NAME --zone $ZONE --internal-ip --command "sudo apt-get update -y; sudo apt-get install -y git; mkdir github; cd github; git clone https://github.com/GoogleCloudPlatform/gcsfuse.git; cd gcsfuse; git checkout spin_VM_and_run_micro_bench;"
+    echo "Trigger the build script on test VM"
+    sudo gcloud compute ssh $VM_NAME --zone $ZONE --internal-ip --command "bash \$HOME/$TEST_SCRIPT_PATH> \$HOME/build.out 2> \$HOME/build.err &"
+  
+  log "Script executed successfully on VM."
+}
+
+# ---- Main Execution ----
+initialize_ssh_key
+run_script_on_vm

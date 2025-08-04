@@ -26,8 +26,7 @@ REPO_URL="https://github.com/GoogleCloudPlatform/gcsfuse.git"
 BRANCH="spin_VM_and_run_micro_bench"
 REPO_DIR="gcsfuse"
 VENV_DIR="venv"
-SCRIPT_DIR="./perfmetrics/scripts"
-BENCHMARK_DIR="$SCRIPT_DIR/micro_benchmarks"
+BENCHMARK_DIR="micro_benchmarks"
 ARTIFACT_BUCKET_PATH="gcsfuse-kokoro-logs/prod/gcsfuse/gcp_ubuntu/periodic/micro_benchmark"
 DATE=$(date +%Y-%m-%d)
 
@@ -39,6 +38,7 @@ cleanup_mounts() {
     sudo fusermount -u "$mnt" || true
   done
 }
+
 
 prepare_venv() {
   log "Setting up Python virtual environment..."
@@ -71,19 +71,13 @@ run_benchmark() {
 log "Installing dependencies..."
 sudo apt-get update -y
 sudo apt-get install -y git
-
-# Clone repo if not already cloned
-if [[ ! -d "$REPO_DIR" ]]; then
-  git clone "$REPO_URL"
-fi
-
-cd "$REPO_DIR"
-git fetch origin
-git checkout "$BRANCH"
+sudo apt-get install gnupg
+sudo apt install -y python3.13-venv
+cd "$HOME/github/gcsfuse/perfmetrics/scripts"
 
 log "Building and installing gcsfuse..."
 COMMIT_ID=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
-"$SCRIPT_DIR/build_and_install_gcsfuse.sh" "$COMMIT_ID"
+./build_and_install_gcsfuse.sh "$COMMIT_ID"
 
 # Cleanup previous mounts if any
 cleanup_mounts
