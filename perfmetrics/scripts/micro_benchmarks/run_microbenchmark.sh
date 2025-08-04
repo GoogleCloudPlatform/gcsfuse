@@ -19,7 +19,7 @@ set -euo pipefail
 
 VM_NAME="periodic-micro-benchmark-tests"
 ZONE="us-west1-b"
-TEST_SCRIPT_PATH="github/gcsfuse/perfmetrics/scripts/micro_benchmarks/run_microbenchmark.sh"
+TEST_SCRIPT_PATH="perfmetrics/scripts/micro_benchmarks/run_microbenchmark.sh"
 GCSFUSE_REPO="https://github.com/GoogleCloudPlatform/gcsfuse.git"
 REPO_DIR="github/gcsfuse"
 
@@ -81,7 +81,7 @@ run_script_on_vm() {
     git pull origin master
 
     echo 'Triggering benchmark script...'
-    bash ~/$TEST_SCRIPT_PATH
+    bash $TEST_SCRIPT_PATH
   "
 
   log "Benchmark script executed successfully on VM."
