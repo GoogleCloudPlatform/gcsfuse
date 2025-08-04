@@ -15,101 +15,78 @@
 
 #!/bin/bash
 
-set -euo pipefail  # Exit on error, unset variables are errors, pipe fails propagate
+set -euo pipefail
+
+VM_NAME="periodic-micro-benchmark-tests"
+ZONE="us-west1-b"
+TEST_SCRIPT_PATH="github/gcsfuse/perfmetrics/scripts/micro_benchmarks/run_microbenchmark.sh"
+GCSFUSE_REPO="https://github.com/GoogleCloudPlatform/gcsfuse.git"
+REPO_DIR="github/gcsfuse"
 
 log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
 }
 
-# --- Constants ---
-REPO_URL="https://github.com/GoogleCloudPlatform/gcsfuse.git"
-BRANCH="spin_VM_and_run_micro_bench"
-REPO_DIR="gcsfuse"
-VENV_DIR="venv"
-BENCHMARK_DIR="micro_benchmarks"
-ARTIFACT_BUCKET_PATH="gcsfuse-kokoro-logs/prod/gcsfuse/gcp_ubuntu/periodic/micro_benchmark"
-DATE=$(date +%Y-%m-%d)
+initialize_ssh_key() {
+  log "Cleaning up old OS Login SSH keys..."
 
-# --- Functions ---
-cleanup_mounts() {
-  log "Cleaning up any stale gcsfuse mounts..."
-  for mnt in $(mount | grep gcsfuse | awk '{print $3}'); do
-    log "Unmounting $mnt"
-    sudo fusermount -u "$mnt" || true
+  local existing_keys
+  existing_keys=$(gcloud compute os-login ssh-keys list --format="value(key)" || true)
+
+  if [[ -n "$existing_keys" ]]; then
+    while IFS= read -r key; do
+      gcloud compute os-login ssh-keys remove --key="$key"
+    done <<< "$existing_keys"
+  else
+    log "No SSH keys to remove."
+  fi
+
+  log "Initializing SSH access to VM: $VM_NAME..."
+
+  local delay=1 max_delay=10 attempt=1 max_attempts=5
+
+  while (( attempt <= max_attempts )); do
+    log "SSH connection attempt $attempt..."
+    if gcloud compute ssh "$VM_NAME" --zone "$ZONE" --internal-ip --quiet --command "echo 'SSH OK on $VM_NAME'" &>/dev/null; then
+      log "SSH connection established."
+      return 0
+    fi
+    log "SSH connection failed. Retrying in ${delay}s..."
+    sleep "$delay"
+    delay=$((delay * 2))
+    (( delay > max_delay )) && delay=$max_delay
+    attempt=$((attempt + 1))
   done
+
+  log "ERROR: All SSH connection attempts failed."
+  return 1
 }
 
+run_script_on_vm() {
+  log "Running clean setup and benchmark script on VM..."
 
-prepare_venv() {
-  log "Setting up Python virtual environment..."
-  if [[ ! -d "$VENV_DIR" ]]; then
-    python3 -m venv "$VENV_DIR"
-  fi
-  source "$VENV_DIR/bin/activate"
-  pip install -U pip setuptools >/dev/null
-  pip install -r "requirements.txt"
+  gcloud compute ssh "$VM_NAME" --zone "$ZONE" --internal-ip --command "
+    set -euxo pipefail
+
+    # Ensure clean environment
+    sudo apt-get update -y
+    sudo apt-get install -y git
+
+    rm -rf ~/github
+    mkdir -p ~/github
+
+    git clone $GCSFUSE_REPO ~/github/gcsfuse
+    cd ~/github/gcsfuse
+    git checkout master
+    git pull origin master
+
+    echo 'Triggering benchmark script...'
+    bash ~/$TEST_SCRIPT_PATH
+  "
+
+  log "Benchmark script executed successfully on VM."
 }
 
-run_benchmark() {
-  local type=$1
-  local script=$2
-  local file_size_gb=$3
-  local log_file="/tmp/gcsfuse-logs-single-threaded-${type}-${file_size_gb}gb-test.txt"
-  local gcsfuse_flags="--log-file $log_file"
-
-  log "Running $type benchmark..."
-  if ! python3 "$script" --bucket single-threaded-tests --gcsfuse-config "$gcsfuse_flags" --total-files 1 --file-size-gb "$file_size_gb"; then
-    log "$type benchmark failed. Copying log to GCS..."
-    gcloud storage cp "$log_file" "gs://$ARTIFACT_BUCKET_PATH/$DATE/"
-    return 1
-  fi
-  return 0
-}
-
-# --- Main Script ---
-
-log "Installing dependencies..."
-sudo apt-get update -y
-sudo apt-get install -y git
-sudo apt-get install gnupg
-sudo apt install -y python3.13-venv
-export GPG_TTY=$(tty)
-
-cd "$HOME/github/gcsfuse"
-# Get the latest commitId of yesterday in the log file. Build gcsfuse and run
-commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
-./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId
-
-cd "perfmetrics/scripts"
-# Cleanup previous mounts if any
-cleanup_mounts
-
-cd "$BENCHMARK_DIR"
-prepare_venv
-
-READ_GB=15
-WRITE_GB=15
-exit_code=0
-
-if ! run_benchmark "read" "read_single_thread.py" "$READ_GB"; then
-  gcloud storage cp "/tmp/gcsfuse-logs-single-threaded-read-${READ_GB}gb-test.txt" "gs://$ARTIFACT_BUCKET_PATH/$DATE/"
-  echo "Read benchmark failed."
-  exit_code=1
-fi
-
-if ! run_benchmark "write" "write_single_thread.py" "$WRITE_GB"; then
-  gcloud storage cp "/tmp/gcsfuse-logs-single-threaded-write-${WRITE_GB}gb-test.txt" "gs://$ARTIFACT_BUCKET_PATH/$DATE/"
-  echo "Write benchmark failed."
-  exit_code=1
-fi
-
-deactivate || true
-cleanup_mounts
-
-if [[ $exit_code -ne 0 ]]; then
-  log "One or more benchmarks failed."
-  exit $exit_code
-fi
-
-log "Benchmarks completed successfully."
-exit 0
+# ---- Main Execution ----
+initialize_ssh_key
+run_script_on_vm
