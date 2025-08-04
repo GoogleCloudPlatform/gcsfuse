@@ -48,6 +48,7 @@ def mount_bucket(mount_dir: str, bucket_name: str, flags: str) -> bool:
   cmd = f"gcsfuse {flags} {bucket_name} {mount_dir}"
   print(f"Mounting: {cmd}")
   try:
+    print(f"Mounting: {cmd}")
     subprocess.run(cmd, shell=True, check=True)
     print(f"Successfully mounted {bucket_name} at {mount_dir}")
     return True
