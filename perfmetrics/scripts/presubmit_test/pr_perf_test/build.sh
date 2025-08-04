@@ -90,11 +90,11 @@ if [[ "$perfTestStr" == *"$EXECUTE_PERF_TEST_LABEL"* ]];
 then
  # Executing perf tests for master branch
  install_requirements
-# git checkout master
-# # Store results
-# touch result.txt
-# echo Mounting gcs bucket for master branch and execute tests
-# execute_perf_test
+ git checkout master
+ # Store results
+ touch result.txt
+ echo Mounting gcs bucket for master branch and execute tests
+ execute_perf_test
 
 
  # Executing perf tests for PR branch
@@ -106,8 +106,6 @@ then
  # Show results
  echo showing results...
  python3 ./perfmetrics/scripts/presubmit/print_results.py
-
- sleep 86400
 fi
 
 # Install required bash version for e2e script as kokoro has outdated bash versions.
