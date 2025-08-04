@@ -73,6 +73,7 @@ sudo apt-get update -y
 sudo apt-get install -y git
 sudo apt-get install gnupg
 sudo apt install -y python3.13-venv
+export GPG_TTY=$(tty)
 
 cd "$HOME/github/gcsfuse"
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run

@@ -66,7 +66,7 @@ run_script_on_vm() {
   log "Executing script on VM..."
     sudo gcloud compute ssh $VM_NAME --zone $ZONE --internal-ip --command "sudo apt-get update -y; sudo apt-get install -y git; mkdir github; cd github; git clone https://github.com/GoogleCloudPlatform/gcsfuse.git; cd gcsfuse; git checkout spin_VM_and_run_micro_bench;"
     echo "Trigger the build script on test VM"
-    sudo gcloud compute ssh $VM_NAME --zone $ZONE --internal-ip --command "bash \$HOME/$TEST_SCRIPT_PATH> \$HOME/build.out 2> \$HOME/build.err &"
+    sudo gcloud compute ssh $VM_NAME --zone $ZONE --internal-ip --command "bash \$HOME/$TEST_SCRIPT_PATH"
   
   log "Script executed successfully on VM."
 }
