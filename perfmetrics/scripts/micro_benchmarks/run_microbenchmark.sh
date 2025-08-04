@@ -47,7 +47,7 @@ prepare_venv() {
   fi
   source "$VENV_DIR/bin/activate"
   pip install -U pip setuptools >/dev/null
-  pip install -r "$BENCHMARK_DIR/requirements.txt"
+  pip install -r "requirements.txt"
 }
 
 run_benchmark() {
@@ -79,9 +79,7 @@ cd "$HOME/github/gcsfuse"
 commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 ./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId
 
-
-
-cd "/perfmetrics/scripts"
+cd "perfmetrics/scripts"
 # Cleanup previous mounts if any
 cleanup_mounts
 
