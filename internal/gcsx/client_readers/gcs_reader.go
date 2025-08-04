@@ -52,10 +52,15 @@ const (
 	MultiRangeReaderType
 )
 
+// readInfo Stores information for this read request.
 type readInfo struct {
-	readType       int64
+	// readType stores the read type evaluated for this request.
+	readType int64
+	// expectedOffset stores the expected offset for this request. Will be
+	// used to determine if re-evaluation of readType is required or not with range reader.
 	expectedOffset int64
-	seekRecorded   bool
+	// seekRecorded tells whether a seek has been performed for this read request.
+	seekRecorded bool
 }
 
 type GCSReader struct {
@@ -135,7 +140,7 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (reader
 		// at this lock and hence the earlier calculated value of readerType might not be valid once they
 		// acquire the lock. Hence, needs to be calculated again.
 		// Recalculating only for ZB and only when another read had been performed between now and
-		// the time when readerType was calculated for this request
+		// the time when readerType was calculated for this request.
 		if gr.bucket.BucketType().Zonal && readInfo.expectedOffset != gr.expectedOffset.Load() {
 			readInfo = gr.getReadInfo(offset, readInfo.seekRecorded)
 			reqReaderType = gr.readerType(readInfo.readType, gr.bucket.BucketType())
