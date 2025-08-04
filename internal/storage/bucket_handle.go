@@ -234,14 +234,14 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 
 	// Copy the contents to the writer.
 	if _, err = io.Copy(wc, req.Contents); err != nil {
-		err = fmt.Errorf("error in io.Copy: %w", err)
+		err = fmt.Errorf("failed io.Copy for %q: %w", req.Name, err)
 		return
 	}
 
 	// We can't use defer to close the writer, because we need to close the
 	// writer successfully before calling Attrs() method of writer.
 	if err = wc.Close(); err != nil {
-		err = fmt.Errorf("error in closing writer : %w", err)
+		err = fmt.Errorf("failed closing writer for %q: %w", req.Name, err)
 		return
 	}
 
