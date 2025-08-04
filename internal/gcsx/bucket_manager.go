@@ -31,7 +31,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/optimizedmetrics"
 	"github.com/jacobsa/timeutil"
 )
 
@@ -74,7 +74,7 @@ type BucketConfig struct {
 type BucketManager interface {
 	SetUpBucket(
 		ctx context.Context,
-		name string, isMultibucketMount bool, metricHandle metrics.MetricHandle) (b SyncerBucket, err error)
+		name string, isMultibucketMount bool, metricHandle optimizedmetrics.MetricHandle) (b SyncerBucket, err error)
 
 	// Shuts down the bucket manager and its buckets
 	ShutDown()
@@ -163,7 +163,7 @@ func (bm *bucketManager) SetUpBucket(
 	ctx context.Context,
 	name string,
 	isMultibucketMount bool,
-	metricHandle metrics.MetricHandle,
+	metricHandle optimizedmetrics.MetricHandle,
 ) (sb SyncerBucket, err error) {
 	var b gcs.Bucket
 	// Set up the appropriate backing bucket.

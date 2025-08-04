@@ -28,7 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	testUtil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/optimizedmetrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -68,7 +68,7 @@ func (t *multiRangeReaderTest) SetupTest() {
 		Size:       17,
 		Generation: 1234,
 	}
-	t.multiRangeReader = NewMultiRangeReader(t.object, metrics.NewNoopMetrics(), nil)
+	t.multiRangeReader = NewMultiRangeReader(t.object, optimizedmetrics.NewNoopMetrics(), nil)
 }
 
 func (t *multiRangeReaderTest) TearDownTest() {

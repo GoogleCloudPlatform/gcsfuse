@@ -29,7 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/optimizedmetrics"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -80,7 +80,7 @@ type BufferedReader struct {
 
 	blockPool    *block.GenBlockPool[block.PrefetchBlock]
 	workerPool   workerpool.WorkerPool
-	metricHandle metrics.MetricHandle
+	metricHandle optimizedmetrics.MetricHandle
 
 	ctx        context.Context
 	cancelFunc context.CancelFunc
@@ -91,7 +91,7 @@ type BufferedReader struct {
 }
 
 // NewBufferedReader returns a new bufferedReader instance.
-func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *BufferedReadConfig, globalMaxBlocksSem *semaphore.Weighted, workerPool workerpool.WorkerPool, metricHandle metrics.MetricHandle) (*BufferedReader, error) {
+func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *BufferedReadConfig, globalMaxBlocksSem *semaphore.Weighted, workerPool workerpool.WorkerPool, metricHandle optimizedmetrics.MetricHandle) (*BufferedReader, error) {
 	blockpool, err := block.NewPrefetchBlockPool(config.PrefetchBlockSizeBytes, config.MaxPrefetchBlockCnt, globalMaxBlocksSem)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create worker pool: %w", err)

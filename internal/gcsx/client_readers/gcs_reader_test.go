@@ -29,6 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	testUtil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/optimizedmetrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -73,7 +74,7 @@ func (t *gcsReaderTest) SetupTest() {
 	}
 	t.mockBucket = new(storage.TestifyMockBucket)
 	t.gcsReader = NewGCSReader(t.object, t.mockBucket, &GCSReaderConfig{
-		MetricHandle:         metrics.NewNoopMetrics(),
+		MetricHandle:         optimizedmetrics.NewNoopMetrics(),
 		MrdWrapper:           nil,
 		SequentialReadSizeMb: sequentialReadSizeInMb,
 		Config:               nil,
@@ -97,7 +98,7 @@ func (t *gcsReaderTest) Test_NewGCSReader() {
 	}
 
 	gcsReader := NewGCSReader(object, t.mockBucket, &GCSReaderConfig{
-		MetricHandle:         metrics.NewNoopMetrics(),
+		MetricHandle:         optimizedmetrics.NewNoopMetrics(),
 		MrdWrapper:           nil,
 		SequentialReadSizeMb: 200,
 		Config:               nil,
@@ -349,7 +350,7 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateReadType() {
 
 func (t *gcsReaderTest) Test_ReadAt_PropagatesCancellation() {
 	t.gcsReader = NewGCSReader(t.object, t.mockBucket, &GCSReaderConfig{
-		MetricHandle:         metrics.NewNoopMetrics(),
+		MetricHandle:         optimizedmetrics.NewNoopMetrics(),
 		MrdWrapper:           nil,
 		SequentialReadSizeMb: sequentialReadSizeInMb,
 		Config:               &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: false}},

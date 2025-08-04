@@ -28,7 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/optimizedmetrics"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -479,7 +479,7 @@ func (t *MultiBucketMountCachingTest) SetUpTestSuite() {
 
 	// Enable directory type caching.
 	t.serverCfg.DirTypeCacheTTL = ttl
-	t.serverCfg.MetricHandle = metrics.NewNoopMetrics()
+	t.serverCfg.MetricHandle = optimizedmetrics.NewNoopMetrics()
 
 	// Call through.
 	t.fsTest.SetUpTestSuite()

@@ -23,7 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/optimizedmetrics"
 )
 
 // TimeoutForMultiRangeRead is the timeout value for multi-range read operations.
@@ -42,10 +42,10 @@ type MultiRangeReader struct {
 	// boolean variable to determine if MRD is being used or not.
 	isMRDInUse bool
 
-	metricHandle metrics.MetricHandle
+	metricHandle optimizedmetrics.MetricHandle
 }
 
-func NewMultiRangeReader(object *gcs.MinObject, metricHandle metrics.MetricHandle, mrdWrapper *gcsx.MultiRangeDownloaderWrapper) *MultiRangeReader {
+func NewMultiRangeReader(object *gcs.MinObject, metricHandle optimizedmetrics.MetricHandle, mrdWrapper *gcsx.MultiRangeDownloaderWrapper) *MultiRangeReader {
 	return &MultiRangeReader{
 		object:       object,
 		metricHandle: metricHandle,

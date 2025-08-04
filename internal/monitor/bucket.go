@@ -21,22 +21,21 @@ import (
 
 	storagev2 "cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/optimizedmetrics"
 )
 
 // recordRequest records a request and its latency.
-func recordRequest(ctx context.Context, metricHandle metrics.MetricHandle, method string, start time.Time) {
-	metricHandle.GCSRequestCount(ctx, 1, method)
-
-	metricHandle.GCSRequestLatency(ctx, time.Since(start), method)
+func recordRequest(ctx context.Context, metricHandle optimizedmetrics.MetricHandle, method string, start time.Time) {
+	metricHandle.GcsRequestCount(1, method)
+	metricHandle.GcsRequestLatencies(ctx, time.Since(start), method)
 }
 
-func CaptureMultiRangeDownloaderMetrics(ctx context.Context, metricHandle metrics.MetricHandle, method string, start time.Time) {
+func CaptureMultiRangeDownloaderMetrics(ctx context.Context, metricHandle optimizedmetrics.MetricHandle, method string, start time.Time) {
 	recordRequest(ctx, metricHandle, method, start)
 }
 
 // NewMonitoringBucket returns a gcs.Bucket that exports metrics for monitoring
-func NewMonitoringBucket(b gcs.Bucket, m metrics.MetricHandle) gcs.Bucket {
+func NewMonitoringBucket(b gcs.Bucket, m optimizedmetrics.MetricHandle) gcs.Bucket {
 	return &monitoringBucket{
 		wrapped:      b,
 		metricHandle: m,
@@ -45,7 +44,7 @@ func NewMonitoringBucket(b gcs.Bucket, m metrics.MetricHandle) gcs.Bucket {
 
 type monitoringBucket struct {
 	wrapped      gcs.Bucket
-	metricHandle metrics.MetricHandle
+	metricHandle optimizedmetrics.MetricHandle
 }
 
 func (mb *monitoringBucket) Name() string {
@@ -216,12 +215,12 @@ func (mb *monitoringBucket) GCSName(obj *gcs.MinObject) string {
 }
 
 // recordReader increments the reader count when it's opened or closed.
-func recordReader(ctx context.Context, metricHandle metrics.MetricHandle, ioMethod string) {
-	metricHandle.GCSReaderCount(ctx, 1, ioMethod)
+func recordReader(_ context.Context, metricHandle optimizedmetrics.MetricHandle, ioMethod string) {
+	metricHandle.GcsReaderCount(1, ioMethod)
 }
 
 // Monitoring on the object reader
-func newMonitoringReadCloser(ctx context.Context, object string, rc gcs.StorageReader, metricHandle metrics.MetricHandle) gcs.StorageReader {
+func newMonitoringReadCloser(ctx context.Context, object string, rc gcs.StorageReader, metricHandle optimizedmetrics.MetricHandle) gcs.StorageReader {
 	recordReader(ctx, metricHandle, "opened")
 	return &monitoringReadCloser{
 		ctx:          ctx,
@@ -235,12 +234,12 @@ type monitoringReadCloser struct {
 	ctx          context.Context
 	object       string
 	wrapped      gcs.StorageReader
-	metricHandle metrics.MetricHandle
+	metricHandle optimizedmetrics.MetricHandle
 }
 
 func (mrc *monitoringReadCloser) Read(p []byte) (n int, err error) {
 	n, err = mrc.wrapped.Read(p)
-	mrc.metricHandle.GCSReadBytesCount(mrc.ctx, int64(n))
+	mrc.metricHandle.GcsReadBytesCount(int64(n))
 	return
 }
 

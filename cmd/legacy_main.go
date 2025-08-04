@@ -29,7 +29,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/optimizedmetrics"
 	"golang.org/x/sys/unix"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -123,7 +123,7 @@ func getConfigForUserAgent(mountConfig *cfg.Config) string {
 	}
 	return fmt.Sprintf("%s:%s:%s:%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled, isParallelDownloadsEnabled, areStreamingWritesEnabled)
 }
-func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle metrics.MetricHandle) (storageHandle storage.StorageHandle, err error) {
+func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle optimizedmetrics.MetricHandle) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
 		ClientProtocol:             newConfig.GcsConnection.ClientProtocol,
 		MaxConnsPerHost:            int(newConfig.GcsConnection.MaxConnsPerHost),
@@ -155,7 +155,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 ////////////////////////////////////////////////////////////////////////
 
 // Mount the file system according to arguments in the supplied context.
-func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, metricHandle metrics.MetricHandle) (mfs *fuse.MountedFileSystem, err error) {
+func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, metricHandle optimizedmetrics.MetricHandle) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if newConfig.Debug.ExitOnInvariantViolation {
 		locker.EnableInvariantsCheck()
@@ -394,11 +394,11 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 
 	ctx := context.Background()
 	var metricExporterShutdownFn common.ShutdownFn
-	metricHandle := metrics.NewNoopMetrics()
+	metricHandle := optimizedmetrics.NewNoopMetrics()
 	if cfg.IsMetricsEnabled(&newConfig.Metrics) {
 		metricExporterShutdownFn = monitor.SetupOTelMetricExporters(ctx, newConfig)
-		if metricHandle, err = metrics.NewOTelMetrics(); err != nil {
-			metricHandle = metrics.NewNoopMetrics()
+		if metricHandle, err = optimizedmetrics.NewOTelMetrics(ctx, int(newConfig.Metrics.Workers), int(newConfig.Metrics.BufferSize)); err != nil {
+			metricHandle = optimizedmetrics.NewNoopMetrics()
 		}
 	}
 	shutdownTracingFn := monitor.SetupTracing(ctx, newConfig)

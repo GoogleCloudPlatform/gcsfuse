@@ -22,7 +22,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/optimizedmetrics"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/grpc/codes"
@@ -150,7 +150,7 @@ func TestShouldRetryReturnsTrueForUnauthenticatedGrpcErrors(t *testing.T) {
 }
 
 type fakeMetricHandle struct {
-	metrics.MetricHandle
+	optimizedmetrics.MetricHandle
 
 	gcsRetryCountCalled bool
 	gcsRetryCountInc    int64
@@ -181,7 +181,7 @@ func TestShouldRetryWithMonitoringForNonRetryableErrors(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			fakeMetrics := &fakeMetricHandle{
-				MetricHandle: metrics.NewNoopMetrics(),
+				MetricHandle: optimizedmetrics.NewNoopMetrics(),
 			}
 
 			shouldRetry := ShouldRetryWithMonitoring(context.Background(), tc.err, fakeMetrics)
@@ -215,7 +215,7 @@ func TestShouldRetryWithMonitoringForRetryableErrors(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			fakeMetrics := &fakeMetricHandle{
-				MetricHandle: metrics.NewNoopMetrics(),
+				MetricHandle: optimizedmetrics.NewNoopMetrics(),
 			}
 
 			shouldRetry := ShouldRetryWithMonitoring(context.Background(), tc.err, fakeMetrics)

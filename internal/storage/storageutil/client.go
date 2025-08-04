@@ -23,7 +23,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/optimizedmetrics"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 )
@@ -61,7 +61,7 @@ type StorageClientConfig struct {
 
 	ReadStallRetryConfig cfg.ReadStallGcsRetriesConfig
 
-	MetricHandle metrics.MetricHandle
+	MetricHandle optimizedmetrics.MetricHandle
 }
 
 func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.TokenSource) (httpClient *http.Client, err error) {

@@ -24,7 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/optimizedmetrics"
 	. "github.com/jacobsa/ogletest"
 	"github.com/stretchr/testify/mock"
 )
@@ -107,7 +107,7 @@ func (t *BucketManagerTest) TestSetUpBucketMethod() {
 	bm.config = bucketConfig
 	bm.gcCtx = ctx
 
-	bucket, err := bm.SetUpBucket(context.Background(), TestBucketName, false, metrics.NewNoopMetrics())
+	bucket, err := bm.SetUpBucket(context.Background(), TestBucketName, false, optimizedmetrics.NewNoopMetrics())
 
 	ExpectNe(nil, bucket.Syncer)
 	ExpectEq(nil, err)
@@ -131,7 +131,7 @@ func (t *BucketManagerTest) TestSetUpBucketMethod_IsMultiBucketMountTrue() {
 	bm.config = bucketConfig
 	bm.gcCtx = ctx
 
-	bucket, err := bm.SetUpBucket(context.Background(), TestBucketName, true, metrics.NewNoopMetrics())
+	bucket, err := bm.SetUpBucket(context.Background(), TestBucketName, true, optimizedmetrics.NewNoopMetrics())
 
 	ExpectNe(nil, bucket.Syncer)
 	ExpectEq(nil, err)
@@ -155,7 +155,7 @@ func (t *BucketManagerTest) TestSetUpBucketMethodWhenBucketDoesNotExist() {
 	bm.config = bucketConfig
 	bm.gcCtx = ctx
 
-	bucket, err := bm.SetUpBucket(context.Background(), invalidBucketName, false, metrics.NewNoopMetrics())
+	bucket, err := bm.SetUpBucket(context.Background(), invalidBucketName, false, optimizedmetrics.NewNoopMetrics())
 
 	AssertNe(nil, err)
 	ExpectTrue(strings.Contains(err.Error(), "error in iterating through objects: storage: bucket doesn't exist"))
@@ -180,7 +180,7 @@ func (t *BucketManagerTest) TestSetUpBucketMethodWhenBucketDoesNotExist_IsMultiB
 	bm.config = bucketConfig
 	bm.gcCtx = ctx
 
-	bucket, err := bm.SetUpBucket(context.Background(), invalidBucketName, true, metrics.NewNoopMetrics())
+	bucket, err := bm.SetUpBucket(context.Background(), invalidBucketName, true, optimizedmetrics.NewNoopMetrics())
 
 	AssertNe(nil, err)
 	ExpectTrue(strings.Contains(err.Error(), "error in iterating through objects: storage: bucket doesn't exist"))

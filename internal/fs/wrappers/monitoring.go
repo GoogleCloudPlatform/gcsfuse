@@ -20,7 +20,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/optimizedmetrics"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 )
@@ -225,23 +225,20 @@ func categorize(err error) string {
 }
 
 // Records file system operation count, failed operation count and the operation latency.
-func recordOp(ctx context.Context, metricHandle metrics.MetricHandle, method string, start time.Time, fsErr error) {
-	metricHandle.OpsCount(ctx, 1, method)
+func recordOp(ctx context.Context, metricHandle optimizedmetrics.MetricHandle, method string, start time.Time, fsErr error) {
+	metricHandle.FsOpsCount(1, method)
 
 	// Recording opErrorCount.
 	if fsErr != nil {
 		errCategory := categorize(fsErr)
-		metricHandle.OpsErrorCount(ctx, 1, metrics.FSOpsErrorCategory{
-			FSOps:         method,
-			ErrorCategory: errCategory,
-		})
+		metricHandle.FsOpsErrorCount(1, errCategory, method)
 	}
-	metricHandle.OpsLatency(ctx, time.Since(start), method)
+	metricHandle.FsOpsLatency(ctx, time.Since(start), method)
 }
 
 // WithMonitoring takes a FileSystem, returns a FileSystem with monitoring
 // on the counts of requests per API.
-func WithMonitoring(fs fuseutil.FileSystem, metricHandle metrics.MetricHandle) fuseutil.FileSystem {
+func WithMonitoring(fs fuseutil.FileSystem, metricHandle optimizedmetrics.MetricHandle) fuseutil.FileSystem {
 	return &monitoring{
 		wrapped:      fs,
 		metricHandle: metricHandle,
@@ -250,7 +247,7 @@ func WithMonitoring(fs fuseutil.FileSystem, metricHandle metrics.MetricHandle) f
 
 type monitoring struct {
 	wrapped      fuseutil.FileSystem
-	metricHandle metrics.MetricHandle
+	metricHandle optimizedmetrics.MetricHandle
 }
 
 func (fs *monitoring) Destroy() {

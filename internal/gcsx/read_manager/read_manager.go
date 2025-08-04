@@ -20,6 +20,7 @@ import (
 	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/optimizedmetrics"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedread"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
@@ -29,7 +30,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -47,7 +47,7 @@ type ReadManagerConfig struct {
 	SequentialReadSizeMB  int32
 	FileCacheHandler      *file.CacheHandler
 	CacheFileForRangeRead bool
-	MetricHandle          metrics.MetricHandle
+	MetricHandle          optimizedmetrics.MetricHandle
 	MrdWrapper            *gcsx.MultiRangeDownloaderWrapper
 	Config                *cfg.Config
 	GlobalMaxBlocksSem    *semaphore.Weighted

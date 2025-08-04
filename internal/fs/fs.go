@@ -31,7 +31,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/optimizedmetrics"
 
 	"golang.org/x/sync/semaphore"
 
@@ -132,7 +132,7 @@ type ServerConfig struct {
 	// NewConfig has all the config specified by the user using config-file or CLI flags.
 	NewConfig *cfg.Config
 
-	MetricHandle metrics.MetricHandle
+	MetricHandle optimizedmetrics.MetricHandle
 
 	// Notifier allows the file system to send invalidation messages to the FUSE
 	// kernel module. This enables proactive cache invalidation (e.g., for dentries)
@@ -506,7 +506,7 @@ type fileSystem struct {
 	// random file access.
 	cacheFileForRangeRead bool
 
-	metricHandle metrics.MetricHandle
+	metricHandle optimizedmetrics.MetricHandle
 
 	enableAtomicRenameObject bool
 

@@ -32,7 +32,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/optimizedmetrics"
 
 	"github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -79,7 +79,7 @@ func (t *typeCacheTestCommon) SetUpTestSuite() {
 			TtlSecs:            ttlInSeconds,
 		},
 	}
-	t.serverCfg.MetricHandle = metrics.NewNoopMetrics()
+	t.serverCfg.MetricHandle = optimizedmetrics.NewNoopMetrics()
 
 	// Fill server-cfg from mount-config.
 	func(newConfig *cfg.Config, serverCfg *gcsfusefs.ServerConfig) {

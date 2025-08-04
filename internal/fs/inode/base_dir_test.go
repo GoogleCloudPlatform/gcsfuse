@@ -24,7 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/optimizedmetrics"
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
@@ -93,7 +93,7 @@ type fakeBucketManager struct {
 
 func (bm *fakeBucketManager) SetUpBucket(
 	ctx context.Context,
-	name string, isMultibucketMount bool, _ metrics.MetricHandle) (sb gcsx.SyncerBucket, err error) {
+	name string, isMultibucketMount bool, _ optimizedmetrics.MetricHandle) (sb gcsx.SyncerBucket, err error) {
 	bm.setupTimes++
 
 	var ok bool
@@ -125,7 +125,7 @@ func (t *BaseDirTest) resetInode() {
 			Mode: dirMode,
 		},
 		t.bm,
-		metrics.NewNoopMetrics())
+		optimizedmetrics.NewNoopMetrics())
 
 	t.in.Lock()
 }

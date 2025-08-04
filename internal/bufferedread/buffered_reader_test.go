@@ -28,7 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/optimizedmetrics"
 	"github.com/stretchr/testify/mock"
 
 	"github.com/stretchr/testify/assert"
@@ -52,7 +52,7 @@ type BufferedReaderTest struct {
 	globalMaxBlocksSem *semaphore.Weighted
 	config             *BufferedReadConfig
 	workerPool         workerpool.WorkerPool
-	metricHandle       metrics.MetricHandle
+	metricHandle       optimizedmetrics.MetricHandle
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -117,7 +117,7 @@ func (t *BufferedReaderTest) SetupTest() {
 	t.workerPool, err = workerpool.NewStaticWorkerPool(5, 10)
 	require.NoError(t.T(), err, "Failed to create worker pool")
 	t.workerPool.Start()
-	t.metricHandle = metrics.NewNoopMetrics()
+	t.metricHandle = optimizedmetrics.NewNoopMetrics()
 	t.ctx = context.Background()
 }
 

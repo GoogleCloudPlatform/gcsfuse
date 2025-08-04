@@ -32,6 +32,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/optimizedmetrics"
 	"github.com/jacobsa/fuse/fuseops"
 	"golang.org/x/net/context"
 )
@@ -107,7 +108,7 @@ const (
 
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper, config *cfg.Config) RandomReader {
+func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle optimizedmetrics.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper, config *cfg.Config) RandomReader {
 	return &randomReader{
 		object:                o,
 		bucket:                bucket,
@@ -173,7 +174,7 @@ type randomReader struct {
 	// boolean variable to determine if MRD is being used or not.
 	isMRDInUse atomic.Bool
 
-	metricHandle metrics.MetricHandle
+	metricHandle optimizedmetrics.MetricHandle
 
 	config *cfg.Config
 
@@ -515,8 +516,8 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 	rr.limit = end
 
 	requestedDataSize := end - start
-	metrics.CaptureGCSReadMetrics(ctx, rr.metricHandle, metrics.ReadTypeNames[metrics.ReadTypeSequential], requestedDataSize)
-
+	rr.metricHandle.GcsReadCount(1, optimizedmetrics.ReadTypeNames[metrics.ReadTypeSequential])
+	rr.metricHandle.GcsDownloadBytesCount(requestedDataSize, optimizedmetrics.ReadTypeNames[metrics.ReadTypeSequential])
 	return
 }
 
@@ -734,7 +735,8 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 	}
 
 	requestedDataSize := end - offset
-	metrics.CaptureGCSReadMetrics(ctx, rr.metricHandle, metrics.ReadTypeNames[readType], requestedDataSize)
+	rr.metricHandle.GcsReadCount(1, optimizedmetrics.ReadTypeNames[metrics.ReadTypeSequential])
+	rr.metricHandle.GcsDownloadBytesCount(requestedDataSize, optimizedmetrics.ReadTypeNames[metrics.ReadTypeSequential])
 	rr.updateExpectedOffset(offset + int64(n))
 
 	return

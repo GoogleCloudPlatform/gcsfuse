@@ -26,7 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/optimizedmetrics"
 )
 
 const (
@@ -62,10 +62,10 @@ type RangeReader struct {
 
 	readType     int64
 	config       *cfg.Config
-	metricHandle metrics.MetricHandle
+	metricHandle optimizedmetrics.MetricHandle
 }
 
-func NewRangeReader(object *gcs.MinObject, bucket gcs.Bucket, config *cfg.Config, metricHandle metrics.MetricHandle) *RangeReader {
+func NewRangeReader(object *gcs.MinObject, bucket gcs.Bucket, config *cfg.Config, metricHandle optimizedmetrics.MetricHandle) *RangeReader {
 	return &RangeReader{
 		object:       object,
 		bucket:       bucket,
@@ -187,7 +187,8 @@ func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset
 	}
 
 	requestedDataSize := end - offset
-	metrics.CaptureGCSReadMetrics(ctx, rr.metricHandle, metrics.ReadTypeNames[readType], requestedDataSize)
+	rr.metricHandle.GcsReadCount(1, optimizedmetrics.ReadTypeNames[readType])
+	rr.metricHandle.GcsDownloadBytesCount(requestedDataSize, optimizedmetrics.ReadTypeNames[readType])
 
 	return n, err
 }
@@ -281,7 +282,8 @@ func (rr *RangeReader) startRead(start int64, end int64) error {
 	rr.limit = end
 
 	requestedDataSize := end - start
-	metrics.CaptureGCSReadMetrics(ctx, rr.metricHandle, metrics.ReadTypeNames[metrics.ReadTypeSequential], requestedDataSize)
+	rr.metricHandle.GcsReadCount(1, optimizedmetrics.ReadTypeNames[optimizedmetrics.ReadTypeSequential])
+	rr.metricHandle.GcsDownloadBytesCount(requestedDataSize, optimizedmetrics.ReadTypeNames[optimizedmetrics.ReadTypeSequential])
 
 	return nil
 }

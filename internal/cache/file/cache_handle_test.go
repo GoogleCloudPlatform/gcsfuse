@@ -37,7 +37,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/optimizedmetrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -155,7 +155,7 @@ func (cht *cacheHandleTest) SetupTest() {
 		func() {},
 		fileCacheConfig,
 		semaphore.NewWeighted(math.MaxInt64),
-		metrics.NewNoopMetrics(),
+		optimizedmetrics.NewNoopMetrics(),
 	)
 
 	cht.cacheHandle = NewCacheHandle(readLocalFileHandle, fileDownloadJob, cht.cache, false, 0)
@@ -858,7 +858,7 @@ func (cht *cacheHandleTest) Test_SequentialRead_Parallel_Download_True() {
 		func() {},
 		fileCacheConfig,
 		semaphore.NewWeighted(math.MaxInt64),
-		metrics.NewNoopMetrics(),
+		optimizedmetrics.NewNoopMetrics(),
 	)
 	cht.cacheHandle.fileDownloadJob = fileDownloadJob
 
@@ -893,7 +893,7 @@ func (cht *cacheHandleTest) Test_RandomRead_Parallel_Download_True() {
 		func() {},
 		fileCacheConfig,
 		semaphore.NewWeighted(math.MaxInt64),
-		metrics.NewNoopMetrics(),
+		optimizedmetrics.NewNoopMetrics(),
 	)
 	cht.cacheHandle.fileDownloadJob = fileDownloadJob
 
@@ -928,7 +928,7 @@ func (cht *cacheHandleTest) Test_RandomRead_CacheForRangeReadFalse_And_ParallelD
 		func() {},
 		fileCacheConfig,
 		semaphore.NewWeighted(math.MaxInt64),
-		metrics.NewNoopMetrics(),
+		optimizedmetrics.NewNoopMetrics(),
 	)
 
 	// Since, it's a random read, download job will not start.

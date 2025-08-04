@@ -27,7 +27,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v3/optimizedmetrics"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 	"golang.org/x/sync/semaphore"
@@ -61,7 +61,7 @@ type FileHandle struct {
 	// cacheFileForRangeRead is also valid for cache workflow, if true, object content
 	// will be downloaded for random reads as well too.
 	cacheFileForRangeRead bool
-	metricHandle          metrics.MetricHandle
+	metricHandle          optimizedmetrics.MetricHandle
 	// openMode is used to store the mode in which the file is opened.
 	openMode util.OpenMode
 
@@ -77,7 +77,7 @@ type FileHandle struct {
 }
 
 // LOCKS_REQUIRED(fh.inode.mu)
-func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, openMode util.OpenMode, c *cfg.Config, bufferedReadWorkerPool workerpool.WorkerPool, globalMaxReadBlocksSem *semaphore.Weighted) (fh *FileHandle) {
+func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle optimizedmetrics.MetricHandle, openMode util.OpenMode, c *cfg.Config, bufferedReadWorkerPool workerpool.WorkerPool, globalMaxReadBlocksSem *semaphore.Weighted) (fh *FileHandle) {
 	fh = &FileHandle{
 		inode:                  inode,
 		fileCacheHandler:       fileCacheHandler,
