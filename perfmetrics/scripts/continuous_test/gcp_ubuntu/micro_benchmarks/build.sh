@@ -15,7 +15,7 @@
 
 set -euo pipefail
 
-VM_NAME="periodic-micro-benchmark-tests"
+VM_NAME="pr-perf-test-tulsishah"
 ZONE="us-west1-b"
 REPO_DIR="~/github/gcsfuse"
 MOUNTED_DIR="$REPO_DIR/perfmetrics/scripts/micro_benchmarks/gcs"
