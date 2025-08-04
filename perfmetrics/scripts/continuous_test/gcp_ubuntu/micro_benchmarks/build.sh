@@ -17,9 +17,10 @@ set -euo pipefail
 
 VM_NAME="periodic-micro-benchmark-tests"
 ZONE="us-west1-b"
+REPO_DIR="~/github/gcsfuse"
+MOUNTED_DIR="$REPO_DIR/perfmetrics/scripts/micro_benchmarks/gcs"
 TEST_SCRIPT_PATH="github/gcsfuse/perfmetrics/scripts/micro_benchmarks/run_microbenchmark.sh"
 GCSFUSE_REPO="https://github.com/GoogleCloudPlatform/gcsfuse.git"
-REPO_DIR="github/gcsfuse"
 
 log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
@@ -61,23 +62,31 @@ initialize_ssh_key() {
 }
 
 run_script_on_vm() {
-  log "Running clean setup and benchmark script on VM..."
+  log "Running benchmark script on VM with clean setup..."
 
   gcloud compute ssh "$VM_NAME" --zone "$ZONE" --internal-ip --command "
     set -euxo pipefail
 
-    # Ensure clean environment
     sudo apt-get update -y
     sudo apt-get install -y git
 
-    rm -rf ~/github
-    mkdir -p ~/github
+    # Unmount if gcsfuse mount exists
+    if mountpoint -q $MOUNTED_DIR; then
+      echo '$MOUNTED_DIR is mounted. Attempting to unmount...'
+      sudo fusermount -u $MOUNTED_DIR || sudo umount $MOUNTED_DIR
+    fi
 
+    # Clean up any existing repo
+    rm -rf ~/github
+
+    # Clone fresh repo
+    mkdir -p ~/github
     git clone $GCSFUSE_REPO ~/github/gcsfuse
     cd ~/github/gcsfuse
     git checkout spin_VM_and_run_micro_bench
     git pull origin spin_VM_and_run_micro_bench
 
+    # Run benchmark
     echo 'Triggering benchmark script...'
     bash ~/$TEST_SCRIPT_PATH
   "

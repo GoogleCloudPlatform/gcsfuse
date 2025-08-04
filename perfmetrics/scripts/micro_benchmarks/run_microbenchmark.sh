@@ -53,11 +53,12 @@ run_benchmark() {
   local script=$2
   local file_size_gb=$3
   local total_files=$4
+  echo "Running $type benchmark with file size $file_size_gb GB and total files $total_files..."
   local log_file="/tmp/gcsfuse-logs-single-threaded-${type}-${file_size_gb}gb-test.txt"
   local gcsfuse_flags="--log-file $log_file"
 
   log "Running $type benchmark..."
-  if ! python3 "$script" --bucket single-threaded-tests --gcsfuse-config "$gcsfuse_flags" --total-files 1 --file-size-gb "$file_size_gb"; then
+  if ! python3 "$script" --bucket single-threaded-tests --gcsfuse-config "$gcsfuse_flags" --total-files $total_files --file-size-gb "$file_size_gb"; then
     log "$type benchmark failed. Copying log to GCS..."
     gcloud storage cp "$log_file" "gs://$ARTIFACT_BUCKET_PATH/$DATE/"
     return 1
