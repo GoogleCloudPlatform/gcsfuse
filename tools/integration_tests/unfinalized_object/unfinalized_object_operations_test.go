@@ -54,20 +54,15 @@ func (t *unfinalizedObjectOperations) TeardownTest() {}
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCreatedOutsideOfMountReports0Size() {
+func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCreatedOutsideOfMountReportsNonZeroSize() {
 	size := operations.MiB
 	writer := client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, t.fileName), setup.GenerateRandomString(size))
+	defer writer.Close()
 
 	statRes, err := operations.StatFile(path.Join(t.testDirPath, t.fileName))
 
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), t.fileName, (*statRes).Name())
-	assert.EqualValues(t.T(), 0, (*statRes).Size())
-	// After object is finalized, correct size should be reported.
-	err = writer.Close()
-	require.NoError(t.T(), err)
-	statRes, err = operations.StatFile(path.Join(t.testDirPath, t.fileName))
-	require.NoError(t.T(), err)
 	assert.EqualValues(t.T(), size, (*statRes).Size())
 }
 
