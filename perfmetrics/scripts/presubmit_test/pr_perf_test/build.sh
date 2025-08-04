@@ -106,6 +106,8 @@ then
  # Show results
  echo showing results...
  python3 ./perfmetrics/scripts/presubmit/print_results.py
+
+ sleep 86400
 fi
 
 # Install required bash version for e2e script as kokoro has outdated bash versions.
