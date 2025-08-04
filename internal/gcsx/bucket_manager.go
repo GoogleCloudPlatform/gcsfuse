@@ -64,10 +64,10 @@ type BucketConfig struct {
 	// Note that if the process fails or is interrupted the temporary object will
 	// not be cleaned up, so the user must ensure that TmpObjectPrefix is
 	// periodically garbage collected.
-	AppendThreshold                int64
-	ChunkTransferTimeoutSecs       int64
-	TmpObjectPrefix                string
-	ExperimentalEnableRapidAppends bool
+	AppendThreshold          int64
+	ChunkTransferTimeoutSecs int64
+	TmpObjectPrefix          string
+	EnableRapidAppends       bool
 }
 
 // BucketManager manages the lifecycle of buckets.
@@ -170,7 +170,7 @@ func (bm *bucketManager) SetUpBucket(
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
 	} else {
-		b, err = bm.storageHandle.BucketHandle(ctx, name, bm.config.BillingProject, bm.config.ExperimentalEnableRapidAppends)
+		b, err = bm.storageHandle.BucketHandle(ctx, name, bm.config.BillingProject, bm.config.EnableRapidAppends)
 		if err != nil {
 			err = fmt.Errorf("BucketHandle: %w", err)
 			return
