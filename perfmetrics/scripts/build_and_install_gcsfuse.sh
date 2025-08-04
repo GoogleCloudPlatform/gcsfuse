@@ -15,23 +15,51 @@
 
 # This script will build gcsfuse package on given commitId or branch and install it on the machine.
 # This will stop execution when any command will have non-zero status.
+#!/bin/bash
 set -e
-# e.g. architecture=arm64 or amd64
-architecture=$(dpkg --print-architecture)
-echo "Installing docker..."
-sudo mkdir -p /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-echo \
-  "deb [arch=${architecture} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-sudo apt-get update
-sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin -y
 
+# --- Determine architecture (e.g., amd64, arm64) ---
+architecture=$(dpkg --print-architecture)
+
+# --- Install Docker only if not already installed ---
+if ! command -v docker &> /dev/null; then
+  echo "Docker not found. Installing Docker..."
+
+  sudo mkdir -p /etc/apt/keyrings
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+  echo \
+    "deb [arch=${architecture} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+    $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+  sudo apt-get update
+  sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+else
+  echo "Docker is already installed. Skipping Docker installation."
+fi
+
+# --- Build and install gcsfuse ---
 echo "Building and installing gcsfuse..."
-# $1 refers to branch or commit-id on which we want to build package.
+
 branch=$1
-# Build the gcsfuse package using the same commands used during release.
+if [ -z "$branch" ]; then
+  echo "Usage: $0 <branch-or-commit-id>"
+  exit 1
+fi
+
 GCSFUSE_VERSION=0.0.0
-sudo docker buildx build --load ./tools/package_gcsfuse_docker/ -t gcsfuse:$branch --build-arg ARCHITECTURE=${architecture} --build-arg GCSFUSE_VERSION=$GCSFUSE_VERSION --build-arg BRANCH_NAME=$branch --platform=linux/${architecture}
+
+# Build the gcsfuse package using Docker
+sudo docker buildx build --load ./tools/package_gcsfuse_docker/ \
+  -t gcsfuse:$branch \
+  --build-arg ARCHITECTURE=${architecture} \
+  --build-arg GCSFUSE_VERSION=$GCSFUSE_VERSION \
+  --build-arg BRANCH_NAME=$branch \
+  --platform=linux/${architecture}
+
+# Copy .deb package from container to host
+mkdir -p $HOME/release  # ensure mount directory exists
 sudo docker run -v $HOME/release:/release gcsfuse:$branch cp -r /packages /release/
+
+# Install the gcsfuse package
 sudo dpkg -i $HOME/release/packages/gcsfuse_${GCSFUSE_VERSION}_${architecture}.deb
