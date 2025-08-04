@@ -16,11 +16,14 @@
 package operations_test
 
 import (
+	"context"
 	"os"
 	"path"
 	"strings"
 	"testing"
 
+	storage "cloud.google.com/go/storage/internal/apiv2"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
@@ -115,6 +118,27 @@ func TestMoveFileWithDestFileExist(t *testing.T) {
 	operations.CreateFileWithContent(destFilePath, setup.FilePermission_0600, "Hello from dest file", t)
 
 	// Move the file.
+	err := operations.Move(srcFilePath, destFilePath)
+
+	assert.NoError(t, err, "error in file moving")
+	// Verify the file was renamed and content is preserved.
+	setup.CompareFileContents(t, destFilePath, Content)
+	// Verify the old file is removed.
+	_, err = os.Stat(srcFilePath)
+	assert.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "no such file or directory"))
+}
+
+func TestRenameOnUnfinalizedObject(t *testing.T) {
+	objectName := "move1.txt"
+	// Set up the test directory.
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
+	// Define source and destination file names.
+	srcFilePath := path.Join(testDir, "move1.txt")
+	destFilePath := path.Join(testDir, "move2.txt")
+	// Create an unfinalized object named `move1.txt`
+	client.CreateUnfinalizedObject(ctx, t, storageClient, objectName, Content)
+
 	err := operations.Move(srcFilePath, destFilePath)
 
 	assert.NoError(t, err, "error in file moving")
