@@ -21,12 +21,12 @@ import (
 // FileClobberedError represents a file clobbering scenario where a file was
 // modified or deleted while it was being accessed.
 type FileClobberedError struct {
-	Err      error
-	FileName string
+	Err        error
+	ObjectName string
 }
 
 func (fce *FileClobberedError) Error() string {
-	return fmt.Sprintf("The file %q was modified or deleted by another process, possibly due to concurrent modification: %v", fce.FileName, fce.Err)
+	return fmt.Sprintf("The file %q was modified or deleted by another process, possibly due to concurrent modification: %v", fce.ObjectName, fce.Err)
 }
 
 func (fce *FileClobberedError) Unwrap() error {
