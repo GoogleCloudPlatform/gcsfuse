@@ -266,7 +266,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 				if errors.Is(err, ErrPrefetchBlockNotAvailable) {
 					return resp, gcsx.FallbackToAnotherReader
 				}
-				err = fmt.Errorf("bufferedReader.ReadAt: freshStart failed: %w", err)
+				err = fmt.Errorf("BufferedReader.ReadAt: freshStart failed: %w", err)
 				break
 			}
 			prefetchTriggered = true
@@ -277,7 +277,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 		status, waitErr := blk.AwaitReady(ctx)
 		if waitErr != nil {
-			err = fmt.Errorf("bufferedReader.ReadAt: AwaitReady failed: %w", waitErr)
+			err = fmt.Errorf("BufferedReader.ReadAt: AwaitReady failed: %w", waitErr)
 			break
 		}
 
@@ -288,9 +288,9 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 			switch status.State {
 			case block.BlockStateDownloadFailed:
-				err = fmt.Errorf("bufferedReader.ReadAt: download failed: %w", status.Err)
+				err = fmt.Errorf("BufferedReader.ReadAt: download failed: %w", status.Err)
 			default:
-				err = fmt.Errorf("bufferedReader.ReadAt: unexpected block state: %d", status.State)
+				err = fmt.Errorf("BufferedReader.ReadAt: unexpected block state: %d", status.State)
 			}
 			break
 		}
@@ -301,7 +301,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		off += int64(n)
 
 		if readErr != nil && !errors.Is(readErr, io.EOF) {
-			err = fmt.Errorf("bufferedReader.ReadAt: block.ReadAt: %w", readErr)
+			err = fmt.Errorf("BufferedReader.ReadAt: block.ReadAt: %w", readErr)
 			break
 		}
 
@@ -317,7 +317,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 			if !prefetchTriggered {
 				prefetchTriggered = true
 				if pfErr := p.prefetch(); pfErr != nil {
-					logger.Warnf("bufferedReader.ReadAt: while prefetching: %v", pfErr)
+					logger.Warnf("BufferedReader.ReadAt: while prefetching: %v", pfErr)
 				}
 			}
 		}
