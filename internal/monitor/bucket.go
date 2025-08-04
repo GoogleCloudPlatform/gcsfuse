@@ -20,6 +20,7 @@ import (
 	"time"
 
 	storagev2 "cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
@@ -60,6 +61,7 @@ func setupReader(ctx context.Context, mb *monitoringBucket, req *gcs.ReadObjectR
 	startTime := time.Now()
 
 	rc, err := mb.wrapped.NewReaderWithReadHandle(ctx, req)
+	logger.Tracef("Time taken to create reader: %d ms", time.Since(startTime).Milliseconds())
 
 	if err == nil {
 		rc = newMonitoringReadCloser(ctx, req.Name, rc, mb.metricHandle)
