@@ -226,13 +226,13 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 	start := time.Now()
 	initOff := off
 	blockIdx := initOff / p.config.PrefetchBlockSizeBytes
-	var handleID uint64
-	if readOp, ok := ctx.Value(ReadOp).(*fuseops.ReadFileOp); ok {
-		handleID = uint64(readOp.Handle)
-	}
-
 	var bytesRead int
 	var err error
+	handleID := int64(-1) // As 0 is a valid handle ID, we use -1 to indicate no handle.
+	if readOp, ok := ctx.Value(ReadOp).(*fuseops.ReadFileOp); ok {
+		handleID = int64(readOp.Handle)
+	}
+
 	logger.Tracef("%.13v <- ReadAt(%s:/%s, %d, %d, %d, %d)", reqID, p.bucket.Name(), p.object.Name, handleID, off, len(inputBuf), blockIdx)
 
 	if off >= int64(p.object.Size) {
@@ -266,7 +266,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 				if errors.Is(err, ErrPrefetchBlockNotAvailable) {
 					return resp, gcsx.FallbackToAnotherReader
 				}
-				err = fmt.Errorf("ReadAt: freshStart failed: %w", err)
+				err = fmt.Errorf("bufferedReader.ReadAt: freshStart failed: %w", err)
 				break
 			}
 			prefetchTriggered = true
@@ -277,7 +277,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 		status, waitErr := blk.AwaitReady(ctx)
 		if waitErr != nil {
-			err = fmt.Errorf("ReadAt: AwaitReady failed: %w", waitErr)
+			err = fmt.Errorf("bufferedReader.ReadAt: AwaitReady failed: %w", waitErr)
 			break
 		}
 
@@ -288,9 +288,9 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 			switch status.State {
 			case block.BlockStateDownloadFailed:
-				err = fmt.Errorf("ReadAt: download failed: %w", status.Err)
+				err = fmt.Errorf("bufferedReader.ReadAt: download failed: %w", status.Err)
 			default:
-				err = fmt.Errorf("ReadAt: unexpected block state: %d", status.State)
+				err = fmt.Errorf("bufferedReader.ReadAt: unexpected block state: %d", status.State)
 			}
 			break
 		}
@@ -301,7 +301,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		off += int64(n)
 
 		if readErr != nil && !errors.Is(readErr, io.EOF) {
-			err = fmt.Errorf("ReadAt: block.ReadAt failed: %w", readErr)
+			err = fmt.Errorf("bufferedReader.ReadAt: block.ReadAt: %w", readErr)
 			break
 		}
 
@@ -317,7 +317,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 			if !prefetchTriggered {
 				prefetchTriggered = true
 				if pfErr := p.prefetch(); pfErr != nil {
-					logger.Warnf("ReadAt: prefetch failed: %v", pfErr)
+					logger.Warnf("bufferedReader.ReadAt: while prefetching: %v", pfErr)
 				}
 			}
 		}
@@ -371,12 +371,12 @@ func (p *BufferedReader) freshStart(currentOffset int64) error {
 
 	// Schedule the first block as urgent.
 	if err := p.scheduleNextBlock(true); err != nil {
-		return fmt.Errorf("freshStart: initial scheduling failed: %w", err)
+		return fmt.Errorf("freshStart: while scheduling first block: %w", err)
 	}
 
 	// Prefetch the initial blocks.
 	if err := p.prefetch(); err != nil {
-		return fmt.Errorf("freshStart: prefetch failed: %w", err)
+		return fmt.Errorf("freshStart: while prefetching: %w", err)
 	}
 	return nil
 }
@@ -387,7 +387,7 @@ func (p *BufferedReader) scheduleNextBlock(urgent bool) error {
 	b, err := p.blockPool.Get()
 	if err != nil || b == nil {
 		if err != nil {
-			logger.Warnf("failed to get block from pool: %v", err)
+			logger.Warnf("scheduleNextBlock: failed to get block from pool: %v", err)
 		}
 		return ErrPrefetchBlockNotAvailable
 	}
@@ -432,14 +432,14 @@ func (p *BufferedReader) Destroy() {
 		// We expect a context.Canceled error here, but we wait to ensure the
 		// block's worker goroutine has finished before releasing the block.
 		if _, err := bqe.block.AwaitReady(p.ctx); err != nil && err != context.Canceled {
-			logger.Warnf("bufferedread: error waiting for block on destroy: %v", err)
+			logger.Warnf("Destroy: while waiting for block on destroy: %v", err)
 		}
 		p.blockPool.Release(bqe.block)
 	}
 
 	err := p.blockPool.ClearFreeBlockChannel(true)
 	if err != nil {
-		logger.Warnf("bufferedread: error clearing free block channel: %v", err)
+		logger.Warnf("Destroy: while clearing free block channel: %v", err)
 	}
 	p.blockPool = nil
 }
