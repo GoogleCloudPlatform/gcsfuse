@@ -140,8 +140,12 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (reader
 			readInfo = gr.getReadInfo(offset, readInfo.seekRecorded)
 			reqReaderType = gr.readerType(readInfo.readType, gr.bucket.BucketType())
 		}
+		// If the readerType is range reader after re calculation, then use range reader.
+		// Otherwise fall back to MultiRange Downloder
 		if reqReaderType == RangeReaderType {
 			defer gr.mu.Unlock()
+			// Calculate the end offset based on previous read requests.
+			// It will be used if a new range reader needs to be created.
 			readReq.EndOffset = gr.getEndOffset(readReq.Offset)
 			readerResponse, err = gr.rangeReader.ReadAt(ctx, readReq)
 			return readerResponse, err

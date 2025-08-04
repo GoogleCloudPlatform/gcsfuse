@@ -2822,7 +2822,6 @@ func (fs *fileSystem) ReadFile(
 	// Serve the read.
 
 	if fs.newConfig.EnableNewReader {
-		// logger.Errorf("Reading with readManager")
 		op.Dst, op.BytesRead, err = fh.ReadWithReadManager(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
 	} else {
 		op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
