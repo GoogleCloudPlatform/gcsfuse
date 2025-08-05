@@ -115,8 +115,12 @@ func (fh *FileHandle) Unlock() {
 	fh.mu.Unlock()
 }
 
-func (fh *FileHandle) lockHandleAndRelockInode(readOnly bool) {
-	if readOnly {
+// lockHandleAndRelockInode is a helper function which locks fh.mu maintaing the locking
+// order, i.e. it first unlocks inode lock, then locks fh.mu (RLock or RWlock) and then
+// relocks inode lock.
+// This assumes the necessary locks (fh.inode.mu) are already held by the caller.
+func (fh *FileHandle) lockHandleAndRelockInode(rLock bool) {
+	if rLock {
 		fh.inode.Unlock()
 		fh.mu.RLock()
 		fh.inode.Lock()
@@ -259,7 +263,6 @@ func (fh *FileHandle) checkInvariants() {
 // If possible, ensure that fh.reader is set to an appropriate random reader
 // for the current state of the inode otherwise set it to nil.
 //
-// LOCKS_REQUIRED(fh)
 // LOCKS_REQUIRED(fh.inode)
 func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb int32) (err error) {
 	// If content cache enabled, CacheEnsureContent forces the file handler to fall through to the inode
@@ -295,7 +298,6 @@ func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb 
 // If possible, ensure that fh.readManager is set to an appropriate read manager
 // for the current state of the inode otherwise set it to nil.
 //
-// LOCKS_REQUIRED(fh)
 // LOCKS_REQUIRED(fh.inode)
 func (fh *FileHandle) tryEnsureReadManager(ctx context.Context, sequentialReadSizeMb int32) error {
 	// If content cache enabled, CacheEnsureContent forces the file handler to fall through to the inode
@@ -337,17 +339,18 @@ func (fh *FileHandle) tryEnsureReadManager(ctx context.Context, sequentialReadSi
 // destroyReadManager is a helper function to safely destroy the readManager & set it to nil.
 // This assumes the necessary locks (fh.inode.mu) are already held by the caller.
 func (fh *FileHandle) destroyReadManager() {
+	fh.lockHandleAndRelockInode(false)
+	defer fh.mu.Unlock()
 	if fh.readManager == nil {
 		return
 	}
-	fh.lockHandleAndRelockInode(false)
-	defer fh.mu.Unlock()
 	fh.readManager.Destroy()
 	fh.readManager = nil
 }
 
 // isValidReadManager is a helper function which validates & returns whether the
 // current readManager is valid or not.
+// This assumes the necessary locks (fh.inode.mu) are already held by the caller.
 func (fh *FileHandle) isValidReadManager() bool {
 	fh.lockHandleAndRelockInode(true)
 	defer fh.mu.RUnlock()
@@ -364,17 +367,18 @@ func (fh *FileHandle) isValidReadManager() bool {
 // destroyReader is a helper function to safely destroy the reader and set it to nil.
 // This assumes the necessary locks (fh.inode.mu) are already held by the caller.
 func (fh *FileHandle) destroyReader() {
+	fh.lockHandleAndRelockInode(false)
+	defer fh.mu.Unlock()
 	if fh.reader == nil {
 		return
 	}
-	fh.lockHandleAndRelockInode(false)
-	defer fh.mu.Unlock()
 	fh.reader.Destroy()
 	fh.reader = nil
 }
 
 // isValidReader is a helper function which validates & returns whether the
 // current reader is valid or not.
+// This assumes the necessary locks (fh.inode.mu) are already held by the caller.
 func (fh *FileHandle) isValidReader() bool {
 	fh.lockHandleAndRelockInode(true)
 	defer fh.mu.RUnlock()
