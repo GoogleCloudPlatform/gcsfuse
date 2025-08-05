@@ -208,6 +208,20 @@ func (t *BlockPoolTest) TestClearFreeBlockChannel() {
 	}
 }
 
+func (t *BlockPoolTest) TestClearFreeBlockChannelWhenTotalBlocksIsZero() {
+	bp, err := NewGenBlockPool(1024, 10, semaphore.NewWeighted(1), createBlock)
+	require.Nil(t.T(), err)
+	require.Equal(t.T(), int64(0), bp.totalBlocks)
+
+	err = bp.ClearFreeBlockChannel(true)
+
+	require.Nil(t.T(), err)
+	require.Equal(t.T(), int64(0), bp.totalBlocks)
+	// Check if semaphore is released correctly.
+	require.True(t.T(), bp.globalMaxBlocksSem.TryAcquire(1))
+	require.False(t.T(), bp.globalMaxBlocksSem.TryAcquire(1))
+}
+
 func (t *BlockPoolTest) TestBlockPoolCreationAcquiresGlobalSem() {
 	globalBlocksSem := semaphore.NewWeighted(1)
 
