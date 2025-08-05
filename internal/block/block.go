@@ -88,6 +88,11 @@ func (m *memoryBlock) Read(bytes []byte) (int, error) {
 	n := copy(bytes, m.buffer[m.readSeek:m.offset.end])
 	m.readSeek += int64(n)
 
+	// If readSeek is beyond the end of the block, return EOF early.
+	if m.readSeek >= m.offset.end {
+		return n, io.EOF
+	}
+
 	return n, nil
 }
 
