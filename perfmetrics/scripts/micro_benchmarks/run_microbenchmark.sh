@@ -20,8 +20,6 @@ log() {
 }
 
 # --- Constants ---
-REPO_URL="https://github.com/GoogleCloudPlatform/gcsfuse.git"
-REPO_DIR="gcsfuse"
 VENV_DIR="venv"
 ARTIFACT_BUCKET_PATH="gcsfuse-kokoro-logs/prod/gcsfuse/gcp_ubuntu/periodic/micro_benchmark"
 DATE=$(date +%Y-%m-%d)
@@ -42,7 +40,7 @@ prepare_venv() {
     python3 -m venv "$VENV_DIR"
   fi
   source "$VENV_DIR/bin/activate"
-  pip install -U pip setuptools >/dev/null
+  pip install -U pip setuptools
   pip install -r "requirements.txt"
 }
 
@@ -55,7 +53,7 @@ run_benchmark() {
   echo "Running $type benchmark with file size $file_size_gb GB and total files $total_files..."
   local log_file="/tmp/gcsfuse-logs-single-threaded-${type}-${file_size_gb}gb-test.txt"
 
-  # Declare array to split log flag
+  # Pass log file flag as a string.
   local gcsfuse_flags="--log-file $log_file"
 
   log "Running $type benchmark..."
@@ -73,9 +71,7 @@ run_benchmark() {
 # --- Main Script ---
 log "Installing dependencies..."
 sudo apt-get update -y
-sudo apt-get install -y git
-sudo apt-get install gnupg
-sudo apt install -y python3-venv
+sudo apt-get install -y git gnupg python3-venv
 
 cd "$HOME/github/gcsfuse"
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
