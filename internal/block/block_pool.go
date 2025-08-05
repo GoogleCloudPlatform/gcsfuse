@@ -163,10 +163,6 @@ func (bp *GenBlockPool[T]) BlockSize() int64 {
 }
 
 func (bp *GenBlockPool[T]) ClearFreeBlockChannel(releaseLastBlock bool) error {
-	if len(bp.freeBlocksCh) == 0 && releaseLastBlock {
-		bp.globalMaxBlocksSem.Release(1)
-		return nil
-	}
 	for {
 		select {
 		case b := <-bp.freeBlocksCh:
@@ -177,11 +173,14 @@ func (bp *GenBlockPool[T]) ClearFreeBlockChannel(releaseLastBlock bool) error {
 			}
 			bp.totalBlocks--
 			// Release semaphore for last block iff releaseLastBlock is true.
-			if bp.totalBlocks != 0 || releaseLastBlock {
+			if bp.totalBlocks != 0 {
 				bp.globalMaxBlocksSem.Release(1)
 			}
 		default:
-			// Return if there are no more blocks on the channel.
+			// We are here, it means there are no more blocks in the free blocks channel.
+			if releaseLastBlock {
+				bp.globalMaxBlocksSem.Release(1)
+			}
 			return nil
 		}
 	}
