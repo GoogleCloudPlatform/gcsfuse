@@ -37,7 +37,8 @@ const chunkTransferTimeoutSecs int64 = 10
 var errUploadFailure = errors.New("error while uploading object to GCS")
 
 type BufferedWriteTest struct {
-	bwh BufferedWriteHandler
+	bwh             BufferedWriteHandler
+	globalSemaphore *semaphore.Weighted
 	suite.Suite
 }
 
@@ -52,13 +53,14 @@ func (testSuite *BufferedWriteTest) SetupTest() {
 
 func (testSuite *BufferedWriteTest) setupTestWithBucketType(bucketType gcs.BucketType) {
 	bucket := fake.NewFakeBucket(timeutil.RealClock(), "FakeBucketName", bucketType)
+	testSuite.globalSemaphore = semaphore.NewWeighted(10)
 	bwh, err := NewBWHandler(&CreateBWHandlerRequest{
 		Object:                   nil,
 		ObjectName:               "testObject",
 		Bucket:                   bucket,
 		BlockSize:                blockSize,
 		MaxBlocksPerFile:         10,
-		GlobalMaxBlocksSem:       semaphore.NewWeighted(10),
+		GlobalMaxBlocksSem:       testSuite.globalSemaphore,
 		ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
 	})
 	require.Nil(testSuite.T(), err)
@@ -463,6 +465,9 @@ func (testSuite *BufferedWriteTest) TestUnlinkBeforeWrite() {
 	assert.Nil(testSuite.T(), bwhImpl.uploadHandler.cancelFunc)
 	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
 	assert.Equal(testSuite.T(), 0, bwhImpl.uploadHandler.blockPool.TotalFreeBlocks())
+	// Check if semaphore is released correctly. Last block should not be released.
+	assert.True(testSuite.T(), testSuite.globalSemaphore.TryAcquire(9))
+	assert.False(testSuite.T(), testSuite.globalSemaphore.TryAcquire(1))
 }
 
 func (testSuite *BufferedWriteTest) TestUnlinkAfterWrite() {
@@ -482,6 +487,9 @@ func (testSuite *BufferedWriteTest) TestUnlinkAfterWrite() {
 	assert.True(testSuite.T(), cancelCalled)
 	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
 	assert.Equal(testSuite.T(), 0, bwhImpl.uploadHandler.blockPool.TotalFreeBlocks())
+	// Check if semaphore is released correctly. Last block should not be released.
+	assert.True(testSuite.T(), testSuite.globalSemaphore.TryAcquire(9))
+	assert.False(testSuite.T(), testSuite.globalSemaphore.TryAcquire(1))
 }
 
 func (testSuite *BufferedWriteTest) TestReFlushAfterUploadFails() {
