@@ -86,6 +86,7 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 
 // Destroy any resources associated with the handle, which must not be used
 // again.
+// LOCKS_REQUIRED(fh.mu)
 // LOCK_FUNCTION(fh.inode.mu)
 // UNLOCK_FUNCTION(fh.inode.mu)
 func (fh *FileHandle) Destroy() {
@@ -93,9 +94,6 @@ func (fh *FileHandle) Destroy() {
 	fh.inode.Lock()
 	fh.inode.DeRegisterFileHandle(fh.openMode == util.Read)
 	fh.inode.Unlock()
-
-	fh.mu.Lock()
-	defer fh.mu.Unlock()
 	if fh.reader != nil {
 		fh.reader.Destroy()
 	}
