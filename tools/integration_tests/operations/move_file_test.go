@@ -16,13 +16,11 @@
 package operations_test
 
 import (
-	"context"
 	"os"
 	"path"
 	"strings"
 	"testing"
 
-	storage "cloud.google.com/go/storage/internal/apiv2"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
@@ -130,14 +128,16 @@ func TestMoveFileWithDestFileExist(t *testing.T) {
 }
 
 func TestRenameOnUnfinalizedObject(t *testing.T) {
-	objectName := "move1.txt"
+	// Skipping until MoveObject() API is supported on unfinalized objects.
+	t.Skip()
+
 	// Set up the test directory.
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 	// Define source and destination file names.
 	srcFilePath := path.Join(testDir, "move1.txt")
 	destFilePath := path.Join(testDir, "move2.txt")
 	// Create an unfinalized object named `move1.txt`
-	client.CreateUnfinalizedObject(ctx, t, storageClient, objectName, Content)
+	client.CreateUnfinalizedObject(ctx, t, storageClient, path.Join(DirForOperationTests, "move1.txt"), Content)
 
 	err := operations.Move(srcFilePath, destFilePath)
 
