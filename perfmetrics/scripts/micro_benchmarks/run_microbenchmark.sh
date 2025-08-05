@@ -21,7 +21,6 @@ log() {
 
 # --- Constants ---
 REPO_URL="https://github.com/GoogleCloudPlatform/gcsfuse.git"
-BRANCH="spin_VM_and_run_micro_bench"
 REPO_DIR="gcsfuse"
 VENV_DIR="venv"
 ARTIFACT_BUCKET_PATH="gcsfuse-kokoro-logs/prod/gcsfuse/gcp_ubuntu/periodic/micro_benchmark"
@@ -64,21 +63,19 @@ run_benchmark() {
       --gcsfuse-config "$gcsfuse_flags" \
       --total-files "$total_files" \
       --file-size-gb "$file_size_gb"; then
-    log "$type benchmark failed. Copying log to GCS..."
+    log "$type benchmark failed. Copying log to gs://$ARTIFACT_BUCKET_PATH/$DATE"
     gcloud storage cp "$log_file" "gs://$ARTIFACT_BUCKET_PATH/$DATE/"
     return 1
   fi
   return 0
 }
 
-
 # --- Main Script ---
-
 log "Installing dependencies..."
 sudo apt-get update -y
 sudo apt-get install -y git
 sudo apt-get install gnupg
-sudo apt install -y python3.13-venv
+sudo apt install -y python3-venv
 
 cd "$HOME/github/gcsfuse"
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run

@@ -15,7 +15,6 @@
 
 # This script will build gcsfuse package on given commitId or branch and install it on the machine.
 # This will stop execution when any command will have non-zero status.
-#!/bin/bash
 set -e
 
 # --- Determine architecture (e.g., amd64, arm64) ---
@@ -37,7 +36,6 @@ fi
 
 # --- Build and install gcsfuse ---
 echo "Building and installing gcsfuse..."
-
 branch=$1
 if [ -z "$branch" ]; then
   echo "Usage: $0 <branch-or-commit-id>"
@@ -48,10 +46,5 @@ GCSFUSE_VERSION=0.0.0
 
 # Build the gcsfuse package using Docker
 sudo docker buildx build --load ./tools/package_gcsfuse_docker/ -t gcsfuse:$branch --build-arg ARCHITECTURE=${architecture} --build-arg GCSFUSE_VERSION=$GCSFUSE_VERSION --build-arg BRANCH_NAME=$branch --platform=linux/${architecture}
-
-# Copy .deb package from container to host
-mkdir -p $HOME/release  # ensure mount directory exists
 sudo docker run -v $HOME/release:/release gcsfuse:$branch cp -r /packages /release/
-
-# Install the gcsfuse package
 sudo dpkg -i $HOME/release/packages/gcsfuse_${GCSFUSE_VERSION}_${architecture}.deb
