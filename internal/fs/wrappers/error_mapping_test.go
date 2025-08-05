@@ -94,7 +94,8 @@ func (testSuite *ErrorMapping) TestUnAuthenticatedHttpGoogleApiError() {
 
 func (testSuite *ErrorMapping) TestFileClobberedErrorWithPreconditionErrCfg() {
 	clobberedErr := &gcsfuse_errors.FileClobberedError{
-		Err: fmt.Errorf("some error"),
+		Err:        fmt.Errorf("some error"),
+		ObjectName: "foo.txt",
 	}
 
 	gotErrno := errno(clobberedErr, true)
@@ -104,7 +105,8 @@ func (testSuite *ErrorMapping) TestFileClobberedErrorWithPreconditionErrCfg() {
 
 func (testSuite *ErrorMapping) TestFileClobberedErrorWithoutPreconditionErrCfg() {
 	clobberedErr := &gcsfuse_errors.FileClobberedError{
-		Err: fmt.Errorf("some error"),
+		Err:        fmt.Errorf("some error"),
+		ObjectName: "foo.txt",
 	}
 
 	gotErrno := errno(clobberedErr, false)

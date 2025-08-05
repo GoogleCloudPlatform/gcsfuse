@@ -264,7 +264,8 @@ func (rr *RangeReader) startRead(start int64, end int64) error {
 	var notFoundError *gcs.NotFoundError
 	if errors.As(err, &notFoundError) {
 		err = &gcsfuse_errors.FileClobberedError{
-			Err: fmt.Errorf("NewReader: %w", err),
+			Err:        fmt.Errorf("NewReader: %w", err),
+			ObjectName: rr.object.Name,
 		}
 		cancel()
 		return err
