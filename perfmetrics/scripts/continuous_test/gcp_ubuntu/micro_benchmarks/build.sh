@@ -72,7 +72,7 @@ run_script_on_vm() {
 
     # Unmount if gcsfuse mount exists
     if mountpoint -q $MOUNTED_DIR; then
-      echo "$MOUNTED_DIR is mounted. Attempting to unmount..."
+      echo '$MOUNTED_DIR is mounted. Attempting to unmount...'
       sudo fusermount -u $MOUNTED_DIR || sudo umount $MOUNTED_DIR
     fi
 
