@@ -273,21 +273,15 @@ func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb 
 	// we have one.
 	if !fh.inode.SourceGenerationIsAuthoritative() {
 		fh.destroyReader()
-		return
+		return nil
 	}
 
-	fh.lockHandleAndRelockInode(true)
-	// If we already have a reader, and it's at the appropriate generation, we
-	// can use it otherwise we must throw it away.
-	if fh.reader != nil {
-		if fh.reader.Object().Generation == fh.inode.SourceGeneration().Object {
-			// Update reader object size to source object size.
-			fh.reader.Object().Size = fh.inode.SourceGeneration().Size
-			fh.mu.RUnlock()
-			return
-		}
+	if ok := fh.isValidReader(); ok {
+		return nil
 	}
-	fh.mu.RUnlock()
+
+	// If we reached here, either no reader exists, or the existing one is outdated.
+	// Destroy any old reader before creating a new one.
 	fh.destroyReader()
 
 	// Attempt to create an appropriate reader.
@@ -317,16 +311,9 @@ func (fh *FileHandle) tryEnsureReadManager(ctx context.Context, sequentialReadSi
 		return nil
 	}
 
-	fh.lockHandleAndRelockInode(true)
-	// If we already have a readManager, and it's at the appropriate generation, we
-	// can use it otherwise we must throw it away.
-	if fh.readManager != nil && fh.readManager.Object().Generation == fh.inode.SourceGeneration().Object {
-		// Update reader object size to source object size.
-		fh.readManager.Object().Size = fh.inode.SourceGeneration().Size
-		fh.mu.RUnlock()
+	if ok := fh.isValidReadManager(); ok {
 		return nil
 	}
-	fh.mu.RUnlock()
 
 	// If we reached here, either no readManager exists, or the existing one is outdated.
 	// Destroy any old read manager before creating a new one.
@@ -347,7 +334,7 @@ func (fh *FileHandle) tryEnsureReadManager(ctx context.Context, sequentialReadSi
 	return nil
 }
 
-// destroyReadManager is a helper function to safely destroy and nil the readManager.
+// destroyReadManager is a helper function to safely destroy the readManager & set it to nil.
 // This assumes the necessary locks (fh.inode.mu) are already held by the caller.
 func (fh *FileHandle) destroyReadManager() {
 	if fh.readManager == nil {
@@ -359,6 +346,23 @@ func (fh *FileHandle) destroyReadManager() {
 	fh.readManager = nil
 }
 
+// isValidReadManager is a helper function which validates & returns whether the
+// current readManager is valid or not.
+func (fh *FileHandle) isValidReadManager() bool {
+	fh.lockHandleAndRelockInode(true)
+	defer fh.mu.RUnlock()
+	// If we already have a readManager, and it's at the appropriate generation, we
+	// can use it otherwise we must throw it away.
+	if fh.readManager != nil && fh.readManager.Object().Generation == fh.inode.SourceGeneration().Object {
+		// Update reader object size to source object size.
+		fh.readManager.Object().Size = fh.inode.SourceGeneration().Size
+		return true
+	}
+	return false
+}
+
+// destroyReader is a helper function to safely destroy the reader and set it to nil.
+// This assumes the necessary locks (fh.inode.mu) are already held by the caller.
 func (fh *FileHandle) destroyReader() {
 	if fh.reader == nil {
 		return
@@ -367,6 +371,21 @@ func (fh *FileHandle) destroyReader() {
 	defer fh.mu.Unlock()
 	fh.reader.Destroy()
 	fh.reader = nil
+}
+
+// isValidReader is a helper function which validates & returns whether the
+// current reader is valid or not.
+func (fh *FileHandle) isValidReader() bool {
+	fh.lockHandleAndRelockInode(true)
+	defer fh.mu.RUnlock()
+	// If we already have a reader, and it's at the appropriate generation, we
+	// can use it otherwise we must throw it away.
+	if fh.reader != nil && fh.reader.Object().Generation == fh.inode.SourceGeneration().Object {
+		// Update reader object size to source object size.
+		fh.reader.Object().Size = fh.inode.SourceGeneration().Size
+		return true
+	}
+	return false
 }
 
 func (fh *FileHandle) OpenMode() util.OpenMode {
