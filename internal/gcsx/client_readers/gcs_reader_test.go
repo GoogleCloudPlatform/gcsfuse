@@ -28,7 +28,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	testUtil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/optimizedmetrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -106,7 +105,7 @@ func (t *gcsReaderTest) Test_NewGCSReader() {
 
 	assert.Equal(t.T(), object, gcsReader.object)
 	assert.Equal(t.T(), t.mockBucket, gcsReader.bucket)
-	assert.Equal(t.T(), metrics.ReadTypeSequential, gcsReader.readType.Load())
+	assert.Equal(t.T(), optimizedmetrics.ReadTypeSequential, gcsReader.readType.Load())
 }
 
 func (t *gcsReaderTest) Test_ReadAt_InvalidOffset() {
@@ -289,7 +288,7 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateReadType() {
 			dataSize:          100,
 			bucketType:        gcs.BucketType{Zonal: false},
 			readRanges:        [][]int{{0, 10}, {10, 20}, {20, 35}, {35, 50}},
-			expectedReadTypes: []int64{metrics.ReadTypeSequential, metrics.ReadTypeSequential, metrics.ReadTypeSequential, metrics.ReadTypeSequential},
+			expectedReadTypes: []int64{optimizedmetrics.ReadTypeSequential, optimizedmetrics.ReadTypeSequential, optimizedmetrics.ReadTypeSequential, optimizedmetrics.ReadTypeSequential},
 			expectedSeeks:     []int{0, 0, 0, 0, 0},
 		},
 		{
@@ -297,7 +296,7 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateReadType() {
 			dataSize:          100,
 			bucketType:        gcs.BucketType{Zonal: true},
 			readRanges:        [][]int{{0, 10}, {10, 20}, {20, 35}, {35, 50}},
-			expectedReadTypes: []int64{metrics.ReadTypeSequential, metrics.ReadTypeSequential, metrics.ReadTypeSequential, metrics.ReadTypeSequential},
+			expectedReadTypes: []int64{optimizedmetrics.ReadTypeSequential, optimizedmetrics.ReadTypeSequential, optimizedmetrics.ReadTypeSequential, optimizedmetrics.ReadTypeSequential},
 			expectedSeeks:     []int{0, 0, 0, 0, 0},
 		},
 		{
@@ -305,7 +304,7 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateReadType() {
 			dataSize:          100,
 			bucketType:        gcs.BucketType{Zonal: false},
 			readRanges:        [][]int{{0, 50}, {30, 40}, {10, 20}, {20, 30}, {30, 40}},
-			expectedReadTypes: []int64{metrics.ReadTypeSequential, metrics.ReadTypeSequential, metrics.ReadTypeRandom, metrics.ReadTypeRandom, metrics.ReadTypeRandom},
+			expectedReadTypes: []int64{optimizedmetrics.ReadTypeSequential, optimizedmetrics.ReadTypeSequential, optimizedmetrics.ReadTypeRandom, optimizedmetrics.ReadTypeRandom, optimizedmetrics.ReadTypeRandom},
 			expectedSeeks:     []int{0, 1, 2, 2, 2},
 		},
 		{
@@ -313,7 +312,7 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateReadType() {
 			dataSize:          100,
 			bucketType:        gcs.BucketType{Zonal: true},
 			readRanges:        [][]int{{0, 50}, {30, 40}, {10, 20}, {20, 30}, {30, 40}},
-			expectedReadTypes: []int64{metrics.ReadTypeSequential, metrics.ReadTypeSequential, metrics.ReadTypeRandom, metrics.ReadTypeRandom, metrics.ReadTypeRandom},
+			expectedReadTypes: []int64{optimizedmetrics.ReadTypeSequential, optimizedmetrics.ReadTypeSequential, optimizedmetrics.ReadTypeRandom, optimizedmetrics.ReadTypeRandom, optimizedmetrics.ReadTypeRandom},
 			expectedSeeks:     []int{0, 1, 2, 2, 2},
 		},
 	}
@@ -324,7 +323,7 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateReadType() {
 			require.Equal(t.T(), len(tc.readRanges), len(tc.expectedReadTypes), "Test Parameter Error: readRanges and expectedReadTypes should have same length")
 			t.gcsReader.mrr.isMRDInUse = false
 			t.gcsReader.seeks.Store(0)
-			t.gcsReader.rangeReader.readType = metrics.ReadTypeSequential
+			t.gcsReader.rangeReader.readType = optimizedmetrics.ReadTypeSequential
 			t.gcsReader.expectedOffset.Store(0)
 			t.object.Size = uint64(tc.dataSize)
 			testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
@@ -476,7 +475,7 @@ func (t *gcsReaderTest) Test_ReadInfo_Sequential() {
 			end, err := t.gcsReader.getReadInfo(tc.start, int64(tc.objectSize))
 
 			assert.NoError(t.T(), err)
-			assert.Equal(t.T(), metrics.ReadTypeSequential, t.gcsReader.readType.Load())
+			assert.Equal(t.T(), optimizedmetrics.ReadTypeSequential, t.gcsReader.readType.Load())
 			assert.Equal(t.T(), tc.expectedEnd, end)
 		})
 	}
@@ -529,7 +528,7 @@ func (t *gcsReaderTest) Test_ReadInfo_Random() {
 			end, err := t.gcsReader.getReadInfo(tc.start, int64(tc.objectSize))
 
 			assert.NoError(t.T(), err)
-			assert.Equal(t.T(), metrics.ReadTypeRandom, t.gcsReader.readType.Load())
+			assert.Equal(t.T(), optimizedmetrics.ReadTypeRandom, t.gcsReader.readType.Load())
 			assert.Equal(t.T(), tc.expectedEnd, end)
 		})
 	}
@@ -613,7 +612,7 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateZonalRandomReads() {
 	t.gcsReader.rangeReader.reader = nil
 	t.gcsReader.mrr.isMRDInUse = false
 	t.gcsReader.seeks.Store(0)
-	t.gcsReader.rangeReader.readType = metrics.ReadTypeSequential
+	t.gcsReader.rangeReader.readType = optimizedmetrics.ReadTypeSequential
 	t.gcsReader.expectedOffset.Store(0)
 	t.gcsReader.totalReadBytes.Store(0)
 	t.object.Size = 20 * MiB
@@ -645,7 +644,7 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateZonalRandomReads() {
 
 		assert.NoError(t.T(), err)
 		assert.Equal(t.T(), uint64(seeks), t.gcsReader.seeks.Load())
-		assert.Equal(t.T(), metrics.ReadTypeRandom, t.gcsReader.readType.Load())
+		assert.Equal(t.T(), optimizedmetrics.ReadTypeRandom, t.gcsReader.readType.Load())
 		assert.Equal(t.T(), int64(readRange[1]), t.gcsReader.expectedOffset.Load())
 	}
 }

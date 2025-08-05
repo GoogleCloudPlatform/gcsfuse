@@ -31,7 +31,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/optimizedmetrics"
 	"github.com/jacobsa/fuse/fuseops"
 	"golang.org/x/net/context"
@@ -258,11 +257,11 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 		// Here rr.fileCacheHandle will not be nil since we return from the above in those cases.
 		logger.Tracef("%.13v -> %s", requestId, requestOutput)
 
-		readType := metrics.ReadTypeRandom
+		readType := optimizedmetrics.ReadTypeRandom
 		if isSeq {
-			readType = metrics.ReadTypeSequential
+			readType = optimizedmetrics.ReadTypeSequential
 		}
-		captureFileCacheMetrics(ctx, rr.metricHandle, metrics.ReadTypeNames[readType], n, cacheHit, executionTime)
+		captureFileCacheMetrics(ctx, rr.metricHandle, optimizedmetrics.ReadTypeNames[readType], n, cacheHit, executionTime)
 	}()
 
 	// Create fileCacheHandle if not already.
@@ -516,8 +515,8 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 	rr.limit = end
 
 	requestedDataSize := end - start
-	rr.metricHandle.GcsReadCount(1, optimizedmetrics.ReadTypeNames[metrics.ReadTypeSequential])
-	rr.metricHandle.GcsDownloadBytesCount(requestedDataSize, optimizedmetrics.ReadTypeNames[metrics.ReadTypeSequential])
+	rr.metricHandle.GcsReadCount(1, optimizedmetrics.ReadTypeNames[optimizedmetrics.ReadTypeSequential])
+	rr.metricHandle.GcsDownloadBytesCount(requestedDataSize, optimizedmetrics.ReadTypeNames[optimizedmetrics.ReadTypeSequential])
 	return
 }
 
@@ -528,11 +527,11 @@ func isSeekNeeded(readType, offset, expectedOffset int64) bool {
 		return false
 	}
 
-	if readType == metrics.ReadTypeRandom {
+	if readType == optimizedmetrics.ReadTypeRandom {
 		return offset != expectedOffset
 	}
 
-	if readType == metrics.ReadTypeSequential {
+	if readType == optimizedmetrics.ReadTypeSequential {
 		return offset < expectedOffset || offset > expectedOffset+maxReadSize
 	}
 
@@ -553,7 +552,7 @@ func (rr *randomReader) getReadInfo(offset int64, seekRecorded bool) readInfo {
 	}
 
 	if numSeeks >= minSeeksForRandom {
-		readType = metrics.ReadTypeRandom
+		readType = optimizedmetrics.ReadTypeRandom
 	}
 
 	averageReadBytes := rr.totalReadBytes.Load()
@@ -562,7 +561,7 @@ func (rr *randomReader) getReadInfo(offset int64, seekRecorded bool) readInfo {
 	}
 
 	if averageReadBytes >= maxReadSize {
-		readType = metrics.ReadTypeSequential
+		readType = optimizedmetrics.ReadTypeSequential
 	}
 
 	rr.readType.Store(readType)
@@ -619,7 +618,7 @@ func (rr *randomReader) getEndOffset(
 
 // readerType specifies the go-sdk interface to use for reads.
 func readerType(readType int64, bucketType gcs.BucketType) ReaderType {
-	if readType == metrics.ReadTypeRandom && bucketType.Zonal {
+	if readType == optimizedmetrics.ReadTypeRandom && bucketType.Zonal {
 		return MultiRangeReader
 	}
 	return RangeReader
@@ -735,8 +734,8 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 	}
 
 	requestedDataSize := end - offset
-	rr.metricHandle.GcsReadCount(1, optimizedmetrics.ReadTypeNames[metrics.ReadTypeSequential])
-	rr.metricHandle.GcsDownloadBytesCount(requestedDataSize, optimizedmetrics.ReadTypeNames[metrics.ReadTypeSequential])
+	rr.metricHandle.GcsReadCount(1, optimizedmetrics.ReadTypeNames[optimizedmetrics.ReadTypeSequential])
+	rr.metricHandle.GcsDownloadBytesCount(requestedDataSize, optimizedmetrics.ReadTypeNames[optimizedmetrics.ReadTypeSequential])
 	rr.updateExpectedOffset(offset + int64(n))
 
 	return

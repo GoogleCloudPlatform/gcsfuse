@@ -31,7 +31,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	testUtil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/optimizedmetrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -152,7 +151,7 @@ func (t *rangeReaderTest) Test_NewRangeReader() {
 
 	assert.Equal(t.T(), object, reader.object)
 	assert.Equal(t.T(), t.mockBucket, reader.bucket)
-	assert.Equal(t.T(), metrics.NewNoopMetrics(), reader.metricHandle)
+	assert.Equal(t.T(), optimizedmetrics.NewNoopMetrics(), reader.metricHandle)
 	assert.Equal(t.T(), int64(-1), reader.start)
 	assert.Equal(t.T(), int64(-1), reader.limit)
 }
@@ -407,7 +406,7 @@ func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenReaderReturnedMoreData() 
 			}
 			t.rangeReader.cancel = func() {}
 
-			n, err := t.rangeReader.readFromRangeReader(t.ctx, make([]byte, 10), 0, 10, metrics.ReadTypeUnknown)
+			n, err := t.rangeReader.readFromRangeReader(t.ctx, make([]byte, 10), 0, 10, optimizedmetrics.ReadTypeUnknown)
 
 			assert.Error(t.T(), err)
 			assert.Zero(t.T(), n)
@@ -536,7 +535,7 @@ func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenAllDataFromReaderIsRead()
 			t.rangeReader.cancel = func() {}
 			buf := make([]byte, dataSize)
 
-			n, err := t.rangeReader.readFromRangeReader(t.ctx, buf, 4, 10, metrics.ReadTypeUnknown)
+			n, err := t.rangeReader.readFromRangeReader(t.ctx, buf, 4, 10, optimizedmetrics.ReadTypeUnknown)
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), dataSize, n)
@@ -579,7 +578,7 @@ func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenReaderHasLessDataThanRequ
 			t.rangeReader.cancel = func() {}
 			buf := make([]byte, 10)
 
-			n, err := t.rangeReader.readFromRangeReader(t.ctx, buf, 0, 10, metrics.ReadTypeUnknown)
+			n, err := t.rangeReader.readFromRangeReader(t.ctx, buf, 0, 10, optimizedmetrics.ReadTypeUnknown)
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), dataSize, n)
