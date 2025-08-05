@@ -115,6 +115,18 @@ func (fh *FileHandle) Unlock() {
 	fh.mu.Unlock()
 }
 
+func (fh *FileHandle) lockHandleAndRelockInode(readOnly bool) {
+	if readOnly {
+		fh.inode.Unlock()
+		fh.mu.RLock()
+		fh.inode.Lock()
+	} else {
+		fh.inode.Unlock()
+		fh.mu.Lock()
+		fh.inode.Lock()
+	}
+}
+
 // ReadWithReadManager reads data at the given offset using the read manager if available,
 // falling back to inode.Read otherwise. It may be more efficient than directly calling inode.Read.
 //
@@ -130,7 +142,7 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 		return nil, 0, fmt.Errorf("tryEnsureReadManager: %w", err)
 	}
 
-	fh.mu.RLock()
+	fh.lockHandleAndRelockInode(true)
 	defer fh.mu.RUnlock()
 	// If we have an appropriate readManager, unlock the inode and use that. This
 	// allows reads to proceed concurrently with other operations; in particular,
@@ -180,7 +192,7 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 		return
 	}
 
-	fh.mu.RLock()
+	fh.lockHandleAndRelockInode(true)
 	defer fh.mu.RUnlock()
 	// If we have an appropriate reader, unlock the inode and use that. This
 	// allows reads to proceed concurrently with other operations; in particular,
@@ -256,38 +268,32 @@ func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb 
 	if err != nil {
 		return
 	}
+
 	// If the inode is dirty, there's nothing we can do. Throw away our reader if
 	// we have one.
 	if !fh.inode.SourceGenerationIsAuthoritative() {
-		fh.mu.Lock()
-		defer fh.mu.Unlock()
-		if fh.reader != nil {
-			fh.reader.Destroy()
-			fh.reader = nil
-		}
-
+		fh.destroyReader()
 		return
 	}
 
+	fh.lockHandleAndRelockInode(true)
 	// If we already have a reader, and it's at the appropriate generation, we
 	// can use it otherwise we must throw it away.
 	if fh.reader != nil {
 		if fh.reader.Object().Generation == fh.inode.SourceGeneration().Object {
 			// Update reader object size to source object size.
 			fh.reader.Object().Size = fh.inode.SourceGeneration().Size
+			fh.mu.RUnlock()
 			return
 		}
-		fh.mu.Lock()
-		fh.reader.Destroy()
-		fh.reader = nil
-		fh.mu.Unlock()
 	}
+	fh.mu.RUnlock()
+	fh.destroyReader()
 
 	// Attempt to create an appropriate reader.
-	fh.mu.Lock()
-	defer fh.mu.Unlock()
 	rr := gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, &fh.inode.MRDWrapper, fh.config)
-
+	fh.lockHandleAndRelockInode(false)
+	defer fh.mu.Unlock()
 	fh.reader = rr
 	return
 }
@@ -311,21 +317,24 @@ func (fh *FileHandle) tryEnsureReadManager(ctx context.Context, sequentialReadSi
 		return nil
 	}
 
+	fh.lockHandleAndRelockInode(true)
 	// If we already have a readManager, and it's at the appropriate generation, we
 	// can use it otherwise we must throw it away.
 	if fh.readManager != nil && fh.readManager.Object().Generation == fh.inode.SourceGeneration().Object {
 		// Update reader object size to source object size.
 		fh.readManager.Object().Size = fh.inode.SourceGeneration().Size
+		fh.mu.RUnlock()
 		return nil
 	}
+	fh.mu.RUnlock()
 
 	// If we reached here, either no readManager exists, or the existing one is outdated.
 	// Destroy any old read manager before creating a new one.
 	fh.destroyReadManager()
 
-	// Create a new read manager for the current inode state.
-	fh.mu.Lock()
+	fh.lockHandleAndRelockInode(false)
 	defer fh.mu.Unlock()
+	// Create a new read manager for the current inode state.
 	fh.readManager = read_manager.NewReadManager(fh.inode.Source(), fh.inode.Bucket(), &read_manager.ReadManagerConfig{
 		SequentialReadSizeMB:  sequentialReadSizeMb,
 		FileCacheHandler:      fh.fileCacheHandler,
@@ -344,10 +353,20 @@ func (fh *FileHandle) destroyReadManager() {
 	if fh.readManager == nil {
 		return
 	}
-	fh.mu.Lock()
+	fh.lockHandleAndRelockInode(false)
 	defer fh.mu.Unlock()
 	fh.readManager.Destroy()
 	fh.readManager = nil
+}
+
+func (fh *FileHandle) destroyReader() {
+	if fh.reader == nil {
+		return
+	}
+	fh.lockHandleAndRelockInode(false)
+	defer fh.mu.Unlock()
+	fh.reader.Destroy()
+	fh.reader = nil
 }
 
 func (fh *FileHandle) OpenMode() util.OpenMode {
