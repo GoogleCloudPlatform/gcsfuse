@@ -172,12 +172,12 @@ func (bp *GenBlockPool[T]) ClearFreeBlockChannel(releaseLastBlock bool) error {
 				return fmt.Errorf("munmap error: %v", err)
 			}
 			bp.totalBlocks--
-			// Release semaphore for last block iff releaseLastBlock is true.
 			if bp.totalBlocks != 0 {
 				bp.globalMaxBlocksSem.Release(1)
 			}
 		default:
 			// We are here, it means there are no more blocks in the free blocks channel.
+			// Release semaphore for last block iff releaseLastBlock is true.
 			if releaseLastBlock {
 				bp.globalMaxBlocksSem.Release(1)
 			}
