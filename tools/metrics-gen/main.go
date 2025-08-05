@@ -381,6 +381,8 @@ func buildSwitches(metric Metric) string {
 			currentCombo := append(combo, AttrValuePair{Name: attr.Name, Type: attr.Type, Value: val})
 			recorder(level+1, currentCombo)
 		}
+		builder.WriteString(fmt.Sprintf("%sdefault :\n", strings.Repeat("\t", level+2)))
+		builder.WriteString(fmt.Sprintf("%spanic(\"Unrecognized attribute value for attribute (%s) \")", strings.Repeat("\t", level+3), attr.Name))
 		builder.WriteString(fmt.Sprintf("%s}\n", indent))
 	}
 

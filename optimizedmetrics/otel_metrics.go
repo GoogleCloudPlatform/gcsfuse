@@ -1191,6 +1191,8 @@ func (o *otelMetrics) FileCacheReadBytesCount(
 		o.fileCacheReadBytesCountReadTypeRandomAtomic.Add(inc)
 	case "Sequential":
 		o.fileCacheReadBytesCountReadTypeSequentialAtomic.Add(inc)
+	default:
+		panic("Unrecognized attribute value for attribute (read_type) ")
 	}
 
 }
@@ -1206,6 +1208,8 @@ func (o *otelMetrics) FileCacheReadCount(
 			o.fileCacheReadCountCacheHitTrueReadTypeRandomAtomic.Add(inc)
 		case "Sequential":
 			o.fileCacheReadCountCacheHitTrueReadTypeSequentialAtomic.Add(inc)
+		default:
+			panic("Unrecognized attribute value for attribute (read_type) ")
 		}
 	case false:
 		switch readType {
@@ -1215,7 +1219,11 @@ func (o *otelMetrics) FileCacheReadCount(
 			o.fileCacheReadCountCacheHitFalseReadTypeRandomAtomic.Add(inc)
 		case "Sequential":
 			o.fileCacheReadCountCacheHitFalseReadTypeSequentialAtomic.Add(inc)
+		default:
+			panic("Unrecognized attribute value for attribute (read_type) ")
 		}
+	default:
+		panic("Unrecognized attribute value for attribute (cache_hit) ")
 	}
 
 }
@@ -1228,6 +1236,8 @@ func (o *otelMetrics) FileCacheReadLatencies(
 		record = histogramRecord{ctx: ctx, instrument: o.fileCacheReadLatencies, value: latency.Microseconds(), attributes: fileCacheReadLatenciesCacheHitTrueAttrSet}
 	case false:
 		record = histogramRecord{ctx: ctx, instrument: o.fileCacheReadLatencies, value: latency.Microseconds(), attributes: fileCacheReadLatenciesCacheHitFalseAttrSet}
+	default:
+		panic("Unrecognized attribute value for attribute (cache_hit) ")
 	}
 
 	select {
@@ -1299,6 +1309,8 @@ func (o *otelMetrics) FsOpsCount(
 		o.fsOpsCountFsOpUnlinkAtomic.Add(inc)
 	case "WriteFile":
 		o.fsOpsCountFsOpWriteFileAtomic.Add(inc)
+	default:
+		panic("Unrecognized attribute value for attribute (fs_op) ")
 	}
 
 }
@@ -1368,6 +1380,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpUnlinkAtomic.Add(inc)
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpWriteFileAtomic.Add(inc)
+		default:
+			panic("Unrecognized attribute value for attribute (fs_op) ")
 		}
 	case "DIR_NOT_EMPTY":
 		switch fsOp {
@@ -1431,6 +1445,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpUnlinkAtomic.Add(inc)
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpWriteFileAtomic.Add(inc)
+		default:
+			panic("Unrecognized attribute value for attribute (fs_op) ")
 		}
 	case "FILE_DIR_ERROR":
 		switch fsOp {
@@ -1494,6 +1510,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpUnlinkAtomic.Add(inc)
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpWriteFileAtomic.Add(inc)
+		default:
+			panic("Unrecognized attribute value for attribute (fs_op) ")
 		}
 	case "FILE_EXISTS":
 		switch fsOp {
@@ -1557,6 +1575,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpUnlinkAtomic.Add(inc)
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpWriteFileAtomic.Add(inc)
+		default:
+			panic("Unrecognized attribute value for attribute (fs_op) ")
 		}
 	case "INTERRUPT_ERROR":
 		switch fsOp {
@@ -1620,6 +1640,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpUnlinkAtomic.Add(inc)
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpWriteFileAtomic.Add(inc)
+		default:
+			panic("Unrecognized attribute value for attribute (fs_op) ")
 		}
 	case "INVALID_ARGUMENT":
 		switch fsOp {
@@ -1683,6 +1705,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpUnlinkAtomic.Add(inc)
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpWriteFileAtomic.Add(inc)
+		default:
+			panic("Unrecognized attribute value for attribute (fs_op) ")
 		}
 	case "INVALID_OPERATION":
 		switch fsOp {
@@ -1746,6 +1770,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpUnlinkAtomic.Add(inc)
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpWriteFileAtomic.Add(inc)
+		default:
+			panic("Unrecognized attribute value for attribute (fs_op) ")
 		}
 	case "IO_ERROR":
 		switch fsOp {
@@ -1809,6 +1835,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpUnlinkAtomic.Add(inc)
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpWriteFileAtomic.Add(inc)
+		default:
+			panic("Unrecognized attribute value for attribute (fs_op) ")
 		}
 	case "MISC_ERROR":
 		switch fsOp {
@@ -1872,6 +1900,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpUnlinkAtomic.Add(inc)
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpWriteFileAtomic.Add(inc)
+		default:
+			panic("Unrecognized attribute value for attribute (fs_op) ")
 		}
 	case "NETWORK_ERROR":
 		switch fsOp {
@@ -1935,6 +1965,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpUnlinkAtomic.Add(inc)
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpWriteFileAtomic.Add(inc)
+		default:
+			panic("Unrecognized attribute value for attribute (fs_op) ")
 		}
 	case "NOT_A_DIR":
 		switch fsOp {
@@ -1998,6 +2030,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpUnlinkAtomic.Add(inc)
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpWriteFileAtomic.Add(inc)
+		default:
+			panic("Unrecognized attribute value for attribute (fs_op) ")
 		}
 	case "NOT_IMPLEMENTED":
 		switch fsOp {
@@ -2061,6 +2095,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpUnlinkAtomic.Add(inc)
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpWriteFileAtomic.Add(inc)
+		default:
+			panic("Unrecognized attribute value for attribute (fs_op) ")
 		}
 	case "NO_FILE_OR_DIR":
 		switch fsOp {
@@ -2124,6 +2160,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpUnlinkAtomic.Add(inc)
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpWriteFileAtomic.Add(inc)
+		default:
+			panic("Unrecognized attribute value for attribute (fs_op) ")
 		}
 	case "PERM_ERROR":
 		switch fsOp {
@@ -2187,6 +2225,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpUnlinkAtomic.Add(inc)
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpWriteFileAtomic.Add(inc)
+		default:
+			panic("Unrecognized attribute value for attribute (fs_op) ")
 		}
 	case "PROCESS_RESOURCE_MGMT_ERROR":
 		switch fsOp {
@@ -2250,6 +2290,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpUnlinkAtomic.Add(inc)
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpWriteFileAtomic.Add(inc)
+		default:
+			panic("Unrecognized attribute value for attribute (fs_op) ")
 		}
 	case "TOO_MANY_OPEN_FILES":
 		switch fsOp {
@@ -2313,7 +2355,11 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpUnlinkAtomic.Add(inc)
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAtomic.Add(inc)
+		default:
+			panic("Unrecognized attribute value for attribute (fs_op) ")
 		}
+	default:
+		panic("Unrecognized attribute value for attribute (fs_error_category) ")
 	}
 
 }
@@ -2382,6 +2428,8 @@ func (o *otelMetrics) FsOpsLatency(
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpUnlinkAttrSet}
 	case "WriteFile":
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpWriteFileAttrSet}
+	default:
+		panic("Unrecognized attribute value for attribute (fs_op) ")
 	}
 
 	select {
@@ -2399,6 +2447,8 @@ func (o *otelMetrics) GcsDownloadBytesCount(
 		o.gcsDownloadBytesCountReadTypeRandomAtomic.Add(inc)
 	case "Sequential":
 		o.gcsDownloadBytesCountReadTypeSequentialAtomic.Add(inc)
+	default:
+		panic("Unrecognized attribute value for attribute (read_type) ")
 	}
 
 }
@@ -2418,6 +2468,8 @@ func (o *otelMetrics) GcsReadCount(
 		o.gcsReadCountReadTypeRandomAtomic.Add(inc)
 	case "Sequential":
 		o.gcsReadCountReadTypeSequentialAtomic.Add(inc)
+	default:
+		panic("Unrecognized attribute value for attribute (read_type) ")
 	}
 
 }
@@ -2429,6 +2481,8 @@ func (o *otelMetrics) GcsReaderCount(
 		o.gcsReaderCountIoMethodClosedAtomic.Add(inc)
 	case "opened":
 		o.gcsReaderCountIoMethodOpenedAtomic.Add(inc)
+	default:
+		panic("Unrecognized attribute value for attribute (io_method) ")
 	}
 
 }
@@ -2466,6 +2520,8 @@ func (o *otelMetrics) GcsRequestCount(
 		o.gcsRequestCountGcsMethodStatObjectAtomic.Add(inc)
 	case "UpdateObject":
 		o.gcsRequestCountGcsMethodUpdateObjectAtomic.Add(inc)
+	default:
+		panic("Unrecognized attribute value for attribute (gcs_method) ")
 	}
 
 }
@@ -2504,6 +2560,8 @@ func (o *otelMetrics) GcsRequestLatencies(
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodStatObjectAttrSet}
 	case "UpdateObject":
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodUpdateObjectAttrSet}
+	default:
+		panic("Unrecognized attribute value for attribute (gcs_method) ")
 	}
 
 	select {
@@ -2519,6 +2577,8 @@ func (o *otelMetrics) GcsRetryCount(
 		o.gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic.Add(inc)
 	case "STALLED_READ_REQUEST":
 		o.gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic.Add(inc)
+	default:
+		panic("Unrecognized attribute value for attribute (retry_error_category) ")
 	}
 
 }
