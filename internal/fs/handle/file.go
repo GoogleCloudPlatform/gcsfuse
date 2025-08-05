@@ -86,7 +86,6 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 
 // Destroy any resources associated with the handle, which must not be used
 // again.
-// LOCKS_REQUIRED(fh.mu)
 // LOCK_FUNCTION(fh.inode.mu)
 // UNLOCK_FUNCTION(fh.inode.mu)
 func (fh *FileHandle) Destroy() {
@@ -95,6 +94,8 @@ func (fh *FileHandle) Destroy() {
 	fh.inode.DeRegisterFileHandle(fh.openMode == util.Read)
 	fh.inode.Unlock()
 
+	fh.mu.Lock()
+	defer fh.mu.Unlock()
 	if fh.reader != nil {
 		fh.reader.Destroy()
 	}
@@ -119,7 +120,6 @@ func (fh *FileHandle) Unlock() {
 // ReadWithReadManager reads data at the given offset using the read manager if available,
 // falling back to inode.Read otherwise. It may be more efficient than directly calling inode.Read.
 //
-// LOCKS_REQUIRED(fh.mu)
 // LOCKS_REQUIRED(fh.inode.mu)
 // UNLOCK_FUNCTION(fh.inode.mu)
 func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offset int64, sequentialReadSizeMb int32) ([]byte, int, error) {
@@ -169,7 +169,6 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 // Equivalent to locking fh.Inode() and calling fh.Inode().Read, but may be
 // more efficient.
 //
-// LOCKS_REQUIRED(fh.mu)
 // LOCKS_REQUIRED(fh.inode.mu)
 // UNLOCK_FUNCTION(fh.inode.mu)
 func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequentialReadSizeMb int32) (output []byte, n int, err error) {
@@ -342,7 +341,7 @@ func (fh *FileHandle) tryEnsureReadManager(ctx context.Context, sequentialReadSi
 }
 
 // destroyReadManager is a helper function to safely destroy and nil the readManager.
-// This assumes the necessary locks (fh.mu, fh.inode.mu) are already held by the caller.
+// This assumes the necessary locks (fh.inode.mu) are already held by the caller.
 func (fh *FileHandle) destroyReadManager() {
 	if fh.readManager == nil {
 		return
