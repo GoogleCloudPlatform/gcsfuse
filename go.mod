@@ -15,7 +15,7 @@ require (
 	github.com/fsouza/fake-gcs-server v1.52.2
 	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/google/uuid v1.6.0
-	github.com/googleapis/gax-go/v2 v2.14.2
+	github.com/googleapis/gax-go/v2 v2.15.0
 	github.com/jacobsa/daemonize v0.0.0-20240917082746-f35568b6c3ec
 	github.com/jacobsa/fuse v0.0.0-20250726160139-b8f47b05858b
 	github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd
@@ -105,5 +105,7 @@ require (
 	golang.org/x/crypto v0.40.0 // indirect
 	google.golang.org/genproto v0.0.0-20250721164621-a45f3dfb1074 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250715232539-7130f93afb79 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250715232539-7130f93afb79 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250728155136-f173205681a0 // indirect
 )
+
+replace google.golang.org/api => github.com/meet2mky/google-api-go-client v0.0.0-20250805085318-63161a66c1bc
