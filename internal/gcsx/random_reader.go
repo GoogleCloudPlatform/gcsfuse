@@ -347,7 +347,9 @@ func (rr *randomReader) ReadAt(
 		return
 	}
 
-	// Not taking any lock for getting reader type to ensure random read requests do not wait.
+	objectData.Size, err = rr.readFromRangeReader(ctx, p, offset, offset+int64(len(p)), 0)
+
+	/*// Not taking any lock for getting reader type to ensure random read requests do not wait.
 	readInfo := rr.getReadInfo(offset, false)
 	reqReaderType := readerType(readInfo.readType, rr.bucket.BucketType())
 
@@ -382,7 +384,7 @@ func (rr *randomReader) ReadAt(
 	if reqReaderType == MultiRangeReader {
 		objectData.Size, err = rr.readFromMultiRangeReader(ctx, p, offset, offset+int64(len(p)), TimeoutForMultiRangeRead)
 	}
-
+	*/
 	return
 }
 
@@ -679,12 +681,11 @@ func (rr *randomReader) readFromExistingRangeReader(ctx context.Context, p []byt
 // LOCKS_REQUIRED (rr.mu)
 func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType int64) (n int, err error) {
 	// If we don't have a reader, start a read operation.
-	if rr.reader == nil {
-		err = rr.startRead(offset, end)
-		if err != nil {
-			err = fmt.Errorf("startRead: %w", err)
-			return
-		}
+
+	err = rr.startRead(offset, end)
+	if err != nil {
+		err = fmt.Errorf("startRead: %w", err)
+		return
 	}
 
 	// Now we have a reader positioned at the correct place. Consume as much from
