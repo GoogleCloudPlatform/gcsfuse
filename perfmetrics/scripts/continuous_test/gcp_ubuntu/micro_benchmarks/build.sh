@@ -83,8 +83,8 @@ run_script_on_vm() {
     mkdir -p ~/github
     git clone $GCSFUSE_REPO ~/github/gcsfuse
     cd ~/github/gcsfuse
-    git checkout master
-    git pull origin master
+    git checkout spin_VM_and_run_micro_bench_2
+    git pull origin spin_VM_and_run_micro_bench_2
 
     # Run benchmark
     echo 'Triggering benchmark script...'
