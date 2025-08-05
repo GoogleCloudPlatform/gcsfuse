@@ -320,6 +320,13 @@
     Value can be 'http1' (HTTP/1.1), 'http2' (HTTP/2) or 'grpc'.
   default: "http1"
 
+- config-path: "gcs-connection.control-client-on-direct-path"
+  flag-name: "control-client-on-direct-path"
+  type: "bool"
+  usage: "This enables direct-path for storage control-client calls."
+  default: true
+  hide-flag: true
+
 - config-path: "gcs-connection.custom-endpoint"
   flag-name: "custom-endpoint"
   type: "string"
@@ -330,13 +337,6 @@
     specified, GCSFuse uses the global GCS JSON API endpoint,
     https://storage.googleapis.com/storage/v1.
   default: ""
-
-- config-path: "gcs-connection.experimental-control-client-on-direct-path"
-  flag-name: "experimental-control-client-on-direct-path"
-  type: "bool"
-  usage: "This enables direct-path for storage control-client calls."
-  default: true
-  hide-flag: true
 
 - config-path: "gcs-connection.experimental-enable-json-read"
   flag-name: "experimental-enable-json-read"

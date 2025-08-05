@@ -152,9 +152,9 @@ type GcsConnectionConfig struct {
 
 	ClientProtocol Protocol `yaml:"client-protocol"`
 
-	CustomEndpoint string `yaml:"custom-endpoint"`
+	ControlClientOnDirectPath bool `yaml:"control-client-on-direct-path"`
 
-	ExperimentalControlClientOnDirectPath bool `yaml:"experimental-control-client-on-direct-path"`
+	CustomEndpoint string `yaml:"custom-endpoint"`
 
 	ExperimentalEnableJsonRead bool `yaml:"experimental-enable-json-read"`
 
@@ -325,6 +325,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("cloud-metrics-export-interval-secs", "", 0, "Specifies the interval at which the metrics are uploaded to cloud monitoring")
 
+	flagSet.BoolP("control-client-on-direct-path", "", true, "This enables direct-path for storage control-client calls.")
+
+	if err := flagSet.MarkHidden("control-client-on-direct-path"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("create-empty-file", "", false, "For a new file, it creates an empty file in Cloud Storage bucket as a hold.")
 
 	flagSet.StringP("custom-endpoint", "", "", "Specifies an alternative custom endpoint for fetching data. The custom endpoint must support the equivalent resources and operations as the GCS JSON endpoint, https://storage.googleapis.com/storage/v1. If a custom endpoint is not specified, GCSFuse uses the global GCS JSON API endpoint, https://storage.googleapis.com/storage/v1.")
@@ -430,12 +436,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.BoolP("enable-streaming-writes", "", true, "Enables streaming uploads during write file operation.")
-
-	flagSet.BoolP("experimental-control-client-on-direct-path", "", true, "This enables direct-path for storage control-client calls.")
-
-	if err := flagSet.MarkHidden("experimental-control-client-on-direct-path"); err != nil {
-		return err
-	}
 
 	flagSet.BoolP("experimental-enable-dentry-cache", "", false, "When enabled, it sets the Dentry cache entry timeout same as metadata-cache-ttl. This enables kernel to use cached entry to map the file paths to inodes, instead of making LookUpInode calls to GCSFuse.")
 
@@ -792,6 +792,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("gcs-connection.control-client-on-direct-path", flagSet.Lookup("control-client-on-direct-path")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("write.create-empty-file", flagSet.Lookup("create-empty-file")); err != nil {
 		return err
 	}
@@ -869,10 +873,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("write.enable-streaming-writes", flagSet.Lookup("enable-streaming-writes")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("gcs-connection.experimental-control-client-on-direct-path", flagSet.Lookup("experimental-control-client-on-direct-path")); err != nil {
 		return err
 	}
 

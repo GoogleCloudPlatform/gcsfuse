@@ -59,7 +59,7 @@ func CreateGRPCControlClient(ctx context.Context, clientOpts []option.ClientOpti
 		logger.Fatal("error setting direct path env var: %v", err)
 	}
 
-	if clientConfig.ExperimentalControlClientOnDirectPath {
+	if clientConfig.ControlClientOnDirectPath {
 		logger.Info("Using direct-path for control-client")
 		clientOpts = append(clientOpts, internaloption.EnableDirectPath(true), internaloption.AllowNonDefaultServiceAccount(true), internaloption.EnableDirectPathXds())
 	}

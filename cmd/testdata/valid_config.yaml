@@ -32,7 +32,7 @@ gcs-connection:
   billing-project: abc
   client-protocol: http2
   custom-endpoint: www.abc.com
-  experimental-control-client-on-direct-path: false
+  control-client-on-direct-path: false
   experimental-enable-json-read: true
   grpc-conn-pool-size: 200
   http-client-timeout: 400s
