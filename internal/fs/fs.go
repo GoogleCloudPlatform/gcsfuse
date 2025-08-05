@@ -2557,7 +2557,7 @@ func (fs *fileSystem) renameNonHierarchicalDir(
 
 		o := descendant.MinObject
 		// If the descendant is a directory (ExplicitDirType) or has an unknown type, handle it by cloning and deleting.
-		if descendant.Type() == metadata.ExplicitDirType || descendant.Type() == metadata.UnknownType {
+		if !fs.enableAtomicRenameObject || descendant.Type() == metadata.ExplicitDirType || descendant.Type() == metadata.UnknownType {
 			if _, err = newDir.CloneToChildFile(ctx, nameDiff, o); err != nil {
 				return fmt.Errorf("copy file %q: %w", o.Name, err)
 			}
