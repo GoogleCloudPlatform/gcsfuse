@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -61,7 +61,7 @@ func (s *benchmarkStatTest) Benchmark_Stat(b *testing.B) {
 	var maxElapsedDuration time.Duration
 	maxElapsedIteration := -1
 	b.ResetTimer()
-	for range b.N {
+	for i := range b.N {
 		filePath := path.Join(testDirPath, "a.txt")
 		if _, err := operations.StatFile(filePath); err != nil {
 			b.Errorf("failed to stat %q: %v", filePath, err)
