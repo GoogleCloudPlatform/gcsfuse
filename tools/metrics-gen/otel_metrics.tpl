@@ -23,12 +23,16 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )
 
+const logInterval = 5 * time.Minute
+
 var (
+	lastLogTime int64
 {{- range $metric := .Metrics -}}
 {{- if .Attributes}}
 {{- range $combination := (index $.AttrCombinations $metric.Name)}}
@@ -166,5 +170,17 @@ func (o *otelMetrics) Close() {
 func conditionallyObserve(obsrv metric.Int64Observer, counter *atomic.Int64, obsrvOptions ...metric.ObserveOption) {
 	if val := counter.Load(); val > 0 {
 		obsrv.Observe(val, obsrvOptions...)
+	}
+}
+
+func logForUnrecongnizedAttr(){
+	// Load the current time and the last logged time.
+	currentTime := time.Now()
+	lastTime := atomic.LoadInt64(&lastLogTime)
+
+	if currentTime.UnixNano() > lastTime+int64(logInterval) {
+		if atomic.CompareAndSwapInt64(&lastLogTime, lastTime, currentTime.UnixNano()) {
+			logger.Infof("Unrecognized attribute encountered.")
+		}
 	}
 }

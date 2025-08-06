@@ -220,6 +220,13 @@ func getTestFuncArgsForHistogram(prefix string, attrs []Attribute) string {
 	return strings.Join(parts, ", ")
 }
 
+func handleDefaultInSwitchCase(level int, attrName string, builder *strings.Builder) {
+	indent := strings.Repeat("\t", level+1)
+	builder.WriteString(fmt.Sprintf("%sdefault :\n", strings.Repeat("\t", level+2)))
+	builder.WriteString("logForUnrecongnizedAttr()")
+	builder.WriteString(fmt.Sprintf("%s}\n", indent))
+}
+
 // generateCombinations creates all possible combinations of attribute values.
 func generateCombinations(attributes []Attribute) []AttrCombination {
 	if len(attributes) == 0 {
@@ -381,9 +388,7 @@ func buildSwitches(metric Metric) string {
 			currentCombo := append(combo, AttrValuePair{Name: attr.Name, Type: attr.Type, Value: val})
 			recorder(level+1, currentCombo)
 		}
-		builder.WriteString(fmt.Sprintf("%sdefault :\n", strings.Repeat("\t", level+2)))
-		builder.WriteString(fmt.Sprintf("%spanic(\"Unrecognized attribute value for attribute (%s) \")", strings.Repeat("\t", level+3), attr.Name))
-		builder.WriteString(fmt.Sprintf("%s}\n", indent))
+		handleDefaultInSwitchCase(level, attr.Name, &builder)
 	}
 
 	if len(metric.Attributes) == 0 {
