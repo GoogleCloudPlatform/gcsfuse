@@ -78,7 +78,7 @@ func (mrd *MultiRangeReader) readFromMultiRangeReader(ctx context.Context, p []b
 		mrd.mrdWrapper.IncrementRefCount()
 	}
 
-	return mrd.mrdWrapper.Read(ctx, p, offset, end, timeout, mrd.metricHandle)
+	return mrd.mrdWrapper.Read(ctx, p, offset, end, mrd.metricHandle)
 }
 
 func (mrd *MultiRangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (gcsx.ReaderResponse, error) {
