@@ -162,27 +162,33 @@ func (t *BlockPoolTest) TestBlockSize() {
 	require.Equal(t.T(), int64(1024), bp.BlockSize())
 }
 
-func (t *BlockPoolTest) TestClearFreeBlockChannel() {
+func (t *BlockPoolTest) TestClearFreeBlockChannelWithReleaseReservedBlocksTrue() {
 	tests := []struct {
-		name                     string
-		releaseLastBlock         bool
-		possibleSemaphoreAcquire int64
+		name            string
+		reservedBlocks  int64
+		performGetBlock int
 	}{
 		{
-			name:                     "release_last_block_true",
-			releaseLastBlock:         true,
-			possibleSemaphoreAcquire: 4,
+			name:           "with_0_reserved_blocks",
+			reservedBlocks: 0,
 		},
 		{
-			name:                     "release_last_block_false",
-			releaseLastBlock:         false,
-			possibleSemaphoreAcquire: 3,
+			name:           "with_1_reserved_blocks",
+			reservedBlocks: 1,
+		},
+		{
+			name:           "with_2_reserved_blocks",
+			reservedBlocks: 2,
+		},
+		{
+			name:           "with_3_reserved_blocks",
+			reservedBlocks: 3,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func() {
-			bp, err := NewGenBlockPool(1024, 10, 1, semaphore.NewWeighted(4), createBlock)
+			bp, err := NewGenBlockPool(1024, 4, tt.reservedBlocks, semaphore.NewWeighted(4), createBlock)
 			require.Nil(t.T(), err)
 			blocks := make([]Block, 4)
 			for i := 0; i < 4; i++ {
@@ -194,15 +200,72 @@ func (t *BlockPoolTest) TestClearFreeBlockChannel() {
 			}
 			require.Equal(t.T(), int64(4), bp.totalBlocks)
 
-			err = bp.ClearFreeBlockChannel(tt.releaseLastBlock)
+			err = bp.ClearFreeBlockChannel(true)
 
 			require.Nil(t.T(), err)
 			require.EqualValues(t.T(), 0, bp.totalBlocks)
 			for i := 0; i < 4; i++ {
 				require.Nil(t.T(), blocks[i].(*memoryBlock).buffer)
 			}
-			// Check if semaphore is released correctly.
-			require.True(t.T(), bp.globalMaxBlocksSem.TryAcquire(tt.possibleSemaphoreAcquire))
+			// All 4 semaphore slots should be available to acquire.
+			require.True(t.T(), bp.globalMaxBlocksSem.TryAcquire(4))
+			require.False(t.T(), bp.globalMaxBlocksSem.TryAcquire(1))
+		})
+	}
+}
+
+func (t *BlockPoolTest) TestClearFreeBlockChannelWithReleaseReservedBlocksFalse() {
+	tests := []struct {
+		name                   string
+		releaseReservedBlocks  bool
+		reservedBlocks         int64
+		possibleSemaphoreSlots int64
+	}{
+		{
+			name:                   "with_0_reserved_blocks",
+			reservedBlocks:         0,
+			possibleSemaphoreSlots: 4,
+		},
+		{
+			name:                   "with_1_reserved_blocks",
+			reservedBlocks:         1,
+			possibleSemaphoreSlots: 3, // 4 - 1 reserved
+		},
+		{
+			name:                   "with_2_reserved_blocks",
+			reservedBlocks:         2,
+			possibleSemaphoreSlots: 2, // 4 - 2 reserved
+		},
+		{
+			name:                   "all_4_reserved_blocks",
+			reservedBlocks:         4,
+			possibleSemaphoreSlots: 0, // 4 - 4 reserved
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func() {
+			bp, err := NewGenBlockPool(1024, 4, tt.reservedBlocks, semaphore.NewWeighted(4), createBlock)
+			require.Nil(t.T(), err)
+			blocks := make([]Block, 4)
+			for i := 0; i < 4; i++ {
+				blocks[i] = t.validateGetBlockIsNotBlocked(bp)
+			}
+			// Adding all blocks to freeBlocksCh
+			for i := 0; i < 4; i++ {
+				bp.freeBlocksCh <- blocks[i]
+			}
+			require.Equal(t.T(), int64(4), bp.totalBlocks)
+
+			err = bp.ClearFreeBlockChannel(false)
+
+			require.Nil(t.T(), err)
+			require.EqualValues(t.T(), 0, bp.totalBlocks)
+			for i := 0; i < 4; i++ {
+				require.Nil(t.T(), blocks[i].(*memoryBlock).buffer)
+			}
+			// Only reserved blocks semaphore slots should be available to acquire.
+			require.True(t.T(), bp.globalMaxBlocksSem.TryAcquire(tt.possibleSemaphoreSlots))
 			require.False(t.T(), bp.globalMaxBlocksSem.TryAcquire(1))
 		})
 	}
@@ -379,53 +442,100 @@ func (t *BlockPoolTest) validateGetBlockIsNotBlocked(bp *GenBlockPool[Block]) Bl
 
 func (t *BlockPoolTest) TestCanAllocateBlock() {
 	tests := []struct {
-		name        string
-		maxBlocks   int64
-		totalBlocks int64
-		globalSem   *semaphore.Weighted
-		expected    bool
+		name           string
+		maxBlocks      int64
+		totalBlocks    int64
+		reservedBlocks int64
+		globalSem      *semaphore.Weighted
+		expected       bool
 	}{
 		{
-			name:        "max_blocks_reached",
-			maxBlocks:   10,
-			totalBlocks: 10,
-			globalSem:   semaphore.NewWeighted(0),
-			expected:    false,
+			name:           "max_blocks_reached",
+			maxBlocks:      10,
+			totalBlocks:    10,
+			reservedBlocks: 0,
+			globalSem:      semaphore.NewWeighted(0),
+			expected:       false,
 		},
 		{
-			name:        "first_block",
-			maxBlocks:   10,
-			totalBlocks: 0,
-			globalSem:   semaphore.NewWeighted(0),
-			expected:    true,
+			name:           "first_block",
+			maxBlocks:      10,
+			totalBlocks:    0,
+			reservedBlocks: 0,
+			globalSem:      semaphore.NewWeighted(1),
+			expected:       true,
 		},
 		{
-			name:        "semaphore_acquirable",
-			maxBlocks:   10,
-			totalBlocks: 5,
-			globalSem:   semaphore.NewWeighted(1),
-			expected:    true,
+			name:           "semaphore_acquirable",
+			maxBlocks:      10,
+			totalBlocks:    5,
+			reservedBlocks: 0,
+			globalSem:      semaphore.NewWeighted(1),
+			expected:       true,
 		},
 		{
-			name:        "semaphore_not_acquirable",
-			maxBlocks:   10,
-			totalBlocks: 5,
-			globalSem:   semaphore.NewWeighted(0),
-			expected:    false,
+			name:           "semaphore_not_acquirable",
+			maxBlocks:      10,
+			totalBlocks:    5,
+			reservedBlocks: 0,
+			globalSem:      semaphore.NewWeighted(0),
+			expected:       false,
 		},
 		{
-			name:        "equal_max_blocks_and_total_blocks_0",
-			maxBlocks:   0,
-			totalBlocks: 0,
-			globalSem:   semaphore.NewWeighted(0),
-			expected:    false,
+			name:           "equal_max_blocks_and_total_blocks_0",
+			maxBlocks:      0,
+			totalBlocks:    0,
+			reservedBlocks: 0,
+			globalSem:      semaphore.NewWeighted(0),
+			expected:       false,
 		},
 		{
-			name:        "total_blocks_more_than_max_blocks",
-			maxBlocks:   0,
-			totalBlocks: 1,
-			globalSem:   semaphore.NewWeighted(0),
-			expected:    false,
+			name:           "total_blocks_more_than_max_blocks",
+			maxBlocks:      0,
+			totalBlocks:    1,
+			reservedBlocks: 0,
+			globalSem:      semaphore.NewWeighted(0),
+			expected:       false,
+		},
+		{
+			name:           "reserved_blocks_equal_to_max_blocks",
+			maxBlocks:      10,
+			totalBlocks:    0,
+			reservedBlocks: 10,
+			globalSem:      semaphore.NewWeighted(10),
+			expected:       true,
+		},
+		{
+			name:           "reserved_blocks_less_than_max_blocks",
+			maxBlocks:      10,
+			totalBlocks:    0,
+			reservedBlocks: 5,
+			globalSem:      semaphore.NewWeighted(10),
+			expected:       true,
+		},
+		{
+			name:           "reserved_blocks_equal_to_total_blocks",
+			maxBlocks:      10,
+			totalBlocks:    5,
+			reservedBlocks: 5,
+			globalSem:      semaphore.NewWeighted(0),
+			expected:       false,
+		},
+		{
+			name:           "reserved_blocks_less_than_total_blocks",
+			maxBlocks:      10,
+			totalBlocks:    6,
+			reservedBlocks: 5,
+			globalSem:      semaphore.NewWeighted(0),
+			expected:       false,
+		},
+		{
+			name:           "reserved_blocks_more_than_total_blocks",
+			maxBlocks:      10,
+			totalBlocks:    4,
+			reservedBlocks: 5,
+			globalSem:      semaphore.NewWeighted(0),
+			expected:       false,
 		},
 	}
 

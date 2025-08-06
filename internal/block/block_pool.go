@@ -31,7 +31,16 @@ type GenBlock interface {
 	Deallocate() error
 }
 
-// GenBlockPool handles the creation of blocks as per the user configuration.
+// GenBlockPool is a generic block pool for managing blocks that implement the GenBlock interface.
+// It offers methods to get blocks, return blocks to the free pool, and clear the free pool.
+// This implementation is NOT thread-safe - concurrent access from multiple goroutines requires external synchronization.
+//
+// Block allocation is controlled by maxBlocks (per-pool limit) and a global semaphore (cross-pool limit).
+// When the global limit is reached, Get() will block until blocks become available, while TryGet()
+// returns an error immediately to avoid blocking.
+//
+// The pool supports reserving blocks at creation time - these reserved blocks hold semaphore permits
+// and can only be released when clearing the pool with releaseReservedBlocks=true.
 type GenBlockPool[T GenBlock] struct {
 	// Channel holding free blocks.
 	freeBlocksCh chan T
@@ -145,9 +154,8 @@ func (bp *GenBlockPool[T]) canAllocateBlock() bool {
 		return false
 	}
 
-	// Always allow allocation if this is the first block for the file since it has been reserved at
-	// the time of block pool creation.
-	if bp.totalBlocks == 0 {
+	// Always allow allocation upto reserved number of blocks.
+	if bp.totalBlocks < bp.reservedBlocks {
 		return true
 	}
 
@@ -181,7 +189,8 @@ func (bp *GenBlockPool[T]) ClearFreeBlockChannel(releaseReservedBlocks bool) err
 			}
 			bp.totalBlocks--
 			// Release semaphore for all but the reserved blocks.
-			if bp.totalBlocks >= bp.reservedBlocks {
+			// Here, totalBlocks + 1 as we have decremented the totalBlocks above.
+			if bp.totalBlocks+1 > bp.reservedBlocks {
 				bp.globalMaxBlocksSem.Release(1)
 			}
 		default:
