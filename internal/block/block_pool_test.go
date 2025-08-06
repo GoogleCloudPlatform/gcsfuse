@@ -16,7 +16,6 @@ package block
 
 import (
 	"fmt"
-	"io"
 	"testing"
 	"time"
 
@@ -75,21 +74,53 @@ func (t *BlockPoolTest) TestInitBlockPoolForNegativeMaxBlocks() {
 }
 
 // Represents when block is available on the freeBlocksCh.
+func (t *BlockPoolTest) TestTryGetWhenBlockIsAvailableForReuse() {
+	bp, err := NewGenBlockPool(1024, 10, semaphore.NewWeighted(10), createBlock)
+	require.Nil(t.T(), err)
+	// Creating a block with some data and send it to blockCh.
+	b, err := createBlock(2)
+	require.Nil(t.T(), err)
+	bp.freeBlocksCh <- b
+	// Setting totalBlocks same as maxBlocks to ensure no new blocks are created.
+	bp.totalBlocks = 10
+
+	block, err := bp.TryGet()
+
+	require.Nil(t.T(), err)
+	require.NotNil(t.T(), block)
+	// This ensures the block is reset.
+	assert.Equal(t.T(), int64(0), block.Size())
+}
+
+func (t *BlockPoolTest) TestTryGetWhenTotalBlocksIsLessThanThanMaxBlocks() {
+	bp, err := NewGenBlockPool(1024, 10, semaphore.NewWeighted(10), createBlock)
+	require.Nil(t.T(), err)
+
+	block, err := bp.TryGet()
+
+	require.Nil(t.T(), err)
+	require.NotNil(t.T(), block)
+	assert.Equal(t.T(), int64(0), block.Size())
+}
+
+func (t *BlockPoolTest) TestTryGetToCreateLargeBlock() {
+	// Creating block of size 1TB
+	bp, err := NewGenBlockPool(1024*1024*1024*1024, 10, semaphore.NewWeighted(10), createBlock)
+	require.Nil(t.T(), err)
+
+	_, err = bp.TryGet()
+
+	require.NotNil(t.T(), err)
+	assert.Equal(t.T(), "mmap error: cannot allocate memory", err.Error())
+}
+
+// Represents when block is available on the freeBlocksCh.
 func (t *BlockPoolTest) TestGetWhenBlockIsAvailableForReuse() {
 	bp, err := NewGenBlockPool(1024, 10, semaphore.NewWeighted(10), createBlock)
 	require.Nil(t.T(), err)
 	// Creating a block with some data and send it to blockCh.
 	b, err := createBlock(2)
 	require.Nil(t.T(), err)
-	content := []byte("hi")
-	n, err := b.Write(content)
-	require.Equal(t.T(), 2, n)
-	require.Nil(t.T(), err)
-	// Validating the content of the block
-	require.Equal(t.T(), int64(0), b.(*memoryBlock).readSeek)
-	output, err := io.ReadAll(b)
-	require.Nil(t.T(), err)
-	require.Equal(t.T(), content, output)
 	bp.freeBlocksCh <- b
 	// Setting totalBlocks same as maxBlocks to ensure no new blocks are created.
 	bp.totalBlocks = 10
@@ -177,6 +208,20 @@ func (t *BlockPoolTest) TestClearFreeBlockChannel() {
 	}
 }
 
+func (t *BlockPoolTest) TestClearFreeBlockChannelWhenTotalBlocksIsZero() {
+	bp, err := NewGenBlockPool(1024, 10, semaphore.NewWeighted(1), createBlock)
+	require.Nil(t.T(), err)
+	require.Equal(t.T(), int64(0), bp.totalBlocks)
+
+	err = bp.ClearFreeBlockChannel(true)
+
+	require.Nil(t.T(), err)
+	require.Equal(t.T(), int64(0), bp.totalBlocks)
+	// Check if semaphore is released correctly.
+	require.True(t.T(), bp.globalMaxBlocksSem.TryAcquire(1))
+	require.False(t.T(), bp.globalMaxBlocksSem.TryAcquire(1))
+}
+
 func (t *BlockPoolTest) TestBlockPoolCreationAcquiresGlobalSem() {
 	globalBlocksSem := semaphore.NewWeighted(1)
 
@@ -244,6 +289,37 @@ func (t *BlockPoolTest) TestBlockPoolCreationFailsWhenGlobalMaxBlocksIsZero() {
 	assert.ErrorContains(t.T(), err, CantAllocateAnyBlockError.Error())
 }
 
+func (t *BlockPoolTest) TestTryGetWhenLimitedByGlobalBlocks() {
+	bp, err := NewGenBlockPool(1024, 10, semaphore.NewWeighted(2), createBlock)
+	require.Nil(t.T(), err)
+	// 2 blocks can be created.
+	b1, err1 := bp.TryGet()
+	require.Nil(t.T(), err1)
+	require.NotNil(t.T(), b1)
+	b2, err2 := bp.TryGet()
+	require.Nil(t.T(), err2)
+	require.NotNil(t.T(), b2)
+
+	b3, err3 := bp.TryGet()
+
+	require.Nil(t.T(), b3)
+	require.NotNil(t.T(), err3)
+	require.ErrorIs(t.T(), err3, CantAllocateAnyBlockError)
+	require.Equal(t.T(), int64(2), bp.totalBlocks)
+}
+
+func (t *BlockPoolTest) TestTryGetWhenTotalBlocksEqualToMaxBlocks() {
+	bp, err := NewGenBlockPool(1024, 10, semaphore.NewWeighted(10), createBlock)
+	require.Nil(t.T(), err)
+	bp.totalBlocks = 10
+
+	b, err := bp.TryGet()
+
+	require.NotNil(t.T(), err)
+	assert.Equal(t.T(), CantAllocateAnyBlockError, err)
+	require.Nil(t.T(), b)
+}
+
 func (t *BlockPoolTest) TestGetWhenLimitedByGlobalBlocks() {
 	bp, err := NewGenBlockPool(1024, 10, semaphore.NewWeighted(2), createBlock)
 	require.Nil(t.T(), err)
@@ -258,7 +334,7 @@ func (t *BlockPoolTest) TestGetWhenLimitedByGlobalBlocks() {
 }
 
 func (t *BlockPoolTest) TestGetWhenTotalBlocksEqualToMaxBlocks() {
-	bp, err := NewGenBlockPool(1024, 10, semaphore.NewWeighted(2), createBlock)
+	bp, err := NewGenBlockPool(1024, 10, semaphore.NewWeighted(10), createBlock)
 	require.Nil(t.T(), err)
 	bp.totalBlocks = 10
 

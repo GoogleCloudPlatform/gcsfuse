@@ -66,7 +66,7 @@ func (p *DownloadTask) Execute() {
 	var err error
 	defer func() {
 		if err == nil {
-			logger.Tracef("Download: -> block (%s, %v) completed in: %v.", p.object.Name, blockId, time.Since(stime))
+			logger.Tracef("Download: -> block (%s, %v) Ok(%v).", p.object.Name, blockId, time.Since(stime))
 			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloaded})
 		} else if errors.Is(err, context.Canceled) && p.ctx.Err() == context.Canceled {
 			logger.Tracef("Download: -> block (%s, %v) cancelled: %v.", p.object.Name, blockId, err)
@@ -95,13 +95,13 @@ func (p *DownloadTask) Execute() {
 			ReadHandle:     p.readHandle,
 		})
 	if err != nil {
-		err = fmt.Errorf("while reader-creations: %w", err)
+		err = fmt.Errorf("DownloadTask.Execute: while reader-creations: %w", err)
 		return
 	}
 
 	_, err = io.CopyN(p.block, newReader, int64(end-start))
 	if err != nil {
-		err = fmt.Errorf("while copying data: %w", err)
+		err = fmt.Errorf("DownloadTask.Execute: while data-copy: %w", err)
 		return
 	}
 }

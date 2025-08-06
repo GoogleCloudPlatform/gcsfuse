@@ -26,6 +26,7 @@ import (
 	"testing/iotest"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedread"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
@@ -37,10 +38,12 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	testUtil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/sync/semaphore"
 )
 
 const (
@@ -53,13 +56,28 @@ const (
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func (t *readManagerTest) readManagerConfig(fileCacheEnable bool) *ReadManagerConfig {
+func (t *readManagerTest) readManagerConfig(fileCacheEnable bool, bufferedReadEnable bool) *ReadManagerConfig {
 	config := &ReadManagerConfig{
 		SequentialReadSizeMB:  sequentialReadSizeInMb,
 		CacheFileForRangeRead: false,
 		MetricHandle:          metrics.NewNoopMetrics(),
 		MrdWrapper:            nil,
+		Config: &cfg.Config{
+			Read: cfg.ReadConfig{
+				EnableBufferedRead:   bufferedReadEnable,
+				MaxBlocksPerHandle:   10,
+				BlockSizeMb:          1,
+				StartBlocksPerHandle: 2,
+			},
+		},
+		GlobalMaxBlocksSem: semaphore.NewWeighted(20),
 	}
+	if bufferedReadEnable {
+		t.workerPool, _ = workerpool.NewStaticWorkerPool(5, 20)
+		t.workerPool.Start()
+		config.WorkerPool = t.workerPool
+	}
+
 	if fileCacheEnable {
 		cacheDir := path.Join(os.Getenv("HOME"), "test_cache_dir")
 		lruCache := lru.NewCache(cacheMaxSize)
@@ -100,6 +118,7 @@ type readManagerTest struct {
 	readManager *ReadManager
 	ctx         context.Context
 	bucketType  gcs.BucketType
+	workerPool  workerpool.WorkerPool
 }
 
 func TestNonZonalBucketReadManagerTestSuite(t *testing.T) {
@@ -118,18 +137,22 @@ func (t *readManagerTest) SetupTest() {
 	}
 	t.mockBucket = new(storage.TestifyMockBucket)
 	t.ctx = context.Background()
-	t.readManager = NewReadManager(t.object, t.mockBucket, t.readManagerConfig(true))
+	t.readManager = NewReadManager(t.object, t.mockBucket, t.readManagerConfig(true, false))
 }
 
 func (t *readManagerTest) TearDownTest() {
 	t.readManager.Destroy()
+	if t.workerPool != nil {
+		t.workerPool.Stop()
+		t.workerPool = nil
+	}
 }
 
 // //////////////////////////////////////////////////////////////////////
 // Tests
 // //////////////////////////////////////////////////////////////////////
-func (t *readManagerTest) Test_NewReadManager_WithFileCacheHandler() {
-	config := t.readManagerConfig(true)
+func (t *readManagerTest) Test_NewReadManager_WithFileCacheHandlerOnly() {
+	config := t.readManagerConfig(true, false)
 
 	rm := NewReadManager(t.object, t.mockBucket, config)
 
@@ -141,13 +164,55 @@ func (t *readManagerTest) Test_NewReadManager_WithFileCacheHandler() {
 	assert.True(t.T(), ok2, "Second reader should be GCSReader")
 }
 
-func (t *readManagerTest) Test_NewReadManager_WithoutFileCacheHandler() {
-	config := t.readManagerConfig(false)
+func (t *readManagerTest) Test_NewReadManager_WithoutFileCacheAndBufferedRead() {
+	config := t.readManagerConfig(false, false)
 
 	rm := NewReadManager(t.object, t.mockBucket, config)
 
 	assert.Equal(t.T(), t.object, rm.Object())
 	assert.Len(t.T(), rm.readers, 1)
+	_, ok := rm.readers[0].(*clientReaders.GCSReader)
+	assert.True(t.T(), ok, "Only reader should be GCSReader")
+}
+
+func (t *readManagerTest) Test_NewReadManager_WithBufferedRead() {
+	config := t.readManagerConfig(false, true)
+
+	rm := NewReadManager(t.object, t.mockBucket, config)
+
+	assert.Equal(t.T(), t.object, rm.Object())
+	assert.Len(t.T(), rm.readers, 2) // BufferedReader and GCSReader
+	_, ok1 := rm.readers[0].(*bufferedread.BufferedReader)
+	_, ok2 := rm.readers[1].(*clientReaders.GCSReader)
+	assert.True(t.T(), ok1, "First reader should be BufferedReader")
+	assert.True(t.T(), ok2, "Second reader should be GCSReader")
+}
+
+func (t *readManagerTest) Test_NewReadManager_WithFileCacheAndBufferedRead() {
+	config := t.readManagerConfig(true, true)
+	defer os.RemoveAll(path.Join(os.Getenv("HOME"), "test_cache_dir"))
+
+	rm := NewReadManager(t.object, t.mockBucket, config)
+
+	assert.Equal(t.T(), t.object, rm.Object())
+	assert.Len(t.T(), rm.readers, 3) // FileCacheReader, BufferedReader, GCSReader
+	_, ok1 := rm.readers[0].(*gcsx.FileCacheReader)
+	_, ok2 := rm.readers[1].(*bufferedread.BufferedReader)
+	_, ok3 := rm.readers[2].(*clientReaders.GCSReader)
+	assert.True(t.T(), ok1, "First reader should be FileCacheReader")
+	assert.True(t.T(), ok2, "Second reader should be BufferedReader")
+	assert.True(t.T(), ok3, "Third reader should be GCSReader")
+}
+
+func (t *readManagerTest) Test_NewReadManager_BufferedReaderCreationFails() {
+	config := t.readManagerConfig(false, true)
+	// Exhaust the semaphore
+	config.GlobalMaxBlocksSem = semaphore.NewWeighted(0)
+
+	rm := NewReadManager(t.object, t.mockBucket, config)
+
+	assert.Equal(t.T(), t.object, rm.Object())
+	assert.Len(t.T(), rm.readers, 1) // Only GCSReader
 	_, ok := rm.readers[0].(*clientReaders.GCSReader)
 	assert.True(t.T(), ok, "Only reader should be GCSReader")
 }
@@ -198,7 +263,7 @@ func (t *readManagerTest) Test_ReadAt_NoExistingReader() {
 }
 
 func (t *readManagerTest) Test_ReadAt_ReaderFailsWithTimeout() {
-	t.readManager = NewReadManager(t.object, t.mockBucket, t.readManagerConfig(false))
+	t.readManager = NewReadManager(t.object, t.mockBucket, t.readManagerConfig(false, false))
 	r := iotest.OneByteReader(iotest.TimeoutReader(strings.NewReader("xxx")))
 	rc := &fake.FakeReader{ReadCloser: io.NopCloser(r)}
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(rc, nil).Once()
@@ -258,21 +323,43 @@ func (t *readManagerTest) Test_ReadAt_R1FailsR2Succeeds() {
 	expectedResp := gcsx.ReaderResponse{Size: 10}
 	mockReader1 := new(gcsx.MockReader)
 	mockReader2 := new(gcsx.MockReader)
-	t.readManager = &ReadManager{
+	rm := &ReadManager{
 		object:  t.object,
 		readers: []gcsx.Reader{mockReader1, mockReader2},
 	}
 	mockReader1.On("ReadAt", t.ctx, buf, offset).Return(gcsx.ReaderResponse{}, gcsx.FallbackToAnotherReader).Once()
-	mockReader1.On("CheckInvariants").Maybe()
-	mockReader1.On("Destroy").Maybe()
+	mockReader1.On("Destroy").Once()
 	mockReader2.On("ReadAt", t.ctx, buf, offset).Return(expectedResp, nil).Once()
-	mockReader2.On("CheckInvariants").Maybe()
-	mockReader2.On("Destroy").Maybe()
+	mockReader2.On("Destroy").Once()
 
-	resp, err := t.readAt(offset, 10)
+	resp, err := rm.ReadAt(t.ctx, buf, offset)
+	rm.Destroy()
 
 	assert.NoError(t.T(), err, "expected no error when second reader succeeds")
 	assert.Equal(t.T(), expectedResp, resp, "expected response from second reader")
 	mockReader1.AssertExpectations(t.T())
 	mockReader2.AssertExpectations(t.T())
+}
+
+func (t *readManagerTest) Test_ReadAt_BufferedReaderFallsBack() {
+	offset := int64(0)
+	buf := make([]byte, 10)
+	mockBufferedReader := new(gcsx.MockReader)
+	mockGCSReader := new(gcsx.MockReader)
+	rm := &ReadManager{
+		object:  t.object,
+		readers: []gcsx.Reader{mockBufferedReader, mockGCSReader},
+	}
+	mockBufferedReader.On("ReadAt", t.ctx, buf, offset).Return(gcsx.ReaderResponse{}, gcsx.FallbackToAnotherReader).Once()
+	mockBufferedReader.On("Destroy").Once()
+	mockGCSReader.On("ReadAt", t.ctx, buf, offset).Return(gcsx.ReaderResponse{Size: 10}, nil).Once()
+	mockGCSReader.On("Destroy").Once()
+
+	resp, err := rm.ReadAt(t.ctx, buf, offset)
+	rm.Destroy()
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), gcsx.ReaderResponse{Size: 10}, resp)
+	mockBufferedReader.AssertExpectations(t.T())
+	mockGCSReader.AssertExpectations(t.T())
 }

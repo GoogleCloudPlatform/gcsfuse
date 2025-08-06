@@ -500,7 +500,8 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 	var notFoundError *gcs.NotFoundError
 	if errors.As(err, &notFoundError) {
 		err = &gcsfuse_errors.FileClobberedError{
-			Err: fmt.Errorf("NewReader: %w", err),
+			Err:        fmt.Errorf("NewReader: %w", err),
+			ObjectName: rr.object.Name,
 		}
 		return
 	}

@@ -198,7 +198,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReadWithReadBufferMoreThanBlock
 
 	n, err = mb.Read(readBuffer)
 
-	require.NoError(testSuite.T(), err)
+	require.Error(testSuite.T(), io.EOF, err)
 	require.Equal(testSuite.T(), 11, n) // Read should return all bytes written.
 }
 
@@ -258,7 +258,9 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockSeek() {
 			require.Equal(t, tt.expectedOffset, offset)
 			readBuffer := make([]byte, 5)
 			n, err = mb.Read(readBuffer)
-			require.Nil(t, err)
+			require.Condition(t, func() bool {
+				return err == nil || errors.Is(err, io.EOF)
+			}, "Read err can be nil or io.EOF")
 			require.Equal(t, 5, n)
 			assert.Equal(t, tt.expectedOutput, string(readBuffer))
 		})

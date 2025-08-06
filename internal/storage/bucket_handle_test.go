@@ -1624,3 +1624,29 @@ func (testSuite *BucketHandleTest) TestCreateFolderWithGivenName() {
 	assert.NoError(testSuite.T(), err)
 	assert.Equal(testSuite.T(), gcs.GCSFolder(TestBucketName, &mockFolder), folder)
 }
+
+func (testSuite *BucketHandleTest) TestIsGCSObject() {
+	testCases := []struct {
+		name     string
+		attrs    *storage.ObjectAttrs
+		expected bool
+	}{
+		{
+			name:     "gcsObject",
+			attrs:    &storage.ObjectAttrs{Name: "a/b/c.txt", Prefix: ""},
+			expected: true,
+		},
+		{
+			name:     "gcsFolder",
+			attrs:    &storage.ObjectAttrs{Name: "", Prefix: "a/"},
+			expected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		testSuite.Run(tc.name, func() {
+			actual := isGCSObject(tc.attrs)
+			assert.Equal(testSuite.T(), tc.expected, actual)
+		})
+	}
+}
