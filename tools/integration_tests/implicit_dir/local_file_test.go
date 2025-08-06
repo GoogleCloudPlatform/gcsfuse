@@ -33,6 +33,12 @@ const (
 // //////////////////////////////////////////////////////////////////////
 
 func TestNewFileUnderImplicitDirectoryShouldNotGetSyncedToGCSTillClose(t *testing.T) {
+	if setup.IsZonalBucketRun() {
+		// This test is not applicable for zonal bucket,
+		// as zonal bucket creates unfinalized objects until fclose(),
+		// which can be read from GCS using go storage sdk or gcsfuse.
+		t.Skipf("Test not applicable for zonal bucket.")
+	}
 	testBaseDirName := path.Join(testDirName, operations.GetRandomName(t))
 	testEnv.testDirPath = setup.SetupTestDirectoryRecursive(testBaseDirName)
 	CreateImplicitDir(testEnv.ctx, testEnv.storageClient, testBaseDirName, t)
