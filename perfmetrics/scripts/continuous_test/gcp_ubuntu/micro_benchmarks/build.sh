@@ -26,54 +26,23 @@ log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
 }
 
-initialize_ssh_key() {
-  log "Cleaning up old OS Login SSH keys..."
-
-  local existing_keys
-  existing_keys=$(sudo gcloud compute os-login ssh-keys list --format="value(key)" || true)
-
-  if [[ -n "$existing_keys" ]]; then
-    while IFS= read -r key; do
-      sudo gcloud compute os-login ssh-keys remove --key="$key"
-    done <<< "$existing_keys"
-  else
-    log "No SSH keys to remove."
-  fi
-
-  log "Initializing SSH access to VM: $VM_NAME..."
-
-  local delay=1 max_delay=10 attempt=1 max_attempts=5
-
-  while (( attempt <= max_attempts )); do
-    log "SSH connection attempt $attempt..."
-    if sudo gcloud compute ssh "$VM_NAME" --zone "$ZONE" --internal-ip --quiet --command "echo 'SSH OK on $VM_NAME'"; then
-      log "SSH connection established."
-      return 0
-    fi
-    log "SSH connection failed. Retrying in ${delay}s..."
-    sleep "$delay"
-    delay=$((delay * 2))
-    (( delay > max_delay )) && delay=$max_delay
-    attempt=$((attempt + 1))
-  done
-
-  log "ERROR: All SSH connection attempts failed."
-  return 1
-}
-
 run_script_on_vm() {
   log "Running benchmark script on VM with clean setup..."
 
   sudo gcloud compute ssh "$VM_NAME" --zone "$ZONE" --internal-ip --command "
     set -euxo pipefail
 
+    MOUNTED_DIR=\"$MOUNTED_DIR\"
+    GCSFUSE_REPO=\"$GCSFUSE_REPO\"
+    TEST_SCRIPT_PATH=\"$TEST_SCRIPT_PATH\"
+
     sudo apt-get update -y
     sudo apt-get install -y git
 
     # Unmount if gcsfuse mount exists
-    if mountpoint -q $MOUNTED_DIR; then
-      echo '$MOUNTED_DIR is mounted. Attempting to unmount...'
-      sudo fusermount -u $MOUNTED_DIR || sudo umount $MOUNTED_DIR
+    if mountpoint -q \"\$MOUNTED_DIR\"; then
+      echo \"\$MOUNTED_DIR is mounted. Attempting to unmount...\"
+      sudo fusermount -u \"\$MOUNTED_DIR\" || sudo umount \"\$MOUNTED_DIR\"
     fi
 
     # Clean up any existing repo
@@ -81,19 +50,18 @@ run_script_on_vm() {
 
     # Clone fresh repo
     mkdir -p ~/github
-    git clone $GCSFUSE_REPO ~/github/gcsfuse
+    git clone \"\$GCSFUSE_REPO\" ~/github/gcsfuse
     cd ~/github/gcsfuse
-    git checkout master
-    git pull origin master
+    commitId=\$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
+    git checkout \$commitId
 
     # Run benchmark
-    echo 'Triggering benchmark script...'
-    bash ~/$TEST_SCRIPT_PATH
+    echo \"Triggering benchmark script...\"
+    bash ~/\$TEST_SCRIPT_PATH
   "
 
   log "Benchmark script executed successfully on VM."
 }
 
 # ---- Main Execution ----
-initialize_ssh_key
 run_script_on_vm

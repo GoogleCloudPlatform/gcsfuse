@@ -45,26 +45,31 @@ prepare_venv() {
 }
 
 run_benchmark() {
-  local type=$1
-  local script=$2
-  local file_size_gb=$3
-  local total_files=$4
+  local rw=$1                # "read" or "write" operation type
+  local script_path=$2       # Path to the benchmark script (e.g., read_single_thread.py)
+  local file_size_gb=$3      # Size of each file to read/write in GB
+  local total_files=$4       # Total number of files to process
 
-  echo "Running $type benchmark with file size $file_size_gb GB and total files $total_files..."
-  local log_file="/tmp/gcsfuse-logs-single-threaded-${type}-${file_size_gb}gb-test.txt"
+  echo "Running $rw benchmark with file size $file_size_gb GB and total files $total_files..."
+  local log_file="/tmp/gcsfuse-logs-single-threaded-${rw}-${file_size_gb}gb-test.txt"
+
+  # Clean old log file if it exists
+  rm -f "$log_file"
 
   # Pass log file flag as a string.
   local gcsfuse_flags="--log-file $log_file"
 
-  log "Running $type benchmark..."
-  if ! python3 "$script" --bucket single-threaded-tests \
+  log "Running $rw benchmark..."
+  if ! python3 "$script_path" --bucket single-threaded-tests \
       --gcsfuse-config "$gcsfuse_flags" \
       --total-files "$total_files" \
       --file-size-gb "$file_size_gb"; then
-    log "$type benchmark failed. Copying log to gs://$ARTIFACT_BUCKET_PATH/$DATE"
+    log "$rw benchmark failed. Copying log to gs://$ARTIFACT_BUCKET_PATH/$DATE"
     gcloud storage cp "$log_file" "gs://$ARTIFACT_BUCKET_PATH/$DATE/"
+    gcloud storage cat "gs://$ARTIFACT_BUCKET_PATH/$DATE/$(basename "$log_file")"
     return 1
   fi
+
   return 0
 }
 
@@ -74,8 +79,7 @@ sudo apt-get update -y
 sudo apt-get install -y git gnupg python3-venv
 
 cd "$HOME/github/gcsfuse"
-# Get the latest commitId of yesterday in the log file. Build gcsfuse and run
-commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
+commitId=$(git rev-parse --short HEAD)
 ./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId
 
 cd "perfmetrics/scripts/micro_benchmarks"
