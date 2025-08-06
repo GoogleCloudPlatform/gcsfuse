@@ -45,13 +45,16 @@ prepare_venv() {
 }
 
 run_benchmark() {
-  local rw=$1
-  local script_path=$2
-  local file_size_gb=$3
-  local total_files=$4
+  local rw=$1                # "read" or "write" operation type
+  local script_path=$2       # Path to the benchmark script (e.g., read_single_thread.py)
+  local file_size_gb=$3      # Size of each file to read/write in GB
+  local total_files=$4       # Total number of files to process
 
   echo "Running $rw benchmark with file size $file_size_gb GB and total files $total_files..."
   local log_file="/tmp/gcsfuse-logs-single-threaded-${rw}-${file_size_gb}gb-test.txt"
+
+  # Clean old log file if it exists
+  rm -f "$log_file"
 
   # Pass log file flag as a string.
   local gcsfuse_flags="--log-file $log_file"
@@ -62,12 +65,17 @@ run_benchmark() {
       --total-files "$total_files" \
       --file-size-gb "$file_size_gb"; then
     log "$rw benchmark failed. Copying log to gs://$ARTIFACT_BUCKET_PATH/$DATE"
+    gcloud storage cp "$log_file" "gs://$ARTIFACT_BUCKET_PATH/$DATE/"
+    gcloud storage cat "gs://$ARTIFACT_BUCKET_PATH/$DATE/$(basename "$log_file")"
     return 1
   fi
+
   gcloud storage cp "$log_file" "gs://$ARTIFACT_BUCKET_PATH/$DATE/"
-  gcloud storage cat "gs://$ARTIFACT_BUCKET_PATH/$DATE/"
+  gcloud storage cat "gs://$ARTIFACT_BUCKET_PATH/$DATE/$(basename "$log_file")"
+
   return 0
 }
+
 
 # --- Main Script ---
 log "Installing dependencies..."
@@ -85,7 +93,7 @@ cleanup_mounts
 prepare_venv
 
 READ_GB=15
-TOTAL_READ_FILES=10
+TOTAL_READ_FILES=1
 WRITE_GB=15
 TOTAL_WRITE_FILES=1
 exit_code=0
