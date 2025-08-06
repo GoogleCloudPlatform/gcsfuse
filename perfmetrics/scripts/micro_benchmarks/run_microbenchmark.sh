@@ -62,10 +62,10 @@ run_benchmark() {
       --total-files "$total_files" \
       --file-size-gb "$file_size_gb"; then
     log "$rw benchmark failed. Copying log to gs://$ARTIFACT_BUCKET_PATH/$DATE"
-    gcloud storage cp "$log_file" "gs://$ARTIFACT_BUCKET_PATH/$DATE/"
-    gcloud storage cat "gs://$ARTIFACT_BUCKET_PATH/$DATE/"
     return 1
   fi
+  gcloud storage cp "$log_file" "gs://$ARTIFACT_BUCKET_PATH/$DATE/"
+  gcloud storage cat "gs://$ARTIFACT_BUCKET_PATH/$DATE/"
   return 0
 }
 
