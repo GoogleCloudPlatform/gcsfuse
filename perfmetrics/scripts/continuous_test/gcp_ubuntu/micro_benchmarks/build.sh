@@ -56,7 +56,7 @@ run_script_on_vm() {
     bash ~/$TEST_SCRIPT_PATH
   '
 
-  log "Benchmark script executed successfully on VM.'
+  log "Benchmark script executed successfully on VM."
 }
 
 # ---- Main Execution ----
