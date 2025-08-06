@@ -282,7 +282,6 @@ func (t *fileTest) Test_ReadWithReadManager_FallbackToInode() {
 	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{}, nil, nil)
 	fh.inode.Lock()
 	mockRM := new(read_manager.MockReadManager)
-	mockRM.On("Destroy").Return()
 	fh.readManager = mockRM
 
 	output, n, err := fh.ReadWithReadManager(t.ctx, dst, 0, 200)
@@ -304,7 +303,6 @@ func (t *fileTest) Test_Read_FallbackToInode() {
 	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{}, nil, nil)
 	fh.inode.Lock()
 	mockR := new(gcsx.MockRandomReader)
-	mockR.On("Destroy").Return()
 	fh.reader = mockR
 
 	output, n, err := fh.Read(t.ctx, dst, 0, 200)

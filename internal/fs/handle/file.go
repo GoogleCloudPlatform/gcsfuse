@@ -142,6 +142,19 @@ func (fh *FileHandle) lockHandleAndRelockInode(rLock bool) {
 	}
 }
 
+// unlockHandleAndInode is a helper function which unlocks fh.inode.mu & fh.mu in order.
+// LOCKS_REQUIRED(fh.mu)
+// LOCKS_REQUIRED(fh.inode.mu)
+func (fh *FileHandle) unlockHandleAndInode(rLock bool) {
+	if rLock {
+		fh.inode.Unlock()
+		fh.mu.RUnlock()
+	} else {
+		fh.inode.Unlock()
+		fh.mu.Unlock()
+	}
+}
+
 // ReadWithReadManager reads data at the given offset using the read manager if available,
 // falling back to inode.Read otherwise. It may be more efficient than directly calling inode.Read.
 //
@@ -166,58 +179,49 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 
 	// If the inode is dirty, there's nothing we can do. Throw away our readManager if
 	// we have one & create a new readManager
-	if !fh.isValidReadManager() {
+	if fh.isValidReadManager() {
+		fh.inode.Unlock()
+	} else {
+		minObj := fh.inode.Source()
+		bucket := fh.inode.Bucket()
+		mrdWrapper := &fh.inode.MRDWrapper
+
 		// Acquire a RWLock on file handle as we will update readManager
-		fh.mu.RUnlock()
-		fh.lockHandleAndRelockInode(false)
+		fh.unlockHandleAndInode(true)
+		fh.mu.Lock()
 
 		fh.destroyReadManager()
 		// Create a new read manager for the current inode state.
-		fh.readManager = read_manager.NewReadManager(fh.inode.Source(), fh.inode.Bucket(), &read_manager.ReadManagerConfig{
+		fh.readManager = read_manager.NewReadManager(minObj, bucket, &read_manager.ReadManagerConfig{
 			SequentialReadSizeMB:  sequentialReadSizeMb,
 			FileCacheHandler:      fh.fileCacheHandler,
 			CacheFileForRangeRead: fh.cacheFileForRangeRead,
 			MetricHandle:          fh.metricHandle,
-			MrdWrapper:            &fh.inode.MRDWrapper,
+			MrdWrapper:            mrdWrapper,
 			Config:                fh.config,
 		})
 
-		// Release RWLock and take RLock on file handle again
+		// Release RWLock and take RLock on file handle again. Inode lock is not needed now.
 		fh.mu.Unlock()
-		fh.lockHandleAndRelockInode(true)
+		fh.mu.RLock()
 	}
 
-	// If we have an appropriate readManager, unlock the inode and use that. This
-	// allows reads to proceed concurrently with other operations; in particular,
-	// multiple reads can run concurrently. It's safe because the user can't tell
-	// if a concurrent write started during or after a read.
-	if fh.readManager != nil {
-		fh.inode.Unlock()
-
-		var readerResponse gcsx.ReaderResponse
-		var err error
-		readerResponse, err = fh.readManager.ReadAt(ctx, dst, offset)
-		switch {
-		case errors.Is(err, io.EOF):
-			if err != io.EOF {
-				logger.Warnf("Unexpected EOF error encountered while reading, err: %v type: %T ", err, err)
-			}
-			return nil, 0, io.EOF
-
-		case err != nil:
-			return nil, 0, fmt.Errorf("fh.readManager.ReadAt: %w", err)
+	// Use the readManager to read data.
+	var readerResponse gcsx.ReaderResponse
+	var err error
+	readerResponse, err = fh.readManager.ReadAt(ctx, dst, offset)
+	switch {
+	case errors.Is(err, io.EOF):
+		if err != io.EOF {
+			logger.Warnf("Unexpected EOF error encountered while reading, err: %v type: %T ", err, err)
 		}
+		return nil, 0, io.EOF
 
-		return readerResponse.DataBuf, readerResponse.Size, nil
+	case err != nil:
+		return nil, 0, fmt.Errorf("fh.readManager.ReadAt: %w", err)
 	}
 
-	// If read manager is not available, fall back to reading via inode
-	defer fh.inode.Unlock()
-
-	n, err := fh.inode.Read(ctx, dst, offset)
-
-	// Return the original dst buffer and number of bytes read
-	return dst, n, err
+	return readerResponse.DataBuf, readerResponse.Size, nil
 }
 
 // Equivalent to locking fh.Inode() and calling fh.Inode().Read, but may be
@@ -244,53 +248,44 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	fh.lockHandleAndRelockInode(true)
 	defer fh.mu.RUnlock()
 
-	if !fh.isValidReader() {
+	if fh.isValidReader() {
+		fh.inode.Unlock()
+	} else {
+		minObj := fh.inode.Source()
+		bucket := fh.inode.Bucket()
+		mrdWrapper := &fh.inode.MRDWrapper
+
 		// Acquire a RWLock on file handle as we will update reader
-		fh.mu.RUnlock()
-		fh.lockHandleAndRelockInode(false)
+		fh.unlockHandleAndInode(true)
+		fh.mu.Lock()
 
 		fh.destroyReader()
 		// Attempt to create an appropriate reader.
-		fh.reader = gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, &fh.inode.MRDWrapper, fh.config)
+		fh.reader = gcsx.NewRandomReader(minObj, bucket, sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, mrdWrapper, fh.config)
 
 		// Release RWLock and take RLock on file handle again
 		fh.mu.Unlock()
-		fh.lockHandleAndRelockInode(true)
+		fh.mu.RLock()
 	}
 
-	// If we have an appropriate reader, unlock the inode and use that. This
-	// allows reads to proceed concurrently with other operations; in particular,
-	// multiple reads can run concurrently. It's safe because the user can't tell
-	// if a concurrent write started during or after a read.
-	if fh.reader != nil {
-		fh.inode.Unlock()
-
-		var objectData gcsx.ObjectData
-		objectData, err = fh.reader.ReadAt(ctx, dst, offset)
-		switch {
-		case errors.Is(err, io.EOF):
-			if err != io.EOF {
-				logger.Warnf("Unexpected EOF error encountered while reading, err: %v type: %T ", err, err)
-				err = io.EOF
-			}
-			return
-
-		case err != nil:
-			err = fmt.Errorf("fh.reader.ReadAt: %w", err)
-			return
+	// Use the reader to read data.
+	var objectData gcsx.ObjectData
+	objectData, err = fh.reader.ReadAt(ctx, dst, offset)
+	switch {
+	case errors.Is(err, io.EOF):
+		if err != io.EOF {
+			logger.Warnf("Unexpected EOF error encountered while reading, err: %v type: %T ", err, err)
+			err = io.EOF
 		}
+		return
 
-		output = objectData.DataBuf
-		n = objectData.Size
+	case err != nil:
+		err = fmt.Errorf("fh.reader.ReadAt: %w", err)
 		return
 	}
 
-	// Otherwise we must fall through to the inode.
-	defer fh.inode.Unlock()
-	n, err = fh.inode.Read(ctx, dst, offset)
-	// Setting dst as output since output is used by the caller to read the data.
-	output = dst
-
+	output = objectData.DataBuf
+	n = objectData.Size
 	return
 }
 
