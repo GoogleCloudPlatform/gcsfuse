@@ -1,0 +1,61 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package explicit_dir_test
+
+import (
+	"os"
+	"path"
+	"testing"
+
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestRenameSymlinkToExplicitDir(t *testing.T) {
+	testDir := setup.SetupTestDirectory(DirForExplicitDirTests)
+
+	// Create a target directory.
+	targetDirName := "target_dir"
+	targetDirPath := path.Join(testDir, targetDirName)
+	err := os.Mkdir(targetDirPath, setup.DirPermission_0755)
+	require.NoError(t, err)
+	// Create a file inside the target directory to verify listing later.
+	fileInDirName := "file.txt"
+	err = os.WriteFile(path.Join(targetDirPath, fileInDirName), []byte("burrito"), setup.FilePermission_0600)
+	require.NoError(t, err)
+
+	// Create and rename the symlink.
+	oldSymlinkPath := path.Join(testDir, "symlink_old")
+	err = os.Symlink(targetDirName, oldSymlinkPath)
+	require.NoError(t, err)
+	newSymlinkPath := path.Join(testDir, "symlink_new")
+	err = os.Rename(oldSymlinkPath, newSymlinkPath)
+	require.NoError(t, err)
+
+	// Assertions
+	_, err = os.Lstat(oldSymlinkPath)
+	assert.True(t, os.IsNotExist(err))
+	fi, err := os.Lstat(newSymlinkPath)
+	assert.NoError(t, err)
+	assert.Equal(t, os.ModeSymlink, fi.Mode()&os.ModeType)
+	targetRead, err := os.Readlink(newSymlinkPath)
+	assert.NoError(t, err)
+	assert.Equal(t, targetDirName, targetRead)
+	entries, err := os.ReadDir(newSymlinkPath)
+	assert.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.Equal(t, fileInDirName, entries[0].Name())
+}
