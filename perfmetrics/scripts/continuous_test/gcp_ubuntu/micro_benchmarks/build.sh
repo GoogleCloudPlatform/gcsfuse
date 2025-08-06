@@ -29,32 +29,31 @@ log() {
 run_script_on_vm() {
   log "Running benchmark script on VM with clean setup..."
 
-  sudo gcloud compute ssh "$VM_NAME" --zone "$ZONE" --internal-ip --command '
+  sudo gcloud compute ssh "$VM_NAME" --zone "$ZONE" --internal-ip --command "
     set -euxo pipefail
+
+    MOUNTED_DIR=\"$MOUNTED_DIR\"
+    GCSFUSE_REPO=\"$GCSFUSE_REPO\"
+    TEST_SCRIPT_PATH=\"$TEST_SCRIPT_PATH\"
 
     sudo apt-get update -y
     sudo apt-get install -y git
 
-    # Unmount if gcsfuse mount exists
-    if mountpoint -q $MOUNTED_DIR; then
-      echo "$MOUNTED_DIR is mounted. Attempting to unmount..."
-      sudo fusermount -u $MOUNTED_DIR || sudo umount $MOUNTED_DIR
+    if mountpoint -q \"\$MOUNTED_DIR\"; then
+      echo \"\$MOUNTED_DIR is mounted. Attempting to unmount...\"
+      sudo fusermount -u \"\$MOUNTED_DIR\" || sudo umount \"\$MOUNTED_DIR\"
     fi
 
-    # Clean up any existing repo
     rm -rf ~/github
-
-    # Clone fresh repo
     mkdir -p ~/github
-    git clone $GCSFUSE_REPO ~/github/gcsfuse
+    git clone \"\$GCSFUSE_REPO\" ~/github/gcsfuse
     cd ~/github/gcsfuse
     git checkout spin_VM_and_run_micro_bench_2
     git pull origin spin_VM_and_run_micro_bench_2
 
-    # Run benchmark
-    echo "Triggering benchmark script..."
-    bash ~/$TEST_SCRIPT_PATH
-  '
+    echo \"Triggering benchmark script...\"
+    bash \"\$TEST_SCRIPT_PATH\"
+  "
 
   log "Benchmark script executed successfully on VM."
 }
