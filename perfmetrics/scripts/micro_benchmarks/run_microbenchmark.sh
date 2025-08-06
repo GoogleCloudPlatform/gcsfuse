@@ -45,24 +45,25 @@ prepare_venv() {
 }
 
 run_benchmark() {
-  local type=$1
-  local script=$2
+  local rw=$1
+  local script_path=$2
   local file_size_gb=$3
   local total_files=$4
 
-  echo "Running $type benchmark with file size $file_size_gb GB and total files $total_files..."
-  local log_file="/tmp/gcsfuse-logs-single-threaded-${type}-${file_size_gb}gb-test.txt"
+  echo "Running $rw benchmark with file size $file_size_gb GB and total files $total_files..."
+  local log_file="/tmp/gcsfuse-logs-single-threaded-${rw}-${file_size_gb}gb-test.txt"
 
   # Pass log file flag as a string.
   local gcsfuse_flags="--log-file $log_file"
 
-  log "Running $type benchmark..."
-  if ! python3 "$script" --bucket single-threaded-tests \
+  log "Running $rw benchmark..."
+  if ! python3 "$script_path" --bucket single-threaded-tests \
       --gcsfuse-config "$gcsfuse_flags" \
       --total-files "$total_files" \
       --file-size-gb "$file_size_gb"; then
-    log "$type benchmark failed. Copying log to gs://$ARTIFACT_BUCKET_PATH/$DATE"
+    log "$rw benchmark failed. Copying log to gs://$ARTIFACT_BUCKET_PATH/$DATE"
     gcloud storage cp "$log_file" "gs://$ARTIFACT_BUCKET_PATH/$DATE/"
+    gcloud storage cat "gs://$ARTIFACT_BUCKET_PATH/$DATE/"
     return 1
   fi
   return 0

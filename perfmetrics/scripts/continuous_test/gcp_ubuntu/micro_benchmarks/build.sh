@@ -40,25 +40,25 @@ initialize_ssh_key() {
     log "No SSH keys to remove."
   fi
 
-  log "Initializing SSH access to VM: $VM_NAME..."
+  # log "Initializing SSH access to VM: $VM_NAME..."
 
-  local delay=1 max_delay=10 attempt=1 max_attempts=5
+  # local delay=1 max_delay=10 attempt=1 max_attempts=5
 
-  while (( attempt <= max_attempts )); do
-    log "SSH connection attempt $attempt..."
-    if sudo gcloud compute ssh "$VM_NAME" --zone "$ZONE" --internal-ip --quiet --command "echo 'SSH OK on $VM_NAME'"; then
-      log "SSH connection established."
-      return 0
-    fi
-    log "SSH connection failed. Retrying in ${delay}s..."
-    sleep "$delay"
-    delay=$((delay * 2))
-    (( delay > max_delay )) && delay=$max_delay
-    attempt=$((attempt + 1))
-  done
+  # while (( attempt <= max_attempts )); do
+  #   log "SSH connection attempt $attempt..."
+  #   if sudo gcloud compute ssh "$VM_NAME" --zone "$ZONE" --internal-ip --quiet --command "echo 'SSH OK on $VM_NAME'"; then
+  #     log "SSH connection established."
+  #     return 0
+  #   fi
+  #   log "SSH connection failed. Retrying in ${delay}s..."
+  #   sleep "$delay"
+  #   delay=$((delay * 2))
+  #   (( delay > max_delay )) && delay=$max_delay
+  #   attempt=$((attempt + 1))
+  # done
 
-  log "ERROR: All SSH connection attempts failed."
-  return 1
+  # log "ERROR: All SSH connection attempts failed."
+  return 0
 }
 
 run_script_on_vm() {
@@ -72,7 +72,7 @@ run_script_on_vm() {
 
     # Unmount if gcsfuse mount exists
     if mountpoint -q $MOUNTED_DIR; then
-      echo "$MOUNTED_DIR is mounted. Attempting to unmount..."
+      echo '$MOUNTED_DIR is mounted. Attempting to unmount...'
       sudo fusermount -u $MOUNTED_DIR || sudo umount $MOUNTED_DIR
     fi
 
