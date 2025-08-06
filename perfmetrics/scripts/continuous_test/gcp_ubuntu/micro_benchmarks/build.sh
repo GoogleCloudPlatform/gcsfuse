@@ -54,7 +54,7 @@ run_script_on_vm() {
     # Run benchmark
     echo "Triggering benchmark script..."
     bash ~/$TEST_SCRIPT_PATH
-  "
+  '
 
   log "Benchmark script executed successfully on VM.'
 }
