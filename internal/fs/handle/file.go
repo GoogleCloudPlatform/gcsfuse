@@ -118,7 +118,7 @@ func (fh *FileHandle) Unlock() {
 // lockHandleAndRelockInode is a helper function which locks fh.mu maintaing the locking
 // order, i.e. it first unlocks inode lock, then locks fh.mu (RLock or RWlock) and then
 // relocks inode lock.
-// This assumes the necessary locks (fh.inode.mu) are already held by the caller.
+// LOCKS_REQUIRED(fh.inode.mu)
 func (fh *FileHandle) lockHandleAndRelockInode(rLock bool) {
 	if rLock {
 		fh.inode.Unlock()
@@ -137,17 +137,45 @@ func (fh *FileHandle) lockHandleAndRelockInode(rLock bool) {
 // LOCKS_REQUIRED(fh.inode.mu)
 // UNLOCK_FUNCTION(fh.inode.mu)
 func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offset int64, sequentialReadSizeMb int32) ([]byte, int, error) {
-	// fh.inode.mu is already locked to ensure that we have a readManager for its current
-	// state, or clear fh.readManager if it's not possible to create one (probably
-	// because the inode is dirty).
-	err := fh.tryEnsureReadManager(ctx, sequentialReadSizeMb)
-	if err != nil {
-		fh.inode.Unlock()
-		return nil, 0, fmt.Errorf("tryEnsureReadManager: %w", err)
+	// If content cache enabled, CacheEnsureContent forces the file handler to fall through to the inode
+	// and fh.inode.SourceGenerationIsAuthoritative() will return false
+	if err := fh.inode.CacheEnsureContent(ctx); err != nil {
+		return nil, 0, fmt.Errorf("failed to ensure inode content: %w", err)
+	}
+
+	if !fh.inode.SourceGenerationIsAuthoritative() {
+		// Read from inode if source generation is not authoratative
+		defer fh.inode.Unlock()
+		n, err := fh.inode.Read(ctx, dst, offset)
+		return dst, n, err
 	}
 
 	fh.lockHandleAndRelockInode(true)
 	defer fh.mu.RUnlock()
+
+	// If the inode is dirty, there's nothing we can do. Throw away our readManager if
+	// we have one & create a new readManager
+	if !fh.isValidReadManager() {
+		// Acquire a RWLock on file handle as we will update readManager
+		fh.mu.RUnlock()
+		fh.lockHandleAndRelockInode(false)
+
+		fh.destroyReadManager()
+		// Create a new read manager for the current inode state.
+		fh.readManager = read_manager.NewReadManager(fh.inode.Source(), fh.inode.Bucket(), &read_manager.ReadManagerConfig{
+			SequentialReadSizeMB:  sequentialReadSizeMb,
+			FileCacheHandler:      fh.fileCacheHandler,
+			CacheFileForRangeRead: fh.cacheFileForRangeRead,
+			MetricHandle:          fh.metricHandle,
+			MrdWrapper:            &fh.inode.MRDWrapper,
+			Config:                fh.config,
+		})
+
+		// Release RWLock and take RLock on file handle again
+		fh.mu.Unlock()
+		fh.lockHandleAndRelockInode(true)
+	}
+
 	// If we have an appropriate readManager, unlock the inode and use that. This
 	// allows reads to proceed concurrently with other operations; in particular,
 	// multiple reads can run concurrently. It's safe because the user can't tell
@@ -156,6 +184,7 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 		fh.inode.Unlock()
 
 		var readerResponse gcsx.ReaderResponse
+		var err error
 		readerResponse, err = fh.readManager.ReadAt(ctx, dst, offset)
 		switch {
 		case errors.Is(err, io.EOF):
@@ -186,18 +215,38 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 // LOCKS_REQUIRED(fh.inode.mu)
 // UNLOCK_FUNCTION(fh.inode.mu)
 func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequentialReadSizeMb int32) (output []byte, n int, err error) {
-	// fh.inode.mu is already locked to ensure that we have a reader for its current
-	// state, or clear fh.reader if it's not possible to create one (probably
-	// because the inode is dirty).
-	err = fh.tryEnsureReader(ctx, sequentialReadSizeMb)
+	// If content cache enabled, CacheEnsureContent forces the file handler to fall through to the inode
+	// and fh.inode.SourceGenerationIsAuthoritative() will return false
+	err = fh.inode.CacheEnsureContent(ctx)
 	if err != nil {
-		fh.inode.Unlock()
-		err = fmt.Errorf("tryEnsureReader: %w", err)
-		return
+		return nil, 0, fmt.Errorf("failed to ensure inode content: %w", err)
+	}
+
+	// If the inode is dirty, there's nothing we can do. Throw away our reader if
+	// we have one.
+	if !fh.inode.SourceGenerationIsAuthoritative() {
+		defer fh.inode.Unlock()
+		n, err = fh.inode.Read(ctx, dst, offset)
+		return dst, n, err
 	}
 
 	fh.lockHandleAndRelockInode(true)
 	defer fh.mu.RUnlock()
+
+	if !fh.isValidReader() {
+		// Acquire a RWLock on file handle as we will update reader
+		fh.mu.RUnlock()
+		fh.lockHandleAndRelockInode(false)
+
+		fh.destroyReader()
+		// Attempt to create an appropriate reader.
+		fh.reader = gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, &fh.inode.MRDWrapper, fh.config)
+
+		// Release RWLock and take RLock on file handle again
+		fh.mu.Unlock()
+		fh.lockHandleAndRelockInode(true)
+	}
+
 	// If we have an appropriate reader, unlock the inode and use that. This
 	// allows reads to proceed concurrently with other operations; in particular,
 	// multiple reads can run concurrently. It's safe because the user can't tell
@@ -337,10 +386,9 @@ func (fh *FileHandle) tryEnsureReadManager(ctx context.Context, sequentialReadSi
 }
 
 // destroyReadManager is a helper function to safely destroy the readManager & set it to nil.
-// This assumes the necessary locks (fh.inode.mu) are already held by the caller.
+// LOCKS_REQUIRED(fh.mu)
+// LOCKS_REQUIRED(fh.inode.mu)
 func (fh *FileHandle) destroyReadManager() {
-	fh.lockHandleAndRelockInode(false)
-	defer fh.mu.Unlock()
 	if fh.readManager == nil {
 		return
 	}
@@ -350,10 +398,9 @@ func (fh *FileHandle) destroyReadManager() {
 
 // isValidReadManager is a helper function which validates & returns whether the
 // current readManager is valid or not.
-// This assumes the necessary locks (fh.inode.mu) are already held by the caller.
+// LOCKS_REQUIRED(fh.mu.RLock)
+// LOCKS_REQUIRED(fh.inode.mu)
 func (fh *FileHandle) isValidReadManager() bool {
-	fh.lockHandleAndRelockInode(true)
-	defer fh.mu.RUnlock()
 	// If we already have a readManager, and it's at the appropriate generation, we
 	// can use it otherwise we must throw it away.
 	if fh.readManager != nil && fh.readManager.Object().Generation == fh.inode.SourceGeneration().Object {
@@ -365,10 +412,9 @@ func (fh *FileHandle) isValidReadManager() bool {
 }
 
 // destroyReader is a helper function to safely destroy the reader and set it to nil.
-// This assumes the necessary locks (fh.inode.mu) are already held by the caller.
+// LOCKS_REQUIRED(fh.mu)
+// LOCKS_REQUIRED(fh.inode.mu)
 func (fh *FileHandle) destroyReader() {
-	fh.lockHandleAndRelockInode(false)
-	defer fh.mu.Unlock()
 	if fh.reader == nil {
 		return
 	}
@@ -378,10 +424,9 @@ func (fh *FileHandle) destroyReader() {
 
 // isValidReader is a helper function which validates & returns whether the
 // current reader is valid or not.
-// This assumes the necessary locks (fh.inode.mu) are already held by the caller.
+// LOCKS_REQUIRED(fh.mu.RLock)
+// LOCKS_REQUIRED(fh.inode.mu)
 func (fh *FileHandle) isValidReader() bool {
-	fh.lockHandleAndRelockInode(true)
-	defer fh.mu.RUnlock()
 	// If we already have a reader, and it's at the appropriate generation, we
 	// can use it otherwise we must throw it away.
 	if fh.reader != nil && fh.reader.Object().Generation == fh.inode.SourceGeneration().Object {
