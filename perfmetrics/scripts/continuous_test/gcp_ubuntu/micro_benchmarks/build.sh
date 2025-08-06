@@ -48,11 +48,11 @@ run_script_on_vm() {
     mkdir -p ~/github
     git clone \"\$GCSFUSE_REPO\" ~/github/gcsfuse
     cd ~/github/gcsfuse
-    git checkout spin_VM_and_run_micro_bench_2
-    git pull origin spin_VM_and_run_micro_bench_2
+    commitId=\$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
+    git checkout \$commitId
 
     echo \"Triggering benchmark script...\"
-    bash \"\$TEST_SCRIPT_PATH\"
+    bash ~/\"\$TEST_SCRIPT_PATH\"
   "
 
   log "Benchmark script executed successfully on VM."
