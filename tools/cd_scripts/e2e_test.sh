@@ -174,6 +174,7 @@ go version |& tee -a ${LOG_FILE}
 export PATH=${PATH}:/usr/local/go/bin
 git clone https://github.com/googlecloudplatform/gcsfuse |& tee -a ${LOG_FILE}
 cd gcsfuse
+bash ./perfmetrics/scripts/install_latest_gcloud.sh
 
 # Installation of crcmod is working through pip only on rhel and centos.
 # For debian and ubuntu, we are installing through sudo apt.
