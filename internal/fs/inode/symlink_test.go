@@ -19,11 +19,14 @@ import (
 	"os"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/jacobsa/fuse/fuseops"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	. "github.com/jacobsa/ogletest"
+	"github.com/jacobsa/timeutil"
 )
 
 func TestSymlink(t *testing.T) { RunTests(t) }
@@ -33,12 +36,23 @@ func TestSymlink(t *testing.T) { RunTests(t) }
 ////////////////////////////////////////////////////////////////////////
 
 type SymlinkTest struct {
+	bucket *gcsx.SyncerBucket
 }
 
 var _ SetUpInterface = &CoreTest{}
 var _ TearDownInterface = &CoreTest{}
 
 func init() { RegisterTestSuite(&SymlinkTest{}) }
+
+func (t *SymlinkTest) SetUp(ti *TestInfo) {
+	bucket := gcsx.NewSyncerBucket(
+		1,
+		10, // ChunkTransferTimeoutSecs
+		".gcsfuse_tmp/",
+		fake.NewFakeBucket(timeutil.RealClock(), "some-bucket", gcs.BucketType{}),
+	)
+	t.bucket = &bucket
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
@@ -82,7 +96,7 @@ func (t *SymlinkTest) TestAttributes() {
 		Mode: 0777 | os.ModeSymlink,
 	}
 	name := inode.NewFileName(inode.NewRootName("some-bucket"), m.Name)
-	s := inode.NewSymlinkInode(fuseops.InodeID(42), name, m, attrs)
+	s := inode.NewSymlinkInode(fuseops.InodeID(42), name, t.bucket, m, attrs)
 	tests := []struct {
 		name           string
 		clobberedCheck bool

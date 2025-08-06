@@ -109,3 +109,31 @@ func (t *RenameFileTests) TestRenameFile() {
 		})
 	}
 }
+
+func (t *RenameFileTests) TestRenameSymlinkToFile() {
+	// Create a target file for the symlink to point to.
+	targetPath := path.Join(mntDir, "target")
+	err := os.WriteFile(targetPath, []byte("taco"), filePerms)
+	require.NoError(t.T(), err)
+	// Create the symbolic link that we will rename.
+	oldPath := path.Join(mntDir, "symlink_old")
+	err = os.Symlink(targetPath, oldPath)
+	require.NoError(t.T(), err)
+	newPath := path.Join(mntDir, "symlink_new")
+
+	err = os.Rename(oldPath, newPath)
+
+	assert.NoError(t.T(), err)
+	// The old path should no longer exist.
+	_, err = os.Lstat(oldPath)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), os.IsNotExist(err), "err: %v", err)
+	// The new path should now be a symlink, having replaced the original file.
+	fi, err := os.Lstat(newPath)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), os.ModeSymlink, fi.Mode()&os.ModeSymlink)
+	// The new symlink should point to the correct target.
+	targetRead, err := os.Readlink(newPath)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), targetPath, targetRead)
+}

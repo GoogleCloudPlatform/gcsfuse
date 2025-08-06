@@ -28,6 +28,7 @@ import (
 
 type RenameDirTests struct {
 	suite.Suite
+	fsTest
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -81,6 +82,29 @@ func (t *RenameDirTests) TestRenameFolderWithEmptySourceDirectory() {
 	dirEntries, err := os.ReadDir(newDirPath)
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), 0, len(dirEntries))
+}
+
+func (t *RenameDirTests) TestRenameSymlinkToExplicitDir() {
+	targetDirName := "target_dir"
+	err := os.Mkdir(path.Join(mntDir, targetDirName), dirPerms)
+	require.NoError(t.T(), err)
+	oldPath := path.Join(mntDir, "symlink_old")
+	err = os.Symlink(targetDirName, oldPath)
+	require.NoError(t.T(), err)
+	newPath := path.Join(mntDir, "symlink_new")
+
+	err = os.Rename(oldPath, newPath)
+
+	assert.NoError(t.T(), err)
+	_, err = os.Lstat(oldPath)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), os.IsNotExist(err))
+	fi, err := os.Lstat(newPath)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), os.ModeSymlink, fi.Mode()&os.ModeSymlink)
+	targetRead, err := os.Readlink(newPath)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), targetDirName, targetRead)
 }
 
 func (t *RenameDirTests) TestRenameFolderWithSourceDirectoryHaveLocalFiles() {
