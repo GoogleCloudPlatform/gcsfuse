@@ -571,3 +571,32 @@ func (t *ImplicitDirsTest) AtimeCtimeAndMtime() {
 	ExpectThat(ctime, timeutil.TimeNear(mountTime, delta))
 	ExpectThat(mtime, timeutil.TimeNear(mountTime, delta))
 }
+
+func (t *ImplicitDirsTest) RenameSymlinkToImplicitDir() {
+	// Create an implicit directory "foo" by creating a file within it.
+	err := t.createWithContents("foo/bar", "taco")
+	AssertEq(nil, err)
+	// Create a symlink.
+	oldPath := path.Join(mntDir, "symlink")
+	target := "foo/bar"
+	err = os.Symlink(target, oldPath)
+	AssertEq(nil, err)
+	newPath := path.Join(mntDir, "symlink_new")
+
+	// Attempt to rename the symlink to a new path.
+	err = os.Rename(oldPath, newPath)
+
+	AssertEq(nil, err)
+	// The old path should no longer exist.
+	_, err = os.Lstat(oldPath)
+	AssertNe(nil, err)
+	AssertTrue(os.IsNotExist(err), "err: %v", err)
+	// The new path should now be a symlink.
+	fi, err := os.Lstat(newPath)
+	AssertEq(nil, err)
+	AssertEq(os.ModeSymlink, fi.Mode()&os.ModeSymlink)
+	// The new symlink should point to the correct target.
+	targetRead, err := os.Readlink(newPath)
+	AssertEq(nil, err)
+	AssertEq(target, targetRead)
+}
