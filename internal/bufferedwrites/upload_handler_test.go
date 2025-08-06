@@ -54,7 +54,7 @@ func TestUploadHandlerTestSuite(t *testing.T) {
 func (t *UploadHandlerTest) SetupTest() {
 	t.mockBucket = new(storagemock.TestifyMockBucket)
 	var err error
-	t.blockPool, err = block.NewBlockPool(blockSize, maxBlocks, semaphore.NewWeighted(maxBlocks))
+	t.blockPool, err = block.NewBlockPool(blockSize, maxBlocks, 1, semaphore.NewWeighted(maxBlocks))
 	require.NoError(t.T(), err)
 	t.uh = newUploadHandler(&CreateUploadHandlerRequest{
 		Object:                   nil,

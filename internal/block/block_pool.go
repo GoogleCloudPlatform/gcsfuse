@@ -45,6 +45,9 @@ type GenBlockPool[T GenBlock] struct {
 	// Total number of blocks created so far.
 	totalBlocks int64
 
+	// Number of blocks reserved at the time of block pool creation.
+	reservedBlocks int64
+
 	// Semaphore used to limit the total number of blocks created across
 	// different files.
 	globalMaxBlocksSem *semaphore.Weighted
@@ -54,26 +57,31 @@ type GenBlockPool[T GenBlock] struct {
 }
 
 // NewGenBlockPool creates the blockPool based on the user configuration.
-func NewGenBlockPool[T GenBlock](blockSize int64, maxBlocks int64, globalMaxBlocksSem *semaphore.Weighted, createBlockFunc func(blockSize int64) (T, error)) (bp *GenBlockPool[T], err error) {
+func NewGenBlockPool[T GenBlock](blockSize int64, maxBlocks int64, reservedBlocks int64, globalMaxBlocksSem *semaphore.Weighted, createBlockFunc func(blockSize int64) (T, error)) (bp *GenBlockPool[T], err error) {
 	if blockSize <= 0 || maxBlocks <= 0 {
 		err = fmt.Errorf("invalid configuration provided for blockPool, blocksize: %d, maxBlocks: %d", blockSize, maxBlocks)
 		return
 	}
 
-	bp = &GenBlockPool[T]{
-		freeBlocksCh:       make(chan T, maxBlocks),
-		blockSize:          blockSize,
-		maxBlocks:          maxBlocks,
-		totalBlocks:        0,
-		globalMaxBlocksSem: globalMaxBlocksSem,
-		createBlockFunc:    createBlockFunc,
+	if reservedBlocks < 0 || reservedBlocks > maxBlocks {
+		err = fmt.Errorf("invalid reserved blocks count: %d, it should be between 0 and maxBlocks: %d", reservedBlocks, maxBlocks)
+		return
 	}
-	semAcquired := bp.globalMaxBlocksSem.TryAcquire(1)
+
+	semAcquired := globalMaxBlocksSem.TryAcquire(reservedBlocks)
 	if !semAcquired {
 		return nil, CantAllocateAnyBlockError
 	}
 
-	return bp, nil
+	return &GenBlockPool[T]{
+		freeBlocksCh:       make(chan T, maxBlocks),
+		blockSize:          blockSize,
+		maxBlocks:          maxBlocks,
+		reservedBlocks:     reservedBlocks,
+		totalBlocks:        0,
+		globalMaxBlocksSem: globalMaxBlocksSem,
+		createBlockFunc:    createBlockFunc,
+	}, nil
 }
 
 // Get returns a block. It returns an existing block if it's ready for reuse or
@@ -162,7 +170,7 @@ func (bp *GenBlockPool[T]) BlockSize() int64 {
 	return bp.blockSize
 }
 
-func (bp *GenBlockPool[T]) ClearFreeBlockChannel(releaseLastBlock bool) error {
+func (bp *GenBlockPool[T]) ClearFreeBlockChannel(releaseReservedBlocks bool) error {
 	for {
 		select {
 		case b := <-bp.freeBlocksCh:
@@ -172,15 +180,15 @@ func (bp *GenBlockPool[T]) ClearFreeBlockChannel(releaseLastBlock bool) error {
 				return fmt.Errorf("munmap error: %v", err)
 			}
 			bp.totalBlocks--
-			// Release semaphore for all but the last block.
-			if bp.totalBlocks != 0 {
+			// Release semaphore for all but the reserved blocks.
+			if bp.totalBlocks >= bp.reservedBlocks {
 				bp.globalMaxBlocksSem.Release(1)
 			}
 		default:
 			// We are here, it means there are no more blocks in the free blocks channel.
-			// Release semaphore for last block iff releaseLastBlock is true.
-			if releaseLastBlock {
-				bp.globalMaxBlocksSem.Release(1)
+			// Release semaphore for the released blocks iff releaseReservedBlocks is true.
+			if releaseReservedBlocks {
+				bp.globalMaxBlocksSem.Release(bp.reservedBlocks)
 			}
 			return nil
 		}
@@ -194,11 +202,11 @@ func (bp *GenBlockPool[T]) TotalFreeBlocks() int {
 }
 
 // NewBlockPool creates GenBlockPool for block.Block interface.
-func NewBlockPool(blockSize int64, maxBlocks int64, globalMaxBlocksSem *semaphore.Weighted) (bp *GenBlockPool[Block], err error) {
-	return NewGenBlockPool(blockSize, maxBlocks, globalMaxBlocksSem, createBlock)
+func NewBlockPool(blockSize int64, maxBlocks int64, reservedBlocks int64, globalMaxBlocksSem *semaphore.Weighted) (bp *GenBlockPool[Block], err error) {
+	return NewGenBlockPool(blockSize, maxBlocks, reservedBlocks, globalMaxBlocksSem, createBlock)
 }
 
 // NewPrefetchBlockPool creates GenBlockPool for block.PrefetchBlock interface.
-func NewPrefetchBlockPool(blockSize int64, maxBlocks int64, globalMaxBlocksSem *semaphore.Weighted) (bp *GenBlockPool[PrefetchBlock], err error) {
-	return NewGenBlockPool(blockSize, maxBlocks, globalMaxBlocksSem, createPrefetchBlock)
+func NewPrefetchBlockPool(blockSize int64, maxBlocks int64, reservedBlocks int64, globalMaxBlocksSem *semaphore.Weighted) (bp *GenBlockPool[PrefetchBlock], err error) {
+	return NewGenBlockPool(blockSize, maxBlocks, reservedBlocks, globalMaxBlocksSem, createPrefetchBlock)
 }
