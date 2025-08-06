@@ -16,6 +16,7 @@
 package operations_test
 
 import (
+	"os"
 	"path"
 	"strings"
 	"testing"
@@ -23,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRenameFile(t *testing.T) {
@@ -59,4 +61,45 @@ func TestRenameFileWithSrcFileDoesNoExist(t *testing.T) {
 	// Assert that an error occurred.
 	assert.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "no such file or directory"))
+}
+
+func TestRenameSymlinkToFile(t *testing.T) {
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
+
+	// Create a target file for the symlink to point to.
+	targetName := "target.txt"
+	targetPath := path.Join(testDir, targetName)
+	targetContent := "taco"
+	err := os.WriteFile(targetPath, []byte(targetContent), setup.FilePermission_0600)
+	require.NoError(t, err)
+
+	// Create the symbolic link that we will rename.
+	oldSymlinkPath := path.Join(testDir, "symlink_old")
+	// The symlink target should be relative to the symlink's location.
+	err = os.Symlink(targetName, oldSymlinkPath)
+	require.NoError(t, err)
+
+	// Rename the symlink.
+	newSymlinkPath := path.Join(testDir, "symlink_new")
+	err = os.Rename(oldSymlinkPath, newSymlinkPath)
+	require.NoError(t, err)
+
+	// The old path should no longer exist.
+	_, err = os.Lstat(oldSymlinkPath)
+	assert.True(t, os.IsNotExist(err))
+
+	// The new path should now be a symlink.
+	fi, err := os.Lstat(newSymlinkPath)
+	assert.NoError(t, err)
+	assert.Equal(t, os.ModeSymlink, fi.Mode()&os.ModeType)
+
+	// The new symlink should point to the correct target.
+	targetRead, err := os.Readlink(newSymlinkPath)
+	assert.NoError(t, err)
+	assert.Equal(t, targetName, targetRead)
+
+	// Reading from the new symlink should give the content of the target file.
+	content, err := operations.ReadFile(newSymlinkPath)
+	assert.NoError(t, err)
+	assert.Equal(t, targetContent, string(content))
 }

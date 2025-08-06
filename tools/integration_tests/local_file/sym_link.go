@@ -61,3 +61,22 @@ func (t *localFileTestSuite) TestReadSymlinkForDeletedLocalFile() {
 		t.T().Fatalf("Reading symlink for deleted local file did not fail.")
 	}
 }
+
+func (t *CommonLocalFileTestSuite) TestRenameSymlinkForLocalFile() {
+	filePath, symlinkPath, fh := createAndVerifySymLink(t.T())
+	newSymlinkPath := path.Join(testDirPath, "newSymlink")
+
+	err := os.Rename(symlinkPath, newSymlinkPath)
+
+	if err != nil {
+		t.T().Fatalf("os.Rename failed for symlink: %v", err)
+	}
+	_, err = os.Lstat(symlinkPath)
+	if err == nil || !os.IsNotExist(err) {
+		t.T().Fatalf("Old symlink should not exist after rename. err: %v", err)
+	}
+	operations.VerifyReadLink(filePath, newSymlinkPath, t.T())
+	operations.VerifyReadFile(newSymlinkPath, FileContents, t.T())
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
+		FileName1, FileContents, t.T())
+}
