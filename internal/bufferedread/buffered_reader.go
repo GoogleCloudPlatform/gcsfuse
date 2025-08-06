@@ -383,8 +383,7 @@ func (p *BufferedReader) freshStart(currentOffset int64) error {
 
 // scheduleNextBlock schedules the next block for prefetch.
 func (p *BufferedReader) scheduleNextBlock(urgent bool) error {
-	// TODO(b/426060431): Replace Get() with TryGet(). Assuming, the current blockPool.Get() gets blocked if block is not available.
-	b, err := p.blockPool.Get()
+	b, err := p.blockPool.TryGet()
 	if err != nil || b == nil {
 		if err != nil {
 			logger.Warnf("scheduleNextBlock: failed to get block from pool: %v", err)
