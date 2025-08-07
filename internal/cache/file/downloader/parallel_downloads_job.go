@@ -60,7 +60,8 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 		}
 	}()
 
-	metrics.CaptureGCSReadMetrics(ctx, job.metricsHandle, metrics.ReadTypeNames[metrics.ReadTypeParallel], end-start)
+	job.metricsHandle.GcsReadCount(1, metrics.ReadTypeNames[metrics.ReadTypeParallel])
+	job.metricsHandle.GcsDownloadBytesCount(end-start, metrics.ReadTypeNames[metrics.ReadTypeParallel])
 
 	// Use standard copy function if O_DIRECT is disabled and memory aligned
 	// buffer otherwise.
