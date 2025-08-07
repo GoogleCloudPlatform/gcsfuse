@@ -63,3 +63,8 @@ type MetricHandle interface {
 	// GcsRetryCount - The cumulative number of retry requests made to GCS.
 	GcsRetryCount(inc int64, retryErrorCategory string)
 }
+
+func CaptureGCSReadMetrics(mh MetricHandle, readType string, downloadBytes int64) {
+	mh.GcsReadCount(1, readType)
+	mh.GcsDownloadBytesCount(downloadBytes, readType)
+}

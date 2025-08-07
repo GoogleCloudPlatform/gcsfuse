@@ -39,3 +39,8 @@ type MetricHandle interface {
 
 {{end}}
 }
+
+func CaptureGCSReadMetrics(mh MetricHandle, readType string, downloadBytes int64) {
+	mh.GcsReadCount(1, readType)
+	mh.GcsDownloadBytesCount(downloadBytes, readType)
+}
