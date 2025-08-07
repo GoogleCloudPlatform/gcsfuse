@@ -61,7 +61,13 @@ func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config) (shutdownFn co
 		options = append(options, metric.WithResource(res))
 	}
 
-	options = append(options, metric.WithView(dropDisallowedMetricsView))
+	views := make([]metric.View, 0, 10)
+	views = append(views, dropDisallowedMetricsView)
+	if c.Metrics.UseNewNames {
+		views = append(views, renameMetricsViews()...)
+	}
+
+	options = append(options, metric.WithView(views...))
 
 	meterProvider := metric.NewMeterProvider(options...)
 	shutdownFns = append(shutdownFns, meterProvider.Shutdown)
@@ -69,6 +75,22 @@ func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config) (shutdownFn co
 	otel.SetMeterProvider(meterProvider)
 
 	return common.JoinShutdownFunc(shutdownFns...)
+}
+
+func renameMetricsViews() []metric.View {
+	renameMetric := func(oldName, newName string) metric.View {
+		return metric.NewView(
+			metric.Instrument{Name: oldName},
+			metric.Stream{Name: newName},
+		)
+	}
+	return []metric.View{
+		renameMetric("gcs/download_bytes_count", "gcs/fetched_bytes"),
+		renameMetric("gcs/read_bytes_count", "gcs/read_bytes"),
+		renameMetric("file_cache/read_bytes_count", "file_cache/read_bytes"),
+		renameMetric("gcs/request_latencies", "gcs/request_latency"),
+		renameMetric("file_cache/read_latencies", "file_cache/read_latency"),
+	}
 }
 
 // dropUnwantedMetricsView is an OTel View that drops the metrics that don't match the allowed prefixes.
