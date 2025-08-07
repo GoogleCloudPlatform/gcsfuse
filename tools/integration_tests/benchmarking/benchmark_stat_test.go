@@ -57,26 +57,41 @@ func createFilesToStat(b *testing.B) {
 
 func (s *benchmarkStatTest) Benchmark_Stat(b *testing.B) {
 	createFilesToStat(b)
-	var totalTimeElapsedTillPrevIter time.Duration
 	var maxElapsedDuration time.Duration
 	maxElapsedIteration := -1
 	b.ResetTimer()
+	// Don't start the timer yet.
+	b.StopTimer()
+
+	filePath := path.Join(testDirPath, "a.txt")
+
 	for i := range b.N {
-		filePath := path.Join(testDirPath, "a.txt")
-		if _, err := operations.StatFile(filePath); err != nil {
+		// Manually time the operation to find the maximum latest with highest accuracy.
+		// This happens while the benchmark's timer is paused and will not affect the average.
+		startTime := time.Now()
+
+		// Start the benchmark timer just for the operations.StatFile call.
+		b.StartTimer()
+		_, err := operations.StatFile(filePath)
+		b.StopTimer() // Stop the timer immediately after the operation.
+
+		timeElapsedThisIter := time.Since(startTime)
+
+		// The remaining checks and calculations also happen while the timer is paused.
+		if err != nil {
 			b.Errorf("failed to stat %q: %v", filePath, err)
 		}
 
-		// Update maxElapsedIteration and totalTimeElapsedTillPrevIter.
-		totalTimeElapsedSoFar := b.Elapsed()
-		timeElapsedThisIter := totalTimeElapsedSoFar - totalTimeElapsedTillPrevIter
 		if maxElapsedDuration < timeElapsedThisIter {
 			maxElapsedDuration = timeElapsedThisIter
 			maxElapsedIteration = i
 		}
-		totalTimeElapsedTillPrevIter = totalTimeElapsedSoFar
 	}
-	averageStatLatency := time.Duration(int(b.Elapsed()) / b.N)
+
+	// b.Elapsed() is the sum of the time spent only on stat calls,
+	// leading to a highly accurate average latency.
+	averageStatLatency := b.Elapsed() / time.Duration(b.N)
+
 	if averageStatLatency > expectedStatLatency {
 		b.Errorf("StatFile took more time on average (%v) than expected (%v)", averageStatLatency, expectedStatLatency)
 		b.Errorf("Maximum time taken by a single iteration = %v, in iteration # %v.", maxElapsedDuration, maxElapsedIteration)
