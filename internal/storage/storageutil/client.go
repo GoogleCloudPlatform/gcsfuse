@@ -17,6 +17,7 @@ package storageutil
 import (
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -24,6 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/viki-org/dnscache"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 )
@@ -65,6 +67,8 @@ type StorageClientConfig struct {
 }
 
 func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.TokenSource) (httpClient *http.Client, err error) {
+	// 1. Create a new DNS resolver with a 5-minute cache.
+	resolver := dnscache.New(5 * time.Second)
 	var transport *http.Transport
 	// Using http1 makes the client more performant.
 	if storageClientConfig.ClientProtocol == cfg.HTTP1 {
@@ -76,6 +80,11 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 			TLSNextProto: make(
 				map[string]func(string, *tls.Conn) http.RoundTripper,
 			),
+			Dial: func(network string, address string) (net.Conn, error) {
+				separator := strings.LastIndex(address, ":")
+				ip, _ := resolver.FetchOneString(address[:separator])
+				return net.Dial("tcp", ip+address[separator:])
+			},
 		}
 	} else {
 		// For http2, change in MaxConnsPerHost doesn't affect the performance.
