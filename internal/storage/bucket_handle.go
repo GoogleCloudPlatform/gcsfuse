@@ -23,6 +23,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http/httptrace"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -96,6 +97,7 @@ func (bh *bucketHandle) NewReaderWithReadHandle(
 		obj = obj.ReadHandle([]byte("opaque-handle"))
 	}
 
+	ctx = httptrace.WithClientTrace(ctx, getHTTPTracer())
 	// NewRangeReader creates a "storage.Reader" object which is also io.ReadCloser since it contains both Read() and Close() methods present in io.ReadCloser interface.
 	storageReader, err := obj.NewRangeReader(ctx, start, length)
 	if err == nil {
@@ -104,6 +106,40 @@ func (bh *bucketHandle) NewReaderWithReadHandle(
 	return
 }
 
+func getHTTPTracer() *httptrace.ClientTrace {
+	var dnsStartTime, connectStart, writeRequest time.Time
+	return &httptrace.ClientTrace{
+		DNSStart: func(info httptrace.DNSStartInfo) {
+			dnsStartTime = time.Now()
+		},
+		DNSDone: func(info httptrace.DNSDoneInfo) {
+			logger.Warnf("dns lookup time: %d ns", time.Since(dnsStartTime).Nanoseconds())
+			//fmt.Printf("DNS Done: addresses=%v, err=%v\n", info.Addrs, info.Err)
+		},
+		ConnectStart: func(network, addr string) {
+			connectStart = time.Now()
+			//fmt.Printf("Connect Start: network=%s, addr=%s\n", network, addr)
+		},
+		ConnectDone: func(network, addr string, err error) {
+			logger.Warnf("connection establishment time: %d ns", time.Since(connectStart).Nanoseconds())
+			//fmt.Printf("Connect Done: network=%s, addr=%s, err=%v\n", network, addr, err)
+		},
+		GotConn: func(info httptrace.GotConnInfo) {
+			logger.Warnf("Got Connection: reused=%t, wasIdle=%t\n", info.Reused, info.WasIdle)
+		},
+		WroteHeaders: func() {
+			logger.Warnf("Wrote Headers")
+		},
+		WroteRequest: func(info httptrace.WroteRequestInfo) {
+			writeRequest = time.Now()
+			logger.Warnf("Wrote Request: err=%v\n", info.Err)
+		},
+		GotFirstResponseByte: func() {
+
+			logger.Warnf("Got First Response Byte with latency: %d ns", time.Since(writeRequest).Nanoseconds())
+		},
+	}
+}
 func (bh *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) (err error) {
 	defer func() {
 		err = gcs.GetGCSError(err)
