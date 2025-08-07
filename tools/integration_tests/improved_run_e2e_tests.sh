@@ -218,6 +218,7 @@ TEST_PACKAGES_COMMON=(
   "release_version"
   "readdirplus"
   "dentry_cache"
+  "emulator_tests/proxy_server"
 )
 
 # Test packages for regional buckets.
