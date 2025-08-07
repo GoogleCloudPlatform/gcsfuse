@@ -23,6 +23,7 @@ import (
 	"sync/atomic"
 	"time"
 
+    "github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
