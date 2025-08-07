@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -65,7 +65,7 @@ func mountGCSFuseAndSetupTestDir(flags []string, testDirName string) {
 // createFiles creates the below objects in the bucket.
 // benchmarking/a{i}.txt where i is a counter based on the benchtime value.
 func createFiles(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		operations.CreateFileOfSize(1, path.Join(testDirPath, fmt.Sprintf("a%d.txt", i)), b)
 	}
 }
@@ -96,6 +96,7 @@ func TestMain(m *testing.M) {
 	log.Println("Running static mounting tests...")
 	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
 	successCode := m.Run()
+	setup.SaveLogFileInCaseOfFailure(successCode)
 
 	// Clean up test directory created.
 	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))

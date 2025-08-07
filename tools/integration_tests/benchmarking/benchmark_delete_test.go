@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -48,15 +48,44 @@ func (s *benchmarkDeleteTest) TeardownB(b *testing.B) {
 
 func (s *benchmarkDeleteTest) Benchmark_Delete(b *testing.B) {
 	createFiles(b)
+	var maxElapsedDuration time.Duration
+	maxElapsedIteration := -1
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		if err := os.Remove(path.Join(testDirPath, fmt.Sprintf("a%d.txt", i))); err != nil {
-			b.Errorf("testing error: %v", err)
+	// Don't start the timer yet.
+	b.StopTimer()
+
+	for i := range b.N {
+		filePath := path.Join(testDirPath, fmt.Sprintf("a%d.txt", i))
+
+		// Manually time the operation to find the maximum latency with  highest accuracy.
+		// This happens while the benchmark's timer is paused and will not affect the average.
+		startTime := time.Now()
+
+		// Start the benchmark timer just for the os.Remove call.
+		b.StartTimer()
+		err := os.Remove(filePath)
+		b.StopTimer() // Stop the timer immediately after the operation.
+
+		timeElapsedThisIter := time.Since(startTime)
+
+		// The remaining checks and calculations also happen while the timer is paused.
+		if err != nil {
+			b.Errorf("error while deleting %q: %v", filePath, err)
+		}
+
+		if maxElapsedDuration < timeElapsedThisIter {
+			maxElapsedDuration = timeElapsedThisIter
+			maxElapsedIteration = i
 		}
 	}
-	averageDeleteLatency := time.Duration(int(b.Elapsed()) / b.N)
+
+	// b.Elapsed() is the sum of the time spent only on os.Remove calls,
+	// leading to a highly accurate average latency.
+	averageDeleteLatency := b.Elapsed() / time.Duration(b.N)
+
 	if averageDeleteLatency > expectedDeleteLatency {
-		b.Errorf("DeleteFile took more time (%d msec) than expected (%d msec)", averageDeleteLatency.Milliseconds(), expectedDeleteLatency.Milliseconds())
+		b.Errorf("DeleteFile took more time on average (%v) than expected (%v).", averageDeleteLatency, expectedDeleteLatency)
+		b.Errorf("Maximum time taken by a single iteration = %v, in iteration # %v.", maxElapsedDuration, maxElapsedIteration)
 	}
 }
 

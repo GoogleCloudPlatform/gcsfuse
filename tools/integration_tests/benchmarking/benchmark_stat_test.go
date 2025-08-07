@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -57,15 +57,44 @@ func createFilesToStat(b *testing.B) {
 
 func (s *benchmarkStatTest) Benchmark_Stat(b *testing.B) {
 	createFilesToStat(b)
+	var maxElapsedDuration time.Duration
+	maxElapsedIteration := -1
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		if _, err := operations.StatFile(path.Join(testDirPath, "a.txt")); err != nil {
-			b.Errorf("testing error: %v", err)
+	// Don't start the timer yet.
+	b.StopTimer()
+
+	filePath := path.Join(testDirPath, "a.txt")
+
+	for i := range b.N {
+		// Manually time the operation to find the maximum latency with highest accuracy.
+		// This happens while the benchmark's timer is paused and will not affect the average.
+		startTime := time.Now()
+
+		// Start the benchmark timer just for the operations.StatFile call.
+		b.StartTimer()
+		_, err := operations.StatFile(filePath)
+		b.StopTimer() // Stop the timer immediately after the operation.
+
+		timeElapsedThisIter := time.Since(startTime)
+
+		// The remaining checks and calculations also happen while the timer is paused.
+		if err != nil {
+			b.Errorf("failed to stat %q: %v", filePath, err)
+		}
+
+		if maxElapsedDuration < timeElapsedThisIter {
+			maxElapsedDuration = timeElapsedThisIter
+			maxElapsedIteration = i
 		}
 	}
-	averageStatLatency := time.Duration(int(b.Elapsed()) / b.N)
+
+	// b.Elapsed() is the sum of the time spent only on stat calls,
+	// leading to a highly accurate average latency.
+	averageStatLatency := b.Elapsed() / time.Duration(b.N)
+
 	if averageStatLatency > expectedStatLatency {
-		b.Errorf("StatFile took more time (%d msec) than expected (%d msec)", averageStatLatency.Milliseconds(), expectedStatLatency.Milliseconds())
+		b.Errorf("StatFile took more time on average (%v) than expected (%v)", averageStatLatency, expectedStatLatency)
+		b.Errorf("Maximum time taken by a single iteration = %v, in iteration # %v.", maxElapsedDuration, maxElapsedIteration)
 	}
 }
 
