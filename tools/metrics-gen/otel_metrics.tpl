@@ -14,7 +14,7 @@
 
 // **** DO NOT EDIT - FILE IS AUTO-GENERATED ****
 
-package optimizedmetrics
+package metrics
 
 import (
 	"context"
