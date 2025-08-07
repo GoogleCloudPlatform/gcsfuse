@@ -75,13 +75,15 @@ func TestParseLogFileSuccessful(t *testing.T) {
 			),
 			expected: map[int64]*read_logs.StructuredReadLogEntry{
 				handleId: {
-					Handle:           handleId,
-					StartTimeSeconds: readTimestampSeconds,
-					StartTimeNanos:   readTimestampNanos,
-					ProcessID:        pid,
-					InodeID:          inodeId,
-					BucketName:       bucketName,
-					ObjectName:       fileName,
+					CommonReadLog: read_logs.CommonReadLog{
+						Handle:           handleId,
+						StartTimeSeconds: readTimestampSeconds,
+						StartTimeNanos:   readTimestampNanos,
+						ProcessID:        pid,
+						InodeID:          inodeId,
+						BucketName:       bucketName,
+						ObjectName:       fileName,
+					},
 					Chunks: []read_logs.ReadChunkData{
 						chunkData,
 					},
@@ -105,13 +107,15 @@ func TestParseLogFileSuccessful(t *testing.T) {
 			),
 			expected: map[int64]*read_logs.StructuredReadLogEntry{
 				29: {
-					Handle:           29,
-					StartTimeSeconds: readTimestampSeconds,
-					StartTimeNanos:   readTimestampNanos,
-					ProcessID:        pid,
-					InodeID:          inodeId,
-					BucketName:       bucketName,
-					ObjectName:       fileName,
+					CommonReadLog: read_logs.CommonReadLog{
+						Handle:           29,
+						StartTimeSeconds: readTimestampSeconds,
+						StartTimeNanos:   readTimestampNanos,
+						ProcessID:        pid,
+						InodeID:          inodeId,
+						BucketName:       bucketName,
+						ObjectName:       fileName,
+					},
 					Chunks: []read_logs.ReadChunkData{
 						chunkData, chunkData, chunkData,
 					},

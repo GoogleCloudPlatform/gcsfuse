@@ -18,8 +18,7 @@ import (
 	"time"
 )
 
-// StructuredReadLogEntry stores the structured format to be created from logs.
-type StructuredReadLogEntry struct {
+type CommonReadLog struct {
 	Handle           int64
 	StartTimeSeconds int64
 	StartTimeNanos   int64
@@ -27,6 +26,12 @@ type StructuredReadLogEntry struct {
 	InodeID          int64
 	BucketName       string
 	ObjectName       string
+}
+
+// StructuredReadLogEntry stores the structured format to be created from logs.
+type StructuredReadLogEntry struct {
+	CommonReadLog
+
 	// It can be safely assumed that the Chunks will be sorted on timestamp as logs
 	// are parsed in the order of timestamps.
 	Chunks []ReadChunkData
@@ -73,4 +78,20 @@ type handleAndChunkIndex struct {
 type LogEntry struct {
 	Timestamp time.Time `json:"time"`
 	Message   string    `json:"message"`
+}
+
+type BufferedReadLogEntry struct {
+	CommonReadLog
+
+	Chunks []BufferedReadChunkData
+}
+
+type BufferedReadChunkData struct {
+	StartTimeSeconds int64
+	StartTimeNanos   int64
+	RequestID        string
+	Offset           int64
+	Size             int64
+	BlockIndex       int64
+	ExecutionTime    string
 }
