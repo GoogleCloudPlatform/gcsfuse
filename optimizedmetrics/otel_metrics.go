@@ -29,7 +29,7 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
-const logInterval = 5 * time.Second
+const logInterval = 5 * time.Minute
 
 var (
 	unrecognizedAttr                                                                    atomic.Value
