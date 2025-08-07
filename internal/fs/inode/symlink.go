@@ -44,6 +44,7 @@ type SymlinkInode struct {
 
 	id               fuseops.InodeID
 	name             Name
+	bucket           *gcsx.SyncerBucket
 	sourceGeneration Generation
 	attrs            fuseops.InodeAttributes
 	target           string
@@ -66,12 +67,14 @@ var _ Inode = &SymlinkInode{}
 func NewSymlinkInode(
 	id fuseops.InodeID,
 	name Name,
+	bucket *gcsx.SyncerBucket,
 	m *gcs.MinObject,
 	attrs fuseops.InodeAttributes) (s *SymlinkInode) {
 	// Create the inode.
 	s = &SymlinkInode{
-		id:   id,
-		name: name,
+		id:     id,
+		name:   name,
+		bucket: bucket,
 		sourceGeneration: Generation{
 			Object:   m.Generation,
 			Metadata: m.MetaGeneration,
@@ -151,4 +154,23 @@ func (s *SymlinkInode) Target() (target string) {
 }
 
 func (s *SymlinkInode) Unlink() {
+}
+
+// Bucket returns the bucket that owns this inode.
+func (s *SymlinkInode) Bucket() *gcsx.SyncerBucket {
+	return s.bucket
+}
+
+// Source returns the MinObject from which this inode was created.
+func (s *SymlinkInode) Source() *gcs.MinObject {
+	return &gcs.MinObject{
+		Name:           s.name.GcsObjectName(),
+		Generation:     s.sourceGeneration.Object,
+		MetaGeneration: s.sourceGeneration.Metadata,
+		Size:           s.sourceGeneration.Size,
+		Metadata: map[string]string{
+			SymlinkMetadataKey: s.target,
+		},
+		Updated: s.attrs.Mtime,
+	}
 }

@@ -790,6 +790,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 		in = inode.NewSymlinkInode(
 			id,
 			ic.FullName,
+			ic.Bucket,
 			ic.MinObject,
 			fuseops.InodeAttributes{
 				Uid:  fs.uid,
@@ -2006,15 +2007,15 @@ func (fs *fileSystem) Rename(
 	newParent := fs.dirInodeOrDie(op.NewParent)
 	fs.mu.Unlock()
 
-	if oldInode, ok := oldParent.(inode.BucketOwnedInode); !ok {
+	if oldParentInode, ok := oldParent.(inode.BucketOwnedInode); !ok {
 		// The old parent is not owned by any bucket, which means it's the base
 		// directory that holds all the buckets' root directories. So, this op
 		// is to rename a bucket, which is not supported.
 		return fmt.Errorf("rename a bucket: %w", syscall.ENOTSUP)
 	} else {
 		// The target path must exist in the same bucket.
-		oldBucket := oldInode.Bucket().Name()
-		if newInode, ok := newParent.(inode.BucketOwnedInode); !ok || oldBucket != newInode.Bucket().Name() {
+		oldBucket := oldParentInode.Bucket().Name()
+		if newParentInode, ok := newParent.(inode.BucketOwnedInode); !ok || oldBucket != newParentInode.Bucket().Name() {
 			return fmt.Errorf("move out of bucket %q: %w", oldBucket, syscall.ENOTSUP)
 		}
 	}
@@ -2042,24 +2043,31 @@ func (fs *fileSystem) Rename(
 		}
 		return fs.renameNonHierarchicalDir(ctx, oldParent, op.OldName, newParent, op.NewName)
 	}
-	childFileInode, ok := child.(*inode.FileInode)
-	if !ok {
-		return fmt.Errorf("child inode (id %v) is neither file nor directory inode", child.ID())
-	}
-	// TODO(b/402335988): Fix rename flow for local files when streaming writes is disabled.
-	// If object to be renamed is a local file inode and streaming writes are disabled, rename operation is not supported.
-	if childFileInode.IsLocal() && !fs.newConfig.Write.EnableStreamingWrites {
-		return fmt.Errorf("cannot rename open file %q: %w", op.OldName, syscall.ENOTSUP)
-	}
-	return fs.renameFile(ctx, op, childFileInode, oldParent, newParent)
+
+	return fs.renameFile(ctx, op, childBktOwned, oldParent, newParent)
 }
 
 // LOCKS_EXCLUDED(oldParent)
 // LOCKS_EXCLUDED(newParent)
-func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, oldObject *inode.FileInode, oldParent, newParent inode.DirInode) error {
-	updatedMinObject, err := fs.flushPendingWrites(ctx, oldObject)
-	if err != nil {
-		return fmt.Errorf("flushPendingWrites: %w", err)
+func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, child inode.BucketOwnedInode, oldParent, newParent inode.DirInode) error {
+	var updatedMinObject *gcs.MinObject
+	var err error
+
+	switch c := child.(type) {
+	case *inode.FileInode:
+		// TODO(b/402335988): Fix rename flow for local files when streaming writes is disabled.
+		// If object to be renamed is a local file inode and streaming writes are disabled, rename operation is not supported.
+		if c.IsLocal() && !fs.newConfig.Write.EnableStreamingWrites {
+			return fmt.Errorf("cannot rename open file %q: %w", op.OldName, syscall.ENOTSUP)
+		}
+		updatedMinObject, err = fs.flushPendingWrites(ctx, c)
+		if err != nil {
+			return fmt.Errorf("flushPendingWrites: %w", err)
+		}
+	case *inode.SymlinkInode:
+		updatedMinObject = c.Source()
+	default:
+		return fmt.Errorf("child inode (id %v) is not a file or symlink inode", child.ID())
 	}
 	if (oldObject.Bucket().BucketType().Hierarchical && fs.enableAtomicRenameObject) || oldObject.Bucket().BucketType().Zonal {
 		return fs.renameHierarchicalFile(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
