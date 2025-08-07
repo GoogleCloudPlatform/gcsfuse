@@ -78,6 +78,7 @@ func TestRenameSymlinkToFile(t *testing.T) {
 
 	require.NoError(t, err)
 	_, err = os.Lstat(oldSymlinkPath)
+	require.Error(t, err)
 	assert.True(t, os.IsNotExist(err))
 	fi, err := os.Lstat(newSymlinkPath)
 	require.NoError(t, err)

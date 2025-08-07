@@ -126,7 +126,7 @@ func (t *RenameFileTests) TestRenameSymlinkToFile() {
 	require.NoError(t.T(), err)
 	// The old path should no longer exist.
 	_, err = os.Lstat(oldPath)
-	assert.Error(t.T(), err)
+	require.Error(t.T(), err)
 	assert.True(t.T(), os.IsNotExist(err), "err: %v", err)
 	// The new path should now be a symlink, having replaced the original file.
 	fi, err := os.Lstat(newPath)
