@@ -59,7 +59,7 @@ func (dts *DownloadTaskTestSuite) SetupTest() {
 	}
 	dts.mockBucket = new(storage.TestifyMockBucket)
 	var err error
-	dts.blockPool, err = block.NewPrefetchBlockPool(testBlockSize, 10, semaphore.NewWeighted(100))
+	dts.blockPool, err = block.NewPrefetchBlockPool(testBlockSize, 10, 1, semaphore.NewWeighted(100))
 	require.NoError(dts.T(), err, "Failed to create block pool")
 }
 

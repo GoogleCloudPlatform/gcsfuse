@@ -101,7 +101,7 @@ type CreateBWHandlerRequest struct {
 
 // NewBWHandler creates the bufferedWriteHandler struct.
 func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err error) {
-	bp, err := block.NewBlockPool(req.BlockSize, req.MaxBlocksPerFile, req.GlobalMaxBlocksSem)
+	bp, err := block.NewBlockPool(req.BlockSize, req.MaxBlocksPerFile, 1, req.GlobalMaxBlocksSem)
 	if err != nil {
 		return
 	}
