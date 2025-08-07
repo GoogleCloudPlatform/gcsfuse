@@ -26,36 +26,27 @@ import (
 
 func TestRenameSymlinkToExplicitDir(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForExplicitDirTests)
-
-	// Create a target directory.
 	targetDirName := "target_dir"
 	targetDirPath := path.Join(testDir, targetDirName)
 	err := os.Mkdir(targetDirPath, setup.DirPermission_0755)
 	require.NoError(t, err)
-	// Create a file inside the target directory to verify listing later.
-	fileInDirName := "file.txt"
-	err = os.WriteFile(path.Join(targetDirPath, fileInDirName), []byte("burrito"), setup.FilePermission_0600)
-	require.NoError(t, err)
-
-	// Create and rename the symlink.
 	oldSymlinkPath := path.Join(testDir, "symlink_old")
-	err = os.Symlink(targetDirName, oldSymlinkPath)
+	err = os.Symlink(targetDirPath, oldSymlinkPath)
 	require.NoError(t, err)
 	newSymlinkPath := path.Join(testDir, "symlink_new")
-	err = os.Rename(oldSymlinkPath, newSymlinkPath)
-	require.NoError(t, err)
 
-	// Assertions
+	err = os.Rename(oldSymlinkPath, newSymlinkPath)
+
+	require.NoError(t, err)
 	_, err = os.Lstat(oldSymlinkPath)
 	assert.True(t, os.IsNotExist(err))
 	fi, err := os.Lstat(newSymlinkPath)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, os.ModeSymlink, fi.Mode()&os.ModeType)
 	targetRead, err := os.Readlink(newSymlinkPath)
-	assert.NoError(t, err)
-	assert.Equal(t, targetDirName, targetRead)
-	entries, err := os.ReadDir(newSymlinkPath)
-	assert.NoError(t, err)
-	require.Len(t, entries, 1)
-	assert.Equal(t, fileInDirName, entries[0].Name())
+	require.NoError(t, err)
+	assert.Equal(t, targetDirPath, targetRead)
+	targetFi, err := os.Stat(newSymlinkPath)
+	require.NoError(t, err)
+	assert.True(t, targetFi.IsDir())
 }

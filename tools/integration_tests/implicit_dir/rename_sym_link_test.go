@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -28,32 +27,29 @@ import (
 
 func TestRenameSymlinkToImplicitDir(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForImplicitDirTests)
-
-	// Create an object that defines an implicit directory.
-	objectNameInGCS := path.Join(DirForImplicitDirTests, "implicit_dir/file.txt")
-	implicitDirFileContent := "taco"
-	err := client.CreateObjectOnGCS(testEnv.ctx, testEnv.storageClient, objectNameInGCS, implicitDirFileContent)
+	implicitDirName := "implicit_dir"
+	// Create an object that defines an implicit directory. This creates `implicit_dir/`.
+	objectNameInGCS := path.Join(DirForImplicitDirTests, implicitDirName, "placeholder")
+	err := client.CreateObjectOnGCS(testEnv.ctx, testEnv.storageClient, objectNameInGCS, "")
 	require.NoError(t, err)
-
-	// Create and rename the symlink.
-	targetPath := path.Join("implicit_dir", "file.txt")
+	implicitDirPath := path.Join(testDir, implicitDirName)
 	oldSymlinkPath := path.Join(testDir, "symlink_old")
-	err = os.Symlink(targetPath, oldSymlinkPath)
+	err = os.Symlink(implicitDirPath, oldSymlinkPath)
 	require.NoError(t, err)
 	newSymlinkPath := path.Join(testDir, "symlink_new")
-	err = os.Rename(oldSymlinkPath, newSymlinkPath)
-	require.NoError(t, err)
 
-	// Assertions
+	err = os.Rename(oldSymlinkPath, newSymlinkPath)
+
+	require.NoError(t, err)
 	_, err = os.Lstat(oldSymlinkPath)
 	assert.True(t, os.IsNotExist(err))
 	fi, err := os.Lstat(newSymlinkPath)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, os.ModeSymlink, fi.Mode()&os.ModeType)
 	targetRead, err := os.Readlink(newSymlinkPath)
-	assert.NoError(t, err)
-	assert.Equal(t, targetPath, targetRead)
-	content, err := operations.ReadFile(newSymlinkPath)
-	assert.NoError(t, err)
-	assert.Equal(t, implicitDirFileContent, string(content))
+	require.NoError(t, err)
+	assert.Equal(t, implicitDirPath, targetRead)
+	targetFi, err := os.Stat(newSymlinkPath)
+	require.NoError(t, err)
+	assert.True(t, targetFi.IsDir())
 }

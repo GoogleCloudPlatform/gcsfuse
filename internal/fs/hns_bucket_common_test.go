@@ -123,17 +123,17 @@ func (t *RenameFileTests) TestRenameSymlinkToFile() {
 
 	err = os.Rename(oldPath, newPath)
 
-	assert.NoError(t.T(), err)
+	require.NoError(t.T(), err)
 	// The old path should no longer exist.
 	_, err = os.Lstat(oldPath)
 	assert.Error(t.T(), err)
 	assert.True(t.T(), os.IsNotExist(err), "err: %v", err)
 	// The new path should now be a symlink, having replaced the original file.
 	fi, err := os.Lstat(newPath)
-	assert.NoError(t.T(), err)
+	require.NoError(t.T(), err)
 	assert.Equal(t.T(), os.ModeSymlink, fi.Mode()&os.ModeSymlink)
 	// The new symlink should point to the correct target.
 	targetRead, err := os.Readlink(newPath)
-	assert.NoError(t.T(), err)
+	require.NoError(t.T(), err)
 	assert.Equal(t.T(), targetPath, targetRead)
 }
