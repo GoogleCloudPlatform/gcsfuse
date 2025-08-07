@@ -184,8 +184,9 @@ func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset
 	}
 
 	requestedDataSize := end - offset
-	metrics.CaptureGCSReadMetrics(ctx, rr.metricHandle, metrics.ReadTypeNames[readType], requestedDataSize)
-
+	rr.metricHandle.GcsReadCount(1, metrics.ReadTypeNames[readType])
+	rr.metricHandle.GcsDownloadBytesCount(requestedDataSize, metrics.ReadTypeNames[readType])
+	
 	return n, err
 }
 
@@ -279,7 +280,8 @@ func (rr *RangeReader) startRead(start int64, end int64) error {
 	rr.limit = end
 
 	requestedDataSize := end - start
-	metrics.CaptureGCSReadMetrics(ctx, rr.metricHandle, metrics.ReadTypeNames[metrics.ReadTypeSequential], requestedDataSize)
+	rr.metricHandle.GcsReadCount(1, metrics.ReadTypeNames[metrics.ReadTypeSequential])
+	rr.metricHandle.GcsDownloadBytesCount(requestedDataSize, metrics.ReadTypeNames[metrics.ReadTypeSequential])
 
 	return nil
 }

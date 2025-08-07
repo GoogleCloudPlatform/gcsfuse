@@ -76,6 +76,6 @@ func ShouldRetryWithMonitoring(ctx context.Context, err error, metricHandle metr
 		val = "STALLED_READ_REQUEST"
 	}
 
-	metricHandle.GCSRetryCount(ctx, 1, val)
+	metricHandle.GcsRetryCount(1, val)
 	return retry
 }

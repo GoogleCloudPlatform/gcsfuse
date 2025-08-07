@@ -226,17 +226,14 @@ func categorize(err error) string {
 
 // Records file system operation count, failed operation count and the operation latency.
 func recordOp(ctx context.Context, metricHandle metrics.MetricHandle, method string, start time.Time, fsErr error) {
-	metricHandle.OpsCount(ctx, 1, method)
+	metricHandle.FsOpsCount(1, method)
 
 	// Recording opErrorCount.
 	if fsErr != nil {
 		errCategory := categorize(fsErr)
-		metricHandle.OpsErrorCount(ctx, 1, metrics.FSOpsErrorCategory{
-			FSOps:         method,
-			ErrorCategory: errCategory,
-		})
+		metricHandle.FsOpsErrorCount(1, errCategory, method)
 	}
-	metricHandle.OpsLatency(ctx, time.Since(start), method)
+	metricHandle.FsOpsLatency(ctx, time.Since(start), method)
 }
 
 // WithMonitoring takes a FileSystem, returns a FileSystem with monitoring
