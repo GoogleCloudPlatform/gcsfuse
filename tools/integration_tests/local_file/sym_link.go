@@ -57,7 +57,22 @@ func (t *localFileTestSuite) TestReadSymlinkForDeletedLocalFile() {
 
 	// Reading symlink should fail.
 	_, err := os.Stat(symlink)
-	if err == nil || !strings.Contains(err.Error(), "no such file or directory") {
-		t.T().Fatalf("Reading symlink for deleted local file did not fail.")
-	}
+
+	require.Error(t.T(), err)
+	assert.True(t.T(), os.IsNotExist(err), "Reading symlink for deleted local file should have failed with 'no such file or directory'. Got: %v", err)
+}
+
+func (t *CommonLocalFileTestSuite) TestRenameSymlinkForLocalFile() {
+	filePath, symlinkPath, fh := createAndVerifySymLink(t.T())
+	newSymlinkPath := path.Join(testDirPath, "newSymlink")
+
+	err := os.Rename(symlinkPath, newSymlinkPath)
+
+	require.NoError(t.T(), err, "os.Rename failed for symlink")
+	_, err = os.Lstat(symlinkPath)
+	require.Error(t.T(), err)
+	assert.True(t.T(), os.IsNotExist(err), "Old symlink should not exist after rename. err: %v", err)
+	operations.VerifyReadLink(filePath, newSymlinkPath, t.T())
+	operations.VerifyReadFile(newSymlinkPath, FileContents, t.T())
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, FileName1, FileContents, t.T())
 }
