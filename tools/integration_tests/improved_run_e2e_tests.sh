@@ -329,12 +329,13 @@ setup_package_buckets () {
   local bucket_type="$3"
   local exit_code=0
   for package in "${package_array[@]}"; do
-    local bucket_name
-    bucket_name=$(create_bucket "$package" "$bucket_type")
+    local output
+    output=$(create_bucket "$package" "$bucket_type")
     if [ $? -eq 0 ]; then
-      package_bucket_array+=("${package} ${bucket_name} ${bucket_type}")
+      package_bucket_array+=("${package} ${output} ${bucket_type}")
     else
       exit_code=1
+      log_error_locked "$output"
     fi
   done
   return $exit_code
