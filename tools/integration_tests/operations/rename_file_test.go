@@ -16,6 +16,7 @@
 package operations_test
 
 import (
+	"os"
 	"path"
 	"strings"
 	"testing"
@@ -23,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRenameFile(t *testing.T) {
@@ -59,4 +61,32 @@ func TestRenameFileWithSrcFileDoesNoExist(t *testing.T) {
 	// Assert that an error occurred.
 	assert.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "no such file or directory"))
+}
+
+func TestRenameSymlinkToFile(t *testing.T) {
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
+	targetName := "target.txt"
+	targetPath := path.Join(testDir, targetName)
+	err := os.WriteFile(targetPath, []byte("taco"), setup.FilePermission_0600)
+	require.NoError(t, err)
+	oldSymlinkPath := path.Join(testDir, "symlink_old")
+	err = os.Symlink(targetPath, oldSymlinkPath)
+	require.NoError(t, err)
+	newSymlinkPath := path.Join(testDir, "symlink_new")
+
+	err = os.Rename(oldSymlinkPath, newSymlinkPath)
+
+	require.NoError(t, err)
+	_, err = os.Lstat(oldSymlinkPath)
+	require.Error(t, err)
+	assert.True(t, os.IsNotExist(err))
+	fi, err := os.Lstat(newSymlinkPath)
+	require.NoError(t, err)
+	assert.Equal(t, os.ModeSymlink, fi.Mode()&os.ModeType)
+	targetRead, err := os.Readlink(newSymlinkPath)
+	require.NoError(t, err)
+	assert.Equal(t, targetPath, targetRead)
+	content, err := operations.ReadFile(newSymlinkPath)
+	require.NoError(t, err)
+	assert.Equal(t, "taco", string(content))
 }
