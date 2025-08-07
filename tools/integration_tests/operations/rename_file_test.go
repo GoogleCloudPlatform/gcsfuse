@@ -65,41 +65,27 @@ func TestRenameFileWithSrcFileDoesNoExist(t *testing.T) {
 
 func TestRenameSymlinkToFile(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
-
-	// Create a target file for the symlink to point to.
 	targetName := "target.txt"
 	targetPath := path.Join(testDir, targetName)
-	targetContent := "taco"
-	err := os.WriteFile(targetPath, []byte(targetContent), setup.FilePermission_0600)
+	err := os.WriteFile(targetPath, []byte("taco"), setup.FilePermission_0600)
 	require.NoError(t, err)
-
-	// Create the symbolic link that we will rename.
 	oldSymlinkPath := path.Join(testDir, "symlink_old")
-	// The symlink target should be relative to the symlink's location.
-	err = os.Symlink(targetName, oldSymlinkPath)
+	err = os.Symlink(targetPath, oldSymlinkPath)
 	require.NoError(t, err)
-
-	// Rename the symlink.
 	newSymlinkPath := path.Join(testDir, "symlink_new")
-	err = os.Rename(oldSymlinkPath, newSymlinkPath)
-	require.NoError(t, err)
 
-	// The old path should no longer exist.
+	err = os.Rename(oldSymlinkPath, newSymlinkPath)
+
+	require.NoError(t, err)
 	_, err = os.Lstat(oldSymlinkPath)
 	assert.True(t, os.IsNotExist(err))
-
-	// The new path should now be a symlink.
 	fi, err := os.Lstat(newSymlinkPath)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, os.ModeSymlink, fi.Mode()&os.ModeType)
-
-	// The new symlink should point to the correct target.
 	targetRead, err := os.Readlink(newSymlinkPath)
-	assert.NoError(t, err)
-	assert.Equal(t, targetName, targetRead)
-
-	// Reading from the new symlink should give the content of the target file.
+	require.NoError(t, err)
+	assert.Equal(t, targetPath, targetRead)
 	content, err := operations.ReadFile(newSymlinkPath)
-	assert.NoError(t, err)
-	assert.Equal(t, targetContent, string(content))
+	require.NoError(t, err)
+	assert.Equal(t, "taco", string(content))
 }
