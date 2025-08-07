@@ -251,8 +251,8 @@ func generateCombinations(attributes []Attribute) []AttrCombination {
 }
 
 func handleDefaultInSwitchCase(level int, attrName string, builder *strings.Builder) {
-	builder.WriteString(fmt.Sprintf("%sdefault :\n", strings.Repeat("\t", level+2)))
-	builder.WriteString(fmt.Sprintf("updateUnrecognizedAttribute(%s)", toCamel(attrName)))
+	builder.WriteString(fmt.Sprintf("%sdefault:\n", strings.Repeat("\t", level+2)))
+	builder.WriteString(fmt.Sprintf("%supdateUnrecognizedAttribute(%s)\n", strings.Repeat("\t", level+3), toCamel(attrName)))
 }
 
 func validateMetric(m Metric) error {

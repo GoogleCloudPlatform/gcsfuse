@@ -4378,10 +4378,9 @@ func startSampledLogging(ctx context.Context) {
 
 // logUnrecognizedAttribute retrieves and logs any unrecognized attributes.
 func logUnrecognizedAttribute() {
-	// Atomically load the attribute name and
-	// generate a log in case an unrecognized attribute is encountered.
-	if currentAttr := unrecognizedAttr.Load().(string); currentAttr != "" {
+	// Atomically load and reset the attribute name, then generate a log
+	// if an unrecognized attribute was encountered.
+	if currentAttr := unrecognizedAttr.Swap("").(string); currentAttr != "" {
 		logger.Tracef("Attribute %s is not declared", currentAttr)
-		unrecognizedAttr.Store("")
 	}
 }
