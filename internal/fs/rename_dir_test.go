@@ -95,15 +95,15 @@ func (t *RenameDirTests) TestRenameSymlinkToExplicitDir() {
 
 	err = os.Rename(oldPath, newPath)
 
-	assert.NoError(t.T(), err)
+	require.NoError(t.T(), err)
 	_, err = os.Lstat(oldPath)
 	assert.Error(t.T(), err)
 	assert.True(t.T(), os.IsNotExist(err))
 	fi, err := os.Lstat(newPath)
-	assert.NoError(t.T(), err)
+	require.NoError(t.T(), err)
 	assert.Equal(t.T(), os.ModeSymlink, fi.Mode()&os.ModeSymlink)
 	targetRead, err := os.Readlink(newPath)
-	assert.NoError(t.T(), err)
+	require.NoError(t.T(), err)
 	assert.Equal(t.T(), targetDirName, targetRead)
 }
 
