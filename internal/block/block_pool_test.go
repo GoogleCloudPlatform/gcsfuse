@@ -598,24 +598,28 @@ func (t *BlockPoolTest) TestBlockPoolCreationWithReservedBlocksFailure() {
 		reservedBlocks  int64
 		maxBlocks       int64
 		globalMaxBlocks int64
+		expectedErrMsg  string
 	}{
 		{
 			name:            "reserved_blocks_greater_than_max_blocks",
 			reservedBlocks:  11,
 			maxBlocks:       10,
 			globalMaxBlocks: 20,
+			expectedErrMsg:  "invalid reserved blocks count: 11, it should be between 0 and maxBlocks: 10",
 		},
 		{
 			name:            "negative_reserved_blocks",
 			reservedBlocks:  -1,
 			maxBlocks:       10,
 			globalMaxBlocks: 20,
+			expectedErrMsg:  "invalid reserved blocks count: -1, it should be between 0 and maxBlocks: 10",
 		},
 		{
 			name:            "reserved_blocks_greater_than_global_max_blocks",
 			reservedBlocks:  7,
 			maxBlocks:       7,
 			globalMaxBlocks: 6,
+			expectedErrMsg:  "cant allocate any block as global max blocks limit is reached",
 		},
 	}
 
@@ -625,6 +629,7 @@ func (t *BlockPoolTest) TestBlockPoolCreationWithReservedBlocksFailure() {
 
 			require.Error(t.T(), err)
 			assert.Nil(t.T(), bp)
+			assert.EqualError(t.T(), err, tt.expectedErrMsg)
 		})
 	}
 }

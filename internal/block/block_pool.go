@@ -21,7 +21,7 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
-var CantAllocateAnyBlockError error = errors.New("cant allocate any streaming write block as global max blocks limit is reached")
+var CantAllocateAnyBlockError error = errors.New("cant allocate any block as global max blocks limit is reached")
 
 type GenBlock interface {
 	// Reuse resets the block for reuse.
@@ -187,12 +187,11 @@ func (bp *GenBlockPool[T]) ClearFreeBlockChannel(releaseReservedBlocks bool) err
 				// if we get here, there is likely memory corruption.
 				return fmt.Errorf("munmap error: %v", err)
 			}
-			bp.totalBlocks--
 			// Release semaphore for all but the reserved blocks.
-			// Here, totalBlocks + 1 as we have decremented the totalBlocks above.
-			if bp.totalBlocks+1 > bp.reservedBlocks {
+			if bp.totalBlocks > bp.reservedBlocks {
 				bp.globalMaxBlocksSem.Release(1)
 			}
+			bp.totalBlocks--
 		default:
 			// We are here, it means there are no more blocks in the free blocks channel.
 			// Release semaphore for the released blocks iff releaseReservedBlocks is true.
