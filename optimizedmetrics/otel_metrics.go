@@ -4353,7 +4353,7 @@ func conditionallyObserve(obsrv metric.Int64Observer, counter *atomic.Int64, obs
 }
 
 func updateUnrecognizedAttribute(newValue string) {
-	unrecognizedAttr.Store(newValue)
+	unrecognizedAttr.CompareAndSwap("", newValue)
 }
 
 // StartSampledLogging starts a goroutine that logs unrecognized attributes periodically.
@@ -4378,11 +4378,10 @@ func startSampledLogging(ctx context.Context) {
 
 // logUnrecognizedAttribute retrieves and logs any unrecognized attributes.
 func logUnrecognizedAttribute() {
-	// Atomically load the attribute name.
-	currentAttr := unrecognizedAttr.Load().(string)
-
-	// Print a log in case an unrecognized attribute is encountered.
-	if currentAttr != "" && unrecognizedAttr.CompareAndSwap(currentAttr, "") {
+	// Atomically load the attribute name and
+	// generate a log in case an unrecognized attribute is encountered.
+	if currentAttr := unrecognizedAttr.Load().(string); currentAttr != "" {
 		logger.Tracef("Attribute %s is not declared", currentAttr)
+		unrecognizedAttr.Store("")
 	}
 }
