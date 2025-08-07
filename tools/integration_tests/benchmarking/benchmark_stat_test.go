@@ -66,7 +66,7 @@ func (s *benchmarkStatTest) Benchmark_Stat(b *testing.B) {
 	filePath := path.Join(testDirPath, "a.txt")
 
 	for i := range b.N {
-		// Manually time the operation to find the maximum latest with highest accuracy.
+		// Manually time the operation to find the maximum latency with highest accuracy.
 		// This happens while the benchmark's timer is paused and will not affect the average.
 		startTime := time.Now()
 
