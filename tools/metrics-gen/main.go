@@ -223,7 +223,7 @@ func getTestFuncArgsForHistogram(prefix string, attrs []Attribute) string {
 func handleDefaultInSwitchCase(level int, attrName string, builder *strings.Builder) {
 	indent := strings.Repeat("\t", level+1)
 	builder.WriteString(fmt.Sprintf("%sdefault :\n", strings.Repeat("\t", level+2)))
-	builder.WriteString("logForUnrecongnizedAttr()")
+	builder.WriteString(fmt.Sprintf("updateUnrecognizedAttribute(%s)", toCamel(attrName)))
 	builder.WriteString(fmt.Sprintf("%s}\n", indent))
 }
 
@@ -388,7 +388,11 @@ func buildSwitches(metric Metric) string {
 			currentCombo := append(combo, AttrValuePair{Name: attr.Name, Type: attr.Type, Value: val})
 			recorder(level+1, currentCombo)
 		}
-		handleDefaultInSwitchCase(level, attr.Name, &builder)
+		if attr.Type == "string" {
+			handleDefaultInSwitchCase(level, attr.Name, &builder)
+		} else {
+			builder.WriteString(fmt.Sprintf("%s}\n", indent))
+		}
 	}
 
 	if len(metric.Attributes) == 0 {

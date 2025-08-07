@@ -32,7 +32,7 @@ import (
 const logInterval = 5 * time.Minute
 
 var (
-	lastLogTime int64
+	unrecognizedAttr atomic.Value
 {{- range $metric := .Metrics -}}
 {{- if .Attributes}}
 {{- range $combination := (index $.AttrCombinations $metric.Name)}}
@@ -97,6 +97,7 @@ func (o *otelMetrics) {{toPascal .Name}}(
 func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetrics, error) {
   ch := make(chan histogramRecord, bufferSize)
   var wg sync.WaitGroup
+  startSampledLogging(ctx)
   for range workers {
 	wg.Add(1)
     go func() {
@@ -173,14 +174,37 @@ func conditionallyObserve(obsrv metric.Int64Observer, counter *atomic.Int64, obs
 	}
 }
 
-func logForUnrecongnizedAttr(){
-	// Load the current time and the last logged time.
-	currentTime := time.Now()
-	lastTime := atomic.LoadInt64(&lastLogTime)
+func updateUnrecognizedAttribute(newValue string) {
+	unrecognizedAttr.Store(newValue)
+}
 
-	if currentTime.UnixNano() > lastTime+int64(logInterval) {
-		if atomic.CompareAndSwapInt64(&lastLogTime, lastTime, currentTime.UnixNano()) {
-			logger.Infof("Unrecognized attribute encountered.")
+// StartSampledLogging starts a goroutine that logs unrecognized attributes periodically.
+func startSampledLogging(ctx context.Context) {
+	// Init the atomic.Value
+	unrecognizedAttr.Store("")
+
+	go func() {
+		ticker := time.NewTicker(logInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				logUnrecognizedAttribute()
+			}
 		}
+	}()
+}
+
+// logUnrecognizedAttribute retrieves and logs any unrecognized attributes.
+func logUnrecognizedAttribute() {
+	// Atomically load the attribute name .
+	currentAttr := unrecognizedAttr.Load().(string)
+
+	// log if not empty
+	if currentAttr != "" && unrecognizedAttr.CompareAndSwap(currentAttr, ""){
+		logger.Tracef("Attribute %s is not declared", currentAttr)
 	}
 }
