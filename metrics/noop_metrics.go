@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// **** DO NOT EDIT - FILE IS AUTO-GENERATED ****
 package metrics
 
 import (
@@ -19,25 +20,37 @@ import (
 	"time"
 )
 
+type noopMetrics struct{}
+
+func (*noopMetrics) FileCacheReadBytesCount(inc int64, readType string) {}
+
+func (*noopMetrics) FileCacheReadCount(inc int64, cacheHit bool, readType string) {}
+
+func (*noopMetrics) FileCacheReadLatencies(ctx context.Context, duration time.Duration, cacheHit bool) {
+}
+
+func (*noopMetrics) FsOpsCount(inc int64, fsOp string) {}
+
+func (*noopMetrics) FsOpsErrorCount(inc int64, fsErrorCategory string, fsOp string) {}
+
+func (*noopMetrics) FsOpsLatency(ctx context.Context, duration time.Duration, fsOp string) {}
+
+func (*noopMetrics) GcsDownloadBytesCount(inc int64, readType string) {}
+
+func (*noopMetrics) GcsReadBytesCount(inc int64) {}
+
+func (*noopMetrics) GcsReadCount(inc int64, readType string) {}
+
+func (*noopMetrics) GcsReaderCount(inc int64, ioMethod string) {}
+
+func (*noopMetrics) GcsRequestCount(inc int64, gcsMethod string) {}
+
+func (*noopMetrics) GcsRequestLatencies(ctx context.Context, duration time.Duration, gcsMethod string) {
+}
+
+func (*noopMetrics) GcsRetryCount(inc int64, retryErrorCategory string) {}
+
 func NewNoopMetrics() MetricHandle {
 	var n noopMetrics
 	return &n
 }
-
-type noopMetrics struct{}
-
-func (*noopMetrics) GCSReadBytesCount(_ context.Context, _ int64)                   {}
-func (*noopMetrics) GCSReaderCount(_ context.Context, _ int64, _ string)            {}
-func (*noopMetrics) GCSRequestCount(_ context.Context, _ int64, _ string)           {}
-func (*noopMetrics) GCSRequestLatency(_ context.Context, _ time.Duration, _ string) {}
-func (*noopMetrics) GCSReadCount(_ context.Context, _ int64, _ string)              {}
-func (*noopMetrics) GCSDownloadBytesCount(_ context.Context, _ int64, _ string)     {}
-func (*noopMetrics) GCSRetryCount(_ context.Context, _ int64, _ string)             {}
-
-func (*noopMetrics) OpsCount(_ context.Context, _ int64, _ string)                  {}
-func (*noopMetrics) OpsLatency(_ context.Context, _ time.Duration, _ string)        {}
-func (*noopMetrics) OpsErrorCount(_ context.Context, _ int64, _ FSOpsErrorCategory) {}
-
-func (*noopMetrics) FileCacheReadCount(_ context.Context, _ int64, attrs CacheHitReadType) {}
-func (*noopMetrics) FileCacheReadBytesCount(_ context.Context, _ int64, _ string)          {}
-func (*noopMetrics) FileCacheReadLatency(_ context.Context, _ time.Duration, _ bool)       {}
