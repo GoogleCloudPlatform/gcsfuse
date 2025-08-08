@@ -20,7 +20,7 @@ import (
 	"time"
 
 	storagev2 "cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/clock"
+	"github.com/googlecloudplatform/gcsfuse/v3/clock"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
