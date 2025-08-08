@@ -99,10 +99,10 @@ type storageControlClientWithRetryOnStall struct {
 	retryMultiplier  float64
 	totalRetryBudget time.Duration
 
-	// Whether or not to enable retries for folder APIs and other calls (except for the GetStorageLayout call).
-	// If this object is used, then GetStorageLayout call is always retried.
+	// Whether or not to enable retries for folder APIs.
 	enableStallRetriesOnStorageLayoutCall bool
-	enableStallRetriesOnAllCalls          bool
+	// Whether or not to enable retries for GetStorageLayout call.
+	enableStallRetriesOnAllCalls bool
 }
 
 // executeWithStallRetry encapsulates the retry logic for control client operations.
