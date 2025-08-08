@@ -23,6 +23,8 @@ import (
 	"testing"
 	"time"
 
+	"sync"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
@@ -161,6 +163,129 @@ func (t *fileTest) TestFileHandleWrite() {
 	}
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), data, buf)
+}
+
+func (t *fileTest) TestIsValidReadManager() {
+	parent := createDirInode(&t.bucket, &t.clock)
+	config := &cfg.Config{}
+	const objectName = "test_obj"
+	const objectContent = "some data"
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, objectName, []byte(objectContent), false)
+	fh := NewFileHandle(in, nil, false, nil, util.Read, config, nil, nil)
+	fh.inode.Lock()
+	defer fh.inode.Unlock()
+
+	// Mocks for test cases
+	mockRMForMismatch := new(read_manager.MockReadManager)
+	// Inode has generation 1. Let's set readManager's object generation to 2.
+	mockRMForMismatch.On("Object").Return(&gcs.MinObject{Generation: 2})
+
+	rmObjectForMatch := &gcs.MinObject{Generation: 1, Size: 0}
+	mockRMForMatch := new(read_manager.MockReadManager)
+	// Inode has generation 1.
+	mockRMForMatch.On("Object").Return(rmObjectForMatch)
+
+	testCases := []struct {
+		name           string
+		readManager    gcsx.ReadManager
+		expectedResult bool
+		postCheck      func()
+	}{
+		{
+			name:           "NilReadManager",
+			readManager:    nil,
+			expectedResult: false,
+		},
+		{
+			name:           "GenerationMismatch",
+			readManager:    mockRMForMismatch,
+			expectedResult: false,
+			postCheck: func() {
+				mockRMForMismatch.AssertExpectations(t.T())
+			},
+		},
+		{
+			name:           "GenerationMatch",
+			readManager:    mockRMForMatch,
+			expectedResult: true,
+			postCheck: func() {
+				assert.Equal(t.T(), in.SourceGeneration().Size, rmObjectForMatch.Size)
+				mockRMForMatch.AssertExpectations(t.T())
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			fh.readManager = tc.readManager
+			result := fh.isValidReadManager()
+			assert.Equal(t.T(), tc.expectedResult, result)
+			if tc.postCheck != nil {
+				tc.postCheck()
+			}
+		})
+	}
+}
+
+func (t *fileTest) TestIsValidReader() {
+	parent := createDirInode(&t.bucket, &t.clock)
+	config := &cfg.Config{}
+	const objectName = "test_obj"
+	const objectContent = "some data"
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, objectName, []byte(objectContent), false)
+	fh := NewFileHandle(in, nil, false, nil, util.Read, config, nil, nil)
+	fh.inode.Lock()
+	defer fh.inode.Unlock()
+
+	// Mocks for test cases
+	mockReaderForMismatch := new(gcsx.MockRandomReader)
+	// Inode has generation 1. Let's set reader's object generation to 2.
+	mockReaderForMismatch.On("Object").Return(&gcs.MinObject{Generation: 2})
+
+	readerObjectForMatch := &gcs.MinObject{Generation: 1, Size: 0}
+	mockReaderForMatch := new(gcsx.MockRandomReader)
+	// Inode has generation 1.
+	mockReaderForMatch.On("Object").Return(readerObjectForMatch)
+
+	testCases := []struct {
+		name           string
+		reader         gcsx.RandomReader
+		expectedResult bool
+		postCheck      func()
+	}{
+		{
+			name:           "NilReader",
+			reader:         nil,
+			expectedResult: false},
+		{
+			name:           "GenerationMismatch",
+			reader:         mockReaderForMismatch,
+			expectedResult: false,
+			postCheck: func() {
+				mockReaderForMismatch.AssertExpectations(t.T())
+			},
+		},
+		{
+			name:           "GenerationMatch",
+			reader:         mockReaderForMatch,
+			expectedResult: true,
+			postCheck: func() {
+				assert.Equal(t.T(), in.SourceGeneration().Size, readerObjectForMatch.Size)
+				mockReaderForMatch.AssertExpectations(t.T())
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			fh.reader = tc.reader
+			result := fh.isValidReader()
+			assert.Equal(t.T(), tc.expectedResult, result)
+			if tc.postCheck != nil {
+				tc.postCheck()
+			}
+		})
+	}
 }
 
 // Test_Read_Success validates successful read behavior using the random reader.
@@ -413,4 +538,226 @@ func (t *fileTest) TestFileHandle_CheckInvariants_WithNilReaderAndManager() {
 	assert.NotPanics(t.T(), func() {
 		fh.checkInvariants()
 	})
+}
+
+func (t *fileTest) TestLockHandleAndRelockInode_Lock_NoDeadlockWithContention() {
+	parent := createDirInode(&t.bucket, &t.clock)
+	config := &cfg.Config{}
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_deadlock", []byte("content"), false)
+	fh := NewFileHandle(in, nil, false, nil, util.Read, config, nil, nil)
+	var wg sync.WaitGroup
+	const numContenders = 4
+	wg.Add(2 * numContenders)
+	done := make(chan struct{})
+
+	// Simulate the flow that uses lockHandleAndRelockInode
+	for i := 0; i < numContenders; i++ {
+		go func() {
+			defer wg.Done()
+			fh.inode.Lock()
+			fh.lockHandleAndRelockInode(false) // This should not deadlock
+			fh.inode.Unlock()
+			fh.mu.Unlock()
+		}()
+	}
+
+	// Simulate conflicting lock acquisition order
+	for i := 0; i < numContenders; i++ {
+		go func() {
+			defer wg.Done()
+			fh.mu.Lock()
+			defer fh.mu.Unlock()
+			// Now try to get the inode lock
+			fh.inode.Lock()
+			defer fh.inode.Unlock()
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	// Success, no deadlock
+	case <-time.After(2 * time.Second):
+		t.T().Fatal("Potential deadlock detected with Lock")
+	}
+}
+
+func (t *fileTest) TestLockHandleAndRelockInode_RLock_NoDeadlockWithContention() {
+	parent := createDirInode(&t.bucket, &t.clock)
+	config := &cfg.Config{}
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_deadlock", []byte("content"), false)
+	fh := NewFileHandle(in, nil, false, nil, util.Read, config, nil, nil)
+	var wg sync.WaitGroup
+	const numContenders = 4
+	wg.Add(2 * numContenders)
+	done := make(chan struct{})
+
+	// Simulate the flow that uses lockHandleAndRelockInode
+	for i := 0; i < numContenders; i++ {
+		go func() {
+			defer wg.Done()
+			fh.inode.Lock()
+			fh.lockHandleAndRelockInode(true) // This should not deadlock
+			fh.inode.Unlock()
+			fh.mu.RUnlock()
+		}()
+	}
+
+	// Simulate conflicting lock acquisition order
+	for i := 0; i < numContenders; i++ {
+		go func() {
+			defer wg.Done()
+			fh.mu.Lock()
+			defer fh.mu.Unlock()
+			// Now try to get the inode lock
+			fh.inode.Lock()
+			defer fh.inode.Unlock()
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	// Success, no deadlock
+	case <-time.After(2 * time.Second):
+		t.T().Fatal("Potential deadlock detected with RLock")
+	}
+}
+
+func (t *fileTest) TestLockHandleAndRelockInode_Mixed_NoDeadlockWithContention() {
+	parent := createDirInode(&t.bucket, &t.clock)
+	config := &cfg.Config{}
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_deadlock", []byte("content"), false)
+	fh := NewFileHandle(in, nil, false, nil, util.Read, config, nil, nil)
+	var wg sync.WaitGroup
+	const numRContenders = 4
+	const numWContenders = 4
+	wg.Add(numRContenders + numWContenders)
+	done := make(chan struct{})
+
+	// Simulate the flow that uses lockHandleAndRelockInode(false)
+	for i := 0; i < numWContenders; i++ {
+		go func() {
+			defer wg.Done()
+			fh.inode.Lock()
+			fh.lockHandleAndRelockInode(false) // This should not deadlock
+			fh.mu.Unlock()
+			fh.inode.Unlock()
+		}()
+	}
+
+	// Simulate the flow that uses lockHandleAndRelockInode(true)
+	for i := 0; i < numRContenders; i++ {
+		go func() {
+			defer wg.Done()
+			fh.inode.Lock()
+			fh.lockHandleAndRelockInode(true) // This should not deadlock
+			fh.mu.RUnlock()
+			fh.inode.Unlock()
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	// Success, no deadlock
+	case <-time.After(2 * time.Second):
+		t.T().Fatal("Potential deadlock detected with mixed Lock/RLock")
+	}
+}
+
+func (t *fileTest) TestUnlockHandleAndInode_Unlock() {
+	parent := createDirInode(&t.bucket, &t.clock)
+	config := &cfg.Config{}
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_deadlock", []byte("content"), false)
+	fh := NewFileHandle(in, nil, false, nil, util.Read, config, nil, nil)
+
+	var wg sync.WaitGroup
+	const numContenders = 4
+	wg.Add(3 * numContenders)
+	done := make(chan struct{})
+
+	for i := 0; i < numContenders; i++ {
+		go func() {
+			defer wg.Done()
+			fh.inode.Lock()
+			fh.mu.Lock()
+			fh.unlockHandleAndInode(false)
+		}()
+	}
+
+	for i := 0; i < numContenders; i++ {
+		go func() {
+			defer wg.Done()
+			fh.inode.Lock()
+			fh.mu.RLock()
+			fh.unlockHandleAndInode(true)
+		}()
+	}
+
+	for i := 0; i < numContenders; i++ {
+		go func() {
+			defer wg.Done()
+			fh.inode.Lock()
+			fh.mu.Lock()
+			fh.inode.Unlock()
+			fh.mu.Unlock()
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	// Success: locks were re-acquired without blocking.
+	case <-time.After(1 * time.Second):
+		t.T().Fatal("Potential deadlock detected: locks were not released for write lock.")
+	}
+}
+
+func (t *fileTest) TestUnlockHandleAndInode_RUnlock() {
+	parent := createDirInode(&t.bucket, &t.clock)
+	config := &cfg.Config{}
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_deadlock", []byte("content"), false)
+	fh := NewFileHandle(in, nil, false, nil, util.Read, config, nil, nil)
+
+	// Lock in the required order.
+	fh.inode.Lock()
+	fh.mu.RLock()
+
+	// Unlock using the function under test.
+	fh.unlockHandleAndInode(true)
+
+	// Verify both locks are released by trying to lock them again.
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		// Use a write lock to ensure the read lock is fully released.
+		fh.mu.Lock()
+		defer fh.mu.Unlock()
+		fh.inode.Lock()
+		defer fh.inode.Unlock()
+	}()
+
+	select {
+	case <-done:
+	// Success: locks were re-acquired without blocking.
+	case <-time.After(1 * time.Second):
+		t.T().Fatal("Potential deadlock detected: locks were not released for read lock.")
+	}
 }
