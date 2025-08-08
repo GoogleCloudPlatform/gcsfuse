@@ -199,6 +199,8 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 			MetricHandle:          fh.metricHandle,
 			MrdWrapper:            mrdWrapper,
 			Config:                fh.config,
+			GlobalMaxBlocksSem:    fh.globalMaxReadBlocksSem,
+			WorkerPool:            fh.bufferedReadWorkerPool,
 		})
 
 		// Release RWLock and take RLock on file handle again. Inode lock is not needed now.
