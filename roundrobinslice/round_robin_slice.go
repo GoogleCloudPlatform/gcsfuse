@@ -31,8 +31,6 @@ type RoundRobin[T any] struct {
 // It expects the slice to be immutable for performance reasons.
 // If the slice is empty, Get() will always return the zero value of T and false.
 func New[T any](items []T) *RoundRobin[T] {
-	// Create a copy of the slice to ensure immutability from external modifications.
-
 	// To make the first call to Get() return items[0].
 	idx := -1
 	if len(items) > 0 {
