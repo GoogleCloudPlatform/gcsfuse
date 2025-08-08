@@ -17,9 +17,11 @@ package handle
 import (
 	"bytes"
 	"context"
+	crypto_rand "crypto/rand"
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -318,6 +320,118 @@ func (t *fileTest) Test_ReadWithReadManager_Success() {
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), len(expectedData), n)
 	assert.Equal(t.T(), expectedData, output)
+}
+
+// Test_ReadWithReadManager_Concurrent validates concurrent read behavior using the readManager.
+func (t *fileTest) Test_ReadWithReadManager_Concurrent() {
+	// Setup
+	const (
+		fileSize    = 1 * 1024 * 1024 // 1 MiB
+		numReaders  = 20
+		maxReadSize = 16 * 1024 // 16 KiB
+	)
+	// Create large content for the file.
+	objectContent := make([]byte, fileSize)
+	_, err := crypto_rand.Read(objectContent)
+	assert.NoError(t.T(), err)
+
+	parent := createDirInode(&t.bucket, &t.clock)
+	in := createFileInode(t.T(), &t.bucket, &t.clock, &cfg.Config{}, parent, "concurrent_read_obj", objectContent, false)
+	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{}, nil, nil)
+
+	var wg sync.WaitGroup
+	wg.Add(numReaders)
+
+	// Run concurrent reads
+	for i := 0; i < numReaders; i++ {
+		go func() {
+			defer wg.Done()
+
+			// Each goroutine reads a random chunk.
+			readSize := rand.Intn(maxReadSize-1) + 1 // Ensure readSize > 0
+			offset := rand.Intn(fileSize - readSize)
+			dst := make([]byte, readSize)
+
+			fh.inode.Lock() // Lock required by ReadWithReadManager
+			// The method is responsible for unlocking.
+			_, n, err := fh.ReadWithReadManager(t.ctx, dst, int64(offset), 200)
+
+			// Assertions
+			assert.NoError(t.T(), err)
+			assert.Equal(t.T(), readSize, n)
+			assert.Equal(t.T(), objectContent[offset:offset+readSize], dst[:n])
+		}()
+	}
+
+	// Wait for all goroutines to finish, with a timeout to detect deadlocks.
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	// Test completed successfully.
+	case <-time.After(10 * time.Second):
+		t.T().Fatal("Test timed out, potential deadlock in ReadWithReadManager")
+	}
+}
+
+// Test_Read_Concurrent validates concurrent read behavior using the random reader
+func (t *fileTest) Test_Read_Concurrent() {
+	// Setup
+	const (
+		fileSize    = 1 * 1024 * 1024 // 1 MiB
+		numReaders  = 20
+		maxReadSize = 16 * 1024 // 16 KiB
+	)
+	// Create large content for the file.
+	objectContent := make([]byte, fileSize)
+	_, err := crypto_rand.Read(objectContent)
+	assert.NoError(t.T(), err)
+
+	parent := createDirInode(&t.bucket, &t.clock)
+	in := createFileInode(t.T(), &t.bucket, &t.clock, &cfg.Config{}, parent, "concurrent_read_obj", objectContent, false)
+	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{}, nil, nil)
+
+	var wg sync.WaitGroup
+	wg.Add(numReaders)
+
+	// Run concurrent reads
+	for i := 0; i < numReaders; i++ {
+		go func() {
+			defer wg.Done()
+
+			// Each goroutine reads a random chunk.
+			readSize := rand.Intn(maxReadSize-1) + 1 // Ensure readSize > 0
+			offset := rand.Intn(fileSize - readSize)
+			dst := make([]byte, readSize)
+
+			fh.inode.Lock() // Lock required by ReadWithReadManager
+			// The method is responsible for unlocking.
+			_, n, err := fh.Read(t.ctx, dst, int64(offset), 200)
+
+			// Assertions
+			assert.NoError(t.T(), err)
+			assert.Equal(t.T(), readSize, n)
+			assert.Equal(t.T(), objectContent[offset:offset+readSize], dst[:n])
+		}()
+	}
+
+	// Wait for all goroutines to finish, with a timeout to detect deadlocks.
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	// Test completed successfully.
+	case <-time.After(10 * time.Second):
+		t.T().Fatal("Test timed out, potential deadlock in ReadWithReadManager")
+	}
 }
 
 // Test_ReadWithReadManager_ErrorScenarios verifies error handling in ReadWithReadManager.
