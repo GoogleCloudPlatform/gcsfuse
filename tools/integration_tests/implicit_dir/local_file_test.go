@@ -22,6 +22,7 @@ import (
 	. "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -40,7 +41,19 @@ func TestNewFileUnderImplicitDirectoryShouldNotGetSyncedToGCSTillClose(t *testin
 
 	_, fh := CreateLocalFileInTestDir(testEnv.ctx, testEnv.storageClient, testEnv.testDirPath, fileName, t)
 	operations.WriteWithoutClose(fh, FileContents, t)
-	ValidateObjectNotFoundErrOnGCS(testEnv.ctx, testEnv.storageClient, testBaseDirName, fileName, t)
+	if !setup.IsZonalBucketRun() {
+		// For non-zonal buckets, the object is not visible until the file is closed.
+		ValidateObjectNotFoundErrOnGCS(testEnv.ctx, testEnv.storageClient, testBaseDirName, fileName, t)
+	} else {
+		// For zonal buckets, the object is unfinalized, but visible.
+		// A zonal bucket object written without sync would be recognized as having zero-size.
+		ValidateObjectContentsFromGCS(testEnv.ctx, testEnv.storageClient, testBaseDirName, fileName, "", t)
+
+		// A zonal bucket object written with sync can be fully read.
+		err := fh.Sync()
+		require.NoError(t, err)
+		ValidateObjectContentsFromGCS(testEnv.ctx, testEnv.storageClient, testBaseDirName, fileName, FileContents, t)
+	}
 
 	// Validate.
 	CloseFileAndValidateContentFromGCS(testEnv.ctx, testEnv.storageClient, fh, testBaseDirName, fileName, FileContents, t)
