@@ -130,17 +130,17 @@ func (sccwros *storageControlClientWithRetryOnStall) GetStorageLayout(ctx contex
 		}
 
 		// If the parent context is cancelled, we should stop retrying.
-		if subCtx.Err() != nil {
-			return nil, fmt.Errorf("GetStorageLayout on %+v timed out after multiple retries: %w", req, err)
+		if ctx.Err() != nil {
+			return nil, fmt.Errorf("GetStorageLayout with req=%+v timed out after multiple retries: %w", req, err)
 		}
 
 		if !storageutil.ShouldRetry(err) {
-			return nil, fmt.Errorf("GetStorageLayout on %+v failed with a non-retryable error: %w", req, err)
+			return nil, fmt.Errorf("GetStorageLayout with req=%+v failed with a non-retryable error: %w", req, err)
 		}
 
 		// Increase delay for the next attempt.
 		delay = min(sccwros.maxRetryDeadline, time.Duration(float64(delay)*sccwros.retryMultiplier))
-		logger.Warnf("Retrying GetStorageLayout on %+v with deadline %v ...", req, delay)
+		logger.Warnf("Retrying GetStorageLayout with req=%+v with deadline=%v ...", req, delay)
 	}
 }
 
@@ -169,17 +169,17 @@ func (sccwros *storageControlClientWithRetryOnStall) DeleteFolder(ctx context.Co
 		}
 
 		// If the parent context is cancelled, we should stop retrying.
-		if subCtx.Err() != nil {
-			return fmt.Errorf("DeleteFolder on %+v timed out after multiple retries: %w", req, err)
+		if ctx.Err() != nil {
+			return fmt.Errorf("DeleteFolder with req=%+v timed out after multiple retries: %w", req, err)
 		}
 
 		if !storageutil.ShouldRetry(err) {
-			return fmt.Errorf("DeleteFolder on %+v failed with a non-retryable error: %w", req, err)
+			return fmt.Errorf("DeleteFolder with req=%+v failed with a non-retryable error: %w", req, err)
 		}
 
 		// Increase delay for the next attempt.
 		delay = min(sccwros.maxRetryDeadline, time.Duration(float64(delay)*sccwros.retryMultiplier))
-		logger.Warnf("Retrying DeleteFolder for %+v with deadline %v ...", req, delay)
+		logger.Warnf("Retrying DeleteFolder with req=%+v with deadline=%v ...", req, delay)
 	}
 }
 
@@ -206,17 +206,17 @@ func (sccwros *storageControlClientWithRetryOnStall) GetFolder(ctx context.Conte
 		}
 
 		// If the parent context is cancelled, we should stop retrying.
-		if subCtx.Err() != nil {
-			return nil, fmt.Errorf("GetFolder on %+v timed out after multiple retries: %w", req, err)
+		if ctx.Err() != nil {
+			return nil, fmt.Errorf("GetFolder with req=%+v timed out after multiple retries: %w", req, err)
 		}
 
 		if !storageutil.ShouldRetry(err) {
-			return nil, fmt.Errorf("GetFolder on %+v failed with a non-retryable error: %w", req, err)
+			return nil, fmt.Errorf("GetFolder with req=%+v failed with a non-retryable error: %w", req, err)
 		}
 
 		// Increase delay for the next attempt.
 		delay = min(sccwros.maxRetryDeadline, time.Duration(float64(delay)*sccwros.retryMultiplier))
-		logger.Warnf("Retrying GetFolder for %+v with deadline %v ...", req, delay)
+		logger.Warnf("Retrying GetFolder with req=%+v with deadline=%v ...", req, delay)
 	}
 }
 
@@ -243,17 +243,17 @@ func (sccwros *storageControlClientWithRetryOnStall) RenameFolder(ctx context.Co
 		}
 
 		// If the parent context is cancelled, we should stop retrying.
-		if subCtx.Err() != nil {
-			return nil, fmt.Errorf("RenameFolder on %+v timed out after multiple retries: %w", req, err)
+		if ctx.Err() != nil {
+			return nil, fmt.Errorf("RenameFolder with req=%+v timed out after multiple retries: %w", req, err)
 		}
 
 		if !storageutil.ShouldRetry(err) {
-			return nil, fmt.Errorf("RenameFolder on %+v failed with a non-retryable error: %w", req, err)
+			return nil, fmt.Errorf("RenameFolder with req=%+v failed with a non-retryable error: %w", req, err)
 		}
 
 		// Increase delay for the next attempt.
 		delay = min(sccwros.maxRetryDeadline, time.Duration(float64(delay)*sccwros.retryMultiplier))
-		logger.Warnf("Retrying RenameFolder for %+v with deadline %v ...", req, delay)
+		logger.Warnf("Retrying RenameFolder with req=%+v with deadline=%v ...", req, delay)
 	}
 }
 
@@ -280,17 +280,17 @@ func (sccwros *storageControlClientWithRetryOnStall) CreateFolder(ctx context.Co
 		}
 
 		// If the parent context is cancelled, we should stop retrying.
-		if subCtx.Err() != nil {
-			return nil, fmt.Errorf("CreateFolder on %+v timed out after multiple retries: %w", req, err)
+		if ctx.Err() != nil {
+			return nil, fmt.Errorf("CreateFolder with req=%+v timed out after multiple retries: %w", req, err)
 		}
 
 		if !storageutil.ShouldRetry(err) {
-			return nil, fmt.Errorf("CreateFolder on %+v failed with a non-retryable error: %w", req, err)
+			return nil, fmt.Errorf("CreateFolder with req=%+v failed with a non-retryable error: %w", req, err)
 		}
 
 		// Increase delay for the next attempt.
 		delay = min(sccwros.maxRetryDeadline, time.Duration(float64(delay)*sccwros.retryMultiplier))
-		logger.Warnf("Retrying CreateFolder for %+v with deadline %v ...", req, delay)
+		logger.Warnf("Retrying CreateFolder with req=%+v with deadline=%v ...", req, delay)
 	}
 }
 
