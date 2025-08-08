@@ -99,7 +99,7 @@ type storageControlClientWithRetryOnStall struct {
 	retryMultiplier  float64
 	totalRetryBudget time.Duration
 
-	// Whether or not to enable reties for folder APIs and other calls (except for the GetStorageLayou call).
+	// Whether or not to enable retries for folder APIs and other calls (except for the GetStorageLayout call).
 	// If this object is used, then GetStorageLayout call is always retried.
 	enableStallRetriesOnStorageLayoutCall bool
 	enableStallRetriesOnAllCalls          bool
@@ -214,41 +214,32 @@ func (sccwros *storageControlClientWithRetryOnStall) CreateFolder(ctx context.Co
 	return executeWithStallRetry(sccwros, ctx, "CreateFolder", reqDescription, apiCall)
 }
 
+func newRetryWrapper(controlClient StorageControlClient, minRetryDeadline time.Duration, maxRetryDeadline time.Duration, retryMultiplier float64, totalRetryBudget time.Duration, retryAllCalls bool) StorageControlClient {
+	raw := controlClient
+	if sccwros, ok := controlClient.(*storageControlClientWithRetryOnStall); ok {
+		raw = sccwros.raw
+	}
+
+	return &storageControlClientWithRetryOnStall{
+		raw:                                   raw,
+		minRetryDeadline:                      minRetryDeadline,
+		maxRetryDeadline:                      maxRetryDeadline,
+		retryMultiplier:                       retryMultiplier,
+		totalRetryBudget:                      totalRetryBudget,
+		enableStallRetriesOnStorageLayoutCall: true,
+		enableStallRetriesOnAllCalls:          retryAllCalls,
+	}
+}
+
 // withRetryOnStall wraps a StorageControlClient to implement gcsfuse-level retry logic.
 // It retries operations with a time-bound approach, retrying on errors that should be retried
 // according to gcsfuse's retry logic.
 // The retry logic is based on a minimum and maximum delay, a retry multiplier, and a total attempts deadline.
 func withRetryOnStall(controlClient StorageControlClient, minRetryDeadline time.Duration, maxRetryDeadline time.Duration, retryMultiplier float64, totalRetryBudget time.Duration) StorageControlClient {
-	raw := controlClient
-	if sccwros, ok := controlClient.(*storageControlClientWithRetryOnStall); ok {
-		raw = sccwros.raw
-	}
-
-	return &storageControlClientWithRetryOnStall{
-		raw:                                   raw,
-		minRetryDeadline:                      minRetryDeadline,
-		maxRetryDeadline:                      maxRetryDeadline,
-		retryMultiplier:                       retryMultiplier,
-		totalRetryBudget:                      totalRetryBudget,
-		enableStallRetriesOnStorageLayoutCall: true,
-		enableStallRetriesOnAllCalls:          true,
-	}
+	return newRetryWrapper(controlClient, minRetryDeadline, maxRetryDeadline, retryMultiplier, totalRetryBudget, true)
 }
 
 // withRetryOnStorageLayoutStall wraps a StorageControlClient which retries GetStorageLayout call with a time-bound approach, but the rest of the control-client calls pass through it as it is.
 func withRetryOnStorageLayoutStall(controlClient StorageControlClient, minRetryDeadline time.Duration, maxRetryDeadline time.Duration, retryMultiplier float64, totalRetryBudget time.Duration) StorageControlClient {
-	raw := controlClient
-	if sccwros, ok := controlClient.(*storageControlClientWithRetryOnStall); ok {
-		raw = sccwros.raw
-	}
-
-	return &storageControlClientWithRetryOnStall{
-		raw:                                   raw,
-		minRetryDeadline:                      minRetryDeadline,
-		maxRetryDeadline:                      maxRetryDeadline,
-		retryMultiplier:                       retryMultiplier,
-		totalRetryBudget:                      totalRetryBudget,
-		enableStallRetriesOnStorageLayoutCall: true,
-		enableStallRetriesOnAllCalls:          false,
-	}
+	return newRetryWrapper(controlClient, minRetryDeadline, maxRetryDeadline, retryMultiplier, totalRetryBudget, false)
 }
