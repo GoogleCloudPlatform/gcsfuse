@@ -343,7 +343,10 @@ func (fs *monitoring) OpenFile(ctx context.Context, op *fuseops.OpenFileOp) erro
 }
 
 func (fs *monitoring) ReadFile(ctx context.Context, op *fuseops.ReadFileOp) error {
-	return fs.invokeWrapped(ctx, "ReadFile", func(ctx context.Context) error { return fs.wrapped.ReadFile(ctx, op) })
+	startTime := time.Now()
+	err := fs.wrapped.ReadFile(ctx, op)
+	recordOp(ctx, fs.metricHandle, "ReadFile", startTime, err)
+	return err
 }
 
 func (fs *monitoring) WriteFile(ctx context.Context, op *fuseops.WriteFileOp) error {
