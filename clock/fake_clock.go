@@ -21,6 +21,12 @@ type FakeClock struct {
 	WaitTime time.Duration
 }
 
+// Now returns the current time. This implementation uses the real time, making
+// this clock a hybrid.
+func (mc *FakeClock) Now() time.Time {
+	return time.Now()
+}
+
 // Notifies on the returned channel after the wait time specified during
 // creation of FakeClock.
 func (mc *FakeClock) After(time.Duration) <-chan time.Time {

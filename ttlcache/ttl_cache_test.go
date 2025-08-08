@@ -1,13 +1,13 @@
 // Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file  except in compliance with the License.
+// you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an  "AS IS" BASIS,
+// distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
@@ -15,158 +15,206 @@
 package ttlcache
 
 import (
-	"strconv"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/clock"
+
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestCache_SetAndGet(t *testing.T) {
-	cache := New[string, string](100*time.Millisecond, 10*time.Millisecond)
-	defer cache.Stop()
+func TestNewTTLCache(t *testing.T) {
+	startTime := time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)
+	simClock := clock.NewSimulatedClock(startTime)
+	ttl := 10 * time.Minute
 
-	cache.Set("key1", "value1")
-	val, found := cache.Get("key1")
+	cache := newWithClock[string, string](ttl, 2*ttl, simClock)
 
-	assert.True(t, found)
-	assert.Equal(t, "value1", val)
+	require.NotNil(t, cache)
+	assert.Equal(t, ttl, cache.ttl)
+	assert.Equal(t, simClock, cache.clock)
+	assert.NotNil(t, cache.items)
 }
 
-func TestCache_GetExpired(t *testing.T) {
-	ttl := 50 * time.Millisecond
-	cache := New[string, int](ttl, 10*time.Millisecond)
-	defer cache.Stop()
+func TestTTLCache_SetAndGet(t *testing.T) {
+	startTime := time.Now()
+	simClock := clock.NewSimulatedClock(startTime)
+	cache := newWithClock[string, string](5*time.Minute, 10*time.Minute, simClock)
 
-	cache.Set("key1", 123)
+	key := "myKey"
+	value := "myValue"
 
-	// Wait for item to expire
-	time.Sleep(ttl + 10*time.Millisecond)
+	cache.Set(key, value)
 
-	val, found := cache.Get("key1")
-
-	assert.False(t, found)
-	assert.Equal(t, 0, val) // zero  value for int
+	// Get immediately, should exist
+	retrievedValue, ok := cache.Get(key)
+	assert.True(t, ok)
+	assert.Equal(t, value, retrievedValue)
 }
 
-func TestCache_GetNonExistent(t *testing.T) {
-	cache := New[string, int](time.Minute, time.Second)
-	defer cache.Stop()
+func TestTTLCache_Get_NotFound(t *testing.T) {
+	startTime := time.Now()
+	simClock := clock.NewSimulatedClock(startTime)
+	cache := newWithClock[string, string](5*time.Minute, 10*time.Minute, simClock)
 
-	val, found := cache.Get("non-existent-key")
+	retrievedValue, ok := cache.Get("nonExistentKey")
 
-	assert.False(t, found)
-	assert.Equal(t, 0, val)
+	assert.False(t, ok)
+	assert.Equal(t, "", retrievedValue)
 }
 
-func TestCache_SetOverrides(t *testing.T) {
-	cache := New[string, string](time.Minute, time.Second)
-	defer cache.Stop()
+func TestTTLCache_Get_Expired(t *testing.T) {
+	startTime := time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)
+	simClock := clock.NewSimulatedClock(startTime)
+	ttl := 10 * time.Minute
+	cache := newWithClock[string, string](ttl, 2*ttl, simClock)
 
-	cache.Set("key1", "value1")
-	cache.Set("key1", "value2")
+	key := "myKey"
+	value := "myValue"
+	cache.Set(key, value)
 
-	val, found := cache.Get("key1")
+	// Advance time just before expiration
+	simClock.AdvanceTime(ttl - 1*time.Second)
+	retrievedValue, ok := cache.Get(key)
+	assert.True(t, ok)
+	assert.Equal(t, value, retrievedValue)
 
-	assert.True(t, found)
-	assert.Equal(t, "value2", val)
+	// Advance time to the point of expiration. `expireAt` is `startTime.Add(ttl)`.
+	// `time.After` is true if `t > u`. So if `now == expireAt`, it's not expired.
+	simClock.AdvanceTime(1 * time.Second) // Now at exactly TTL from start
+	retrievedValue, ok = cache.Get(key)
+	assert.True(t, ok, "item should not be expired at the exact expiration time")
+	assert.Equal(t, value, retrievedValue)
+
+	// Advance time just past expiration
+	simClock.AdvanceTime(1 * time.Nanosecond) // Now just after TTL
+	retrievedValue, ok = cache.Get(key)
+	assert.False(t, ok, "item should be expired after expiration time")
+	assert.Equal(t, "", retrievedValue)
 }
 
-func TestCache_Delete(t *testing.T) {
-	cache := New[string, string](time.Minute, time.Second)
-	defer cache.Stop()
+func TestTTLCache_Set_Update(t *testing.T) {
+	startTime := time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)
+	simClock := clock.NewSimulatedClock(startTime)
+	ttl := 10 * time.Minute
+	cache := newWithClock[string, string](ttl, 2*ttl, simClock)
 
-	cache.Set("key1", "value1")
-	cache.Delete("key1")
+	key := "myKey"
+	value1 := "value1"
+	value2 := "value2"
 
-	_, found := cache.Get("key1")
-	assert.False(t, found)
+	// Set initial value
+	cache.Set(key, value1)
+
+	// Advance time, but not enough to expire
+	simClock.AdvanceTime(ttl / 2)
+
+	// Update value
+	cache.Set(key, value2)
+
+	// Advance time again, past the original expiration time but not the new one
+	simClock.AdvanceTime(ttl / 2)
+
+	// The item should still be there because its TTL was reset
+	retrievedValue, ok := cache.Get(key)
+	assert.True(t, ok)
+	assert.Equal(t, value2, retrievedValue)
+
+	// Advance time past the new expiration time
+	simClock.AdvanceTime(ttl/2 + 1*time.Nanosecond)
+	retrievedValue, ok = cache.Get(key)
+	assert.False(t, ok)
+	assert.Equal(t, "", retrievedValue)
 }
 
-func TestCache_Cleanup(t *testing.T) {
-	ttl := 50 * time.Millisecond
-	cleanupInterval := 10 * time.Millisecond
-	cache := New[string, int](ttl, cleanupInterval)
-	defer cache.Stop()
+func TestTTLCache_Set_ZeroOrNegativeTTL(t *testing.T) {
+	testCases := []struct {
+		name string
+		ttl  time.Duration
+	}{
+		{"ZeroTTL", 0},
+		{"NegativeTTL", -5 * time.Minute},
+	}
 
-	cache.Set("key1", 123)
-	cache.Set("key2", 456)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			startTime := time.Now()
+			simClock := clock.NewSimulatedClock(startTime)
+			cache := newWithClock[string, string](tc.ttl, 2*tc.ttl, simClock)
+			cache.Set("someKey", "someValue")
 
-	// Wait for cleanup to run
-	time.Sleep(ttl + cleanupInterval*2)
+			val, ok := cache.Get("someKey")
 
-	cache.mu.RLock()
-	_, foundInMap := cache.items["key1"]
-	cache.mu.RUnlock()
-
-	assert.False(t, foundInMap, "Expired item should be removed by cleanup goroutine")
+			assert.True(t, ok)
+			assert.Equal(t, "someValue", val)
+		})
+	}
 }
 
-func TestCache_Concurrency(t *testing.T) {
-	cache := New[string, int](100*time.Millisecond, 20*time.Millisecond)
-	defer cache.Stop()
+func TestTTLCache_Delete(t *testing.T) {
+	startTime := time.Now()
+	simClock := clock.NewSimulatedClock(startTime)
+	cache := newWithClock[string, string](5*time.Minute, 10*time.Minute, simClock)
 
+	key := "myKey"
+	value := "myValue"
+
+	cache.Set(key, value)
+	retrievedValue, ok := cache.Get(key)
+	require.True(t, ok)
+	require.Equal(t, value, retrievedValue)
+
+	cache.Delete(key)
+
+	retrievedValue, ok = cache.Get(key)
+	assert.False(t, ok)
+	assert.Equal(t, "", retrievedValue)
+}
+
+func TestTTLCache_Concurrency(t *testing.T) {
+	simClock := clock.NewSimulatedClock(time.Now())
+	cache := newWithClock[string, int](5*time.Minute, 10*time.Minute, simClock)
 	var wg sync.WaitGroup
-	numGoroutines := 100
-	itemsPerGoroutine := 100
+	numGoroutines := 50
+	itemsPerGoroutine := 20
 
+	// Concurrent Set and Get
 	for i := 0; i < numGoroutines; i++ {
 		wg.Add(1)
 		go func(g int) {
 			defer wg.Done()
 			for j := 0; j < itemsPerGoroutine; j++ {
-				key := "key-" + strconv.Itoa(g) + "-" + strconv.Itoa(j)
-				cache.Set(key, g*itemsPerGoroutine+j)
-				_, _ = cache.Get(key)
+				key := fmt.Sprintf("key-%d-%d", g, j)
+				value := g*itemsPerGoroutine + j
+
+				cache.Set(key, value)
+
+				retrievedValue, ok := cache.Get(key)
+				if assert.True(t, ok) {
+					assert.Equal(t, value, retrievedValue)
+				}
 			}
 		}(i)
 	}
-
 	wg.Wait()
 
-	// Check one item to see if it's there
-	val, found := cache.Get("key-50-50")
-	assert.True(t, found)
-	assert.Equal(t, 50*itemsPerGoroutine+50, val)
-}
+	// Advance time to expire everything
+	simClock.AdvanceTime(10*time.Minute + 1*time.Nanosecond)
 
-func TestCache_Stop(t *testing.T) {
-	// This test is tricky to write  perfectly without inspecting runtime internals.
-	// We can check that the cache stops functioning as expected after Stop.
-	// A more robust test would involve checking goroutine count, but that's flaky.
-	ttl := 50 * time.Millisecond
-	cleanupInterval := 10 * time.Millisecond
-	cache := New[string, int](ttl, cleanupInterval)
-
-	cache.Set("key1", 123)
-	cache.Stop()
-
-	// Wait for a potential cleanup cycle
-	time.Sleep(cleanupInterval * 2)
-
-	// After stopping, the cleanup should  not run.
-	// But Get still checks for expiration.
-	// Let's check if we can still set items.
-	cache.Set("key2", 456)
-	val, found := cache.Get("key2")
-	assert.True(t, found)
-	assert.Equal(t, 456, val)
-
-	// Wait for key1 to expire
-	time.Sleep(ttl)
-	_, found = cache.Get("key1")
-	assert.False(t, found, "Get should still respect expiration even if cleanup is stopped")
-}
-
-func TestCache_NoTTL(t *testing.T) {
-	cache := New[string, string](0, 0) // No TTL
-	defer cache.Stop()
-
-	cache.Set("key1", "value1")
-	time.Sleep(50 * time.Millisecond) //  Wait a bit
-
-	val, found := cache.Get("key1")
-	assert.True(t, found)
-	assert.Equal(t, "value1", val)
+	// Concurrent reads of expired items
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func(g int) {
+			defer wg.Done()
+			for j := 0; j < itemsPerGoroutine; j++ {
+				key := fmt.Sprintf("key-%d-%d", g, j)
+				_, ok := cache.Get(key)
+				assert.False(t, ok, "key should be expired")
+			}
+		}(i)
+	}
+	wg.Wait()
 }

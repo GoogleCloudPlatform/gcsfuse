@@ -18,6 +18,8 @@ import (
 	"math"
 	"sync"
 	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/v3/clock"
 )
 
 // item represents an item in the cache.
@@ -33,18 +35,24 @@ type Cache[K comparable, V any] struct {
 	mu       sync.RWMutex
 	ttl      time.Duration
 	stopChan chan struct{}
+	clock    clock.Clock
 }
 
 // New creates a new TTL cache.
 // ttl: The time-to-live for items in the cache. If zero or negative, the items never expire.
 // cleanupInterval: The interval at which expired items are cleaned up. If zero or negative, the cleanup won't happen.
 func New[K comparable, V any](ttl, cleanupInterval time.Duration) *Cache[K, V] {
+	return newWithClock[K, V](ttl, cleanupInterval, &clock.RealClock{})
+}
+
+func newWithClock[K comparable, V any](ttl, cleanupInterval time.Duration, clk clock.Clock) *Cache[K, V] {
 	if ttl <= 0 {
 		// No TTL means items never expire, which might not be what the user wants
 		// for a TTL cache, but we can support  it. The cleanup goroutine won't run.
 		return &Cache[K, V]{
 			items: make(map[K]item[V]),
 			ttl:   0, // No expiration
+			clock: clk,
 		}
 	}
 
@@ -52,6 +60,7 @@ func New[K comparable, V any](ttl, cleanupInterval time.Duration) *Cache[K, V] {
 		items:    make(map[K]item[V]),
 		ttl:      ttl,
 		stopChan: make(chan struct{}),
+		clock:    clk,
 	}
 
 	if cleanupInterval <= 0 {
@@ -71,7 +80,7 @@ func (c *Cache[K, V]) Set(key K, value V) {
 
 	expiration := int64(math.MaxInt64)
 	if c.ttl > 0 {
-		expiration = time.Now().Add(c.ttl).UnixNano()
+		expiration = c.clock.Now().Add(c.ttl).UnixNano()
 	}
 
 	c.items[key] = item[V]{
@@ -87,7 +96,7 @@ func (c *Cache[K, V]) Get(key K) (V, bool) {
 	defer c.mu.RUnlock()
 
 	it, found := c.items[key]
-	if !found || it.expiration < time.Now().UnixNano() {
+	if !found || it.expiration < c.clock.Now().UnixNano() {
 		var zero V
 		return zero, false
 	}
@@ -105,20 +114,23 @@ func (c *Cache[K, V]) Delete(key K) {
 // Stop terminates the background cleanup goroutine. It should be called when
 // the cache is no longer needed to prevent goroutine leaks.
 func (c *Cache[K, V]) Stop() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.stopChan != nil {
 		close(c.stopChan)
+		c.stopChan = nil
 	}
 }
 
 // runCleanup is  the background goroutine that periodically removes expired items.
 func (c *Cache[K, V]) runCleanup(interval time.Duration) {
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
+	timer := c.clock.After(interval)
 
 	for {
 		select {
-		case <-ticker.C:
+		case <-timer:
 			c.deleteExpired()
+			timer = c.clock.After(interval)
 		case <-c.stopChan:
 			return
 		}
@@ -131,7 +143,7 @@ func (c *Cache[K, V]) deleteExpired() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	now := time.Now().UnixNano()
+	now := c.clock.Now().UnixNano()
 	newItems := make(map[K]item[V], len(c.items))
 	for k, v := range c.items {
 		if v.expiration >= now {

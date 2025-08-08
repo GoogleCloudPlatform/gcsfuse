@@ -19,6 +19,11 @@ import "time"
 // Implements Clock interface.
 type RealClock struct{}
 
+// Now returns the current local time.
+func (RealClock) Now() time.Time {
+	return time.Now()
+}
+
 // Notifies on the return channel after the specified time has passed.
 func (RealClock) After(d time.Duration) <-chan time.Time {
 	return time.After(d)
