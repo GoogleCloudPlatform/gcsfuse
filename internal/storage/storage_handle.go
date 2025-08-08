@@ -253,7 +253,6 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 func (sh *storageClient) lookupBucketType(bucketName string) (*gcs.BucketType, error) {
 	if sh.storageControlClient == nil {
-		logger.Warnf("Skipping storage layout lookup for bucket %q because storage control client is not available", bucketName)
 		return &gcs.BucketType{}, nil // Assume defaults
 	}
 
