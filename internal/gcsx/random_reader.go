@@ -516,7 +516,7 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 	rr.limit = end
 
 	requestedDataSize := end - start
-	metrics.CaptureGCSReadMetrics(ctx, rr.metricHandle, metrics.ReadTypeNames[metrics.ReadTypeSequential], requestedDataSize)
+	metrics.CaptureGCSReadMetrics(rr.metricHandle, metrics.ReadTypeNames[metrics.ReadTypeSequential], requestedDataSize)
 
 	return
 }
@@ -735,7 +735,7 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 	}
 
 	requestedDataSize := end - offset
-	metrics.CaptureGCSReadMetrics(ctx, rr.metricHandle, metrics.ReadTypeNames[readType], requestedDataSize)
+	metrics.CaptureGCSReadMetrics(rr.metricHandle, metrics.ReadTypeNames[readType], requestedDataSize)
 	rr.updateExpectedOffset(offset + int64(n))
 
 	return
