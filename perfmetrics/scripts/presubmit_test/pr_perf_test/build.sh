@@ -111,15 +111,29 @@ fi
 # Install required bash version for e2e script as kokoro has outdated bash versions.
 ./perfmetrics/scripts/install_bash.sh "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT"
 
+
+# Build gcsfuse if either of the e2e test labels is applied.
+if test -n "${integrationTestsOnZBStr}" || test -n "${integrationTestsStr}" ;
+then
+  echo checkout PR branch
+  git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
+
+  # Get the commit-id of HEAD
+  commitId=$(git show -s --format="%H" HEAD)
+  echo "commitId: $commitId"
+  echo "Building and installing gcsfuse..."
+  ./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId
+fi
+
 # Execute integration tests on zonal bucket(s).
 if test -n "${integrationTestsOnZBStr}" ;
 then
   echo checkout PR branch
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
-  echo "Running e2e tests on zonal bucket(s) ..."
-  # $1 argument is refering to value of testInstalledPackage.
-  /usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --zonal --track-resource-usage
+  echo "Running e2e daily regression on zonal bucket(s) ..."
+
+  /usr/local/bin/bash ./tools/integration_tests/run_e2e_tests.sh true false ${BUCKET_LOCATION} false false true
 fi
 
 # Execute integration tests on non-zonal bucket(s).
@@ -128,9 +142,9 @@ then
   echo checkout PR branch
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
-  echo "Running e2e tests on non-zonal bucket(s) ..."
-  # $1 argument is refering to value of testInstalledPackage.
-  /usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --track-resource-usage
+  echo "Running e2e daily regression on non-zonal bucket(s) ..."
+
+  /usr/local/bin/bash ./tools/integration_tests/run_e2e_tests.sh true false ${BUCKET_LOCATION} false false false
 fi
 
 # Execute package build tests.
