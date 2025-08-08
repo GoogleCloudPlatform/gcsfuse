@@ -48,6 +48,12 @@ const (
 	dynamicReadReqInitialTimeoutEnv = "DYNAMIC_READ_REQ_INITIAL_TIMEOUT"
 
 	zonalLocationType = "zone"
+
+	// Default retry parameters for control client calls.
+	defaultControlClientMinRetryDeadline = 10 * time.Second
+	defaultControlClientMaxRetryDeadline = time.Minute
+	defaultControlClientRetryMultiplier  = 2.0
+	defaultControlClientTotalRetryBudget = 5 * time.Minute
 )
 
 type StorageHandle interface {
@@ -303,7 +309,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		if err != nil {
 			return nil, fmt.Errorf("could not create StorageControl Client: %w", err)
 		}
-		controlClient = withRetryOnStorageLayoutStall(controlClient, 10*time.Second, time.Minute, 2.0, 5*time.Minute)
+		controlClient = withRetryOnStorageLayoutStall(controlClient, defaultControlClientMinRetryDeadline, defaultControlClientMaxRetryDeadline, defaultControlClientRetryMultiplier, defaultControlClientTotalRetryBudget)
 		// special handling for requester-pays buckets and for mounts created with custom billing projects.
 		controlClient = withBillingProject(controlClient, billingProject)
 	} else {
@@ -372,10 +378,10 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 		storageBucketHandle = storageBucketHandle.UserProject(billingProject)
 	}
 
+	// For Zonal buckets, wrap the control client with a retry-on-stall mechanism for more resilient folder operations.
 	controlClient := sh.storageControlClient
 	if bucketType.Zonal && sh.storageControlClient != nil {
-		// For zonal buckets, we enable retries on all control client calls.
-		controlClient = withRetryOnStall(sh.storageControlClient, 10*time.Second, time.Minute, 2.0, 5*time.Minute)
+		controlClient = withRetryOnStall(sh.storageControlClient, defaultControlClientMinRetryDeadline, defaultControlClientMaxRetryDeadline, defaultControlClientRetryMultiplier, defaultControlClientTotalRetryBudget)
 	}
 
 	bh = &bucketHandle{
