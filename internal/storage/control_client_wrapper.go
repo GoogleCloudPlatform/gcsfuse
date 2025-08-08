@@ -105,198 +105,113 @@ type storageControlClientWithRetryOnStall struct {
 	enableStallRetriesOnAllCalls          bool
 }
 
+// executeWithStallRetry encapsulates the retry logic for control client operations.
+// It performs time-bound, exponential backoff retries for a given API call.
+func executeWithStallRetry[T any](
+	sccwros *storageControlClientWithRetryOnStall,
+	ctx context.Context,
+	operationName string,
+	reqDescription string,
+	apiCall func(attemptCtx context.Context) (T, error),
+) (T, error) {
+	var zero T
+
+	parentCtx, cancel := context.WithTimeout(ctx, sccwros.totalRetryBudget)
+	defer cancel()
+
+	delay := sccwros.minRetryDeadline
+	for {
+		attemptCtx, attemptCancel := context.WithTimeout(parentCtx, delay)
+
+		logger.Tracef("Calling %s for %q with deadline=%v ...", operationName, reqDescription, delay)
+		result, err := apiCall(attemptCtx)
+		attemptCancel()
+
+		if err == nil {
+			return result, nil
+		}
+
+		// If the parent context is cancelled, we should stop retrying.
+		if parentCtx.Err() != nil {
+			return zero, fmt.Errorf("%s for %q timed out after multiple retries over %v: %w", operationName, reqDescription, sccwros.totalRetryBudget, err)
+		}
+
+		if !storageutil.ShouldRetry(err) {
+			return zero, fmt.Errorf("%s for %q failed with a non-retryable error: %w", operationName, reqDescription, err)
+		}
+
+		// Increase delay for the next attempt.
+		delay = min(sccwros.maxRetryDeadline, time.Duration(float64(delay)*sccwros.retryMultiplier))
+		logger.Tracef("Retrying %s for %q with deadline=%v ...", operationName, reqDescription, delay)
+	}
+}
+
 func (sccwros *storageControlClientWithRetryOnStall) GetStorageLayout(ctx context.Context,
 	req *controlpb.GetStorageLayoutRequest,
-	opts ...gax.CallOption) (storageLayout *controlpb.StorageLayout, err error) {
+	opts ...gax.CallOption) (*controlpb.StorageLayout, error) {
 	if !sccwros.enableStallRetriesOnStorageLayoutCall {
 		return sccwros.raw.GetStorageLayout(ctx, req, opts...)
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, sccwros.totalRetryBudget)
-	defer cancel()
-
-	delay := sccwros.minRetryDeadline
-	for {
-		var subCtx context.Context
-		storageLayout, err = func() (*controlpb.StorageLayout, error) {
-			subCtx, cancel = context.WithTimeout(ctx, delay)
-			defer cancel()
-
-			logger.Tracef("Calling GetStorageLayout for %q with deadline=%v ...", req.Name, delay)
-			return sccwros.raw.GetStorageLayout(subCtx, req, opts...)
-		}()
-
-		if err == nil {
-			return storageLayout, nil
-		}
-
-		// If the parent context is cancelled, we should stop retrying.
-		if ctx.Err() != nil {
-			return nil, fmt.Errorf("GetStorageLayout for %q timed out after multiple retries over %v: %w", req.Name, sccwros.totalRetryBudget, err)
-		}
-
-		if !storageutil.ShouldRetry(err) {
-			return nil, fmt.Errorf("GetStorageLayout for %q failed with a non-retryable error: %w", req.Name, err)
-		}
-
-		// Increase delay for the next attempt.
-		delay = min(sccwros.maxRetryDeadline, time.Duration(float64(delay)*sccwros.retryMultiplier))
-		logger.Tracef("Retrying GetStorageLayout for %q with deadline=%v ...", req.Name, delay)
+	apiCall := func(attemptCtx context.Context) (*controlpb.StorageLayout, error) {
+		return sccwros.raw.GetStorageLayout(attemptCtx, req, opts...)
 	}
+
+	return executeWithStallRetry(sccwros, ctx, "GetStorageLayout", req.Name, apiCall)
 }
 
 func (sccwros *storageControlClientWithRetryOnStall) DeleteFolder(ctx context.Context,
 	req *controlpb.DeleteFolderRequest,
-	opts ...gax.CallOption) (err error) {
+	opts ...gax.CallOption) error {
 	if !sccwros.enableStallRetriesOnAllCalls {
 		return sccwros.raw.DeleteFolder(ctx, req, opts...)
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, sccwros.totalRetryBudget)
-	defer cancel()
-
-	delay := sccwros.minRetryDeadline
-	for {
-		var subCtx context.Context
-		err = func() error {
-			subCtx, cancel = context.WithTimeout(ctx, delay)
-			defer cancel()
-
-			logger.Tracef("Calling DeleteFolder for %q with deadline=%v ...", req.Name, delay)
-			return sccwros.raw.DeleteFolder(subCtx, req, opts...)
-		}()
-
-		if err == nil {
-			return nil
-		}
-
-		// If the parent context is cancelled, we should stop retrying.
-		if ctx.Err() != nil {
-			return fmt.Errorf("DeleteFolder for %q timed out after multiple retries over %v: %w", req.Name, sccwros.totalRetryBudget, err)
-		}
-
-		if !storageutil.ShouldRetry(err) {
-			return fmt.Errorf("DeleteFolder for %q failed with a non-retryable error: %w", req.Name, err)
-		}
-
-		// Increase delay for the next attempt.
-		delay = min(sccwros.maxRetryDeadline, time.Duration(float64(delay)*sccwros.retryMultiplier))
-		logger.Tracef("Retrying DeleteFolder for %q with deadline=%v ...", req.Name, delay)
+	apiCall := func(attemptCtx context.Context) (any, error) {
+		err := sccwros.raw.DeleteFolder(attemptCtx, req, opts...)
+		return nil, err
 	}
+
+	_, err := executeWithStallRetry(sccwros, ctx, "DeleteFolder", req.Name, apiCall)
+	return err
 }
 
-func (sccwros *storageControlClientWithRetryOnStall) GetFolder(ctx context.Context, req *controlpb.GetFolderRequest, opts ...gax.CallOption) (folder *controlpb.Folder, err error) {
+func (sccwros *storageControlClientWithRetryOnStall) GetFolder(ctx context.Context, req *controlpb.GetFolderRequest, opts ...gax.CallOption) (*controlpb.Folder, error) {
 	if !sccwros.enableStallRetriesOnAllCalls {
 		return sccwros.raw.GetFolder(ctx, req, opts...)
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, sccwros.totalRetryBudget)
-	defer cancel()
-
-	delay := sccwros.minRetryDeadline
-	for {
-		var subCtx context.Context
-		folder, err = func() (*controlpb.Folder, error) {
-			subCtx, cancel = context.WithTimeout(ctx, delay)
-			defer cancel()
-
-			logger.Tracef("Calling GetFolder for %q with deadline=%v ...", req.Name, delay)
-			return sccwros.raw.GetFolder(subCtx, req, opts...)
-		}()
-
-		if err == nil {
-			return folder, nil
-		}
-
-		// If the parent context is cancelled, we should stop retrying.
-		if ctx.Err() != nil {
-			return nil, fmt.Errorf("GetFolder for %q timed out after multiple retries over %v: %w", req.Name, sccwros.totalRetryBudget, err)
-		}
-
-		if !storageutil.ShouldRetry(err) {
-			return nil, fmt.Errorf("GetFolder for %q failed with a non-retryable error: %w", req.Name, err)
-		}
-
-		// Increase delay for the next attempt.
-		delay = min(sccwros.maxRetryDeadline, time.Duration(float64(delay)*sccwros.retryMultiplier))
-		logger.Tracef("Retrying GetFolder for %q with deadline=%v ...", req.Name, delay)
+	apiCall := func(attemptCtx context.Context) (*controlpb.Folder, error) {
+		return sccwros.raw.GetFolder(attemptCtx, req, opts...)
 	}
+
+	return executeWithStallRetry(sccwros, ctx, "GetFolder", req.Name, apiCall)
 }
 
-func (sccwros *storageControlClientWithRetryOnStall) RenameFolder(ctx context.Context, req *controlpb.RenameFolderRequest, opts ...gax.CallOption) (op *control.RenameFolderOperation, err error) {
+func (sccwros *storageControlClientWithRetryOnStall) RenameFolder(ctx context.Context, req *controlpb.RenameFolderRequest, opts ...gax.CallOption) (*control.RenameFolderOperation, error) {
 	if !sccwros.enableStallRetriesOnAllCalls {
 		return sccwros.raw.RenameFolder(ctx, req, opts...)
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, sccwros.totalRetryBudget)
-	defer cancel()
-
-	delay := sccwros.minRetryDeadline
-	for {
-		var subCtx context.Context
-		op, err = func() (*control.RenameFolderOperation, error) {
-			subCtx, cancel = context.WithTimeout(ctx, delay)
-			defer cancel()
-
-			logger.Tracef("Calling RenameFolder for %q -> %q with deadline=%v ...", req.Name, req.DestinationFolderId, delay)
-			return sccwros.raw.RenameFolder(subCtx, req, opts...)
-		}()
-
-		if err == nil {
-			return op, nil
-		}
-
-		// If the parent context is cancelled, we should stop retrying.
-		if ctx.Err() != nil {
-			return nil, fmt.Errorf("RenameFolder from %q to %q timed out after multiple retries over %v: %w", req.Name, req.DestinationFolderId, sccwros.totalRetryBudget, err)
-		}
-
-		if !storageutil.ShouldRetry(err) {
-			return nil, fmt.Errorf("RenameFolder from %q to %q failed with a non-retryable error: %w", req.Name, req.DestinationFolderId, err)
-		}
-
-		// Increase delay for the next attempt.
-		delay = min(sccwros.maxRetryDeadline, time.Duration(float64(delay)*sccwros.retryMultiplier))
-		logger.Tracef("Retrying RenameFolder from %q to %q with deadline=%v ...", req.Name, req.DestinationFolderId, delay)
+	apiCall := func(attemptCtx context.Context) (*control.RenameFolderOperation, error) {
+		return sccwros.raw.RenameFolder(attemptCtx, req, opts...)
 	}
+
+	reqDescription := fmt.Sprintf("%q to %q", req.Name, req.DestinationFolderId)
+	return executeWithStallRetry(sccwros, ctx, "RenameFolder", reqDescription, apiCall)
 }
 
-func (sccwros *storageControlClientWithRetryOnStall) CreateFolder(ctx context.Context, req *controlpb.CreateFolderRequest, opts ...gax.CallOption) (folder *controlpb.Folder, err error) {
+func (sccwros *storageControlClientWithRetryOnStall) CreateFolder(ctx context.Context, req *controlpb.CreateFolderRequest, opts ...gax.CallOption) (*controlpb.Folder, error) {
 	if !sccwros.enableStallRetriesOnAllCalls {
 		return sccwros.raw.CreateFolder(ctx, req, opts...)
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, sccwros.totalRetryBudget)
-	defer cancel()
-
-	delay := sccwros.minRetryDeadline
-	for {
-		var subCtx context.Context
-		folder, err = func() (*controlpb.Folder, error) {
-			subCtx, cancel = context.WithTimeout(ctx, delay)
-			defer cancel()
-
-			logger.Tracef("Calling CreateFolder for %q in %q with deadline=%v ...", req.FolderId, req.Parent, delay)
-			return sccwros.raw.CreateFolder(subCtx, req, opts...)
-		}()
-
-		if err == nil {
-			return folder, nil
-		}
-
-		// If the parent context is cancelled, we should stop retrying.
-		if ctx.Err() != nil {
-			return nil, fmt.Errorf("CreateFolder for %q in %q timed out after multiple retries over %v: %w", req.FolderId, req.Parent, sccwros.totalRetryBudget, err)
-		}
-
-		if !storageutil.ShouldRetry(err) {
-			return nil, fmt.Errorf("CreateFolder for %q in %q failed with a non-retryable error: %w", req.FolderId, req.Parent, err)
-		}
-
-		// Increase delay for the next attempt.
-		delay = min(sccwros.maxRetryDeadline, time.Duration(float64(delay)*sccwros.retryMultiplier))
-		logger.Tracef("Retrying CreateFolder for %q in %q with deadline=%v ...", req.FolderId, req.Parent, delay)
+	apiCall := func(attemptCtx context.Context) (*controlpb.Folder, error) {
+		return sccwros.raw.CreateFolder(attemptCtx, req, opts...)
 	}
+
+	reqDescription := fmt.Sprintf("%q in %q", req.FolderId, req.Parent)
+	return executeWithStallRetry(sccwros, ctx, "CreateFolder", reqDescription, apiCall)
 }
 
 // withRetryOnStall wraps a StorageControlClient to implement gcsfuse-level retry logic.
