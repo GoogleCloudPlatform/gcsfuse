@@ -105,7 +105,7 @@ func (t *multiRangeReaderTest) Test_ReadFromMultiRangeReader_ReadFull() {
 			t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true}).Times(1)
 			buf := make([]byte, tc.dataSize+tc.extraSize)
 
-			bytesRead, err := t.multiRangeReader.readFromMultiRangeReader(t.ctx, buf, 0, int64(t.object.Size), TestTimeoutForMultiRangeRead)
+			bytesRead, err := t.multiRangeReader.readFromMultiRangeReader(t.ctx, buf, 0, int64(t.object.Size))
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), tc.dataSize, bytesRead)
@@ -114,29 +114,10 @@ func (t *multiRangeReaderTest) Test_ReadFromMultiRangeReader_ReadFull() {
 	}
 }
 
-func (t *multiRangeReaderTest) TestReadFromMultiRangeReaderTimeoutUnimplemented() {
-	t.multiRangeReader.isMRDInUse.Store(false)
-	dataSize := 100
-	t.object.Size = uint64(dataSize)
-	testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
-	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{}, &cfg.Config{})
-	require.NoError(t.T(), err, "Error in creating MRDWrapper")
-	t.multiRangeReader.mrdWrapper = &fakeMRDWrapper
-	sleepTime := 10 * time.Millisecond
-	timeout := 5 * time.Millisecond
-	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, testContent, sleepTime)).Once()
-	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true}).Once()
-	buf := make([]byte, dataSize)
-
-	_, err = t.multiRangeReader.readFromMultiRangeReader(t.ctx, buf, 0, int64(t.object.Size), timeout)
-
-	assert.NoError(t.T(), err)
-}
-
 func (t *multiRangeReaderTest) Test_ReadFromMultiRangeReader_NilMRDWrapper() {
 	t.multiRangeReader.mrdWrapper = nil
 
-	bytesRead, err := t.multiRangeReader.readFromMultiRangeReader(t.ctx, make([]byte, t.object.Size), 0, int64(t.object.Size), TestTimeoutForMultiRangeRead)
+	bytesRead, err := t.multiRangeReader.readFromMultiRangeReader(t.ctx, make([]byte, t.object.Size), 0, int64(t.object.Size))
 
 	assert.Error(t.T(), err)
 	assert.ErrorContains(t.T(), err, "readFromMultiRangeReader: Invalid MultiRangeDownloaderWrapper")
@@ -168,7 +149,7 @@ func (t *multiRangeReaderTest) Test_ReadFromMultiRangeReader_ReadChunk() {
 		t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true}).Times(1)
 		buf := make([]byte, tc.end-tc.start)
 
-		bytesRead, err := t.multiRangeReader.readFromMultiRangeReader(t.ctx, buf, int64(tc.start), int64(tc.end), TestTimeoutForMultiRangeRead)
+		bytesRead, err := t.multiRangeReader.readFromMultiRangeReader(t.ctx, buf, int64(tc.start), int64(tc.end))
 
 		assert.NoError(t.T(), err)
 		assert.Equal(t.T(), tc.end-tc.start, bytesRead)

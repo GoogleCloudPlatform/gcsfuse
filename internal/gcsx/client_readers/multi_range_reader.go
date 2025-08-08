@@ -19,18 +19,12 @@ import (
 	"fmt"
 	"io"
 	"sync/atomic"
-	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
-
-// TimeoutForMultiRangeRead is the timeout value for multi-range read operations.
-//
-// TODO(b/385826024): Revert timeout to an appropriate value. This value is currently a placeholder and needs to be adjusted.
-const TimeoutForMultiRangeRead = time.Hour
 
 type MultiRangeReader struct {
 	gcsx.GCSReader
@@ -69,7 +63,7 @@ func NewMultiRangeReader(object *gcs.MinObject, metricHandle metrics.MetricHandl
 // Returns:
 //   - int: The number of bytes read.
 //   - error: An error if the read operation fails.
-func (mrd *MultiRangeReader) readFromMultiRangeReader(ctx context.Context, p []byte, offset, end int64, timeout time.Duration) (int, error) {
+func (mrd *MultiRangeReader) readFromMultiRangeReader(ctx context.Context, p []byte, offset, end int64) (int, error) {
 	if mrd.mrdWrapper == nil {
 		return 0, fmt.Errorf("readFromMultiRangeReader: Invalid MultiRangeDownloaderWrapper")
 	}
@@ -93,7 +87,7 @@ func (mrd *MultiRangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequ
 		return readerResponse, err
 	}
 
-	readerResponse.Size, err = mrd.readFromMultiRangeReader(ctx, req.Buffer, req.Offset, req.EndOffset, TimeoutForMultiRangeRead)
+	readerResponse.Size, err = mrd.readFromMultiRangeReader(ctx, req.Buffer, req.Offset, req.EndOffset)
 
 	return readerResponse, err
 }
