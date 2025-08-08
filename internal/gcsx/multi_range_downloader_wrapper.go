@@ -194,8 +194,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader() (err
 }
 
 // Reads the data using MultiRangeDownloader.
-func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []byte,
-	startOffset int64, endOffset int64, timeout time.Duration, metricHandle metrics.MetricHandle) (bytesRead int, err error) {
+func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []byte, startOffset int64, endOffset int64, metricHandle metrics.MetricHandle) (bytesRead int, err error) {
 	// Bidi Api with 0 as read_limit means no limit whereas we do not want to read anything with empty buffer.
 	// Hence, handling it separately.
 	if len(buf) == 0 {
@@ -242,8 +241,6 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 
 	if !mrdWrapper.config.FileSystem.IgnoreInterrupts {
 		select {
-		case <-time.After(timeout):
-			err = fmt.Errorf("timeout")
 		case <-ctx.Done():
 			err = ctx.Err()
 		case res := <-done:
