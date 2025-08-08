@@ -68,7 +68,7 @@ type StorageClientConfig struct {
 
 func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.TokenSource) (httpClient *http.Client, err error) {
 	// 1. Create a new DNS resolver with a 5-minute cache.
-	resolver := dnscache.New(5 * time.Second)
+	resolver := dnscache.New(15 * time.Second)
 	var transport *http.Transport
 	// Using http1 makes the client more performant.
 	if storageClientConfig.ClientProtocol == cfg.HTTP1 {
