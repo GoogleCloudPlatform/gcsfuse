@@ -128,6 +128,9 @@ then
     gcloud storage cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb .
     sudo dpkg -i gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb |& tee -a ${LOG_FILE}
 
+    # install wget
+    sudo apt install -y wget
+
     #install git
     sudo apt install -y git
 
@@ -159,6 +162,9 @@ else
     #download and install gcsfuse rpm package
     gcloud storage cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm .
     sudo yum -y localinstall gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm
+
+    #install wget
+    sudo yum -y install wget
 
     #install git
     sudo yum -y install git
