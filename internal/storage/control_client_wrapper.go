@@ -133,7 +133,7 @@ func executeWithStallRetry[T any](
 
 		// If the parent context is cancelled, we should stop retrying.
 		if parentCtx.Err() != nil {
-			return zero, fmt.Errorf("%s for %q timed out after multiple retries over %v: %w", operationName, reqDescription, sccwros.totalRetryBudget, err)
+			return zero, fmt.Errorf("%s for %q failed after multiple retries: %w", operationName, reqDescription, parentCtx.Err())
 		}
 
 		if !storageutil.ShouldRetry(err) {
@@ -215,6 +215,24 @@ func (sccwros *storageControlClientWithRetryOnStall) CreateFolder(ctx context.Co
 }
 
 func newRetryWrapper(controlClient StorageControlClient, minRetryDeadline time.Duration, maxRetryDeadline time.Duration, retryMultiplier float64, totalRetryBudget time.Duration, retryAllCalls bool) StorageControlClient {
+	// reasonable defaults for retry parameters
+	if minRetryDeadline <= 0 {
+		minRetryDeadline = defaultControlClientMinRetryDeadline
+		logger.Warnf("minRetryDeadline was <= 0, defaulting to %v", defaultControlClientMinRetryDeadline)
+	}
+	if maxRetryDeadline < minRetryDeadline {
+		maxRetryDeadline = max(defaultControlClientMaxRetryDeadline, minRetryDeadline)
+		logger.Warnf("maxRetryDeadline was < minRetryDeadline, defaulting to %v", maxRetryDeadline)
+	}
+	if totalRetryBudget < maxRetryDeadline {
+		totalRetryBudget = max(maxRetryDeadline, defaultControlClientTotalRetryBudget)
+		logger.Warnf("totalRetryBudget was < maxRetryDeadline, defaulting to %v", totalRetryBudget)
+	}
+	if retryMultiplier <= 1.0 {
+		retryMultiplier = defaultControlClientRetryMultiplier
+		logger.Warnf("retryMultiplier was <= 1.0, defaulting to %v", retryMultiplier)
+	}
+
 	raw := controlClient
 	if sccwros, ok := controlClient.(*storageControlClientWithRetryOnStall); ok {
 		raw = sccwros.raw
