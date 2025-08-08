@@ -299,8 +299,13 @@ func (sccwros *storageControlClientWithRetryOnStall) CreateFolder(ctx context.Co
 // according to gcsfuse's retry logic.
 // The retry logic is based on a minimum and maximum delay, a retry multiplier, and a total attempts deadline.
 func withRetryOnStall(controlClient StorageControlClient, minRetryDeadline time.Duration, maxRetryDeadline time.Duration, retryMultiplier float64, totalRetryBudget time.Duration) StorageControlClient {
+	raw := controlClient
+	if sccwros, ok := controlClient.(*storageControlClientWithRetryOnStall); ok {
+		raw = sccwros.raw
+	}
+
 	return &storageControlClientWithRetryOnStall{
-		raw:                                   controlClient,
+		raw:                                   raw,
 		minRetryDeadline:                      minRetryDeadline,
 		maxRetryDeadline:                      maxRetryDeadline,
 		retryMultiplier:                       retryMultiplier,
@@ -312,9 +317,13 @@ func withRetryOnStall(controlClient StorageControlClient, minRetryDeadline time.
 
 // withRetryOnStorageLayoutStall wraps a StorageControlClient which retries GetStorageLayout call with a time-bound approach, but the rest of the control-client calls pass through it as it is.
 func withRetryOnStorageLayoutStall(controlClient StorageControlClient, minRetryDeadline time.Duration, maxRetryDeadline time.Duration, retryMultiplier float64, totalRetryBudget time.Duration) StorageControlClient {
+	raw := controlClient
+	if sccwros, ok := controlClient.(*storageControlClientWithRetryOnStall); ok {
+		raw = sccwros.raw
+	}
+
 	return &storageControlClientWithRetryOnStall{
-		raw: controlClient,
-		// TODO: declare constants for these default values.
+		raw:                                   raw,
 		minRetryDeadline:                      minRetryDeadline,
 		maxRetryDeadline:                      maxRetryDeadline,
 		retryMultiplier:                       retryMultiplier,
