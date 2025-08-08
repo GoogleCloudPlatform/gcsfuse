@@ -253,6 +253,7 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 func (sh *storageClient) lookupBucketType(bucketName string) (*gcs.BucketType, error) {
 	if sh.storageControlClient == nil {
+		logger.Warnf("Skipping storage layout lookup for bucket %q because storage control client is not available", bucketName)
 		return &gcs.BucketType{}, nil // Assume defaults
 	}
 
@@ -372,10 +373,16 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 		storageBucketHandle = storageBucketHandle.UserProject(billingProject)
 	}
 
+	controlClient := sh.storageControlClient
+	if bucketType.Zonal && sh.storageControlClient != nil {
+		// For zonal buckets, we enable retries on all control client calls.
+		controlClient = withRetryOnStall(sh.storageControlClient, 10*time.Second, time.Minute, 2.0, 5*time.Minute)
+	}
+
 	bh = &bucketHandle{
 		bucket:             storageBucketHandle,
 		bucketName:         bucketName,
-		controlClient:      sh.storageControlClient,
+		controlClient:      controlClient,
 		bucketType:         bucketType,
 		enableRapidAppends: enableRapidAppends,
 	}
