@@ -49,7 +49,7 @@ const PortAndProxyProcessIdInfoRegex = `Listening Proxy Server On Port \[(\d+)\]
 //   - int: Proxy Server Process ID.
 //   - error: An error if any error occurs in setting up Proxy Server.
 func StartProxyServer(configPath, logFilePath string) (int, int, error) {
-	cmd := exec.Command("go", "run", "../proxy_server/.", "--config-path="+configPath, "--log-file="+logFilePath)
+	cmd := exec.Command("go", "run", "../../../proxy_server/.", "--config-path="+configPath, "--log-file="+logFilePath)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	err := cmd.Start()
 	if err != nil {
