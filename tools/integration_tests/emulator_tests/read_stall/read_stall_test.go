@@ -50,7 +50,7 @@ type readStall struct {
 }
 
 func (r *readStall) SetupTest() {
-	r.configPath = "../proxy_server/configs/read_stall_5s.yaml"
+	r.configPath = "../configs/read_stall_5s.yaml"
 	r.proxyServerLogFile = setup.CreateProxyServerLogFile(r.T())
 	var err error
 	r.port, r.proxyProcessId, err = emulator_tests.StartProxyServer(r.configPath, r.proxyServerLogFile)
