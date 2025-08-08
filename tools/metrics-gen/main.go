@@ -250,6 +250,11 @@ func generateCombinations(attributes []Attribute) []AttrCombination {
 	return result
 }
 
+func handleDefaultInSwitchCase(level int, attrName string, builder *strings.Builder) {
+	builder.WriteString(fmt.Sprintf("%sdefault:\n", strings.Repeat("\t", level+2)))
+	builder.WriteString(fmt.Sprintf("%supdateUnrecognizedAttribute(%s)\n", strings.Repeat("\t", level+3), toCamel(attrName)))
+}
+
 func validateMetric(m Metric) error {
 	if m.Name == "" {
 		return fmt.Errorf("metric-name is required")
@@ -380,6 +385,9 @@ func buildSwitches(metric Metric) string {
 			builder.WriteString(fmt.Sprintf("%scase %s:\n", strings.Repeat("\t", level+2), caseVal))
 			currentCombo := append(combo, AttrValuePair{Name: attr.Name, Type: attr.Type, Value: val})
 			recorder(level+1, currentCombo)
+		}
+		if attr.Type == "string" {
+			handleDefaultInSwitchCase(level, attr.Name, &builder)
 		}
 		builder.WriteString(fmt.Sprintf("%s}\n", indent))
 	}
