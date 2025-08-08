@@ -18,6 +18,17 @@ set -x
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
+# Install wget
+if command -v apt-get &> /dev/null; then
+    # For Debian/Ubuntu-based systems
+    sudo apt-get update && sudo apt-get install -y wget
+elif command -v yum &> /dev/null; then
+    # For RHEL/CentOS-based systems
+    sudo yum install -y wget
+else
+    exit 1
+fi
+
 # Upgrade gcloud
 echo "Upgrade gcloud version"
 gcloud version
