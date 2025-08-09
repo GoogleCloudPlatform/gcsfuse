@@ -305,6 +305,9 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		}
 		// special handling for requester-pays buckets and for mounts created with custom billing projects.
 		controlClient = withBillingProject(controlClient, billingProject)
+		// Wrap the control client with retry-on-stall logic.
+		// This will retry on only on GetStorageLayout call for all buckets.
+		controlClient = withRetryOnStorageLayoutStall(controlClient, defaultControlClientMinRetryDeadline, defaultControlClientMaxRetryDeadline, defaultControlClientRetryMultiplier, defaultControlClientTotalRetryBudget)
 	} else {
 		logger.Infof("Skipping storage control client creation because custom-endpoint %q was passed, which is assumed to be a storage testbench server because of 'localhost' in it.", clientConfig.CustomEndpoint)
 	}
@@ -371,10 +374,16 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 		storageBucketHandle = storageBucketHandle.UserProject(billingProject)
 	}
 
+	// For Zonal buckets, wrap the control client with a retry-on-stall mechanism for more resilient folder operations.
+	controlClient := sh.storageControlClient
+	if bucketType.Zonal && sh.storageControlClient != nil {
+		controlClient = withRetryOnStall(sh.storageControlClient, defaultControlClientMinRetryDeadline, defaultControlClientMaxRetryDeadline, defaultControlClientRetryMultiplier, defaultControlClientTotalRetryBudget)
+	}
+
 	bh = &bucketHandle{
 		bucket:             storageBucketHandle,
 		bucketName:         bucketName,
-		controlClient:      sh.storageControlClient,
+		controlClient:      controlClient,
 		bucketType:         bucketType,
 		enableRapidAppends: enableRapidAppends,
 	}
