@@ -139,13 +139,14 @@ func executeWithStallRetry[T any](
 			return result, nil
 		}
 
+		// If the error is not retryable, return it immediately.
+		if !storageutil.ShouldRetry(err) {
+			return zero, fmt.Errorf("%s for %q failed with a non-retryable error: %w", operationName, reqDescription, err)
+		}
+
 		// If the parent context is cancelled, we should stop retrying.
 		if parentCtx.Err() != nil {
 			return zero, fmt.Errorf("%s for %q failed after multiple retries: %w", operationName, reqDescription, parentCtx.Err())
-		}
-
-		if !storageutil.ShouldRetry(err) {
-			return zero, fmt.Errorf("%s for %q failed with a non-retryable error: %w", operationName, reqDescription, err)
 		}
 
 		// Increase delay for the next attempt.
