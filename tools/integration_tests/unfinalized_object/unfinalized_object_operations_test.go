@@ -18,7 +18,6 @@ import (
 	"context"
 	"log"
 	"path"
-	"syscall"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -121,15 +120,14 @@ func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCanBeRenamedIfCreated
 	operations.ValidateESTALEError(t.T(), err)
 }
 
-func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCantBeRenamedIfCreatedFromDifferentMount() {
+func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCanBeRenamedIfCreatedFromDifferentMount() {
 	size := operations.MiB
 	_ = client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, t.fileName), setup.GenerateRandomString(size))
 
 	// Overwrite unfinalized object.
 	err := operations.RenameFile(path.Join(t.testDirPath, t.fileName), path.Join(t.testDirPath, "New"+t.fileName))
 
-	require.Error(t.T(), err)
-	assert.ErrorContains(t.T(), err, syscall.EIO.Error())
+	require.NoError(t.T(), err)
 }
 
 ////////////////////////////////////////////////////////////////////////
