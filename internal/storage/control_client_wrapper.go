@@ -269,15 +269,12 @@ func newRetryWrapper(controlClient StorageControlClient, minRetryDeadline time.D
 	}
 }
 
-// withRetryOnStall wraps a StorageControlClient to implement gcsfuse-level retry logic.
-// It retries operations with a time-bound approach, retrying on errors that should be retried
-// according to gcsfuse's retry logic.
-// The retry logic is based on a minimum and maximum delay, a retry multiplier, and a total attempts deadline.
+// withRetryOnStall wraps a StorageControlClient to do a time-bound retry approach for retryable errors for all API calls through it.
 func withRetryOnStall(controlClient StorageControlClient, minRetryDeadline time.Duration, maxRetryDeadline time.Duration, retryMultiplier float64, totalRetryBudget time.Duration) StorageControlClient {
 	return newRetryWrapper(controlClient, minRetryDeadline, maxRetryDeadline, retryMultiplier, totalRetryBudget, true)
 }
 
-// withRetryOnStorageLayoutStall wraps a StorageControlClient which retries GetStorageLayout call with a time-bound approach, but the rest of the control-client calls pass through it as it is.
+// withRetryOnStorageLayoutStall wraps a StorageControlClient to do a time-bound retry approach for retryable errors for the GetStorageLayout call through it.
 func withRetryOnStorageLayoutStall(controlClient StorageControlClient, minRetryDeadline time.Duration, maxRetryDeadline time.Duration, retryMultiplier float64, totalRetryBudget time.Duration) StorageControlClient {
 	return newRetryWrapper(controlClient, minRetryDeadline, maxRetryDeadline, retryMultiplier, totalRetryBudget, false)
 }
