@@ -244,11 +244,11 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithBillingProject() {
 	// Confirm that the returned storage-handle's control-client is of type storageControlClientWithBillingProject
 	// and its billing-project is same as the one passed while
 	// creating the storage-handle.
-	storageControlClient, ok := storageClient.storageControlClient.(*storageControlClientWithBillingProject)
-	assert.NotNil(testSuite.T(), storageControlClient)
+	storageControlClientWithBillingProject, ok := storageClient.storageControlClient.(*storageControlClientWithRetryOnStall).raw.(*storageControlClientWithBillingProject)
+	assert.NotNil(testSuite.T(), storageControlClientWithBillingProject)
 	assert.True(testSuite.T(), ok)
-	assert.Equal(testSuite.T(), storageControlClient.billingProject, projectID)
-	assert.NotNil(testSuite.T(), storageControlClient.raw)
+	assert.Equal(testSuite.T(), storageControlClientWithBillingProject.billingProject, projectID)
+	assert.NotNil(testSuite.T(), storageControlClientWithBillingProject.raw)
 }
 
 func (testSuite *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtocol() {
