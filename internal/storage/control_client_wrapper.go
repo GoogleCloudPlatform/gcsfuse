@@ -189,7 +189,7 @@ func (sccwros *storageControlClientWithRetryOnStall) DeleteFolder(ctx context.Co
 
 	apiCall := func(attemptCtx context.Context) (any, error) {
 		err := sccwros.raw.DeleteFolder(attemptCtx, req, opts...)
-		return nil, err
+		return struct{}{}, err
 	}
 
 	_, err := executeWithStallRetry(sccwros, ctx, "DeleteFolder", req.Name, apiCall)
