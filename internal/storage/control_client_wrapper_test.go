@@ -202,7 +202,7 @@ func (t *StorageLayoutStallRetryWrapperTest) TestGetStorageLayout_AttemptTimesOu
 
 	// Set stall time to be longer than the first attempt's timeout (100us)
 	// but shorter than the second attempt's timeout (200us).
-	t.stallTimeForGetStorageLayout = 300 * time.Microsecond
+	t.stallTimeForGetStorageLayout = 150 * time.Microsecond
 
 	// The mock should only be called on the second attempt, which succeeds.
 	t.mockRawClient.On("GetStorageLayout", mock.Anything, req, mock.Anything).Return(expectedLayout, nil).Once()
@@ -225,13 +225,10 @@ func (t *StorageLayoutStallRetryWrapperTest) TestGetStorageLayout_AllAttemptsTim
 	// Set stall time to be longer than the max attempt timeout.
 	t.stallTimeForGetStorageLayout = 6000 * time.Microsecond
 
-	// The mock should never be called because every attempt will time out.
-
 	// Act
 	_, err := client.GetStorageLayout(t.ctx, req)
 
-	// Assert: The mock should be called multiple times until the total retry budget is exhausted.
-	assert.Error(t.T(), err)
+	// The mock should never be called because every attempt will time out.
 	assert.ErrorIs(t.T(), err, context.DeadlineExceeded)
 	t.mockRawClient.AssertExpectations(t.T())
 }
@@ -294,9 +291,9 @@ func (t *AllApiStallRetryWrapperTest) TestDeleteFolder_AttemptTimesOutAndThenSuc
 	client := withRetryOnStall(t.stallingClient, 100*time.Microsecond, 500*time.Microsecond, 2, 1000*time.Microsecond)
 	req := &controlpb.DeleteFolderRequest{Name: "some/folder"}
 
-	// Set execution time to be longer than the first attempt's timeout (100us)
+	// Set stall time to be longer than the first attempt's timeout (100us)
 	// but shorter than the second attempt's timeout (200us).
-	t.stallTimeForAllAPIs = 300 * time.Microsecond
+	t.stallTimeForAllAPIs = 150 * time.Microsecond
 
 	// The mock should only be called on the second attempt, which succeeds.
 	t.mockRawClient.On("DeleteFolder", mock.Anything, req, mock.Anything).Return(nil).Once()
@@ -407,9 +404,9 @@ func (t *AllApiStallRetryWrapperTest) TestGetFolder_AttemptTimesOutAndThenSuccee
 	req := &controlpb.GetFolderRequest{Name: "some/folder"}
 	expectedFolder := &controlpb.Folder{Name: "some/folder"}
 
-	// Set execution time to be longer than the first attempt's timeout (100us)
+	// Set stall time to be longer than the first attempt's timeout (100us)
 	// but shorter than the second attempt's timeout (200us).
-	t.stallTimeForAllAPIs = 300 * time.Microsecond
+	t.stallTimeForAllAPIs = 150 * time.Microsecond
 
 	// The mock should only be called on the second attempt, which succeeds.
 	t.mockRawClient.On("GetFolder", mock.Anything, req, mock.Anything).Return(expectedFolder, nil).Once()
