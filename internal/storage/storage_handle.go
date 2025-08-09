@@ -48,12 +48,6 @@ const (
 	dynamicReadReqInitialTimeoutEnv = "DYNAMIC_READ_REQ_INITIAL_TIMEOUT"
 
 	zonalLocationType = "zone"
-
-	// Default retry parameters for control client calls.
-	defaultControlClientMinRetryDeadline = 10 * time.Second
-	defaultControlClientMaxRetryDeadline = time.Minute
-	defaultControlClientRetryMultiplier  = 2.0
-	defaultControlClientTotalRetryBudget = 5 * time.Minute
 )
 
 type StorageHandle interface {

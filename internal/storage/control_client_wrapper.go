@@ -27,6 +27,14 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+const (
+	// Default retry parameters for control client calls.
+	defaultControlClientMinRetryDeadline = 10 * time.Second
+	defaultControlClientMaxRetryDeadline = time.Minute
+	defaultControlClientRetryMultiplier  = 2.0
+	defaultControlClientTotalRetryBudget = 5 * time.Minute
+)
+
 type StorageControlClient interface {
 	GetStorageLayout(ctx context.Context,
 		req *controlpb.GetStorageLayoutRequest,
@@ -99,9 +107,9 @@ type storageControlClientWithRetryOnStall struct {
 	retryMultiplier  float64
 	totalRetryBudget time.Duration
 
-	// Whether or not to enable retries for folder APIs.
-	enableStallRetriesOnStorageLayoutCall bool
 	// Whether or not to enable retries for GetStorageLayout call.
+	enableStallRetriesOnStorageLayoutCall bool
+	// Whether or not to enable retries for folder APIs.
 	enableStallRetriesOnAllCalls bool
 }
 
