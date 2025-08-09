@@ -139,6 +139,17 @@ func executeWithStallRetry[T any](
 			return result, nil
 		}
 
+		// If the attempt didn't time out but failed with another retryable error,
+		// we must explicitly wait some time before the next attempt.
+		// This is to avoid hammering the server with retries in a tight loop, and to let it recover.
+		if attemptCtx.Err() == nil {
+			select {
+			case <-time.After(delay):
+			case <-parentCtx.Done():
+				return zero, fmt.Errorf("%s for %q failed after multiple retries: %w", operationName, reqDescription, parentCtx.Err())
+			}
+		}
+
 		// If the error is not retryable, return it immediately.
 		if !storageutil.ShouldRetry(err) {
 			return zero, fmt.Errorf("%s for %q failed with a non-retryable error: %w", operationName, reqDescription, err)
