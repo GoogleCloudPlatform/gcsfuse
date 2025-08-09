@@ -123,9 +123,9 @@ func TestControlClientWrapperTestSuite(t *testing.T) {
 	})
 }
 
-func (testSuite *ControlClientStallRetryWrapperTest) SetupSuite() {
-	testSuite.mockRawClient = new(MockStorageControlClient)
-	testSuite.ctx = context.Background()
+func (t *ControlClientStallRetryWrapperTest) SetupSuite() {
+	t.mockRawClient = new(MockStorageControlClient)
+	t.ctx = context.Background()
 }
 
 func (t *StorageLayoutStallRetryWrapperTest) SetupSuite() {
@@ -136,12 +136,12 @@ func (t *StorageLayoutStallRetryWrapperTest) SetupSuite() {
 	}
 }
 
-func (testSuite *AllApiStallRetryWrapperTest) SetupSuite() {
-	testSuite.ControlClientStallRetryWrapperTest.SetupSuite()
-	testSuite.stallingClient = &stallingStorageControlClient{
-		wrapped:                      testSuite.mockRawClient,
-		stallTimeForGetStorageLayout: &testSuite.stallTimeForGetStorageLayout,
-		stallTimeForFolderAPIs:       &testSuite.stallTimeForFolderAPIs,
+func (t *AllApiStallRetryWrapperTest) SetupSuite() {
+	t.ControlClientStallRetryWrapperTest.SetupSuite()
+	t.stallingClient = &stallingStorageControlClient{
+		wrapped:                      t.mockRawClient,
+		stallTimeForGetStorageLayout: &t.stallTimeForGetStorageLayout,
+		stallTimeForFolderAPIs:       &t.stallTimeForFolderAPIs,
 	}
 }
 
