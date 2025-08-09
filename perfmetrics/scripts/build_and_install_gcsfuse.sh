@@ -20,18 +20,18 @@ set -e
 # --- Determine architecture (e.g., amd64, arm64) ---
 architecture=$(dpkg --print-architecture)
 
-# --- Install Docker only if not already installed ---
-if ! command -v docker &> /dev/null; then
-  echo "Installing docker..."
-  sudo mkdir -p /etc/apt/keyrings
-  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-  echo \
-    "deb [arch=${architecture} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-    $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-  sudo apt-get update
-  sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin -y
+# Install Docker if it's not already present or if this is a Kokoro environment as it has old docker version.
+if ! command -v docker &> /dev/null || [[ -n "${KOKORO_ARTIFACTS_DIR}" ]]; then
+    echo "Installing Docker..."
+    sudo mkdir -p /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    echo \
+      "deb [arch=${architecture} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+      $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    sudo apt-get update
+    sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin -y
 else
-  echo "Docker is already installed. Skipping Docker installation."
+    echo "Docker is already installed. Skipping Docker installation."
 fi
 
 # --- Build and install gcsfuse ---
