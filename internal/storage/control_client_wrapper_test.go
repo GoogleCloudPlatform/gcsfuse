@@ -145,7 +145,7 @@ func (t *AllApiStallRetryWrapperTest) SetupSuite() {
 	}
 }
 
-func (t StorageLayoutStallRetryWrapperTest) TestGetStorageLayout_SuccessOnFirstAttempt() {
+func (t *StorageLayoutStallRetryWrapperTest) TestGetStorageLayout_SuccessOnFirstAttempt() {
 	// Arrange
 	client := withRetryOnStorageLayoutStall(t.stallingClient, 100*time.Microsecond, 500*time.Microsecond, 2, 1000*time.Microsecond)
 	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
