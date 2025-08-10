@@ -15,11 +15,13 @@
 package mount_timeout
 
 import (
+	"bufio"
 	"fmt"
 	"math"
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -161,7 +163,7 @@ func (testSuite *ZBMountTimeoutTest) TearDownTest() {
 
 // mountOrTimeout mounts the bucket with the given client protocol. If the time taken
 // exceeds the expected for the particular test case , an error is thrown and test will fail.
-func (testSuite *MountTimeoutTest) mountOrTimeout(bucketName, mountDir, clientProtocol string, expectedMountTime time.Duration) (err error) {
+func (testSuite *MountTimeoutTest) mountOrTimeout(bucketName, clientProtocol string, expectedMountTime time.Duration) (err error) {
 	minMountTime := time.Duration(math.MaxInt64)
 	logFile := setup.LogFile()
 	defer func() {
@@ -182,8 +184,8 @@ func (testSuite *MountTimeoutTest) mountOrTimeout(bucketName, mountDir, clientPr
 
 		minMountTime = time.Duration(math.Min(float64(minMountTime), float64(mountTime)))
 
-		if err = util.Unmount(mountDir); err != nil {
-			err = fmt.Errorf("unmount failed for bucket %q on attempt#%v: %w", bucketName, i, err)
+		if err = unmountAndWait(testSuite.dir); err != nil {
+			err = fmt.Errorf("unmountAndWait failed for bucket %q on attempt#%v: %w", bucketName, i, err)
 			return err
 		}
 	}
@@ -195,11 +197,58 @@ func (testSuite *MountTimeoutTest) mountOrTimeout(bucketName, mountDir, clientPr
 	return nil
 }
 
-func (testSuite *NonZBMountTimeoutTest) mountOrTimeout(bucketName, mountDir, clientProtocol string, expectedMountTime time.Duration) error {
-	return testSuite.MountTimeoutTest.mountOrTimeout(bucketName, mountDir, clientProtocol, expectedMountTime)
+// unmountAndWait unmounts the given directory and waits until it's no longer a
+// mount point, with a timeout.
+func unmountAndWait(mountDir string) error {
+	// isMounted checks if a directory is currently a mount point by reading /proc/mounts.
+	isMounted := func(mountPoint string) (bool, error) {
+		file, err := os.Open("/proc/mounts")
+		if err != nil {
+			// On non-Linux systems, /proc/mounts doesn't exist, so we can't poll.
+			if os.IsNotExist(err) {
+				return false, nil
+			}
+			return false, fmt.Errorf("could not open /proc/mounts: %w", err)
+		}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			line := scanner.Text()
+			fields := strings.Fields(line)
+			// The second field in /proc/mounts is the mount point.
+			if len(fields) >= 2 && fields[1] == mountPoint {
+				return true, nil // Found the mount point
+			}
+		}
+		return false, scanner.Err()
+	}
+
+	if err := util.Unmount(mountDir); err != nil {
+		// It might already be unmounted or in a weird state. If the error
+		// indicates it's not mounted, we can proceed to verify.
+		if !strings.Contains(err.Error(), "not mounted") && !strings.Contains(err.Error(), "no such file or directory") {
+			return fmt.Errorf("unmount call failed: %w", err)
+		}
+	}
+
+	// Poll for up to 5 seconds for the unmount to complete.
+	for i := 0; i < 500; i++ {
+		mounted, err := isMounted(mountDir)
+		if err != nil || !mounted {
+			return err // Success or error checking mount status.
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	return fmt.Errorf("timed out waiting for %q to unmount", mountDir)
 }
-func (testSuite *ZBMountTimeoutTest) mountOrTimeout(bucketName, mountDir, clientProtocol string, expectedMountTime time.Duration) error {
-	return testSuite.MountTimeoutTest.mountOrTimeout(bucketName, mountDir, clientProtocol, expectedMountTime)
+
+func (testSuite *NonZBMountTimeoutTest) mountOrTimeout(bucketName, clientProtocol string, expectedMountTime time.Duration) error {
+	return testSuite.MountTimeoutTest.mountOrTimeout(bucketName, clientProtocol, expectedMountTime)
+}
+func (testSuite *ZBMountTimeoutTest) mountOrTimeout(bucketName, clientProtocol string, expectedMountTime time.Duration) error {
+	return testSuite.MountTimeoutTest.mountOrTimeout(bucketName, clientProtocol, expectedMountTime)
 }
 
 func (testSuite *NonZBMountTimeoutTest) TestMountMultiRegionUSBucketWithTimeout() {
@@ -223,7 +272,7 @@ func (testSuite *NonZBMountTimeoutTest) TestMountMultiRegionUSBucketWithTimeout(
 	for _, tc := range testCases {
 		setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, tc.name))
 
-		err := testSuite.mountOrTimeout(multiRegionUSBucket, testSuite.dir, string(tc.clientProtocol), testSuite.timeouts.multiRegionUSTimeout)
+		err := testSuite.mountOrTimeout(multiRegionUSBucket, string(tc.clientProtocol), testSuite.timeouts.multiRegionUSTimeout)
 		assert.NoError(testSuite.T(), err)
 	}
 }
@@ -249,7 +298,7 @@ func (testSuite *NonZBMountTimeoutTest) TestMountMultiRegionAsiaBucketWithTimeou
 	for _, tc := range testCases {
 		setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, tc.name))
 
-		err := testSuite.mountOrTimeout(multiRegionAsiaBucket, testSuite.dir, string(tc.clientProtocol), testSuite.timeouts.multiRegionAsiaTimeout)
+		err := testSuite.mountOrTimeout(multiRegionAsiaBucket, string(tc.clientProtocol), testSuite.timeouts.multiRegionAsiaTimeout)
 		assert.NoError(testSuite.T(), err)
 	}
 }
@@ -275,7 +324,7 @@ func (testSuite *NonZBMountTimeoutTest) TestMountDualRegionUSBucketWithTimeout()
 	for _, tc := range testCases {
 		setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, tc.name))
 
-		err := testSuite.mountOrTimeout(dualRegionUSBucket, testSuite.dir, string(tc.clientProtocol), testSuite.timeouts.dualRegionUSTimeout)
+		err := testSuite.mountOrTimeout(dualRegionUSBucket, string(tc.clientProtocol), testSuite.timeouts.dualRegionUSTimeout)
 		assert.NoError(testSuite.T(), err)
 	}
 }
@@ -301,7 +350,7 @@ func (testSuite *NonZBMountTimeoutTest) TestMountDualRegionAsiaBucketWithTimeout
 	for _, tc := range testCases {
 		setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, tc.name))
 
-		err := testSuite.mountOrTimeout(dualRegionAsiaBucket, testSuite.dir, string(tc.clientProtocol), testSuite.timeouts.dualRegionAsiaTimeout)
+		err := testSuite.mountOrTimeout(dualRegionAsiaBucket, string(tc.clientProtocol), testSuite.timeouts.dualRegionAsiaTimeout)
 		assert.NoError(testSuite.T(), err)
 	}
 }
@@ -327,7 +376,7 @@ func (testSuite *NonZBMountTimeoutTest) TestMountSingleRegionUSBucketWithTimeout
 	for _, tc := range testCases {
 		setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, tc.name))
 
-		err := testSuite.mountOrTimeout(singleRegionUSCentralBucket, testSuite.dir, string(tc.clientProtocol), testSuite.timeouts.singleRegionUSCentralTimeout)
+		err := testSuite.mountOrTimeout(singleRegionUSCentralBucket, string(tc.clientProtocol), testSuite.timeouts.singleRegionUSCentralTimeout)
 		assert.NoError(testSuite.T(), err)
 	}
 }
@@ -353,7 +402,7 @@ func (testSuite *NonZBMountTimeoutTest) TestMountSingleRegionAsiaBucketWithTimeo
 	for _, tc := range testCases {
 		setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, tc.name))
 
-		err := testSuite.mountOrTimeout(singleRegionAsiaEastBucket, testSuite.dir, string(tc.clientProtocol), testSuite.timeouts.singleRegionAsiaEastTimeout)
+		err := testSuite.mountOrTimeout(singleRegionAsiaEastBucket, string(tc.clientProtocol), testSuite.timeouts.singleRegionAsiaEastTimeout)
 		assert.NoError(testSuite.T(), err)
 	}
 }
@@ -361,13 +410,13 @@ func (testSuite *NonZBMountTimeoutTest) TestMountSingleRegionAsiaBucketWithTimeo
 func (testSuite *ZBMountTimeoutTest) TestMountSameZoneZonalBucketWithTimeout() {
 	setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, "SameZoneZonalBucket"))
 
-	err := testSuite.mountOrTimeout(testSuite.config.sameZoneZonalBucket, testSuite.dir, cfg.GRPC, testSuite.config.sameZoneMountTimeout)
+	err := testSuite.mountOrTimeout(testSuite.config.sameZoneZonalBucket, string(cfg.GRPC), testSuite.config.sameZoneMountTimeout)
 	assert.NoError(testSuite.T(), err)
 }
 
 func (testSuite *ZBMountTimeoutTest) TestMountCrossZoneZonalBucketWithTimeout() {
 	setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, "CrossZoneZonalBucket"))
 
-	err := testSuite.mountOrTimeout(testSuite.config.crossZoneZonalBucket, testSuite.dir, cfg.GRPC, testSuite.config.crossZoneMountTimeout)
+	err := testSuite.mountOrTimeout(testSuite.config.crossZoneZonalBucket, string(cfg.GRPC), testSuite.config.crossZoneMountTimeout)
 	assert.NoError(testSuite.T(), err)
 }
