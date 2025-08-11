@@ -60,6 +60,7 @@ var (
 	fsOpsCountFsOpOpenDirAttrSet                                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "OpenDir")))
 	fsOpsCountFsOpOpenFileAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "OpenFile")))
 	fsOpsCountFsOpReadDirAttrSet                                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadDir")))
+	fsOpsCountFsOpReadDirPlusAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadDirPlus")))
 	fsOpsCountFsOpReadFileAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadFile")))
 	fsOpsCountFsOpReadSymlinkAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadSymlink")))
 	fsOpsCountFsOpReleaseDirHandleAttrSet                                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReleaseDirHandle")))
@@ -90,6 +91,7 @@ var (
 	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpOpenDirAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "OpenDir")))
 	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpOpenFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "OpenFile")))
 	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadDirAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ReadDir")))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadDirPlusAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ReadDirPlus")))
 	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ReadFile")))
 	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadSymlinkAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ReadSymlink")))
 	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReleaseDirHandleAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")))
@@ -120,6 +122,7 @@ var (
 	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpOpenDirAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "OpenDir")))
 	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpOpenFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "OpenFile")))
 	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadDirAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ReadDir")))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadDirPlusAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ReadDirPlus")))
 	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ReadFile")))
 	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadSymlinkAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ReadSymlink")))
 	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReleaseDirHandleAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ReleaseDirHandle")))
@@ -150,6 +153,7 @@ var (
 	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpOpenDirAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "OpenDir")))
 	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpOpenFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "OpenFile")))
 	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadDirAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ReadDir")))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadDirPlusAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ReadDirPlus")))
 	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ReadFile")))
 	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadSymlinkAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ReadSymlink")))
 	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReleaseDirHandleAttrSet               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")))
@@ -180,6 +184,7 @@ var (
 	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpOpenDirAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "OpenDir")))
 	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpOpenFileAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "OpenFile")))
 	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadDirAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ReadDir")))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadDirPlusAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ReadDirPlus")))
 	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadFileAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ReadFile")))
 	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadSymlinkAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ReadSymlink")))
 	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReleaseDirHandleAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ReleaseDirHandle")))
@@ -210,6 +215,7 @@ var (
 	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpOpenDirAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "OpenDir")))
 	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpOpenFileAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "OpenFile")))
 	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadDirAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ReadDir")))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadDirPlusAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ReadDirPlus")))
 	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadFileAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ReadFile")))
 	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadSymlinkAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ReadSymlink")))
 	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReleaseDirHandleAttrSet             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")))
@@ -240,6 +246,7 @@ var (
 	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpOpenDirAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "OpenDir")))
 	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpOpenFileAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "OpenFile")))
 	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadDirAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ReadDir")))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadDirPlusAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ReadDirPlus")))
 	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadFileAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ReadFile")))
 	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadSymlinkAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ReadSymlink")))
 	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReleaseDirHandleAttrSet            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ReleaseDirHandle")))
@@ -270,6 +277,7 @@ var (
 	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpOpenDirAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "OpenDir")))
 	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpOpenFileAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "OpenFile")))
 	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadDirAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ReadDir")))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadDirPlusAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ReadDirPlus")))
 	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadFileAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ReadFile")))
 	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadSymlinkAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ReadSymlink")))
 	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReleaseDirHandleAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ReleaseDirHandle")))
@@ -300,6 +308,7 @@ var (
 	fsOpsErrorCountFsErrorCategoryIOERRORFsOpOpenDirAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "OpenDir")))
 	fsOpsErrorCountFsErrorCategoryIOERRORFsOpOpenFileAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "OpenFile")))
 	fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadDirAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ReadDir")))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadDirPlusAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ReadDirPlus")))
 	fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadFileAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ReadFile")))
 	fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadSymlinkAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ReadSymlink")))
 	fsOpsErrorCountFsErrorCategoryIOERRORFsOpReleaseDirHandleAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")))
@@ -330,6 +339,7 @@ var (
 	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpOpenDirAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "OpenDir")))
 	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpOpenFileAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "OpenFile")))
 	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadDirAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ReadDir")))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadDirPlusAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ReadDirPlus")))
 	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadFileAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ReadFile")))
 	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadSymlinkAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ReadSymlink")))
 	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReleaseDirHandleAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")))
@@ -360,6 +370,7 @@ var (
 	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpOpenDirAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "OpenDir")))
 	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpOpenFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "OpenFile")))
 	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadDirAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ReadDir")))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadDirPlusAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ReadDirPlus")))
 	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ReadFile")))
 	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadSymlinkAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ReadSymlink")))
 	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReleaseDirHandleAttrSet               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")))
@@ -390,6 +401,7 @@ var (
 	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpOpenDirAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "OpenDir")))
 	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpOpenFileAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "OpenFile")))
 	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadDirAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ReadDir")))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadDirPlusAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ReadDirPlus")))
 	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadFileAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ReadFile")))
 	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadSymlinkAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ReadSymlink")))
 	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReleaseDirHandleAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ReleaseDirHandle")))
@@ -420,6 +432,7 @@ var (
 	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpOpenDirAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "OpenDir")))
 	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpOpenFileAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "OpenFile")))
 	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadDirAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ReadDir")))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadDirPlusAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ReadDirPlus")))
 	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadFileAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ReadFile")))
 	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadSymlinkAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ReadSymlink")))
 	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReleaseDirHandleAttrSet             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ReleaseDirHandle")))
@@ -450,6 +463,7 @@ var (
 	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpOpenDirAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "OpenDir")))
 	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpOpenFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "OpenFile")))
 	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadDirAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ReadDir")))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadDirPlusAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ReadDirPlus")))
 	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ReadFile")))
 	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadSymlinkAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ReadSymlink")))
 	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReleaseDirHandleAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ReleaseDirHandle")))
@@ -480,6 +494,7 @@ var (
 	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpOpenDirAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "OpenDir")))
 	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpOpenFileAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "OpenFile")))
 	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadDirAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ReadDir")))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadDirPlusAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ReadDirPlus")))
 	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadFileAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ReadFile")))
 	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadSymlinkAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ReadSymlink")))
 	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReleaseDirHandleAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")))
@@ -510,6 +525,7 @@ var (
 	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpOpenDirAttrSet            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "OpenDir")))
 	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpOpenFileAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "OpenFile")))
 	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadDirAttrSet            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ReadDir")))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadDirPlusAttrSet        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ReadDirPlus")))
 	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadFileAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ReadFile")))
 	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadSymlinkAttrSet        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ReadSymlink")))
 	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReleaseDirHandleAttrSet   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")))
@@ -540,6 +556,7 @@ var (
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpOpenDirAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "OpenDir")))
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpOpenFileAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "OpenFile")))
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadDirAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ReadDir")))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadDirPlusAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ReadDirPlus")))
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadFileAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ReadFile")))
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadSymlinkAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ReadSymlink")))
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReleaseDirHandleAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ReleaseDirHandle")))
@@ -570,6 +587,7 @@ var (
 	fsOpsLatencyFsOpOpenDirAttrSet                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "OpenDir")))
 	fsOpsLatencyFsOpOpenFileAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "OpenFile")))
 	fsOpsLatencyFsOpReadDirAttrSet                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadDir")))
+	fsOpsLatencyFsOpReadDirPlusAttrSet                                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadDirPlus")))
 	fsOpsLatencyFsOpReadFileAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadFile")))
 	fsOpsLatencyFsOpReadSymlinkAttrSet                                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadSymlink")))
 	fsOpsLatencyFsOpReleaseDirHandleAttrSet                                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReleaseDirHandle")))
@@ -590,14 +608,19 @@ var (
 	gcsReadCountReadTypeParallelAttrSet                                                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel")))
 	gcsReadCountReadTypeRandomAttrSet                                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random")))
 	gcsReadCountReadTypeSequentialAttrSet                                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential")))
+	gcsReaderCountIoMethodReadHandleAttrSet                                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("io_method", "ReadHandle")))
 	gcsReaderCountIoMethodClosedAttrSet                                                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("io_method", "closed")))
 	gcsReaderCountIoMethodOpenedAttrSet                                                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("io_method", "opened")))
 	gcsRequestCountGcsMethodComposeObjectsAttrSet                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "ComposeObjects")))
+	gcsRequestCountGcsMethodCopyObjectAttrSet                                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "CopyObject")))
+	gcsRequestCountGcsMethodCreateAppendableObjectWriterAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "CreateAppendableObjectWriter")))
 	gcsRequestCountGcsMethodCreateFolderAttrSet                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "CreateFolder")))
+	gcsRequestCountGcsMethodCreateObjectAttrSet                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "CreateObject")))
 	gcsRequestCountGcsMethodCreateObjectChunkWriterAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "CreateObjectChunkWriter")))
 	gcsRequestCountGcsMethodDeleteFolderAttrSet                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "DeleteFolder")))
 	gcsRequestCountGcsMethodDeleteObjectAttrSet                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "DeleteObject")))
 	gcsRequestCountGcsMethodFinalizeUploadAttrSet                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "FinalizeUpload")))
+	gcsRequestCountGcsMethodFlushPendingWritesAttrSet                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "FlushPendingWrites")))
 	gcsRequestCountGcsMethodGetFolderAttrSet                                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "GetFolder")))
 	gcsRequestCountGcsMethodListObjectsAttrSet                                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "ListObjects")))
 	gcsRequestCountGcsMethodMoveObjectAttrSet                                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "MoveObject")))
@@ -608,11 +631,15 @@ var (
 	gcsRequestCountGcsMethodStatObjectAttrSet                                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "StatObject")))
 	gcsRequestCountGcsMethodUpdateObjectAttrSet                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "UpdateObject")))
 	gcsRequestLatenciesGcsMethodComposeObjectsAttrSet                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "ComposeObjects")))
+	gcsRequestLatenciesGcsMethodCopyObjectAttrSet                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "CopyObject")))
+	gcsRequestLatenciesGcsMethodCreateAppendableObjectWriterAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "CreateAppendableObjectWriter")))
 	gcsRequestLatenciesGcsMethodCreateFolderAttrSet                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "CreateFolder")))
+	gcsRequestLatenciesGcsMethodCreateObjectAttrSet                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "CreateObject")))
 	gcsRequestLatenciesGcsMethodCreateObjectChunkWriterAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "CreateObjectChunkWriter")))
 	gcsRequestLatenciesGcsMethodDeleteFolderAttrSet                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "DeleteFolder")))
 	gcsRequestLatenciesGcsMethodDeleteObjectAttrSet                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "DeleteObject")))
 	gcsRequestLatenciesGcsMethodFinalizeUploadAttrSet                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "FinalizeUpload")))
+	gcsRequestLatenciesGcsMethodFlushPendingWritesAttrSet                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "FlushPendingWrites")))
 	gcsRequestLatenciesGcsMethodGetFolderAttrSet                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "GetFolder")))
 	gcsRequestLatenciesGcsMethodListObjectsAttrSet                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "ListObjects")))
 	gcsRequestLatenciesGcsMethodMoveObjectAttrSet                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "MoveObject")))
@@ -661,6 +688,7 @@ type otelMetrics struct {
 	fsOpsCountFsOpOpenDirAtomic                                                        *atomic.Int64
 	fsOpsCountFsOpOpenFileAtomic                                                       *atomic.Int64
 	fsOpsCountFsOpReadDirAtomic                                                        *atomic.Int64
+	fsOpsCountFsOpReadDirPlusAtomic                                                    *atomic.Int64
 	fsOpsCountFsOpReadFileAtomic                                                       *atomic.Int64
 	fsOpsCountFsOpReadSymlinkAtomic                                                    *atomic.Int64
 	fsOpsCountFsOpReleaseDirHandleAtomic                                               *atomic.Int64
@@ -691,6 +719,7 @@ type otelMetrics struct {
 	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpOpenDirAtomic                         *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpOpenFileAtomic                        *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadDirAtomic                         *atomic.Int64
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadDirPlusAtomic                     *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadFileAtomic                        *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadSymlinkAtomic                     *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReleaseDirHandleAtomic                *atomic.Int64
@@ -721,6 +750,7 @@ type otelMetrics struct {
 	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpOpenDirAtomic                         *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpOpenFileAtomic                        *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadDirAtomic                         *atomic.Int64
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadDirPlusAtomic                     *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadFileAtomic                        *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadSymlinkAtomic                     *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReleaseDirHandleAtomic                *atomic.Int64
@@ -751,6 +781,7 @@ type otelMetrics struct {
 	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpOpenDirAtomic                        *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpOpenFileAtomic                       *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadDirAtomic                        *atomic.Int64
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadDirPlusAtomic                    *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadFileAtomic                       *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadSymlinkAtomic                    *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReleaseDirHandleAtomic               *atomic.Int64
@@ -781,6 +812,7 @@ type otelMetrics struct {
 	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpOpenDirAtomic                          *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpOpenFileAtomic                         *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadDirAtomic                          *atomic.Int64
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadDirPlusAtomic                      *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadFileAtomic                         *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadSymlinkAtomic                      *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReleaseDirHandleAtomic                 *atomic.Int64
@@ -811,6 +843,7 @@ type otelMetrics struct {
 	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpOpenDirAtomic                      *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpOpenFileAtomic                     *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadDirAtomic                      *atomic.Int64
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadDirPlusAtomic                  *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadFileAtomic                     *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadSymlinkAtomic                  *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReleaseDirHandleAtomic             *atomic.Int64
@@ -841,6 +874,7 @@ type otelMetrics struct {
 	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpOpenDirAtomic                     *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpOpenFileAtomic                    *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadDirAtomic                     *atomic.Int64
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadDirPlusAtomic                 *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadFileAtomic                    *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadSymlinkAtomic                 *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReleaseDirHandleAtomic            *atomic.Int64
@@ -871,6 +905,7 @@ type otelMetrics struct {
 	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpOpenDirAtomic                    *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpOpenFileAtomic                   *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadDirAtomic                    *atomic.Int64
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadDirPlusAtomic                *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadFileAtomic                   *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadSymlinkAtomic                *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReleaseDirHandleAtomic           *atomic.Int64
@@ -901,6 +936,7 @@ type otelMetrics struct {
 	fsOpsErrorCountFsErrorCategoryIOERRORFsOpOpenDirAtomic                             *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryIOERRORFsOpOpenFileAtomic                            *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadDirAtomic                             *atomic.Int64
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadDirPlusAtomic                         *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadFileAtomic                            *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadSymlinkAtomic                         *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryIOERRORFsOpReleaseDirHandleAtomic                    *atomic.Int64
@@ -931,6 +967,7 @@ type otelMetrics struct {
 	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpOpenDirAtomic                           *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpOpenFileAtomic                          *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadDirAtomic                           *atomic.Int64
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadDirPlusAtomic                       *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadFileAtomic                          *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadSymlinkAtomic                       *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReleaseDirHandleAtomic                  *atomic.Int64
@@ -961,6 +998,7 @@ type otelMetrics struct {
 	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpOpenDirAtomic                        *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpOpenFileAtomic                       *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadDirAtomic                        *atomic.Int64
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadDirPlusAtomic                    *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadFileAtomic                       *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadSymlinkAtomic                    *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReleaseDirHandleAtomic               *atomic.Int64
@@ -991,6 +1029,7 @@ type otelMetrics struct {
 	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpOpenDirAtomic                             *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpOpenFileAtomic                            *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadDirAtomic                             *atomic.Int64
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadDirPlusAtomic                         *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadFileAtomic                            *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadSymlinkAtomic                         *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReleaseDirHandleAtomic                    *atomic.Int64
@@ -1021,6 +1060,7 @@ type otelMetrics struct {
 	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpOpenDirAtomic                      *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpOpenFileAtomic                     *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadDirAtomic                      *atomic.Int64
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadDirPlusAtomic                  *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadFileAtomic                     *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadSymlinkAtomic                  *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReleaseDirHandleAtomic             *atomic.Int64
@@ -1051,6 +1091,7 @@ type otelMetrics struct {
 	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpOpenDirAtomic                         *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpOpenFileAtomic                        *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadDirAtomic                         *atomic.Int64
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadDirPlusAtomic                     *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadFileAtomic                        *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadSymlinkAtomic                     *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReleaseDirHandleAtomic                *atomic.Int64
@@ -1081,6 +1122,7 @@ type otelMetrics struct {
 	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpOpenDirAtomic                           *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpOpenFileAtomic                          *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadDirAtomic                           *atomic.Int64
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadDirPlusAtomic                       *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadFileAtomic                          *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadSymlinkAtomic                       *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReleaseDirHandleAtomic                  *atomic.Int64
@@ -1111,6 +1153,7 @@ type otelMetrics struct {
 	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpOpenDirAtomic            *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpOpenFileAtomic           *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadDirAtomic            *atomic.Int64
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadDirPlusAtomic        *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadFileAtomic           *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadSymlinkAtomic        *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReleaseDirHandleAtomic   *atomic.Int64
@@ -1141,6 +1184,7 @@ type otelMetrics struct {
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpOpenDirAtomic                    *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpOpenFileAtomic                   *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadDirAtomic                    *atomic.Int64
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadDirPlusAtomic                *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadFileAtomic                   *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadSymlinkAtomic                *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReleaseDirHandleAtomic           *atomic.Int64
@@ -1162,14 +1206,19 @@ type otelMetrics struct {
 	gcsReadCountReadTypeParallelAtomic                                                 *atomic.Int64
 	gcsReadCountReadTypeRandomAtomic                                                   *atomic.Int64
 	gcsReadCountReadTypeSequentialAtomic                                               *atomic.Int64
+	gcsReaderCountIoMethodReadHandleAtomic                                             *atomic.Int64
 	gcsReaderCountIoMethodClosedAtomic                                                 *atomic.Int64
 	gcsReaderCountIoMethodOpenedAtomic                                                 *atomic.Int64
 	gcsRequestCountGcsMethodComposeObjectsAtomic                                       *atomic.Int64
+	gcsRequestCountGcsMethodCopyObjectAtomic                                           *atomic.Int64
+	gcsRequestCountGcsMethodCreateAppendableObjectWriterAtomic                         *atomic.Int64
 	gcsRequestCountGcsMethodCreateFolderAtomic                                         *atomic.Int64
+	gcsRequestCountGcsMethodCreateObjectAtomic                                         *atomic.Int64
 	gcsRequestCountGcsMethodCreateObjectChunkWriterAtomic                              *atomic.Int64
 	gcsRequestCountGcsMethodDeleteFolderAtomic                                         *atomic.Int64
 	gcsRequestCountGcsMethodDeleteObjectAtomic                                         *atomic.Int64
 	gcsRequestCountGcsMethodFinalizeUploadAtomic                                       *atomic.Int64
+	gcsRequestCountGcsMethodFlushPendingWritesAtomic                                   *atomic.Int64
 	gcsRequestCountGcsMethodGetFolderAtomic                                            *atomic.Int64
 	gcsRequestCountGcsMethodListObjectsAtomic                                          *atomic.Int64
 	gcsRequestCountGcsMethodMoveObjectAtomic                                           *atomic.Int64
@@ -1284,6 +1333,8 @@ func (o *otelMetrics) FsOpsCount(
 		o.fsOpsCountFsOpOpenFileAtomic.Add(inc)
 	case "ReadDir":
 		o.fsOpsCountFsOpReadDirAtomic.Add(inc)
+	case "ReadDirPlus":
+		o.fsOpsCountFsOpReadDirPlusAtomic.Add(inc)
 	case "ReadFile":
 		o.fsOpsCountFsOpReadFileAtomic.Add(inc)
 	case "ReadSymlink":
@@ -1356,6 +1407,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpOpenFileAtomic.Add(inc)
 		case "ReadDir":
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadDirAtomic.Add(inc)
+		case "ReadDirPlus":
+			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadDirPlusAtomic.Add(inc)
 		case "ReadFile":
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadFileAtomic.Add(inc)
 		case "ReadSymlink":
@@ -1422,6 +1475,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpOpenFileAtomic.Add(inc)
 		case "ReadDir":
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadDirAtomic.Add(inc)
+		case "ReadDirPlus":
+			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadDirPlusAtomic.Add(inc)
 		case "ReadFile":
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadFileAtomic.Add(inc)
 		case "ReadSymlink":
@@ -1488,6 +1543,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpOpenFileAtomic.Add(inc)
 		case "ReadDir":
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadDirAtomic.Add(inc)
+		case "ReadDirPlus":
+			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadDirPlusAtomic.Add(inc)
 		case "ReadFile":
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadFileAtomic.Add(inc)
 		case "ReadSymlink":
@@ -1554,6 +1611,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpOpenFileAtomic.Add(inc)
 		case "ReadDir":
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadDirAtomic.Add(inc)
+		case "ReadDirPlus":
+			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadDirPlusAtomic.Add(inc)
 		case "ReadFile":
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadFileAtomic.Add(inc)
 		case "ReadSymlink":
@@ -1620,6 +1679,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpOpenFileAtomic.Add(inc)
 		case "ReadDir":
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadDirAtomic.Add(inc)
+		case "ReadDirPlus":
+			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadDirPlusAtomic.Add(inc)
 		case "ReadFile":
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadFileAtomic.Add(inc)
 		case "ReadSymlink":
@@ -1686,6 +1747,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpOpenFileAtomic.Add(inc)
 		case "ReadDir":
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadDirAtomic.Add(inc)
+		case "ReadDirPlus":
+			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadDirPlusAtomic.Add(inc)
 		case "ReadFile":
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadFileAtomic.Add(inc)
 		case "ReadSymlink":
@@ -1752,6 +1815,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpOpenFileAtomic.Add(inc)
 		case "ReadDir":
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadDirAtomic.Add(inc)
+		case "ReadDirPlus":
+			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadDirPlusAtomic.Add(inc)
 		case "ReadFile":
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadFileAtomic.Add(inc)
 		case "ReadSymlink":
@@ -1818,6 +1883,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpOpenFileAtomic.Add(inc)
 		case "ReadDir":
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadDirAtomic.Add(inc)
+		case "ReadDirPlus":
+			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadDirPlusAtomic.Add(inc)
 		case "ReadFile":
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadFileAtomic.Add(inc)
 		case "ReadSymlink":
@@ -1884,6 +1951,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpOpenFileAtomic.Add(inc)
 		case "ReadDir":
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadDirAtomic.Add(inc)
+		case "ReadDirPlus":
+			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadDirPlusAtomic.Add(inc)
 		case "ReadFile":
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadFileAtomic.Add(inc)
 		case "ReadSymlink":
@@ -1950,6 +2019,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpOpenFileAtomic.Add(inc)
 		case "ReadDir":
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadDirAtomic.Add(inc)
+		case "ReadDirPlus":
+			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadDirPlusAtomic.Add(inc)
 		case "ReadFile":
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadFileAtomic.Add(inc)
 		case "ReadSymlink":
@@ -2016,6 +2087,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpOpenFileAtomic.Add(inc)
 		case "ReadDir":
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadDirAtomic.Add(inc)
+		case "ReadDirPlus":
+			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadDirPlusAtomic.Add(inc)
 		case "ReadFile":
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadFileAtomic.Add(inc)
 		case "ReadSymlink":
@@ -2082,6 +2155,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpOpenFileAtomic.Add(inc)
 		case "ReadDir":
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadDirAtomic.Add(inc)
+		case "ReadDirPlus":
+			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadDirPlusAtomic.Add(inc)
 		case "ReadFile":
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadFileAtomic.Add(inc)
 		case "ReadSymlink":
@@ -2148,6 +2223,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpOpenFileAtomic.Add(inc)
 		case "ReadDir":
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadDirAtomic.Add(inc)
+		case "ReadDirPlus":
+			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadDirPlusAtomic.Add(inc)
 		case "ReadFile":
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadFileAtomic.Add(inc)
 		case "ReadSymlink":
@@ -2214,6 +2291,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpOpenFileAtomic.Add(inc)
 		case "ReadDir":
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadDirAtomic.Add(inc)
+		case "ReadDirPlus":
+			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadDirPlusAtomic.Add(inc)
 		case "ReadFile":
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadFileAtomic.Add(inc)
 		case "ReadSymlink":
@@ -2280,6 +2359,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpOpenFileAtomic.Add(inc)
 		case "ReadDir":
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadDirAtomic.Add(inc)
+		case "ReadDirPlus":
+			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadDirPlusAtomic.Add(inc)
 		case "ReadFile":
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadFileAtomic.Add(inc)
 		case "ReadSymlink":
@@ -2346,6 +2427,8 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpOpenFileAtomic.Add(inc)
 		case "ReadDir":
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadDirAtomic.Add(inc)
+		case "ReadDirPlus":
+			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadDirPlusAtomic.Add(inc)
 		case "ReadFile":
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadFileAtomic.Add(inc)
 		case "ReadSymlink":
@@ -2421,6 +2504,8 @@ func (o *otelMetrics) FsOpsLatency(
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpOpenFileAttrSet}
 	case "ReadDir":
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReadDirAttrSet}
+	case "ReadDirPlus":
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReadDirPlusAttrSet}
 	case "ReadFile":
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReadFileAttrSet}
 	case "ReadSymlink":
@@ -2501,6 +2586,8 @@ func (o *otelMetrics) GcsReadCount(
 func (o *otelMetrics) GcsReaderCount(
 	inc int64, ioMethod string) {
 	switch ioMethod {
+	case "ReadHandle":
+		o.gcsReaderCountIoMethodReadHandleAtomic.Add(inc)
 	case "closed":
 		o.gcsReaderCountIoMethodClosedAtomic.Add(inc)
 	case "opened":
@@ -2517,8 +2604,14 @@ func (o *otelMetrics) GcsRequestCount(
 	switch gcsMethod {
 	case "ComposeObjects":
 		o.gcsRequestCountGcsMethodComposeObjectsAtomic.Add(inc)
+	case "CopyObject":
+		o.gcsRequestCountGcsMethodCopyObjectAtomic.Add(inc)
+	case "CreateAppendableObjectWriter":
+		o.gcsRequestCountGcsMethodCreateAppendableObjectWriterAtomic.Add(inc)
 	case "CreateFolder":
 		o.gcsRequestCountGcsMethodCreateFolderAtomic.Add(inc)
+	case "CreateObject":
+		o.gcsRequestCountGcsMethodCreateObjectAtomic.Add(inc)
 	case "CreateObjectChunkWriter":
 		o.gcsRequestCountGcsMethodCreateObjectChunkWriterAtomic.Add(inc)
 	case "DeleteFolder":
@@ -2527,6 +2620,8 @@ func (o *otelMetrics) GcsRequestCount(
 		o.gcsRequestCountGcsMethodDeleteObjectAtomic.Add(inc)
 	case "FinalizeUpload":
 		o.gcsRequestCountGcsMethodFinalizeUploadAtomic.Add(inc)
+	case "FlushPendingWrites":
+		o.gcsRequestCountGcsMethodFlushPendingWritesAtomic.Add(inc)
 	case "GetFolder":
 		o.gcsRequestCountGcsMethodGetFolderAtomic.Add(inc)
 	case "ListObjects":
@@ -2558,8 +2653,14 @@ func (o *otelMetrics) GcsRequestLatencies(
 	switch gcsMethod {
 	case "ComposeObjects":
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodComposeObjectsAttrSet}
+	case "CopyObject":
+		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodCopyObjectAttrSet}
+	case "CreateAppendableObjectWriter":
+		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodCreateAppendableObjectWriterAttrSet}
 	case "CreateFolder":
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodCreateFolderAttrSet}
+	case "CreateObject":
+		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodCreateObjectAttrSet}
 	case "CreateObjectChunkWriter":
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodCreateObjectChunkWriterAttrSet}
 	case "DeleteFolder":
@@ -2568,6 +2669,8 @@ func (o *otelMetrics) GcsRequestLatencies(
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodDeleteObjectAttrSet}
 	case "FinalizeUpload":
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodFinalizeUploadAttrSet}
+	case "FlushPendingWrites":
+		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodFlushPendingWritesAttrSet}
 	case "GetFolder":
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodGetFolderAttrSet}
 	case "ListObjects":
@@ -2652,6 +2755,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsCountFsOpOpenDirAtomic,
 		fsOpsCountFsOpOpenFileAtomic,
 		fsOpsCountFsOpReadDirAtomic,
+		fsOpsCountFsOpReadDirPlusAtomic,
 		fsOpsCountFsOpReadFileAtomic,
 		fsOpsCountFsOpReadSymlinkAtomic,
 		fsOpsCountFsOpReleaseDirHandleAtomic,
@@ -2683,6 +2787,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReleaseDirHandleAtomic,
@@ -2713,6 +2818,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReleaseDirHandleAtomic,
@@ -2743,6 +2849,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReleaseDirHandleAtomic,
@@ -2773,6 +2880,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReleaseDirHandleAtomic,
@@ -2803,6 +2911,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReleaseDirHandleAtomic,
@@ -2833,6 +2942,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReleaseDirHandleAtomic,
@@ -2863,6 +2973,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReleaseDirHandleAtomic,
@@ -2893,6 +3004,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryIOERRORFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryIOERRORFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryIOERRORFsOpReleaseDirHandleAtomic,
@@ -2923,6 +3035,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryMISCERRORFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryMISCERRORFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReleaseDirHandleAtomic,
@@ -2953,6 +3066,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReleaseDirHandleAtomic,
@@ -2983,6 +3097,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryNOTADIRFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryNOTADIRFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReleaseDirHandleAtomic,
@@ -3013,6 +3128,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReleaseDirHandleAtomic,
@@ -3043,6 +3159,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReleaseDirHandleAtomic,
@@ -3073,6 +3190,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryPERMERRORFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryPERMERRORFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReleaseDirHandleAtomic,
@@ -3103,6 +3221,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReleaseDirHandleAtomic,
@@ -3133,6 +3252,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReleaseDirHandleAtomic,
@@ -3158,15 +3278,20 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		gcsReadCountReadTypeRandomAtomic,
 		gcsReadCountReadTypeSequentialAtomic atomic.Int64
 
-	var gcsReaderCountIoMethodClosedAtomic,
+	var gcsReaderCountIoMethodReadHandleAtomic,
+		gcsReaderCountIoMethodClosedAtomic,
 		gcsReaderCountIoMethodOpenedAtomic atomic.Int64
 
 	var gcsRequestCountGcsMethodComposeObjectsAtomic,
+		gcsRequestCountGcsMethodCopyObjectAtomic,
+		gcsRequestCountGcsMethodCreateAppendableObjectWriterAtomic,
 		gcsRequestCountGcsMethodCreateFolderAtomic,
+		gcsRequestCountGcsMethodCreateObjectAtomic,
 		gcsRequestCountGcsMethodCreateObjectChunkWriterAtomic,
 		gcsRequestCountGcsMethodDeleteFolderAtomic,
 		gcsRequestCountGcsMethodDeleteObjectAtomic,
 		gcsRequestCountGcsMethodFinalizeUploadAtomic,
+		gcsRequestCountGcsMethodFlushPendingWritesAtomic,
 		gcsRequestCountGcsMethodGetFolderAtomic,
 		gcsRequestCountGcsMethodListObjectsAtomic,
 		gcsRequestCountGcsMethodMoveObjectAtomic,
@@ -3228,6 +3353,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			conditionallyObserve(obsrv, &fsOpsCountFsOpOpenDirAtomic, fsOpsCountFsOpOpenDirAttrSet)
 			conditionallyObserve(obsrv, &fsOpsCountFsOpOpenFileAtomic, fsOpsCountFsOpOpenFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsCountFsOpReadDirAtomic, fsOpsCountFsOpReadDirAttrSet)
+			conditionallyObserve(obsrv, &fsOpsCountFsOpReadDirPlusAtomic, fsOpsCountFsOpReadDirPlusAttrSet)
 			conditionallyObserve(obsrv, &fsOpsCountFsOpReadFileAtomic, fsOpsCountFsOpReadFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsCountFsOpReadSymlinkAtomic, fsOpsCountFsOpReadSymlinkAttrSet)
 			conditionallyObserve(obsrv, &fsOpsCountFsOpReleaseDirHandleAtomic, fsOpsCountFsOpReleaseDirHandleAttrSet)
@@ -3265,6 +3391,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpOpenDirAtomic, fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpOpenDirAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpOpenFileAtomic, fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpOpenFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadDirAtomic, fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadDirAttrSet)
+			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadDirPlusAtomic, fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadDirPlusAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadFileAtomic, fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadSymlinkAtomic, fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadSymlinkAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReleaseDirHandleAtomic, fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReleaseDirHandleAttrSet)
@@ -3295,6 +3422,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpOpenDirAtomic, fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpOpenDirAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpOpenFileAtomic, fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpOpenFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadDirAtomic, fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadDirAttrSet)
+			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadDirPlusAtomic, fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadDirPlusAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadFileAtomic, fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadSymlinkAtomic, fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadSymlinkAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReleaseDirHandleAtomic, fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReleaseDirHandleAttrSet)
@@ -3325,6 +3453,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpOpenDirAtomic, fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpOpenDirAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpOpenFileAtomic, fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpOpenFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadDirAtomic, fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadDirAttrSet)
+			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadDirPlusAtomic, fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadDirPlusAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadFileAtomic, fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadSymlinkAtomic, fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadSymlinkAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReleaseDirHandleAtomic, fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReleaseDirHandleAttrSet)
@@ -3355,6 +3484,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpOpenDirAtomic, fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpOpenDirAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpOpenFileAtomic, fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpOpenFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadDirAtomic, fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadDirAttrSet)
+			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadDirPlusAtomic, fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadDirPlusAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadFileAtomic, fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadSymlinkAtomic, fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadSymlinkAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReleaseDirHandleAtomic, fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReleaseDirHandleAttrSet)
@@ -3385,6 +3515,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpOpenDirAtomic, fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpOpenDirAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpOpenFileAtomic, fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpOpenFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadDirAtomic, fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadDirAttrSet)
+			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadDirPlusAtomic, fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadDirPlusAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadFileAtomic, fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadSymlinkAtomic, fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadSymlinkAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReleaseDirHandleAtomic, fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReleaseDirHandleAttrSet)
@@ -3415,6 +3546,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpOpenDirAtomic, fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpOpenDirAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpOpenFileAtomic, fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpOpenFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadDirAtomic, fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadDirAttrSet)
+			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadDirPlusAtomic, fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadDirPlusAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadFileAtomic, fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadSymlinkAtomic, fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadSymlinkAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReleaseDirHandleAtomic, fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReleaseDirHandleAttrSet)
@@ -3445,6 +3577,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpOpenDirAtomic, fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpOpenDirAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpOpenFileAtomic, fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpOpenFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadDirAtomic, fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadDirAttrSet)
+			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadDirPlusAtomic, fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadDirPlusAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadFileAtomic, fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadSymlinkAtomic, fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadSymlinkAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReleaseDirHandleAtomic, fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReleaseDirHandleAttrSet)
@@ -3475,6 +3608,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryIOERRORFsOpOpenDirAtomic, fsOpsErrorCountFsErrorCategoryIOERRORFsOpOpenDirAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryIOERRORFsOpOpenFileAtomic, fsOpsErrorCountFsErrorCategoryIOERRORFsOpOpenFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadDirAtomic, fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadDirAttrSet)
+			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadDirPlusAtomic, fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadDirPlusAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadFileAtomic, fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadSymlinkAtomic, fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadSymlinkAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryIOERRORFsOpReleaseDirHandleAtomic, fsOpsErrorCountFsErrorCategoryIOERRORFsOpReleaseDirHandleAttrSet)
@@ -3505,6 +3639,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryMISCERRORFsOpOpenDirAtomic, fsOpsErrorCountFsErrorCategoryMISCERRORFsOpOpenDirAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryMISCERRORFsOpOpenFileAtomic, fsOpsErrorCountFsErrorCategoryMISCERRORFsOpOpenFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadDirAtomic, fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadDirAttrSet)
+			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadDirPlusAtomic, fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadDirPlusAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadFileAtomic, fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadSymlinkAtomic, fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadSymlinkAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReleaseDirHandleAtomic, fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReleaseDirHandleAttrSet)
@@ -3535,6 +3670,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpOpenDirAtomic, fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpOpenDirAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpOpenFileAtomic, fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpOpenFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadDirAtomic, fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadDirAttrSet)
+			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadDirPlusAtomic, fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadDirPlusAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadFileAtomic, fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadSymlinkAtomic, fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadSymlinkAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReleaseDirHandleAtomic, fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReleaseDirHandleAttrSet)
@@ -3565,6 +3701,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryNOTADIRFsOpOpenDirAtomic, fsOpsErrorCountFsErrorCategoryNOTADIRFsOpOpenDirAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryNOTADIRFsOpOpenFileAtomic, fsOpsErrorCountFsErrorCategoryNOTADIRFsOpOpenFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadDirAtomic, fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadDirAttrSet)
+			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadDirPlusAtomic, fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadDirPlusAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadFileAtomic, fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadSymlinkAtomic, fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadSymlinkAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReleaseDirHandleAtomic, fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReleaseDirHandleAttrSet)
@@ -3595,6 +3732,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpOpenDirAtomic, fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpOpenDirAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpOpenFileAtomic, fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpOpenFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadDirAtomic, fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadDirAttrSet)
+			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadDirPlusAtomic, fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadDirPlusAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadFileAtomic, fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadSymlinkAtomic, fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadSymlinkAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReleaseDirHandleAtomic, fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReleaseDirHandleAttrSet)
@@ -3625,6 +3763,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpOpenDirAtomic, fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpOpenDirAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpOpenFileAtomic, fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpOpenFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadDirAtomic, fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadDirAttrSet)
+			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadDirPlusAtomic, fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadDirPlusAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadFileAtomic, fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadSymlinkAtomic, fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadSymlinkAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReleaseDirHandleAtomic, fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReleaseDirHandleAttrSet)
@@ -3655,6 +3794,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryPERMERRORFsOpOpenDirAtomic, fsOpsErrorCountFsErrorCategoryPERMERRORFsOpOpenDirAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryPERMERRORFsOpOpenFileAtomic, fsOpsErrorCountFsErrorCategoryPERMERRORFsOpOpenFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadDirAtomic, fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadDirAttrSet)
+			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadDirPlusAtomic, fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadDirPlusAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadFileAtomic, fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadSymlinkAtomic, fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadSymlinkAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReleaseDirHandleAtomic, fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReleaseDirHandleAttrSet)
@@ -3685,6 +3825,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpOpenDirAtomic, fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpOpenDirAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpOpenFileAtomic, fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpOpenFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadDirAtomic, fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadDirAttrSet)
+			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadDirPlusAtomic, fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadDirPlusAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadFileAtomic, fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadSymlinkAtomic, fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadSymlinkAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReleaseDirHandleAtomic, fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReleaseDirHandleAttrSet)
@@ -3715,6 +3856,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpOpenDirAtomic, fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpOpenDirAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpOpenFileAtomic, fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpOpenFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadDirAtomic, fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadDirAttrSet)
+			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadDirPlusAtomic, fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadDirPlusAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadFileAtomic, fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadFileAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadSymlinkAtomic, fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadSymlinkAttrSet)
 			conditionallyObserve(obsrv, &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReleaseDirHandleAtomic, fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReleaseDirHandleAttrSet)
@@ -3769,6 +3911,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		metric.WithDescription("The cumulative number of GCS object readers opened or closed."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
+			conditionallyObserve(obsrv, &gcsReaderCountIoMethodReadHandleAtomic, gcsReaderCountIoMethodReadHandleAttrSet)
 			conditionallyObserve(obsrv, &gcsReaderCountIoMethodClosedAtomic, gcsReaderCountIoMethodClosedAttrSet)
 			conditionallyObserve(obsrv, &gcsReaderCountIoMethodOpenedAtomic, gcsReaderCountIoMethodOpenedAttrSet)
 			return nil
@@ -3779,11 +3922,15 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
 			conditionallyObserve(obsrv, &gcsRequestCountGcsMethodComposeObjectsAtomic, gcsRequestCountGcsMethodComposeObjectsAttrSet)
+			conditionallyObserve(obsrv, &gcsRequestCountGcsMethodCopyObjectAtomic, gcsRequestCountGcsMethodCopyObjectAttrSet)
+			conditionallyObserve(obsrv, &gcsRequestCountGcsMethodCreateAppendableObjectWriterAtomic, gcsRequestCountGcsMethodCreateAppendableObjectWriterAttrSet)
 			conditionallyObserve(obsrv, &gcsRequestCountGcsMethodCreateFolderAtomic, gcsRequestCountGcsMethodCreateFolderAttrSet)
+			conditionallyObserve(obsrv, &gcsRequestCountGcsMethodCreateObjectAtomic, gcsRequestCountGcsMethodCreateObjectAttrSet)
 			conditionallyObserve(obsrv, &gcsRequestCountGcsMethodCreateObjectChunkWriterAtomic, gcsRequestCountGcsMethodCreateObjectChunkWriterAttrSet)
 			conditionallyObserve(obsrv, &gcsRequestCountGcsMethodDeleteFolderAtomic, gcsRequestCountGcsMethodDeleteFolderAttrSet)
 			conditionallyObserve(obsrv, &gcsRequestCountGcsMethodDeleteObjectAtomic, gcsRequestCountGcsMethodDeleteObjectAttrSet)
 			conditionallyObserve(obsrv, &gcsRequestCountGcsMethodFinalizeUploadAtomic, gcsRequestCountGcsMethodFinalizeUploadAttrSet)
+			conditionallyObserve(obsrv, &gcsRequestCountGcsMethodFlushPendingWritesAtomic, gcsRequestCountGcsMethodFlushPendingWritesAttrSet)
 			conditionallyObserve(obsrv, &gcsRequestCountGcsMethodGetFolderAtomic, gcsRequestCountGcsMethodGetFolderAttrSet)
 			conditionallyObserve(obsrv, &gcsRequestCountGcsMethodListObjectsAtomic, gcsRequestCountGcsMethodListObjectsAttrSet)
 			conditionallyObserve(obsrv, &gcsRequestCountGcsMethodMoveObjectAtomic, gcsRequestCountGcsMethodMoveObjectAttrSet)
@@ -3844,6 +3991,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsCountFsOpOpenDirAtomic:                                                        &fsOpsCountFsOpOpenDirAtomic,
 		fsOpsCountFsOpOpenFileAtomic:                                                       &fsOpsCountFsOpOpenFileAtomic,
 		fsOpsCountFsOpReadDirAtomic:                                                        &fsOpsCountFsOpReadDirAtomic,
+		fsOpsCountFsOpReadDirPlusAtomic:                                                    &fsOpsCountFsOpReadDirPlusAtomic,
 		fsOpsCountFsOpReadFileAtomic:                                                       &fsOpsCountFsOpReadFileAtomic,
 		fsOpsCountFsOpReadSymlinkAtomic:                                                    &fsOpsCountFsOpReadSymlinkAtomic,
 		fsOpsCountFsOpReleaseDirHandleAtomic:                                               &fsOpsCountFsOpReleaseDirHandleAtomic,
@@ -3874,6 +4022,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpOpenDirAtomic:                         &fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpOpenFileAtomic:                        &fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadDirAtomic:                         &fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadDirPlusAtomic:                     &fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadFileAtomic:                        &fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadSymlinkAtomic:                     &fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReleaseDirHandleAtomic:                &fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReleaseDirHandleAtomic,
@@ -3904,6 +4053,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpOpenDirAtomic:                         &fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpOpenFileAtomic:                        &fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadDirAtomic:                         &fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadDirPlusAtomic:                     &fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadFileAtomic:                        &fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadSymlinkAtomic:                     &fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReleaseDirHandleAtomic:                &fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReleaseDirHandleAtomic,
@@ -3934,6 +4084,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpOpenDirAtomic:                        &fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpOpenFileAtomic:                       &fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadDirAtomic:                        &fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadDirPlusAtomic:                    &fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadFileAtomic:                       &fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadSymlinkAtomic:                    &fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReleaseDirHandleAtomic:               &fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReleaseDirHandleAtomic,
@@ -3964,6 +4115,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpOpenDirAtomic:                          &fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpOpenFileAtomic:                         &fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadDirAtomic:                          &fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadDirPlusAtomic:                      &fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadFileAtomic:                         &fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadSymlinkAtomic:                      &fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReleaseDirHandleAtomic:                 &fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReleaseDirHandleAtomic,
@@ -3994,6 +4146,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpOpenDirAtomic:                      &fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpOpenFileAtomic:                     &fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadDirAtomic:                      &fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadDirPlusAtomic:                  &fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadFileAtomic:                     &fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadSymlinkAtomic:                  &fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReleaseDirHandleAtomic:             &fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReleaseDirHandleAtomic,
@@ -4024,6 +4177,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpOpenDirAtomic:                     &fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpOpenFileAtomic:                    &fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadDirAtomic:                     &fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadDirPlusAtomic:                 &fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadFileAtomic:                    &fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadSymlinkAtomic:                 &fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReleaseDirHandleAtomic:            &fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReleaseDirHandleAtomic,
@@ -4054,6 +4208,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpOpenDirAtomic:                    &fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpOpenFileAtomic:                   &fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadDirAtomic:                    &fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadDirPlusAtomic:                &fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadFileAtomic:                   &fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadSymlinkAtomic:                &fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReleaseDirHandleAtomic:           &fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReleaseDirHandleAtomic,
@@ -4084,6 +4239,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryIOERRORFsOpOpenDirAtomic:                             &fsOpsErrorCountFsErrorCategoryIOERRORFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryIOERRORFsOpOpenFileAtomic:                            &fsOpsErrorCountFsErrorCategoryIOERRORFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadDirAtomic:                             &fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadDirPlusAtomic:                         &fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadFileAtomic:                            &fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadSymlinkAtomic:                         &fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryIOERRORFsOpReleaseDirHandleAtomic:                    &fsOpsErrorCountFsErrorCategoryIOERRORFsOpReleaseDirHandleAtomic,
@@ -4114,6 +4270,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryMISCERRORFsOpOpenDirAtomic:                           &fsOpsErrorCountFsErrorCategoryMISCERRORFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryMISCERRORFsOpOpenFileAtomic:                          &fsOpsErrorCountFsErrorCategoryMISCERRORFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadDirAtomic:                           &fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadDirPlusAtomic:                       &fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadFileAtomic:                          &fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadSymlinkAtomic:                       &fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReleaseDirHandleAtomic:                  &fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReleaseDirHandleAtomic,
@@ -4144,6 +4301,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpOpenDirAtomic:                        &fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpOpenFileAtomic:                       &fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadDirAtomic:                        &fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadDirPlusAtomic:                    &fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadFileAtomic:                       &fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadSymlinkAtomic:                    &fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReleaseDirHandleAtomic:               &fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReleaseDirHandleAtomic,
@@ -4174,6 +4332,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryNOTADIRFsOpOpenDirAtomic:                             &fsOpsErrorCountFsErrorCategoryNOTADIRFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryNOTADIRFsOpOpenFileAtomic:                            &fsOpsErrorCountFsErrorCategoryNOTADIRFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadDirAtomic:                             &fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadDirPlusAtomic:                         &fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadFileAtomic:                            &fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadSymlinkAtomic:                         &fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReleaseDirHandleAtomic:                    &fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReleaseDirHandleAtomic,
@@ -4204,6 +4363,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpOpenDirAtomic:                      &fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpOpenFileAtomic:                     &fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadDirAtomic:                      &fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadDirPlusAtomic:                  &fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadFileAtomic:                     &fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadSymlinkAtomic:                  &fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReleaseDirHandleAtomic:             &fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReleaseDirHandleAtomic,
@@ -4234,6 +4394,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpOpenDirAtomic:                         &fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpOpenFileAtomic:                        &fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadDirAtomic:                         &fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadDirPlusAtomic:                     &fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadFileAtomic:                        &fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadSymlinkAtomic:                     &fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReleaseDirHandleAtomic:                &fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReleaseDirHandleAtomic,
@@ -4264,6 +4425,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryPERMERRORFsOpOpenDirAtomic:                           &fsOpsErrorCountFsErrorCategoryPERMERRORFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryPERMERRORFsOpOpenFileAtomic:                          &fsOpsErrorCountFsErrorCategoryPERMERRORFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadDirAtomic:                           &fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadDirPlusAtomic:                       &fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadFileAtomic:                          &fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadSymlinkAtomic:                       &fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReleaseDirHandleAtomic:                  &fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReleaseDirHandleAtomic,
@@ -4294,6 +4456,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpOpenDirAtomic:            &fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpOpenFileAtomic:           &fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadDirAtomic:            &fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadDirPlusAtomic:        &fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadFileAtomic:           &fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadSymlinkAtomic:        &fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReleaseDirHandleAtomic:   &fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReleaseDirHandleAtomic,
@@ -4324,6 +4487,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpOpenDirAtomic:                    &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpOpenDirAtomic,
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpOpenFileAtomic:                   &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpOpenFileAtomic,
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadDirAtomic:                    &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadDirAtomic,
+		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadDirPlusAtomic:                &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadDirPlusAtomic,
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadFileAtomic:                   &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadFileAtomic,
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadSymlinkAtomic:                &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadSymlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReleaseDirHandleAtomic:           &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReleaseDirHandleAtomic,
@@ -4339,33 +4503,38 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpUnlinkAtomic:                     &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpUnlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAtomic:                  &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAtomic,
 		fsOpsLatency: fsOpsLatency,
-		gcsDownloadBytesCountReadTypeParallelAtomic:             &gcsDownloadBytesCountReadTypeParallelAtomic,
-		gcsDownloadBytesCountReadTypeRandomAtomic:               &gcsDownloadBytesCountReadTypeRandomAtomic,
-		gcsDownloadBytesCountReadTypeSequentialAtomic:           &gcsDownloadBytesCountReadTypeSequentialAtomic,
-		gcsReadBytesCountAtomic:                                 &gcsReadBytesCountAtomic,
-		gcsReadCountReadTypeParallelAtomic:                      &gcsReadCountReadTypeParallelAtomic,
-		gcsReadCountReadTypeRandomAtomic:                        &gcsReadCountReadTypeRandomAtomic,
-		gcsReadCountReadTypeSequentialAtomic:                    &gcsReadCountReadTypeSequentialAtomic,
-		gcsReaderCountIoMethodClosedAtomic:                      &gcsReaderCountIoMethodClosedAtomic,
-		gcsReaderCountIoMethodOpenedAtomic:                      &gcsReaderCountIoMethodOpenedAtomic,
-		gcsRequestCountGcsMethodComposeObjectsAtomic:            &gcsRequestCountGcsMethodComposeObjectsAtomic,
-		gcsRequestCountGcsMethodCreateFolderAtomic:              &gcsRequestCountGcsMethodCreateFolderAtomic,
-		gcsRequestCountGcsMethodCreateObjectChunkWriterAtomic:   &gcsRequestCountGcsMethodCreateObjectChunkWriterAtomic,
-		gcsRequestCountGcsMethodDeleteFolderAtomic:              &gcsRequestCountGcsMethodDeleteFolderAtomic,
-		gcsRequestCountGcsMethodDeleteObjectAtomic:              &gcsRequestCountGcsMethodDeleteObjectAtomic,
-		gcsRequestCountGcsMethodFinalizeUploadAtomic:            &gcsRequestCountGcsMethodFinalizeUploadAtomic,
-		gcsRequestCountGcsMethodGetFolderAtomic:                 &gcsRequestCountGcsMethodGetFolderAtomic,
-		gcsRequestCountGcsMethodListObjectsAtomic:               &gcsRequestCountGcsMethodListObjectsAtomic,
-		gcsRequestCountGcsMethodMoveObjectAtomic:                &gcsRequestCountGcsMethodMoveObjectAtomic,
-		gcsRequestCountGcsMethodMultiRangeDownloaderAddAtomic:   &gcsRequestCountGcsMethodMultiRangeDownloaderAddAtomic,
-		gcsRequestCountGcsMethodNewMultiRangeDownloaderAtomic:   &gcsRequestCountGcsMethodNewMultiRangeDownloaderAtomic,
-		gcsRequestCountGcsMethodNewReaderAtomic:                 &gcsRequestCountGcsMethodNewReaderAtomic,
-		gcsRequestCountGcsMethodRenameFolderAtomic:              &gcsRequestCountGcsMethodRenameFolderAtomic,
-		gcsRequestCountGcsMethodStatObjectAtomic:                &gcsRequestCountGcsMethodStatObjectAtomic,
-		gcsRequestCountGcsMethodUpdateObjectAtomic:              &gcsRequestCountGcsMethodUpdateObjectAtomic,
-		gcsRequestLatencies:                                     gcsRequestLatencies,
-		gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic:        &gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic,
-		gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic: &gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic,
+		gcsDownloadBytesCountReadTypeParallelAtomic:                &gcsDownloadBytesCountReadTypeParallelAtomic,
+		gcsDownloadBytesCountReadTypeRandomAtomic:                  &gcsDownloadBytesCountReadTypeRandomAtomic,
+		gcsDownloadBytesCountReadTypeSequentialAtomic:              &gcsDownloadBytesCountReadTypeSequentialAtomic,
+		gcsReadBytesCountAtomic:                                    &gcsReadBytesCountAtomic,
+		gcsReadCountReadTypeParallelAtomic:                         &gcsReadCountReadTypeParallelAtomic,
+		gcsReadCountReadTypeRandomAtomic:                           &gcsReadCountReadTypeRandomAtomic,
+		gcsReadCountReadTypeSequentialAtomic:                       &gcsReadCountReadTypeSequentialAtomic,
+		gcsReaderCountIoMethodReadHandleAtomic:                     &gcsReaderCountIoMethodReadHandleAtomic,
+		gcsReaderCountIoMethodClosedAtomic:                         &gcsReaderCountIoMethodClosedAtomic,
+		gcsReaderCountIoMethodOpenedAtomic:                         &gcsReaderCountIoMethodOpenedAtomic,
+		gcsRequestCountGcsMethodComposeObjectsAtomic:               &gcsRequestCountGcsMethodComposeObjectsAtomic,
+		gcsRequestCountGcsMethodCopyObjectAtomic:                   &gcsRequestCountGcsMethodCopyObjectAtomic,
+		gcsRequestCountGcsMethodCreateAppendableObjectWriterAtomic: &gcsRequestCountGcsMethodCreateAppendableObjectWriterAtomic,
+		gcsRequestCountGcsMethodCreateFolderAtomic:                 &gcsRequestCountGcsMethodCreateFolderAtomic,
+		gcsRequestCountGcsMethodCreateObjectAtomic:                 &gcsRequestCountGcsMethodCreateObjectAtomic,
+		gcsRequestCountGcsMethodCreateObjectChunkWriterAtomic:      &gcsRequestCountGcsMethodCreateObjectChunkWriterAtomic,
+		gcsRequestCountGcsMethodDeleteFolderAtomic:                 &gcsRequestCountGcsMethodDeleteFolderAtomic,
+		gcsRequestCountGcsMethodDeleteObjectAtomic:                 &gcsRequestCountGcsMethodDeleteObjectAtomic,
+		gcsRequestCountGcsMethodFinalizeUploadAtomic:               &gcsRequestCountGcsMethodFinalizeUploadAtomic,
+		gcsRequestCountGcsMethodFlushPendingWritesAtomic:           &gcsRequestCountGcsMethodFlushPendingWritesAtomic,
+		gcsRequestCountGcsMethodGetFolderAtomic:                    &gcsRequestCountGcsMethodGetFolderAtomic,
+		gcsRequestCountGcsMethodListObjectsAtomic:                  &gcsRequestCountGcsMethodListObjectsAtomic,
+		gcsRequestCountGcsMethodMoveObjectAtomic:                   &gcsRequestCountGcsMethodMoveObjectAtomic,
+		gcsRequestCountGcsMethodMultiRangeDownloaderAddAtomic:      &gcsRequestCountGcsMethodMultiRangeDownloaderAddAtomic,
+		gcsRequestCountGcsMethodNewMultiRangeDownloaderAtomic:      &gcsRequestCountGcsMethodNewMultiRangeDownloaderAtomic,
+		gcsRequestCountGcsMethodNewReaderAtomic:                    &gcsRequestCountGcsMethodNewReaderAtomic,
+		gcsRequestCountGcsMethodRenameFolderAtomic:                 &gcsRequestCountGcsMethodRenameFolderAtomic,
+		gcsRequestCountGcsMethodStatObjectAtomic:                   &gcsRequestCountGcsMethodStatObjectAtomic,
+		gcsRequestCountGcsMethodUpdateObjectAtomic:                 &gcsRequestCountGcsMethodUpdateObjectAtomic,
+		gcsRequestLatencies:                                        gcsRequestLatencies,
+		gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic:           &gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic,
+		gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic:    &gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic,
 	}, nil
 }
 

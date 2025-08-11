@@ -86,6 +86,7 @@
     - "OpenDir"
     - "OpenFile"
     - "ReadDir"
+    - "ReadDirPlus"
     - "ReadFile"
     - "ReadSymlink"
     - "ReleaseDirHandle"
@@ -169,6 +170,7 @@
     values:
     - "closed"
     - "opened"
+    - "ReadHandle"
 
 - metric-name: "gcs/request_count"
   description: "The cumulative number of GCS requests processed along with the GCS method."
@@ -178,11 +180,15 @@
     attribute-type: string
     values: &gcs_method_list
     - "ComposeObjects"
+    - "CopyObject"
+    - "CreateAppendableObjectWriter"
     - "CreateFolder"
+    - "CreateObject"
     - "CreateObjectChunkWriter"
     - "DeleteFolder"
     - "DeleteObject"
     - "FinalizeUpload"
+    - "FlushPendingWrites"
     - "GetFolder"
     - "ListObjects"
     - "MoveObject"
