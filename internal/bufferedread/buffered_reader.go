@@ -96,7 +96,7 @@ type BufferedReader struct {
 func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *BufferedReadConfig, globalMaxBlocksSem *semaphore.Weighted, workerPool workerpool.WorkerPool, metricHandle metrics.MetricHandle) (*BufferedReader, error) {
 	minBlockToStart, err := minBlockToStartBufferedRead(config.PrefetchBlockSizeBytes)
 	if err != nil {
-		return nil, fmt.Errorf("NewBufferedReader: failed to get min block to start buffered read: %w", err)
+		return nil, fmt.Errorf("NewBufferedReader: failed to get min-block count to start buffered read: %w", err)
 	}
 
 	blockpool, err := block.NewPrefetchBlockPool(config.PrefetchBlockSizeBytes, config.MaxPrefetchBlockCnt, int64(minBlockToStart), globalMaxBlocksSem)

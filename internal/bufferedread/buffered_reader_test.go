@@ -144,20 +144,24 @@ func (t *BufferedReaderTest) TestNewBufferedReader() {
 }
 
 func (t *BufferedReaderTest) TestNewBufferedReaderWithZeroBlockSize() {
-	// Test with invalid block size
+	// Set an invalid block size.
 	t.config.PrefetchBlockSizeBytes = 0
+
 	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+
 	assert.Error(t.T(), err, "NewBufferedReader should return error with invalid block size")
 	assert.Nil(t.T(), reader, "BufferedReader should be nil on error")
 }
 
 func (t *BufferedReaderTest) TestNewBufferedReaderWithMinimumBlockNotAvailableInPool() {
-	// Test with invalid block size
-	t.config.PrefetchBlockSizeBytes = 2 * util.MiB  // Set a block size that requires more blocks than available
-	t.globalMaxBlocksSem = semaphore.NewWeighted(1) // Simulate no blocks available
+	// Set a block size that requires more blocks than available.
+	t.config.PrefetchBlockSizeBytes = 2 * util.MiB
+	t.globalMaxBlocksSem = semaphore.NewWeighted(1) // Simulate no blocks available in globally.
+
 	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
 
-	assert.Error(t.T(), err, "NewBufferedReader should not start if minimum required blocks are not available.")
+	assert.Error(t.T(), err)
+	assert.ErrorIs(t.T(), err, block.CantAllocateAnyBlockError)
 	assert.Nil(t.T(), reader, "BufferedReader should be nil on error")
 }
 
