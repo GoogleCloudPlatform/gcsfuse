@@ -928,7 +928,7 @@ func (t *BufferedReaderTest) TestReadAtExactlyToEndOfFile() {
 	// Read the entire file.
 	resp, err := reader.ReadAt(t.ctx, buf, 0)
 
-	assert.ErrorIs(t.T(), err, io.EOF)
+	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), int(t.object.Size), resp.Size)
 	assertBufferContent(t.T(), buf, 0)
 	t.bucket.AssertExpectations(t.T())
@@ -1083,7 +1083,7 @@ func (t *BufferedReaderTest) TestReadAtExceedsObjectSize() {
 
 	resp, err := reader.ReadAt(t.ctx, buf, readOffset)
 
-	assert.ErrorIs(t.T(), err, io.EOF)
+	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), 512, resp.Size)
 	assertBufferContent(t.T(), buf[:resp.Size], readOffset)
 	t.bucket.AssertExpectations(t.T())
