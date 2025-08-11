@@ -31,10 +31,12 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/sync/semaphore"
 )
@@ -413,4 +415,39 @@ func (t *fileTest) TestFileHandle_CheckInvariants_WithNilReaderAndManager() {
 	assert.NotPanics(t.T(), func() {
 		fh.checkInvariants()
 	})
+}
+
+func (t *fileTest) Test_ReadWithReadManager_FullReadSuccessWithBufferedRead() {
+	const (
+		fileSize = 1 * 1024 * 1024 // 1 MiB
+	)
+	expectedData := make([]byte, fileSize)
+	for i := 0; i < fileSize; i++ {
+		expectedData[i] = byte(i % 256)
+	}
+	// Setup for Buffered Read test case
+	config := &cfg.Config{
+		Read: cfg.ReadConfig{
+			EnableBufferedRead:   true,
+			MaxBlocksPerHandle:   10,
+			BlockSizeMb:          1,
+			StartBlocksPerHandle: 2,
+		},
+	}
+	workerPool, err := workerpool.NewStaticWorkerPoolForCurrentCPU()
+	require.NoError(t.T(), err)
+	defer workerPool.Stop()
+	globalSemaphore := semaphore.NewWeighted(20) // Sufficient blocks for the test
+	parent := createDirInode(&t.bucket, &t.clock)
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "read_obj", expectedData, false)
+	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, config, workerPool, globalSemaphore)
+	fh.inode.Lock()
+	buf := make([]byte, fileSize)
+
+	// ReadWithReadManager will unlock the inode.
+	output, n, err := fh.ReadWithReadManager(context.Background(), buf, 0, 200)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), fileSize, n)
+	assert.Equal(t.T(), expectedData, output)
 }

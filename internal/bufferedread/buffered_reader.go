@@ -307,7 +307,6 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		}
 
 		if off >= int64(p.object.Size) {
-			err = io.EOF
 			break
 		}
 
