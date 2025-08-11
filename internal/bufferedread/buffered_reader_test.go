@@ -143,6 +143,24 @@ func (t *BufferedReaderTest) TestNewBufferedReader() {
 	assert.NotNil(t.T(), reader.cancelFunc)
 }
 
+func (t *BufferedReaderTest) TestNewBufferedReaderWithZeroBlockSize() {
+	// Test with invalid block size
+	t.config.PrefetchBlockSizeBytes = 0
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	assert.Error(t.T(), err, "NewBufferedReader should return error with invalid block size")
+	assert.Nil(t.T(), reader, "BufferedReader should be nil on error")
+}
+
+func (t *BufferedReaderTest) TestNewBufferedReaderWithMinimumBlockNotAvailableInPool() {
+	// Test with invalid block size
+	t.config.PrefetchBlockSizeBytes = 2 * util.MiB  // Set a block size that requires more blocks than available
+	t.globalMaxBlocksSem = semaphore.NewWeighted(1) // Simulate no blocks available
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+
+	assert.Error(t.T(), err, "NewBufferedReader should not start if minimum required blocks are not available.")
+	assert.Nil(t.T(), reader, "BufferedReader should be nil on error")
+}
+
 func (t *BufferedReaderTest) TestDestroySuccess() {
 	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
 	require.NoError(t.T(), err, "NewBufferedReader should not return error")
