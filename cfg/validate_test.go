@@ -48,7 +48,14 @@ func validFileCacheConfig(t *testing.T) FileCacheConfig {
 func validFileCacheConfigWithExcludeRegex(t *testing.T, r string) FileCacheConfig {
 	t.Helper()
 	cfg := validFileCacheConfig(t)
-	cfg.ExperimentalExcludeRegex = r
+	cfg.ExcludeRegex = r
+	return cfg
+}
+
+func validFileCacheConfigWithIncludeRegex(t *testing.T, r string) FileCacheConfig {
+	t.Helper()
+	cfg := validFileCacheConfig(t)
+	cfg.IncludeRegex = r
 	return cfg
 }
 
@@ -228,6 +235,25 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
 				CacheDir:  "/some/valid/path",
 				FileCache: validFileCacheConfigWithExcludeRegex(t, ".*"),
+				GcsConnection: GcsConnectionConfig{
+					CustomEndpoint:       "https://bing.com/search?q=dotnet",
+					SequentialReadSizeMb: 200,
+				},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "disabled",
+				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
+				},
+			},
+		},
+		{
+			name: "valid_file_cache_include_config",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				CacheDir:  "/some/valid/path",
+				FileCache: validFileCacheConfigWithIncludeRegex(t, ".*"),
 				GcsConnection: GcsConnectionConfig{
 					CustomEndpoint:       "https://bing.com/search?q=dotnet",
 					SequentialReadSizeMb: 200,
@@ -456,6 +482,13 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 			config: &Config{
 				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
 				FileCache: validFileCacheConfigWithExcludeRegex(t, "["),
+			},
+		},
+		{
+			name: "file_cache_include_regex",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfigWithIncludeRegex(t, "["),
 			},
 		},
 		{
