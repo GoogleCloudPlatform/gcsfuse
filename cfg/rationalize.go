@@ -50,7 +50,6 @@ func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig, optimizedFlags []s
 			c.NegativeTtlSecs = maxSupportedTTLInSeconds
 		}
 	}
-
 	// Order of precedence for setting TTL seconds
 	// 1. If metadata-cache:ttl-secs has been set, then it has highest precedence
 	// 2. If metadata-cache:stat-cache-ttl or metadata-cache:type-cache-ttl has been set or no optimization applied, then it has second highest precedence

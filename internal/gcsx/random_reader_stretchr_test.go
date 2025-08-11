@@ -76,7 +76,7 @@ func (t *RandomReaderStretchrTest) SetupTest() {
 	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, &cfg.FileCacheConfig{
 		EnableCrc: false,
 	}, nil)
-	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "")
+	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "")
 
 	// Set up the reader.
 	rr := NewRandomReader(t.object, t.mockBucket, sequentialReadSizeInMb, nil, false, metrics.NewNoopMetrics(), nil, nil)
