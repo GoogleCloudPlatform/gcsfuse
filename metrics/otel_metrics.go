@@ -19,6 +19,7 @@ package metrics
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -2536,7 +2537,6 @@ func (o *otelMetrics) FsOpsLatency(
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpWriteFileAttrSet}
 	default:
 		updateUnrecognizedAttribute(fsOp)
-		return
 	}
 
 	select {
@@ -2691,7 +2691,6 @@ func (o *otelMetrics) GcsRequestLatencies(
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodUpdateObjectAttrSet}
 	default:
 		updateUnrecognizedAttribute(gcsMethod)
-		return
 	}
 
 	select {
@@ -4550,7 +4549,7 @@ func conditionallyObserve(obsrv metric.Int64Observer, counter *atomic.Int64, obs
 }
 
 func updateUnrecognizedAttribute(newValue string) {
-	unrecognizedAttr.CompareAndSwap("", newValue)
+	panic(fmt.Sprintf("unrecognized attribute: %s", newValue))
 }
 
 // StartSampledLogging starts a goroutine that logs unrecognized attributes periodically.

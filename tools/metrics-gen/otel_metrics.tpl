@@ -175,7 +175,7 @@ func conditionallyObserve(obsrv metric.Int64Observer, counter *atomic.Int64, obs
 }
 
 func updateUnrecognizedAttribute(newValue string) {
-	unrecognizedAttr.CompareAndSwap("", newValue)
+	panic(fmt.Sprintf("unrecognized attribute: %s", newValue))
 }
 
 // StartSampledLogging starts a goroutine that logs unrecognized attributes periodically.

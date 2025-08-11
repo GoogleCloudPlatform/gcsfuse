@@ -653,7 +653,7 @@
   flag-name: "prometheus-port"
   type: "int"
   usage: "Expose Prometheus metrics endpoint on this port and a path of /metrics."
-  default: "0"
+  default: "8080"
 
 - config-path: "metrics.stackdriver-export-interval"
   flag-name: "stackdriver-export-interval"
