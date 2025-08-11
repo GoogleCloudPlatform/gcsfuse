@@ -2430,6 +2430,7 @@ func (o *otelMetrics) FsOpsLatency(
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpWriteFileAttrSet}
 	default:
 		updateUnrecognizedAttribute(fsOp)
+		return
 	}
 
 	select {
@@ -2562,6 +2563,7 @@ func (o *otelMetrics) GcsRequestLatencies(
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodUpdateObjectAttrSet}
 	default:
 		updateUnrecognizedAttribute(gcsMethod)
+		return
 	}
 
 	select {

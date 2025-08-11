@@ -388,6 +388,9 @@ func buildSwitches(metric Metric) string {
 		}
 		if attr.Type == "string" {
 			handleDefaultInSwitchCase(level, attr.Name, &builder)
+			if metric.Type == "int_histogram" {
+				builder.WriteString(fmt.Sprintf("%sreturn\n", strings.Repeat("\t", level+3)))
+			}
 		}
 		builder.WriteString(fmt.Sprintf("%s}\n", indent))
 	}
