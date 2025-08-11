@@ -28,15 +28,16 @@ func TestDefaultMinBlockToStartBufferedReadSuccess(t *testing.T) {
 		objectSize uint64
 		expected   uint
 	}{
-		{"Small block size", 2 * util.MiB, 20 * util.MiB, 6},
-		{"Medium block size", 4 * util.MiB, 40 * util.MiB, 6},
-		{"Large block size", 8 * util.MiB, 100 * util.MiB, 4},
-		{"Very large block size", 16 * util.MiB, 1000 * util.MiB, 2},
-		{"Object size smaller than block size", 4 * util.MiB, 2 * util.MiB, 1},
-		{"Object size equal to block size", 4 * util.MiB, 4 * util.MiB, 1},
-		{"Object size less than two blocks", 4 * util.MiB, 6 * util.MiB, 2},
-		{"Object size exactly two blocks", 4 * util.MiB, 8 * util.MiB, 2},
-		{"Object size larger than two blocks", 4 * util.MiB, 20 * util.MiB, 6},
+		{"2MB block size", 2 * util.MiB, 40 * util.MiB, 6},
+		{"4MB block size", 4 * util.MiB, 40 * util.MiB, 6},
+		{"8MB block size", 8 * util.MiB, 100 * util.MiB, 4},
+		{"16MB block size", 16 * util.MiB, 1000 * util.MiB, 2},
+		{"32MB block size", 32 * util.MiB, 1000 * util.MiB, 2},
+		{"2MB with small object", 2 * util.MiB, 4 * util.MiB, 2},
+		{"4MB with small object", 4 * util.MiB, 4 * util.MiB, 1},
+		{"8MB with small object", 8 * util.MiB, 4 * util.MiB, 1},
+		{"16MB with small object", 16 * util.MiB, 4 * util.MiB, 1},
+		{"32MB with small object", 32 * util.MiB, 4 * util.MiB, 1},
 	}
 
 	for _, tt := range tests {
@@ -113,9 +114,9 @@ func TestStaticMinBlockToStartBufferedReadFailure(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			defaultPredictor := &staticMinBlockPredictor{minBlockCount: tt.staticBlockCnt}
+			predictor := &staticMinBlockPredictor{minBlockCount: tt.staticBlockCnt}
 
-			_, err := defaultPredictor.PredictMinBlockCount(tt.blockSize, tt.objectSize)
+			_, err := predictor.PredictMinBlockCount(tt.blockSize, tt.objectSize)
 
 			assert.Error(t, err)
 

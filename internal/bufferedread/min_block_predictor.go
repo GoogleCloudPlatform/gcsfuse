@@ -29,6 +29,8 @@ type MinBlockPredictor interface {
 // defaultMinBlockPredictor determines the minimum number of blocks required
 // to start buffered read based on performance testing results and is subject
 // to change.
+// Also ensures, returned block-count * block-size is less than or equal to the
+// object size.
 type defaultMinBlockPredictor struct{}
 
 func (d *defaultMinBlockPredictor) PredictMinBlockCount(blockSize int64, objectSize uint64) (uint, error) {
@@ -37,29 +39,27 @@ func (d *defaultMinBlockPredictor) PredictMinBlockCount(blockSize int64, objectS
 	}
 
 	// Cap the block count based on the object size.
-	totalBlocksReq := (objectSize + uint64(blockSize) - 1) / uint64(blockSize)
-	if totalBlocksReq <= 2 {
-		return uint(totalBlocksReq), nil
-	}
+	maxBlockCount := (objectSize + uint64(blockSize) - 1) / uint64(blockSize)
 
 	if blockSize <= 4*util.MiB {
-		return 6, nil
+		return min(6, uint(maxBlockCount)), nil
 	}
 
 	if blockSize <= 8*util.MiB {
-		return 4, nil
+		return min(4, uint(maxBlockCount)), nil
 	}
 
-	return 2, nil
+	return min(2, uint(maxBlockCount)), nil
 }
 
 // staticMinBlockPredictor is a MinBlockPredictor that returns a static
 // minimum block count.
+// Used for testing purposes.
 type staticMinBlockPredictor struct {
 	minBlockCount uint
 }
 
-func (s *staticMinBlockPredictor) PredictMinBlockCount(blockSize int64, objectSize uint64) (uint, error) {
+func (s *staticMinBlockPredictor) PredictMinBlockCount(blockSize int64, _ uint64) (uint, error) {
 	if blockSize <= 0 {
 		return 0, fmt.Errorf("invalid block-size: %d", blockSize)
 	}
