@@ -94,7 +94,12 @@ type BufferedReader struct {
 
 // NewBufferedReader returns a new bufferedReader instance.
 func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *BufferedReadConfig, globalMaxBlocksSem *semaphore.Weighted, workerPool workerpool.WorkerPool, metricHandle metrics.MetricHandle) (*BufferedReader, error) {
-	minBlockToStart, err := minBlockToStartBufferedRead(config.PrefetchBlockSizeBytes)
+	return newBufferedReaderWithMinBlockPredictor(object, bucket, config, &defaultMinBlockPredictor{}, globalMaxBlocksSem, workerPool, metricHandle)
+}
+
+// newBufferedReaderWithMinBlockPredictor returns a new bufferedReader instance.
+func newBufferedReaderWithMinBlockPredictor(object *gcs.MinObject, bucket gcs.Bucket, config *BufferedReadConfig, mbp MinBlockPredictor, globalMaxBlocksSem *semaphore.Weighted, workerPool workerpool.WorkerPool, metricHandle metrics.MetricHandle) (*BufferedReader, error) {
+	minBlockToStart, err := mbp.PredictMinBlockCount(config.PrefetchBlockSizeBytes, object.Size)
 	if err != nil {
 		return nil, fmt.Errorf("NewBufferedReader: failed to get min-block count to start buffered read: %w", err)
 	}
