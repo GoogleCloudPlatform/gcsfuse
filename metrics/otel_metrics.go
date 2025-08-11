@@ -1197,6 +1197,7 @@ func (o *otelMetrics) FileCacheReadBytesCount(
 		o.fileCacheReadBytesCountReadTypeSequentialAtomic.Add(inc)
 	default:
 		updateUnrecognizedAttribute(readType)
+		return
 	}
 
 }
@@ -1214,6 +1215,7 @@ func (o *otelMetrics) FileCacheReadCount(
 			o.fileCacheReadCountCacheHitTrueReadTypeSequentialAtomic.Add(inc)
 		default:
 			updateUnrecognizedAttribute(readType)
+			return
 		}
 	case false:
 		switch readType {
@@ -1225,6 +1227,7 @@ func (o *otelMetrics) FileCacheReadCount(
 			o.fileCacheReadCountCacheHitFalseReadTypeSequentialAtomic.Add(inc)
 		default:
 			updateUnrecognizedAttribute(readType)
+			return
 		}
 	}
 
@@ -1311,6 +1314,7 @@ func (o *otelMetrics) FsOpsCount(
 		o.fsOpsCountFsOpWriteFileAtomic.Add(inc)
 	default:
 		updateUnrecognizedAttribute(fsOp)
+		return
 	}
 
 }
@@ -1382,6 +1386,7 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpWriteFileAtomic.Add(inc)
 		default:
 			updateUnrecognizedAttribute(fsOp)
+			return
 		}
 	case "DIR_NOT_EMPTY":
 		switch fsOp {
@@ -1447,6 +1452,7 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpWriteFileAtomic.Add(inc)
 		default:
 			updateUnrecognizedAttribute(fsOp)
+			return
 		}
 	case "FILE_DIR_ERROR":
 		switch fsOp {
@@ -1512,6 +1518,7 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpWriteFileAtomic.Add(inc)
 		default:
 			updateUnrecognizedAttribute(fsOp)
+			return
 		}
 	case "FILE_EXISTS":
 		switch fsOp {
@@ -1577,6 +1584,7 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpWriteFileAtomic.Add(inc)
 		default:
 			updateUnrecognizedAttribute(fsOp)
+			return
 		}
 	case "INTERRUPT_ERROR":
 		switch fsOp {
@@ -1642,6 +1650,7 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpWriteFileAtomic.Add(inc)
 		default:
 			updateUnrecognizedAttribute(fsOp)
+			return
 		}
 	case "INVALID_ARGUMENT":
 		switch fsOp {
@@ -1707,6 +1716,7 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpWriteFileAtomic.Add(inc)
 		default:
 			updateUnrecognizedAttribute(fsOp)
+			return
 		}
 	case "INVALID_OPERATION":
 		switch fsOp {
@@ -1772,6 +1782,7 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpWriteFileAtomic.Add(inc)
 		default:
 			updateUnrecognizedAttribute(fsOp)
+			return
 		}
 	case "IO_ERROR":
 		switch fsOp {
@@ -1837,6 +1848,7 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpWriteFileAtomic.Add(inc)
 		default:
 			updateUnrecognizedAttribute(fsOp)
+			return
 		}
 	case "MISC_ERROR":
 		switch fsOp {
@@ -1902,6 +1914,7 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpWriteFileAtomic.Add(inc)
 		default:
 			updateUnrecognizedAttribute(fsOp)
+			return
 		}
 	case "NETWORK_ERROR":
 		switch fsOp {
@@ -1967,6 +1980,7 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpWriteFileAtomic.Add(inc)
 		default:
 			updateUnrecognizedAttribute(fsOp)
+			return
 		}
 	case "NOT_A_DIR":
 		switch fsOp {
@@ -2032,6 +2046,7 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpWriteFileAtomic.Add(inc)
 		default:
 			updateUnrecognizedAttribute(fsOp)
+			return
 		}
 	case "NOT_IMPLEMENTED":
 		switch fsOp {
@@ -2097,6 +2112,7 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpWriteFileAtomic.Add(inc)
 		default:
 			updateUnrecognizedAttribute(fsOp)
+			return
 		}
 	case "NO_FILE_OR_DIR":
 		switch fsOp {
@@ -2162,6 +2178,7 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpWriteFileAtomic.Add(inc)
 		default:
 			updateUnrecognizedAttribute(fsOp)
+			return
 		}
 	case "PERM_ERROR":
 		switch fsOp {
@@ -2227,6 +2244,7 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpWriteFileAtomic.Add(inc)
 		default:
 			updateUnrecognizedAttribute(fsOp)
+			return
 		}
 	case "PROCESS_RESOURCE_MGMT_ERROR":
 		switch fsOp {
@@ -2292,6 +2310,7 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpWriteFileAtomic.Add(inc)
 		default:
 			updateUnrecognizedAttribute(fsOp)
+			return
 		}
 	case "TOO_MANY_OPEN_FILES":
 		switch fsOp {
@@ -2357,9 +2376,11 @@ func (o *otelMetrics) FsOpsErrorCount(
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAtomic.Add(inc)
 		default:
 			updateUnrecognizedAttribute(fsOp)
+			return
 		}
 	default:
 		updateUnrecognizedAttribute(fsErrorCategory)
+		return
 	}
 
 }
@@ -2450,6 +2471,7 @@ func (o *otelMetrics) GcsDownloadBytesCount(
 		o.gcsDownloadBytesCountReadTypeSequentialAtomic.Add(inc)
 	default:
 		updateUnrecognizedAttribute(readType)
+		return
 	}
 
 }
@@ -2471,6 +2493,7 @@ func (o *otelMetrics) GcsReadCount(
 		o.gcsReadCountReadTypeSequentialAtomic.Add(inc)
 	default:
 		updateUnrecognizedAttribute(readType)
+		return
 	}
 
 }
@@ -2484,6 +2507,7 @@ func (o *otelMetrics) GcsReaderCount(
 		o.gcsReaderCountIoMethodOpenedAtomic.Add(inc)
 	default:
 		updateUnrecognizedAttribute(ioMethod)
+		return
 	}
 
 }
@@ -2523,6 +2547,7 @@ func (o *otelMetrics) GcsRequestCount(
 		o.gcsRequestCountGcsMethodUpdateObjectAtomic.Add(inc)
 	default:
 		updateUnrecognizedAttribute(gcsMethod)
+		return
 	}
 
 }
@@ -2581,6 +2606,7 @@ func (o *otelMetrics) GcsRetryCount(
 		o.gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic.Add(inc)
 	default:
 		updateUnrecognizedAttribute(retryErrorCategory)
+		return
 	}
 
 }

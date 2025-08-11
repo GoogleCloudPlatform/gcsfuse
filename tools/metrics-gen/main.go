@@ -253,6 +253,7 @@ func generateCombinations(attributes []Attribute) []AttrCombination {
 func handleDefaultInSwitchCase(level int, attrName string, builder *strings.Builder) {
 	builder.WriteString(fmt.Sprintf("%sdefault:\n", strings.Repeat("\t", level+2)))
 	builder.WriteString(fmt.Sprintf("%supdateUnrecognizedAttribute(%s)\n", strings.Repeat("\t", level+3), toCamel(attrName)))
+	builder.WriteString(fmt.Sprintf("%sreturn\n", strings.Repeat("\t", level+3)))
 }
 
 func validateMetric(m Metric) error {
@@ -388,9 +389,6 @@ func buildSwitches(metric Metric) string {
 		}
 		if attr.Type == "string" {
 			handleDefaultInSwitchCase(level, attr.Name, &builder)
-			if metric.Type == "int_histogram" {
-				builder.WriteString(fmt.Sprintf("%sreturn\n", strings.Repeat("\t", level+3)))
-			}
 		}
 		builder.WriteString(fmt.Sprintf("%s}\n", indent))
 	}
