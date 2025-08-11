@@ -486,6 +486,15 @@ func TestFsOpsCount(t *testing.T) {
 			},
 		},
 		{
+			name: "fs_op_ReadDirPlus",
+			f: func(m *otelMetrics) {
+				m.FsOpsCount(5, "ReadDirPlus")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_op", "ReadDirPlus")): 5,
+			},
+		},
+		{
 			name: "fs_op_ReadFile",
 			f: func(m *otelMetrics) {
 				m.FsOpsCount(5, "ReadFile")
@@ -795,6 +804,15 @@ func TestFsOpsErrorCount(t *testing.T) {
 			},
 		},
 		{
+			name: "fs_error_category_DEVICE_ERROR_fs_op_ReadDirPlus",
+			f: func(m *otelMetrics) {
+				m.FsOpsErrorCount(5, "DEVICE_ERROR", "ReadDirPlus")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ReadDirPlus")): 5,
+			},
+		},
+		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_ReadFile",
 			f: func(m *otelMetrics) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "ReadFile")
@@ -1062,6 +1080,15 @@ func TestFsOpsErrorCount(t *testing.T) {
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ReadDir")): 5,
+			},
+		},
+		{
+			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_ReadDirPlus",
+			f: func(m *otelMetrics) {
+				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "ReadDirPlus")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ReadDirPlus")): 5,
 			},
 		},
 		{
@@ -1335,6 +1362,15 @@ func TestFsOpsErrorCount(t *testing.T) {
 			},
 		},
 		{
+			name: "fs_error_category_FILE_DIR_ERROR_fs_op_ReadDirPlus",
+			f: func(m *otelMetrics) {
+				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "ReadDirPlus")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ReadDirPlus")): 5,
+			},
+		},
+		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_ReadFile",
 			f: func(m *otelMetrics) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "ReadFile")
@@ -1602,6 +1638,15 @@ func TestFsOpsErrorCount(t *testing.T) {
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ReadDir")): 5,
+			},
+		},
+		{
+			name: "fs_error_category_FILE_EXISTS_fs_op_ReadDirPlus",
+			f: func(m *otelMetrics) {
+				m.FsOpsErrorCount(5, "FILE_EXISTS", "ReadDirPlus")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ReadDirPlus")): 5,
 			},
 		},
 		{
@@ -1875,6 +1920,15 @@ func TestFsOpsErrorCount(t *testing.T) {
 			},
 		},
 		{
+			name: "fs_error_category_INTERRUPT_ERROR_fs_op_ReadDirPlus",
+			f: func(m *otelMetrics) {
+				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "ReadDirPlus")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ReadDirPlus")): 5,
+			},
+		},
+		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_ReadFile",
 			f: func(m *otelMetrics) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "ReadFile")
@@ -2142,6 +2196,15 @@ func TestFsOpsErrorCount(t *testing.T) {
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ReadDir")): 5,
+			},
+		},
+		{
+			name: "fs_error_category_INVALID_ARGUMENT_fs_op_ReadDirPlus",
+			f: func(m *otelMetrics) {
+				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "ReadDirPlus")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ReadDirPlus")): 5,
 			},
 		},
 		{
@@ -2415,6 +2478,15 @@ func TestFsOpsErrorCount(t *testing.T) {
 			},
 		},
 		{
+			name: "fs_error_category_INVALID_OPERATION_fs_op_ReadDirPlus",
+			f: func(m *otelMetrics) {
+				m.FsOpsErrorCount(5, "INVALID_OPERATION", "ReadDirPlus")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ReadDirPlus")): 5,
+			},
+		},
+		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_ReadFile",
 			f: func(m *otelMetrics) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "ReadFile")
@@ -2682,6 +2754,15 @@ func TestFsOpsErrorCount(t *testing.T) {
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ReadDir")): 5,
+			},
+		},
+		{
+			name: "fs_error_category_IO_ERROR_fs_op_ReadDirPlus",
+			f: func(m *otelMetrics) {
+				m.FsOpsErrorCount(5, "IO_ERROR", "ReadDirPlus")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ReadDirPlus")): 5,
 			},
 		},
 		{
@@ -2955,6 +3036,15 @@ func TestFsOpsErrorCount(t *testing.T) {
 			},
 		},
 		{
+			name: "fs_error_category_MISC_ERROR_fs_op_ReadDirPlus",
+			f: func(m *otelMetrics) {
+				m.FsOpsErrorCount(5, "MISC_ERROR", "ReadDirPlus")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ReadDirPlus")): 5,
+			},
+		},
+		{
 			name: "fs_error_category_MISC_ERROR_fs_op_ReadFile",
 			f: func(m *otelMetrics) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "ReadFile")
@@ -3222,6 +3312,15 @@ func TestFsOpsErrorCount(t *testing.T) {
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ReadDir")): 5,
+			},
+		},
+		{
+			name: "fs_error_category_NETWORK_ERROR_fs_op_ReadDirPlus",
+			f: func(m *otelMetrics) {
+				m.FsOpsErrorCount(5, "NETWORK_ERROR", "ReadDirPlus")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ReadDirPlus")): 5,
 			},
 		},
 		{
@@ -3495,6 +3594,15 @@ func TestFsOpsErrorCount(t *testing.T) {
 			},
 		},
 		{
+			name: "fs_error_category_NOT_A_DIR_fs_op_ReadDirPlus",
+			f: func(m *otelMetrics) {
+				m.FsOpsErrorCount(5, "NOT_A_DIR", "ReadDirPlus")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ReadDirPlus")): 5,
+			},
+		},
+		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_ReadFile",
 			f: func(m *otelMetrics) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "ReadFile")
@@ -3762,6 +3870,15 @@ func TestFsOpsErrorCount(t *testing.T) {
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ReadDir")): 5,
+			},
+		},
+		{
+			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_ReadDirPlus",
+			f: func(m *otelMetrics) {
+				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "ReadDirPlus")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ReadDirPlus")): 5,
 			},
 		},
 		{
@@ -4035,6 +4152,15 @@ func TestFsOpsErrorCount(t *testing.T) {
 			},
 		},
 		{
+			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_ReadDirPlus",
+			f: func(m *otelMetrics) {
+				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "ReadDirPlus")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ReadDirPlus")): 5,
+			},
+		},
+		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_ReadFile",
 			f: func(m *otelMetrics) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "ReadFile")
@@ -4302,6 +4428,15 @@ func TestFsOpsErrorCount(t *testing.T) {
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ReadDir")): 5,
+			},
+		},
+		{
+			name: "fs_error_category_PERM_ERROR_fs_op_ReadDirPlus",
+			f: func(m *otelMetrics) {
+				m.FsOpsErrorCount(5, "PERM_ERROR", "ReadDirPlus")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ReadDirPlus")): 5,
 			},
 		},
 		{
@@ -4575,6 +4710,15 @@ func TestFsOpsErrorCount(t *testing.T) {
 			},
 		},
 		{
+			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_ReadDirPlus",
+			f: func(m *otelMetrics) {
+				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "ReadDirPlus")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ReadDirPlus")): 5,
+			},
+		},
+		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_ReadFile",
 			f: func(m *otelMetrics) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "ReadFile")
@@ -4845,6 +4989,15 @@ func TestFsOpsErrorCount(t *testing.T) {
 			},
 		},
 		{
+			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_ReadDirPlus",
+			f: func(m *otelMetrics) {
+				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "ReadDirPlus")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ReadDirPlus")): 5,
+			},
+		},
+		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_ReadFile",
 			f: func(m *otelMetrics) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "ReadFile")
@@ -5088,6 +5241,11 @@ func TestFsOpsLatency(t *testing.T) {
 			name:      "fs_op_ReadDir",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
 			fsOp:      "ReadDir",
+		},
+		{
+			name:      "fs_op_ReadDirPlus",
+			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
+			fsOp:      "ReadDirPlus",
 		},
 		{
 			name:      "fs_op_ReadFile",
@@ -5346,6 +5504,15 @@ func TestGcsReaderCount(t *testing.T) {
 		expected map[attribute.Set]int64
 	}{
 		{
+			name: "io_method_ReadHandle",
+			f: func(m *otelMetrics) {
+				m.GcsReaderCount(5, "ReadHandle")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("io_method", "ReadHandle")): 5,
+			},
+		},
+		{
 			name: "io_method_closed",
 			f: func(m *otelMetrics) {
 				m.GcsReaderCount(5, "closed")
@@ -5365,12 +5532,12 @@ func TestGcsReaderCount(t *testing.T) {
 		}, {
 			name: "multiple_attributes_summed",
 			f: func(m *otelMetrics) {
-				m.GcsReaderCount(5, "closed")
-				m.GcsReaderCount(2, "opened")
-				m.GcsReaderCount(3, "closed")
+				m.GcsReaderCount(5, "ReadHandle")
+				m.GcsReaderCount(2, "closed")
+				m.GcsReaderCount(3, "ReadHandle")
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("io_method", "closed")): 8,
-				attribute.NewSet(attribute.String("io_method", "opened")): 2,
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("io_method", "ReadHandle")): 8,
+				attribute.NewSet(attribute.String("io_method", "closed")): 2,
 			},
 		},
 	}
@@ -5412,12 +5579,39 @@ func TestGcsRequestCount(t *testing.T) {
 			},
 		},
 		{
+			name: "gcs_method_CopyObject",
+			f: func(m *otelMetrics) {
+				m.GcsRequestCount(5, "CopyObject")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("gcs_method", "CopyObject")): 5,
+			},
+		},
+		{
+			name: "gcs_method_CreateAppendableObjectWriter",
+			f: func(m *otelMetrics) {
+				m.GcsRequestCount(5, "CreateAppendableObjectWriter")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("gcs_method", "CreateAppendableObjectWriter")): 5,
+			},
+		},
+		{
 			name: "gcs_method_CreateFolder",
 			f: func(m *otelMetrics) {
 				m.GcsRequestCount(5, "CreateFolder")
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("gcs_method", "CreateFolder")): 5,
+			},
+		},
+		{
+			name: "gcs_method_CreateObject",
+			f: func(m *otelMetrics) {
+				m.GcsRequestCount(5, "CreateObject")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("gcs_method", "CreateObject")): 5,
 			},
 		},
 		{
@@ -5454,6 +5648,15 @@ func TestGcsRequestCount(t *testing.T) {
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("gcs_method", "FinalizeUpload")): 5,
+			},
+		},
+		{
+			name: "gcs_method_FlushPendingWrites",
+			f: func(m *otelMetrics) {
+				m.GcsRequestCount(5, "FlushPendingWrites")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("gcs_method", "FlushPendingWrites")): 5,
 			},
 		},
 		{
@@ -5540,11 +5743,11 @@ func TestGcsRequestCount(t *testing.T) {
 			name: "multiple_attributes_summed",
 			f: func(m *otelMetrics) {
 				m.GcsRequestCount(5, "ComposeObjects")
-				m.GcsRequestCount(2, "CreateFolder")
+				m.GcsRequestCount(2, "CopyObject")
 				m.GcsRequestCount(3, "ComposeObjects")
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("gcs_method", "ComposeObjects")): 8,
-				attribute.NewSet(attribute.String("gcs_method", "CreateFolder")): 2,
+				attribute.NewSet(attribute.String("gcs_method", "CopyObject")): 2,
 			},
 		},
 	}
@@ -5582,9 +5785,24 @@ func TestGcsRequestLatencies(t *testing.T) {
 			gcsMethod: "ComposeObjects",
 		},
 		{
+			name:      "gcs_method_CopyObject",
+			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
+			gcsMethod: "CopyObject",
+		},
+		{
+			name:      "gcs_method_CreateAppendableObjectWriter",
+			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
+			gcsMethod: "CreateAppendableObjectWriter",
+		},
+		{
 			name:      "gcs_method_CreateFolder",
 			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
 			gcsMethod: "CreateFolder",
+		},
+		{
+			name:      "gcs_method_CreateObject",
+			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
+			gcsMethod: "CreateObject",
 		},
 		{
 			name:      "gcs_method_CreateObjectChunkWriter",
@@ -5605,6 +5823,11 @@ func TestGcsRequestLatencies(t *testing.T) {
 			name:      "gcs_method_FinalizeUpload",
 			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
 			gcsMethod: "FinalizeUpload",
+		},
+		{
+			name:      "gcs_method_FlushPendingWrites",
+			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
+			gcsMethod: "FlushPendingWrites",
 		},
 		{
 			name:      "gcs_method_GetFolder",
