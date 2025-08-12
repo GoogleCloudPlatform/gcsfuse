@@ -28,6 +28,7 @@ import (
 
 	control "cloud.google.com/go/storage/control/apiv2"
 	"github.com/googleapis/gax-go/v2"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 )
 
 // stallingStorageControlClient is a wrapper that introduces a controllable delay
@@ -716,4 +717,20 @@ func (t *ExponentialBackoffTest) TestWaitWithJitter_NoContextCancelled() {
 	// The function should wait for a duration close to initial.
 	assert.GreaterOrEqual(t.T(), elapsed, 1*time.Millisecond, "waitWithJitter should wait for at least 1ms")
 	assert.LessOrEqual(t.T(), elapsed, initial*2, "waitWithJitter should not wait excessively long")
+}
+
+type ControlClientGaxRetryWrapperTest struct {
+	suite.Suite
+}
+
+func TestControlClientGaxRetryWrapperTestSuite(t *testing.T) {
+	suite.Run(t, new(ControlClientGaxRetryWrapperTest))
+}
+
+func (testSuite *ControlClientGaxRetryWrapperTest) TestStorageControlClientRetryOptions() {
+	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
+
+	gaxOpts := storageControlClientRetryOptions(&clientConfig)
+
+	assert.NotNil(testSuite.T(), gaxOpts)
 }
