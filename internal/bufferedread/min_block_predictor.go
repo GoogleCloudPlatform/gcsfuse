@@ -20,6 +20,15 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 )
 
+const (
+	// SmallBlockSizeThreshold & MediumBlockSizeThreshold are thresholds
+	// used to determine the minimum number of blocks required to start
+	// the buffered read.
+	// These values are subject to change based on performance testing results.
+	SmallBlockSizeThreshold  = 4 * util.MiB
+	MediumBlockSizeThreshold = 8 * util.MiB
+)
+
 type MinBlockPredictor interface {
 	// PredictMinBlockCount predicts the minimum number of blocks required to
 	// start buffered read based on the block size and object size.
@@ -41,20 +50,25 @@ func (d *defaultMinBlockPredictor) PredictMinBlockCount(blockSize int64, objectS
 	// Cap the block count based on the object size.
 	maxBlockCount := (objectSize + uint64(blockSize) - 1) / uint64(blockSize)
 
-	if blockSize <= 4*util.MiB {
+	// Based on performance testing, for small objects, we need at least 6 blocks
+	// to get better performance via BufferedRead.
+	if blockSize <= SmallBlockSizeThreshold {
 		return min(6, uint(maxBlockCount)), nil
 	}
 
-	if blockSize <= 8*util.MiB {
+	// Based on performance testing, 4 medium size blocks requires to get better
+	// performance via BufferedRead.
+	if blockSize <= MediumBlockSizeThreshold {
 		return min(4, uint(maxBlockCount)), nil
 	}
 
+	// Based on perf testing, for larger blocks 2 blocks are sufficient to get
+	// better performance via BufferedRead.
 	return min(2, uint(maxBlockCount)), nil
 }
 
 // staticMinBlockPredictor is a MinBlockPredictor that returns a static
 // minimum block count.
-// Used for testing purposes.
 type staticMinBlockPredictor struct {
 	minBlockCount uint
 }

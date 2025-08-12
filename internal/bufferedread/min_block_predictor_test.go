@@ -119,7 +119,6 @@ func TestStaticMinBlockToStartBufferedReadFailure(t *testing.T) {
 			_, err := predictor.PredictMinBlockCount(tt.blockSize, tt.objectSize)
 
 			assert.Error(t, err)
-
 		})
 	}
 }
