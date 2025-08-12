@@ -20,10 +20,12 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/viki-org/dnscache"
 	"golang.org/x/net/context"
@@ -31,6 +33,8 @@ import (
 )
 
 const urlSchemeSeparator = "://"
+
+var mp sync.Map
 
 type StorageClientConfig struct {
 	/** Common client parameters. */
@@ -82,6 +86,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 			),
 			Dial: func(network string, address string) (net.Conn, error) {
 				separator := strings.LastIndex(address, ":")
+				mp.Load(address)
 				ip, _ := resolver.FetchOneString(address[:separator])
 				return net.Dial("tcp", ip+address[separator:])
 			},
@@ -132,7 +137,21 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 			UserAgent: storageClientConfig.UserAgent,
 		}
 	}
+
+	go func() {
+		for {
+			logger.Warnf("Size of map is: %d", SyncMapSize(&mp))
+		}
+	}()
 	return httpClient, err
+}
+
+func SyncMapSize(data *sync.Map) (count int) {
+	data.Range(func(key, value interface{}) bool {
+		count++
+		return true
+	})
+	return count
 }
 
 // It creates the token-source from the provided
