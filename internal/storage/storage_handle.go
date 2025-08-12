@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"cloud.google.com/go/storage/experimental"
 	"github.com/googleapis/gax-go/v2"
@@ -65,6 +66,7 @@ type storageClient struct {
 	grpcClient               *storage.Client
 	grpcClientWithBidiConfig *storage.Client
 	clientConfig             storageutil.StorageClientConfig
+	rawStorageControlClient  *control.StorageControlClient
 	storageControlClient     StorageControlClient
 	directPathDetector       *gRPCDirectPathDetector
 }
@@ -295,6 +297,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	// The default protocol for the Go Storage control client's folders API is gRPC.
 	// gcsfuse will initially mirror this behavior due to the client's lack of HTTP support.
 	var controlClient StorageControlClient
+	var rawStorageControlClient *control.StorageControlClient
 	var clientOpts []option.ClientOption
 
 	// Control-client is needed for folder APIs and for getting storage-layout of the bucket.
@@ -304,23 +307,25 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		if err != nil {
 			return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 		}
-		controlClient, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, &clientConfig)
+		rawStorageControlClient, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, &clientConfig)
 		if err != nil {
 			return nil, fmt.Errorf("could not create StorageControl Client: %w", err)
 		}
 		// special handling for requester-pays buckets and for mounts created with custom billing projects.
-		controlClient = withBillingProject(controlClient, billingProject)
+		controlClient = withBillingProject(rawStorageControlClient, billingProject)
 		// Wrap the control client with retry-on-stall logic.
 		// This will retry on only on GetStorageLayout call for all buckets.
 		controlClient = withRetryOnStorageLayout(controlClient, defaultControlClientRetryDeadline, defaultControlClientTotalRetryBudget)
+		logger.Infof("Wrapped %p (%+v) with billing-project and retry on StorageLayout to create %p (%+v)", rawStorageControlClient, rawStorageControlClient, controlClient, controlClient)
 	} else {
 		logger.Infof("Skipping storage control client creation because custom-endpoint %q was passed, which is assumed to be a storage testbench server because of 'localhost' in it.", clientConfig.CustomEndpoint)
 	}
 
 	sh = &storageClient{
-		storageControlClient: controlClient,
-		clientConfig:         clientConfig,
-		directPathDetector:   &gRPCDirectPathDetector{clientOptions: clientOpts},
+		rawStorageControlClient: rawStorageControlClient,
+		storageControlClient:    controlClient,
+		clientConfig:            clientConfig,
+		directPathDetector:      &gRPCDirectPathDetector{clientOptions: clientOpts},
 	}
 	return
 }
@@ -381,8 +386,15 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 
 	// For Zonal buckets, wrap the control client with a retry-on-stall mechanism for more resilient folder operations.
 	controlClient := sh.storageControlClient
-	if bucketType.Zonal && sh.storageControlClient != nil {
-		controlClient = withRetryOnAllAPIs(sh.storageControlClient, defaultControlClientRetryDeadline, defaultControlClientTotalRetryBudget)
+	if sh.storageControlClient != nil {
+		if bucketType.Zonal {
+			// For zonal buckets, wrap the control client with retry-on-all-APIs.
+			controlClient = withRetryOnAllAPIs(sh.storageControlClient, defaultControlClientRetryDeadline, defaultControlClientTotalRetryBudget)
+			logger.Infof("Wrapped %p (%+v) with all retry APIs to create %p(%+v)", sh.storageControlClient, sh.storageControlClient, controlClient, controlClient)
+		} else {
+			controlClient = withBillingProject(withGaxRetriesForFolderAPIs(sh.rawStorageControlClient, &sh.clientConfig), billingProject)
+			logger.Infof("Wrapped %p (%+v) with all billing-project and gax-retries for folder APIs to to create %p (%+v)", sh.rawStorageControlClient, sh.rawStorageControlClient, controlClient, controlClient)
+		}
 	}
 
 	bh = &bucketHandle{
