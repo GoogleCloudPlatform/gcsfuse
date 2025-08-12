@@ -93,7 +93,7 @@ type BufferedReader struct {
 
 	randomReadsThreshold int64 // Number of random reads after which the reader falls back to another reader.
 
-	// mu synchronizes reads through buffered reader.
+	// mu synchronizes access to the buffered reader's shared state.
 	mu sync.Mutex
 }
 
@@ -440,6 +440,9 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockInde
 }
 
 func (p *BufferedReader) Destroy() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	if p.cancelFunc != nil {
 		p.cancelFunc()
 		p.cancelFunc = nil
@@ -466,6 +469,8 @@ func (p *BufferedReader) Destroy() {
 
 // CheckInvariants checks for internal consistency of the reader.
 func (p *BufferedReader) CheckInvariants() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	// The prefetch block size must be positive.
 	if p.config.PrefetchBlockSizeBytes <= 0 {
