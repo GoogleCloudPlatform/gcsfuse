@@ -82,7 +82,7 @@ func (p *DownloadTask) Execute() {
 	if end > p.object.Size {
 		end = p.object.Size
 	}
-	fmt.Println("Start and end in buffered readder: ", start, end)
+
 	newReader, err := p.bucket.NewReaderWithReadHandle(
 		p.ctx,
 		&gcs.ReadObjectRequest{
