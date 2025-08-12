@@ -25,6 +25,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
 	control "cloud.google.com/go/storage/control/apiv2"
@@ -122,6 +123,9 @@ func TestControlClientWrapperTestSuite(t *testing.T) {
 	})
 	t.Run("AllApiRetryWrapperTest", func(t *testing.T) {
 		suite.Run(t, new(AllApiRetryWrapperTest))
+	})
+	t.Run("ControlClientWithBillingProjectTest", func(t *testing.T) {
+		suite.Run(t, new(ControlClientWithBillingProjectTest))
 	})
 }
 
@@ -875,4 +879,135 @@ func (testSuite *ControlClientGaxRetryWrapperTest) TestWithGaxRetriesForFolderAP
 	assert.NotNil(testSuite.T(), result.CallOptions.GetFolder)     // GetFolder should have GAX retries applied
 	assert.NotNil(testSuite.T(), result.CallOptions.CreateFolder)  // CreateFolder should have GAX retries applied
 	assert.NotNil(testSuite.T(), result.CallOptions.RenameFolder)  // RenameFolder should have GAX retries applied
+}
+
+// verifyBillingProject is a helper that returns a mock.MatchedBy function
+// to verify the presence of the billing project in the context metadata.
+func verifyBillingProject(t *testing.T, project string) interface{} {
+	return mock.MatchedBy(func(ctx context.Context) bool {
+		md, ok := metadata.FromOutgoingContext(ctx)
+		if !ok {
+			t.Error("metadata not found in context")
+			return false
+		}
+		val := md.Get("x-goog-user-project")
+		if len(val) == 0 {
+			t.Errorf("x-goog-user-project not found in metadata: %v", md)
+			return false
+		}
+		if val[0] != project {
+			t.Errorf("billing project mismatch: got %s, want %s", val[0], project)
+			return false
+		}
+		return true
+	})
+}
+
+type ControlClientWithBillingProjectTest struct {
+	suite.Suite
+	mockRawClient  *MockStorageControlClient
+	billingProject string
+	ctx            context.Context
+}
+
+func (t *ControlClientWithBillingProjectTest) SetupSuite() {
+	t.mockRawClient = new(MockStorageControlClient)
+	t.billingProject = "test-project"
+	t.ctx = context.Background()
+}
+
+func (t *ControlClientWithBillingProjectTest) Test_WithoutBillingProject() {
+	// Act
+	controlClient := withBillingProject(t.mockRawClient, "")
+
+	// Assert
+	require.Same(t.T(), t.mockRawClient, controlClient, "Raw client should be the same as the mock client")
+}
+
+func (t *ControlClientWithBillingProjectTest) Test_WithBillingProject() {
+	// Act
+	controlClient := withBillingProject(t.mockRawClient, t.billingProject)
+
+	// Assert
+	require.NotNil(t.T(), controlClient, "Raw client should not be nil")
+	storageControlClientWithBillingProject, ok := controlClient.(*storageControlClientWithBillingProject)
+	require.True(t.T(), ok, "Control client should be of type *storageControlClientWithBillingProject")
+	require.NotNil(t.T(), storageControlClientWithBillingProject, "storageControlClientWithBillingProject should not be nil")
+	assert.Equal(t.T(), t.billingProject, storageControlClientWithBillingProject.billingProject, "Billing project should be set")
+	assert.Same(t.T(), t.mockRawClient, storageControlClientWithBillingProject.raw, "Raw client should be the same")
+}
+
+func (t *ControlClientWithBillingProjectTest) TestGetStorageLayout_WithBillingProject() {
+	// Arrange
+	client := withBillingProject(t.mockRawClient, t.billingProject)
+	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
+	expectedLayout := &controlpb.StorageLayout{Location: "some-location"}
+	t.mockRawClient.On("GetStorageLayout", verifyBillingProject(t.T(), t.billingProject), req, mock.Anything).Return(expectedLayout, nil).Once()
+
+	// Act
+	_, err := client.GetStorageLayout(t.ctx, req)
+
+	// Assert
+	assert.NoError(t.T(), err)
+	t.mockRawClient.AssertExpectations(t.T())
+}
+
+func (t *ControlClientWithBillingProjectTest) TestDeleteFolder_WithBillingProject() {
+	// Arrange
+	client := withBillingProject(t.mockRawClient, t.billingProject)
+	req := &controlpb.DeleteFolderRequest{Name: "some/folder"}
+	t.mockRawClient.On("DeleteFolder", verifyBillingProject(t.T(), t.billingProject), req, mock.Anything).Return(nil).Once()
+
+	// Act
+	err := client.DeleteFolder(t.ctx, req)
+
+	// Assert
+	assert.NoError(t.T(), err)
+	t.mockRawClient.AssertExpectations(t.T())
+}
+
+func (t *ControlClientWithBillingProjectTest) TestGetFolder_WithBillingProject() {
+	// Arrange
+	client := withBillingProject(t.mockRawClient, t.billingProject)
+	req := &controlpb.GetFolderRequest{Name: "some/folder"}
+	expectedFolder := &controlpb.Folder{Name: "some/folder"}
+	t.mockRawClient.On("GetFolder", verifyBillingProject(t.T(), t.billingProject), req, mock.Anything).Return(expectedFolder, nil).Once()
+
+	// Act
+	_, err := client.GetFolder(t.ctx, req)
+
+	// Assert
+	assert.NoError(t.T(), err)
+	t.mockRawClient.AssertExpectations(t.T())
+}
+
+func (t *ControlClientWithBillingProjectTest) TestCreateFolder_WithBillingProject() {
+	// Arrange
+	client := withBillingProject(t.mockRawClient, t.billingProject)
+	req := &controlpb.CreateFolderRequest{Parent: "some/", FolderId: "folder"}
+	expectedFolder := &controlpb.Folder{Name: "some/folder"}
+	t.mockRawClient.On("CreateFolder", verifyBillingProject(t.T(), t.billingProject), req, mock.Anything).Return(expectedFolder, nil).Once()
+
+	// Act
+	_, err := client.CreateFolder(t.ctx, req)
+
+	// Assert
+	assert.NoError(t.T(), err)
+	t.mockRawClient.AssertExpectations(t.T())
+}
+
+func (t *ControlClientWithBillingProjectTest) TestRenameFolder_NoBillingProject() {
+	// Arrange
+	client := withBillingProject(t.mockRawClient, t.billingProject)
+	req := &controlpb.RenameFolderRequest{Name: "some/folder", DestinationFolderId: "new/folder"}
+	expectedOp := &control.RenameFolderOperation{}
+	// We expect the raw client to be called without the billing project header.
+	t.mockRawClient.On("RenameFolder", t.ctx, req, mock.Anything).Return(expectedOp, nil).Once()
+
+	// Act
+	_, err := client.RenameFolder(t.ctx, req)
+
+	// Assert
+	assert.NoError(t.T(), err)
+	t.mockRawClient.AssertExpectations(t.T())
 }
