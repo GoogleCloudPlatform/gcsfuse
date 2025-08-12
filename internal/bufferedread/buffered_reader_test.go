@@ -146,7 +146,7 @@ func (t *BufferedReaderTest) TestNewBufferedReader() {
 }
 
 func (t *BufferedReaderTest) TestNewBufferedReaderWithMinimumBlockNotAvailableInPool() {
-	// Simulate no blocks available in globally.
+	// Simulate no blocks available globally.
 	t.globalMaxBlocksSem = semaphore.NewWeighted(1)
 
 	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
@@ -157,7 +157,6 @@ func (t *BufferedReaderTest) TestNewBufferedReaderWithMinimumBlockNotAvailableIn
 }
 
 func (t *BufferedReaderTest) TestNewBufferedReaderWithZeroBlockSize() {
-	// Set an invalid block size.
 	t.config.PrefetchBlockSizeBytes = 0
 
 	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)

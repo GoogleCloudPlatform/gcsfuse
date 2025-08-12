@@ -95,7 +95,6 @@ type BufferedReader struct {
 
 // NewBufferedReader returns a new bufferedReader instance.
 func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *BufferedReadConfig, globalMaxBlocksSem *semaphore.Weighted, workerPool workerpool.WorkerPool, metricHandle metrics.MetricHandle) (*BufferedReader, error) {
-	// TODO: To pass the minimum required block-count based on the block-size.
 	blockpool, err := block.NewPrefetchBlockPool(config.PrefetchBlockSizeBytes, config.MaxPrefetchBlockCnt, config.MinBlocksPerHandle, globalMaxBlocksSem)
 	if err != nil {
 		return nil, fmt.Errorf("NewBufferedReader: failed to create block-pool: %w", err)
