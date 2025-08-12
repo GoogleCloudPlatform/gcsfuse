@@ -102,10 +102,27 @@ func withBillingProject(controlClient StorageControlClient, billingProject strin
 type storageControlClientWithRetryOnStall struct {
 	raw StorageControlClient
 
+	// Time-limit to attempt the first invocation of a retried call.
 	minRetryDeadline time.Duration
+	// Maximum time-limit for any subsequent attempts.
 	maxRetryDeadline time.Duration
-	retryMultiplier  float64
+	// Multiplier (expected to be > 1) to scale up the value of deadline from one attempt to the next.
+	retryMultiplier float64
+	// Total duration allowed across all the attempts.
 	totalRetryBudget time.Duration
+
+	// As an example,
+	// if minRetryDeadline is 1 second, retryMultiplier is 2,
+	// maxRetryDeadline is 5 seconds, and totalRetryBudget is 1 minute, then
+	// first attempt will be allowed to run for 1 second. If it is not
+	// completed/failed in 1 second, it will be cancelled.
+	// Immediately, a second attempt will be made with allowance
+	// for 2 seconds (1s * 2), next attempt will
+	// be 4 seconds, but the next attempt will be allowed only 5
+	// seconds (maxRetryDeadline), not 8.
+	// All subsequent attempts will be allowed upto 5 seconds, with
+	// total attempts capped at 1 minute of duration from the start
+	// of the first attempt.
 
 	// Whether or not to enable retries for GetStorageLayout call.
 	enableStallRetriesOnStorageLayoutCall bool
@@ -153,14 +170,13 @@ func executeWithStallRetry[T any](
 			return zero, fmt.Errorf("%s for %q failed with a non-retryable error: %w", operationName, reqDescription, err)
 		}
 
-		// If the parent context is cancelled, we should stop retrying.
+		// If the parent context is cancelled/timed-out, we should stop retrying.
 		if parentCtx.Err() != nil {
 			return zero, fmt.Errorf("%s for %q failed after multiple retries (last server/client error = %v): %w", operationName, reqDescription, err, parentCtx.Err())
 		}
 
 		// Increase delay for the next attempt.
 		delay = min(sccwros.maxRetryDeadline, time.Duration(float64(delay)*sccwros.retryMultiplier))
-		logger.Tracef("Retrying %s for %q with deadline=%v ...", operationName, reqDescription, delay)
 	}
 }
 
