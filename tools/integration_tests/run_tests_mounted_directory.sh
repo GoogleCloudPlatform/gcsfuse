@@ -629,6 +629,6 @@ sudo umount $MOUNT_DIR
 
 # Rename symlink tests.
 # Due to a known bug these tests should not run with gRPC.
-gcsfuse --implicit-dirs $TEST_BUCKET_NAME $MOUNT_DIR
+gcsfuse --implicit-dirs --metadata-cache-negative-ttl-secs=0 $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/rename_symlink/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR

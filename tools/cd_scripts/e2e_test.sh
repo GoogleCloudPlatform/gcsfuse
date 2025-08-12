@@ -162,6 +162,7 @@ TEST_DIR_PARALLEL=(
   "stale_handle_streaming_writes"
   "negative_stat_cache"
   "streaming_writes"
+  "rename_symlink"
 )
 
 # These tests never become parallel as they are changing bucket permissions.
