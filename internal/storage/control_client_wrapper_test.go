@@ -35,7 +35,6 @@ import (
 type stallingStorageControlClient struct {
 	wrapped                      StorageControlClient
 	stallTimeForGetStorageLayout *time.Duration
-	stallTimeForFolderAPIs       *time.Duration
 }
 
 func (s *stallingStorageControlClient) GetStorageLayout(ctx context.Context, req *controlpb.GetStorageLayoutRequest, opts ...gax.CallOption) (*controlpb.StorageLayout, error) {
