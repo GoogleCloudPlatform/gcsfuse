@@ -26,6 +26,7 @@ import (
 var readFileRegex = regexp.MustCompile(`fuse_debug: Op (0x[0-9a-fA-F]+)\s+connection\.go:\d+\] <- ReadFile \(inode (\d+), PID (\d+), handle (\d+), offset (\d+), (\d+) bytes\)`)
 var readAtReqRegex = regexp.MustCompile(`([a-f0-9-]+) <- ReadAt\(([^:]+):/([^,]+), (\d+), (\d+), (\d+), (\d+)\)`)
 var readAtSimpleRespRegex = regexp.MustCompile(`([a-f0-9-]+) -> ReadAt\(\): Ok\(([0-9.]+(?:s|ms|µs))\)`)
+var fallbackRegex = regexp.MustCompile(`Fallback to range reader for file: .*, inode: (\d+)`)
 
 // ParseBufferedReadLogsFromLogReader parses buffered read logs from an io.Reader and
 // returns a map of BufferedReadLogEntry keyed by file handle.
@@ -118,8 +119,39 @@ func filterAndParseLogLineForBufferedRead(
 		if err := parseReadAtResponseLog(logMessage, bufferedReadLogsMap, opReverseMap); err != nil {
 			return fmt.Errorf("parseReadAtResponseLog failed: %v", err)
 		}
+	case strings.Contains(logMessage, "Fallback to range reader for file:"):
+		if err := parseFallbackLog(logMessage, bufferedReadLogsMap); err != nil {
+			return fmt.Errorf("parseFallbackLog failed: %v", err)
+		}
 	}
 	return nil
+}
+
+func parseFallbackLog(
+	logMessage string,
+	bufferedReadLogsMap map[int64]*BufferedReadLogEntry) error {
+
+	matches := fallbackRegex.FindStringSubmatch(logMessage)
+	if len(matches) != 2 {
+		return fmt.Errorf("invalid fallback log format: %s", logMessage)
+	}
+
+	inodeID, err := parseToInt64(matches[1])
+	if err != nil {
+		return fmt.Errorf("invalid inode ID in fallback log: %v", err)
+	}
+
+	// Find the log entry by inode ID and set Fallback = true.
+	for _, logEntry := range bufferedReadLogsMap {
+		if logEntry.InodeID == inodeID {
+			logEntry.Fallback = true
+			return nil
+		}
+	}
+
+	// It's possible the ReadFile log for this object hasn't been seen yet, but
+	// given the log order, this should not happen in a valid sequence.
+	return fmt.Errorf("log entry for inode %d not found for fallback log", inodeID)
 }
 
 // parseReadFileLogsUsingRegex parses the ReadFile log using regex and updates the bufferedReadLogsMap map.
