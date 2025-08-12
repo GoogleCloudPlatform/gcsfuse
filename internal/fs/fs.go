@@ -2069,7 +2069,7 @@ func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, chil
 	default:
 		return fmt.Errorf("child inode (id %v) is not a file or symlink inode", child.ID())
 	}
-	if (oldObject.Bucket().BucketType().Hierarchical && fs.enableAtomicRenameObject) || oldObject.Bucket().BucketType().Zonal {
+	if (child.Bucket().BucketType().Hierarchical && fs.enableAtomicRenameObject) || child.Bucket().BucketType().Zonal {
 		return fs.renameHierarchicalFile(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
 	}
 	return fs.renameNonHierarchicalFile(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)

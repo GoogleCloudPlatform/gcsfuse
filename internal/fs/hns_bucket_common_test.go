@@ -110,7 +110,7 @@ func (t *HNSBucketCommonTest) TestRenameFile() {
 	}
 }
 
-func (t *RenameFileTests) TestRenameSymlinkToFile() {
+func (t *HNSBucketCommonTest) TestRenameSymlinkToFile() {
 	// Create a target file for the symlink to point to.
 	targetPath := path.Join(mntDir, "target")
 	err := os.WriteFile(targetPath, []byte("taco"), filePerms)

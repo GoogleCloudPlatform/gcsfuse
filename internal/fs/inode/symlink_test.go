@@ -18,8 +18,11 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	. "github.com/jacobsa/ogletest"
+	"github.com/jacobsa/timeutil"
 )
 
 func TestSymlink(t *testing.T) { RunTests(t) }

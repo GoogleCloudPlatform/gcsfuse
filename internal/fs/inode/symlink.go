@@ -17,6 +17,7 @@ package inode
 import (
 	"sync"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/jacobsa/fuse/fuseops"
 	"golang.org/x/net/context"
@@ -167,7 +168,7 @@ func (s *SymlinkInode) Source() *gcs.MinObject {
 		Name:           s.name.GcsObjectName(),
 		Generation:     s.sourceGeneration.Object,
 		MetaGeneration: s.sourceGeneration.Metadata,
-		Size:           s.sourceGeneration.Size,
+		Size:           s.attrs.Size,
 		Metadata: map[string]string{
 			SymlinkMetadataKey: s.target,
 		},
