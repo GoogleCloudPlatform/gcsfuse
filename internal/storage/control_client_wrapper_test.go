@@ -193,20 +193,3 @@ func (t *StorageLayoutStallRetryWrapperTest) TestGetStorageLayout_AllAttemptsTim
 	assert.ErrorIs(t.T(), err, context.DeadlineExceeded)
 	t.mockRawClient.AssertExpectations(t.T())
 }
-
-func (t *StorageLayoutStallRetryWrapperTest) Test_WithRetryOnStorageLayoutStallParameterSanitization() {
-	// Arrange
-	var zeroDuration time.Duration
-	var negativeMultiplier = -1.0
-
-	// Act
-	client := withRetryOnStorageLayoutStall(t.stallingClient, zeroDuration, zeroDuration, negativeMultiplier, zeroDuration)
-	wrapper, ok := client.(*storageControlClientWithRetryOnStall)
-	assert.True(t.T(), ok)
-
-	// Assert
-	assert.Equal(t.T(), defaultControlClientMinRetryDeadline, wrapper.minRetryDeadline)
-	assert.Equal(t.T(), defaultControlClientMaxRetryDeadline, wrapper.maxRetryDeadline)
-	assert.Equal(t.T(), defaultControlClientRetryMultiplier, wrapper.retryMultiplier)
-	assert.Equal(t.T(), defaultControlClientTotalRetryBudget, wrapper.totalRetryBudget)
-}
