@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -91,6 +92,9 @@ type BufferedReader struct {
 	prefetchMultiplier int64 // Multiplier for number of blocks to prefetch.
 
 	randomReadsThreshold int64 // Number of random reads after which the reader falls back to another reader.
+
+	// mu synchronizes reads through buffered reader.
+	mu sync.Mutex
 }
 
 // NewBufferedReader returns a new bufferedReader instance.
@@ -252,6 +256,8 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		}
 	}()
 
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	if err = p.handleRandomRead(off); err != nil {
 		err = fmt.Errorf("BufferedReader.ReadAt: handleRandomRead: %w", err)
 		return resp, err

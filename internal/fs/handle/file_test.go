@@ -429,9 +429,9 @@ func (t *fileTest) Test_ReadWithReadManager_FullReadSuccessWithBufferedRead() {
 	// Setup for Buffered Read test case
 	config := &cfg.Config{
 		Read: cfg.ReadConfig{
-			EnableBufferedRead:   true,
-			MaxBlocksPerHandle:   10,
-			BlockSizeMb:          1,
+			EnableBufferedRead: true,
+			MaxBlocksPerHandle: 10,
+			//BlockSizeMb:          1,
 			StartBlocksPerHandle: 2,
 		},
 	}
@@ -469,6 +469,7 @@ func (t *fileTest) Test_ReadWithReadManager_ConcurrentRangeReads() {
 			EnableBufferedRead:   true,
 			MaxBlocksPerHandle:   10,
 			StartBlocksPerHandle: 2,
+			BlockSizeMb:          1,
 		},
 	}
 	workerPool, err := workerpool.NewStaticWorkerPoolForCurrentCPU()
