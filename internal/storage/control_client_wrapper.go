@@ -109,6 +109,8 @@ type storageControlClientWithRetryOnStall struct {
 
 	// Whether or not to enable retries for GetStorageLayout call.
 	enableStallRetriesOnStorageLayoutCall bool
+	// Whether or not to enable retries for folder APIs.
+	enableStallRetriesOnAllCalls bool
 }
 
 // executeWithStallRetry encapsulates the retry logic for control client operations.
@@ -181,19 +183,55 @@ func (sccwros *storageControlClientWithRetryOnStall) GetStorageLayout(ctx contex
 func (sccwros *storageControlClientWithRetryOnStall) DeleteFolder(ctx context.Context,
 	req *controlpb.DeleteFolderRequest,
 	opts ...gax.CallOption) error {
-	return sccwros.raw.DeleteFolder(ctx, req, opts...)
+	if !sccwros.enableStallRetriesOnAllCalls {
+		return sccwros.raw.DeleteFolder(ctx, req, opts...)
+	}
+
+	apiCall := func(attemptCtx context.Context) (any, error) {
+		err := sccwros.raw.DeleteFolder(attemptCtx, req, opts...)
+		return struct{}{}, err
+	}
+
+	_, err := executeWithStallRetry(sccwros, ctx, "DeleteFolder", req.Name, apiCall)
+	return err
 }
 
 func (sccwros *storageControlClientWithRetryOnStall) GetFolder(ctx context.Context, req *controlpb.GetFolderRequest, opts ...gax.CallOption) (*controlpb.Folder, error) {
-	return sccwros.raw.GetFolder(ctx, req, opts...)
+	if !sccwros.enableStallRetriesOnAllCalls {
+		return sccwros.raw.GetFolder(ctx, req, opts...)
+	}
+
+	apiCall := func(attemptCtx context.Context) (*controlpb.Folder, error) {
+		return sccwros.raw.GetFolder(attemptCtx, req, opts...)
+	}
+
+	return executeWithStallRetry(sccwros, ctx, "GetFolder", req.Name, apiCall)
 }
 
 func (sccwros *storageControlClientWithRetryOnStall) RenameFolder(ctx context.Context, req *controlpb.RenameFolderRequest, opts ...gax.CallOption) (*control.RenameFolderOperation, error) {
-	return sccwros.raw.RenameFolder(ctx, req, opts...)
+	if !sccwros.enableStallRetriesOnAllCalls {
+		return sccwros.raw.RenameFolder(ctx, req, opts...)
+	}
+
+	apiCall := func(attemptCtx context.Context) (*control.RenameFolderOperation, error) {
+		return sccwros.raw.RenameFolder(attemptCtx, req, opts...)
+	}
+
+	reqDescription := fmt.Sprintf("%q to %q", req.Name, req.DestinationFolderId)
+	return executeWithStallRetry(sccwros, ctx, "RenameFolder", reqDescription, apiCall)
 }
 
 func (sccwros *storageControlClientWithRetryOnStall) CreateFolder(ctx context.Context, req *controlpb.CreateFolderRequest, opts ...gax.CallOption) (*controlpb.Folder, error) {
-	return sccwros.raw.CreateFolder(ctx, req, opts...)
+	if !sccwros.enableStallRetriesOnAllCalls {
+		return sccwros.raw.CreateFolder(ctx, req, opts...)
+	}
+
+	apiCall := func(attemptCtx context.Context) (*controlpb.Folder, error) {
+		return sccwros.raw.CreateFolder(attemptCtx, req, opts...)
+	}
+
+	reqDescription := fmt.Sprintf("%q in %q", req.FolderId, req.Parent)
+	return executeWithStallRetry(sccwros, ctx, "CreateFolder", reqDescription, apiCall)
 }
 
 func newRetryWrapper(controlClient StorageControlClient, minRetryDeadline time.Duration, maxRetryDeadline time.Duration, retryMultiplier float64, totalRetryBudget time.Duration, retryAllCalls bool) StorageControlClient {
@@ -227,7 +265,13 @@ func newRetryWrapper(controlClient StorageControlClient, minRetryDeadline time.D
 		retryMultiplier:                       retryMultiplier,
 		totalRetryBudget:                      totalRetryBudget,
 		enableStallRetriesOnStorageLayoutCall: true,
+		enableStallRetriesOnAllCalls:          retryAllCalls,
 	}
+}
+
+// withRetryOnStall wraps a StorageControlClient to do a time-bound retry approach for retryable errors for all API calls through it.
+func withRetryOnStall(controlClient StorageControlClient, minRetryDeadline time.Duration, maxRetryDeadline time.Duration, retryMultiplier float64, totalRetryBudget time.Duration) StorageControlClient {
+	return newRetryWrapper(controlClient, minRetryDeadline, maxRetryDeadline, retryMultiplier, totalRetryBudget, true)
 }
 
 // withRetryOnStorageLayoutStall wraps a StorageControlClient to do a time-bound retry approach for retryable errors for the GetStorageLayout call through it.
