@@ -21,9 +21,21 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
+// Deprecated: Use MountGcsfuseWithStaticMountingWithConfigFile instead.
+// TODO(b/438068132): cleanup deprecated methods after migration is complete.
 func MountGcsfuseWithStaticMounting(flags []string) (err error) {
+	config := &test_suite.TestConfig{
+		TestBucket:       setup.TestBucket(),
+		MountedDirectory: setup.MountedDirectory(),
+		LogFile:          setup.LogFile(),
+	}
+	return MountGcsfuseWithStaticMountingWithConfigFile(config, flags)
+}
+
+func MountGcsfuseWithStaticMountingWithConfigFile(config *test_suite.TestConfig, flags []string) (err error) {
 	var defaultArg []string
 	if setup.TestOnTPCEndPoint() {
 		defaultArg = append(defaultArg, "--custom-endpoint=storage.apis-tpczero.goog:443",
@@ -32,7 +44,7 @@ func MountGcsfuseWithStaticMounting(flags []string) (err error) {
 
 	defaultArg = append(defaultArg, "--log-severity=trace",
 		"--log-file="+setup.LogFile(),
-		setup.TestBucket(),
+		config.TestBucket,
 		setup.MntDir())
 
 	for i := 0; i < len(defaultArg); i++ {
@@ -44,11 +56,11 @@ func MountGcsfuseWithStaticMounting(flags []string) (err error) {
 	return err
 }
 
-func executeTestsForStaticMounting(flagsSet [][]string, m *testing.M) (successCode int) {
+func executeTestsForStaticMounting(config *test_suite.TestConfig, flagsSet [][]string, m *testing.M) (successCode int) {
 	var err error
 
 	for i := 0; i < len(flagsSet); i++ {
-		if err = MountGcsfuseWithStaticMounting(flagsSet[i]); err != nil {
+		if err = MountGcsfuseWithStaticMountingWithConfigFile(config, flagsSet[i]); err != nil {
 			setup.LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
 		}
 		log.Printf("Running static mounting tests with flags: %s", flagsSet[i])
@@ -60,12 +72,20 @@ func executeTestsForStaticMounting(flagsSet [][]string, m *testing.M) (successCo
 	return
 }
 
+// Deprecated: Use RunTestsWithConfigFile instead.
+// TODO(b/438068132): cleanup deprecated methods after migration is complete.
 func RunTests(flagsSet [][]string, m *testing.M) (successCode int) {
+	config := &test_suite.TestConfig{
+		TestBucket:       setup.TestBucket(),
+		MountedDirectory: setup.MountedDirectory(),
+		LogFile:          setup.LogFile(),
+	}
+	return RunTestsWithConfigFile(config, flagsSet, m)
+}
+
+func RunTestsWithConfigFile(config *test_suite.TestConfig, flagsSet [][]string, m *testing.M) (successCode int) {
 	log.Println("Running static mounting tests...")
-
-	successCode = executeTestsForStaticMounting(flagsSet, m)
-
+	successCode = executeTestsForStaticMounting(config, flagsSet, m)
 	log.Printf("Test log: %s\n", setup.LogFile())
-
 	return successCode
 }
