@@ -23,6 +23,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/log_parser/json_parser/read_logs"
@@ -53,28 +55,18 @@ func readFileAndValidate(ctx context.Context, storageClient *storage.Client, fil
 
 	if readFullFile {
 		content, err = operations.ReadFileSequentially(path.Join(testDirPath, fileName), chunkSizeToRead)
-		if err != nil {
-			t.Errorf("Failed to read file sequentially: %v", err)
-		}
+		require.NoError(t, err, "Failed to read file sequentially")
 		// Get checksum from GCS object.
 		obj := storageClient.Bucket(expected.BucketName).Object(expected.ObjectName)
 		attrs, err := obj.Attrs(ctx)
-		if err != nil {
-			t.Fatalf("obj.Attrs: %v", err)
-		}
+		require.NoError(t, err, "obj.Attrs")
 		// Calculate checksum of read content and compare with GCS object's checksum.
 		localCRC32C, err := operations.CalculateCRC32(bytes.NewReader(content))
-		if err != nil {
-			t.Fatalf("Error while calculating crc for the content read from mounted file: %v", err)
-		}
-		if attrs.CRC32C != localCRC32C {
-			t.Errorf("CRC32C mismatch. GCS: %d, Local: %d", attrs.CRC32C, localCRC32C)
-		}
+		require.NoError(t, err, "Error while calculating crc for the content read from mounted file")
+		assert.Equal(t, attrs.CRC32C, localCRC32C, "CRC32C mismatch. GCS: %d, Local: %d", attrs.CRC32C, localCRC32C)
 	} else {
 		content, err = operations.ReadChunkFromFile(path.Join(testDirPath, fileName), chunkSizeToRead, offset, os.O_RDONLY|syscall.O_DIRECT)
-		if err != nil {
-			t.Errorf("Failed to read random file chunk: %v", err)
-		}
+		require.NoError(t, err, "Failed to read random file chunk")
 		client.ValidateObjectChunkFromGCS(ctx, storageClient, testDirName, fileName, offset, chunkSizeToRead, string(content), t)
 	}
 	expected.EndTimeStampSeconds = time.Now().Unix()
@@ -84,25 +76,18 @@ func readFileAndValidate(ctx context.Context, storageClient *storage.Client, fil
 
 func validate(expected *Expected, logEntry *read_logs.BufferedReadLogEntry, fallback bool, t *testing.T) {
 	t.Helper()
-	if logEntry.StartTimeSeconds < expected.StartTimeStampSeconds {
-		t.Errorf("start time in logs %d less than actual start time %d.", logEntry.StartTimeSeconds, expected.StartTimeStampSeconds)
-	}
-	if logEntry.BucketName != expected.BucketName {
-		t.Errorf("Bucket names don't match! Expected: %s, Got from logs: %s",
-			expected.BucketName, logEntry.BucketName)
-	}
-	if logEntry.ObjectName != expected.ObjectName {
-		t.Errorf("Object names don't match! Expected: %s, Got from logs: %s",
-			expected.ObjectName, logEntry.ObjectName)
-	}
+	assert.GreaterOrEqual(t, logEntry.StartTimeSeconds, expected.StartTimeStampSeconds, "start time in logs %d less than actual start time %d.", logEntry.StartTimeSeconds, expected.StartTimeStampSeconds)
+
+	assert.Equal(t, expected.BucketName, logEntry.BucketName, "Bucket names don't match! Expected: %s, Got from logs: %s",
+		expected.BucketName, logEntry.BucketName)
+
+	assert.Equal(t, expected.ObjectName, logEntry.ObjectName, "Object names don't match! Expected: %s, Got from logs: %s",
+		expected.ObjectName, logEntry.ObjectName)
+
 	if len(logEntry.Chunks) > 0 {
-		if logEntry.Chunks[len(logEntry.Chunks)-1].StartTimeSeconds > expected.EndTimeStampSeconds {
-			t.Errorf("end time in logs more than actual end time.")
-		}
+		assert.LessOrEqual(t, logEntry.Chunks[len(logEntry.Chunks)-1].StartTimeSeconds, expected.EndTimeStampSeconds, "end time in logs more than actual end time.")
 	}
-	if fallback != logEntry.Fallback {
-		t.Errorf("Expected Fallback: %t, Got from logs: %t", fallback, logEntry.Fallback)
-	}
+	assert.Equal(t, fallback, logEntry.Fallback, "Expected Fallback: %t, Got from logs: %t", fallback, logEntry.Fallback)
 }
 
 func setupFileInTestDir(ctx context.Context, storageClient *storage.Client, fileSize int64, t *testing.T) (fileName string) {

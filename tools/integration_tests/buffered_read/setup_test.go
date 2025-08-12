@@ -63,14 +63,7 @@ type gcsfuseTestFlags struct {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func setupForMountedDirectoryTests() {
-	if setup.MountedDirectory() != "" {
-		mountDir = setup.MountedDirectory()
-		setup.SetLogFile(logFileNameForMountedDir)
-	}
-}
-
-func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) {
+func mountGCSFuseAndSetupTestDir(flags []string) {
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	setup.SetMntDir(mountDir)
 	testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
@@ -132,31 +125,58 @@ func TestMain(m *testing.M) {
 
 	mountDir, rootDir = setup.MntDir(), setup.MntDir()
 
-	log.Println("Running static mounting tests...")
-	mountFunc = func(flags []string) error {
-		config := &test_suite.TestConfig{
-			TestBucket:       setup.TestBucket(),
-			MountedDirectory: setup.MountedDirectory(),
-			LogFile:          setup.LogFile(),
+	mountSetups := []struct {
+		name      string
+		setup     func()
+		mountFunc func([]string) error
+		cleanup   func()
+	}{
+		{
+			name: "static mounting",
+			setup: func() {
+				// mountDir is already rootDir, no change needed.
+			},
+			mountFunc: func(flags []string) error {
+				config := &test_suite.TestConfig{
+					TestBucket:       setup.TestBucket(),
+					MountedDirectory: setup.MountedDirectory(),
+					LogFile:          setup.LogFile(),
+				}
+				return static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(config, flags)
+			},
+			cleanup: func() {},
+		},
+		{
+			name: "dynamic mounting",
+			setup: func() {
+				mountDir = path.Join(setup.MntDir(), setup.TestBucket())
+			},
+			mountFunc: dynamic_mounting.MountGcsfuseWithDynamicMounting,
+			cleanup:   func() {},
+		},
+		{
+			name: "only dir mounting",
+			setup: func() {
+				setup.SetOnlyDirMounted(onlyDirMounted + "/")
+				mountDir = rootDir
+			},
+			mountFunc: only_dir_mounting.MountGcsfuseWithOnlyDir,
+			cleanup: func() {
+				setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), setup.OnlyDirMounted(), testDirName))
+			},
+		},
+	}
+
+	var successCode int
+	for _, s := range mountSetups {
+		log.Printf("Running %s tests...", s.name)
+		s.setup()
+		mountFunc = s.mountFunc
+		successCode = m.Run()
+		s.cleanup()
+		if successCode != 0 {
+			break
 		}
-		return static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(config, flags)
-	}
-	successCode := m.Run()
-
-	if successCode == 0 {
-		log.Println("Running dynamic mounting tests...")
-		mountDir = path.Join(setup.MntDir(), setup.TestBucket())
-		mountFunc = dynamic_mounting.MountGcsfuseWithDynamicMounting
-		successCode = m.Run()
-	}
-
-	if successCode == 0 {
-		log.Println("Running only dir mounting tests...")
-		setup.SetOnlyDirMounted(onlyDirMounted + "/")
-		mountDir = rootDir
-		mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDir
-		successCode = m.Run()
-		setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), setup.OnlyDirMounted(), testDirName))
 	}
 
 	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
