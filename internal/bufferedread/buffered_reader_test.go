@@ -1192,28 +1192,9 @@ func (t *BufferedReaderTest) TestReadAtExceedsObjectSize() {
 	t.bucket.AssertExpectations(t.T())
 }
 
-func (t *BufferedReaderTest) TestReadAtSucceedsWhenBackgroundPrefetchFails() {
-	t.config.MaxPrefetchBlockCnt = 2
-	t.config.InitialPrefetchBlockCnt = 2
-	t.globalMaxBlocksSem = semaphore.NewWeighted(2)
-	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
-	require.NoError(t.T(), err)
-	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 0 })).Return(createFakeReaderWithOffset(t.T(), 1024, 0), nil).Once()
-	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 1024 })).Return(createFakeReaderWithOffset(t.T(), 1024, 1024), nil).Once()
-	t.bucket.On("Name").Return("test-bucket").Maybe()
-	buf := make([]byte, 1024)
-
-	resp, err := reader.ReadAt(t.ctx, buf, 0)
-
-	require.NoError(t.T(), err)
-	assert.Equal(t.T(), 1024, resp.Size)
-	assertBufferContent(t.T(), buf, 0)
-	require.Equal(t.T(), 1, reader.blockQueue.Len())
-	assert.Equal(t.T(), int64(1024), reader.blockQueue.Peek().block.AbsStartOff())
-	t.bucket.AssertExpectations(t.T())
-}
-
 func (t *BufferedReaderTest) TestReadAtSucceedsWhenBackgroundPrefetchFailsDueToGlobalSem() {
+	// Configure a scenario where the initial read succeeds, but the subsequent
+	// background prefetch fails due to an exhausted global semaphore.
 	t.config.MaxPrefetchBlockCnt = 3
 	t.config.InitialPrefetchBlockCnt = 1
 	t.globalMaxBlocksSem = semaphore.NewWeighted(2)
@@ -1224,6 +1205,9 @@ func (t *BufferedReaderTest) TestReadAtSucceedsWhenBackgroundPrefetchFailsDueToG
 	t.bucket.On("Name").Return("test-bucket").Maybe()
 	buf := make([]byte, 1024)
 
+	// The read should succeed. When this read consumes block 0, it will trigger
+	// a background prefetch for block 2, which will fail because the global
+	// semaphore is exhausted. This failure should not affect the foreground read.
 	resp, err := reader.ReadAt(t.ctx, buf, 0)
 
 	require.NoError(t.T(), err)
@@ -1240,17 +1224,24 @@ func (t *BufferedReaderTest) TestReadAtSucceedsWhenBackgroundPrefetchFailsOnGCSE
 	t.globalMaxBlocksSem = semaphore.NewWeighted(2)
 	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
 	require.NoError(t.T(), err)
+	// Mock the first block download to succeed, but the second (prefetched) block
+	// to fail with a GCS error.
 	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 0 })).Return(createFakeReaderWithOffset(t.T(), 1024, 0), nil).Once()
 	gcsError := errors.New("simulated GCS error")
 	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 1024 })).Return(nil, gcsError).Once()
 	t.bucket.On("Name").Return("test-bucket").Maybe()
 	buf := make([]byte, 10)
 
+	// The initial read should succeed because it reads from the first block, which
+	// was downloaded successfully. The background prefetch failure for the second
+	// block should not affect this call.
 	resp, err := reader.ReadAt(t.ctx, buf, 0)
 
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), 10, resp.Size)
 	assertBufferContent(t.T(), buf, 0)
+	// A subsequent attempt to read the second block (which failed to prefetch)
+	// should return the original GCS error.
 	_, err = reader.ReadAt(t.ctx, buf, 1024)
 	assert.ErrorIs(t.T(), err, gcsError)
 	assert.ErrorContains(t.T(), err, "download failed")

@@ -342,24 +342,24 @@ func (p *BufferedReader) prefetch() error {
 		return nil
 	}
 
-	var blocksScheduled int64
-	for blocksScheduled < blockCountToPrefetch {
+	allBlocksScheduledSuccessfully := true
+	for i := int64(0); i < blockCountToPrefetch; i++ {
 		if err := p.scheduleNextBlock(false); err != nil {
 			if errors.Is(err, ErrPrefetchBlockNotAvailable) {
 				// This is not a critical error for a background prefetch. We just stop
 				// trying to prefetch more in this cycle. The specific reason has
 				// already been logged by scheduleNextBlock.
+				allBlocksScheduledSuccessfully = false
 				break // Stop prefetching more blocks.
 			}
 			return fmt.Errorf("prefetch: scheduling block index %d: %w", p.nextBlockIndexToPrefetch, err)
 		}
-		blocksScheduled++
 	}
 
 	// Only increase the prefetch window size if we successfully scheduled all the
 	// intended blocks. This is a more conservative approach that prevents the
 	// window from growing aggressively if block pool is consistently under pressure.
-	if blocksScheduled == blockCountToPrefetch {
+	if allBlocksScheduledSuccessfully {
 		// Set the size for the next multiplicative prefetch.
 		p.numPrefetchBlocks *= p.prefetchMultiplier
 
