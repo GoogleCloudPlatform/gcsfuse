@@ -429,9 +429,9 @@ func (t *fileTest) Test_ReadWithReadManager_FullReadSuccessWithBufferedRead() {
 	// Setup for Buffered Read test case
 	config := &cfg.Config{
 		Read: cfg.ReadConfig{
-			EnableBufferedRead: true,
-			MaxBlocksPerHandle: 10,
-			//BlockSizeMb:          1,
+			EnableBufferedRead:   true,
+			MaxBlocksPerHandle:   10,
+			BlockSizeMb:          1,
 			StartBlocksPerHandle: 2,
 		},
 	}
@@ -453,7 +453,7 @@ func (t *fileTest) Test_ReadWithReadManager_FullReadSuccessWithBufferedRead() {
 	assert.Equal(t.T(), expectedData, output)
 }
 
-func (t *fileTest) Test_ReadWithReadManager_ConcurrentRangeReads() {
+func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() {
 	const (
 		fileSize      = 10 * 1024 * 1024 // 10 MiB
 		numGoroutines = 4
