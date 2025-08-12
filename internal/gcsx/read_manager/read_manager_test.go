@@ -68,6 +68,7 @@ func (t *readManagerTest) readManagerConfig(fileCacheEnable bool, bufferedReadEn
 				MaxBlocksPerHandle:   10,
 				BlockSizeMb:          1,
 				StartBlocksPerHandle: 2,
+				MinBlocksPerHandle:   2,
 			},
 		},
 		GlobalMaxBlocksSem: semaphore.NewWeighted(20),

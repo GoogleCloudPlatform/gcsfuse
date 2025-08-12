@@ -80,6 +80,7 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 			MaxPrefetchBlockCnt:     readConfig.MaxBlocksPerHandle,
 			PrefetchBlockSizeBytes:  readConfig.BlockSizeMb * util.MiB,
 			InitialPrefetchBlockCnt: readConfig.StartBlocksPerHandle,
+			MinBlocksPerHandle:      readConfig.MinBlocksPerHandle,
 		}
 		bufferedReader, err := bufferedread.NewBufferedReader(
 			object,

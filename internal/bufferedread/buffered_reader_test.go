@@ -39,6 +39,7 @@ import (
 
 const (
 	testMaxPrefetchBlockCnt     int64 = 10
+	testMinBlocksPerHandle      int64 = 2
 	testGlobalMaxBlocks         int64 = 20
 	testPrefetchBlockSizeBytes  int64 = 1024
 	testInitialPrefetchBlockCnt int64 = 2
@@ -112,6 +113,7 @@ func (t *BufferedReaderTest) SetupTest() {
 		MaxPrefetchBlockCnt:     testMaxPrefetchBlockCnt,
 		PrefetchBlockSizeBytes:  testPrefetchBlockSizeBytes,
 		InitialPrefetchBlockCnt: testInitialPrefetchBlockCnt,
+		MinBlocksPerHandle:      testMinBlocksPerHandle,
 	}
 	var err error
 	t.workerPool, err = workerpool.NewStaticWorkerPool(5, 10)
@@ -141,6 +143,26 @@ func (t *BufferedReaderTest) TestNewBufferedReader() {
 	assert.Equal(t.T(), t.metricHandle, reader.metricHandle)
 	assert.NotNil(t.T(), reader.ctx)
 	assert.NotNil(t.T(), reader.cancelFunc)
+}
+
+func (t *BufferedReaderTest) TestNewBufferedReaderWithMinimumBlockNotAvailableInPool() {
+	// Simulate no blocks available globally.
+	t.globalMaxBlocksSem = semaphore.NewWeighted(1)
+
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+
+	assert.Error(t.T(), err)
+	assert.ErrorIs(t.T(), err, block.CantAllocateAnyBlockError)
+	assert.Nil(t.T(), reader, "BufferedReader should be nil on error")
+}
+
+func (t *BufferedReaderTest) TestNewBufferedReaderWithZeroBlockSize() {
+	t.config.PrefetchBlockSizeBytes = 0
+
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+
+	assert.Error(t.T(), err, "NewBufferedReader should return error with invalid block size")
+	assert.Nil(t.T(), reader, "BufferedReader should be nil on error")
 }
 
 func (t *BufferedReaderTest) TestDestroySuccess() {

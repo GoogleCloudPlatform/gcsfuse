@@ -242,6 +242,10 @@ func isValidBufferedReadConfig(rc *ReadConfig) error {
 		return fmt.Errorf("invalid value of read-max-blocks-per-handle: %d; should be >=1 or -1 (for infinite)", rc.MaxBlocksPerHandle)
 	}
 
+	if rc.MinBlocksPerHandle < 1 || (rc.MaxBlocksPerHandle != -1 && rc.MinBlocksPerHandle > rc.MaxBlocksPerHandle) {
+		return fmt.Errorf("invalid value of read-min-blocks-per-handle: %d; should be >=1 or less than or equal to read-max-blocks-per-handle: %d", rc.MinBlocksPerHandle, rc.MaxBlocksPerHandle)
+	}
+
 	return nil
 }
 
