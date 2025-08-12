@@ -82,7 +82,6 @@ func (p *DownloadTask) Execute() {
 	if end > p.object.Size {
 		end = p.object.Size
 	}
-
 	newReader, err := p.bucket.NewReaderWithReadHandle(
 		p.ctx,
 		&gcs.ReadObjectRequest{

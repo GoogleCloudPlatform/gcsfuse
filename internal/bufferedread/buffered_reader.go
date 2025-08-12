@@ -249,6 +249,9 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		return resp, nil
 	}
 
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	defer func() {
 		dur := time.Since(start)
 		if err == nil || errors.Is(err, io.EOF) {
@@ -256,8 +259,6 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		}
 	}()
 
-	p.mu.Lock()
-	defer p.mu.Unlock()
 	if err = p.handleRandomRead(off); err != nil {
 		err = fmt.Errorf("BufferedReader.ReadAt: handleRandomRead: %w", err)
 		return resp, err
