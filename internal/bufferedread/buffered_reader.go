@@ -151,7 +151,7 @@ func (p *BufferedReader) handleRandomRead(offset int64) error {
 	}
 
 	if p.randomSeekCount > p.randomReadsThreshold {
-		logger.Warnf("handleRandomRead: random seek count %d exceeded threshold %d, falling back to another reader", p.randomSeekCount, p.randomReadsThreshold)
+		logger.Warnf("Fallback to another reader for object %q. Random seek count %d exceeded threshold %d.", p.object.Name, p.randomSeekCount, p.randomReadsThreshold)
 		return gcsx.FallbackToAnotherReader
 	}
 
@@ -264,9 +264,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 		if p.blockQueue.IsEmpty() {
 			if err = p.freshStart(off); err != nil {
-				if !errors.Is(err, ErrPrefetchBlockNotAvailable) {
-					logger.Warnf("BufferedReader.ReadAt: unexpected freshStart failure, falling back: %v", err)
-				}
+				logger.Warnf("Fallback to another reader for object %q due to freshStart failure: %v", p.object.Name, err)
 				return resp, gcsx.FallbackToAnotherReader
 			}
 			prefetchTriggered = true
