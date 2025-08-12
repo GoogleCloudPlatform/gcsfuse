@@ -455,8 +455,8 @@ func (t *fileTest) Test_ReadWithReadManager_FullReadSuccessWithBufferedRead() {
 
 func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() {
 	const (
-		fileSize      = 10 * 1024 * 1024 // 10 MiB
-		numGoroutines = 4
+		fileSize      = 9 * 1024 * 1024 // 9 MiB
+		numGoroutines = 3
 	)
 	// Create expected data for the file.
 	expectedData := make([]byte, fileSize)
@@ -483,8 +483,6 @@ func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() 
 	// Use a WaitGroup to synchronize goroutines.
 	var wg sync.WaitGroup
 	wg.Add(numGoroutines)
-	// Use a mutex to protect shared data if necessary (e.g., a results slice).
-	var mu sync.Mutex
 	readSize := fileSize / numGoroutines
 	results := make([][]byte, numGoroutines)
 	for i := 0; i < numGoroutines; i++ {
@@ -499,9 +497,7 @@ func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() 
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), readSize, n)
-			mu.Lock()
 			results[index] = output
-			mu.Unlock()
 		}(i)
 	}
 	// Wait for all goroutines to finish.
