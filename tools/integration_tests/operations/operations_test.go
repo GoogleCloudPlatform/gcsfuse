@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,10 +17,12 @@ package operations_test
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -31,6 +33,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/persistent_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
+	"gopkg.in/yaml.v3"
 )
 
 const DirForOperationTests = "dirForOperationsTest"
@@ -95,6 +99,11 @@ var (
 	ctx           context.Context
 )
 
+// Config holds all test configurations parsed from the YAML file.
+type Config struct {
+	Operations []test_suite.TestConfig `yaml:"operations"`
+}
+
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	cacheDirPath := path.Join(os.TempDir(), cacheDir)
 
@@ -145,10 +154,30 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
-
-	// Create storage client before running tests.
+	// 1. Load and parse the common configuration.
+	var cfg Config
+	if setup.ConfigFile() != "" {
+		configData, err := os.ReadFile(setup.ConfigFile())
+		if err != nil {
+			log.Fatalf("could not read test_config.yaml: %v", err)
+		}
+		expandedYaml := os.ExpandEnv(string(configData))
+		if err := yaml.Unmarshal([]byte(expandedYaml), &cfg); err != nil {
+			log.Fatalf("Failed to parse config YAML: %v", err)
+		}
+	}
+	if len(cfg.Operations) == 0 {
+		log.Println("No configuration found for operations tests in config. Using flags instead.")
+		// Populate the config manually.
+		cfg.Operations = make([]test_suite.TestConfig, 1)
+		cfg.Operations[0].TestBucket = setup.TestBucket()
+		// TODO : use yaml file and manually input the flags.
+		cfg.Operations[0].Flags = []string{"--enable-atomic-rename-object=true", "--experimental-enable-json-read=true", "--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true", "--experimental-enable-json-read=true --enable-atomic-rename-object=true"}
+		cfg.Operations[0].MountedDirectory = setup.MountedDirectory()
+	}
+	// 2. Create storage client before running tests.
 	var err error
+	setup.SetBucketFromConfigFile(cfg.Operations[0].TestBucket)
 	ctx = context.Background()
 	storageClient, err = client.CreateStorageClient(ctx)
 	if err != nil {
@@ -157,67 +186,78 @@ func TestMain(m *testing.M) {
 	}
 	defer storageClient.Close()
 
-	cacheDir = "cache-dir-operations-hns-" + strconv.FormatBool(setup.IsHierarchicalBucket(ctx, storageClient))
-
+	cacheDir = "cache-dir-operations-hns-" + strconv.FormatBool(setup.ResolveIsHierarchicalBucket(ctx, cfg.Operations[0].TestBucket, storageClient))
+	fmt.Println("operations_test: 188 line buckett : " + cfg.Operations[0].TestBucket)
 	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as operations tests validates content from the bucket.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		setup.RunTestsForMountedDirectoryFlag(m)
+	if cfg.Operations[0].MountedDirectory != "" && cfg.Operations[0].TestBucket != "" {
+		// setup.RunTestsForMountedDirectoryFlag(m)
+		fmt.Println(("both exist"))
+		setup.RunTestsForMountedDirectory(cfg.Operations[0].MountedDirectory, m)
 	}
 
 	// Run tests for testBucket
 	// Set up test directory.
-	setup.SetUpTestDirForTestBucketFlag()
+	setup.SetUpTestDirForTestBucket(cfg.Operations[0].TestBucket)
+
+	fmt.Println("Mounted Directory: ", setup.MountedDirectory())
 	// Set up flags to run tests on.
 	// Note: GRPC related tests will work only if you have allow-list bucket.
 	// Note: We are not testing specifically for implicit-dirs because they are covered as part of the other flags.
-	flagsSet := [][]string{{"--enable-atomic-rename-object=true"}}
 
-	// Enable experimental-enable-json-read=true case, but for non-presubmit runs only.
-	if !setup.IsPresubmitRun() {
-		flagsSet = append(flagsSet, []string{
-			// By default, creating emptyFile is disabled.
-			"--experimental-enable-json-read=true"})
-	}
+	// flagsSet := [][]string{{"--enable-atomic-rename-object=true"}}
 
-	// gRPC tests will not run in TPC environment
-	if !testing.Short() && !setup.TestOnTPCEndPoint() {
-		flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=true", "--enable-atomic-rename-object=true"})
-	}
+	// // Enable experimental-enable-json-read=true case, but for non-presubmit runs only.
+	// if !setup.IsPresubmitRun() {
+	// 	flagsSet = append(flagsSet, []string{
+	// 		// By default, creating emptyFile is disabled.
+	// 		"--experimental-enable-json-read=true"})
+	// }
 
-	// HNS tests utilize the gRPC protocol, which is not supported by TPC.
-	if !setup.TestOnTPCEndPoint() {
-		if setup.IsHierarchicalBucket(ctx, storageClient) {
-			flagsSet = [][]string{{"--experimental-enable-json-read=true", "--enable-atomic-rename-object=true"}}
-		}
+	// // gRPC tests will not run in TPC environment
+	// if !testing.Short() && !setup.TestOnTPCEndPoint() {
+	// 	flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=true", "--enable-atomic-rename-object=true"})
+	// }
+
+	// // HNS tests utilize the gRPC protocol, which is not supported by TPC.
+	// if !setup.TestOnTPCEndPoint() {
+	// 	if setup.IsHierarchicalBucket(ctx, storageClient) {
+	// 		flagsSet = [][]string{{"--experimental-enable-json-read=true", "--enable-atomic-rename-object=true"}}
+	// 	}
+	// }
+
+	// 4. Build the flag sets dynamically from the config.
+	var flags [][]string
+	for _, flagString := range cfg.Operations[0].Flags {
+		flags = append(flags, strings.Fields(flagString))
 	}
 
 	mountConfigFlags := createMountConfigsAndEquivalentFlags()
-	flagsSet = append(flagsSet, mountConfigFlags...)
+	flags = append(flags, mountConfigFlags...)
 
 	// Only running static_mounting test for TPC.
 	if setup.TestOnTPCEndPoint() {
-		successCodeTPC := static_mounting.RunTests(flagsSet, m)
+		successCodeTPC := static_mounting.RunTestsWithConfigFile(&cfg.Operations[0], flags, m)
 		os.Exit(successCodeTPC)
 	}
 
-	successCode := static_mounting.RunTests(flagsSet, m)
+	successCode := static_mounting.RunTestsWithConfigFile(&cfg.Operations[0], flags, m)
 
 	if successCode == 0 {
-		successCode = only_dir_mounting.RunTests(flagsSet, onlyDirMounted, m)
+		successCode = only_dir_mounting.RunTests(flags, onlyDirMounted, m)
 	}
 
 	if successCode == 0 {
-		successCode = persistent_mounting.RunTests(flagsSet, m)
+		successCode = persistent_mounting.RunTestsWithConfigFile(&cfg.Operations[0], flags, m)
 	}
 
 	if successCode == 0 {
-		successCode = dynamic_mounting.RunTests(ctx, storageClient, flagsSet, m)
+		successCode = dynamic_mounting.RunTests(ctx, storageClient, flags, m)
 	}
 
 	if successCode == 0 {
 		// Test for admin permission on test bucket.
-		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(ctx, storageClient, flagsSet, "objectAdmin", m)
+		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(ctx, storageClient, flags, "objectAdmin", m)
 	}
 
 	os.Exit(successCode)
