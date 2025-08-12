@@ -6,6 +6,7 @@ read:
   block-size-mb: 16
   start-blocks-per-handle: 4
   max-blocks-per-handle: 20
+  min-blocks-per-handle: 2
 write:
   create-empty-file: true
   enable-streaming-writes: true

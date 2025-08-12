@@ -401,6 +401,7 @@ func TestArgsParsing_ReadConfigFlags(t *testing.T) {
 		expectedReadGlobalMaxBlocks      int64
 		expectedReadMaxBlocksPerHandle   int64
 		expectedReadStartBlocksPerHandle int64
+		expectedReadMinBlocksPerHandle   int64
 	}{
 		{
 			name:                             "Test default flags.",
@@ -409,6 +410,7 @@ func TestArgsParsing_ReadConfigFlags(t *testing.T) {
 			expectedReadGlobalMaxBlocks:      20,
 			expectedReadMaxBlocksPerHandle:   20,
 			expectedReadStartBlocksPerHandle: 1,
+			expectedReadMinBlocksPerHandle:   4,
 		},
 		{
 			name:                             "Test enable buffered read flag true.",
@@ -417,6 +419,7 @@ func TestArgsParsing_ReadConfigFlags(t *testing.T) {
 			expectedReadGlobalMaxBlocks:      20,
 			expectedReadMaxBlocksPerHandle:   20,
 			expectedReadStartBlocksPerHandle: 1,
+			expectedReadMinBlocksPerHandle:   4,
 		},
 		{
 			name:                             "Test enable buffered read flag false.",
@@ -425,6 +428,7 @@ func TestArgsParsing_ReadConfigFlags(t *testing.T) {
 			expectedReadGlobalMaxBlocks:      20,
 			expectedReadMaxBlocksPerHandle:   20,
 			expectedReadStartBlocksPerHandle: 1,
+			expectedReadMinBlocksPerHandle:   4,
 		},
 		{
 			name:                             "Test positive read-block-size-mb flag.",
@@ -433,6 +437,7 @@ func TestArgsParsing_ReadConfigFlags(t *testing.T) {
 			expectedReadGlobalMaxBlocks:      20,
 			expectedReadMaxBlocksPerHandle:   20,
 			expectedReadStartBlocksPerHandle: 1,
+			expectedReadMinBlocksPerHandle:   4,
 		},
 		{
 			name:                             "Test positive read-global-max-blocks flag.",
@@ -441,6 +446,7 @@ func TestArgsParsing_ReadConfigFlags(t *testing.T) {
 			expectedReadGlobalMaxBlocks:      10,
 			expectedReadMaxBlocksPerHandle:   20,
 			expectedReadStartBlocksPerHandle: 1,
+			expectedReadMinBlocksPerHandle:   4,
 		},
 		{
 			name:                             "Test positive read-max-blocks-per-handle flag.",
@@ -449,6 +455,7 @@ func TestArgsParsing_ReadConfigFlags(t *testing.T) {
 			expectedReadGlobalMaxBlocks:      20,
 			expectedReadMaxBlocksPerHandle:   10,
 			expectedReadStartBlocksPerHandle: 1,
+			expectedReadMinBlocksPerHandle:   4,
 		},
 		{
 			name:                             "Test positive read-start-blocks-per-handle flag.",
@@ -457,6 +464,16 @@ func TestArgsParsing_ReadConfigFlags(t *testing.T) {
 			expectedReadGlobalMaxBlocks:      20,
 			expectedReadMaxBlocksPerHandle:   20,
 			expectedReadStartBlocksPerHandle: 10,
+			expectedReadMinBlocksPerHandle:   4,
+		},
+		{
+			name:                             "Test positive read-min-blocks-per-handle flag.",
+			args:                             []string{"gcsfuse", "--read-min-blocks-per-handle=10", "abc", "pqr"},
+			expectedReadBlockSizeMB:          16,
+			expectedReadGlobalMaxBlocks:      20,
+			expectedReadMaxBlocksPerHandle:   20,
+			expectedReadStartBlocksPerHandle: 1,
+			expectedReadMinBlocksPerHandle:   10,
 		},
 	}
 
@@ -477,6 +494,7 @@ func TestArgsParsing_ReadConfigFlags(t *testing.T) {
 				assert.Equal(t, tc.expectedReadGlobalMaxBlocks, rc.GlobalMaxBlocks)
 				assert.Equal(t, tc.expectedReadMaxBlocksPerHandle, rc.MaxBlocksPerHandle)
 				assert.Equal(t, tc.expectedReadStartBlocksPerHandle, rc.StartBlocksPerHandle)
+				assert.Equal(t, tc.expectedReadMinBlocksPerHandle, rc.MinBlocksPerHandle)
 			}
 		})
 	}
