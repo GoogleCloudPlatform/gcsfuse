@@ -78,6 +78,7 @@ func executeTestsForPersistentMountingWithConfigFile(config *test_suite.TestConf
 }
 
 // Deprecated: Use RunTestsWithConfigFile instead.
+// TODO(b/438068132): cleanup deprecated methods after migration is complete.
 func RunTests(flagsSet [][]string, m *testing.M) (successCode int) {
 	config := &test_suite.TestConfig{
 		TestBucket:       setup.TestBucket(),

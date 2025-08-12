@@ -395,6 +395,7 @@ func ExitWithFailureIfMountedDirectoryIsSetOrTestBucketIsNotSet() {
 }
 
 // Deprecated: Use RunTestsForMountedDirectory instead.
+// TODO(b/438068132): cleanup deprecated methods after migration is complete.
 func RunTestsForMountedDirectoryFlag(m *testing.M) {
 	// Execute tests for the mounted directory.
 	if *mountedDirectory != "" {
@@ -416,6 +417,7 @@ func RunTestsForMountedDirectory(mountedDirectory string, m *testing.M) int {
 }
 
 // Deprecated: Use SetUpTestDirForTestBucket instead.
+// TODO(b/438068132): cleanup deprecated methods after migration is complete.
 func SetUpTestDirForTestBucketFlag() {
 	SetUpTestDirForTestBucket(TestBucket())
 }
@@ -532,6 +534,7 @@ func AreBothMountedDirectoryAndTestBucketFlagsSet() bool {
 }
 
 // Deprecated: use ResolveIsHierarchicalBucket instead.
+// TODO(b/438068132): cleanup deprecated methods after migration is complete.
 func IsHierarchicalBucket(ctx context.Context, storageClient *storage.Client) bool {
 	return ResolveIsHierarchicalBucket(ctx, TestBucket(), storageClient)
 }
