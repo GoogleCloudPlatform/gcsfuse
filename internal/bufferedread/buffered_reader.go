@@ -97,14 +97,16 @@ type BufferedReader struct {
 	workerPool workerpool.WorkerPool
 
 	// blockQueue is the core of the prefetching pipeline, holding blocks that are
-	// either downloaded or in the process of being downloaded. The head of the
-	// queue always contains the next block required to satisfy a read request.
+	// either downloaded or in the process of being downloaded.
 	// GUARDED by (mu)
 	blockQueue common.Queue[*blockQueueEntry]
 
-	// blockPool manages a pool of reusable PrefetchBlock buffers. Instead of
-	// allocating a new buffer for each download, the reader acquires one from
-	// this pool and releases it back when it's no longer needed.
+	// blockPool is a pool of blocks that can be reused for prefetching.
+	// It is used to avoid allocating new blocks for each prefetch operation.
+	// The pool is initialized with a maximum number of blocks that can be
+	// prefetched at a time, and it allows for efficient reuse of blocks.
+	// The pool is also responsible for managing the global limit on the number
+	// of blocks that can be allocated across all BufferedReader instances.
 	// GUARDED by (mu)
 	blockPool *block.GenBlockPool[block.PrefetchBlock]
 }
