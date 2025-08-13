@@ -17,6 +17,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"time"
 
 	control "cloud.google.com/go/storage/control/apiv2"
@@ -33,6 +34,9 @@ const (
 	defaultControlClientMaxRetryDeadline = time.Minute
 	defaultControlClientRetryMultiplier  = 2.0
 	defaultControlClientTotalRetryBudget = 5 * time.Minute
+	defaultInitialBackoff                = 1 * time.Second
+	defaultMaxBackoff                    = 1 * time.Minute
+	defaultBackoffMultiplier             = 2.0
 )
 
 type StorageControlClient interface {
@@ -111,6 +115,11 @@ type storageControlClientWithRetryOnStall struct {
 	// Total duration allowed across all the attempts.
 	totalRetryBudget time.Duration
 
+	// Backoff parameters for retries.
+	initialBackoff    time.Duration
+	maxBackoff        time.Duration
+	backoffMultiplier float64
+
 	// As an example,
 	// if minRetryDeadline is 1 second, retryMultiplier is 2,
 	// maxRetryDeadline is 5 seconds, and totalRetryBudget is 1 minute, then
@@ -143,26 +152,17 @@ func executeWithStallRetry[T any](
 	defer cancel()
 
 	delay := sccwros.minRetryDeadline
+	backoffDuration := sccwros.initialBackoff
 	for {
 		attemptCtx, attemptCancel := context.WithTimeout(parentCtx, delay)
 
 		logger.Tracef("Calling %s for %q with deadline=%v ...", operationName, reqDescription, delay)
 		result, err := apiCall(attemptCtx)
+		// Cancel attemptCtx after it is no longer needed to free up its resources.
 		attemptCancel()
 
 		if err == nil {
 			return result, nil
-		}
-
-		// If the attempt didn't time out but failed with another retryable error,
-		// we must explicitly wait some time before the next attempt.
-		// This is to avoid hammering the server with retries in a tight loop, and to let it recover.
-		if attemptCtx.Err() == nil {
-			select {
-			case <-time.After(delay):
-			case <-parentCtx.Done():
-				return zero, fmt.Errorf("%s for %q failed after multiple retries (last server/client error = %v): %w", operationName, reqDescription, err, parentCtx.Err())
-			}
 		}
 
 		// If the error is not retryable, return it immediately.
@@ -173,6 +173,22 @@ func executeWithStallRetry[T any](
 		// If the parent context is cancelled/timed-out, we should stop retrying.
 		if parentCtx.Err() != nil {
 			return zero, fmt.Errorf("%s for %q failed after multiple retries (last server/client error = %v): %w", operationName, reqDescription, err, parentCtx.Err())
+		}
+
+		// Backoff with jitter before next retry.
+		// This is to avoid the thundering herd problem.
+		// This is similar to how gax-retries backoff after each failed retry.
+		jitter := time.Duration(rand.Int63n(int64(backoffDuration)))
+		select {
+		case <-time.After(jitter):
+		case <-parentCtx.Done():
+			return zero, fmt.Errorf("%s for %q failed after multiple retries (last server/client error = %v): %w", operationName, reqDescription, err, parentCtx.Err())
+		}
+
+		// Increase backoff for next attempt.
+		backoffDuration = time.Duration(float64(backoffDuration) * sccwros.backoffMultiplier)
+		if backoffDuration > sccwros.maxBackoff {
+			backoffDuration = sccwros.maxBackoff
 		}
 
 		// Increase delay for the next attempt.
@@ -212,7 +228,7 @@ func (sccwros *storageControlClientWithRetryOnStall) CreateFolder(ctx context.Co
 	return sccwros.raw.CreateFolder(ctx, req, opts...)
 }
 
-func newRetryWrapper(controlClient StorageControlClient, minRetryDeadline time.Duration, maxRetryDeadline time.Duration, retryMultiplier float64, totalRetryBudget time.Duration, retryAllCalls bool) StorageControlClient {
+func newRetryWrapper(controlClient StorageControlClient, minRetryDeadline time.Duration, maxRetryDeadline time.Duration, retryMultiplier float64, totalRetryBudget time.Duration, initialBackoff time.Duration, maxBackoff time.Duration, backoffMultiplier float64, retryAllCalls bool) StorageControlClient {
 	// Avoid creating a nested wrapper.
 	raw := controlClient
 	if sccwros, ok := controlClient.(*storageControlClientWithRetryOnStall); ok {
@@ -225,11 +241,14 @@ func newRetryWrapper(controlClient StorageControlClient, minRetryDeadline time.D
 		maxRetryDeadline:                      maxRetryDeadline,
 		retryMultiplier:                       retryMultiplier,
 		totalRetryBudget:                      totalRetryBudget,
+		initialBackoff:                        initialBackoff,
+		maxBackoff:                            maxBackoff,
+		backoffMultiplier:                     backoffMultiplier,
 		enableStallRetriesOnStorageLayoutCall: true,
 	}
 }
 
 // withRetryOnStorageLayoutStall wraps a StorageControlClient to do a time-bound retry approach for retryable errors for the GetStorageLayout call through it.
 func withRetryOnStorageLayoutStall(controlClient StorageControlClient, minRetryDeadline time.Duration, maxRetryDeadline time.Duration, retryMultiplier float64, totalRetryBudget time.Duration) StorageControlClient {
-	return newRetryWrapper(controlClient, minRetryDeadline, maxRetryDeadline, retryMultiplier, totalRetryBudget, false)
+	return newRetryWrapper(controlClient, minRetryDeadline, maxRetryDeadline, retryMultiplier, totalRetryBudget, defaultInitialBackoff, defaultMaxBackoff, defaultBackoffMultiplier, false)
 }
