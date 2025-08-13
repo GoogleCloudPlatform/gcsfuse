@@ -99,7 +99,7 @@ func (t *StorageLayoutStallRetryWrapperTest) SetupSuite() {
 
 func (t *StorageLayoutStallRetryWrapperTest) TestGetStorageLayout_SuccessOnFirstAttempt() {
 	// Arrange
-	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 500*time.Microsecond, 2, 1000*time.Microsecond, 1*time.Microsecond, 10*time.Microsecond, 2, false)
+	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 500*time.Microsecond, 2, 1000*time.Microsecond, 1*time.Microsecond, 10*time.Microsecond, 2)
 	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
 	expectedLayout := &controlpb.StorageLayout{Location: "some-location"}
 	t.stallTimeForGetStorageLayout = 0 // No stall.
@@ -116,7 +116,7 @@ func (t *StorageLayoutStallRetryWrapperTest) TestGetStorageLayout_SuccessOnFirst
 
 func (t *StorageLayoutStallRetryWrapperTest) TestGetStorageLayout_RetryableErrorThenSuccess() {
 	// Arrange
-	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 500*time.Microsecond, 2, 1000*time.Microsecond, 1*time.Microsecond, 10*time.Microsecond, 2, false)
+	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 500*time.Microsecond, 2, 1000*time.Microsecond, 1*time.Microsecond, 10*time.Microsecond, 2)
 	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
 	expectedLayout := &controlpb.StorageLayout{Location: "some-location"}
 	retryableErr := status.Error(codes.Unavailable, "try again")
@@ -137,7 +137,7 @@ func (t *StorageLayoutStallRetryWrapperTest) TestGetStorageLayout_RetryableError
 
 func (t *StorageLayoutStallRetryWrapperTest) TestGetStorageLayout_NonRetryableError() {
 	// Arrange
-	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 500*time.Microsecond, 2, 1000*time.Microsecond, 1*time.Microsecond, 10*time.Microsecond, 2, false)
+	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 500*time.Microsecond, 2, 1000*time.Microsecond, 1*time.Microsecond, 10*time.Microsecond, 2)
 	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
 	nonRetryableErr := status.Error(codes.NotFound, "does not exist")
 	t.stallTimeForGetStorageLayout = 0 // No stall.
@@ -157,7 +157,7 @@ func (t *StorageLayoutStallRetryWrapperTest) TestGetStorageLayout_NonRetryableEr
 func (t *StorageLayoutStallRetryWrapperTest) TestGetStorageLayout_AttemptTimesOutAndThenSucceeds() {
 	// Arrange
 	// minRetryDeadline is 100us, next is 200us.
-	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 500*time.Microsecond, 2, 1000*time.Microsecond, 1*time.Microsecond, 10*time.Microsecond, 2, false)
+	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 500*time.Microsecond, 2, 1000*time.Microsecond, 1*time.Microsecond, 10*time.Microsecond, 2)
 	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
 	expectedLayout := &controlpb.StorageLayout{Location: "some-location"}
 
@@ -181,7 +181,7 @@ func (t *StorageLayoutStallRetryWrapperTest) TestGetStorageLayout_AttemptTimesOu
 func (t *StorageLayoutStallRetryWrapperTest) TestGetStorageLayout_AllAttemptsTimeOut() {
 	// Arrange
 	// maxRetryDeadline is 5ms. Total budget is 10ms.
-	client := newRetryWrapper(t.stallingClient, 1000*time.Microsecond, 5000*time.Microsecond, 2, 10000*time.Microsecond, 1*time.Microsecond, 10*time.Microsecond, 2, false)
+	client := newRetryWrapper(t.stallingClient, 1000*time.Microsecond, 5000*time.Microsecond, 2, 10000*time.Microsecond, 1*time.Microsecond, 10*time.Microsecond, 2)
 	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
 	// Set stall time to be longer than the max attempt timeout.
 	t.stallTimeForGetStorageLayout = 6000 * time.Microsecond
