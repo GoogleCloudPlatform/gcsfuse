@@ -228,7 +228,7 @@ func (sccwros *storageControlClientWithRetryOnStall) CreateFolder(ctx context.Co
 	return sccwros.raw.CreateFolder(ctx, req, opts...)
 }
 
-func newRetryWrapper(controlClient StorageControlClient, minRetryDeadline time.Duration, maxRetryDeadline time.Duration, retryMultiplier float64, totalRetryBudget time.Duration, initialBackoff time.Duration, maxBackoff time.Duration, backoffMultiplier float64, retryAllCalls bool) StorageControlClient {
+func newRetryWrapper(controlClient StorageControlClient, minRetryDeadline time.Duration, maxRetryDeadline time.Duration, retryMultiplier float64, totalRetryBudget time.Duration, initialBackoff time.Duration, maxBackoff time.Duration, backoffMultiplier float64) StorageControlClient {
 	// Avoid creating a nested wrapper.
 	raw := controlClient
 	if sccwros, ok := controlClient.(*storageControlClientWithRetryOnStall); ok {
@@ -250,5 +250,5 @@ func newRetryWrapper(controlClient StorageControlClient, minRetryDeadline time.D
 
 // withRetryOnStorageLayoutStall wraps a StorageControlClient to do a time-bound retry approach for retryable errors for the GetStorageLayout call through it.
 func withRetryOnStorageLayoutStall(controlClient StorageControlClient, minRetryDeadline time.Duration, maxRetryDeadline time.Duration, retryMultiplier float64, totalRetryBudget time.Duration) StorageControlClient {
-	return newRetryWrapper(controlClient, minRetryDeadline, maxRetryDeadline, retryMultiplier, totalRetryBudget, defaultInitialBackoff, defaultMaxBackoff, defaultBackoffMultiplier, false)
+	return newRetryWrapper(controlClient, minRetryDeadline, maxRetryDeadline, retryMultiplier, totalRetryBudget, defaultInitialBackoff, defaultMaxBackoff, defaultBackoffMultiplier)
 }
