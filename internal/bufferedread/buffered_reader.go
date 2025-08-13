@@ -93,7 +93,8 @@ type BufferedReader struct {
 
 	randomReadsThreshold int64 // Number of random reads after which the reader falls back to another reader.
 
-	// mu synchronizes access to the buffered reader's shared state.
+	// `mu` synchronizes access to the buffered reader's shared state.
+	// All shared variables, such as the block pool and queue, require this lock before any operation.
 	mu sync.Mutex
 }
 
