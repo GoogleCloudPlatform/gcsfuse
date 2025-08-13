@@ -130,7 +130,7 @@ func TestMain(m *testing.M) {
 			"--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true",
 			"--experimental-enable-json-read=true --enable-atomic-rename-object=true",
 			"--create-empty-file=true --enable-atomic-rename-object=true",
-			"--metadata-cache-ttl-secs=0 --write-enable-streaming-writes=false",
+			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false",
 			"--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true",
 		}
 		cacheDirflag := fmt.Sprintf("--file-cache-max-size-mb=2 --cache-dir=%s/cache-dir-operations-hns", TempDirectory)
@@ -151,7 +151,7 @@ func TestMain(m *testing.M) {
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as operations tests validates content from the bucket.
 	if cfg.Operations[0].MountedDirectory != "" && cfg.Operations[0].TestBucket != "" {
-		setup.RunTestsForMountedDirectory(cfg.Operations[0].MountedDirectory, m)
+		os.Exit(setup.RunTestsForMountedDirectory(cfg.Operations[0].MountedDirectory, m))
 	}
 
 	// Run tests for testBucket
