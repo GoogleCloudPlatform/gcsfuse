@@ -312,7 +312,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		controlClient = withBillingProject(controlClient, billingProject)
 		// Wrap the control client with retry-on-stall logic.
 		// This will retry on only on GetStorageLayout call for all buckets.
-		controlClient = withRetryOnStorageLayoutStall(controlClient, defaultControlClientInitialRetryDeadline, defaultControlClientMaxRetryDeadline, defaultControlClientRetryMultiplier, defaultControlClientTotalRetryBudget)
+		controlClient = withRetryOnStorageLayout(controlClient, defaultControlClientInitialRetryDeadline, defaultControlClientMaxRetryDeadline, defaultControlClientRetryMultiplier, defaultControlClientTotalRetryBudget)
 	} else {
 		logger.Infof("Skipping storage control client creation because custom-endpoint %q was passed, which is assumed to be a storage testbench server because of 'localhost' in it.", clientConfig.CustomEndpoint)
 	}

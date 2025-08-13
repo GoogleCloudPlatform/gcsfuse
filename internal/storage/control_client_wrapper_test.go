@@ -33,14 +33,14 @@ import (
 // stallingStorageControlClient is a wrapper that introduces a controllable delay
 // to every call, to simulate network latency for testing timeout-based retries.
 type stallingStorageControlClient struct {
-	wrapped                      StorageControlClient
-	stallTimeForGetStorageLayout *time.Duration
+	wrapped                          StorageControlClient
+	stallDurationForGetStorageLayout *time.Duration
 }
 
 func (s *stallingStorageControlClient) GetStorageLayout(ctx context.Context, req *controlpb.GetStorageLayoutRequest, opts ...gax.CallOption) (*controlpb.StorageLayout, error) {
-	if s.stallTimeForGetStorageLayout != nil {
+	if s.stallDurationForGetStorageLayout != nil {
 		select {
-		case <-time.After(*s.stallTimeForGetStorageLayout):
+		case <-time.After(*s.stallDurationForGetStorageLayout):
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		}
@@ -64,45 +64,45 @@ func (s *stallingStorageControlClient) CreateFolder(ctx context.Context, req *co
 	return s.wrapped.CreateFolder(ctx, req, opts...)
 }
 
-type ControlClientStallRetryWrapperTest struct {
+type ControlClientRetryWrapperTest struct {
 	suite.Suite
 	// The raw mock client for setting expectations on return values.
-	mockRawClient  *MockStorageControlClient
-	stallingClient *stallingStorageControlClient
-	ctx            context.Context
-	// The simulated execution time for each GetStorageLayout call made through stallingClient.
-	stallTimeForGetStorageLayout time.Duration
+	mockRawClient *MockStorageControlClient
+	ctx           context.Context
 }
 
-type StorageLayoutStallRetryWrapperTest struct {
-	ControlClientStallRetryWrapperTest
+type StorageLayoutRetryWrapperTest struct {
+	ControlClientRetryWrapperTest
+	stallingClient *stallingStorageControlClient
+	// The simulated execution time for each GetStorageLayout call made through stallingClient.
+	stallDurationForGetStorageLayout time.Duration
 }
 
 func TestControlClientWrapperTestSuite(t *testing.T) {
-	t.Run("StorageLayoutStallRetryWrapperTest", func(t *testing.T) {
-		suite.Run(t, new(StorageLayoutStallRetryWrapperTest))
+	t.Run("StorageLayoutRetryWrapperTest", func(t *testing.T) {
+		suite.Run(t, new(StorageLayoutRetryWrapperTest))
 	})
 }
 
-func (t *ControlClientStallRetryWrapperTest) SetupSuite() {
+func (t *ControlClientRetryWrapperTest) SetupTest() {
 	t.mockRawClient = new(MockStorageControlClient)
 	t.ctx = context.Background()
 }
 
-func (t *StorageLayoutStallRetryWrapperTest) SetupSuite() {
-	t.ControlClientStallRetryWrapperTest.SetupSuite()
+func (t *StorageLayoutRetryWrapperTest) SetupTest() {
+	t.ControlClientRetryWrapperTest.SetupTest()
+	t.stallDurationForGetStorageLayout = 0
 	t.stallingClient = &stallingStorageControlClient{
-		wrapped:                      t.mockRawClient,
-		stallTimeForGetStorageLayout: &t.stallTimeForGetStorageLayout,
+		wrapped:                          t.mockRawClient,
+		stallDurationForGetStorageLayout: &t.stallDurationForGetStorageLayout,
 	}
 }
 
-func (t *StorageLayoutStallRetryWrapperTest) TestGetStorageLayout_SuccessOnFirstAttempt() {
+func (t *StorageLayoutRetryWrapperTest) TestGetStorageLayout_SuccessOnFirstAttempt() {
 	// Arrange
 	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 500*time.Microsecond, 2, 1000*time.Microsecond, 1*time.Microsecond, 10*time.Microsecond, 2)
 	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
 	expectedLayout := &controlpb.StorageLayout{Location: "some-location"}
-	t.stallTimeForGetStorageLayout = 0 // No stall.
 	t.mockRawClient.On("GetStorageLayout", mock.Anything, req, mock.Anything).Return(expectedLayout, nil).Once()
 
 	// Act
@@ -114,13 +114,12 @@ func (t *StorageLayoutStallRetryWrapperTest) TestGetStorageLayout_SuccessOnFirst
 	t.mockRawClient.AssertExpectations(t.T())
 }
 
-func (t *StorageLayoutStallRetryWrapperTest) TestGetStorageLayout_RetryableErrorThenSuccess() {
+func (t *StorageLayoutRetryWrapperTest) TestGetStorageLayout_RetryableErrorThenSuccess() {
 	// Arrange
 	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 500*time.Microsecond, 2, 1000*time.Microsecond, 1*time.Microsecond, 10*time.Microsecond, 2)
 	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
 	expectedLayout := &controlpb.StorageLayout{Location: "some-location"}
 	retryableErr := status.Error(codes.Unavailable, "try again")
-	t.stallTimeForGetStorageLayout = 0 // No stall.
 
 	// First call fails, second succeeds.
 	t.mockRawClient.On("GetStorageLayout", mock.Anything, req, mock.Anything).Return(nil, retryableErr).Once()
@@ -135,12 +134,11 @@ func (t *StorageLayoutStallRetryWrapperTest) TestGetStorageLayout_RetryableError
 	t.mockRawClient.AssertExpectations(t.T())
 }
 
-func (t *StorageLayoutStallRetryWrapperTest) TestGetStorageLayout_NonRetryableError() {
+func (t *StorageLayoutRetryWrapperTest) TestGetStorageLayout_NonRetryableError() {
 	// Arrange
 	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 500*time.Microsecond, 2, 1000*time.Microsecond, 1*time.Microsecond, 10*time.Microsecond, 2)
 	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
 	nonRetryableErr := status.Error(codes.NotFound, "does not exist")
-	t.stallTimeForGetStorageLayout = 0 // No stall.
 	t.mockRawClient.On("GetStorageLayout", mock.Anything, req, mock.Anything).Return(nil, nonRetryableErr).Once()
 
 	// Act
@@ -154,16 +152,15 @@ func (t *StorageLayoutStallRetryWrapperTest) TestGetStorageLayout_NonRetryableEr
 	t.mockRawClient.AssertExpectations(t.T())
 }
 
-func (t *StorageLayoutStallRetryWrapperTest) TestGetStorageLayout_AttemptTimesOutAndThenSucceeds() {
+func (t *StorageLayoutRetryWrapperTest) TestGetStorageLayout_AttemptTimesOutAndThenSucceeds() {
 	// Arrange
-	// initialRetryDeadline is 100us, next is 200us.
 	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 500*time.Microsecond, 2, 1000*time.Microsecond, 1*time.Microsecond, 10*time.Microsecond, 2)
 	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
 	expectedLayout := &controlpb.StorageLayout{Location: "some-location"}
 
 	// Set stall time to be longer than the first attempt's timeout (100us)
 	// but shorter than the second attempt's timeout (200us).
-	t.stallTimeForGetStorageLayout = 150 * time.Microsecond
+	t.stallDurationForGetStorageLayout = 150 * time.Microsecond
 
 	// The mock should only be called on the second attempt, which succeeds.
 	t.mockRawClient.On("GetStorageLayout", mock.Anything, req, mock.Anything).Return(expectedLayout, nil).Once()
@@ -178,13 +175,14 @@ func (t *StorageLayoutStallRetryWrapperTest) TestGetStorageLayout_AttemptTimesOu
 	t.mockRawClient.AssertNumberOfCalls(t.T(), "GetStorageLayout", 1)
 }
 
-func (t *StorageLayoutStallRetryWrapperTest) TestGetStorageLayout_AllAttemptsTimeOut() {
+func (t *StorageLayoutRetryWrapperTest) TestGetStorageLayout_AllAttemptsTimeOut() {
 	// Arrange
 	// maxRetryDeadline is 5ms. Total budget is 10ms.
+	// This test requires different retry parameters, so we create a new client.
 	client := newRetryWrapper(t.stallingClient, 1000*time.Microsecond, 5000*time.Microsecond, 2, 10000*time.Microsecond, 1*time.Microsecond, 10*time.Microsecond, 2)
 	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
 	// Set stall time to be longer than the max attempt timeout.
-	t.stallTimeForGetStorageLayout = 6000 * time.Microsecond
+	t.stallDurationForGetStorageLayout = 6000 * time.Microsecond
 
 	// Act
 	_, err := client.GetStorageLayout(t.ctx, req)
