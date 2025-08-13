@@ -156,7 +156,7 @@ func (t *StorageLayoutStallRetryWrapperTest) TestGetStorageLayout_NonRetryableEr
 
 func (t *StorageLayoutStallRetryWrapperTest) TestGetStorageLayout_AttemptTimesOutAndThenSucceeds() {
 	// Arrange
-	// minRetryDeadline is 100us, next is 200us.
+	// initialRetryDeadline is 100us, next is 200us.
 	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 500*time.Microsecond, 2, 1000*time.Microsecond, 1*time.Microsecond, 10*time.Microsecond, 2)
 	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
 	expectedLayout := &controlpb.StorageLayout{Location: "some-location"}
