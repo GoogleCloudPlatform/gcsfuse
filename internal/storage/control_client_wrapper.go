@@ -174,7 +174,7 @@ type storageControlClientWithRetry struct {
 	// Whether or not to enable retries for GetStorageLayout call.
 	enableRetriesOnStorageLayoutCall bool
 	// Whether or not to enable retries for folder APIs.
-	enableStallRetriesOnAllCalls bool
+	enableRetriesOnFolderCalls bool
 }
 
 // executeWithRetry encapsulates the retry logic for control client operations.
@@ -242,7 +242,7 @@ func (sccwros *storageControlClientWithRetry) GetStorageLayout(ctx context.Conte
 func (sccwros *storageControlClientWithRetry) DeleteFolder(ctx context.Context,
 	req *controlpb.DeleteFolderRequest,
 	opts ...gax.CallOption) error {
-	if !sccwros.enableStallRetriesOnAllCalls {
+	if !sccwros.enableRetriesOnFolderCalls {
 		return sccwros.raw.DeleteFolder(ctx, req, opts...)
 	}
 
@@ -256,7 +256,7 @@ func (sccwros *storageControlClientWithRetry) DeleteFolder(ctx context.Context,
 }
 
 func (sccwros *storageControlClientWithRetry) GetFolder(ctx context.Context, req *controlpb.GetFolderRequest, opts ...gax.CallOption) (*controlpb.Folder, error) {
-	if !sccwros.enableStallRetriesOnAllCalls {
+	if !sccwros.enableRetriesOnFolderCalls {
 		return sccwros.raw.GetFolder(ctx, req, opts...)
 	}
 
@@ -268,7 +268,7 @@ func (sccwros *storageControlClientWithRetry) GetFolder(ctx context.Context, req
 }
 
 func (sccwros *storageControlClientWithRetry) RenameFolder(ctx context.Context, req *controlpb.RenameFolderRequest, opts ...gax.CallOption) (*control.RenameFolderOperation, error) {
-	if !sccwros.enableStallRetriesOnAllCalls {
+	if !sccwros.enableRetriesOnFolderCalls {
 		return sccwros.raw.RenameFolder(ctx, req, opts...)
 	}
 
@@ -281,7 +281,7 @@ func (sccwros *storageControlClientWithRetry) RenameFolder(ctx context.Context, 
 }
 
 func (sccwros *storageControlClientWithRetry) CreateFolder(ctx context.Context, req *controlpb.CreateFolderRequest, opts ...gax.CallOption) (*controlpb.Folder, error) {
-	if !sccwros.enableStallRetriesOnAllCalls {
+	if !sccwros.enableRetriesOnFolderCalls {
 		return sccwros.raw.CreateFolder(ctx, req, opts...)
 	}
 
@@ -308,12 +308,12 @@ func newRetryWrapper(controlClient StorageControlClient, initialRetryDeadline ti
 		totalRetryBudget:                 totalRetryBudget,
 		backoff:                          newBackoff(initialBackoff, maxBackoff, backoffMultiplier),
 		enableRetriesOnStorageLayoutCall: true,
-		enableStallRetriesOnAllCalls:     retryAllCalls,
+		enableRetriesOnFolderCalls:       retryAllCalls,
 	}
 }
 
-// withRetryOnStall wraps a StorageControlClient to do a time-bound retry approach for retryable errors for all API calls through it.
-func withRetryOnStall(controlClient StorageControlClient, initialRetryDeadline time.Duration, maxRetryDeadline time.Duration, retryMultiplier float64, totalRetryBudget time.Duration) StorageControlClient {
+// withRetryOnAllAPIs wraps a StorageControlClient to do a time-bound retry approach for retryable errors for all API calls through it.
+func withRetryOnAllAPIs(controlClient StorageControlClient, initialRetryDeadline time.Duration, maxRetryDeadline time.Duration, retryMultiplier float64, totalRetryBudget time.Duration) StorageControlClient {
 	return newRetryWrapper(controlClient, initialRetryDeadline, maxRetryDeadline, retryMultiplier, totalRetryBudget, defaultInitialBackoff, defaultMaxBackoff, defaultBackoffMultiplier, true)
 }
 

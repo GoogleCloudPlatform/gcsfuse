@@ -377,7 +377,7 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 	// For Zonal buckets, wrap the control client with a retry-on-stall mechanism for more resilient folder operations.
 	controlClient := sh.storageControlClient
 	if bucketType.Zonal && sh.storageControlClient != nil {
-		controlClient = withRetryOnStall(sh.storageControlClient, defaultControlClientInitialRetryDeadline, defaultControlClientMaxRetryDeadline, defaultControlClientRetryMultiplier, defaultControlClientTotalRetryBudget)
+		controlClient = withRetryOnAllAPIs(sh.storageControlClient, defaultControlClientInitialRetryDeadline, defaultControlClientMaxRetryDeadline, defaultControlClientRetryMultiplier, defaultControlClientTotalRetryBudget)
 	}
 
 	bh = &bucketHandle{
