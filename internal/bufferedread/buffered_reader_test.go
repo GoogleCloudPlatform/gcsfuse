@@ -211,6 +211,15 @@ func (t *BufferedReaderTest) TestNewBufferedReaderWithMinimumBlockNotAvailableIn
 	assert.Nil(t.T(), reader, "BufferedReader should be nil on error")
 }
 
+func (t *BufferedReaderTest) TestNewBufferedReaderWithZeroBlockSize() {
+	t.config.PrefetchBlockSizeBytes = 0
+
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+
+	assert.ErrorContains(t.T(), err, "PrefetchBlockSizeBytes must be positive")
+	assert.Nil(t.T(), reader, "BufferedReader should be nil on error")
+}
+
 func (t *BufferedReaderTest) TestDestroySuccess() {
 	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
 	require.NoError(t.T(), err, "NewBufferedReader should not return error")

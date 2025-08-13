@@ -113,11 +113,14 @@ type BufferedReader struct {
 
 // NewBufferedReader returns a new bufferedReader instance.
 func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *BufferedReadConfig, globalMaxBlocksSem *semaphore.Weighted, workerPool workerpool.WorkerPool, metricHandle metrics.MetricHandle) (*BufferedReader, error) {
+	if config.PrefetchBlockSizeBytes <= 0 {
+		return nil, fmt.Errorf("NewBufferedReader: PrefetchBlockSizeBytes must be positive, but is %d", config.PrefetchBlockSizeBytes)
+	}
 	// To optimize resource usage, reserve only the number of blocks required for
 	// the file, capped by the configured minimum.
-	totalBlocksInFile := (int64(object.Size) + config.PrefetchBlockSizeBytes - 1) / config.PrefetchBlockSizeBytes
-	blocksToReserve := min(totalBlocksInFile, config.MinBlocksPerHandle)
-	blockpool, err := block.NewPrefetchBlockPool(config.PrefetchBlockSizeBytes, config.MaxPrefetchBlockCnt, blocksToReserve, globalMaxBlocksSem)
+	blocksInFile := (int64(object.Size) + config.PrefetchBlockSizeBytes - 1) / config.PrefetchBlockSizeBytes
+	numBlocksToReserve := min(blocksInFile, config.MinBlocksPerHandle)
+	blockpool, err := block.NewPrefetchBlockPool(config.PrefetchBlockSizeBytes, config.MaxPrefetchBlockCnt, numBlocksToReserve, globalMaxBlocksSem)
 	if err != nil {
 		return nil, fmt.Errorf("NewBufferedReader: creating block-pool: %w", err)
 	}
