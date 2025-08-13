@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 	"testing"
 	"time"
 
@@ -450,4 +451,64 @@ func (t *fileTest) Test_ReadWithReadManager_FullReadSuccessWithBufferedRead() {
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), fileSize, n)
 	assert.Equal(t.T(), expectedData, output)
+}
+
+func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() {
+	const (
+		fileSize      = 9 * 1024 * 1024 // 9 MiB
+		numGoroutines = 3
+	)
+	// Create expected data for the file.
+	expectedData := make([]byte, fileSize)
+	for i := 0; i < fileSize; i++ {
+		expectedData[i] = byte(i % 256)
+	}
+	// Setup configuration for buffered read.
+	config := &cfg.Config{
+		Read: cfg.ReadConfig{
+			EnableBufferedRead:   true,
+			MaxBlocksPerHandle:   10,
+			StartBlocksPerHandle: 2,
+			BlockSizeMb:          1,
+		},
+	}
+	workerPool, err := workerpool.NewStaticWorkerPoolForCurrentCPU()
+	require.NoError(t.T(), err)
+	defer workerPool.Stop()
+	globalSemaphore := semaphore.NewWeighted(20)
+	// Create mock inode and file handle.
+	parent := createDirInode(&t.bucket, &t.clock)
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "read_obj", expectedData, false)
+	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, config, workerPool, globalSemaphore)
+	// Use a WaitGroup to synchronize goroutines.
+	var wg sync.WaitGroup
+	wg.Add(numGoroutines)
+	readSize := fileSize / numGoroutines
+	results := make([][]byte, numGoroutines)
+	for i := 0; i < numGoroutines; i++ {
+		go func(index int) {
+			defer wg.Done()
+			offset := int64(index * readSize)
+			readBuf := make([]byte, readSize)
+			fh.inode.Lock()
+
+			// Each goroutine use same file handle.
+			output, n, err := fh.ReadWithReadManager(context.Background(), readBuf, offset, int32(readSize))
+
+			assert.NoError(t.T(), err)
+			assert.Equal(t.T(), readSize, n)
+			results[index] = output
+		}(i)
+	}
+	// Wait for all goroutines to finish.
+	wg.Wait()
+	// Combine the results from all goroutines.
+	combinedResult := make([]byte, 0, fileSize)
+	for _, res := range results {
+		combinedResult = append(combinedResult, res...)
+	}
+	// Final assertion: compare the combined result with the original expected data.
+	assert.Equal(t.T(), expectedData, combinedResult, "Combined result should match expected data.")
+	// Clean up the original file handle.
+	fh.Destroy()
 }

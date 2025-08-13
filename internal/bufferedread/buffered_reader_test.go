@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"sync"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
@@ -1245,4 +1246,68 @@ func (t *BufferedReaderTest) TestReadAtSucceedsWhenBackgroundPrefetchFailsOnGCSE
 	_, err = reader.ReadAt(t.ctx, buf, 1024)
 	assert.ErrorIs(t.T(), err, gcsError)
 	assert.ErrorContains(t.T(), err, "download failed")
+}
+
+func (t *BufferedReaderTest) TestReadAtConcurrentReads() {
+	const (
+		fileSize      = 10 * util.MiB
+		numGoroutines = 3
+		blockSize     = 1 * util.MiB
+		readSize      = 1 * util.MiB
+	)
+	t.object.Size = fileSize
+	t.config.PrefetchBlockSizeBytes = blockSize
+	t.config.MaxPrefetchBlockCnt = 10
+	t.config.InitialPrefetchBlockCnt = 2 // This will prefetch 2 blocks after the initial one.
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	// Set up mocks for all possible block reads. Because the goroutines run
+	// concurrently, we prepare mocks for all blocks that could be read or
+	// prefetched (2 blocks) and use .Maybe() to allow them to be called in
+	// any order.
+	for i := 0; i <= 8; i++ {
+		start := uint64(i * blockSize)
+		// Create content for this block using the A-Z pattern from the test helpers.
+		blockContent := make([]byte, blockSize)
+		for j := range blockContent {
+			blockContent[j] = byte('A' + ((int(start) + j) % 26))
+		}
+		t.bucket.On("NewReaderWithReadHandle",
+			mock.Anything,
+			mock.MatchedBy(func(req *gcs.ReadObjectRequest) bool {
+				return req.Range.Start == start
+			}),
+		).Return(&fake.FakeReader{ReadCloser: io.NopCloser(bytes.NewReader(blockContent))}, nil).Maybe()
+	}
+	t.bucket.On("Name").Return("test-bucket").Maybe()
+	var wg sync.WaitGroup
+	wg.Add(numGoroutines)
+	results := make([][]byte, numGoroutines)
+
+	// Each go routine will read different range to avoid duplicate calls for same range.
+	// That's why we are multiplying by 3 to have offset 3 blocks apart.
+	var readIndex = 3
+	for i := 0; i < numGoroutines; i++ {
+		go func(index int) {
+			defer wg.Done()
+			offset := int64(index * readIndex * readSize)
+			readBuf := make([]byte, readSize)
+
+			resp, err := reader.ReadAt(t.ctx, readBuf, offset)
+
+			require.NoError(t.T(), err)
+			require.Equal(t.T(), readSize, resp.Size)
+			// Copy the result to a new slice to avoid data races on readBuf.
+			results[index] = make([]byte, readSize)
+			copy(results[index], readBuf)
+		}(i)
+	}
+
+	wg.Wait()
+	// Verify the results from all goroutines individually.
+	for i, res := range results {
+		offset := int64(i * readIndex * readSize)
+		assertBufferContent(t.T(), res, offset)
+	}
+	t.bucket.AssertExpectations(t.T())
 }
