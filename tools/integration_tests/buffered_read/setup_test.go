@@ -41,7 +41,7 @@ const (
 )
 
 var (
-	testDirPath   string
+	TestDirPath   string //TODO: make it public after using in tests or delete if not required
 	mountFunc     func([]string) error
 	mountDir      string
 	rootDir       string
@@ -49,7 +49,7 @@ var (
 	ctx           context.Context
 )
 
-type gcsfuseTestFlags struct {
+type GcsfuseTestFlags struct { //TODO: make it public after using in tests or delete if not required
 	cliFlags             []string
 	clientProtocol       string
 	enableBufferedRead   bool
@@ -63,13 +63,13 @@ type gcsfuseTestFlags struct {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func mountGCSFuseAndSetupTestDir(flags []string) {
+func MountGCSFuseAndSetupTestDir(flags []string) { //TODO: make it public after using in tests or delete if not required
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	setup.SetMntDir(mountDir)
-	testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
+	TestDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
 }
 
-func createConfigFile(flags *gcsfuseTestFlags) string {
+func CreateConfigFile(flags *GcsfuseTestFlags) string { //TODO: make it public after using in tests or delete if not required
 	mountConfig := map[string]interface{}{
 		"read": map[string]interface{}{
 			"enable-buffered-read":    flags.enableBufferedRead,
@@ -85,7 +85,7 @@ func createConfigFile(flags *gcsfuseTestFlags) string {
 	return filePath
 }
 
-func appendClientProtocolConfigToFlagSet(testFlagSet []gcsfuseTestFlags) (testFlagsWithHttpAndGrpc []gcsfuseTestFlags) {
+func AppendClientProtocolConfigToFlagSet(testFlagSet []GcsfuseTestFlags) (testFlagsWithHttpAndGrpc []GcsfuseTestFlags) { //TODO: make it public after using in tests or delete if not required
 	for _, testFlags := range testFlagSet {
 		testFlagsWithHttp := testFlags
 		testFlagsWithHttp.clientProtocol = http1ClientProtocol

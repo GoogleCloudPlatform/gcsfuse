@@ -23,13 +23,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Expected is a helper struct that stores list of attributes to be validated from logs.
@@ -40,7 +40,7 @@ type Expected struct {
 	ObjectName            string
 }
 
-func readFileAndValidate(ctx context.Context, storageClient *storage.Client, fileName string, readFullFile bool, offset int64, chunkSizeToRead int64, t *testing.T) *Expected {
+func ReadFileAndValidate(ctx context.Context, storageClient *storage.Client, fileName string, readFullFile bool, offset int64, chunkSizeToRead int64, t *testing.T) *Expected { //TODO: make it public after using in tests or delete if not required
 	expected := &Expected{
 		StartTimeStampSeconds: time.Now().Unix(),
 		BucketName:            setup.TestBucket(),
@@ -54,7 +54,7 @@ func readFileAndValidate(ctx context.Context, storageClient *storage.Client, fil
 	var err error
 
 	if readFullFile {
-		content, err = operations.ReadFileSequentially(path.Join(testDirPath, fileName), chunkSizeToRead)
+		content, err = operations.ReadFileSequentially(path.Join(TestDirPath, fileName), chunkSizeToRead)
 		require.NoError(t, err, "Failed to read file sequentially")
 		// Get checksum from GCS object.
 		obj := storageClient.Bucket(expected.BucketName).Object(expected.ObjectName)
@@ -65,7 +65,7 @@ func readFileAndValidate(ctx context.Context, storageClient *storage.Client, fil
 		require.NoError(t, err, "Error while calculating crc for the content read from mounted file")
 		assert.Equal(t, attrs.CRC32C, localCRC32C, "CRC32C mismatch. GCS: %d, Local: %d", attrs.CRC32C, localCRC32C)
 	} else {
-		content, err = operations.ReadChunkFromFile(path.Join(testDirPath, fileName), chunkSizeToRead, offset, os.O_RDONLY|syscall.O_DIRECT)
+		content, err = operations.ReadChunkFromFile(path.Join(TestDirPath, fileName), chunkSizeToRead, offset, os.O_RDONLY|syscall.O_DIRECT)
 		require.NoError(t, err, "Failed to read random file chunk")
 		client.ValidateObjectChunkFromGCS(ctx, storageClient, testDirName, fileName, offset, chunkSizeToRead, string(content), t)
 	}
@@ -74,7 +74,7 @@ func readFileAndValidate(ctx context.Context, storageClient *storage.Client, fil
 	return expected
 }
 
-func validate(expected *Expected, logEntry *read_logs.BufferedReadLogEntry, fallback bool, t *testing.T) {
+func Validate(expected *Expected, logEntry *read_logs.BufferedReadLogEntry, fallback bool, t *testing.T) { //TODO: make it public after using in tests or delete if not required
 	t.Helper()
 	assert.GreaterOrEqual(t, logEntry.StartTimeSeconds, expected.StartTimeStampSeconds, "start time in logs %d less than actual start time %d.", logEntry.StartTimeSeconds, expected.StartTimeStampSeconds)
 
@@ -90,7 +90,7 @@ func validate(expected *Expected, logEntry *read_logs.BufferedReadLogEntry, fall
 	assert.Equal(t, fallback, logEntry.Fallback, "Expected Fallback: %t, Got from logs: %t", fallback, logEntry.Fallback)
 }
 
-func setupFileInTestDir(ctx context.Context, storageClient *storage.Client, fileSize int64, t *testing.T) (fileName string) {
+func SetupFileInTestDir(ctx context.Context, storageClient *storage.Client, fileSize int64, t *testing.T) (fileName string) { //TODO: make it public after using in tests or delete if not required
 	fileName = testFileName + setup.GenerateRandomString(4)
 	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, fileName, fileSize, t)
 	return
