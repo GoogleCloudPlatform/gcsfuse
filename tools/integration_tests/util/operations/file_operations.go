@@ -202,7 +202,7 @@ func ReadFileSequentially(filePath string, chunkSize int64) (content []byte, err
 	if err != nil {
 		return nil, fmt.Errorf("ReadFileSequentially: failed to open file %q: %w", filePath, err)
 	}
-	defer file.Close()
+	defer CloseFile(file)
 
 	for err != io.EOF {
 		var numberOfBytes int
