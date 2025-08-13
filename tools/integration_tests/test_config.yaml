@@ -34,6 +34,10 @@ operations:
       - "--experimental-enable-json-read=true"
       - "--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true"
       - "--experimental-enable-json-read=true --enable-atomic-rename-object=true"
+      - "--write-create-empty-file=true --enable-atomic-rename-object=true"
+      # - "--file-cache-max-size-mb=2 --cache-dir=${TMPDIR}/cache-dir-operations-hns"
+      - "--metadata-cache-ttl-secs=0 --write-enable-streaming-writes=false"
+      - "--file-system-kernel-list-cache-ttl-secs=-1 --implicit-dirs=true"
     compatible: # Bucket type to run these tests with
       - flat: true
       - hns: true

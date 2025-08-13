@@ -17,11 +17,8 @@ package operations_test
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
-	"path"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -104,53 +101,6 @@ type Config struct {
 	Operations []test_suite.TestConfig `yaml:"operations"`
 }
 
-func createMountConfigsAndEquivalentFlags() (flags [][]string) {
-	cacheDirPath := path.Join(os.TempDir(), cacheDir)
-
-	// Set up config file with create-empty-file: true.
-	mountConfig1 := map[string]interface{}{
-		"write": map[string]interface{}{
-			"create-empty-file": true,
-		},
-		"enable-atomic-rename-object": true,
-	}
-
-	filePath1 := setup.YAMLConfigFile(mountConfig1, "config1.yaml")
-	flags = append(flags, []string{"--config-file=" + filePath1})
-
-	// Set up config file for file cache.
-	mountConfig2 := map[string]interface{}{
-		"file-cache": map[string]interface{}{
-			// Keeping the size as low because the operations are performed on small
-			// files
-			"max-size-mb": 2,
-		},
-		"cache-dir": cacheDirPath,
-	}
-	filePath2 := setup.YAMLConfigFile(mountConfig2, "config2.yaml")
-	flags = append(flags, []string{"--config-file=" + filePath2})
-
-	mountConfig3 := map[string]interface{}{
-		"metadata-cache": map[string]interface{}{
-			"ttl-secs": 0,
-		},
-		"write": map[string]interface{}{
-			"enable-streaming-writes": false,
-		},
-	}
-	filePath3 := setup.YAMLConfigFile(mountConfig3, "config3.yaml")
-	flags = append(flags, []string{"--config-file=" + filePath3})
-
-	mountConfig4 := map[string]interface{}{
-		"file-system": map[string]interface{}{
-			"kernel-list-cache-ttl-secs": -1,
-		},
-	}
-	filePath4 := setup.YAMLConfigFile(mountConfig4, "config4.yaml")
-	flags = append(flags, []string{"--config-file=" + filePath4, "--implicit-dirs=true"})
-	return flags
-}
-
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
@@ -172,7 +122,16 @@ func TestMain(m *testing.M) {
 		cfg.Operations = make([]test_suite.TestConfig, 1)
 		cfg.Operations[0].TestBucket = setup.TestBucket()
 		// TODO : use yaml file and manually input the flags.
-		cfg.Operations[0].Flags = []string{"--enable-atomic-rename-object=true", "--experimental-enable-json-read=true", "--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true", "--experimental-enable-json-read=true --enable-atomic-rename-object=true"}
+		cfg.Operations[0].Flags = []string{
+			"--enable-atomic-rename-object=true",
+			"--experimental-enable-json-read=true",
+			"--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true",
+			"--experimental-enable-json-read=true --enable-atomic-rename-object=true",
+			"--write-create-empty-file=true --enable-atomic-rename-object=true",
+			// "--file-cache-max-size-mb=2 --cache-dir=${TMPDIR}/cache-dir-operations-hns",
+			"--metadata-cache-ttl-secs=0 --write-enable-streaming-writes=false",
+			"--file-system-kernel-list-cache-ttl-secs=-1 --implicit-dirs=true",
+		}
 		cfg.Operations[0].MountedDirectory = setup.MountedDirectory()
 	}
 	// 2. Create storage client before running tests.
@@ -186,13 +145,9 @@ func TestMain(m *testing.M) {
 	}
 	defer storageClient.Close()
 
-	cacheDir = "cache-dir-operations-hns-" + strconv.FormatBool(setup.ResolveIsHierarchicalBucket(ctx, cfg.Operations[0].TestBucket, storageClient))
-	fmt.Println("operations_test: 188 line buckett : " + cfg.Operations[0].TestBucket)
-	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as operations tests validates content from the bucket.
 	if cfg.Operations[0].MountedDirectory != "" && cfg.Operations[0].TestBucket != "" {
-		// setup.RunTestsForMountedDirectoryFlag(m)
-		fmt.Println(("both exist"))
 		setup.RunTestsForMountedDirectory(cfg.Operations[0].MountedDirectory, m)
 	}
 
@@ -200,40 +155,11 @@ func TestMain(m *testing.M) {
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucket(cfg.Operations[0].TestBucket)
 
-	fmt.Println("Mounted Directory: ", setup.MountedDirectory())
-	// Set up flags to run tests on.
-	// Note: GRPC related tests will work only if you have allow-list bucket.
-	// Note: We are not testing specifically for implicit-dirs because they are covered as part of the other flags.
-
-	// flagsSet := [][]string{{"--enable-atomic-rename-object=true"}}
-
-	// // Enable experimental-enable-json-read=true case, but for non-presubmit runs only.
-	// if !setup.IsPresubmitRun() {
-	// 	flagsSet = append(flagsSet, []string{
-	// 		// By default, creating emptyFile is disabled.
-	// 		"--experimental-enable-json-read=true"})
-	// }
-
-	// // gRPC tests will not run in TPC environment
-	// if !testing.Short() && !setup.TestOnTPCEndPoint() {
-	// 	flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=true", "--enable-atomic-rename-object=true"})
-	// }
-
-	// // HNS tests utilize the gRPC protocol, which is not supported by TPC.
-	// if !setup.TestOnTPCEndPoint() {
-	// 	if setup.IsHierarchicalBucket(ctx, storageClient) {
-	// 		flagsSet = [][]string{{"--experimental-enable-json-read=true", "--enable-atomic-rename-object=true"}}
-	// 	}
-	// }
-
 	// 4. Build the flag sets dynamically from the config.
 	var flags [][]string
 	for _, flagString := range cfg.Operations[0].Flags {
 		flags = append(flags, strings.Fields(flagString))
 	}
-
-	mountConfigFlags := createMountConfigsAndEquivalentFlags()
-	flags = append(flags, mountConfigFlags...)
 
 	// Only running static_mounting test for TPC.
 	if setup.TestOnTPCEndPoint() {
