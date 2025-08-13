@@ -21,9 +21,7 @@ import (
 	"os"
 	"path"
 	"strings"
-	"syscall"
 	"testing"
-	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
@@ -50,16 +48,6 @@ const (
 	NewFileName            = "newName"
 	NewDirName             = "newDirName"
 )
-
-// Expected captures the results of a file read operation, used for validating
-// both logs and file content.
-type Expected struct {
-	StartTimeStampSeconds int64
-	EndTimeStampSeconds   int64
-	BucketName            string
-	ObjectName            string
-	Content               string
-}
 
 func CreateImplicitDir(ctx context.Context, storageClient *storage.Client,
 	testDirName string, t *testing.T) {
@@ -194,45 +182,4 @@ func CreateUnfinalizedObject(ctx context.Context, t *testing.T, client *storage.
 	assert.Equal(t, int64(len(content)), flushOffset)
 
 	return writer
-}
-
-// ReadAndValidateGCSObject reads a file from the mount point and validates its
-// content against the corresponding object in GCS. It can read the full file
-// or a specific chunk. It returns the content read.
-func ReadAndValidateGCSObject(ctx context.Context, storageClient *storage.Client, objectDir, fileName, mountedFilePath string, readFullFile bool, offset, chunkSizeToRead int64, t *testing.T) (content []byte) {
-	var err error
-	if readFullFile {
-		content, err = operations.ReadFileSequentially(mountedFilePath, chunkSizeToRead)
-		require.NoError(t, err, "Failed to read file sequentially: %s", mountedFilePath)
-		// Validate using CRC32C.
-		ValidateObjectContentsFromGCS(ctx, storageClient, objectDir, fileName, string(content), t)
-	} else {
-		content, err = operations.ReadChunkFromFile(mountedFilePath, chunkSizeToRead, offset, os.O_RDONLY|syscall.O_DIRECT)
-		require.NoError(t, err, "Failed to read random file chunk from %s", mountedFilePath)
-		// Validate chunk content.
-		ValidateObjectChunkFromGCS(ctx, storageClient, objectDir, fileName, offset, chunkSizeToRead, string(content), t)
-	}
-	return content
-}
-
-// ReadFileAndValidate is a test helper that reads a file from the mount, validates
-// it against GCS, and returns an Expected struct containing metadata and content.
-func ReadFileAndValidate(ctx context.Context, storageClient *storage.Client, testDir, fileName string, readFullFile bool, offset, chunkSizeToRead int64, t *testing.T) *Expected {
-	objectDir := path.Base(testDir)
-	bucketName := setup.TestBucket()
-	if setup.DynamicBucketMounted() != "" {
-		bucketName = setup.DynamicBucketMounted()
-	}
-
-	expected := &Expected{
-		StartTimeStampSeconds: time.Now().Unix(),
-		BucketName:            bucketName,
-		ObjectName:            path.Join(objectDir, fileName),
-	}
-
-	mountedFilePath := path.Join(testDir, fileName)
-	content := ReadAndValidateGCSObject(ctx, storageClient, objectDir, fileName, mountedFilePath, readFullFile, offset, chunkSizeToRead, t)
-	expected.EndTimeStampSeconds = time.Now().Unix()
-	expected.Content = string(content)
-	return expected
 }

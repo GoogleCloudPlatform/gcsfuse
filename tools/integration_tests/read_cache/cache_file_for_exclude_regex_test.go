@@ -58,8 +58,8 @@ func (s *cacheFileForExcludeRegexTest) Teardown(t *testing.T) {
 func (s *cacheFileForExcludeRegexTest) TestReadsForExcludedFile(t *testing.T) {
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSizeForRangeRead, t)
 
-	expectedOutcome1 := client.ReadFileAndValidate(s.ctx, s.storageClient, testDirPath, testFileName, false, zeroOffset, chunkSizeToRead, t)
-	expectedOutcome2 := client.ReadFileAndValidate(s.ctx, s.storageClient, testDirPath, testFileName, false, offset1000, chunkSizeToRead, t)
+	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
+	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset1000, t)
 
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, t)

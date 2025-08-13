@@ -112,7 +112,7 @@ func (s *jobChunkTest) TestJobChunkSizeForSingleFileReads(t *testing.T) {
 func (s *jobChunkTest) TestJobChunkSizeForMultipleFileReads(t *testing.T) {
 	var fileSize int64 = 16 * util.MiB
 	var testFileNames [2]string
-	var expectedOutcome [2]*client.Expected
+	var expectedOutcome [2]*Expected
 	testFileNames[0] = setupFileInTestDir(s.ctx, s.storageClient, fileSize, t)
 	testFileNames[1] = setupFileInTestDir(s.ctx, s.storageClient, fileSize, t)
 

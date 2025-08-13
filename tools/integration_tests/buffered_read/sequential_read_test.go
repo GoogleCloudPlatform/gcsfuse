@@ -18,8 +18,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/log_parser/json_parser/read_logs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,7 +26,7 @@ import (
 )
 
 const (
-	chunkSizeToRead = 1 * 1024 * 1024 // 1MB
+	chunkSizeToRead = 1 * util.MiB // 1MB
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -59,7 +58,7 @@ func (s *SequentialReadSuite) TearDownSuite() {
 // Test Cases
 // //////////////////////////////////////////////////////////////////////
 func (s *SequentialReadSuite) TestSequentialRead() {
-	blockSizeInBytes := s.testFlags.blockSizeMB * 1024 * 1024
+	blockSizeInBytes := s.testFlags.blockSizeMB * util.MiB
 	testCases := []struct {
 		name     string
 		fileSize int64
@@ -81,18 +80,9 @@ func (s *SequentialReadSuite) TestSequentialRead() {
 			testDir := setup.SetupTestDirectory(testDirName)
 			fileName := setupFileInTestDir(ctx, storageClient, testDir, tc.fileSize, t)
 
-			expected := client.ReadFileAndValidate(ctx, storageClient, testDir, fileName, true, 0, chunkSizeToRead, t)
+			expected := readFileAndValidate(ctx, storageClient, testDir, fileName, true, 0, chunkSizeToRead, t)
 
-			f, err := os.Open(setup.LogFile())
-			require.NoError(t, err, "Failed to open log file")
-			defer f.Close()
-			logEntries, err := read_logs.ParseBufferedReadLogsFromLogReader(f)
-			require.NoError(t, err, "Failed to parse log file")
-			require.Equal(t, 1, len(logEntries), "Expected one buffered read log entry for sequential read.")
-			var bufferedReadLogEntry *read_logs.BufferedReadLogEntry
-			for _, entry := range logEntries {
-				bufferedReadLogEntry = entry // Get the single entry.
-			}
+			bufferedReadLogEntry := parseAndValidateSingleBufferedReadLog(t)
 			validate(expected, bufferedReadLogEntry, false, t)
 			assert.Equal(t, int64(0), bufferedReadLogEntry.RandomSeekCount, "RandomSeekCount should be 0 for sequential reads.")
 		})

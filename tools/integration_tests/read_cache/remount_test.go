@@ -55,7 +55,7 @@ func (s *remountTest) Teardown(t *testing.T) {
 // Helper functions
 ////////////////////////////////////////////////////////////////////////
 
-func readFileAndValidateCacheWithGCSForDynamicMount(bucketName string, ctx context.Context, storageClient *storage.Client, fileName string, checkCacheSize bool, t *testing.T) (expectedOutcome *client.Expected) {
+func readFileAndValidateCacheWithGCSForDynamicMount(bucketName string, ctx context.Context, storageClient *storage.Client, fileName string, checkCacheSize bool, t *testing.T) (expectedOutcome *Expected) {
 	setup.SetDynamicBucketMounted(bucketName)
 	defer setup.SetDynamicBucketMounted("")
 	testDirPath = path.Join(rootDir, bucketName, testDirName)
