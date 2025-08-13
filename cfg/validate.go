@@ -18,8 +18,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"strings"
 	"regexp"
+	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
@@ -247,7 +247,7 @@ func isValidBufferedReadConfig(rc *ReadConfig) error {
 }
 
 func isValidLoggingConfig(loggingConfig *LoggingConfig) error {
-	if loggingConfig == nil || loggingConfig.Format == ""{
+	if loggingConfig == nil {
 		return nil
 	}
 
