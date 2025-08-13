@@ -15,6 +15,7 @@
 package buffered_read
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -23,10 +24,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-)
-
-const (
-	chunkSizeToRead = 1 * util.MiB // 1MB
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -59,7 +56,7 @@ func (s *SequentialReadSuite) TearDownSuite() {
 // //////////////////////////////////////////////////////////////////////
 func (s *SequentialReadSuite) TestSequentialRead() {
 	blockSizeInBytes := s.testFlags.blockSizeMB * util.MiB
-	testCases := []struct {
+	fileSizeTests := []struct {
 		name     string
 		fileSize int64
 	}{
@@ -73,24 +70,32 @@ func (s *SequentialReadSuite) TestSequentialRead() {
 		},
 	}
 
-	for _, tc := range testCases {
-		s.T().Run(tc.name, func(t *testing.T) {
-			err := os.Truncate(setup.LogFile(), 0)
-			require.NoError(t, err, "Failed to truncate log file")
-			testDir := setup.SetupTestDirectory(testDirName)
-			fileName := setupFileInTestDir(ctx, storageClient, testDir, tc.fileSize, t)
+	chunkSizesToRead := []int64{128 * util.KiB, 512 * util.KiB, 1 * util.MiB}
 
-			expected := readFileAndValidate(ctx, storageClient, testDir, fileName, true, 0, chunkSizeToRead, t)
+	for _, fsTest := range fileSizeTests {
+		for _, chunkSize := range chunkSizesToRead {
+			testName := fmt.Sprintf("%s_%dKiB_Chunk", fsTest.name, chunkSize/util.KiB)
+			fsTest := fsTest       // Capture range variable.
+			chunkSize := chunkSize // Capture range variable.
 
-			bufferedReadLogEntry := parseAndValidateSingleBufferedReadLog(t)
-			validate(expected, bufferedReadLogEntry, false, t)
-			assert.Equal(t, int64(0), bufferedReadLogEntry.RandomSeekCount, "RandomSeekCount should be 0 for sequential reads.")
-		})
+			s.T().Run(testName, func(t *testing.T) {
+				err := os.Truncate(setup.LogFile(), 0)
+				require.NoError(t, err, "Failed to truncate log file")
+				testDir := setup.SetupTestDirectory(testDirName)
+				fileName := setupFileInTestDir(ctx, storageClient, testDir, fsTest.fileSize, t)
+
+				expected := readFileAndValidate(ctx, storageClient, testDir, fileName, true, 0, chunkSize, t)
+
+				bufferedReadLogEntry := parseAndValidateSingleBufferedReadLog(t)
+				validate(expected, bufferedReadLogEntry, false, t)
+				assert.Equal(t, int64(0), bufferedReadLogEntry.RandomSeekCount, "RandomSeekCount should be 0 for sequential reads.")
+			})
+		}
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Test Harness
+// Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
 func TestSequentialReadSuite(t *testing.T) {

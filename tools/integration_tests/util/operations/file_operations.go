@@ -200,7 +200,7 @@ func ReadFileSequentially(filePath string, chunkSize int64) (content []byte, err
 
 	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, FilePermission_0600)
 	if err != nil {
-		return nil, fmt.Errorf("ReadFileSequentially: failed to open file %q: %w", filePath, err)
+		return nil, fmt.Errorf("error in opening file %q: %w", filePath, err)
 	}
 	defer CloseFile(file)
 
