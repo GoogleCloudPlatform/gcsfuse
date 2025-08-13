@@ -147,6 +147,50 @@ func (t *BufferedReaderTest) TestNewBufferedReader() {
 	assert.NotNil(t.T(), reader.cancelFunc)
 }
 
+func (t *BufferedReaderTest) TestNewBufferedReaderReservesRequiredBlocks() {
+	testCases := []struct {
+		name               string
+		objectSize         uint64
+		minBlocksPerHandle int64
+		expectedReserved   int64
+	}{
+		{
+			name:               "SmallFile",
+			objectSize:         uint64(testPrefetchBlockSizeBytes) / 2, // Requires 1 block
+			minBlocksPerHandle: 5,
+			expectedReserved:   1,
+		},
+		{
+			name:               "LargeFile",
+			objectSize:         uint64(testPrefetchBlockSizeBytes) * 10, // Requires 10 blocks
+			minBlocksPerHandle: 5,
+			expectedReserved:   5,
+		},
+		{
+			name:               "ZeroSizeFile",
+			objectSize:         0, // Requires 0 blocks
+			minBlocksPerHandle: 5,
+			expectedReserved:   0,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.object.Size = tc.objectSize
+			t.config.MinBlocksPerHandle = tc.minBlocksPerHandle
+			t.globalMaxBlocksSem = semaphore.NewWeighted(testGlobalMaxBlocks)
+
+			reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+
+			require.NoError(t.T(), err)
+			require.NotNil(t.T(), reader)
+			// Verify that the correct number of blocks were reserved by checking the semaphore's state.
+			assert.True(t.T(), t.globalMaxBlocksSem.TryAcquire(testGlobalMaxBlocks-tc.expectedReserved), "Should acquire remaining permits")
+			assert.False(t.T(), t.globalMaxBlocksSem.TryAcquire(1), "Should not acquire more permits")
+		})
+	}
+}
+
 func (t *BufferedReaderTest) TestNewBufferedReaderFailsWhenPoolAllocationFails() {
 	t.globalMaxBlocksSem = semaphore.NewWeighted(1)
 
@@ -172,7 +216,7 @@ func (t *BufferedReaderTest) TestNewBufferedReaderWithZeroBlockSize() {
 
 	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
 
-	assert.Error(t.T(), err, "NewBufferedReader should return error with invalid block size")
+	assert.ErrorContains(t.T(), err, "PrefetchBlockSizeBytes must be positive")
 	assert.Nil(t.T(), reader, "BufferedReader should be nil on error")
 }
 
