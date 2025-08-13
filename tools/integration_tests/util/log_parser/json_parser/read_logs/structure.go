@@ -83,8 +83,9 @@ type LogEntry struct {
 type BufferedReadLogEntry struct {
 	CommonReadLog
 
-	Chunks   []BufferedReadChunkData
-	Fallback bool
+	Chunks          []BufferedReadChunkData
+	Fallback        bool
+	RandomSeekCount int64
 }
 
 type BufferedReadChunkData struct {

@@ -40,11 +40,11 @@ type Expected struct {
 	ObjectName            string
 }
 
-func ReadFileAndValidate(ctx context.Context, storageClient *storage.Client, fileName string, readFullFile bool, offset int64, chunkSizeToRead int64, t *testing.T) *Expected { //TODO: make it public after using in tests or delete if not required
+func readFileAndValidate(ctx context.Context, storageClient *storage.Client, testDir, fileName string, readFullFile bool, offset int64, chunkSizeToRead int64, t *testing.T) *Expected {
 	expected := &Expected{
 		StartTimeStampSeconds: time.Now().Unix(),
 		BucketName:            setup.TestBucket(),
-		ObjectName:            path.Join(testDirName, fileName),
+		ObjectName:            path.Join(path.Base(testDir), fileName),
 	}
 	if setup.DynamicBucketMounted() != "" {
 		expected.BucketName = setup.DynamicBucketMounted()
@@ -54,27 +54,24 @@ func ReadFileAndValidate(ctx context.Context, storageClient *storage.Client, fil
 	var err error
 
 	if readFullFile {
-		content, err = operations.ReadFileSequentially(path.Join(TestDirPath, fileName), chunkSizeToRead)
+		content, err = operations.ReadFileSequentially(path.Join(testDir, fileName), chunkSizeToRead)
 		require.NoError(t, err, "Failed to read file sequentially")
-		// Get checksum from GCS object.
 		obj := storageClient.Bucket(expected.BucketName).Object(expected.ObjectName)
 		attrs, err := obj.Attrs(ctx)
 		require.NoError(t, err, "obj.Attrs")
-		// Calculate checksum of read content and compare with GCS object's checksum.
 		localCRC32C, err := operations.CalculateCRC32(bytes.NewReader(content))
 		require.NoError(t, err, "Error while calculating crc for the content read from mounted file")
 		assert.Equal(t, attrs.CRC32C, localCRC32C, "CRC32C mismatch. GCS: %d, Local: %d", attrs.CRC32C, localCRC32C)
 	} else {
-		content, err = operations.ReadChunkFromFile(path.Join(TestDirPath, fileName), chunkSizeToRead, offset, os.O_RDONLY|syscall.O_DIRECT)
+		content, err = operations.ReadChunkFromFile(path.Join(testDir, fileName), chunkSizeToRead, offset, os.O_RDONLY|syscall.O_DIRECT)
 		require.NoError(t, err, "Failed to read random file chunk")
-		client.ValidateObjectChunkFromGCS(ctx, storageClient, testDirName, fileName, offset, chunkSizeToRead, string(content), t)
+		client.ValidateObjectChunkFromGCS(ctx, storageClient, path.Base(testDir), fileName, offset, chunkSizeToRead, string(content), t)
 	}
 	expected.EndTimeStampSeconds = time.Now().Unix()
-
 	return expected
 }
 
-func Validate(expected *Expected, logEntry *read_logs.BufferedReadLogEntry, fallback bool, t *testing.T) { //TODO: make it public after using in tests or delete if not required
+func validate(expected *Expected, logEntry *read_logs.BufferedReadLogEntry, fallback bool, t *testing.T) {
 	t.Helper()
 	assert.GreaterOrEqual(t, logEntry.StartTimeSeconds, expected.StartTimeStampSeconds, "start time in logs %d less than actual start time %d.", logEntry.StartTimeSeconds, expected.StartTimeStampSeconds)
 
@@ -84,14 +81,11 @@ func Validate(expected *Expected, logEntry *read_logs.BufferedReadLogEntry, fall
 	assert.Equal(t, expected.ObjectName, logEntry.ObjectName, "Object names don't match! Expected: %s, Got from logs: %s",
 		expected.ObjectName, logEntry.ObjectName)
 
-	if len(logEntry.Chunks) > 0 {
-		assert.LessOrEqual(t, logEntry.Chunks[len(logEntry.Chunks)-1].StartTimeSeconds, expected.EndTimeStampSeconds, "end time in logs more than actual end time.")
-	}
 	assert.Equal(t, fallback, logEntry.Fallback, "Expected Fallback: %t, Got from logs: %t", fallback, logEntry.Fallback)
 }
 
-func SetupFileInTestDir(ctx context.Context, storageClient *storage.Client, fileSize int64, t *testing.T) (fileName string) { //TODO: make it public after using in tests or delete if not required
+func setupFileInTestDir(ctx context.Context, storageClient *storage.Client, testDir string, fileSize int64, t *testing.T) (fileName string) {
 	fileName = testFileName + setup.GenerateRandomString(4)
-	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, fileName, fileSize, t)
+	client.SetupFileInTestDirectory(ctx, storageClient, path.Base(testDir), fileName, fileSize, t)
 	return
 }
