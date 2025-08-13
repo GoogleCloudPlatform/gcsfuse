@@ -218,6 +218,7 @@ TEST_PACKAGES_COMMON=(
   "release_version"
   "readdirplus"
   "dentry_cache"
+  "buffered_read"
 )
 
 # Test packages for regional buckets.
