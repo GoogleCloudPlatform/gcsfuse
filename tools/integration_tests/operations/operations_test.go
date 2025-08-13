@@ -17,6 +17,7 @@ package operations_test
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -116,6 +117,7 @@ func TestMain(m *testing.M) {
 			log.Fatalf("Failed to parse config YAML: %v", err)
 		}
 	}
+	var TempDirectory = os.TempDir()
 	if len(cfg.Operations) == 0 {
 		log.Println("No configuration found for operations tests in config. Using flags instead.")
 		// Populate the config manually.
@@ -127,11 +129,12 @@ func TestMain(m *testing.M) {
 			"--experimental-enable-json-read=true",
 			"--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true",
 			"--experimental-enable-json-read=true --enable-atomic-rename-object=true",
-			"--write-create-empty-file=true --enable-atomic-rename-object=true",
-			// "--file-cache-max-size-mb=2 --cache-dir=${TMPDIR}/cache-dir-operations-hns",
+			"--create-empty-file=true --enable-atomic-rename-object=true",
 			"--metadata-cache-ttl-secs=0 --write-enable-streaming-writes=false",
-			"--file-system-kernel-list-cache-ttl-secs=-1 --implicit-dirs=true",
+			"--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true",
 		}
+		cacheDirflag := fmt.Sprintf("--file-cache-max-size-mb=2 --cache-dir=%s/cache-dir-operations-hns", TempDirectory)
+		cfg.Operations[0].Flags = append(cfg.Operations[0].Flags, cacheDirflag)
 		cfg.Operations[0].MountedDirectory = setup.MountedDirectory()
 	}
 	// 2. Create storage client before running tests.
