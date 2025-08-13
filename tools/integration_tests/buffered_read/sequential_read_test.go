@@ -18,6 +18,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
@@ -58,17 +59,18 @@ func (s *SequentialReadSuite) TearDownSuite() {
 // Test Cases
 // //////////////////////////////////////////////////////////////////////
 func (s *SequentialReadSuite) TestSequentialRead() {
+	blockSizeInBytes := s.testFlags.blockSizeMB * 1024 * 1024
 	testCases := []struct {
-		name       string
-		sizeFactor float64
+		name     string
+		fileSize int64
 	}{
 		{
-			name:       "SmallFile",
-			sizeFactor: 0.5, // file-size = blockSize/2
+			name:     "SmallFile",
+			fileSize: blockSizeInBytes / 2,
 		},
 		{
-			name:       "LargeFile",
-			sizeFactor: 2.0, // file-size = blockSize*2
+			name:     "LargeFile",
+			fileSize: blockSizeInBytes * 2,
 		},
 	}
 
@@ -76,11 +78,10 @@ func (s *SequentialReadSuite) TestSequentialRead() {
 		s.T().Run(tc.name, func(t *testing.T) {
 			err := os.Truncate(setup.LogFile(), 0)
 			require.NoError(t, err, "Failed to truncate log file")
-			fileSize := int64(float64(s.testFlags.blockSizeMB*1024*1024) * tc.sizeFactor)
 			testDir := setup.SetupTestDirectory(testDirName)
-			fileName := setupFileInTestDir(ctx, storageClient, testDir, fileSize, t)
+			fileName := setupFileInTestDir(ctx, storageClient, testDir, tc.fileSize, t)
 
-			expected := readFileAndValidate(ctx, storageClient, testDir, fileName, true, 0, chunkSizeToRead, t)
+			expected := client.ReadFileAndValidate(ctx, storageClient, testDir, fileName, true, 0, chunkSizeToRead, t)
 
 			f, err := os.Open(setup.LogFile())
 			require.NoError(t, err, "Failed to open log file")

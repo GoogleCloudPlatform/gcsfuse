@@ -55,17 +55,31 @@ type gcsfuseTestFlags struct {
 ////////////////////////////////////////////////////////////////////////
 
 func createConfigFile(flags *gcsfuseTestFlags) string {
-	mountConfig := map[string]interface{}{
-		"read": map[string]interface{}{
-			"enable-buffered-read":    flags.enableBufferedRead,
-			"block-size-mb":           flags.blockSizeMB,
-			"max-blocks-per-handle":   flags.maxBlocksPerHandle,
-			"start-blocks-per-handle": flags.startBlocksPerHandle,
-			"min-blocks-per-handle":   flags.minBlocksPerHandle,
-		},
-		"gcs-connection": map[string]interface{}{
-			"client-protocol": flags.clientProtocol,
-		},
+	mountConfig := make(map[string]interface{})
+	readConfig := make(map[string]interface{})
+
+	// Only add flags to the config if they have a non-zero/non-default value.
+	// This prevents writing zero values that would override GCSFuse's built-in defaults.
+	if flags.enableBufferedRead {
+		readConfig["enable-buffered-read"] = flags.enableBufferedRead
+	}
+	if flags.blockSizeMB != 0 {
+		readConfig["block-size-mb"] = flags.blockSizeMB
+	}
+	if flags.maxBlocksPerHandle != 0 {
+		readConfig["max-blocks-per-handle"] = flags.maxBlocksPerHandle
+	}
+	if flags.startBlocksPerHandle != 0 {
+		readConfig["start-blocks-per-handle"] = flags.startBlocksPerHandle
+	}
+	if flags.minBlocksPerHandle != 0 {
+		readConfig["min-blocks-per-handle"] = flags.minBlocksPerHandle
+	}
+	if len(readConfig) > 0 {
+		mountConfig["read"] = readConfig
+	}
+	if flags.clientProtocol != "" {
+		mountConfig["gcs-connection"] = map[string]interface{}{"client-protocol": flags.clientProtocol}
 	}
 	filePath := setup.YAMLConfigFile(mountConfig, "config.yaml")
 	return filePath

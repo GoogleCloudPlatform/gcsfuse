@@ -59,9 +59,9 @@ func (s *cacheFileForRangeReadFalseTest) Teardown(t *testing.T) {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func readFileBetweenOffset(t *testing.T, file *os.File, startOffset, endOffSet int64) *Expected {
+func readFileBetweenOffset(t *testing.T, file *os.File, startOffset, endOffSet int64) *client.Expected {
 	t.Helper()
-	expected := &Expected{
+	expected := &client.Expected{
 		StartTimeStampSeconds: time.Now().Unix(),
 		BucketName:            setup.TestBucket(),
 		ObjectName:            path.Join(testDirName, path.Base(file.Name())),
@@ -70,7 +70,7 @@ func readFileBetweenOffset(t *testing.T, file *os.File, startOffset, endOffSet i
 		expected.BucketName = setup.DynamicBucketMounted()
 	}
 
-	expected.content = operations.ReadFileBetweenOffset(t, file, startOffset, endOffSet, chunkSizeToRead)
+	expected.Content = operations.ReadFileBetweenOffset(t, file, startOffset, endOffSet, chunkSizeToRead)
 	expected.EndTimeStampSeconds = time.Now().Unix()
 	return expected
 }
@@ -83,9 +83,9 @@ func (s *cacheFileForRangeReadFalseTest) TestRangeReadsWithCacheMiss(t *testing.
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSizeForRangeRead, t)
 
 	// Do a random read on file and validate from gcs.
-	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset5000, t)
+	expectedOutcome1 := client.ReadFileAndValidate(s.ctx, s.storageClient, testDirPath, testFileName, false, offset5000, chunkSizeToRead, t)
 	// Read file again from offset 1000 and validate from gcs.
-	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset1000, t)
+	expectedOutcome2 := client.ReadFileAndValidate(s.ctx, s.storageClient, testDirPath, testFileName, false, offset1000, chunkSizeToRead, t)
 
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	validate(expectedOutcome1, structuredReadLogs[0], false, false, 1, t)
@@ -95,7 +95,7 @@ func (s *cacheFileForRangeReadFalseTest) TestRangeReadsWithCacheMiss(t *testing.
 
 func (s *cacheFileForRangeReadFalseTest) TestReadIsTreatedNonSequentialAfterFileIsRemovedFromCache(t *testing.T) {
 	var testFileNames [2]string
-	var expectedOutcome [4]*Expected
+	var expectedOutcome [4]*client.Expected
 	testFileNames[0] = setupFileInTestDir(s.ctx, s.storageClient, fileSizeSameAsCacheCapacity, t)
 	testFileNames[1] = setupFileInTestDir(s.ctx, s.storageClient, fileSizeSameAsCacheCapacity, t)
 	randomReadChunkCount := fileSizeSameAsCacheCapacity / chunkSizeToRead
@@ -119,9 +119,9 @@ func (s *cacheFileForRangeReadFalseTest) TestReadIsTreatedNonSequentialAfterFile
 
 	// Merge the expected outcomes.
 	expectedOutcome[0].EndTimeStampSeconds = expectedOutcome[2].EndTimeStampSeconds
-	expectedOutcome[0].content = expectedOutcome[0].content + expectedOutcome[2].content
+	expectedOutcome[0].Content = expectedOutcome[0].Content + expectedOutcome[2].Content
 	expectedOutcome[1].EndTimeStampSeconds = expectedOutcome[3].EndTimeStampSeconds
-	expectedOutcome[1].content = expectedOutcome[1].content + expectedOutcome[3].content
+	expectedOutcome[1].Content = expectedOutcome[1].Content + expectedOutcome[3].Content
 	// Parse the logs and validate with expected outcome.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	require.Equal(t, 2, len(structuredReadLogs))

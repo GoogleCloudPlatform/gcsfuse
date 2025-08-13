@@ -53,14 +53,14 @@ func (s *readOnlyTest) Teardown(t *testing.T) {
 // Helper functions
 ////////////////////////////////////////////////////////////////////////
 
-func readMultipleFiles(numFiles int, ctx context.Context, storageClient *storage.Client, fileNames []string, t *testing.T) (expectedOutcome []*Expected) {
+func readMultipleFiles(numFiles int, ctx context.Context, storageClient *storage.Client, fileNames []string, t *testing.T) (expectedOutcome []*client.Expected) {
 	for i := 0; i < numFiles; i++ {
 		expectedOutcome = append(expectedOutcome, readFileAndValidateCacheWithGCS(ctx, storageClient, fileNames[i], fileSize, true, t))
 	}
 	return expectedOutcome
 }
 
-func validateCacheOfMultipleObjectsUsingStructuredLogs(startIndex int, numFiles int, expectedOutcome []*Expected, structuredReadLogs []*read_logs.StructuredReadLogEntry, cacheHit bool, t *testing.T) {
+func validateCacheOfMultipleObjectsUsingStructuredLogs(startIndex int, numFiles int, expectedOutcome []*client.Expected, structuredReadLogs []*read_logs.StructuredReadLogEntry, cacheHit bool, t *testing.T) {
 	endIndex := startIndex + numFiles
 
 	for i := startIndex; i < endIndex; i++ {

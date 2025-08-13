@@ -63,9 +63,8 @@ func (s *rangeReadTest) TestRangeReadsWithinReadChunkSize(t *testing.T) {
 		t.SkipNow()
 	}
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, largeFileSize, t)
-
-	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
-	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offsetForRangeReadWithin8MB, t)
+	expectedOutcome1 := client.ReadFileAndValidate(s.ctx, s.storageClient, testDirPath, testFileName, false, zeroOffset, chunkSizeToRead, t)
+	expectedOutcome2 := client.ReadFileAndValidate(s.ctx, s.storageClient, testDirPath, testFileName, false, offsetForRangeReadWithin8MB, chunkSizeToRead, t)
 
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, t)
@@ -75,9 +74,9 @@ func (s *rangeReadTest) TestRangeReadsWithinReadChunkSize(t *testing.T) {
 func (s *rangeReadTest) TestRangeReadsBeyondReadChunkSizeWithFileCached(t *testing.T) {
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, largeFileSize, t)
 
-	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
+	expectedOutcome1 := client.ReadFileAndValidate(s.ctx, s.storageClient, testDirPath, testFileName, false, zeroOffset, chunkSizeToRead, t)
 	validateFileInCacheDirectory(testFileName, largeFileSize, ctx, s.storageClient, t)
-	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset10MiB, t)
+	expectedOutcome2 := client.ReadFileAndValidate(s.ctx, s.storageClient, testDirPath, testFileName, false, offset10MiB, chunkSizeToRead, t)
 
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, t)

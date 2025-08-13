@@ -19,10 +19,8 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
-	"os"
 	"path"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -34,46 +32,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Expected is a helper struct that stores list of attributes to be validated from logs.
-type Expected struct {
-	StartTimeStampSeconds int64
-	EndTimeStampSeconds   int64
-	BucketName            string
-	ObjectName            string
-	content               string
-}
-
-func readFileAndGetExpectedOutcome(testDirPath, fileName string, readFullFile bool, offset int64, t *testing.T) *Expected {
-	expected := &Expected{
-		StartTimeStampSeconds: time.Now().Unix(),
-		BucketName:            setup.TestBucket(),
-		ObjectName:            path.Join(testDirName, fileName),
-	}
-	if setup.DynamicBucketMounted() != "" {
-		expected.BucketName = setup.DynamicBucketMounted()
-	}
-
-	var content []byte
-	var err error
-
-	if readFullFile {
-		content, err = operations.ReadFileSequentially(path.Join(testDirPath, fileName), chunkSizeToRead)
-		if err != nil {
-			t.Errorf("Failed to read file sequentially: %v", err)
-		}
-	} else {
-		content, err = operations.ReadChunkFromFile(path.Join(testDirPath, fileName), chunkSizeToRead, offset, os.O_RDONLY|syscall.O_DIRECT)
-		if err != nil {
-			t.Errorf("Failed to read random file chunk: %v", err)
-		}
-	}
-	expected.EndTimeStampSeconds = time.Now().Unix()
-	expected.content = string(content)
-
-	return expected
-}
-
-func validate(expected *Expected, logEntry *read_logs.StructuredReadLogEntry, isSeq, cacheHit bool, chunkCount int, t *testing.T) {
+func validate(expected *client.Expected, logEntry *read_logs.StructuredReadLogEntry, isSeq, cacheHit bool, chunkCount int, t *testing.T) {
 	t.Helper()
 	if logEntry.StartTimeSeconds < expected.StartTimeStampSeconds {
 		t.Errorf("start time in logs %d less than actual start time %d.", logEntry.StartTimeSeconds, expected.StartTimeStampSeconds)
@@ -175,11 +134,11 @@ func remountGCSFuse(flags []string) {
 }
 
 func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage.Client,
-	filename string, fileSize int64, checkCacheSize bool, t *testing.T) (expectedOutcome *Expected) {
+	filename string, fileSize int64, checkCacheSize bool, t *testing.T) (expectedOutcome *client.Expected) {
 	// Read file via gcsfuse mount.
-	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, filename, true, zeroOffset, t)
+	expectedOutcome = client.ReadFileAndValidate(ctx, storageClient, testDirPath, filename, true, zeroOffset, chunkSizeToRead, t)
 	// Validate CRC32 of content read via gcsfuse with CRC32 value on gcs.
-	gotCRC32Value, err := operations.CalculateCRC32(strings.NewReader(expectedOutcome.content))
+	gotCRC32Value, err := operations.CalculateCRC32(strings.NewReader(expectedOutcome.Content))
 	if err != nil {
 		t.Errorf("CalculateCRC32 Failed: %v", err)
 	}
@@ -197,31 +156,12 @@ func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage
 	return expectedOutcome
 }
 
-func readChunkAndValidateObjectContentsFromGCS(ctx context.Context, storageClient *storage.Client,
-	filename string, offset int64, t *testing.T) (expectedOutcome *Expected) {
-	// Read file via gcsfuse mount.
-	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, filename, false, offset, t)
-	// Validate content read via gcsfuse with gcs.
-	client.ValidateObjectChunkFromGCS(ctx, storageClient, testDirName, filename, offset, chunkSizeToRead,
-		expectedOutcome.content, t)
-
-	return expectedOutcome
-}
-
 func readFileAndValidateFileIsNotCached(ctx context.Context, storageClient *storage.Client,
-	readFullFile bool, offset int64, t *testing.T) (expectedOutcome *Expected) {
+	readFullFile bool, offset int64, t *testing.T) (expectedOutcome *client.Expected) {
 	// Read file via gcsfuse mount.
-	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, largeFileName, readFullFile, offset, t)
+	expectedOutcome = client.ReadFileAndValidate(ctx, storageClient, testDirPath, largeFileName, readFullFile, offset, chunkSizeToRead, t)
 	// Validate that the file is not cached.
 	validateFileIsNotCached(largeFileName, t)
-	// validate the content read matches the content on GCS.
-	if readFullFile {
-		client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, largeFileName,
-			expectedOutcome.content, t)
-	} else {
-		client.ValidateObjectChunkFromGCS(ctx, storageClient, testDirName, largeFileName,
-			offset, chunkSizeToRead, expectedOutcome.content, t)
-	}
 	return expectedOutcome
 }
 
