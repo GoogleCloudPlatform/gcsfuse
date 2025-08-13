@@ -99,6 +99,42 @@ func withBillingProject(controlClient StorageControlClient, billingProject strin
 	return controlClient
 }
 
+// exponentialBackoff holds the duration parameters for exponential backoff.
+type exponentialBackoff struct {
+	next       time.Duration
+	max        time.Duration
+	multiplier float64
+}
+
+func newBackoff(initialDuration, maxDuration time.Duration, multiplier float64) *exponentialBackoff {
+	return &exponentialBackoff{
+		max:        maxDuration,
+		multiplier: multiplier,
+		next:       initialDuration,
+	}
+}
+
+// nextDuration calculates the nextDuration backoff duration.
+func (b *exponentialBackoff) nextDuration() time.Duration {
+	next := b.next
+	b.next = min(b.max, time.Duration(float64(b.next)*b.multiplier))
+	return next
+}
+
+// waitWithJitter waits for the next backoff duration with added jitter.
+// The jitter adds randomness to the backoff duration to prevent the thundering herd problem.
+// This is similar to how gax-retries backoff after each failed retry.
+func (b *exponentialBackoff) waitWithJitter(ctx context.Context) error {
+	nextDuration := b.nextDuration()
+	jitteryBackoffDuration := time.Duration(rand.Int63n(int64(nextDuration)))
+	select {
+	case <-time.After(jitteryBackoffDuration):
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
 // storageControlClientWithRetry is a wrapper for an existing StorageControlClient object
 // which implements gcsfuse-level retry logic if any of the control-client call gets stalled or returns a retryable error.
 // It makes time-bound attempts to call the underlying StorageControlClient methods,
@@ -115,11 +151,6 @@ type storageControlClientWithRetry struct {
 	// Total duration allowed across all the attempts.
 	totalRetryBudget time.Duration
 
-	// Backoff parameters for retries.
-	initialBackoff    time.Duration
-	maxBackoff        time.Duration
-	backoffMultiplier float64
-
 	// As an example,
 	// if initialRetryDeadline is 1 second, retryMultiplier is 2,
 	// maxRetryDeadline is 5 seconds, and totalRetryBudget is 1 minute, then
@@ -132,6 +163,9 @@ type storageControlClientWithRetry struct {
 	// All subsequent attempts will be allowed upto 5 seconds, with
 	// total attempts capped at 1 minute of duration from the start
 	// of the first attempt.
+
+	// Backoff duration in-between retries.
+	backoff *exponentialBackoff
 
 	// Whether or not to enable retries for GetStorageLayout call.
 	enableRetriesOnStorageLayoutCall bool
@@ -152,7 +186,6 @@ func executeWithRetry[T any](
 	defer cancel()
 
 	delay := sccwros.initialRetryDeadline
-	backoffDuration := sccwros.initialBackoff
 	for {
 		attemptCtx, attemptCancel := context.WithTimeout(parentCtx, delay)
 
@@ -175,20 +208,10 @@ func executeWithRetry[T any](
 			return zero, fmt.Errorf("%s for %q failed after multiple retries (last server/client error = %v): %w", operationName, reqDescription, err, parentCtx.Err())
 		}
 
-		// Backoff with jitter before next retry.
-		// This is to avoid the thundering herd problem.
-		// This is similar to how gax-retries backoff after each failed retry.
-		jitter := time.Duration(rand.Int63n(int64(backoffDuration)))
-		select {
-		case <-time.After(jitter):
-		case <-parentCtx.Done():
-			return zero, fmt.Errorf("%s for %q failed after multiple retries (last server/client error = %v): %w", operationName, reqDescription, err, parentCtx.Err())
-		}
-
-		// Increase backoff for next attempt.
-		backoffDuration = time.Duration(float64(backoffDuration) * sccwros.backoffMultiplier)
-		if backoffDuration > sccwros.maxBackoff {
-			backoffDuration = sccwros.maxBackoff
+		// Do a jittery backoff after each retry.
+		parentCtxErr := sccwros.backoff.waitWithJitter(parentCtx)
+		if parentCtxErr != nil {
+			return zero, fmt.Errorf("%s for %q failed after multiple retries (last server/client error = %v): %w", operationName, reqDescription, err, parentCtxErr)
 		}
 
 		// Increase delay for the next attempt.
@@ -241,9 +264,7 @@ func newRetryWrapper(controlClient StorageControlClient, initialRetryDeadline ti
 		maxRetryDeadline:                 maxRetryDeadline,
 		retryMultiplier:                  retryMultiplier,
 		totalRetryBudget:                 totalRetryBudget,
-		initialBackoff:                   initialBackoff,
-		maxBackoff:                       maxBackoff,
-		backoffMultiplier:                backoffMultiplier,
+		backoff:                          newBackoff(initialBackoff, maxBackoff, backoffMultiplier),
 		enableRetriesOnStorageLayoutCall: true,
 	}
 }

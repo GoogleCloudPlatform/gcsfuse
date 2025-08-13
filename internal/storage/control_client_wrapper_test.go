@@ -191,3 +191,61 @@ func (t *StorageLayoutRetryWrapperTest) TestGetStorageLayout_AllAttemptsTimeOut(
 	assert.ErrorIs(t.T(), err, context.DeadlineExceeded)
 	t.mockRawClient.AssertExpectations(t.T())
 }
+
+type ExponentialBackoffTest struct {
+	suite.Suite
+}
+
+func TestExponentialBackoffTestSuite(t *testing.T) {
+	suite.Run(t, new(ExponentialBackoffTest))
+}
+
+func (t *ExponentialBackoffTest) TestNewBackoff() {
+	initial := 1 * time.Second
+	max := 10 * time.Second
+	multiplier := 2.0
+
+	b := newBackoff(initial, max, multiplier)
+
+	assert.NotNil(t.T(), b)
+	assert.Equal(t.T(), initial, b.next)
+	assert.Equal(t.T(), max, b.max)
+	assert.Equal(t.T(), multiplier, b.multiplier)
+}
+
+func (t *ExponentialBackoffTest) TestNext() {
+	initial := 1 * time.Second
+	max := 3 * time.Second
+	multiplier := 2.0
+	b := newBackoff(initial, max, multiplier)
+
+	// First call to next() should return initial, and update current.
+	assert.Equal(t.T(), 1*time.Second, b.nextDuration())
+
+	// Second call.
+	assert.Equal(t.T(), 2*time.Second, b.nextDuration())
+
+	// Third call - capped at max.
+	assert.Equal(t.T(), 3*time.Second, b.nextDuration())
+
+	// Should stay capped at max.
+	assert.Equal(t.T(), 3*time.Second, b.nextDuration())
+}
+
+func (t *ExponentialBackoffTest) TestWaitWithJitter_ContextCancelled() {
+	initial := 100 * time.Microsecond // A long duration to ensure cancellation happens first.
+	max := 5 * initial
+	b := newBackoff(initial, max, 2.0)
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Cancel the context immediately.
+	cancel()
+
+	start := time.Now()
+	err := b.waitWithJitter(ctx)
+	elapsed := time.Since(start)
+
+	assert.ErrorIs(t.T(), err, context.Canceled)
+	// The function should return almost immediately.
+	assert.Less(t.T(), elapsed, initial, "waitWithJitter should return quickly when context is cancelled")
+}
