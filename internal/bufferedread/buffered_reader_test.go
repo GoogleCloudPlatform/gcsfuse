@@ -1283,7 +1283,8 @@ func (t *BufferedReaderTest) TestReadAtConcurrentReads() {
 	var wg sync.WaitGroup
 	wg.Add(numGoroutines)
 	results := make([][]byte, numGoroutines)
-	// Each go routine will read differt range to avoid duplicate calls for same range.
+
+	// Each go routine will read different range to avoid duplicate calls for same range.
 	// That's why we are multiplying by 3 to have offset 3 blocks apart.
 	var readIndex = 3
 	for i := 0; i < numGoroutines; i++ {
@@ -1301,6 +1302,7 @@ func (t *BufferedReaderTest) TestReadAtConcurrentReads() {
 			copy(results[index], readBuf)
 		}(i)
 	}
+
 	wg.Wait()
 	// Verify the results from all goroutines individually.
 	for i, res := range results {

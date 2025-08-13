@@ -78,13 +78,9 @@ type BufferedReader struct {
 	// prefetching operation.
 	numPrefetchBlocks int64
 
-	blockQueue common.Queue[*blockQueueEntry]
+	metricHandle metrics.MetricHandle
 
 	readHandle []byte // For zonal bucket.
-
-	blockPool    *block.GenBlockPool[block.PrefetchBlock]
-	workerPool   workerpool.WorkerPool
-	metricHandle metrics.MetricHandle
 
 	ctx        context.Context
 	cancelFunc context.CancelFunc
@@ -96,6 +92,21 @@ type BufferedReader struct {
 	// `mu` synchronizes access to the buffered reader's shared state.
 	// All shared variables, such as the block pool and queue, require this lock before any operation.
 	mu sync.Mutex
+
+	// GUARDED by (mu)
+	workerPool workerpool.WorkerPool
+
+	// blockQueue is the core of the prefetching pipeline, holding blocks that are
+	// either downloaded or in the process of being downloaded. The head of the
+	// queue always contains the next block required to satisfy a read request.
+	// GUARDED by (mu)
+	blockQueue common.Queue[*blockQueueEntry]
+
+	// blockPool manages a pool of reusable PrefetchBlock buffers. Instead of
+	// allocating a new buffer for each download, the reader acquires one from
+	// this pool and releases it back when it's no longer needed.
+	// GUARDED by (mu)
+	blockPool *block.GenBlockPool[block.PrefetchBlock]
 }
 
 // NewBufferedReader returns a new bufferedReader instance.
@@ -129,6 +140,7 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 // If the number of detected random reads exceeds a configured threshold, it
 // returns a gcsx.FallbackToAnotherReader error to signal that another reader
 // should be used.
+// LOCKS_REQUIRED(p.mu)
 func (p *BufferedReader) handleRandomRead(offset int64) error {
 	// Exit early if we have already decided to fall back to another reader.
 	// This avoids re-evaluating the read pattern on every call when the random
@@ -164,6 +176,7 @@ func (p *BufferedReader) handleRandomRead(offset int64) error {
 }
 
 // isRandomSeek checks if the read for the given offset is random or not.
+// LOCKS_REQUIRED(p.mu)
 func (p *BufferedReader) isRandomSeek(offset int64) bool {
 	if p.blockQueue.IsEmpty() {
 		return offset != 0
@@ -183,6 +196,7 @@ func (p *BufferedReader) isRandomSeek(offset int64) bool {
 // seeks (both forward and backward) that land outside the current block.
 // For each discarded block, its download is cancelled, and it is returned to
 // the block pool.
+// LOCKS_REQUIRED(p.mu)
 func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 	for !p.blockQueue.IsEmpty() {
 		entry := p.blockQueue.Peek()
@@ -226,6 +240,8 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 //     prefetch operation is triggered to keep the pipeline full.
 //  5. The loop continues until the buffer is full, the end of the file is
 //     reached, or an error occurs.
+//
+// LOCKS_EXCLUDED(p.mu)
 func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64) (gcsx.ReaderResponse, error) {
 	resp := gcsx.ReaderResponse{DataBuf: inputBuf}
 	reqID := uuid.New()
@@ -334,6 +350,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 // prefetch schedules the next set of blocks for prefetching starting from
 // the nextBlockIndexToPrefetch.
+// LOCKS_REQUIRED(p.mu)
 func (p *BufferedReader) prefetch() error {
 	// Determine the number of blocks to prefetch in this cycle, respecting the
 	// MaxPrefetchBlockCnt and the number of blocks remaining in the file.
@@ -380,6 +397,7 @@ func (p *BufferedReader) prefetch() error {
 
 // freshStart resets the prefetching state and schedules the initial set of
 // blocks starting from the given offset.
+// LOCKS_REQUIRED(p.mu)
 func (p *BufferedReader) freshStart(currentOffset int64) error {
 	blockIndex := currentOffset / p.config.PrefetchBlockSizeBytes
 	p.nextBlockIndexToPrefetch = blockIndex
@@ -402,6 +420,7 @@ func (p *BufferedReader) freshStart(currentOffset int64) error {
 }
 
 // scheduleNextBlock schedules the next block for prefetch.
+// LOCKS_REQUIRED(p.mu)
 func (p *BufferedReader) scheduleNextBlock(urgent bool) error {
 	b, err := p.blockPool.TryGet()
 	if err != nil {
@@ -422,6 +441,7 @@ func (p *BufferedReader) scheduleNextBlock(urgent bool) error {
 }
 
 // scheduleBlockWithIndex schedules a block with a specific index.
+// LOCKS_REQUIRED(p.mu)
 func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockIndex int64, urgent bool) error {
 	startOffset := blockIndex * p.config.PrefetchBlockSizeBytes
 	if err := b.SetAbsStartOff(startOffset); err != nil {
@@ -440,6 +460,7 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockInde
 	return nil
 }
 
+// LOCKS_EXCLUDED(p.mu)
 func (p *BufferedReader) Destroy() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -469,6 +490,7 @@ func (p *BufferedReader) Destroy() {
 }
 
 // CheckInvariants checks for internal consistency of the reader.
+// LOCKS_EXCLUDED(p.mu)
 func (p *BufferedReader) CheckInvariants() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
