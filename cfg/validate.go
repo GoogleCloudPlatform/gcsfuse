@@ -17,10 +17,9 @@ package cfg
 import (
 	"errors"
 	"fmt"
-	"log"
 	"math"
+	"strings"
 	"regexp"
-	"slices"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
@@ -248,14 +247,16 @@ func isValidBufferedReadConfig(rc *ReadConfig) error {
 }
 
 func isValidLoggingConfig(loggingConfig *LoggingConfig) error {
-	if loggingConfig == nil {
+	if loggingConfig == nil || loggingConfig.Format == ""{
 		return nil
 	}
 
-	SupportedLogFormats := []string{"json", "text"}
-	if loggingConfig.Format != "" && !slices.Contains(SupportedLogFormats, loggingConfig.Format) {
-		loggingConfig.Format = "json" // default to text format if unsupported format is provided
-		log.Printf("WARN: Unsupported logging format provided: %s, defaulting to json format", loggingConfig.Format)
+	switch strings.TrimSpace(loggingConfig.Format) {
+	case LoggingFormatText, LoggingFormatJson:
+		break
+	default:
+		loggingConfig.Format = LoggingFormatJson // default to JSON format if unsupported format is provided
+		fmt.Printf("WARN: Unsupported logging format provided: %s, defaulting to json format", loggingConfig.Format)
 	}
 
 	return nil
