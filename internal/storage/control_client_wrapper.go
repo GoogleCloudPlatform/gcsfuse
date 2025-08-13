@@ -310,8 +310,8 @@ func newRetryWrapper(controlClient StorageControlClient,
 	}
 }
 
-// withRetryOnStall wraps a StorageControlClient to do a time-bound retry approach for retryable errors for all API calls through it.
-func withRetryOnStall(controlClient StorageControlClient, retryDeadline, totalRetryBudget time.Duration) StorageControlClient {
+// withRetryOnAllAPIs wraps a StorageControlClient to do a time-bound retry approach for retryable errors for all API calls through it.
+func withRetryOnAllAPIs(controlClient StorageControlClient, retryDeadline time.Duration, totalRetryBudget time.Duration) StorageControlClient {
 	return newRetryWrapper(controlClient, retryDeadline, totalRetryBudget, defaultInitialBackoff, defaultMaxBackoff, defaultBackoffMultiplier, true)
 }
 
