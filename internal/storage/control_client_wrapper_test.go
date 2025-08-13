@@ -378,7 +378,7 @@ func (t *AllApiStallRetryWrapperTest) TestGetStorageLayout_NonRetryableError() {
 
 func (t *AllApiStallRetryWrapperTest) TestGetStorageLayout_AttemptTimesOutAndThenSucceeds() {
 	// Arrange
-	// minRetryDeadline is 100us, next is 200us.
+	// initialRetryDeadline is 100us, next is 200us.
 	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 500*time.Microsecond, 2, 1000*time.Microsecond, time.Microsecond, 10*time.Microsecond, 2, true)
 	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
 	expectedLayout := &controlpb.StorageLayout{Location: "some-location"}
@@ -470,7 +470,7 @@ func (t *AllApiStallRetryWrapperTest) TestDeleteFolder_NonRetryableError() {
 
 func (t *AllApiStallRetryWrapperTest) TestDeleteFolder_AttemptTimesOutAndThenSucceeds() {
 	// Arrange
-	// minRetryDeadline is 100us, next is 200us.
+	// initialRetryDeadline is 100us, next is 200us.
 	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 500*time.Microsecond, 2, 1000*time.Microsecond, time.Microsecond, 10*time.Microsecond, 2, true)
 	req := &controlpb.DeleteFolderRequest{Name: "some/folder"}
 
@@ -565,7 +565,7 @@ func (t *AllApiStallRetryWrapperTest) TestGetFolder_NonRetryableError() {
 
 func (t *AllApiStallRetryWrapperTest) TestGetFolder_AttemptTimesOutAndThenSucceeds() {
 	// Arrange
-	// minRetryDeadline is 100us, next is 200us.
+	// initialRetryDeadline is 100us, next is 200us.
 	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 500*time.Microsecond, 2, 1000*time.Microsecond, time.Microsecond, 10*time.Microsecond, 2, true)
 	req := &controlpb.GetFolderRequest{Name: "some/folder"}
 	expectedFolder := &controlpb.Folder{Name: "some/folder"}
