@@ -480,8 +480,11 @@ func (p *BufferedReader) Destroy() {
 
 		// We expect a context.Canceled error here, but we wait to ensure the
 		// block's worker goroutine has finished before releasing the block.
-		if _, err := bqe.block.AwaitReady(context.TODO()); err != nil && err != context.Canceled {
-			logger.Warnf("Destroy: waiting for block on destroy: %v", err)
+		status, err := bqe.block.AwaitReady(context.TODO())
+		if err != nil {
+			logger.Warnf("Destroy: AwaitReady for block failed: %v", err)
+		} else if status.Err != nil && !errors.Is(status.Err, context.Canceled) {
+			logger.Warnf("Destroy: waiting for block on destroy: %v", status.Err)
 		}
 		p.blockPool.Release(bqe.block)
 	}
