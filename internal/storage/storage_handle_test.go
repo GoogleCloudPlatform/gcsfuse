@@ -245,14 +245,14 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithBillingProject() {
 	// and its billing-project is same as the one passed while
 	// creating the storage-handle.
 	// Check that storageControlClient is wrapped correctly and billing project is set.
-	retryClient, ok := storageClient.storageControlClient.(*storageControlClientWithRetry)
-	assert.True(testSuite.T(), ok, "storageControlClient should be of type *storageControlClientWithRetryOnStall")
-	assert.NotNil(testSuite.T(), retryClient, "storageControlClientWithRetryOnStall should not be nil")
-	billingProjectClient, ok := retryClient.raw.(*storageControlClientWithBillingProject)
+	retrierControlClient, ok := storageClient.storageControlClient.(*storageControlClientWithRetry)
+	assert.True(testSuite.T(), ok, "retrierControlClient should be of type *storageControlClientWithRetry")
+	assert.NotNil(testSuite.T(), retrierControlClient, "retrierControlClient should not be nil")
+	billingProjectControlClient, ok := retrierControlClient.raw.(*storageControlClientWithBillingProject)
 	assert.True(testSuite.T(), ok, "raw should be of type *storageControlClientWithBillingProject")
-	assert.NotNil(testSuite.T(), billingProjectClient, "storageControlClientWithBillingProject should not be nil")
-	assert.Equal(testSuite.T(), projectID, billingProjectClient.billingProject, "billingProject should match the provided projectID")
-	assert.NotNil(testSuite.T(), billingProjectClient.raw, "raw client inside storageControlClientWithBillingProject should not be nil")
+	assert.NotNil(testSuite.T(), billingProjectControlClient, "storageControlClientWithBillingProject should not be nil")
+	assert.Equal(testSuite.T(), projectID, billingProjectControlClient.billingProject, "billingProject should match the provided projectID")
+	assert.NotNil(testSuite.T(), billingProjectControlClient.raw, "raw client inside storageControlClientWithBillingProject should not be nil")
 }
 
 func (testSuite *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtocol() {
