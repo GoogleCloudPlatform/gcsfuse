@@ -543,6 +543,86 @@ func (t *fileTest) Test_Read_FallbackToInode() {
 	mockR.AssertExpectations(t.T())
 }
 
+func (t *fileTest) Test_ReadWithReadManager_ReadManagerInvalidatedByGenerationChange() {
+	content1 := []byte("content1")
+	content2 := []byte("content2-larger")
+	dst := make([]byte, len(content2))
+	objectName := "test_obj_rm_gen_change"
+
+	parent := createDirInode(&t.bucket, &t.clock)
+	in := createFileInode(t.T(), &t.bucket, &t.clock, &cfg.Config{}, parent, objectName, content1, false)
+	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{}, nil, nil)
+
+	// First read, to create a readManager.
+	fh.inode.Lock()
+	_, _, err := fh.ReadWithReadManager(t.ctx, make([]byte, len(content1)), 0, 200)
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), fh.readManager)
+	oldReadManager := fh.readManager
+
+	// Now, update the object in GCS, which changes its generation.
+	in.Lock()
+	gcsSynced, err := in.Write(t.ctx, content2, 0, util.Write)
+	assert.NoError(t.T(), err)
+	assert.False(t.T(), gcsSynced)
+	gcsSynced, err = in.Sync(t.ctx)
+	assert.NoError(t.T(), err)
+	assert.True(t.T(), gcsSynced)
+	in.Unlock()
+
+	// The existing readManager is now for an old generation.
+	// The next ReadWithReadManager call should detect this, destroy the old one,
+	// create a new one, and read the new content.
+	fh.inode.Lock()
+	output, n, err := fh.ReadWithReadManager(t.ctx, dst, 0, 200)
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), fh.readManager)
+	assert.NotEqual(t.T(), oldReadManager, fh.readManager)
+	assert.Equal(t.T(), len(content2), n)
+	assert.Equal(t.T(), content2, output)
+}
+
+func (t *fileTest) Test_Read_ReaderInvalidatedByGenerationChange() {
+	content1 := []byte("content1")
+	content2 := []byte("content2-larger")
+	dst := make([]byte, len(content2))
+	objectName := "test_obj_rm_gen_change"
+
+	parent := createDirInode(&t.bucket, &t.clock)
+	in := createFileInode(t.T(), &t.bucket, &t.clock, &cfg.Config{}, parent, objectName, content1, false)
+	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{}, nil, nil)
+
+	// First read, to create a reader.
+	fh.inode.Lock()
+	_, _, err := fh.Read(t.ctx, make([]byte, len(content1)), 0, 200)
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), fh.reader)
+	oldReader := fh.reader
+
+	// Now, update the object in GCS, which changes its generation.
+	in.Lock()
+	gcsSynced, err := in.Write(t.ctx, content2, 0, util.Write)
+	assert.NoError(t.T(), err)
+	assert.False(t.T(), gcsSynced)
+	gcsSynced, err = in.Sync(t.ctx)
+	assert.NoError(t.T(), err)
+	assert.True(t.T(), gcsSynced)
+	in.Unlock()
+
+	// The existing reader is now for an old generation.
+	// The next Read call should detect this, destroy the old one,
+	// create a new one, and read the new content.
+	fh.inode.Lock()
+	output, n, err := fh.Read(t.ctx, dst, 0, 200)
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), fh.reader)
+	assert.NotEqual(t.T(), oldReader, fh.reader)
+	assert.Equal(t.T(), len(content2), n)
+	assert.Equal(t.T(), content2, output)
+}
+
 func (t *fileTest) TestOpenMode() {
 	testCases := []struct {
 		name     string
@@ -645,46 +725,7 @@ func (t *fileTest) TestFileHandle_CheckInvariants_WithNilReaderAndManager() {
 	})
 }
 
-func (t *fileTest) Test_ReadWithReadManager_ReadManagerInvalidatedByGenerationChange() {
-	content1 := []byte("content1")
-	content2 := []byte("content2-larger")
-	dst := make([]byte, len(content2))
-	objectName := "test_obj_rm_gen_change"
-
-	parent := createDirInode(&t.bucket, &t.clock)
-	in := createFileInode(t.T(), &t.bucket, &t.clock, &cfg.Config{}, parent, objectName, content1, false)
-	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{}, nil, nil)
-
-	// First read, to create a readManager.
-	fh.inode.Lock()
-	_, _, err := fh.ReadWithReadManager(t.ctx, make([]byte, len(content1)), 0, 200)
-	assert.NoError(t.T(), err)
-	assert.NotNil(t.T(), fh.readManager)
-	oldReadManager := fh.readManager
-
-	// Now, update the object in GCS, which changes its generation.
-	in.Lock()
-	gcsSynced, err := in.Write(t.ctx, content2, 0, util.Write)
-	assert.NoError(t.T(), err)
-	assert.False(t.T(), gcsSynced)
-	gcsSynced, err = in.Sync(t.ctx)
-	assert.NoError(t.T(), err)
-	assert.True(t.T(), gcsSynced)
-	in.Unlock()
-
-	// The existing readManager is now for an old generation.
-	// The next ReadWithReadManager should detect this, destroy the old one, create a new one, and read the new content.
-	fh.inode.Lock()
-	output, n, err := fh.ReadWithReadManager(t.ctx, dst, 0, 200)
-
-	assert.NoError(t.T(), err)
-	assert.NotNil(t.T(), fh.readManager)
-	assert.NotEqual(t.T(), oldReadManager, fh.readManager)
-	assert.Equal(t.T(), len(content2), n)
-	assert.Equal(t.T(), content2, output)
-}
-
-func (t *fileTest) TestLockHandleAndRelockInode_Lock_NoDeadlockWithContention() {
+func (t *fileTest) Test_LockHandleAndRelockInode_Lock_NoDeadlockWithContention() {
 	parent := createDirInode(&t.bucket, &t.clock)
 	config := &cfg.Config{}
 	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_deadlock", []byte("content"), false)
@@ -730,7 +771,7 @@ func (t *fileTest) TestLockHandleAndRelockInode_Lock_NoDeadlockWithContention() 
 	}
 }
 
-func (t *fileTest) TestLockHandleAndRelockInode_RLock_NoDeadlockWithContention() {
+func (t *fileTest) Test_LockHandleAndRelockInode_RLock_NoDeadlockWithContention() {
 	parent := createDirInode(&t.bucket, &t.clock)
 	config := &cfg.Config{}
 	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_deadlock", []byte("content"), false)
@@ -776,7 +817,7 @@ func (t *fileTest) TestLockHandleAndRelockInode_RLock_NoDeadlockWithContention()
 	}
 }
 
-func (t *fileTest) TestLockHandleAndRelockInode_Mixed_NoDeadlockWithContention() {
+func (t *fileTest) Test_LockHandleAndRelockInode_Mixed_NoDeadlockWithContention() {
 	parent := createDirInode(&t.bucket, &t.clock)
 	config := &cfg.Config{}
 	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_deadlock", []byte("content"), false)
@@ -822,7 +863,7 @@ func (t *fileTest) TestLockHandleAndRelockInode_Mixed_NoDeadlockWithContention()
 	}
 }
 
-func (t *fileTest) TestUnlockHandleAndInode_Unlock() {
+func (t *fileTest) Test_UnlockHandleAndInode_Unlock() {
 	parent := createDirInode(&t.bucket, &t.clock)
 	config := &cfg.Config{}
 	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_deadlock", []byte("content"), false)
@@ -874,7 +915,7 @@ func (t *fileTest) TestUnlockHandleAndInode_Unlock() {
 	}
 }
 
-func (t *fileTest) TestUnlockHandleAndInode_RUnlock() {
+func (t *fileTest) Test_UnlockHandleAndInode_RUnlock() {
 	parent := createDirInode(&t.bucket, &t.clock)
 	config := &cfg.Config{}
 	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_deadlock", []byte("content"), false)
