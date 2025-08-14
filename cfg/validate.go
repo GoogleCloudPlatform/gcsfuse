@@ -247,11 +247,11 @@ func isValidBufferedReadConfig(rc *ReadConfig) error {
 }
 
 func isValidLoggingConfig(loggingConfig *LoggingConfig) error {
+	const DefaultLoggingFormat = LoggingFormatJson
 	if loggingConfig == nil {
 		return nil
 	}
 
-	const DefaultLoggingFormat = LoggingFormatJson
 	switch strings.TrimSpace(loggingConfig.Format) {
 	case LoggingFormatText, LoggingFormatJson:
 		break
