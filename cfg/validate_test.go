@@ -953,6 +953,7 @@ func TestIsValidLoggingConfig(t *testing.T) {
 				Format: "invalid",
 			},
 			expectedFormat: "json",
+			// expectedFormat is not relevant if loggingConfig is nil.
 		},
 		{
 			name:          "nil config",

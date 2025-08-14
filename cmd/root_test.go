@@ -22,10 +22,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
 
 func TestDefaultMaxParallelDownloads(t *testing.T) {
@@ -1057,8 +1058,8 @@ func TestArgsParsing_LoggingFormatFlags(t *testing.T) {
 			},
 		},
 		{
-			name: "default format",
-			args: []string{"gcsfuse", "--log-format=txt", "abc", "pqr"},
+			name: "unsupported format",
+			args: []string{"gcsfuse", "--log-format=unsupported", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				Logging: cfg.LoggingConfig{
 					Format: "json",

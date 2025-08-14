@@ -251,12 +251,13 @@ func isValidLoggingConfig(loggingConfig *LoggingConfig) error {
 		return nil
 	}
 
+	const DefaultLoggingFormat = LoggingFormatJson
 	switch strings.TrimSpace(loggingConfig.Format) {
 	case LoggingFormatText, LoggingFormatJson:
 		break
 	default:
-		loggingConfig.Format = LoggingFormatJson // default to JSON format if unsupported format is provided
-		fmt.Printf("WARN: Unsupported logging format provided: %s, defaulting to json format", loggingConfig.Format)
+		loggingConfig.Format = DefaultLoggingFormat // default to JSON format if unsupported format is provided
+		fmt.Printf("WARN: Unsupported logging format provided: %s, defaulting to %s format", loggingConfig.Format, DefaultLoggingFormat)
 	}
 
 	return nil
