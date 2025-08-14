@@ -478,9 +478,9 @@ func (p *BufferedReader) Destroy() {
 		bqe := p.blockQueue.Pop()
 		bqe.cancel()
 
-		// We expect a context.Canceled error here, but we wait to ensure the
-		// block's worker goroutine has finished before releasing the block.
-		status, err := bqe.block.AwaitReady(context.TODO())
+		// We wait for the block's worker goroutine to finish. We expect its
+		// status to contain a context.Canceled error because we just called cancel.
+		status, err := bqe.block.AwaitReady(context.Background())
 		if err != nil {
 			logger.Warnf("Destroy: AwaitReady for block failed: %v", err)
 		} else if status.Err != nil && !errors.Is(status.Err, context.Canceled) {
