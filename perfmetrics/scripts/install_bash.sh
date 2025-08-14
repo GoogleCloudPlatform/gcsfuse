@@ -50,6 +50,8 @@ install_dependencies() {
 
 # Function to download, compile, and install Bash
 install_bash() {
+    (
+    set -euo pipefail
     local temp_dir
     temp_dir=$(mktemp -d /tmp/bash_install_src.XXXXXX)
     pushd "$temp_dir"
@@ -58,11 +60,12 @@ install_bash() {
     tar -xzf "bash-${BASH_VERSION}.tar.gz"
     cd "bash-${BASH_VERSION}"
     ./configure --prefix="$INSTALL_DIR" --enable-readline
-    make -s -j"$(nproc 2>/dev/null || echo 1)"
+    make -s
     sudo make install
 
     popd
     rm -rf "$temp_dir"
+    )
 }
 
 echo "Installing bash version ${BASH_VERSION} to ${INSTALL_DIR}bin/bash"
@@ -70,8 +73,11 @@ INSTALLATION_LOG=$(mktemp /tmp/bash_install_log.XXXXXX)
 
 # Installing dependencies before installing Bash
 install_dependencies
-
-if ! install_bash >"$INSTALLATION_LOG" 2>&1; then
+set +e
+install_bash >"$INSTALLATION_LOG" 2>&1
+installation_status=$?
+set -e
+if [[ $installation_status -ne 0 ]]; then
     echo "Error: Bash version ${BASH_VERSION} installation failed."
     cat "$INSTALLATION_LOG"
     rm -f "$INSTALLATION_LOG"
