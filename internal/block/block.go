@@ -128,7 +128,7 @@ func (m *memoryBlock) Seek(offset int64, whence int) (int64, error) {
 
 func (m *memoryBlock) Write(bytes []byte) (int, error) {
 	if m.Size()+int64(len(bytes)) > int64(cap(m.buffer)) {
-		return 0, fmt.Errorf("received data more than capacity of the block")
+		return 0, fmt.Errorf("received data more %d than capacity of the block %d", m.Size()+int64(len(bytes)), int64(cap(m.buffer)))
 	}
 
 	n := copy(m.buffer[m.offset.end:], bytes)

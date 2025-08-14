@@ -17,9 +17,15 @@ package buffered_read
 import (
 	"fmt"
 	"os"
+	"path"
 	"testing"
+	"time"
+
+	"syscall"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -92,6 +98,63 @@ func (s *SequentialReadSuite) TestSequentialRead() {
 			})
 		}
 	}
+}
+
+func (s *SequentialReadSuite) TestParquetRead() {
+	// Constants for block and file sizes
+	blockSizeInBytes := s.testFlags.blockSizeMB * util.MiB
+	targetFileSize := blockSizeInBytes * 2
+
+	// Header and footer sizes (10KB each)
+	headerSize := 10 * util.KiB
+	footerSize := 10 * util.KiB
+
+	testName := fmt.Sprintf("ParquetLikeRead_%dKiB_Chunk", targetFileSize/util.KiB)
+
+	s.T().Run(testName, func(t *testing.T) {
+		err := os.Truncate(setup.LogFile(), 0)
+		require.NoError(t, err, "Failed to truncate log file")
+		testDir := setup.SetupTestDirectory(testDirName)
+		// Create a file with a .parquet extension to simulate a parquet file.
+		fileName := testFileName + setup.GenerateRandomString(4) + ".parquet"
+		localFilePath := path.Join(os.TempDir(), fileName)
+		err = CreateParquetFile(localFilePath, int(targetFileSize/util.MiB))
+		require.NoError(t, err, "Failed to create parquet file")
+		// Get the actual file size.
+		fi, err := os.Stat(localFilePath)
+		require.NoError(t, err)
+		actualFileSize := fi.Size()
+		// The size of the main content to read sequentially
+		bodySize := actualFileSize - int64(headerSize) - int64(footerSize)
+		destFilePath := path.Join(testDirName, fileName)
+		client.CopyFileInBucket(ctx, storageClient, localFilePath, destFilePath, setup.TestBucket())
+		// Open the file once.
+		mountedFilePath := path.Join(testDir, fileName)
+		f, err := os.OpenFile(mountedFilePath, os.O_RDONLY|syscall.O_DIRECT, 0)
+		require.NoError(t, err)
+		expected := &Expected{
+			StartTimeStampSeconds: time.Now().Unix(),
+			BucketName:            setup.TestBucket(),
+			ObjectName:            path.Join(path.Base(testDir), fileName),
+		}
+		if setup.DynamicBucketMounted() != "" {
+			expected.BucketName = setup.DynamicBucketMounted()
+		}
+
+		// (a) Read first 10KB (header)
+		readAndValidateChunk(f, 0, int64(headerSize), path.Base(testDir), fileName, t)
+		// (b) Read last 10KB (footer)
+		readAndValidateChunk(f, actualFileSize-int64(footerSize), int64(footerSize), path.Base(testDir), fileName, t)
+		// (c) Read the remaining content sequentially
+		readAndValidateChunk(f, int64(headerSize), bodySize, path.Base(testDir), fileName, t)
+
+		// Close the file handle to trigger log generation.
+		operations.CloseFileShouldNotThrowError(t, f)
+		expected.EndTimeStampSeconds = time.Now().Unix()
+		// Since all reads were on the same handle, there should be one log entry.
+		bufferedReadLogEntry := parseAndValidateSingleBufferedReadLog(t)
+		validate(expected, bufferedReadLogEntry, false, t)
+	})
 }
 
 ////////////////////////////////////////////////////////////////////////
