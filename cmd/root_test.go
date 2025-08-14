@@ -22,10 +22,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
 
 func TestDefaultMaxParallelDownloads(t *testing.T) {
@@ -1037,6 +1038,69 @@ func TestArgsParsing_FileSystemFlagsThrowsError(t *testing.T) {
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			assert.Error(t, cmd.Execute())
+		})
+	}
+}
+
+func TestArgsParsing_LoggingFormatFlags(t *testing.T) {
+	tests := []struct {
+		name           string
+		args           []string
+		expectedConfig *cfg.Config
+	}{
+		{
+			name: "text format",
+			args: []string{"gcsfuse", "--log-format=text", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				Logging: cfg.LoggingConfig{
+					Format: "text",
+				},
+			},
+		},
+		{
+			name: "json format",
+			args: []string{"gcsfuse", "--log-format=json", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				Logging: cfg.LoggingConfig{
+					Format: "json",
+				},
+			},
+		},
+		{
+			name: "default format",
+			args: []string{"gcsfuse", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				Logging: cfg.LoggingConfig{
+					Format: "json",
+				},
+			},
+		},
+		{
+			name: "unsupported format",
+			args: []string{"gcsfuse", "--log-format=unsupported", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				Logging: cfg.LoggingConfig{
+					Format: "json",
+				},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotConfig *cfg.Config
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				gotConfig = cfg
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedConfig.Logging.Format, gotConfig.Logging.Format)
+			}
 		})
 	}
 }

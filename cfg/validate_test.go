@@ -942,3 +942,56 @@ func TestValidateLogSeverityRanks(t *testing.T) {
 		})
 	}
 }
+
+func TestIsValidLoggingConfig(t *testing.T) {
+	testCases := []struct {
+		name           string
+		loggingConfig  *LoggingConfig
+		expectedFormat string
+	}{
+		{
+			name: "valid format json",
+			loggingConfig: &LoggingConfig{
+				Format: "json",
+			},
+			expectedFormat: "json",
+		},
+		{
+			name: "valid format text",
+			loggingConfig: &LoggingConfig{
+				Format: "text",
+			},
+			expectedFormat: "text",
+		},
+		{
+			name: "empty format",
+			loggingConfig: &LoggingConfig{
+				Format: "",
+			},
+			expectedFormat: "json",
+		},
+		{
+			name: "invalid format",
+			loggingConfig: &LoggingConfig{
+				Format: "invalid",
+			},
+			expectedFormat: "json",
+			// expectedFormat is not relevant if loggingConfig is nil.
+		},
+		{
+			name:          "nil config",
+			loggingConfig: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := isValidLoggingConfig(tc.loggingConfig)
+
+			assert.NoError(t, err)
+			if tc.loggingConfig != nil {
+				assert.Equal(t, tc.expectedFormat, tc.loggingConfig.Format)
+			}
+		})
+	}
+}

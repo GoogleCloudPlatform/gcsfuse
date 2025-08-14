@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
@@ -249,6 +250,23 @@ func isValidBufferedReadConfig(rc *ReadConfig) error {
 	return nil
 }
 
+func isValidLoggingConfig(loggingConfig *LoggingConfig) error {
+	const DefaultLoggingFormat = LoggingFormatJson
+	if loggingConfig == nil {
+		return nil
+	}
+
+	switch strings.TrimSpace(loggingConfig.Format) {
+	case LoggingFormatText, LoggingFormatJson:
+		break
+	default:
+		loggingConfig.Format = DefaultLoggingFormat // default to JSON format if unsupported format is provided
+		fmt.Printf("WARN: Unsupported logging format provided: %s, defaulting to %s format", loggingConfig.Format, DefaultLoggingFormat)
+	}
+
+	return nil
+}
+
 // ValidateConfig returns a non-nil error if the config is invalid.
 func ValidateConfig(v isSet, config *Config) error {
 	var err error
@@ -307,6 +325,10 @@ func ValidateConfig(v isSet, config *Config) error {
 
 	if err = isValidBufferedReadConfig(&config.Read); err != nil {
 		return fmt.Errorf("error parsing buffered read config: %w", err)
+	}
+
+	if err = isValidLoggingConfig(&config.Logging); err != nil {
+		return fmt.Errorf("error parsing logging config: %w", err)
 	}
 
 	return nil
