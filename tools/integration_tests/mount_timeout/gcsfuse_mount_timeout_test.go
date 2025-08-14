@@ -233,7 +233,7 @@ func unmountAndWait(mountDir string) error {
 	}
 
 	// Poll for up to 5 seconds for the unmount to complete.
-	for i := 0; i < 500; i++ {
+	for range 500; i++ {
 		mounted, err := isMounted(mountDir)
 		if err != nil || !mounted {
 			return err // Success or error checking mount status.
