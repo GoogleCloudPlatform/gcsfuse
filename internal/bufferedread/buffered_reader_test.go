@@ -223,7 +223,7 @@ func (t *BufferedReaderTest) TestNewBufferedReaderWithZeroBlockSize() {
 func (t *BufferedReaderTest) TestDestroySuccess() {
 	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
 	require.NoError(t.T(), err, "NewBufferedReader should not return error")
-	b, err := reader.blockPool.TryGet()
+	b, err := reader.blockPool.Get()
 	require.NoError(t.T(), err, "Failed to get block from pool")
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
