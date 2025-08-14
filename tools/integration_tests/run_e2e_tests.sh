@@ -121,6 +121,7 @@ TEST_DIR_PARALLEL=(
   "release_version"
   "readdirplus"
   "dentry_cache"
+  "buffered_read"
 )
 
 # These tests never become parallel as it is changing bucket permissions.

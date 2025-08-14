@@ -148,9 +148,9 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 // random if the requested offset is outside the currently prefetched window.
 // If the number of detected random reads exceeds a configured threshold, it
 // returns a gcsx.FallbackToAnotherReader error to signal that another reader
-// should be used.
+// should be used. It takes handleID for logging purposes.
 // LOCKS_REQUIRED(p.mu)
-func (p *BufferedReader) handleRandomRead(offset int64) error {
+func (p *BufferedReader) handleRandomRead(offset int64, handleID int64) error {
 	// Exit early if we have already decided to fall back to another reader.
 	// This avoids re-evaluating the read pattern on every call when the random
 	// read threshold has been met.
@@ -177,7 +177,7 @@ func (p *BufferedReader) handleRandomRead(offset int64) error {
 	}
 
 	if p.randomSeekCount > p.randomReadsThreshold {
-		logger.Warnf("Fallback to another reader for object %q. Random seek count %d exceeded threshold %d.", p.object.Name, p.randomSeekCount, p.randomReadsThreshold)
+		logger.Warnf("Fallback to another reader for object %q, handle %d. Random seek count %d exceeded threshold %d.", p.object.Name, handleID, p.randomSeekCount, p.randomReadsThreshold)
 		return gcsx.FallbackToAnotherReader
 	}
 
@@ -285,7 +285,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		}
 	}()
 
-	if err = p.handleRandomRead(off); err != nil {
+	if err = p.handleRandomRead(off, handleID); err != nil {
 		err = fmt.Errorf("BufferedReader.ReadAt: handleRandomRead: %w", err)
 		return resp, err
 	}
@@ -297,7 +297,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 		if p.blockQueue.IsEmpty() {
 			if err = p.freshStart(off); err != nil {
-				logger.Warnf("Fallback to another reader for object %q due to freshStart failure: %v", p.object.Name, err)
+				logger.Warnf("Fallback to another reader for object %q, handle %d, due to freshStart failure: %v", p.object.Name, handleID, err)
 				return resp, gcsx.FallbackToAnotherReader
 			}
 			prefetchTriggered = true

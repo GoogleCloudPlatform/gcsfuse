@@ -125,6 +125,40 @@ func TestParseBufferedReadLogsFromLogReaderSuccessful(t *testing.T) {
 			},
 		},
 		{
+			name: "Test buffered read logs with no fallback",
+			reader: bytes.NewReader([]byte(`{"timestamp":{"seconds":1754207548,"nanos":733110719},"severity":"TRACE","message":"fuse_debug: Op 0x0000004e        connection.go:453] <- ReadFile (inode 2, PID 564246, handle 0, offset 34603008, 1048576 bytes)"}
+{"timestamp":{"seconds":1754207548,"nanos":733199657},"severity":"TRACE","message":"2e4645d9-19a8 <- ReadAt(princer-working-dirs:/10G_file, 0, 34603008, 1048576, 2)"}
+{"timestamp":{"seconds":1754207548,"nanos":733417812},"severity":"TRACE","message":"2e4645d9-19a8 -> ReadAt(): Ok(223.643µs)"}
+{"timestamp":{"seconds":1754207548,"nanos":733444394},"severity":"TRACE","message":"fuse_debug: Op 0x0000004e        connection.go:548] -> ReadFile ()"}`),
+			),
+			expected: map[int64]*read_logs.BufferedReadLogEntry{
+				0: {
+					CommonReadLog: read_logs.CommonReadLog{
+						Handle:           0,
+						StartTimeSeconds: 1754207548,
+						StartTimeNanos:   733110719,
+						ProcessID:        564246,
+						InodeID:          2,
+						BucketName:       "princer-working-dirs",
+						ObjectName:       "10G_file",
+					},
+					Chunks: []read_logs.BufferedReadChunkData{
+						{
+							StartTimeSeconds: 1754207548,
+							StartTimeNanos:   733199657,
+							RequestID:        "2e4645d9-19a8",
+							Offset:           34603008,
+							Size:             1048576,
+							BlockIndex:       2,
+							ExecutionTime:    "223.643µs",
+						},
+					},
+					Fallback:        false,
+					RandomSeekCount: 0,
+				},
+			},
+		},
+		{
 			name: "Test buffered read logs with no parsable logs",
 			reader: bytes.NewReader([]byte(`{"timestamp":{"seconds":1754207548,"nanos":742190759},"severity":"TRACE","message":"Scheduling block: (10G_file, 9, false)."}
 {"timestamp":{"seconds":1754207548,"nanos":742296187},"severity":"TRACE","message":"Scheduling block: (10G_file, 10, false)."}
@@ -133,6 +167,76 @@ func TestParseBufferedReadLogsFromLogReaderSuccessful(t *testing.T) {
 {"timestamp":{"seconds":1754207548,"nanos":742323114},"severity":"TRACE","message":"Scheduling block: (10G_file, 12, false)."}`),
 			),
 			expected: make(map[int64]*read_logs.BufferedReadLogEntry),
+		},
+		{
+			name: "Test buffered read logs with fallback",
+			reader: bytes.NewReader([]byte(`{"timestamp":{"seconds":1754207548,"nanos":733110719},"severity":"TRACE","message":"fuse_debug: Op 0x0000004e        connection.go:453] <- ReadFile (inode 2, PID 564246, handle 0, offset 34603008, 1048576 bytes)"}
+{"timestamp":{"seconds":1754207548,"nanos":733199657},"severity":"TRACE","message":"2e4645d9-19a8 <- ReadAt(princer-working-dirs:/10G_file, 0, 34603008, 1048576, 2)"}
+{"timestamp":{"seconds":1754207548,"nanos":733200000},"severity":"WARN","message":"Fallback to another reader for object \"10G_file\", handle 0. Random seek count 4 exceeded threshold 3."}
+{"timestamp":{"seconds":1754207548,"nanos":733417812},"severity":"TRACE","message":"2e4645d9-19a8 -> ReadAt(): Ok(223.643µs)"}
+{"timestamp":{"seconds":1754207548,"nanos":733444394},"severity":"TRACE","message":"fuse_debug: Op 0x0000004e        connection.go:548] -> ReadFile ()"}`),
+			),
+			expected: map[int64]*read_logs.BufferedReadLogEntry{
+				0: {
+					CommonReadLog: read_logs.CommonReadLog{
+						Handle:           0,
+						StartTimeSeconds: 1754207548,
+						StartTimeNanos:   733110719,
+						ProcessID:        564246,
+						InodeID:          2,
+						BucketName:       "princer-working-dirs",
+						ObjectName:       "10G_file",
+					},
+					Chunks: []read_logs.BufferedReadChunkData{
+						{
+							StartTimeSeconds: 1754207548,
+							StartTimeNanos:   733199657,
+							RequestID:        "2e4645d9-19a8",
+							Offset:           34603008,
+							Size:             1048576,
+							BlockIndex:       2,
+							ExecutionTime:    "223.643µs",
+						},
+					},
+					Fallback:        true,
+					RandomSeekCount: 4,
+				},
+			},
+		},
+		{
+			name: "Test buffered read logs with generic fallback",
+			reader: bytes.NewReader([]byte(`{"timestamp":{"seconds":1754207548,"nanos":733110719},"severity":"TRACE","message":"fuse_debug: Op 0x0000004e        connection.go:453] <- ReadFile (inode 2, PID 564246, handle 0, offset 34603008, 1048576 bytes)"}
+{"timestamp":{"seconds":1754207548,"nanos":733199657},"severity":"TRACE","message":"2e4645d9-19a8 <- ReadAt(princer-working-dirs:/10G_file, 0, 34603008, 1048576, 2)"}
+{"timestamp":{"seconds":1754207548,"nanos":733200000},"severity":"WARN","message":"Fallback to another reader for object \"10G_file\", handle 0. Due to freshStart failure: some error"}
+{"timestamp":{"seconds":1754207548,"nanos":733417812},"severity":"TRACE","message":"2e4645d9-19a8 -> ReadAt(): Ok(223.643µs)"}
+{"timestamp":{"seconds":1754207548,"nanos":733444394},"severity":"TRACE","message":"fuse_debug: Op 0x0000004e        connection.go:548] -> ReadFile ()"}`),
+			),
+			expected: map[int64]*read_logs.BufferedReadLogEntry{
+				0: {
+					CommonReadLog: read_logs.CommonReadLog{
+						Handle:           0,
+						StartTimeSeconds: 1754207548,
+						StartTimeNanos:   733110719,
+						ProcessID:        564246,
+						InodeID:          2,
+						BucketName:       "princer-working-dirs",
+						ObjectName:       "10G_file",
+					},
+					Chunks: []read_logs.BufferedReadChunkData{
+						{
+							StartTimeSeconds: 1754207548,
+							StartTimeNanos:   733199657,
+							RequestID:        "2e4645d9-19a8",
+							Offset:           34603008,
+							Size:             1048576,
+							BlockIndex:       2,
+							ExecutionTime:    "223.643µs",
+						},
+					},
+					Fallback:        true,
+					RandomSeekCount: 0,
+				},
+			},
 		},
 		{
 			name:     "Test buffered read logs with no JSON logs",
@@ -189,6 +293,11 @@ func TestBufferedReadLogsFromLogReaderUnsuccessful(t *testing.T) {
 			name:        "Test invalid read file log - invalid Handle",
 			reader:      bytes.NewReader([]byte(`{"timestamp": {"seconds": 1704458059, "nanos": 975956234}, "severity": "TRACE", "message": "fuse_debug: Op 0x00000182        connection.go:415] <- ReadFile (inode 6, PID 2382526, handle abc, offset 0, 4096 bytes)"}`)),
 			errorString: "parseReadFileLog failed: invalid ReadFile log format",
+		},
+		{
+			name:        "Test fallback log for unknown handle",
+			reader:      bytes.NewReader([]byte(`{"timestamp":{"seconds":1754207548,"nanos":733200000},"severity":"WARN","message":"Fallback to another reader for object \"10G_file\", handle 99. Random seek count 4 exceeded threshold 3."}`)),
+			errorString: "log entry for handle 99 not found for fallback log",
 		},
 	}
 
