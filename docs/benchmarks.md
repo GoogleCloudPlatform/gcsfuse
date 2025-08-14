@@ -30,7 +30,7 @@ openfiles=1
 # Change "read" to "randread" to test random reads.
 rw=read 
 thread=1
-filename_format=$jobname.$jobnum/$filenum
+filename_format=$jobname.$jobnum.$filenum
 
 [experiment]
 stonewall
