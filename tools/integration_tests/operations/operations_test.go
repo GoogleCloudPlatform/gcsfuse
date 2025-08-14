@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,10 +17,10 @@ package operations_test
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
-	"path"
-	"strconv"
+	"strings"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -31,6 +31,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/persistent_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
+	"gopkg.in/yaml.v3"
 )
 
 const DirForOperationTests = "dirForOperationsTest"
@@ -95,60 +97,49 @@ var (
 	ctx           context.Context
 )
 
-func createMountConfigsAndEquivalentFlags() (flags [][]string) {
-	cacheDirPath := path.Join(os.TempDir(), cacheDir)
-
-	// Set up config file with create-empty-file: true.
-	mountConfig1 := map[string]interface{}{
-		"write": map[string]interface{}{
-			"create-empty-file": true,
-		},
-		"enable-atomic-rename-object": true,
-	}
-
-	filePath1 := setup.YAMLConfigFile(mountConfig1, "config1.yaml")
-	flags = append(flags, []string{"--config-file=" + filePath1})
-
-	// Set up config file for file cache.
-	mountConfig2 := map[string]interface{}{
-		"file-cache": map[string]interface{}{
-			// Keeping the size as low because the operations are performed on small
-			// files
-			"max-size-mb": 2,
-		},
-		"cache-dir": cacheDirPath,
-	}
-	filePath2 := setup.YAMLConfigFile(mountConfig2, "config2.yaml")
-	flags = append(flags, []string{"--config-file=" + filePath2})
-
-	mountConfig3 := map[string]interface{}{
-		"metadata-cache": map[string]interface{}{
-			"ttl-secs": 0,
-		},
-		"write": map[string]interface{}{
-			"enable-streaming-writes": false,
-		},
-	}
-	filePath3 := setup.YAMLConfigFile(mountConfig3, "config3.yaml")
-	flags = append(flags, []string{"--config-file=" + filePath3})
-
-	mountConfig4 := map[string]interface{}{
-		"file-system": map[string]interface{}{
-			"kernel-list-cache-ttl-secs": -1,
-		},
-	}
-	filePath4 := setup.YAMLConfigFile(mountConfig4, "config4.yaml")
-	flags = append(flags, []string{"--config-file=" + filePath4, "--implicit-dirs=true"})
-	return flags
+// Config holds all test configurations parsed from the YAML file.
+type Config struct {
+	Operations []test_suite.TestConfig `yaml:"operations"`
 }
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
-
-	// Create storage client before running tests.
+	// 1. Load and parse the common configuration.
+	var cfg Config
+	if setup.ConfigFile() != "" {
+		configData, err := os.ReadFile(setup.ConfigFile())
+		if err != nil {
+			log.Fatalf("could not read test_config.yaml: %v", err)
+		}
+		expandedYaml := os.ExpandEnv(string(configData))
+		if err := yaml.Unmarshal([]byte(expandedYaml), &cfg); err != nil {
+			log.Fatalf("Failed to parse config YAML: %v", err)
+		}
+	}
+	var TempDirectory = os.TempDir()
+	if len(cfg.Operations) == 0 {
+		log.Println("No configuration found for operations tests in config. Using flags instead.")
+		// Populate the config manually.
+		cfg.Operations = make([]test_suite.TestConfig, 1)
+		cfg.Operations[0].TestBucket = setup.TestBucket()
+		// TODO : use yaml file and manually input the flags.
+		cfg.Operations[0].Flags = []string{
+			"--enable-atomic-rename-object=true",
+			"--experimental-enable-json-read=true",
+			"--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true",
+			"--experimental-enable-json-read=true --enable-atomic-rename-object=true",
+			"--create-empty-file=true --enable-atomic-rename-object=true",
+			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false",
+			"--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true",
+		}
+		cacheDirflag := fmt.Sprintf("--file-cache-max-size-mb=2 --cache-dir=%s/cache-dir-operations-hns", TempDirectory)
+		cfg.Operations[0].Flags = append(cfg.Operations[0].Flags, cacheDirflag)
+		cfg.Operations[0].MountedDirectory = setup.MountedDirectory()
+	}
+	// 2. Create storage client before running tests.
 	var err error
+	setup.SetBucketFromConfigFile(cfg.Operations[0].TestBucket)
 	ctx = context.Background()
 	storageClient, err = client.CreateStorageClient(ctx)
 	if err != nil {
@@ -157,67 +148,45 @@ func TestMain(m *testing.M) {
 	}
 	defer storageClient.Close()
 
-	cacheDir = "cache-dir-operations-hns-" + strconv.FormatBool(setup.IsHierarchicalBucket(ctx, storageClient))
-
-	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as operations tests validates content from the bucket.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		setup.RunTestsForMountedDirectoryFlag(m)
+	if cfg.Operations[0].MountedDirectory != "" && cfg.Operations[0].TestBucket != "" {
+		os.Exit(setup.RunTestsForMountedDirectory(cfg.Operations[0].MountedDirectory, m))
 	}
 
 	// Run tests for testBucket
 	// Set up test directory.
-	setup.SetUpTestDirForTestBucketFlag()
-	// Set up flags to run tests on.
-	// Note: GRPC related tests will work only if you have allow-list bucket.
-	// Note: We are not testing specifically for implicit-dirs because they are covered as part of the other flags.
-	flagsSet := [][]string{{"--enable-atomic-rename-object=true"}}
+	setup.SetUpTestDirForTestBucket(cfg.Operations[0].TestBucket)
 
-	// Enable experimental-enable-json-read=true case, but for non-presubmit runs only.
-	if !setup.IsPresubmitRun() {
-		flagsSet = append(flagsSet, []string{
-			// By default, creating emptyFile is disabled.
-			"--experimental-enable-json-read=true"})
+	// 4. Build the flag sets dynamically from the config.
+	var flags [][]string
+	for _, flagString := range cfg.Operations[0].Flags {
+		flags = append(flags, strings.Fields(flagString))
 	}
-
-	// gRPC tests will not run in TPC environment
-	if !testing.Short() && !setup.TestOnTPCEndPoint() {
-		flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=true", "--enable-atomic-rename-object=true"})
-	}
-
-	// HNS tests utilize the gRPC protocol, which is not supported by TPC.
-	if !setup.TestOnTPCEndPoint() {
-		if setup.IsHierarchicalBucket(ctx, storageClient) {
-			flagsSet = [][]string{{"--experimental-enable-json-read=true", "--enable-atomic-rename-object=true"}}
-		}
-	}
-
-	mountConfigFlags := createMountConfigsAndEquivalentFlags()
-	flagsSet = append(flagsSet, mountConfigFlags...)
 
 	// Only running static_mounting test for TPC.
 	if setup.TestOnTPCEndPoint() {
-		successCodeTPC := static_mounting.RunTests(flagsSet, m)
+		successCodeTPC := static_mounting.RunTestsWithConfigFile(&cfg.Operations[0], flags, m)
 		os.Exit(successCodeTPC)
 	}
 
-	successCode := static_mounting.RunTests(flagsSet, m)
+	successCode := static_mounting.RunTestsWithConfigFile(&cfg.Operations[0], flags, m)
 
 	if successCode == 0 {
-		successCode = only_dir_mounting.RunTests(flagsSet, onlyDirMounted, m)
+		successCode = only_dir_mounting.RunTests(flags, onlyDirMounted, m)
 	}
 
 	if successCode == 0 {
-		successCode = persistent_mounting.RunTests(flagsSet, m)
+		successCode = persistent_mounting.RunTestsWithConfigFile(&cfg.Operations[0], flags, m)
 	}
 
 	if successCode == 0 {
-		successCode = dynamic_mounting.RunTests(ctx, storageClient, flagsSet, m)
+		successCode = dynamic_mounting.RunTests(ctx, storageClient, flags, m)
 	}
 
 	if successCode == 0 {
 		// Test for admin permission on test bucket.
-		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(ctx, storageClient, flagsSet, "objectAdmin", m)
+		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(ctx, storageClient, flags, "objectAdmin", m)
 	}
 
 	os.Exit(successCode)
