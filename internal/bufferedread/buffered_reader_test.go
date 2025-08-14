@@ -1292,6 +1292,33 @@ func (t *BufferedReaderTest) TestReadAtSucceedsWhenBackgroundPrefetchFailsOnGCSE
 	assert.ErrorContains(t.T(), err, "download failed")
 }
 
+func (t *BufferedReaderTest) TestReadAtSubsequentReadAfterFallbackAlsoFallsBack() {
+	t.config.InitialPrefetchBlockCnt = 1
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	reader.randomReadsThreshold = 1 // Set a low threshold for the test.
+	require.NoError(t.T(), err)
+	buf := make([]byte, 10)
+	t.bucket.On("Name").Return("test-bucket").Maybe()
+	// First random read (offset != 0): should succeed and count as 1st random seek.
+	// This will trigger a freshStart, downloading block 2 and prefetching block 3.
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 2*uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), 2*testPrefetchBlockSizeBytes), nil).Once()
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 3*uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), 3*testPrefetchBlockSizeBytes), nil).Once()
+	_, err = reader.ReadAt(t.ctx, buf, 2*testPrefetchBlockSizeBytes)
+	require.NoError(t.T(), err, "Random read #1 should succeed")
+	assert.Equal(t.T(), int64(1), reader.randomSeekCount)
+	// Second random read: should exceed threshold and trigger fallback.
+	_, err = reader.ReadAt(t.ctx, buf, 5*testPrefetchBlockSizeBytes)
+	assert.ErrorIs(t.T(), err, gcsx.FallbackToAnotherReader, "Random read #2 should trigger fallback")
+	assert.Equal(t.T(), int64(2), reader.randomSeekCount)
+
+	// Third read (at any offset): should also fall back immediately because the reader is already in a fallback state.
+	_, err = reader.ReadAt(t.ctx, buf, 0)
+
+	assert.ErrorIs(t.T(), err, gcsx.FallbackToAnotherReader, "Subsequent read should also fallback")
+	assert.Equal(t.T(), int64(2), reader.randomSeekCount, "Random seek count should not change")
+	t.bucket.AssertExpectations(t.T())
+}
+
 func (t *BufferedReaderTest) TestReadAtConcurrentReads() {
 	const (
 		fileSize      = 10 * util.MiB
