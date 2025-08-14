@@ -101,8 +101,12 @@ func withBillingProject(controlClient StorageControlClient, billingProject strin
 
 // exponentialBackoff holds the duration parameters for exponential backoff.
 type exponentialBackoff struct {
-	next       time.Duration
-	max        time.Duration
+	// Duration for next backoff. Capped at max. Returnd by next().
+	next time.Duration
+	// Max duration returned for next back backoff i.e. Next().
+	max time.Duration
+	// The rate at which the backoff duration should grow
+	// over subsequent calls to next().
 	multiplier float64
 }
 
@@ -114,7 +118,7 @@ func newBackoff(initialDuration, maxDuration time.Duration, multiplier float64) 
 	}
 }
 
-// nextDuration calculates the nextDuration backoff duration.
+// nextDuration returns the next backoff duration.
 func (b *exponentialBackoff) nextDuration() time.Duration {
 	next := b.next
 	b.next = min(b.max, time.Duration(float64(b.next)*b.multiplier))
