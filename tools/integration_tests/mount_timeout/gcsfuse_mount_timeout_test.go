@@ -148,19 +148,6 @@ func (testSuite *MountTimeoutTest) TearDownTest() {
 	assert.NoError(testSuite.T(), err)
 }
 
-func (testSuite *NonZBMountTimeoutTest) SetupTest() {
-	testSuite.MountTimeoutTest.SetupTest()
-}
-func (testSuite *NonZBMountTimeoutTest) TearDownTest() {
-	testSuite.MountTimeoutTest.TearDownTest()
-}
-func (testSuite *ZBMountTimeoutTest) SetupTest() {
-	testSuite.MountTimeoutTest.SetupTest()
-}
-func (testSuite *ZBMountTimeoutTest) TearDownTest() {
-	testSuite.MountTimeoutTest.TearDownTest()
-}
-
 // mountOrTimeout mounts the bucket with the given client protocol. If the time taken
 // exceeds the expected for the particular test case , an error is thrown and test will fail.
 func (testSuite *MountTimeoutTest) mountOrTimeout(bucketName, clientProtocol string, expectedMountTime time.Duration) (err error) {
@@ -197,8 +184,8 @@ func (testSuite *MountTimeoutTest) mountOrTimeout(bucketName, clientProtocol str
 	return nil
 }
 
-// unmountAndWait unmounts the given directory and waits until it's no longer a
-// mount point, with a timeout.
+// unmountAndWait unmounts the given directory and waits for the associated
+// resources to be released by polling, with a timeout.
 func unmountAndWait(mountDir string) error {
 	// isMounted checks if a directory is currently a mount point by reading /proc/mounts.
 	isMounted := func(mountPoint string) (bool, error) {
@@ -233,22 +220,21 @@ func unmountAndWait(mountDir string) error {
 	}
 
 	// Poll for up to 5 seconds for the unmount to complete.
-	for range 500; i++ {
-		mounted, err := isMounted(mountDir)
-		if err != nil || !mounted {
-			return err // Success or error checking mount status.
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	timeout := time.After(5 * time.Second)
+
+	for {
+		select {
+		case <-timeout:
+			return fmt.Errorf("timed out waiting for %q to unmount", mountDir)
+		case <-ticker.C:
+			mounted, err := isMounted(mountDir)
+			if err != nil || !mounted {
+				return err // Success or error checking mount status.
+			}
 		}
-		time.Sleep(10 * time.Millisecond)
 	}
-
-	return fmt.Errorf("timed out waiting for %q to unmount", mountDir)
-}
-
-func (testSuite *NonZBMountTimeoutTest) mountOrTimeout(bucketName, clientProtocol string, expectedMountTime time.Duration) error {
-	return testSuite.MountTimeoutTest.mountOrTimeout(bucketName, clientProtocol, expectedMountTime)
-}
-func (testSuite *ZBMountTimeoutTest) mountOrTimeout(bucketName, clientProtocol string, expectedMountTime time.Duration) error {
-	return testSuite.MountTimeoutTest.mountOrTimeout(bucketName, clientProtocol, expectedMountTime)
 }
 
 func (testSuite *NonZBMountTimeoutTest) TestMountMultiRegionUSBucketWithTimeout() {
