@@ -276,7 +276,6 @@ func WriteFilesSequentially(t *testing.T, filePaths []string, fileSize int64, ch
 		assert.NoError(t, err)
 		offset = offset + chunkSize
 	}
-	return
 }
 
 func ReadChunkFromFile(filePath string, chunkSize int64, offset int64, flag int) (chunk []byte, err error) {
