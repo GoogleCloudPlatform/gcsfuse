@@ -474,21 +474,21 @@ func (p *BufferedReader) Destroy() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if p.cancelFunc != nil {
-		p.cancelFunc()
-		p.cancelFunc = nil
-	}
-
 	for !p.blockQueue.IsEmpty() {
 		bqe := p.blockQueue.Pop()
 		bqe.cancel()
 
 		// We expect a context.Canceled error here, but we wait to ensure the
 		// block's worker goroutine has finished before releasing the block.
-		if _, err := bqe.block.AwaitReady(p.ctx); err != nil && err != context.Canceled {
+		if _, err := bqe.block.AwaitReady(context.TODO()); err != nil && err != context.Canceled {
 			logger.Warnf("Destroy: waiting for block on destroy: %v", err)
 		}
 		p.blockPool.Release(bqe.block)
+	}
+
+	if p.cancelFunc != nil {
+		p.cancelFunc()
+		p.cancelFunc = nil
 	}
 
 	err := p.blockPool.ClearFreeBlockChannel(true)
