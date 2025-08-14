@@ -131,7 +131,7 @@ func randomString(length int) string {
 }
 
 func CreateParquetFile(filePath string, targetSizeMB int) error {
-	rand.Seed(time.Now().UnixNano())
+	rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	// Create local file writer
 	fw, err := local.NewLocalFileWriter(filePath)
