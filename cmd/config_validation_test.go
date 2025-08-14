@@ -237,12 +237,12 @@ func TestValidateConfigFile_ReadConfig(t *testing.T) {
 			expectedConfig: &cfg.Config{
 				Read: cfg.ReadConfig{
 					InactiveStreamTimeout: 10 * time.Second,
-					BlockSizeMb:           16,
-					EnableBufferedRead:    false,
-					GlobalMaxBlocks:       20,
-					MaxBlocksPerHandle:    20,
+					BlockSizeMb:           32,
+					EnableBufferedRead:    true,
+					GlobalMaxBlocks:       80,
+					MaxBlocksPerHandle:    14,
 					StartBlocksPerHandle:  1,
-					MinBlocksPerHandle:    4,
+					MinBlocksPerHandle:    2,
 				},
 			},
 		},
