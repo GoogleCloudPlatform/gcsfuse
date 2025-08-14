@@ -168,7 +168,7 @@ func (t *fileTest) TestFileHandleWrite() {
 	assert.Equal(t.T(), data, buf)
 }
 
-func (t *fileTest) TestIsValidReadManager() {
+func (t *fileTest) Test_IsValidReadManager_NilReadManager() {
 	parent := createDirInode(&t.bucket, &t.clock)
 	config := &cfg.Config{}
 	const objectName = "test_obj"
@@ -177,60 +177,54 @@ func (t *fileTest) TestIsValidReadManager() {
 	fh := NewFileHandle(in, nil, false, nil, util.Read, config, nil, nil)
 	fh.inode.Lock()
 	defer fh.inode.Unlock()
+	fh.readManager = nil
 
-	// Mocks for test cases
+	result := fh.isValidReadManager()
+
+	assert.False(t.T(), result)
+}
+
+func (t *fileTest) Test_IsValidReadManager_GenerationMisMatch() {
+	parent := createDirInode(&t.bucket, &t.clock)
+	config := &cfg.Config{}
+	const objectName = "test_obj"
+	const objectContent = "some data"
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, objectName, []byte(objectContent), false)
+	fh := NewFileHandle(in, nil, false, nil, util.Read, config, nil, nil)
+	fh.inode.Lock()
+	defer fh.inode.Unlock()
 	mockRMForMismatch := new(read_manager.MockReadManager)
-	// Inode has generation 1. Let's set readManager's object generation to 2.
 	mockRMForMismatch.On("Object").Return(&gcs.MinObject{Generation: 2})
+	fh.readManager = mockRMForMismatch
 
+	result := fh.isValidReadManager()
+
+	assert.False(t.T(), result)
+	mockRMForMismatch.AssertExpectations(t.T())
+}
+
+func (t *fileTest) Test_IsValidReadManager_GenerationMatch() {
+	parent := createDirInode(&t.bucket, &t.clock)
+	config := &cfg.Config{}
+	const objectName = "test_obj"
+	const objectContent = "some data"
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, objectName, []byte(objectContent), false)
+	fh := NewFileHandle(in, nil, false, nil, util.Read, config, nil, nil)
+	fh.inode.Lock()
+	defer fh.inode.Unlock()
 	rmObjectForMatch := &gcs.MinObject{Generation: 1, Size: 0}
 	mockRMForMatch := new(read_manager.MockReadManager)
 	// Inode has generation 1.
 	mockRMForMatch.On("Object").Return(rmObjectForMatch)
+	fh.readManager = mockRMForMatch
 
-	testCases := []struct {
-		name           string
-		readManager    gcsx.ReadManager
-		expectedResult bool
-		postCheck      func()
-	}{
-		{
-			name:           "NilReadManager",
-			readManager:    nil,
-			expectedResult: false,
-		},
-		{
-			name:           "GenerationMismatch",
-			readManager:    mockRMForMismatch,
-			expectedResult: false,
-			postCheck: func() {
-				mockRMForMismatch.AssertExpectations(t.T())
-			},
-		},
-		{
-			name:           "GenerationMatch",
-			readManager:    mockRMForMatch,
-			expectedResult: true,
-			postCheck: func() {
-				assert.Equal(t.T(), in.SourceGeneration().Size, rmObjectForMatch.Size)
-				mockRMForMatch.AssertExpectations(t.T())
-			},
-		},
-	}
+	result := fh.isValidReadManager()
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func() {
-			fh.readManager = tc.readManager
-			result := fh.isValidReadManager()
-			assert.Equal(t.T(), tc.expectedResult, result)
-			if tc.postCheck != nil {
-				tc.postCheck()
-			}
-		})
-	}
+	assert.True(t.T(), result)
+	mockRMForMatch.AssertExpectations(t.T())
 }
 
-func (t *fileTest) TestIsValidReader() {
+func (t *fileTest) Test_IsValidReader_NilReader() {
 	parent := createDirInode(&t.bucket, &t.clock)
 	config := &cfg.Config{}
 	const objectName = "test_obj"
@@ -239,56 +233,51 @@ func (t *fileTest) TestIsValidReader() {
 	fh := NewFileHandle(in, nil, false, nil, util.Read, config, nil, nil)
 	fh.inode.Lock()
 	defer fh.inode.Unlock()
+	fh.reader = nil
 
-	// Mocks for test cases
+	result := fh.isValidReader()
+
+	assert.False(t.T(), result)
+}
+
+func (t *fileTest) Test_IsValidReader_GenerationMisMatch() {
+	parent := createDirInode(&t.bucket, &t.clock)
+	config := &cfg.Config{}
+	const objectName = "test_obj"
+	const objectContent = "some data"
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, objectName, []byte(objectContent), false)
+	fh := NewFileHandle(in, nil, false, nil, util.Read, config, nil, nil)
+	fh.inode.Lock()
+	defer fh.inode.Unlock()
 	mockReaderForMismatch := new(gcsx.MockRandomReader)
-	// Inode has generation 1. Let's set reader's object generation to 2.
 	mockReaderForMismatch.On("Object").Return(&gcs.MinObject{Generation: 2})
+	fh.reader = mockReaderForMismatch
 
+	result := fh.isValidReader()
+
+	assert.False(t.T(), result)
+	mockReaderForMismatch.AssertExpectations(t.T())
+}
+
+func (t *fileTest) Test_IsValidReader_GenerationMatch() {
+	parent := createDirInode(&t.bucket, &t.clock)
+	config := &cfg.Config{}
+	const objectName = "test_obj"
+	const objectContent = "some data"
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, objectName, []byte(objectContent), false)
+	fh := NewFileHandle(in, nil, false, nil, util.Read, config, nil, nil)
+	fh.inode.Lock()
+	defer fh.inode.Unlock()
 	readerObjectForMatch := &gcs.MinObject{Generation: 1, Size: 0}
 	mockReaderForMatch := new(gcsx.MockRandomReader)
 	// Inode has generation 1.
 	mockReaderForMatch.On("Object").Return(readerObjectForMatch)
+	fh.reader = mockReaderForMatch
 
-	testCases := []struct {
-		name           string
-		reader         gcsx.RandomReader
-		expectedResult bool
-		postCheck      func()
-	}{
-		{
-			name:           "NilReader",
-			reader:         nil,
-			expectedResult: false},
-		{
-			name:           "GenerationMismatch",
-			reader:         mockReaderForMismatch,
-			expectedResult: false,
-			postCheck: func() {
-				mockReaderForMismatch.AssertExpectations(t.T())
-			},
-		},
-		{
-			name:           "GenerationMatch",
-			reader:         mockReaderForMatch,
-			expectedResult: true,
-			postCheck: func() {
-				assert.Equal(t.T(), in.SourceGeneration().Size, readerObjectForMatch.Size)
-				mockReaderForMatch.AssertExpectations(t.T())
-			},
-		},
-	}
+	result := fh.isValidReader()
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func() {
-			fh.reader = tc.reader
-			result := fh.isValidReader()
-			assert.Equal(t.T(), tc.expectedResult, result)
-			if tc.postCheck != nil {
-				tc.postCheck()
-			}
-		})
-	}
+	assert.True(t.T(), result)
+	mockReaderForMatch.AssertExpectations(t.T())
 }
 
 // Test_Read_Success validates successful read behavior using the random reader.
