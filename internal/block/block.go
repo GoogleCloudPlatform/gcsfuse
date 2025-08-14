@@ -79,6 +79,7 @@ func (m *memoryBlock) Cap() int64 {
 func (m *memoryBlock) Read(bytes []byte) (int, error) {
 	if m.readSeek < m.offset.start {
 		return 0, fmt.Errorf("readSeek %d is less than start offset %d", m.readSeek, m.offset.start)
+	}
 
 	if m.readSeek >= m.offset.end {
 		return 0, io.EOF
