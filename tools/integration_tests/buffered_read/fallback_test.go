@@ -40,12 +40,14 @@ type fallbackSuiteBase struct {
 }
 
 func (s *fallbackSuiteBase) SetupSuite() {
-	// Create config file.
 	configFile := createConfigFile(s.testFlags)
-	// Create the final flags slice.
 	flags := []string{"--config-file=" + configFile}
-	// Mount GCSFuse.
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
+}
+
+func (s *fallbackSuiteBase) SetupTest() {
+	err := os.Truncate(setup.LogFile(), 0)
+	require.NoError(s.T(), err, "Failed to truncate log file")
 }
 
 func (s *fallbackSuiteBase) TearDownSuite() {
@@ -73,27 +75,21 @@ type RandomReadFallbackSuite struct {
 // the BufferedReader is not created, and reads fall back to the next reader
 // without any buffered reading.
 func (s *InsufficientPoolCreationSuite) TestNewBufferedReader_InsufficientGlobalPool_NoReaderAdded() {
-	fileSize := 2 * s.testFlags.blockSizeMB * util.MiB
-	chunkSize := int64(1 * util.KiB)
-	err := os.Truncate(setup.LogFile(), 0)
-	require.NoError(s.T(), err, "Failed to truncate log file")
+	fileSize := 3 * s.testFlags.blockSizeMB * util.MiB
+	chunkSize := int64(1 * util.MiB)
 	testDir := setup.SetupTestDirectory(testDirName)
 	fileName := setupFileInTestDir(ctx, storageClient, testDir, fileSize, s.T())
+	filePath := path.Join(testDir, fileName)
 
 	// Open and read the file. Since BufferedReader creation should fail, the read
 	// will be served by the GCSReader.
-	filePath := path.Join(testDir, fileName)
 	content, err := operations.ReadChunkFromFile(filePath, chunkSize, 0, os.O_RDONLY|syscall.O_DIRECT)
+
 	require.NoError(s.T(), err, "Failed to read file")
 	client.ValidateObjectChunkFromGCS(ctx, storageClient, path.Base(testDir), fileName, 0, chunkSize, string(content), s.T())
-
-	// Validate logs.
-	// 1. Check for the warning that BufferedReader creation failed.
-	warningMsg := "creating block-pool: reserving blocks: can't allocate any block from the pool"
+	warningMsg := "Failed to create bufferedReader"
 	found := operations.CheckLogFileForMessage(s.T(), warningMsg, setup.LogFile())
 	assert.True(s.T(), found, "Expected warning message not found in log file")
-
-	// 2. Check that no buffered read logs were generated.
 	logEntries := parseBufferedReadLogs(s.T())
 	assert.Empty(s.T(), logEntries, "Expected no buffered read log entries")
 }
@@ -101,36 +97,26 @@ func (s *InsufficientPoolCreationSuite) TestNewBufferedReader_InsufficientGlobal
 func (s *RandomReadFallbackSuite) TestRandomRead_LargeFile_Fallback() {
 	const randomReadsThreshold = 3
 	blockSizeInBytes := s.testFlags.blockSizeMB * util.MiB
-	// File size is large enough to exceed random seek threshold.
-	fileSize := blockSizeInBytes * (randomReadsThreshold + 1) * 2
+	// The distant block to read is just outside the initial prefetch window.
+	// Initial prefetch window size = (1 + initial_prefetch_blocks) blocks.
+	// So, we read the block at index (initial_prefetch_blocks + 1).
+	distantBlockIndex := s.testFlags.startBlocksPerHandle + 1
+	fileSize := blockSizeInBytes * (distantBlockIndex + 1)
 	chunkSize := int64(1 * util.KiB)
-	err := os.Truncate(setup.LogFile(), 0)
-	require.NoError(s.T(), err, "Failed to truncate log file")
 	testDir := setup.SetupTestDirectory(testDirName)
 	fileName := setupFileInTestDir(ctx, storageClient, testDir, fileSize, s.T())
 	filePath := path.Join(testDir, fileName)
-
-	// Open the file once to get a persistent file handle.
 	f, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, 0)
 	require.NoError(s.T(), err)
 	defer operations.CloseFileShouldNotThrowError(s.T(), f)
+	distantOffset := distantBlockIndex * blockSizeInBytes
 
-	// Perform random reads to trigger fallback.
-	offsets := []int64{5 * blockSizeInBytes, 10 * blockSizeInBytes, 1 * blockSizeInBytes, 15 * blockSizeInBytes}
-	require.Greater(s.T(), len(offsets), randomReadsThreshold, "Number of reads must be greater than randomReadsThreshold")
+	induceRandomReadFallback(s.T(), f, path.Base(testDir), fileName, chunkSize, distantOffset, randomReadsThreshold)
 
-	readBuffer := make([]byte, chunkSize)
-	for _, offset := range offsets {
-		_, err := f.ReadAt(readBuffer, offset)
-		require.NoError(s.T(), err, "ReadAt failed at offset %d", offset)
-		client.ValidateObjectChunkFromGCS(ctx, storageClient, path.Base(testDir), fileName, offset, chunkSize, string(readBuffer), s.T())
-	}
-
-	// Validate logs.
 	bufferedReadLogEntry := parseAndValidateSingleBufferedReadLog(s.T())
 	expected := &Expected{BucketName: setup.TestBucket(), ObjectName: path.Join(path.Base(testDir), fileName)}
 	validate(expected, bufferedReadLogEntry, true, s.T())
-	assert.Equal(s.T(), int64(randomReadsThreshold+1), bufferedReadLogEntry.RandomSeekCount, "RandomSeekCount should match number of random reads.")
+	assert.Equal(s.T(), int64(randomReadsThreshold+1), bufferedReadLogEntry.RandomSeekCount, "RandomSeekCount should be one greater than the threshold.")
 }
 
 func (s *RandomReadFallbackSuite) TestRandomRead_SmallFile_NoFallback() {
@@ -138,22 +124,18 @@ func (s *RandomReadFallbackSuite) TestRandomRead_SmallFile_NoFallback() {
 	// File size is small, less than one block.
 	fileSize := blockSizeInBytes / 2
 	chunkSize := int64(1 * util.KiB)
-	err := os.Truncate(setup.LogFile(), 0)
-	require.NoError(s.T(), err, "Failed to truncate log file")
 	testDir := setup.SetupTestDirectory(testDirName)
 	fileName := setupFileInTestDir(ctx, storageClient, testDir, fileSize, s.T())
 	filePath := path.Join(testDir, fileName)
-
 	f, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, 0)
 	require.NoError(s.T(), err)
 	defer operations.CloseFileShouldNotThrowError(s.T(), f)
-
-	// Perform a couple of reads. The first read (at offset 0) is sequential.
-	// The second read should be served from the prefetched block and not be a random seek.
+	// The first read (at offset 0) is sequential.
 	readAndValidateChunk(f, path.Base(testDir), fileName, 0, chunkSize, s.T())
-	readAndValidateChunk(f, path.Base(testDir), fileName, blockSizeInBytes/4, chunkSize, s.T())
 
-	// Validate logs.
+	// The second read should be served from the prefetched block and not be a random seek.
+	readAndValidateChunk(f, path.Base(testDir), fileName, fileSize/2, chunkSize, s.T())
+
 	bufferedReadLogEntry := parseAndValidateSingleBufferedReadLog(s.T())
 	expected := &Expected{BucketName: setup.TestBucket(), ObjectName: path.Join(path.Base(testDir), fileName)}
 	validate(expected, bufferedReadLogEntry, false, s.T())
@@ -187,14 +169,4 @@ func TestFallbackSuites(t *testing.T) {
 		clientProtocol:       clientProtocolHTTP1,
 	}
 	suite.Run(t, &RandomReadFallbackSuite{fallbackSuiteBase{testFlags: &randomReadFlags}})
-}
-
-func readAndValidateChunk(f *os.File, testDir, fileName string, offset, chunkSize int64, t *testing.T) {
-	t.Helper()
-	readBuffer := make([]byte, chunkSize)
-
-	_, err := f.ReadAt(readBuffer, offset)
-
-	require.NoError(t, err, "ReadAt failed at offset %d", offset)
-	client.ValidateObjectChunkFromGCS(ctx, storageClient, testDir, fileName, offset, chunkSize, string(readBuffer), t)
 }
