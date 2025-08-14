@@ -131,8 +131,6 @@ func randomString(length int) string {
 }
 
 func CreateParquetFile(filePath string, targetSizeMB int) error {
-	rand.New(rand.NewSource(time.Now().UnixNano()))
-
 	// Create local file writer
 	fw, err := local.NewLocalFileWriter(filePath)
 	if err != nil {
@@ -164,13 +162,16 @@ func CreateParquetFile(filePath string, targetSizeMB int) error {
 
 		// Check file size every 10k rows
 		if writtenRows%10_000 == 0 {
-			_ = pw.Flush(true)
+			if err := pw.Flush(true); err != nil {
+				return fmt.Errorf("failed to flush parquet writer: %w", err)
+			}
 			info, err := os.Stat(filePath)
-			if err == nil {
-				sizeMB := info.Size() / (1024 * 1024)
-				if int(sizeMB) >= targetSizeMB {
-					break
-				}
+			if err != nil {
+				return fmt.Errorf("failed to stat parquet file %q: %w", filePath, err)
+			}
+			sizeMB := info.Size() / (1024 * 1024)
+			if int(sizeMB) >= targetSizeMB {
+				break
 			}
 		}
 	}
