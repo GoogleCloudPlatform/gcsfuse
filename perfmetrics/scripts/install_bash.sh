@@ -22,7 +22,7 @@ set -euo pipefail
 if [[ $# -ne 1 ]]; then
     echo "This script requires exactly one argument."
     echo "Usage: $0 <bash-version>"
-    echo "Example: $0 5.1"
+    echo "Example: $0 5.3"
     exit 1
 fi
 
@@ -60,7 +60,7 @@ install_bash() {
     tar -xzf "bash-${BASH_VERSION}.tar.gz"
     cd "bash-${BASH_VERSION}"
     ./configure --prefix="$INSTALL_DIR" --enable-readline
-    make -s
+    make -s -j"$(nproc 2>/dev/null || echo 1)"
     sudo make install
 
     popd
