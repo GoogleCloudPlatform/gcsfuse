@@ -36,7 +36,7 @@ type emptyGcsFileFailureTestSuite struct {
 // //////////////////////////////////////////////////////////////////////
 
 func (t *emptyGcsFileFailureTestSuite) SetupTest() {
-	t.configPath = "../proxy_server/configs/empty_gcs_file_2nd_chunk_upload_returns412.yaml"
+	t.configPath = "../configs/empty_gcs_file_2nd_chunk_upload_returns412.yaml"
 	t.setupTest()
 	// Create an empty file on GCS.
 	CreateObjectInGCSTestDir(t.ctx, t.storageClient, testDirName, FileName1, "", t.T())

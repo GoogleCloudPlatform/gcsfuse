@@ -89,7 +89,7 @@
   config-path: "enable-google-lib-auth"
   type: "bool"
   usage: "Enable google library authentication method to fetch the credentials"
-  default: false
+  default: true
   hide-flag: true
 
 - config-path: "enable-hns"
@@ -797,6 +797,15 @@
     buffered reads. The value should be >= 0 or -1 (for infinite blocks).
     A value of 0 disables buffered reads.
   default: 20
+  hide-flag: true
+
+- config-path: "read.min-blocks-per-handle"
+  flag-name: "read-min-blocks-per-handle"
+  type: "int"
+  usage: >-
+    Specifies the minimum number of blocks required by a file-handle to start
+    reading via buffered reads. The value should be >= 1 or "read-max-blocks-per-handle".
+  default: 4
   hide-flag: true
 
 - config-path: "read.start-blocks-per-handle"

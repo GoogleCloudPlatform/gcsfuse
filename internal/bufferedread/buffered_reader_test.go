@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"sync"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
@@ -39,9 +40,11 @@ import (
 
 const (
 	testMaxPrefetchBlockCnt     int64 = 10
+	testMinBlocksPerHandle      int64 = 2
 	testGlobalMaxBlocks         int64 = 20
 	testPrefetchBlockSizeBytes  int64 = 1024
 	testInitialPrefetchBlockCnt int64 = 2
+	oneTB                       int64 = 1 << 40
 )
 
 type BufferedReaderTest struct {
@@ -112,6 +115,7 @@ func (t *BufferedReaderTest) SetupTest() {
 		MaxPrefetchBlockCnt:     testMaxPrefetchBlockCnt,
 		PrefetchBlockSizeBytes:  testPrefetchBlockSizeBytes,
 		InitialPrefetchBlockCnt: testInitialPrefetchBlockCnt,
+		MinBlocksPerHandle:      testMinBlocksPerHandle,
 	}
 	var err error
 	t.workerPool, err = workerpool.NewStaticWorkerPool(5, 10)
@@ -141,6 +145,79 @@ func (t *BufferedReaderTest) TestNewBufferedReader() {
 	assert.Equal(t.T(), t.metricHandle, reader.metricHandle)
 	assert.NotNil(t.T(), reader.ctx)
 	assert.NotNil(t.T(), reader.cancelFunc)
+}
+
+func (t *BufferedReaderTest) TestNewBufferedReaderReservesRequiredBlocks() {
+	testCases := []struct {
+		name               string
+		objectSize         uint64
+		minBlocksPerHandle int64
+		expectedReserved   int64
+	}{
+		{
+			name:               "SmallFile",
+			objectSize:         uint64(testPrefetchBlockSizeBytes) / 2, // Requires 1 block
+			minBlocksPerHandle: 5,
+			expectedReserved:   1,
+		},
+		{
+			name:               "LargeFile",
+			objectSize:         uint64(testPrefetchBlockSizeBytes) * 10, // Requires 10 blocks
+			minBlocksPerHandle: 5,
+			expectedReserved:   5,
+		},
+		{
+			name:               "ZeroSizeFile",
+			objectSize:         0, // Requires 0 blocks
+			minBlocksPerHandle: 5,
+			expectedReserved:   0,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.object.Size = tc.objectSize
+			t.config.MinBlocksPerHandle = tc.minBlocksPerHandle
+			t.globalMaxBlocksSem = semaphore.NewWeighted(testGlobalMaxBlocks)
+
+			reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+
+			require.NoError(t.T(), err)
+			require.NotNil(t.T(), reader)
+			// Verify that the correct number of blocks were reserved by checking the semaphore's state.
+			assert.True(t.T(), t.globalMaxBlocksSem.TryAcquire(testGlobalMaxBlocks-tc.expectedReserved), "Should acquire remaining permits")
+			assert.False(t.T(), t.globalMaxBlocksSem.TryAcquire(1), "Should not acquire more permits")
+		})
+	}
+}
+
+func (t *BufferedReaderTest) TestNewBufferedReaderFailsWhenPoolAllocationFails() {
+	t.globalMaxBlocksSem = semaphore.NewWeighted(1)
+
+	_, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+
+	require.Error(t.T(), err)
+	assert.ErrorIs(t.T(), err, block.CantAllocateAnyBlockError)
+}
+
+func (t *BufferedReaderTest) TestNewBufferedReaderWithMinimumBlockNotAvailableInPool() {
+	// Simulate no blocks available globally.
+	t.globalMaxBlocksSem = semaphore.NewWeighted(1)
+
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+
+	assert.Error(t.T(), err)
+	assert.ErrorIs(t.T(), err, block.CantAllocateAnyBlockError)
+	assert.Nil(t.T(), reader, "BufferedReader should be nil on error")
+}
+
+func (t *BufferedReaderTest) TestNewBufferedReaderWithZeroBlockSize() {
+	t.config.PrefetchBlockSizeBytes = 0
+
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+
+	assert.ErrorContains(t.T(), err, "PrefetchBlockSizeBytes must be positive")
+	assert.Nil(t.T(), reader, "BufferedReader should be nil on error")
 }
 
 func (t *BufferedReaderTest) TestDestroySuccess() {
@@ -675,6 +752,45 @@ func (t *BufferedReaderTest) TestPrefetchLimitedByAvailableSlots() {
 	t.bucket.AssertExpectations(t.T())
 }
 
+func (t *BufferedReaderTest) TestPrefetchStopsWhenPoolIsExhausted() {
+	// Configure a small pool that will be exhausted, to test the case where
+	// prefetching is not possible.
+	t.config.MaxPrefetchBlockCnt = 4
+	t.config.InitialPrefetchBlockCnt = 2
+	// The global semaphore only has enough permits for the reserved blocks.
+	t.globalMaxBlocksSem = semaphore.NewWeighted(2)
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	// At this point, NewBufferedReader has acquired 2 permits for its reserved blocks.
+	// The global semaphore is now empty.
+	// The first prefetch() call will succeed by allocating the 2 reserved blocks.
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 0 })).Return(createFakeReaderWithOffset(t.T(), 1024, 0), nil).Once()
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 1024 })).Return(createFakeReaderWithOffset(t.T(), 1024, 1024), nil).Once()
+	err = reader.prefetch()
+	require.NoError(t.T(), err)
+	require.Equal(t.T(), 2, reader.blockQueue.Len())
+	assert.Equal(t.T(), int64(4), reader.numPrefetchBlocks, "numPrefetchBlocks should be multiplied after successful prefetch")
+	// The pool has now created 2 blocks (totalBlocks=2), which is its max (maxBlocks=2).
+	// To simulate a state where the pool is exhausted, we drain the queue without
+	// releasing the blocks back to the pool's free channel. We must wait for the
+	// downloads to complete before proceeding.
+	bqe1 := reader.blockQueue.Pop()
+	_, _ = bqe1.block.AwaitReady(t.ctx)
+	bqe2 := reader.blockQueue.Pop()
+	_, _ = bqe2.block.AwaitReady(t.ctx)
+	// Now the blockQueue and freeBlocksCh are empty, but totalBlocks is at its limit.
+
+	// The next prefetch call should attempt to schedule blocks but fail to get
+	// any from the exhausted pool. It should not return an error.
+	err = reader.prefetch()
+
+	require.NoError(t.T(), err, "prefetch should handle block unavailability gracefully")
+	assert.Equal(t.T(), 0, reader.blockQueue.Len(), "No new blocks should have been scheduled")
+	assert.Equal(t.T(), int64(2), reader.nextBlockIndexToPrefetch, "The index should not have advanced")
+	assert.Equal(t.T(), int64(4), reader.numPrefetchBlocks, "numPrefetchBlocks should not increase when prefetch is incomplete")
+	t.bucket.AssertExpectations(t.T())
+}
+
 func (t *BufferedReaderTest) TestReadAtOffsetBeyondEOF() {
 	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
 	require.NoError(t.T(), err)
@@ -928,7 +1044,7 @@ func (t *BufferedReaderTest) TestReadAtExactlyToEndOfFile() {
 	// Read the entire file.
 	resp, err := reader.ReadAt(t.ctx, buf, 0)
 
-	assert.ErrorIs(t.T(), err, io.EOF)
+	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), int(t.object.Size), resp.Size)
 	assertBufferContent(t.T(), buf, 0)
 	t.bucket.AssertExpectations(t.T())
@@ -1067,6 +1183,38 @@ func (t *BufferedReaderTest) TestReadAtFallsBackAfterRandomReads() {
 	t.bucket.AssertExpectations(t.T())
 }
 
+func (t *BufferedReaderTest) TestReadAtFallbackOnFreshStartFailure() {
+	t.config.MaxPrefetchBlockCnt = 2
+	t.config.InitialPrefetchBlockCnt = 2
+	t.globalMaxBlocksSem = semaphore.NewWeighted(2)
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	// Manually exhaust the pool's blocks to simulate a scenario where all blocks are in use.
+	_, err = reader.blockPool.Get()
+	require.NoError(t.T(), err)
+	_, err = reader.blockPool.Get()
+	require.NoError(t.T(), err)
+	t.bucket.On("Name").Return("test-bucket").Maybe()
+
+	_, err = reader.ReadAt(t.ctx, make([]byte, 10), 0)
+
+	assert.ErrorIs(t.T(), err, gcsx.FallbackToAnotherReader, "ReadAt should fall back when freshStart fails to get a block")
+}
+
+func (t *BufferedReaderTest) TestReadAtFallbackOnMmapFailure() {
+	// Configure a huge block size that will likely cause mmap to fail.
+	// This simulates a non-recoverable error during block creation within the
+	// buffered reader, which should cause a fallback.
+	t.config.PrefetchBlockSizeBytes = oneTB
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	t.bucket.On("Name").Return("test-bucket").Maybe()
+
+	_, err = reader.ReadAt(t.ctx, make([]byte, 10), 0)
+
+	assert.ErrorIs(t.T(), err, gcsx.FallbackToAnotherReader, "ReadAt should fall back when mmap fails")
+}
+
 func (t *BufferedReaderTest) TestReadAtExceedsObjectSize() {
 	objectSize := uint64(1536) // 1.5 blocks
 	readOffset := int64(1024)
@@ -1083,8 +1231,127 @@ func (t *BufferedReaderTest) TestReadAtExceedsObjectSize() {
 
 	resp, err := reader.ReadAt(t.ctx, buf, readOffset)
 
-	assert.ErrorIs(t.T(), err, io.EOF)
+	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), 512, resp.Size)
 	assertBufferContent(t.T(), buf[:resp.Size], readOffset)
+	t.bucket.AssertExpectations(t.T())
+}
+
+func (t *BufferedReaderTest) TestReadAtSucceedsWhenBackgroundPrefetchFailsDueToGlobalSem() {
+	// Configure a scenario where the initial read succeeds, but the subsequent
+	// background prefetch fails due to an exhausted global semaphore.
+	t.config.MaxPrefetchBlockCnt = 3
+	t.config.InitialPrefetchBlockCnt = 1
+	t.globalMaxBlocksSem = semaphore.NewWeighted(2)
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 0 })).Return(createFakeReaderWithOffset(t.T(), 1024, 0), nil).Once()
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 1024 })).Return(createFakeReaderWithOffset(t.T(), 1024, 1024), nil).Once()
+	t.bucket.On("Name").Return("test-bucket").Maybe()
+	buf := make([]byte, 1024)
+
+	// The read should succeed. When this read consumes block 0, it will trigger
+	// a background prefetch for block 2, which will fail because the global
+	// semaphore is exhausted. This failure should not affect the foreground read.
+	resp, err := reader.ReadAt(t.ctx, buf, 0)
+
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), 1024, resp.Size)
+	assertBufferContent(t.T(), buf, 0)
+	require.Equal(t.T(), 1, reader.blockQueue.Len())
+	assert.Equal(t.T(), int64(1024), reader.blockQueue.Peek().block.AbsStartOff())
+	t.bucket.AssertExpectations(t.T())
+}
+
+func (t *BufferedReaderTest) TestReadAtSucceedsWhenBackgroundPrefetchFailsOnGCSError() {
+	t.config.MaxPrefetchBlockCnt = 2
+	t.config.InitialPrefetchBlockCnt = 2
+	t.globalMaxBlocksSem = semaphore.NewWeighted(2)
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	// Mock the first block download to succeed, but the second (prefetched) block
+	// to fail with a GCS error.
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 0 })).Return(createFakeReaderWithOffset(t.T(), 1024, 0), nil).Once()
+	gcsError := errors.New("simulated GCS error")
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 1024 })).Return(nil, gcsError).Once()
+	t.bucket.On("Name").Return("test-bucket").Maybe()
+	buf := make([]byte, 10)
+
+	// The initial read should succeed because it reads from the first block, which
+	// was downloaded successfully. The background prefetch failure for the second
+	// block should not affect this call.
+	resp, err := reader.ReadAt(t.ctx, buf, 0)
+
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), 10, resp.Size)
+	assertBufferContent(t.T(), buf, 0)
+	// A subsequent attempt to read the second block (which failed to prefetch)
+	// should return the original GCS error.
+	_, err = reader.ReadAt(t.ctx, buf, 1024)
+	assert.ErrorIs(t.T(), err, gcsError)
+	assert.ErrorContains(t.T(), err, "download failed")
+}
+
+func (t *BufferedReaderTest) TestReadAtConcurrentReads() {
+	const (
+		fileSize      = 10 * util.MiB
+		numGoroutines = 3
+		blockSize     = 1 * util.MiB
+		readSize      = 1 * util.MiB
+	)
+	t.object.Size = fileSize
+	t.config.PrefetchBlockSizeBytes = blockSize
+	t.config.MaxPrefetchBlockCnt = 10
+	t.config.InitialPrefetchBlockCnt = 2 // This will prefetch 2 blocks after the initial one.
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	// Set up mocks for all possible block reads. Because the goroutines run
+	// concurrently, we prepare mocks for all blocks that could be read or
+	// prefetched (2 blocks) and use .Maybe() to allow them to be called in
+	// any order.
+	for i := 0; i <= 8; i++ {
+		start := uint64(i * blockSize)
+		// Create content for this block using the A-Z pattern from the test helpers.
+		blockContent := make([]byte, blockSize)
+		for j := range blockContent {
+			blockContent[j] = byte('A' + ((int(start) + j) % 26))
+		}
+		t.bucket.On("NewReaderWithReadHandle",
+			mock.Anything,
+			mock.MatchedBy(func(req *gcs.ReadObjectRequest) bool {
+				return req.Range.Start == start
+			}),
+		).Return(&fake.FakeReader{ReadCloser: io.NopCloser(bytes.NewReader(blockContent))}, nil).Maybe()
+	}
+	t.bucket.On("Name").Return("test-bucket").Maybe()
+	var wg sync.WaitGroup
+	wg.Add(numGoroutines)
+	results := make([][]byte, numGoroutines)
+
+	// Each go routine will read different range to avoid duplicate calls for same range.
+	// That's why we are multiplying by 3 to have offset 3 blocks apart.
+	var readIndex = 3
+	for i := 0; i < numGoroutines; i++ {
+		go func(index int) {
+			defer wg.Done()
+			offset := int64(index * readIndex * readSize)
+			readBuf := make([]byte, readSize)
+
+			resp, err := reader.ReadAt(t.ctx, readBuf, offset)
+
+			require.NoError(t.T(), err)
+			require.Equal(t.T(), readSize, resp.Size)
+			// Copy the result to a new slice to avoid data races on readBuf.
+			results[index] = make([]byte, readSize)
+			copy(results[index], readBuf)
+		}(i)
+	}
+
+	wg.Wait()
+	// Verify the results from all goroutines individually.
+	for i, res := range results {
+		offset := int64(i * readIndex * readSize)
+		assertBufferContent(t.T(), res, offset)
+	}
 	t.bucket.AssertExpectations(t.T())
 }

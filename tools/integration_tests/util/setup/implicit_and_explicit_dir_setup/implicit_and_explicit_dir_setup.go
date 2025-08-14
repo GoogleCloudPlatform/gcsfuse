@@ -28,6 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 	"github.com/stretchr/testify/require"
 )
 
@@ -45,6 +46,32 @@ const FirstFileInExplicitDirectory = "fileInExplicitDir1"
 const SecondFileInExplicitDirectory = "fileInExplicitDir2"
 const FileInImplicitDirectory = "fileInImplicitDir1"
 const FileInImplicitSubDirectory = "fileInImplicitDir2"
+
+func RunTestsForExplicitDir(config *test_suite.TestConfig, flags [][]string, m *testing.M) int {
+	if config == nil {
+		log.Println("config is nil")
+		return 1
+	}
+
+	if config.MountedDirectory != "" && config.TestBucket != "" {
+		successCode := setup.RunTestsForMountedDirectory(config.MountedDirectory, m)
+		return successCode
+	}
+
+	// Run tests for testBucket only if --testbucket flag is set.
+	if config.TestBucket == "" {
+		log.Print("pass test bucket to run the tests")
+		return 1
+	}
+	setup.SetUpTestDirForTestBucket(config.TestBucket)
+
+	successCode := static_mounting.RunTestsWithConfigFile(config, flags, m)
+
+	if successCode == 0 {
+		successCode = persistent_mounting.RunTestsWithConfigFile(config, flags, m)
+	}
+	return successCode
+}
 
 func RunTestsForImplicitDirAndExplicitDir(flags [][]string, m *testing.M) int {
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()

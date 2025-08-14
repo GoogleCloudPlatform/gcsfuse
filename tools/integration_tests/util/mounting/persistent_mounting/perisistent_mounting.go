@@ -22,6 +22,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 // Change e.g --log_severity=trace to log_severity=trace
@@ -39,8 +40,8 @@ func makePersistentMountingArgs(flags []string) (args []string) {
 	return
 }
 
-func mountGcsfuseWithPersistentMounting(flags []string) (err error) {
-	defaultArg := []string{setup.TestBucket(),
+func mountGcsfuseWithPersistentMountingWithConfigFile(config *test_suite.TestConfig, flags []string) (err error) {
+	defaultArg := []string{config.TestBucket,
 		setup.MntDir(),
 		"-o",
 		"log_severity=trace",
@@ -60,11 +61,11 @@ func mountGcsfuseWithPersistentMounting(flags []string) (err error) {
 	return err
 }
 
-func executeTestsForPersistentMounting(flagsSet [][]string, m *testing.M) (successCode int) {
+func executeTestsForPersistentMountingWithConfigFile(config *test_suite.TestConfig, flagsSet [][]string, m *testing.M) (successCode int) {
 	var err error
 
 	for i := 0; i < len(flagsSet); i++ {
-		if err = mountGcsfuseWithPersistentMounting(flagsSet[i]); err != nil {
+		if err = mountGcsfuseWithPersistentMountingWithConfigFile(config, flagsSet[i]); err != nil {
 			setup.LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
 		}
 		log.Printf("Running persistent mounting tests with flags: %s", flagsSet[i])
@@ -76,12 +77,20 @@ func executeTestsForPersistentMounting(flagsSet [][]string, m *testing.M) (succe
 	return
 }
 
+// Deprecated: Use RunTestsWithConfigFile instead.
+// TODO(b/438068132): cleanup deprecated methods after migration is complete.
 func RunTests(flagsSet [][]string, m *testing.M) (successCode int) {
+	config := &test_suite.TestConfig{
+		TestBucket:       setup.TestBucket(),
+		MountedDirectory: setup.MountedDirectory(),
+		LogFile:          setup.LogFile(),
+	}
+	return RunTestsWithConfigFile(config, flagsSet, m)
+}
+
+func RunTestsWithConfigFile(config *test_suite.TestConfig, flagsSet [][]string, m *testing.M) (successCode int) {
 	log.Println("Running persistent mounting tests...")
-
-	successCode = executeTestsForPersistentMounting(flagsSet, m)
-
+	successCode = executeTestsForPersistentMountingWithConfigFile(config, flagsSet, m)
 	log.Printf("Test log: %s\n", setup.LogFile())
-
 	return successCode
 }

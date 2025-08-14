@@ -272,6 +272,8 @@ type ReadConfig struct {
 
 	MaxBlocksPerHandle int64 `yaml:"max-blocks-per-handle"`
 
+	MinBlocksPerHandle int64 `yaml:"min-blocks-per-handle"`
+
 	StartBlocksPerHandle int64 `yaml:"start-blocks-per-handle"`
 }
 
@@ -399,7 +401,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("enable-google-lib-auth", "", false, "Enable google library authentication method to fetch the credentials")
+	flagSet.BoolP("enable-google-lib-auth", "", true, "Enable google library authentication method to fetch the credentials")
 
 	if err := flagSet.MarkHidden("enable-google-lib-auth"); err != nil {
 		return err
@@ -656,6 +658,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.IntP("read-max-blocks-per-handle", "", 20, "Specifies the maximum number of blocks to be used by a single file handle for  buffered reads. The value should be >= 0 or -1 (for infinite blocks). A value of 0 disables buffered reads.")
 
 	if err := flagSet.MarkHidden("read-max-blocks-per-handle"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("read-min-blocks-per-handle", "", 4, "Specifies the minimum number of blocks required by a file-handle to start reading via buffered reads. The value should be >= 1 or \"read-max-blocks-per-handle\".")
+
+	if err := flagSet.MarkHidden("read-min-blocks-per-handle"); err != nil {
 		return err
 	}
 
@@ -1093,6 +1101,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("read.max-blocks-per-handle", flagSet.Lookup("read-max-blocks-per-handle")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.min-blocks-per-handle", flagSet.Lookup("read-min-blocks-per-handle")); err != nil {
 		return err
 	}
 

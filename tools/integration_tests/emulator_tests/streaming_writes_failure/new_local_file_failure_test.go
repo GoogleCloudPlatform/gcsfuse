@@ -34,7 +34,7 @@ type newLocalFileFailureTestSuite struct {
 // //////////////////////////////////////////////////////////////////////
 
 func (t *newLocalFileFailureTestSuite) SetupTest() {
-	t.configPath = "../proxy_server/configs/local_file_2nd_chunk_upload_returns412.yaml"
+	t.configPath = "../configs/local_file_2nd_chunk_upload_returns412.yaml"
 	t.setupTest()
 	// Create local file.
 	t.filePath, t.fh1 = CreateLocalFileInTestDir(t.ctx, t.storageClient, t.testDirPath, FileName1, t.T())

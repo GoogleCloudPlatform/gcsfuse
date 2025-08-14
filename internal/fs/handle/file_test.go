@@ -22,10 +22,9 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"sync"
 	"testing"
 	"time"
-
-	"sync"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
@@ -35,10 +34,12 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/sync/semaphore"
 )
@@ -903,4 +904,99 @@ func (t *fileTest) TestUnlockHandleAndInode_RUnlock() {
 	case <-time.After(1 * time.Second):
 		t.T().Fatal("Potential deadlock detected: locks were not released for read lock.")
 	}
+}
+
+func (t *fileTest) Test_ReadWithReadManager_FullReadSuccessWithBufferedRead() {
+	const (
+		fileSize = 1 * 1024 * 1024 // 1 MiB
+	)
+	expectedData := make([]byte, fileSize)
+	for i := 0; i < fileSize; i++ {
+		expectedData[i] = byte(i % 256)
+	}
+	// Setup for Buffered Read test case
+	config := &cfg.Config{
+		Read: cfg.ReadConfig{
+			EnableBufferedRead:   true,
+			MaxBlocksPerHandle:   10,
+			BlockSizeMb:          1,
+			StartBlocksPerHandle: 2,
+		},
+	}
+	workerPool, err := workerpool.NewStaticWorkerPoolForCurrentCPU()
+	require.NoError(t.T(), err)
+	defer workerPool.Stop()
+	globalSemaphore := semaphore.NewWeighted(20) // Sufficient blocks for the test
+	parent := createDirInode(&t.bucket, &t.clock)
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "read_obj", expectedData, false)
+	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, config, workerPool, globalSemaphore)
+	fh.inode.Lock()
+	buf := make([]byte, fileSize)
+
+	// ReadWithReadManager will unlock the inode.
+	output, n, err := fh.ReadWithReadManager(context.Background(), buf, 0, 200)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), fileSize, n)
+	assert.Equal(t.T(), expectedData, output)
+}
+
+func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() {
+	const (
+		fileSize      = 9 * 1024 * 1024 // 9 MiB
+		numGoroutines = 3
+	)
+	// Create expected data for the file.
+	expectedData := make([]byte, fileSize)
+	for i := 0; i < fileSize; i++ {
+		expectedData[i] = byte(i % 256)
+	}
+	// Setup configuration for buffered read.
+	config := &cfg.Config{
+		Read: cfg.ReadConfig{
+			EnableBufferedRead:   true,
+			MaxBlocksPerHandle:   10,
+			StartBlocksPerHandle: 2,
+			BlockSizeMb:          1,
+		},
+	}
+	workerPool, err := workerpool.NewStaticWorkerPoolForCurrentCPU()
+	require.NoError(t.T(), err)
+	defer workerPool.Stop()
+	globalSemaphore := semaphore.NewWeighted(20)
+	// Create mock inode and file handle.
+	parent := createDirInode(&t.bucket, &t.clock)
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "read_obj", expectedData, false)
+	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, config, workerPool, globalSemaphore)
+	// Use a WaitGroup to synchronize goroutines.
+	var wg sync.WaitGroup
+	wg.Add(numGoroutines)
+	readSize := fileSize / numGoroutines
+	results := make([][]byte, numGoroutines)
+	for i := 0; i < numGoroutines; i++ {
+		go func(index int) {
+			defer wg.Done()
+			offset := int64(index * readSize)
+			readBuf := make([]byte, readSize)
+			fh.inode.Lock()
+
+			// Each goroutine use same file handle.
+			output, n, err := fh.ReadWithReadManager(context.Background(), readBuf, offset, int32(readSize))
+
+			assert.NoError(t.T(), err)
+			assert.Equal(t.T(), readSize, n)
+			results[index] = output
+		}(i)
+	}
+	// Wait for all goroutines to finish.
+	wg.Wait()
+	// Combine the results from all goroutines.
+	combinedResult := make([]byte, 0, fileSize)
+	for _, res := range results {
+		combinedResult = append(combinedResult, res...)
+	}
+	// Final assertion: compare the combined result with the original expected data.
+	assert.Equal(t.T(), expectedData, combinedResult, "Combined result should match expected data.")
+	// Clean up the original file handle.
+	fh.Destroy()
 }

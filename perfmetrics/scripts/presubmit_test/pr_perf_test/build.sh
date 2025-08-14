@@ -22,7 +22,7 @@ readonly EXECUTE_PACKAGE_BUILD_TEST_LABEL="execute-package-build-tests"
 readonly EXECUTE_CHECKPOINT_TEST_LABEL="execute-checkpoint-test"
 readonly BUCKET_LOCATION=us-west4
 readonly GO_VERSION="1.24.5"
-readonly REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT="5.1"
+readonly REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT="5.3"
 
 curl https://api.github.com/repos/GoogleCloudPlatform/gcsfuse/pulls/$KOKORO_GITHUB_PULL_REQUEST_NUMBER >> pr.json
 perfTest=$(grep "$EXECUTE_PERF_TEST_LABEL" pr.json)

@@ -22,7 +22,7 @@ set -euo pipefail
 if [[ $# -ne 1 ]]; then
     echo "This script requires exactly one argument."
     echo "Usage: $0 <bash-version>"
-    echo "Example: $0 5.1"
+    echo "Example: $0 5.3"
     exit 1
 fi
 
@@ -50,6 +50,8 @@ install_dependencies() {
 
 # Function to download, compile, and install Bash
 install_bash() {
+    (
+    set -euo pipefail
     local temp_dir
     temp_dir=$(mktemp -d /tmp/bash_install_src.XXXXXX)
     pushd "$temp_dir"
@@ -63,6 +65,7 @@ install_bash() {
 
     popd
     rm -rf "$temp_dir"
+    )
 }
 
 echo "Installing bash version ${BASH_VERSION} to ${INSTALL_DIR}bin/bash"
@@ -70,8 +73,11 @@ INSTALLATION_LOG=$(mktemp /tmp/bash_install_log.XXXXXX)
 
 # Installing dependencies before installing Bash
 install_dependencies
-
-if ! install_bash >"$INSTALLATION_LOG" 2>&1; then
+set +e
+install_bash >"$INSTALLATION_LOG" 2>&1
+installation_status=$?
+set -e
+if [[ $installation_status -ne 0 ]]; then
     echo "Error: Bash version ${BASH_VERSION} installation failed."
     cat "$INSTALLATION_LOG"
     rm -f "$INSTALLATION_LOG"

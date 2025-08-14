@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"regexp"
 	"strings"
 )
@@ -26,6 +25,7 @@ import (
 var readFileRegex = regexp.MustCompile(`fuse_debug: Op (0x[0-9a-fA-F]+)\s+connection\.go:\d+\] <- ReadFile \(inode (\d+), PID (\d+), handle (\d+), offset (\d+), (\d+) bytes\)`)
 var readAtReqRegex = regexp.MustCompile(`([a-f0-9-]+) <- ReadAt\(([^:]+):/([^,]+), (\d+), (\d+), (\d+), (\d+)\)`)
 var readAtSimpleRespRegex = regexp.MustCompile(`([a-f0-9-]+) -> ReadAt\(\): Ok\(([0-9.]+(?:s|ms|µs))\)`)
+var fallbackFromHandleRegex = regexp.MustCompile(`Fallback to another reader for object "[^"]+", handle (\d+)\.(?: Random seek count (\d+) exceeded threshold \d+\.)?`)
 
 // ParseBufferedReadLogsFromLogReader parses buffered read logs from an io.Reader and
 // returns a map of BufferedReadLogEntry keyed by file handle.
@@ -88,8 +88,7 @@ func filterAndParseLogLineForBufferedRead(
 
 	jsonLog := make(map[string]interface{})
 	if err := json.Unmarshal([]byte(logLine), &jsonLog); err != nil {
-		log.Printf("filterAndParseLogLineForBufferedRead: failed to unmarshal log line: %s, error: %v", logLine, err)
-		return nil // Silently ignore the bufferedReadLogsMap which are not in JSON format.
+		return nil // Silently ignore the logs which are not in JSON format.
 	}
 
 	if _, ok := jsonLog["timestamp"]; !ok {
@@ -118,6 +117,41 @@ func filterAndParseLogLineForBufferedRead(
 		if err := parseReadAtResponseLog(logMessage, bufferedReadLogsMap, opReverseMap); err != nil {
 			return fmt.Errorf("parseReadAtResponseLog failed: %v", err)
 		}
+	case strings.Contains(logMessage, "Fallback to another reader for object"):
+		if err := parseFallbackLogFromHandle(logMessage, bufferedReadLogsMap); err != nil {
+			return fmt.Errorf("parseFallbackLogFromHandle failed: %v", err)
+		}
+	}
+	return nil
+}
+
+func parseFallbackLogFromHandle(
+	logMessage string,
+	bufferedReadLogsMap map[int64]*BufferedReadLogEntry) error {
+
+	matches := fallbackFromHandleRegex.FindStringSubmatch(logMessage)
+	if len(matches) < 2 {
+		// Not a fallback log we are interested in, might be from a different reader.
+		return nil
+	}
+
+	handleID, err := parseToInt64(matches[1])
+	if err != nil {
+		return fmt.Errorf("invalid handle ID in fallback log: %v", err)
+	}
+
+	logEntry, ok := bufferedReadLogsMap[handleID]
+	if !ok {
+		return fmt.Errorf("log entry for handle %d not found for fallback log", handleID)
+	}
+
+	logEntry.Fallback = true
+	if len(matches) > 2 && matches[2] != "" {
+		randomSeekCount, err := parseToInt64(matches[2])
+		if err != nil {
+			return fmt.Errorf("invalid random seek count in fallback log: %v", err)
+		}
+		logEntry.RandomSeekCount = randomSeekCount
 	}
 	return nil
 }

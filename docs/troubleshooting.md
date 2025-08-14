@@ -31,6 +31,12 @@ Run ```gcloud auth application-default login``` command to fetch default credent
 
 It’s a generic error, but the most probable culprit is the bucket not having the right permission for Cloud Storage FUSE to operate on. Ref - [here](https://stackoverflow.com/questions/36382704/gcsfuse-input-output-error)
 
+### Stale File Handle Error (ESTALE)
+
+This error occurs when GCSFuse detects that a file has been modified or deleted on GCS by another process or mount since it was opened. This is a data integrity feature that prioritizes providing clear indications of potential conflicts, preventing silent data loss.
+
+To avoid this, it's best to prevent multiple sources from modifying the same object simultaneously. For a detailed explanation of the scenarios that can cause this error, please refer to the [Stale File Handle Errors](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#stale-file-handle-errors) section in our semantics documentation.
+
 ### Generic NO_PUBKEY Error - while installing Cloud Storage FUSE on ubuntu 22.04
 
 It happens while running - ```sudo apt-get update``` - working on installing Cloud Storage FUSE. You just have to add the pubkey you get in the error using the below command: ```sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys <PUBKEY> ``` And then try running ```sudo apt-get update```

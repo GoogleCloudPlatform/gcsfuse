@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -43,6 +44,7 @@ type BufferedReadConfig struct {
 	MaxPrefetchBlockCnt     int64 // Maximum number of blocks that can be prefetched.
 	PrefetchBlockSizeBytes  int64 // Size of each block to be prefetched.
 	InitialPrefetchBlockCnt int64 // Number of blocks to prefetch initially.
+	MinBlocksPerHandle      int64 // Minimum number of blocks available in block-pool to start buffered-read.
 }
 
 const (
@@ -76,13 +78,9 @@ type BufferedReader struct {
 	// prefetching operation.
 	numPrefetchBlocks int64
 
-	blockQueue common.Queue[*blockQueueEntry]
+	metricHandle metrics.MetricHandle
 
 	readHandle []byte // For zonal bucket.
-
-	blockPool    *block.GenBlockPool[block.PrefetchBlock]
-	workerPool   workerpool.WorkerPool
-	metricHandle metrics.MetricHandle
 
 	ctx        context.Context
 	cancelFunc context.CancelFunc
@@ -90,14 +88,41 @@ type BufferedReader struct {
 	prefetchMultiplier int64 // Multiplier for number of blocks to prefetch.
 
 	randomReadsThreshold int64 // Number of random reads after which the reader falls back to another reader.
+
+	// `mu` synchronizes access to the buffered reader's shared state.
+	// All shared variables, such as the block pool and queue, require this lock before any operation.
+	mu sync.Mutex
+
+	// GUARDED by (mu)
+	workerPool workerpool.WorkerPool
+
+	// blockQueue is the core of the prefetching pipeline, holding blocks that are
+	// either downloaded or in the process of being downloaded.
+	// GUARDED by (mu)
+	blockQueue common.Queue[*blockQueueEntry]
+
+	// blockPool is a pool of blocks that can be reused for prefetching.
+	// It is used to avoid allocating new blocks for each prefetch operation.
+	// The pool is initialized with a maximum number of blocks that can be
+	// prefetched at a time, and it allows for efficient reuse of blocks.
+	// The pool is also responsible for managing the global limit on the number
+	// of blocks that can be allocated across all BufferedReader instances.
+	// GUARDED by (mu)
+	blockPool *block.GenBlockPool[block.PrefetchBlock]
 }
 
 // NewBufferedReader returns a new bufferedReader instance.
 func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *BufferedReadConfig, globalMaxBlocksSem *semaphore.Weighted, workerPool workerpool.WorkerPool, metricHandle metrics.MetricHandle) (*BufferedReader, error) {
-	// TODO: To pass the minimum required block-count based on the block-size.
-	blockpool, err := block.NewPrefetchBlockPool(config.PrefetchBlockSizeBytes, config.MaxPrefetchBlockCnt, 2, globalMaxBlocksSem)
+	if config.PrefetchBlockSizeBytes <= 0 {
+		return nil, fmt.Errorf("NewBufferedReader: PrefetchBlockSizeBytes must be positive, but is %d", config.PrefetchBlockSizeBytes)
+	}
+	// To optimize resource usage, reserve only the number of blocks required for
+	// the file, capped by the configured minimum.
+	blocksInFile := (int64(object.Size) + config.PrefetchBlockSizeBytes - 1) / config.PrefetchBlockSizeBytes
+	numBlocksToReserve := min(blocksInFile, config.MinBlocksPerHandle)
+	blockpool, err := block.NewPrefetchBlockPool(config.PrefetchBlockSizeBytes, config.MaxPrefetchBlockCnt, numBlocksToReserve, globalMaxBlocksSem)
 	if err != nil {
-		return nil, fmt.Errorf("NewBufferedReader: failed to create block-pool: %w", err)
+		return nil, fmt.Errorf("NewBufferedReader: creating block-pool: %w", err)
 	}
 
 	reader := &BufferedReader{
@@ -123,8 +148,9 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 // random if the requested offset is outside the currently prefetched window.
 // If the number of detected random reads exceeds a configured threshold, it
 // returns a gcsx.FallbackToAnotherReader error to signal that another reader
-// should be used.
-func (p *BufferedReader) handleRandomRead(offset int64) error {
+// should be used. It takes handleID for logging purposes.
+// LOCKS_REQUIRED(p.mu)
+func (p *BufferedReader) handleRandomRead(offset int64, handleID int64) error {
 	// Exit early if we have already decided to fall back to another reader.
 	// This avoids re-evaluating the read pattern on every call when the random
 	// read threshold has been met.
@@ -145,13 +171,13 @@ func (p *BufferedReader) handleRandomRead(offset int64) error {
 		entry := p.blockQueue.Pop()
 		entry.cancel()
 		if _, waitErr := entry.block.AwaitReady(context.Background()); waitErr != nil {
-			logger.Warnf("handleRandomRead: AwaitReady error during discard (offset=%d): %v", offset, waitErr)
+			logger.Warnf("handleRandomRead: AwaitReady during discard (offset=%d): %v", offset, waitErr)
 		}
 		p.blockPool.Release(entry.block)
 	}
 
 	if p.randomSeekCount > p.randomReadsThreshold {
-		logger.Warnf("handleRandomRead: random seek count %d exceeded threshold %d, falling back to another reader", p.randomSeekCount, p.randomReadsThreshold)
+		logger.Warnf("Fallback to another reader for object %q, handle %d. Random seek count %d exceeded threshold %d.", p.object.Name, handleID, p.randomSeekCount, p.randomReadsThreshold)
 		return gcsx.FallbackToAnotherReader
 	}
 
@@ -159,6 +185,7 @@ func (p *BufferedReader) handleRandomRead(offset int64) error {
 }
 
 // isRandomSeek checks if the read for the given offset is random or not.
+// LOCKS_REQUIRED(p.mu)
 func (p *BufferedReader) isRandomSeek(offset int64) bool {
 	if p.blockQueue.IsEmpty() {
 		return offset != 0
@@ -178,6 +205,7 @@ func (p *BufferedReader) isRandomSeek(offset int64) bool {
 // seeks (both forward and backward) that land outside the current block.
 // For each discarded block, its download is cancelled, and it is returned to
 // the block pool.
+// LOCKS_REQUIRED(p.mu)
 func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 	for !p.blockQueue.IsEmpty() {
 		entry := p.blockQueue.Peek()
@@ -191,7 +219,7 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 			entry.cancel()
 
 			if _, waitErr := block.AwaitReady(context.Background()); waitErr != nil {
-				logger.Warnf("prepareQueueForOffset: AwaitReady error during discard (offset=%d): %v", offset, waitErr)
+				logger.Warnf("prepareQueueForOffset: AwaitReady during discard (offset=%d): %v", offset, waitErr)
 			}
 
 			p.blockPool.Release(block)
@@ -221,6 +249,8 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 //     prefetch operation is triggered to keep the pipeline full.
 //  5. The loop continues until the buffer is full, the end of the file is
 //     reached, or an error occurs.
+//
+// LOCKS_EXCLUDED(p.mu)
 func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64) (gcsx.ReaderResponse, error) {
 	resp := gcsx.ReaderResponse{DataBuf: inputBuf}
 	reqID := uuid.New()
@@ -245,6 +275,9 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		return resp, nil
 	}
 
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	defer func() {
 		dur := time.Since(start)
 		if err == nil || errors.Is(err, io.EOF) {
@@ -252,8 +285,8 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		}
 	}()
 
-	if err = p.handleRandomRead(off); err != nil {
-		err = fmt.Errorf("ReadAt: handleRandomRead failed: %w", err)
+	if err = p.handleRandomRead(off, handleID); err != nil {
+		err = fmt.Errorf("BufferedReader.ReadAt: handleRandomRead: %w", err)
 		return resp, err
 	}
 
@@ -264,11 +297,8 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 		if p.blockQueue.IsEmpty() {
 			if err = p.freshStart(off); err != nil {
-				if errors.Is(err, ErrPrefetchBlockNotAvailable) {
-					return resp, gcsx.FallbackToAnotherReader
-				}
-				err = fmt.Errorf("BufferedReader.ReadAt: freshStart failed: %w", err)
-				break
+				logger.Warnf("Fallback to another reader for object %q, handle %d, due to freshStart failure: %v", p.object.Name, handleID, err)
+				return resp, gcsx.FallbackToAnotherReader
 			}
 			prefetchTriggered = true
 		}
@@ -278,7 +308,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 		status, waitErr := blk.AwaitReady(ctx)
 		if waitErr != nil {
-			err = fmt.Errorf("BufferedReader.ReadAt: AwaitReady failed: %w", waitErr)
+			err = fmt.Errorf("BufferedReader.ReadAt: AwaitReady: %w", waitErr)
 			break
 		}
 
@@ -307,7 +337,6 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		}
 
 		if off >= int64(p.object.Size) {
-			err = io.EOF
 			break
 		}
 
@@ -330,39 +359,54 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 // prefetch schedules the next set of blocks for prefetching starting from
 // the nextBlockIndexToPrefetch.
+// LOCKS_REQUIRED(p.mu)
 func (p *BufferedReader) prefetch() error {
-	// Do not schedule more than MaxPrefetchBlockCnt.
+	// Determine the number of blocks to prefetch in this cycle, respecting the
+	// MaxPrefetchBlockCnt and the number of blocks remaining in the file.
 	availableSlots := p.config.MaxPrefetchBlockCnt - int64(p.blockQueue.Len())
 	if availableSlots <= 0 {
 		return nil
 	}
-	blockCountToPrefetch := min(p.numPrefetchBlocks, availableSlots)
+	totalBlockCount := (int64(p.object.Size) + p.config.PrefetchBlockSizeBytes - 1) / p.config.PrefetchBlockSizeBytes
+	remainingBlocksInFile := totalBlockCount - p.nextBlockIndexToPrefetch
+	blockCountToPrefetch := min(min(p.numPrefetchBlocks, availableSlots), remainingBlocksInFile)
 	if blockCountToPrefetch <= 0 {
 		return nil
 	}
 
-	totalBlockCount := (int64(p.object.Size) + p.config.PrefetchBlockSizeBytes - 1) / p.config.PrefetchBlockSizeBytes
+	allBlocksScheduledSuccessfully := true
 	for i := int64(0); i < blockCountToPrefetch; i++ {
-		if p.nextBlockIndexToPrefetch >= totalBlockCount {
-			break
-		}
 		if err := p.scheduleNextBlock(false); err != nil {
-			return fmt.Errorf("prefetch: failed to schedule block index %d: %v", p.nextBlockIndexToPrefetch, err)
+			if errors.Is(err, ErrPrefetchBlockNotAvailable) {
+				// This is not a critical error for a background prefetch. We just stop
+				// trying to prefetch more in this cycle. The specific reason has
+				// already been logged by scheduleNextBlock.
+				allBlocksScheduledSuccessfully = false
+				break // Stop prefetching more blocks.
+			}
+			return fmt.Errorf("prefetch: scheduling block index %d: %w", p.nextBlockIndexToPrefetch, err)
 		}
 	}
 
-	// Set the size for the next multiplicative prefetch.
-	p.numPrefetchBlocks *= p.prefetchMultiplier
+	// Only increase the prefetch window size if we successfully scheduled all the
+	// intended blocks. This is a more conservative approach that prevents the
+	// window from growing aggressively if block pool is consistently under pressure.
+	if allBlocksScheduledSuccessfully {
+		// Set the size for the next multiplicative prefetch.
+		p.numPrefetchBlocks *= p.prefetchMultiplier
 
-	// Do not prefetch more than MaxPrefetchBlockCnt blocks.
-	if p.numPrefetchBlocks > p.config.MaxPrefetchBlockCnt {
-		p.numPrefetchBlocks = p.config.MaxPrefetchBlockCnt
+		// Cap the prefetch window size for the next cycle at the configured
+		// maximum to prevent unbounded growth.
+		if p.numPrefetchBlocks > p.config.MaxPrefetchBlockCnt {
+			p.numPrefetchBlocks = p.config.MaxPrefetchBlockCnt
+		}
 	}
 	return nil
 }
 
 // freshStart resets the prefetching state and schedules the initial set of
 // blocks starting from the given offset.
+// LOCKS_REQUIRED(p.mu)
 func (p *BufferedReader) freshStart(currentOffset int64) error {
 	blockIndex := currentOffset / p.config.PrefetchBlockSizeBytes
 	p.nextBlockIndexToPrefetch = blockIndex
@@ -372,39 +416,45 @@ func (p *BufferedReader) freshStart(currentOffset int64) error {
 
 	// Schedule the first block as urgent.
 	if err := p.scheduleNextBlock(true); err != nil {
-		return fmt.Errorf("freshStart: while scheduling first block: %w", err)
+		return fmt.Errorf("freshStart: scheduling first block: %w", err)
 	}
 
 	// Prefetch the initial blocks.
 	if err := p.prefetch(); err != nil {
-		return fmt.Errorf("freshStart: while prefetching: %w", err)
+		// A failure during the initial prefetch is not fatal, as the first block
+		// has already been scheduled. Log the error and continue.
+		logger.Warnf("freshStart: initial prefetch: %v", err)
 	}
 	return nil
 }
 
 // scheduleNextBlock schedules the next block for prefetch.
+// LOCKS_REQUIRED(p.mu)
 func (p *BufferedReader) scheduleNextBlock(urgent bool) error {
 	b, err := p.blockPool.TryGet()
-	if err != nil || b == nil {
-		if err != nil {
-			logger.Warnf("scheduleNextBlock: failed to get block from pool: %v", err)
-		}
+	if err != nil {
+		// Any error from TryGet (e.g., pool exhausted, mmap failure) means we
+		// can't get a block. For the buffered reader, this is a recoverable
+		// condition that should either trigger a fallback to another reader (for
+		// urgent reads) or be ignored (for background prefetches).
+		logger.Warnf("scheduleNextBlock: could not get block from pool (urgent=%t): %v", urgent, err)
 		return ErrPrefetchBlockNotAvailable
 	}
 
 	if err := p.scheduleBlockWithIndex(b, p.nextBlockIndexToPrefetch, urgent); err != nil {
 		p.blockPool.Release(b)
-		return err
+		return fmt.Errorf("scheduleNextBlock: %w", err)
 	}
 	p.nextBlockIndexToPrefetch++
 	return nil
 }
 
 // scheduleBlockWithIndex schedules a block with a specific index.
+// LOCKS_REQUIRED(p.mu)
 func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockIndex int64, urgent bool) error {
 	startOffset := blockIndex * p.config.PrefetchBlockSizeBytes
 	if err := b.SetAbsStartOff(startOffset); err != nil {
-		return fmt.Errorf("scheduleBlockWithIndex: failed to set start offset: %w", err)
+		return fmt.Errorf("scheduleBlockWithIndex: setting start offset: %w", err)
 	}
 
 	ctx, cancel := context.WithCancel(p.ctx)
@@ -419,7 +469,11 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockInde
 	return nil
 }
 
+// LOCKS_EXCLUDED(p.mu)
 func (p *BufferedReader) Destroy() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	if p.cancelFunc != nil {
 		p.cancelFunc()
 		p.cancelFunc = nil
@@ -432,20 +486,23 @@ func (p *BufferedReader) Destroy() {
 		// We expect a context.Canceled error here, but we wait to ensure the
 		// block's worker goroutine has finished before releasing the block.
 		if _, err := bqe.block.AwaitReady(p.ctx); err != nil && err != context.Canceled {
-			logger.Warnf("Destroy: while waiting for block on destroy: %v", err)
+			logger.Warnf("Destroy: waiting for block on destroy: %v", err)
 		}
 		p.blockPool.Release(bqe.block)
 	}
 
 	err := p.blockPool.ClearFreeBlockChannel(true)
 	if err != nil {
-		logger.Warnf("Destroy: while clearing free block channel: %v", err)
+		logger.Warnf("Destroy: clearing free block channel: %v", err)
 	}
 	p.blockPool = nil
 }
 
 // CheckInvariants checks for internal consistency of the reader.
+// LOCKS_EXCLUDED(p.mu)
 func (p *BufferedReader) CheckInvariants() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	// The prefetch block size must be positive.
 	if p.config.PrefetchBlockSizeBytes <= 0 {

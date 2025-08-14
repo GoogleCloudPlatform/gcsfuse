@@ -48,15 +48,45 @@ func (s *benchmarkRenameTest) TeardownB(b *testing.B) {
 
 func (s *benchmarkRenameTest) Benchmark_Rename(b *testing.B) {
 	createFiles(b)
+	var maxElapsedDuration time.Duration
+	maxElapsedIteration := -1
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		if err := os.Rename(path.Join(testDirPath, fmt.Sprintf("a%d.txt", i)), path.Join(testDirPath, fmt.Sprintf("b%d.txt", i))); err != nil {
-			b.Errorf("testing error: %v", err)
+	// Don't start the timer yet.
+	b.StopTimer()
+
+	for i := range b.N {
+		sourceFilePath := path.Join(testDirPath, fmt.Sprintf("a%d.txt", i))
+		dstFilePath := path.Join(testDirPath, fmt.Sprintf("b%d.txt", i))
+
+		// Manually time the operation to find the maximum latency with  highest accuracy.
+		// This happens while the benchmark's timer is paused and will not affect the average.
+		startTime := time.Now()
+
+		// Start the benchmark timer just for the os.Rename call.
+		b.StartTimer()
+		err := os.Rename(sourceFilePath, dstFilePath)
+		b.StopTimer() // Stop the timer immediately after the operation.
+
+		timeElapsedThisIter := time.Since(startTime)
+
+		// The remaining checks and calculations also happen while the timer is paused.
+		if err != nil {
+			b.Errorf("failed to rename %q to %q: %v", sourceFilePath, dstFilePath, err)
+		}
+
+		if maxElapsedDuration < timeElapsedThisIter {
+			maxElapsedDuration = timeElapsedThisIter
+			maxElapsedIteration = i
 		}
 	}
-	averageRenameLatency := time.Duration(int(b.Elapsed()) / b.N)
+
+	// b.Elapsed() is the sum of the time spent only on os.Rename calls,
+	// leading to a highly accurate average latency.
+	averageRenameLatency := b.Elapsed() / time.Duration(b.N)
+
 	if averageRenameLatency > expectedRenameLatency {
-		b.Errorf("RenameFile took more time (%d msec) than expected (%d msec)", averageRenameLatency.Milliseconds(), expectedRenameLatency.Milliseconds())
+		b.Errorf("RenameFile took more time on average (%v) than expected %v", averageRenameLatency, expectedRenameLatency)
+		b.Errorf("Maximum time taken by a single iteration = %v, in iteration # %v.", maxElapsedDuration, maxElapsedIteration)
 	}
 }
 

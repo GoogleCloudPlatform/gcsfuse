@@ -26,9 +26,9 @@ import (
 
 // recordRequest records a request and its latency.
 func recordRequest(ctx context.Context, metricHandle metrics.MetricHandle, method string, start time.Time) {
-	metricHandle.GCSRequestCount(ctx, 1, method)
+	metricHandle.GcsRequestCount(1, method)
 
-	metricHandle.GCSRequestLatency(ctx, time.Since(start), method)
+	metricHandle.GcsRequestLatencies(ctx, time.Since(start), method)
 }
 
 func CaptureMultiRangeDownloaderMetrics(ctx context.Context, metricHandle metrics.MetricHandle, method string, start time.Time) {
@@ -216,13 +216,13 @@ func (mb *monitoringBucket) GCSName(obj *gcs.MinObject) string {
 }
 
 // recordReader increments the reader count when it's opened or closed.
-func recordReader(ctx context.Context, metricHandle metrics.MetricHandle, ioMethod string) {
-	metricHandle.GCSReaderCount(ctx, 1, ioMethod)
+func recordReader(metricHandle metrics.MetricHandle, ioMethod string) {
+	metricHandle.GcsReaderCount(1, ioMethod)
 }
 
 // Monitoring on the object reader
 func newMonitoringReadCloser(ctx context.Context, object string, rc gcs.StorageReader, metricHandle metrics.MetricHandle) gcs.StorageReader {
-	recordReader(ctx, metricHandle, "opened")
+	recordReader(metricHandle, "opened")
 	return &monitoringReadCloser{
 		ctx:          ctx,
 		object:       object,
@@ -240,7 +240,7 @@ type monitoringReadCloser struct {
 
 func (mrc *monitoringReadCloser) Read(p []byte) (n int, err error) {
 	n, err = mrc.wrapped.Read(p)
-	mrc.metricHandle.GCSReadBytesCount(mrc.ctx, int64(n))
+	mrc.metricHandle.GcsReadBytesCount(int64(n))
 	return
 }
 
@@ -249,12 +249,12 @@ func (mrc *monitoringReadCloser) Close() (err error) {
 	if err != nil {
 		return fmt.Errorf("close reader: %w", err)
 	}
-	recordReader(mrc.ctx, mrc.metricHandle, "closed")
+	recordReader(mrc.metricHandle, "closed")
 	return
 }
 
 func (mrc *monitoringReadCloser) ReadHandle() (rh storagev2.ReadHandle) {
 	rh = mrc.wrapped.ReadHandle()
-	recordReader(mrc.ctx, mrc.metricHandle, "ReadHandle")
+	recordReader(mrc.metricHandle, "ReadHandle")
 	return
 }
