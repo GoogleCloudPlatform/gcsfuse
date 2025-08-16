@@ -435,7 +435,7 @@ func (t *fileTest) Test_ReadWithReadManager_FullReadSuccessWithBufferedRead() {
 			StartBlocksPerHandle: 2,
 		},
 	}
-	workerPool, err := workerpool.NewStaticWorkerPoolForCurrentCPU()
+	workerPool, err := workerpool.NewStaticWorkerPoolForCurrentCPU(20)
 	require.NoError(t.T(), err)
 	defer workerPool.Stop()
 	globalSemaphore := semaphore.NewWeighted(20) // Sufficient blocks for the test
@@ -472,7 +472,7 @@ func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() 
 			BlockSizeMb:          1,
 		},
 	}
-	workerPool, err := workerpool.NewStaticWorkerPoolForCurrentCPU()
+	workerPool, err := workerpool.NewStaticWorkerPoolForCurrentCPU(20)
 	require.NoError(t.T(), err)
 	defer workerPool.Stop()
 	globalSemaphore := semaphore.NewWeighted(20)

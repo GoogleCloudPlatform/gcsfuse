@@ -214,7 +214,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 
 	if serverCfg.NewConfig.Read.EnableBufferedRead {
 		var err error
-		fs.bufferedReadWorkerPool, err = workerpool.NewStaticWorkerPoolForCurrentCPU()
+		fs.bufferedReadWorkerPool, err = workerpool.NewStaticWorkerPoolForCurrentCPU(serverCfg.NewConfig.Read.GlobalMaxBlocks)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create worker pool for buffered read: %w", err)
 		}
