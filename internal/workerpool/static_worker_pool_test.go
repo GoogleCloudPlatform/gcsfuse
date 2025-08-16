@@ -157,14 +157,18 @@ func TestStaticWorkerPool_Stop(t *testing.T) {
 }
 
 func TestNewStaticWorkerPoolForCurrentCPU(t *testing.T) {
-	pool, err := NewStaticWorkerPoolForCurrentCPU()
+	readGlobalMaxBlocks := int64(100)
+	pool, err := NewStaticWorkerPoolForCurrentCPU(readGlobalMaxBlocks)
 	require.NoError(t, err)
 	require.NotNil(t, pool)
 	defer pool.Stop()
 	staticPool, ok := pool.(*staticWorkerPool)
 	require.True(t, ok, "The returned pool should be of type *staticWorkerPool")
 	totalWorkers := 3 * runtime.NumCPU()
-	expectedPriorityWorkers := (3*runtime.NumCPU() + 9) / 10
+	if cappedWorkers := (11*readGlobalMaxBlocks + 9) / 10; int64(totalWorkers) > cappedWorkers {
+		totalWorkers = int(cappedWorkers)
+	}
+	expectedPriorityWorkers := (totalWorkers + 9) / 10
 	expectedNormalWorkers := totalWorkers - expectedPriorityWorkers
 	dt := &dummyTask{}
 
