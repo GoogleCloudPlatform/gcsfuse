@@ -819,7 +819,7 @@ func (t *BufferedReaderTest) TestReadAtBackwardSeekIsRandomRead() {
 	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
 	require.NoError(t.T(), err)
 	// Perform a read that populates the prefetch queue.
-	// This is a random read since offset != 0 and queue is empty.
+	// This is not a random read since it's the first read.
 	startOffset := int64(3072) // block 3
 	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == uint64(startOffset) })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), startOffset), nil).Once()
 	t.bucket.On("Name").Return("test-bucket").Maybe() // Bucket name used for logging.
@@ -831,9 +831,9 @@ func (t *BufferedReaderTest) TestReadAtBackwardSeekIsRandomRead() {
 	})).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), startOffset+2*testPrefetchBlockSizeBytes), nil).Once()
 	_, err = reader.ReadAt(t.ctx, make([]byte, 10), startOffset)
 	require.NoError(t.T(), err)
-	assert.Equal(t.T(), int64(1), reader.randomSeekCount, "First read should be counted as random.")
+	assert.Equal(t.T(), int64(0), reader.randomSeekCount, "First read should not be counted as random.")
 	require.Equal(t.T(), 3, reader.blockQueue.Len(), "Queue should be populated after first read.")
-	// Perform a backward seek, which is another random read.
+	// Perform a backward seek, which is a random read.
 	// This should clear the existing queue and start a new prefetch.
 	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 0 })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), 0), nil).Once()
 	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), testPrefetchBlockSizeBytes), nil).Once()
@@ -844,7 +844,7 @@ func (t *BufferedReaderTest) TestReadAtBackwardSeekIsRandomRead() {
 
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), int(1024), resp.Size)
-	assert.Equal(t.T(), int64(2), reader.randomSeekCount, "Second read should be counted as random.")
+	assert.Equal(t.T(), int64(1), reader.randomSeekCount, "Backward seek should be counted as random.")
 	assert.Equal(t.T(), 2, reader.blockQueue.Len(), "Queue should contain newly prefetched blocks.")
 	assertBufferContent(t.T(), buf, 0)
 	t.bucket.AssertExpectations(t.T())
@@ -1159,24 +1159,24 @@ func (t *BufferedReaderTest) TestReadAtSequentialReadAcrossBlocks() {
 func (t *BufferedReaderTest) TestReadAtFallsBackAfterRandomReads() {
 	t.config.InitialPrefetchBlockCnt = 1
 	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
-	reader.randomReadsThreshold = 2
+	reader.randomReadsThreshold = 1
 	require.NoError(t.T(), err)
 	buf := make([]byte, 10)
-	// Mock GCS calls for the first random read, which will download block 2 and prefetch block 3.
+	// Mock GCS calls for the first read (not random), which will download block 2 and prefetch block 3.
 	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 2*uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), 2*testPrefetchBlockSizeBytes), nil).Once()
 	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 3*uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), 3*testPrefetchBlockSizeBytes), nil).Once()
 	t.bucket.On("Name").Return("test-bucket").Maybe() // Bucket name used for logging.
-	// First random read should succeed.
+	// First read is not random and should succeed.
 	_, err = reader.ReadAt(t.ctx, buf, 2*testPrefetchBlockSizeBytes)
-	require.NoError(t.T(), err, "Random read #1 should succeed")
-	// Mock GCS calls for the second random read, which will download block 5 and prefetch block 6.
+	require.NoError(t.T(), err, "Read #1 should succeed")
+	// Mock GCS calls for the second read (first random read), which will download block 5 and prefetch block 6.
 	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 5*uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), 5*testPrefetchBlockSizeBytes), nil).Once()
 	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 6*uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), 6*testPrefetchBlockSizeBytes), nil).Once()
-	// Second random read should succeed.
+	// Second read (first random) should succeed.
 	_, err = reader.ReadAt(t.ctx, buf, 5*testPrefetchBlockSizeBytes)
-	require.NoError(t.T(), err, "Random read #2 should succeed")
+	require.NoError(t.T(), err, "Read #2 (random #1) should succeed")
 
-	// The third random read should exceed the threshold and trigger the fallback.
+	// The third read (second random) should exceed the threshold and trigger the fallback.
 	_, err = reader.ReadAt(t.ctx, buf, 0)
 
 	assert.ErrorIs(t.T(), err, gcsx.FallbackToAnotherReader, "Error should be FallbackToAnotherReader")
