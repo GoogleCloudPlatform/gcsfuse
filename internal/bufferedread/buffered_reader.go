@@ -188,7 +188,7 @@ func (p *BufferedReader) handleRandomRead(offset int64, handleID int64) error {
 // LOCKS_REQUIRED(p.mu)
 func (p *BufferedReader) isRandomSeek(offset int64) bool {
 	if p.blockQueue.IsEmpty() {
-		return offset != 0
+		return false
 	}
 
 	start := p.blockQueue.Peek().block.AbsStartOff()
