@@ -77,7 +77,15 @@ func ParseBufferedReadLogsFromLogReader(reader io.Reader) (map[int64]*BufferedRe
 		}
 	}
 
-	return bufferedReadLogsMap, nil
+	// Filter out entries that have no chunks, as they represent file handles
+	// that were opened but never read from using the buffered reader.
+	filteredLogsMap := make(map[int64]*BufferedReadLogEntry)
+	for handle, entry := range bufferedReadLogsMap {
+		if len(entry.Chunks) > 0 {
+			filteredLogsMap[handle] = entry
+		}
+	}
+	return filteredLogsMap, nil
 }
 
 // filterAndParseLogLineForBufferedRead filters and parses a log line for buffered read logs.
@@ -137,7 +145,7 @@ func parseFallbackLogFromHandle(
 
 	handleID, err := parseToInt64(matches[1])
 	if err != nil {
-		return fmt.Errorf("invalid handle ID in fallback log: %v", err)
+		return fmt.Errorf("invalid handle ID in fallback log: %w", err)
 	}
 
 	logEntry, ok := bufferedReadLogsMap[handleID]

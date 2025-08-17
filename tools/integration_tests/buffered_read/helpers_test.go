@@ -108,3 +108,30 @@ func parseAndValidateSingleBufferedReadLog(t *testing.T) *read_logs.BufferedRead
 	}
 	return nil // Unreachable.
 }
+
+func readAndValidateChunk(f *os.File, testDir, fileName string, offset, chunkSize int64, t *testing.T) {
+	t.Helper()
+	readBuffer := make([]byte, chunkSize)
+
+	_, err := f.ReadAt(readBuffer, offset)
+
+	require.NoError(t, err, "ReadAt failed at offset %d", offset)
+	client.ValidateObjectChunkFromGCS(ctx, storageClient, testDir, fileName, offset, chunkSize, string(readBuffer), t)
+}
+
+// induceRandomReadFallback performs a sequence of reads designed to trigger the
+// random read fallback mechanism in the buffered reader. It starts with a
+// sequential read and then alternates between a distant offset and offset 0.
+func induceRandomReadFallback(t *testing.T, f *os.File, testDir, fileName string, chunkSize, distantOffset int64, randomReadsThreshold int) {
+	t.Helper()
+	// We need 1 sequential read + randomReadsThreshold successful random reads before
+	// the final one that triggers fallback.
+	offset := int64(0)
+	for i := 0; i < randomReadsThreshold+1; i++ {
+		readAndValidateChunk(f, testDir, fileName, offset, chunkSize, t)
+		offset = distantOffset ^ offset
+	}
+
+	// The next read should trigger the fallback but still succeed from the user's perspective.
+	readAndValidateChunk(f, testDir, fileName, offset, chunkSize, t)
+}

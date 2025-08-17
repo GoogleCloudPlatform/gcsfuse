@@ -48,6 +48,7 @@ type gcsfuseTestFlags struct {
 	maxBlocksPerHandle   int64
 	startBlocksPerHandle int64
 	minBlocksPerHandle   int64
+	globalMaxBlocks      int64
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -74,6 +75,9 @@ func createConfigFile(flags *gcsfuseTestFlags) string {
 	}
 	if flags.minBlocksPerHandle != 0 {
 		readConfig["min-blocks-per-handle"] = flags.minBlocksPerHandle
+	}
+	if flags.globalMaxBlocks != 0 {
+		readConfig["global-max-blocks"] = flags.globalMaxBlocks
 	}
 	if len(readConfig) > 0 {
 		mountConfig["read"] = readConfig
