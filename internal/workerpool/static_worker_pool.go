@@ -61,7 +61,8 @@ func NewStaticWorkerPool(priorityWorker uint32, normalWorker uint32) (*staticWor
 }
 
 // NewStaticWorkerPoolForCurrentCPU creates and starts a new worker pool. The
-// number of workers is determined based on the number of available CPUs.
+// number of workers is determined based on the number of available CPUs and
+// the provided readGlobalMaxBlocks.
 func NewStaticWorkerPoolForCurrentCPU(readGlobalMaxBlocks int64) (WorkerPool, error) {
 	return newStaticWorkerPoolForCurrentCPU(readGlobalMaxBlocks, runtime.NumCPU)
 }
