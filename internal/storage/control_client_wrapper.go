@@ -30,13 +30,11 @@ import (
 
 const (
 	// Default retry parameters for control client calls.
-	defaultControlClientInitialRetryDeadline = 10 * time.Second
-	defaultControlClientMaxRetryDeadline     = time.Minute
-	defaultControlClientRetryMultiplier      = 2.0
-	defaultControlClientTotalRetryBudget     = 5 * time.Minute
-	defaultInitialBackoff                    = 1 * time.Second
-	defaultMaxBackoff                        = 1 * time.Minute
-	defaultBackoffMultiplier                 = 2.0
+	defaultControlClientRetryDeadline    = 30 * time.Second
+	defaultControlClientTotalRetryBudget = 5 * time.Minute
+	defaultInitialBackoff                = 1 * time.Second
+	defaultMaxBackoff                    = 1 * time.Minute
+	defaultBackoffMultiplier             = 2.0
 )
 
 type StorageControlClient interface {
@@ -146,27 +144,10 @@ func (b *exponentialBackoff) waitWithJitter(ctx context.Context) error {
 type storageControlClientWithRetry struct {
 	raw StorageControlClient
 
-	// Time-limit to attempt the first invocation of a retried call.
-	initialRetryDeadline time.Duration
-	// Maximum time-limit for any subsequent attempts.
-	maxRetryDeadline time.Duration
-	// Multiplier (expected to be > 1) to scale up the value of deadline from one attempt to the next.
-	retryMultiplier float64
+	// Time-limit to attempt the first call or a retried call.
+	retryDeadline time.Duration
 	// Total duration allowed across all the attempts.
 	totalRetryBudget time.Duration
-
-	// As an example,
-	// if initialRetryDeadline is 1 second, retryMultiplier is 2,
-	// maxRetryDeadline is 5 seconds, and totalRetryBudget is 1 minute, then
-	// first attempt will be allowed to run for 1 second. If it is not
-	// completed/failed in 1 second, it will be cancelled.
-	// Immediately, a second attempt will be made with allowance
-	// for 2 seconds (1s * 2), next attempt will
-	// be 4 seconds, but the next attempt will be allowed only 5
-	// seconds (maxRetryDeadline), not 8.
-	// All subsequent attempts will be allowed upto 5 seconds, with
-	// total attempts capped at 1 minute of duration from the start
-	// of the first attempt.
 
 	// Backoff duration in-between retries.
 	backoff *exponentialBackoff
@@ -189,11 +170,10 @@ func executeWithRetry[T any](
 	parentCtx, cancel := context.WithTimeout(ctx, sccwros.totalRetryBudget)
 	defer cancel()
 
-	delay := sccwros.initialRetryDeadline
 	for {
-		attemptCtx, attemptCancel := context.WithTimeout(parentCtx, delay)
+		attemptCtx, attemptCancel := context.WithTimeout(parentCtx, sccwros.retryDeadline)
 
-		logger.Tracef("Calling %s for %q with deadline=%v ...", operationName, reqDescription, delay)
+		logger.Tracef("Calling %s for %q with deadline=%v ...", operationName, reqDescription, sccwros.retryDeadline)
 		result, err := apiCall(attemptCtx)
 		// Cancel attemptCtx after it is no longer needed to free up its resources.
 		attemptCancel()
@@ -217,9 +197,6 @@ func executeWithRetry[T any](
 		if parentCtxErr != nil {
 			return zero, fmt.Errorf("%s for %q failed after multiple retries (last server/client error = %v): %w", operationName, reqDescription, err, parentCtxErr)
 		}
-
-		// Increase delay for the next attempt.
-		delay = min(sccwros.maxRetryDeadline, time.Duration(float64(delay)*sccwros.retryMultiplier))
 	}
 }
 
@@ -255,7 +232,7 @@ func (sccwros *storageControlClientWithRetry) CreateFolder(ctx context.Context, 
 	return sccwros.raw.CreateFolder(ctx, req, opts...)
 }
 
-func newRetryWrapper(controlClient StorageControlClient, initialRetryDeadline time.Duration, maxRetryDeadline time.Duration, retryMultiplier float64, totalRetryBudget time.Duration, initialBackoff time.Duration, maxBackoff time.Duration, backoffMultiplier float64) StorageControlClient {
+func newRetryWrapper(controlClient StorageControlClient, retryDeadline time.Duration, totalRetryBudget time.Duration, initialBackoff time.Duration, maxBackoff time.Duration, backoffMultiplier float64) StorageControlClient {
 	// Avoid creating a nested wrapper.
 	raw := controlClient
 	if sccwros, ok := controlClient.(*storageControlClientWithRetry); ok {
@@ -264,9 +241,7 @@ func newRetryWrapper(controlClient StorageControlClient, initialRetryDeadline ti
 
 	return &storageControlClientWithRetry{
 		raw:                              raw,
-		initialRetryDeadline:             initialRetryDeadline,
-		maxRetryDeadline:                 maxRetryDeadline,
-		retryMultiplier:                  retryMultiplier,
+		retryDeadline:                    retryDeadline,
 		totalRetryBudget:                 totalRetryBudget,
 		backoff:                          newBackoff(initialBackoff, maxBackoff, backoffMultiplier),
 		enableRetriesOnStorageLayoutCall: true,
@@ -274,6 +249,6 @@ func newRetryWrapper(controlClient StorageControlClient, initialRetryDeadline ti
 }
 
 // withRetryOnStorageLayout wraps a StorageControlClient to do a time-bound retry approach for retryable errors for the GetStorageLayout call through it.
-func withRetryOnStorageLayout(controlClient StorageControlClient, initialRetryDeadline time.Duration, maxRetryDeadline time.Duration, retryMultiplier float64, totalRetryBudget time.Duration) StorageControlClient {
-	return newRetryWrapper(controlClient, initialRetryDeadline, maxRetryDeadline, retryMultiplier, totalRetryBudget, defaultInitialBackoff, defaultMaxBackoff, defaultBackoffMultiplier)
+func withRetryOnStorageLayout(controlClient StorageControlClient, retryDeadline time.Duration, totalRetryBudget time.Duration) StorageControlClient {
+	return newRetryWrapper(controlClient, retryDeadline, totalRetryBudget, defaultInitialBackoff, defaultMaxBackoff, defaultBackoffMultiplier)
 }
