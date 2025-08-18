@@ -150,17 +150,18 @@ func (s *SequentialReadSuite) TestReadHeaderFooterAndBody() {
 	})
 }
 
-func (s *SequentialReadSuite) TestParquetReadWritesInParallel() {
-	blockSizeInBytes := s.testFlags.blockSizeMB * util.MiB
-	fileSize := blockSizeInBytes * 2 // Each file will be approx. 16 MiB.
-	const numGoroutines = 10
-	testName := fmt.Sprintf("ParquetLikeRead_Parallel_%d_goroutines", numGoroutines)
-
-	s.T().Run(testName, func(t *testing.T) {
+// TestReadWritesInParallel tests the system's stability and correctness under
+// high concurrency. Multiple goroutines simultaneously write to new files and
+// then read the data back, all while using O_DIRECT. The test verifies that
+// all reads succeed and are served efficiently from the buffer without falling back.
+func (s *SequentialReadSuite) TestReadWritesInParallel() {
+	s.T().Run("ParallelReadWrite", func(t *testing.T) {
 		// Setup: Clear log file and create test directory.
 		err := os.Truncate(setup.LogFile(), 0)
 		require.NoError(t, err, "Failed to truncate log file")
 		testDir := setup.SetupTestDirectory(testDirName)
+		fileSize := s.testFlags.blockSizeMB * util.MiB
+		const numGoroutines = 10
 
 		// Run writes and reads concurrently in parallel goroutines.
 		var wg sync.WaitGroup
@@ -169,14 +170,29 @@ func (s *SequentialReadSuite) TestParquetReadWritesInParallel() {
 			iteration := i
 			go func() {
 				defer wg.Done()
-				fileName := fmt.Sprintf("%s-%d.parquet", testFileName, iteration)
+				fileName := fmt.Sprintf("%s-%d.text", testFileName, iteration)
 				filePath := path.Join(testDir, fileName)
-				// Write: Create a new parquet file through the mount point.
-				err := CreateParquetFile(filePath, int(fileSize/util.MiB))
-				require.NoError(t, err, "Failed to create parquet file for %s", fileName)
 
-				// Read: Immediately read the file back to validate.
-				readFileAndValidate(ctx, storageClient, testDir, fileName, true, 0, fileSize, t)
+				// Write phase: Open, write, and close the file.
+				fWrite, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, setup.FilePermission_0600)
+				require.NoError(t, err)
+
+				randomData, err := operations.GenerateRandomData(fileSize)
+				require.NoError(t, err)
+				n, err := fWrite.Write(randomData)
+				require.NoError(t, err)
+				require.Equal(t, int(fileSize), n)
+
+				err = fWrite.Sync()
+				require.NoError(t, err)
+				operations.CloseFileShouldNotThrowError(t, fWrite)
+
+				// Read phase: Open a new handle and read the data back to validate.
+				fRead, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, 0)
+				require.NoError(t, err)
+				defer operations.CloseFileShouldNotThrowError(t, fRead)
+
+				readAndValidateChunk(fRead, path.Base(testDir), fileName, 0, fileSize, t)
 			}()
 		}
 		wg.Wait()
