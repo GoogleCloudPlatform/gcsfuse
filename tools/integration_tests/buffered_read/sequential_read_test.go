@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -146,6 +147,55 @@ func (s *SequentialReadSuite) TestReadHeaderFooterAndBody() {
 		// Since all reads were on the same handle, there should be one log entry.
 		bufferedReadLogEntry := parseAndValidateSingleBufferedReadLog(t)
 		validate(expected, bufferedReadLogEntry, false, t)
+	})
+}
+
+func (s *SequentialReadSuite) TestParquetReadWritesInParallel() {
+	blockSizeInBytes := s.testFlags.blockSizeMB * util.MiB
+	fileSize := blockSizeInBytes * 2 // Each file will be approx. 16 MiB.
+	const numGoroutines = 10
+	testName := fmt.Sprintf("ParquetLikeRead_Parallel_%d_goroutines", numGoroutines)
+
+	s.T().Run(testName, func(t *testing.T) {
+		// Setup: Clear log file and create test directory.
+		err := os.Truncate(setup.LogFile(), 0)
+		require.NoError(t, err, "Failed to truncate log file")
+		testDir := setup.SetupTestDirectory(testDirName)
+
+		// Run writes and reads concurrently in parallel goroutines.
+		var wg sync.WaitGroup
+		wg.Add(numGoroutines)
+		for i := 0; i < numGoroutines; i++ {
+			iteration := i
+			go func() {
+				defer wg.Done()
+				fileName := fmt.Sprintf("%s-%d.parquet", testFileName, iteration)
+				filePath := path.Join(testDir, fileName)
+				// Write: Create a new parquet file through the mount point.
+				err := CreateParquetFile(filePath, int(fileSize/util.MiB))
+				require.NoError(t, err, "Failed to create parquet file for %s", fileName)
+
+				// Read: Immediately read the file back to validate.
+				readFileAndValidate(ctx, storageClient, testDir, fileName, true, 0, fileSize, t)
+			}()
+		}
+		wg.Wait()
+		// Log validation after all parallel goroutines are complete.
+		logEntries := parseBufferedReadLogs(t)
+		// Verify that all reads were served by the buffered reader without fallback,
+		// and that each file had at least one purely sequential read.
+		logsPerObject := make(map[string]int)
+		seekCountsPerObject := make(map[string][]int64)
+		fileNames := make([]string, numGoroutines)
+		for i := 0; i < numGoroutines; i++ {
+			fileNames[i] = fmt.Sprintf("%s-%d.parquet", testFileName, i)
+		}
+
+		for _, entry := range logEntries {
+			assert.False(t, entry.Fallback, "Fallback should be false for object %s", entry.ObjectName)
+			logsPerObject[entry.ObjectName]++
+			seekCountsPerObject[entry.ObjectName] = append(seekCountsPerObject[entry.ObjectName], entry.RandomSeekCount)
+		}
 	})
 }
 
