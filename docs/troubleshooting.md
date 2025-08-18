@@ -217,3 +217,6 @@ If you observe that GCSFuse is still utilizing staged writes despite streaming w
   - Truncating a file downwards while writes are in progress (this action also finalizes the object and subsequent writes will fall back).
 
 An informational log message will be emitted by GCSFuse whenever a fallback to staged writes occurs, providing details on the reason.
+
+### Issues related to the gcs-fuse-csi-driver 
+The `gcs-fuse-csi-driver` serves as the orchestration layer that manages the gke-gcsfuse-sidecar which hosts GCSFuse in Google Kubernetes Engine (GKE) environments. This driver is maintained in a separate repository. Consequently, any issues regarding the gcs-fuse-csi-driver should be reported in its dedicated GitHub repository: https://github.com/GoogleCloudPlatform/gcs-fuse-csi-driver
