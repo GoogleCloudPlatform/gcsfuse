@@ -26,7 +26,12 @@ type TestConfig struct {
 	MountedDirectory string       `yaml:"mounted_directory"`
 	TestBucket       string       `yaml:"test_bucket"`
 	LogFile          string       `yaml:"log_file,omitempty"`
-	Flags            []string     `yaml:"flags"`
-	Compatible       []BucketType `yaml:"compatible"`
 	RunOnGKE         bool         `yaml:"run_on_gke"`
+	Configs          []ConfigItem `yaml:"configs"`
+}
+
+// ConfigItem defines the variable parts of each test run.
+type ConfigItem struct {
+	Flags      []string        `yaml:"flags"`
+	Compatible map[string]bool `yaml:"compatible"`
 }
