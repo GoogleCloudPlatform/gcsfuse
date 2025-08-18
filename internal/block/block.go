@@ -78,7 +78,7 @@ func (m *memoryBlock) Cap() int64 {
 // Please make sure to call Seek before calling Read if you want to read from a specific position.
 func (m *memoryBlock) Read(bytes []byte) (int, error) {
 	if m.readSeek < m.offset.start {
-		return 0, fmt.Errorf("readSeek is less than start offset")
+		return 0, fmt.Errorf("readSeek %d is less than start offset %d", m.readSeek, m.offset.start)
 	}
 
 	if m.readSeek >= m.offset.end {
