@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
@@ -99,34 +98,31 @@ func (s *SequentialReadSuite) TestSequentialRead() {
 	}
 }
 
-func (s *SequentialReadSuite) TestParquetRead() {
+// TestReadHeaderFooterAndBody verifies that a single file handle can correctly handle
+// a mix of random reads (header and footer) followed by a large sequential read.
+// The key validation is that all these operations should be served from a single
+// buffered read log entry, indicating efficient handling.
+func (s *SequentialReadSuite) TestReadHeaderFooterAndBody() {
 	// Constants for block and file sizes
 	blockSizeInBytes := s.testFlags.blockSizeMB * util.MiB
-	targetFileSize := blockSizeInBytes * 2
-
 	// Header and footer sizes (10KB each)
 	headerSize := 10 * util.KiB
 	footerSize := 10 * util.KiB
-
-	testName := fmt.Sprintf("ParquetLikeRead_%dKiB_Chunk", targetFileSize/util.KiB)
-
-	s.T().Run(testName, func(t *testing.T) {
+	s.T().Run("Read header, footer, then body from one file handle", func(t *testing.T) {
 		err := os.Truncate(setup.LogFile(), 0)
 		require.NoError(t, err, "Failed to truncate log file")
 		testDir := setup.SetupTestDirectory(testDirName)
-		// Create a file with a .parquet extension to simulate a parquet file.
-		fileName := testFileName + setup.GenerateRandomString(4) + ".parquet"
-		localFilePath := path.Join(os.TempDir(), fileName)
-		err = CreateParquetFile(localFilePath, int(targetFileSize/util.MiB))
-		require.NoError(t, err, "Failed to create parquet file")
+		fileSize := blockSizeInBytes * 2
+		// Create a file of a given size in the test directory.
+		fileName := setupFileInTestDir(ctx, storageClient, testDir, fileSize, t)
+		require.NoError(t, err, "Failed to create file")
+		filePath := path.Join(testDir, fileName)
 		// Get the actual file size.
-		fi, err := os.Stat(localFilePath)
+		fi, err := os.Stat(filePath)
 		require.NoError(t, err)
 		actualFileSize := fi.Size()
 		// The size of the main content to read sequentially
 		bodySize := actualFileSize - int64(headerSize) - int64(footerSize)
-		destFilePath := path.Join(testDirName, fileName)
-		client.CopyFileInBucket(ctx, storageClient, localFilePath, destFilePath, setup.TestBucket())
 		// Open the file once.
 		mountedFilePath := path.Join(testDir, fileName)
 		f, err := os.OpenFile(mountedFilePath, os.O_RDONLY|syscall.O_DIRECT, 0)

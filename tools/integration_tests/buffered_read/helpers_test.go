@@ -17,8 +17,6 @@ package buffered_read
 import (
 	"bytes"
 	"context"
-	"fmt"
-	"math/rand"
 	"os"
 	"path"
 	"syscall"
@@ -26,27 +24,13 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/xitongsys/parquet-go-source/local"
-	"github.com/xitongsys/parquet-go/parquet"
-	"github.com/xitongsys/parquet-go/writer"
 )
-
-const (
-	parquetWriterConcurrency = 4
-	parquetRowGroupSize      = 128 * util.MiB
-	randomStringLength       = 20
-	fileSizeCheckInterval    = 10_000
-)
-
-// randomStringChars is the set of characters used to generate random strings.
-var randomStringChars = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
 // Expected is a helper struct that stores list of attributes to be validated from logs.
 type Expected struct {
@@ -150,71 +134,4 @@ func induceRandomReadFallback(t *testing.T, f *os.File, testDir, fileName string
 
 	// The next read should trigger the fallback but still succeed from the user's perspective.
 	readAndValidateChunk(f, testDir, fileName, offset, chunkSize, t)
-}
-
-// Record defines our Parquet schema
-type Record struct {
-	Col1 int64   `parquet:"name=col1, type=INT64"`
-	Col2 string  `parquet:"name=col2, type=BYTE_ARRAY, convertedtype=UTF8, encoding=PLAIN_DICTIONARY"`
-	Col3 float64 `parquet:"name=col3, type=DOUBLE"`
-}
-
-func randomString(length int) string {
-	result := make([]rune, length)
-	for i := range result {
-		result[i] = randomStringChars[rand.Intn(len(randomStringChars))]
-	}
-	return string(result)
-}
-
-func CreateParquetFile(filePath string, targetSizeMB int) error {
-	// Create local file writer
-	fw, err := local.NewLocalFileWriter(filePath)
-	if err != nil {
-		return fmt.Errorf("failed to create file writer: %w", err)
-	}
-	defer fw.Close()
-
-	// Create Parquet writer
-	pw, err := writer.NewParquetWriter(fw, new(Record), parquetWriterConcurrency)
-	if err != nil {
-		return fmt.Errorf("failed to create parquet writer: %w", err)
-	}
-	pw.RowGroupSize = parquetRowGroupSize
-	pw.CompressionType = parquet.CompressionCodec_SNAPPY
-
-	// Iteratively write until file size reached
-	var writtenRows int64
-	for {
-		rec := Record{
-			Col1: rand.Int63(),
-			Col2: randomString(randomStringLength),
-			Col3: rand.Float64(),
-		}
-
-		if err := pw.Write(rec); err != nil {
-			return fmt.Errorf("failed to write record: %w", err)
-		}
-		writtenRows++
-
-		// Check file size every 10k rows
-		if writtenRows%fileSizeCheckInterval == 0 {
-			if err := pw.Flush(true); err != nil {
-				return fmt.Errorf("failed to flush parquet writer: %w", err)
-			}
-			info, err := os.Stat(filePath)
-			if err != nil {
-				return fmt.Errorf("failed to stat parquet file %q: %w", filePath, err)
-			}
-			sizeMB := info.Size() / util.MiB
-			if int(sizeMB) >= targetSizeMB {
-				break
-			}
-		}
-	}
-
-	if err = pw.WriteStop(); err != nil {
-		return fmt.Errorf("failed to stop parquet writer: %w", err)
-	}
-	return nil
 }
