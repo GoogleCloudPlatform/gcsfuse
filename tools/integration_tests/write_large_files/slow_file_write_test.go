@@ -39,10 +39,10 @@ func TestSlowWriteToFile(t *testing.T) {
 	// Write 4 blocks of 33MiB to file each with 1 min delay.
 	for range 4 {
 		n, err := fh.Write([]byte(data))
-		operations.SyncFile(fh, t)
 
 		assert.NoError(t, err)
 		assert.Equal(t, len(data), n)
+		operations.SyncFile(fh, t)
 		time.Sleep(1 * time.Minute)
 	}
 }
