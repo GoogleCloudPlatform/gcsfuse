@@ -158,12 +158,16 @@ func TestStaticWorkerPool_Stop(t *testing.T) {
 
 func TestNewStaticWorkerPoolForCurrentCPU(t *testing.T) {
 	readGlobalMaxBlocks := int64(100)
+
 	pool, err := NewStaticWorkerPoolForCurrentCPU(readGlobalMaxBlocks)
+
 	require.NoError(t, err)
 	require.NotNil(t, pool)
 	defer pool.Stop()
 	staticPool, ok := pool.(*staticWorkerPool)
 	require.True(t, ok, "The returned pool should be of type *staticWorkerPool")
+	// Re-calculate the expected number of workers based on the real CPU count
+	// to verify the logic.
 	totalWorkers := 3 * runtime.NumCPU()
 	if cappedWorkers := (11*readGlobalMaxBlocks + 9) / 10; int64(totalWorkers) > cappedWorkers {
 		totalWorkers = int(cappedWorkers)
@@ -171,10 +175,50 @@ func TestNewStaticWorkerPoolForCurrentCPU(t *testing.T) {
 	expectedPriorityWorkers := (totalWorkers + 9) / 10
 	expectedNormalWorkers := totalWorkers - expectedPriorityWorkers
 	dt := &dummyTask{}
-
 	pool.Schedule(true, dt)
-
 	assert.Equal(t, uint32(expectedPriorityWorkers), staticPool.priorityWorker)
 	assert.Equal(t, uint32(expectedNormalWorkers), staticPool.normalWorker)
+	// Verify that the pool is functional.
 	assert.Eventually(t, func() bool { return dt.executed }, 100*time.Millisecond, time.Millisecond, "Task was not executed in time.")
+}
+
+func Test_newStaticWorkerPoolForCurrentCPU(t *testing.T) {
+	testCases := []struct {
+		name                    string
+		readGlobalMaxBlocks     int64
+		mockNumCPU              func() int
+		expectedPriorityWorkers uint32
+		expectedNormalWorkers   uint32
+	}{
+		{
+			name:                "low CPU count, workers not capped",
+			readGlobalMaxBlocks: 100,
+			mockNumCPU:          func() int { return 2 },
+			// totalWorkers = 3*2=6. priority=ceil(0.1*6)=1, normal=5.
+			expectedPriorityWorkers: 1,
+			expectedNormalWorkers:   5,
+		},
+		{
+			name:                "high CPU count, workers capped by max blocks",
+			readGlobalMaxBlocks: 50,
+			mockNumCPU:          func() int { return 100 },
+			// totalWorkers = 3*100=300, capped to ceil(1.1*50)=55. priority=ceil(0.1*55)=6, normal=49.
+			expectedPriorityWorkers: 6,
+			expectedNormalWorkers:   49,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			pool, err := newStaticWorkerPoolForCurrentCPU(tc.readGlobalMaxBlocks, tc.mockNumCPU)
+
+			require.NoError(t, err)
+			require.NotNil(t, pool)
+			defer pool.Stop()
+			staticPool, ok := pool.(*staticWorkerPool)
+			require.True(t, ok, "The returned pool should be of type *staticWorkerPool")
+			assert.Equal(t, tc.expectedPriorityWorkers, staticPool.priorityWorker)
+			assert.Equal(t, tc.expectedNormalWorkers, staticPool.normalWorker)
+		})
+	}
 }
