@@ -19,7 +19,6 @@ import (
 	"context"
 	"log"
 	"os"
-	"strings"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -68,7 +67,6 @@ func TestMain(m *testing.M) {
 		// Populate the config manually.
 		cfg.ExplicitDir = make([]test_suite.TestConfig, 1)
 		cfg.ExplicitDir[0].TestBucket = setup.TestBucket()
-		cfg.ExplicitDir[0].Flags = []string{"--implicit-dirs=false", "--implicit-dirs=false --client-protocol=grpc"}
 		cfg.ExplicitDir[0].MountedDirectory = setup.MountedDirectory()
 	}
 
@@ -82,20 +80,14 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	// These tests will not run on HNS buckets because the "--implicit-dirs=false" flag does not function similarly to how it does on FLAT buckets.
-	// Note that HNS buckets do not have the concept of implicit directories.
-	if setup.ResolveIsHierarchicalBucket(testEnv.ctx, cfg.ExplicitDir[0].TestBucket, testEnv.storageClient) {
-		log.Println("These tests will not run on HNS buckets.")
-		return
-	}
-
 	// 4. Build the flag sets dynamically from the config.
-	var flags [][]string
-	for _, flagString := range cfg.ExplicitDir[0].Flags {
-		flags = append(flags, strings.Fields(flagString))
+	bucketType, err := setup.BucketType(testEnv.ctx, cfg.ExplicitDir[0].TestBucket)
+	if err != nil {
+		log.Fatalf("BucketType failed: %v", err)
 	}
+	flags := setup.BuildFlagSets(cfg.ExplicitDir[0], bucketType)
 
 	// 5. Run tests with the dynamically generated flags.
-	successCode := implicit_and_explicit_dir_setup.RunTestsForExplicitDir(&cfg.ExplicitDir[0], flags, m)
+	successCode := implicit_and_explicit_dir_setup.RunTestsForExplicitAndImplicitDir(&cfg.ExplicitDir[0], flags, m)
 	os.Exit(successCode)
 }

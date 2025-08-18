@@ -32,7 +32,9 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"cloud.google.com/go/storage/experimental"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -549,6 +551,53 @@ func ResolveIsHierarchicalBucket(ctx context.Context, testBucket string, storage
 	}
 
 	return false
+}
+
+const FlatBucket = "flat"
+const HNSBucket = "hns"
+const ZonalBucket = "zonal"
+
+func BucketType(ctx context.Context, testBucket string) (bucketType string, err error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	storageClient, err := storage.NewGRPCClient(ctx, experimental.WithGRPCBidiReads())
+	if err != nil {
+		return "", fmt.Errorf("failed to create storage client: %w", err)
+	}
+	attrs, err := storageClient.Bucket(testBucket).Attrs(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get bucket attributes: %w", err)
+	}
+	if attrs.LocationType == "zone" {
+		return ZonalBucket, nil
+	}
+	if attrs.HierarchicalNamespace != nil && attrs.HierarchicalNamespace.Enabled {
+		return HNSBucket, nil
+	}
+	return FlatBucket, nil
+}
+
+// BuildFlagSets dynamically builds a list of flag sets based on bucket compatibility.
+// bucketType should be "flat", "hns", or "zonal".
+func BuildFlagSets(cfg test_suite.TestConfig, bucketType string) [][]string {
+	var dynamicFlags [][]string
+
+	// 1. Iterate through each defined test configuration (e.g., HTTP, gRPC).
+	for _, testCase := range cfg.Configs {
+		// 2. Check if the current test case is compatible with the bucket type.
+		// This is a safe and concise way to check the map.
+		if isCompatible, ok := testCase.Compatible[bucketType]; ok && isCompatible {
+			// 3. If compatible, process its flags and add them to the result.
+			for _, flagString := range testCase.Flags {
+				dynamicFlags = append(dynamicFlags, strings.Fields(flagString))
+			}
+		}
+	}
+	return dynamicFlags
+}
+
+func SetBucketFromConfigFile(testBucketFromConfigFile string) {
+	testBucket = &testBucketFromConfigFile
 }
 
 // Explicitly set the enable-hns config flag to true when running tests on the HNS bucket.

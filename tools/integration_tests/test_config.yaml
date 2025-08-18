@@ -16,11 +16,31 @@ explicit_dir:
   - mounted_directory: "${MOUNTED_DIR}" # To be passed by GKE after mounting
     test_bucket: "${BUCKET_NAME}" # To be passed by both gcsfuse and gke tests
     log_file: # Optional flag required by some tests where log parsing is done to validate end behavior
-    flags:
-      - "--implicit-dirs=false"
-      - "--implicit-dirs=false --client-protocol=grpc"
-    compatible: # Bucket type to run these tests with
-      - flat: true
-      - hns: false
-      - zonal: false
     run_on_gke: false
+    configs:
+      - flags:
+          - "--implicit-dirs=false"
+          - "--implicit-dirs=false --client-protocol=grpc"
+        compatible: # Bucket type to run these tests with
+          flat: true
+          hns: false
+          zonal: false
+
+implicit_dir:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    log_file: # Optional
+    run_on_gke: false
+    configs:
+      - flags:
+          - "--implicit-dirs"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+      - flags:
+          - "--implicit-dirs --client-protocol=grpc"
+        compatible:
+          flat: true
+          hns: true
+          zonal: false
