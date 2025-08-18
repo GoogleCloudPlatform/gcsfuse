@@ -72,11 +72,9 @@ func (s *concurrentReadTest) Test_ConcurrentSequentialAndRandomReads(t *testing.
 	// Create a 500MiB test file
 	testFilePath := path.Join(testDirPathForRead, testCaseDir, "large_test_file.bin")
 	operations.CreateFileOfSize(fileSize, testFilePath, t)
-
 	// Calculate expected checksum of the entire file
 	expectedChecksum, err := operations.CalculateFileCRC32(testFilePath)
 	require.NoError(t, err, "Failed to calculate expected checksum")
-
 	var wg sync.WaitGroup
 	timeout := 300 * time.Second // 5 minutes timeout for 500MiB operations
 
@@ -85,42 +83,33 @@ func (s *concurrentReadTest) Test_ConcurrentSequentialAndRandomReads(t *testing.
 		wg.Add(1)
 		go func(readerID int) {
 			defer wg.Done()
-
 			// Use operations.ReadFileSequentially to read the entire file
 			content, err := operations.ReadFileSequentially(testFilePath, chunkSize)
 			require.NoError(t, err, "Sequential reader %d: failed to read file sequentially", readerID)
 			require.Equal(t, fileSize, len(content), "Sequential reader %d: expected to read entire file", readerID)
-
 			// Calculate checksum of read content
 			readerChecksum, err := operations.CalculateCRC32(bytes.NewReader(content))
 			require.NoError(t, err, "Sequential reader %d: failed to calculate checksum", readerID)
-
 			// Validate checksum matches expected
 			require.Equal(t, expectedChecksum, readerChecksum, "Sequential reader %d: checksum mismatch", readerID)
 		}(i)
 	}
-
 	// Launch 5 random readers
 	for i := 0; i < randomReads; i++ {
 		wg.Add(1)
 		go func(readerID int) {
 			defer wg.Done()
-
 			numRandomReads := 200 // Number of random read operations per goroutine
-
 			// Use a simple pseudo-random generator to avoid contention on global rand
 			seed := time.Now().UnixNano() + int64(readerID)
-
 			// Perform random reads using operations.ReadChunkFromFile
 			for j := 0; j < numRandomReads; j++ {
 				// Generate random offset within file bounds, aligned to chunk boundaries
 				seed = (seed*1103515245 + 12345) % (1 << 31) // Simple LCG
 				randomOffset := (seed % (fileSize / chunkSize)) * chunkSize
-
 				// Use operations.ReadChunkFromFile for reading chunks
 				chunk, err := operations.ReadChunkFromFile(testFilePath, chunkSize, randomOffset, os.O_RDONLY)
 				require.NoError(t, err, "Random reader %d: ReadChunkFromFile failed at offset %d", readerID, randomOffset)
-
 				if len(chunk) > 0 {
 					// Validate the chunk by reading the same range sequentially and comparing
 					expectedChunk, err := operations.ReadChunkFromFile(testFilePath, int64(len(chunk)), randomOffset, os.O_RDONLY)
@@ -130,7 +119,6 @@ func (s *concurrentReadTest) Test_ConcurrentSequentialAndRandomReads(t *testing.
 			}
 		}(i)
 	}
-
 	// Wait for all goroutines or timeout
 	done := make(chan bool, 1)
 	go func() {
@@ -141,7 +129,6 @@ func (s *concurrentReadTest) Test_ConcurrentSequentialAndRandomReads(t *testing.
 	select {
 	case <-done:
 		t.Log("All concurrent read operations completed successfully")
-
 	case <-time.After(timeout):
 		assert.FailNow(t, "Concurrent read operations timed out - possible deadlock or performance issue")
 	}
@@ -160,15 +147,12 @@ func (s *concurrentReadTest) Test_ConcurrentSegmentReadsSharedHandle(t *testing.
 	)
 	testCaseDir := "Test_ConcurrentSegmentReadsSharedHandle"
 	operations.CreateDirectory(path.Join(testDirPathForRead, testCaseDir), t)
-
 	// Create a 500MiB test file
 	testFilePath := path.Join(testDirPathForRead, testCaseDir, "segment_test_file.bin")
 	operations.CreateFileOfSize(fileSize, testFilePath, t)
-
 	// Calculate expected checksum of the entire file for validation
 	expectedChecksum, err := operations.CalculateFileCRC32(testFilePath)
 	require.NoError(t, err, "Failed to calculate expected checksum")
-
 	// Open shared file handle that will be used by all goroutines
 	sharedFile, err := os.Open(testFilePath)
 	require.NoError(t, err, "Failed to open shared file handle")
@@ -176,7 +160,6 @@ func (s *concurrentReadTest) Test_ConcurrentSegmentReadsSharedHandle(t *testing.
 		err := sharedFile.Close()
 		require.NoError(t, err, "Failed to close shared file handle")
 	}()
-
 	var wg sync.WaitGroup
 	segmentData := make([][]byte, numReaders)
 	timeout := 300 * time.Second // 5 minutes timeout
@@ -186,7 +169,6 @@ func (s *concurrentReadTest) Test_ConcurrentSegmentReadsSharedHandle(t *testing.
 		wg.Add(1)
 		go func(readerID int) {
 			defer wg.Done()
-
 			// Calculate segment boundaries
 			segmentStart := int64(readerID) * segmentSize
 			segmentEnd := segmentStart + segmentSize
@@ -195,18 +177,15 @@ func (s *concurrentReadTest) Test_ConcurrentSegmentReadsSharedHandle(t *testing.
 				segmentEnd = fileSize
 			}
 			actualSegmentSize := segmentEnd - segmentStart
-
 			// Read segment using shared file handle with ReadAt
 			buffer := make([]byte, actualSegmentSize)
 			n, err := sharedFile.ReadAt(buffer, segmentStart)
 			require.NoError(t, err, "Reader %d: ReadAt failed for segment %d-%d", readerID, segmentStart, segmentEnd-1)
 			require.Equal(t, int(actualSegmentSize), n, "Reader %d: expected to read %d bytes, got %d", readerID, actualSegmentSize, n)
-
 			// Store segment data for later validation
 			segmentData[readerID] = buffer
 		}(i)
 	}
-
 	// Wait for all goroutines or timeout
 	done := make(chan bool, 1)
 	go func() {
@@ -217,7 +196,6 @@ func (s *concurrentReadTest) Test_ConcurrentSegmentReadsSharedHandle(t *testing.
 	select {
 	case <-done:
 		t.Log("All concurrent segment read operations completed successfully")
-
 		// Reconstruct the full file from segments and validate checksum
 		var fullContent bytes.Buffer
 		for i, segment := range segmentData {
@@ -231,7 +209,6 @@ func (s *concurrentReadTest) Test_ConcurrentSegmentReadsSharedHandle(t *testing.
 		reconstructedChecksum, err := operations.CalculateCRC32(bytes.NewReader(fullContent.Bytes()))
 		require.NoError(t, err, "Failed to calculate reconstructed checksum")
 		require.Equal(t, expectedChecksum, reconstructedChecksum, "Reconstructed file checksum mismatch")
-
 	case <-time.After(timeout):
 		assert.FailNow(t, "Concurrent segment read operations timed out - possible deadlock or performance issue")
 	}
