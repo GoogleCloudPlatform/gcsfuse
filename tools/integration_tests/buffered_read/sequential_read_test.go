@@ -115,7 +115,6 @@ func (s *SequentialReadSuite) TestReadHeaderFooterAndBody() {
 		fileSize := blockSizeInBytes * 2
 		// Create a file of a given size in the test directory.
 		fileName := setupFileInTestDir(ctx, storageClient, testDir, fileSize, t)
-		require.NoError(t, err, "Failed to create file")
 		filePath := path.Join(testDir, fileName)
 		// Get the actual file size.
 		fi, err := os.Stat(filePath)
@@ -123,9 +122,7 @@ func (s *SequentialReadSuite) TestReadHeaderFooterAndBody() {
 		actualFileSize := fi.Size()
 		// The size of the main content to read sequentially
 		bodySize := actualFileSize - int64(headerSize) - int64(footerSize)
-		// Open the file once.
-		mountedFilePath := path.Join(testDir, fileName)
-		f, err := os.OpenFile(mountedFilePath, os.O_RDONLY|syscall.O_DIRECT, 0)
+		f, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, 0)
 		require.NoError(t, err)
 		expected := &Expected{
 			StartTimeStampSeconds: time.Now().Unix(),
