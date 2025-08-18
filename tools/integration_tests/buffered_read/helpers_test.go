@@ -17,6 +17,8 @@ package buffered_read
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"math/rand"
 	"os"
 	"path"
 	"syscall"
@@ -30,6 +32,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/xitongsys/parquet-go-source/local"
+	"github.com/xitongsys/parquet-go/parquet"
+	"github.com/xitongsys/parquet-go/writer"
 )
 
 // Expected is a helper struct that stores list of attributes to be validated from logs.
@@ -134,4 +139,72 @@ func induceRandomReadFallback(t *testing.T, f *os.File, testDir, fileName string
 
 	// The next read should trigger the fallback but still succeed from the user's perspective.
 	readAndValidateChunk(f, testDir, fileName, offset, chunkSize, t)
+}
+
+// Record defines our Parquet schema
+type Record struct {
+	Col1 int64   `parquet:"name=col1, type=INT64"`
+	Col2 string  `parquet:"name=col2, type=BYTE_ARRAY, convertedtype=UTF8, encoding=PLAIN_DICTIONARY"`
+	Col3 float64 `parquet:"name=col3, type=DOUBLE"`
+}
+
+func randomString(length int) string {
+	chars := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	result := make([]rune, length)
+	for i := range result {
+		result[i] = chars[rand.Intn(len(chars))]
+	}
+	return string(result)
+}
+
+func CreateParquetFile(filePath string, targetSizeMB int) error {
+	// Create local file writer
+	fw, err := local.NewLocalFileWriter(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to create file writer: %w", err)
+	}
+	defer fw.Close()
+
+	// Create Parquet writer
+	pw, err := writer.NewParquetWriter(fw, new(Record), 4)
+	if err != nil {
+		return fmt.Errorf("failed to create parquet writer: %w", err)
+	}
+	pw.RowGroupSize = 128 * 1024 * 1024 // 128MB
+	pw.CompressionType = parquet.CompressionCodec_SNAPPY
+
+	// Iteratively write until file size reached
+	var writtenRows int64
+	for {
+		rec := Record{
+			Col1: rand.Int63(),
+			Col2: randomString(20),
+			Col3: rand.Float64(),
+		}
+
+		if err := pw.Write(rec); err != nil {
+			return fmt.Errorf("failed to write record: %w", err)
+		}
+		writtenRows++
+
+		// Check file size every 10k rows
+		if writtenRows%10_000 == 0 {
+			if err := pw.Flush(true); err != nil {
+				return fmt.Errorf("failed to flush parquet writer: %w", err)
+			}
+			info, err := os.Stat(filePath)
+			if err != nil {
+				return fmt.Errorf("failed to stat parquet file %q: %w", filePath, err)
+			}
+			sizeMB := info.Size() / (1024 * 1024)
+			if int(sizeMB) >= targetSizeMB {
+				break
+			}
+		}
+	}
+
+	if err = pw.WriteStop(); err != nil {
+		return fmt.Errorf("failed to stop parquet writer: %w", err)
+	}
+	return nil
 }
