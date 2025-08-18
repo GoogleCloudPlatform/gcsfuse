@@ -184,17 +184,8 @@ func (s *SequentialReadSuite) TestParquetReadWritesInParallel() {
 		logEntries := parseBufferedReadLogs(t)
 		// Verify that all reads were served by the buffered reader without fallback,
 		// and that each file had at least one purely sequential read.
-		logsPerObject := make(map[string]int)
-		seekCountsPerObject := make(map[string][]int64)
-		fileNames := make([]string, numGoroutines)
-		for i := 0; i < numGoroutines; i++ {
-			fileNames[i] = fmt.Sprintf("%s-%d.parquet", testFileName, i)
-		}
-
 		for _, entry := range logEntries {
 			assert.False(t, entry.Fallback, "Fallback should be false for object %s", entry.ObjectName)
-			logsPerObject[entry.ObjectName]++
-			seekCountsPerObject[entry.ObjectName] = append(seekCountsPerObject[entry.ObjectName], entry.RandomSeekCount)
 		}
 	})
 }
