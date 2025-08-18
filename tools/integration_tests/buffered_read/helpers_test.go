@@ -25,8 +25,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
@@ -187,9 +187,9 @@ func CreateParquetFile(filePath string, targetSizeMB int) error {
 	var writtenRows int64
 	for {
 		rec := Record{
-			Col1: rand.Int63(), //nolint:gosec
+			Col1: rand.Int63(),
 			Col2: randomString(randomStringLength),
-			Col3: rand.Float64(), //nolint:gosec
+			Col3: rand.Float64(),
 		}
 
 		if err := pw.Write(rec); err != nil {
