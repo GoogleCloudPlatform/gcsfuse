@@ -23,7 +23,9 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 const (
@@ -41,6 +43,31 @@ var (
 	// root directory is the directory to be unmounted.
 	rootDir string
 )
+
+////////////////////////////////////////////////////////////////////////
+// Helper functions
+////////////////////////////////////////////////////////////////////////
+
+func mountGCSFuseAndSetupTestDir(flags []string, testDirName string, t *testing.T) {
+	// When tests are running in GKE environment, use the mounted directory provided as test flag.
+	if setup.MountedDirectory() != "" {
+		testDirPathForRead = setup.MountedDirectory()
+	} else {
+		config := &test_suite.TestConfig{
+			TestBucket:       setup.TestBucket(),
+			MountedDirectory: setup.MountedDirectory(),
+			LogFile:          setup.LogFile(),
+		}
+		if err := static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(config, flags); err != nil {
+			t.Fatalf("Failed to mount GCS FUSE: %v", err)
+			return
+		}
+		testDirPathForRead = setup.MntDir()
+	}
+	setup.SetMntDir(testDirPathForRead)
+	testDirPath := setup.SetupTestDirectory(testDirName)
+	testDirPathForRead = testDirPath
+}
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()

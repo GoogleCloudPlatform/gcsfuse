@@ -22,11 +22,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -38,28 +36,6 @@ const (
 var testDirPathForRead string
 
 ////////////////////////////////////////////////////////////////////////
-// Helper functions
-////////////////////////////////////////////////////////////////////////
-
-func mountGCSFuseAndSetupTestDir(flags []string, testDirName string) {
-	// When tests are running in GKE environment, use the mounted directory provided as test flag.
-	if setup.MountedDirectory() != "" {
-		testDirPathForRead = setup.MountedDirectory()
-	} else {
-		config := &test_suite.TestConfig{
-			TestBucket:       setup.TestBucket(),
-			MountedDirectory: setup.MountedDirectory(),
-			LogFile:          setup.LogFile(),
-		}
-		static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(config, flags)
-		testDirPathForRead = setup.MntDir()
-	}
-	setup.SetMntDir(testDirPathForRead)
-	testDirPath := setup.SetupTestDirectory(testDirName)
-	testDirPathForRead = testDirPath
-}
-
-////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
@@ -68,7 +44,7 @@ type concurrentReadTest struct {
 }
 
 func (s *concurrentReadTest) Setup(t *testing.T) {
-	mountGCSFuseAndSetupTestDir(s.flags, testDirNameForRead)
+	mountGCSFuseAndSetupTestDir(s.flags, testDirNameForRead, t)
 }
 
 func (s *concurrentReadTest) Teardown(t *testing.T) {
@@ -130,11 +106,10 @@ func (s *concurrentReadTest) Test_ConcurrentSequentialAndRandomReads(t *testing.
 		go func(readerID int) {
 			defer wg.Done()
 
-			var totalBytesRead int64 = 0
 			numRandomReads := 200 // Number of random read operations per goroutine
 
 			// Use a simple pseudo-random generator to avoid contention on global rand
-			seed := int64(readerID*1000 + int(time.Now().UnixNano()%1000))
+			seed := time.Now().UnixNano() + int64(readerID)
 
 			// Perform random reads using operations.ReadChunkFromFile
 			for j := 0; j < numRandomReads; j++ {
@@ -151,8 +126,6 @@ func (s *concurrentReadTest) Test_ConcurrentSequentialAndRandomReads(t *testing.
 					expectedChunk, err := operations.ReadChunkFromFile(testFilePath, int64(len(chunk)), randomOffset, os.O_RDONLY)
 					require.NoError(t, err, "Random reader %d: validation read failed at offset %d", readerID, randomOffset)
 					require.Equal(t, expectedChunk, chunk, "Random reader %d: chunk content mismatch at offset %d", readerID, randomOffset)
-
-					totalBytesRead += int64(len(chunk))
 				}
 			}
 		}(i)
