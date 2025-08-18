@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/log_parser/json_parser/read_logs"
@@ -36,6 +37,16 @@ import (
 	"github.com/xitongsys/parquet-go/parquet"
 	"github.com/xitongsys/parquet-go/writer"
 )
+
+const (
+	parquetWriterConcurrency = 4
+	parquetRowGroupSize      = 128 * util.MiB
+	randomStringLength       = 20
+	fileSizeCheckInterval    = 10_000
+)
+
+// randomStringChars is the set of characters used to generate random strings.
+var randomStringChars = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
 // Expected is a helper struct that stores list of attributes to be validated from logs.
 type Expected struct {
@@ -149,10 +160,9 @@ type Record struct {
 }
 
 func randomString(length int) string {
-	chars := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 	result := make([]rune, length)
 	for i := range result {
-		result[i] = chars[rand.Intn(len(chars))]
+		result[i] = randomStringChars[rand.Intn(len(randomStringChars))]
 	}
 	return string(result)
 }
@@ -166,20 +176,20 @@ func CreateParquetFile(filePath string, targetSizeMB int) error {
 	defer fw.Close()
 
 	// Create Parquet writer
-	pw, err := writer.NewParquetWriter(fw, new(Record), 4)
+	pw, err := writer.NewParquetWriter(fw, new(Record), parquetWriterConcurrency)
 	if err != nil {
 		return fmt.Errorf("failed to create parquet writer: %w", err)
 	}
-	pw.RowGroupSize = 128 * 1024 * 1024 // 128MB
+	pw.RowGroupSize = parquetRowGroupSize
 	pw.CompressionType = parquet.CompressionCodec_SNAPPY
 
 	// Iteratively write until file size reached
 	var writtenRows int64
 	for {
 		rec := Record{
-			Col1: rand.Int63(),
-			Col2: randomString(20),
-			Col3: rand.Float64(),
+			Col1: rand.Int63(), //nolint:gosec
+			Col2: randomString(randomStringLength),
+			Col3: rand.Float64(), //nolint:gosec
 		}
 
 		if err := pw.Write(rec); err != nil {
@@ -188,7 +198,7 @@ func CreateParquetFile(filePath string, targetSizeMB int) error {
 		writtenRows++
 
 		// Check file size every 10k rows
-		if writtenRows%10_000 == 0 {
+		if writtenRows%fileSizeCheckInterval == 0 {
 			if err := pw.Flush(true); err != nil {
 				return fmt.Errorf("failed to flush parquet writer: %w", err)
 			}
@@ -196,7 +206,7 @@ func CreateParquetFile(filePath string, targetSizeMB int) error {
 			if err != nil {
 				return fmt.Errorf("failed to stat parquet file %q: %w", filePath, err)
 			}
-			sizeMB := info.Size() / (1024 * 1024)
+			sizeMB := info.Size() / util.MiB
 			if int(sizeMB) >= targetSizeMB {
 				break
 			}
