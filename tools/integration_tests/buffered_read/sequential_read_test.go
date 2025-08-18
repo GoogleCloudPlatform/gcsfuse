@@ -17,9 +17,13 @@ package buffered_read
 import (
 	"fmt"
 	"os"
+	"path"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -92,6 +96,57 @@ func (s *SequentialReadSuite) TestSequentialRead() {
 			})
 		}
 	}
+}
+
+// TestReadHeaderFooterAndBody verifies that a single file handle can correctly handle
+// a mix of random reads (header and footer) followed by a large sequential read.
+// The key validation is that all these operations should be served from a single
+// buffered read log entry, indicating efficient handling.
+func (s *SequentialReadSuite) TestReadHeaderFooterAndBody() {
+	// Constants for block and file sizes
+	blockSizeInBytes := s.testFlags.blockSizeMB * util.MiB
+	// Header and footer sizes (10KB each)
+	headerSize := 10 * util.KiB
+	footerSize := 10 * util.KiB
+	s.T().Run("Read header, footer, then body from one file handle", func(t *testing.T) {
+		err := os.Truncate(setup.LogFile(), 0)
+		require.NoError(t, err, "Failed to truncate log file")
+		testDir := setup.SetupTestDirectory(testDirName)
+		fileSize := blockSizeInBytes * 2
+		// Create a file of a given size in the test directory.
+		fileName := setupFileInTestDir(ctx, storageClient, testDir, fileSize, t)
+		filePath := path.Join(testDir, fileName)
+		// Get the actual file size.
+		fi, err := os.Stat(filePath)
+		require.NoError(t, err)
+		actualFileSize := fi.Size()
+		// The size of the main content to read sequentially
+		bodySize := actualFileSize - int64(headerSize) - int64(footerSize)
+		f, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, 0)
+		require.NoError(t, err)
+		expected := &Expected{
+			StartTimeStampSeconds: time.Now().Unix(),
+			BucketName:            setup.TestBucket(),
+			ObjectName:            path.Join(path.Base(testDir), fileName),
+		}
+		if setup.DynamicBucketMounted() != "" {
+			expected.BucketName = setup.DynamicBucketMounted()
+		}
+
+		// (a) Read first 10KB (header)
+		readAndValidateChunk(f, path.Base(testDir), fileName, 0, int64(headerSize), t)
+		// (b) Read last 10KB (footer)
+		readAndValidateChunk(f, path.Base(testDir), fileName, actualFileSize-int64(footerSize), int64(footerSize), t)
+		// (c) Read the remaining content sequentially
+		readAndValidateChunk(f, path.Base(testDir), fileName, int64(headerSize), bodySize, t)
+
+		// Close the file handle to trigger log generation.
+		operations.CloseFileShouldNotThrowError(t, f)
+		expected.EndTimeStampSeconds = time.Now().Unix()
+		// Since all reads were on the same handle, there should be one log entry.
+		bufferedReadLogEntry := parseAndValidateSingleBufferedReadLog(t)
+		validate(expected, bufferedReadLogEntry, false, t)
+	})
 }
 
 ////////////////////////////////////////////////////////////////////////
