@@ -26,6 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -45,7 +46,12 @@ func mountGCSFuseAndSetupTestDir(flags []string, testDirName string) {
 	if setup.MountedDirectory() != "" {
 		testDirPathForRead = setup.MountedDirectory()
 	} else {
-		setup.MountGCSFuseWithGivenMountFunc(flags, static_mounting.MountGcsfuseWithStaticMounting)
+		config := &test_suite.TestConfig{
+			TestBucket:       setup.TestBucket(),
+			MountedDirectory: setup.MountedDirectory(),
+			LogFile:          setup.LogFile(),
+		}
+		static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(config, flags)
 		testDirPathForRead = setup.MntDir()
 	}
 	setup.SetMntDir(testDirPathForRead)
@@ -273,7 +279,8 @@ func TestConcurrentRead(t *testing.T) {
 
 	// Define flag sets specific for concurrent read tests
 	flagsSet := [][]string{
-		{"--enable-buffered-read"},
+		{},                         // For default read path.
+		{"--enable-buffered-read"}, // For Buffered read enabled.
 	}
 
 	// Run tests with each flag set
