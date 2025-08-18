@@ -61,12 +61,25 @@ func NewStaticWorkerPool(priorityWorker uint32, normalWorker uint32) (*staticWor
 }
 
 // NewStaticWorkerPoolForCurrentCPU creates and starts a new worker pool. The
-// number of workers is determined based on the number of available CPUs.
-func NewStaticWorkerPoolForCurrentCPU() (WorkerPool, error) {
+// number of workers is determined based on the number of available CPUs and
+// the provided readGlobalMaxBlocks.
+func NewStaticWorkerPoolForCurrentCPU(readGlobalMaxBlocks int64) (WorkerPool, error) {
+	return newStaticWorkerPoolForCurrentCPU(readGlobalMaxBlocks, runtime.NumCPU)
+}
+
+// newStaticWorkerPoolForCurrentCPU is an unexported helper for testing.
+func newStaticWorkerPoolForCurrentCPU(readGlobalMaxBlocks int64, numCPU func() int) (WorkerPool, error) {
 	// It's a general heuristic to use 2-3 times the number of CPUs for I/O-bound tasks.
 	// We use 3x here as a balance between parallelism and resource consumption.
 	const workersPerCPU = 3
-	totalWorkers := workersPerCPU * runtime.NumCPU()
+	totalWorkers := workersPerCPU * numCPU()
+
+	// Since the number of concurrent download tasks is limited by readGlobalMaxBlocks,
+	// creating more workers beyond this limit offers no performance gain and wastes
+	// resources. Hence, we cap total workers to ceil(1.1 * readGlobalMaxBlocks).
+	if cappedWorkers := (11*readGlobalMaxBlocks + 9) / 10; int64(totalWorkers) > cappedWorkers {
+		totalWorkers = int(cappedWorkers)
+	}
 
 	// 10% of total workers for priority, rounded up.
 	priorityWorkers := (totalWorkers + 9) / 10
