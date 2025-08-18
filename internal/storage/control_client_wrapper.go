@@ -99,17 +99,20 @@ func withBillingProject(controlClient StorageControlClient, billingProject strin
 
 // exponentialBackoff holds the duration parameters for exponential backoff.
 type exponentialBackoff struct {
-	// Duration for next backoff. Capped at max. Returnd by next().
-	next time.Duration
+	// Min duration for next backoff, which is same as the initial backoff.
+	min time.Duration
 	// Max duration returned for next back backoff i.e. Next().
 	max time.Duration
 	// The rate at which the backoff duration should grow
 	// over subsequent calls to next().
 	multiplier float64
+	// Duration for next backoff. Capped at max. Returned by next().
+	next time.Duration
 }
 
 func newBackoff(initialDuration, maxDuration time.Duration, multiplier float64) *exponentialBackoff {
 	return &exponentialBackoff{
+		min:        initialDuration,
 		max:        maxDuration,
 		multiplier: multiplier,
 		next:       initialDuration,
@@ -120,6 +123,7 @@ func newBackoff(initialDuration, maxDuration time.Duration, multiplier float64) 
 func (b *exponentialBackoff) nextDuration() time.Duration {
 	next := b.next
 	b.next = min(b.max, time.Duration(float64(b.next)*b.multiplier))
+	b.next = max(b.min, b.next)
 	return next
 }
 
@@ -128,7 +132,7 @@ func (b *exponentialBackoff) nextDuration() time.Duration {
 // This is similar to how gax-retries backoff after each failed retry.
 func (b *exponentialBackoff) waitWithJitter(ctx context.Context) error {
 	nextDuration := b.nextDuration()
-	jitteryBackoffDuration := time.Duration(rand.Int63n(int64(nextDuration)))
+	jitteryBackoffDuration := time.Duration(max(int64(b.min), rand.Int63n(int64(nextDuration))))
 	select {
 	case <-time.After(jitteryBackoffDuration):
 		return nil
@@ -232,7 +236,7 @@ func (sccwros *storageControlClientWithRetry) CreateFolder(ctx context.Context, 
 	return sccwros.raw.CreateFolder(ctx, req, opts...)
 }
 
-func newRetryWrapper(controlClient StorageControlClient, retryDeadline time.Duration, totalRetryBudget time.Duration, initialBackoff time.Duration, maxBackoff time.Duration, backoffMultiplier float64) StorageControlClient {
+func newRetryWrapper(controlClient StorageControlClient, retryDeadline, totalRetryBudget, initialBackoff, maxBackoff time.Duration, backoffMultiplier float64) StorageControlClient {
 	// Avoid creating a nested wrapper.
 	raw := controlClient
 	if sccwros, ok := controlClient.(*storageControlClientWithRetry); ok {

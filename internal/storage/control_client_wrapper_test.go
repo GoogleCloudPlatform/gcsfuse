@@ -185,6 +185,7 @@ func (t *ExponentialBackoffTest) TestNewBackoff() {
 
 	assert.NotNil(t.T(), b)
 	assert.Equal(t.T(), initial, b.next)
+	assert.Equal(t.T(), initial, b.min)
 	assert.Equal(t.T(), max, b.max)
 	assert.Equal(t.T(), multiplier, b.multiplier)
 }
