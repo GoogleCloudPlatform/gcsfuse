@@ -18,10 +18,9 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"syscall"
 	"testing"
 	"time"
-
-	"syscall"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
@@ -142,11 +141,11 @@ func (s *SequentialReadSuite) TestParquetRead() {
 		}
 
 		// (a) Read first 10KB (header)
-		readAndValidateChunk(f, 0, int64(headerSize), path.Base(testDir), fileName, t)
+		readAndValidateChunk(f, path.Base(testDir), fileName, 0, int64(headerSize), t)
 		// (b) Read last 10KB (footer)
-		readAndValidateChunk(f, actualFileSize-int64(footerSize), int64(footerSize), path.Base(testDir), fileName, t)
+		readAndValidateChunk(f, path.Base(testDir), fileName, actualFileSize-int64(footerSize), int64(footerSize), t)
 		// (c) Read the remaining content sequentially
-		readAndValidateChunk(f, int64(headerSize), bodySize, path.Base(testDir), fileName, t)
+		readAndValidateChunk(f, path.Base(testDir), fileName, int64(headerSize), bodySize, t)
 
 		// Close the file handle to trigger log generation.
 		operations.CloseFileShouldNotThrowError(t, f)
