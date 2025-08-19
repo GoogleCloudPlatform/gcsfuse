@@ -57,7 +57,7 @@ run_benchmark() {
   rm -f "$log_file"
 
   # Pass log file flag as a string.
-  local gcsfuse_flags="--log-file $log_file"
+  local gcsfuse_flags="--log-file $log_file --debug_gcs"
 
   log "Running $rw benchmark..."
   if ! python3 "$script_path" --bucket single-threaded-tests \
@@ -65,10 +65,10 @@ run_benchmark() {
       --total-files "$total_files" \
       --file-size-gb "$file_size_gb"; then
     log "$rw benchmark failed. Copying log to gs://$ARTIFACT_BUCKET_PATH/$DATE"
-    gcloud storage cp "$log_file" "gs://$ARTIFACT_BUCKET_PATH/$DATE/"
-    gcloud storage cat "gs://$ARTIFACT_BUCKET_PATH/$DATE/$(basename "$log_file")"
     return 1
   fi
+  gcloud storage cp "$log_file" "gs://$ARTIFACT_BUCKET_PATH/$DATE/"
+  gcloud storage cat "gs://$ARTIFACT_BUCKET_PATH/$DATE/$(basename "$log_file")"
 
   return 0
 }
