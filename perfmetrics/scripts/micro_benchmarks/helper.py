@@ -51,12 +51,12 @@ def mount_bucket(mount_dir: str, bucket_name: str, flags: str) -> bool:
     subprocess.run(cmd, shell=True, check=True)
     print(f"Successfully mounted {bucket_name} at {mount_dir}")
     # Set read_ahead_kb as requested.
-    post_mount_cmd = (f"export MOUNT_POINT='{mount_dir}'; "
-                      f"echo 1024 | sudo tee /sys/class/bdi/0:$(stat -c '%d' $MOUNT_POINT)/read_ahead_kb")
+    # post_mount_cmd = (f"export MOUNT_POINT='{mount_dir}'; "
+    #                   f"echo 1024 | sudo tee /sys/class/bdi/0:$(stat -c '%d' $MOUNT_POINT)/read_ahead_kb")
     print(f"Running post-mount command for {mount_dir}...")
     try:
       # Using /bin/bash to ensure 'export' and command substitution work as expected.
-      subprocess.run(post_mount_cmd, shell=True, check=True, executable='/bin/bash')
+      # subprocess.run(post_mount_cmd, shell=True, check=True, executable='/bin/bash')
       print("Post-mount command executed successfully.")
     except subprocess.CalledProcessError as e:
       print(f"Failed to execute post-mount command: {e}")
