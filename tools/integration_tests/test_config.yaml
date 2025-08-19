@@ -58,6 +58,7 @@ list_large_dir:
           hns: true
           zonal: true
       - flags:
+        - "--implicit-dirs=true --stat-cache-ttl=0 --kernel-list-cache-ttl-secs=-1"
         - "--client-protocol=grpc --implicit-dirs=true --stat-cache-ttl=0 --kernel-list-cache-ttl-secs=-1"
         compatible:
           flat: true
