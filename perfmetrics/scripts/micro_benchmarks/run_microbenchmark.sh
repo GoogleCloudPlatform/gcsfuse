@@ -79,8 +79,8 @@ sudo apt-get update -y
 sudo apt-get install -y git gnupg python3-venv
 
 cd "$HOME/github/gcsfuse"
-commitId=$(git rev-parse --short HEAD)
-./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId
+# commitId=$(git rev-parse --short HEAD)
+./perfmetrics/scripts/build_and_install_gcsfuse.sh test_br_testing
 
 cd "perfmetrics/scripts/micro_benchmarks"
 # Cleanup previous mounts if any

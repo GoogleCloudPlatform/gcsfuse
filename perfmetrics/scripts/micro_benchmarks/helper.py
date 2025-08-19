@@ -123,8 +123,8 @@ def log_to_bigquery(start_time_sec: float, duration_sec: float, total_bytes: int
   df['duration_seconds'] = df['duration_seconds'].astype(float)
   df['bandwidth_mbps'] = df['bandwidth_mbps'].astype(float)
 
-  client.load_table_from_dataframe(df, table_ref).result()
-  print("Successfully logged data to BigQuery.")
+  # client.load_table_from_dataframe(df, table_ref).result()
+  # print("Successfully logged data to BigQuery.")
 
 
 def get_last_n_days_bandwidth_entries(

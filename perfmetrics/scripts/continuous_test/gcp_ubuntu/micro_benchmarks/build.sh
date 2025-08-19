@@ -52,8 +52,9 @@ run_script_on_vm() {
     mkdir -p ~/github
     git clone \"\$GCSFUSE_REPO\" ~/github/gcsfuse
     cd ~/github/gcsfuse
-    commitId=\$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
-    git checkout \$commitId
+    git checkout test_br_testing
+    # commitId=\$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
+    # git checkout \$commitId
 
     # Run benchmark
     echo \"Triggering benchmark script...\"
