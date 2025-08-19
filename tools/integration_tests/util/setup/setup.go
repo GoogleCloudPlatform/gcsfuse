@@ -97,10 +97,6 @@ func SetIsZonalBucketRun(val bool) {
 	*isZonalBucketRun = val
 }
 
-func IsIntegrationTest() bool {
-	return *integrationTest
-}
-
 func TestBucket() string {
 	return *testBucket
 }
@@ -386,20 +382,6 @@ func ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet() {
 	}
 }
 
-func ExitWithFailureIfMountedDirectoryIsSetOrTestBucketIsNotSet() {
-	ParseSetUpFlags()
-
-	if *testBucket == "" {
-		log.Print("Please pass the name of bucket to be mounted to --testBucket flag. It is required for this test.")
-		os.Exit(1)
-	}
-
-	if *mountedDirectory != "" {
-		log.Print("Please do not pass the mountedDirectory at test runtime. It is not supported for this test.")
-		os.Exit(1)
-	}
-}
-
 // Deprecated: Use RunTestsForMountedDirectory instead.
 // TODO(b/438068132): cleanup deprecated methods after migration is complete.
 func RunTestsForMountedDirectoryFlag(m *testing.M) {
@@ -557,6 +539,21 @@ func ResolveIsHierarchicalBucket(ctx context.Context, testBucket string, storage
 	return false
 }
 
+// BucketTestEnvironment sets the global testBucket and isZonalBucket variable
+// based on the bucket type.
+func BucketTestEnvironment(ctx context.Context, bucketName string) string {
+	SetTestBucket(bucketName)
+	bucketType, err := BucketType(ctx, bucketName)
+	if err != nil {
+		log.Fatalf("BucketType failed: %v", err)
+	}
+	if bucketType == ZonalBucket {
+		SetIsZonalBucketRun(true)
+	}
+
+	return bucketType
+}
+
 const FlatBucket = "flat"
 const HNSBucket = "hns"
 const ZonalBucket = "zonal"
@@ -600,8 +597,9 @@ func BuildFlagSets(cfg test_suite.TestConfig, bucketType string) [][]string {
 	return dynamicFlags
 }
 
-func SetBucketFromConfigFile(testBucketFromConfigFile string) {
-	testBucket = &testBucketFromConfigFile
+// SetTestBucket sets the testBucket global variable.
+func SetTestBucket(bucketName string) {
+	testBucket = &bucketName
 }
 
 // Explicitly set the enable-hns config flag to true when running tests on the HNS bucket.
