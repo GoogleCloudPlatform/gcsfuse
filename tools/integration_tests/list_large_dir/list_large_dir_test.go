@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,15 +16,19 @@
 package list_large_dir
 
 import (
-	"context"
-	"log"
-	"os"
-	"testing"
+    "context"
+    "log"
+    "os"
+    "testing"
+    "fmt"
+    "strings"
 
-	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+    "cloud.google.com/go/storage"
+    "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+    "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
+    "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+    "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
+    "gopkg.in/yaml.v3"
 )
 
 const prefixFileInDirectoryWithTwelveThousandFiles = "fileInDirectoryWithTwelveThousandFiles"
@@ -35,37 +39,77 @@ const numberOfImplicitDirsInDirectoryWithTwelveThousandFiles = 100
 const numberOfExplicitDirsInDirectoryWithTwelveThousandFiles = 100
 
 var (
-	directoryWithTwelveThousandFiles = "directoryWithTwelveThousandFiles" + setup.GenerateRandomString(5)
-	storageClient                    *storage.Client
-	ctx                              context.Context
+    directoryWithTwelveThousandFiles = "directoryWithTwelveThousandFiles" + setup.GenerateRandomString(5)
+    storageClient                    *storage.Client
+    ctx                              context.Context
 )
 
-func TestMain(m *testing.M) {
-	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
-
-	// Create common storage client to be used in test.
-	ctx = context.Background()
-	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
-	defer func() {
-		err := closeStorageClient()
-		if err != nil {
-			log.Fatalf("closeStorageClient failed: %v", err)
-		}
-	}()
-
-	flags := [][]string{{"--implicit-dirs", "--stat-cache-ttl=0", "--kernel-list-cache-ttl-secs=-1"}}
-	// Don't run for grpc if -short flat is passed.
-	// Don't run for grpc for zonal bucket as zonal buckets by default use grpc.
-	if !testing.Short() && !setup.IsZonalBucketRun() {
-		flags = append(flags, []string{"--client-protocol=grpc", "--implicit-dirs=true", "--stat-cache-ttl=0", "--kernel-list-cache-ttl-secs=-1"})
-	}
-
-	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
-	setup.RunTestsForMountedDirectoryFlag(m)
-
-	setup.SetUpTestDirForTestBucketFlag()
-
-	successCode := static_mounting.RunTests(flags, m)
-
-	os.Exit(successCode)
+// Config holds all test configurations parsed from the YAML file.
+type Config struct {
+    ListLargeDir []test_suite.TestConfig `yaml:"list_large_dir"`
 }
+
+func TestMain(m *testing.M) {
+    setup.ParseSetUpFlags()
+
+    // 1. Load and parse the common configuration.
+    var cfg Config
+    if setup.ConfigFile() != "" {
+        configData, err := os.ReadFile(setup.ConfigFile())
+        if err != nil {
+            log.Fatalf("could not read test_config.yaml: %v", err)
+        }
+        expandedYaml := os.ExpandEnv(string(configData))
+        if err := yaml.Unmarshal([]byte(expandedYaml), &cfg); err != nil {
+            log.Fatalf("Failed to parse config YAML: %v", err)
+        }
+    }
+    if len(cfg.ListLargeDir) == 0 {
+        log.Println("No configuration found for list large dir tests in config. Using flags instead.")
+        // Populate the config manually.
+        cfg.ListLargeDir = make([]test_suite.TestConfig, 1)
+        cfg.ListLargeDir[0].TestBucket = setup.TestBucket()
+        // TODO : use yaml file and manually input the flags.
+        cfg.ListLargeDir[0].Flags = []string{
+            // "--enable-atomic-rename-object=true",
+            // "--experimental-enable-json-read=true",
+            // "--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true",
+            // "--experimental-enable-json-read=true --enable-atomic-rename-object=true",
+            // "--create-empty-file=true --enable-atomic-rename-object=true",
+            // "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false",
+            // "--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true",
+        }
+    }
+
+    // 2. Create storage client before running tests.
+    setup.SetBucketFromConfigFile(cfg.ListLargeDir[0].TestBucket)
+    ctx = context.Background()
+    closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
+    defer func() {
+        err := closeStorageClient()
+        if err != nil {
+            log.Fatalf("closeStorageClient failed: %v", err)
+        }
+    }()
+    defer storageClient.Close()
+
+    // 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
+    // flags to be set, as ListLargeDir tests validates content from the bucket.
+    if cfg.ListLargeDir[0].MountedDirectory != "" && cfg.ListLargeDir[0].TestBucket != "" {
+        os.Exit(setup.RunTestsForMountedDirectory(cfg.ListLargeDir[0].MountedDirectory, m))
+    }
+
+    // flags := [][]string{{"--implicit-dirs", "--stat-cache-ttl=0", "--kernel-list-cache-ttl-secs=-1"}}
+    // // Don't run for grpc if -short flat is passed.
+    // // Don't run for grpc for zonal bucket as zonal buckets by default use grpc.
+    // if !testing.Short() && !setup.IsZonalBucketRun() {
+    //  flags = append(flags, []string{"--client-protocol=grpc", "--implicit-dirs=true", "--stat-cache-ttl=0", "--kernel-list-cache-ttl-secs=-1"})
+    // }
+
+    setup.SetUpTestDirForTestBucket(cfg.ListLargeDir[0].TestBucket)
+
+    successCode := static_mounting.RunTestsWithConfigFile(&cfg.ListLargeDir[0],flags, m)
+
+    os.Exit(successCode)
+}
+
