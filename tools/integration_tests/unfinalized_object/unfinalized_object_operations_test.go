@@ -121,6 +121,7 @@ func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCanBeRenamedIfCreated
 }
 
 func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCanBeRenamedIfCreatedFromDifferentMount() {
+	// TODO: Remove this skip when b/439785781 is resolved.
 	t.T().Skip("Skipping this test as rename for unfinalized objects is not yet supported.")
 
 	size := operations.MiB
