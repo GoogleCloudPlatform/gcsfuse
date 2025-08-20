@@ -34,15 +34,17 @@ func TestSlowWriteToFile(t *testing.T) {
 	mountedDirFilePath := path.Join(slowWriteDir, slowWriteFileName)
 	fh := operations.OpenFileWithODirect(t, mountedDirFilePath)
 	defer operations.CloseFileShouldNotThrowError(t, fh)
-	data := setup.GenerateRandomString(32 * operations.MiB)
+	data := setup.GenerateRandomString(33 * operations.MiB)
 
-	// Write 4 blocks of 33MiB to file each with 1 min delay.
-	for range 4 {
+	// Write 2 blocks of 33MiB to file
+	for range 2 {
 		n, err := fh.Write([]byte(data))
 
 		assert.NoError(t, err)
 		assert.Equal(t, len(data), n)
 		operations.SyncFile(fh, t)
-		time.Sleep(1 * time.Minute)
+		// Add a delay of 40 sec between each block to ensure 32 sec
+		// ChunkRetryDeadline is completely used while reading the second Chunk.
+		time.Sleep(40 * time.second)
 	}
 }
