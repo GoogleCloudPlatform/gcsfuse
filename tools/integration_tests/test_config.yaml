@@ -44,3 +44,22 @@ implicit_dir:
           flat: true
           hns: true
           zonal: false
+
+list_large_dir:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    log_file: # Optional flag required by some tests where log parsing is done to validate end behavior
+    run_on_gke: false
+    configs:
+      - flags:
+        - "--implicit-dirs=true --stat-cache-ttl=0 --kernel-list-cache-ttl-secs=-1"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+      - flags:
+        - "--client-protocol=grpc --implicit-dirs=true --stat-cache-ttl=0 --kernel-list-cache-ttl-secs=-1"
+        compatible:
+          flat: true
+          hns: true
+          zonal: false

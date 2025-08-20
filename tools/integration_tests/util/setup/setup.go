@@ -93,6 +93,10 @@ func IsZonalBucketRun() bool {
 	return *isZonalBucketRun
 }
 
+func SetIsZonalBucketRun(val bool) {
+	*isZonalBucketRun = val
+}
+
 func IsIntegrationTest() bool {
 	return *integrationTest
 }
