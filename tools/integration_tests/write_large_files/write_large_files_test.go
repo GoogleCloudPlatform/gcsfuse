@@ -26,7 +26,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
-	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -40,29 +39,14 @@ var (
 	ctx           context.Context
 )
 
-// Config holds all test configurations parsed from the YAML file.
-type Config struct {
-	WriteLargeFiles []test_suite.TestConfig `yaml:"write_large_files"`
-}
-
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	// 1. Load and parse the common configuration.
-	var cfg Config
+	var cfg test_suite.Config
 	if setup.ConfigFile() != "" {
-		configData, err := os.ReadFile(setup.ConfigFile())
-		if err != nil {
-			log.Fatalf("could not read test_config.yaml: %v", err)
-		}
-		expandedYaml := os.ExpandEnv(string(configData))
-		if err := yaml.Unmarshal([]byte(expandedYaml), &cfg); err != nil {
-			log.Fatalf("Failed to parse config YAML: %v", err)
-		}
+		cfg = test_suite.ReadConfigFile(setup.ConfigFile())
 	}
-	// write-global-max-blocks=2 is for checking multiple file writes in parallel.
-	// concurrent_write_files_test.go- we are writing 3 files in parallel.
-	// with this config, we are giving 2 blocks to 2 files and 1 block to other file.
 	if len(cfg.WriteLargeFiles) == 0 {
 		log.Println("No configuration found for write large files tests in config. Using flags instead.")
 		// Populate the config manually.
