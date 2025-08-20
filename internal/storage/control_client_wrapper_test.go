@@ -182,14 +182,14 @@ func (t *ExponentialBackoffTest) TestNewBackoff() {
 	multiplier := 2.0
 
 	b := newExponentialBackoff(&exponentialBackoffConfig{
-		min:        initial,
+		initial:    initial,
 		max:        max,
 		multiplier: multiplier,
 	})
 
 	assert.NotNil(t.T(), b)
 	assert.Equal(t.T(), initial, b.next)
-	assert.Equal(t.T(), initial, b.config.min)
+	assert.Equal(t.T(), initial, b.config.initial)
 	assert.Equal(t.T(), max, b.config.max)
 	assert.Equal(t.T(), multiplier, b.config.multiplier)
 }
@@ -199,7 +199,7 @@ func (t *ExponentialBackoffTest) TestNext() {
 	max := 3 * time.Second
 	multiplier := 2.0
 	b := newExponentialBackoff(&exponentialBackoffConfig{
-		min:        initial,
+		initial:    initial,
 		max:        max,
 		multiplier: multiplier,
 	})
@@ -221,7 +221,7 @@ func (t *ExponentialBackoffTest) TestWaitWithJitter_ContextCancelled() {
 	initial := 100 * time.Microsecond // A long duration to ensure cancellation happens first.
 	max := 5 * initial
 	b := newExponentialBackoff(&exponentialBackoffConfig{
-		min:        initial,
+		initial:    initial,
 		max:        max,
 		multiplier: 2.0,
 	})
@@ -237,4 +237,25 @@ func (t *ExponentialBackoffTest) TestWaitWithJitter_ContextCancelled() {
 	assert.ErrorIs(t.T(), err, context.Canceled)
 	// The function should return almost immediately.
 	assert.Less(t.T(), elapsed, initial, "waitWithJitter should return quickly when context is cancelled")
+}
+
+func (t *ExponentialBackoffTest) TestWaitWithJitter_NoContextCancelled() {
+	initial := 10 * time.Millisecond // A short duration to ensure it waits.
+	max := 5 * initial
+	b := newExponentialBackoff(&exponentialBackoffConfig{
+		initial:    initial,
+		max:        max,
+		multiplier: 2.0,
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	start := time.Now()
+	err := b.waitWithJitter(ctx)
+	elapsed := time.Since(start)
+
+	assert.NoError(t.T(), err)
+	// The function should wait for a duration close to initial.
+	assert.GreaterOrEqual(t.T(), elapsed, 1*time.Millisecond, "waitWithJitter should wait for at least 1ms")
+	assert.LessOrEqual(t.T(), elapsed, initial*2, "waitWithJitter should not wait excessively long")
 }

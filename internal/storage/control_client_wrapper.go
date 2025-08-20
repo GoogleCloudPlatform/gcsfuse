@@ -100,8 +100,8 @@ func withBillingProject(controlClient StorageControlClient, billingProject strin
 // exponentialBackoffConfig is config parameters
 // needed to create an exponentialBackoff.
 type exponentialBackoffConfig struct {
-	// Min duration for next backoff.
-	min time.Duration
+	// initial duration for next backoff.
+	initial time.Duration
 	// Max duration for next back backoff.
 	max time.Duration
 	// The rate at which the backoff duration should grow
@@ -120,7 +120,7 @@ type exponentialBackoff struct {
 func newExponentialBackoff(config *exponentialBackoffConfig) *exponentialBackoff {
 	return &exponentialBackoff{
 		config: *config,
-		next:   config.min,
+		next:   config.initial,
 	}
 }
 
@@ -128,7 +128,6 @@ func newExponentialBackoff(config *exponentialBackoffConfig) *exponentialBackoff
 func (b *exponentialBackoff) nextDuration() time.Duration {
 	next := b.next
 	b.next = min(b.config.max, time.Duration(float64(b.next)*b.config.multiplier))
-	b.next = max(b.config.min, b.next)
 	return next
 }
 
