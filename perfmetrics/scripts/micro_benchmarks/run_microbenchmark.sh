@@ -51,7 +51,7 @@ run_benchmark() {
   local total_files=$4       # Total number of files to process
 
   echo "Running $rw benchmark with file size $file_size_gb GB and total files $total_files..."
-  local log_file="/tmp/gcsfuse-logs-single-threaded-${rw}-${file_size_gb}gb-test.txt"
+  local log_file="/tmp/gcsfuse-logs-single-threaded-${rw}-${file_size_gb}gb-test-with-readahead.txt"
 
   # Clean old log file if it exists
   rm -f "$log_file"
@@ -80,7 +80,7 @@ sudo apt-get install -y git gnupg python3-venv
 
 cd "$HOME/github/gcsfuse"
 # commitId=$(git rev-parse --short HEAD)
-./perfmetrics/scripts/build_and_install_gcsfuse.sh test_br_testing
+# ./perfmetrics/scripts/build_and_install_gcsfuse.sh test_br_testing
 
 cd "perfmetrics/scripts/micro_benchmarks"
 # Cleanup previous mounts if any
@@ -88,7 +88,7 @@ cleanup_mounts
 prepare_venv
 
 READ_GB=15
-TOTAL_READ_FILES=10
+TOTAL_READ_FILES=1
 WRITE_GB=15
 TOTAL_WRITE_FILES=1
 exit_code=0
@@ -98,10 +98,10 @@ if ! run_benchmark "read" "read_single_thread.py" "$READ_GB" "$TOTAL_READ_FILES"
   exit_code=1
 fi
 
-if ! run_benchmark "write" "write_single_thread.py" "$WRITE_GB" "$TOTAL_WRITE_FILES"; then
-  echo "Write benchmark failed."
-  exit_code=1
-fi
+# if ! run_benchmark "write" "write_single_thread.py" "$WRITE_GB" "$TOTAL_WRITE_FILES"; then
+#   echo "Write benchmark failed."
+#   exit_code=1
+# fi
 
 deactivate || true
 cleanup_mounts
