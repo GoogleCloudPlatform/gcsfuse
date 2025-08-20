@@ -258,8 +258,7 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	wc := &ObjectWriter{obj.NewWriter(ctx)}
 	wc.ChunkSize = chunkSize
 	wc.Writer = storageutil.SetAttrsInWriter(wc.Writer, req)
-	// TODO(b/424091803): Uncomment once chunk transfer timeout issue in resumable uploads is fixed in dependencies.
-	// wc.ChunkTransferTimeout = time.Duration(req.ChunkTransferTimeoutSecs) * time.Second
+	wc.ChunkTransferTimeout = time.Duration(req.ChunkTransferTimeoutSecs) * time.Second
 	wc.ProgressFunc = callBack
 	// All objects in zonal buckets must be appendable.
 	wc.Append = bh.BucketType().Zonal
