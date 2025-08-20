@@ -72,13 +72,15 @@ type Config struct {
 // ReadConfigFile returns a Config struct from the YAML file.
 func ReadConfigFile(configFilePath string) Config {
 	var cfg Config
-	configData, err := os.ReadFile(configFilePath)
-	if err != nil {
-		log.Fatalf("could not read config file %q: %v", configFilePath, err)
-	}
-	expandedYaml := os.ExpandEnv(string(configData))
-	if err := yaml.Unmarshal([]byte(expandedYaml), &cfg); err != nil {
-		log.Fatalf("Failed to parse config YAML: %v", err)
+	if configFilePath != "" {
+		configData, err := os.ReadFile(configFilePath)
+		if err != nil {
+			log.Fatalf("could not read config file %q: %v", configFilePath, err)
+		}
+		expandedYaml := os.ExpandEnv(string(configData))
+		if err := yaml.Unmarshal([]byte(expandedYaml), &cfg); err != nil {
+			log.Fatalf("Failed to parse config YAML: %v", err)
+		}
 	}
 	return cfg
 }
