@@ -45,6 +45,6 @@ func TestSlowWriteToFile(t *testing.T) {
 		operations.SyncFile(fh, t)
 		// Add a delay of 40 sec between each block to ensure 32 sec
 		// ChunkRetryDeadline is completely used while reading the second Chunk.
-		time.Sleep(40 * time.second)
+		time.Sleep(40 * time.Second)
 	}
 }
