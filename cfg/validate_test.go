@@ -18,8 +18,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
 
 func validLogRotateConfig() LogRotateLoggingConfig {
@@ -952,9 +953,9 @@ func TestIsValidLoggingConfig(t *testing.T) {
 				Format: "invalid",
 			},
 			expectedFormat: "json",
-			// expectedFormat is not relevant if loggingConfig is nil.
 		},
 		{
+			// expectedFormat is not relevant if loggingConfig is nil.
 			name:          "nil config",
 			loggingConfig: nil,
 		},
