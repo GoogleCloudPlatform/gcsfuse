@@ -72,7 +72,6 @@ func TestMain(m *testing.M) {
 		cfg.ListLargeDir[0].Configs[0].Flags = []string{"--implicit-dirs=true --stat-cache-ttl=0 --kernel-list-cache-ttl-secs=-1"}
 		cfg.ListLargeDir[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ListLargeDir[0].Configs[1].Flags = []string{
-			"--implicit-dirs=true --stat-cache-ttl=0 --kernel-list-cache-ttl-secs=-1",
 			"--client-protocol=grpc --implicit-dirs=true --stat-cache-ttl=0 --kernel-list-cache-ttl-secs=-1",
 		}
 		cfg.ListLargeDir[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": false}
