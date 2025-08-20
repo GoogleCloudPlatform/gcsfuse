@@ -56,7 +56,7 @@ func TestMain(m *testing.M) {
 		cfg.WriteLargeFiles[0].Configs = make([]test_suite.ConfigItem, 1)
 		cfg.WriteLargeFiles[0].Configs[0].Flags = []string{
 			"--enable-streaming-writes=false",
-			"--write-max-blocks-per-file=2 --write-global-max-blocks=2",
+			"--write-max-blocks-per-file=2 --write-global-max-blocks=5",
 		}
 		cfg.WriteLargeFiles[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
