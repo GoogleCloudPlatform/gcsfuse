@@ -1,29 +1,7 @@
-- metric-name: "file_cache/read_bytes_count"
-  description: "The cumulative number of bytes read from file cache along with read type - Sequential/Random"
-  unit: "By"
-  type: "int_counter"
-  attributes:
-  - attribute-name: read_type
-    attribute-type: string
-    values: &read_types_list
-    - "Parallel"
-    - "Random"
-    - "Sequential"
-
-- metric-name: "file_cache/read_count"
-  description: "Specifies the number of read requests made via file cache along with type - Sequential/Random and cache hit - true/false"
-  type: "int_counter"
-  attributes:
-  - attribute-name: cache_hit
-    attribute-type: bool
-  - attribute-name: read_type
-    attribute-type: string
-    values: *read_types_list
-
-- metric-name: "file_cache/read_latencies"
-  description: "The cumulative distribution of the file cache read latencies along with cache hit - true/false."
-  type: "int_histogram"
+- metric-name: "buffered_read/download_block_latency"
+  description: "The cumulative distribution of block download latencies, along with status: successful or cancelled."
   unit: "us"
+  type: "int_histogram"
   boundaries: &common_boundaries
   - 1
   - 2
@@ -59,6 +37,66 @@
   - 20000
   - 50000
   - 100000
+  attributes:
+  - attribute-name: status
+    attribute-type: string
+    values:
+    - "successful"
+    - "cancelled"
+
+- metric-name: "buffered_read/fallback_trigger_count"
+  description: "The cumulative number of times the BufferedReader falls back to a different reader, along with the reason: random_read_detected or insufficient_memory."
+  type: "int_counter"
+  attributes:
+  - attribute-name: reason
+    attribute-type: string
+    values:
+    - "random_read_detected"
+    - "insufficient_memory"
+
+- metric-name: "buffered_read/read_latency"
+  description: "The cumulative distribution of latencies for ReadAt calls served by the buffered reader."
+  unit: "us"
+  type: "int_histogram"
+  boundaries: *common_boundaries
+
+- metric-name: "buffered_read/scheduled_block_count"
+  description: "The cumulative number of scheduled download blocks, along with their final status: successful or cancelled."
+  type: "int_counter"
+  attributes:
+  - attribute-name: status
+    attribute-type: string
+    values:
+    - "successful"
+    - "cancelled"
+
+- metric-name: "file_cache/read_bytes_count"
+  description: "The cumulative number of bytes read from file cache along with read type - Sequential/Random"
+  unit: "By"
+  type: "int_counter"
+  attributes:
+  - attribute-name: read_type
+    attribute-type: string
+    values: &read_types_list
+    - "Parallel"
+    - "Random"
+    - "Sequential"
+
+- metric-name: "file_cache/read_count"
+  description: "Specifies the number of read requests made via file cache along with type - Sequential/Random and cache hit - true/false"
+  type: "int_counter"
+  attributes:
+  - attribute-name: cache_hit
+    attribute-type: bool
+  - attribute-name: read_type
+    attribute-type: string
+    values: *read_types_list
+
+- metric-name: "file_cache/read_latencies"
+  description: "The cumulative distribution of the file cache read latencies along with cache hit - true/false."
+  type: "int_histogram"
+  unit: "us"
+  boundaries: *common_boundaries
   attributes:
   - attribute-name: cache_hit
     attribute-type: bool

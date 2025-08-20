@@ -128,6 +128,193 @@ func gatherNonZeroCounterMetrics(ctx context.Context, t *testing.T, rd *metric.M
 	return results
 }
 
+func TestBufferedReadDownloadBlockLatency(t *testing.T) {
+	tests := []struct {
+		name      string
+		latencies []time.Duration
+		status    string
+	}{
+		{
+			name:      "status_cancelled",
+			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
+			status:    "cancelled",
+		},
+		{
+			name:      "status_successful",
+			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
+			status:    "successful",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			encoder := attribute.DefaultEncoder()
+			m, rd := setupOTel(ctx, t)
+			var totalLatency time.Duration
+
+			for _, latency := range tc.latencies {
+				m.BufferedReadDownloadBlockLatency(ctx, latency, tc.status)
+				totalLatency += latency
+			}
+			waitForMetricsProcessing()
+
+			metrics := gatherHistogramMetrics(ctx, t, rd)
+			metric, ok := metrics["buffered_read/download_block_latency"]
+			require.True(t, ok, "buffered_read/download_block_latency metric not found")
+
+			attrs := []attribute.KeyValue{
+				attribute.String("status", tc.status),
+			}
+			s := attribute.NewSet(attrs...)
+			expectedKey := s.Encoded(encoder)
+			dp, ok := metric[expectedKey]
+			require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
+			assert.Equal(t, uint64(len(tc.latencies)), dp.Count)
+			assert.Equal(t, totalLatency.Microseconds(), dp.Sum)
+		})
+	}
+}
+
+func TestBufferedReadFallbackTriggerCount(t *testing.T) {
+	tests := []struct {
+		name     string
+		f        func(m *otelMetrics)
+		expected map[attribute.Set]int64
+	}{
+		{
+			name: "reason_insufficient_memory",
+			f: func(m *otelMetrics) {
+				m.BufferedReadFallbackTriggerCount(5, "insufficient_memory")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("reason", "insufficient_memory")): 5,
+			},
+		},
+		{
+			name: "reason_random_read_detected",
+			f: func(m *otelMetrics) {
+				m.BufferedReadFallbackTriggerCount(5, "random_read_detected")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("reason", "random_read_detected")): 5,
+			},
+		}, {
+			name: "multiple_attributes_summed",
+			f: func(m *otelMetrics) {
+				m.BufferedReadFallbackTriggerCount(5, "insufficient_memory")
+				m.BufferedReadFallbackTriggerCount(2, "random_read_detected")
+				m.BufferedReadFallbackTriggerCount(3, "insufficient_memory")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("reason", "insufficient_memory")): 8,
+				attribute.NewSet(attribute.String("reason", "random_read_detected")): 2,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			encoder := attribute.DefaultEncoder()
+			m, rd := setupOTel(ctx, t)
+
+			tc.f(m)
+			waitForMetricsProcessing()
+
+			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+			metric, ok := metrics["buffered_read/fallback_trigger_count"]
+			assert.True(t, ok, "buffered_read/fallback_trigger_count metric not found")
+			expectedMap := make(map[string]int64)
+			for k, v := range tc.expected {
+				expectedMap[k.Encoded(encoder)] = v
+			}
+			assert.Equal(t, expectedMap, metric)
+		})
+	}
+}
+
+func TestBufferedReadReadLatency(t *testing.T) {
+	ctx := context.Background()
+	encoder := attribute.DefaultEncoder()
+	m, rd := setupOTel(ctx, t)
+	var totalLatency time.Duration
+	latencies := []time.Duration{100 * time.Microsecond, 200 * time.Microsecond}
+
+	for _, latency := range latencies {
+		m.BufferedReadReadLatency(ctx, latency)
+		totalLatency += latency
+	}
+	waitForMetricsProcessing()
+
+	metrics := gatherHistogramMetrics(ctx, t, rd)
+	metric, ok := metrics["buffered_read/read_latency"]
+	require.True(t, ok, "buffered_read/read_latency metric not found")
+
+	s := attribute.NewSet()
+	expectedKey := s.Encoded(encoder)
+	dp, ok := metric[expectedKey]
+	require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
+	assert.Equal(t, uint64(len(latencies)), dp.Count)
+	assert.Equal(t, totalLatency.Microseconds(), dp.Sum)
+}
+
+func TestBufferedReadScheduledBlockCount(t *testing.T) {
+	tests := []struct {
+		name     string
+		f        func(m *otelMetrics)
+		expected map[attribute.Set]int64
+	}{
+		{
+			name: "status_cancelled",
+			f: func(m *otelMetrics) {
+				m.BufferedReadScheduledBlockCount(5, "cancelled")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("status", "cancelled")): 5,
+			},
+		},
+		{
+			name: "status_successful",
+			f: func(m *otelMetrics) {
+				m.BufferedReadScheduledBlockCount(5, "successful")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("status", "successful")): 5,
+			},
+		}, {
+			name: "multiple_attributes_summed",
+			f: func(m *otelMetrics) {
+				m.BufferedReadScheduledBlockCount(5, "cancelled")
+				m.BufferedReadScheduledBlockCount(2, "successful")
+				m.BufferedReadScheduledBlockCount(3, "cancelled")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("status", "cancelled")): 8,
+				attribute.NewSet(attribute.String("status", "successful")): 2,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			encoder := attribute.DefaultEncoder()
+			m, rd := setupOTel(ctx, t)
+
+			tc.f(m)
+			waitForMetricsProcessing()
+
+			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+			metric, ok := metrics["buffered_read/scheduled_block_count"]
+			assert.True(t, ok, "buffered_read/scheduled_block_count metric not found")
+			expectedMap := make(map[string]int64)
+			for k, v := range tc.expected {
+				expectedMap[k.Encoded(encoder)] = v
+			}
+			assert.Equal(t, expectedMap, metric)
+		})
+	}
+}
+
 func TestFileCacheReadBytesCount(t *testing.T) {
 	tests := []struct {
 		name     string
