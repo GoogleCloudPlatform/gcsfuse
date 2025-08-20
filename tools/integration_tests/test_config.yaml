@@ -63,3 +63,17 @@ list_large_dir:
           flat: true
           hns: true
           zonal: false
+
+write_large_files:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    log_file: # Optional
+    run_on_gke: false
+    configs:
+      - flags:
+          - "--enable-streaming-writes=false"
+          - "--write-max-blocks-per-file=2 --write-global-max-blocks=2"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
