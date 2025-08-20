@@ -700,6 +700,6 @@ func TestConcurrentListing(t *testing.T) {
 		t.Run(fmt.Sprintf("Flags_%v", flags), func(t *testing.T) {
 			test_setup.RunTests(t, ts)
 		})
-		setup.UnmountGCSFuse(rootDir)
+		setup.UnmountGCSFuse(setup.MntDir())
 	}
 }

@@ -38,8 +38,6 @@ var (
 	ctx           context.Context
 	testDirPath   string
 
-	// mount directory is where our tests run.
-	mountDir string
 	// root directory is the directory to be unmounted.
 	rootDir string
 )
@@ -89,8 +87,8 @@ func TestMain(m *testing.M) {
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
 
-	// Save mount and root directory variables.
-	mountDir, rootDir = setup.MntDir(), setup.MntDir()
+	// Save root directory variables.
+	rootDir = setup.MntDir()
 
 	log.Println("Running static mounting tests...")
 	successCode := m.Run()
