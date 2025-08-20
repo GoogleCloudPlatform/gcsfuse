@@ -23,6 +23,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http/httptrace"
 	"strings"
 	"time"
 
@@ -97,12 +98,25 @@ func (bh *bucketHandle) NewReaderWithReadHandle(
 		obj = obj.ReadHandle([]byte("opaque-handle"))
 	}
 
+	ctx = httptrace.WithClientTrace(ctx, getHTTPTracer())
 	// NewRangeReader creates a "storage.Reader" object which is also io.ReadCloser since it contains both Read() and Close() methods present in io.ReadCloser interface.
 	storageReader, err := obj.NewRangeReader(ctx, start, length)
 	if err == nil {
 		reader = newGCSFullReadCloser(storageReader)
 	}
 	return
+}
+
+func getHTTPTracer() *httptrace.ClientTrace {
+	var dnsStartTime time.Time
+	return &httptrace.ClientTrace{
+		DNSStart: func(info httptrace.DNSStartInfo) {
+			dnsStartTime = time.Now()
+		},
+		DNSDone: func(info httptrace.DNSDoneInfo) {
+			logger.Warnf("dns lookup time: %d ns", time.Since(dnsStartTime).Nanoseconds())
+		},
+	}
 }
 
 func (bh *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) (err error) {
