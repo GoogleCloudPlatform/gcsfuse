@@ -1283,7 +1283,7 @@ func (o *otelMetrics) BufferedReadFallbackTriggerCount(
 func (o *otelMetrics) BufferedReadReadLatency(
 	ctx context.Context, latency time.Duration) {
 	var record histogramRecord
-	record = histogramRecord{instrument: o.bufferedReadReadLatency, value: latency.Microseconds()}
+	record = histogramRecord{ctx: ctx, instrument: o.bufferedReadReadLatency, value: latency.Microseconds()}
 
 	select {
 	case o.ch <- record: // Do nothing
