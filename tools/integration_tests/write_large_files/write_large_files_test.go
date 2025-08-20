@@ -36,8 +36,8 @@ const (
 )
 
 var (
-	storageClient                    *storage.Client
-	ctx                              context.Context
+	storageClient *storage.Client
+	ctx           context.Context
 )
 
 // Config holds all test configurations parsed from the YAML file.
@@ -75,7 +75,7 @@ func TestMain(m *testing.M) {
 			"--write-max-blocks-per-file=2 --write-global-max-blocks=2",
 		}
 		cfg.WriteLargeFiles[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		}
+	}
 
 	// 2. Create storage client before running tests.
 	setup.SetBucketFromConfigFile(cfg.WriteLargeFiles[0].TestBucket)
@@ -93,7 +93,7 @@ func TestMain(m *testing.M) {
 	if cfg.WriteLargeFiles[0].MountedDirectory != "" && cfg.WriteLargeFiles[0].TestBucket != "" {
 		os.Exit(setup.RunTestsForMountedDirectory(cfg.WriteLargeFiles[0].MountedDirectory, m))
 	}
-	
+
 	// Run tests for testBucket// Run tests for testBucket
 	// 4. Build the flag sets dynamically from the config.
 	bucketType, err := setup.BucketType(ctx, cfg.WriteLargeFiles[0].TestBucket)
@@ -108,6 +108,6 @@ func TestMain(m *testing.M) {
 	setup.SetUpTestDirForTestBucket(cfg.WriteLargeFiles[0].TestBucket)
 
 	successCode := static_mounting.RunTestsWithConfigFile(&cfg.WriteLargeFiles[0], flags, m)
-	
+
 	os.Exit(successCode)
 }
