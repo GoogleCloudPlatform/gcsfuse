@@ -97,33 +97,38 @@ func withBillingProject(controlClient StorageControlClient, billingProject strin
 	return controlClient
 }
 
-// exponentialBackoff holds the duration parameters for exponential backoff.
-type exponentialBackoff struct {
-	// Min duration for next backoff, which is same as the initial backoff.
+// exponentialBackoffConfig is config parameters
+// needed to create an exponentialBackoff.
+type exponentialBackoffConfig struct {
+	// Min duration for next backoff.
 	min time.Duration
-	// Max duration returned for next back backoff i.e. Next().
+	// Max duration for next back backoff.
 	max time.Duration
 	// The rate at which the backoff duration should grow
 	// over subsequent calls to next().
 	multiplier float64
+}
+
+// exponentialBackoff holds the duration parameters for exponential backoff.
+type exponentialBackoff struct {
+	// config used to create this backoff object.
+	config exponentialBackoffConfig
 	// Duration for next backoff. Capped at max. Returned by next().
 	next time.Duration
 }
 
-func newBackoff(initialDuration, maxDuration time.Duration, multiplier float64) *exponentialBackoff {
+func newExponentialBackoff(config *exponentialBackoffConfig) *exponentialBackoff {
 	return &exponentialBackoff{
-		min:        initialDuration,
-		max:        maxDuration,
-		multiplier: multiplier,
-		next:       initialDuration,
+		config: *config,
+		next:   config.min,
 	}
 }
 
 // nextDuration returns the next backoff duration.
 func (b *exponentialBackoff) nextDuration() time.Duration {
 	next := b.next
-	b.next = min(b.max, time.Duration(float64(b.next)*b.multiplier))
-	b.next = max(b.min, b.next)
+	b.next = min(b.config.max, time.Duration(float64(b.next)*b.config.multiplier))
+	b.next = max(b.config.min, b.next)
 	return next
 }
 
@@ -132,7 +137,7 @@ func (b *exponentialBackoff) nextDuration() time.Duration {
 // This is similar to how gax-retries backoff after each failed retry.
 func (b *exponentialBackoff) waitWithJitter(ctx context.Context) error {
 	nextDuration := b.nextDuration()
-	jitteryBackoffDuration := time.Duration(max(int64(b.min), rand.Int63n(int64(nextDuration))))
+	jitteryBackoffDuration := time.Duration(max(int64(b.config.min), rand.Int63n(int64(nextDuration))))
 	select {
 	case <-time.After(jitteryBackoffDuration):
 		return nil
@@ -153,8 +158,8 @@ type storageControlClientWithRetry struct {
 	// Total duration allowed across all the attempts.
 	totalRetryBudget time.Duration
 
-	// Backoff duration in-between retries.
-	backoff *exponentialBackoff
+	// Config for managing backoff durations in-between retries.
+	backoffConfig exponentialBackoffConfig
 
 	// Whether or not to enable retries for GetStorageLayout call.
 	enableRetriesOnStorageLayoutCall bool
@@ -176,6 +181,8 @@ func executeWithRetry[T any](
 	parentCtx, cancel := context.WithTimeout(ctx, sccwros.totalRetryBudget)
 	defer cancel()
 
+	// Create a new backoff controller specific to this api call.
+	backoff := newExponentialBackoff(&sccwros.backoffConfig)
 	for {
 		attemptCtx, attemptCancel := context.WithTimeout(parentCtx, sccwros.retryDeadline)
 
@@ -199,7 +206,7 @@ func executeWithRetry[T any](
 		}
 
 		// Do a jittery backoff after each retry.
-		parentCtxErr := sccwros.backoff.waitWithJitter(parentCtx)
+		parentCtxErr := backoff.waitWithJitter(parentCtx)
 		if parentCtxErr != nil {
 			return zero, fmt.Errorf("%s for %q failed after multiple retries (last server/client error = %v): %w", operationName, reqDescription, err, parentCtxErr)
 		}
@@ -249,7 +256,7 @@ func newRetryWrapper(controlClient StorageControlClient, retryDeadline, totalRet
 		raw:                              raw,
 		retryDeadline:                    retryDeadline,
 		totalRetryBudget:                 totalRetryBudget,
-		backoff:                          newBackoff(initialBackoff, maxBackoff, backoffMultiplier),
+		backoffConfig:                    exponentialBackoffConfig{initialBackoff, maxBackoff, backoffMultiplier},
 		enableRetriesOnStorageLayoutCall: true,
 	}
 }

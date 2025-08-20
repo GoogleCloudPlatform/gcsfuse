@@ -181,20 +181,28 @@ func (t *ExponentialBackoffTest) TestNewBackoff() {
 	max := 10 * time.Second
 	multiplier := 2.0
 
-	b := newBackoff(initial, max, multiplier)
+	b := newExponentialBackoff(&exponentialBackoffConfig{
+		min:        initial,
+		max:        max,
+		multiplier: multiplier,
+	})
 
 	assert.NotNil(t.T(), b)
 	assert.Equal(t.T(), initial, b.next)
-	assert.Equal(t.T(), initial, b.min)
-	assert.Equal(t.T(), max, b.max)
-	assert.Equal(t.T(), multiplier, b.multiplier)
+	assert.Equal(t.T(), initial, b.config.min)
+	assert.Equal(t.T(), max, b.config.max)
+	assert.Equal(t.T(), multiplier, b.config.multiplier)
 }
 
 func (t *ExponentialBackoffTest) TestNext() {
 	initial := 1 * time.Second
 	max := 3 * time.Second
 	multiplier := 2.0
-	b := newBackoff(initial, max, multiplier)
+	b := newExponentialBackoff(&exponentialBackoffConfig{
+		min:        initial,
+		max:        max,
+		multiplier: multiplier,
+	})
 
 	// First call to next() should return initial, and update current.
 	assert.Equal(t.T(), 1*time.Second, b.nextDuration())
@@ -212,7 +220,11 @@ func (t *ExponentialBackoffTest) TestNext() {
 func (t *ExponentialBackoffTest) TestWaitWithJitter_ContextCancelled() {
 	initial := 100 * time.Microsecond // A long duration to ensure cancellation happens first.
 	max := 5 * initial
-	b := newBackoff(initial, max, 2.0)
+	b := newExponentialBackoff(&exponentialBackoffConfig{
+		min:        initial,
+		max:        max,
+		multiplier: 2.0,
+	})
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Cancel the context immediately.
