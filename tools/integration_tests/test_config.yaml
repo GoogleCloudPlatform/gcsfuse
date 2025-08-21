@@ -213,3 +213,18 @@ requester_pays_bucket:
           hns: true
           zonal: false
 
+
+stale_handle:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    log_file: # Optional
+    run_on_gke: false
+    configs:
+      - flags:
+          - "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false --client-protocol=grpc"
+          - "--metadata-cache-ttl-secs=0 --write-block-size-mb=1 --write-max-blocks-per-file=1 --client-protocol=grpc"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+		
