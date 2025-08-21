@@ -146,7 +146,6 @@ func (t *clientTest) TestStripScheme() {
 }
 
 func (t *clientTest) TestCreateHttpClientWithHttpTracing() {
-	// Arrange
 	ex := newInMemoryExporter(t.T())
 	sc := GetDefaultStorageClientConfig(keyFile)
 	sc.TracingEnabled = true
