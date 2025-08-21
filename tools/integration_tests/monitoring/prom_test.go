@@ -134,20 +134,20 @@ func (testSuite *PromTest) mount(bucketName string) error {
 	return nil
 }
 
-func parsePromFormat(testSuite *PromTest) (map[string]*promclient.MetricFamily, error) {
-	testSuite.T().Helper()
+func parsePromFormat(t *testing.T) (map[string]*promclient.MetricFamily, error) {
+	t.Helper()
 
 	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/metrics", prometheusPort))
-	require.NoError(testSuite.T(), err)
+	require.NoError(t, err)
 	var parser expfmt.TextParser
 	return parser.TextToMetricFamilies(resp.Body)
 }
 
 // assertNonZeroCountMetric asserts that the specified count metric is present and is positive in the Prometheus export
-func assertNonZeroCountMetric(testSuite *PromTest, metricName, labelName, labelValue string) {
-	testSuite.T().Helper()
-	mf, err := parsePromFormat(testSuite)
-	require.NoError(testSuite.T(), err)
+func assertNonZeroCountMetric(t *testing.T, metricName, labelName, labelValue string) {
+	t.Helper()
+	mf, err := parsePromFormat(t) // Pass t to parsePromFormat
+	require.NoError(t, err)      // Use t for require.NoError
 	for k, v := range mf {
 		if k != metricName || *v.Type != promclient.MetricType_COUNTER {
 			continue
@@ -165,17 +165,16 @@ func assertNonZeroCountMetric(testSuite *PromTest, metricName, labelName, labelV
 				}
 			}
 		}
-
 	}
-	assert.Fail(testSuite.T(), fmt.Sprintf("Didn't find the metric with name: %s, labelName: %s and labelValue: %s",
+	assert.Fail(t, fmt.Sprintf("Didn't find the metric with name: %s, labelName: %s and labelValue: %s",
 		metricName, labelName, labelValue))
 }
 
 // assertNonZeroHistogramMetric asserts that the specified histogram metric is present and is positive for at least one of the buckets in the Prometheus export.
-func assertNonZeroHistogramMetric(testSuite *PromTest, metricName, labelName, labelValue string) {
-	testSuite.T().Helper()
-	mf, err := parsePromFormat(testSuite)
-	require.NoError(testSuite.T(), err)
+func assertNonZeroHistogramMetric(t *testing.T, metricName, labelName, labelValue string) {
+	t.Helper()
+	mf, err := parsePromFormat(t) // Pass t to parsePromFormat
+	require.NoError(t, err)      // Use t for require.NoError
 
 	for k, v := range mf {
 		if k != metricName || *v.Type != promclient.MetricType_HISTOGRAM {
@@ -203,49 +202,49 @@ func (testSuite *PromTest) TestStatMetrics() {
 	_, err := os.Stat(path.Join(testSuite.mountPoint, "hello/hello.txt"))
 
 	require.NoError(testSuite.T(), err)
-	assertNonZeroCountMetric(testSuite, "fs_ops_count", "fs_op", "LookUpInode")
-	assertNonZeroHistogramMetric(testSuite, "fs_ops_latency", "fs_op", "LookUpInode")
-	assertNonZeroCountMetric(testSuite, "gcs_request_count", "gcs_method", "StatObject")
-	assertNonZeroHistogramMetric(testSuite, "gcs_request_latencies", "gcs_method", "StatObject")
+	assertNonZeroCountMetric(testSuite.T(), "fs_ops_count", "fs_op", "LookUpInode")
+	assertNonZeroHistogramMetric(testSuite.T(), "fs_ops_latency", "fs_op", "LookUpInode")
+	assertNonZeroCountMetric(testSuite.T(), "gcs_request_count", "gcs_method", "StatObject")
+	assertNonZeroHistogramMetric(testSuite.T(), "gcs_request_latencies", "gcs_method", "StatObject")
 }
 
 func (testSuite *PromTest) TestFsOpsErrorMetrics() {
 	_, err := os.Stat(path.Join(testSuite.mountPoint, "non_existent_path.txt"))
 	require.Error(testSuite.T(), err)
 
-	assertNonZeroCountMetric(testSuite, "fs_ops_error_count", "fs_op", "LookUpInode")
-	assertNonZeroHistogramMetric(testSuite, "fs_ops_latency", "fs_op", "LookUpInode")
+	assertNonZeroCountMetric(testSuite.T(), "fs_ops_error_count", "fs_op", "LookUpInode")
+	assertNonZeroHistogramMetric(testSuite.T(), "fs_ops_latency", "fs_op", "LookUpInode")
 }
 
 func (testSuite *PromTest) TestListMetrics() {
 	_, err := os.ReadDir(path.Join(testSuite.mountPoint, "hello"))
 
 	require.NoError(testSuite.T(), err)
-	assertNonZeroCountMetric(testSuite, "fs_ops_count", "fs_op", "ReadDir")
-	assertNonZeroCountMetric(testSuite, "fs_ops_count", "fs_op", "OpenDir")
-	assertNonZeroCountMetric(testSuite, "gcs_request_count", "gcs_method", "ListObjects")
-	assertNonZeroHistogramMetric(testSuite, "gcs_request_latencies", "gcs_method", "ListObjects")
+	assertNonZeroCountMetric(testSuite.T(), "fs_ops_count", "fs_op", "ReadDir")
+	assertNonZeroCountMetric(testSuite.T(), "fs_ops_count", "fs_op", "OpenDir")
+	assertNonZeroCountMetric(testSuite.T(), "gcs_request_count", "gcs_method", "ListObjects")
+	assertNonZeroHistogramMetric(testSuite.T(), "gcs_request_latencies", "gcs_method", "ListObjects")
 }
 
 func (testSuite *PromTest) TestReadMetrics() {
 	_, err := os.ReadFile(path.Join(testSuite.mountPoint, "hello/hello.txt"))
 
 	require.NoError(testSuite.T(), err)
-	assertNonZeroCountMetric(testSuite, "file_cache_read_bytes_count", "read_type", "Sequential")
-	assertNonZeroCountMetric(testSuite, "file_cache_read_count", "cache_hit", "false")
-	assertNonZeroCountMetric(testSuite, "file_cache_read_count", "read_type", "Sequential")
-	assertNonZeroHistogramMetric(testSuite, "file_cache_read_latencies", "cache_hit", "false")
-	assertNonZeroCountMetric(testSuite, "fs_ops_count", "fs_op", "OpenFile")
-	assertNonZeroCountMetric(testSuite, "fs_ops_count", "fs_op", "ReadFile")
-	assertNonZeroCountMetric(testSuite, "fs_ops_count", "fs_op", "ReadFile")
-	assertNonZeroCountMetric(testSuite, "gcs_request_count", "gcs_method", "NewReader")
-	assertNonZeroCountMetric(testSuite, "gcs_reader_count", "io_method", "opened")
-	assertNonZeroCountMetric(testSuite, "gcs_reader_count", "io_method", "closed")
-	assertNonZeroCountMetric(testSuite, "gcs_read_count", "read_type", "Parallel")
-	assertNonZeroCountMetric(testSuite, "gcs_download_bytes_count", "", "")
-	assertNonZeroCountMetric(testSuite, "gcs_read_bytes_count", "", "")
-	assertNonZeroHistogramMetric(testSuite, "gcs_request_latencies", "gcs_method", "NewReader")
-	assertNonZeroHistogramMetric(testSuite, "gcs_request_latencies", "gcs_method", "NewReader")
+	assertNonZeroCountMetric(testSuite.T(), "file_cache_read_bytes_count", "read_type", "Sequential")
+	assertNonZeroCountMetric(testSuite.T(), "file_cache_read_count", "cache_hit", "false")
+	assertNonZeroCountMetric(testSuite.T(), "file_cache_read_count", "read_type", "Sequential")
+	assertNonZeroHistogramMetric(testSuite.T(), "file_cache_read_latencies", "cache_hit", "false")
+	assertNonZeroCountMetric(testSuite.T(), "fs_ops_count", "fs_op", "OpenFile")
+	assertNonZeroCountMetric(testSuite.T(), "fs_ops_count", "fs_op", "ReadFile")
+	assertNonZeroCountMetric(testSuite.T(), "fs_ops_count", "fs_op", "ReadFile")
+	assertNonZeroCountMetric(testSuite.T(), "gcs_request_count", "gcs_method", "NewReader")
+	assertNonZeroCountMetric(testSuite.T(), "gcs_reader_count", "io_method", "opened")
+	assertNonZeroCountMetric(testSuite.T(), "gcs_reader_count", "io_method", "closed")
+	assertNonZeroCountMetric(testSuite.T(), "gcs_read_count", "read_type", "Parallel")
+	assertNonZeroCountMetric(testSuite.T(), "gcs_download_bytes_count", "", "")
+	assertNonZeroCountMetric(testSuite.T(), "gcs_read_bytes_count", "", "")
+	assertNonZeroHistogramMetric(testSuite.T(), "gcs_request_latencies", "gcs_method", "NewReader")
+	assertNonZeroHistogramMetric(testSuite.T(), "gcs_request_latencies", "gcs_method", "NewReader")
 }
 
 func TestPromOTELSuite(t *testing.T) {
