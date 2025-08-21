@@ -93,8 +93,7 @@ func (bh *bucketHandle) NewReaderWithReadHandle(
 	// This produces the exact same object and generation and does not check if
 	// the generation is still the newest one.
 	if req.ReadHandle != nil {
-		// TODO: b/432639555 fix code to use read handle from previous read.
-		obj = obj.ReadHandle([]byte("opaque-handle"))
+		obj = obj.ReadHandle(req.ReadHandle)
 	}
 
 	// NewRangeReader creates a "storage.Reader" object which is also io.ReadCloser since it contains both Read() and Close() methods present in io.ReadCloser interface.
