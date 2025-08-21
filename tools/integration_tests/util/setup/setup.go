@@ -398,13 +398,13 @@ func RunTestsForMountedDirectoryFlag(m *testing.M) {
 // RunTestsForMountedDirectory executes tests for the mounted directory.
 // User is expected to ensure that this function is called when mounted directory is set.
 // Returns exit code.
-func RunTestsForMountedDirectory(mountedDirectory string, m *testing.M) int {
+func RunTestsForMountedDirectory(mountedDir string, m *testing.M) int {
 	// Execute tests for the mounted directory.
-	if mountedDirectory == "" {
+	if mountedDir == "" {
 		log.Println("RunTestsForMountedDirectory failed: Mounted directory is not set.")
 		return 1
 	}
-	mntDir = mountedDirectory
+	*mountedDirectory = mountedDir
 	return ExecuteTest(m)
 }
 

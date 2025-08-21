@@ -77,18 +77,21 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	// Run tests for testBucket
+	// 3. Build the flag sets dynamically from the config.
+	flags := setup.BuildFlagSets(cfg.StaleHandle[0], bucketType)
+	flagsSet = flags
+
+	// 4. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as StaleHandle tests validates content from the bucket.
 	// Note: These tests by default can only be run for non streaming mounts.
 	if cfg.StaleHandle[0].MountedDirectory != "" && cfg.StaleHandle[0].TestBucket != "" {
+		rootDir = setup.MountedDirectory()
 		os.Exit(setup.RunTestsForMountedDirectory(cfg.StaleHandle[0].MountedDirectory, m))
 	}
-	
-	// Run tests for testBucket
-	// 4. Build the flag sets dynamically from the config.
-	flags := setup.BuildFlagSets(cfg.StaleHandle[0], bucketType)
 
 	setup.SetUpTestDirForTestBucket(cfg.StaleHandle[0].TestBucket)
+	rootDir = setup.MntDir()
 
 	successCode := static_mounting.RunTestsWithConfigFile(&cfg.StaleHandle[0], flags, m)
 
