@@ -21,6 +21,7 @@ import (
 	"io"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
@@ -233,7 +234,7 @@ func (t *BufferedReaderTest) TestDestroySuccess() {
 	go func() {
 		<-ctx.Done()
 		b.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: context.Canceled})
-	}()
+	}() //nolint:errcheck
 	reader.blockQueue.Push(&blockQueueEntry{
 		block:  b,
 		cancel: cancel,
@@ -1201,6 +1202,32 @@ func (t *BufferedReaderTest) TestReadAtConcurrentZeroCopyReads() {
 	}
 	wg.Wait()
 	assert.Equal(t.T(), 1, reader.blockQueue.Len(), "Block should still be pinned in the queue.")
+}
+
+func (t *BufferedReaderTest) TestZeroCopyReadOnSameBlockDoesNotRedundantPrefetch() {
+	t.object.Size = uint64(5 * testPrefetchBlockSizeBytes)
+	reader, err := NewBufferedReader(t.object, t.bucket, t.config, t.globalMaxBlocksSem, t.workerPool, t.metricHandle)
+	require.NoError(t.T(), err)
+	t.bucket.On("Name").Return("test-bucket").Maybe()
+	// First read. This will trigger a freshStart, downloading block 0 and prefetching blocks 1, 2.
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 0 })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), 0), nil).Once()
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 1*uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), 1*testPrefetchBlockSizeBytes), nil).Once()
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 2*uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), 2*testPrefetchBlockSizeBytes), nil).Once()
+
+	// Perform the first read.
+	// This will trigger a freshStart, which downloads block 0 and prefetches blocks 1 and 2.
+	// Since a prefetch was already triggered by freshStart, the consumption of block 0 will not trigger another prefetch in the same ReadAt call.
+	_, err = reader.ReadAt(t.ctx, make([]byte, testPrefetchBlockSizeBytes), 0)
+
+	require.NoError(t.T(), err)
+	// Wait for async prefetch to complete.
+	time.Sleep(200 * time.Millisecond)
+	t.bucket.AssertExpectations(t.T())
+	// Second read on the same block. This should be a zero-copy read and should NOT trigger any more prefetches.
+	_, err = reader.ReadAt(t.ctx, make([]byte, 100), 50) // Read a part of the same block 0.
+	require.NoError(t.T(), err)
+	// Verify no more calls were made.
+	t.bucket.AssertExpectations(t.T())
 }
 
 func (t *BufferedReaderTest) TestReadAtSequentialReadAcrossBlocks() {

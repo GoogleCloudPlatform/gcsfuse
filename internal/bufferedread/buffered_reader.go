@@ -56,8 +56,9 @@ const (
 // blockQueueEntry holds a data block with a function
 // to cancel its in-flight download.
 type blockQueueEntry struct {
-	block  block.PrefetchBlock
-	cancel context.CancelFunc
+	block                          block.PrefetchBlock
+	cancel                         context.CancelFunc
+	prefetchTriggeredOnConsumption bool // True if a prefetch was triggered by the consumption of this block.
 }
 
 type BufferedReader struct {
@@ -231,10 +232,11 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 
 // tryZeroCopyRead attempts to perform a zero-copy read from the given block.
 // It returns the reader response and a boolean indicating success.
+// It also returns a boolean indicating if the read consumed the entire block.
 // A successful zero-copy read means the entire requested data was returned as a
 // slice of the block's buffer.
 // LOCKS_REQUIRED(p.mu)
-func (p *BufferedReader) tryZeroCopyRead(blk block.PrefetchBlock, off int64, inputBuf []byte) (gcsx.ReaderResponse, bool) {
+func (p *BufferedReader) tryZeroCopyRead(blk block.PrefetchBlock, off int64, inputBuf []byte) (gcsx.ReaderResponse, bool, bool) {
 	resp := gcsx.ReaderResponse{}
 	relOff := off - blk.AbsStartOff()
 
@@ -246,12 +248,13 @@ func (p *BufferedReader) tryZeroCopyRead(blk block.PrefetchBlock, off int64, inp
 			resp.Size = len(slice)
 			// Do not release the block. It will be released on a subsequent call
 			// to ReadAt via prepareQueueForOffset.
-			return resp, true
+			consumed := (off + int64(len(inputBuf))) >= (blk.AbsStartOff() + blk.Size())
+			return resp, true, consumed
 		}
 		// Log the error and fallback to copy.
 		logger.Warnf("BufferedReader.ReadAt: ReadAtSlice failed, falling back to copy: %v", sliceErr)
 	}
-	return resp, false
+	return resp, false, false
 }
 
 // ReadAt reads data from the GCS object into the provided buffer starting at
@@ -354,8 +357,15 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		// On the first iteration, check if the read can be satisfied from a single
 		// block without copying.
 		if bytesRead == 0 {
-			zeroCopyResp, zeroCopySuccess := p.tryZeroCopyRead(blk, off, inputBuf)
+			zeroCopyResp, zeroCopySuccess, consumed := p.tryZeroCopyRead(blk, off, inputBuf)
 			if zeroCopySuccess {
+				if consumed && !prefetchTriggered && !entry.prefetchTriggeredOnConsumption {
+					prefetchTriggered = true
+					entry.prefetchTriggeredOnConsumption = true
+					if pfErr := p.prefetch(); pfErr != nil {
+						logger.Warnf("BufferedReader.ReadAt: while prefetching after zero-copy: %v", pfErr)
+					}
+				}
 				return zeroCopyResp, nil
 			}
 		}
@@ -496,8 +506,9 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockInde
 
 	logger.Tracef("Scheduling block: (%s, %d, %t).", p.object.Name, blockIndex, urgent)
 	p.blockQueue.Push(&blockQueueEntry{
-		block:  b,
-		cancel: cancel,
+		block:                          b,
+		cancel:                         cancel,
+		prefetchTriggeredOnConsumption: false,
 	})
 	p.workerPool.Schedule(urgent, task)
 	return nil
