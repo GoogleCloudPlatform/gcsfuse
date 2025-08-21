@@ -41,9 +41,9 @@ const (
 )
 
 var (
-	storageClient *storage.Client
+	storageClient      *storage.Client
 	testServiceVersion string
-	ctx context.Context
+	ctx                context.Context
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -73,7 +73,7 @@ func TestMain(m *testing.M) {
 		cfg.CloudProfiler[0].Configs[0].Flags[0] = cfg.CloudProfiler[0].Configs[0].Flags[0] + testServiceVersionFlag
 		cfg.CloudProfiler[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
-	
+
 	setup.SetBucketFromConfigFile(cfg.CloudProfiler[0].TestBucket)
 	ctx = context.Background()
 	bucketType, err := setup.BucketType(ctx, cfg.CloudProfiler[0].TestBucket)
