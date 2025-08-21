@@ -32,6 +32,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 const (
@@ -40,7 +41,9 @@ const (
 )
 
 var (
+	storageClient *storage.Client
 	testServiceVersion string
+	ctx context.Context
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -50,8 +53,38 @@ var (
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	var storageClient *storage.Client
-	ctx := context.Background()
+	// 1. Load and parse the common configuration.
+	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
+	if len(cfg.CloudProfiler) == 0 {
+		log.Println("No configuration found for write large files tests in config. Using flags instead.")
+		if setup.ProfileLabelForMountedDirTest() == "" {
+			log.Fatal("Profile label should have been provided for mounted directory test.")
+		}
+		testServiceVersion = setup.ProfileLabelForMountedDirTest()
+		// Populate the config manually.
+		cfg.CloudProfiler = make([]test_suite.TestConfig, 1)
+		cfg.CloudProfiler[0].TestBucket = setup.TestBucket()
+		cfg.CloudProfiler[0].MountedDirectory = setup.MountedDirectory()
+		cfg.CloudProfiler[0].Configs = make([]test_suite.ConfigItem, 1)
+		cfg.CloudProfiler[0].Configs[0].Flags = []string{
+			"--enable-cloud-profiling --profiling-cpu --profiling-heap --profiling-goroutines --profiling-mutex --profiling-allocated-heap",
+		}
+		testServiceVersionFlag := fmt.Sprintf(" --profiling-label=%s", testServiceVersion)
+		cfg.CloudProfiler[0].Configs[0].Flags[0] = cfg.CloudProfiler[0].Configs[0].Flags[0] + testServiceVersionFlag
+		cfg.CloudProfiler[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+	}
+	
+	setup.SetBucketFromConfigFile(cfg.CloudProfiler[0].TestBucket)
+	ctx = context.Background()
+	bucketType, err := setup.BucketType(ctx, cfg.CloudProfiler[0].TestBucket)
+	if err != nil {
+		log.Fatalf("BucketType failed: %v", err)
+	}
+	if bucketType == setup.ZonalBucket {
+		setup.SetIsZonalBucketRun(true)
+	}
+
+	// 2. Create storage client before running tests.
 	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
 	defer func() {
 		err := closeStorageClient()
@@ -65,19 +98,25 @@ func TestMain(m *testing.M) {
 			log.Fatal("Profile label should have been provided for mounted directory test.")
 		}
 		testServiceVersion = setup.ProfileLabelForMountedDirTest()
-		setup.RunTestsForMountedDirectoryFlag(m)
+		setup.RunTestsForMountedDirectory(cfg.CloudProfiler[0].MountedDirectory, m)
 	}
 
-	// Else run tests for testBucket.
-	// Set up test directory.
-	setup.SetUpTestDirForTestBucketFlag()
+	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	// flags to be set, as CloudProfiler tests validates content from the bucket.
+	if cfg.CloudProfiler[0].MountedDirectory != "" && cfg.CloudProfiler[0].TestBucket != "" {
+		os.Exit(setup.RunTestsForMountedDirectory(cfg.CloudProfiler[0].MountedDirectory, m))
+	}
+
+	// Run tests for testBucket// Run tests for testBucket
+	// 4. Build the flag sets dynamically from the config.
+	flags := setup.BuildFlagSets(cfg.CloudProfiler[0], bucketType)
+
+	setup.SetUpTestDirForTestBucket(cfg.CloudProfiler[0].TestBucket)
+
 	testServiceVersion = fmt.Sprintf("ve2e0.0.0-%s", strings.ReplaceAll(uuid.New().String(), "-", "")[:8])
-
-	flags := [][]string{
-		{"--enable-cloud-profiler", "--cloud-profiler-cpu", "--cloud-profiler-heap", "--cloud-profiler-goroutines", "--cloud-profiler-mutex", "--cloud-profiler-allocated-heap", fmt.Sprintf("--cloud-profiler-label=%s", testServiceVersion)},
-	}
 	logger.Infof("Enabling cloud profiler with version tag: %s", testServiceVersion)
-	successCode := static_mounting.RunTests(flags, m)
+
+	successCode := static_mounting.RunTestsWithConfigFile(&cfg.CloudProfiler[0], flags, m)
 
 	// Clean up test directory created.
 	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
