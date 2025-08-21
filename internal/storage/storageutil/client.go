@@ -18,12 +18,16 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"net/http/httptrace"
 	"strings"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 )
@@ -62,6 +66,8 @@ type StorageClientConfig struct {
 	ReadStallRetryConfig cfg.ReadStallGcsRetriesConfig
 
 	MetricHandle metrics.MetricHandle
+
+	TracingEnabled bool
 }
 
 func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.TokenSource) (httpClient *http.Client, err error) {
@@ -121,6 +127,12 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 		httpClient.Transport = &userAgentRoundTripper{
 			wrapped:   httpClient.Transport,
 			UserAgent: storageClientConfig.UserAgent,
+		}
+
+		if storageClientConfig.TracingEnabled {
+			httpClient.Transport = otelhttp.NewTransport(httpClient.Transport, otelhttp.WithClientTrace(func(ctx context.Context) *httptrace.ClientTrace {
+				return otelhttptrace.NewClientTrace(ctx)
+			}), otelhttp.WithTracerProvider(otel.GetTracerProvider()))
 		}
 	}
 	return httpClient, err
