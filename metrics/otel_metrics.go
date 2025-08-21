@@ -1261,7 +1261,7 @@ func (o *otelMetrics) BufferedReadDownloadBlockLatency(
 	}
 
 	select {
-	case o.ch <- histogramRecord{instrument: record.instrument, value: record.value, attributes: record.attributes, ctx: ctx}: // Do nothing
+	case o.ch <- record: // Do nothing
 	default: // Unblock writes to channel if it's full.
 	}
 }
@@ -1283,10 +1283,10 @@ func (o *otelMetrics) BufferedReadFallbackTriggerCount(
 func (o *otelMetrics) BufferedReadReadLatency(
 	ctx context.Context, latency time.Duration) {
 	var record histogramRecord
-	record = histogramRecord{instrument: o.bufferedReadReadLatency, value: latency.Microseconds()}
+	record = histogramRecord{ctx: ctx, instrument: o.bufferedReadReadLatency, value: latency.Microseconds()}
 
 	select {
-	case o.ch <- histogramRecord{instrument: record.instrument, value: record.value, attributes: record.attributes, ctx: ctx}: // Do nothing
+	case o.ch <- record: // Do nothing
 	default: // Unblock writes to channel if it's full.
 	}
 }
@@ -1363,7 +1363,7 @@ func (o *otelMetrics) FileCacheReadLatencies(
 	}
 
 	select {
-	case o.ch <- histogramRecord{instrument: record.instrument, value: record.value, attributes: record.attributes, ctx: ctx}: // Do nothing
+	case o.ch <- record: // Do nothing
 	default: // Unblock writes to channel if it's full.
 	}
 }
@@ -2610,7 +2610,7 @@ func (o *otelMetrics) FsOpsLatency(
 	}
 
 	select {
-	case o.ch <- histogramRecord{instrument: record.instrument, value: record.value, attributes: record.attributes, ctx: ctx}: // Do nothing
+	case o.ch <- record: // Do nothing
 	default: // Unblock writes to channel if it's full.
 	}
 }
@@ -2765,7 +2765,7 @@ func (o *otelMetrics) GcsRequestLatencies(
 	}
 
 	select {
-	case o.ch <- histogramRecord{instrument: record.instrument, value: record.value, attributes: record.attributes, ctx: ctx}: // Do nothing
+	case o.ch <- record: // Do nothing
 	default: // Unblock writes to channel if it's full.
 	}
 }

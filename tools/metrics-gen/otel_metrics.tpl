@@ -87,7 +87,7 @@ func (o *otelMetrics) {{toPascal .Name}}(
 	var record histogramRecord
 	{{buildSwitches .}}
 	select {
-	  case o.ch <- histogramRecord{instrument: record.instrument, value: record.value, attributes: record.attributes, ctx: ctx}: // Do nothing
+	  case o.ch <- record: // Do nothing
 	  default: // Unblock writes to channel if it's full.
 	}
 	{{- end}}
