@@ -30,6 +30,7 @@ type testConfig struct {
 	name                string
 	isDualMount         bool
 	metadataCacheOnRead bool
+	fileCache           bool
 	primaryMountFlags   []string
 	secondaryMountFlags []string
 }
@@ -41,12 +42,28 @@ var readTestConfigs = []*testConfig{
 		name:                "SingleMount_NoCache",
 		isDualMount:         false,
 		metadataCacheOnRead: false,
+		fileCache:           false,
 		primaryMountFlags:   []string{"--enable-rapid-appends=true", "--metadata-cache-ttl-secs=0"},
 	},
 	{
 		name:                "SingleMount_MetadataCache",
 		isDualMount:         false,
 		metadataCacheOnRead: true,
+		fileCache:           false,
+		primaryMountFlags:   []string{"--enable-rapid-appends=true", fmt.Sprintf("--metadata-cache-ttl-secs=%v", metadataCacheTTLSecs)},
+	},
+	{
+		name:                "SingleMount_FileCache",
+		isDualMount:         false,
+		metadataCacheOnRead: false,
+		fileCache:           true,
+		primaryMountFlags:   []string{"--enable-rapid-appends=true", "--metadata-cache-ttl-secs=0"},
+	},
+	{
+		name:                "SingleMount_MetadataAndFileCache",
+		isDualMount:         false,
+		metadataCacheOnRead: true,
+		fileCache:           true,
 		primaryMountFlags:   []string{"--enable-rapid-appends=true", fmt.Sprintf("--metadata-cache-ttl-secs=%v", metadataCacheTTLSecs)},
 	},
 	// Dual-Mount Scenarios
@@ -54,6 +71,7 @@ var readTestConfigs = []*testConfig{
 		name:                "DualMount_NoCache",
 		isDualMount:         true,
 		metadataCacheOnRead: false,
+		fileCache:           false,
 		primaryMountFlags:   []string{"--enable-rapid-appends=true", "--metadata-cache-ttl-secs=0"},
 		secondaryMountFlags: []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1"},
 	},
@@ -61,6 +79,23 @@ var readTestConfigs = []*testConfig{
 		name:                "DualMount_MetadataCache",
 		isDualMount:         true,
 		metadataCacheOnRead: true,
+		fileCache:           false,
+		primaryMountFlags:   []string{"--enable-rapid-appends=true", fmt.Sprintf("--metadata-cache-ttl-secs=%v", metadataCacheTTLSecs)},
+		secondaryMountFlags: []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1"},
+	},
+	{
+		name:                "DualMount_FileCache",
+		isDualMount:         true,
+		metadataCacheOnRead: false,
+		fileCache:           true,
+		primaryMountFlags:   []string{"--enable-rapid-appends=true", "--metadata-cache-ttl-secs=0"},
+		secondaryMountFlags: []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1"},
+	},
+	{
+		name:                "DualMount_MetadataAndFileCache",
+		isDualMount:         true,
+		metadataCacheOnRead: true,
+		fileCache:           true,
 		primaryMountFlags:   []string{"--enable-rapid-appends=true", fmt.Sprintf("--metadata-cache-ttl-secs=%v", metadataCacheTTLSecs)},
 		secondaryMountFlags: []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1"},
 	},

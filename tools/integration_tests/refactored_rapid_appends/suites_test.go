@@ -15,6 +15,7 @@
 package refac_rapid_appends
 
 import (
+	"log"
 	"os"
 	"path"
 
@@ -58,10 +59,17 @@ type AppendsTestSuite struct{ BaseSuite }
 // Common Suite Logic
 // //////////////////////////////////////////////////////////////////////
 
-// SetupTest is run before each test, configuring and mounting gcsfuse based on the suite's config.
 func (s *BaseSuite) SetupTest() {
 	s.primaryMount.setupTestDir()
-	s.mountPrimaryMount(s.cfg.primaryMountFlags)
+
+	// Create a mutable copy of flags and add file cache flags if configured.
+	primaryFlags := make([]string, len(s.cfg.primaryMountFlags))
+	copy(primaryFlags, s.cfg.primaryMountFlags)
+	if s.cfg.fileCache {
+		cacheDir := getNewEmptyCacheDir(s.primaryMount.rootDir)
+		primaryFlags = append(primaryFlags, "--file-cache-max-size-mb=-1", "--cache-dir="+cacheDir)
+	}
+	s.mountPrimaryMount(primaryFlags)
 
 	if s.cfg.isDualMount {
 		s.secondaryMount.setupTestDir()
@@ -69,7 +77,6 @@ func (s *BaseSuite) SetupTest() {
 	}
 }
 
-// TearDownTest unmounts everything after each test.
 func (s *BaseSuite) TearDownTest() {
 	s.unmountPrimaryMount()
 	if s.cfg.isDualMount {
@@ -139,4 +146,12 @@ func (s *BaseSuite) appendToFile(file *os.File, appendContent string) {
 	if s.cfg.isDualMount {
 		operations.SyncFile(file, s.T())
 	}
+}
+
+func getNewEmptyCacheDir(rootDir string) string {
+	cacheDirPath, err := os.MkdirTemp(rootDir, "cache_dir_*")
+	if err != nil {
+		log.Fatalf("Failed to create temporary directory for cache dir for tests: %v", err)
+	}
+	return cacheDirPath
 }
