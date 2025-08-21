@@ -17,6 +17,7 @@ package storageutil
 import (
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptrace"
 	"strings"
@@ -25,6 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/viki-org/dnscache"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
@@ -73,6 +75,8 @@ type StorageClientConfig struct {
 func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.TokenSource) (httpClient *http.Client, err error) {
 	var transport *http.Transport
 	// Using http1 makes the client more performant.
+	resolver := dnscache.New(5 * time.Second)
+
 	if storageClientConfig.ClientProtocol == cfg.HTTP1 {
 		transport = &http.Transport{
 			Proxy:               http.ProxyFromEnvironment,
@@ -82,6 +86,11 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 			TLSNextProto: make(
 				map[string]func(string, *tls.Conn) http.RoundTripper,
 			),
+			Dial: func(network string, address string) (net.Conn, error) {
+				separator := strings.LastIndex(address, ":")
+				ip, _ := resolver.FetchOneString(address[:separator])
+				return net.Dial("tcp", ip+address[separator:])
+			},
 		}
 	} else {
 		// For http2, change in MaxConnsPerHost doesn't affect the performance.
