@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-// http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package refac_rapid_appends
+package rapid_appends
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -43,28 +42,28 @@ var readTestConfigs = []*testConfig{
 		isDualMount:         false,
 		metadataCacheOnRead: false,
 		fileCache:           false,
-		primaryMountFlags:   []string{"--enable-rapid-appends=true", "--metadata-cache-ttl-secs=0"},
+		primaryMountFlags:   []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1"},
 	},
 	{
 		name:                "SingleMount_MetadataCache",
 		isDualMount:         false,
 		metadataCacheOnRead: true,
 		fileCache:           false,
-		primaryMountFlags:   []string{"--enable-rapid-appends=true", fmt.Sprintf("--metadata-cache-ttl-secs=%v", metadataCacheTTLSecs)},
+		primaryMountFlags:   []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1"},
 	},
 	{
 		name:                "SingleMount_FileCache",
 		isDualMount:         false,
 		metadataCacheOnRead: false,
 		fileCache:           true,
-		primaryMountFlags:   []string{"--enable-rapid-appends=true", "--metadata-cache-ttl-secs=0"},
+		primaryMountFlags:   []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1"},
 	},
 	{
 		name:                "SingleMount_MetadataAndFileCache",
 		isDualMount:         false,
 		metadataCacheOnRead: true,
 		fileCache:           true,
-		primaryMountFlags:   []string{"--enable-rapid-appends=true", fmt.Sprintf("--metadata-cache-ttl-secs=%v", metadataCacheTTLSecs)},
+		primaryMountFlags:   []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1"},
 	},
 	// Dual-Mount Scenarios
 	{
@@ -72,7 +71,7 @@ var readTestConfigs = []*testConfig{
 		isDualMount:         true,
 		metadataCacheOnRead: false,
 		fileCache:           false,
-		primaryMountFlags:   []string{"--enable-rapid-appends=true", "--metadata-cache-ttl-secs=0"},
+		primaryMountFlags:   []string{"--enable-rapid-appends=true"},
 		secondaryMountFlags: []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1"},
 	},
 	{
@@ -80,7 +79,7 @@ var readTestConfigs = []*testConfig{
 		isDualMount:         true,
 		metadataCacheOnRead: true,
 		fileCache:           false,
-		primaryMountFlags:   []string{"--enable-rapid-appends=true", fmt.Sprintf("--metadata-cache-ttl-secs=%v", metadataCacheTTLSecs)},
+		primaryMountFlags:   []string{"--enable-rapid-appends=true"},
 		secondaryMountFlags: []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1"},
 	},
 	{
@@ -88,7 +87,7 @@ var readTestConfigs = []*testConfig{
 		isDualMount:         true,
 		metadataCacheOnRead: false,
 		fileCache:           true,
-		primaryMountFlags:   []string{"--enable-rapid-appends=true", "--metadata-cache-ttl-secs=0"},
+		primaryMountFlags:   []string{"--enable-rapid-appends=true"},
 		secondaryMountFlags: []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1"},
 	},
 	{
@@ -96,7 +95,7 @@ var readTestConfigs = []*testConfig{
 		isDualMount:         true,
 		metadataCacheOnRead: true,
 		fileCache:           true,
-		primaryMountFlags:   []string{"--enable-rapid-appends=true", fmt.Sprintf("--metadata-cache-ttl-secs=%v", metadataCacheTTLSecs)},
+		primaryMountFlags:   []string{"--enable-rapid-appends=true"},
 		secondaryMountFlags: []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1"},
 	},
 }

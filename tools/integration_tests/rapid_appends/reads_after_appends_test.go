@@ -15,8 +15,6 @@
 package rapid_appends
 
 import (
-	"fmt"
-	"log"
 	"math/rand/v2"
 	"os"
 	"path"
@@ -29,17 +27,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-////////////////////////////////////////////////////////////////////////
-// Helpers
-////////////////////////////////////////////////////////////////////////
-
-// declare a function type for read and verify
 type readAndVerifyFunc func(t *testing.T, filePath string, expectedContent []byte)
 
 func readSequentiallyAndVerify(t *testing.T, filePath string, expectedContent []byte) {
 	readContent, err := operations.ReadFileSequentially(filePath, 1024*1024)
-
-	// For sequential reads, we expect the content to be exactly as expected.
 	require.NoErrorf(t, err, "failed to read file %q sequentially: %v", filePath, err)
 	require.Equal(t, expectedContent, readContent)
 }
@@ -75,92 +66,39 @@ func readRandomlyAndVerify(t *testing.T, filePath string, expectedContent []byte
 	}
 }
 
-////////////////////////////////////////////////////////////////////////
-// Tests
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
+// Tests for the ReadsTestSuite
+// //////////////////////////////////////////////////////////////////////
 
-func (t *CommonAppendsSuite) TestAppendsAndReads() {
-	const metadataCacheTTLSecs = 10
-	metadataCacheEnableFlag := fmt.Sprintf("%s%v", "--metadata-cache-ttl-secs=", metadataCacheTTLSecs)
-	fileCacheDirFlag := func() string {
-		return "--cache-dir=" + getNewEmptyCacheDir(t.primaryMount.rootDir)
+// runAppendAndReadTest contains the core test logic for the ReadsTestSuite.
+func (s *ReadsTestSuite) runAppendAndReadTest(verifyFunc readAndVerifyFunc) {
+	s.createUnfinalizedObject()
+	defer s.deleteUnfinalizedObject()
+
+	appendPath := path.Join(s.getAppendPath(), s.fileName)
+	appendFileHandle := operations.OpenFileInMode(s.T(), appendPath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
+	defer operations.CloseFileShouldNotThrowError(s.T(), appendFileHandle)
+
+	readPath := path.Join(s.primaryMount.testDirPath, s.fileName)
+	for i := 0; i < numAppends; i++ {
+		sizeBeforeAppend := len(s.fileContent)
+		s.appendToFile(appendFileHandle, setup.GenerateRandomString(appendSize))
+		sizeAfterAppend := len(s.fileContent)
+
+		if !s.cfg.metadataCacheOnRead || !s.cfg.isDualMount || (i == 0) {
+			verifyFunc(s.T(), readPath, []byte(s.fileContent[:sizeAfterAppend]))
+		} else {
+			verifyFunc(s.T(), readPath, []byte(s.fileContent[:sizeBeforeAppend]))
+			time.Sleep(time.Duration(metadataCacheTTLSecs) * time.Second)
+			verifyFunc(s.T(), readPath, []byte(s.fileContent[:sizeAfterAppend]))
+		}
 	}
+}
 
-	testCases := []struct {
-		name          string
-		readAndVerify readAndVerifyFunc
-	}{
-		{
-			name:          "SequentialRead",
-			readAndVerify: readSequentiallyAndVerify,
-		},
-		{
-			name:          "RandomRead",
-			readAndVerify: readRandomlyAndVerify,
-		},
-	}
+func (s *ReadsTestSuite) TestSequentialRead() {
+	s.runAppendAndReadTest(readSequentiallyAndVerify)
+}
 
-	for _, scenario := range []struct {
-		enableMetadataCache bool
-		enableFileCache     bool
-		flags               []string
-	}{{
-		// all cache disabled
-		enableMetadataCache: false,
-		enableFileCache:     false,
-		flags:               []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1", "--metadata-cache-ttl-secs=0"},
-	}, {
-		enableMetadataCache: true,
-		enableFileCache:     false,
-		flags:               []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1", metadataCacheEnableFlag},
-	}, {
-		enableMetadataCache: true,
-		enableFileCache:     true,
-		flags:               []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1", metadataCacheEnableFlag, "--file-cache-max-size-mb=-1", fileCacheDirFlag()},
-	}, {
-		enableMetadataCache: false,
-		enableFileCache:     true,
-		flags:               []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1", "--metadata-cache-ttl-secs=0", "--file-cache-max-size-mb=-1", fileCacheDirFlag()},
-	}} {
-		func() {
-			t.mountPrimaryMount(scenario.flags)
-			defer t.unmountPrimaryMount()
-
-			log.Printf("Running tests with flags: %v", scenario.flags)
-
-			for _, tc := range testCases {
-				t.Run(tc.name, func() {
-					// Initially create an unfinalized object.
-					t.createUnfinalizedObject()
-					defer t.deleteUnfinalizedObject()
-
-					// Open this object as a file for appending on the appropriate mount.
-					appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(t.appendMountPath, t.fileName), os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
-					defer operations.CloseFileShouldNotThrowError(t.T(), appendFileHandle)
-
-					readPath := path.Join(t.primaryMount.testDirPath, t.fileName)
-					for i := range numAppends {
-						sizeBeforeAppend := len(t.fileContent)
-						t.appendToFile(appendFileHandle, setup.GenerateRandomString(appendSize))
-						sizeAfterAppend := len(t.fileContent)
-
-						// If metadata cache is enabled, gcsfuse reads up to the cached file size.
-						// For same-mount appends/reads, file size is always current.
-						// The initial read (i=0) bypasses cache, seeing the latest file size.
-						if !scenario.enableMetadataCache || !t.isSyncNeededAfterAppend || (i == 0) {
-							tc.readAndVerify(t.T(), readPath, []byte(t.fileContent[:sizeAfterAppend]))
-						} else {
-							// Read only up to the cached file size (before append).
-							tc.readAndVerify(t.T(), readPath, []byte(t.fileContent[:sizeBeforeAppend]))
-
-							// Wait for metadata cache to expire to fetch the latest size for the next read.
-							time.Sleep(time.Duration(metadataCacheTTLSecs) * time.Second)
-							// Expect read up to the latest file size which is the size after the append.
-							tc.readAndVerify(t.T(), readPath, []byte(t.fileContent[:sizeAfterAppend]))
-						}
-					}
-				})
-			}
-		}()
-	}
+func (s *ReadsTestSuite) TestRandomRead() {
+	s.runAppendAndReadTest(readRandomlyAndVerify)
 }
