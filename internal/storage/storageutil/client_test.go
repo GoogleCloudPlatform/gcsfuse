@@ -15,9 +15,17 @@
 package storageutil
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"go.opentelemetry.io/otel"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	"golang.org/x/oauth2"
+
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -29,6 +37,16 @@ func TestClient(t *testing.T) {
 
 type clientTest struct {
 	suite.Suite
+}
+
+func newInMemoryExporter(t *testing.T) *tracetest.InMemoryExporter {
+	t.Helper()
+	ex := tracetest.NewInMemoryExporter()
+	t.Cleanup(func() {
+		ex.Reset()
+	})
+	otel.SetTracerProvider(sdktrace.NewTracerProvider(sdktrace.WithSyncer(ex)))
+	return ex
 }
 
 // Tests
@@ -125,4 +143,33 @@ func (t *clientTest) TestStripScheme() {
 
 		assert.Equal(t.T(), tc.expectedOutput, output)
 	}
+}
+
+func (t *clientTest) TestCreateHttpClientWithHttpTracing() {
+	// Arrange
+	ex := newInMemoryExporter(t.T())
+	sc := GetDefaultStorageClientConfig(keyFile)
+	sc.TracingEnabled = true
+	sc.UserAgent = "test-agent"
+	var tokenSrc = oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "test-token"})
+
+	var userAgent, authHeader string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		userAgent = r.Header.Get("User-Agent")
+		authHeader = r.Header.Get("Authorization")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	httpClient, err := CreateHttpClient(&sc, tokenSrc)
+	require.NoError(t.T(), err)
+	require.NotNil(t.T(), httpClient)
+
+	_, err = httpClient.Get(server.URL)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), "test-agent", userAgent)
+	assert.Equal(t.T(), "Bearer test-token", authHeader)
+	ss := ex.GetSpans()
+	assert.GreaterOrEqual(t.T(), len(ss), 1)
+	assert.Equal(t.T(), "http.connect", ss[0].Name)
 }

@@ -30,6 +30,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	option "google.golang.org/api/option"
@@ -113,6 +114,10 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 	// Additional client options.
 	if enableBidiConfig {
 		clientOpts = append(clientOpts, experimental.WithGRPCBidiReads())
+	}
+
+	if clientConfig.TracingEnabled {
+		clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithStatsHandler(otelgrpc.NewClientHandler())))
 	}
 
 	clientOpts = append(clientOpts, option.WithGRPCConnectionPool(clientConfig.GrpcConnPoolSize))
