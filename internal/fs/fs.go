@@ -261,6 +261,13 @@ func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.Cac
 	// metadata cache if and when we support storing metadata cache on disk in
 	// the future.
 	cacheDir = path.Join(cacheDir, cacheutil.FileCache)
+	fileInfo, _ := os.Stat(cacheDir)
+	if fileInfo != nil {
+		err = os.Rename(cacheDir, path.Join(string(serverCfg.NewConfig.CacheDir), cacheutil.FileCache))
+		if err != nil {
+			fmt.Println("cannot rename cache directory")
+		}
+	}
 
 	filePerm := cacheutil.DefaultFilePerm
 	dirPerm := cacheutil.DefaultDirPerm
