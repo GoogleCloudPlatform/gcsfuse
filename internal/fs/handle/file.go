@@ -198,8 +198,8 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	if fh.reader != nil {
 		fh.inode.Unlock()
 
-		var objectData gcsx.ObjectData
-		objectData, err = fh.reader.ReadAt(ctx, dst, offset)
+		//var objectData gcsx.ObjectData
+		_, err = fh.reader.ReadAt(ctx, dst, offset)
 		switch {
 		case errors.Is(err, io.EOF):
 			if err != io.EOF {
