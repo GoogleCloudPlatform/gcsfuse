@@ -41,6 +41,10 @@ type SequentialReadSuite struct {
 }
 
 func (s *SequentialReadSuite) SetupSuite() {
+	if setup.MountedDirectory() != "" {
+		setupForMountedDirectoryTests()
+		return
+	}
 	// Create config file.
 	configFile := createConfigFile(s.testFlags)
 	// Create the final flags slice.
@@ -51,7 +55,11 @@ func (s *SequentialReadSuite) SetupSuite() {
 }
 
 func (s *SequentialReadSuite) TearDownSuite() {
-	setup.UnmountGCSFuse(setup.MntDir())
+	if setup.MountedDirectory() != "" {
+		setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
+		return
+	}
+	setup.UnmountGCSFuse(rootDir)
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 }
 
@@ -108,7 +116,7 @@ func (s *SequentialReadSuite) TestReadHeaderFooterAndBody() {
 	// Header and footer sizes (10KB each)
 	headerSize := 10 * util.KiB
 	footerSize := 10 * util.KiB
-	s.T().Run("Read header, footer, then body from one file handle", func(t *testing.T) {
+	s.T().Run("Read header footer then body from one file handle", func(t *testing.T) {
 		err := os.Truncate(setup.LogFile(), 0)
 		require.NoError(t, err, "Failed to truncate log file")
 		testDir := setup.SetupTestDirectory(testDirName)
@@ -161,6 +169,12 @@ func TestSequentialReadSuite(t *testing.T) {
 		maxBlocksPerHandle:   20,
 		startBlocksPerHandle: 1,
 		minBlocksPerHandle:   2,
+	}
+
+	// Run tests for mounted directory if the flag is set.
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		suite.Run(t, &SequentialReadSuite{testFlags: &baseTestFlags})
+		return
 	}
 
 	protocols := []string{clientProtocolHTTP1, clientProtocolGRPC}

@@ -40,6 +40,10 @@ type fallbackSuiteBase struct {
 }
 
 func (s *fallbackSuiteBase) SetupSuite() {
+	if setup.MountedDirectory() != "" {
+		setupForMountedDirectoryTests()
+		return
+	}
 	configFile := createConfigFile(s.testFlags)
 	flags := []string{"--config-file=" + configFile}
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
@@ -51,7 +55,11 @@ func (s *fallbackSuiteBase) SetupTest() {
 }
 
 func (s *fallbackSuiteBase) TearDownSuite() {
-	setup.UnmountGCSFuse(setup.MntDir())
+	if setup.MountedDirectory() != "" {
+		setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
+		return
+	}
+	setup.UnmountGCSFuse(rootDir)
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 }
 
@@ -147,26 +155,45 @@ func (s *RandomReadFallbackSuite) TestRandomRead_SmallFile_NoFallback() {
 ////////////////////////////////////////////////////////////////////////
 
 func TestFallbackSuites(t *testing.T) {
-	// Run the suite for insufficient pool at creation time.
-	insufficientPoolFlags := gcsfuseTestFlags{
+	// Define base flags for insufficient pool creation tests.
+	baseInsufficientPoolFlags := gcsfuseTestFlags{
 		enableBufferedRead:   true,
 		blockSizeMB:          8,
 		minBlocksPerHandle:   2,
 		globalMaxBlocks:      1, // Less than min-blocks-per-handle
 		maxBlocksPerHandle:   10,
 		startBlocksPerHandle: 2,
-		clientProtocol:       clientProtocolHTTP1,
 	}
-	suite.Run(t, &InsufficientPoolCreationSuite{fallbackSuiteBase{testFlags: &insufficientPoolFlags}})
 
-	// Run the suite for random read fallback scenarios.
-	randomReadFlags := gcsfuseTestFlags{
+	// Define base flags for random read fallback tests.
+	baseRandomReadFlags := gcsfuseTestFlags{
 		enableBufferedRead:   true,
 		blockSizeMB:          8,
 		maxBlocksPerHandle:   20,
 		startBlocksPerHandle: 2,
 		minBlocksPerHandle:   2,
-		clientProtocol:       clientProtocolHTTP1,
 	}
-	suite.Run(t, &RandomReadFallbackSuite{fallbackSuiteBase{testFlags: &randomReadFlags}})
+
+	// Run tests for mounted directory if the flag is set.
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		suite.Run(t, &InsufficientPoolCreationSuite{fallbackSuiteBase{testFlags: &baseInsufficientPoolFlags}})
+		suite.Run(t, &RandomReadFallbackSuite{fallbackSuiteBase{testFlags: &baseRandomReadFlags}})
+		return
+	}
+
+	protocols := []string{clientProtocolHTTP1, clientProtocolGRPC}
+
+	for _, protocol := range protocols {
+		t.Run(protocol, func(t *testing.T) {
+			// Run the suite for insufficient pool at creation time.
+			insufficientPoolFlags := baseInsufficientPoolFlags
+			insufficientPoolFlags.clientProtocol = protocol
+			suite.Run(t, &InsufficientPoolCreationSuite{fallbackSuiteBase{testFlags: &insufficientPoolFlags}})
+
+			// Run the suite for random read fallback scenarios.
+			randomReadFlags := baseRandomReadFlags
+			randomReadFlags.clientProtocol = protocol
+			suite.Run(t, &RandomReadFallbackSuite{fallbackSuiteBase{testFlags: &randomReadFlags}})
+		})
+	}
 }
