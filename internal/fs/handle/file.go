@@ -213,8 +213,8 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 			return
 		}
 
-		output = objectData.DataBuf
-		n = objectData.Size
+		/*output = objectData.DataBuf
+		n = objectData.Size*/
 		return
 	}
 
