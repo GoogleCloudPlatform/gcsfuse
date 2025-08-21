@@ -677,5 +677,29 @@ func (s *concurrentListingTest) Test_StatWithNewFileWrite(t *testing.T) {
 
 func TestConcurrentListing(t *testing.T) {
 	ts := &concurrentListingTest{}
-	test_setup.RunTests(t, ts)
+
+	// Run tests for mounted directory if the flag is set.
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		test_setup.RunTests(t, ts)
+		return
+	}
+
+	flagsSet := [][]string{
+		{"--kernel-list-cache-ttl-secs=0"}, {"--kernel-list-cache-ttl-secs=-1"},
+	}
+
+	if !testing.Short() {
+		setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "", "--client-protocol=grpc")
+	}
+
+	for _, flags := range flagsSet {
+		mountGCSFuseAndSetupTestDir(flags, testDirName, t)
+		// Parallel subtest execution is suspended until its calling test function has
+		// returned. Hence invoking RunTest inside another test, otherwise unmount will
+		// happen before the subtest execution starts.
+		t.Run(fmt.Sprintf("Flags_%v", flags), func(t *testing.T) {
+			test_setup.RunTests(t, ts)
+		})
+		setup.UnmountGCSFuse(setup.MntDir())
+	}
 }
