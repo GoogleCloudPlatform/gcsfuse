@@ -1,3 +1,17 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package monitoring
 
 import (
@@ -68,12 +82,12 @@ func (testSuite *PromGrpcMetricsTest) TestStorageClientGrpcMetrics() {
 	require.NoError(testSuite.T(), err)
 
 	// Assert that gRPC metrics are present.
-	assertNonZeroCountMetric(testSuite.T(), "grpc_client_attempt_started", "", "") // Pass testSuite.T()
-	assertNonZeroCountMetric(testSuite.T(), "grpc_client_attempt_started", "grpc_method", "google.storage.v2.Storage/ReadObject") // Pass testSuite.T()
-	assertNonZeroHistogramMetric(testSuite.T(), "grpc_client_attempt_duration_seconds", "", "") // Pass testSuite.T()
-	assertNonZeroHistogramMetric(testSuite.T(), "grpc_client_call_duration_seconds", "", "") // Pass testSuite.T()
-	assertNonZeroHistogramMetric(testSuite.T(), "grpc_client_attempt_rcvd_total_compressed_message_size_bytes", "", "") // Pass testSuite.T()
-	assertNonZeroHistogramMetric(testSuite.T(), "grpc_client_attempt_sent_total_compressed_message_size_bytes", "", "") // Pass testSuite.T()
+	assertNonZeroCountMetric(testSuite.T(), "grpc_client_attempt_started", "", "")
+	assertNonZeroCountMetric(testSuite.T(), "grpc_client_attempt_started", "grpc_method", "google.storage.v2.Storage/ReadObject")
+	assertNonZeroHistogramMetric(testSuite.T(), "grpc_client_attempt_duration_seconds", "", "")
+	assertNonZeroHistogramMetric(testSuite.T(), "grpc_client_call_duration_seconds", "", "")
+	assertNonZeroHistogramMetric(testSuite.T(), "grpc_client_attempt_rcvd_total_compressed_message_size_bytes", "", "")
+	assertNonZeroHistogramMetric(testSuite.T(), "grpc_client_attempt_sent_total_compressed_message_size_bytes", "", "")
 }
 
 func TestPromGrpcMetricsSuite(t *testing.T) {

@@ -147,7 +147,7 @@ func parsePromFormat(t *testing.T) (map[string]*promclient.MetricFamily, error) 
 func assertNonZeroCountMetric(t *testing.T, metricName, labelName, labelValue string) {
 	t.Helper()
 	mf, err := parsePromFormat(t) // Pass t to parsePromFormat
-	require.NoError(t, err)      // Use t for require.NoError
+	require.NoError(t, err)       // Use t for require.NoError
 	for k, v := range mf {
 		if k != metricName || *v.Type != promclient.MetricType_COUNTER {
 			continue
@@ -174,7 +174,7 @@ func assertNonZeroCountMetric(t *testing.T, metricName, labelName, labelValue st
 func assertNonZeroHistogramMetric(t *testing.T, metricName, labelName, labelValue string) {
 	t.Helper()
 	mf, err := parsePromFormat(t) // Pass t to parsePromFormat
-	require.NoError(t, err)      // Use t for require.NoError
+	require.NoError(t, err)       // Use t for require.NoError
 
 	for k, v := range mf {
 		if k != metricName || *v.Type != promclient.MetricType_HISTOGRAM {
