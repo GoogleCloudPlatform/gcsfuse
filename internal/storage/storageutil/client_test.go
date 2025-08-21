@@ -17,6 +17,7 @@ package storageutil
 import (
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 
 	"go.opentelemetry.io/otel"
@@ -169,6 +170,10 @@ func (t *clientTest) TestCreateHttpClientWithHttpTracing() {
 	assert.Equal(t.T(), "test-agent", userAgent)
 	assert.Equal(t.T(), "Bearer test-token", authHeader)
 	ss := ex.GetSpans()
-	assert.GreaterOrEqual(t.T(), len(ss), 1)
-	assert.Equal(t.T(), "http.connect", ss[0].Name)
+	assert.Condition(t.T(), func() bool {
+		return slices.ContainsFunc(ss, func(s tracetest.SpanStub) bool { return s.Name == "http.connect" })
+	})
+	assert.Condition(t.T(), func() bool {
+		return slices.ContainsFunc(ss, func(s tracetest.SpanStub) bool { return s.Name == "http.send" })
+	})
 }

@@ -622,6 +622,21 @@ func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithTra
 	assert.NotNil(testSuite.T(), clientOption)
 }
 
+func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithTracingAddsOneOption() {
+	scWithoutTracing := storageutil.GetDefaultStorageClientConfig(keyFile)
+	scWithoutTracing.TracingEnabled = false
+	optsWithoutTracing, err := createClientOptionForGRPCClient(context.TODO(), &scWithoutTracing, false)
+	assert.Nil(testSuite.T(), err)
+	scWithTracing := storageutil.GetDefaultStorageClientConfig(keyFile)
+	scWithTracing.TracingEnabled = true
+
+	optsWithTracing, err := createClientOptionForGRPCClient(context.TODO(), &scWithTracing, false)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), optsWithTracing)
+	assert.Len(testSuite.T(), optsWithTracing, len(optsWithoutTracing)+1, "Enabling tracing should add exactly one client option.")
+}
+
 func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_AuthFailures() {
 	tests := []struct {
 		name          string
