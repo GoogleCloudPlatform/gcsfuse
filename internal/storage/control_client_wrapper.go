@@ -330,9 +330,10 @@ func storageControlClientRetryOptions(clientConfig *storageutil.StorageClientCon
 
 func withGaxRetriesForFolderAPIs(sc *control.StorageControlClient, clientConfig *storageutil.StorageClientConfig) *control.StorageControlClient {
 	msc := sc
-	msc.CallOptions.RenameFolder = storageControlClientRetryOptions(clientConfig)
-	msc.CallOptions.GetFolder = storageControlClientRetryOptions(clientConfig)
-	msc.CallOptions.CreateFolder = storageControlClientRetryOptions(clientConfig)
-	msc.CallOptions.DeleteFolder = storageControlClientRetryOptions(clientConfig)
+	gaxRetryOptions := storageControlClientRetryOptions(clientConfig)
+	msc.CallOptions.RenameFolder = gaxRetryOptions
+	msc.CallOptions.GetFolder = gaxRetryOptions
+	msc.CallOptions.CreateFolder = gaxRetryOptions
+	msc.CallOptions.DeleteFolder = gaxRetryOptions
 	return msc
 }

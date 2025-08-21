@@ -316,6 +316,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		// Wrap the control client with retry-on-stall logic.
 		// This will retry on only on GetStorageLayout call for all buckets.
 		controlClient = withRetryOnStorageLayout(controlClient, defaultControlClientRetryDeadline, defaultControlClientTotalRetryBudget)
+		logger.Infof("Wrapped %+v with all retry APIs to create %+v", rawStorageControlClient, controlClient)
 	} else {
 		logger.Infof("Skipping storage control client creation because custom-endpoint %q was passed, which is assumed to be a storage testbench server because of 'localhost' in it.", clientConfig.CustomEndpoint)
 	}
@@ -389,8 +390,10 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 		if bucketType.Zonal {
 			// For zonal buckets, wrap the control client with retry-on-all-APIs.
 			controlClient = withRetryOnAllAPIs(sh.storageControlClient, defaultControlClientRetryDeadline, defaultControlClientTotalRetryBudget)
+			logger.Infof("Wrapped %+v with all retry APIs to create %+v", sh.storageControlClient, controlClient)
 		} else {
 			controlClient = withBillingProject(withGaxRetriesForFolderAPIs(sh.rawStorageControlClient, &sh.clientConfig), billingProject)
+			logger.Infof("Wrapped %+v with all retry APIs to create %+v", sh.rawStorageControlClient, controlClient)
 		}
 	}
 
