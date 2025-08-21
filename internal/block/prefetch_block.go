@@ -45,6 +45,11 @@ type PrefetchBlock interface {
 	// Here, off is relative to the start of the block.
 	ReadAt(p []byte, off int64) (n int, err error)
 
+	// ReadAtSlice returns a slice of the block's buffer if the read can be
+	// satisfied. It avoids a copy. The returned slice should not be modified.
+	// Here, off is relative to the start of the block.
+	ReadAtSlice(size int, off int64) (p []byte, err error)
+
 	// AbsStartOff returns the absolute start offset of the block.
 	// Panics if the absolute start offset is not set.
 	AbsStartOff() int64
@@ -124,6 +129,25 @@ func (pmb *prefetchMemoryBlock) ReadAt(p []byte, off int64) (n int, err error) {
 		return n, io.EOF
 	}
 	return n, nil
+}
+
+// ReadAtSlice returns a slice of the underlying buffer.
+// The offset is relative to the start of the block.
+// It returns the slice and an error if any.
+func (pmb *prefetchMemoryBlock) ReadAtSlice(size int, off int64) (p []byte, err error) {
+	if off < 0 || off >= pmb.Size() {
+		return nil, fmt.Errorf("prefetchMemoryBlock.ReadAtSlice: offset %d is out of bounds for block size %d", off, pmb.Size())
+	}
+
+	remData := pmb.Size() - off
+	if int64(size) > remData {
+		return nil, fmt.Errorf("prefetchMemoryBlock.ReadAtSlice: requested size %d is larger than remaining block size %d", size, remData)
+	}
+
+	dataStart := pmb.offset.start + off
+	dataEnd := dataStart + int64(size)
+
+	return pmb.buffer[dataStart:dataEnd], nil
 }
 
 func (pmb *prefetchMemoryBlock) AbsStartOff() int64 {

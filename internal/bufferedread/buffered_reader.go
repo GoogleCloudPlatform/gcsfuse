@@ -229,6 +229,31 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 	}
 }
 
+// tryZeroCopyRead attempts to perform a zero-copy read from the given block.
+// It returns the reader response and a boolean indicating success.
+// A successful zero-copy read means the entire requested data was returned as a
+// slice of the block's buffer.
+// LOCKS_REQUIRED(p.mu)
+func (p *BufferedReader) tryZeroCopyRead(blk block.PrefetchBlock, off int64, inputBuf []byte) (gcsx.ReaderResponse, bool) {
+	resp := gcsx.ReaderResponse{}
+	relOff := off - blk.AbsStartOff()
+
+	// Check if the entire read can be satisfied by this single block.
+	if relOff >= 0 && relOff+int64(len(inputBuf)) <= blk.Size() {
+		slice, sliceErr := blk.ReadAtSlice(len(inputBuf), relOff)
+		if sliceErr == nil {
+			resp.DataBuf = slice
+			resp.Size = len(slice)
+			// Do not release the block. It will be released on a subsequent call
+			// to ReadAt via prepareQueueForOffset.
+			return resp, true
+		}
+		// Log the error and fallback to copy.
+		logger.Warnf("BufferedReader.ReadAt: ReadAtSlice failed, falling back to copy: %v", sliceErr)
+	}
+	return resp, false
+}
+
 // ReadAt reads data from the GCS object into the provided buffer starting at
 // the given offset. It implements the gcsx.Reader interface.
 //
@@ -290,11 +315,11 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		return resp, err
 	}
 
+	p.prepareQueueForOffset(off)
+
 	prefetchTriggered := false
 
 	for bytesRead < len(inputBuf) {
-		p.prepareQueueForOffset(off)
-
 		if p.blockQueue.IsEmpty() {
 			if err = p.freshStart(off); err != nil {
 				logger.Warnf("Fallback to another reader for object %q, handle %d, due to freshStart failure: %v", p.object.Name, handleID, err)
@@ -324,6 +349,15 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 				err = fmt.Errorf("BufferedReader.ReadAt: unexpected block state: %d", status.State)
 			}
 			break
+		}
+
+		// On the first iteration, check if the read can be satisfied from a single
+		// block without copying.
+		if bytesRead == 0 {
+			zeroCopyResp, zeroCopySuccess := p.tryZeroCopyRead(blk, off, inputBuf)
+			if zeroCopySuccess {
+				return zeroCopyResp, nil
+			}
 		}
 
 		relOff := off - blk.AbsStartOff()
