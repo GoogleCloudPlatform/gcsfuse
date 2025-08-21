@@ -386,15 +386,9 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 			// For zonal buckets, wrap the control client with retry-on-all-APIs.
 			controlClient = withRetryOnAllAPIs(sh.storageControlClient, defaultControlClientRetryDeadline, defaultControlClientTotalRetryBudget)
 		} else {
-			// For non-zonal buckets, unwrap to the underlying struct, set retry config, then re-wrap.
-			if unwrapped, ok := storageutil.UnwrapStorageControlClient(controlClient); ok {
-				storageutil.SetRetryConfigForFolderAPIs(unwrapped, &sh.clientConfig)
-				// Re-wrap the struct as a controlClient interface, preserving billing/retry wrappers if needed.
-				controlClient = storageutil.WrapStorageControlClient(unwrapped, billingProject)
-			} else {
-				// If unable to unwrap, keep the original controlClient.
-			}
-				logger.Warnf("Unable to unwrap StorageControlClient for retry config")
+			controlClient, err = withGaxRetriesForFolderAPIs(controlClient, &sh.clientConfig)
+			if err != nil || controlClient == nil {
+				return nil, fmt.Errorf("failed to wrap control client with GAX retries for bucket %q: %w", bucketName, err)
 			}
 		}
 	}

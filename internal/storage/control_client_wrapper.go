@@ -25,6 +25,7 @@ import (
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -102,7 +103,7 @@ func withBillingProject(controlClient StorageControlClient, billingProject strin
 type exponentialBackoffConfig struct {
 	// initial duration for next backoff.
 	initial time.Duration
-	// Max duration for next back backoff.
+	// Max duration for next backoff.
 	max time.Duration
 	// The rate at which the backoff duration should grow
 	// over subsequent calls to next().
@@ -307,4 +308,57 @@ func withRetryOnAllAPIs(controlClient StorageControlClient, retryDeadline time.D
 // withRetryOnStorageLayout wraps a StorageControlClient to do a time-bound retry approach for retryable errors for the GetStorageLayout call through it.
 func withRetryOnStorageLayout(controlClient StorageControlClient, retryDeadline time.Duration, totalRetryBudget time.Duration) StorageControlClient {
 	return newRetryWrapper(controlClient, retryDeadline, totalRetryBudget, defaultInitialBackoff, defaultMaxBackoff, defaultBackoffMultiplier, false)
+}
+
+func storageControlClientRetryOptions(clientConfig *storageutil.StorageClientConfig) []gax.CallOption {
+	return []gax.CallOption{
+		gax.WithTimeout(300000 * time.Millisecond),
+		gax.WithRetry(func() gax.Retryer {
+			return gax.OnCodes([]codes.Code{
+				codes.ResourceExhausted,
+				codes.Unavailable,
+				codes.DeadlineExceeded,
+				codes.Internal,
+				codes.Unknown,
+			}, gax.Backoff{
+				Max:        clientConfig.MaxRetrySleep,
+				Multiplier: clientConfig.RetryMultiplier,
+			})
+		}),
+	}
+}
+
+func setRetryConfigForFolderAPIs(sc *control.StorageControlClient, clientConfig *storageutil.StorageClientConfig) {
+	sc.CallOptions.RenameFolder = storageControlClientRetryOptions(clientConfig)
+	sc.CallOptions.GetFolder = storageControlClientRetryOptions(clientConfig)
+	sc.CallOptions.CreateFolder = storageControlClientRetryOptions(clientConfig)
+	sc.CallOptions.DeleteFolder = storageControlClientRetryOptions(clientConfig)
+}
+
+func withGaxRetriesForFolderAPIs(controlClient StorageControlClient, clientConfig *storageutil.StorageClientConfig) (StorageControlClient, error) {
+	// Find the raw client to modify.
+	var rawClient *control.StorageControlClient
+	c := controlClient
+	for rawClient == nil {
+		switch typed := c.(type) {
+		case *storageControlClientWithRetry:
+			c = typed.raw
+		case *storageControlClientWithBillingProject:
+			c = typed.raw
+		case *control.StorageControlClient:
+			rawClient = typed
+		default:
+			return nil, fmt.Errorf("could not find raw control client, unexpected type: %T", c)
+		}
+	}
+
+	if rawClient == nil {
+		return nil, fmt.Errorf("could not find raw control client to modify")
+	}
+
+	setRetryConfigForFolderAPIs(rawClient, clientConfig)
+
+	// The modification was in-place on the raw client, which is referenced by
+	// the wrappers. We can return the original top-level client.
+	return controlClient, nil
 }
