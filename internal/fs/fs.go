@@ -263,7 +263,7 @@ func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.Cac
 	cacheDir = path.Join(cacheDir, cacheutil.FileCache)
 	fileInfo, _ := os.Stat(cacheDir)
 	if fileInfo != nil {
-		err = os.Rename(cacheDir, path.Join(string(serverCfg.NewConfig.CacheDir), cacheutil.FileCache))
+		err = os.Rename(cacheDir, path.Join(string(serverCfg.NewConfig.CacheDir), "cache-old"))
 		if err != nil {
 			fmt.Println("cannot rename cache directory")
 		}
