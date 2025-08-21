@@ -92,10 +92,12 @@ func (sccwbp *storageControlClientWithBillingProject) CreateFolder(ctx context.C
 }
 
 func withBillingProject(controlClient StorageControlClient, billingProject string) StorageControlClient {
+	toReturn := controlClient
 	if billingProject != "" {
-		controlClient = &storageControlClientWithBillingProject{raw: controlClient, billingProject: billingProject}
+		toReturn = &storageControlClientWithBillingProject{raw: toReturn, billingProject: billingProject}
+		logger.Infof("Wrapped %p (%+v) with billing-project %q on StorageLayout to create %p (%+v)", controlClient, controlClient, billingProject, toReturn, toReturn)
 	}
-	return controlClient
+	return toReturn
 }
 
 // exponentialBackoffConfig is config parameters
@@ -328,12 +330,19 @@ func storageControlClientRetryOptions(clientConfig *storageutil.StorageClientCon
 	}
 }
 
-func withGaxRetriesForFolderAPIs(sc *control.StorageControlClient, clientConfig *storageutil.StorageClientConfig) *control.StorageControlClient {
-	msc := sc
+func withGaxRetriesForFolderAPIs(rawControlClientWithoutGaxRetries *control.StorageControlClient, clientConfig *storageutil.StorageClientConfig) *control.StorageControlClient {
+	if rawControlClientWithoutGaxRetries == nil {
+		return rawControlClientWithoutGaxRetries
+	}
+
 	gaxRetryOptions := storageControlClientRetryOptions(clientConfig)
-	msc.CallOptions.RenameFolder = gaxRetryOptions
-	msc.CallOptions.GetFolder = gaxRetryOptions
-	msc.CallOptions.CreateFolder = gaxRetryOptions
-	msc.CallOptions.DeleteFolder = gaxRetryOptions
-	return msc
+
+	rawControlClientWithGaxRetries := *rawControlClientWithoutGaxRetries
+	rawControlClientWithGaxRetries.CallOptions = &control.StorageControlCallOptions{}
+	rawControlClientWithGaxRetries.CallOptions.RenameFolder = gaxRetryOptions
+	rawControlClientWithGaxRetries.CallOptions.GetFolder = gaxRetryOptions
+	rawControlClientWithGaxRetries.CallOptions.CreateFolder = gaxRetryOptions
+	rawControlClientWithGaxRetries.CallOptions.DeleteFolder = gaxRetryOptions
+	logger.Infof("Copied original raw storage-client %p to new raw storage-client %p", rawControlClientWithoutGaxRetries, &rawControlClientWithGaxRetries)
+	return &rawControlClientWithGaxRetries
 }
