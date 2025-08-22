@@ -20,6 +20,7 @@ import (
 	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedread"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
@@ -92,6 +93,9 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 		)
 		if err != nil {
 			logger.Warnf("Failed to create bufferedReader: %v. Buffered reading will be disabled for this file handle.", err)
+			if errors.Is(err, block.CantAllocateAnyBlockError) {
+				config.MetricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
+			}
 		} else {
 			readers = append(readers, bufferedReader)
 		}

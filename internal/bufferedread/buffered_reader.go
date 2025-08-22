@@ -178,6 +178,7 @@ func (p *BufferedReader) handleRandomRead(offset int64, handleID int64) error {
 
 	if p.randomSeekCount > p.randomReadsThreshold {
 		logger.Warnf("Fallback to another reader for object %q, handle %d. Random seek count %d exceeded threshold %d.", p.object.Name, handleID, p.randomSeekCount, p.randomReadsThreshold)
+		p.metricHandle.BufferedReadFallbackTriggerCount(1, "random_read_detected")
 		return gcsx.FallbackToAnotherReader
 	}
 
@@ -280,6 +281,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 	defer func() {
 		dur := time.Since(start)
+		p.metricHandle.BufferedReadReadLatency(ctx, dur)
 		if err == nil || errors.Is(err, io.EOF) {
 			logger.Tracef("%.13v -> ReadAt(): Ok(%v)", reqID, dur)
 		}
@@ -298,6 +300,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		if p.blockQueue.IsEmpty() {
 			if err = p.freshStart(off); err != nil {
 				logger.Warnf("Fallback to another reader for object %q, handle %d, due to freshStart failure: %v", p.object.Name, handleID, err)
+				p.metricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
 				return resp, gcsx.FallbackToAnotherReader
 			}
 			prefetchTriggered = true
@@ -458,7 +461,7 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockInde
 	}
 
 	ctx, cancel := context.WithCancel(p.ctx)
-	task := NewDownloadTask(ctx, p.object, p.bucket, b, p.readHandle)
+	task := NewDownloadTask(ctx, p.object, p.bucket, b, p.readHandle, p.metricHandle)
 
 	logger.Tracef("Scheduling block: (%s, %d, %t).", p.object.Name, blockIndex, urgent)
 	p.blockQueue.Push(&blockQueueEntry{
