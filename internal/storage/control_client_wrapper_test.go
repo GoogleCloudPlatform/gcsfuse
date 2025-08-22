@@ -612,6 +612,8 @@ func (testSuite *StorageLayoutRetryWrapperTest) TestWithRetryOnStorageLayout_Wra
 	retryWrapper, ok := wrappedClient.(*storageControlClientWithRetry)
 	require.True(testSuite.T(), ok, "The returned client should be of type *storageControlClientWithRetry")
 	assert.Same(testSuite.T(), mockClient, retryWrapper.raw)
+	assert.True(testSuite.T(), retryWrapper.enableRetriesOnStorageLayoutAPI, "Retries should be enabled for storage layout APIs")
+	assert.False(testSuite.T(), retryWrapper.enableRetriesOnFolderAPIs, "Retries should not be enabled for folder APIs")
 }
 
 func (testSuite *StorageLayoutRetryWrapperTest) TestWithRetryOnStorageLayout_UnwrapsNestedRetryClient() {
@@ -631,6 +633,8 @@ func (testSuite *StorageLayoutRetryWrapperTest) TestWithRetryOnStorageLayout_Unw
 	require.True(testSuite.T(), ok, "The returned client should be of type *storageControlClientWithRetry")
 	assert.Same(testSuite.T(), mockClient, retryWrapper.raw, "Should unwrap the nested retry client")
 	assert.NotSame(testSuite.T(), alreadyWrappedClient, retryWrapper.raw)
+	assert.True(testSuite.T(), retryWrapper.enableRetriesOnStorageLayoutAPI, "Retries should be enabled for storage layout APIs")
+	assert.False(testSuite.T(), retryWrapper.enableRetriesOnFolderAPIs, "Retries should not be enabled for folder APIs")
 }
 
 func (testSuite *AllApiRetryWrapperTest) TestWithRetryOnAllAPIs_WrapsClient() {
@@ -646,6 +650,8 @@ func (testSuite *AllApiRetryWrapperTest) TestWithRetryOnAllAPIs_WrapsClient() {
 	retryWrapper, ok := wrappedClient.(*storageControlClientWithRetry)
 	require.True(testSuite.T(), ok, "The returned client should be of type *storageControlClientWithRetry")
 	assert.Same(testSuite.T(), mockClient, retryWrapper.raw)
+	assert.True(testSuite.T(), retryWrapper.enableRetriesOnStorageLayoutAPI, "Retries should be enabled for storage layout APIs")
+	assert.True(testSuite.T(), retryWrapper.enableRetriesOnFolderAPIs, "Retries should be enabled for folder APIs")
 }
 
 func (testSuite *AllApiRetryWrapperTest) TestWithRetryOnAllAPIs_UnwrapsNestedRetryClient() {
@@ -665,6 +671,8 @@ func (testSuite *AllApiRetryWrapperTest) TestWithRetryOnAllAPIs_UnwrapsNestedRet
 	require.True(testSuite.T(), ok, "The returned client should be of type *storageControlClientWithRetry")
 	assert.Same(testSuite.T(), mockClient, retryWrapper.raw, "Should unwrap the nested retry client")
 	assert.NotSame(testSuite.T(), alreadyWrappedClient, retryWrapper.raw)
+	assert.True(testSuite.T(), retryWrapper.enableRetriesOnStorageLayoutAPI, "Retries should be enabled for storage layout APIs")
+	assert.True(testSuite.T(), retryWrapper.enableRetriesOnFolderAPIs, "Retries should be enabled for folder APIs")
 }
 
 type ExponentialBackoffTest struct {
