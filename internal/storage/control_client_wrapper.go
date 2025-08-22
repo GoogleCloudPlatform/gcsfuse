@@ -92,12 +92,10 @@ func (sccwbp *storageControlClientWithBillingProject) CreateFolder(ctx context.C
 }
 
 func withBillingProject(controlClient StorageControlClient, billingProject string) StorageControlClient {
-	toReturn := controlClient
 	if billingProject != "" {
-		toReturn = &storageControlClientWithBillingProject{raw: toReturn, billingProject: billingProject}
-		logger.Infof("Wrapped %p (%+v) with billing-project %q on StorageLayout to create %p (%+v)", controlClient, controlClient, billingProject, toReturn, toReturn)
+		controlClient = &storageControlClientWithBillingProject{raw: controlClient, billingProject: billingProject}
 	}
-	return toReturn
+	return controlClient
 }
 
 // exponentialBackoffConfig is config parameters
@@ -357,14 +355,14 @@ func withGaxRetriesForFolderAPIs(rawControlClientWithoutGaxRetries *control.Stor
 		return rawControlClientWithoutGaxRetries
 	}
 
-	gaxRetryOptions := storageControlClientGaxRetryOptions(clientConfig)
-
+	// Create a copy of passed rawControlClientWithoutGaxRetries.
 	rawControlClientWithGaxRetries := *rawControlClientWithoutGaxRetries
 	rawControlClientWithGaxRetries.CallOptions = &control.StorageControlCallOptions{}
+
+	gaxRetryOptions := storageControlClientGaxRetryOptions(clientConfig)
 	rawControlClientWithGaxRetries.CallOptions.RenameFolder = gaxRetryOptions
 	rawControlClientWithGaxRetries.CallOptions.GetFolder = gaxRetryOptions
 	rawControlClientWithGaxRetries.CallOptions.CreateFolder = gaxRetryOptions
 	rawControlClientWithGaxRetries.CallOptions.DeleteFolder = gaxRetryOptions
-	logger.Infof("Copied original raw storage-client %p to new raw storage-client %p", rawControlClientWithoutGaxRetries, &rawControlClientWithGaxRetries)
 	return &rawControlClientWithGaxRetries
 }

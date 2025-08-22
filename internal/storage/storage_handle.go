@@ -390,10 +390,15 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 		if bucketType.Zonal {
 			// For zonal buckets, wrap the control client with retry-on-all-APIs.
 			controlClient = withRetryOnAllAPIs(sh.storageControlClient, defaultControlClientRetryDeadline, defaultControlClientTotalRetryBudget)
-			logger.Infof("Wrapped %p (%+v) with all retry APIs to create %p(%+v)", sh.storageControlClient, sh.storageControlClient, controlClient, controlClient)
 		} else {
-			controlClient = withBillingProject(withGaxRetriesForFolderAPIs(sh.rawStorageControlClient, &sh.clientConfig), billingProject)
-			logger.Infof("Wrapped %p (%+v) with all billing-project and gax-retries for folder APIs to to create %p (%+v)", sh.rawStorageControlClient, sh.rawStorageControlClient, controlClient, controlClient)
+			// Gax retries can be applied only on raw storage-control-client struct, not on the interface
+			// controlClient. The below call creates a copy of raw storage-control-client, adds
+			// Gax retry options to it and returns. This copy is important to avoid adding gax retries on
+			// sh.rawControlClientWithGaxRetries which are also used by zonal buckets,
+			// for which we have enhanced retries in place (the `if` to this `else`).
+			rawControlClientWithGaxRetries := withGaxRetriesForFolderAPIs(sh.rawStorageControlClient, &sh.clientConfig)
+			// Wrap it with billing-project, if there is any.
+			controlClient = withBillingProject(rawControlClientWithGaxRetries, billingProject)
 		}
 	}
 
