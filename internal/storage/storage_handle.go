@@ -355,6 +355,24 @@ func (sh *storageClient) getClient(ctx context.Context, isbucketZonal bool) (*st
 	return nil, fmt.Errorf("invalid client-protocol requested: %s", sh.clientConfig.ClientProtocol)
 }
 
+func (sh *storageClient) controlClientForBucketHandle(bucketType *gcs.BucketType, billingProject string) StorageControlClient {
+	if sh.storageControlClient == nil {
+		return nil
+	}
+
+	if bucketType.Zonal {
+		// For zonal buckets, wrap the control client with retry-on-all-APIs.
+		return withRetryOnAllAPIs(sh.storageControlClient, &sh.clientConfig)
+	} else {
+		// Apply GAX retries to the raw storage control client. This internally creates and stores a copy of the raw storage-control client, which is important to avoid
+		// interfering with enhanced retries used by zonal buckets.
+		rawControlClientWithGaxRetries := withGaxRetriesForFolderAPIs(sh.rawStorageControlClient, &sh.clientConfig)
+		// Special handling for mounts created with custom billing projects.
+		// Wrap it with billing-project, if there is any.
+		return withBillingProject(rawControlClientWithGaxRetries, billingProject)
+	}
+}
+
 func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, billingProject string, enableRapidAppends bool) (bh *bucketHandle, err error) {
 	var client *storage.Client
 	bucketType, err := sh.lookupBucketType(bucketName)
@@ -377,27 +395,8 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 		}
 	}
 
-	storageBucketHandle := client.Bucket(bucketName)
-
-	if billingProject != "" {
-		storageBucketHandle = storageBucketHandle.UserProject(billingProject)
-	}
-
-	// For Zonal buckets, wrap the control client with a retry-on-stall mechanism for more resilient folder operations.
-	controlClient := sh.storageControlClient
-	if sh.storageControlClient != nil {
-		if bucketType.Zonal {
-			// For zonal buckets, wrap the control client with retry-on-all-APIs.
-			controlClient = withRetryOnAllAPIs(sh.storageControlClient, &sh.clientConfig)
-		} else {
-			// Apply GAX retries to the raw storage control client. This internally creates and stores a copy of the raw storage-control client, which is important to avoid
-			// interfering with enhanced retries used by zonal buckets.
-			rawControlClientWithGaxRetries := withGaxRetriesForFolderAPIs(sh.rawStorageControlClient, &sh.clientConfig)
-			// Special handling for mounts created with custom billing projects.
-			// Wrap it with billing-project, if there is any.
-			controlClient = withBillingProject(rawControlClientWithGaxRetries, billingProject)
-		}
-	}
+	storageBucketHandle := client.Bucket(bucketName).UserProject(billingProject)
+	controlClient := sh.controlClientForBucketHandle(bucketType, billingProject)
 
 	bh = &bucketHandle{
 		bucket:             storageBucketHandle,
