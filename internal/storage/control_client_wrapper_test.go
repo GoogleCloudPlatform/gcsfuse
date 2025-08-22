@@ -543,6 +543,22 @@ func (t *AllApiRetryWrapperTest) TestRenameFolder_NonRetryableError() {
 	t.mockRawClient.AssertExpectations(t.T())
 }
 
+func (t *AllApiRetryWrapperTest) TestRenameFolder_AllAttemptsTimeOut() {
+	// Arrange
+	client := newRetryWrapper(t.stallingClient, 1000*time.Microsecond, 10000*time.Microsecond, time.Microsecond, 10*time.Microsecond, 2, true)
+	req := &controlpb.RenameFolderRequest{Name: "some/folder", DestinationFolderId: "new/folder"}
+	// Set execution time to be longer than the attempt timeout.
+	t.stallDurationForFolderAPIs = 6000 * time.Microsecond
+
+	// Act
+	_, err := client.RenameFolder(t.ctx, req)
+
+	// Assert: The mock should never be called because every attempt will time out.
+	assert.Error(t.T(), err)
+	assert.ErrorIs(t.T(), err, context.DeadlineExceeded)
+	t.mockRawClient.AssertExpectations(t.T())
+}
+
 func (t *AllApiRetryWrapperTest) TestCreateFolder_SuccessOnFirstAttempt() {
 	// Arrange
 	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 1000*time.Microsecond, time.Microsecond, 10*time.Microsecond, 2, true)
@@ -593,6 +609,22 @@ func (t *AllApiRetryWrapperTest) TestCreateFolder_NonRetryableError() {
 	assert.Nil(t.T(), folder)
 	assert.Contains(t.T(), err.Error(), "failed with a non-retryable error")
 	assert.Contains(t.T(), err.Error(), nonRetryableErr.Error())
+	t.mockRawClient.AssertExpectations(t.T())
+}
+
+func (t *AllApiRetryWrapperTest) TestCreateFolder_AllAttemptsTimeOut() {
+	// Arrange
+	client := newRetryWrapper(t.stallingClient, 1000*time.Microsecond, 10000*time.Microsecond, time.Microsecond, 10*time.Microsecond, 2, true)
+	req := &controlpb.CreateFolderRequest{Parent: "some/", FolderId: "folder"}
+	// Set execution time to be longer than the attempt timeout.
+	t.stallDurationForFolderAPIs = 6000 * time.Microsecond
+
+	// Act
+	_, err := client.CreateFolder(t.ctx, req)
+
+	// Assert: The mock should never be called because every attempt will time out.
+	assert.Error(t.T(), err)
+	assert.ErrorIs(t.T(), err, context.DeadlineExceeded)
 	t.mockRawClient.AssertExpectations(t.T())
 }
 
