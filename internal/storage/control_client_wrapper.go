@@ -16,11 +16,25 @@ package storage
 
 import (
 	"context"
+	"fmt"
+	"math/rand"
+	"time"
 
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"google.golang.org/grpc/metadata"
+)
+
+const (
+	// Default retry parameters for control client calls.
+	defaultControlClientRetryDeadline    = 30 * time.Second
+	defaultControlClientTotalRetryBudget = 5 * time.Minute
+	defaultInitialBackoff                = 1 * time.Second
+	defaultMaxBackoff                    = 1 * time.Minute
+	defaultBackoffMultiplier             = 2.0
 )
 
 type StorageControlClient interface {
@@ -81,4 +95,185 @@ func withBillingProject(controlClient StorageControlClient, billingProject strin
 		controlClient = &storageControlClientWithBillingProject{raw: controlClient, billingProject: billingProject}
 	}
 	return controlClient
+}
+
+// exponentialBackoffConfig is config parameters
+// needed to create an exponentialBackoff.
+type exponentialBackoffConfig struct {
+	//Initial duration for next backoff.
+	initial time.Duration
+	// Max duration for next back backoff.
+	max time.Duration
+	// The rate at which the backoff duration should grow
+	// over subsequent calls to next().
+	multiplier float64
+}
+
+// exponentialBackoff holds the duration parameters for exponential backoff.
+type exponentialBackoff struct {
+	// config used to create this backoff object.
+	config exponentialBackoffConfig
+	// Duration for next backoff. Capped at max. Returned by next().
+	next time.Duration
+}
+
+// newExponentialBackoff returns a new exponentialBackoff given
+// the config for it.
+func newExponentialBackoff(config *exponentialBackoffConfig) *exponentialBackoff {
+	return &exponentialBackoff{
+		config: *config,
+		next:   config.initial,
+	}
+}
+
+// nextDuration returns the next backoff duration.
+func (b *exponentialBackoff) nextDuration() time.Duration {
+	next := b.next
+	b.next = min(b.config.max, time.Duration(float64(b.next)*b.config.multiplier))
+	return next
+}
+
+// waitWithJitter waits for the next backoff duration with added jitter.
+// The jitter adds randomness to the backoff duration to prevent the thundering herd problem.
+// This is similar to how gax-retries backoff after each failed retry.
+func (b *exponentialBackoff) waitWithJitter(ctx context.Context) error {
+	nextDuration := b.nextDuration()
+	jitteryBackoffDuration := time.Duration(1 + rand.Int63n(int64(nextDuration)))
+	select {
+	case <-time.After(jitteryBackoffDuration):
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// storageControlClientWithRetry is a wrapper for an existing StorageControlClient object
+// which implements gcsfuse-level retry logic if any of the control-client call gets stalled or returns a retryable error.
+// It makes time-bound attempts to call the underlying StorageControlClient methods,
+// retrying on errors that should be retried according to gcsfuse's retry logic.
+type storageControlClientWithRetry struct {
+	raw StorageControlClient
+
+	// Time-limit on every individual retry attempt.
+	retryDeadline time.Duration
+	// Total duration allowed across all the attempts.
+	totalRetryBudget time.Duration
+
+	// Config for managing backoff durations in-between retry attempts.
+	backoffConfig exponentialBackoffConfig
+
+	// Whether or not to enable retries for GetStorageLayout call.
+	enableRetriesOnStorageLayoutCall bool
+}
+
+// executeWithRetry encapsulates the retry logic for control client operations.
+// It performs time-bound, exponential backoff retries for a given API call.
+// It is expected that the given apiCall returns a structure, and not an HTTP response,
+// so that it does not leave behind any trace of a pending operation on server.
+func executeWithRetry[T any](
+	sccwros *storageControlClientWithRetry,
+	ctx context.Context,
+	operationName string,
+	reqDescription string,
+	apiCall func(attemptCtx context.Context) (T, error),
+) (T, error) {
+	var zero T
+
+	parentCtx, cancel := context.WithTimeout(ctx, sccwros.totalRetryBudget)
+	defer cancel()
+
+	// Create a new backoff controller specific to this api call.
+	backoff := newExponentialBackoff(&sccwros.backoffConfig)
+	for {
+		attemptCtx, attemptCancel := context.WithTimeout(parentCtx, sccwros.retryDeadline)
+
+		logger.Tracef("Calling %s for %q with deadline=%v ...", operationName, reqDescription, sccwros.retryDeadline)
+		result, err := apiCall(attemptCtx)
+		// Cancel attemptCtx after it is no longer needed to free up its resources.
+		attemptCancel()
+
+		if err == nil {
+			return result, nil
+		}
+
+		// If the error is not retryable, return it immediately.
+		if !storageutil.ShouldRetry(err) {
+			return zero, fmt.Errorf("%s for %q failed with a non-retryable error: %w", operationName, reqDescription, err)
+		}
+
+		// If the parent context is cancelled/timed-out, we should stop retrying.
+		if parentCtx.Err() != nil {
+			return zero, fmt.Errorf("%s for %q failed after multiple retries (last server/client error = %v): %w", operationName, reqDescription, err, parentCtx.Err())
+		}
+
+		// Do a jittery backoff after each retry.
+		parentCtxErr := backoff.waitWithJitter(parentCtx)
+		if parentCtxErr != nil {
+			return zero, fmt.Errorf("%s for %q failed after multiple retries (last server/client error = %v): %w", operationName, reqDescription, err, parentCtxErr)
+		}
+	}
+}
+
+func (sccwros *storageControlClientWithRetry) GetStorageLayout(ctx context.Context,
+	req *controlpb.GetStorageLayoutRequest,
+	opts ...gax.CallOption) (*controlpb.StorageLayout, error) {
+	if !sccwros.enableRetriesOnStorageLayoutCall {
+		return sccwros.raw.GetStorageLayout(ctx, req, opts...)
+	}
+
+	apiCall := func(attemptCtx context.Context) (*controlpb.StorageLayout, error) {
+		return sccwros.raw.GetStorageLayout(attemptCtx, req, opts...)
+	}
+
+	return executeWithRetry(sccwros, ctx, "GetStorageLayout", req.Name, apiCall)
+}
+
+func (sccwros *storageControlClientWithRetry) DeleteFolder(ctx context.Context,
+	req *controlpb.DeleteFolderRequest,
+	opts ...gax.CallOption) error {
+	return sccwros.raw.DeleteFolder(ctx, req, opts...)
+}
+
+func (sccwros *storageControlClientWithRetry) GetFolder(ctx context.Context,
+	req *controlpb.GetFolderRequest,
+	opts ...gax.CallOption) (*controlpb.Folder, error) {
+	return sccwros.raw.GetFolder(ctx, req, opts...)
+}
+
+func (sccwros *storageControlClientWithRetry) RenameFolder(ctx context.Context,
+	req *controlpb.RenameFolderRequest,
+	opts ...gax.CallOption) (*control.RenameFolderOperation, error) {
+	return sccwros.raw.RenameFolder(ctx, req, opts...)
+}
+
+func (sccwros *storageControlClientWithRetry) CreateFolder(ctx context.Context,
+	req *controlpb.CreateFolderRequest,
+	opts ...gax.CallOption) (*controlpb.Folder, error) {
+	return sccwros.raw.CreateFolder(ctx, req, opts...)
+}
+
+func newRetryWrapper(controlClient StorageControlClient,
+	retryDeadline,
+	totalRetryBudget,
+	initialBackoff,
+	maxBackoff time.Duration,
+	backoffMultiplier float64) StorageControlClient {
+	// Avoid creating a nested wrapper.
+	raw := controlClient
+	if sccwros, ok := controlClient.(*storageControlClientWithRetry); ok {
+		raw = sccwros.raw
+	}
+
+	return &storageControlClientWithRetry{
+		raw:                              raw,
+		retryDeadline:                    retryDeadline,
+		totalRetryBudget:                 totalRetryBudget,
+		backoffConfig:                    exponentialBackoffConfig{initialBackoff, maxBackoff, backoffMultiplier},
+		enableRetriesOnStorageLayoutCall: true,
+	}
+}
+
+// withRetryOnStorageLayout wraps a StorageControlClient to do a time-bound retry approach for retryable errors for the GetStorageLayout call through it.
+func withRetryOnStorageLayout(controlClient StorageControlClient, retryDeadline time.Duration, totalRetryBudget time.Duration) StorageControlClient {
+	return newRetryWrapper(controlClient, retryDeadline, totalRetryBudget, defaultInitialBackoff, defaultMaxBackoff, defaultBackoffMultiplier)
 }
