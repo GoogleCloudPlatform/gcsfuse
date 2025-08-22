@@ -344,10 +344,9 @@ func (t *AllApiRetryWrapperTest) TestGetStorageLayout_NonRetryableError() {
 
 func (t *AllApiRetryWrapperTest) TestGetStorageLayout_AllAttemptsTimeOut() {
 	// Arrange
-	// maxRetryDeadline is 5ms. Total budget is 10ms.
 	client := newRetryWrapper(t.stallingClient, 1000*time.Microsecond, 10000*time.Microsecond, time.Microsecond, 10*time.Microsecond, 2, true)
 	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
-	// Set stall time to be longer than the max attempt timeout.
+	// Set stall time to be longer than the attempt timeout.
 	t.stallDurationForGetStorageLayout = 6000 * time.Microsecond
 
 	// Act
@@ -408,10 +407,9 @@ func (t *AllApiRetryWrapperTest) TestDeleteFolder_NonRetryableError() {
 
 func (t *AllApiRetryWrapperTest) TestDeleteFolder_AllAttemptsTimeOut() {
 	// Arrange
-	// maxRetryDeadline is 5ms. Total budget is 10ms.
 	client := newRetryWrapper(t.stallingClient, 1000*time.Microsecond, 10000*time.Microsecond, time.Microsecond, 10*time.Microsecond, 2, true)
 	req := &controlpb.DeleteFolderRequest{Name: "some/folder"}
-	// Set stall time to be longer than the max attempt timeout.
+	// Set stall time to be longer than the attempt timeout.
 	t.stallDurationForFolderAPIs = 6000 * time.Microsecond
 
 	// Act
@@ -478,10 +476,9 @@ func (t *AllApiRetryWrapperTest) TestGetFolder_NonRetryableError() {
 
 func (t *AllApiRetryWrapperTest) TestGetFolder_AllAttemptsTimeOut() {
 	// Arrange
-	// maxRetryDeadline is 5ms. Total budget is 10ms.
 	client := newRetryWrapper(t.stallingClient, 1000*time.Microsecond, 10000*time.Microsecond, time.Microsecond, 10*time.Microsecond, 2, true)
 	req := &controlpb.GetFolderRequest{Name: "some/folder"}
-	// Set execution time to be longer than the max attempt timeout.
+	// Set execution time to be longer than the attempt timeout.
 	t.stallDurationForFolderAPIs = 6000 * time.Microsecond
 
 	// Act
