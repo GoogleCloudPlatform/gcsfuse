@@ -32,6 +32,7 @@ import (
 // Suite Definitions
 // //////////////////////////////////////////////////////////////////////
 
+// Struct to store the details of a mount point
 type mountPoint struct {
 	rootDir     string // Root directory of the test folder, which contains mnt and gcsfuse.log.
 	mntDir      string // Directory where the GCS bucket is mounted. This is 'mnt' inside rootDir.

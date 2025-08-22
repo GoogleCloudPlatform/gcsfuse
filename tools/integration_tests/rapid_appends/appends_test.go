@@ -15,7 +15,6 @@
 package rapid_appends
 
 import (
-	"log"
 	"os"
 	"path"
 	"syscall"
