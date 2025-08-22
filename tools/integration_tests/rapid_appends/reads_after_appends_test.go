@@ -27,10 +27,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+// declare a function type for read and verify
 type readAndVerifyFunc func(t *testing.T, filePath string, expectedContent []byte)
 
 func readSequentiallyAndVerify(t *testing.T, filePath string, expectedContent []byte) {
 	readContent, err := operations.ReadFileSequentially(filePath, 1024*1024)
+
+	// For sequential reads, we expect the content to be exactly as expected.
 	require.NoErrorf(t, err, "failed to read file %q sequentially: %v", filePath, err)
 	require.Equal(t, expectedContent, readContent)
 }

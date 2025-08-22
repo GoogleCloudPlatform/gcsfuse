@@ -28,9 +28,9 @@ import (
 )
 
 const (
-	numAppends            = 3
-	appendSize            = 10
-	unfinalizedObjectSize = 10
+	numAppends            = 3  // Number of appends to perform on test file.
+	appendSize            = 10 // Size in bytes for each append.
+	unfinalizedObjectSize = 10 // Size in bytes of initial unfinalized Object.
 )
 
 // //////////////////////////////////////////////////////////////////////

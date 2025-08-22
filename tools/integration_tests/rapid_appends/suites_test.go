@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-// http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -33,11 +33,12 @@ import (
 // Suite Definitions
 // //////////////////////////////////////////////////////////////////////
 
+// Struct to store the details of a mount point
 type mountPoint struct {
-	rootDir     string
-	mntDir      string
-	testDirPath string
-	logFilePath string
+	rootDir     string // Root directory of the test folder, which contains mnt and gcsfuse.log.
+	mntDir      string // Directory where the GCS bucket is mounted. This is 'mnt' inside rootDir.
+	testDirPath string // Path to the 'RapidAppendsTest' directory inside mntDir.
+	logFilePath string // Path to the GCSFuse log file. This is gcsfuse.log inside rootDir.
 }
 
 // BaseSuite provides the common structure and configuration-driven setup logic.
