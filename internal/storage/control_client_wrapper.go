@@ -100,7 +100,7 @@ func withBillingProject(controlClient StorageControlClient, billingProject strin
 // exponentialBackoffConfig is config parameters
 // needed to create an exponentialBackoff.
 type exponentialBackoffConfig struct {
-	// initial duration for next backoff.
+	//Initial duration for next backoff.
 	initial time.Duration
 	// Max duration for next back backoff.
 	max time.Duration
@@ -117,6 +117,8 @@ type exponentialBackoff struct {
 	next time.Duration
 }
 
+// newExponentialBackoff returns a new exponentialBackoff given
+// the config for it.
 func newExponentialBackoff(config *exponentialBackoffConfig) *exponentialBackoff {
 	return &exponentialBackoff{
 		config: *config,
@@ -148,16 +150,16 @@ func (b *exponentialBackoff) waitWithJitter(ctx context.Context) error {
 // storageControlClientWithRetry is a wrapper for an existing StorageControlClient object
 // which implements gcsfuse-level retry logic if any of the control-client call gets stalled or returns a retryable error.
 // It makes time-bound attempts to call the underlying StorageControlClient methods,
-// retrying on errors that should be retried according to gcsfuse's retry logic
+// retrying on errors that should be retried according to gcsfuse's retry logic.
 type storageControlClientWithRetry struct {
 	raw StorageControlClient
 
-	// Time-limit to attempt the first call or a retried call.
+	// Time-limit on every individual retry attempt.
 	retryDeadline time.Duration
 	// Total duration allowed across all the attempts.
 	totalRetryBudget time.Duration
 
-	// Config for managing backoff durations in-between retries.
+	// Config for managing backoff durations in-between retry attempts.
 	backoffConfig exponentialBackoffConfig
 
 	// Whether or not to enable retries for GetStorageLayout call.
@@ -232,19 +234,30 @@ func (sccwros *storageControlClientWithRetry) DeleteFolder(ctx context.Context,
 	return sccwros.raw.DeleteFolder(ctx, req, opts...)
 }
 
-func (sccwros *storageControlClientWithRetry) GetFolder(ctx context.Context, req *controlpb.GetFolderRequest, opts ...gax.CallOption) (*controlpb.Folder, error) {
+func (sccwros *storageControlClientWithRetry) GetFolder(ctx context.Context,
+	req *controlpb.GetFolderRequest,
+	opts ...gax.CallOption) (*controlpb.Folder, error) {
 	return sccwros.raw.GetFolder(ctx, req, opts...)
 }
 
-func (sccwros *storageControlClientWithRetry) RenameFolder(ctx context.Context, req *controlpb.RenameFolderRequest, opts ...gax.CallOption) (*control.RenameFolderOperation, error) {
+func (sccwros *storageControlClientWithRetry) RenameFolder(ctx context.Context,
+	req *controlpb.RenameFolderRequest,
+	opts ...gax.CallOption) (*control.RenameFolderOperation, error) {
 	return sccwros.raw.RenameFolder(ctx, req, opts...)
 }
 
-func (sccwros *storageControlClientWithRetry) CreateFolder(ctx context.Context, req *controlpb.CreateFolderRequest, opts ...gax.CallOption) (*controlpb.Folder, error) {
+func (sccwros *storageControlClientWithRetry) CreateFolder(ctx context.Context,
+	req *controlpb.CreateFolderRequest,
+	opts ...gax.CallOption) (*controlpb.Folder, error) {
 	return sccwros.raw.CreateFolder(ctx, req, opts...)
 }
 
-func newRetryWrapper(controlClient StorageControlClient, retryDeadline, totalRetryBudget, initialBackoff, maxBackoff time.Duration, backoffMultiplier float64) StorageControlClient {
+func newRetryWrapper(controlClient StorageControlClient,
+	retryDeadline,
+	totalRetryBudget,
+	initialBackoff,
+	maxBackoff time.Duration,
+	backoffMultiplier float64) StorageControlClient {
 	// Avoid creating a nested wrapper.
 	raw := controlClient
 	if sccwros, ok := controlClient.(*storageControlClientWithRetry); ok {

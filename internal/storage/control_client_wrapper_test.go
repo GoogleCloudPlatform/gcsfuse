@@ -226,7 +226,6 @@ func (t *ExponentialBackoffTest) TestWaitWithJitter_ContextCancelled() {
 		multiplier: 2.0,
 	})
 	ctx, cancel := context.WithCancel(context.Background())
-
 	// Cancel the context immediately.
 	cancel()
 
