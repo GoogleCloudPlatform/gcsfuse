@@ -355,7 +355,7 @@ func storageControlClientGaxRetryOptions(clientConfig *storageutil.StorageClient
 
 func withGaxRetriesForFolderAPIs(rawControlClientWithoutGaxRetries *control.StorageControlClient,
 	clientConfig *storageutil.StorageClientConfig) *control.StorageControlClient {
-	if rawControlClientWithoutGaxRetries == nil {
+	if rawControlClientWithoutGaxRetries == nil || clientConfig == nil {
 		return rawControlClientWithoutGaxRetries
 	}
 

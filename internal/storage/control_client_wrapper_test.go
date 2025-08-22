@@ -22,6 +22,7 @@ import (
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -598,6 +599,74 @@ func (t *AllApiRetryWrapperTest) TestCreateFolder_NonRetryableError() {
 	t.mockRawClient.AssertExpectations(t.T())
 }
 
+func (testSuite *StorageLayoutRetryWrapperTest) TestWithRetryOnStorageLayout_WrapsClient() {
+	// Arrange
+	mockClient := new(MockStorageControlClient)
+	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
+
+	// Act
+	wrappedClient := withRetryOnStorageLayout(mockClient, &clientConfig)
+
+	// Assert
+	require.NotNil(testSuite.T(), wrappedClient)
+	retryWrapper, ok := wrappedClient.(*storageControlClientWithRetry)
+	require.True(testSuite.T(), ok, "The returned client should be of type *storageControlClientWithRetry")
+	assert.Same(testSuite.T(), mockClient, retryWrapper.raw)
+}
+
+func (testSuite *StorageLayoutRetryWrapperTest) TestWithRetryOnStorageLayout_UnwrapsNestedRetryClient() {
+	// Arrange
+	mockClient := new(MockStorageControlClient)
+	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
+	// Create a client that is already wrapped.
+	alreadyWrappedClient := withRetryOnStorageLayout(mockClient, &clientConfig)
+
+	// Act
+	// Wrap it again.
+	doubleWrappedClient := withRetryOnStorageLayout(alreadyWrappedClient, &clientConfig)
+
+	// Assert
+	require.NotNil(testSuite.T(), doubleWrappedClient)
+	retryWrapper, ok := doubleWrappedClient.(*storageControlClientWithRetry)
+	require.True(testSuite.T(), ok, "The returned client should be of type *storageControlClientWithRetry")
+	assert.Same(testSuite.T(), mockClient, retryWrapper.raw, "Should unwrap the nested retry client")
+	assert.NotSame(testSuite.T(), alreadyWrappedClient, retryWrapper.raw)
+}
+
+func (testSuite *AllApiRetryWrapperTest) TestWithRetryOnAllAPIs_WrapsClient() {
+	// Arrange
+	mockClient := new(MockStorageControlClient)
+	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
+
+	// Act
+	wrappedClient := withRetryOnAllAPIs(mockClient, &clientConfig)
+
+	// Assert
+	require.NotNil(testSuite.T(), wrappedClient)
+	retryWrapper, ok := wrappedClient.(*storageControlClientWithRetry)
+	require.True(testSuite.T(), ok, "The returned client should be of type *storageControlClientWithRetry")
+	assert.Same(testSuite.T(), mockClient, retryWrapper.raw)
+}
+
+func (testSuite *AllApiRetryWrapperTest) TestWithRetryOnAllAPIs_UnwrapsNestedRetryClient() {
+	// Arrange
+	mockClient := new(MockStorageControlClient)
+	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
+	// Create a client that is already wrapped.
+	alreadyWrappedClient := withRetryOnAllAPIs(mockClient, &clientConfig)
+
+	// Act
+	// Wrap it again.
+	doubleWrappedClient := withRetryOnAllAPIs(alreadyWrappedClient, &clientConfig)
+
+	// Assert
+	require.NotNil(testSuite.T(), doubleWrappedClient)
+	retryWrapper, ok := doubleWrappedClient.(*storageControlClientWithRetry)
+	require.True(testSuite.T(), ok, "The returned client should be of type *storageControlClientWithRetry")
+	assert.Same(testSuite.T(), mockClient, retryWrapper.raw, "Should unwrap the nested retry client")
+	assert.NotSame(testSuite.T(), alreadyWrappedClient, retryWrapper.raw)
+}
+
 type ExponentialBackoffTest struct {
 	suite.Suite
 }
@@ -698,9 +767,67 @@ func TestControlClientGaxRetryWrapperTestSuite(t *testing.T) {
 }
 
 func (testSuite *ControlClientGaxRetryWrapperTest) TestStorageControlClientGaxRetryOptions() {
+	// Arrange
 	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
 
+	// Act
 	gaxOpts := storageControlClientGaxRetryOptions(&clientConfig)
 
-	assert.NotNil(testSuite.T(), gaxOpts)
+	// Assert
+	require.NotEmpty(testSuite.T(), gaxOpts)
+	require.Len(testSuite.T(), gaxOpts, 2)
+}
+
+func (testSuite *ControlClientGaxRetryWrapperTest) TestWithGaxRetriesForFolderAPIs_NilRawControlClient() {
+	// Arrange
+	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
+
+	// Act
+	result := withGaxRetriesForFolderAPIs(nil, &clientConfig)
+
+	// Assert
+	require.Nil(testSuite.T(), result)
+}
+
+func (testSuite *ControlClientGaxRetryWrapperTest) TestWithGaxRetriesForFolderAPIs_NilClientConfig() {
+	// Arrange
+	rawClient := &control.StorageControlClient{}
+
+	// Act
+	result := withGaxRetriesForFolderAPIs(rawClient, nil)
+
+	// Assert
+	require.Equal(testSuite.T(), rawClient, result)
+}
+
+func (testSuite *ControlClientGaxRetryWrapperTest) TestWithGaxRetriesForFolderAPIs_ReturnsNewClient() {
+	// Arrange
+	rawClient := &control.StorageControlClient{}
+	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
+
+	// Act
+	result := withGaxRetriesForFolderAPIs(rawClient, &clientConfig)
+
+	// Assert
+	require.NotNil(testSuite.T(), result)
+	assert.NotSame(testSuite.T(), rawClient, result)
+	require.NotNil(testSuite.T(), result.CallOptions)
+	assert.NotSame(testSuite.T(), rawClient.CallOptions, result.CallOptions) // Should be a new CallOptions object
+	assert.Nil(testSuite.T(), result.CallOptions.GetStorageLayout)           // GetStorageLayout should not have GAX retries applied
+}
+
+func (testSuite *ControlClientGaxRetryWrapperTest) TestWithGaxRetriesForFolderAPIs_AppliesGaxOptions() {
+	// Arrange
+	rawClient := &control.StorageControlClient{}
+	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
+
+	// Act
+	result := withGaxRetriesForFolderAPIs(rawClient, &clientConfig)
+
+	// Assert
+	require.NotNil(testSuite.T(), result.CallOptions.RenameFolder)
+	assert.NotNil(testSuite.T(), result.CallOptions.GetFolder)
+	require.NotNil(testSuite.T(), result.CallOptions.CreateFolder)
+	assert.NotNil(testSuite.T(), result.CallOptions.DeleteFolder)
+	assert.Nil(testSuite.T(), result.CallOptions.GetStorageLayout) // GetStorageLayout should not have GAX retries applied
 }
