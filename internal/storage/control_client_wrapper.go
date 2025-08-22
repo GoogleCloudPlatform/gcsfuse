@@ -333,7 +333,7 @@ func withRetryOnStorageLayout(controlClient StorageControlClient, retryDeadline 
 		defaultBackoffMultiplier, false)
 }
 
-func storageControlClientRetryOptions(clientConfig *storageutil.StorageClientConfig) []gax.CallOption {
+func storageControlClientGaxRetryOptions(clientConfig *storageutil.StorageClientConfig) []gax.CallOption {
 	return []gax.CallOption{
 		gax.WithTimeout(300000 * time.Millisecond),
 		gax.WithRetry(func() gax.Retryer {
@@ -351,12 +351,13 @@ func storageControlClientRetryOptions(clientConfig *storageutil.StorageClientCon
 	}
 }
 
-func withGaxRetriesForFolderAPIs(rawControlClientWithoutGaxRetries *control.StorageControlClient, clientConfig *storageutil.StorageClientConfig) *control.StorageControlClient {
+func withGaxRetriesForFolderAPIs(rawControlClientWithoutGaxRetries *control.StorageControlClient,
+	clientConfig *storageutil.StorageClientConfig) *control.StorageControlClient {
 	if rawControlClientWithoutGaxRetries == nil {
 		return rawControlClientWithoutGaxRetries
 	}
 
-	gaxRetryOptions := storageControlClientRetryOptions(clientConfig)
+	gaxRetryOptions := storageControlClientGaxRetryOptions(clientConfig)
 
 	rawControlClientWithGaxRetries := *rawControlClientWithoutGaxRetries
 	rawControlClientWithGaxRetries.CallOptions = &control.StorageControlCallOptions{}

@@ -729,7 +729,7 @@ func TestControlClientGaxRetryWrapperTestSuite(t *testing.T) {
 func (testSuite *ControlClientGaxRetryWrapperTest) TestStorageControlClientRetryOptions() {
 	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
 
-	gaxOpts := storageControlClientRetryOptions(&clientConfig)
+	gaxOpts := storageControlClientGaxRetryOptions(&clientConfig)
 
 	assert.NotNil(testSuite.T(), gaxOpts)
 }
