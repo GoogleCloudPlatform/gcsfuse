@@ -33,9 +33,7 @@ const (
 	// Default retry parameters for control client calls.
 	defaultControlClientRetryDeadline    = 30 * time.Second
 	defaultControlClientTotalRetryBudget = 5 * time.Minute
-	defaultInitialBackoff                = 1 * time.Second
-	defaultMaxBackoff                    = 1 * time.Minute
-	defaultBackoffMultiplier             = 2.0
+	defaultInitialBackoff                = 1 * time.Millisecond
 )
 
 type StorageControlClient interface {
@@ -316,24 +314,30 @@ func newRetryWrapper(controlClient StorageControlClient,
 
 // withRetryOnAllAPIs wraps a StorageControlClient to do a time-bound retry approach for retryable errors for all API calls through it.
 func withRetryOnAllAPIs(controlClient StorageControlClient,
-	retryDeadline time.Duration,
-	totalRetryBudget time.Duration) StorageControlClient {
-	return newRetryWrapper(controlClient, retryDeadline, totalRetryBudget, defaultInitialBackoff, defaultMaxBackoff, defaultBackoffMultiplier, true)
+	clientConfig *storageutil.StorageClientConfig) StorageControlClient {
+	return newRetryWrapper(controlClient,
+		defaultControlClientRetryDeadline,
+		defaultControlClientTotalRetryBudget,
+		defaultInitialBackoff,
+		clientConfig.MaxRetrySleep,
+		clientConfig.RetryMultiplier,
+		true)
 }
 
 // withRetryOnStorageLayout wraps a StorageControlClient to do a time-bound retry approach for retryable errors for the GetStorageLayout call through it.
-func withRetryOnStorageLayout(controlClient StorageControlClient, retryDeadline time.Duration, totalRetryBudget time.Duration) StorageControlClient {
+func withRetryOnStorageLayout(controlClient StorageControlClient,
+	clientConfig *storageutil.StorageClientConfig) StorageControlClient {
 	return newRetryWrapper(controlClient,
-		retryDeadline,
-		totalRetryBudget,
+		defaultControlClientRetryDeadline,
+		defaultControlClientTotalRetryBudget,
 		defaultInitialBackoff,
-		defaultMaxBackoff,
-		defaultBackoffMultiplier, false)
+		clientConfig.MaxRetrySleep,
+		clientConfig.RetryMultiplier, false)
 }
 
 func storageControlClientGaxRetryOptions(clientConfig *storageutil.StorageClientConfig) []gax.CallOption {
 	return []gax.CallOption{
-		gax.WithTimeout(300000 * time.Millisecond),
+		gax.WithTimeout(defaultControlClientTotalRetryBudget),
 		gax.WithRetry(func() gax.Retryer {
 			return gax.OnCodes([]codes.Code{
 				codes.ResourceExhausted,

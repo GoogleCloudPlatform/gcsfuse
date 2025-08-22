@@ -237,7 +237,7 @@ func (t *StorageLayoutRetryWrapperTest) TestGetFolder_IsNotRetried() {
 
 func (t *StorageLayoutRetryWrapperTest) TestDeleteFolder_IsNotRetried() {
 	// Arrange
-	client := withRetryOnStorageLayout(t.stallingClient, 100*time.Microsecond, 1000*time.Microsecond)
+	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 1000*time.Microsecond, 1*time.Microsecond, 10*time.Microsecond, 2, false)
 	req := &controlpb.DeleteFolderRequest{Name: "some/folder"}
 	retryableErr := status.Error(codes.Unavailable, "try again")
 	// Mock the raw client to return a retryable error once.
@@ -254,7 +254,7 @@ func (t *StorageLayoutRetryWrapperTest) TestDeleteFolder_IsNotRetried() {
 
 func (t *StorageLayoutRetryWrapperTest) TestCreateFolder_IsNotRetried() {
 	// Arrange
-	client := withRetryOnStorageLayout(t.stallingClient, 100*time.Microsecond, 1000*time.Microsecond)
+	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 1000*time.Microsecond, 1*time.Microsecond, 10*time.Microsecond, 2, false)
 	req := &controlpb.CreateFolderRequest{Parent: "some/", FolderId: "folder"}
 	retryableErr := status.Error(codes.Unavailable, "try again")
 	// Mock the raw client to return a retryable error once.
@@ -272,7 +272,7 @@ func (t *StorageLayoutRetryWrapperTest) TestCreateFolder_IsNotRetried() {
 
 func (t *StorageLayoutRetryWrapperTest) TestRenameFolder_IsNotRetried() {
 	// Arrange
-	client := withRetryOnStorageLayout(t.stallingClient, 100*time.Microsecond, 1000*time.Microsecond)
+	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 1000*time.Microsecond, 1*time.Microsecond, 10*time.Microsecond, 2, false)
 	req := &controlpb.RenameFolderRequest{Name: "some/folder", DestinationFolderId: "new/folder"}
 	retryableErr := status.Error(codes.Unavailable, "try again")
 	// Mock the raw client to return a retryable error once.

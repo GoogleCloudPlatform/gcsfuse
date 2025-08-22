@@ -311,12 +311,11 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		if err != nil {
 			return nil, fmt.Errorf("could not create StorageControl Client: %w", err)
 		}
-		// special handling for requester-pays buckets and for mounts created with custom billing projects.
+		// special handling for for mounts created with custom billing projects.
 		controlClient = withBillingProject(rawStorageControlClient, billingProject)
 		// Wrap the control client with retry-on-stall logic.
 		// This will retry on only on GetStorageLayout call for all buckets.
-		controlClient = withRetryOnStorageLayout(controlClient, defaultControlClientRetryDeadline, defaultControlClientTotalRetryBudget)
-		logger.Infof("Wrapped %p (%+v) with billing-project and retry on StorageLayout to create %p (%+v)", rawStorageControlClient, rawStorageControlClient, controlClient, controlClient)
+		controlClient = withRetryOnStorageLayout(controlClient, &clientConfig)
 	} else {
 		logger.Infof("Skipping storage control client creation because custom-endpoint %q was passed, which is assumed to be a storage testbench server because of 'localhost' in it.", clientConfig.CustomEndpoint)
 	}
@@ -389,7 +388,7 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 	if sh.storageControlClient != nil {
 		if bucketType.Zonal {
 			// For zonal buckets, wrap the control client with retry-on-all-APIs.
-			controlClient = withRetryOnAllAPIs(sh.storageControlClient, defaultControlClientRetryDeadline, defaultControlClientTotalRetryBudget)
+			controlClient = withRetryOnAllAPIs(sh.storageControlClient, &sh.clientConfig)
 		} else {
 			// Gax retries can be applied only on raw storage-control-client struct, not on the interface
 			// controlClient. The below call creates a copy of raw storage-control-client, adds
@@ -397,6 +396,7 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 			// sh.rawControlClientWithGaxRetries which are also used by zonal buckets,
 			// for which we have enhanced retries in place (the `if` to this `else`).
 			rawControlClientWithGaxRetries := withGaxRetriesForFolderAPIs(sh.rawStorageControlClient, &sh.clientConfig)
+			// Special handling for for mounts created with custom billing projects.
 			// Wrap it with billing-project, if there is any.
 			controlClient = withBillingProject(rawControlClientWithGaxRetries, billingProject)
 		}
