@@ -231,27 +231,53 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWhenJsonReadEnabled() {
 	assert.NotNil(testSuite.T(), handleCreated)
 }
 
-func (testSuite *StorageHandleTest) TestNewStorageHandleWithBillingProject() {
+func (testSuite *StorageHandleTest) TestNewStorageHandleWithoutBillingProject() {
+	// Arrange.
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
 	sc.EnableHNS = true
 
-	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, projectID)
+	// Act.
+	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, "")
 
+	// Assert.
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), handleCreated)
 	storageClient, ok := handleCreated.(*storageClient)
 	assert.NotNil(testSuite.T(), storageClient)
 	assert.True(testSuite.T(), ok)
+	// Confirm that the returned storage-handle's control-client is of type storageControlClientWithRetry
+	retrierControlClient, ok := storageClient.storageControlClient.(*storageControlClientWithRetry)
+	require.True(testSuite.T(), ok, "retrierControlClient should be of type *storageControlClientWithRetry")
+	require.NotNil(testSuite.T(), retrierControlClient, "retrierControlClient should not be nil")
+	assert.True(testSuite.T(), retrierControlClient.enableRetriesOnStorageLayoutAPI, "enableRetriesOnStorageLayoutAPI should be true")
+	assert.False(testSuite.T(), retrierControlClient.enableRetriesOnFolderAPIs, "enableRetriesOnFolderAPIs should be false")
+	// Confirm that it has no underlying storageControlClientWithBillingProject in it.
+	_, ok = retrierControlClient.raw.(*storageControlClientWithBillingProject)
+	assert.False(testSuite.T(), ok, "raw should be of type *storageControlClientWithBillingProject")
+}
+
+func (testSuite *StorageHandleTest) TestNewStorageHandleWithBillingProject() {
+	// Arrange.
+	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+	sc.EnableHNS = true
+
+	// Act.
+	handleCreated, err := NewStorageHandle(testSuite.ctx, sc, projectID)
+
+	// Assert.
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), handleCreated)
+	storageClient, ok := handleCreated.(*storageClient)
+	assert.NotNil(testSuite.T(), storageClient)
+	assert.True(testSuite.T(), ok)
+	retrierControlClient := storageClient.storageControlClient.(*storageControlClientWithRetry)
 	// Confirm that the returned storage-handle's control-client is of type storageControlClientWithBillingProject
 	// and its billing-project is same as the one passed while
 	// creating the storage-handle.
 	// Check that storageControlClient is wrapped correctly and billing project is set.
-	retrierControlClient, ok := storageClient.storageControlClient.(*storageControlClientWithRetry)
-	assert.True(testSuite.T(), ok, "retrierControlClient should be of type *storageControlClientWithRetry")
-	assert.NotNil(testSuite.T(), retrierControlClient, "retrierControlClient should not be nil")
 	billingProjectControlClient, ok := retrierControlClient.raw.(*storageControlClientWithBillingProject)
-	assert.True(testSuite.T(), ok, "raw should be of type *storageControlClientWithBillingProject")
-	assert.NotNil(testSuite.T(), billingProjectControlClient, "storageControlClientWithBillingProject should not be nil")
+	require.True(testSuite.T(), ok, "raw should be of type *storageControlClientWithBillingProject")
+	require.NotNil(testSuite.T(), billingProjectControlClient, "storageControlClientWithBillingProject should not be nil")
 	assert.Equal(testSuite.T(), projectID, billingProjectControlClient.billingProject, "billingProject should match the provided projectID")
 	assert.NotNil(testSuite.T(), billingProjectControlClient.raw, "raw client inside storageControlClientWithBillingProject should not be nil")
 }

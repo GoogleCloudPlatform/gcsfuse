@@ -311,7 +311,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		if err != nil {
 			return nil, fmt.Errorf("could not create StorageControl Client: %w", err)
 		}
-		// special handling for for mounts created with custom billing projects.
+		// special handling for mounts created with custom billing projects.
 		controlClient = withBillingProject(rawStorageControlClient, billingProject)
 		// Wrap the control client with retry-on-stall logic.
 		// This will retry on only on GetStorageLayout call for all buckets.
@@ -364,8 +364,9 @@ func (sh *storageClient) controlClientForBucketHandle(bucketType *gcs.BucketType
 		// For zonal buckets, wrap the control client with retry-on-all-APIs.
 		return withRetryOnAllAPIs(sh.storageControlClient, &sh.clientConfig)
 	} else {
-		// Apply GAX retries to the raw storage control client. This internally creates and stores a copy of the raw storage-control client, which is important to avoid
-		// interfering with enhanced retries used by zonal buckets.
+		// Apply GAX retries to the raw storage control client and returns a copy of it,
+		// as it is important to avoid overwriting it,
+		// as it is used with enhanced retries used by zonal buckets.
 		rawControlClientWithGaxRetries := withGaxRetriesForFolderAPIs(sh.rawStorageControlClient, &sh.clientConfig)
 		// Special handling for mounts created with custom billing projects.
 		// Wrap it with billing-project, if there is any.
