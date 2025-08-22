@@ -152,6 +152,8 @@ type GcsConnectionConfig struct {
 
 	ClientProtocol Protocol `yaml:"client-protocol"`
 
+	ControlClientOnDirectPath bool `yaml:"control-client-on-direct-path"`
+
 	CustomEndpoint string `yaml:"custom-endpoint"`
 
 	ExperimentalEnableJsonRead bool `yaml:"experimental-enable-json-read"`
@@ -324,6 +326,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.StringP("client-protocol", "", "http1", "The protocol used for communicating with the GCS backend. Value can be 'http1' (HTTP/1.1), 'http2' (HTTP/2) or 'grpc'.")
 
 	flagSet.IntP("cloud-metrics-export-interval-secs", "", 0, "Specifies the interval at which the metrics are uploaded to cloud monitoring")
+
+	flagSet.BoolP("control-client-on-direct-path", "", true, "This enables direct-path for storage control-client calls.")
+
+	if err := flagSet.MarkHidden("control-client-on-direct-path"); err != nil {
+		return err
+	}
 
 	flagSet.BoolP("create-empty-file", "", false, "For a new file, it creates an empty file in Cloud Storage bucket as a hold.")
 
@@ -789,6 +797,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metrics.cloud-metrics-export-interval-secs", flagSet.Lookup("cloud-metrics-export-interval-secs")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("gcs-connection.control-client-on-direct-path", flagSet.Lookup("control-client-on-direct-path")); err != nil {
 		return err
 	}
 

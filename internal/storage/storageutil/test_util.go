@@ -38,6 +38,7 @@ func GetDefaultStorageClientConfig(keyFile string) (clientConfig StorageClientCo
 		KeyFile:                    keyFile,
 		TokenUrl:                   "",
 		ReuseTokenFromUrl:          true,
+		ControlClientOnDirectPath:  true,
 		ExperimentalEnableJsonRead: false,
 		AnonymousAccess:            false,
 		EnableHNS:                  true,

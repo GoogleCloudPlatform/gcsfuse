@@ -24,6 +24,7 @@ import (
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"google.golang.org/api/option"
+	"google.golang.org/api/option/internaloption"
 	"google.golang.org/grpc/codes"
 )
 
@@ -55,6 +56,11 @@ func setRetryConfigForFolderAPIs(sc *control.StorageControlClient, clientConfig 
 func CreateGRPCControlClient(ctx context.Context, clientOpts []option.ClientOption, clientConfig *StorageClientConfig) (controlClient *control.StorageControlClient, err error) {
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
 		logger.Fatal("error setting direct path env var: %v", err)
+	}
+
+	if clientConfig.ControlClientOnDirectPath {
+		logger.Info("Using direct-path for control-client")
+		clientOpts = append(clientOpts, internaloption.EnableDirectPath(true), internaloption.AllowNonDefaultServiceAccount(true), internaloption.EnableDirectPathXds())
 	}
 
 	controlClient, err = control.NewStorageControlClient(ctx, clientOpts...)

@@ -138,6 +138,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		AnonymousAccess:            newConfig.GcsAuth.AnonymousAccess,
 		TokenUrl:                   newConfig.GcsAuth.TokenUrl,
 		ReuseTokenFromUrl:          newConfig.GcsAuth.ReuseTokenFromUrl,
+		ControlClientOnDirectPath:  newConfig.GcsConnection.ControlClientOnDirectPath,
 		ExperimentalEnableJsonRead: newConfig.GcsConnection.ExperimentalEnableJsonRead,
 		GrpcConnPoolSize:           int(newConfig.GcsConnection.GrpcConnPoolSize),
 		EnableHNS:                  newConfig.EnableHns,
