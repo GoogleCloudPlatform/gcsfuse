@@ -170,7 +170,6 @@ func (t *StorageLayoutRetryWrapperTest) TestGetStorageLayout_RetryableErrorThenS
 	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
 	expectedLayout := &controlpb.StorageLayout{Location: "some-location"}
 	retryableErr := status.Error(codes.Unavailable, "try again")
-
 	// First call fails, second succeeds.
 	t.mockRawClient.On("GetStorageLayout", mock.Anything, req, mock.Anything).Return(nil, retryableErr).Once()
 	t.mockRawClient.On("GetStorageLayout", mock.Anything, req, mock.Anything).Return(expectedLayout, nil).Once()
@@ -223,8 +222,6 @@ func (t *StorageLayoutRetryWrapperTest) TestGetFolder_IsNotRetried() {
 	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 1000*time.Microsecond, 1*time.Microsecond, 10*time.Microsecond, 2, false)
 	req := &controlpb.GetFolderRequest{Name: "some/folder"}
 	retryableErr := status.Error(codes.Unavailable, "try again")
-	t.stallDurationForGetStorageLayout = 0 // No stall for this test. This is required to avoid reusing the previous test's stall duration.
-
 	// Mock the raw client to return a retryable error once.
 	t.mockRawClient.On("GetFolder", mock.Anything, req, mock.Anything).Return(nil, retryableErr).Once()
 
@@ -243,8 +240,6 @@ func (t *StorageLayoutRetryWrapperTest) TestDeleteFolder_IsNotRetried() {
 	client := withRetryOnStorageLayout(t.stallingClient, 100*time.Microsecond, 1000*time.Microsecond)
 	req := &controlpb.DeleteFolderRequest{Name: "some/folder"}
 	retryableErr := status.Error(codes.Unavailable, "try again")
-	t.stallDurationForGetStorageLayout = 0 // No stall for this test. This is required to avoid reusing the previous test's stall duration.
-
 	// Mock the raw client to return a retryable error once.
 	t.mockRawClient.On("DeleteFolder", mock.Anything, req, mock.Anything).Return(retryableErr).Once()
 
@@ -262,8 +257,6 @@ func (t *StorageLayoutRetryWrapperTest) TestCreateFolder_IsNotRetried() {
 	client := withRetryOnStorageLayout(t.stallingClient, 100*time.Microsecond, 1000*time.Microsecond)
 	req := &controlpb.CreateFolderRequest{Parent: "some/", FolderId: "folder"}
 	retryableErr := status.Error(codes.Unavailable, "try again")
-	t.stallDurationForGetStorageLayout = 0 // No stall for this test. This is required to avoid reusing the previous test's stall duration.
-
 	// Mock the raw client to return a retryable error once.
 	t.mockRawClient.On("CreateFolder", mock.Anything, req, mock.Anything).Return(nil, retryableErr).Once()
 
@@ -282,8 +275,6 @@ func (t *StorageLayoutRetryWrapperTest) TestRenameFolder_IsNotRetried() {
 	client := withRetryOnStorageLayout(t.stallingClient, 100*time.Microsecond, 1000*time.Microsecond)
 	req := &controlpb.RenameFolderRequest{Name: "some/folder", DestinationFolderId: "new/folder"}
 	retryableErr := status.Error(codes.Unavailable, "try again")
-	t.stallDurationForGetStorageLayout = 0 // No stall for this test. This is required to avoid reusing the previous test's stall duration.
-
 	// Mock the raw client to return a retryable error once.
 	t.mockRawClient.On("RenameFolder", mock.Anything, req, mock.Anything).Return(nil, retryableErr).Once()
 
@@ -302,7 +293,6 @@ func (t *AllApiRetryWrapperTest) TestGetStorageLayout_SuccessOnFirstAttempt() {
 	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 1000*time.Microsecond, time.Microsecond, 10*time.Microsecond, 2, true)
 	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
 	expectedLayout := &controlpb.StorageLayout{Location: "some-location"}
-	t.stallDurationForGetStorageLayout = 0 // No stall for this test. This is required to avoid reusing the previous test's stall duration.
 	t.mockRawClient.On("GetStorageLayout", mock.Anything, req, mock.Anything).Return(expectedLayout, nil).Once()
 
 	// Act
@@ -320,8 +310,6 @@ func (t *AllApiRetryWrapperTest) TestGetStorageLayout_RetryableErrorThenSuccess(
 	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
 	expectedLayout := &controlpb.StorageLayout{Location: "some-location"}
 	retryableErr := status.Error(codes.Unavailable, "try again")
-	t.stallDurationForGetStorageLayout = 0 // No stall for this test. This is required to avoid reusing the previous test's stall duration.
-
 	// First call fails, second succeeds.
 	t.mockRawClient.On("GetStorageLayout", mock.Anything, req, mock.Anything).Return(nil, retryableErr).Once()
 	t.mockRawClient.On("GetStorageLayout", mock.Anything, req, mock.Anything).Return(expectedLayout, nil).Once()
@@ -340,7 +328,6 @@ func (t *AllApiRetryWrapperTest) TestGetStorageLayout_NonRetryableError() {
 	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 1000*time.Microsecond, time.Microsecond, 10*time.Microsecond, 2, true)
 	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
 	nonRetryableErr := status.Error(codes.NotFound, "does not exist")
-	t.stallDurationForGetStorageLayout = 0 // No stall for this test. This is required to avoid reusing the previous test's stall duration.
 	t.mockRawClient.On("GetStorageLayout", mock.Anything, req, mock.Anything).Return(nil, nonRetryableErr).Once()
 
 	// Act
@@ -375,7 +362,6 @@ func (t *AllApiRetryWrapperTest) TestDeleteFolder_SuccessOnFirstAttempt() {
 	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 1000*time.Microsecond, time.Microsecond, 10*time.Microsecond, 2, true)
 	req := &controlpb.DeleteFolderRequest{Name: "some/folder"}
 	t.mockRawClient.On("DeleteFolder", mock.Anything, req, mock.Anything).Return(nil).Once()
-	t.stallDurationForFolderAPIs = 0 // No stall for this test. This is required to avoid reusing the previous test's stall duration.
 
 	// Act
 	err := client.DeleteFolder(t.ctx, req)
@@ -390,8 +376,6 @@ func (t *AllApiRetryWrapperTest) TestDeleteFolder_RetryableErrorThenSuccess() {
 	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 1000*time.Microsecond, time.Microsecond, 10*time.Microsecond, 2, true)
 	req := &controlpb.DeleteFolderRequest{Name: "some/folder"}
 	retryableErr := status.Error(codes.Unavailable, "try again")
-	t.stallDurationForFolderAPIs = 0 // No stall for this test. This is required to avoid reusing the previous test's stall duration.
-
 	// First call fails, second succeeds.
 	t.mockRawClient.On("DeleteFolder", mock.Anything, req, mock.Anything).Return(retryableErr).Once()
 	t.mockRawClient.On("DeleteFolder", mock.Anything, req, mock.Anything).Return(nil).Once()
@@ -409,7 +393,6 @@ func (t *AllApiRetryWrapperTest) TestDeleteFolder_NonRetryableError() {
 	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 1000*time.Microsecond, time.Microsecond, 10*time.Microsecond, 2, true)
 	req := &controlpb.DeleteFolderRequest{Name: "some/folder"}
 	nonRetryableErr := status.Error(codes.NotFound, "does not exist")
-	t.stallDurationForFolderAPIs = 0 // No stall for this test. This is required to avoid reusing the previous test's stall duration.
 	t.mockRawClient.On("DeleteFolder", mock.Anything, req, mock.Anything).Return(nonRetryableErr).Once()
 
 	// Act
@@ -444,7 +427,6 @@ func (t *AllApiRetryWrapperTest) TestGetFolder_SuccessOnFirstAttempt() {
 	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 1000*time.Microsecond, time.Microsecond, 10*time.Microsecond, 2, true)
 	req := &controlpb.GetFolderRequest{Name: "some/folder"}
 	expectedFolder := &controlpb.Folder{Name: "some/folder"}
-	t.stallDurationForFolderAPIs = 0 // No stall for this test. This is required to avoid reusing the previous test's stall duration.
 	t.mockRawClient.On("GetFolder", mock.Anything, req, mock.Anything).Return(expectedFolder, nil).Once()
 
 	// Act
@@ -462,8 +444,6 @@ func (t *AllApiRetryWrapperTest) TestGetFolder_RetryableErrorThenSuccess() {
 	req := &controlpb.GetFolderRequest{Name: "some/folder"}
 	expectedFolder := &controlpb.Folder{Name: "some/folder"}
 	retryableErr := status.Error(codes.Unavailable, "try again")
-	t.stallDurationForFolderAPIs = 0 // No stall for this test. This is required to avoid reusing the previous test's stall duration.
-
 	// First call fails, second succeeds.
 	t.mockRawClient.On("GetFolder", mock.Anything, req, mock.Anything).Return(nil, retryableErr).Once()
 	t.mockRawClient.On("GetFolder", mock.Anything, req, mock.Anything).Return(expectedFolder, nil).Once()
@@ -482,7 +462,6 @@ func (t *AllApiRetryWrapperTest) TestGetFolder_NonRetryableError() {
 	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 1000*time.Microsecond, time.Microsecond, 10*time.Microsecond, 2, true)
 	req := &controlpb.GetFolderRequest{Name: "some/folder"}
 	nonRetryableErr := status.Error(codes.NotFound, "does not exist")
-	t.stallDurationForFolderAPIs = 0 // No stall for this test. This is required to avoid reusing the previous test's stall duration.
 	t.mockRawClient.On("GetFolder", mock.Anything, req, mock.Anything).Return(nil, nonRetryableErr).Once()
 
 	// Act
@@ -518,7 +497,6 @@ func (t *AllApiRetryWrapperTest) TestRenameFolder_SuccessOnFirstAttempt() {
 	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 1000*time.Microsecond, time.Microsecond, 10*time.Microsecond, 2, true)
 	req := &controlpb.RenameFolderRequest{Name: "some/folder", DestinationFolderId: "new/folder"}
 	expectedOp := &control.RenameFolderOperation{}
-	t.stallDurationForFolderAPIs = 0 // No stall for this test. This is required to avoid reusing the previous test's stall duration.
 	t.mockRawClient.On("RenameFolder", mock.Anything, req, mock.Anything).Return(expectedOp, nil).Once()
 
 	// Act
@@ -536,8 +514,6 @@ func (t *AllApiRetryWrapperTest) TestRenameFolder_RetryableErrorThenSuccess() {
 	req := &controlpb.RenameFolderRequest{Name: "some/folder", DestinationFolderId: "new/folder"}
 	expectedOp := &control.RenameFolderOperation{}
 	retryableErr := status.Error(codes.Unavailable, "try again")
-	t.stallDurationForFolderAPIs = 0 // No stall for this test. This is required to avoid reusing the previous test's stall duration.
-
 	// First call fails, second succeeds.
 	t.mockRawClient.On("RenameFolder", mock.Anything, req, mock.Anything).Return(nil, retryableErr).Once()
 	t.mockRawClient.On("RenameFolder", mock.Anything, req, mock.Anything).Return(expectedOp, nil).Once()
@@ -556,7 +532,6 @@ func (t *AllApiRetryWrapperTest) TestRenameFolder_NonRetryableError() {
 	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 1000*time.Microsecond, time.Microsecond, 10*time.Microsecond, 2, true)
 	req := &controlpb.RenameFolderRequest{Name: "some/folder", DestinationFolderId: "new/folder"}
 	nonRetryableErr := status.Error(codes.NotFound, "does not exist")
-	t.stallDurationForFolderAPIs = 0 // No stall for this test. This is required to avoid reusing the previous test's stall duration.
 	t.mockRawClient.On("RenameFolder", mock.Anything, req, mock.Anything).Return(nil, nonRetryableErr).Once()
 
 	// Act
@@ -575,7 +550,6 @@ func (t *AllApiRetryWrapperTest) TestCreateFolder_SuccessOnFirstAttempt() {
 	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 1000*time.Microsecond, time.Microsecond, 10*time.Microsecond, 2, true)
 	req := &controlpb.CreateFolderRequest{Parent: "some/", FolderId: "folder"}
 	expectedFolder := &controlpb.Folder{Name: "some/folder"}
-	t.stallDurationForFolderAPIs = 0 // No stall for this test. This is required to avoid reusing the previous test's stall duration.
 	t.mockRawClient.On("CreateFolder", mock.Anything, req, mock.Anything).Return(expectedFolder, nil).Once()
 
 	// Act
@@ -593,8 +567,6 @@ func (t *AllApiRetryWrapperTest) TestCreateFolder_RetryableErrorThenSuccess() {
 	req := &controlpb.CreateFolderRequest{Parent: "some/", FolderId: "folder"}
 	expectedFolder := &controlpb.Folder{Name: "some/folder"}
 	retryableErr := status.Error(codes.Unavailable, "try again")
-	t.stallDurationForFolderAPIs = 0 // No stall for this test. This is required to avoid reusing the previous test's stall duration.
-
 	// First call fails, second succeeds.
 	t.mockRawClient.On("CreateFolder", mock.Anything, req, mock.Anything).Return(nil, retryableErr).Once()
 	t.mockRawClient.On("CreateFolder", mock.Anything, req, mock.Anything).Return(expectedFolder, nil).Once()
@@ -613,7 +585,6 @@ func (t *AllApiRetryWrapperTest) TestCreateFolder_NonRetryableError() {
 	client := newRetryWrapper(t.stallingClient, 100*time.Microsecond, 1000*time.Microsecond, time.Microsecond, 10*time.Microsecond, 2, true)
 	req := &controlpb.CreateFolderRequest{Parent: "some/", FolderId: "folder"}
 	nonRetryableErr := status.Error(codes.NotFound, "does not exist")
-	t.stallDurationForFolderAPIs = 0 // No stall for this test. This is required to avoid reusing the previous test's stall duration.
 	t.mockRawClient.On("CreateFolder", mock.Anything, req, mock.Anything).Return(nil, nonRetryableErr).Once()
 
 	// Act
