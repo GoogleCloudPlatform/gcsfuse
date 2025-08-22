@@ -6,7 +6,7 @@
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
 //
-
+// Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
@@ -250,7 +250,8 @@ func (sccwros *storageControlClientWithRetry) DeleteFolder(ctx context.Context,
 }
 
 func (sccwros *storageControlClientWithRetry) GetFolder(ctx context.Context,
-	req *controlpb.GetFolderRequest, opts ...gax.CallOption) (*controlpb.Folder, error) {
+	req *controlpb.GetFolderRequest,
+	opts ...gax.CallOption) (*controlpb.Folder, error) {
 	if !sccwros.enableRetriesOnFolderAPIs {
 		return sccwros.raw.GetFolder(ctx, req, opts...)
 	}
@@ -263,7 +264,8 @@ func (sccwros *storageControlClientWithRetry) GetFolder(ctx context.Context,
 }
 
 func (sccwros *storageControlClientWithRetry) RenameFolder(ctx context.Context,
-	req *controlpb.RenameFolderRequest, opts ...gax.CallOption) (*control.RenameFolderOperation, error) {
+	req *controlpb.RenameFolderRequest,
+	opts ...gax.CallOption) (*control.RenameFolderOperation, error) {
 	if !sccwros.enableRetriesOnFolderAPIs {
 		return sccwros.raw.RenameFolder(ctx, req, opts...)
 	}
@@ -277,7 +279,8 @@ func (sccwros *storageControlClientWithRetry) RenameFolder(ctx context.Context,
 }
 
 func (sccwros *storageControlClientWithRetry) CreateFolder(ctx context.Context,
-	req *controlpb.CreateFolderRequest, opts ...gax.CallOption) (*controlpb.Folder, error) {
+	req *controlpb.CreateFolderRequest,
+	opts ...gax.CallOption) (*controlpb.Folder, error) {
 	if !sccwros.enableRetriesOnFolderAPIs {
 		return sccwros.raw.CreateFolder(ctx, req, opts...)
 	}
@@ -314,13 +317,20 @@ func newRetryWrapper(controlClient StorageControlClient,
 }
 
 // withRetryOnAllAPIs wraps a StorageControlClient to do a time-bound retry approach for retryable errors for all API calls through it.
-func withRetryOnAllAPIs(controlClient StorageControlClient, retryDeadline time.Duration, totalRetryBudget time.Duration) StorageControlClient {
+func withRetryOnAllAPIs(controlClient StorageControlClient,
+	retryDeadline time.Duration,
+	totalRetryBudget time.Duration) StorageControlClient {
 	return newRetryWrapper(controlClient, retryDeadline, totalRetryBudget, defaultInitialBackoff, defaultMaxBackoff, defaultBackoffMultiplier, true)
 }
 
 // withRetryOnStorageLayout wraps a StorageControlClient to do a time-bound retry approach for retryable errors for the GetStorageLayout call through it.
 func withRetryOnStorageLayout(controlClient StorageControlClient, retryDeadline time.Duration, totalRetryBudget time.Duration) StorageControlClient {
-	return newRetryWrapper(controlClient, retryDeadline, totalRetryBudget, defaultInitialBackoff, defaultMaxBackoff, defaultBackoffMultiplier, false)
+	return newRetryWrapper(controlClient,
+		retryDeadline,
+		totalRetryBudget,
+		defaultInitialBackoff,
+		defaultMaxBackoff,
+		defaultBackoffMultiplier, false)
 }
 
 func storageControlClientRetryOptions(clientConfig *storageutil.StorageClientConfig) []gax.CallOption {
