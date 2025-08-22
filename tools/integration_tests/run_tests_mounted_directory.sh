@@ -709,3 +709,39 @@ test_case="TestDeleteOperationTest/TestDeleteFileWhenFileIsClobbered"
 gcsfuse --implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=1000 "$TEST_BUCKET_NAME" "$MOUNT_DIR"
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/dentry_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run $test_case
 sudo umount "$MOUNT_DIR"
+
+# package buffered_read
+log_dir="/tmp/gcsfuse_buffered_read_test_logs"
+mkdir -p $log_dir
+log_file="$log_dir/log.json"
+
+# Run TestSequentialReadSuite
+sequential_read_test_case="TestSequentialReadSuite"
+gcsfuse --log-severity=trace --enable-buffered-read=true --read-block-size-mb=8 --read-max-blocks-per-handle=20 --read-start-blocks-per-handle=1 \
+--read-min-blocks-per-handle=2 --log-file=$log_file $TEST_BUCKET_NAME $MOUNT_DIR
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/buffered_read/... -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR \
+--testbucket=$TEST_BUCKET_NAME -run ${sequential_read_test_case} ${ZONAL_BUCKET_ARG}
+sudo umount $MOUNT_DIR
+
+# Run tests for fallback to another reader on random reads.
+random_read_fallback_test_cases=(
+  "TestFallbackSuites/TestRandomRead_LargeFile_Fallback"
+  "TestFallbackSuites/TestRandomRead_SmallFile_NoFallback"
+)
+gcsfuse --log-severity=trace --enable-buffered-read=true --read-block-size-mb=8 --read-max-blocks-per-handle=20 --read-start-blocks-per-handle=2 \
+--read-min-blocks-per-handle=2 --log-file=$log_file $TEST_BUCKET_NAME $MOUNT_DIR
+for test_case in "${random_read_fallback_test_cases[@]}"; do
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/buffered_read/... -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR \
+  --testbucket=$TEST_BUCKET_NAME -run ${test_case} ${ZONAL_BUCKET_ARG}
+done
+sudo umount $MOUNT_DIR
+
+# Run test for fallback when the global block pool is insufficient for buffered reader creation.
+insufficient_pool_test_case="TestFallbackSuites/TestNewBufferedReader_InsufficientGlobalPool_NoReaderAdded"
+gcsfuse --log-severity=trace --enable-buffered-read=true --read-block-size-mb=8 --read-max-blocks-per-handle=10 --read-start-blocks-per-handle=2 \
+--read-min-blocks-per-handle=2 --read-global-max-blocks=1 --log-file=$log_file $TEST_BUCKET_NAME $MOUNT_DIR
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/buffered_read/... -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR \
+--testbucket=$TEST_BUCKET_NAME -run ${insufficient_pool_test_case} ${ZONAL_BUCKET_ARG}
+sudo umount $MOUNT_DIR
+
+rm -rf $log_dir
