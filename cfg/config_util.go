@@ -17,6 +17,7 @@ package cfg
 import (
 	"fmt"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -54,4 +55,15 @@ func ListCacheTTLSecsToDuration(secs int64) time.Duration {
 // IsMetricsEnabled returns true if metrics are enabled.
 func IsMetricsEnabled(c *MetricsConfig) bool {
 	return c.CloudMetricsExportIntervalSecs > 0 || c.PrometheusPort > 0
+}
+
+// IsGKEEnvironment returns true if the file descriptor mount option is set.
+func IsGKEEnvironment(mountConfig *Config) bool {
+	for _, opt := range mountConfig.FileSystem.FuseOptions {
+		if strings.HasPrefix(opt, "fd=") {
+			// The presence of "fd=<number>" indicates the GKE CSI driver.
+			return true
+		}
+	}
+	return false
 }
