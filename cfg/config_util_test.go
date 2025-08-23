@@ -203,3 +203,28 @@ func TestIsMetricsEnabled(t *testing.T) {
 		})
 	}
 }
+
+func TestIsGKEEnvironment(t *testing.T) {
+	t.Parallel()
+	var testCases = []struct {
+		testName    string
+		fuseOptions []string
+		expected    bool
+	}{
+		{"empty", []string{"a", "b", "c"}, false},
+		{"not_empty_single", []string{"fd=123"}, true},
+		{"not_empty_multi", []string{"a", "fd=123", "c"}, true},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.testName, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tc.expected, IsGKEEnvironment(&Config{
+				FileSystem: FileSystemConfig{
+					FuseOptions: tc.fuseOptions,
+				}}))
+		})
+	}
+}
