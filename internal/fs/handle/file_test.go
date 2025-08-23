@@ -898,9 +898,9 @@ func (t *fileTest) Test_UnlockHandleAndInode() {
 		go func() {
 			defer wg.Done()
 			fh.mu.Lock()
+			defer fh.mu.Unlock()
 			fh.inode.Lock()
-			fh.inode.Unlock()
-			fh.mu.Unlock()
+			defer fh.inode.Unlock()
 		}()
 	}
 
