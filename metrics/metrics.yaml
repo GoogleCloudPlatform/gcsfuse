@@ -78,6 +78,7 @@
   - attribute-name: read_type
     attribute-type: string
     values: &read_types_list
+    - "Unknown"
     - "Parallel"
     - "Random"
     - "Sequential"

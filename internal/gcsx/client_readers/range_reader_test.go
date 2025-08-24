@@ -406,7 +406,7 @@ func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenReaderReturnedMoreData() 
 			}
 			t.rangeReader.cancel = func() {}
 
-			n, err := t.rangeReader.readFromRangeReader(t.ctx, make([]byte, 10), 0, 10, metrics.ReadTypeUnknown)
+			n, err := t.rangeReader.readFromRangeReader(t.ctx, make([]byte, 10), 0, 10, metrics.ReadTypeUnknownConst)
 
 			assert.Error(t.T(), err)
 			assert.Zero(t.T(), n)
@@ -535,7 +535,7 @@ func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenAllDataFromReaderIsRead()
 			t.rangeReader.cancel = func() {}
 			buf := make([]byte, dataSize)
 
-			n, err := t.rangeReader.readFromRangeReader(t.ctx, buf, 4, 10, metrics.ReadTypeUnknown)
+			n, err := t.rangeReader.readFromRangeReader(t.ctx, buf, 4, 10, metrics.ReadTypeUnknownConst)
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), dataSize, n)
@@ -578,7 +578,7 @@ func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenReaderHasLessDataThanRequ
 			t.rangeReader.cancel = func() {}
 			buf := make([]byte, 10)
 
-			n, err := t.rangeReader.readFromRangeReader(t.ctx, buf, 0, 10, metrics.ReadTypeUnknown)
+			n, err := t.rangeReader.readFromRangeReader(t.ctx, buf, 0, 10, metrics.ReadTypeUnknownConst)
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), dataSize, n)

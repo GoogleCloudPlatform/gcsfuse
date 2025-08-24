@@ -110,6 +110,7 @@ const (
 	ReadTypeParallel   = "Parallel"
 	ReadTypeRandom     = "Random"
 	ReadTypeSequential = "Sequential"
+	ReadTypeUnknown    = "Unknown"
 )
 
 // Constants for attribute Reason

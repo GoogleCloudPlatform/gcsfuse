@@ -15,15 +15,15 @@
 package metrics
 
 const (
-	ReadTypeUnknown    int64 = -1
-	ReadTypeSequential int64 = 0
-	ReadTypeRandom     int64 = 1
-	ReadTypeParallel   int64 = 2
+	ReadTypeUnknownConst    int64 = -1
+	ReadTypeSequentialConst int64 = 0
+	ReadTypeRandomConst     int64 = 1
+	ReadTypeParallelConst   int64 = 2
 )
 
 var ReadTypeNames = map[int64]string{
-	ReadTypeUnknown:    "Unhandled",
-	ReadTypeSequential: "Sequential",
-	ReadTypeRandom:     "Random",
-	ReadTypeParallel:   "Parallel",
+	ReadTypeUnknownConst:    ReadTypeUnknown,
+	ReadTypeSequentialConst: ReadTypeSequential,
+	ReadTypeRandomConst:     ReadTypeRandom,
+	ReadTypeParallelConst:   ReadTypeParallel,
 }
