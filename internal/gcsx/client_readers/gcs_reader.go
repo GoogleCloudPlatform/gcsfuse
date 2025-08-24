@@ -209,7 +209,7 @@ func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest) (
 
 // readerType specifies the go-sdk interface to use for reads.
 func (gr *GCSReader) readerType(readType int64, bucketType gcs.BucketType) ReaderType {
-	if readType == metrics.ReadTypeRandom && bucketType.Zonal {
+	if readType == metrics.ReadTypeRandomConst && bucketType.Zonal {
 		return MultiRangeReaderType
 	}
 	return RangeReaderType
@@ -222,11 +222,11 @@ func isSeekNeeded(readType, offset, expectedOffset int64) bool {
 		return false
 	}
 
-	if readType == metrics.ReadTypeRandom {
+	if readType == metrics.ReadTypeRandomConst {
 		return offset != expectedOffset
 	}
 
-	if readType == metrics.ReadTypeSequential {
+	if readType == metrics.ReadTypeSequentialConst {
 		return offset < expectedOffset || offset > expectedOffset+maxReadSize
 	}
 
@@ -256,7 +256,7 @@ func (gr *GCSReader) getReadInfo(offset int64, seekRecorded bool) readInfo {
 	}
 
 	if numSeeks >= minSeeksForRandom {
-		readType = metrics.ReadTypeRandom
+		readType = metrics.ReadTypeRandomConst
 	}
 
 	averageReadBytes := gr.totalReadBytes.Load()
@@ -265,7 +265,7 @@ func (gr *GCSReader) getReadInfo(offset int64, seekRecorded bool) readInfo {
 	}
 
 	if averageReadBytes >= maxReadSize {
-		readType = metrics.ReadTypeSequential
+		readType = metrics.ReadTypeSequentialConst
 	}
 
 	gr.readType.Store(readType)
@@ -280,7 +280,7 @@ func (gr *GCSReader) getReadInfo(offset int64, seekRecorded bool) readInfo {
 func (gr *GCSReader) determineEnd(start int64) int64 {
 	end := int64(gr.object.Size)
 	if seeks := gr.seeks.Load(); seeks >= minSeeksForRandom {
-		gr.readType.Store(metrics.ReadTypeRandom)
+		gr.readType.Store(metrics.ReadTypeRandomConst)
 		averageReadBytes := gr.totalReadBytes.Load() / seeks
 		if averageReadBytes < maxReadSize {
 			randomReadSize := int64(((averageReadBytes / MB) + 1) * MB)
