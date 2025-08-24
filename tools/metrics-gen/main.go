@@ -139,7 +139,7 @@ func getAtomicName(metricName string, combo AttrCombination) string {
 func getGoType(t string) string {
 	switch t {
 	case "string":
-		return "string"
+		return "StringAttribute"
 	case "bool":
 		return "bool"
 	default:
@@ -200,7 +200,7 @@ func getExpectedAttrs(combo AttrCombination) string {
 	var parts []string
 	for _, pair := range combo {
 		if pair.Type == "string" {
-			parts = append(parts, fmt.Sprintf(`attribute.String("%s", "%s")`, pair.Name, pair.Value))
+			parts = append(parts, fmt.Sprintf(`attribute.String("%s", string("%s"))`, pair.Name, pair.Value))
 		} else { // bool
 			parts = append(parts, fmt.Sprintf(`attribute.Bool("%s", %s)`, pair.Name, pair.Value))
 		}

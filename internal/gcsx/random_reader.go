@@ -516,7 +516,7 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 	rr.limit = end
 
 	requestedDataSize := end - start
-	metrics.CaptureGCSReadMetrics(rr.metricHandle, metrics.ReadTypeNames[metrics.ReadTypeSequentialConst], requestedDataSize)
+	metrics.CaptureGCSReadMetrics(rr.metricHandle, metrics.ReadTypeSequential, requestedDataSize)
 
 	return
 }

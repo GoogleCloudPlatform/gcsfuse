@@ -25,13 +25,13 @@ import (
 )
 
 // recordRequest records a request and its latency.
-func recordRequest(ctx context.Context, metricHandle metrics.MetricHandle, method string, start time.Time) {
+func recordRequest(ctx context.Context, metricHandle metrics.MetricHandle, method metrics.StringAttribute, start time.Time) {
 	metricHandle.GcsRequestCount(1, method)
 
 	metricHandle.GcsRequestLatencies(ctx, time.Since(start), method)
 }
 
-func CaptureMultiRangeDownloaderMetrics(ctx context.Context, metricHandle metrics.MetricHandle, method string, start time.Time) {
+func CaptureMultiRangeDownloaderMetrics(ctx context.Context, metricHandle metrics.MetricHandle, method metrics.StringAttribute, start time.Time) {
 	recordRequest(ctx, metricHandle, method, start)
 }
 
@@ -56,7 +56,7 @@ func (mb *monitoringBucket) BucketType() gcs.BucketType {
 	return mb.wrapped.BucketType()
 }
 
-func setupReader(ctx context.Context, mb *monitoringBucket, req *gcs.ReadObjectRequest, method string) (gcs.StorageReader, error) {
+func setupReader(ctx context.Context, mb *monitoringBucket, req *gcs.ReadObjectRequest, method metrics.StringAttribute) (gcs.StorageReader, error) {
 	startTime := time.Now()
 
 	rc, err := mb.wrapped.NewReaderWithReadHandle(ctx, req)
@@ -216,7 +216,7 @@ func (mb *monitoringBucket) GCSName(obj *gcs.MinObject) string {
 }
 
 // recordReader increments the reader count when it's opened or closed.
-func recordReader(metricHandle metrics.MetricHandle, ioMethod string) {
+func recordReader(metricHandle metrics.MetricHandle, ioMethod metrics.StringAttribute) {
 	metricHandle.GcsReaderCount(1, ioMethod)
 }
 

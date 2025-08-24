@@ -20,6 +20,8 @@ import (
 	"time"
 )
 
+type StringAttribute string
+
 {{range .AttributeGroups -}}
 // Constants for attribute {{.Name}}
 const (

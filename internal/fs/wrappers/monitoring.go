@@ -50,7 +50,7 @@ const (
 // categorize maps an error to an error-category.
 // This helps reduce the cardinality of the labels to less than 30.
 // This lower number of errors allows the various errors to get piped to Cloud metrics without getting dropped.
-func categorize(err error) string {
+func categorize(err error) metrics.StringAttribute {
 	if err == nil {
 		return ""
 	}
@@ -225,7 +225,7 @@ func categorize(err error) string {
 }
 
 // Records file system operation count, failed operation count and the operation latency.
-func recordOp(ctx context.Context, metricHandle metrics.MetricHandle, method string, start time.Time, fsErr error) {
+func recordOp(ctx context.Context, metricHandle metrics.MetricHandle, method metrics.StringAttribute, start time.Time, fsErr error) {
 	metricHandle.FsOpsCount(1, method)
 
 	// Recording opErrorCount.
@@ -256,7 +256,7 @@ func (fs *monitoring) Destroy() {
 
 type wrappedCall func(ctx context.Context) error
 
-func (fs *monitoring) invokeWrapped(ctx context.Context, opName string, w wrappedCall) error {
+func (fs *monitoring) invokeWrapped(ctx context.Context, opName metrics.StringAttribute, w wrappedCall) error {
 	startTime := time.Now()
 	err := w(ctx)
 	recordOp(ctx, fs.metricHandle, opName, startTime, err)

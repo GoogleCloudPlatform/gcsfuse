@@ -132,7 +132,7 @@ func TestBufferedReadDownloadBlockLatency(t *testing.T) {
 	tests := []struct {
 		name      string
 		latencies []time.Duration
-		status    string
+		status    StringAttribute
 	}{
 		{
 			name:      "status_cancelled",
@@ -164,7 +164,7 @@ func TestBufferedReadDownloadBlockLatency(t *testing.T) {
 			require.True(t, ok, "buffered_read/download_block_latency metric not found")
 
 			attrs := []attribute.KeyValue{
-				attribute.String("status", tc.status),
+				attribute.String("status", string(tc.status)),
 			}
 			s := attribute.NewSet(attrs...)
 			expectedKey := s.Encoded(encoder)
@@ -188,7 +188,7 @@ func TestBufferedReadFallbackTriggerCount(t *testing.T) {
 				m.BufferedReadFallbackTriggerCount(5, "insufficient_memory")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("reason", "insufficient_memory")): 5,
+				attribute.NewSet(attribute.String("reason", string("insufficient_memory"))): 5,
 			},
 		},
 		{
@@ -197,7 +197,7 @@ func TestBufferedReadFallbackTriggerCount(t *testing.T) {
 				m.BufferedReadFallbackTriggerCount(5, "random_read_detected")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("reason", "random_read_detected")): 5,
+				attribute.NewSet(attribute.String("reason", string("random_read_detected"))): 5,
 			},
 		}, {
 			name: "multiple_attributes_summed",
@@ -206,8 +206,8 @@ func TestBufferedReadFallbackTriggerCount(t *testing.T) {
 				m.BufferedReadFallbackTriggerCount(2, "random_read_detected")
 				m.BufferedReadFallbackTriggerCount(3, "insufficient_memory")
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("reason", "insufficient_memory")): 8,
-				attribute.NewSet(attribute.String("reason", "random_read_detected")): 2,
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("reason", string("insufficient_memory"))): 8,
+				attribute.NewSet(attribute.String("reason", string("random_read_detected"))): 2,
 			},
 		},
 	}
@@ -270,7 +270,7 @@ func TestBufferedReadScheduledBlockCount(t *testing.T) {
 				m.BufferedReadScheduledBlockCount(5, "cancelled")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("status", "cancelled")): 5,
+				attribute.NewSet(attribute.String("status", string("cancelled"))): 5,
 			},
 		},
 		{
@@ -279,7 +279,7 @@ func TestBufferedReadScheduledBlockCount(t *testing.T) {
 				m.BufferedReadScheduledBlockCount(5, "successful")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("status", "successful")): 5,
+				attribute.NewSet(attribute.String("status", string("successful"))): 5,
 			},
 		}, {
 			name: "multiple_attributes_summed",
@@ -288,8 +288,8 @@ func TestBufferedReadScheduledBlockCount(t *testing.T) {
 				m.BufferedReadScheduledBlockCount(2, "successful")
 				m.BufferedReadScheduledBlockCount(3, "cancelled")
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("status", "cancelled")): 8,
-				attribute.NewSet(attribute.String("status", "successful")): 2,
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("status", string("cancelled"))): 8,
+				attribute.NewSet(attribute.String("status", string("successful"))): 2,
 			},
 		},
 	}
@@ -327,7 +327,7 @@ func TestFileCacheReadBytesCount(t *testing.T) {
 				m.FileCacheReadBytesCount(5, "Parallel")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("read_type", "Parallel")): 5,
+				attribute.NewSet(attribute.String("read_type", string("Parallel"))): 5,
 			},
 		},
 		{
@@ -336,7 +336,7 @@ func TestFileCacheReadBytesCount(t *testing.T) {
 				m.FileCacheReadBytesCount(5, "Random")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("read_type", "Random")): 5,
+				attribute.NewSet(attribute.String("read_type", string("Random"))): 5,
 			},
 		},
 		{
@@ -345,7 +345,7 @@ func TestFileCacheReadBytesCount(t *testing.T) {
 				m.FileCacheReadBytesCount(5, "Sequential")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("read_type", "Sequential")): 5,
+				attribute.NewSet(attribute.String("read_type", string("Sequential"))): 5,
 			},
 		},
 		{
@@ -354,7 +354,7 @@ func TestFileCacheReadBytesCount(t *testing.T) {
 				m.FileCacheReadBytesCount(5, "Unknown")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("read_type", "Unknown")): 5,
+				attribute.NewSet(attribute.String("read_type", string("Unknown"))): 5,
 			},
 		}, {
 			name: "multiple_attributes_summed",
@@ -363,8 +363,8 @@ func TestFileCacheReadBytesCount(t *testing.T) {
 				m.FileCacheReadBytesCount(2, "Random")
 				m.FileCacheReadBytesCount(3, "Parallel")
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("read_type", "Parallel")): 8,
-				attribute.NewSet(attribute.String("read_type", "Random")): 2,
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("read_type", string("Parallel"))): 8,
+				attribute.NewSet(attribute.String("read_type", string("Random"))): 2,
 			},
 		},
 	}
@@ -402,7 +402,7 @@ func TestFileCacheReadCount(t *testing.T) {
 				m.FileCacheReadCount(5, true, "Parallel")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Parallel")): 5,
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", string("Parallel"))): 5,
 			},
 		},
 		{
@@ -411,7 +411,7 @@ func TestFileCacheReadCount(t *testing.T) {
 				m.FileCacheReadCount(5, true, "Random")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Random")): 5,
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", string("Random"))): 5,
 			},
 		},
 		{
@@ -420,7 +420,7 @@ func TestFileCacheReadCount(t *testing.T) {
 				m.FileCacheReadCount(5, true, "Sequential")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Sequential")): 5,
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", string("Sequential"))): 5,
 			},
 		},
 		{
@@ -429,7 +429,7 @@ func TestFileCacheReadCount(t *testing.T) {
 				m.FileCacheReadCount(5, true, "Unknown")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Unknown")): 5,
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", string("Unknown"))): 5,
 			},
 		},
 		{
@@ -438,7 +438,7 @@ func TestFileCacheReadCount(t *testing.T) {
 				m.FileCacheReadCount(5, false, "Parallel")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", "Parallel")): 5,
+				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", string("Parallel"))): 5,
 			},
 		},
 		{
@@ -447,7 +447,7 @@ func TestFileCacheReadCount(t *testing.T) {
 				m.FileCacheReadCount(5, false, "Random")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", "Random")): 5,
+				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", string("Random"))): 5,
 			},
 		},
 		{
@@ -456,7 +456,7 @@ func TestFileCacheReadCount(t *testing.T) {
 				m.FileCacheReadCount(5, false, "Sequential")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", "Sequential")): 5,
+				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", string("Sequential"))): 5,
 			},
 		},
 		{
@@ -465,7 +465,7 @@ func TestFileCacheReadCount(t *testing.T) {
 				m.FileCacheReadCount(5, false, "Unknown")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", "Unknown")): 5,
+				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", string("Unknown"))): 5,
 			},
 		}, {
 			name: "multiple_attributes_summed",
@@ -474,8 +474,8 @@ func TestFileCacheReadCount(t *testing.T) {
 				m.FileCacheReadCount(2, true, "Random")
 				m.FileCacheReadCount(3, true, "Parallel")
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Parallel")): 8,
-				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Random")): 2,
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", string("Parallel"))): 8,
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", string("Random"))): 2,
 			},
 		},
 	}
@@ -561,7 +561,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "BatchForget")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "BatchForget")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("BatchForget"))): 5,
 			},
 		},
 		{
@@ -570,7 +570,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "CreateFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "CreateFile")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("CreateFile"))): 5,
 			},
 		},
 		{
@@ -579,7 +579,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "CreateLink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "CreateLink")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("CreateLink"))): 5,
 			},
 		},
 		{
@@ -588,7 +588,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "CreateSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "CreateSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("CreateSymlink"))): 5,
 			},
 		},
 		{
@@ -597,7 +597,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "Fallocate")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "Fallocate")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("Fallocate"))): 5,
 			},
 		},
 		{
@@ -606,7 +606,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "FlushFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "FlushFile")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("FlushFile"))): 5,
 			},
 		},
 		{
@@ -615,7 +615,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "ForgetInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "ForgetInode")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("ForgetInode"))): 5,
 			},
 		},
 		{
@@ -624,7 +624,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "GetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "GetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("GetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -633,7 +633,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "GetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "GetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("GetXattr"))): 5,
 			},
 		},
 		{
@@ -642,7 +642,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "ListXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "ListXattr")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("ListXattr"))): 5,
 			},
 		},
 		{
@@ -651,7 +651,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "LookUpInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "LookUpInode")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("LookUpInode"))): 5,
 			},
 		},
 		{
@@ -660,7 +660,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "MkDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "MkDir")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("MkDir"))): 5,
 			},
 		},
 		{
@@ -669,7 +669,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "MkNode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "MkNode")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("MkNode"))): 5,
 			},
 		},
 		{
@@ -678,7 +678,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "OpenDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "OpenDir")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("OpenDir"))): 5,
 			},
 		},
 		{
@@ -687,7 +687,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "OpenFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "OpenFile")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("OpenFile"))): 5,
 			},
 		},
 		{
@@ -696,7 +696,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "ReadDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "ReadDir")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("ReadDir"))): 5,
 			},
 		},
 		{
@@ -705,7 +705,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "ReadDirPlus")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "ReadDirPlus")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("ReadDirPlus"))): 5,
 			},
 		},
 		{
@@ -714,7 +714,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "ReadFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "ReadFile")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("ReadFile"))): 5,
 			},
 		},
 		{
@@ -723,7 +723,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "ReadSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "ReadSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("ReadSymlink"))): 5,
 			},
 		},
 		{
@@ -732,7 +732,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "ReleaseDirHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "ReleaseDirHandle")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("ReleaseDirHandle"))): 5,
 			},
 		},
 		{
@@ -741,7 +741,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "ReleaseFileHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "ReleaseFileHandle")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("ReleaseFileHandle"))): 5,
 			},
 		},
 		{
@@ -750,7 +750,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "RemoveXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "RemoveXattr")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("RemoveXattr"))): 5,
 			},
 		},
 		{
@@ -759,7 +759,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "Rename")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "Rename")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("Rename"))): 5,
 			},
 		},
 		{
@@ -768,7 +768,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "RmDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "RmDir")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("RmDir"))): 5,
 			},
 		},
 		{
@@ -777,7 +777,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "SetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "SetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("SetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -786,7 +786,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "SetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "SetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("SetXattr"))): 5,
 			},
 		},
 		{
@@ -795,7 +795,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "StatFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "StatFS")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("StatFS"))): 5,
 			},
 		},
 		{
@@ -804,7 +804,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "SyncFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "SyncFS")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("SyncFS"))): 5,
 			},
 		},
 		{
@@ -813,7 +813,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "SyncFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "SyncFile")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("SyncFile"))): 5,
 			},
 		},
 		{
@@ -822,7 +822,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "Unlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "Unlink")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("Unlink"))): 5,
 			},
 		},
 		{
@@ -831,7 +831,7 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(5, "WriteFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_op", "WriteFile")): 5,
+				attribute.NewSet(attribute.String("fs_op", string("WriteFile"))): 5,
 			},
 		}, {
 			name: "multiple_attributes_summed",
@@ -840,8 +840,8 @@ func TestFsOpsCount(t *testing.T) {
 				m.FsOpsCount(2, "CreateFile")
 				m.FsOpsCount(3, "BatchForget")
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("fs_op", "BatchForget")): 8,
-				attribute.NewSet(attribute.String("fs_op", "CreateFile")): 2,
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("fs_op", string("BatchForget"))): 8,
+				attribute.NewSet(attribute.String("fs_op", string("CreateFile"))): 2,
 			},
 		},
 	}
@@ -879,7 +879,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "BatchForget")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "BatchForget")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("BatchForget"))): 5,
 			},
 		},
 		{
@@ -888,7 +888,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "CreateFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "CreateFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("CreateFile"))): 5,
 			},
 		},
 		{
@@ -897,7 +897,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "CreateLink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "CreateLink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("CreateLink"))): 5,
 			},
 		},
 		{
@@ -906,7 +906,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "CreateSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "CreateSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("CreateSymlink"))): 5,
 			},
 		},
 		{
@@ -915,7 +915,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "Fallocate")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "Fallocate")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("Fallocate"))): 5,
 			},
 		},
 		{
@@ -924,7 +924,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "FlushFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "FlushFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("FlushFile"))): 5,
 			},
 		},
 		{
@@ -933,7 +933,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "ForgetInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ForgetInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("ForgetInode"))): 5,
 			},
 		},
 		{
@@ -942,7 +942,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "GetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "GetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("GetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -951,7 +951,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "GetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "GetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("GetXattr"))): 5,
 			},
 		},
 		{
@@ -960,7 +960,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "ListXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ListXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("ListXattr"))): 5,
 			},
 		},
 		{
@@ -969,7 +969,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "LookUpInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "LookUpInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("LookUpInode"))): 5,
 			},
 		},
 		{
@@ -978,7 +978,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "MkDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "MkDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("MkDir"))): 5,
 			},
 		},
 		{
@@ -987,7 +987,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "MkNode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "MkNode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("MkNode"))): 5,
 			},
 		},
 		{
@@ -996,7 +996,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "OpenDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "OpenDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("OpenDir"))): 5,
 			},
 		},
 		{
@@ -1005,7 +1005,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "OpenFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "OpenFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("OpenFile"))): 5,
 			},
 		},
 		{
@@ -1014,7 +1014,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "ReadDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ReadDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("ReadDir"))): 5,
 			},
 		},
 		{
@@ -1023,7 +1023,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "ReadDirPlus")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ReadDirPlus")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("ReadDirPlus"))): 5,
 			},
 		},
 		{
@@ -1032,7 +1032,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "ReadFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ReadFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("ReadFile"))): 5,
 			},
 		},
 		{
@@ -1041,7 +1041,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "ReadSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ReadSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("ReadSymlink"))): 5,
 			},
 		},
 		{
@@ -1050,7 +1050,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "ReleaseDirHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("ReleaseDirHandle"))): 5,
 			},
 		},
 		{
@@ -1059,7 +1059,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "ReleaseFileHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("ReleaseFileHandle"))): 5,
 			},
 		},
 		{
@@ -1068,7 +1068,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "RemoveXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "RemoveXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("RemoveXattr"))): 5,
 			},
 		},
 		{
@@ -1077,7 +1077,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "Rename")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "Rename")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("Rename"))): 5,
 			},
 		},
 		{
@@ -1086,7 +1086,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "RmDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "RmDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("RmDir"))): 5,
 			},
 		},
 		{
@@ -1095,7 +1095,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "SetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "SetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("SetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -1104,7 +1104,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "SetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "SetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("SetXattr"))): 5,
 			},
 		},
 		{
@@ -1113,7 +1113,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "StatFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "StatFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("StatFS"))): 5,
 			},
 		},
 		{
@@ -1122,7 +1122,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "SyncFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "SyncFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("SyncFS"))): 5,
 			},
 		},
 		{
@@ -1131,7 +1131,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "SyncFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "SyncFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("SyncFile"))): 5,
 			},
 		},
 		{
@@ -1140,7 +1140,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "Unlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "Unlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("Unlink"))): 5,
 			},
 		},
 		{
@@ -1149,7 +1149,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DEVICE_ERROR", "WriteFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "WriteFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("WriteFile"))): 5,
 			},
 		},
 		{
@@ -1158,7 +1158,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "BatchForget")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "BatchForget")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("BatchForget"))): 5,
 			},
 		},
 		{
@@ -1167,7 +1167,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "CreateFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "CreateFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("CreateFile"))): 5,
 			},
 		},
 		{
@@ -1176,7 +1176,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "CreateLink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "CreateLink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("CreateLink"))): 5,
 			},
 		},
 		{
@@ -1185,7 +1185,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "CreateSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "CreateSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("CreateSymlink"))): 5,
 			},
 		},
 		{
@@ -1194,7 +1194,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "Fallocate")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "Fallocate")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("Fallocate"))): 5,
 			},
 		},
 		{
@@ -1203,7 +1203,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "FlushFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "FlushFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("FlushFile"))): 5,
 			},
 		},
 		{
@@ -1212,7 +1212,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "ForgetInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ForgetInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("ForgetInode"))): 5,
 			},
 		},
 		{
@@ -1221,7 +1221,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "GetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "GetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("GetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -1230,7 +1230,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "GetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "GetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("GetXattr"))): 5,
 			},
 		},
 		{
@@ -1239,7 +1239,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "ListXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ListXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("ListXattr"))): 5,
 			},
 		},
 		{
@@ -1248,7 +1248,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "LookUpInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "LookUpInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("LookUpInode"))): 5,
 			},
 		},
 		{
@@ -1257,7 +1257,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "MkDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "MkDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("MkDir"))): 5,
 			},
 		},
 		{
@@ -1266,7 +1266,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "MkNode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "MkNode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("MkNode"))): 5,
 			},
 		},
 		{
@@ -1275,7 +1275,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "OpenDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "OpenDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("OpenDir"))): 5,
 			},
 		},
 		{
@@ -1284,7 +1284,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "OpenFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "OpenFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("OpenFile"))): 5,
 			},
 		},
 		{
@@ -1293,7 +1293,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "ReadDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ReadDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("ReadDir"))): 5,
 			},
 		},
 		{
@@ -1302,7 +1302,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "ReadDirPlus")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ReadDirPlus")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("ReadDirPlus"))): 5,
 			},
 		},
 		{
@@ -1311,7 +1311,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "ReadFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ReadFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("ReadFile"))): 5,
 			},
 		},
 		{
@@ -1320,7 +1320,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "ReadSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ReadSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("ReadSymlink"))): 5,
 			},
 		},
 		{
@@ -1329,7 +1329,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "ReleaseDirHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("ReleaseDirHandle"))): 5,
 			},
 		},
 		{
@@ -1338,7 +1338,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "ReleaseFileHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("ReleaseFileHandle"))): 5,
 			},
 		},
 		{
@@ -1347,7 +1347,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "RemoveXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "RemoveXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("RemoveXattr"))): 5,
 			},
 		},
 		{
@@ -1356,7 +1356,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "Rename")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "Rename")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("Rename"))): 5,
 			},
 		},
 		{
@@ -1365,7 +1365,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "RmDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "RmDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("RmDir"))): 5,
 			},
 		},
 		{
@@ -1374,7 +1374,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "SetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "SetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("SetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -1383,7 +1383,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "SetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "SetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("SetXattr"))): 5,
 			},
 		},
 		{
@@ -1392,7 +1392,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "StatFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "StatFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("StatFS"))): 5,
 			},
 		},
 		{
@@ -1401,7 +1401,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "SyncFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "SyncFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("SyncFS"))): 5,
 			},
 		},
 		{
@@ -1410,7 +1410,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "SyncFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "SyncFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("SyncFile"))): 5,
 			},
 		},
 		{
@@ -1419,7 +1419,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "Unlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "Unlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("Unlink"))): 5,
 			},
 		},
 		{
@@ -1428,7 +1428,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "WriteFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "WriteFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("DIR_NOT_EMPTY")), attribute.String("fs_op", string("WriteFile"))): 5,
 			},
 		},
 		{
@@ -1437,7 +1437,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "BatchForget")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "BatchForget")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("BatchForget"))): 5,
 			},
 		},
 		{
@@ -1446,7 +1446,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "CreateFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "CreateFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("CreateFile"))): 5,
 			},
 		},
 		{
@@ -1455,7 +1455,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "CreateLink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "CreateLink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("CreateLink"))): 5,
 			},
 		},
 		{
@@ -1464,7 +1464,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "CreateSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "CreateSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("CreateSymlink"))): 5,
 			},
 		},
 		{
@@ -1473,7 +1473,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "Fallocate")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "Fallocate")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("Fallocate"))): 5,
 			},
 		},
 		{
@@ -1482,7 +1482,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "FlushFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "FlushFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("FlushFile"))): 5,
 			},
 		},
 		{
@@ -1491,7 +1491,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "ForgetInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ForgetInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("ForgetInode"))): 5,
 			},
 		},
 		{
@@ -1500,7 +1500,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "GetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "GetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("GetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -1509,7 +1509,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "GetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "GetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("GetXattr"))): 5,
 			},
 		},
 		{
@@ -1518,7 +1518,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "ListXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ListXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("ListXattr"))): 5,
 			},
 		},
 		{
@@ -1527,7 +1527,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "LookUpInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "LookUpInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("LookUpInode"))): 5,
 			},
 		},
 		{
@@ -1536,7 +1536,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "MkDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "MkDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("MkDir"))): 5,
 			},
 		},
 		{
@@ -1545,7 +1545,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "MkNode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "MkNode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("MkNode"))): 5,
 			},
 		},
 		{
@@ -1554,7 +1554,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "OpenDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "OpenDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("OpenDir"))): 5,
 			},
 		},
 		{
@@ -1563,7 +1563,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "OpenFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "OpenFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("OpenFile"))): 5,
 			},
 		},
 		{
@@ -1572,7 +1572,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "ReadDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ReadDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("ReadDir"))): 5,
 			},
 		},
 		{
@@ -1581,7 +1581,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "ReadDirPlus")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ReadDirPlus")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("ReadDirPlus"))): 5,
 			},
 		},
 		{
@@ -1590,7 +1590,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "ReadFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ReadFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("ReadFile"))): 5,
 			},
 		},
 		{
@@ -1599,7 +1599,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "ReadSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ReadSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("ReadSymlink"))): 5,
 			},
 		},
 		{
@@ -1608,7 +1608,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "ReleaseDirHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("ReleaseDirHandle"))): 5,
 			},
 		},
 		{
@@ -1617,7 +1617,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "ReleaseFileHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("ReleaseFileHandle"))): 5,
 			},
 		},
 		{
@@ -1626,7 +1626,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "RemoveXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "RemoveXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("RemoveXattr"))): 5,
 			},
 		},
 		{
@@ -1635,7 +1635,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "Rename")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "Rename")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("Rename"))): 5,
 			},
 		},
 		{
@@ -1644,7 +1644,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "RmDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "RmDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("RmDir"))): 5,
 			},
 		},
 		{
@@ -1653,7 +1653,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "SetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "SetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("SetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -1662,7 +1662,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "SetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "SetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("SetXattr"))): 5,
 			},
 		},
 		{
@@ -1671,7 +1671,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "StatFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "StatFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("StatFS"))): 5,
 			},
 		},
 		{
@@ -1680,7 +1680,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "SyncFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "SyncFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("SyncFS"))): 5,
 			},
 		},
 		{
@@ -1689,7 +1689,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "SyncFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "SyncFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("SyncFile"))): 5,
 			},
 		},
 		{
@@ -1698,7 +1698,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "Unlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "Unlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("Unlink"))): 5,
 			},
 		},
 		{
@@ -1707,7 +1707,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "WriteFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "WriteFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_DIR_ERROR")), attribute.String("fs_op", string("WriteFile"))): 5,
 			},
 		},
 		{
@@ -1716,7 +1716,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "BatchForget")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "BatchForget")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("BatchForget"))): 5,
 			},
 		},
 		{
@@ -1725,7 +1725,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "CreateFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "CreateFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("CreateFile"))): 5,
 			},
 		},
 		{
@@ -1734,7 +1734,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "CreateLink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "CreateLink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("CreateLink"))): 5,
 			},
 		},
 		{
@@ -1743,7 +1743,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "CreateSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "CreateSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("CreateSymlink"))): 5,
 			},
 		},
 		{
@@ -1752,7 +1752,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "Fallocate")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "Fallocate")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("Fallocate"))): 5,
 			},
 		},
 		{
@@ -1761,7 +1761,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "FlushFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "FlushFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("FlushFile"))): 5,
 			},
 		},
 		{
@@ -1770,7 +1770,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "ForgetInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ForgetInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("ForgetInode"))): 5,
 			},
 		},
 		{
@@ -1779,7 +1779,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "GetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "GetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("GetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -1788,7 +1788,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "GetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "GetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("GetXattr"))): 5,
 			},
 		},
 		{
@@ -1797,7 +1797,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "ListXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ListXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("ListXattr"))): 5,
 			},
 		},
 		{
@@ -1806,7 +1806,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "LookUpInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "LookUpInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("LookUpInode"))): 5,
 			},
 		},
 		{
@@ -1815,7 +1815,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "MkDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "MkDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("MkDir"))): 5,
 			},
 		},
 		{
@@ -1824,7 +1824,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "MkNode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "MkNode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("MkNode"))): 5,
 			},
 		},
 		{
@@ -1833,7 +1833,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "OpenDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "OpenDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("OpenDir"))): 5,
 			},
 		},
 		{
@@ -1842,7 +1842,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "OpenFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "OpenFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("OpenFile"))): 5,
 			},
 		},
 		{
@@ -1851,7 +1851,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "ReadDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ReadDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("ReadDir"))): 5,
 			},
 		},
 		{
@@ -1860,7 +1860,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "ReadDirPlus")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ReadDirPlus")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("ReadDirPlus"))): 5,
 			},
 		},
 		{
@@ -1869,7 +1869,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "ReadFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ReadFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("ReadFile"))): 5,
 			},
 		},
 		{
@@ -1878,7 +1878,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "ReadSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ReadSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("ReadSymlink"))): 5,
 			},
 		},
 		{
@@ -1887,7 +1887,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "ReleaseDirHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("ReleaseDirHandle"))): 5,
 			},
 		},
 		{
@@ -1896,7 +1896,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "ReleaseFileHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("ReleaseFileHandle"))): 5,
 			},
 		},
 		{
@@ -1905,7 +1905,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "RemoveXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "RemoveXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("RemoveXattr"))): 5,
 			},
 		},
 		{
@@ -1914,7 +1914,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "Rename")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "Rename")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("Rename"))): 5,
 			},
 		},
 		{
@@ -1923,7 +1923,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "RmDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "RmDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("RmDir"))): 5,
 			},
 		},
 		{
@@ -1932,7 +1932,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "SetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "SetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("SetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -1941,7 +1941,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "SetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "SetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("SetXattr"))): 5,
 			},
 		},
 		{
@@ -1950,7 +1950,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "StatFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "StatFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("StatFS"))): 5,
 			},
 		},
 		{
@@ -1959,7 +1959,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "SyncFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "SyncFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("SyncFS"))): 5,
 			},
 		},
 		{
@@ -1968,7 +1968,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "SyncFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "SyncFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("SyncFile"))): 5,
 			},
 		},
 		{
@@ -1977,7 +1977,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "Unlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "Unlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("Unlink"))): 5,
 			},
 		},
 		{
@@ -1986,7 +1986,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "FILE_EXISTS", "WriteFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "WriteFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("FILE_EXISTS")), attribute.String("fs_op", string("WriteFile"))): 5,
 			},
 		},
 		{
@@ -1995,7 +1995,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "BatchForget")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "BatchForget")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("BatchForget"))): 5,
 			},
 		},
 		{
@@ -2004,7 +2004,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "CreateFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "CreateFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("CreateFile"))): 5,
 			},
 		},
 		{
@@ -2013,7 +2013,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "CreateLink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "CreateLink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("CreateLink"))): 5,
 			},
 		},
 		{
@@ -2022,7 +2022,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "CreateSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "CreateSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("CreateSymlink"))): 5,
 			},
 		},
 		{
@@ -2031,7 +2031,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "Fallocate")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "Fallocate")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("Fallocate"))): 5,
 			},
 		},
 		{
@@ -2040,7 +2040,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "FlushFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "FlushFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("FlushFile"))): 5,
 			},
 		},
 		{
@@ -2049,7 +2049,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "ForgetInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ForgetInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("ForgetInode"))): 5,
 			},
 		},
 		{
@@ -2058,7 +2058,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "GetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "GetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("GetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -2067,7 +2067,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "GetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "GetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("GetXattr"))): 5,
 			},
 		},
 		{
@@ -2076,7 +2076,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "ListXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ListXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("ListXattr"))): 5,
 			},
 		},
 		{
@@ -2085,7 +2085,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "LookUpInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "LookUpInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("LookUpInode"))): 5,
 			},
 		},
 		{
@@ -2094,7 +2094,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "MkDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "MkDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("MkDir"))): 5,
 			},
 		},
 		{
@@ -2103,7 +2103,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "MkNode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "MkNode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("MkNode"))): 5,
 			},
 		},
 		{
@@ -2112,7 +2112,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "OpenDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "OpenDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("OpenDir"))): 5,
 			},
 		},
 		{
@@ -2121,7 +2121,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "OpenFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "OpenFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("OpenFile"))): 5,
 			},
 		},
 		{
@@ -2130,7 +2130,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "ReadDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ReadDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("ReadDir"))): 5,
 			},
 		},
 		{
@@ -2139,7 +2139,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "ReadDirPlus")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ReadDirPlus")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("ReadDirPlus"))): 5,
 			},
 		},
 		{
@@ -2148,7 +2148,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "ReadFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ReadFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("ReadFile"))): 5,
 			},
 		},
 		{
@@ -2157,7 +2157,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "ReadSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ReadSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("ReadSymlink"))): 5,
 			},
 		},
 		{
@@ -2166,7 +2166,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "ReleaseDirHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("ReleaseDirHandle"))): 5,
 			},
 		},
 		{
@@ -2175,7 +2175,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "ReleaseFileHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("ReleaseFileHandle"))): 5,
 			},
 		},
 		{
@@ -2184,7 +2184,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "RemoveXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "RemoveXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("RemoveXattr"))): 5,
 			},
 		},
 		{
@@ -2193,7 +2193,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "Rename")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "Rename")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("Rename"))): 5,
 			},
 		},
 		{
@@ -2202,7 +2202,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "RmDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "RmDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("RmDir"))): 5,
 			},
 		},
 		{
@@ -2211,7 +2211,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "SetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "SetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("SetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -2220,7 +2220,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "SetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "SetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("SetXattr"))): 5,
 			},
 		},
 		{
@@ -2229,7 +2229,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "StatFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "StatFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("StatFS"))): 5,
 			},
 		},
 		{
@@ -2238,7 +2238,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "SyncFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "SyncFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("SyncFS"))): 5,
 			},
 		},
 		{
@@ -2247,7 +2247,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "SyncFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "SyncFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("SyncFile"))): 5,
 			},
 		},
 		{
@@ -2256,7 +2256,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "Unlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "Unlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("Unlink"))): 5,
 			},
 		},
 		{
@@ -2265,7 +2265,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "WriteFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "WriteFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INTERRUPT_ERROR")), attribute.String("fs_op", string("WriteFile"))): 5,
 			},
 		},
 		{
@@ -2274,7 +2274,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "BatchForget")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "BatchForget")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("BatchForget"))): 5,
 			},
 		},
 		{
@@ -2283,7 +2283,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "CreateFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "CreateFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("CreateFile"))): 5,
 			},
 		},
 		{
@@ -2292,7 +2292,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "CreateLink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "CreateLink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("CreateLink"))): 5,
 			},
 		},
 		{
@@ -2301,7 +2301,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "CreateSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "CreateSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("CreateSymlink"))): 5,
 			},
 		},
 		{
@@ -2310,7 +2310,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "Fallocate")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "Fallocate")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("Fallocate"))): 5,
 			},
 		},
 		{
@@ -2319,7 +2319,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "FlushFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "FlushFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("FlushFile"))): 5,
 			},
 		},
 		{
@@ -2328,7 +2328,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "ForgetInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ForgetInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("ForgetInode"))): 5,
 			},
 		},
 		{
@@ -2337,7 +2337,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "GetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "GetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("GetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -2346,7 +2346,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "GetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "GetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("GetXattr"))): 5,
 			},
 		},
 		{
@@ -2355,7 +2355,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "ListXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ListXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("ListXattr"))): 5,
 			},
 		},
 		{
@@ -2364,7 +2364,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "LookUpInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "LookUpInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("LookUpInode"))): 5,
 			},
 		},
 		{
@@ -2373,7 +2373,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "MkDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "MkDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("MkDir"))): 5,
 			},
 		},
 		{
@@ -2382,7 +2382,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "MkNode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "MkNode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("MkNode"))): 5,
 			},
 		},
 		{
@@ -2391,7 +2391,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "OpenDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "OpenDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("OpenDir"))): 5,
 			},
 		},
 		{
@@ -2400,7 +2400,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "OpenFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "OpenFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("OpenFile"))): 5,
 			},
 		},
 		{
@@ -2409,7 +2409,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "ReadDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ReadDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("ReadDir"))): 5,
 			},
 		},
 		{
@@ -2418,7 +2418,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "ReadDirPlus")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ReadDirPlus")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("ReadDirPlus"))): 5,
 			},
 		},
 		{
@@ -2427,7 +2427,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "ReadFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ReadFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("ReadFile"))): 5,
 			},
 		},
 		{
@@ -2436,7 +2436,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "ReadSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ReadSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("ReadSymlink"))): 5,
 			},
 		},
 		{
@@ -2445,7 +2445,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "ReleaseDirHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("ReleaseDirHandle"))): 5,
 			},
 		},
 		{
@@ -2454,7 +2454,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "ReleaseFileHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("ReleaseFileHandle"))): 5,
 			},
 		},
 		{
@@ -2463,7 +2463,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "RemoveXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "RemoveXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("RemoveXattr"))): 5,
 			},
 		},
 		{
@@ -2472,7 +2472,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "Rename")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "Rename")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("Rename"))): 5,
 			},
 		},
 		{
@@ -2481,7 +2481,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "RmDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "RmDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("RmDir"))): 5,
 			},
 		},
 		{
@@ -2490,7 +2490,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "SetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "SetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("SetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -2499,7 +2499,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "SetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "SetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("SetXattr"))): 5,
 			},
 		},
 		{
@@ -2508,7 +2508,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "StatFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "StatFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("StatFS"))): 5,
 			},
 		},
 		{
@@ -2517,7 +2517,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "SyncFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "SyncFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("SyncFS"))): 5,
 			},
 		},
 		{
@@ -2526,7 +2526,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "SyncFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "SyncFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("SyncFile"))): 5,
 			},
 		},
 		{
@@ -2535,7 +2535,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "Unlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "Unlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("Unlink"))): 5,
 			},
 		},
 		{
@@ -2544,7 +2544,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "WriteFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "WriteFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_ARGUMENT")), attribute.String("fs_op", string("WriteFile"))): 5,
 			},
 		},
 		{
@@ -2553,7 +2553,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "BatchForget")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "BatchForget")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("BatchForget"))): 5,
 			},
 		},
 		{
@@ -2562,7 +2562,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "CreateFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "CreateFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("CreateFile"))): 5,
 			},
 		},
 		{
@@ -2571,7 +2571,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "CreateLink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "CreateLink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("CreateLink"))): 5,
 			},
 		},
 		{
@@ -2580,7 +2580,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "CreateSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "CreateSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("CreateSymlink"))): 5,
 			},
 		},
 		{
@@ -2589,7 +2589,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "Fallocate")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "Fallocate")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("Fallocate"))): 5,
 			},
 		},
 		{
@@ -2598,7 +2598,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "FlushFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "FlushFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("FlushFile"))): 5,
 			},
 		},
 		{
@@ -2607,7 +2607,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "ForgetInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ForgetInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("ForgetInode"))): 5,
 			},
 		},
 		{
@@ -2616,7 +2616,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "GetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "GetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("GetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -2625,7 +2625,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "GetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "GetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("GetXattr"))): 5,
 			},
 		},
 		{
@@ -2634,7 +2634,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "ListXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ListXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("ListXattr"))): 5,
 			},
 		},
 		{
@@ -2643,7 +2643,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "LookUpInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "LookUpInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("LookUpInode"))): 5,
 			},
 		},
 		{
@@ -2652,7 +2652,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "MkDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "MkDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("MkDir"))): 5,
 			},
 		},
 		{
@@ -2661,7 +2661,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "MkNode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "MkNode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("MkNode"))): 5,
 			},
 		},
 		{
@@ -2670,7 +2670,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "OpenDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "OpenDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("OpenDir"))): 5,
 			},
 		},
 		{
@@ -2679,7 +2679,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "OpenFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "OpenFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("OpenFile"))): 5,
 			},
 		},
 		{
@@ -2688,7 +2688,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "ReadDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ReadDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("ReadDir"))): 5,
 			},
 		},
 		{
@@ -2697,7 +2697,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "ReadDirPlus")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ReadDirPlus")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("ReadDirPlus"))): 5,
 			},
 		},
 		{
@@ -2706,7 +2706,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "ReadFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ReadFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("ReadFile"))): 5,
 			},
 		},
 		{
@@ -2715,7 +2715,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "ReadSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ReadSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("ReadSymlink"))): 5,
 			},
 		},
 		{
@@ -2724,7 +2724,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "ReleaseDirHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("ReleaseDirHandle"))): 5,
 			},
 		},
 		{
@@ -2733,7 +2733,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "ReleaseFileHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("ReleaseFileHandle"))): 5,
 			},
 		},
 		{
@@ -2742,7 +2742,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "RemoveXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "RemoveXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("RemoveXattr"))): 5,
 			},
 		},
 		{
@@ -2751,7 +2751,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "Rename")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "Rename")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("Rename"))): 5,
 			},
 		},
 		{
@@ -2760,7 +2760,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "RmDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "RmDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("RmDir"))): 5,
 			},
 		},
 		{
@@ -2769,7 +2769,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "SetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "SetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("SetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -2778,7 +2778,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "SetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "SetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("SetXattr"))): 5,
 			},
 		},
 		{
@@ -2787,7 +2787,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "StatFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "StatFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("StatFS"))): 5,
 			},
 		},
 		{
@@ -2796,7 +2796,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "SyncFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "SyncFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("SyncFS"))): 5,
 			},
 		},
 		{
@@ -2805,7 +2805,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "SyncFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "SyncFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("SyncFile"))): 5,
 			},
 		},
 		{
@@ -2814,7 +2814,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "Unlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "Unlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("Unlink"))): 5,
 			},
 		},
 		{
@@ -2823,7 +2823,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "INVALID_OPERATION", "WriteFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "WriteFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("INVALID_OPERATION")), attribute.String("fs_op", string("WriteFile"))): 5,
 			},
 		},
 		{
@@ -2832,7 +2832,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "BatchForget")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "BatchForget")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("BatchForget"))): 5,
 			},
 		},
 		{
@@ -2841,7 +2841,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "CreateFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "CreateFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("CreateFile"))): 5,
 			},
 		},
 		{
@@ -2850,7 +2850,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "CreateLink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "CreateLink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("CreateLink"))): 5,
 			},
 		},
 		{
@@ -2859,7 +2859,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "CreateSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "CreateSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("CreateSymlink"))): 5,
 			},
 		},
 		{
@@ -2868,7 +2868,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "Fallocate")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "Fallocate")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("Fallocate"))): 5,
 			},
 		},
 		{
@@ -2877,7 +2877,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "FlushFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "FlushFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("FlushFile"))): 5,
 			},
 		},
 		{
@@ -2886,7 +2886,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "ForgetInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ForgetInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("ForgetInode"))): 5,
 			},
 		},
 		{
@@ -2895,7 +2895,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "GetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "GetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("GetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -2904,7 +2904,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "GetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "GetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("GetXattr"))): 5,
 			},
 		},
 		{
@@ -2913,7 +2913,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "ListXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ListXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("ListXattr"))): 5,
 			},
 		},
 		{
@@ -2922,7 +2922,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "LookUpInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "LookUpInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("LookUpInode"))): 5,
 			},
 		},
 		{
@@ -2931,7 +2931,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "MkDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "MkDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("MkDir"))): 5,
 			},
 		},
 		{
@@ -2940,7 +2940,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "MkNode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "MkNode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("MkNode"))): 5,
 			},
 		},
 		{
@@ -2949,7 +2949,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "OpenDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "OpenDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("OpenDir"))): 5,
 			},
 		},
 		{
@@ -2958,7 +2958,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "OpenFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "OpenFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("OpenFile"))): 5,
 			},
 		},
 		{
@@ -2967,7 +2967,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "ReadDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ReadDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("ReadDir"))): 5,
 			},
 		},
 		{
@@ -2976,7 +2976,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "ReadDirPlus")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ReadDirPlus")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("ReadDirPlus"))): 5,
 			},
 		},
 		{
@@ -2985,7 +2985,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "ReadFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ReadFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("ReadFile"))): 5,
 			},
 		},
 		{
@@ -2994,7 +2994,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "ReadSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ReadSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("ReadSymlink"))): 5,
 			},
 		},
 		{
@@ -3003,7 +3003,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "ReleaseDirHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("ReleaseDirHandle"))): 5,
 			},
 		},
 		{
@@ -3012,7 +3012,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "ReleaseFileHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("ReleaseFileHandle"))): 5,
 			},
 		},
 		{
@@ -3021,7 +3021,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "RemoveXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "RemoveXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("RemoveXattr"))): 5,
 			},
 		},
 		{
@@ -3030,7 +3030,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "Rename")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "Rename")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("Rename"))): 5,
 			},
 		},
 		{
@@ -3039,7 +3039,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "RmDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "RmDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("RmDir"))): 5,
 			},
 		},
 		{
@@ -3048,7 +3048,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "SetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "SetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("SetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -3057,7 +3057,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "SetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "SetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("SetXattr"))): 5,
 			},
 		},
 		{
@@ -3066,7 +3066,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "StatFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "StatFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("StatFS"))): 5,
 			},
 		},
 		{
@@ -3075,7 +3075,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "SyncFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "SyncFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("SyncFS"))): 5,
 			},
 		},
 		{
@@ -3084,7 +3084,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "SyncFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "SyncFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("SyncFile"))): 5,
 			},
 		},
 		{
@@ -3093,7 +3093,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "Unlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "Unlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("Unlink"))): 5,
 			},
 		},
 		{
@@ -3102,7 +3102,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "IO_ERROR", "WriteFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "WriteFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("IO_ERROR")), attribute.String("fs_op", string("WriteFile"))): 5,
 			},
 		},
 		{
@@ -3111,7 +3111,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "BatchForget")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "BatchForget")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("BatchForget"))): 5,
 			},
 		},
 		{
@@ -3120,7 +3120,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "CreateFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "CreateFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("CreateFile"))): 5,
 			},
 		},
 		{
@@ -3129,7 +3129,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "CreateLink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "CreateLink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("CreateLink"))): 5,
 			},
 		},
 		{
@@ -3138,7 +3138,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "CreateSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "CreateSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("CreateSymlink"))): 5,
 			},
 		},
 		{
@@ -3147,7 +3147,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "Fallocate")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "Fallocate")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("Fallocate"))): 5,
 			},
 		},
 		{
@@ -3156,7 +3156,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "FlushFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "FlushFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("FlushFile"))): 5,
 			},
 		},
 		{
@@ -3165,7 +3165,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "ForgetInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ForgetInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("ForgetInode"))): 5,
 			},
 		},
 		{
@@ -3174,7 +3174,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "GetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "GetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("GetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -3183,7 +3183,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "GetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "GetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("GetXattr"))): 5,
 			},
 		},
 		{
@@ -3192,7 +3192,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "ListXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ListXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("ListXattr"))): 5,
 			},
 		},
 		{
@@ -3201,7 +3201,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "LookUpInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "LookUpInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("LookUpInode"))): 5,
 			},
 		},
 		{
@@ -3210,7 +3210,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "MkDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "MkDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("MkDir"))): 5,
 			},
 		},
 		{
@@ -3219,7 +3219,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "MkNode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "MkNode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("MkNode"))): 5,
 			},
 		},
 		{
@@ -3228,7 +3228,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "OpenDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "OpenDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("OpenDir"))): 5,
 			},
 		},
 		{
@@ -3237,7 +3237,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "OpenFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "OpenFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("OpenFile"))): 5,
 			},
 		},
 		{
@@ -3246,7 +3246,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "ReadDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ReadDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("ReadDir"))): 5,
 			},
 		},
 		{
@@ -3255,7 +3255,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "ReadDirPlus")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ReadDirPlus")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("ReadDirPlus"))): 5,
 			},
 		},
 		{
@@ -3264,7 +3264,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "ReadFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ReadFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("ReadFile"))): 5,
 			},
 		},
 		{
@@ -3273,7 +3273,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "ReadSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ReadSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("ReadSymlink"))): 5,
 			},
 		},
 		{
@@ -3282,7 +3282,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "ReleaseDirHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("ReleaseDirHandle"))): 5,
 			},
 		},
 		{
@@ -3291,7 +3291,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "ReleaseFileHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("ReleaseFileHandle"))): 5,
 			},
 		},
 		{
@@ -3300,7 +3300,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "RemoveXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "RemoveXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("RemoveXattr"))): 5,
 			},
 		},
 		{
@@ -3309,7 +3309,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "Rename")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "Rename")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("Rename"))): 5,
 			},
 		},
 		{
@@ -3318,7 +3318,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "RmDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "RmDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("RmDir"))): 5,
 			},
 		},
 		{
@@ -3327,7 +3327,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "SetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "SetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("SetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -3336,7 +3336,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "SetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "SetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("SetXattr"))): 5,
 			},
 		},
 		{
@@ -3345,7 +3345,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "StatFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "StatFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("StatFS"))): 5,
 			},
 		},
 		{
@@ -3354,7 +3354,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "SyncFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "SyncFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("SyncFS"))): 5,
 			},
 		},
 		{
@@ -3363,7 +3363,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "SyncFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "SyncFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("SyncFile"))): 5,
 			},
 		},
 		{
@@ -3372,7 +3372,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "Unlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "Unlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("Unlink"))): 5,
 			},
 		},
 		{
@@ -3381,7 +3381,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "MISC_ERROR", "WriteFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "WriteFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("MISC_ERROR")), attribute.String("fs_op", string("WriteFile"))): 5,
 			},
 		},
 		{
@@ -3390,7 +3390,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "BatchForget")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "BatchForget")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("BatchForget"))): 5,
 			},
 		},
 		{
@@ -3399,7 +3399,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "CreateFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "CreateFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("CreateFile"))): 5,
 			},
 		},
 		{
@@ -3408,7 +3408,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "CreateLink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "CreateLink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("CreateLink"))): 5,
 			},
 		},
 		{
@@ -3417,7 +3417,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "CreateSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "CreateSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("CreateSymlink"))): 5,
 			},
 		},
 		{
@@ -3426,7 +3426,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "Fallocate")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "Fallocate")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("Fallocate"))): 5,
 			},
 		},
 		{
@@ -3435,7 +3435,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "FlushFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "FlushFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("FlushFile"))): 5,
 			},
 		},
 		{
@@ -3444,7 +3444,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "ForgetInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ForgetInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("ForgetInode"))): 5,
 			},
 		},
 		{
@@ -3453,7 +3453,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "GetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "GetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("GetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -3462,7 +3462,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "GetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "GetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("GetXattr"))): 5,
 			},
 		},
 		{
@@ -3471,7 +3471,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "ListXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ListXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("ListXattr"))): 5,
 			},
 		},
 		{
@@ -3480,7 +3480,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "LookUpInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "LookUpInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("LookUpInode"))): 5,
 			},
 		},
 		{
@@ -3489,7 +3489,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "MkDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "MkDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("MkDir"))): 5,
 			},
 		},
 		{
@@ -3498,7 +3498,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "MkNode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "MkNode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("MkNode"))): 5,
 			},
 		},
 		{
@@ -3507,7 +3507,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "OpenDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "OpenDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("OpenDir"))): 5,
 			},
 		},
 		{
@@ -3516,7 +3516,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "OpenFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "OpenFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("OpenFile"))): 5,
 			},
 		},
 		{
@@ -3525,7 +3525,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "ReadDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ReadDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("ReadDir"))): 5,
 			},
 		},
 		{
@@ -3534,7 +3534,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "ReadDirPlus")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ReadDirPlus")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("ReadDirPlus"))): 5,
 			},
 		},
 		{
@@ -3543,7 +3543,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "ReadFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ReadFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("ReadFile"))): 5,
 			},
 		},
 		{
@@ -3552,7 +3552,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "ReadSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ReadSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("ReadSymlink"))): 5,
 			},
 		},
 		{
@@ -3561,7 +3561,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "ReleaseDirHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("ReleaseDirHandle"))): 5,
 			},
 		},
 		{
@@ -3570,7 +3570,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "ReleaseFileHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("ReleaseFileHandle"))): 5,
 			},
 		},
 		{
@@ -3579,7 +3579,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "RemoveXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "RemoveXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("RemoveXattr"))): 5,
 			},
 		},
 		{
@@ -3588,7 +3588,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "Rename")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "Rename")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("Rename"))): 5,
 			},
 		},
 		{
@@ -3597,7 +3597,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "RmDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "RmDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("RmDir"))): 5,
 			},
 		},
 		{
@@ -3606,7 +3606,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "SetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "SetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("SetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -3615,7 +3615,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "SetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "SetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("SetXattr"))): 5,
 			},
 		},
 		{
@@ -3624,7 +3624,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "StatFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "StatFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("StatFS"))): 5,
 			},
 		},
 		{
@@ -3633,7 +3633,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "SyncFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "SyncFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("SyncFS"))): 5,
 			},
 		},
 		{
@@ -3642,7 +3642,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "SyncFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "SyncFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("SyncFile"))): 5,
 			},
 		},
 		{
@@ -3651,7 +3651,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "Unlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "Unlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("Unlink"))): 5,
 			},
 		},
 		{
@@ -3660,7 +3660,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NETWORK_ERROR", "WriteFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "WriteFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NETWORK_ERROR")), attribute.String("fs_op", string("WriteFile"))): 5,
 			},
 		},
 		{
@@ -3669,7 +3669,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "BatchForget")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "BatchForget")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("BatchForget"))): 5,
 			},
 		},
 		{
@@ -3678,7 +3678,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "CreateFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "CreateFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("CreateFile"))): 5,
 			},
 		},
 		{
@@ -3687,7 +3687,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "CreateLink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "CreateLink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("CreateLink"))): 5,
 			},
 		},
 		{
@@ -3696,7 +3696,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "CreateSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "CreateSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("CreateSymlink"))): 5,
 			},
 		},
 		{
@@ -3705,7 +3705,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "Fallocate")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "Fallocate")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("Fallocate"))): 5,
 			},
 		},
 		{
@@ -3714,7 +3714,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "FlushFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "FlushFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("FlushFile"))): 5,
 			},
 		},
 		{
@@ -3723,7 +3723,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "ForgetInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ForgetInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("ForgetInode"))): 5,
 			},
 		},
 		{
@@ -3732,7 +3732,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "GetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "GetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("GetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -3741,7 +3741,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "GetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "GetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("GetXattr"))): 5,
 			},
 		},
 		{
@@ -3750,7 +3750,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "ListXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ListXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("ListXattr"))): 5,
 			},
 		},
 		{
@@ -3759,7 +3759,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "LookUpInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "LookUpInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("LookUpInode"))): 5,
 			},
 		},
 		{
@@ -3768,7 +3768,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "MkDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "MkDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("MkDir"))): 5,
 			},
 		},
 		{
@@ -3777,7 +3777,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "MkNode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "MkNode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("MkNode"))): 5,
 			},
 		},
 		{
@@ -3786,7 +3786,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "OpenDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "OpenDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("OpenDir"))): 5,
 			},
 		},
 		{
@@ -3795,7 +3795,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "OpenFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "OpenFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("OpenFile"))): 5,
 			},
 		},
 		{
@@ -3804,7 +3804,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "ReadDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ReadDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("ReadDir"))): 5,
 			},
 		},
 		{
@@ -3813,7 +3813,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "ReadDirPlus")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ReadDirPlus")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("ReadDirPlus"))): 5,
 			},
 		},
 		{
@@ -3822,7 +3822,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "ReadFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ReadFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("ReadFile"))): 5,
 			},
 		},
 		{
@@ -3831,7 +3831,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "ReadSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ReadSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("ReadSymlink"))): 5,
 			},
 		},
 		{
@@ -3840,7 +3840,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "ReleaseDirHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("ReleaseDirHandle"))): 5,
 			},
 		},
 		{
@@ -3849,7 +3849,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "ReleaseFileHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("ReleaseFileHandle"))): 5,
 			},
 		},
 		{
@@ -3858,7 +3858,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "RemoveXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "RemoveXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("RemoveXattr"))): 5,
 			},
 		},
 		{
@@ -3867,7 +3867,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "Rename")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "Rename")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("Rename"))): 5,
 			},
 		},
 		{
@@ -3876,7 +3876,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "RmDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "RmDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("RmDir"))): 5,
 			},
 		},
 		{
@@ -3885,7 +3885,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "SetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "SetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("SetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -3894,7 +3894,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "SetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "SetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("SetXattr"))): 5,
 			},
 		},
 		{
@@ -3903,7 +3903,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "StatFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "StatFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("StatFS"))): 5,
 			},
 		},
 		{
@@ -3912,7 +3912,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "SyncFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "SyncFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("SyncFS"))): 5,
 			},
 		},
 		{
@@ -3921,7 +3921,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "SyncFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "SyncFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("SyncFile"))): 5,
 			},
 		},
 		{
@@ -3930,7 +3930,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "Unlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "Unlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("Unlink"))): 5,
 			},
 		},
 		{
@@ -3939,7 +3939,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_A_DIR", "WriteFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "WriteFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_A_DIR")), attribute.String("fs_op", string("WriteFile"))): 5,
 			},
 		},
 		{
@@ -3948,7 +3948,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "BatchForget")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "BatchForget")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("BatchForget"))): 5,
 			},
 		},
 		{
@@ -3957,7 +3957,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "CreateFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "CreateFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("CreateFile"))): 5,
 			},
 		},
 		{
@@ -3966,7 +3966,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "CreateLink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "CreateLink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("CreateLink"))): 5,
 			},
 		},
 		{
@@ -3975,7 +3975,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "CreateSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "CreateSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("CreateSymlink"))): 5,
 			},
 		},
 		{
@@ -3984,7 +3984,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "Fallocate")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "Fallocate")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("Fallocate"))): 5,
 			},
 		},
 		{
@@ -3993,7 +3993,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "FlushFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "FlushFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("FlushFile"))): 5,
 			},
 		},
 		{
@@ -4002,7 +4002,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "ForgetInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ForgetInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("ForgetInode"))): 5,
 			},
 		},
 		{
@@ -4011,7 +4011,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "GetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "GetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("GetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -4020,7 +4020,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "GetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "GetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("GetXattr"))): 5,
 			},
 		},
 		{
@@ -4029,7 +4029,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "ListXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ListXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("ListXattr"))): 5,
 			},
 		},
 		{
@@ -4038,7 +4038,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "LookUpInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "LookUpInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("LookUpInode"))): 5,
 			},
 		},
 		{
@@ -4047,7 +4047,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "MkDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "MkDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("MkDir"))): 5,
 			},
 		},
 		{
@@ -4056,7 +4056,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "MkNode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "MkNode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("MkNode"))): 5,
 			},
 		},
 		{
@@ -4065,7 +4065,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "OpenDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "OpenDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("OpenDir"))): 5,
 			},
 		},
 		{
@@ -4074,7 +4074,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "OpenFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "OpenFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("OpenFile"))): 5,
 			},
 		},
 		{
@@ -4083,7 +4083,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "ReadDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ReadDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("ReadDir"))): 5,
 			},
 		},
 		{
@@ -4092,7 +4092,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "ReadDirPlus")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ReadDirPlus")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("ReadDirPlus"))): 5,
 			},
 		},
 		{
@@ -4101,7 +4101,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "ReadFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ReadFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("ReadFile"))): 5,
 			},
 		},
 		{
@@ -4110,7 +4110,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "ReadSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ReadSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("ReadSymlink"))): 5,
 			},
 		},
 		{
@@ -4119,7 +4119,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "ReleaseDirHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("ReleaseDirHandle"))): 5,
 			},
 		},
 		{
@@ -4128,7 +4128,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "ReleaseFileHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("ReleaseFileHandle"))): 5,
 			},
 		},
 		{
@@ -4137,7 +4137,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "RemoveXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "RemoveXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("RemoveXattr"))): 5,
 			},
 		},
 		{
@@ -4146,7 +4146,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "Rename")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "Rename")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("Rename"))): 5,
 			},
 		},
 		{
@@ -4155,7 +4155,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "RmDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "RmDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("RmDir"))): 5,
 			},
 		},
 		{
@@ -4164,7 +4164,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "SetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "SetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("SetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -4173,7 +4173,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "SetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "SetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("SetXattr"))): 5,
 			},
 		},
 		{
@@ -4182,7 +4182,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "StatFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "StatFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("StatFS"))): 5,
 			},
 		},
 		{
@@ -4191,7 +4191,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "SyncFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "SyncFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("SyncFS"))): 5,
 			},
 		},
 		{
@@ -4200,7 +4200,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "SyncFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "SyncFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("SyncFile"))): 5,
 			},
 		},
 		{
@@ -4209,7 +4209,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "Unlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "Unlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("Unlink"))): 5,
 			},
 		},
 		{
@@ -4218,7 +4218,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "WriteFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "WriteFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NOT_IMPLEMENTED")), attribute.String("fs_op", string("WriteFile"))): 5,
 			},
 		},
 		{
@@ -4227,7 +4227,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "BatchForget")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "BatchForget")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("BatchForget"))): 5,
 			},
 		},
 		{
@@ -4236,7 +4236,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "CreateFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "CreateFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("CreateFile"))): 5,
 			},
 		},
 		{
@@ -4245,7 +4245,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "CreateLink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "CreateLink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("CreateLink"))): 5,
 			},
 		},
 		{
@@ -4254,7 +4254,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "CreateSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "CreateSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("CreateSymlink"))): 5,
 			},
 		},
 		{
@@ -4263,7 +4263,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "Fallocate")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "Fallocate")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("Fallocate"))): 5,
 			},
 		},
 		{
@@ -4272,7 +4272,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "FlushFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "FlushFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("FlushFile"))): 5,
 			},
 		},
 		{
@@ -4281,7 +4281,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "ForgetInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ForgetInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("ForgetInode"))): 5,
 			},
 		},
 		{
@@ -4290,7 +4290,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "GetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "GetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("GetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -4299,7 +4299,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "GetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "GetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("GetXattr"))): 5,
 			},
 		},
 		{
@@ -4308,7 +4308,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "ListXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ListXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("ListXattr"))): 5,
 			},
 		},
 		{
@@ -4317,7 +4317,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "LookUpInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "LookUpInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("LookUpInode"))): 5,
 			},
 		},
 		{
@@ -4326,7 +4326,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "MkDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "MkDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("MkDir"))): 5,
 			},
 		},
 		{
@@ -4335,7 +4335,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "MkNode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "MkNode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("MkNode"))): 5,
 			},
 		},
 		{
@@ -4344,7 +4344,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "OpenDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "OpenDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("OpenDir"))): 5,
 			},
 		},
 		{
@@ -4353,7 +4353,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "OpenFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "OpenFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("OpenFile"))): 5,
 			},
 		},
 		{
@@ -4362,7 +4362,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "ReadDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ReadDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("ReadDir"))): 5,
 			},
 		},
 		{
@@ -4371,7 +4371,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "ReadDirPlus")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ReadDirPlus")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("ReadDirPlus"))): 5,
 			},
 		},
 		{
@@ -4380,7 +4380,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "ReadFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ReadFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("ReadFile"))): 5,
 			},
 		},
 		{
@@ -4389,7 +4389,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "ReadSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ReadSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("ReadSymlink"))): 5,
 			},
 		},
 		{
@@ -4398,7 +4398,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "ReleaseDirHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("ReleaseDirHandle"))): 5,
 			},
 		},
 		{
@@ -4407,7 +4407,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "ReleaseFileHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("ReleaseFileHandle"))): 5,
 			},
 		},
 		{
@@ -4416,7 +4416,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "RemoveXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "RemoveXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("RemoveXattr"))): 5,
 			},
 		},
 		{
@@ -4425,7 +4425,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "Rename")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "Rename")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("Rename"))): 5,
 			},
 		},
 		{
@@ -4434,7 +4434,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "RmDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "RmDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("RmDir"))): 5,
 			},
 		},
 		{
@@ -4443,7 +4443,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "SetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "SetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("SetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -4452,7 +4452,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "SetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "SetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("SetXattr"))): 5,
 			},
 		},
 		{
@@ -4461,7 +4461,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "StatFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "StatFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("StatFS"))): 5,
 			},
 		},
 		{
@@ -4470,7 +4470,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "SyncFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "SyncFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("SyncFS"))): 5,
 			},
 		},
 		{
@@ -4479,7 +4479,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "SyncFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "SyncFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("SyncFile"))): 5,
 			},
 		},
 		{
@@ -4488,7 +4488,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "Unlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "Unlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("Unlink"))): 5,
 			},
 		},
 		{
@@ -4497,7 +4497,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "WriteFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "WriteFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("NO_FILE_OR_DIR")), attribute.String("fs_op", string("WriteFile"))): 5,
 			},
 		},
 		{
@@ -4506,7 +4506,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "BatchForget")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "BatchForget")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("BatchForget"))): 5,
 			},
 		},
 		{
@@ -4515,7 +4515,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "CreateFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "CreateFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("CreateFile"))): 5,
 			},
 		},
 		{
@@ -4524,7 +4524,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "CreateLink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "CreateLink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("CreateLink"))): 5,
 			},
 		},
 		{
@@ -4533,7 +4533,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "CreateSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "CreateSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("CreateSymlink"))): 5,
 			},
 		},
 		{
@@ -4542,7 +4542,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "Fallocate")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "Fallocate")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("Fallocate"))): 5,
 			},
 		},
 		{
@@ -4551,7 +4551,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "FlushFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "FlushFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("FlushFile"))): 5,
 			},
 		},
 		{
@@ -4560,7 +4560,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "ForgetInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ForgetInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("ForgetInode"))): 5,
 			},
 		},
 		{
@@ -4569,7 +4569,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "GetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "GetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("GetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -4578,7 +4578,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "GetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "GetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("GetXattr"))): 5,
 			},
 		},
 		{
@@ -4587,7 +4587,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "ListXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ListXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("ListXattr"))): 5,
 			},
 		},
 		{
@@ -4596,7 +4596,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "LookUpInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "LookUpInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("LookUpInode"))): 5,
 			},
 		},
 		{
@@ -4605,7 +4605,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "MkDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "MkDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("MkDir"))): 5,
 			},
 		},
 		{
@@ -4614,7 +4614,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "MkNode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "MkNode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("MkNode"))): 5,
 			},
 		},
 		{
@@ -4623,7 +4623,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "OpenDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "OpenDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("OpenDir"))): 5,
 			},
 		},
 		{
@@ -4632,7 +4632,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "OpenFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "OpenFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("OpenFile"))): 5,
 			},
 		},
 		{
@@ -4641,7 +4641,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "ReadDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ReadDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("ReadDir"))): 5,
 			},
 		},
 		{
@@ -4650,7 +4650,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "ReadDirPlus")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ReadDirPlus")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("ReadDirPlus"))): 5,
 			},
 		},
 		{
@@ -4659,7 +4659,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "ReadFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ReadFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("ReadFile"))): 5,
 			},
 		},
 		{
@@ -4668,7 +4668,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "ReadSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ReadSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("ReadSymlink"))): 5,
 			},
 		},
 		{
@@ -4677,7 +4677,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "ReleaseDirHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("ReleaseDirHandle"))): 5,
 			},
 		},
 		{
@@ -4686,7 +4686,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "ReleaseFileHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("ReleaseFileHandle"))): 5,
 			},
 		},
 		{
@@ -4695,7 +4695,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "RemoveXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "RemoveXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("RemoveXattr"))): 5,
 			},
 		},
 		{
@@ -4704,7 +4704,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "Rename")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "Rename")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("Rename"))): 5,
 			},
 		},
 		{
@@ -4713,7 +4713,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "RmDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "RmDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("RmDir"))): 5,
 			},
 		},
 		{
@@ -4722,7 +4722,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "SetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "SetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("SetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -4731,7 +4731,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "SetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "SetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("SetXattr"))): 5,
 			},
 		},
 		{
@@ -4740,7 +4740,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "StatFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "StatFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("StatFS"))): 5,
 			},
 		},
 		{
@@ -4749,7 +4749,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "SyncFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "SyncFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("SyncFS"))): 5,
 			},
 		},
 		{
@@ -4758,7 +4758,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "SyncFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "SyncFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("SyncFile"))): 5,
 			},
 		},
 		{
@@ -4767,7 +4767,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "Unlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "Unlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("Unlink"))): 5,
 			},
 		},
 		{
@@ -4776,7 +4776,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PERM_ERROR", "WriteFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "WriteFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PERM_ERROR")), attribute.String("fs_op", string("WriteFile"))): 5,
 			},
 		},
 		{
@@ -4785,7 +4785,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "BatchForget")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "BatchForget")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("BatchForget"))): 5,
 			},
 		},
 		{
@@ -4794,7 +4794,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "CreateFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "CreateFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("CreateFile"))): 5,
 			},
 		},
 		{
@@ -4803,7 +4803,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "CreateLink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "CreateLink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("CreateLink"))): 5,
 			},
 		},
 		{
@@ -4812,7 +4812,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "CreateSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "CreateSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("CreateSymlink"))): 5,
 			},
 		},
 		{
@@ -4821,7 +4821,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "Fallocate")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "Fallocate")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("Fallocate"))): 5,
 			},
 		},
 		{
@@ -4830,7 +4830,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "FlushFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "FlushFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("FlushFile"))): 5,
 			},
 		},
 		{
@@ -4839,7 +4839,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "ForgetInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ForgetInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("ForgetInode"))): 5,
 			},
 		},
 		{
@@ -4848,7 +4848,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "GetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "GetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("GetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -4857,7 +4857,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "GetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "GetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("GetXattr"))): 5,
 			},
 		},
 		{
@@ -4866,7 +4866,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "ListXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ListXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("ListXattr"))): 5,
 			},
 		},
 		{
@@ -4875,7 +4875,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "LookUpInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "LookUpInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("LookUpInode"))): 5,
 			},
 		},
 		{
@@ -4884,7 +4884,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "MkDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "MkDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("MkDir"))): 5,
 			},
 		},
 		{
@@ -4893,7 +4893,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "MkNode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "MkNode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("MkNode"))): 5,
 			},
 		},
 		{
@@ -4902,7 +4902,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "OpenDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "OpenDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("OpenDir"))): 5,
 			},
 		},
 		{
@@ -4911,7 +4911,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "OpenFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "OpenFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("OpenFile"))): 5,
 			},
 		},
 		{
@@ -4920,7 +4920,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "ReadDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ReadDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("ReadDir"))): 5,
 			},
 		},
 		{
@@ -4929,7 +4929,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "ReadDirPlus")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ReadDirPlus")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("ReadDirPlus"))): 5,
 			},
 		},
 		{
@@ -4938,7 +4938,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "ReadFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ReadFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("ReadFile"))): 5,
 			},
 		},
 		{
@@ -4947,7 +4947,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "ReadSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ReadSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("ReadSymlink"))): 5,
 			},
 		},
 		{
@@ -4956,7 +4956,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "ReleaseDirHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("ReleaseDirHandle"))): 5,
 			},
 		},
 		{
@@ -4965,7 +4965,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "ReleaseFileHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("ReleaseFileHandle"))): 5,
 			},
 		},
 		{
@@ -4974,7 +4974,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "RemoveXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "RemoveXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("RemoveXattr"))): 5,
 			},
 		},
 		{
@@ -4983,7 +4983,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "Rename")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "Rename")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("Rename"))): 5,
 			},
 		},
 		{
@@ -4992,7 +4992,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "RmDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "RmDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("RmDir"))): 5,
 			},
 		},
 		{
@@ -5001,7 +5001,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "SetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "SetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("SetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -5010,7 +5010,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "SetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "SetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("SetXattr"))): 5,
 			},
 		},
 		{
@@ -5019,7 +5019,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "StatFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "StatFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("StatFS"))): 5,
 			},
 		},
 		{
@@ -5028,7 +5028,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "SyncFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "SyncFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("SyncFS"))): 5,
 			},
 		},
 		{
@@ -5037,7 +5037,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "SyncFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "SyncFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("SyncFile"))): 5,
 			},
 		},
 		{
@@ -5046,7 +5046,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "Unlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "Unlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("Unlink"))): 5,
 			},
 		},
 		{
@@ -5055,7 +5055,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "WriteFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "WriteFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("PROCESS_RESOURCE_MGMT_ERROR")), attribute.String("fs_op", string("WriteFile"))): 5,
 			},
 		},
 		{
@@ -5064,7 +5064,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "BatchForget")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "BatchForget")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("BatchForget"))): 5,
 			},
 		},
 		{
@@ -5073,7 +5073,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "CreateFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "CreateFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("CreateFile"))): 5,
 			},
 		},
 		{
@@ -5082,7 +5082,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "CreateLink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "CreateLink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("CreateLink"))): 5,
 			},
 		},
 		{
@@ -5091,7 +5091,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "CreateSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "CreateSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("CreateSymlink"))): 5,
 			},
 		},
 		{
@@ -5100,7 +5100,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "Fallocate")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "Fallocate")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("Fallocate"))): 5,
 			},
 		},
 		{
@@ -5109,7 +5109,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "FlushFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "FlushFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("FlushFile"))): 5,
 			},
 		},
 		{
@@ -5118,7 +5118,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "ForgetInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ForgetInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("ForgetInode"))): 5,
 			},
 		},
 		{
@@ -5127,7 +5127,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "GetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "GetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("GetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -5136,7 +5136,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "GetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "GetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("GetXattr"))): 5,
 			},
 		},
 		{
@@ -5145,7 +5145,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "ListXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ListXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("ListXattr"))): 5,
 			},
 		},
 		{
@@ -5154,7 +5154,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "LookUpInode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "LookUpInode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("LookUpInode"))): 5,
 			},
 		},
 		{
@@ -5163,7 +5163,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "MkDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "MkDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("MkDir"))): 5,
 			},
 		},
 		{
@@ -5172,7 +5172,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "MkNode")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "MkNode")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("MkNode"))): 5,
 			},
 		},
 		{
@@ -5181,7 +5181,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "OpenDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "OpenDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("OpenDir"))): 5,
 			},
 		},
 		{
@@ -5190,7 +5190,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "OpenFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "OpenFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("OpenFile"))): 5,
 			},
 		},
 		{
@@ -5199,7 +5199,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "ReadDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ReadDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("ReadDir"))): 5,
 			},
 		},
 		{
@@ -5208,7 +5208,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "ReadDirPlus")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ReadDirPlus")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("ReadDirPlus"))): 5,
 			},
 		},
 		{
@@ -5217,7 +5217,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "ReadFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ReadFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("ReadFile"))): 5,
 			},
 		},
 		{
@@ -5226,7 +5226,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "ReadSymlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ReadSymlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("ReadSymlink"))): 5,
 			},
 		},
 		{
@@ -5235,7 +5235,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "ReleaseDirHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("ReleaseDirHandle"))): 5,
 			},
 		},
 		{
@@ -5244,7 +5244,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "ReleaseFileHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("ReleaseFileHandle"))): 5,
 			},
 		},
 		{
@@ -5253,7 +5253,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "RemoveXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "RemoveXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("RemoveXattr"))): 5,
 			},
 		},
 		{
@@ -5262,7 +5262,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "Rename")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "Rename")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("Rename"))): 5,
 			},
 		},
 		{
@@ -5271,7 +5271,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "RmDir")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "RmDir")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("RmDir"))): 5,
 			},
 		},
 		{
@@ -5280,7 +5280,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "SetInodeAttributes")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "SetInodeAttributes")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("SetInodeAttributes"))): 5,
 			},
 		},
 		{
@@ -5289,7 +5289,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "SetXattr")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "SetXattr")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("SetXattr"))): 5,
 			},
 		},
 		{
@@ -5298,7 +5298,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "StatFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "StatFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("StatFS"))): 5,
 			},
 		},
 		{
@@ -5307,7 +5307,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "SyncFS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "SyncFS")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("SyncFS"))): 5,
 			},
 		},
 		{
@@ -5316,7 +5316,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "SyncFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "SyncFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("SyncFile"))): 5,
 			},
 		},
 		{
@@ -5325,7 +5325,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "Unlink")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "Unlink")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("Unlink"))): 5,
 			},
 		},
 		{
@@ -5334,7 +5334,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "WriteFile")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "WriteFile")): 5,
+				attribute.NewSet(attribute.String("fs_error_category", string("TOO_MANY_OPEN_FILES")), attribute.String("fs_op", string("WriteFile"))): 5,
 			},
 		}, {
 			name: "multiple_attributes_summed",
@@ -5343,8 +5343,8 @@ func TestFsOpsErrorCount(t *testing.T) {
 				m.FsOpsErrorCount(2, "DEVICE_ERROR", "CreateFile")
 				m.FsOpsErrorCount(3, "DEVICE_ERROR", "BatchForget")
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "BatchForget")): 8,
-				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "CreateFile")): 2,
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("BatchForget"))): 8,
+				attribute.NewSet(attribute.String("fs_error_category", string("DEVICE_ERROR")), attribute.String("fs_op", string("CreateFile"))): 2,
 			},
 		},
 	}
@@ -5374,7 +5374,7 @@ func TestFsOpsLatency(t *testing.T) {
 	tests := []struct {
 		name      string
 		latencies []time.Duration
-		fsOp      string
+		fsOp      StringAttribute
 	}{
 		{
 			name:      "fs_op_BatchForget",
@@ -5551,7 +5551,7 @@ func TestFsOpsLatency(t *testing.T) {
 			require.True(t, ok, "fs/ops_latency metric not found")
 
 			attrs := []attribute.KeyValue{
-				attribute.String("fs_op", tc.fsOp),
+				attribute.String("fs_op", string(tc.fsOp)),
 			}
 			s := attribute.NewSet(attrs...)
 			expectedKey := s.Encoded(encoder)
@@ -5575,7 +5575,7 @@ func TestGcsDownloadBytesCount(t *testing.T) {
 				m.GcsDownloadBytesCount(5, "Parallel")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("read_type", "Parallel")): 5,
+				attribute.NewSet(attribute.String("read_type", string("Parallel"))): 5,
 			},
 		},
 		{
@@ -5584,7 +5584,7 @@ func TestGcsDownloadBytesCount(t *testing.T) {
 				m.GcsDownloadBytesCount(5, "Random")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("read_type", "Random")): 5,
+				attribute.NewSet(attribute.String("read_type", string("Random"))): 5,
 			},
 		},
 		{
@@ -5593,7 +5593,7 @@ func TestGcsDownloadBytesCount(t *testing.T) {
 				m.GcsDownloadBytesCount(5, "Sequential")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("read_type", "Sequential")): 5,
+				attribute.NewSet(attribute.String("read_type", string("Sequential"))): 5,
 			},
 		},
 		{
@@ -5602,7 +5602,7 @@ func TestGcsDownloadBytesCount(t *testing.T) {
 				m.GcsDownloadBytesCount(5, "Unknown")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("read_type", "Unknown")): 5,
+				attribute.NewSet(attribute.String("read_type", string("Unknown"))): 5,
 			},
 		}, {
 			name: "multiple_attributes_summed",
@@ -5611,8 +5611,8 @@ func TestGcsDownloadBytesCount(t *testing.T) {
 				m.GcsDownloadBytesCount(2, "Random")
 				m.GcsDownloadBytesCount(3, "Parallel")
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("read_type", "Parallel")): 8,
-				attribute.NewSet(attribute.String("read_type", "Random")): 2,
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("read_type", string("Parallel"))): 8,
+				attribute.NewSet(attribute.String("read_type", string("Random"))): 2,
 			},
 		},
 	}
@@ -5666,7 +5666,7 @@ func TestGcsReadCount(t *testing.T) {
 				m.GcsReadCount(5, "Parallel")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("read_type", "Parallel")): 5,
+				attribute.NewSet(attribute.String("read_type", string("Parallel"))): 5,
 			},
 		},
 		{
@@ -5675,7 +5675,7 @@ func TestGcsReadCount(t *testing.T) {
 				m.GcsReadCount(5, "Random")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("read_type", "Random")): 5,
+				attribute.NewSet(attribute.String("read_type", string("Random"))): 5,
 			},
 		},
 		{
@@ -5684,7 +5684,7 @@ func TestGcsReadCount(t *testing.T) {
 				m.GcsReadCount(5, "Sequential")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("read_type", "Sequential")): 5,
+				attribute.NewSet(attribute.String("read_type", string("Sequential"))): 5,
 			},
 		},
 		{
@@ -5693,7 +5693,7 @@ func TestGcsReadCount(t *testing.T) {
 				m.GcsReadCount(5, "Unknown")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("read_type", "Unknown")): 5,
+				attribute.NewSet(attribute.String("read_type", string("Unknown"))): 5,
 			},
 		}, {
 			name: "multiple_attributes_summed",
@@ -5702,8 +5702,8 @@ func TestGcsReadCount(t *testing.T) {
 				m.GcsReadCount(2, "Random")
 				m.GcsReadCount(3, "Parallel")
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("read_type", "Parallel")): 8,
-				attribute.NewSet(attribute.String("read_type", "Random")): 2,
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("read_type", string("Parallel"))): 8,
+				attribute.NewSet(attribute.String("read_type", string("Random"))): 2,
 			},
 		},
 	}
@@ -5741,7 +5741,7 @@ func TestGcsReaderCount(t *testing.T) {
 				m.GcsReaderCount(5, "ReadHandle")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("io_method", "ReadHandle")): 5,
+				attribute.NewSet(attribute.String("io_method", string("ReadHandle"))): 5,
 			},
 		},
 		{
@@ -5750,7 +5750,7 @@ func TestGcsReaderCount(t *testing.T) {
 				m.GcsReaderCount(5, "closed")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("io_method", "closed")): 5,
+				attribute.NewSet(attribute.String("io_method", string("closed"))): 5,
 			},
 		},
 		{
@@ -5759,7 +5759,7 @@ func TestGcsReaderCount(t *testing.T) {
 				m.GcsReaderCount(5, "opened")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("io_method", "opened")): 5,
+				attribute.NewSet(attribute.String("io_method", string("opened"))): 5,
 			},
 		}, {
 			name: "multiple_attributes_summed",
@@ -5768,8 +5768,8 @@ func TestGcsReaderCount(t *testing.T) {
 				m.GcsReaderCount(2, "closed")
 				m.GcsReaderCount(3, "ReadHandle")
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("io_method", "ReadHandle")): 8,
-				attribute.NewSet(attribute.String("io_method", "closed")): 2,
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("io_method", string("ReadHandle"))): 8,
+				attribute.NewSet(attribute.String("io_method", string("closed"))): 2,
 			},
 		},
 	}
@@ -5807,7 +5807,7 @@ func TestGcsRequestCount(t *testing.T) {
 				m.GcsRequestCount(5, "ComposeObjects")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("gcs_method", "ComposeObjects")): 5,
+				attribute.NewSet(attribute.String("gcs_method", string("ComposeObjects"))): 5,
 			},
 		},
 		{
@@ -5816,7 +5816,7 @@ func TestGcsRequestCount(t *testing.T) {
 				m.GcsRequestCount(5, "CopyObject")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("gcs_method", "CopyObject")): 5,
+				attribute.NewSet(attribute.String("gcs_method", string("CopyObject"))): 5,
 			},
 		},
 		{
@@ -5825,7 +5825,7 @@ func TestGcsRequestCount(t *testing.T) {
 				m.GcsRequestCount(5, "CreateAppendableObjectWriter")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("gcs_method", "CreateAppendableObjectWriter")): 5,
+				attribute.NewSet(attribute.String("gcs_method", string("CreateAppendableObjectWriter"))): 5,
 			},
 		},
 		{
@@ -5834,7 +5834,7 @@ func TestGcsRequestCount(t *testing.T) {
 				m.GcsRequestCount(5, "CreateFolder")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("gcs_method", "CreateFolder")): 5,
+				attribute.NewSet(attribute.String("gcs_method", string("CreateFolder"))): 5,
 			},
 		},
 		{
@@ -5843,7 +5843,7 @@ func TestGcsRequestCount(t *testing.T) {
 				m.GcsRequestCount(5, "CreateObject")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("gcs_method", "CreateObject")): 5,
+				attribute.NewSet(attribute.String("gcs_method", string("CreateObject"))): 5,
 			},
 		},
 		{
@@ -5852,7 +5852,7 @@ func TestGcsRequestCount(t *testing.T) {
 				m.GcsRequestCount(5, "CreateObjectChunkWriter")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("gcs_method", "CreateObjectChunkWriter")): 5,
+				attribute.NewSet(attribute.String("gcs_method", string("CreateObjectChunkWriter"))): 5,
 			},
 		},
 		{
@@ -5861,7 +5861,7 @@ func TestGcsRequestCount(t *testing.T) {
 				m.GcsRequestCount(5, "DeleteFolder")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("gcs_method", "DeleteFolder")): 5,
+				attribute.NewSet(attribute.String("gcs_method", string("DeleteFolder"))): 5,
 			},
 		},
 		{
@@ -5870,7 +5870,7 @@ func TestGcsRequestCount(t *testing.T) {
 				m.GcsRequestCount(5, "DeleteObject")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("gcs_method", "DeleteObject")): 5,
+				attribute.NewSet(attribute.String("gcs_method", string("DeleteObject"))): 5,
 			},
 		},
 		{
@@ -5879,7 +5879,7 @@ func TestGcsRequestCount(t *testing.T) {
 				m.GcsRequestCount(5, "FinalizeUpload")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("gcs_method", "FinalizeUpload")): 5,
+				attribute.NewSet(attribute.String("gcs_method", string("FinalizeUpload"))): 5,
 			},
 		},
 		{
@@ -5888,7 +5888,7 @@ func TestGcsRequestCount(t *testing.T) {
 				m.GcsRequestCount(5, "FlushPendingWrites")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("gcs_method", "FlushPendingWrites")): 5,
+				attribute.NewSet(attribute.String("gcs_method", string("FlushPendingWrites"))): 5,
 			},
 		},
 		{
@@ -5897,7 +5897,7 @@ func TestGcsRequestCount(t *testing.T) {
 				m.GcsRequestCount(5, "GetFolder")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("gcs_method", "GetFolder")): 5,
+				attribute.NewSet(attribute.String("gcs_method", string("GetFolder"))): 5,
 			},
 		},
 		{
@@ -5906,7 +5906,7 @@ func TestGcsRequestCount(t *testing.T) {
 				m.GcsRequestCount(5, "ListObjects")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("gcs_method", "ListObjects")): 5,
+				attribute.NewSet(attribute.String("gcs_method", string("ListObjects"))): 5,
 			},
 		},
 		{
@@ -5915,7 +5915,7 @@ func TestGcsRequestCount(t *testing.T) {
 				m.GcsRequestCount(5, "MoveObject")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("gcs_method", "MoveObject")): 5,
+				attribute.NewSet(attribute.String("gcs_method", string("MoveObject"))): 5,
 			},
 		},
 		{
@@ -5924,7 +5924,7 @@ func TestGcsRequestCount(t *testing.T) {
 				m.GcsRequestCount(5, "MultiRangeDownloader::Add")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("gcs_method", "MultiRangeDownloader::Add")): 5,
+				attribute.NewSet(attribute.String("gcs_method", string("MultiRangeDownloader::Add"))): 5,
 			},
 		},
 		{
@@ -5933,7 +5933,7 @@ func TestGcsRequestCount(t *testing.T) {
 				m.GcsRequestCount(5, "NewMultiRangeDownloader")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("gcs_method", "NewMultiRangeDownloader")): 5,
+				attribute.NewSet(attribute.String("gcs_method", string("NewMultiRangeDownloader"))): 5,
 			},
 		},
 		{
@@ -5942,7 +5942,7 @@ func TestGcsRequestCount(t *testing.T) {
 				m.GcsRequestCount(5, "NewReader")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("gcs_method", "NewReader")): 5,
+				attribute.NewSet(attribute.String("gcs_method", string("NewReader"))): 5,
 			},
 		},
 		{
@@ -5951,7 +5951,7 @@ func TestGcsRequestCount(t *testing.T) {
 				m.GcsRequestCount(5, "RenameFolder")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("gcs_method", "RenameFolder")): 5,
+				attribute.NewSet(attribute.String("gcs_method", string("RenameFolder"))): 5,
 			},
 		},
 		{
@@ -5960,7 +5960,7 @@ func TestGcsRequestCount(t *testing.T) {
 				m.GcsRequestCount(5, "StatObject")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("gcs_method", "StatObject")): 5,
+				attribute.NewSet(attribute.String("gcs_method", string("StatObject"))): 5,
 			},
 		},
 		{
@@ -5969,7 +5969,7 @@ func TestGcsRequestCount(t *testing.T) {
 				m.GcsRequestCount(5, "UpdateObject")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("gcs_method", "UpdateObject")): 5,
+				attribute.NewSet(attribute.String("gcs_method", string("UpdateObject"))): 5,
 			},
 		}, {
 			name: "multiple_attributes_summed",
@@ -5978,8 +5978,8 @@ func TestGcsRequestCount(t *testing.T) {
 				m.GcsRequestCount(2, "CopyObject")
 				m.GcsRequestCount(3, "ComposeObjects")
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("gcs_method", "ComposeObjects")): 8,
-				attribute.NewSet(attribute.String("gcs_method", "CopyObject")): 2,
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("gcs_method", string("ComposeObjects"))): 8,
+				attribute.NewSet(attribute.String("gcs_method", string("CopyObject"))): 2,
 			},
 		},
 	}
@@ -6009,7 +6009,7 @@ func TestGcsRequestLatencies(t *testing.T) {
 	tests := []struct {
 		name      string
 		latencies []time.Duration
-		gcsMethod string
+		gcsMethod StringAttribute
 	}{
 		{
 			name:      "gcs_method_ComposeObjects",
@@ -6126,7 +6126,7 @@ func TestGcsRequestLatencies(t *testing.T) {
 			require.True(t, ok, "gcs/request_latencies metric not found")
 
 			attrs := []attribute.KeyValue{
-				attribute.String("gcs_method", tc.gcsMethod),
+				attribute.String("gcs_method", string(tc.gcsMethod)),
 			}
 			s := attribute.NewSet(attrs...)
 			expectedKey := s.Encoded(encoder)
@@ -6150,7 +6150,7 @@ func TestGcsRetryCount(t *testing.T) {
 				m.GcsRetryCount(5, "OTHER_ERRORS")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("retry_error_category", "OTHER_ERRORS")): 5,
+				attribute.NewSet(attribute.String("retry_error_category", string("OTHER_ERRORS"))): 5,
 			},
 		},
 		{
@@ -6159,7 +6159,7 @@ func TestGcsRetryCount(t *testing.T) {
 				m.GcsRetryCount(5, "STALLED_READ_REQUEST")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("retry_error_category", "STALLED_READ_REQUEST")): 5,
+				attribute.NewSet(attribute.String("retry_error_category", string("STALLED_READ_REQUEST"))): 5,
 			},
 		}, {
 			name: "multiple_attributes_summed",
@@ -6168,8 +6168,8 @@ func TestGcsRetryCount(t *testing.T) {
 				m.GcsRetryCount(2, "STALLED_READ_REQUEST")
 				m.GcsRetryCount(3, "OTHER_ERRORS")
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("retry_error_category", "OTHER_ERRORS")): 8,
-				attribute.NewSet(attribute.String("retry_error_category", "STALLED_READ_REQUEST")): 2,
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("retry_error_category", string("OTHER_ERRORS"))): 8,
+				attribute.NewSet(attribute.String("retry_error_category", string("STALLED_READ_REQUEST"))): 2,
 			},
 		},
 	}

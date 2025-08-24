@@ -178,7 +178,7 @@ func conditionallyObserve(obsrv metric.Int64Observer, counter *atomic.Int64, obs
 	}
 }
 
-func updateUnrecognizedAttribute(newValue string) {
+func updateUnrecognizedAttribute(newValue StringAttribute) {
 	unrecognizedAttr.CompareAndSwap("", newValue)
 }
 

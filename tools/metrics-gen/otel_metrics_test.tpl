@@ -246,7 +246,7 @@ func Test{{toPascal .Name}}(t *testing.T) {
 
 			attrs := []attribute.KeyValue{
 				{{- range .Attributes}}
-				attribute.{{if eq .Type "string"}}String{{else}}Bool{{end}}("{{.Name}}", tc.{{toCamel .Name}}),
+				attribute.{{if eq .Type "string"}}String{{else}}Bool{{end}}("{{.Name}}", {{if eq .Type "string"}}string(tc.{{toCamel .Name}}){{else}}tc.{{toCamel .Name}}{{end}}),
 				{{- end}}
 			}
 			s := attribute.NewSet(attrs...)

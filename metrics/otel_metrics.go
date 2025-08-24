@@ -1258,7 +1258,7 @@ type otelMetrics struct {
 }
 
 func (o *otelMetrics) BufferedReadDownloadBlockLatency(
-	ctx context.Context, latency time.Duration, status string) {
+	ctx context.Context, latency time.Duration, status StringAttribute) {
 	var record histogramRecord
 	switch status {
 	case "cancelled":
@@ -1277,7 +1277,7 @@ func (o *otelMetrics) BufferedReadDownloadBlockLatency(
 }
 
 func (o *otelMetrics) BufferedReadFallbackTriggerCount(
-	inc int64, reason string) {
+	inc int64, reason StringAttribute) {
 	switch reason {
 	case "insufficient_memory":
 		o.bufferedReadFallbackTriggerCountReasonInsufficientMemoryAtomic.Add(inc)
@@ -1302,7 +1302,7 @@ func (o *otelMetrics) BufferedReadReadLatency(
 }
 
 func (o *otelMetrics) BufferedReadScheduledBlockCount(
-	inc int64, status string) {
+	inc int64, status StringAttribute) {
 	switch status {
 	case "cancelled":
 		o.bufferedReadScheduledBlockCountStatusCancelledAtomic.Add(inc)
@@ -1316,7 +1316,7 @@ func (o *otelMetrics) BufferedReadScheduledBlockCount(
 }
 
 func (o *otelMetrics) FileCacheReadBytesCount(
-	inc int64, readType string) {
+	inc int64, readType StringAttribute) {
 	switch readType {
 	case "Parallel":
 		o.fileCacheReadBytesCountReadTypeParallelAtomic.Add(inc)
@@ -1334,7 +1334,7 @@ func (o *otelMetrics) FileCacheReadBytesCount(
 }
 
 func (o *otelMetrics) FileCacheReadCount(
-	inc int64, cacheHit bool, readType string) {
+	inc int64, cacheHit bool, readType StringAttribute) {
 	switch cacheHit {
 	case true:
 		switch readType {
@@ -1385,7 +1385,7 @@ func (o *otelMetrics) FileCacheReadLatencies(
 }
 
 func (o *otelMetrics) FsOpsCount(
-	inc int64, fsOp string) {
+	inc int64, fsOp StringAttribute) {
 	switch fsOp {
 	case "BatchForget":
 		o.fsOpsCountFsOpBatchForgetAtomic.Add(inc)
@@ -1457,7 +1457,7 @@ func (o *otelMetrics) FsOpsCount(
 }
 
 func (o *otelMetrics) FsOpsErrorCount(
-	inc int64, fsErrorCategory string, fsOp string) {
+	inc int64, fsErrorCategory StringAttribute, fsOp StringAttribute) {
 	switch fsErrorCategory {
 	case "DEVICE_ERROR":
 		switch fsOp {
@@ -2555,7 +2555,7 @@ func (o *otelMetrics) FsOpsErrorCount(
 }
 
 func (o *otelMetrics) FsOpsLatency(
-	ctx context.Context, latency time.Duration, fsOp string) {
+	ctx context.Context, latency time.Duration, fsOp StringAttribute) {
 	var record histogramRecord
 	switch fsOp {
 	case "BatchForget":
@@ -2632,7 +2632,7 @@ func (o *otelMetrics) FsOpsLatency(
 }
 
 func (o *otelMetrics) GcsDownloadBytesCount(
-	inc int64, readType string) {
+	inc int64, readType StringAttribute) {
 	switch readType {
 	case "Parallel":
 		o.gcsDownloadBytesCountReadTypeParallelAtomic.Add(inc)
@@ -2656,7 +2656,7 @@ func (o *otelMetrics) GcsReadBytesCount(
 }
 
 func (o *otelMetrics) GcsReadCount(
-	inc int64, readType string) {
+	inc int64, readType StringAttribute) {
 	switch readType {
 	case "Parallel":
 		o.gcsReadCountReadTypeParallelAtomic.Add(inc)
@@ -2674,7 +2674,7 @@ func (o *otelMetrics) GcsReadCount(
 }
 
 func (o *otelMetrics) GcsReaderCount(
-	inc int64, ioMethod string) {
+	inc int64, ioMethod StringAttribute) {
 	switch ioMethod {
 	case "ReadHandle":
 		o.gcsReaderCountIoMethodReadHandleAtomic.Add(inc)
@@ -2690,7 +2690,7 @@ func (o *otelMetrics) GcsReaderCount(
 }
 
 func (o *otelMetrics) GcsRequestCount(
-	inc int64, gcsMethod string) {
+	inc int64, gcsMethod StringAttribute) {
 	switch gcsMethod {
 	case "ComposeObjects":
 		o.gcsRequestCountGcsMethodComposeObjectsAtomic.Add(inc)
@@ -2738,7 +2738,7 @@ func (o *otelMetrics) GcsRequestCount(
 }
 
 func (o *otelMetrics) GcsRequestLatencies(
-	ctx context.Context, latency time.Duration, gcsMethod string) {
+	ctx context.Context, latency time.Duration, gcsMethod StringAttribute) {
 	var record histogramRecord
 	switch gcsMethod {
 	case "ComposeObjects":
@@ -2791,7 +2791,7 @@ func (o *otelMetrics) GcsRequestLatencies(
 }
 
 func (o *otelMetrics) GcsRetryCount(
-	inc int64, retryErrorCategory string) {
+	inc int64, retryErrorCategory StringAttribute) {
 	switch retryErrorCategory {
 	case "OTHER_ERRORS":
 		o.gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic.Add(inc)
@@ -4699,7 +4699,7 @@ func conditionallyObserve(obsrv metric.Int64Observer, counter *atomic.Int64, obs
 	}
 }
 
-func updateUnrecognizedAttribute(newValue string) {
+func updateUnrecognizedAttribute(newValue StringAttribute) {
 	unrecognizedAttr.CompareAndSwap("", newValue)
 }
 

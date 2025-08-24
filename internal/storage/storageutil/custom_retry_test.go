@@ -154,10 +154,10 @@ type fakeMetricHandle struct {
 
 	gcsRetryCountCalled bool
 	gcsRetryCountInc    int64
-	gcsRetryCountVal    string
+	gcsRetryCountVal    metrics.StringAttribute
 }
 
-func (m *fakeMetricHandle) GcsRetryCount(inc int64, val string) {
+func (m *fakeMetricHandle) GcsRetryCount(inc int64, val metrics.StringAttribute) {
 	m.gcsRetryCountCalled = true
 	m.gcsRetryCountInc = inc
 	m.gcsRetryCountVal = val

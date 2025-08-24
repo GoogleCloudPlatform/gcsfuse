@@ -207,7 +207,7 @@ func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (
 	return readerResponse, err
 }
 
-func captureFileCacheMetrics(ctx context.Context, metricHandle metrics.MetricHandle, readType string, readDataSize int, cacheHit bool, readLatency time.Duration) {
+func captureFileCacheMetrics(ctx context.Context, metricHandle metrics.MetricHandle, readType metrics.StringAttribute, readDataSize int, cacheHit bool, readLatency time.Duration) {
 	metricHandle.FileCacheReadCount(1, cacheHit, readType)
 	metricHandle.FileCacheReadBytesCount(int64(readDataSize), readType)
 	metricHandle.FileCacheReadLatencies(ctx, readLatency, cacheHit)
