@@ -20,6 +20,116 @@ import (
 	"time"
 )
 
+// Constants for attribute FsErrorCategory
+const (
+	FsErrorCategoryDEVICEERROR              = "DEVICE_ERROR"
+	FsErrorCategoryDIRNOTEMPTY              = "DIR_NOT_EMPTY"
+	FsErrorCategoryFILEDIRERROR             = "FILE_DIR_ERROR"
+	FsErrorCategoryFILEEXISTS               = "FILE_EXISTS"
+	FsErrorCategoryINTERRUPTERROR           = "INTERRUPT_ERROR"
+	FsErrorCategoryINVALIDARGUMENT          = "INVALID_ARGUMENT"
+	FsErrorCategoryINVALIDOPERATION         = "INVALID_OPERATION"
+	FsErrorCategoryIOERROR                  = "IO_ERROR"
+	FsErrorCategoryMISCERROR                = "MISC_ERROR"
+	FsErrorCategoryNETWORKERROR             = "NETWORK_ERROR"
+	FsErrorCategoryNOFILEORDIR              = "NO_FILE_OR_DIR"
+	FsErrorCategoryNOTADIR                  = "NOT_A_DIR"
+	FsErrorCategoryNOTIMPLEMENTED           = "NOT_IMPLEMENTED"
+	FsErrorCategoryPERMERROR                = "PERM_ERROR"
+	FsErrorCategoryPROCESSRESOURCEMGMTERROR = "PROCESS_RESOURCE_MGMT_ERROR"
+	FsErrorCategoryTOOMANYOPENFILES         = "TOO_MANY_OPEN_FILES"
+)
+
+// Constants for attribute FsOp
+const (
+	FsOpBatchForget        = "BatchForget"
+	FsOpCreateFile         = "CreateFile"
+	FsOpCreateLink         = "CreateLink"
+	FsOpCreateSymlink      = "CreateSymlink"
+	FsOpFallocate          = "Fallocate"
+	FsOpFlushFile          = "FlushFile"
+	FsOpForgetInode        = "ForgetInode"
+	FsOpGetInodeAttributes = "GetInodeAttributes"
+	FsOpGetXattr           = "GetXattr"
+	FsOpListXattr          = "ListXattr"
+	FsOpLookUpInode        = "LookUpInode"
+	FsOpMkDir              = "MkDir"
+	FsOpMkNode             = "MkNode"
+	FsOpOpenDir            = "OpenDir"
+	FsOpOpenFile           = "OpenFile"
+	FsOpReadDir            = "ReadDir"
+	FsOpReadDirPlus        = "ReadDirPlus"
+	FsOpReadFile           = "ReadFile"
+	FsOpReadSymlink        = "ReadSymlink"
+	FsOpReleaseDirHandle   = "ReleaseDirHandle"
+	FsOpReleaseFileHandle  = "ReleaseFileHandle"
+	FsOpRemoveXattr        = "RemoveXattr"
+	FsOpRename             = "Rename"
+	FsOpRmDir              = "RmDir"
+	FsOpSetInodeAttributes = "SetInodeAttributes"
+	FsOpSetXattr           = "SetXattr"
+	FsOpStatFS             = "StatFS"
+	FsOpSyncFS             = "SyncFS"
+	FsOpSyncFile           = "SyncFile"
+	FsOpUnlink             = "Unlink"
+	FsOpWriteFile          = "WriteFile"
+)
+
+// Constants for attribute GcsMethod
+const (
+	GcsMethodComposeObjects               = "ComposeObjects"
+	GcsMethodCopyObject                   = "CopyObject"
+	GcsMethodCreateAppendableObjectWriter = "CreateAppendableObjectWriter"
+	GcsMethodCreateFolder                 = "CreateFolder"
+	GcsMethodCreateObject                 = "CreateObject"
+	GcsMethodCreateObjectChunkWriter      = "CreateObjectChunkWriter"
+	GcsMethodDeleteFolder                 = "DeleteFolder"
+	GcsMethodDeleteObject                 = "DeleteObject"
+	GcsMethodFinalizeUpload               = "FinalizeUpload"
+	GcsMethodFlushPendingWrites           = "FlushPendingWrites"
+	GcsMethodGetFolder                    = "GetFolder"
+	GcsMethodListObjects                  = "ListObjects"
+	GcsMethodMoveObject                   = "MoveObject"
+	GcsMethodMultiRangeDownloaderAdd      = "MultiRangeDownloader::Add"
+	GcsMethodNewMultiRangeDownloader      = "NewMultiRangeDownloader"
+	GcsMethodNewReader                    = "NewReader"
+	GcsMethodRenameFolder                 = "RenameFolder"
+	GcsMethodStatObject                   = "StatObject"
+	GcsMethodUpdateObject                 = "UpdateObject"
+)
+
+// Constants for attribute IoMethod
+const (
+	IoMethodClosed     = "closed"
+	IoMethodOpened     = "opened"
+	IoMethodReadHandle = "ReadHandle"
+)
+
+// Constants for attribute ReadType
+const (
+	ReadTypeParallel   = "Parallel"
+	ReadTypeRandom     = "Random"
+	ReadTypeSequential = "Sequential"
+)
+
+// Constants for attribute Reason
+const (
+	ReasonInsufficientMemory = "insufficient_memory"
+	ReasonRandomReadDetected = "random_read_detected"
+)
+
+// Constants for attribute RetryErrorCategory
+const (
+	RetryErrorCategoryOTHERERRORS        = "OTHER_ERRORS"
+	RetryErrorCategorySTALLEDREADREQUEST = "STALLED_READ_REQUEST"
+)
+
+// Constants for attribute Status
+const (
+	StatusCancelled  = "cancelled"
+	StatusSuccessful = "successful"
+)
+
 // MetricHandle provides an interface for recording metrics.
 // The methods of this interface are auto-generated from metrics.yaml.
 // Each method corresponds to a metric defined in metrics.yaml.
