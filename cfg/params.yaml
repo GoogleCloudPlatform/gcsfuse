@@ -767,7 +767,6 @@
     data from GCS. This improves performance for large file sequential reads.
     Note: Enabling this flag can increase the memory usage significantly.
   default: false
-  hide-flag: true
 
 - config-path: "read.global-max-blocks"
   flag-name: "read-global-max-blocks"
@@ -776,8 +775,7 @@
     Specifies the maximum number of blocks available for buffered reads across all file-handles.
     The value should be >= 0 or -1 (for infinite blocks).
     A value of 0 disables buffered reads.
-  default: 20
-  hide-flag: true
+  default: 80
 
 - config-path: "read.inactive-stream-timeout"
   flag-name: "read-inactive-stream-timeout"
