@@ -71,7 +71,7 @@ func initializeCacheHandlerTestArgs(t *testing.T, fileCacheConfig *cfg.FileCache
 	mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
 		Return(&controlpb.StorageLayout{}, nil)
 	ctx := context.Background()
-	bucket, err := storageHandle.BucketHandle(ctx, storage.TestBucketName, "", false)
+	bucket, err := storageHandle.BucketHandle(ctx, storage.TestBucketName, "")
 	require.NoError(t, err)
 
 	// Create test object in the bucket.
