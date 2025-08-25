@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
@@ -105,9 +106,15 @@ func (p *DownloadTask) Execute() {
 			ReadHandle:     p.readHandle,
 		})
 	if err != nil {
+		var notFoundError *gcs.NotFoundError
+		if errors.As(err, &notFoundError) {
+			err = &gcsfuse_errors.FileClobberedError{Err: err, ObjectName: p.object.Name}
+			return
+		}
 		err = fmt.Errorf("DownloadTask.Execute: while reader-creations: %w", err)
 		return
 	}
+	defer newReader.Close()
 
 	_, err = io.CopyN(p.block, newReader, int64(end-start))
 	if err != nil {
