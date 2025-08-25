@@ -15,7 +15,11 @@
 package cfg
 
 import (
+	"bytes"
+	"log"
 	"math"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -586,6 +590,7 @@ func TestRationalize_FileCacheAndBufferedReadConflict(t *testing.T) {
 		flags                      flagSet
 		config                     *Config
 		expectedEnableBufferedRead bool
+		expectWarning              bool
 	}{
 		{
 			name:  "file cache and buffered read enabled (user set)",
@@ -600,6 +605,7 @@ func TestRationalize_FileCacheAndBufferedReadConflict(t *testing.T) {
 				},
 			},
 			expectedEnableBufferedRead: false,
+			expectWarning:              true,
 		},
 		{
 			name:  "file cache enabled, buffered read enabled (default)",
@@ -614,6 +620,7 @@ func TestRationalize_FileCacheAndBufferedReadConflict(t *testing.T) {
 				},
 			},
 			expectedEnableBufferedRead: false,
+			expectWarning:              false,
 		},
 		{
 			name:  "file cache disabled, buffered read enabled",
@@ -624,21 +631,35 @@ func TestRationalize_FileCacheAndBufferedReadConflict(t *testing.T) {
 				},
 			},
 			expectedEnableBufferedRead: true,
+			expectWarning:              false,
 		},
 		{
 			name:                       "both disabled",
 			flags:                      flagSet{},
 			config:                     &Config{},
 			expectedEnableBufferedRead: false,
+			expectWarning:              false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			// Capture log output.
+			var buf bytes.Buffer
+			log.SetOutput(&buf)
+			// Restore original logger output after test.
+			defer log.SetOutput(os.Stderr)
+
 			err := Rationalize(tc.flags, tc.config, []string{})
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedEnableBufferedRead, tc.config.Read.EnableBufferedRead)
+				logOutput := buf.String()
+				if tc.expectWarning {
+					assert.True(t, strings.Contains(logOutput, "Warning: File cache and buffered read are mutually exclusive. Disabling buffered read."))
+				} else {
+					assert.False(t, strings.Contains(logOutput, "Warning: File cache and buffered read are mutually exclusive. Disabling buffered read."))
+				}
 			}
 		})
 	}

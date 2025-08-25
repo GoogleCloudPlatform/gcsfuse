@@ -122,12 +122,14 @@ func resolveParallelDownloadsValue(v isSet, fc *FileCacheConfig, c *Config) {
 	}
 }
 
-func resolveFileCacheAndBufferedReadConflict(c *Config) {
+func resolveFileCacheAndBufferedReadConflict(v isSet, c *Config) {
 	if IsFileCacheEnabled(c) && c.Read.EnableBufferedRead {
 		// Log a warning only if the user has explicitly enabled buffered-read.
 		// The default value for enable-buffered-read is true, so we don't want to
 		// log a warning for the default case.
-		log.Printf("Warning: file-cache and read.enable-buffered-read are mutually exclusive. Disabling buffered read.")
+		if v.IsSet("read.enable-buffered-read") {
+			log.Printf("Warning: File cache and buffered read are mutually exclusive. Disabling buffered read.")
+		}
 		c.Read.EnableBufferedRead = false
 	}
 }
@@ -152,7 +154,7 @@ func Rationalize(v isSet, c *Config, optimizedFlags []string) error {
 	resolveStatCacheMaxSizeMB(v, &c.MetadataCache, optimizedFlags)
 	resolveCloudMetricsUploadIntervalSecs(&c.Metrics)
 	resolveParallelDownloadsValue(v, &c.FileCache, c)
-	resolveFileCacheAndBufferedReadConflict(c)
+	resolveFileCacheAndBufferedReadConflict(v, c)
 
 	return nil
 }
