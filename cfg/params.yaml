@@ -777,6 +777,16 @@
     A value of 0 disables buffered reads.
   default: 80
 
+- config-path: "read.global-seek-count"
+  flag-name: "read-global-seek-count"
+  type: "int"
+  usage: >-
+    Specifies the maximum number of blocks available for buffered reads across all file-handles.
+    The value should be >= 0 or -1 (for infinite blocks).
+    A value of 0 disables buffered reads.
+  default: 3
+  hide-flag: false
+
 - config-path: "read.inactive-stream-timeout"
   flag-name: "read-inactive-stream-timeout"
   type: "duration"
