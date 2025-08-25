@@ -268,6 +268,8 @@ type ReadConfig struct {
 
 	GlobalMaxBlocks int64 `yaml:"global-max-blocks"`
 
+	GlobalSeekCount int64 `yaml:"global-seek-count"`
+
 	InactiveStreamTimeout time.Duration `yaml:"inactive-stream-timeout"`
 
 	MaxBlocksPerHandle int64 `yaml:"max-blocks-per-handle"`
@@ -648,6 +650,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	if err := flagSet.MarkHidden("read-global-max-blocks"); err != nil {
 		return err
 	}
+
+	flagSet.IntP("read-global-seek-count", "", 3, "Specifies the maximum number of blocks available for buffered reads across all file-handles. The value should be >= 0 or -1 (for infinite blocks). A value of 0 disables buffered reads.")
 
 	flagSet.DurationP("read-inactive-stream-timeout", "", 10000000000*time.Nanosecond, "Duration of inactivity after which an open GCS read stream is automatically closed. This helps conserve resources when a file handle remains open without active Read calls. A value of '0s' disables this timeout.")
 
@@ -1093,6 +1097,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("read.global-max-blocks", flagSet.Lookup("read-global-max-blocks")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.global-seek-count", flagSet.Lookup("read-global-seek-count")); err != nil {
 		return err
 	}
 

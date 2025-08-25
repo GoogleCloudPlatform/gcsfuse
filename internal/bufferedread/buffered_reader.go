@@ -45,6 +45,7 @@ type BufferedReadConfig struct {
 	PrefetchBlockSizeBytes  int64 // Size of each block to be prefetched.
 	InitialPrefetchBlockCnt int64 // Number of blocks to prefetch initially.
 	MinBlocksPerHandle      int64 // Minimum number of blocks available in block-pool to start buffered-read.
+	GlobalSeekCount         int64
 }
 
 const (
@@ -140,7 +141,7 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 		workerPool:               workerPool,
 		metricHandle:             metricHandle,
 		prefetchMultiplier:       defaultPrefetchMultiplier,
-		randomReadsThreshold:     defaultRandomReadsThreshold,
+		randomReadsThreshold:     config.GlobalSeekCount,
 	}
 
 	reader.ctx, reader.cancelFunc = context.WithCancel(context.Background())
