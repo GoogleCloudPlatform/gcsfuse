@@ -570,39 +570,6 @@ func Test_isValidWriteStreamingConfig_ErrorScenarios(t *testing.T) {
 	}
 }
 
-func TestValidateConfig_FileCacheAndBufferedReadConflict(t *testing.T) {
-	fcConfig := validFileCacheConfig(t)
-	fcConfig.MaxSizeMb = 10
-	config := &Config{
-		Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
-		CacheDir:  "/some/path",
-		FileCache: fcConfig,
-		Read: ReadConfig{
-			EnableBufferedRead:   true,
-			BlockSizeMb:          16,
-			GlobalMaxBlocks:      20,
-			MaxBlocksPerHandle:   20,
-			MinBlocksPerHandle:   4,
-			StartBlocksPerHandle: 1,
-		},
-		GcsConnection: GcsConnectionConfig{
-			SequentialReadSizeMb: 200,
-		},
-		MetadataCache: MetadataCacheConfig{
-			ExperimentalMetadataPrefetchOnMount: "disabled",
-		},
-		Metrics: MetricsConfig{
-			Workers:    3,
-			BufferSize: 256,
-		},
-	}
-
-	err := ValidateConfig(&mockIsSet{}, config)
-
-	assert.Error(t, err)
-	assert.EqualError(t, err, "file-cache and enable-buffered-read cannot be enabled together")
-}
-
 func Test_isValidBufferedReadConfig_ErrorScenarios(t *testing.T) {
 	var testCases = []struct {
 		testName string

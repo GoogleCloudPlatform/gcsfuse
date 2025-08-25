@@ -579,3 +579,67 @@ func TestRationalize_ParallelDownloadsConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestRationalize_FileCacheAndBufferedReadConflict(t *testing.T) {
+	testCases := []struct {
+		name                       string
+		flags                      flagSet
+		config                     *Config
+		expectedEnableBufferedRead bool
+	}{
+		{
+			name:  "file cache and buffered read enabled (user set)",
+			flags: flagSet{"read.enable-buffered-read": true},
+			config: &Config{
+				CacheDir: "/some/path",
+				FileCache: FileCacheConfig{
+					MaxSizeMb: -1,
+				},
+				Read: ReadConfig{
+					EnableBufferedRead: true,
+				},
+			},
+			expectedEnableBufferedRead: false,
+		},
+		{
+			name:  "file cache enabled, buffered read enabled (default)",
+			flags: flagSet{},
+			config: &Config{
+				CacheDir: "/some/path",
+				FileCache: FileCacheConfig{
+					MaxSizeMb: -1,
+				},
+				Read: ReadConfig{
+					EnableBufferedRead: true,
+				},
+			},
+			expectedEnableBufferedRead: false,
+		},
+		{
+			name:  "file cache disabled, buffered read enabled",
+			flags: flagSet{"read.enable-buffered-read": true},
+			config: &Config{
+				Read: ReadConfig{
+					EnableBufferedRead: true,
+				},
+			},
+			expectedEnableBufferedRead: true,
+		},
+		{
+			name:                       "both disabled",
+			flags:                      flagSet{},
+			config:                     &Config{},
+			expectedEnableBufferedRead: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := Rationalize(tc.flags, tc.config, []string{})
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedEnableBufferedRead, tc.config.Read.EnableBufferedRead)
+			}
+		})
+	}
+}

@@ -309,9 +309,5 @@ func ValidateConfig(v isSet, config *Config) error {
 		return fmt.Errorf("error parsing buffered read config: %w", err)
 	}
 
-	if IsFileCacheEnabled(config) && config.Read.EnableBufferedRead {
-		return fmt.Errorf("file-cache and enable-buffered-read cannot be enabled together")
-	}
-
 	return nil
 }
