@@ -122,6 +122,9 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 	numBlocksToReserve := min(blocksInFile, config.MinBlocksPerHandle)
 	blockpool, err := block.NewPrefetchBlockPool(config.PrefetchBlockSizeBytes, config.MaxPrefetchBlockCnt, numBlocksToReserve, globalMaxBlocksSem)
 	if err != nil {
+		if errors.Is(err, block.CantAllocateAnyBlockError) {
+			metricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
+		}
 		return nil, fmt.Errorf("NewBufferedReader: creating block-pool: %w", err)
 	}
 
