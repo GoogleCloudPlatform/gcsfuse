@@ -114,6 +114,10 @@ func SetLogFormat(format string) {
 	if format == defaultLoggerFactory.format {
 		return
 	}
+
+	if format != cfg.LoggingFormatText && format != cfg.LoggingFormatJson {
+		Warnf("Unsupported log format: %s. Defaulting to %s log format.", format, defaultLoggerFactory.format)
+	}
 	defaultLoggerFactory.format = format
 	defaultLogger = defaultLoggerFactory.newLogger(defaultLoggerFactory.level)
 }
