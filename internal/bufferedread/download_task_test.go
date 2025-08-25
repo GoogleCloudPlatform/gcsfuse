@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
@@ -231,6 +232,37 @@ func (dts *DownloadTaskTestSuite) TestExecuteContextCancelledWhileReadingFromRea
 	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
 	defer cancelFunc()
 	status, err := downloadBlock.AwaitReady(ctx)
+	assert.NoError(dts.T(), err)
 	assert.Equal(dts.T(), block.BlockStateDownloadFailed, status.State)
 	assert.ErrorIs(dts.T(), status.Err, context.Canceled)
+}
+
+func (dts *DownloadTaskTestSuite) TestExecuteClobbered() {
+	downloadBlock, err := dts.blockPool.Get()
+	require.Nil(dts.T(), err)
+	err = downloadBlock.SetAbsStartOff(0)
+	require.Nil(dts.T(), err)
+	task := NewDownloadTask(context.Background(), dts.object, dts.mockBucket, downloadBlock, nil, dts.metricHandle)
+	// Simulate NewReaderWithReadHandle returning a NotFoundError.
+	notFoundErr := &gcs.NotFoundError{Err: errors.New("object not found")}
+	readObjectRequest := &gcs.ReadObjectRequest{
+		Name:       dts.object.Name,
+		Generation: dts.object.Generation,
+		Range: &gcs.ByteRange{
+			Start: uint64(0),
+			Limit: uint64(testBlockSize),
+		},
+	}
+	dts.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(nil, notFoundErr).Times(1)
+
+	task.Execute()
+
+	dts.mockBucket.AssertExpectations(dts.T())
+	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
+	defer cancelFunc()
+	status, err := downloadBlock.AwaitReady(ctx)
+	assert.NoError(dts.T(), err)
+	assert.Equal(dts.T(), block.BlockStateDownloadFailed, status.State)
+	var fileClobberedError *gcsfuse_errors.FileClobberedError
+	assert.True(dts.T(), errors.As(status.Err, &fileClobberedError))
 }
