@@ -58,7 +58,7 @@ func TestMain(m *testing.M) {
 		cfg.WriteLargeFiles[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
 
-	setup.SetBucketFromConfigFile(cfg.WriteLargeFiles[0].TestBucket)
+	setup.SetTestBucket(cfg.WriteLargeFiles[0].TestBucket)
 	ctx = context.Background()
 	bucketType, err := setup.BucketType(ctx, cfg.WriteLargeFiles[0].TestBucket)
 	if err != nil {

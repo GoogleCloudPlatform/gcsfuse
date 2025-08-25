@@ -36,6 +36,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 const NameOfServiceAccount = "creds-integration-tests"
@@ -124,7 +125,18 @@ func RevokePermission(ctx context.Context, storageClient *storage.Client, servic
 	}
 }
 
+// Deprecated: Use RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSetWithConfigFile instead.
+// TODO(b/438068132): cleanup deprecated methods after migration is complete.
 func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(ctx context.Context, storageClient *storage.Client, testFlagSet [][]string, permission string, m *testing.M) (successCode int) {
+	config := &test_suite.TestConfig{
+		TestBucket:       setup.TestBucket(),
+		MountedDirectory: setup.MountedDirectory(),
+		LogFile:          setup.LogFile(),
+	}
+	return RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSetWithConfigFile(config, ctx, storageClient, testFlagSet, permission, m)
+}
+
+func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSetWithConfigFile(config *test_suite.TestConfig, ctx context.Context, storageClient *storage.Client, testFlagSet [][]string, permission string, m *testing.M) (successCode int) {
 	serviceAccount, localKeyFilePath := CreateCredentials(ctx)
 	ApplyPermissionToServiceAccount(ctx, storageClient, serviceAccount, permission, setup.TestBucket())
 	defer RevokePermission(ctx, storageClient, serviceAccount, permission, setup.TestBucket())
@@ -139,7 +151,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(ctx context.Cont
 		setup.LogAndExit(fmt.Sprintf("Error in setting environment variable: %v", err))
 	}
 
-	successCode = static_mounting.RunTests(testFlagSet, m)
+	successCode = static_mounting.RunTestsWithConfigFile(config, testFlagSet, m)
 
 	if successCode != 0 {
 		return
@@ -152,7 +164,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(ctx context.Cont
 		testFlagSet[i] = append(testFlagSet[i], keyFileFlag)
 	}
 
-	successCode = static_mounting.RunTests(testFlagSet, m)
+	successCode = static_mounting.RunTestsWithConfigFile(config, testFlagSet, m)
 
 	if successCode != 0 {
 		return
@@ -164,7 +176,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(ctx context.Cont
 	}
 
 	// Testing with --key-file flag only
-	successCode = static_mounting.RunTests(testFlagSet, m)
+	successCode = static_mounting.RunTestsWithConfigFile(config, testFlagSet, m)
 
 	if successCode != 0 {
 		return

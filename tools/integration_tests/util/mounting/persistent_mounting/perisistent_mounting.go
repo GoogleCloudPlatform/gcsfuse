@@ -35,6 +35,8 @@ func makePersistentMountingArgs(flags []string) (args []string) {
 		s = strings.Replace(s, "-", "_", -1)
 		// e.g. Convert __log_severity=trace to log_severity=trace
 		s = strings.Replace(s, "__", "", -1)
+		// e.g. Revert _1 to -1
+		s = strings.Replace(s, "_1", "-1", -1)
 		args = append(args, s)
 	}
 	return

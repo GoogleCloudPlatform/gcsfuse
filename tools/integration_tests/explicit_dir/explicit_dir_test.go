@@ -88,6 +88,9 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("BucketType failed: %v", err)
 	}
+	if bucketType == setup.ZonalBucket {
+		setup.SetIsZonalBucketRun(true)
+	}
 	flags := setup.BuildFlagSets(cfg.ExplicitDir[0], bucketType)
 
 	// 5. Run tests with the dynamically generated flags.
