@@ -34,10 +34,12 @@ const logInterval = 5 * time.Minute
 var (
 	unrecognizedAttr                                                                    atomic.Value
 	bufferedReadDownloadBlockLatencyStatusCancelledAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("status", "cancelled")))
+	bufferedReadDownloadBlockLatencyStatusFailedAttrSet                                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("status", "failed")))
 	bufferedReadDownloadBlockLatencyStatusSuccessfulAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("status", "successful")))
 	bufferedReadFallbackTriggerCountReasonInsufficientMemoryAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "insufficient_memory")))
 	bufferedReadFallbackTriggerCountReasonRandomReadDetectedAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "random_read_detected")))
 	bufferedReadScheduledBlockCountStatusCancelledAttrSet                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("status", "cancelled")))
+	bufferedReadScheduledBlockCountStatusFailedAttrSet                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("status", "failed")))
 	bufferedReadScheduledBlockCountStatusSuccessfulAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("status", "successful")))
 	fileCacheReadBytesCountReadTypeParallelAttrSet                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel")))
 	fileCacheReadBytesCountReadTypeRandomAttrSet                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random")))
@@ -672,6 +674,7 @@ type otelMetrics struct {
 	bufferedReadFallbackTriggerCountReasonInsufficientMemoryAtomic                     *atomic.Int64
 	bufferedReadFallbackTriggerCountReasonRandomReadDetectedAtomic                     *atomic.Int64
 	bufferedReadScheduledBlockCountStatusCancelledAtomic                               *atomic.Int64
+	bufferedReadScheduledBlockCountStatusFailedAtomic                                  *atomic.Int64
 	bufferedReadScheduledBlockCountStatusSuccessfulAtomic                              *atomic.Int64
 	fileCacheReadBytesCountReadTypeParallelAtomic                                      *atomic.Int64
 	fileCacheReadBytesCountReadTypeRandomAtomic                                        *atomic.Int64
@@ -1253,6 +1256,8 @@ func (o *otelMetrics) BufferedReadDownloadBlockLatency(
 	switch status {
 	case "cancelled":
 		record = histogramRecord{ctx: ctx, instrument: o.bufferedReadDownloadBlockLatency, value: latency.Microseconds(), attributes: bufferedReadDownloadBlockLatencyStatusCancelledAttrSet}
+	case "failed":
+		record = histogramRecord{ctx: ctx, instrument: o.bufferedReadDownloadBlockLatency, value: latency.Microseconds(), attributes: bufferedReadDownloadBlockLatencyStatusFailedAttrSet}
 	case "successful":
 		record = histogramRecord{ctx: ctx, instrument: o.bufferedReadDownloadBlockLatency, value: latency.Microseconds(), attributes: bufferedReadDownloadBlockLatencyStatusSuccessfulAttrSet}
 	default:
@@ -1296,6 +1301,8 @@ func (o *otelMetrics) BufferedReadScheduledBlockCount(
 	switch status {
 	case "cancelled":
 		o.bufferedReadScheduledBlockCountStatusCancelledAtomic.Add(inc)
+	case "failed":
+		o.bufferedReadScheduledBlockCountStatusFailedAtomic.Add(inc)
 	case "successful":
 		o.bufferedReadScheduledBlockCountStatusSuccessfulAtomic.Add(inc)
 	default:
@@ -2807,6 +2814,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		bufferedReadFallbackTriggerCountReasonRandomReadDetectedAtomic atomic.Int64
 
 	var bufferedReadScheduledBlockCountStatusCancelledAtomic,
+		bufferedReadScheduledBlockCountStatusFailedAtomic,
 		bufferedReadScheduledBlockCountStatusSuccessfulAtomic atomic.Int64
 
 	var fileCacheReadBytesCountReadTypeParallelAtomic,
@@ -3387,7 +3395,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic atomic.Int64
 
 	bufferedReadDownloadBlockLatency, err0 := meter.Int64Histogram("buffered_read/download_block_latency",
-		metric.WithDescription("The cumulative distribution of block download latencies, along with status: successful or cancelled."),
+		metric.WithDescription("The cumulative distribution of block download latencies, along with status: successful, cancelled, or failed."),
 		metric.WithUnit("us"),
 		metric.WithExplicitBucketBoundaries(1, 2, 3, 4, 5, 6, 8, 10, 13, 16, 20, 25, 30, 40, 50, 65, 80, 100, 130, 160, 200, 250, 300, 400, 500, 650, 800, 1000, 2000, 5000, 10000, 20000, 50000, 100000))
 
@@ -3406,10 +3414,11 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		metric.WithExplicitBucketBoundaries(1, 2, 3, 4, 5, 6, 8, 10, 13, 16, 20, 25, 30, 40, 50, 65, 80, 100, 130, 160, 200, 250, 300, 400, 500, 650, 800, 1000, 2000, 5000, 10000, 20000, 50000, 100000))
 
 	_, err3 := meter.Int64ObservableCounter("buffered_read/scheduled_block_count",
-		metric.WithDescription("The cumulative number of scheduled download blocks, along with their final status: successful or cancelled."),
+		metric.WithDescription("The cumulative number of scheduled download blocks, along with their final status: successful, cancelled, or failed."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
 			conditionallyObserve(obsrv, &bufferedReadScheduledBlockCountStatusCancelledAtomic, bufferedReadScheduledBlockCountStatusCancelledAttrSet)
+			conditionallyObserve(obsrv, &bufferedReadScheduledBlockCountStatusFailedAtomic, bufferedReadScheduledBlockCountStatusFailedAttrSet)
 			conditionallyObserve(obsrv, &bufferedReadScheduledBlockCountStatusSuccessfulAtomic, bufferedReadScheduledBlockCountStatusSuccessfulAttrSet)
 			return nil
 		}))
@@ -4079,6 +4088,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		bufferedReadFallbackTriggerCountReasonRandomReadDetectedAtomic: &bufferedReadFallbackTriggerCountReasonRandomReadDetectedAtomic,
 		bufferedReadReadLatency:                                                            bufferedReadReadLatency,
 		bufferedReadScheduledBlockCountStatusCancelledAtomic:                               &bufferedReadScheduledBlockCountStatusCancelledAtomic,
+		bufferedReadScheduledBlockCountStatusFailedAtomic:                                  &bufferedReadScheduledBlockCountStatusFailedAtomic,
 		bufferedReadScheduledBlockCountStatusSuccessfulAtomic:                              &bufferedReadScheduledBlockCountStatusSuccessfulAtomic,
 		fileCacheReadBytesCountReadTypeParallelAtomic:                                      &fileCacheReadBytesCountReadTypeParallelAtomic,
 		fileCacheReadBytesCountReadTypeRandomAtomic:                                        &fileCacheReadBytesCountReadTypeRandomAtomic,
