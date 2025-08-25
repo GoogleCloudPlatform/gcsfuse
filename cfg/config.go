@@ -385,10 +385,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-buffered-read", "", false, "When enabled, read starts using buffer to prefetch (asynchronous and in parallel) data from GCS. This improves performance for large file sequential reads. Note: Enabling this flag can increase the memory usage significantly.")
 
-	if err := flagSet.MarkHidden("enable-buffered-read"); err != nil {
-		return err
-	}
-
 	flagSet.BoolP("enable-cloud-profiling", "", false, "Enables cloud profiling, by default disabled.")
 
 	if err := flagSet.MarkHidden("enable-cloud-profiling"); err != nil {
@@ -643,11 +639,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("read-global-max-blocks", "", 20, "Specifies the maximum number of blocks available for buffered reads across all file-handles. The value should be >= 0 or -1 (for infinite blocks). A value of 0 disables buffered reads.")
-
-	if err := flagSet.MarkHidden("read-global-max-blocks"); err != nil {
-		return err
-	}
+	flagSet.IntP("read-global-max-blocks", "", 80, "Specifies the maximum number of blocks available for buffered reads across all file-handles. The value should be >= 0 or -1 (for infinite blocks). A value of 0 disables buffered reads.")
 
 	flagSet.DurationP("read-inactive-stream-timeout", "", 10000000000*time.Nanosecond, "Duration of inactivity after which an open GCS read stream is automatically closed. This helps conserve resources when a file handle remains open without active Read calls. A value of '0s' disables this timeout.")
 
