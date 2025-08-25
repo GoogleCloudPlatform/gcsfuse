@@ -775,7 +775,7 @@ func (t *ExponentialBackoffTest) TestWaitWithJitter_ContextCancelled() {
 }
 
 func (t *ExponentialBackoffTest) TestWaitWithJitter_NoContextCancelled() {
-	initial := 1000 * time.Microsecond // A short duration to ensure it waits. Making it any shorter can cause random failures
+	initial := time.Millisecond // A short duration to ensure it waits. Making it any shorter can cause random failures
 	// because context cancel itself takes about a millisecond.
 	max := 5 * initial
 	b := newExponentialBackoff(&exponentialBackoffConfig{
