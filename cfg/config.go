@@ -383,7 +383,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("enable-buffered-read", "", false, "When enabled, read starts using buffer to prefetch (asynchronous and in parallel) data from GCS. This improves performance for large file sequential reads. Note: Enabling this flag can increase the memory usage significantly.")
+	flagSet.BoolP("enable-buffered-read", "", true, "When enabled, read starts using buffer to prefetch (asynchronous and in parallel) data from GCS. This improves performance for large file sequential reads. Note: Enabling this flag can increase the memory usage significantly.")
 
 	if err := flagSet.MarkHidden("enable-buffered-read"); err != nil {
 		return err
@@ -637,13 +637,13 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
 
-	flagSet.IntP("read-block-size-mb", "", 16, "Specifies the block size for buffered reads. The value should be more than  0. This is used to read data in chunks from GCS.")
+	flagSet.IntP("read-block-size-mb", "", 32, "Specifies the block size for buffered reads. The value should be more than  0. This is used to read data in chunks from GCS.")
 
 	if err := flagSet.MarkHidden("read-block-size-mb"); err != nil {
 		return err
 	}
 
-	flagSet.IntP("read-global-max-blocks", "", 20, "Specifies the maximum number of blocks available for buffered reads across all file-handles. The value should be >= 0 or -1 (for infinite blocks). A value of 0 disables buffered reads.")
+	flagSet.IntP("read-global-max-blocks", "", 80, "Specifies the maximum number of blocks available for buffered reads across all file-handles. The value should be >= 0 or -1 (for infinite blocks). A value of 0 disables buffered reads.")
 
 	if err := flagSet.MarkHidden("read-global-max-blocks"); err != nil {
 		return err
@@ -655,13 +655,13 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("read-max-blocks-per-handle", "", 20, "Specifies the maximum number of blocks to be used by a single file handle for  buffered reads. The value should be >= 0 or -1 (for infinite blocks). A value of 0 disables buffered reads.")
+	flagSet.IntP("read-max-blocks-per-handle", "", 14, "Specifies the maximum number of blocks to be used by a single file handle for  buffered reads. The value should be >= 0 or -1 (for infinite blocks). A value of 0 disables buffered reads.")
 
 	if err := flagSet.MarkHidden("read-max-blocks-per-handle"); err != nil {
 		return err
 	}
 
-	flagSet.IntP("read-min-blocks-per-handle", "", 4, "Specifies the minimum number of blocks required by a file-handle to start reading via buffered reads. The value should be >= 1 or \"read-max-blocks-per-handle\".")
+	flagSet.IntP("read-min-blocks-per-handle", "", 2, "Specifies the minimum number of blocks required by a file-handle to start reading via buffered reads. The value should be >= 1 or \"read-max-blocks-per-handle\".")
 
 	if err := flagSet.MarkHidden("read-min-blocks-per-handle"); err != nil {
 		return err

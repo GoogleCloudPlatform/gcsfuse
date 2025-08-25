@@ -756,7 +756,7 @@
   usage: >-
     Specifies the block size for buffered reads. The value should be more than 
     0. This is used to read data in chunks from GCS.
-  default: 16
+  default: 32
   hide-flag: true
 
 - config-path: "read.enable-buffered-read"
@@ -766,7 +766,7 @@
     When enabled, read starts using buffer to prefetch (asynchronous and in parallel)
     data from GCS. This improves performance for large file sequential reads.
     Note: Enabling this flag can increase the memory usage significantly.
-  default: false
+  default: true
   hide-flag: true
 
 - config-path: "read.global-max-blocks"
@@ -776,7 +776,7 @@
     Specifies the maximum number of blocks available for buffered reads across all file-handles.
     The value should be >= 0 or -1 (for infinite blocks).
     A value of 0 disables buffered reads.
-  default: 20
+  default: 80
   hide-flag: true
 
 - config-path: "read.inactive-stream-timeout"
@@ -796,7 +796,7 @@
     Specifies the maximum number of blocks to be used by a single file handle for 
     buffered reads. The value should be >= 0 or -1 (for infinite blocks).
     A value of 0 disables buffered reads.
-  default: 20
+  default: 14
   hide-flag: true
 
 - config-path: "read.min-blocks-per-handle"
@@ -805,7 +805,7 @@
   usage: >-
     Specifies the minimum number of blocks required by a file-handle to start
     reading via buffered reads. The value should be >= 1 or "read-max-blocks-per-handle".
-  default: 4
+  default: 2
   hide-flag: true
 
 - config-path: "read.start-blocks-per-handle"
