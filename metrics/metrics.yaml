@@ -1,5 +1,5 @@
 - metric-name: "buffered_read/download_block_latency"
-  description: "The cumulative distribution of block download latencies, along with status: successful or cancelled."
+  description: "The cumulative distribution of block download latencies, along with status: successful, cancelled, or failed."
   unit: "us"
   type: "int_histogram"
   boundaries: &common_boundaries
@@ -43,6 +43,7 @@
     values:
     - "successful"
     - "cancelled"
+    - "failed"
 
 - metric-name: "buffered_read/fallback_trigger_count"
   description: "The cumulative number of times the BufferedReader falls back to a different reader, along with the reason: random_read_detected or insufficient_memory."
@@ -61,7 +62,7 @@
   boundaries: *common_boundaries
 
 - metric-name: "buffered_read/scheduled_block_count"
-  description: "The cumulative number of scheduled download blocks, along with their final status: successful or cancelled."
+  description: "The cumulative number of scheduled download blocks, along with their final status: successful, cancelled, or failed."
   type: "int_counter"
   attributes:
   - attribute-name: status
@@ -69,6 +70,7 @@
     values:
     - "successful"
     - "cancelled"
+    - "failed"
 
 - metric-name: "file_cache/read_bytes_count"
   description: "The cumulative number of bytes read from file cache along with read type - Sequential/Random"

@@ -140,6 +140,11 @@ func TestBufferedReadDownloadBlockLatency(t *testing.T) {
 			status:    "cancelled",
 		},
 		{
+			name:      "status_failed",
+			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
+			status:    "failed",
+		},
+		{
 			name:      "status_successful",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
 			status:    "successful",
@@ -274,6 +279,15 @@ func TestBufferedReadScheduledBlockCount(t *testing.T) {
 			},
 		},
 		{
+			name: "status_failed",
+			f: func(m *otelMetrics) {
+				m.BufferedReadScheduledBlockCount(5, "failed")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("status", "failed")): 5,
+			},
+		},
+		{
 			name: "status_successful",
 			f: func(m *otelMetrics) {
 				m.BufferedReadScheduledBlockCount(5, "successful")
@@ -285,11 +299,11 @@ func TestBufferedReadScheduledBlockCount(t *testing.T) {
 			name: "multiple_attributes_summed",
 			f: func(m *otelMetrics) {
 				m.BufferedReadScheduledBlockCount(5, "cancelled")
-				m.BufferedReadScheduledBlockCount(2, "successful")
+				m.BufferedReadScheduledBlockCount(2, "failed")
 				m.BufferedReadScheduledBlockCount(3, "cancelled")
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("status", "cancelled")): 8,
-				attribute.NewSet(attribute.String("status", "successful")): 2,
+				attribute.NewSet(attribute.String("status", "failed")): 2,
 			},
 		},
 	}
