@@ -87,7 +87,7 @@ func (o *otelMetrics) {{toPascal .Name}}(
 	var record histogramRecord
 	{{buildSwitches .}}
 	select {
-	  case o.ch <- histogramRecord{instrument: record.instrument, value: record.value, attributes: record.attributes, ctx: ctx}: // Do nothing
+	  case o.ch <- record: // Do nothing
 	  default: // Unblock writes to channel if it's full.
 	}
 	{{- end}}
@@ -103,7 +103,11 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
     go func() {
 	  defer wg.Done()
 	  for record := range ch {
-		record.instrument.Record(record.ctx, record.value, record.attributes)
+		if record.attributes != nil {
+            record.instrument.Record(record.ctx, record.value, record.attributes)
+        } else {
+            record.instrument.Record(record.ctx, record.value)
+        }
 	  }
 	}()
   }

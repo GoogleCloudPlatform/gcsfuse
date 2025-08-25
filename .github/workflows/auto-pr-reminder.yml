@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+      issues: write
     steps:
       - name: Add 'remind-reviewers' label
         uses: actions/github-script@v6

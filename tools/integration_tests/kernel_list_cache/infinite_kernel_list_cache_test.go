@@ -474,6 +474,7 @@ func TestInfiniteKernelListCacheTest(t *testing.T) {
 	for _, flags := range flagsSet {
 		ts.flags = flags
 		log.Printf("Running tests with flags: %s", ts.flags)
+
 		test_setup.RunTests(t, ts)
 	}
 }
