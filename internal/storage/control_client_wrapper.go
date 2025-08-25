@@ -289,13 +289,17 @@ func (sccwros *storageControlClientWithRetry) CreateFolder(ctx context.Context,
 	return executeWithRetry(sccwros, ctx, "CreateFolder", reqDescription, apiCall)
 }
 
+// newRetryWrapper creates a new StorageControlClient with retry capabilities.
+// It accepts various parameters to configure the retry behavior.
+// The returned control client retries storage-layout.
+// It also retries folder-related APIs if specified.
 func newRetryWrapper(controlClient StorageControlClient,
 	retryDeadline,
 	totalRetryBudget,
 	initialBackoff,
 	maxBackoff time.Duration,
 	backoffMultiplier float64,
-	retryAllAPIs bool) StorageControlClient {
+	retryFolderAPIs bool) StorageControlClient {
 	// Avoid creating a nested wrapper.
 	raw := controlClient
 	if sccwros, ok := controlClient.(*storageControlClientWithRetry); ok {
@@ -308,7 +312,7 @@ func newRetryWrapper(controlClient StorageControlClient,
 		totalRetryBudget:                totalRetryBudget,
 		backoffConfig:                   exponentialBackoffConfig{initialBackoff, maxBackoff, backoffMultiplier},
 		enableRetriesOnStorageLayoutAPI: true,
-		enableRetriesOnFolderAPIs:       retryAllAPIs,
+		enableRetriesOnFolderAPIs:       retryFolderAPIs,
 	}
 }
 
