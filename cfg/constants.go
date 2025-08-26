@@ -34,9 +34,9 @@ const (
 
 const (
 	// Logging-format constants
-	LogFormatText    = "text"
-	LogFormatJSON    = "json"
-	DefaultLogFormat = LogFormatJSON
+	logFormatText    = "text"
+	logFormatJSON    = "json"
+	defaultLogFormat = logFormatJSON
 )
 
 const (

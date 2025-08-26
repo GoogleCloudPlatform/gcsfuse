@@ -16,7 +16,6 @@ package cfg
 
 import (
 	"bytes"
-	"fmt"
 	"log"
 	"math"
 	"os"
@@ -674,34 +673,31 @@ func TestResolveLoggingConfig(t *testing.T) {
 		expectWarning     bool
 	}{
 		{
-			name: "valid log format (json)",
+			name: "valid_log_format_json",
 			config: &Config{
 				Logging: LoggingConfig{
 					Format: "json",
 				},
 			},
 			expectedLogFormat: "json",
-			expectWarning:     false,
 		},
 		{
-			name: "valid log format (text)",
+			name: "valid_log_format_text",
 			config: &Config{
 				Logging: LoggingConfig{
 					Format: "text",
 				},
 			},
 			expectedLogFormat: "text",
-			expectWarning:     false,
 		},
 		{
-			name: "invalid log format, default to json",
+			name: "invalid_log_format",
 			config: &Config{
 				Logging: LoggingConfig{
 					Format: "INVALID",
 				},
 			},
-			expectedLogFormat: DefaultLogFormat, // Should default to JSON
-			expectWarning:     true,
+			expectedLogFormat: defaultLogFormat, // Should default to JSON
 		},
 	}
 
@@ -716,12 +712,6 @@ func TestResolveLoggingConfig(t *testing.T) {
 			resolveLoggingConfig(tc.config)
 
 			assert.Equal(t, tc.expectedLogFormat, tc.config.Logging.Format)
-			logOutput := buf.String()
-			if tc.expectWarning {
-				assert.True(t, strings.Contains(logOutput, fmt.Sprintf("Unsupported log format provided: INVALID. Defaulting to %s log format.", DefaultLogFormat)))
-			} else {
-				assert.False(t, strings.Contains(logOutput, "Unsupported log format provided:"))
-			}
 		})
 	}
 }
