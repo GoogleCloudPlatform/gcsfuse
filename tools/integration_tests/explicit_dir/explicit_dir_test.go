@@ -64,6 +64,12 @@ func TestMain(m *testing.M) {
 
 	// 2. Create storage client before running tests.
 	testEnv.ctx = context.Background()
+	
+	bucketType, err := setup.BucketType(testEnv.ctx, cfg.ExplicitDir[0].TestBucket)
+	if err != nil {
+		log.Fatalf("BucketType failed: %v", err)
+	}
+
 	closeStorageClient := client.CreateStorageClientWithCancel(&testEnv.ctx, &testEnv.storageClient)
 	defer func() {
 		err := closeStorageClient()
@@ -73,10 +79,6 @@ func TestMain(m *testing.M) {
 	}()
 
 	// 4. Build the flag sets dynamically from the config.
-	bucketType, err := setup.BucketType(testEnv.ctx, cfg.ExplicitDir[0].TestBucket)
-	if err != nil {
-		log.Fatalf("BucketType failed: %v", err)
-	}
 	flags := setup.BuildFlagSets(cfg.ExplicitDir[0], bucketType)
 
 	// 5. Run tests with the dynamically generated flags.
