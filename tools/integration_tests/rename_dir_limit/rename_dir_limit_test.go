@@ -47,7 +47,6 @@ const onlyDirMounted = "OnlyDirMountRenameDirLimit"
 var (
 	storageClient *storage.Client
 	ctx           context.Context
-	err           error
 )
 
 func TestMain(m *testing.M) {
@@ -69,7 +68,7 @@ func TestMain(m *testing.M) {
 			"--rename-dir-limit=3 --client-protocol=grpc",
 		}
 		cfg.RenameDirLimit[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": true}
-		// for HNS we have another function that generates the hnsFlagSet from another config file 
+		// for HNS we have another function that generates the hnsFlagSet from another config file
 		cfg.RenameDirLimit[0].Configs[1].Compatible = map[string]bool{"flat": false, "hns": true, "zonal": false}
 	}
 
