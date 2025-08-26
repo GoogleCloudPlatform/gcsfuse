@@ -569,6 +569,13 @@ func TestCLIFlagPassing(t *testing.T) {
 				assert.Equal(t, cfg.ResolvedPath(""), c.CacheDir)
 			},
 		},
+		{
+			name: "optimizeProfile 1",
+			args: []string{"--optimize-profile", "aiml-training"},
+			testFn: func(t *testing.T, c *cfg.Config) {
+				assert.Equal(t, "aiml-training", c.OptimizeProfile)
+			},
+		},
 	}
 
 	for _, tc := range testCases {
