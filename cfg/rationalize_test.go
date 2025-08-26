@@ -670,7 +670,6 @@ func TestResolveLoggingConfig(t *testing.T) {
 		name              string
 		config            *Config
 		expectedLogFormat string
-		expectWarning     bool
 	}{
 		{
 			name: "valid_log_format_json",
