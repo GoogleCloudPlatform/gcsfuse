@@ -125,11 +125,8 @@ rename_dir_limit:
           flat: true
           hns: false
           zonal: true
-      - flags:
-          # - "--rename-dir-limit=3 --implicit-dirs"
-          # - "--rename-dir-limit=3 --implicit-dirs --client-protocol=grpc"
-          # - "--rename-dir-limit=3"
-          # - "--rename-dir-limit=3 --client-protocol=grpc"
+      - flags: 
+        - "--enable-hns=true"
         compatible:
           flat: false
           hns: true

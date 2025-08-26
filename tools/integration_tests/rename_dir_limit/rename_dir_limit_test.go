@@ -68,7 +68,9 @@ func TestMain(m *testing.M) {
 			"--rename-dir-limit=3 --client-protocol=grpc",
 		}
 		cfg.RenameDirLimit[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": true}
-		// for HNS we have another function that generates the hnsFlagSet from another config file
+		cfg.RenameDirLimit[0].Configs[1].Flags = []string{
+			"--enable-hns=true",
+		}
 		cfg.RenameDirLimit[0].Configs[1].Compatible = map[string]bool{"flat": false, "hns": true, "zonal": false}
 	}
 
@@ -89,11 +91,6 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 	defer storageClient.Close()
-
-	// 3. Flags are set for the HNS Buckets
-	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
-		cfg.RenameDirLimit[0].Configs[1].Flags = hnsFlagSet
-	}
 
 	if setup.TestBucket() == "" && setup.MountedDirectory() != "" {
 		log.Print("Please pass the name of bucket mounted at mountedDirectory to --testBucket flag.")
