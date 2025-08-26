@@ -443,7 +443,7 @@ func (p *BufferedReader) scheduleNextBlock(urgent bool) error {
 		// can't get a block. For the buffered reader, this is a recoverable
 		// condition that should either trigger a fallback to another reader (for
 		// urgent reads) or be ignored (for background prefetches).
-		logger.Warnf("scheduleNextBlock: could not get block from pool (urgent=%t): %v", urgent, err)
+		logger.Tracef("scheduleNextBlock: could not get block from pool (urgent=%t): %v", urgent, err)
 		return ErrPrefetchBlockNotAvailable
 	}
 
