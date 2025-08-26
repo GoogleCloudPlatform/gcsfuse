@@ -149,6 +149,11 @@ func TestValidateCliFlag(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:    "valid optimize-flag",
+			args:    []string{"--optimize-profile=aiml-training"},
+			wantErr: false,
+		},
+		{
 			name:    "invalid log severity",
 			args:    []string{"--log-severity=critical"},
 			wantErr: true,
@@ -161,6 +166,11 @@ func TestValidateCliFlag(t *testing.T) {
 		{
 			name:    "invalid log-rotate-backup-file-count",
 			args:    []string{"--log-rotate-backup-file-count=-1"},
+			wantErr: true,
+		},
+		{
+			name:    "invalid optimize-flag",
+			args:    []string{"--optimize-profile=unknown-profile"},
 			wantErr: true,
 		},
 	}
