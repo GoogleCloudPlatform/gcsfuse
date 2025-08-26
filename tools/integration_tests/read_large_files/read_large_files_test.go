@@ -17,10 +17,9 @@ package read_large_files
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
-	"path"
-	"strconv"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -28,7 +27,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
-	"gopkg.in/yaml.v3"
 )
 
 const OneMB = 1024 * 1024
@@ -63,8 +61,8 @@ func TestMain(m *testing.M) {
 		cfg.ReadLargeFiles[0].TestBucket = setup.TestBucket()
 		cfg.ReadLargeFiles[0].MountedDirectory = setup.MountedDirectory()
 		cfg.ReadLargeFiles[0].Configs = make([]test_suite.ConfigItem, 1)
-		cfg.ReadargeFiles[0].Configs[0].Flags = []string{
-			"--implicit-dirs"
+		cfg.ReadLargeFiles[0].Configs[0].Flags = []string{
+			"--implicit-dirs",
 			"--implicit-dirs --client-protocol=grpc",
 		}
 		cacheDirFlag1 := fmt.Sprintf("--implicit-dirs=true --file-cache-max-size-mb=700 --cache-file-for-range-read=true --cache-dir=%s/cache-dir-read-large-files-hns", os.TempDir())
@@ -72,7 +70,7 @@ func TestMain(m *testing.M) {
 		cfg.ReadLargeFiles[0].Configs[0].Flags = append(cfg.ReadLargeFiles[0].Configs[0].Flags, cacheDirFlag1, "--client-protocol=grpc")
 
 		cacheDirFlag2 := fmt.Sprintf("--implicit-dirs=true --file-cache-max-size-mb=-1 --cache-file-for-range-read=false --cache-dir=%s/cache-dir-read-large-files-hns", os.TempDir())
-		cfg.ReadLargeFiles[0].Configs[1].Flags = append(cfg.ReadLargeFiles[0].Configs[0].Flags, cacheDirFlag2)
+		cfg.ReadLargeFiles[0].Configs[0].Flags = append(cfg.ReadLargeFiles[0].Configs[0].Flags, cacheDirFlag2)
 		cfg.ReadLargeFiles[0].Configs[0].Flags = append(cfg.ReadLargeFiles[0].Configs[0].Flags, cacheDirFlag1, "--client-protocol=grpc")
 
 		cfg.ReadLargeFiles[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
@@ -82,15 +80,16 @@ func TestMain(m *testing.M) {
 	ctx = context.Background()
 	var err error
 	// 2. Create storage client before running tests.
-	storageClient, err = client.CreateStorageClient(ctx)
-	if err != nil {
-		log.Printf("Error creating storage client: %v\n", err)
-		os.Exit(1)
-	}
-	defer storageClient.Close()
+	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
+	defer func() {
+		err := closeStorageClient()
+		if err != nil {
+			log.Fatalf("closeStorageClient failed: %v", err)
+		}
+	}()
 
 	bucketType, err := setup.BucketType(ctx, cfg.ReadLargeFiles[0].TestBucket)
-	Readr != nil {
+	if err != nil {
 		log.Fatalf("BucketType failed: %v", err)
 	}
 	if bucketType == setup.ZonalBucket {
@@ -111,7 +110,7 @@ func TestMain(m *testing.M) {
 
 	setup.SetUpTestDirForTestBucket(cfg.ReadLargeFiles[0].TestBucket)
 
-	successCode := static_mounting.RunTestsWithConfigFile(&cfg.ReadLargeFiles ,flags, m)
-	
+	successCode := static_mounting.RunTestsWithConfigFile(&cfg.ReadLargeFiles[0], flags, m)
+
 	os.Exit(successCode)
 }
