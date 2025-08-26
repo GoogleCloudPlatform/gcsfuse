@@ -118,6 +118,16 @@ func TestValidateConfigFile(t *testing.T) {
 			configFile: "testdata/invalid_log_rotate_config_2.yaml",
 			wantErr:    true,
 		},
+		{
+			name:       "invalid_optimize_profile",
+			configFile: "testdata/invalid_optimize_profile.yaml",
+			wantErr:    true,
+		},
+		{
+			name:       "valid_optimize_profile",
+			configFile: "testdata/valid_optimize_profile.yaml",
+			wantErr:    false,
+		},
 	}
 
 	for _, tc := range testCases {
