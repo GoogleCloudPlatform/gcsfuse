@@ -15,6 +15,7 @@
 package cfg
 
 import (
+	"log"
 	"math"
 	"net/url"
 
@@ -121,6 +122,18 @@ func resolveParallelDownloadsValue(v isSet, fc *FileCacheConfig, c *Config) {
 	}
 }
 
+func resolveFileCacheAndBufferedReadConflict(v isSet, c *Config) {
+	if IsFileCacheEnabled(c) && c.Read.EnableBufferedRead {
+		// Log a warning only if the user has explicitly enabled buffered-read.
+		// The default value for enable-buffered-read is true, so we don't want to
+		// log a warning for the default case.
+		if v.IsSet("read.enable-buffered-read") {
+			log.Printf("Warning: File Cache and Buffered Read features are mutually exclusive. Disabling Buffered Read in favor of File Cache.")
+		}
+		c.Read.EnableBufferedRead = false
+	}
+}
+
 // Rationalize updates the config fields based on the values of other fields.
 func Rationalize(v isSet, c *Config, optimizedFlags []string) error {
 	var err error
@@ -141,6 +154,7 @@ func Rationalize(v isSet, c *Config, optimizedFlags []string) error {
 	resolveStatCacheMaxSizeMB(v, &c.MetadataCache, optimizedFlags)
 	resolveCloudMetricsUploadIntervalSecs(&c.Metrics)
 	resolveParallelDownloadsValue(v, &c.FileCache, c)
+	resolveFileCacheAndBufferedReadConflict(v, c)
 
 	return nil
 }

@@ -15,7 +15,11 @@
 package cfg
 
 import (
+	"bytes"
+	"log"
 	"math"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -575,6 +579,87 @@ func TestRationalize_ParallelDownloadsConfig(t *testing.T) {
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedParallelDownloads, tc.config.FileCache.EnableParallelDownloads)
+			}
+		})
+	}
+}
+
+func TestRationalize_FileCacheAndBufferedReadConflict(t *testing.T) {
+	testCases := []struct {
+		name                       string
+		flags                      flagSet
+		config                     *Config
+		expectedEnableBufferedRead bool
+		expectWarning              bool
+	}{
+		{
+			name:  "file cache and buffered read enabled (user set)",
+			flags: flagSet{"read.enable-buffered-read": true},
+			config: &Config{
+				CacheDir: "/some/path",
+				FileCache: FileCacheConfig{
+					MaxSizeMb: -1,
+				},
+				Read: ReadConfig{
+					EnableBufferedRead: true,
+				},
+			},
+			expectedEnableBufferedRead: false,
+			expectWarning:              true,
+		},
+		{
+			name:  "file cache enabled, buffered read enabled (default)",
+			flags: flagSet{},
+			config: &Config{
+				CacheDir: "/some/path",
+				FileCache: FileCacheConfig{
+					MaxSizeMb: -1,
+				},
+				Read: ReadConfig{
+					EnableBufferedRead: true,
+				},
+			},
+			expectedEnableBufferedRead: false,
+			expectWarning:              false,
+		},
+		{
+			name:  "file cache disabled, buffered read enabled",
+			flags: flagSet{"read.enable-buffered-read": true},
+			config: &Config{
+				Read: ReadConfig{
+					EnableBufferedRead: true,
+				},
+			},
+			expectedEnableBufferedRead: true,
+			expectWarning:              false,
+		},
+		{
+			name:                       "both disabled",
+			flags:                      flagSet{},
+			config:                     &Config{},
+			expectedEnableBufferedRead: false,
+			expectWarning:              false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Capture log output.
+			var buf bytes.Buffer
+			log.SetOutput(&buf)
+			// Restore original logger output after test.
+			defer log.SetOutput(os.Stderr)
+
+			err := Rationalize(tc.flags, tc.config, []string{})
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedEnableBufferedRead, tc.config.Read.EnableBufferedRead)
+				logOutput := buf.String()
+				if tc.expectWarning {
+					assert.True(t, strings.Contains(logOutput, "Warning: File Cache and Buffered Read features are mutually exclusive. Disabling Buffered Read in favor of File Cache."))
+				} else {
+					assert.False(t, strings.Contains(logOutput, "Warning: File Cache and Buffered Read features are mutually exclusive. Disabling Buffered Read in favor of File Cache."))
+				}
 			}
 		})
 	}
