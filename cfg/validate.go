@@ -32,7 +32,7 @@ const (
 	MaxParallelDownloadsCantBeZeroError       = "the value of max-parallel-downloads for file-cache must not be 0 when enable-parallel-downloads is true"
 	OptimizeProfileAIMLTraining               = "aiml-training"
 	OptimizeProfileAIMLServing                = "aiml-serving"
-	OptimizeProfileAIMLCheckpoint             = "aiml-checkpoint"
+	OptimizeProfileAIMLCheckpointing          = "aiml-checkpointing"
 	OptimizeProfileNotImplementedError        = "warning: optimize-profile is not implemented yet"
 )
 
@@ -260,7 +260,7 @@ func isValidOptimizationProfile(config *Config) error {
 	}
 
 	switch config.OptimizeProfile {
-	case OptimizeProfileAIMLServing, OptimizeProfileAIMLCheckpoint, OptimizeProfileAIMLTraining:
+	case OptimizeProfileAIMLServing, OptimizeProfileAIMLCheckpointing, OptimizeProfileAIMLTraining:
 		// TODO: This warning log is temporary. Remove it when support for optimize-profile is available.
 		log.Printf("Warning: optimize-profile is not implemented yet. Ignoring optimize-profile %q\n", config.OptimizeProfile)
 	default:
