@@ -249,18 +249,18 @@ func TestMain(m *testing.M) {
 	}()
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
-	// flags to be set, as WriteLargeFiles tests validates content from the bucket.
-	if cfg.WriteLargeFiles[0].MountedDirectory != "" && cfg.WriteLargeFiles[0].TestBucket != "" {
-		os.Exit(setup.RunTestsForMountedDirectory(cfg.WriteLargeFiles[0].MountedDirectory, m))
+	// flags to be set, as Gzip tests validates content from the bucket.
+	if cfg.Gzip[0].MountedDirectory != "" && cfg.Gzip[0].TestBucket != "" {
+		os.Exit(setup.RunTestsForMountedDirectory(cfg.Gzip[0].MountedDirectory, m))
 	}
 
 	// Run tests for testBucket// Run tests for testBucket
 	// 4. Build the flag sets dynamically from the config.
-	flags := setup.BuildFlagSets(cfg.WriteLargeFiles[0], bucketType)
+	flags := setup.BuildFlagSets(cfg.Gzip[0], bucketType)
 
-	setup.SetUpTestDirForTestBucket(cfg.WriteLargeFiles[0].TestBucket)
+	setup.SetUpTestDirForTestBucket(cfg.Gzip[0].TestBucket)
 
-	successCode := static_mounting.RunTestsWithConfigFile(&cfg.WriteLargeFiles[0], flags, m)
+	successCode := static_mounting.RunTestsWithConfigFile(&cfg.Gzip[0], flags, m)
 
 	os.Exit(successCode)
 }
