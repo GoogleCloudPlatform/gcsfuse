@@ -57,13 +57,7 @@ func IsMetricsEnabled(c *MetricsConfig) bool {
 	return c.CloudMetricsExportIntervalSecs > 0 || c.PrometheusPort > 0
 }
 
-// IsGKEEnvironment returns true if the file descriptor mount option is set.
-func IsGKEEnvironment(mountConfig *Config) bool {
-	for _, opt := range mountConfig.FileSystem.FuseOptions {
-		if strings.HasPrefix(opt, "fd=") {
-			// The presence of "fd=<number>" indicates the GKE CSI driver.
-			return true
-		}
-	}
-	return false
+// IsGKEEnvironment returns true for /dev/fd/N mountpoints.
+func IsGKEEnvironment(mountPoint string) bool {
+	return strings.HasPrefix(mountPoint, "/dev/fd/")
 }

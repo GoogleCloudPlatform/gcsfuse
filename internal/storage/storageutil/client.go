@@ -68,6 +68,9 @@ type StorageClientConfig struct {
 	MetricHandle metrics.MetricHandle
 
 	TracingEnabled bool
+
+	// IsGKE inspects the mountPoint and indicates if running in a GKE environment.
+	IsGKE bool
 }
 
 func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.TokenSource) (httpClient *http.Client, err error) {

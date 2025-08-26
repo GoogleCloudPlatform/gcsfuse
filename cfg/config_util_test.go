@@ -208,12 +208,12 @@ func TestIsGKEEnvironment(t *testing.T) {
 	t.Parallel()
 	var testCases = []struct {
 		testName    string
-		fuseOptions []string
+		mountPoint  string
 		expected    bool
 	}{
-		{"empty", []string{"a", "b", "c"}, false},
-		{"not_empty_single", []string{"fd=123"}, true},
-		{"not_empty_multi", []string{"a", "fd=123", "c"}, true},
+		{"non-GKE", "/usr/local/mount-folder", false},
+		{"GKE mountpoint", "/dev/fd/", true},
+		{"GKE /dev/fd/N", "/dev/fd/8", true},
 	}
 
 	for _, tc := range testCases {
@@ -221,10 +221,7 @@ func TestIsGKEEnvironment(t *testing.T) {
 		t.Run(tc.testName, func(t *testing.T) {
 			t.Parallel()
 
-			assert.Equal(t, tc.expected, IsGKEEnvironment(&Config{
-				FileSystem: FileSystemConfig{
-					FuseOptions: tc.fuseOptions,
-				}}))
+			assert.Equal(t, tc.expected, IsGKEEnvironment(tc.mountPoint))
 		})
 	}
 }
