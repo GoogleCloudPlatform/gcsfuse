@@ -56,11 +56,19 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.CloudProfiler) == 0 {
-		log.Println("No configuration found for write large files tests in config. Using flags instead.")
+		log.Println("No configuration found for cloud profiler tests in config. Using flags instead.")
 		if setup.ProfileLabelForMountedDirTest() == "" {
 			log.Fatal("Profile label should have been provided for mounted directory test.")
 		}
-		testServiceVersion = setup.ProfileLabelForMountedDirTest()
+		var testServiceVersion string
+		if setup.MountedDirectory() != ""
+		{
+			testServiceVersion = setup.ProfileLabelForMountedDirTest()
+		}
+		else 
+		{
+			testServiceVersion = fmt.Sprintf("ve2e0.0.0-%s", strings.ReplaceAll(uuid.New().String(), "-", "")[:8])
+		}
 		// Populate the config manually.
 		cfg.CloudProfiler = make([]test_suite.TestConfig, 1)
 		cfg.CloudProfiler[0].TestBucket = setup.TestBucket()
@@ -73,7 +81,6 @@ func TestMain(m *testing.M) {
 		cfg.CloudProfiler[0].Configs[0].Flags[0] = cfg.CloudProfiler[0].Configs[0].Flags[0] + testServiceVersionFlag
 		cfg.CloudProfiler[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
-
 	setup.SetBucketFromConfigFile(cfg.CloudProfiler[0].TestBucket)
 	ctx = context.Background()
 	bucketType, err := setup.BucketType(ctx, cfg.CloudProfiler[0].TestBucket)
@@ -93,28 +100,23 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	if setup.MountedDirectory() != "" {
+	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	if cfg.CloudProfiler[0].MountedDirectory != "" {
 		if setup.ProfileLabelForMountedDirTest() == "" {
 			log.Fatal("Profile label should have been provided for mounted directory test.")
 		}
 		testServiceVersion = setup.ProfileLabelForMountedDirTest()
-		setup.RunTestsForMountedDirectory(cfg.CloudProfiler[0].MountedDirectory, m)
+		os.exit(setup.RunTestsForMountedDirectory(cfg.CloudProfiler[0].MountedDirectory, m))
 	}
 
-	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
-	// flags to be set, as CloudProfiler tests validates content from the bucket.
-	if cfg.CloudProfiler[0].MountedDirectory != "" && cfg.CloudProfiler[0].TestBucket != "" {
-		os.Exit(setup.RunTestsForMountedDirectory(cfg.CloudProfiler[0].MountedDirectory, m))
-	}
-
+	testServiceVersion = fmt.Sprintf("ve2e0.0.0-%s", strings.ReplaceAll(uuid.New().String(), "-", "")[:8])
+	logger.Infof("Enabling cloud profiler with version tag: %s", testServiceVersion)
+	
 	// Run tests for testBucket// Run tests for testBucket
 	// 4. Build the flag sets dynamically from the config.
 	flags := setup.BuildFlagSets(cfg.CloudProfiler[0], bucketType)
 
 	setup.SetUpTestDirForTestBucket(cfg.CloudProfiler[0].TestBucket)
-
-	testServiceVersion = fmt.Sprintf("ve2e0.0.0-%s", strings.ReplaceAll(uuid.New().String(), "-", "")[:8])
-	logger.Infof("Enabling cloud profiler with version tag: %s", testServiceVersion)
 
 	successCode := static_mounting.RunTestsWithConfigFile(&cfg.CloudProfiler[0], flags, m)
 
