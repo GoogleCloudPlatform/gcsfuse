@@ -134,6 +134,17 @@ func resolveFileCacheAndBufferedReadConflict(v isSet, c *Config) {
 	}
 }
 
+func resolveLoggingConfig(config *Config) {
+	if config.Debug.Fuse || config.Debug.Gcs || config.Debug.LogMutex {
+		config.Logging.Severity = "TRACE"
+	}
+
+	if config.Logging.Format != LogFormatText && config.Logging.Format != LogFormatJSON {
+		log.Printf("Unsupported log format provided: %s. Defaulting to %s log format.", config.Logging.Format, DefaultLogFormat)
+		config.Logging.Format = DefaultLogFormat // defaulting to json format
+	}
+}
+
 // Rationalize updates the config fields based on the values of other fields.
 func Rationalize(v isSet, c *Config, optimizedFlags []string) error {
 	var err error
@@ -145,10 +156,7 @@ func Rationalize(v isSet, c *Config, optimizedFlags []string) error {
 		return err
 	}
 
-	if c.Debug.Fuse || c.Debug.Gcs || c.Debug.LogMutex {
-		c.Logging.Severity = "TRACE"
-	}
-
+	resolveLoggingConfig(c)
 	resolveStreamingWriteConfig(&c.Write)
 	resolveMetadataCacheTTL(v, &c.MetadataCache, optimizedFlags)
 	resolveStatCacheMaxSizeMB(v, &c.MetadataCache, optimizedFlags)

@@ -16,6 +16,7 @@ package cfg
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"math"
 	"os"
@@ -660,6 +661,66 @@ func TestRationalize_FileCacheAndBufferedReadConflict(t *testing.T) {
 				} else {
 					assert.False(t, strings.Contains(logOutput, "Warning: File Cache and Buffered Read features are mutually exclusive. Disabling Buffered Read in favor of File Cache."))
 				}
+			}
+		})
+	}
+}
+
+func TestResolveLoggingConfig(t *testing.T) {
+	testCases := []struct {
+		name              string
+		config            *Config
+		expectedLogFormat string
+		expectWarning     bool
+	}{
+		{
+			name: "valid log format (json)",
+			config: &Config{
+				Logging: LoggingConfig{
+					Format: "json",
+				},
+			},
+			expectedLogFormat: "json",
+			expectWarning:     false,
+		},
+		{
+			name: "valid log format (text)",
+			config: &Config{
+				Logging: LoggingConfig{
+					Format: "text",
+				},
+			},
+			expectedLogFormat: "text",
+			expectWarning:     false,
+		},
+		{
+			name: "invalid log format, default to json",
+			config: &Config{
+				Logging: LoggingConfig{
+					Format: "INVALID",
+				},
+			},
+			expectedLogFormat: DefaultLogFormat, // Should default to JSON
+			expectWarning:     true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Capture log output.
+			var buf bytes.Buffer
+			log.SetOutput(&buf)
+			// Restore original logger output after test.
+			defer log.SetOutput(os.Stderr)
+
+			resolveLoggingConfig(tc.config)
+
+			assert.Equal(t, tc.expectedLogFormat, tc.config.Logging.Format)
+			logOutput := buf.String()
+			if tc.expectWarning {
+				assert.True(t, strings.Contains(logOutput, fmt.Sprintf("Unsupported log format provided: INVALID. Defaulting to %s log format.", DefaultLogFormat)))
+			} else {
+				assert.False(t, strings.Contains(logOutput, "Unsupported log format provided:"))
 			}
 		})
 	}
