@@ -30,12 +30,13 @@ type BucketType struct {
 
 // TestConfig represents the common configuration for test packages.
 type TestConfig struct {
-	GKEMountedDirectory     string `yaml:"mounted_directory"`
-	GCSFuseMountedDirectory string
-	TestBucket              string       `yaml:"test_bucket"`
-	LogFile                 string       `yaml:"log_file,omitempty"`
-	RunOnGKE                bool         `yaml:"run_on_gke"`
-	Configs                 []ConfigItem `yaml:"configs"`
+	GKEMountedDirectory           string `yaml:"mounted_directory"`
+	GCSFuseMountedDirectory       string
+	TestBucket                    string       `yaml:"test_bucket"`
+	LogFile                       string       `yaml:"log_file,omitempty"`
+	RunOnGKE                      bool         `yaml:"run_on_gke"`
+	Configs                       []ConfigItem `yaml:"configs"`
+	ProfileLabelForMountedDirTest string       `yaml:"profile_label_for_mounted_dir_test,omitempty"`
 }
 
 // ConfigItem defines the variable parts of each test run.

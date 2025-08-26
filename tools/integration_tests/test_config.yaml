@@ -168,6 +168,7 @@ cloud_profiler:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
     log_file: # Optional
+    profile_label_for_mounted_dir_test: # Optional for not mounted dir test
     run_on_gke: false
     configs:
       - flags:

@@ -57,16 +57,15 @@ func TestMain(m *testing.M) {
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.CloudProfiler) == 0 {
 		log.Println("No configuration found for cloud profiler tests in config. Using flags instead.")
-		if setup.ProfileLabelForMountedDirTest() == "" {
-			log.Fatal("Profile label should have been provided for mounted directory test.")
-		}
+		
 		var testServiceVersion string
-		if setup.MountedDirectory() != ""
-		{
+		if setup.MountedDirectory() != "" {
+			if setup.ProfileLabelForMountedDirTest() == "" {
+				log.Fatal("Profile label should have been provided for mounted directory test.")
+			}
 			testServiceVersion = setup.ProfileLabelForMountedDirTest()
 		}
-		else 
-		{
+		else {
 			testServiceVersion = fmt.Sprintf("ve2e0.0.0-%s", strings.ReplaceAll(uuid.New().String(), "-", "")[:8])
 		}
 		// Populate the config manually.
