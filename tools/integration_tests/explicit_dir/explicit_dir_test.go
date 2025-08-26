@@ -64,7 +64,7 @@ func TestMain(m *testing.M) {
 
 	// 2. Create storage client before running tests.
 	testEnv.ctx = context.Background()
-	
+
 	bucketType, err := setup.BucketType(testEnv.ctx, cfg.ExplicitDir[0].TestBucket)
 	if err != nil {
 		log.Fatalf("BucketType failed: %v", err)
