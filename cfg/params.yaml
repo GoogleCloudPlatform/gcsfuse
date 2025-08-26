@@ -777,16 +777,6 @@
     A value of 0 disables buffered reads.
   default: 80
 
-- config-path: "read.global-seek-count"
-  flag-name: "read-global-seek-count"
-  type: "int"
-  usage: >-
-    Specifies the maximum number of blocks available for buffered reads across all file-handles.
-    The value should be >= 0 or -1 (for infinite blocks).
-    A value of 0 disables buffered reads.
-  default: 3
-  hide-flag: false
-
 - config-path: "read.inactive-stream-timeout"
   flag-name: "read-inactive-stream-timeout"
   type: "duration"
@@ -814,6 +804,14 @@
     Specifies the minimum number of blocks required by a file-handle to start
     reading via buffered reads. The value should be >= 1 or "read-max-blocks-per-handle".
   default: 4
+  hide-flag: true
+
+- config-path: "read.random-seek-threshold"
+  flag-name: "read-random-seek-threshold"
+  type: "int"
+  usage: >-
+    Specifies the random seek threshold to switch to another reader when random reads are detected.
+  default: 3
   hide-flag: true
 
 - config-path: "read.start-blocks-per-handle"
