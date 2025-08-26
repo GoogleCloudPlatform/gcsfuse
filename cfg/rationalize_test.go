@@ -703,12 +703,6 @@ func TestResolveLoggingConfig(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Capture log output.
-			var buf bytes.Buffer
-			log.SetOutput(&buf)
-			// Restore original logger output after test.
-			defer log.SetOutput(os.Stderr)
-
 			resolveLoggingConfig(tc.config)
 
 			assert.Equal(t, tc.expectedLogFormat, tc.config.Logging.Format)
