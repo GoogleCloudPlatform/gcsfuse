@@ -128,7 +128,7 @@ func resolveFileCacheAndBufferedReadConflict(v isSet, c *Config) {
 		// The default value for enable-buffered-read is true, so we don't want to
 		// log a warning for the default case.
 		if v.IsSet("read.enable-buffered-read") {
-			log.Printf("Warning: File cache and buffered read are mutually exclusive. Disabling buffered read.")
+			log.Printf("Warning: File Cache and Buffered Read features are mutually exclusive. Disabling Buffered Read in favor of File Cache.")
 		}
 		c.Read.EnableBufferedRead = false
 	}

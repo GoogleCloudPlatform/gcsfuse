@@ -656,9 +656,9 @@ func TestRationalize_FileCacheAndBufferedReadConflict(t *testing.T) {
 				assert.Equal(t, tc.expectedEnableBufferedRead, tc.config.Read.EnableBufferedRead)
 				logOutput := buf.String()
 				if tc.expectWarning {
-					assert.True(t, strings.Contains(logOutput, "Warning: File cache and buffered read are mutually exclusive. Disabling buffered read."))
+					assert.True(t, strings.Contains(logOutput, "Warning: File Cache and Buffered Read features are mutually exclusive. Disabling Buffered Read in favor of File Cache."))
 				} else {
-					assert.False(t, strings.Contains(logOutput, "Warning: File cache and buffered read are mutually exclusive. Disabling buffered read."))
+					assert.False(t, strings.Contains(logOutput, "Warning: File Cache and Buffered Read features are mutually exclusive. Disabling Buffered Read in favor of File Cache."))
 				}
 			}
 		})
