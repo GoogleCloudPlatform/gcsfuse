@@ -78,7 +78,7 @@ func TestMain(m *testing.M) {
 	}
 
 	// 2. Create storage client before running tests.
-	setup.SetBucketFromConfigFile(cfg.ListLargeDir[0].TestBucket)
+	setup.SetTestBucket(cfg.ListLargeDir[0].TestBucket)
 	ctx = context.Background()
 	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
 	defer func() {

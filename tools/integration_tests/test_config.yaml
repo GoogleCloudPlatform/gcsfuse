@@ -80,3 +80,46 @@ write_large_files:
           flat: true
           hns: true
           zonal: true
+
+operations:
+  - mounted_directory: "${MOUNTED_DIR}" # To be passed by GKE after mounting
+    test_bucket: "pranjal-bucket-1" # To be passed by both gcsfuse and gke tests
+    log_file: # Optional flag required by some tests where log parsing is done to validate end behavior
+    run_on_gke: false
+    configs:
+      - flags:
+          - "--enable-atomic-rename-object=true"
+          - "--experimental-enable-json-read=true"
+          - "--client-protocol=grpc --implicit-dirs=true --enable-atomic-rename-object=true"
+          - "--create-empty-file=true --enable-atomic-rename-object=true"
+          - "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false"
+          - "--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true"
+          - "--file-cache-max-size-mb=2 --cache-dir=${TMPDIR}/cache-dir-operations-hns" # Set the 'TMPDIR' environment variable to an absolute path, for example, 'export TMPDIR=/home/vm_name/gcsfuse/tempdir', before running the test.
+        compatible:
+          flat: true
+          hns: false
+          zonal: true
+
+      - flags:
+          - "--experimental-enable-json-read=true --enable-atomic-rename-object=true"
+          - "--create-empty-file=true --enable-atomic-rename-object=true"
+          - "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false"
+          - "--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true"
+          - "--file-cache-max-size-mb=2 --cache-dir=${TMPDIR}/cache-dir-operations-hns" # Set the 'TMPDIR' environment variable to an absolute path, for example, 'export TMPDIR=/home/vm_name/gcsfuse/tempdir', before running the test.
+        compatible:
+          flat: false
+          hns: true
+          zonal: false
+
+      - flags:
+          - "--enable-atomic-rename-object=true"
+          - "--experimental-enable-json-read=true"
+          - "--create-empty-file=true --enable-atomic-rename-object=true"
+          - "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false"
+          - "--kernel-list-cache-ttl-secs=-1 --implicit-dirs=true"
+          - "--file-cache-max-size-mb=2 --cache-dir=${TMPDIR}/cache-dir-operations-hns" # Set the 'TMPDIR' environment variable to an absolute path, for example, 'export TMPDIR=/home/vm_name/gcsfuse/tempdir', before running the test.
+        compatible:
+          flat: true
+          hns: true
+          zonal: false
+        tpc: true
