@@ -214,14 +214,13 @@ func (t *fileTest) Test_IsValidReadManager_GenerationValidation() {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
-			mockReadManager := new(read_manager.MockReadManager)
-			mockReadManager.On("Object").Return(&gcs.MinObject{Generation: tc.readerGeneration})
-			fh.readManager = mockReadManager
+			minObj := in.Source()
+			minObj.Generation = tc.readerGeneration
+			fh.readManager = read_manager.NewReadManager(minObj, &t.bucket, &read_manager.ReadManagerConfig{Config: config})
 
 			result := fh.isValidReadManager()
 
 			assert.Equal(t.T(), tc.expectedIsValid, result)
-			mockReadManager.AssertExpectations(t.T())
 		})
 	}
 }
@@ -271,14 +270,13 @@ func (t *fileTest) Test_IsValidReader_GenerationValidation() {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
-			mockReader := new(gcsx.MockRandomReader)
-			mockReader.On("Object").Return(&gcs.MinObject{Generation: tc.readerGeneration})
-			fh.reader = mockReader
+			minObj := in.Source()
+			minObj.Generation = tc.readerGeneration
+			fh.reader = gcsx.NewRandomReader(minObj, &t.bucket, 200, nil, false, metrics.NewNoopMetrics(), &in.MRDWrapper, config)
 
 			result := fh.isValidReader()
 
 			assert.Equal(t.T(), tc.expectedIsValid, result)
-			mockReader.AssertExpectations(t.T())
 		})
 	}
 }
