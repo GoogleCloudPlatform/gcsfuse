@@ -80,3 +80,17 @@ write_large_files:
           flat: true
           hns: true
           zonal: true
+
+gzip:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    log_file: # Optional
+    run_on_gke: false
+    configs:
+      - flags:
+          - "--sequential-read-size-mb=1 --implicit-dirs"
+          - "--sequential-read-size-mb=1 --implicit-dirs --client-protocol=grpc"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
