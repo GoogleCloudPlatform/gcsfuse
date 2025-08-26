@@ -17,6 +17,7 @@ package cfg
 import (
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"regexp"
 
@@ -261,7 +262,7 @@ func isValidOptimizationProfile(config *Config) error {
 	switch config.OptimizeProfile {
 	case OptimizeProfileAIMLServing, OptimizeProfileAIMLCheckpoint, OptimizeProfileAIMLTraining:
 		// TODO: This warning log is temporary. Remove it when support for optimize-profile is available.
-		fmt.Printf("Warning: optimize-profile is not implemented yet. Ignoring optimize-profile %q\n", config.OptimizeProfile)
+		log.Printf("Warning: optimize-profile is not implemented yet. Ignoring optimize-profile %q\n", config.OptimizeProfile)
 	default:
 		return fmt.Errorf("Unknown optimize-profile: %q", config.OptimizeProfile)
 	}
