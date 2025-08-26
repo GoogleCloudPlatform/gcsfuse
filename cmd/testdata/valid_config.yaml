@@ -7,6 +7,7 @@ read:
   start-blocks-per-handle: 4
   max-blocks-per-handle: 20
   min-blocks-per-handle: 2
+  random-seek-threshold: 10
 write:
   create-empty-file: true
   enable-streaming-writes: true
