@@ -33,7 +33,6 @@ const (
 	OptimizeProfileAIMLTraining               = "aiml-training"
 	OptimizeProfileAIMLServing                = "aiml-serving"
 	OptimizeProfileAIMLCheckpointing          = "aiml-checkpointing"
-	OptimizeProfileNotImplementedError        = "warning: optimize-profile is not implemented yet"
 )
 
 func isValidLogRotateConfig(config *LogRotateLoggingConfig) error {
