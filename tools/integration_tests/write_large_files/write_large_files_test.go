@@ -83,7 +83,7 @@ func TestMain(m *testing.M) {
 		os.Exit(setup.RunTestsForMountedDirectory(cfg.WriteLargeFiles[0].MountedDirectory, m))
 	}
 
-	// Run tests for testBucket// Run tests for testBucket
+	// Run tests for testBucket
 	// 4. Build the flag sets dynamically from the config.
 	flags := setup.BuildFlagSets(cfg.WriteLargeFiles[0], bucketType)
 
