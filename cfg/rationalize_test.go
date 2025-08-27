@@ -696,7 +696,7 @@ func TestResolveLoggingConfig(t *testing.T) {
 					Format: "TEXT",
 				},
 			},
-			expectedLogFormat: "text", // Should default to JSON
+			expectedLogFormat: "text",
 		},
 		{
 			name: "invalid_log_format",
