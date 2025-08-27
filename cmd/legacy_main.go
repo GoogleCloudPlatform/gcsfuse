@@ -358,7 +358,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 
 	// Start collecting dmesg output.
 	dmesgLogFile := filepath.Join(tempDir, "dmesg.log")
-	dmesgScript := fmt.Sprintf("while true; do dmesg -T >> %s; sleep 1; done", dmesgLogFile)
+	dmesgScript := fmt.Sprintf("dmesg -T -w >> %s", dmesgLogFile)
 	if !checkDmesgPermissions() {
 		fmt.Println("GCSFuse needs superuser permission to collect dmesg logs for the bug report.")
 		fmt.Print("Please enter your password to proceed: ")
@@ -411,9 +411,24 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
+	// Start the child process.
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start gcsfuse child process: %w", err)
 	}
+
+	// Set up a channel to catch signals.
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
+
+	// Start a goroutine to forward signals to the child process.
+	go func() {
+		for sig := range signalChan {
+			logger.Infof("Parent process received signal: %v. Forwarding to child process.", sig)
+			if err := cmd.Process.Signal(sig); err != nil {
+				logger.Errorf("Failed to forward signal to child process: %v", err)
+			}
+		}
+	}()
 
 	// Wait for the child process to exit.
 	runErr := cmd.Wait()
