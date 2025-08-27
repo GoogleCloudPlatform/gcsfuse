@@ -337,6 +337,8 @@ type CloudProfilerConfig struct {
 type Config struct {
 	AppName string `yaml:"app-name"`
 
+	BugReportPath ResolvedPath `yaml:"bug-report-path"`
+
 	CacheDir ResolvedPath `yaml:"cache-dir"`
 
 	CloudProfiler CloudProfilerConfig `yaml:"cloud-profiler"`
@@ -615,6 +617,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.StringP("app-name", "", "", "The application name of this mount.")
 
 	flagSet.StringP("billing-project", "", "", "Project to use for billing when accessing a bucket enabled with \"Requester Pays\".")
+
+	flagSet.StringP("bug-report-path", "", "", "The path to save the bug report tarball. If left empty, the bug report generation is disabled.")
 
 	flagSet.StringP("cache-dir", "", "", "Enables file-caching. Specifies the directory to use for file-cache.")
 
@@ -1092,6 +1096,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-connection.billing-project", flagSet.Lookup("billing-project")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("bug-report-path", flagSet.Lookup("bug-report-path")); err != nil {
 		return err
 	}
 

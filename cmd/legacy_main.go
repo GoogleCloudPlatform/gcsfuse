@@ -20,17 +20,24 @@
 package cmd
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path"
 	"path/filepath"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"golang.org/x/sys/unix"
+	"golang.org/x/term"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
@@ -324,6 +331,141 @@ func forwardedEnvVars() []string {
 }
 
 func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
+	// If bug-report-path is not set, just run gcsfuse normally.
+	if newConfig.BugReportPath == "" {
+		return runMountProcess(newConfig, bucketName, mountPoint)
+	}
+
+	// If we are in the child process, run gcsfuse normally.
+	if os.Getenv("GCSFUSE_BUG_REPORT_CHILD") == "true" {
+		return runMountProcess(newConfig, bucketName, mountPoint)
+	}
+
+	// This is the parent process. It will monitor the child and generate the bug report.
+	tempDir, err := os.MkdirTemp("", "gcsfuse-bug-report")
+	if err != nil {
+		return fmt.Errorf("failed to create temporary directory for bug report: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+	logger.Infof("Bug report temporary directory: %s", tempDir)
+
+	// If log-file is not set, create one in the temporary directory.
+	if newConfig.Logging.FilePath == "" {
+		newConfig.Logging.FilePath = cfg.ResolvedPath(filepath.Join(tempDir, "gcsfuse.log"))
+	}
+
+	// Start collecting dmesg output.
+	dmesgLogFile := filepath.Join(tempDir, "dmesg.log")
+	dmesgScript := fmt.Sprintf("dmesg -T -w >> %s", dmesgLogFile)
+	if !checkDmesgPermissions() {
+		// SECURITY: This is a security risk. We are prompting for a password and
+		// passing it to sudo on the command line. This can expose the password
+		// in the system's process list. The user has insisted on this feature.
+		fmt.Println("GCSFuse needs superuser permission to collect dmesg logs for the bug report.")
+		fmt.Print("Please enter your password to proceed: ")
+		bytePassword, err := term.ReadPassword(int(syscall.Stdin))
+		if err != nil {
+			return fmt.Errorf("failed to read password: %w", err)
+		}
+		password := string(bytePassword)
+		fmt.Println()
+
+		dmesgScript = fmt.Sprintf("echo %s | sudo -S -p '' -- %s", password, dmesgScript)
+	}
+	dmesgCmd, err := startCollectionScript(dmesgScript, dmesgLogFile)
+	if err != nil {
+		return fmt.Errorf("failed to start dmesg collection: %w", err)
+	}
+	logger.Infof("Started dmesg collection.")
+
+	// Start collecting system stats.
+	statsLogFile := filepath.Join(tempDir, "stats.log")
+	statsScript := fmt.Sprintf("vmstat 1 >> %s", statsLogFile)
+	statsCmd, err := startCollectionScript(statsScript, statsLogFile)
+	if err != nil {
+		return fmt.Errorf("failed to start stats collection: %w", err)
+	}
+	logger.Infof("Started stats collection.")
+
+	// Re-exec gcsfuse without the bug-report-path flag and with required flags.
+	var newArgs []string
+	hasForeground := false
+	hasLogFile := false
+	hasLogSeverity := false
+	for i := 1; i < len(os.Args); i++ {
+		arg := os.Args[i]
+		if strings.HasPrefix(arg, "--bug-report-path") {
+			if !strings.Contains(arg, "=") {
+				i++
+			}
+			continue
+		}
+		if arg == "--foreground" {
+			hasForeground = true
+		}
+		if strings.HasPrefix(arg, "--log-file") {
+			hasLogFile = true
+		}
+		if strings.HasPrefix(arg, "--log-severity") {
+			hasLogSeverity = true
+		}
+		newArgs = append(newArgs, arg)
+	}
+	if !hasForeground {
+		newArgs = append(newArgs, "--foreground")
+	}
+	if !hasLogFile {
+		newArgs = append(newArgs, "--log-file="+string(newConfig.Logging.FilePath))
+	}
+	if !hasLogSeverity {
+		newArgs = append(newArgs, "--log-severity=TRACE")
+	}
+
+	cmd := exec.Command(os.Args[0], newArgs...)
+	cmd.Env = append(os.Environ(), "GCSFUSE_BUG_REPORT_CHILD=true")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	// Start the child process.
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start gcsfuse child process: %w", err)
+	}
+
+	// Set up a channel to catch signals.
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
+
+	// Start a goroutine to forward signals to the child process.
+	go func() {
+		for sig := range signalChan {
+			logger.Infof("Parent process received signal: %v. Forwarding to child process.", sig)
+			if err := cmd.Process.Signal(sig); err != nil {
+				logger.Errorf("Failed to forward signal to child process: %v", err)
+			}
+		}
+	}()
+
+	// Wait for the child process to exit.
+	runErr := cmd.Wait()
+
+	// Stop the collection scripts.
+	stopCollectionScript(dmesgCmd)
+	logger.Infof("Stopped dmesg collection.")
+	stopCollectionScript(statsCmd)
+	logger.Infof("Stopped stats collection.")
+
+	// Create the tarball.
+	tarballPath := filepath.Join(string(newConfig.BugReportPath), fmt.Sprintf("gcsfuse-bug-report-%s.tar.gz", time.Now().Format("2006-01-02-15-04-05")))
+	if err := createTarball(tarballPath, dmesgLogFile, statsLogFile, string(newConfig.Logging.FilePath)); err != nil {
+		logger.Errorf("failed to create bug report tarball: %v", err)
+	} else {
+		logger.Infof("Bug report saved to %s", tarballPath)
+	}
+
+	return runErr
+}
+
+func runMountProcess(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	// Ideally this call to SetLogFormat (which internally creates a new defaultLogger)
 	// should be set as an else to the 'if flags.Foreground' check below, but currently
 	// that means the logs generated by resolveConfigFilePaths below don't honour
@@ -477,4 +619,119 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	}
 
 	return err
+}
+
+func checkDmesgPermissions() bool {
+	cmd := exec.Command("dmesg", "-T")
+	if err := cmd.Run(); err != nil {
+		return false
+	}
+	return true
+}
+
+func startCollectionScript(script, logFile string) (*exec.Cmd, error) {
+	// We need to create the log file before starting the script.
+	// Otherwise, the script will fail if the directory doesn't exist.
+	f, err := os.Create(logFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create log file %s: %w", logFile, err)
+	}
+	f.Close()
+
+	cmd := exec.Command("bash", "-c", script)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start script: %w", err)
+	}
+	return cmd, nil
+}
+
+func stopCollectionScript(cmd *exec.Cmd) {
+	if cmd == nil || cmd.Process == nil {
+		return
+	}
+	pgid, err := syscall.Getpgid(cmd.Process.Pid)
+	if err != nil {
+		// If the process is already dead, we'll get an error.
+		// In that case, we can just ignore it.
+		return
+	}
+	if err := syscall.Kill(-pgid, syscall.SIGKILL); err != nil {
+		// If the process group is already dead, we'll get an error.
+		// In that case, we can just ignore it.
+	}
+}
+
+func createTarball(tarballPath, dmesgLog, statsLog, gcsfuseLog string) error {
+	// Create the tarball file.
+	tarball, err := os.Create(tarballPath)
+	if err != nil {
+		return fmt.Errorf("failed to create tarball file: %w", err)
+	}
+	defer tarball.Close()
+
+	// Create a new gzip writer.
+	gz := gzip.NewWriter(tarball)
+	defer gz.Close()
+
+	// Create a new tar writer.
+	tw := tar.NewWriter(gz)
+	defer tw.Close()
+
+	// Add files to the tarball.
+	files := []struct {
+		Name   string
+		Source string
+	}{
+		{"dmesg.log", dmesgLog},
+		{"stats.log", statsLog},
+	}
+
+	if gcsfuseLog != "" {
+		files = append(files, struct {
+			Name   string
+			Source string
+		}{"gcsfuse.log", gcsfuseLog})
+	}
+
+	for _, file := range files {
+		if file.Source == "" {
+			continue
+		}
+		if err := addFileToTar(tw, file.Source, file.Name); err != nil {
+			logger.Warnf("failed to add %s to tarball: %v", file.Source, err)
+		}
+	}
+
+	return nil
+}
+
+func addFileToTar(tw *tar.Writer, path, name string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	stat, err := file.Stat()
+	if err != nil {
+		return err
+	}
+
+	header := &tar.Header{
+		Name:    name,
+		Mode:    int64(stat.Mode()),
+		Size:    stat.Size(),
+		ModTime: stat.ModTime(),
+	}
+
+	if err := tw.WriteHeader(header); err != nil {
+		return err
+	}
+
+	if _, err := io.Copy(tw, file); err != nil {
+		return err
+	}
+
+	return nil
 }

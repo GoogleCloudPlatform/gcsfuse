@@ -60,6 +60,13 @@ params:
     usage: "The application name of this mount."
     default: ""
 
+  
+  - config-path: "bug-report-path"
+    flag-name: "bug-report-path"
+    type: "resolvedPath"
+    usage: "The path to save the bug report tarball. If left empty, the bug report generation is disabled."
+    default: ""
+
   - config-path: "cache-dir"
     flag-name: "cache-dir"
     type: "resolvedPath"
