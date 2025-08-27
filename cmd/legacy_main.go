@@ -37,6 +37,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"golang.org/x/sys/unix"
+	"golang.org/x/term"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
@@ -358,6 +359,18 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	// Start collecting dmesg output.
 	dmesgLogFile := filepath.Join(tempDir, "dmesg.log")
 	dmesgScript := fmt.Sprintf("while true; do dmesg -T >> %s; sleep 1; done", dmesgLogFile)
+	if !checkDmesgPermissions() {
+		fmt.Println("GCSFuse needs superuser permission to collect dmesg logs for the bug report.")
+		fmt.Print("Please enter your password to proceed: ")
+		bytePassword, err := term.ReadPassword(int(syscall.Stdin))
+		if err != nil {
+			return fmt.Errorf("failed to read password: %w", err)
+		}
+		password := string(bytePassword)
+		fmt.Println()
+
+		dmesgScript = fmt.Sprintf("echo %s | sudo -S -p '' -- %s", password, dmesgScript)
+	}
 	dmesgCmd, err := startCollectionScript(dmesgScript, dmesgLogFile)
 	if err != nil {
 		return fmt.Errorf("failed to start dmesg collection: %w", err)
@@ -366,7 +379,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 
 	// Start collecting system stats.
 	statsLogFile := filepath.Join(tempDir, "stats.log")
-	statsScript := fmt.Sprintf("while true; do vmstat 1 2 >> %s; done", statsLogFile)
+	statsScript := fmt.Sprintf("vmstat 1 >> %s", statsLogFile)
 	statsCmd, err := startCollectionScript(statsScript, statsLogFile)
 	if err != nil {
 		return fmt.Errorf("failed to start stats collection: %w", err)
@@ -375,6 +388,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 
 	// Re-exec gcsfuse without the bug-report-path flag.
 	var newArgs []string
+	hasForeground := false
 	for i := 1; i < len(os.Args); i++ {
 		arg := os.Args[i]
 		if strings.HasPrefix(arg, "--bug-report-path") {
@@ -383,7 +397,13 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 			}
 			continue
 		}
+		if arg == "--foreground" {
+			hasForeground = true
+		}
 		newArgs = append(newArgs, arg)
+	}
+	if !hasForeground {
+		newArgs = append(newArgs, "--foreground")
 	}
 
 	cmd := exec.Command(os.Args[0], newArgs...)
@@ -569,6 +589,14 @@ func runMountProcess(newConfig *cfg.Config, bucketName, mountPoint string) (err 
 	}
 
 	return err
+}
+
+func checkDmesgPermissions() bool {
+	cmd := exec.Command("dmesg", "-T")
+	if err := cmd.Run(); err != nil {
+		return false
+	}
+	return true
 }
 
 func startCollectionScript(script, logFile string) (*exec.Cmd, error) {
