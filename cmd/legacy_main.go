@@ -349,33 +349,25 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	defer os.RemoveAll(tempDir)
 	logger.Infof("Bug report temporary directory: %s", tempDir)
 
-	// Force log severity to TRACE.
-	newConfig.Logging.Severity = cfg.TraceLogSeverity
 	// If log-file is not set, create one in the temporary directory.
 	if newConfig.Logging.FilePath == "" {
 		newConfig.Logging.FilePath = cfg.ResolvedPath(filepath.Join(tempDir, "gcsfuse.log"))
 	}
 
 	// Start collecting dmesg output.
+	var dmesgCmd *exec.Cmd
 	dmesgLogFile := filepath.Join(tempDir, "dmesg.log")
-	dmesgScript := fmt.Sprintf("dmesg -T -w >> %s", dmesgLogFile)
-	if !checkDmesgPermissions() {
-		fmt.Println("GCSFuse needs superuser permission to collect dmesg logs for the bug report.")
-		fmt.Print("Please enter your password to proceed: ")
-		bytePassword, err := term.ReadPassword(int(syscall.Stdin))
+	if checkDmesgPermissions() {
+		dmesgScript := fmt.Sprintf("dmesg -T -w >> %s", dmesgLogFile)
+		var err error
+		dmesgCmd, err = startCollectionScript(dmesgScript, dmesgLogFile)
 		if err != nil {
-			return fmt.Errorf("failed to read password: %w", err)
+			return fmt.Errorf("failed to start dmesg collection: %w", err)
 		}
-		password := string(bytePassword)
-		fmt.Println()
-
-		dmesgScript = fmt.Sprintf("echo %s | sudo -S -p '' -- %s", password, dmesgScript)
+		logger.Infof("Started dmesg collection.")
+	} else {
+		logger.Warnf("Insufficient permissions to collect dmesg logs. Skipping.")
 	}
-	dmesgCmd, err := startCollectionScript(dmesgScript, dmesgLogFile)
-	if err != nil {
-		return fmt.Errorf("failed to start dmesg collection: %w", err)
-	}
-	logger.Infof("Started dmesg collection.")
 
 	// Start collecting system stats.
 	statsLogFile := filepath.Join(tempDir, "stats.log")
@@ -387,8 +379,13 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	logger.Infof("Started stats collection.")
 
 	// Re-exec gcsfuse without the bug-report-path flag.
+	// We are intentionally not using the config object to generate the args
+	// because that would be a much larger change. We are instead manipulating
+	// the os.Args to remove the bug-report-path flag and add the required flags.
 	var newArgs []string
 	hasForeground := false
+	hasLogFile := false
+	hasLogSeverity := false
 	for i := 1; i < len(os.Args); i++ {
 		arg := os.Args[i]
 		if strings.HasPrefix(arg, "--bug-report-path") {
@@ -400,10 +397,22 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 		if arg == "--foreground" {
 			hasForeground = true
 		}
+		if strings.HasPrefix(arg, "--log-file") {
+			hasLogFile = true
+		}
+		if strings.HasPrefix(arg, "--log-severity") {
+			hasLogSeverity = true
+		}
 		newArgs = append(newArgs, arg)
 	}
 	if !hasForeground {
 		newArgs = append(newArgs, "--foreground")
+	}
+	if !hasLogFile {
+		newArgs = append(newArgs, "--log-file="+string(newConfig.Logging.FilePath))
+	}
+	if !hasLogSeverity {
+		newArgs = append(newArgs, "--log-severity=TRACE")
 	}
 
 	cmd := exec.Command(os.Args[0], newArgs...)
