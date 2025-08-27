@@ -955,8 +955,20 @@ func TestValidateOptimizeProfile(t *testing.T) {
 		wantErr         bool
 	}{
 		{
-			name:            "supported_optimize_profile",
+			name:            "empty_optimize_profile",
+			optimizeProfile: "",
+			wantErr:         false,
+		}, {
+			name:            "optimize_profile_training",
 			optimizeProfile: "aiml-training",
+			wantErr:         false,
+		}, {
+			name:            "optimize_profile_serving",
+			optimizeProfile: "aiml-serving",
+			wantErr:         false,
+		}, {
+			name:            "optimize_profile_checkpointing",
+			optimizeProfile: "aiml-checkpointing",
 			wantErr:         false,
 		}, {
 			name:            "unsupported_optimize_profile",
@@ -965,7 +977,6 @@ func TestValidateOptimizeProfile(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			c := validConfig(t)
