@@ -664,3 +664,56 @@ func TestRationalize_FileCacheAndBufferedReadConflict(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveLoggingConfig(t *testing.T) {
+	testCases := []struct {
+		name              string
+		config            *Config
+		expectedLogFormat string
+	}{
+		{
+			name: "valid_log_format_json",
+			config: &Config{
+				Logging: LoggingConfig{
+					Format: "json",
+				},
+			},
+			expectedLogFormat: "json",
+		},
+		{
+			name: "valid_log_format_text",
+			config: &Config{
+				Logging: LoggingConfig{
+					Format: "text",
+				},
+			},
+			expectedLogFormat: "text",
+		},
+		{
+			name: "valid_case_insensitive_log_format",
+			config: &Config{
+				Logging: LoggingConfig{
+					Format: "TEXT",
+				},
+			},
+			expectedLogFormat: "text",
+		},
+		{
+			name: "invalid_log_format",
+			config: &Config{
+				Logging: LoggingConfig{
+					Format: "INVALID",
+				},
+			},
+			expectedLogFormat: "json",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			resolveLoggingConfig(tc.config)
+
+			assert.Equal(t, tc.expectedLogFormat, tc.config.Logging.Format)
+		})
+	}
+}

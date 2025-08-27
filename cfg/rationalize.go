@@ -18,6 +18,8 @@ import (
 	"log"
 	"math"
 	"net/url"
+	"slices"
+	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
@@ -134,6 +136,19 @@ func resolveFileCacheAndBufferedReadConflict(v isSet, c *Config) {
 	}
 }
 
+func resolveLoggingConfig(config *Config) {
+	if config.Debug.Fuse || config.Debug.Gcs || config.Debug.LogMutex {
+		config.Logging.Severity = "TRACE"
+	}
+
+	configLogFormat := config.Logging.Format // capture initial value for error reporting
+	config.Logging.Format = strings.ToLower(config.Logging.Format)
+	if !slices.Contains([]string{logFormatText, logFormatJSON}, config.Logging.Format) {
+		log.Printf("Unsupported log format provided: %s. Defaulting to %s log format.", configLogFormat, defaultLogFormat)
+		config.Logging.Format = defaultLogFormat // defaulting to json format
+	}
+}
+
 // Rationalize updates the config fields based on the values of other fields.
 func Rationalize(v isSet, c *Config, optimizedFlags []string) error {
 	var err error
@@ -145,10 +160,7 @@ func Rationalize(v isSet, c *Config, optimizedFlags []string) error {
 		return err
 	}
 
-	if c.Debug.Fuse || c.Debug.Gcs || c.Debug.LogMutex {
-		c.Logging.Severity = "TRACE"
-	}
-
+	resolveLoggingConfig(c)
 	resolveStreamingWriteConfig(&c.Write)
 	resolveMetadataCacheTTL(v, &c.MetadataCache, optimizedFlags)
 	resolveStatCacheMaxSizeMB(v, &c.MetadataCache, optimizedFlags)
