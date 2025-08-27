@@ -326,9 +326,9 @@
   usage: >-
     Specifies an alternative custom endpoint for fetching data. The custom endpoint
     must support the equivalent resources and operations as the GCS JSON endpoint,
-    https://storage.googleapis.com/storage/v1. If a custom endpoint is not
+    storage.<UNIVERSE_DOMAIN>:443. If a custom endpoint is not
     specified, GCSFuse uses the global GCS JSON API endpoint,
-    https://storage.googleapis.com/storage/v1.
+    storage.googleapis.com:443.
   default: ""
 
 - config-path: "gcs-connection.experimental-enable-json-read"
