@@ -335,6 +335,11 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 		return runMountProcess(newConfig, bucketName, mountPoint)
 	}
 
+	// If we are in the child process, run gcsfuse normally.
+	if os.Getenv("GCSFUSE_BUG_REPORT_CHILD") == "true" {
+		return runMountProcess(newConfig, bucketName, mountPoint)
+	}
+
 	// Create a temporary directory for the bug report.
 	tempDir, err := os.MkdirTemp("", "gcsfuse-bug-report")
 	if err != nil {
@@ -347,7 +352,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	newConfig.Logging.Severity = cfg.TraceLogSeverity
 	// If log-file is not set, create one in the temporary directory.
 	if newConfig.Logging.FilePath == "" {
-		newConfig.Logging.FilePath = util.ResolvedPath(filepath.Join(tempDir, "gcsfuse.log"))
+		newConfig.Logging.FilePath = cfg.ResolvedPath(filepath.Join(tempDir, "gcsfuse.log"))
 	}
 
 	// Start collecting dmesg output.
@@ -368,8 +373,30 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	}
 	logger.Infof("Started stats collection.")
 
-	// Run gcsfuse.
-	runErr := runMountProcess(newConfig, bucketName, mountPoint)
+	// Re-exec gcsfuse without the bug-report-path flag.
+	var newArgs []string
+	for i := 1; i < len(os.Args); i++ {
+		arg := os.Args[i]
+		if strings.HasPrefix(arg, "--bug-report-path") {
+			if !strings.Contains(arg, "=") {
+				i++
+			}
+			continue
+		}
+		newArgs = append(newArgs, arg)
+	}
+
+	cmd := exec.Command(os.Args[0], newArgs...)
+	cmd.Env = append(os.Environ(), "GCSFUSE_BUG_REPORT_CHILD=true")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start gcsfuse child process: %w", err)
+	}
+
+	// Wait for the child process to exit.
+	runErr := cmd.Wait()
 
 	// Stop the collection scripts.
 	stopCollectionScript(dmesgCmd)
