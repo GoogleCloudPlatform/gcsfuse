@@ -81,7 +81,7 @@ func TestMain(m *testing.M) {
 	if bucketType == setup.ZonalBucket {
 		setup.SetIsZonalBucketRun(true)
 	}
-	
+
 	// 2. Create storage client before running tests.
 	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
 	defer func() {
