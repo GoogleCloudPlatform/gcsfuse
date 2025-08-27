@@ -90,6 +90,10 @@ gzip:
       - flags:
           - "--sequential-read-size-mb=1 --implicit-dirs"
           - "--sequential-read-size-mb=1 --implicit-dirs --client-protocol=grpc"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
 
 read_large_files:
   - mounted_directory: "${MOUNTED_DIR}"
