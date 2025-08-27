@@ -141,7 +141,7 @@ func resolveLoggingConfig(config *Config) {
 		config.Logging.Severity = "TRACE"
 	}
 
-	if slices.Contains([]string{"", logFormatText, logFormatJSON}, strings.ToLower(config.Logging.Format)) {
+	if slices.Contains([]string{logFormatText, logFormatJSON}, strings.ToLower(config.Logging.Format)) {
 		config.Logging.Format = strings.ToLower(config.Logging.Format)
 	} else {
 		log.Printf("Unsupported log format provided: %s. Defaulting to %s log format.", config.Logging.Format, defaultLogFormat)
