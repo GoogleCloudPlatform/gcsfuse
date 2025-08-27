@@ -73,14 +73,6 @@ func TestMain(m *testing.M) {
 	setup.SetBucketFromConfigFile(cfg.ReadLargeFiles[0].TestBucket)
 	ctx = context.Background()
 	var err error
-	// 2. Create storage client before running tests.
-	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
-	defer func() {
-		err := closeStorageClient()
-		if err != nil {
-			log.Fatalf("closeStorageClient failed: %v", err)
-		}
-	}()
 
 	bucketType, err := setup.BucketType(ctx, cfg.ReadLargeFiles[0].TestBucket)
 	if err != nil {
@@ -89,6 +81,15 @@ func TestMain(m *testing.M) {
 	if bucketType == setup.ZonalBucket {
 		setup.SetIsZonalBucketRun(true)
 	}
+	
+	// 2. Create storage client before running tests.
+	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
+	defer func() {
+		err := closeStorageClient()
+		if err != nil {
+			log.Fatalf("closeStorageClient failed: %v", err)
+		}
+	}()
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as ReadLargeFiles tests validates content from the bucket.
