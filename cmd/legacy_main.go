@@ -341,7 +341,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 		return runMountProcess(newConfig, bucketName, mountPoint)
 	}
 
-	// Create a temporary directory for the bug report.
+	// This is the parent process. It will monitor the child and generate the bug report.
 	tempDir, err := os.MkdirTemp("", "gcsfuse-bug-report")
 	if err != nil {
 		return fmt.Errorf("failed to create temporary directory for bug report: %w", err)
@@ -355,19 +355,28 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	}
 
 	// Start collecting dmesg output.
-	var dmesgCmd *exec.Cmd
 	dmesgLogFile := filepath.Join(tempDir, "dmesg.log")
-	if checkDmesgPermissions() {
-		dmesgScript := fmt.Sprintf("dmesg -T -w >> %s", dmesgLogFile)
-		var err error
-		dmesgCmd, err = startCollectionScript(dmesgScript, dmesgLogFile)
+	dmesgScript := fmt.Sprintf("dmesg -T -w >> %s", dmesgLogFile)
+	if !checkDmesgPermissions() {
+		// SECURITY: This is a security risk. We are prompting for a password and
+		// passing it to sudo on the command line. This can expose the password
+		// in the system's process list. The user has insisted on this feature.
+		fmt.Println("GCSFuse needs superuser permission to collect dmesg logs for the bug report.")
+		fmt.Print("Please enter your password to proceed: ")
+		bytePassword, err := term.ReadPassword(int(syscall.Stdin))
 		if err != nil {
-			return fmt.Errorf("failed to start dmesg collection: %w", err)
+			return fmt.Errorf("failed to read password: %w", err)
 		}
-		logger.Infof("Started dmesg collection.")
-	} else {
-		logger.Warnf("Insufficient permissions to collect dmesg logs. Skipping.")
+		password := string(bytePassword)
+		fmt.Println()
+
+		dmesgScript = fmt.Sprintf("echo %s | sudo -S -p '' -- %s", password, dmesgScript)
 	}
+	dmesgCmd, err := startCollectionScript(dmesgScript, dmesgLogFile)
+	if err != nil {
+		return fmt.Errorf("failed to start dmesg collection: %w", err)
+	}
+	logger.Infof("Started dmesg collection.")
 
 	// Start collecting system stats.
 	statsLogFile := filepath.Join(tempDir, "stats.log")
@@ -378,10 +387,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	}
 	logger.Infof("Started stats collection.")
 
-	// Re-exec gcsfuse without the bug-report-path flag.
-	// We are intentionally not using the config object to generate the args
-	// because that would be a much larger change. We are instead manipulating
-	// the os.Args to remove the bug-report-path flag and add the required flags.
+	// Re-exec gcsfuse without the bug-report-path flag and with required flags.
 	var newArgs []string
 	hasForeground := false
 	hasLogFile := false
