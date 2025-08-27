@@ -117,7 +117,7 @@ func (cht *cacheHandleTest) SetupTest() {
 	storageHandle := cht.fakeStorage.CreateStorageHandle()
 	mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
 		Return(&controlpb.StorageLayout{}, nil)
-	cht.bucket, err = storageHandle.BucketHandle(ctx, storage.TestBucketName, "", false)
+	cht.bucket, err = storageHandle.BucketHandle(ctx, storage.TestBucketName, "")
 	assert.Nil(cht.T(), err)
 
 	// Create test object in the bucket.

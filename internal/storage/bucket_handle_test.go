@@ -66,7 +66,7 @@ func createBucketHandle(testSuite *BucketHandleTest, resp *controlpb.StorageLayo
 	var err error
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
 		Return(resp, nil)
-	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "", false)
+	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "")
 	testSuite.bucketHandle.controlClient = testSuite.mockClient
 
 	assert.NotNil(testSuite.T(), testSuite.bucketHandle)
@@ -1474,7 +1474,7 @@ func (testSuite *BucketHandleTest) TestBucketHandleWithError() {
 	var err error
 	// Test when the client returns an error.
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).Return(x, errors.New("mocked error"))
-	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "", false)
+	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "")
 
 	assert.Nil(testSuite.T(), testSuite.bucketHandle)
 	assert.Contains(testSuite.T(), err.Error(), "mocked error")
@@ -1485,10 +1485,9 @@ func (testSuite *BucketHandleTest) TestBucketHandleWithRapidAppendsEnabled() {
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).Return(&controlpb.StorageLayout{}, nil)
 	testSuite.mockClient.On("getClient", mock.Anything, mock.Anything).Return(&storage.Client{}, nil)
 
-	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "", true)
+	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "")
 
 	assert.NotNil(testSuite.T(), testSuite.bucketHandle)
-	assert.True(testSuite.T(), testSuite.bucketHandle.enableRapidAppends)
 	assert.Nil(testSuite.T(), err)
 }
 
@@ -1623,30 +1622,4 @@ func (testSuite *BucketHandleTest) TestCreateFolderWithGivenName() {
 	testSuite.mockClient.AssertExpectations(testSuite.T())
 	assert.NoError(testSuite.T(), err)
 	assert.Equal(testSuite.T(), gcs.GCSFolder(TestBucketName, &mockFolder), folder)
-}
-
-func (testSuite *BucketHandleTest) TestIsGCSObject() {
-	testCases := []struct {
-		name     string
-		attrs    *storage.ObjectAttrs
-		expected bool
-	}{
-		{
-			name:     "gcsObject",
-			attrs:    &storage.ObjectAttrs{Name: "a/b/c.txt", Prefix: ""},
-			expected: true,
-		},
-		{
-			name:     "gcsFolder",
-			attrs:    &storage.ObjectAttrs{Name: "", Prefix: "a/"},
-			expected: false,
-		},
-	}
-
-	for _, tc := range testCases {
-		testSuite.Run(tc.name, func() {
-			actual := isGCSObject(tc.attrs)
-			assert.Equal(testSuite.T(), tc.expected, actual)
-		})
-	}
 }

@@ -80,7 +80,7 @@ func readRandomlyAndVerify(t *testing.T, filePath string, expectedContent []byte
 ////////////////////////////////////////////////////////////////////////
 
 func (t *CommonAppendsSuite) TestAppendsAndReads() {
-	const metadataCacheTTLSecs = 10
+	const metadataCacheTTLSecs = 60
 	metadataCacheEnableFlag := fmt.Sprintf("%s%v", "--metadata-cache-ttl-secs=", metadataCacheTTLSecs)
 	fileCacheDirFlag := func() string {
 		return "--cache-dir=" + getNewEmptyCacheDir(t.primaryMount.rootDir)
@@ -149,6 +149,7 @@ func (t *CommonAppendsSuite) TestAppendsAndReads() {
 						// The initial read (i=0) bypasses cache, seeing the latest file size.
 						if !scenario.enableMetadataCache || !t.isSyncNeededAfterAppend || (i == 0) {
 							tc.readAndVerify(t.T(), readPath, []byte(t.fileContent[:sizeAfterAppend]))
+							time.Sleep(time.Minute) // Reading while active buffered write session causes implicit flush, so wait a minute till stat() returns correct size.
 						} else {
 							// Read only up to the cached file size (before append).
 							tc.readAndVerify(t.T(), readPath, []byte(t.fileContent[:sizeBeforeAppend]))
