@@ -3,10 +3,11 @@ read:
   inactive-stream-timeout: 10s
   enable-buffered-read: true
   global-max-blocks: 40
-  block-size-mb: 16
+  block-size-mb: 8
   start-blocks-per-handle: 4
   max-blocks-per-handle: 20
   min-blocks-per-handle: 2
+  random-seek-threshold: 10
 write:
   create-empty-file: true
   enable-streaming-writes: true

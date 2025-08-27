@@ -33,6 +33,13 @@ const (
 )
 
 const (
+	// Logging-format constants
+	logFormatText    = "text"
+	logFormatJSON    = "json"
+	defaultLogFormat = logFormatJSON
+)
+
+const (
 	// ExperimentalMetadataPrefetchOnMountDisabled is the mode without metadata-prefetch.
 	ExperimentalMetadataPrefetchOnMountDisabled = "disabled"
 	// ExperimentalMetadataPrefetchOnMountSynchronous is the prefetch-mode where mounting is not marked complete until prefetch is complete.

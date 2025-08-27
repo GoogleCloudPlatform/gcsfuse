@@ -274,6 +274,8 @@ type ReadConfig struct {
 
 	MinBlocksPerHandle int64 `yaml:"min-blocks-per-handle"`
 
+	RandomSeekThreshold int64 `yaml:"random-seek-threshold"`
+
 	StartBlocksPerHandle int64 `yaml:"start-blocks-per-handle"`
 }
 
@@ -326,6 +328,10 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.IntP("cloud-metrics-export-interval-secs", "", 0, "Specifies the interval at which the metrics are uploaded to cloud monitoring")
 
 	flagSet.BoolP("create-empty-file", "", false, "For a new file, it creates an empty file in Cloud Storage bucket as a hold.")
+
+	if err := flagSet.MarkHidden("create-empty-file"); err != nil {
+		return err
+	}
 
 	flagSet.StringP("custom-endpoint", "", "", "Specifies an alternative custom endpoint for fetching data. The custom endpoint must support the equivalent resources and operations as the GCS JSON endpoint, https://storage.googleapis.com/storage/v1. If a custom endpoint is not specified, GCSFuse uses the global GCS JSON API endpoint, https://storage.googleapis.com/storage/v1.")
 
@@ -384,10 +390,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.BoolP("enable-buffered-read", "", false, "When enabled, read starts using buffer to prefetch (asynchronous and in parallel) data from GCS. This improves performance for large file sequential reads. Note: Enabling this flag can increase the memory usage significantly.")
-
-	if err := flagSet.MarkHidden("enable-buffered-read"); err != nil {
-		return err
-	}
 
 	flagSet.BoolP("enable-cloud-profiling", "", false, "Enables cloud profiling, by default disabled.")
 
@@ -643,11 +645,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("read-global-max-blocks", "", 20, "Specifies the maximum number of blocks available for buffered reads across all file-handles. The value should be >= 0 or -1 (for infinite blocks). A value of 0 disables buffered reads.")
-
-	if err := flagSet.MarkHidden("read-global-max-blocks"); err != nil {
-		return err
-	}
+	flagSet.IntP("read-global-max-blocks", "", 80, "Specifies the maximum number of blocks available for buffered reads across all file-handles. The value should be >= 0 or -1 (for infinite blocks). A value of 0 disables buffered reads.")
 
 	flagSet.DurationP("read-inactive-stream-timeout", "", 10000000000*time.Nanosecond, "Duration of inactivity after which an open GCS read stream is automatically closed. This helps conserve resources when a file handle remains open without active Read calls. A value of '0s' disables this timeout.")
 
@@ -664,6 +662,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.IntP("read-min-blocks-per-handle", "", 4, "Specifies the minimum number of blocks required by a file-handle to start reading via buffered reads. The value should be >= 1 or \"read-max-blocks-per-handle\".")
 
 	if err := flagSet.MarkHidden("read-min-blocks-per-handle"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("read-random-seek-threshold", "", 3, "Specifies the random seek threshold to switch to another reader when random reads are detected.")
+
+	if err := flagSet.MarkHidden("read-random-seek-threshold"); err != nil {
 		return err
 	}
 
@@ -1105,6 +1109,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("read.min-blocks-per-handle", flagSet.Lookup("read-min-blocks-per-handle")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.random-seek-threshold", flagSet.Lookup("read-random-seek-threshold")); err != nil {
 		return err
 	}
 

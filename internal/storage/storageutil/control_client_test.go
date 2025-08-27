@@ -37,20 +37,11 @@ func (testSuite *ControlClientTest) SetupTest() {
 func (testSuite *ControlClientTest) TearDownTest() {
 }
 
-func (testSuite *ControlClientTest) TestStorageControlClientRetryOptions() {
-	clientConfig := GetDefaultStorageClientConfig(keyFile)
-
-	gaxOpts := storageControlClientRetryOptions(&clientConfig)
-
-	assert.NotNil(testSuite.T(), gaxOpts)
-}
-
 func (testSuite *ControlClientTest) TestStorageControlClient() {
 	var clientOpts []option.ClientOption
 	clientOpts = append(clientOpts, option.WithoutAuthentication())
-	clientConfig := GetDefaultStorageClientConfig(keyFile)
 
-	controlClient, err := CreateGRPCControlClient(context.Background(), clientOpts, &clientConfig)
+	controlClient, err := CreateGRPCControlClient(context.Background(), clientOpts)
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), controlClient)
