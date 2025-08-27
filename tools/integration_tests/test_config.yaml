@@ -67,7 +67,7 @@ list_large_dir:
 write_large_files:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
-    log_file: # Optional
+    log_file: # Not Required by write large files tests
     run_on_gke: false
     configs:
       - flags:
@@ -84,7 +84,7 @@ write_large_files:
 gzip:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
-    log_file: # Optional
+    log_file: # Not Required by gzip tests
     run_on_gke: false
     configs:
       - flags:

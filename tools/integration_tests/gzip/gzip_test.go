@@ -230,12 +230,6 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
-
-	if setup.TestBucket() == "" && setup.MountedDirectory() != "" {
-		log.Fatal("Please pass the name of bucket mounted at mountedDirectory to --testBucket flag.")
-	}
-
 	err = setup_testdata()
 	if err != nil {
 		log.Fatalf("Failed to setup test data: %v", err)
