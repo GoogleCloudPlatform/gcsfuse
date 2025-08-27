@@ -41,13 +41,7 @@ var (
 	storageClient     *storage.Client
 	ctx               context.Context
 	FiveHundredMBFile = "fiveHundredMBFile" + setup.GenerateRandomString(5) + ".txt"
-	cacheDir          string
 )
-
-// Config holds all test configurations parsed from the YAML file.
-type Config struct {
-	ReadLargeFiles []test_suite.TestConfig `yaml:"read_large_files"`
-}
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
@@ -95,8 +89,6 @@ func TestMain(m *testing.M) {
 	if bucketType == setup.ZonalBucket {
 		setup.SetIsZonalBucketRun(true)
 	}
-
-	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as ReadLargeFiles tests validates content from the bucket.
