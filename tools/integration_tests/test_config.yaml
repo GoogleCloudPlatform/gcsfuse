@@ -117,17 +117,16 @@ rename_dir_limit:
     run_on_gke: false
     configs:
       - flags:
-          - "--rename-dir-limit=3 --implicit-dirs"
           - "--rename-dir-limit=3 --implicit-dirs --client-protocol=grpc"
           - "--rename-dir-limit=3"
           - "--rename-dir-limit=3 --client-protocol=grpc"
         compatible:
           flat: true
           hns: false
-          zonal: true
+          zonal: false
       - flags: 
-        - "--enable-hns=true"
+        - ""
         compatible:
           flat: false
           hns: true
-          zonal: false
+          zonal: true
