@@ -60,11 +60,6 @@ func setupTestDir(dirName string) string {
 	return dirPath
 }
 
-// Config holds all test configurations parsed from the YAML file.
-type Config struct {
-	ImplicitDir []test_suite.TestConfig `yaml:"implicit_dir"`
-}
-
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 

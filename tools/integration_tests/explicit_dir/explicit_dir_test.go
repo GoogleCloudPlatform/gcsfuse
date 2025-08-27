@@ -30,11 +30,6 @@ import (
 
 const DirForExplicitDirTests = "dirForExplicitDirTests"
 
-// Config holds all test configurations parsed from the YAML file.
-type Config struct {
-	ExplicitDir []test_suite.TestConfig `yaml:"explicit_dir"`
-}
-
 // IMPORTANT: To prevent global variable pollution, enhance code clarity,
 // and avoid inadvertent errors. We strongly suggest that, all new package-level
 // variables (which would otherwise be declared with `var` at the package root) should

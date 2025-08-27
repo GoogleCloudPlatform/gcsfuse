@@ -41,11 +41,6 @@ var (
 	ctx                              context.Context
 )
 
-// Config holds all test configurations parsed from the YAML file.
-type Config struct {
-	ListLargeDir []test_suite.TestConfig `yaml:"list_large_dir"`
-}
-
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
