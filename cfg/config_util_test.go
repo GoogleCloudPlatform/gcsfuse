@@ -207,9 +207,9 @@ func TestIsMetricsEnabled(t *testing.T) {
 func TestIsGKEEnvironment(t *testing.T) {
 	t.Parallel()
 	var testCases = []struct {
-		testName    string
-		mountPoint  string
-		expected    bool
+		testName   string
+		mountPoint string
+		expected   bool
 	}{
 		{"non-GKE", "/usr/local/mount-folder", false},
 		{"GKE mountpoint", "/dev/fd/", true},
