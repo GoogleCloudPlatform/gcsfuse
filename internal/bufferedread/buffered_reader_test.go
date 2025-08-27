@@ -41,6 +41,7 @@ import (
 const (
 	testMaxPrefetchBlockCnt     int64 = 10
 	testMinBlocksPerHandle      int64 = 2
+	testRandomSeekThreshold     int64 = 3
 	testGlobalMaxBlocks         int64 = 20
 	testPrefetchBlockSizeBytes  int64 = 1024
 	testInitialPrefetchBlockCnt int64 = 2
@@ -116,6 +117,7 @@ func (t *BufferedReaderTest) SetupTest() {
 		PrefetchBlockSizeBytes:  testPrefetchBlockSizeBytes,
 		InitialPrefetchBlockCnt: testInitialPrefetchBlockCnt,
 		MinBlocksPerHandle:      testMinBlocksPerHandle,
+		RandomSeekThreshold:     testRandomSeekThreshold,
 	}
 	var err error
 	t.workerPool, err = workerpool.NewStaticWorkerPool(5, 10)

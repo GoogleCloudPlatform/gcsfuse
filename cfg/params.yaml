@@ -806,6 +806,14 @@
   default: 4
   hide-flag: true
 
+- config-path: "read.random-seek-threshold"
+  flag-name: "read-random-seek-threshold"
+  type: "int"
+  usage: >-
+    Specifies the random seek threshold to switch to another reader when random reads are detected.
+  default: 3
+  hide-flag: true
+
 - config-path: "read.start-blocks-per-handle"
   flag-name: "read-start-blocks-per-handle"
   type: "int"

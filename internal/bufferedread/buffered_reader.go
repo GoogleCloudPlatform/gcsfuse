@@ -45,12 +45,12 @@ type BufferedReadConfig struct {
 	PrefetchBlockSizeBytes  int64 // Size of each block to be prefetched.
 	InitialPrefetchBlockCnt int64 // Number of blocks to prefetch initially.
 	MinBlocksPerHandle      int64 // Minimum number of blocks available in block-pool to start buffered-read.
+	RandomSeekThreshold     int64 // Seek count threshold to switch another reader
 }
 
 const (
-	defaultRandomReadsThreshold = 3
-	defaultPrefetchMultiplier   = 2
-	ReadOp                      = "readOp"
+	defaultPrefetchMultiplier = 2
+	ReadOp                    = "readOp"
 )
 
 // blockQueueEntry holds a data block with a function
@@ -140,7 +140,7 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 		workerPool:               workerPool,
 		metricHandle:             metricHandle,
 		prefetchMultiplier:       defaultPrefetchMultiplier,
-		randomReadsThreshold:     defaultRandomReadsThreshold,
+		randomReadsThreshold:     config.RandomSeekThreshold,
 	}
 
 	reader.ctx, reader.cancelFunc = context.WithCancel(context.Background())
