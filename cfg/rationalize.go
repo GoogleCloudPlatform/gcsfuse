@@ -145,6 +145,7 @@ func resolveLoggingConfig(config *Config) {
 		log.Printf("Unsupported log format provided: %s. Defaulting to %s log format.", config.Logging.Format, defaultLogFormat)
 		config.Logging.Format = defaultLogFormat // defaulting to json format
 	}
+	config.Logging.Format = strings.ToLower(config.Logging.Format)
 }
 
 // Rationalize updates the config fields based on the values of other fields.
