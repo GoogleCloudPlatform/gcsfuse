@@ -690,6 +690,15 @@ func TestResolveLoggingConfig(t *testing.T) {
 			expectedLogFormat: "text",
 		},
 		{
+			name: "valid_case_insensitive_log_format",
+			config: &Config{
+				Logging: LoggingConfig{
+					Format: "TEXT",
+				},
+			},
+			expectedLogFormat: "text", // Should default to JSON
+		},
+		{
 			name: "invalid_log_format",
 			config: &Config{
 				Logging: LoggingConfig{

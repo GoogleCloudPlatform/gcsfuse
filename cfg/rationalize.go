@@ -18,6 +18,7 @@ import (
 	"log"
 	"math"
 	"net/url"
+	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
@@ -139,8 +140,10 @@ func resolveLoggingConfig(config *Config) {
 		config.Logging.Severity = "TRACE"
 	}
 
+	var configLogFormat = config.Logging.Format // capture initial value for error reporting
+	config.Logging.Format = strings.ToLower(config.Logging.Format)
 	if config.Logging.Format != logFormatText && config.Logging.Format != logFormatJSON {
-		log.Printf("Unsupported log format provided: %s. Defaulting to %s log format.", config.Logging.Format, defaultLogFormat)
+		log.Printf("Unsupported log format provided: %s. Defaulting to %s log format.", configLogFormat, defaultLogFormat)
 		config.Logging.Format = defaultLogFormat // defaulting to json format
 	}
 }
