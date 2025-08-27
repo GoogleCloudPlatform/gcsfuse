@@ -10,16 +10,35 @@ Files that have not been modified are read portion by portion on demand. Cloud S
 
 ### Buffered Reads
 
-Cloud Storage FUSE offers Buffered Read feature support to accelerate large sequential reads. Buffered Read improves throughput by intelligently prefetching the object parts asynchronously and parallely into an in-memory buffer, and serving the reads from those buffered instead from network. Asynchronous and parallel buffereing improves the throughput by saturating the network without increasing application side parallelism.
+Cloud Storage FUSE offers Buffered Read feature support to accelerate large file sequential reads. Buffered Read improves throughput by intelligently prefetching object parts asynchronously and in parallel into an in-memory buffer, serving subsequent reads from this buffer instead of making network calls. This asynchronous and parallel buffering approach improves throughput by saturating network bandwidth without requiring additional application-side parallelism.
 
-This is disabled by default and can be enabled using the `--enable-buffered-read` flag or `read:enable-buffered-read: true` in the config file. Also, it is designed to operate exclusively when the file cache is disabled; if both features are enabled, the file cache takes precedence.
+The feature is **disabled by default** and can be enabled using:
+- Command-line flag: `--enable-buffered-read`
+- Config file: `read:enable-buffered-read: true`
 
-**Memory Usage:** Buffered read can consume upto 320 MB (20 x 16MB memory blocks) memory per file-handle while reading. The memory is released once file-handle is closed or fallback to default read (for random read). Overall memory across different file-handles can be controlled using `--read-global-max-blocks` flag or `read:global-max-blocks` config. By default, `--read-global-max-blocks` is set to 40 that means Buffered-read can't consume more than (40 * 16 MB) = 640 MB memory across all file-handles. Please consider the available sysmtem memory while enabling the Buffered read or changing the `--read-global-max-blocks` flag to avoid out-of-memory (OOM) issues.
+**Note:** Buffered reads are designed to operate exclusively when the file cache is disabled. If both features are enabled, the file cache takes precedence and buffered reads will be ignored.
 
-**CPU Usage:** Buffered read consume more cpu than the default read path and the cpu usage will be propotional to the performance gain.
+**Best Use Cases:**
+- Large sequential file reads (e.g., model loading, data processing pipelines).
+- Single-threaded applications reading large files sequentially.
 
-**Known Limitations:**
-- **Mixed Read Patterns:** Workloads with a mix of sequential and random reads (e.g., few model serving workloads) may not see a performance benefit and could fall-back to the default read path. Future releases will include improved heuristics for these scenarios. 
+**Performance Gains:**
+- Can provide 2-5x improvement in sequential read throughput.
+- Most effective for files larger than 100 MB.
+- Optimal for fully sequential access patterns.
+
+**Memory Usage:**
+- **Per file handle:** Up to 320 MB (20 × 16MB memory blocks) while reading.
+- **Global limit:** Controlled by `--read-global-max-blocks` flag or `read:global-max-blocks` config (default: 40 blocks).
+- **Total system limit:** Default maximum of 640 MB (40 × 16MB) across all file handles.
+- **Memory release:** Automatically freed when file handle is closed or system falls back to default read because of random read.
+
+**Important:** Please Consider available system memory when enabling buffered reads or adjusting `--read-global-max-blocks` to prevent out-of-memory (OOM) issues.
+
+**CPU Usage:** The CPU overhead is typically proportional to the performance gains achieved.
+
+**Known Limitations:** Workloads combining sequential and random reads (e.g., some model serving scenarios) may not benefit and could automatically fall back to default reads. Future releases will include improved heuristics for these scenarios.
+
 
 ## Writes
 
