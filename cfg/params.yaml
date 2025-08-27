@@ -836,6 +836,7 @@
   type: "bool"
   usage: "For a new file, it creates an empty file in Cloud Storage bucket as a hold."
   default: false
+  hide-flag: true
 
 - config-path: "write.enable-rapid-appends"
   flag-name: "enable-rapid-appends"
