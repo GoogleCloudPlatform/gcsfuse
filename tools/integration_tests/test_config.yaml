@@ -67,7 +67,7 @@ list_large_dir:
 write_large_files:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
-    log_file: # Optional
+    log_file: # Not Required by write large files tests
     run_on_gke: false
     configs:
       - flags:
@@ -76,6 +76,20 @@ write_large_files:
           # concurrent_write_files_test.go- we are writing 3 files in parallel.
           # with this config, we are giving 2 blocks to 2 files and 1 block to other file.
           - "--write-max-blocks-per-file=2 --write-global-max-blocks=5"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+
+gzip:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    log_file: # Not Required by gzip tests
+    run_on_gke: false
+    configs:
+      - flags:
+          - "--sequential-read-size-mb=1 --implicit-dirs"
+          - "--sequential-read-size-mb=1 --implicit-dirs --client-protocol=grpc"
         compatible:
           flat: true
           hns: true
