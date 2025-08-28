@@ -2,7 +2,7 @@ app-name: hello
 read:
   inactive-stream-timeout: 10s
   enable-buffered-read: true
-  global-max-blocks: 40
+  global-max-blocks: 20
   block-size-mb: 8
   start-blocks-per-handle: 4
   max-blocks-per-handle: 20
