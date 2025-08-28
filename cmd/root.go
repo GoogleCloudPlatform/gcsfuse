@@ -23,11 +23,39 @@ import (
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
+
+// logUserSpecifiedAndOptimizedConfig logs the configuration values provided by the user,
+// distinguishing between flags set on the command line and values from the
+// config file and the flag sets that were optimized based on machine type.
+func logUserSpecifiedAndOptimizedConfig(v *viper.Viper, cmd *cobra.Command, optimizedFlags map[string]interface{}) {
+	cliFlags := make(map[string]interface{})
+	cmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
+		if f.Changed {
+			cliFlags[f.Name] = f.Value.String()
+		}
+	})
+	if len(cliFlags) > 0 {
+		logger.Info("GCSFuse CLI", "flags", cliFlags)
+	}
+
+	if v.ConfigFileUsed() != "" {
+		configFileViper := viper.New()
+		configFileViper.SetConfigFile(v.ConfigFileUsed())
+		configFileViper.SetConfigType("yaml")
+		if err := configFileViper.ReadInConfig(); err == nil {
+			logger.Info("GCSFuse Config", "flags", configFileViper.AllSettings())
+		}
+	}
+	if len(optimizedFlags) > 0 {
+		logger.Info("GCSFuse machine type based optimized flags", "flags", optimizedFlags)
+	}
+}
 
 type mountFn func(c *cfg.Config, bucketName, mountPoint string) error
 
@@ -86,8 +114,17 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 		if cfgErr = cfg.ValidateConfig(v, &configObj); cfgErr != nil {
 			return
 		}
+		logger.SetLogFormat(configObj.Logging.Format)
+
+		if configObj.Foreground {
+			cfgErr = logger.InitLogFile(configObj.Logging)
+			if cfgErr != nil {
+				return
+			}
+		}
 
 		optimizedFlags := cfg.Optimize(&configObj, v)
+		logUserSpecifiedAndOptimizedConfig(v, rootCmd, optimizedFlags)
 
 		if cfgErr = cfg.Rationalize(v, &configObj, optimizedFlags); cfgErr != nil {
 			return
