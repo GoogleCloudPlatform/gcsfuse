@@ -62,17 +62,8 @@ func TestMain(m *testing.M) {
 	}
 
 	// 2. Create storage client before running tests.
-	setup.SetBucketFromConfigFile(cfg.ListLargeDir[0].TestBucket)
 	ctx = context.Background()
-
-	bucketType, err := setup.BucketType(ctx, cfg.ListLargeDir[0].TestBucket)
-	if err != nil {
-		log.Fatalf("BucketType failed: %v", err)
-	}
-	if bucketType == setup.ZonalBucket {
-		setup.SetIsZonalBucketRun(true)
-	}
-
+	bucketType := setup.BucketTestEnvironment(ctx, cfg.ListLargeDir[0].TestBucket)
 	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
 	defer func() {
 		err := closeStorageClient()

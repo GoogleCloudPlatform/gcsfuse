@@ -21,7 +21,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -31,6 +30,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/persistent_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 const TestDirForReadOnlyTest = "testDirForReadOnlyTest"
@@ -53,7 +53,6 @@ const RenameDir = "rename"
 var (
 	storageClient *storage.Client
 	ctx           context.Context
-	cacheDir      string
 )
 
 func createTestDataForReadOnlyTests(ctx context.Context, storageClient *storage.Client) error {
@@ -100,76 +99,66 @@ func checkErrorForObjectNotExist(err error, t *testing.T) {
 	}
 }
 
-func createMountConfigsAndEquivalentFlags() (flags [][]string) {
-	cacheDirPath := path.Join(os.TempDir(), cacheDir)
-
-	// Set up config file for file cache.
-	mountConfig := map[string]interface{}{
-		"file-cache": map[string]interface{}{
-			// Keeping the size as small because the operations are performed on small
-			// files.
-			"max-size-mb": 3,
-		},
-		"cache-dir": cacheDirPath,
-	}
-	filePath := setup.YAMLConfigFile(mountConfig, "config.yaml")
-	flags = append(flags, []string{"--o=ro", "--implicit-dirs=true", "--config-file=" + filePath})
-
-	return flags
-}
-
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
-
-	var err error
 	ctx = context.Background()
-	storageClient, err = client.CreateStorageClient(ctx)
-	if err != nil {
-		log.Printf("Error creating storage client: %v\n", err)
-		os.Exit(1)
+
+	// 1. Load and parse the common configuration.
+	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
+	if len(cfg.ReadOnly) == 0 {
+		log.Println("No configuration found for readonly tests in config. Using flags instead.")
+		// Populate the config manually.
+		cfg.ReadOnly = make([]test_suite.TestConfig, 1)
+		cfg.ReadOnly[0].TestBucket = setup.TestBucket()
+		cfg.ReadOnly[0].MountedDirectory = setup.MountedDirectory()
+		cfg.ReadOnly[0].Configs = make([]test_suite.ConfigItem, 1)
+		cacheDirPath := path.Join(os.TempDir(), "cache-dir-readonly-"+setup.GenerateRandomString(4))
+		cfg.ReadOnly[0].Configs[0].Flags = []string{
+			"--o=ro --implicit-dirs=true",
+			"--file-mode=544 --dir-mode=544 --implicit-dirs=true",
+			"--client-protocol=grpc --o=ro --implicit-dirs=true",
+			fmt.Sprintf("--o=ro --implicit-dirs=true --cache-dir=%s --file-cache-max-size-mb=3", cacheDirPath),
+		}
+		cfg.ReadOnly[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
-	defer storageClient.Close()
 
-	cacheDir = "cache-dir-readonly-hns-" + strconv.FormatBool(setup.IsHierarchicalBucket(ctx, storageClient))
-
-	flags := [][]string{{"--o=ro", "--implicit-dirs=true"}, {"--file-mode=544", "--dir-mode=544", "--implicit-dirs=true"}}
-
-	if !testing.Short() {
-		flags = append(flags, []string{"--client-protocol=grpc", "--o=ro", "--implicit-dirs=true"})
-	}
-
-	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
-
-	if setup.TestBucket() == "" && setup.MountedDirectory() != "" {
-		log.Print("Please pass the name of bucket mounted at mountedDirectory to --testBucket flag.")
-		os.Exit(1)
-	}
+	// 2. Create storage client before running tests.
+	bucketType := setup.BucketTestEnvironment(ctx, cfg.ReadOnly[0].TestBucket)
+	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
+	defer func() {
+		err := closeStorageClient()
+		if err != nil {
+			log.Fatalf("closeStorageClient failed: %v", err)
+		}
+	}()
 
 	// Create test data.
 	if err := createTestDataForReadOnlyTests(ctx, storageClient); err != nil {
-		log.Printf("Failed creating test data for readonly tests: %v", err)
-		os.Exit(1)
+		log.Fatalf("Failed creating test data for readonly tests: %v", err)
 	}
 
-	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
-	setup.RunTestsForMountedDirectoryFlag(m)
+	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	// flags to be set.
+	if cfg.ReadOnly[0].MountedDirectory != "" && cfg.ReadOnly[0].TestBucket != "" {
+		os.Exit(setup.RunTestsForMountedDirectory(cfg.ReadOnly[0].MountedDirectory, m))
+	}
 
-	// Run tests for testBucket
-	setup.SetUpTestDirForTestBucketFlag()
+	// Run tests for testBucket// Run tests for testBucket
+	// 4. Build the flag sets dynamically from the config.
+	flags := setup.BuildFlagSets(cfg.ReadOnly[0], bucketType)
 
-	// Setup config file for tests when --testbucket flag is enabled.
-	mountConfigFlags := createMountConfigsAndEquivalentFlags()
-	flags = append(flags, mountConfigFlags...)
+	setup.SetUpTestDirForTestBucket(cfg.ReadOnly[0].TestBucket)
 
-	successCode := static_mounting.RunTests(flags, m)
+	successCode := static_mounting.RunTestsWithConfigFile(&cfg.ReadOnly[0], flags, m)
 
 	if successCode == 0 {
-		successCode = persistent_mounting.RunTests(flags, m)
+		successCode = persistent_mounting.RunTestsWithConfigFile(&cfg.ReadOnly[0], flags, m)
 	}
 
 	if successCode == 0 {
-		// Test for viewer permission on test bucket.
-		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(ctx, storageClient, flags, "objectViewer", m)
+		// These tests don't apply to GCSFuse sidecar.
+		// Validate that tests work with viewer permission on test bucket.
+		successCode = creds_tests.RunTestsForDifferentAuthMethods(ctx, &cfg.ReadOnly[0], storageClient, flags, "objectViewer", m)
 	}
 
 	os.Exit(successCode)
