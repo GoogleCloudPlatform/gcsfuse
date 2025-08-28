@@ -1276,6 +1276,15 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 			},
 		},
 		{
+			name: "metrics_buffer_size_non_default",
+			args: []string{"gcsfuse", "--metrics-buffer-size=1024", "abc", "pqr"},
+			expected: &cfg.MetricsConfig{
+				Workers:           3,
+				BufferSize:        1024,
+				EnableGrpcMetrics: true,
+			},
+		},
+		{
 			name: "enable_grpc_metrics_non_default",
 			args: []string{"gcsfuse", "--enable-grpc-metrics=false", "abc", "pqr"},
 			expected: &cfg.MetricsConfig{
