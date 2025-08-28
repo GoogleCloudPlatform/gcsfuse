@@ -99,16 +99,16 @@ read_large_files:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
     log_file: # Optional
-    run_on_gke: false
+    run_on_gke: false # Not required by read large files tests.
     configs:
       - flags:
           - "--implicit-dirs"
           - "--implicit-dirs --client-protocol=grpc"
           # Set the 'TMPDIR' environment variable to an absolute path, for example, 'export TMPDIR=/home/vm_name/gcsfuse/tempdir', before running the test.
-          - "--implicit-dirs=true --file-cache-max-size-mb=700 --cache-file-for-range-read=true --cache-dir=${TMPDIR}/cache-dir-read-large-files-hns"
-          - "--implicit-dirs=true --file-cache-max-size-mb=700 --cache-file-for-range-read=true --cache-dir=${TMPDIR}/cache-dir-read-large-files-hns --client-protocol=grpc"
-          - "--implicit-dirs=true --file-cache-max-size-mb=-1 --cache-file-for-range-read=false --cache-dir=${TMPDIR}/cache-dir-read-large-files-hns"
-          - "--implicit-dirs=true --file-cache-max-size-mb=-1 --cache-file-for-range-read=false --cache-dir=${TMPDIR}/cache-dir-read-large-files-hns --client-protocol=grpc"
+          - "--implicit-dirs=true --file-cache-max-size-mb=700 --cache-file-for-range-read=true --cache-dir={CACHE_DIR_PATH}"
+          - "--implicit-dirs=true --file-cache-max-size-mb=700 --cache-file-for-range-read=true --cache-dir={CACHE_DIR_PATH} --client-protocol=grpc"
+          - "--implicit-dirs=true --file-cache-max-size-mb=-1 --cache-file-for-range-read=false --cache-dir={CACHE_DIR_PATH}"
+          - "--implicit-dirs=true --file-cache-max-size-mb=-1 --cache-file-for-range-read=false --cache-dir={CACHE_DIR_PATH} --client-protocol=grpc"
         compatible:
           flat: true
           hns: true

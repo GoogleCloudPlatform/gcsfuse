@@ -70,17 +70,8 @@ func TestMain(m *testing.M) {
 		cfg.ReadLargeFiles[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
 
-	setup.SetBucketFromConfigFile(cfg.ReadLargeFiles[0].TestBucket)
 	ctx = context.Background()
-	var err error
-
-	bucketType, err := setup.BucketType(ctx, cfg.ReadLargeFiles[0].TestBucket)
-	if err != nil {
-		log.Fatalf("BucketType failed: %v", err)
-	}
-	if bucketType == setup.ZonalBucket {
-		setup.SetIsZonalBucketRun(true)
-	}
+	bucketType := setup.BucketTestEnvironment(ctx, cfg.ReadLargeFiles[0].TestBucket)
 
 	// 2. Create storage client before running tests.
 	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
