@@ -70,7 +70,7 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsSet() {
 
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
 
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s AppName (GPN:gcsfuse-DLVM) (Cfg:0:0:0:0)", common.GetVersion()))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s AppName (GPN:gcsfuse-DLVM) (Cfg:0:0:0:0:0)", common.GetVersion()))
 	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }
 
@@ -79,7 +79,7 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsNotSet() {
 
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
 
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0)", common.GetVersion()))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0:0)", common.GetVersion()))
 	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }
 
@@ -88,7 +88,7 @@ func (t *MainTest) TestGetUserAgentConfigWithNoFileCache() {
 
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
 
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0)", common.GetVersion()))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0:0)", common.GetVersion()))
 	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }
 
@@ -106,7 +106,7 @@ func (t *MainTest) TestGetUserAgentConfig() {
 					MaxSizeMb: 0,
 				},
 			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0)", common.GetVersion())),
+			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0:0)", common.GetVersion())),
 		},
 		{
 			name: "Config with file cache disabled where maxsize is set but cache dir is not set.",
@@ -115,7 +115,7 @@ func (t *MainTest) TestGetUserAgentConfig() {
 					MaxSizeMb: -1,
 				},
 			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0)", common.GetVersion())),
+			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0:0)", common.GetVersion())),
 		},
 		{
 			name: "Config with file cache enabled but random read disabled.",
@@ -125,7 +125,7 @@ func (t *MainTest) TestGetUserAgentConfig() {
 					MaxSizeMb: -1,
 				},
 			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:0:0:0)", common.GetVersion())),
+			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:0:0:0:0)", common.GetVersion())),
 		},
 		{
 			name: "Config with file cache and random read enabled.",
@@ -136,7 +136,7 @@ func (t *MainTest) TestGetUserAgentConfig() {
 					CacheFileForRangeRead: true,
 				},
 			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:1:0:0)", common.GetVersion())),
+			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:1:0:0:0)", common.GetVersion())),
 		},
 		{
 			name: "Config with file cache disabled and enable parallel downloads set.",
@@ -147,7 +147,7 @@ func (t *MainTest) TestGetUserAgentConfig() {
 					EnableParallelDownloads: true,
 				},
 			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0)", common.GetVersion())),
+			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0:0)", common.GetVersion())),
 		},
 		{
 			name: "Config with file cache and parallel downloads enabled.",
@@ -158,7 +158,7 @@ func (t *MainTest) TestGetUserAgentConfig() {
 					EnableParallelDownloads: true,
 				},
 			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:0:1:0)", common.GetVersion())),
+			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:0:1:0:0)", common.GetVersion())),
 		},
 		{
 			name: "Config with file cache, random reads and parallel downloads enabled.",
@@ -170,7 +170,7 @@ func (t *MainTest) TestGetUserAgentConfig() {
 					EnableParallelDownloads: true,
 				},
 			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:1:1:0)", common.GetVersion())),
+			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:1:1:0:0)", common.GetVersion())),
 		},
 		{
 			name: "streaming_writes_enabled",
@@ -183,7 +183,7 @@ func (t *MainTest) TestGetUserAgentConfig() {
 				},
 				Write: cfg.WriteConfig{EnableStreamingWrites: true},
 			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:0:1:1)", common.GetVersion())),
+			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:0:1:1:0)", common.GetVersion())),
 		},
 		{
 			name: "streaming_writes_disabled",
@@ -196,7 +196,32 @@ func (t *MainTest) TestGetUserAgentConfig() {
 				},
 				Write: cfg.WriteConfig{EnableStreamingWrites: false},
 			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:1:0:0)", common.GetVersion())),
+			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:1:0:0:0)", common.GetVersion())),
+		},
+		{
+			name: "buffered_read_enabled",
+			mountConfig: &cfg.Config{
+				Read: cfg.ReadConfig{EnableBufferedRead: true},
+			},
+			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0:1)", common.GetVersion())),
+		},
+		{
+			name: "buffered_read_disabled",
+			mountConfig: &cfg.Config{
+				Read: cfg.ReadConfig{EnableBufferedRead: false},
+			},
+			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0:0)", common.GetVersion())),
+		},
+		{
+			name: "file_cache_enabled_and_buffered_read_enabled",
+			mountConfig: &cfg.Config{
+				CacheDir:  "/cache/path",
+				FileCache: cfg.FileCacheConfig{MaxSizeMb: -1},
+				Read:      cfg.ReadConfig{EnableBufferedRead: true},
+			},
+			// Note: getConfigForUserAgent runs before config rationalization, which
+			// would disable buffered-read when file-cache is enabled.
+			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:0:0:0:1)", common.GetVersion())),
 		},
 	}
 
@@ -215,7 +240,7 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarSetAndAppNameNotSe
 
 	userAgent := getUserAgent("", getConfigForUserAgent(mountConfig))
 
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-DLVM) (Cfg:0:0:0:0)", common.GetVersion()))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-DLVM) (Cfg:0:0:0:0:0)", common.GetVersion()))
 	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }
 
