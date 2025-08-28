@@ -183,7 +183,6 @@ func (t *CommonAppendsSuite) appendToFile(file *os.File, appendContent string) {
 	t.fileContent += appendContent
 	if t.isSyncNeededAfterAppend {
 		operations.SyncFile(file, t.T())
-		time.Sleep(time.Minute) // Sleep for a minute so that stat() returns correct size.
 	}
 }
 
