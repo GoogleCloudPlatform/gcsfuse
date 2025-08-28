@@ -17,7 +17,6 @@ import (
 	"io"
 	"net/http"
 	"reflect"
-	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -168,11 +167,11 @@ func convertToCamelCase(input string) string {
 }
 
 // setFlagValue uses reflection to set the value of a flag in ServerConfig.
-func setFlagValue(cfg *Config, flag string, override flagOverride, isSet isValueSet) error {
+func setFlagValue(cfg *Config, flag string, override flagOverride, isSet isValueSet) (string, error) {
 	// Split the flag name into parts to traverse nested structs.
 	parts := strings.Split(flag, ".")
 	if len(parts) == 0 {
-		return fmt.Errorf("invalid flag name: %s", flag)
+		return "", fmt.Errorf("invalid flag name: %s", flag)
 	}
 
 	// Start with the Config.
@@ -182,57 +181,57 @@ func setFlagValue(cfg *Config, flag string, override flagOverride, isSet isValue
 	for _, part := range parts {
 		field = v.FieldByName(convertToCamelCase(part))
 		if !field.IsValid() {
-			return fmt.Errorf("invalid flag name: %s", flag)
+			return "", fmt.Errorf("invalid flag name: %s", flag)
 		}
 		v = field
 	}
 
 	// Check if the field exists.
 	if !field.IsValid() {
-		return fmt.Errorf("invalid flag name: %s", flag)
+		return "", fmt.Errorf("invalid flag name: %s", flag)
 	}
 
 	// Check if the field is settable.
 	if !field.CanSet() {
-		return fmt.Errorf("cannot set flag: %s", flag)
+		return "", fmt.Errorf("cannot set flag: %s", flag)
 	}
 
 	// Construct the full flag name for IsSet check.
 	fullFlagName := strings.ToLower(flag)
 
-	// Only override if the user hasn't set it.
+	// The isSet.IsSet() check ensures that we only proceed if the flag has not
+	// been explicitly set by the user. In this case, oldValue will be the zero
+	// value for its type (e.g., 0, false, "", nil).
 	if !isSet.IsSet(fullFlagName) {
+		oldValue := field.Interface()
 		// Set the value based on the field type.
 
 		switch field.Kind() {
 		case reflect.Bool:
 			boolValue, ok := override.newValue.(bool)
 			if !ok {
-				return fmt.Errorf("invalid boolean value for flag %s: %v", flag, override.newValue)
+				return "", fmt.Errorf("invalid boolean value for flag %s: %v", flag, override.newValue)
 			}
 			field.SetBool(boolValue)
 		case reflect.Int, reflect.Int64:
 			intValue, ok := override.newValue.(int)
 			if !ok {
-				return fmt.Errorf("invalid integer value for flag %s: %v", flag, override.newValue)
+				return "", fmt.Errorf("invalid integer value for flag %s: %v", flag, override.newValue)
 			}
 			field.SetInt(int64(intValue))
 		case reflect.String:
 			stringValue, ok := override.newValue.(string)
 			if !ok {
-				return fmt.Errorf("invalid string value for flag %s: %v", flag, override.newValue)
+				return "", fmt.Errorf("invalid string value for flag %s: %v", flag, override.newValue)
 			}
 			field.SetString(stringValue)
 		default:
-			return fmt.Errorf("unsupported flag type for flag %s", flag)
+			return "", fmt.Errorf("unsupported flag type for flag %s", flag)
 		}
+		return fmt.Sprintf("%v --> %v", oldValue, override.newValue), nil
 	}
 
-	return nil
-}
-
-func isFlagPresent(flags []string, flag string) bool {
-	return slices.Contains(flags, flag)
+	return "", nil
 }
 
 // getOptimizedValue contains the generic logic to determine the optimized value for a flag.

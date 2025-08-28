@@ -42,8 +42,8 @@ func decodeURL(u string) (string, error) {
 
 // resolveMetadataCacheTTL calculates the ttl to be used for stat/type cache based
 // on the user flags/configs or machine type based optimizations.
-func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig, optimizedFlags []string) {
-	optimizationAppliedToNegativeCacheTTL := isFlagPresent(optimizedFlags, MetadataNegativeCacheTTLConfigKey)
+func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig, optimizedFlags map[string]any) {
+	_, optimizationAppliedToNegativeCacheTTL := optimizedFlags[MetadataNegativeCacheTTLConfigKey]
 
 	if v.IsSet(MetadataNegativeCacheTTLConfigKey) || optimizationAppliedToNegativeCacheTTL {
 		if c.NegativeTtlSecs == -1 {
@@ -55,7 +55,7 @@ func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig, optimizedFlags []s
 	// 1. If metadata-cache:ttl-secs has been set, then it has highest precedence
 	// 2. If metadata-cache:stat-cache-ttl or metadata-cache:type-cache-ttl has been set or no optimization applied, then it has second highest precedence
 	// 3. Optimization is applied (implicit) and take care of special case of -1 which can occur even in defaults
-	optimizationAppliedToMetadataCacheTTL := isFlagPresent(optimizedFlags, MetadataCacheTTLConfigKey)
+	_, optimizationAppliedToMetadataCacheTTL := optimizedFlags[MetadataCacheTTLConfigKey]
 	if v.IsSet(MetadataCacheTTLConfigKey) {
 		if c.TtlSecs == -1 {
 			c.TtlSecs = maxSupportedTTLInSeconds
@@ -69,7 +69,7 @@ func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig, optimizedFlags []s
 
 // resolveStatCacheMaxSizeMB calculates the stat-cache size in MiBs based on the
 // machine-type default override, user's old and new flags/configs.
-func resolveStatCacheMaxSizeMB(v isSet, c *MetadataCacheConfig, optimizedFlags []string) {
+func resolveStatCacheMaxSizeMB(v isSet, c *MetadataCacheConfig, optimizedFlags map[string]any) {
 	// Local function to calculate size based on deprecated capacity.
 	calculateSizeFromCapacity := func(capacity int64) int64 {
 		avgTotalStatCacheEntrySize := AverageSizeOfPositiveStatCacheEntry + AverageSizeOfNegativeStatCacheEntry
@@ -80,7 +80,7 @@ func resolveStatCacheMaxSizeMB(v isSet, c *MetadataCacheConfig, optimizedFlags [
 	// 1. If metadata-cache:stat-cache-size-mb is set it has the highest precedence
 	// 2. If stat-cache-capacity is set or optimization is not applied then use it to calculate stat cache size
 	// 3. Else handle special case of -1 for both optimized or possible default value
-	optimizationAppliedToStatCacheMaxSize := isFlagPresent(optimizedFlags, StatCacheMaxSizeConfigKey)
+	_, optimizationAppliedToStatCacheMaxSize := optimizedFlags[StatCacheMaxSizeConfigKey]
 	if v.IsSet(StatCacheMaxSizeConfigKey) {
 		if c.StatCacheMaxSizeMb == -1 {
 			c.StatCacheMaxSizeMb = int64(maxSupportedStatCacheMaxSizeMB)
@@ -148,7 +148,7 @@ func resolveLoggingConfig(config *Config) {
 }
 
 // Rationalize updates the config fields based on the values of other fields.
-func Rationalize(v isSet, c *Config, optimizedFlags []string) error {
+func Rationalize(v isSet, c *Config, optimizedFlags map[string]any) error {
 	var err error
 	if c.GcsConnection.CustomEndpoint, err = decodeURL(c.GcsConnection.CustomEndpoint); err != nil {
 		return err
