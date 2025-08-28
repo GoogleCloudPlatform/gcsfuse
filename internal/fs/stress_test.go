@@ -25,7 +25,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/jacobsa/fuse/fusetesting"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fusetesting"
 	. "github.com/jacobsa/ogletest"
 )
 

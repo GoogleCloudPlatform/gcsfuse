@@ -27,8 +27,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/jacobsa/fuse"
-	"github.com/jacobsa/fuse/fuseops"
 )
 
 /*

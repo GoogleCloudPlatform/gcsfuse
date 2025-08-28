@@ -25,7 +25,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
-	"github.com/jacobsa/fuse"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -43,7 +42,6 @@ func TestNotifierTestSuite(t *testing.T) {
 func (t *NotifierTest) SetupSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.InodeAttributeCacheTTL = 1000 * time.Second
-	t.serverCfg.Notifier = fuse.NewNotifier()
 	t.serverCfg.NewConfig = &cfg.Config{
 		FileSystem: cfg.FileSystemConfig{
 			ExperimentalEnableDentryCache: true,

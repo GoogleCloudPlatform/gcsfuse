@@ -12,19 +12,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fuse
+package fusetesting
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fuse"
 )
 
-type Server interface {
-	// Mount the file system described by the supplied file system creator.
-	Mount(
-		ctx context.Context,
-		mountPoint string,
-		fsCreator func(context.Context, *fs.ServerConfig) (fs.FileSystem, error),
-		serverCfg *fs.ServerConfig) (mfs *MountedFileSystem, err error)
+type Server struct {
+	mfs *fuse.MountedFileSystem
+}
+
+func NewServer(
+	ctx context.Context,
+	fsCreator func(context.Context, *fs.ServerConfig) (fuse.Server, error),
+	serverCfg *fs.ServerConfig) (*Server, error) {
+	// Mount the file system.
+	mfs, err := fuse.Mount(ctx, serverCfg.MountPoint, fsCreator, serverCfg)
+	if err != nil {
+		return nil, fmt.Errorf("fuse.Mount: %w", err)
+	}
+	return &Server{
+		mfs: mfs,
+	}, nil
+}
+
+func (s *Server) Unmount() error {
+	return s.mfs.Unmount()
+}
+
+func (s *Server) Wait() error {
+	return s.mfs.Join(context.Background())
 }

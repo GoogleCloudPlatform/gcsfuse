@@ -39,8 +39,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
-	"github.com/jacobsa/fuse"
-	"github.com/jacobsa/fuse/fusetesting"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fusetesting"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
@@ -81,7 +80,6 @@ func init() {
 type fsTest struct {
 	// Configuration
 	serverCfg fs.ServerConfig
-	mountCfg  fuse.MountConfig
 
 	// Files to close when tearing down. Nil entries are skipped.
 	f1 *os.File
@@ -93,7 +91,7 @@ var (
 	ctx    context.Context
 
 	// Mount information
-	mfs *fuse.MountedFileSystem
+	mfs *fusetesting.Server
 
 	mtimeClock timeutil.Clock
 	cacheClock timeutil.SimulatedClock
@@ -186,31 +184,16 @@ func (t *fsTest) SetUpTestSuite() {
 	AssertEq(nil, err)
 
 	// Create a file system server.
-	server, err := fs.NewServer(ctx, &t.serverCfg)
-	AssertEq(nil, err)
-
-	// Mount the file system.
-	mountCfg := t.mountCfg
-	mountCfg.OpContext = ctx
-
-	if mountCfg.ErrorLogger == nil {
-		mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse_errors: ")
-	}
-
-	if *fDebug {
-		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelDebug, "fuse: ")
-	}
-
-	mfs, err = fuse.Mount(mntDir, server, &mountCfg)
+	var err error
+	mfs, err = fusetesting.NewServer(ctx, fs.NewServer, &t.serverCfg)
 	AssertEq(nil, err)
 }
 
 func (t *fsTest) TearDownTestSuite() {
-	var err error
 	// Unmount the file system. Try again on "resource busy" errors.
 	delay := 10 * time.Millisecond
 	for {
-		err := fuse.Unmount(mfs.Dir())
+		err := mfs.Unmount()
 		if err == nil {
 			break
 		}
@@ -226,7 +209,7 @@ func (t *fsTest) TearDownTestSuite() {
 		AbortTest()
 	}
 
-	if err := mfs.Join(ctx); err != nil {
+	if err := mfs.Wait(); err != nil {
 		AssertEq(nil, err)
 	}
 

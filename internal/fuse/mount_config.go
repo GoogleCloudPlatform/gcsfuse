@@ -18,10 +18,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/mount"
-	"github.com/jacobsa/fuse"
 )
 
-func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig {
+func getFuseMountConfig(fsName string, newConfig *cfg.Config) *MountConfig {
 	// Handle the repeated "-o" flag.
 	parsedOptions := make(map[string]string)
 	for _, o := range newConfig.FileSystem.FuseOptions {

@@ -27,8 +27,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/perms"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
-	"github.com/jacobsa/fuse/fsutil"
-	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
 )
 

@@ -33,7 +33,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
-	"github.com/jacobsa/fuse/fusetesting"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fusetesting"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
