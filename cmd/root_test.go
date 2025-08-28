@@ -839,6 +839,22 @@ func TestArgsParsing_GCSConnectionFlagsThrowsError(t *testing.T) {
 }
 
 func TestArgsParsing_FileSystemFlags(t *testing.T) {
+	expectedDefaultFileSystemConfig := cfg.FileSystemConfig{
+		DirMode:                       0755,
+		DisableParallelDirops:         false,
+		ExperimentalEnableDentryCache: false,
+		ExperimentalEnableReaddirplus: false,
+		FileMode:                      0644,
+		FuseOptions:                   []string{},
+		Gid:                           -1,
+		IgnoreInterrupts:              true,
+		KernelListCacheTtlSecs:        0,
+		RenameDirLimit:                0,
+		TempDir:                       "",
+		PreconditionErrors:            true,
+		Uid:                           -1,
+	}
+
 	hd, err := os.UserHomeDir()
 	require.NoError(t, err)
 	tests := []struct {
@@ -907,6 +923,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					PreconditionErrors:            true,
 					Uid:                           -1,
 				},
+				MachineType: "a3-highgpu-8g",
 			},
 		},
 		{
@@ -928,6 +945,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					PreconditionErrors:            true,
 					Uid:                           -1,
 				},
+				MachineType: "a3-highgpu-8g",
 			},
 		},
 		{
@@ -949,27 +967,41 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					PreconditionErrors:            true,
 					Uid:                           -1,
 				},
+				MachineType: "a3-highgpu-8g",
+			},
+		},
+		{
+			name: "optimize profile with machine-type",
+			args: []string{"gcsfuse", "--optimize-profile=aiml-training", "--machine-type=machine-type-1", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem:      expectedDefaultFileSystemConfig,
+				OptimizeProfile: "aiml-training",
+				MachineType:     "machine-type-1",
+			},
+		},
+		{
+			name: "optimize profile without machine-type",
+			args: []string{"gcsfuse", "--optimize-profile=aiml-serving", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem:      expectedDefaultFileSystemConfig,
+				OptimizeProfile: "aiml-serving",
+			},
+		},
+		{
+			name: "machine-type without optimize-profile",
+			args: []string{"gcsfuse", "--machine-type=machine-type-1", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem:  expectedDefaultFileSystemConfig,
+				MachineType: "machine-type-1",
 			},
 		},
 		{
 			name: "default",
 			args: []string{"gcsfuse", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
-				FileSystem: cfg.FileSystemConfig{
-					DirMode:                       0755,
-					DisableParallelDirops:         false,
-					ExperimentalEnableDentryCache: false,
-					ExperimentalEnableReaddirplus: false,
-					FileMode:                      0644,
-					FuseOptions:                   []string{},
-					Gid:                           -1,
-					IgnoreInterrupts:              true,
-					KernelListCacheTtlSecs:        0,
-					RenameDirLimit:                0,
-					TempDir:                       "",
-					PreconditionErrors:            true,
-					Uid:                           -1,
-				},
+				FileSystem:      expectedDefaultFileSystemConfig,
+				MachineType:     "",
+				OptimizeProfile: "",
 			},
 		},
 	}
@@ -988,6 +1020,8 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedConfig.FileSystem, gotConfig.FileSystem)
+				assert.Equal(t, tc.expectedConfig.MachineType, gotConfig.MachineType)
+				assert.Equal(t, tc.expectedConfig.OptimizeProfile, gotConfig.OptimizeProfile)
 			}
 		})
 	}

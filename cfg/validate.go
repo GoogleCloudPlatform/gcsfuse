@@ -17,6 +17,7 @@ package cfg
 import (
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"regexp"
 
@@ -29,6 +30,9 @@ const (
 	ParallelDownloadsPerFileInvalidValueError = "the value of parallel-downloads-per-file for file-cache can't be less than 1"
 	DownloadChunkSizeMBInvalidValueError      = "the value of download-chunk-size-mb for file-cache can't be less than 1"
 	MaxParallelDownloadsCantBeZeroError       = "the value of max-parallel-downloads for file-cache must not be 0 when enable-parallel-downloads is true"
+	OptimizeProfileAIMLTraining               = "aiml-training"
+	OptimizeProfileAIMLServing                = "aiml-serving"
+	OptimizeProfileAIMLCheckpointing          = "aiml-checkpointing"
 )
 
 func isValidLogRotateConfig(config *LogRotateLoggingConfig) error {
@@ -249,6 +253,22 @@ func isValidBufferedReadConfig(rc *ReadConfig) error {
 	return nil
 }
 
+func isValidOptimizationProfile(config *Config) error {
+	if config.OptimizeProfile == "" {
+		return nil
+	}
+
+	switch config.OptimizeProfile {
+	case OptimizeProfileAIMLServing, OptimizeProfileAIMLCheckpointing, OptimizeProfileAIMLTraining:
+		// TODO: This warning log is temporary. Remove it when support for optimize-profile is available.
+		log.Printf("Warning: optimize-profile is not implemented yet. Ignoring optimize-profile %q\n", config.OptimizeProfile)
+	default:
+		return fmt.Errorf("Unknown optimize-profile: %q", config.OptimizeProfile)
+	}
+
+	return nil
+}
+
 // ValidateConfig returns a non-nil error if the config is invalid.
 func ValidateConfig(v isSet, config *Config) error {
 	var err error
@@ -307,6 +327,10 @@ func ValidateConfig(v isSet, config *Config) error {
 
 	if err = isValidBufferedReadConfig(&config.Read); err != nil {
 		return fmt.Errorf("error parsing buffered read config: %w", err)
+	}
+
+	if err = isValidOptimizationProfile(config); err != nil {
+		return fmt.Errorf("error parsing optimize profile config: %w", err)
 	}
 
 	return nil
