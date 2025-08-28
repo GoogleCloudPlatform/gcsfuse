@@ -227,6 +227,7 @@ TEST_DIR_PARALLEL=(
   "readdirplus"
   "dentry_cache"
   "buffered_read"
+  "rename_symlink"
 )
 
 # These tests never become parallel as they are changing bucket permissions.
