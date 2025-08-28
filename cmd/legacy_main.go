@@ -42,9 +42,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/profiler"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fuse"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/jacobsa/daemonize"
-	"github.com/jacobsa/fuse"
 	"github.com/kardianos/osext"
 	"golang.org/x/net/context"
 )

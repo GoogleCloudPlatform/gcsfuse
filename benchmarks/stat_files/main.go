@@ -20,6 +20,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"sync"
@@ -30,7 +31,6 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/benchmarks/internal/format"
-	"github.com/jacobsa/fuse/fsutil"
 )
 
 var fDir = flag.String("dir", "", "Directory within which to create the files.")
@@ -72,7 +72,7 @@ func createFiles(
 
 				// Create it.
 				var f *os.File
-				f, err = fsutil.AnonymousFile(dir)
+				f, err = ioutil.TempFile(dir, "gcsfuse_benchmark_")
 				if err != nil {
 					err = fmt.Errorf("AnonymousFile: %w", err)
 					return

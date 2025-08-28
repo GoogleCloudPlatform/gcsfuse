@@ -20,6 +20,22 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/mount"
 )
 
+type MountConfig struct {
+	// The name of the file system, for use in statistics and logging.
+	FSName string
+
+	// The subtype of the file system, for use in "mount -t" on Linux.
+	Subtype string
+
+	// The volume name, for use in the UI of OS X.
+	VolumeName string
+
+	// Extra options to be passed to mount(2), keyed by option name.
+	//
+	// For options without a value, the value may be empty.
+	Options map[string]string
+}
+
 func getFuseMountConfig(fsName string, newConfig *cfg.Config) *MountConfig {
 	// Handle the repeated "-o" flag.
 	parsedOptions := make(map[string]string)
@@ -27,35 +43,12 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *MountConfig {
 		mount.ParseOptions(parsedOptions, o)
 	}
 
-	mountCfg := &fuse.MountConfig{
-		FSName:                      fsName,
-		Subtype:                     "gcsfuse",
-		VolumeName:                  "gcsfuse",
-		Options:                     parsedOptions,
-		EnableParallelDirOps:        !(newConfig.FileSystem.DisableParallelDirops),
-		DisableWritebackCaching:     newConfig.Write.EnableStreamingWrites,
-		EnableReaddirplus:           newConfig.FileSystem.ExperimentalEnableReaddirplus,
-		EnableNoOpenSupport:         !newConfig.FileSystem.EnableNoOpen,
-		EnableNoOpendirSupport:      !newConfig.FileSystem.EnableNoOpendir,
-		EnableAsyncRead:             newConfig.FileSystem.EnableAsyncRead,
-		EnableFusexattr:             newConfig.FileSystem.EnableFusexattr,
-		IgnoreSecurityLabels:        newConfig.FileSystem.IgnoreSecurityLabels,
-		KernelListCacheTTL:          cfg.ListCacheTTLSecsToDuration(newConfig.FileSystem.KernelListCacheTtlSecs),
-		MaxBackgroundActiveRequests: newConfig.FileSystem.MaxBackgroundActiveRequests,
+	mountCfg := &MountConfig{
+		FSName:     fsName,
+		Subtype:    "gcsfuse",
+		VolumeName: "gcsfuse",
+		Options:    parsedOptions,
 	}
 
-	// GCSFuse to Jacobsa Fuse Log Level mapping:
-	// OFF           OFF
-	// ERROR         ERROR
-	// WARNING       ERROR
-	// INFO          ERROR
-	// DEBUG         ERROR
-	// TRACE         TRACE
-	if newConfig.Logging.Severity.Rank() <= cfg.ErrorLogSeverity.Rank() {
-		mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ")
-	}
-	if newConfig.Logging.Severity.Rank() <= cfg.TraceLogSeverity.Rank() {
-		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelTrace, "fuse_debug: ")
-	}
 	return mountCfg
 }

@@ -387,8 +387,8 @@ type libfuseServer struct {
 func (s *libfuseServer) Mount(
 	ctx context.Context,
 	mountPoint string,
-	fsCreator func(context.Context, *fs.ServerConfig) (fuse.Server, error),
-	serverCfg *fs.ServerConfig) (mfs *fuse.MountedFileSystem, err error) {
+	fsCreator func(context.Context, *fs.ServerConfig) (fs.FileSystem, error),
+	serverCfg *fs.ServerConfig) (mfs *MountedFileSystem, err error) {
 	// Create a file system server.
 	logger.Infof("Creating a new server...\n")
 	s.fs, err = fsCreator(ctx, serverCfg)
