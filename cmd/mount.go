@@ -20,18 +20,16 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/mount"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
-	"golang.org/x/net/context"
-
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fuse"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/perms"
-	"github.com/jacobsa/fuse"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/timeutil"
+	"golang.org/x/net/context"
 )
 
 // Mount the file system based on the supplied arguments, returning a
@@ -123,76 +121,16 @@ be interacting with the file system.`)
 		NewConfig:                  newConfig,
 		MetricHandle:               metricHandle,
 	}
-	if serverCfg.NewConfig.FileSystem.ExperimentalEnableDentryCache {
-		serverCfg.Notifier = fuse.NewNotifier()
-	}
 
-	logger.Infof("Creating a new server...\n")
-	server, err := fs.NewServer(ctx, serverCfg)
+	server, err := fuse.NewServer(newConfig)
 	if err != nil {
-		err = fmt.Errorf("fs.NewServer: %w", err)
-		return
+		return nil, fmt.Errorf("failed to create fuse server: %w", err)
 	}
-
-	fsName := bucketName
-	if isDynamicMount(bucketName) {
-		// mounting all the buckets at once
-		fsName = "gcsfuse"
-	}
-
-	// Mount the file system.
-	logger.Infof("Mounting file system %q...", fsName)
-
-	mountCfg := getFuseMountConfig(fsName, newConfig)
-	mfs, err = fuse.Mount(mountPoint, server, mountCfg)
+	mfs, err = server.Mount(ctx, mountPoint, fs.NewServer, serverCfg)
 	if err != nil {
 		err = fmt.Errorf("mount: %w", err)
 		return
 	}
 
 	return
-}
-
-func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig {
-	// Handle the repeated "-o" flag.
-	parsedOptions := make(map[string]string)
-	for _, o := range newConfig.FileSystem.FuseOptions {
-		mount.ParseOptions(parsedOptions, o)
-	}
-
-	mountCfg := &fuse.MountConfig{
-		FSName:     fsName,
-		Subtype:    "gcsfuse",
-		VolumeName: "gcsfuse",
-		Options:    parsedOptions,
-		// Allows parallel LookUpInode & ReadDir calls from Kernel's FUSE driver.
-		// GCSFuse takes exclusive lock on directory inodes during ReadDir call,
-		// hence there is no effect of parallelization of incoming ReadDir calls
-		// from FUSE driver for user of GCSFuse. However, in case of LookUpInode
-		// calls, GCSFuse takes read only lock during LookUpInode call which helps
-		// users experience the performance gains. E.g. if a user workload tries to
-		// access two files under same directory parallely, then the lookups also
-		// happen parallely.
-		EnableParallelDirOps: !(newConfig.FileSystem.DisableParallelDirops),
-		// We disable write-back cache when streaming writes are enabled.
-		DisableWritebackCaching: newConfig.Write.EnableStreamingWrites,
-		// Enables ReadDirPlus, allowing the kernel to retrieve directory entries and their
-		// attributes in a single operation.
-		EnableReaddirplus: newConfig.FileSystem.ExperimentalEnableReaddirplus,
-	}
-
-	// GCSFuse to Jacobsa Fuse Log Level mapping:
-	// OFF           OFF
-	// ERROR         ERROR
-	// WARNING       ERROR
-	// INFO          ERROR
-	// DEBUG         ERROR
-	// TRACE         TRACE
-	if newConfig.Logging.Severity.Rank() <= cfg.ErrorLogSeverity.Rank() {
-		mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ")
-	}
-	if newConfig.Logging.Severity.Rank() <= cfg.TraceLogSeverity.Rank() {
-		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelTrace, "fuse_debug: ")
-	}
-	return mountCfg
 }
