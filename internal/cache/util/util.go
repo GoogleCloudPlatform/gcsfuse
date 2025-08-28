@@ -27,7 +27,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
-	"github.com/jacobsa/fuse/fsutil"
 )
 
 var (
@@ -117,7 +116,7 @@ func CreateCacheDirectoryIfNotPresentAt(dirPath string, dirPerm os.FileMode) err
 		}
 	}
 
-	f, err := fsutil.AnonymousFile(dirPath)
+	f, err := os.CreateTemp(dirPath, "gcsfuse_")
 	if err != nil {
 		return fmt.Errorf(
 			"error creating file at directory (%s), error : (%v)", dirPath, err.Error())

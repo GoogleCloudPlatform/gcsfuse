@@ -22,7 +22,6 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
-	"github.com/jacobsa/fuse/fsutil"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 )
@@ -63,7 +62,7 @@ func TestValidateGenerationNegative(t *testing.T) {
 func TestReadWriteMetadataCheckpointFile(t *testing.T) {
 	mtimeClock := timeutil.RealClock()
 	contentCache := contentcache.New(testTempDir, mtimeClock)
-	f, err := fsutil.AnonymousFile(testTempDir)
+	f, err := os.CreateTemp(testTempDir, "gcsfuse_test_")
 	AssertEq(err, nil)
 	objectMetadata := contentcache.CacheFileObjectMetadata{
 		CacheFileNameOnDisk: f.Name(),

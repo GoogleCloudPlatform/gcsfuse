@@ -19,9 +19,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fuse"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
-	"github.com/jacobsa/fuse/fuseops"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
