@@ -104,7 +104,7 @@ func getUserAgent(appName string, config string) string {
 }
 
 func getConfigForUserAgent(mountConfig *cfg.Config) string {
-	// Minimum configuration details created in a bitset fashion. Right now, its restricted only to File Cache Settings.
+	// Minimum configuration details created in a bitset fashion.
 	isFileCacheEnabled := "0"
 	if cfg.IsFileCacheEnabled(mountConfig) {
 		isFileCacheEnabled = "1"
@@ -121,7 +121,11 @@ func getConfigForUserAgent(mountConfig *cfg.Config) string {
 	if mountConfig.Write.EnableStreamingWrites {
 		areStreamingWritesEnabled = "1"
 	}
-	return fmt.Sprintf("%s:%s:%s:%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled, isParallelDownloadsEnabled, areStreamingWritesEnabled)
+	isBufferedReadEnabled := "0"
+	if mountConfig.Read.EnableBufferedRead {
+		isBufferedReadEnabled = "1"
+	}
+	return fmt.Sprintf("%s:%s:%s:%s:%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled, isParallelDownloadsEnabled, areStreamingWritesEnabled, isBufferedReadEnabled)
 }
 func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle metrics.MetricHandle) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
