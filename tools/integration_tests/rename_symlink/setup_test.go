@@ -64,6 +64,8 @@ func TestMain(m *testing.M) {
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
 		{"--implicit-dirs", "--metadata-cache-negative-ttl-secs=0"},
+		{"--implicit-dirs", "--metadata-cache-negative-ttl-secs=0", "--client-protocol=grpc"},
+		{"--implicit-dirs", "--metadata-cache-negative-ttl-secs=0", "--enable-atomic-rename-object=false"},
 	}
 
 	successCode := static_mounting.RunTests(flagsSet, m)
