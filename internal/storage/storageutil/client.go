@@ -69,6 +69,8 @@ type StorageClientConfig struct {
 
 	TracingEnabled bool
 
+	EnableGrpcMetrics bool
+
 	// IsGKE inspects the mountPoint and indicates if running in a GKE environment.
 	IsGKE bool
 }

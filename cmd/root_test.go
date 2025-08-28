@@ -1242,6 +1242,7 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 				CloudMetricsExportIntervalSecs: 10,
 				Workers:                        3,
 				BufferSize:                     256,
+				EnableGrpcMetrics:              true,
 			},
 		},
 		{
@@ -1252,31 +1253,35 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 				StackdriverExportInterval:      time.Duration(10) * time.Hour,
 				Workers:                        3,
 				BufferSize:                     256,
+				EnableGrpcMetrics:              true,
 			},
 		},
 		{
 			name: "use_new_metric_names",
 			args: []string{"gcsfuse", "--metrics-use-new-names=true", "abc", "pqr"},
 			expected: &cfg.MetricsConfig{
-				UseNewNames: true,
-				Workers:     3,
-				BufferSize:  256,
+				UseNewNames:       true,
+				Workers:           3,
+				BufferSize:        256,
+				EnableGrpcMetrics: true,
 			},
 		},
 		{
 			name: "metrics_workers_non_default",
 			args: []string{"gcsfuse", "--metrics-workers=10", "abc", "pqr"},
 			expected: &cfg.MetricsConfig{
-				Workers:    10,
-				BufferSize: 256,
+				Workers:           10,
+				BufferSize:        256,
+				EnableGrpcMetrics: true,
 			},
 		},
 		{
-			name: "metrics_buffer_size_non_default",
-			args: []string{"gcsfuse", "--metrics-buffer-size=1024", "abc", "pqr"},
+			name: "enable_grpc_metrics_non_default",
+			args: []string{"gcsfuse", "--enable-grpc-metrics=false", "abc", "pqr"},
 			expected: &cfg.MetricsConfig{
-				Workers:    3,
-				BufferSize: 1024,
+				Workers:           3,
+				BufferSize:        256,
+				EnableGrpcMetrics: false,
 			},
 		},
 	}
