@@ -19,12 +19,12 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -144,6 +144,7 @@ func (t *CommonAppendsSuite) createUnfinalizedObject() {
 	// Create unfinalized object.
 	t.fileContent = setup.GenerateRandomString(unfinalizedObjectSize)
 	client.CreateUnfinalizedObject(ctx, t.T(), storageClient, path.Join(testDirName, t.fileName), t.fileContent)
+	time.Sleep(time.Minute) // Wait for a minute so that further stat() calls return correct size.
 }
 
 func (t *CommonAppendsSuite) mountPrimaryMount(flags []string) {
@@ -177,8 +178,8 @@ func (t *DualMountAppendsSuite) unmountSecondaryMount() {
 func (t *CommonAppendsSuite) appendToFile(file *os.File, appendContent string) {
 	t.T().Helper()
 	n, err := file.WriteString(appendContent)
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), len(appendContent), n)
+	require.NoError(t.T(), err)
+	require.Equal(t.T(), len(appendContent), n)
 	t.fileContent += appendContent
 	if t.isSyncNeededAfterAppend {
 		operations.SyncFile(file, t.T())

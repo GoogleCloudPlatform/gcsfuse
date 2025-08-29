@@ -61,7 +61,7 @@ func (t *BucketManagerTest) SetUp(_ *TestInfo) {
 			LocationType:          "zone",
 		}, nil)
 	ctx := context.Background()
-	t.bucket, err = t.storageHandle.BucketHandle(ctx, TestBucketName, "", false)
+	t.bucket, err = t.storageHandle.BucketHandle(ctx, TestBucketName, "")
 
 	AssertNe(nil, t.bucket)
 	AssertEq(nil, err)
