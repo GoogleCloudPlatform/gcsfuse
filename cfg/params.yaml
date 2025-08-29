@@ -775,7 +775,7 @@
     Specifies the maximum number of blocks available for buffered reads across all file-handles.
     The value should be >= 0 or -1 (for infinite blocks).
     A value of 0 disables buffered reads.
-  default: 80
+  default: 40
 
 - config-path: "read.inactive-stream-timeout"
   flag-name: "read-inactive-stream-timeout"
