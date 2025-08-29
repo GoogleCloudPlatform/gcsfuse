@@ -49,7 +49,7 @@ var (
 // config.
 // Here, background true means, this InitLogFile has been called for the
 // background daemon.
-func InitLogFile(newLogConfig cfg.LoggingConfig) error {
+func InitLogFile(newLogConfig cfg.LoggingConfig, mountId string) error {
 	var f *os.File
 	var sysWriter *syslog.Writer
 	var fileWriter *lumberjack.Logger
@@ -91,6 +91,7 @@ func InitLogFile(newLogConfig cfg.LoggingConfig) error {
 		format:     newLogConfig.Format,
 		level:      string(newLogConfig.Severity),
 		logRotate:  newLogConfig.LogRotate,
+		mountId:    mountId,
 	}
 	defaultLogger = defaultLoggerFactory.newLogger(string(newLogConfig.Severity))
 
@@ -105,6 +106,7 @@ func init() {
 		format:    logConfig.Format,
 		level:     string(logConfig.Severity), // setting log level to INFO by default
 		logRotate: logConfig.LogRotate,
+		mountId:   "",
 	}
 	defaultLogger = defaultLoggerFactory.newLogger(cfg.INFO)
 }
@@ -168,6 +170,7 @@ type loggerFactory struct {
 	level      string
 	logRotate  cfg.LogRotateLoggingConfig
 	fileWriter *lumberjack.Logger
+	mountId    string
 }
 
 func (f *loggerFactory) newLogger(level string) *slog.Logger {
@@ -176,6 +179,9 @@ func (f *loggerFactory) newLogger(level string) *slog.Logger {
 	logger := slog.New(f.handler(programLevel, ""))
 	slog.SetDefault(logger)
 	setLoggingLevel(level, programLevel)
+	if f.mountId != "" {
+		return logger.With("mount_id", defaultLoggerFactory.mountId)
+	}
 	return logger
 }
 

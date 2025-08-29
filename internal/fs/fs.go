@@ -142,7 +142,7 @@ type ServerConfig struct {
 }
 
 // Create a fuse file system server according to the supplied configuration.
-func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileSystem, error) {
+func NewFileSystem(ctx context.Context, uuid string, serverCfg *ServerConfig) (fuseutil.FileSystem, error) {
 	// Check permissions bits.
 	if serverCfg.FilePerms&^os.ModePerm != 0 {
 		return nil, fmt.Errorf("illegal file perms: %v", serverCfg.FilePerms)
@@ -226,7 +226,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		logger.Info("Set up root directory for all accessible buckets")
 		root = makeRootForAllBuckets(fs)
 	} else {
-		logger.Info("Set up root directory for bucket " + serverCfg.BucketName)
+		logger.Info(fmt.Sprintf("GCSFuse Mount ID[%s] Set up root directory for bucket %s", uuid, serverCfg.BucketName))
 		syncerBucket, err := fs.bucketManager.SetUpBucket(ctx, serverCfg.BucketName, false, fs.metricHandle)
 		if err != nil {
 			return nil, fmt.Errorf("SetUpBucket: %w", err)

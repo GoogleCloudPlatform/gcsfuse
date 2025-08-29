@@ -306,7 +306,7 @@ func setFlagValue(cfg *Config, flag string, override flagOverride, isSet isValue
 		default:
 			return "", fmt.Errorf("unsupported flag type for flag %s", flag)
 		}
-		return fmt.Sprintf("%v --> %v", oldValue, override.newValue), nil
+		return fmt.Sprintf("from %v to %v", oldValue, override.newValue), nil
 	}
 
 	return "", nil

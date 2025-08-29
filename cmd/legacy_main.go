@@ -123,7 +123,7 @@ func getConfigForUserAgent(mountConfig *cfg.Config) string {
 	}
 	return fmt.Sprintf("%s:%s:%s:%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled, isParallelDownloadsEnabled, areStreamingWritesEnabled)
 }
-func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle metrics.MetricHandle) (storageHandle storage.StorageHandle, err error) {
+func createStorageHandle(newConfig *cfg.Config, uuid, userAgent string, metricHandle metrics.MetricHandle) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
 		ClientProtocol:             newConfig.GcsConnection.ClientProtocol,
 		MaxConnsPerHost:            int(newConfig.GcsConnection.MaxConnsPerHost),
@@ -145,7 +145,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		ReadStallRetryConfig:       newConfig.GcsRetries.ReadStall,
 		MetricHandle:               metricHandle,
 	}
-	logger.Infof("UserAgent = %s\n", storageClientConfig.UserAgent)
+	logger.Infof(fmt.Sprintf("UserAgent = %s\n", uuid, storageClientConfig.UserAgent))
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig, newConfig.GcsConnection.BillingProject)
 	return
 }
@@ -155,7 +155,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 ////////////////////////////////////////////////////////////////////////
 
 // Mount the file system according to arguments in the supplied context.
-func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, metricHandle metrics.MetricHandle) (mfs *fuse.MountedFileSystem, err error) {
+func mountWithArgs(uuid, bucketName string, mountPoint string, newConfig *cfg.Config, metricHandle metrics.MetricHandle) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if newConfig.Debug.ExitOnInvariantViolation {
 		locker.EnableInvariantsCheck()
@@ -172,7 +172,7 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, 
 	if bucketName != canned.FakeBucketName {
 		userAgent := getUserAgent(newConfig.AppName, getConfigForUserAgent(newConfig))
 		logger.Info("Creating Storage handle...")
-		storageHandle, err = createStorageHandle(newConfig, userAgent, metricHandle)
+		storageHandle, err = createStorageHandle(newConfig, uuid, userAgent, metricHandle)
 		if err != nil {
 			err = fmt.Errorf("failed to create storage handle using createStorageHandle: %w", err)
 			return
@@ -180,9 +180,9 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, 
 	}
 
 	// Mount the file system.
-	logger.Infof("Creating a mount at %q\n", mountPoint)
+	logger.Info(fmt.Sprintf("GCSFuse Mount ID[%s] Creating a mount at %q\n", uuid, mountPoint))
 	mfs, err = mountWithStorageHandle(
-		context.Background(),
+		context.Background(), uuid,
 		bucketName,
 		mountPoint,
 		newConfig,
@@ -322,17 +322,9 @@ func forwardedEnvVars() []string {
 	return env
 }
 
-func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
-	logger.Infof("Start gcsfuse/%s for app [%s] using mount point: [%s]", common.GetVersion(), newConfig.AppName, mountPoint)
-
-	// Log mount-config and the CLI flags in the log-file.
-	// If there is no log-file, then log these to stdout.
-	// Do not log these in stdout in case of daemonized run
-	// if these are already being logged into a log-file, otherwise
-	// there will be duplicate logs for these in both places (stdout and log-file).
-	if newConfig.Foreground || newConfig.Logging.FilePath == "" {
-		logger.Info("GCSFuse Final Config", "config", newConfig)
-	}
+func Mount(uuid string, newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
+	str := fmt.Sprintf("GCSFuse Mount ID[%s] Start gcsfuse/%s for app %q using mount point: %s\n", uuid, common.GetVersion(), newConfig.AppName, mountPoint)
+	logger.Infof(str)
 
 	// The following will not warn if the user explicitly passed the default value for StatCacheCapacity.
 	if newConfig.MetadataCache.DeprecatedStatCacheCapacity != mount.DefaultStatCacheCapacity {
@@ -375,7 +367,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 		if err != nil {
 			return fmt.Errorf("daemonize.Run: %w", err)
 		}
-		logger.Infof(SuccessfulMountMessage)
+		logger.Info(SuccessfulMountMessage)
 		return err
 	}
 
@@ -400,7 +392,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	// daemonize gives us and telling it about the outcome.
 	var mfs *fuse.MountedFileSystem
 	{
-		mfs, err = mountWithArgs(bucketName, mountPoint, newConfig, metricHandle)
+		mfs, err = mountWithArgs(uuid, bucketName, mountPoint, newConfig, metricHandle)
 
 		// This utility is to absorb the error
 		// returned by daemonize.SignalOutcome calls by simply
@@ -413,7 +405,8 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 
 		markSuccessfulMount := func() {
 			// Print the success message in the log-file/stdout depending on what the logger is set to.
-			logger.Info(SuccessfulMountMessage)
+			str := fmt.Sprintf("GCSFuse Mount ID[%s] %s", uuid, SuccessfulMountMessage)
+			logger.Info(str)
 			callDaemonizeSignalOutcome(nil)
 		}
 

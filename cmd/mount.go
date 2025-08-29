@@ -38,7 +38,7 @@ import (
 // fuse.MountedFileSystem that can be joined to wait for unmounting.
 func mountWithStorageHandle(
 	ctx context.Context,
-	bucketName string,
+	uuid, bucketName string,
 	mountPoint string,
 	newConfig *cfg.Config,
 	storageHandle storage.StorageHandle,
@@ -47,7 +47,7 @@ func mountWithStorageHandle(
 	// currently. This gives a better user experience than harder to debug EIO
 	// errors when reading files in the future.
 	if newConfig.FileSystem.TempDir != "" {
-		logger.Infof("Creating a temporary directory at %q\n", newConfig.FileSystem.TempDir)
+		logger.Info(fmt.Sprintf("Creating a temporary directory at %q\n", uuid, newConfig.FileSystem.TempDir))
 		var f *os.File
 		f, err = fsutil.AnonymousFile(string(newConfig.FileSystem.TempDir))
 		f.Close()
@@ -127,8 +127,8 @@ be interacting with the file system.`)
 		serverCfg.Notifier = fuse.NewNotifier()
 	}
 
-	logger.Infof("Creating a new server...\n")
-	server, err := fs.NewServer(ctx, serverCfg)
+	logger.Infof(fmt.Sprintf("GCSFuse Mount ID[%s] Creating a new server...\n", uuid))
+	server, err := fs.NewServer(ctx, uuid, serverCfg)
 	if err != nil {
 		err = fmt.Errorf("fs.NewServer: %w", err)
 		return
@@ -141,9 +141,9 @@ be interacting with the file system.`)
 	}
 
 	// Mount the file system.
-	logger.Infof("Mounting file system %q...", fsName)
+	logger.Infof(fmt.Sprintf("GCSFuse Mount ID[%s] Mounting file system %q...", uuid, fsName))
 
-	mountCfg := getFuseMountConfig(fsName, newConfig)
+	mountCfg := getFuseMountConfig(fsName, uuid, newConfig)
 	mfs, err = fuse.Mount(mountPoint, server, mountCfg)
 	if err != nil {
 		err = fmt.Errorf("mount: %w", err)
@@ -153,7 +153,7 @@ be interacting with the file system.`)
 	return
 }
 
-func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig {
+func getFuseMountConfig(fsName, uuid string, newConfig *cfg.Config) *fuse.MountConfig {
 	// Handle the repeated "-o" flag.
 	parsedOptions := make(map[string]string)
 	for _, o := range newConfig.FileSystem.FuseOptions {
@@ -189,10 +189,10 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 	// DEBUG         ERROR
 	// TRACE         TRACE
 	if newConfig.Logging.Severity.Rank() <= cfg.ErrorLogSeverity.Rank() {
-		mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ")
+		mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ", uuid)
 	}
 	if newConfig.Logging.Severity.Rank() <= cfg.TraceLogSeverity.Rank() {
-		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelTrace, "fuse_debug: ")
+		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelTrace, "fuse_debug: ", uuid)
 	}
 	return mountCfg
 }
