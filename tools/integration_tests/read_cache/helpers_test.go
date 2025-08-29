@@ -57,6 +57,7 @@ func readFileAndGetExpectedOutcome(testDirPath, fileName string, readFullFile bo
 	var err error
 
 	if readFullFile {
+		log.Printf("Reading %s file sequentially", fileName)
 		content, err = operations.ReadFileSequentially(path.Join(testDirPath, fileName), chunkSizeToRead)
 		if err != nil {
 			t.Errorf("Failed to read file sequentially: %v", err)
@@ -69,6 +70,8 @@ func readFileAndGetExpectedOutcome(testDirPath, fileName string, readFullFile bo
 	}
 	expected.EndTimeStampSeconds = time.Now().Unix()
 	expected.content = string(content)
+
+	log.Printf("Read %d bytes from %s file", len(expected.content), fileName)
 
 	return expected
 }
@@ -110,6 +113,7 @@ func getCachedFilePath(fileName string) string {
 }
 
 func validateFileSizeInCacheDirectory(fileName string, filesize int64, t *testing.T) {
+	log.Printf("Inside validateFileSizeInCacheDirectory for %s file", fileName)
 	maxRetries := 25
 	retryDelay := 500 * time.Millisecond
 	expectedPathOfCachedFile := getCachedFilePath(fileName)
@@ -118,6 +122,7 @@ func validateFileSizeInCacheDirectory(fileName string, filesize int64, t *testin
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		// Validate that the file is present in cache location.
 		var fileInfo *fs.FileInfo
+		log.Printf("Calling stat on %s file", expectedPathOfCachedFile)
 		fileInfo, err = operations.StatFile(expectedPathOfCachedFile)
 		// Validate file size in cache directory matches actual file size.
 		if err == nil && fileInfo != nil {
@@ -127,6 +132,8 @@ func validateFileSizeInCacheDirectory(fileName string, filesize int64, t *testin
 			} else {
 				break
 			}
+		} else {
+			t.Logf("Error for attempt %d in stat function: %v", attempt, err)
 		}
 		time.Sleep(retryDelay)
 	}

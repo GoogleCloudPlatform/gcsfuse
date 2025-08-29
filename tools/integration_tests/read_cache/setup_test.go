@@ -103,6 +103,8 @@ func setupForMountedDirectoryTests() {
 		cacheDirPath = path.Join(os.TempDir(), cacheDirName)
 		mountDir = setup.MountedDirectory()
 		setup.SetLogFile(logFileNameForMountedDirectoryTests)
+		log.Printf("cacheDirPath is %s", cacheDirPath)
+		log.Printf("mountDir is %s", mountDir)
 	}
 }
 
@@ -110,6 +112,7 @@ func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageCli
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	setup.SetMntDir(mountDir)
 	testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
+	log.Printf("testDirPath is %s", testDirPath)
 }
 
 func getDefaultCacheDirPathForTests() string {
