@@ -23,7 +23,6 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
@@ -31,17 +30,14 @@ import (
 const (
 	testDirName    = "RapidAppendsTest"
 	fileNamePrefix = "rapid-append-file-"
-	// Minimum content size to write in order to trigger block upload while writing ; calculated as (2*blocksize+1) mb.
+	// Minimum content size to trigger block upload; calculated as (2*blocksize+1) MiB.
 	contentSizeForBW = 3
-	// Block size for buffered writes is set to 1MiB.
-	blockSize = operations.OneMiB
+	// Block size for buffered writes is 1MiB.
+	blockSize            = operations.OneMiB
+	metadataCacheTTLSecs = 10
 )
 
 var (
-	// Mount function to be used for the mounting.
-	mountFunc func([]string) error
-
-	// Clients to create the object in GCS.
 	storageClient *storage.Client
 	ctx           context.Context
 )
@@ -52,27 +48,27 @@ var (
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
+
 	if !setup.IsZonalBucketRun() {
-		log.Fatalf("This package is not supposed to be run with Regional Buckets.")
+		log.Fatalf("This package must be run with a Zonal Bucket.")
 	}
-	// TODO(b/431926259): Add support for mountedDir tests as this
-	// package has multi-mount scenario tests and currently we only
-	// pass single mountedDir to test package.
+
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		log.Fatalf("This package doesn't support --mountedDirectory option currently.")
+		log.Fatalf("This package does not support the --mountedDirectory flag.")
 	}
+
 	ctx = context.Background()
 	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
 	defer func() {
-		err := closeStorageClient()
-		if err != nil {
+		if err := closeStorageClient(); err != nil {
 			log.Fatalf("closeStorageClient failed: %v", err)
 		}
 	}()
 
-	log.Println("Running static mounting tests...")
-	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
+	log.Println("Running static mounting tests for rapid appends...")
 	successCode := m.Run()
+
+	// Clean up the test directory on GCS after all tests have run.
 	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
 }
