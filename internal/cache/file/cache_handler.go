@@ -189,6 +189,7 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 		// Create download job for new entry added to cache.
 		_ = chr.jobManager.CreateJobIfNotExists(object, bucket)
 		for _, val := range evictedValues {
+			logger.Errorf("ABHISHEK Evicting file %s from cache", val.(data.FileInfo).Key.ObjectName)
 			fileInfo := val.(data.FileInfo)
 			err := chr.cleanUpEvictedFile(&fileInfo)
 			if err != nil {
@@ -260,6 +261,7 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 //
 // Acquires and releases LOCK(CacheHandler.mu)
 func (chr *CacheHandler) InvalidateCache(objectName string, bucketName string) error {
+	logger.Errorf("ABHISHEK Invalidating cache")
 	fileInfoKey := data.FileInfoKey{
 		BucketName: bucketName,
 		ObjectName: objectName,
@@ -274,6 +276,7 @@ func (chr *CacheHandler) InvalidateCache(objectName string, bucketName string) e
 
 	erasedVal := chr.fileInfoCache.Erase(fileInfoKeyName)
 	if erasedVal != nil {
+		logger.Errorf("ABHISHEK Evicting file %s from cache", erasedVal.(data.FileInfo).Key.ObjectName)
 		fileInfo := erasedVal.(data.FileInfo)
 		err := chr.cleanUpEvictedFile(&fileInfo)
 		if err != nil {

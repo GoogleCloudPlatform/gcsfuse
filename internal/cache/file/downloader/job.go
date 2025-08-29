@@ -247,7 +247,7 @@ func (job *Job) updateStatusAndNotifySubscribers(statusName jobStatusName, statu
 	if statusName == Failed {
 		logger.Errorf("Job:%p (%s:/%s) Failed with error: %v", job, job.bucket.Name(), job.object.Name, statusErr)
 	} else {
-		logger.Tracef("Job:%p (%s:/%s) status changed to %v with error: %v", job, job.bucket.Name(), job.object.Name, statusName, statusErr)
+		logger.Tracef("Job:%p (%s:/%s) status changed to %v with error: %v; Download Path is %s", job, job.bucket.Name(), job.object.Name, statusName, statusErr, job.fileSpec.Path)
 	}
 	job.mu.Lock()
 	job.status.Err = statusErr
