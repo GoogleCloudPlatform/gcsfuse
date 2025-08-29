@@ -16,14 +16,11 @@ package storage
 
 import (
 	"context"
-	"fmt"
-	"math/rand"
 	"time"
 
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -96,123 +93,18 @@ func withBillingProject(controlClient StorageControlClient, billingProject strin
 	return controlClient
 }
 
-// exponentialBackoffConfig is config parameters
-// needed to create an exponentialBackoff.
-type exponentialBackoffConfig struct {
-	//Initial duration for next backoff.
-	initial time.Duration
-	// Max duration for next backoff.
-	max time.Duration
-	// The rate at which the backoff duration should grow
-	// over subsequent calls to next().
-	multiplier float64
-}
-
-// exponentialBackoff holds the duration parameters for exponential backoff.
-type exponentialBackoff struct {
-	// config used to create this backoff object.
-	config exponentialBackoffConfig
-	// Duration for next backoff. Capped at max. Returned by next().
-	next time.Duration
-}
-
-// newExponentialBackoff returns a new exponentialBackoff given
-// the config for it.
-func newExponentialBackoff(config *exponentialBackoffConfig) *exponentialBackoff {
-	return &exponentialBackoff{
-		config: *config,
-		next:   config.initial,
-	}
-}
-
-// nextDuration returns the next backoff duration.
-func (b *exponentialBackoff) nextDuration() time.Duration {
-	next := b.next
-	b.next = min(b.config.max, time.Duration(float64(b.next)*b.config.multiplier))
-	return next
-}
-
-// waitWithJitter waits for the next backoff duration with added jitter.
-// The jitter adds randomness to the backoff duration to prevent the thundering herd problem.
-// This is similar to how gax-retries backoff after each failed retry.
-func (b *exponentialBackoff) waitWithJitter(ctx context.Context) error {
-	nextDuration := b.nextDuration()
-	jitteryBackoffDuration := time.Duration(1 + rand.Int63n(int64(nextDuration)))
-	select {
-	case <-time.After(jitteryBackoffDuration):
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-}
-
 // storageControlClientWithRetry is a wrapper for an existing StorageControlClient object
 // which implements gcsfuse-level retry logic if any of the control-client call gets stalled or returns a retryable error.
 // It makes time-bound attempts to call the underlying StorageControlClient methods,
 // retrying on errors that should be retried according to gcsfuse's retry logic.
 type storageControlClientWithRetry struct {
-	raw StorageControlClient
-
-	// Time-limit on every individual retry attempt.
-	retryDeadline time.Duration
-	// Total duration allowed across all the attempts.
-	totalRetryBudget time.Duration
-
-	// Config for managing backoff durations in-between retry attempts.
-	backoffConfig exponentialBackoffConfig
+	raw         StorageControlClient
+	retryConfig storageutil.RetryConfig
 
 	// Whether or not to enable retries for GetStorageLayout call.
 	enableRetriesOnStorageLayoutAPI bool
 	// Whether or not to enable retries for folder APIs.
 	enableRetriesOnFolderAPIs bool
-}
-
-// executeWithRetry encapsulates the retry logic for control client operations.
-// It performs time-bound, exponential backoff retries for a given API call.
-// It is expected that the given apiCall returns a structure, and not an HTTP response,
-// so that it does not leave behind any trace of a pending operation on server.
-func executeWithRetry[T any](
-	sccwros *storageControlClientWithRetry,
-	ctx context.Context,
-	operationName string,
-	reqDescription string,
-	apiCall func(attemptCtx context.Context) (T, error),
-) (T, error) {
-	var zero T
-
-	parentCtx, cancel := context.WithTimeout(ctx, sccwros.totalRetryBudget)
-	defer cancel()
-
-	// Create a new backoff controller specific to this api call.
-	backoff := newExponentialBackoff(&sccwros.backoffConfig)
-	for {
-		attemptCtx, attemptCancel := context.WithTimeout(parentCtx, sccwros.retryDeadline)
-
-		logger.Tracef("Calling %s for %q with deadline=%v ...", operationName, reqDescription, sccwros.retryDeadline)
-		result, err := apiCall(attemptCtx)
-		// Cancel attemptCtx after it is no longer needed to free up its resources.
-		attemptCancel()
-
-		if err == nil {
-			return result, nil
-		}
-
-		// If the error is not retryable, return it immediately.
-		if !storageutil.ShouldRetry(err) {
-			return zero, fmt.Errorf("%s for %q failed with a non-retryable error: %w", operationName, reqDescription, err)
-		}
-
-		// If the parent context is cancelled/timed-out, we should stop retrying.
-		if parentCtx.Err() != nil {
-			return zero, fmt.Errorf("%s for %q failed after multiple retries (last server/client error = %v): %w", operationName, reqDescription, err, parentCtx.Err())
-		}
-
-		// Do a jittery backoff after each retry.
-		parentCtxErr := backoff.waitWithJitter(parentCtx)
-		if parentCtxErr != nil {
-			return zero, fmt.Errorf("%s for %q failed after multiple retries (last server/client error = %v): %w", operationName, reqDescription, err, parentCtxErr)
-		}
-	}
 }
 
 func (sccwros *storageControlClientWithRetry) GetStorageLayout(ctx context.Context,
@@ -226,7 +118,7 @@ func (sccwros *storageControlClientWithRetry) GetStorageLayout(ctx context.Conte
 		return sccwros.raw.GetStorageLayout(attemptCtx, req, opts...)
 	}
 
-	return executeWithRetry(sccwros, ctx, "GetStorageLayout", req.Name, apiCall)
+	return storageutil.ExecuteWithRetry(ctx, sccwros.retryConfig, "GetStorageLayout", req.Name, apiCall)
 }
 
 func (sccwros *storageControlClientWithRetry) DeleteFolder(ctx context.Context,
@@ -241,7 +133,7 @@ func (sccwros *storageControlClientWithRetry) DeleteFolder(ctx context.Context,
 		return struct{}{}, err
 	}
 
-	_, err := executeWithRetry(sccwros, ctx, "DeleteFolder", req.Name, apiCall)
+	_, err := storageutil.ExecuteWithRetry(ctx, sccwros.retryConfig, "DeleteFolder", req.Name, apiCall)
 	return err
 }
 
@@ -256,7 +148,7 @@ func (sccwros *storageControlClientWithRetry) GetFolder(ctx context.Context,
 		return sccwros.raw.GetFolder(attemptCtx, req, opts...)
 	}
 
-	return executeWithRetry(sccwros, ctx, "GetFolder", req.Name, apiCall)
+	return storageutil.ExecuteWithRetry(ctx, sccwros.retryConfig, "GetFolder", req.Name, apiCall)
 }
 
 func (sccwros *storageControlClientWithRetry) RenameFolder(ctx context.Context,
@@ -270,8 +162,7 @@ func (sccwros *storageControlClientWithRetry) RenameFolder(ctx context.Context,
 		return sccwros.raw.RenameFolder(attemptCtx, req, opts...)
 	}
 
-	reqDescription := fmt.Sprintf("%q to %q", req.Name, req.DestinationFolderId)
-	return executeWithRetry(sccwros, ctx, "RenameFolder", reqDescription, apiCall)
+	return storageutil.ExecuteWithRetry(ctx, sccwros.retryConfig, "RenameFolder", storageutil.RenameFolderReqDescription(req), apiCall)
 }
 
 func (sccwros *storageControlClientWithRetry) CreateFolder(ctx context.Context,
@@ -285,8 +176,7 @@ func (sccwros *storageControlClientWithRetry) CreateFolder(ctx context.Context,
 		return sccwros.raw.CreateFolder(attemptCtx, req, opts...)
 	}
 
-	reqDescription := fmt.Sprintf("%q in %q", req.FolderId, req.Parent)
-	return executeWithRetry(sccwros, ctx, "CreateFolder", reqDescription, apiCall)
+	return storageutil.ExecuteWithRetry(ctx, sccwros.retryConfig, "CreateFolder", storageutil.CreateFolderReqDescription(req), apiCall)
 }
 
 // newRetryWrapper creates a new StorageControlClient with retry capabilities.
@@ -307,10 +197,16 @@ func newRetryWrapper(controlClient StorageControlClient,
 	}
 
 	return &storageControlClientWithRetry{
-		raw:                             raw,
-		retryDeadline:                   retryDeadline,
-		totalRetryBudget:                totalRetryBudget,
-		backoffConfig:                   exponentialBackoffConfig{initialBackoff, maxBackoff, backoffMultiplier},
+		raw: raw,
+		retryConfig: storageutil.RetryConfig{
+			RetryDeadline:    retryDeadline,
+			TotalRetryBudget: totalRetryBudget,
+			BackoffConfig: storageutil.ExponentialBackoffConfig{
+				Initial:    initialBackoff,
+				Max:        maxBackoff,
+				Multiplier: backoffMultiplier,
+			},
+		},
 		enableRetriesOnStorageLayoutAPI: true,
 		enableRetriesOnFolderAPIs:       retryFolderAPIs,
 	}
