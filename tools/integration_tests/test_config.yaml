@@ -105,10 +105,10 @@ read_large_files:
           - "--implicit-dirs"
           - "--implicit-dirs --client-protocol=grpc"
           # Set the 'TMPDIR' environment variable to an absolute path, for example, 'export TMPDIR=/home/vm_name/gcsfuse/tempdir', before running the test.
-          - "--implicit-dirs=true --file-cache-max-size-mb=700 --cache-file-for-range-read=true --cache-dir={CACHE_DIR_PATH}"
-          - "--implicit-dirs=true --file-cache-max-size-mb=700 --cache-file-for-range-read=true --cache-dir={CACHE_DIR_PATH} --client-protocol=grpc"
-          - "--implicit-dirs=true --file-cache-max-size-mb=-1 --cache-file-for-range-read=false --cache-dir={CACHE_DIR_PATH}"
-          - "--implicit-dirs=true --file-cache-max-size-mb=-1 --cache-file-for-range-read=false --cache-dir={CACHE_DIR_PATH} --client-protocol=grpc"
+          - "--implicit-dirs=true --file-cache-max-size-mb=700 --cache-file-for-range-read=true --cache-dir=${CACHE_DIR_PATH}"
+          - "--implicit-dirs=true --file-cache-max-size-mb=700 --cache-file-for-range-read=true --client-protocol=grpc --cache-dir=${CACHE_DIR_PATH}"
+          - "--implicit-dirs=true --file-cache-max-size-mb=-1 --cache-file-for-range-read=false --cache-dir=${CACHE_DIR_PATH}"
+          - "--implicit-dirs=true --file-cache-max-size-mb=-1 --cache-file-for-range-read=false --client-protocol=grpc --cache-dir=${CACHE_DIR_PATH}"
         compatible:
           flat: true
           hns: true
