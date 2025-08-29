@@ -22,9 +22,9 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -33,13 +33,14 @@ import (
 
 type readOnlyCredsTest struct {
 	testDirPath string
+	suite.Suite
 }
 
-func (r *readOnlyCredsTest) Setup(t *testing.T) {
+func (r *readOnlyCredsTest) SetupTest() {
 	r.testDirPath = path.Join(setup.MntDir(), testDirName)
 }
 
-func (r *readOnlyCredsTest) Teardown(t *testing.T) {
+func (r *readOnlyCredsTest) TearDownTest() {
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -67,34 +68,34 @@ func (r *readOnlyCredsTest) assertFileSyncFailsWithPermissionError(fh *os.File, 
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (r *readOnlyCredsTest) TestEmptyCreateFileFails_FailedFileNotInListing(t *testing.T) {
+func (r *readOnlyCredsTest) TestEmptyCreateFileFails_FailedFileNotInListing() {
 	filePath := path.Join(r.testDirPath, testFileName)
 
 	fh, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, operations.FilePermission_0777)
 	if setup.IsZonalBucketRun() {
-		require.Error(t, err)
-		assert.True(t, strings.Contains(err.Error(), permissionDeniedError))
+		require.Error(r.T(), err)
+		assert.True(r.T(), strings.Contains(err.Error(), permissionDeniedError))
 	} else {
-		r.assertFileSyncFailsWithPermissionError(fh, t)
+		r.assertFileSyncFailsWithPermissionError(fh, r.T())
 	}
 
-	r.assertFailedFileNotInListing(t)
+	r.assertFailedFileNotInListing(r.T())
 }
 
-func (r *readOnlyCredsTest) TestNonEmptyCreateFileFails_FailedFileNotInListing(t *testing.T) {
+func (r *readOnlyCredsTest) TestNonEmptyCreateFileFails_FailedFileNotInListing() {
 	filePath := path.Join(r.testDirPath, testFileName)
 
 	fh, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, operations.FilePermission_0777)
 	if setup.IsZonalBucketRun() {
-		require.Error(t, err)
-		assert.True(t, strings.Contains(err.Error(), permissionDeniedError))
+		require.Error(r.T(), err)
+		assert.True(r.T(), strings.Contains(err.Error(), permissionDeniedError))
 	} else {
-		operations.WriteWithoutClose(fh, content, t)
-		operations.WriteWithoutClose(fh, content, t)
-		r.assertFileSyncFailsWithPermissionError(fh, t)
+		operations.WriteWithoutClose(fh, content, r.T())
+		operations.WriteWithoutClose(fh, content, r.T())
+		r.assertFileSyncFailsWithPermissionError(fh, r.T())
 	}
 
-	r.assertFailedFileNotInListing(t)
+	r.assertFailedFileNotInListing(r.T())
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -105,5 +106,5 @@ func TestReadOnlyTest(t *testing.T) {
 	ts := &readOnlyCredsTest{}
 
 	// Run tests.
-	test_setup.RunTests(t, ts)
+	suite.Run(t, ts)
 }

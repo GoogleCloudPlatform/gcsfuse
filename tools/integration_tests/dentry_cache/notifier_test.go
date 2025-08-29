@@ -21,24 +21,25 @@ import (
 	"testing"
 
 	"cloud.google.com/go/storage"
+	"github.com/stretchr/testify/suite"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type notifierTest struct {
 	flags []string
+	suite.Suite
 }
 
-func (s *notifierTest) Setup(t *testing.T) {
+func (s *notifierTest) SetupTest() {
 	mountGCSFuseAndSetupTestDir(s.flags, testDirName)
 }
 
-func (s *notifierTest) Teardown(t *testing.T) {
+func (s *notifierTest) TearDownTest() {
 	if setup.MountedDirectory() == "" { // Only unmount if not using a pre-mounted directory
 		setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
 		setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
@@ -121,12 +122,12 @@ func TestNotifierTest(t *testing.T) {
 
 	// Run tests for mounted directory if the flag is set.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 		return
 	}
 
 	// Setup flags and run tests.
 	ts.flags = []string{"--implicit-dirs", "--experimental-enable-dentry-cache", "--metadata-cache-ttl-secs=1000"}
 	log.Printf("Running tests with flags: %s", ts.flags)
-	test_setup.RunTests(t, ts)
+	suite.Run(t, ts)
 }

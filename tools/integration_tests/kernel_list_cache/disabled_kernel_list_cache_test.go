@@ -23,9 +23,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -34,13 +34,14 @@ import (
 
 type disabledKernelListCacheTest struct {
 	flags []string
+	suite.Suite
 }
 
-func (s *disabledKernelListCacheTest) Setup(t *testing.T) {
+func (s *disabledKernelListCacheTest) SetupTest() {
 	mountGCSFuseAndSetupTestDir(s.flags, testDirName)
 }
 
-func (s *disabledKernelListCacheTest) Teardown(t *testing.T) {
+func (s *disabledKernelListCacheTest) TearDownTest() {
 	setup.UnmountGCSFuse(rootDir)
 }
 
@@ -94,7 +95,7 @@ func TestDisabledKernelListCacheTest(t *testing.T) {
 
 	// Run tests for mounted directory if the flag is set.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 		return
 	}
 
@@ -107,6 +108,6 @@ func TestDisabledKernelListCacheTest(t *testing.T) {
 	for _, flags := range flagsSet {
 		ts.flags = flags
 		log.Printf("Running tests with flags: %s", ts.flags)
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 	}
 }

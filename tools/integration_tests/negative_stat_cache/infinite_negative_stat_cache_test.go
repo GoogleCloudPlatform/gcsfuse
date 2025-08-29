@@ -24,20 +24,21 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 type infiniteNegativeStatCacheTest struct {
 	flags []string
+	suite.Suite
 }
 
-func (s *infiniteNegativeStatCacheTest) Setup(t *testing.T) {
+func (s *infiniteNegativeStatCacheTest) SetupTest() {
 	mountGCSFuseAndSetupTestDir(s.flags, testDirName)
 }
 
-func (s *infiniteNegativeStatCacheTest) Teardown(t *testing.T) {
+func (s *infiniteNegativeStatCacheTest) TearDownTest() {
 	setup.UnmountGCSFuse(testEnv.rootDir)
 }
 
@@ -109,7 +110,7 @@ func TestInfiniteNegativeStatCacheTest(t *testing.T) {
 
 	// Run tests for mounted directory if the flag is set.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 		return
 	}
 
@@ -119,5 +120,5 @@ func TestInfiniteNegativeStatCacheTest(t *testing.T) {
 	// Run tests.
 	ts.flags = flagsSet
 	log.Printf("Running tests with flags: %s", ts.flags)
-	test_setup.RunTests(t, ts)
+	suite.Run(t, ts)
 }

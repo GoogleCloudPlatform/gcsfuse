@@ -45,7 +45,7 @@ func verifyFullFileOverwrite(t *testing.T, filename string) {
 		t.Fatalf("Failed to get stat info of mounted file %s: %v\n", mountedFilePath, err)
 	}
 
-	if (*fi).Size() != int64(gcsObjectSize) {
+	if (*fi).Size() != gcsObjectSize {
 		t.Fatalf("Size of file mounted through gcsfuse (%s, %d) doesn't match the size of the file on GCS (%s, %d)",
 			mountedFilePath, (*fi).Size(), gcsObjectPath, gcsObjectSize)
 	}

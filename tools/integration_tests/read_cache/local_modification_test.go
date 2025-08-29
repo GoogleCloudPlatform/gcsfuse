@@ -25,7 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
+	"github.com/stretchr/testify/suite"
 )
 
 // //////////////////////////////////////////////////////////////////////
@@ -35,17 +35,18 @@ type localModificationTest struct {
 	flags         []string
 	storageClient *storage.Client
 	ctx           context.Context
+	suite.Suite
 }
 
-func (s *localModificationTest) Setup(t *testing.T) {
+func (s *localModificationTest) SetupTest() {
 	setupForMountedDirectoryTests()
 	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
 	operations.RemoveDir(cacheDirPath)
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
 }
 
-func (s *localModificationTest) Teardown(t *testing.T) {
-	setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+func (s *localModificationTest) TearDownTest() {
+	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 }
 
@@ -53,28 +54,28 @@ func (s *localModificationTest) Teardown(t *testing.T) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *localModificationTest) TestReadAfterLocalGCSFuseWriteIsCacheMiss(t *testing.T) {
+func (s *localModificationTest) TestReadAfterLocalGCSFuseWriteIsCacheMiss() {
 	testFileName := testDirName + setup.GenerateRandomString(testFileNameSuffixLength)
-	operations.CreateFileOfSize(fileSize, path.Join(testDirPath, testFileName), t)
+	operations.CreateFileOfSize(fileSize, path.Join(testDirPath, testFileName), s.T())
 
 	// Read file 1st time.
-	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, t)
+	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, s.T())
 	// Append data in the same file to change object generation.
 	smallContent, err := operations.GenerateRandomData(smallContentSize)
 	if err != nil {
-		t.Errorf("TestReadAfterLocalGCSFuseWriteIsCacheMiss: could not generate randomm data: %v", err)
+		s.T().Errorf("TestReadAfterLocalGCSFuseWriteIsCacheMiss: could not generate randomm data: %v", err)
 	}
 	err = operations.WriteFileInAppendMode(path.Join(testDirPath, testFileName), string(smallContent))
 	if err != nil {
-		t.Errorf("Error in appending data in file: %v", err)
+		s.T().Errorf("Error in appending data in file: %v", err)
 	}
 	// Read file 2nd time.
-	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize+smallContentSize, true, t)
+	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize+smallContentSize, true, s.T())
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
-	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	validate(expectedOutcome1, structuredReadLogs[0], true, false, chunksRead, t)
-	validate(expectedOutcome2, structuredReadLogs[1], true, false, chunksRead+1, t)
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), s.T())
+	validate(expectedOutcome1, structuredReadLogs[0], true, false, chunksRead, s.T())
+	validate(expectedOutcome2, structuredReadLogs[1], true, false, chunksRead+1, s.T())
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -94,7 +95,7 @@ func TestLocalModificationTest(t *testing.T) {
 
 	// Run tests for mounted directory if the flag is set.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 		return
 	}
 
@@ -128,6 +129,6 @@ func TestLocalModificationTest(t *testing.T) {
 			ts.flags = append(ts.flags, flags.cliFlags...)
 		}
 		log.Printf("Running tests with flags: %s", ts.flags)
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 	}
 }

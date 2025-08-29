@@ -27,9 +27,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -43,17 +43,18 @@ type jobChunkTest struct {
 	storageClient *storage.Client
 	ctx           context.Context
 	chunkSize     int64
+	suite.Suite
 }
 
-func (s *jobChunkTest) Setup(t *testing.T) {
+func (s *jobChunkTest) SetupTest() {
 	setupForMountedDirectoryTests()
 	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
 	operations.RemoveDir(cacheDirPath)
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
 }
 
-func (s *jobChunkTest) Teardown(t *testing.T) {
-	setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+func (s *jobChunkTest) TearDownTest() {
+	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 }
 
@@ -84,37 +85,37 @@ func createConfigFileForJobChunkTest(cacheFileForRangeRead bool, fileName string
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *jobChunkTest) TestJobChunkSizeForSingleFileReads(t *testing.T) {
+func (s *jobChunkTest) TestJobChunkSizeForSingleFileReads() {
 	var fileSize int64 = 16 * util.MiB
-	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSize, t)
+	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSize, s.T())
 
-	expectedOutcome := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, false, t)
+	expectedOutcome := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, false, s.T())
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
-	structuredJobLogs := read_logs.GetJobLogsSortedByTimestamp(setup.LogFile(), t)
-	assert.Equal(t, expectedOutcome.BucketName, structuredJobLogs[0].BucketName)
-	assert.Equal(t, expectedOutcome.ObjectName, structuredJobLogs[0].ObjectName)
+	structuredJobLogs := read_logs.GetJobLogsSortedByTimestamp(setup.LogFile(), s.T())
+	assert.Equal(s.T(), expectedOutcome.BucketName, structuredJobLogs[0].BucketName)
+	assert.Equal(s.T(), expectedOutcome.ObjectName, structuredJobLogs[0].ObjectName)
 
 	// We need to check that downloadedOffset is always greater than the previous downloadedOffset
 	// and is in multiples of chunkSize.
 	for i := 1; i < len(structuredJobLogs[0].JobEntries); i++ {
 		offsetDiff := structuredJobLogs[0].JobEntries[i].Offset - structuredJobLogs[0].JobEntries[i-1].Offset
-		assert.Greater(t, offsetDiff, int64(0))
+		assert.Greater(s.T(), offsetDiff, int64(0))
 		// This is true for all entries except last one.
 		// Will be true for last entry only if the fileSize is multiple of chunkSize.
-		assert.Equal(t, int64(0), offsetDiff%s.chunkSize)
+		assert.Equal(s.T(), int64(0), offsetDiff%s.chunkSize)
 	}
 
 	// Validate that last downloadedOffset is same as fileSize.
-	assert.Equal(t, fileSize, structuredJobLogs[0].JobEntries[len(structuredJobLogs[0].JobEntries)-1].Offset)
+	assert.Equal(s.T(), fileSize, structuredJobLogs[0].JobEntries[len(structuredJobLogs[0].JobEntries)-1].Offset)
 }
 
-func (s *jobChunkTest) TestJobChunkSizeForMultipleFileReads(t *testing.T) {
+func (s *jobChunkTest) TestJobChunkSizeForMultipleFileReads() {
 	var fileSize int64 = 16 * util.MiB
 	var testFileNames [2]string
 	var expectedOutcome [2]*Expected
-	testFileNames[0] = setupFileInTestDir(s.ctx, s.storageClient, fileSize, t)
-	testFileNames[1] = setupFileInTestDir(s.ctx, s.storageClient, fileSize, t)
+	testFileNames[0] = setupFileInTestDir(s.ctx, s.storageClient, fileSize, s.T())
+	testFileNames[1] = setupFileInTestDir(s.ctx, s.storageClient, fileSize, s.T())
 
 	// Read 2 files in parallel.
 	var wg sync.WaitGroup
@@ -123,14 +124,14 @@ func (s *jobChunkTest) TestJobChunkSizeForMultipleFileReads(t *testing.T) {
 		i := i
 		go func() {
 			defer wg.Done()
-			expectedOutcome[i] = readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileNames[i], fileSize, false, t)
+			expectedOutcome[i] = readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileNames[i], fileSize, false, s.T())
 		}()
 	}
 	wg.Wait()
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
-	structuredJobLogs := read_logs.GetJobLogsSortedByTimestamp(setup.LogFile(), t)
-	require.Equal(t, 2, len(structuredJobLogs))
+	structuredJobLogs := read_logs.GetJobLogsSortedByTimestamp(setup.LogFile(), s.T())
+	require.Equal(s.T(), 2, len(structuredJobLogs))
 	// Goroutine execution order isn't guaranteed.
 	// If the object name in expected outcome doesn't align with the logs, swap
 	// the expected outcome objects and file names at positions 0 and 1.
@@ -140,22 +141,22 @@ func (s *jobChunkTest) TestJobChunkSizeForMultipleFileReads(t *testing.T) {
 	}
 
 	for fileIndex := 0; fileIndex < 2; fileIndex++ {
-		assert.Equal(t, expectedOutcome[fileIndex].BucketName, structuredJobLogs[fileIndex].BucketName)
-		assert.Equal(t, expectedOutcome[fileIndex].ObjectName, structuredJobLogs[fileIndex].ObjectName)
+		assert.Equal(s.T(), expectedOutcome[fileIndex].BucketName, structuredJobLogs[fileIndex].BucketName)
+		assert.Equal(s.T(), expectedOutcome[fileIndex].ObjectName, structuredJobLogs[fileIndex].ObjectName)
 
 		// We need to check that downloadedOffset is always greater than the previous downloadedOffset
 		// and is in multiples of chunkSize.
 		entriesLen := len(structuredJobLogs[fileIndex].JobEntries)
 		for entryIndex := 1; entryIndex < entriesLen; entryIndex++ {
 			offsetDiff := structuredJobLogs[fileIndex].JobEntries[entryIndex].Offset - structuredJobLogs[fileIndex].JobEntries[entryIndex-1].Offset
-			assert.Greater(t, offsetDiff, int64(0))
+			assert.Greater(s.T(), offsetDiff, int64(0))
 			// This is true for all entries except last one.
 			// Will be true for last entry only if the fileSize is multiple of chunkSize.
-			assert.Equal(t, int64(0), offsetDiff%s.chunkSize)
+			assert.Equal(s.T(), int64(0), offsetDiff%s.chunkSize)
 		}
 
 		// Validate that last downloadedOffset is same as fileSize.
-		assert.Equal(t, fileSize, structuredJobLogs[fileIndex].JobEntries[entriesLen-1].Offset)
+		assert.Equal(s.T(), fileSize, structuredJobLogs[fileIndex].JobEntries[entriesLen-1].Offset)
 	}
 }
 
@@ -176,7 +177,7 @@ func TestJobChunkTest(t *testing.T) {
 
 	// Run tests for mounted directory if the flag is set.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 		return
 	}
 
@@ -185,13 +186,13 @@ func TestJobChunkTest(t *testing.T) {
 	ts.flags = []string{"--config-file=" + createConfigFile(&gcsfuseTestFlags{cacheSize: cacheSizeMB, cacheFileForRangeRead: true, fileName: configFileName, enableParallelDownloads: false, enableODirect: false, cacheDirPath: getDefaultCacheDirPathForTests(), clientProtocol: http1ClientProtocol})}
 	ts.chunkSize = chunkSizeForReadCache * util.MiB
 	log.Printf("Running tests with flags: %s", ts.flags)
-	test_setup.RunTests(t, ts)
+	suite.Run(t, ts)
 
 	// Tests to validate chunk size when read cache parallel downloads are disabled with grpc client protocol.
 	ts.flags = []string{"--config-file=" + createConfigFile(&gcsfuseTestFlags{cacheSize: cacheSizeMB, cacheFileForRangeRead: true, fileName: configFileName, enableParallelDownloads: false, enableODirect: false, cacheDirPath: getDefaultCacheDirPathForTests(), clientProtocol: grpcClientProtocol})}
 	ts.chunkSize = chunkSizeForReadCache * util.MiB
 	log.Printf("Running tests with flags: %s", ts.flags)
-	test_setup.RunTests(t, ts)
+	suite.Run(t, ts)
 
 	// Tests to validate chunk size when read cache parallel downloads are enabled
 	// with unlimited max parallel downloads.
@@ -199,7 +200,7 @@ func TestJobChunkTest(t *testing.T) {
 		createConfigFileForJobChunkTest(false, "unlimitedMaxParallelDownloads", parallelDownloadsPerFile, maxParallelDownloads, downloadChunkSizeMB, http1ClientProtocol)}
 	ts.chunkSize = downloadChunkSizeMB * util.MiB
 	log.Printf("Running tests with flags: %s", ts.flags)
-	test_setup.RunTests(t, ts)
+	suite.Run(t, ts)
 
 	// Tests to validate chunk size when read cache parallel downloads are enabled
 	// with unlimited max parallel downloads with grpc enabled.
@@ -207,7 +208,7 @@ func TestJobChunkTest(t *testing.T) {
 		createConfigFileForJobChunkTest(false, "unlimitedMaxParallelDownloads", parallelDownloadsPerFile, maxParallelDownloads, downloadChunkSizeMB, grpcClientProtocol)}
 	ts.chunkSize = downloadChunkSizeMB * util.MiB
 	log.Printf("Running tests with flags: %s", ts.flags)
-	test_setup.RunTests(t, ts)
+	suite.Run(t, ts)
 
 	// Tests to validate chunk size when read cache parallel downloads are enabled
 	// with go-routines not limited by max parallel downloads.
@@ -218,7 +219,7 @@ func TestJobChunkTest(t *testing.T) {
 		createConfigFileForJobChunkTest(false, "limitedMaxParallelDownloadsNotEffectingChunkSize", parallelDownloadsPerFile, maxParallelDownloads, downloadChunkSizeMB, http1ClientProtocol)}
 	ts.chunkSize = int64(downloadChunkSizeMB) * util.MiB
 	log.Printf("Running tests with flags: %s", ts.flags)
-	test_setup.RunTests(t, ts)
+	suite.Run(t, ts)
 
 	// Tests to validate chunk size when read cache parallel downloads are enabled
 	// with go-routines not limited by max parallel downloads with grpc enabled.
@@ -226,7 +227,7 @@ func TestJobChunkTest(t *testing.T) {
 		createConfigFileForJobChunkTest(false, "limitedMaxParallelDownloadsNotEffectingChunkSize", parallelDownloadsPerFile, maxParallelDownloads, downloadChunkSizeMB, grpcClientProtocol)}
 	ts.chunkSize = int64(downloadChunkSizeMB) * util.MiB
 	log.Printf("Running tests with flags: %s", ts.flags)
-	test_setup.RunTests(t, ts)
+	suite.Run(t, ts)
 
 	// Tests to validate chunk size when read cache parallel downloads are enabled
 	// with go-routines limited by max parallel downloads.
@@ -237,7 +238,7 @@ func TestJobChunkTest(t *testing.T) {
 		createConfigFileForJobChunkTest(false, "limitedMaxParallelDownloadsEffectingChunkSize", parallelDownloadsPerFile, maxParallelDownloads, downloadChunkSizeMB, http1ClientProtocol)}
 	ts.chunkSize = int64(downloadChunkSizeMB) * util.MiB
 	log.Printf("Running tests with flags: %s", ts.flags)
-	test_setup.RunTests(t, ts)
+	suite.Run(t, ts)
 
 	// Tests to validate chunk size when read cache parallel downloads are enabled
 	// with go-routines limited by max parallel downloads with grpc enabled.
@@ -245,6 +246,5 @@ func TestJobChunkTest(t *testing.T) {
 		createConfigFileForJobChunkTest(false, "limitedMaxParallelDownloadsEffectingChunkSize", parallelDownloadsPerFile, maxParallelDownloads, downloadChunkSizeMB, grpcClientProtocol)}
 	ts.chunkSize = int64(downloadChunkSizeMB) * util.MiB
 	log.Printf("Running tests with flags: %s", ts.flags)
-	test_setup.RunTests(t, ts)
-
+	suite.Run(t, ts)
 }

@@ -26,7 +26,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
+	"github.com/stretchr/testify/suite"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
@@ -45,13 +45,14 @@ const (
 ////////////////////////////////////////////////////////////////////////
 
 type enableEmptyManagedFoldersTrue struct {
+	suite.Suite
 }
 
-func (s *enableEmptyManagedFoldersTrue) Setup(t *testing.T) {
+func (s *enableEmptyManagedFoldersTrue) SetupTest() {
 	setup.SetupTestDirectory(TestDirForEmptyManagedFoldersTest)
 }
 
-func (s *enableEmptyManagedFoldersTrue) Teardown(t *testing.T) {
+func (s *enableEmptyManagedFoldersTrue) TearDownTest() {
 	// Clean up test directory.
 	bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForEmptyManagedFoldersTest)
 	client.DeleteManagedFoldersInBucket(ctx, controlClient, path.Join(testDir, EmptyManagedFolder1), setup.TestBucket())
@@ -80,9 +81,9 @@ func createDirectoryStructureForEmptyManagedFoldersTest(t *testing.T) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *enableEmptyManagedFoldersTrue) TestListDirectoryForEmptyManagedFolders(t *testing.T) {
+func (s *enableEmptyManagedFoldersTrue) TestListDirectoryForEmptyManagedFolders() {
 	// Create directory structure for testing.
-	createDirectoryStructureForEmptyManagedFoldersTest(t)
+	createDirectoryStructureForEmptyManagedFoldersTest(s.T())
 
 	// Recursively walk into directory and test.
 	err := filepath.WalkDir(path.Join(setup.MntDir(), TestDirForEmptyManagedFoldersTest), func(path string, dir fs.DirEntry, err error) error {
@@ -104,27 +105,27 @@ func (s *enableEmptyManagedFoldersTrue) TestListDirectoryForEmptyManagedFolders(
 		if dir.Name() == TestDirForEmptyManagedFoldersTest {
 			// numberOfObjects - 4
 			if len(objs) != NumberOfObjectsInDirForListTest {
-				t.Errorf("Incorrect number of objects in the directory %s expected %d: got %d: ", dir.Name(), NumberOfObjectsInDirForListTest, len(objs))
+				s.T().Errorf("Incorrect number of objects in the directory %s expected %d: got %d: ", dir.Name(), NumberOfObjectsInDirForListTest, len(objs))
 			}
 
 			// testBucket/managedFolderTest/emptyManagedFolder1   -- ManagedFolder1
 			if objs[0].Name() != EmptyManagedFolder1 || objs[0].IsDir() != true {
-				t.Errorf("Listed incorrect object expected %s: got %s: ", EmptyManagedFolder1, objs[0].Name())
+				s.T().Errorf("Listed incorrect object expected %s: got %s: ", EmptyManagedFolder1, objs[0].Name())
 			}
 
 			// testBucket/managedFolderTest/emptyManagedFolder2     -- ManagedFolder2
 			if objs[1].Name() != EmptyManagedFolder2 || objs[1].IsDir() != true {
-				t.Errorf("Listed incorrect object expected %s: got %s: ", EmptyManagedFolder2, objs[1].Name())
+				s.T().Errorf("Listed incorrect object expected %s: got %s: ", EmptyManagedFolder2, objs[1].Name())
 			}
 
 			// testBucket/managedFolderTest/simulatedFolder   -- SimulatedFolder
 			if objs[2].Name() != SimulatedFolder || objs[2].IsDir() != true {
-				t.Errorf("Listed incorrect object expected %s: got %s: ", SimulatedFolder, objs[2].Name())
+				s.T().Errorf("Listed incorrect object expected %s: got %s: ", SimulatedFolder, objs[2].Name())
 			}
 
 			// testBucket/managedFolderTest/testFile  -- File
 			if objs[3].Name() != File || objs[3].IsDir() != false {
-				t.Errorf("Listed incorrect object expected %s: got %s: ", File, objs[3].Name())
+				s.T().Errorf("Listed incorrect object expected %s: got %s: ", File, objs[3].Name())
 			}
 			return nil
 		}
@@ -132,13 +133,13 @@ func (s *enableEmptyManagedFoldersTrue) TestListDirectoryForEmptyManagedFolders(
 		if dir.Name() == EmptyManagedFolder1 || dir.Name() == EmptyManagedFolder2 || dir.Name() == SimulatedFolder {
 			// numberOfObjects - 0
 			if len(objs) != 0 {
-				t.Errorf("Incorrect number of objects in the directory %s expected %d: got %d: ", dir.Name(), 0, len(objs))
+				s.T().Errorf("Incorrect number of objects in the directory %s expected %d: got %d: ", dir.Name(), 0, len(objs))
 			}
 		}
 		return nil
 	})
 	if err != nil {
-		t.Errorf("error walking the path : %v\n", err)
+		s.T().Errorf("error walking the path : %v\n", err)
 		return
 	}
 }
@@ -160,7 +161,7 @@ func TestEnableEmptyManagedFoldersTrue(t *testing.T) {
 
 	// Run tests for mountedDirectory only if --mountedDirectory  and --testBucket flag is set.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 		return
 	}
 
@@ -176,5 +177,5 @@ func TestEnableEmptyManagedFoldersTrue(t *testing.T) {
 
 	// Run tests.
 	log.Printf("Running tests with flags: %s", flags)
-	test_setup.RunTests(t, ts)
+	suite.Run(t, ts)
 }
