@@ -323,16 +323,7 @@ func forwardedEnvVars() []string {
 }
 
 func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
-	logger.Infof("Start gcsfuse/%s for app [%s] using mount point: [%s]", common.GetVersion(), newConfig.AppName, mountPoint)
-
-	// Log mount-config and the CLI flags in the log-file.
-	// If there is no log-file, then log these to stdout.
-	// Do not log these in stdout in case of daemonized run
-	// if these are already being logged into a log-file, otherwise
-	// there will be duplicate logs for these in both places (stdout and log-file).
-	if newConfig.Foreground || newConfig.Logging.FilePath == "" {
-		logger.Info("GCSFuse Final Config", "config", newConfig)
-	}
+	logger.Infof("Start gcsfuse/%s for app %q using mount point: %s\n", common.GetVersion(), newConfig.AppName, mountPoint)
 
 	// The following will not warn if the user explicitly passed the default value for StatCacheCapacity.
 	if newConfig.MetadataCache.DeprecatedStatCacheCapacity != mount.DefaultStatCacheCapacity {

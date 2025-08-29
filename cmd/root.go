@@ -124,10 +124,18 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 		}
 
 		optimizedFlags := cfg.Optimize(&configObj, v)
-		logUserSpecifiedAndOptimizedConfig(v, rootCmd, optimizedFlags)
 
 		if cfgErr = cfg.Rationalize(v, &configObj, optimizedFlags); cfgErr != nil {
 			return
+		}
+		// Log user specified and optimized flags in the log-file.
+		// If there is no log-file, then log these to stdout.
+		// Do not log these in stdout in case of daemonized run
+		// if these are already being logged into a log-file, otherwise
+		// there will be duplicate logs for these in both places (stdout and log-file).
+		if configObj.Foreground || configObj.Logging.FilePath == "" {
+			logUserSpecifiedAndOptimizedConfig(v, rootCmd, optimizedFlags)
+			logger.Info("GCSFuse Final Config", "config", configObj)
 		}
 	}
 	cobra.OnInitialize(initConfig)
