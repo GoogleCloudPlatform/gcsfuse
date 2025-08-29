@@ -177,6 +177,8 @@ func WriteToObject(ctx context.Context, client *storage.Client, object, content 
 		return fmt.Errorf("Writer.Close failed for object %q: %w", object, err)
 	}
 
+	fmt.Printf("Successfully wrote %d bytes to object %s in bucket %s\n", len(content), object, bucket)
+
 	return nil
 }
 

@@ -16,7 +16,9 @@ package read_cache
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"strings"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -119,14 +121,23 @@ func (s *readOnlyTest) TestReadFileRandomlyLargerThanCacheCapacity(t *testing.T)
 }
 
 func (s *readOnlyTest) TestReadMultipleFilesMoreThanCacheLimit(t *testing.T) {
+	fmt.Printf("Creating %d files for test with file size %d in testdir %s\n", NumberOfFilesMoreThanCacheLimit, fileSize, testDirName)
 	fileNames := client.CreateNFilesInDir(s.ctx, s.storageClient, NumberOfFilesMoreThanCacheLimit, testFileName, fileSize, testDirName, t)
+	fmt.Printf("Test Files created\n")
 
+	fmt.Printf("Reading %s files for the first time\n", strings.Join(fileNames, ","))
 	expectedOutcome := readMultipleFiles(NumberOfFilesMoreThanCacheLimit, s.ctx, s.storageClient, fileNames, t)
+	fmt.Printf("Size of expectedOutcome is %d\n", len(expectedOutcome))
+	fmt.Printf("Reading %s files for the second time\n", strings.Join(fileNames, ","))
 	expectedOutcome = append(expectedOutcome, readMultipleFiles(NumberOfFilesMoreThanCacheLimit, s.ctx, s.storageClient, fileNames, t)...)
+	fmt.Printf("Size of expectedOutcome is %d\n", len(expectedOutcome))
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
+	fmt.Printf("Parsing log file & getting structured logs\n")
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
+	fmt.Printf("Validating Logs with starting index %d\n", 0)
 	validateCacheOfMultipleObjectsUsingStructuredLogs(0, NumberOfFilesMoreThanCacheLimit, expectedOutcome, structuredReadLogs, false, t)
+	fmt.Printf("Validating Logs with starting index %d\n", NumberOfFilesMoreThanCacheLimit)
 	validateCacheOfMultipleObjectsUsingStructuredLogs(NumberOfFilesMoreThanCacheLimit, NumberOfFilesMoreThanCacheLimit, expectedOutcome, structuredReadLogs, false, t)
 }
 
@@ -182,7 +193,7 @@ func TestReadOnlyTest(t *testing.T) {
 			cacheDirPath:            getDefaultCacheDirPathForTests(),
 		},
 		{
-			cliFlags:                []string{"--implicit-dirs", "--o=ro"},
+			cliFlags:                []string{"--implicit-dirs"},
 			cacheSize:               cacheCapacityInMB,
 			cacheFileForRangeRead:   true,
 			fileName:                configFileName,
