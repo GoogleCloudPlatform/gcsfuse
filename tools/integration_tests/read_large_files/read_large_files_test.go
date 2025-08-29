@@ -59,16 +59,17 @@ func TestMain(m *testing.M) {
 			"--implicit-dirs",
 			"--implicit-dirs --client-protocol=grpc",
 		}
-		cacheDirFlag1 := fmt.Sprintf("--implicit-dirs=true --file-cache-max-size-mb=700 --cache-file-for-range-read=true --cache-dir=%s/cache-dir-read-large-files-hns", os.TempDir())
+		cacheDirFlag1 := fmt.Sprintf("--implicit-dirs=true --file-cache-max-size-mb=700 --cache-file-for-range-read=true --cache-dir=%s/cache-dir-read-large-files-%s", os.TempDir(), setup.GenerateRandomString(4))
 		cfg.ReadLargeFiles[0].Configs[0].Flags = append(cfg.ReadLargeFiles[0].Configs[0].Flags, cacheDirFlag1)
 		cfg.ReadLargeFiles[0].Configs[0].Flags = append(cfg.ReadLargeFiles[0].Configs[0].Flags, cacheDirFlag1, "--client-protocol=grpc")
-
-		cacheDirFlag2 := fmt.Sprintf("--implicit-dirs=true --file-cache-max-size-mb=-1 --cache-file-for-range-read=false --cache-dir=%s/cache-dir-read-large-files-hns", os.TempDir())
+		cacheDirFlag2 := fmt.Sprintf("--implicit-dirs=true --file-cache-max-size-mb=-1 --cache-file-for-range-read=false --cache-dir=%s/cache-dir-read-large-files-%s", os.TempDir(), setup.GenerateRandomString(4))
 		cfg.ReadLargeFiles[0].Configs[0].Flags = append(cfg.ReadLargeFiles[0].Configs[0].Flags, cacheDirFlag2)
-		cfg.ReadLargeFiles[0].Configs[0].Flags = append(cfg.ReadLargeFiles[0].Configs[0].Flags, cacheDirFlag1, "--client-protocol=grpc")
+		cfg.ReadLargeFiles[0].Configs[0].Flags = append(cfg.ReadLargeFiles[0].Configs[0].Flags, cacheDirFlag2, "--client-protocol=grpc")
 
 		cfg.ReadLargeFiles[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
+
+	setup.CheckAndPopulateCacheDir(&cfg.ReadLargeFiles, "read-large-files")
 
 	ctx = context.Background()
 	bucketType := setup.BucketTestEnvironment(ctx, cfg.ReadLargeFiles[0].TestBucket)
