@@ -291,7 +291,8 @@ create_bucket() {
   local package="$1"
   local bucket_type="$2"
   local bucket_name="${BUCKET_PREFIX}-${package}-${bucket_type}-$(date +%s%N)"
-  local bucket_cmd_parts=("gcloud" "alpha" "storage" "buckets" "create" "gs://${bucket_name}" "--project=${PROJECT_ID}" "--location=${BUCKET_LOCATION}" "--uniform-bucket-level-access")
+  # local bucket_cmd_parts=("gcloud" "alpha" "storage" "buckets" "create" "gs://${bucket_name}" "--project=${PROJECT_ID}" "--location=${BUCKET_LOCATION}" "--uniform-bucket-level-access")
+  local bucket_cmd_parts=("gcloud" "storage" "buckets" "create" "gs://${bucket_name}" "--project=${PROJECT_ID}" "--location=${BUCKET_LOCATION}" "--uniform-bucket-level-access")
   if [[ "$bucket_type" == "$HNS" ]]; then
     bucket_cmd_parts+=("--enable-hierarchical-namespace")
   elif [[ "$bucket_type" == "$ZONAL" ]]; then
