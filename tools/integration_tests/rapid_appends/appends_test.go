@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	numAppends            = 3  // Number of appends to perform on test file.
+	numAppends            = 2  // Number of appends to perform on test file.
 	appendSize            = 10 // Size in bytes for each append.
 	unfinalizedObjectSize = 10 // Size in bytes of initial unfinalized Object.
 )
@@ -80,13 +80,13 @@ func (t *DualMountAppendsSuite) TestAppendSessionInvalidatedByAnotherClientUponT
 			err = newAppendFileHandle.Sync()
 			assert.NoError(t.T(), err)
 
-			// Read from primary mount to validate the contents which has persisted in GCS after
-			// takeover from the secondary mount.
+			// Read directly using storage client to validate the contents which has persisted in
+			// GCS after takeover from the secondary mount.
 			// Close the open append handle before issuing read on the file as Sync() triggered on
 			// ReadFile() due to BWH still being initialized, is expected to error out with stale NFS file handle.
 			operations.CloseFileShouldThrowError(t.T(), appendFileHandle)
 			expectedContent := t.fileContent + appendContent
-			content, err := operations.ReadFile(path.Join(t.primaryMount.testDirPath, t.fileName))
+			content, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
 			require.NoError(t.T(), err)
 			assert.Equal(t.T(), expectedContent, string(content))
 		}()

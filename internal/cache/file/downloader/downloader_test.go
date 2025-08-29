@@ -66,7 +66,7 @@ func (dt *downloaderTest) setupHelper() {
 	mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
 		Return(&controlpb.StorageLayout{}, nil)
 	ctx := context.Background()
-	dt.bucket, err = storageHandle.BucketHandle(ctx, storage.TestBucketName, "", false)
+	dt.bucket, err = storageHandle.BucketHandle(ctx, storage.TestBucketName, "")
 	ExpectEq(nil, err)
 
 	dt.initJobTest(DefaultObjectName, []byte("taco"), DefaultSequentialReadSizeMb, CacheMaxSize, func() {})

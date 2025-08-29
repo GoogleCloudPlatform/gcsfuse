@@ -19,6 +19,7 @@ import (
 	"log"
 	"path"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
@@ -58,6 +59,7 @@ func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCreatedOutsideOfMount
 	writer := client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, t.fileName), setup.GenerateRandomString(size))
 	defer writer.Close()
 
+	time.Sleep(60 * time.Second)
 	statRes, err := operations.StatFile(path.Join(t.testDirPath, t.fileName))
 
 	require.NoError(t.T(), err)
