@@ -93,6 +93,9 @@ func TestMain(m *testing.M) {
 	log.Println("Running static mounting tests...")
 	successCode := m.Run()
 
+	// If test failed, save the gcsfuse log files for debugging.
+	setup.SaveLogFileInCaseOfFailure(successCode)
+
 	// Clean up test directory created.
 	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
