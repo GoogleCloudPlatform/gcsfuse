@@ -230,6 +230,8 @@ type MetricsConfig struct {
 
 	CloudMetricsExportIntervalSecs int64 `yaml:"cloud-metrics-export-interval-secs"`
 
+	EnableGrpcMetrics bool `yaml:"enable-grpc-metrics"`
+
 	PrometheusPort int64 `yaml:"prometheus-port"`
 
 	StackdriverExportInterval time.Duration `yaml:"stackdriver-export-interval"`
@@ -408,6 +410,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	if err := flagSet.MarkHidden("enable-google-lib-auth"); err != nil {
 		return err
 	}
+
+	flagSet.BoolP("enable-grpc-metrics", "", true, "Enables support for gRPC metrics")
 
 	flagSet.BoolP("enable-hns", "", true, "Enables support for HNS buckets")
 
@@ -849,6 +853,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("enable-google-lib-auth", flagSet.Lookup("enable-google-lib-auth")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("metrics.enable-grpc-metrics", flagSet.Lookup("enable-grpc-metrics")); err != nil {
 		return err
 	}
 
