@@ -80,6 +80,7 @@ func createDirectoryStructureForTestCase(t *testing.T, testCaseDir string) {
 // Test_OpenDirAndLookUp helps in detecting the deadlock when
 // OpenDir() and LookUpInode() request for same directory comes in parallel.
 func (s *concurrentListingTest) Test_OpenDirAndLookUp(t *testing.T) {
+	t.Errorf("Failed on purpose")
 	t.Parallel() // Mark the test parallelizable.
 	testCaseDir := "Test_OpenDirAndLookUp"
 	createDirectoryStructureForTestCase(t, testCaseDir)
