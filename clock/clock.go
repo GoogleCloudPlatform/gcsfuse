@@ -16,8 +16,8 @@ package clock
 
 import "time"
 
-// Interface to provide regular clock functionalities.
-// Creating an interface so that a fake can be created for unit tests.
+// Clock is an interface for getting the current time and waiting.
 type Clock interface {
+	Now() time.Time
 	After(d time.Duration) <-chan time.Time
 }
