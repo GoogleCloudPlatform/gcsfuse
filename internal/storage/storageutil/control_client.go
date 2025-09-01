@@ -24,7 +24,7 @@ import (
 	"google.golang.org/api/option"
 )
 
-func CreateGRPCControlClient(ctx context.Context, clientOpts []option.ClientOption, retry bool) (controlClient *control.StorageControlClient, err error) {
+func CreateGRPCControlClient(ctx context.Context, clientOpts []option.ClientOption, disableDefaultGaxRetries bool) (controlClient *control.StorageControlClient, err error) {
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
 		logger.Fatal("error setting direct path env var: %v", err)
 	}
@@ -34,7 +34,8 @@ func CreateGRPCControlClient(ctx context.Context, clientOpts []option.ClientOpti
 		return nil, fmt.Errorf("NewStorageControlClient: %w", err)
 	}
 
-	if !retry {
+	if disableDefaultGaxRetries {
+		// Removing default gax retry options.
 		*controlClient.CallOptions = control.StorageControlCallOptions{}
 	}
 	// else default options will be used.

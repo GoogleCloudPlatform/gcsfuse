@@ -312,16 +312,16 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		if err != nil {
 			return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 		}
-		rawStorageControlClientWithoutGaxRetries, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, false)
+		rawStorageControlClientWithoutGaxRetries, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, true)
 		if err == nil {
 			// rawStorageControlClientWithGaxRetries cannot be just a wrapper over rawStorageControlClientWithoutGaxRetries,
 			// as it has its own dedicated array of CallOptions, and we need to keep those independent.
-			rawStorageControlClientWithGaxRetries, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, true)
+			rawStorageControlClientWithGaxRetries, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, false)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("could not create StorageControl Client: %w", err)
 		}
-		rawStorageControlClientWithGaxRetries, err = withGaxRetriesForFolderAPIs(rawStorageControlClientWithGaxRetries, &clientConfig)
+		err = addGaxRetriesForFolderAPIs(rawStorageControlClientWithGaxRetries, &clientConfig)
 		if err != nil {
 			return nil, fmt.Errorf("could not create StorageControl Client: %w", err)
 		}

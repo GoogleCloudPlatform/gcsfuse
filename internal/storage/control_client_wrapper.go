@@ -357,22 +357,24 @@ func storageControlClientGaxRetryOptions(clientConfig *storageutil.StorageClient
 	}
 }
 
-func withGaxRetriesForFolderAPIs(rawControlClientWithoutGaxRetries *control.StorageControlClient,
-	clientConfig *storageutil.StorageClientConfig) (rawControlClientWithGaxRetries *control.StorageControlClient, err error) {
-	if rawControlClientWithoutGaxRetries == nil || clientConfig == nil {
-		return nil, fmt.Errorf("invalid input: %v, %v", rawControlClientWithoutGaxRetries, clientConfig)
+// addGaxRetriesForFolderAPIs updates the passed raw control client
+// to add gax retries according to the given config in-place.
+func addGaxRetriesForFolderAPIs(rawControlClient *control.StorageControlClient,
+	clientConfig *storageutil.StorageClientConfig) (err error) {
+	if rawControlClient == nil || clientConfig == nil {
+		return fmt.Errorf("invalid input: %v, %v", rawControlClient, clientConfig)
 	}
 
-	if rawControlClientWithoutGaxRetries.CallOptions != nil {
-		rawControlClientWithGaxRetries = rawControlClientWithoutGaxRetries
-		*rawControlClientWithGaxRetries.CallOptions = control.StorageControlCallOptions{}
+	if rawControlClient.CallOptions != nil {
+		*rawControlClient.CallOptions = control.StorageControlCallOptions{}
 		gaxRetryOptions := storageControlClientGaxRetryOptions(clientConfig)
-		rawControlClientWithGaxRetries.CallOptions.RenameFolder = gaxRetryOptions
-		rawControlClientWithGaxRetries.CallOptions.GetFolder = gaxRetryOptions
-		rawControlClientWithGaxRetries.CallOptions.CreateFolder = gaxRetryOptions
-		rawControlClientWithGaxRetries.CallOptions.DeleteFolder = gaxRetryOptions
-		return rawControlClientWithGaxRetries, nil
+		rawControlClient.CallOptions.RenameFolder = gaxRetryOptions
+		rawControlClient.CallOptions.GetFolder = gaxRetryOptions
+		rawControlClient.CallOptions.CreateFolder = gaxRetryOptions
+		rawControlClient.CallOptions.DeleteFolder = gaxRetryOptions
 	} else {
-		return nil, fmt.Errorf("StorageControlClient.CallOptions is nil, cannot apply gax retries for folder APIs")
+		return fmt.Errorf("cannot apply gax retries for folder APIs to raw control client: CallOptions is nil")
 	}
+
+	return nil
 }
