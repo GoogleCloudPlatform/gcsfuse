@@ -313,14 +313,16 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 			return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 		}
 		rawStorageControlClientWithoutGaxRetries, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, false)
+		if err == nil {
+			rawStorageControlClientWithGaxRetries, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, true)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("could not create StorageControl Client: %w", err)
 		}
-		rawStorageControlClientWithGaxRetries, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, false)
+		rawStorageControlClientWithGaxRetries, err = withGaxRetriesForFolderAPIs(rawStorageControlClientWithGaxRetries, &clientConfig)
 		if err != nil {
 			return nil, fmt.Errorf("could not create StorageControl Client: %w", err)
 		}
-		rawStorageControlClientWithGaxRetries = withGaxRetriesForFolderAPIs(rawStorageControlClientWithGaxRetries, &clientConfig)
 		// special handling for mounts created with custom billing projects.
 		controlClientWithBillingProject := withBillingProject(rawStorageControlClientWithoutGaxRetries, billingProject)
 		// Wrap the control client with retry-on-stall logic.

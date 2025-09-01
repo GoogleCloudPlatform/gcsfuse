@@ -77,6 +77,27 @@ func (testSuite *StorageHandleTest) mockStorageLayout(bucketType gcs.BucketType)
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).Return(storageLayout, nil)
 }
 
+// Helpers
+
+func (testSuite *StorageHandleTest) controlClientCallOptionsWithoutRetry() *control.StorageControlCallOptions {
+	testSuite.T().Helper()
+	return &control.StorageControlCallOptions{}
+}
+
+func (testSuite *StorageHandleTest) controlClientCallOptionsWithRetry() *control.StorageControlCallOptions {
+	testSuite.T().Helper()
+	clientConfig := &storageutil.StorageClientConfig{MaxRetrySleep: 100 * time.Microsecond, MaxRetryAttempts: 5}
+	gaxRetryOptions := storageControlClientGaxRetryOptions(clientConfig)
+	return &control.StorageControlCallOptions{
+		CreateFolder: gaxRetryOptions,
+		GetFolder:    gaxRetryOptions,
+		DeleteFolder: gaxRetryOptions,
+		RenameFolder: gaxRetryOptions,
+	}
+}
+
+// Test functions
+
 func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketExistsWithEmptyBillingProject() {
 	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
 	testSuite.mockStorageLayout(gcs.BucketType{})
@@ -886,23 +907,6 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NonZonalBuc
 	assert.Nil(testSuite.T(), gaxClient.CallOptions.GetStorageLayout)
 }
 
-func (testSuite *StorageHandleTest) controlClientCallOptionsWithoutRetry() *control.StorageControlCallOptions {
-	testSuite.T().Helper()
-	return &control.StorageControlCallOptions{}
-}
-
-func (testSuite *StorageHandleTest) controlClientCallOptionsWithRetry() *control.StorageControlCallOptions {
-	testSuite.T().Helper()
-	clientConfig := &storageutil.StorageClientConfig{MaxRetrySleep: 100 * time.Microsecond, MaxRetryAttempts: 5}
-	gaxRetryOptions := storageControlClientGaxRetryOptions(clientConfig)
-	return &control.StorageControlCallOptions{
-		CreateFolder: gaxRetryOptions,
-		GetFolder:    gaxRetryOptions,
-		DeleteFolder: gaxRetryOptions,
-		RenameFolder: gaxRetryOptions,
-	}
-}
-
 func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NonZonalBucket_WithBillingProject() {
 	// Arrange
 	billingProject := "test-project"
@@ -936,12 +940,13 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NonZonalBuc
 	// Check that the inner client has GAX retries
 	gaxClient, ok := controlClientWithAllRetriesNonZB.raw.(*control.StorageControlClient)
 	require.True(testSuite.T(), ok)
-	assert.NotNil(testSuite.T(), gaxClient.CallOptions)
+	require.NotNil(testSuite.T(), gaxClient)
+	require.NotNil(testSuite.T(), gaxClient.CallOptions)
 	assert.Nil(testSuite.T(), gaxClient.CallOptions.GetStorageLayout)
-	assert.NotNil(testSuite.T(), gaxClient.CallOptions.CreateFolder)
-	assert.NotNil(testSuite.T(), gaxClient.CallOptions.GetFolder)
-	assert.NotNil(testSuite.T(), gaxClient.CallOptions.DeleteFolder)
-	assert.NotNil(testSuite.T(), gaxClient.CallOptions.RenameFolder)
+	assert.Len(testSuite.T(), gaxClient.CallOptions.CreateFolder, 2)
+	assert.Len(testSuite.T(), gaxClient.CallOptions.GetFolder, 2)
+	assert.Len(testSuite.T(), gaxClient.CallOptions.DeleteFolder, 2)
+	assert.Len(testSuite.T(), gaxClient.CallOptions.RenameFolder, 2)
 }
 
 func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NonZonalBucket_ThenZonalBucket_WithoutBillingProject() {
@@ -998,6 +1003,7 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NonZonalBuc
 	rawControlClientWithoutGaxRetry, ok := controlClientWithRetry.raw.(*control.StorageControlClient)
 	require.True(testSuite.T(), ok)
 	require.NotNil(testSuite.T(), rawControlClientWithoutGaxRetry)
+	require.NotNil(testSuite.T(), rawControlClientWithoutGaxRetry.CallOptions)
 	assert.Empty(testSuite.T(), rawControlClientWithoutGaxRetry.CallOptions.CreateFolder)
 	assert.Empty(testSuite.T(), rawControlClientWithoutGaxRetry.CallOptions.GetFolder)
 	assert.Empty(testSuite.T(), rawControlClientWithoutGaxRetry.CallOptions.DeleteFolder)
@@ -1008,12 +1014,9 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NonZonalBuc
 func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NonZonalBucket_ThenZonalBucket_WithBillingProject() {
 	// Arrange
 	billingProject := "test-project"
-	// mockRawControlClient := &control.StorageControlClient{}
 	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
 	mockRawControlClientWithRetries := &control.StorageControlClient{CallOptions: testSuite.controlClientCallOptionsWithRetry()}
 	mockRawControlClientWithoutRetries := &control.StorageControlClient{CallOptions: testSuite.controlClientCallOptionsWithoutRetry()}
-	// mockControlClient := withBillingProject(mockRawControlClient, billingProject)
-	// mockControlClient = withRetryOnStorageLayout(mockControlClient, &clientConfig)
 	sh := &storageClient{
 		rawStorageControlClientWithoutGaxRetries: mockRawControlClientWithoutRetries,
 		rawStorageControlClientWithGaxRetries:    mockRawControlClientWithRetries,
@@ -1070,11 +1073,10 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NonZonalBuc
 	rawControlClientWithoutGaxRetry, ok := controlClientWithRetry.raw.(*control.StorageControlClient)
 	require.True(testSuite.T(), ok)
 	require.NotNil(testSuite.T(), rawControlClientWithoutGaxRetry)
-	assert.NotNil(testSuite.T(), rawControlClientWithoutGaxRetry.CallOptions)
+	require.NotNil(testSuite.T(), rawControlClientWithoutGaxRetry.CallOptions)
 	assert.Empty(testSuite.T(), rawControlClientWithoutGaxRetry.CallOptions.CreateFolder)
 	assert.Empty(testSuite.T(), rawControlClientWithoutGaxRetry.CallOptions.GetFolder)
 	assert.Empty(testSuite.T(), rawControlClientWithoutGaxRetry.CallOptions.DeleteFolder)
 	assert.Empty(testSuite.T(), rawControlClientWithoutGaxRetry.CallOptions.RenameFolder)
 	assert.Empty(testSuite.T(), rawControlClientWithoutGaxRetry.CallOptions.GetStorageLayout)
-
 }
