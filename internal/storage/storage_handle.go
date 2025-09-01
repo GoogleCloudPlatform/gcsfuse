@@ -314,6 +314,8 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		}
 		rawStorageControlClientWithoutGaxRetries, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, false)
 		if err == nil {
+			// rawStorageControlClientWithGaxRetries cannot be just a wrapper over rawStorageControlClientWithoutGaxRetries,
+			// as it has its own dedicated array of CallOptions, and we need to keep those independent.
 			rawStorageControlClientWithGaxRetries, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, true)
 		}
 		if err != nil {
