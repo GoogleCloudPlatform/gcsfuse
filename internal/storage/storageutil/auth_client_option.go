@@ -29,7 +29,7 @@ const (
 	// Default retry parameters for auth client calls.
 	defaultAuthClientRetryDeadline    = 30 * time.Second
 	defaultAuthClientTotalRetryBudget = 5 * time.Minute
-	defaultAuthClientInitialBackoff   = 1 * time.Second
+	defaultAuthClientInitialBackoff   = 1 * time.Millisecond
 )
 
 // GetClientAuthOptionsAndToken returns client options and a token source using either a token URL or fallback to key file/ADC.
