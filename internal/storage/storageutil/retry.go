@@ -20,7 +20,6 @@ import (
 	"math/rand"
 	"time"
 
-	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 )
 
@@ -142,12 +141,4 @@ func ExecuteWithRetry[T any](
 			return zero, fmt.Errorf("%s for %q failed after multiple retries (last server/client error = %v): %w", operationName, reqDescription, err, parentCtxErr)
 		}
 	}
-}
-
-func CreateFolderReqDescription(req *controlpb.CreateFolderRequest) string {
-	return fmt.Sprintf("%q in %q", req.FolderId, req.Parent)
-}
-
-func RenameFolderReqDescription(req *controlpb.RenameFolderRequest) string {
-	return fmt.Sprintf("%q to %q", req.Name, req.DestinationFolderId)
 }
