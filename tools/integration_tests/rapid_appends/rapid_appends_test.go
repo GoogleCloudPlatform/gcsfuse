@@ -73,28 +73,28 @@ var readTestConfigs = []*testConfig{
 		isDualMount:          false,
 		metadataCacheEnabled: false,
 		fileCache:            false,
-		primaryMountFlags:    []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1"},
+		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
 	},
 	{
 		name:                 "SingleMount_MetadataCache",
 		isDualMount:          false,
 		metadataCacheEnabled: true,
 		fileCache:            false,
-		primaryMountFlags:    []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1"},
+		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
 	},
 	{
 		name:                 "SingleMount_FileCache",
 		isDualMount:          false,
 		metadataCacheEnabled: false,
 		fileCache:            true,
-		primaryMountFlags:    []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1"},
+		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
 	},
 	{
 		name:                 "SingleMount_MetadataAndFileCache",
 		isDualMount:          false,
 		metadataCacheEnabled: true,
 		fileCache:            true,
-		primaryMountFlags:    []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1"},
+		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
 	},
 	// Dual-Mount Scenarios
 	{
@@ -103,7 +103,7 @@ var readTestConfigs = []*testConfig{
 		metadataCacheEnabled: false,
 		fileCache:            false,
 		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
-		secondaryMountFlags:  []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1"},
+		secondaryMountFlags:  []string{"--enable-rapid-appends=true"},
 	},
 	{
 		name:                 "DualMount_MetadataCache",
@@ -111,7 +111,7 @@ var readTestConfigs = []*testConfig{
 		metadataCacheEnabled: true,
 		fileCache:            false,
 		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
-		secondaryMountFlags:  []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1"},
+		secondaryMountFlags:  []string{"--enable-rapid-appends=true"},
 	},
 	{
 		name:                 "DualMount_FileCache",
@@ -119,7 +119,7 @@ var readTestConfigs = []*testConfig{
 		metadataCacheEnabled: false,
 		fileCache:            true,
 		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
-		secondaryMountFlags:  []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1"},
+		secondaryMountFlags:  []string{"--enable-rapid-appends=true"},
 	},
 	{
 		name:                 "DualMount_MetadataAndFileCache",
@@ -127,7 +127,7 @@ var readTestConfigs = []*testConfig{
 		metadataCacheEnabled: true,
 		fileCache:            true,
 		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
-		secondaryMountFlags:  []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1"},
+		secondaryMountFlags:  []string{"--enable-rapid-appends=true"},
 	},
 }
 
@@ -154,7 +154,11 @@ var appendTestConfigs = []*testConfig{
 func TestReadsSuiteRunner(t *testing.T) {
 	for _, cfg := range readTestConfigs {
 		t.Run(cfg.name, func(t *testing.T) {
-			suite.Run(t, &ReadsTestSuite{BaseSuite{cfg: cfg}})
+			if cfg.isDualMount {
+				suite.Run(t, &DualMountReadsTestSuite{BaseSuite{cfg: cfg}})
+			} else {
+				suite.Run(t, &SingleMountReadsTestSuite{BaseSuite{cfg: cfg}})
+			}
 		})
 	}
 }
@@ -163,7 +167,11 @@ func TestReadsSuiteRunner(t *testing.T) {
 func TestAppendsSuiteRunner(t *testing.T) {
 	for _, cfg := range appendTestConfigs {
 		t.Run(cfg.name, func(t *testing.T) {
-			suite.Run(t, &AppendsTestSuite{BaseSuite{cfg: cfg}})
+			if cfg.isDualMount {
+				suite.Run(t, &DualMountAppendsTestSuite{BaseSuite{cfg: cfg}})
+			} else {
+				suite.Run(t, &SingleMountAppendsTestSuite{BaseSuite{cfg: cfg}})
+			}
 		})
 	}
 }

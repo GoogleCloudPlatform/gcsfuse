@@ -34,14 +34,10 @@ const (
 )
 
 // //////////////////////////////////////////////////////////////////////
-// Tests for the AppendsTestSuite
+// Tests for the DualMountAppendsTestSuite
 // //////////////////////////////////////////////////////////////////////
 
-func (t *AppendsTestSuite) TestAppendSessionInvalidatedByAnotherClientUponTakeover() {
-	if !t.cfg.isDualMount {
-		t.T().Skip("This test requires a dual-mount configuration.")
-	}
-
+func (t *DualMountAppendsTestSuite) TestAppendSessionInvalidatedByAnotherClientUponTakeover() {
 	const initialContent = "dummy content"
 	const appendContent = "appended content"
 
@@ -83,10 +79,11 @@ func (t *AppendsTestSuite) TestAppendSessionInvalidatedByAnotherClientUponTakeov
 	assert.Equal(t.T(), expectedContent, string(content))
 }
 
-func (t *AppendsTestSuite) TestContentAppendedInNonAppendModeNotVisibleTillClose() {
-	if t.cfg.isDualMount {
-		t.T().Skip("This test is designed for a single-mount configuration.")
-	}
+// //////////////////////////////////////////////////////////////////////
+// Tests for the SingleMountAppendsTestSuite
+// //////////////////////////////////////////////////////////////////////
+
+func (t *SingleMountAppendsTestSuite) TestContentAppendedInNonAppendModeNotVisibleTillClose() {
 	t.T().Skip("Skipping test until CreateObject() is supported for unfinalized objects (b/424253611).")
 
 	// Initially create an unfinalized object.
@@ -119,11 +116,7 @@ func (t *AppendsTestSuite) TestContentAppendedInNonAppendModeNotVisibleTillClose
 	assert.Equal(t.T(), expectedContent, string(contentAfterClose))
 }
 
-func (t *AppendsTestSuite) TestAppendsToFinalizedObjectNotVisibleUntilClose() {
-	if t.cfg.isDualMount {
-		t.T().Skip("This test is designed for a single-mount configuration.")
-	}
-
+func (t *SingleMountAppendsTestSuite) TestAppendsToFinalizedObjectNotVisibleUntilClose() {
 	const initialContent = "dummy content"
 
 	t.fileName = fileNamePrefix + setup.GenerateRandomString(5)
@@ -153,11 +146,7 @@ func (t *AppendsTestSuite) TestAppendsToFinalizedObjectNotVisibleUntilClose() {
 	assert.Equal(t.T(), expectedContent, string(contentAfterClose))
 }
 
-func (t *AppendsTestSuite) TestAppendsVisibleInRealTimeWithConcurrentRPlusHandle() {
-	if t.cfg.isDualMount {
-		t.T().Skip("This test is designed for a single-mount configuration.")
-	}
-
+func (t *SingleMountAppendsTestSuite) TestAppendsVisibleInRealTimeWithConcurrentRPlusHandle() {
 	const initialContent = "dummy content"
 
 	// Initially create an unfinalized object.
@@ -195,10 +184,7 @@ func (t *AppendsTestSuite) TestAppendsVisibleInRealTimeWithConcurrentRPlusHandle
 	assert.Equal(t.T(), expectedContent, string(contentRead[0:len(expectedContent)]))
 }
 
-func (t *AppendsTestSuite) TestRandomWritesVisibleAfterCloseWithConcurrentRPlusHandle() {
-	if t.cfg.isDualMount {
-		t.T().Skip("This test is designed for a single-mount configuration.")
-	}
+func (t *SingleMountAppendsTestSuite) TestRandomWritesVisibleAfterCloseWithConcurrentRPlusHandle() {
 	t.T().Skip("Skipping test until CreateObject() is supported for unfinalized objects (b/424253611).")
 
 	const initialContent = "dummy content"
@@ -233,10 +219,7 @@ func (t *AppendsTestSuite) TestRandomWritesVisibleAfterCloseWithConcurrentRPlusH
 	assert.Equal(t.T(), expectedContent, string(contentAfterClose))
 }
 
-func (t *AppendsTestSuite) TestFallbackHappensWhenNonAppendHandleDoesFirstWrite() {
-	if t.cfg.isDualMount {
-		t.T().Skip("This test is designed for a single-mount configuration.")
-	}
+func (t *SingleMountAppendsTestSuite) TestFallbackHappensWhenNonAppendHandleDoesFirstWrite() {
 	t.T().Skip("Skipping test until CreateObject() is supported for unfinalized objects (b/424253611).")
 
 	// Initially create an unfinalized object.
@@ -267,10 +250,7 @@ func (t *AppendsTestSuite) TestFallbackHappensWhenNonAppendHandleDoesFirstWrite(
 	assert.Equal(t.T(), expectedContent, string(contentAfterClose))
 }
 
-func (t *AppendsTestSuite) TestKernelShouldSeeUpdatedSizeOnAppends_ValidStatCache() {
-	if t.cfg.isDualMount {
-		t.T().Skip("This test is designed for a single-mount configuration.")
-	}
+func (t *SingleMountAppendsTestSuite) TestKernelShouldSeeUpdatedSizeOnAppends_ValidStatCache() {
 	const initialContent = "dummy content"
 
 	t.createUnfinalizedObject()
@@ -291,10 +271,7 @@ func (t *AppendsTestSuite) TestKernelShouldSeeUpdatedSizeOnAppends_ValidStatCach
 	assert.Equal(t.T(), expectedFileSize, (*fileInfo).Size())
 }
 
-func (t *AppendsTestSuite) TestKernelShouldSeeUpdatedSizeOnAppends_ExpiredStatCache() {
-	if t.cfg.isDualMount {
-		t.T().Skip("This test is designed for a single-mount configuration.")
-	}
+func (t *SingleMountAppendsTestSuite) TestKernelShouldSeeUpdatedSizeOnAppends_ExpiredStatCache() {
 	const initialContent = "dummy content"
 
 	t.createUnfinalizedObject()

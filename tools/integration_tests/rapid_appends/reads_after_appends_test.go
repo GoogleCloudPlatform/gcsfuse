@@ -73,45 +73,81 @@ func readRandomlyAndVerify(t *testing.T, filePath string, expectedContent []byte
 }
 
 // //////////////////////////////////////////////////////////////////////
-// Tests for the ReadsTestSuite
+// Tests for the SingleMountReadsTestSuite
 // //////////////////////////////////////////////////////////////////////
 
-// runAppendAndReadTest contains the core test logic for the ReadsTestSuite.
-func (t *ReadsTestSuite) runAppendAndReadTest(verifyFunc readAndVerifyFunc) {
+// runSingleMountAppendAndReadTest contains the core test logic for single-mount read tests.
+// It verifies that appends are eventually consistent and visible on the same mount.
+func (t *SingleMountReadsTestSuite) runSingleMountAppendAndReadTest(verifyFunc readAndVerifyFunc) {
 	t.createUnfinalizedObject()
 	defer t.deleteUnfinalizedObject()
 
-	appendPath := path.Join(t.getAppendPath(), t.fileName)
+	filePath := path.Join(t.primaryMount.testDirPath, t.fileName)
+	appendFileHandle := operations.OpenFileInMode(t.T(), filePath, FileOpenModeA|syscall.O_DIRECT)
+	defer operations.CloseFileShouldNotThrowError(t.T(), appendFileHandle)
+
+	for range numAppends {
+		t.appendToFile(appendFileHandle, setup.GenerateRandomString(appendSize))
+		// Wait for a minute to ensure consistency.
+		time.Sleep(time.Minute)
+		verifyFunc(t.T(), filePath, []byte(t.fileContent))
+	}
+}
+
+func (t *SingleMountReadsTestSuite) TestSequentialRead() {
+	t.runSingleMountAppendAndReadTest(readSequentiallyAndVerify)
+}
+
+func (t *SingleMountReadsTestSuite) TestRandomRead() {
+	t.runSingleMountAppendAndReadTest(readRandomlyAndVerify)
+}
+
+// //////////////////////////////////////////////////////////////////////
+// Tests for the DualMountReadsTestSuite
+// //////////////////////////////////////////////////////////////////////
+
+// runDualMountAppendAndReadTest contains the core test logic for dual-mount read tests.
+// It verifies the behavior of metadata caching by appending on a secondary mount
+// and reading from a primary mount.
+func (t *DualMountReadsTestSuite) runDualMountAppendAndReadTest(verifyFunc readAndVerifyFunc) {
+	if !t.cfg.metadataCacheEnabled {
+		t.T().Skip("This test is only meaningful when metadata caching is enabled.")
+	}
+
+	t.createUnfinalizedObject()
+	defer t.deleteUnfinalizedObject()
+
+	appendPath := path.Join(t.secondaryMount.testDirPath, t.fileName)
 	appendFileHandle := operations.OpenFileInMode(t.T(), appendPath, FileOpenModeA|syscall.O_DIRECT)
 	defer operations.CloseFileShouldNotThrowError(t.T(), appendFileHandle)
 
 	readPath := path.Join(t.primaryMount.testDirPath, t.fileName)
-	for i := range numAppends {
+
+	// Perform initial append and read to populate the cache.
+	t.appendToFile(appendFileHandle, setup.GenerateRandomString(appendSize))
+	time.Sleep(time.Minute) // Wait for consistency before the first read.
+	verifyFunc(t.T(), readPath, []byte(t.fileContent))
+
+	// Subsequent appends will test cache invalidation.
+	for i := 0; i < numAppends-1; i++ {
 		sizeBeforeAppend := len(t.fileContent)
 		t.appendToFile(appendFileHandle, setup.GenerateRandomString(appendSize))
-		sizeAfterAppend := len(t.fileContent)
 
-		// If metadata cache is enabled, gcsfuse reads up to the cached file size.
-		// The initial read (i=0) bypasses cache, seeing the latest file size.
-		if !t.cfg.metadataCacheEnabled || !t.cfg.isDualMount || (i == 0) {
-			time.Sleep(time.Minute)
-			verifyFunc(t.T(), readPath, []byte(t.fileContent[:sizeAfterAppend]))
-		} else {
-			// Read only up to the cached file size (before append).
-			verifyFunc(t.T(), readPath, []byte(t.fileContent[:sizeBeforeAppend]))
+		// Read should see stale content due to the cache.
+		verifyFunc(t.T(), readPath, []byte(t.fileContent[:sizeBeforeAppend]))
 
-			// Wait for metadata cache to expire to fetch the latest size for the next read.
-			time.Sleep(time.Duration(metadataCacheTTLSecs) * time.Second)
-			// Expect read up to the latest file size which is the size after the append.
-			verifyFunc(t.T(), readPath, []byte(t.fileContent[:sizeAfterAppend]))
-		}
+		// Wait for metadata cache TTL to expire.
+		time.Sleep(time.Duration(metadataCacheTTLSecs) * time.Second)
+
+		// After TTL expiration, read should see the updated content.
+		verifyFunc(t.T(), readPath, []byte(t.fileContent))
 	}
 }
 
-func (t *ReadsTestSuite) TestSequentialRead() {
-	t.runAppendAndReadTest(readSequentiallyAndVerify)
+func (t *DualMountReadsTestSuite) TestSequentialRead() {
+	t.runDualMountAppendAndReadTest(readSequentiallyAndVerify)
 }
 
-func (t *ReadsTestSuite) TestRandomRead() {
-	t.runAppendAndReadTest(readRandomlyAndVerify)
+func (t *DualMountReadsTestSuite) TestRandomRead() {
+	t.runDualMountAppendAndReadTest(readRandomlyAndVerify)
 }

@@ -19,6 +19,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
@@ -50,11 +51,17 @@ type BaseSuite struct {
 	fileContent    string
 }
 
-// ReadsTestSuite groups all tests related to reading after appends.
-type ReadsTestSuite struct{ BaseSuite }
+// SingleMountReadsTestSuite groups all single-mount tests related to reading after appends.
+type SingleMountReadsTestSuite struct{ BaseSuite }
 
-// AppendsTestSuite groups general tests for append behavior.
-type AppendsTestSuite struct{ BaseSuite }
+// DualMountReadsTestSuite groups all dual-mount tests related to reading after appends.
+type DualMountReadsTestSuite struct{ BaseSuite }
+
+// SingleMountAppendsTestSuite groups general single-mount tests for append behavior.
+type SingleMountAppendsTestSuite struct{ BaseSuite }
+
+// DualMountAppendsTestSuite groups general dual-mount tests for append behavior.
+type DualMountAppendsTestSuite struct{ BaseSuite }
 
 // //////////////////////////////////////////////////////////////////////
 // Common Suite Logic
@@ -63,9 +70,10 @@ type AppendsTestSuite struct{ BaseSuite }
 func (t *BaseSuite) SetupTest() {
 	t.primaryMount.setupTestDir()
 
-	// Create a mutable copy of flags and add file cache flags if configured.
+	// Create a mutable copy of flags.
 	primaryFlags := make([]string, len(t.cfg.primaryMountFlags))
 	copy(primaryFlags, t.cfg.primaryMountFlags)
+	// Add file cache flags if configured.
 	if t.cfg.fileCache {
 		cacheDir := getNewEmptyCacheDir(t.primaryMount.rootDir)
 		primaryFlags = append(primaryFlags, "--file-cache-max-size-mb=-1", "--cache-dir="+cacheDir)
@@ -91,9 +99,19 @@ func (t *BaseSuite) TearDownTest() {
 			setup.SaveLogFileAsArtifact(t.secondaryMount.logFilePath, "gcsfuse-secondary-log-"+t.T().Name())
 		}
 	}
+
+	// Unmount before cleaning up directories.
 	t.unmountPrimaryMount()
 	if t.cfg.isDualMount {
 		t.unmountSecondaryMount()
+	}
+
+	// Clean up the root directories to remove all test artifacts.
+	err := os.RemoveAll(t.primaryMount.rootDir)
+	require.NoError(t.T(), err, "Failed to clean up primary mount root directory")
+	if t.cfg.isDualMount {
+		err := os.RemoveAll(t.secondaryMount.rootDir)
+		require.NoError(t.T(), err, "Failed to clean up secondary mount root directory")
 	}
 }
 
@@ -135,6 +153,7 @@ func (t *BaseSuite) createUnfinalizedObject() {
 	t.fileName = fileNamePrefix + setup.GenerateRandomString(5)
 	t.fileContent = setup.GenerateRandomString(unfinalizedObjectSize)
 	client.CreateUnfinalizedObject(ctx, t.T(), storageClient, path.Join(testDirName, t.fileName), t.fileContent)
+	time.Sleep(time.Minute) // Sleep for a minute so that stat returns correct object size.
 }
 
 func (t *BaseSuite) deleteUnfinalizedObject() {
@@ -143,13 +162,6 @@ func (t *BaseSuite) deleteUnfinalizedObject() {
 		require.NoError(t.T(), err)
 		t.fileName = ""
 	}
-}
-
-func (t *BaseSuite) getAppendPath() string {
-	if t.cfg.isDualMount {
-		return t.secondaryMount.testDirPath
-	}
-	return t.primaryMount.testDirPath
 }
 
 func (t *BaseSuite) appendToFile(file *os.File, appendContent string) {
