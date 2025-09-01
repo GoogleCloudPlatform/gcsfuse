@@ -160,8 +160,8 @@ func (testSuite *MountTimeoutTest) mountOrTimeout(bucketName, clientProtocol str
 	}()
 
 	// Iterating 10 times to account for randomness in time taken to mount.
-	args := []string{"--client-protocol", clientProtocol, "--log-file=" + logFile, bucketName, testSuite.dir}
-	for i := 0; i < iterations; i++ {
+	args := []string{"--client-protocol", clientProtocol, "--log-severity=trace", "--log-file=" + logFile, bucketName, testSuite.dir}
+	for i := range iterations {
 		start := time.Now()
 		if err = mounting.MountGcsfuse(testSuite.gcsfusePath, args); err != nil {
 			err = fmt.Errorf("mount failed for bucket %q (client protocol: %s) on attempt#%v: %w", bucketName, clientProtocol, i, err)
