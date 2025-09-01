@@ -65,6 +65,18 @@ func (b *ExponentialBackoff) nextDuration() time.Duration {
 // This is similar to how gax-retries backoff after each failed retry.
 func (b *ExponentialBackoff) WaitWithJitter(ctx context.Context) error {
 	nextDuration := b.nextDuration()
+	if nextDuration <= 0 {
+		// Avoid a panic from rand.Int63n if the duration is not positive.
+		// We still check for context cancellation before returning to avoid a busy-loop
+		// if the context is already cancelled.
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			return nil
+		}
+	}
+
 	jitteryBackoffDuration := time.Duration(1 + rand.Int63n(int64(nextDuration)))
 	select {
 	case <-time.After(jitteryBackoffDuration):
