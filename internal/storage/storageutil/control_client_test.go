@@ -41,7 +41,7 @@ func (testSuite *ControlClientTest) TestStorageControlClient() {
 	var clientOpts []option.ClientOption
 	clientOpts = append(clientOpts, option.WithoutAuthentication())
 
-	controlClient, err := CreateGRPCControlClient(context.Background(), clientOpts)
+	controlClient, err := CreateGRPCControlClient(context.Background(), clientOpts, true)
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), controlClient)
