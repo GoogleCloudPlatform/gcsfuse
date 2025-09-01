@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -42,6 +43,35 @@ var (
 	ctx               context.Context
 	FiveHundredMBFile = "fiveHundredMBFile" + setup.GenerateRandomString(5) + ".txt"
 )
+
+// AddCacheDirToFlags iterates over a set of flag slices and updates any empty "--cache-dir" flags.
+func AddCacheDirToFlags(flagSets [][]string) [][]string {
+	var updatedFlagSets [][]string
+
+	// The regex explicitly looks for "--cache-dir=" followed by optional whitespace (\s*)
+	// and then either another space or the end of the line ($).
+	// This ensures that it will not match flags that already have a value.
+	re := regexp.MustCompile(`--cache-dir=\s*(\s|$)`)
+
+	for _, flags := range flagSets {
+		var updatedFlags []string
+		for _, flag := range flags {
+			// Check if the flag string contains the specific pattern.
+			if re.MatchString(flag) {
+				newCacheDir := fmt.Sprintf("--cache-dir=%s/cache-dir-read-large-files-%s", os.TempDir(), setup.GenerateRandomString(4))
+
+				// Replace the matched pattern with the new, complete flag.
+				updatedFlag := re.ReplaceAllString(flag, newCacheDir)
+				updatedFlags = append(updatedFlags, updatedFlag)
+			} else {
+				// If no match is found, keep the flag as it is.
+				updatedFlags = append(updatedFlags, flag)
+			}
+		}
+		updatedFlagSets = append(updatedFlagSets, updatedFlags)
+	}
+	return updatedFlagSets
+}
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
@@ -69,8 +99,6 @@ func TestMain(m *testing.M) {
 		cfg.ReadLargeFiles[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
 
-	setup.CheckAndPopulateCacheDir(&cfg.ReadLargeFiles, "read-large-files")
-
 	ctx = context.Background()
 	bucketType := setup.BucketTestEnvironment(ctx, cfg.ReadLargeFiles[0].TestBucket)
 
@@ -92,6 +120,7 @@ func TestMain(m *testing.M) {
 	// Run tests for testBucket.
 	// 4. Build the flag sets dynamically from the config.
 	flags := setup.BuildFlagSets(cfg.ReadLargeFiles[0], bucketType)
+	flags = AddCacheDirToFlags(flags)
 
 	setup.SetUpTestDirForTestBucket(cfg.ReadLargeFiles[0].TestBucket)
 
