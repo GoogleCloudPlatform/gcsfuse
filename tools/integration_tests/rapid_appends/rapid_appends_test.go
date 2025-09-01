@@ -35,7 +35,7 @@ const (
 	contentSizeForBW = 3
 	// Block size for buffered-writes.
 	blockSize            = operations.OneMiB
-	metadataCacheTTLSecs = 10
+	metadataCacheTTLSecs = 60
 	FileOpenModeRplus    = os.O_RDWR
 	FileOpenModeA        = os.O_APPEND | os.O_WRONLY
 )

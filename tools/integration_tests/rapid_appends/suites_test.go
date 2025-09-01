@@ -164,6 +164,13 @@ func (t *BaseSuite) deleteUnfinalizedObject() {
 	}
 }
 
+func (t *BaseSuite) getAppendPath() string {
+	if t.cfg.isDualMount {
+		return t.secondaryMount.testDirPath
+	}
+	return t.primaryMount.testDirPath
+}
+
 func (t *BaseSuite) appendToFile(file *os.File, appendContent string) {
 	t.T().Helper()
 	n, err := file.WriteString(appendContent)
