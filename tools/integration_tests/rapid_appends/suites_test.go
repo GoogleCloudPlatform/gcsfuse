@@ -70,7 +70,7 @@ func (t *BaseSuite) SetupTest() {
 		cacheDir := getNewEmptyCacheDir(t.primaryMount.rootDir)
 		primaryFlags = append(primaryFlags, "--file-cache-max-size-mb=-1", "--cache-dir="+cacheDir)
 	}
-	if t.cfg.metadataCacheOnRead {
+	if t.cfg.metadataCacheEnabled {
 		primaryFlags = append(primaryFlags, fmt.Sprintf("--metadata-cache-ttl-secs=%v", metadataCacheTTLSecs))
 	} else {
 		primaryFlags = append(primaryFlags, "--metadata-cache-ttl-secs=0")
@@ -84,15 +84,22 @@ func (t *BaseSuite) SetupTest() {
 }
 
 func (t *BaseSuite) TearDownTest() {
+	if t.T().Failed() {
+		// Save logs for both mounts on failure to aid debugging.
+		setup.SaveLogFileAsArtifact(t.primaryMount.logFilePath, "gcsfuse-primary-log-"+t.T().Name())
+		if t.cfg.isDualMount {
+			setup.SaveLogFileAsArtifact(t.secondaryMount.logFilePath, "gcsfuse-secondary-log-"+t.T().Name())
+		}
+	}
 	t.unmountPrimaryMount()
 	if t.cfg.isDualMount {
 		t.unmountSecondaryMount()
 	}
 }
 
-////////////////////////////////////////////////////////////////////////
-// Helpers
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
+// General Helpers
+// //////////////////////////////////////////////////////////////////////
 
 func (mnt *mountPoint) setupTestDir() {
 	setup.SetUpTestDirForTestBucketFlag()

@@ -16,7 +16,6 @@ package rapid_appends
 
 import (
 	"math/rand/v2"
-	"os"
 	"path"
 	"syscall"
 	"testing"
@@ -73,46 +72,46 @@ func readRandomlyAndVerify(t *testing.T, filePath string, expectedContent []byte
 	}
 }
 
-////////////////////////////////////////////////////////////////////////
-// Tests
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
+// Tests for the ReadsTestSuite
+// //////////////////////////////////////////////////////////////////////
 
 // runAppendAndReadTest contains the core test logic for the ReadsTestSuite.
 func (t *ReadsTestSuite) runAppendAndReadTest(verifyFunc readAndVerifyFunc) {
 	t.createUnfinalizedObject()
 	defer t.deleteUnfinalizedObject()
 
-	appendPath := path.Join(s.getAppendPath(), s.fileName)
-	appendFileHandle := operations.OpenFileInMode(s.T(), appendPath, os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
-	defer operations.CloseFileShouldNotThrowError(s.T(), appendFileHandle)
+	appendPath := path.Join(t.getAppendPath(), t.fileName)
+	appendFileHandle := operations.OpenFileInMode(t.T(), appendPath, FileOpenModeA|syscall.O_DIRECT)
+	defer operations.CloseFileShouldNotThrowError(t.T(), appendFileHandle)
 
-	readPath := path.Join(s.primaryMount.testDirPath, s.fileName)
-	for i := 0; i < numAppends; i++ {
-		sizeBeforeAppend := len(s.fileContent)
-		s.appendToFile(appendFileHandle, setup.GenerateRandomString(appendSize))
-		sizeAfterAppend := len(s.fileContent)
+	readPath := path.Join(t.primaryMount.testDirPath, t.fileName)
+	for i := range numAppends {
+		sizeBeforeAppend := len(t.fileContent)
+		t.appendToFile(appendFileHandle, setup.GenerateRandomString(appendSize))
+		sizeAfterAppend := len(t.fileContent)
 
 		// If metadata cache is enabled, gcsfuse reads up to the cached file size.
 		// The initial read (i=0) bypasses cache, seeing the latest file size.
-		if !s.cfg.metadataCacheOnRead || !s.cfg.isDualMount || (i == 0) {
+		if !t.cfg.metadataCacheEnabled || !t.cfg.isDualMount || (i == 0) {
 			time.Sleep(time.Minute)
-			verifyFunc(s.T(), readPath, []byte(s.fileContent[:sizeAfterAppend]))
+			verifyFunc(t.T(), readPath, []byte(t.fileContent[:sizeAfterAppend]))
 		} else {
 			// Read only up to the cached file size (before append).
-			tc.readAndVerify(t.T(), readPath, []byte(t.fileContent[:sizeBeforeAppend]))
+			verifyFunc(t.T(), readPath, []byte(t.fileContent[:sizeBeforeAppend]))
 
 			// Wait for metadata cache to expire to fetch the latest size for the next read.
 			time.Sleep(time.Duration(metadataCacheTTLSecs) * time.Second)
 			// Expect read up to the latest file size which is the size after the append.
-			tc.readAndVerify(t.T(), readPath, []byte(t.fileContent[:sizeAfterAppend]))
+			verifyFunc(t.T(), readPath, []byte(t.fileContent[:sizeAfterAppend]))
 		}
 	}
 }
 
-func (s *ReadsTestSuite) TestSequentialRead() {
-	s.runAppendAndReadTest(readSequentiallyAndVerify)
+func (t *ReadsTestSuite) TestSequentialRead() {
+	t.runAppendAndReadTest(readSequentiallyAndVerify)
 }
 
-func (s *ReadsTestSuite) TestRandomRead() {
-	s.runAppendAndReadTest(readRandomlyAndVerify)
+func (t *ReadsTestSuite) TestRandomRead() {
+	t.runAppendAndReadTest(readRandomlyAndVerify)
 }
