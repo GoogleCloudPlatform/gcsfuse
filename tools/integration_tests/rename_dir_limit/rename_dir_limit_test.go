@@ -62,16 +62,15 @@ func TestMain(m *testing.M) {
 		cfg.RenameDirLimit[0].MountedDirectory = setup.MountedDirectory()
 		cfg.RenameDirLimit[0].Configs = make([]test_suite.ConfigItem, 2)
 		cfg.RenameDirLimit[0].Configs[0].Flags = []string{
-			"--rename-dir-limit=3 --implicit-dirs",
 			"--rename-dir-limit=3 --implicit-dirs --client-protocol=grpc",
 			"--rename-dir-limit=3",
 			"--rename-dir-limit=3 --client-protocol=grpc",
 		}
-		cfg.RenameDirLimit[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": true}
+		cfg.RenameDirLimit[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
 		cfg.RenameDirLimit[0].Configs[1].Flags = []string{
-			"--enable-hns=true",
+			"",
 		}
-		cfg.RenameDirLimit[0].Configs[1].Compatible = map[string]bool{"flat": false, "hns": true, "zonal": false}
+		cfg.RenameDirLimit[0].Configs[1].Compatible = map[string]bool{"flat": false, "hns": true, "zonal": true}
 	}
 
 	setup.SetBucketFromConfigFile(cfg.RenameDirLimit[0].TestBucket)
@@ -91,11 +90,6 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 	defer storageClient.Close()
-
-	if setup.TestBucket() == "" && setup.MountedDirectory() != "" {
-		log.Print("Please pass the name of bucket mounted at mountedDirectory to --testBucket flag.")
-		os.Exit(1)
-	}
 
 	// 4. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	if cfg.RenameDirLimit[0].MountedDirectory != "" && cfg.RenameDirLimit[0].TestBucket != "" {
