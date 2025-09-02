@@ -36,7 +36,7 @@ type StreamingWritesEmptyGCSObjectTest struct {
 func (t *StreamingWritesEmptyGCSObjectTest) SetupSuite() {
 	t.serverCfg.NewConfig = &cfg.Config{
 		Write: cfg.WriteConfig{
-			BlockSizeMb:           10,
+			BlockSizeMb:           1,
 			CreateEmptyFile:       false,
 			EnableStreamingWrites: true,
 			GlobalMaxBlocks:       20,

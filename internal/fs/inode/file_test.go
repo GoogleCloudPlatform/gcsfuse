@@ -1891,7 +1891,7 @@ func (t *FileTest) TestRegisterFileHandle() {
 func getWriteConfig() *cfg.WriteConfig {
 	return &cfg.WriteConfig{
 		MaxBlocksPerFile:      10,
-		BlockSizeMb:           10,
+		BlockSizeMb:           1,
 		EnableStreamingWrites: true,
 	}
 }
@@ -1899,7 +1899,7 @@ func getWriteConfig() *cfg.WriteConfig {
 func getWriteConfigWithEnabledRapidAppends() *cfg.WriteConfig {
 	return &cfg.WriteConfig{
 		MaxBlocksPerFile:      10,
-		BlockSizeMb:           10,
+		BlockSizeMb:           1,
 		EnableStreamingWrites: true,
 		EnableRapidAppends:    true,
 	}
