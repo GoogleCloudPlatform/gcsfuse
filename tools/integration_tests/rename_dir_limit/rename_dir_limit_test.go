@@ -73,7 +73,7 @@ func TestMain(m *testing.M) {
 		cfg.RenameDirLimit[0].Configs[1].Compatible = map[string]bool{"flat": false, "hns": true, "zonal": true}
 	}
 
-	setup.SetBucketFromConfigFile(cfg.RenameDirLimit[0].TestBucket)
+	setup.SetTestBucket(cfg.RenameDirLimit[0].TestBucket)
 	ctx = context.Background()
 	bucketType, err := setup.BucketType(ctx, cfg.RenameDirLimit[0].TestBucket)
 	if err != nil {
