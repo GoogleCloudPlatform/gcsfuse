@@ -276,10 +276,11 @@ func TestDumpGraph_WithRanges(t *testing.T) {
 	// Verify the output contains expected elements
 	expectedElements := []string{
 		"Read Pattern: Test Sequential Read",
-		"Total ranges: 3",
+		"Total ranges added: 3",         // 3 ranges were added
+		"Final ranges (after merge): 1", // Consecutive ranges get merged into 1
 		"Max offset: 3072",
 		"Summary Statistics:",
-		"Sequential",
+		"Sequential (merged)", // Sequential ranges were merged
 	}
 
 	for _, element := range expectedElements {
@@ -288,12 +289,10 @@ func TestDumpGraph_WithRanges(t *testing.T) {
 		}
 	}
 
-	// Verify each range appears in the output
-	for i := 0; i < 3; i++ {
-		rangeMarker := strings.TrimSpace(strings.Split(output, "\n")[i+6]) // Adjust for header lines
-		if !strings.Contains(rangeMarker, "█") {
-			t.Errorf("Range %d should be visualized with █ characters", i)
-		}
+	// Verify the merged range appears in the output
+	rangeMarker := strings.TrimSpace(strings.Split(output, "\n")[7]) // Adjust for header lines (now has one more line)
+	if !strings.Contains(rangeMarker, "█") {
+		t.Errorf("Merged range should be visualized with █ characters")
 	}
 }
 
@@ -339,7 +338,7 @@ func TestAnalyzePattern(t *testing.T) {
 				{100, 200},
 				{200, 300},
 			},
-			expected: "Sequential",
+			expected: "Sequential (merged)",
 		},
 		{
 			name: "Random with gaps",
