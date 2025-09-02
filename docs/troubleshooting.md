@@ -232,3 +232,6 @@ the following operations:
   products.
 - **CreateLink:** Creates a hard link (a directory entry that associates a name with a file). GCSFuse doesn't support
   hardlinks.
+- **BatchForget:**  This is a performance optimization for batch-forgetting inodes. When this is unimplemented,
+  filesystem instead utilizes individual ForgetInode calls.
+- **SyncFS:** This is for synchronizing the entire file system's state with the backing store.
