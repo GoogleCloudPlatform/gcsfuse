@@ -15,6 +15,8 @@
 package common
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -434,5 +436,78 @@ func BenchmarkDumpGraph(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = rpv.DumpGraph()
+	}
+}
+
+func TestDumpGraphToFile(t *testing.T) {
+	// Create a temporary directory for test files
+	tempDir, err := os.MkdirTemp("", "reader_pattern_test")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	rpv := NewReadPatternVisualizerWithReader("File Test Reader")
+	rpv.SetDescription("Test File Output")
+	rpv.SetGraphWidth(40)
+
+	// Add some test ranges
+	rpv.AcceptRange(0, 1024)
+	rpv.AcceptRange(1024, 2048)
+	rpv.AcceptRange(3072, 4096) // Gap to avoid complete merge
+
+	// Test writing to file
+	testFile := filepath.Join(tempDir, "test_output.txt")
+	err = rpv.DumpGraphToFile(testFile)
+	if err != nil {
+		t.Fatalf("DumpGraphToFile() failed: %v", err)
+	}
+
+	// Verify file was created
+	if _, err := os.Stat(testFile); os.IsNotExist(err) {
+		t.Errorf("Output file was not created")
+		return
+	}
+
+	// Read the file content
+	content, err := os.ReadFile(testFile)
+	if err != nil {
+		t.Fatalf("Failed to read output file: %v", err)
+	}
+
+	// Verify the content matches what DumpGraph() would return
+	expectedContent := rpv.DumpGraph()
+	if string(content) != expectedContent {
+		t.Errorf("File content does not match DumpGraph() output")
+		t.Logf("Expected:\n%s", expectedContent)
+		t.Logf("Got:\n%s", string(content))
+	}
+
+	// Verify expected elements are in the file
+	contentStr := string(content)
+	expectedElements := []string{
+		"Reader: File Test Reader",
+		"Read Pattern: Test File Output",
+		"Total ranges added:",
+		"Final ranges (after merge):",
+		"Summary Statistics:",
+	}
+
+	for _, element := range expectedElements {
+		if !strings.Contains(contentStr, element) {
+			t.Errorf("File output missing expected element: %q", element)
+		}
+	}
+}
+
+func TestDumpGraphToFile_InvalidPath(t *testing.T) {
+	rpv := NewReadPatternVisualizer()
+	rpv.AcceptRange(0, 1024)
+
+	// Test with invalid path (directory that doesn't exist)
+	invalidPath := "/nonexistent/directory/output.txt"
+	err := rpv.DumpGraphToFile(invalidPath)
+	if err == nil {
+		t.Errorf("Expected error when writing to invalid path, got nil")
 	}
 }

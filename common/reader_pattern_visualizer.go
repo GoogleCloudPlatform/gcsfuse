@@ -16,6 +16,7 @@ package common
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 )
@@ -448,4 +449,26 @@ func (rpv *ReadPatternVisualizer) getScaleUnitAbbrev() string {
 	default:
 		return "U"
 	}
+}
+
+// DumpGraphToFile writes the visual representation of the read pattern to a file.
+// It uses the same format as DumpGraph() but writes directly to the specified file path.
+// The file will be created if it doesn't exist, or overwritten if it does exist.
+func (rpv *ReadPatternVisualizer) DumpGraphToFile(filePath string) error {
+	graphOutput := rpv.DumpGraph()
+
+	// Create or overwrite the file
+	file, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to create file %s: %w", filePath, err)
+	}
+	defer file.Close()
+
+	// Write the graph output to the file
+	_, err = file.WriteString(graphOutput)
+	if err != nil {
+		return fmt.Errorf("failed to write to file %s: %w", filePath, err)
+	}
+
+	return nil
 }
