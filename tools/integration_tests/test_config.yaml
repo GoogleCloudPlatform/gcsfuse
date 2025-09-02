@@ -110,6 +110,7 @@ readonly:
           flat: true
           hns: true
           zonal: true
+
 rename_dir_limit:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
