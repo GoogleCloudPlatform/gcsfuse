@@ -1691,6 +1691,19 @@ func (fs *fileSystem) LookUpInode(
 	parent := fs.dirInodeOrDie(op.Parent)
 	fs.mu.Unlock()
 
+	if op.Name == "invalidate.txt" {
+		child2, err := fs.lookUpOrCreateChildInode(ctx, parent, "hi.txt")
+		if err != nil {
+			return err
+		}
+
+		fmt.Println("Invalidating inode")
+		fmt.Println(child2.ID())
+		err = fs.invalidateCachedEntry(child2.ID())
+		if err != nil {
+			return err
+		}
+	}
 	// Find or create the child inode.
 	child, err := fs.lookUpOrCreateChildInode(ctx, parent, op.Name)
 	if err != nil {
