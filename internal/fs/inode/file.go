@@ -468,9 +468,12 @@ func (f *FileInode) Destroy() (err error) {
 	return
 }
 
+var count = 10
+
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Attributes(
 	ctx context.Context, clobberedCheck bool) (attrs fuseops.InodeAttributes, err error) {
+
 	attrs = f.attrs
 	// Obtain default information from the source object.
 	attrs.Mtime = f.src.Updated
@@ -513,6 +516,12 @@ func (f *FileInode) Attributes(
 		writeFileInfo := f.bwh.WriteFileInfo()
 		attrs.Mtime = writeFileInfo.Mtime
 		attrs.Size = uint64(writeFileInfo.TotalSize)
+	}
+
+	if f.name.objectName == "hi.txt" {
+		attrs.Size += uint64(count)
+		fmt.Println(attrs.Size)
+		count++
 	}
 
 	// We require only that atime and ctime be "reasonable".
