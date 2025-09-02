@@ -357,20 +357,22 @@ func storageControlClientGaxRetryOptions(clientConfig *storageutil.StorageClient
 	}
 }
 
-func withGaxRetriesForFolderAPIs(rawControlClientWithoutGaxRetries *control.StorageControlClient,
-	clientConfig *storageutil.StorageClientConfig) *control.StorageControlClient {
-	if rawControlClientWithoutGaxRetries == nil || clientConfig == nil {
-		return rawControlClientWithoutGaxRetries
+// addGaxRetriesForFolderAPIs updates the passed raw control client
+// to add gax retries according to the given config in-place.
+func addGaxRetriesForFolderAPIs(rawControlClient *control.StorageControlClient,
+	clientConfig *storageutil.StorageClientConfig) error {
+	if rawControlClient == nil || clientConfig == nil {
+		return fmt.Errorf("invalid input: %v, %v", rawControlClient, clientConfig)
+	}
+	if rawControlClient.CallOptions == nil {
+		return fmt.Errorf("cannot apply gax retries for folder APIs to raw control client: CallOptions is nil")
 	}
 
-	// Create a copy of passed rawControlClientWithoutGaxRetries.
-	rawControlClientWithGaxRetries := *rawControlClientWithoutGaxRetries
-	rawControlClientWithGaxRetries.CallOptions = &control.StorageControlCallOptions{}
-
+	*rawControlClient.CallOptions = control.StorageControlCallOptions{}
 	gaxRetryOptions := storageControlClientGaxRetryOptions(clientConfig)
-	rawControlClientWithGaxRetries.CallOptions.RenameFolder = gaxRetryOptions
-	rawControlClientWithGaxRetries.CallOptions.GetFolder = gaxRetryOptions
-	rawControlClientWithGaxRetries.CallOptions.CreateFolder = gaxRetryOptions
-	rawControlClientWithGaxRetries.CallOptions.DeleteFolder = gaxRetryOptions
-	return &rawControlClientWithGaxRetries
+	rawControlClient.CallOptions.RenameFolder = gaxRetryOptions
+	rawControlClient.CallOptions.GetFolder = gaxRetryOptions
+	rawControlClient.CallOptions.CreateFolder = gaxRetryOptions
+	rawControlClient.CallOptions.DeleteFolder = gaxRetryOptions
+	return nil
 }
