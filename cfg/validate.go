@@ -17,7 +17,6 @@ package cfg
 import (
 	"errors"
 	"fmt"
-	"log"
 	"math"
 	"regexp"
 
@@ -30,9 +29,9 @@ const (
 	ParallelDownloadsPerFileInvalidValueError = "the value of parallel-downloads-per-file for file-cache can't be less than 1"
 	DownloadChunkSizeMBInvalidValueError      = "the value of download-chunk-size-mb for file-cache can't be less than 1"
 	MaxParallelDownloadsCantBeZeroError       = "the value of max-parallel-downloads for file-cache must not be 0 when enable-parallel-downloads is true"
-	OptimizeProfileAIMLTraining               = "aiml-training"
-	OptimizeProfileAIMLServing                = "aiml-serving"
-	OptimizeProfileAIMLCheckpointing          = "aiml-checkpointing"
+	ProfileAIMLTraining                       = "aiml-training"
+	ProfileAIMLServing                        = "aiml-serving"
+	ProfileAIMLCheckpointing                  = "aiml-checkpointing"
 )
 
 func isValidLogRotateConfig(config *LogRotateLoggingConfig) error {
@@ -254,16 +253,16 @@ func isValidBufferedReadConfig(rc *ReadConfig) error {
 }
 
 func isValidOptimizationProfile(config *Config) error {
-	if config.OptimizeProfile == "" {
+	if config.Profile == "" {
 		return nil
 	}
 
-	switch config.OptimizeProfile {
-	case OptimizeProfileAIMLServing, OptimizeProfileAIMLCheckpointing, OptimizeProfileAIMLTraining:
-		// TODO: This warning log is temporary. Remove it when support for optimize-profile is available.
-		log.Printf("Warning: optimize-profile is not implemented yet. Ignoring optimize-profile %q\n", config.OptimizeProfile)
+	switch config.Profile {
+	case ProfileAIMLServing, ProfileAIMLCheckpointing, ProfileAIMLTraining:
+		// TODO: This warning log is temporary. Remove it when support for profile is available.
+		//log.Printf("Warning: profile is not implemented yet. Ignoring profile %q\n", config.Profile)
 	default:
-		return fmt.Errorf("Unknown optimize-profile: %q", config.OptimizeProfile)
+		return fmt.Errorf("Unknown profile: %q", config.Profile)
 	}
 
 	return nil

@@ -699,10 +699,10 @@
   usage: "Mount only a specific directory within the bucket. See docs/mounting for more information"
   default: ""
 
-- config-path: "optimize-profile"
-  flag-name: "optimize-profile"
+- config-path: "profile"
+  flag-name: "profile"
   type: "string"
-  usage: "The name of the optimization profile to apply. e.g. aiml-training, aiml-serving, aiml-checkpointing"
+  usage: "The name of the profile to apply. e.g. aiml-training, aiml-serving, aiml-checkpointing"
   default: ""
   hide-flag: true
 

@@ -68,7 +68,7 @@ type Config struct {
 
 	OnlyDir string `yaml:"only-dir"`
 
-	OptimizeProfile string `yaml:"optimize-profile"`
+	Profile string `yaml:"profile"`
 
 	Profiling ProfilingConfig `yaml:"profiling"`
 
@@ -597,15 +597,15 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("only-dir", "", "", "Mount only a specific directory within the bucket. See docs/mounting for more information")
 
-	flagSet.StringP("optimize-profile", "", "", "The name of the optimization profile to apply. e.g. aiml-training, aiml-serving, aiml-checkpointing")
-
-	if err := flagSet.MarkHidden("optimize-profile"); err != nil {
-		return err
-	}
-
 	flagSet.BoolP("precondition-errors", "", true, "Throw Stale NFS file handle error in case the object being synced or read from is modified by some other concurrent process. This helps prevent silent data loss or data corruption.")
 
 	if err := flagSet.MarkHidden("precondition-errors"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("profile", "", "", "The name of the profile to apply. e.g. aiml-training, aiml-serving, aiml-checkpointing")
+
+	if err := flagSet.MarkHidden("profile"); err != nil {
 		return err
 	}
 
@@ -1068,11 +1068,11 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("optimize-profile", flagSet.Lookup("optimize-profile")); err != nil {
+	if err := v.BindPFlag("file-system.precondition-errors", flagSet.Lookup("precondition-errors")); err != nil {
 		return err
 	}
 
-	if err := v.BindPFlag("file-system.precondition-errors", flagSet.Lookup("precondition-errors")); err != nil {
+	if err := v.BindPFlag("profile", flagSet.Lookup("profile")); err != nil {
 		return err
 	}
 

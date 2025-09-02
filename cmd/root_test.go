@@ -971,23 +971,23 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 		},
 		{
 			name: "optimize profile with machine-type",
-			args: []string{"gcsfuse", "--optimize-profile=aiml-training", "--machine-type=machine-type-1", "abc", "pqr"},
+			args: []string{"gcsfuse", "--profile=aiml-training", "--machine-type=machine-type-1", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
-				FileSystem:      expectedDefaultFileSystemConfig,
-				OptimizeProfile: "aiml-training",
-				MachineType:     "machine-type-1",
+				FileSystem:  expectedDefaultFileSystemConfig,
+				Profile:     "aiml-training",
+				MachineType: "machine-type-1",
 			},
 		},
 		{
 			name: "optimize profile without machine-type",
-			args: []string{"gcsfuse", "--optimize-profile=aiml-serving", "abc", "pqr"},
+			args: []string{"gcsfuse", "--profile=aiml-serving", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
-				FileSystem:      expectedDefaultFileSystemConfig,
-				OptimizeProfile: "aiml-serving",
+				FileSystem: expectedDefaultFileSystemConfig,
+				Profile:    "aiml-serving",
 			},
 		},
 		{
-			name: "machine-type without optimize-profile",
+			name: "machine-type without profile",
 			args: []string{"gcsfuse", "--machine-type=machine-type-1", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem:  expectedDefaultFileSystemConfig,
@@ -998,9 +998,9 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			name: "default",
 			args: []string{"gcsfuse", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
-				FileSystem:      expectedDefaultFileSystemConfig,
-				MachineType:     "",
-				OptimizeProfile: "",
+				FileSystem:  expectedDefaultFileSystemConfig,
+				MachineType: "",
+				Profile:     "",
 			},
 		},
 	}
@@ -1020,7 +1020,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedConfig.FileSystem, gotConfig.FileSystem)
 				assert.Equal(t, tc.expectedConfig.MachineType, gotConfig.MachineType)
-				assert.Equal(t, tc.expectedConfig.OptimizeProfile, gotConfig.OptimizeProfile)
+				assert.Equal(t, tc.expectedConfig.Profile, gotConfig.Profile)
 			}
 		})
 	}

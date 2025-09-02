@@ -947,40 +947,40 @@ func TestValidateLogSeverityRanks(t *testing.T) {
 	}
 }
 
-func TestValidateOptimizeProfile(t *testing.T) {
+func TestValidateProfile(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
-		name            string
-		optimizeProfile string
-		wantErr         bool
+		name    string
+		profile string
+		wantErr bool
 	}{
 		{
-			name:            "empty_optimize_profile",
-			optimizeProfile: "",
-			wantErr:         false,
+			name:    "empty_profile",
+			profile: "",
+			wantErr: false,
 		}, {
-			name:            "optimize_profile_training",
-			optimizeProfile: "aiml-training",
-			wantErr:         false,
+			name:    "profile_training",
+			profile: "aiml-training",
+			wantErr: false,
 		}, {
-			name:            "optimize_profile_serving",
-			optimizeProfile: "aiml-serving",
-			wantErr:         false,
+			name:    "profile_serving",
+			profile: "aiml-serving",
+			wantErr: false,
 		}, {
-			name:            "optimize_profile_checkpointing",
-			optimizeProfile: "aiml-checkpointing",
-			wantErr:         false,
+			name:    "profile_checkpointing",
+			profile: "aiml-checkpointing",
+			wantErr: false,
 		}, {
-			name:            "unsupported_optimize_profile",
-			optimizeProfile: "unsupported-profile",
-			wantErr:         true,
+			name:    "unsupported_profile",
+			profile: "unsupported-profile",
+			wantErr: true,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			c := validConfig(t)
-			c.OptimizeProfile = tc.optimizeProfile
+			c.Profile = tc.profile
 
 			err := ValidateConfig(&mockIsSet{}, &c)
 

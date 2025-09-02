@@ -118,13 +118,13 @@ func TestValidateConfigFile(t *testing.T) {
 			wantErr:    true,
 		},
 		{
-			name:       "invalid_optimize_profile",
-			configFile: "testdata/invalid_optimize_profile.yaml",
+			name:       "invalid_profile",
+			configFile: "testdata/invalid_profile.yaml",
 			wantErr:    true,
 		},
 		{
-			name:       "valid_optimize_profile",
-			configFile: "testdata/valid_optimize_profile.yaml",
+			name:       "valid_profile",
+			configFile: "testdata/valid_profile.yaml",
 			wantErr:    false,
 		},
 	}
@@ -160,7 +160,7 @@ func TestValidateCliFlag(t *testing.T) {
 		},
 		{
 			name:    "valid optimize-flag",
-			args:    []string{"--optimize-profile=aiml-training"},
+			args:    []string{"--profile=aiml-training"},
 			wantErr: false,
 		},
 		{
@@ -180,7 +180,7 @@ func TestValidateCliFlag(t *testing.T) {
 		},
 		{
 			name:    "invalid optimize-flag",
-			args:    []string{"--optimize-profile=unknown-profile"},
+			args:    []string{"--profile=unknown-profile"},
 			wantErr: true,
 		},
 	}
