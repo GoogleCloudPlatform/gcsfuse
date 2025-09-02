@@ -38,29 +38,58 @@ func (rr ReadRange) Length() int64 {
 
 // ReadPatternVisualizer provides utilities for tracking and visualizing read patterns.
 type ReadPatternVisualizer struct {
-	ranges      []ReadRange
-	maxOffset   int64
-	scaleUnit   int64 // Unit for scaling the graph (default: 1KB)
-	graphWidth  int   // Maximum width for the graph display
-	description string
+	ranges           []ReadRange
+	maxOffset        int64
+	scaleUnit        int64 // Unit for scaling the graph (default: 1KB)
+	graphWidth       int   // Maximum width for the graph display
+	description      string
+	readerName       string // Name of the reader
+	totalRangesAdded int    // Total number of ranges added (before merging)
 }
 
 // NewReadPatternVisualizer creates a new read pattern visualizer.
 func NewReadPatternVisualizer() *ReadPatternVisualizer {
 	return &ReadPatternVisualizer{
-		ranges:     make([]ReadRange, 0),
-		scaleUnit:  1024, // 1KB default scale
-		graphWidth: 100,  // 100 characters width
+		ranges:           make([]ReadRange, 0),
+		scaleUnit:        1024, // 1KB default scale
+		graphWidth:       100,  // 100 characters width
+		readerName:       "",
+		totalRangesAdded: 0,
+	}
+}
+
+// NewReadPatternVisualizerWithReader creates a new read pattern visualizer with reader name.
+func NewReadPatternVisualizerWithReader(readerName string) *ReadPatternVisualizer {
+	return &ReadPatternVisualizer{
+		ranges:           make([]ReadRange, 0),
+		scaleUnit:        1024, // 1KB default scale
+		graphWidth:       100,  // 100 characters width
+		readerName:       readerName,
+		totalRangesAdded: 0,
 	}
 }
 
 // NewReadPatternVisualizerWithConfig creates a new read pattern visualizer with custom configuration.
 func NewReadPatternVisualizerWithConfig(scaleUnit int64, graphWidth int, description string) *ReadPatternVisualizer {
 	return &ReadPatternVisualizer{
-		ranges:      make([]ReadRange, 0),
-		scaleUnit:   scaleUnit,
-		graphWidth:  graphWidth,
-		description: description,
+		ranges:           make([]ReadRange, 0),
+		scaleUnit:        scaleUnit,
+		graphWidth:       graphWidth,
+		description:      description,
+		readerName:       "",
+		totalRangesAdded: 0,
+	}
+}
+
+// NewReadPatternVisualizerWithFullConfig creates a new read pattern visualizer with full configuration.
+func NewReadPatternVisualizerWithFullConfig(scaleUnit int64, graphWidth int, description string, readerName string) *ReadPatternVisualizer {
+	return &ReadPatternVisualizer{
+		ranges:           make([]ReadRange, 0),
+		scaleUnit:        scaleUnit,
+		graphWidth:       graphWidth,
+		description:      description,
+		readerName:       readerName,
+		totalRangesAdded: 0,
 	}
 }
 
@@ -72,6 +101,9 @@ func (rpv *ReadPatternVisualizer) AcceptRange(start, end int64) {
 	if start < 0 || end <= start {
 		return // Invalid range, ignore
 	}
+
+	// Increment total ranges added counter
+	rpv.totalRangesAdded++
 
 	newRange := ReadRange{
 		Start: start,
@@ -143,6 +175,7 @@ func (rpv *ReadPatternVisualizer) GetMaxOffset() int64 {
 func (rpv *ReadPatternVisualizer) Reset() {
 	rpv.ranges = rpv.ranges[:0]
 	rpv.maxOffset = 0
+	rpv.totalRangesAdded = 0
 }
 
 // SetScaleUnit sets the unit for scaling the graph display.
@@ -164,6 +197,11 @@ func (rpv *ReadPatternVisualizer) SetDescription(desc string) {
 	rpv.description = desc
 }
 
+// SetReaderName sets the name of the reader for the read pattern.
+func (rpv *ReadPatternVisualizer) SetReaderName(name string) {
+	rpv.readerName = name
+}
+
 // DumpGraph generates and returns a visual representation of the read pattern.
 // The graph shows:
 // - X axis: file offsets (0 to max offset)
@@ -179,10 +217,14 @@ func (rpv *ReadPatternVisualizer) DumpGraph() string {
 	var result strings.Builder
 
 	// Add header information
+	if rpv.readerName != "" {
+		result.WriteString(fmt.Sprintf("Reader: %s\n", rpv.readerName))
+	}
 	if rpv.description != "" {
 		result.WriteString(fmt.Sprintf("Read Pattern: %s\n", rpv.description))
 	}
-	result.WriteString(fmt.Sprintf("Total ranges: %d\n", len(rpv.ranges)))
+	result.WriteString(fmt.Sprintf("Total ranges added: %d\n", rpv.totalRangesAdded))
+	result.WriteString(fmt.Sprintf("Final ranges (after merge): %d\n", len(rpv.ranges)))
 	result.WriteString(fmt.Sprintf("Max offset: %d bytes (%.2f %s)\n",
 		rpv.maxOffset,
 		float64(rpv.maxOffset)/float64(rpv.scaleUnit),
@@ -327,6 +369,12 @@ func (rpv *ReadPatternVisualizer) generateSummary() string {
 
 // analyzePattern provides basic analysis of the read pattern.
 func (rpv *ReadPatternVisualizer) analyzePattern() string {
+	// Special case: if we have only one range but multiple ranges were added,
+	// it likely means sequential ranges were merged
+	if len(rpv.ranges) == 1 && rpv.totalRangesAdded > 1 {
+		return "Sequential (merged)"
+	}
+
 	if len(rpv.ranges) <= 1 {
 		return "Insufficient data"
 	}
