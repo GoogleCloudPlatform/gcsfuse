@@ -110,3 +110,24 @@ readonly:
           flat: true
           hns: true
           zonal: true
+
+rename_dir_limit:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    log_file: # Optional
+    run_on_gke: false
+    configs:
+      - flags:
+          - "--rename-dir-limit=3 --implicit-dirs --client-protocol=grpc"
+          - "--rename-dir-limit=3"
+          - "--rename-dir-limit=3 --client-protocol=grpc"
+        compatible:
+          flat: true
+          hns: false
+          zonal: false
+      - flags: 
+        - ""
+        compatible:
+          flat: false
+          hns: true
+          zonal: true
