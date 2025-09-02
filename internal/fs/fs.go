@@ -1724,6 +1724,7 @@ func (fs *fileSystem) LookUpInode(
 		return err
 	}
 
+	fmt.Println(e.Attributes)
 	return
 }
 
