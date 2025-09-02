@@ -34,8 +34,8 @@ func CreateGRPCControlClient(ctx context.Context, clientOpts []option.ClientOpti
 		return nil, fmt.Errorf("NewStorageControlClient: %w", err)
 	}
 
-	if disableDefaultGaxRetries {
-		// Removing default gax retry options.
+	// Remove default gax retry options if requested.
+	if disableDefaultGaxRetries && controlClient.CallOptions != nil {
 		*controlClient.CallOptions = control.StorageControlCallOptions{}
 	}
 
