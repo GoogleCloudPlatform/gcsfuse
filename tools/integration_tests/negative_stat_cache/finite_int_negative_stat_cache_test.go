@@ -33,11 +33,11 @@ type finiteNegativeStatCacheTest struct {
 	suite.Suite
 }
 
-func (s *finiteNegativeStatCacheTest) Setup() {
+func (s *finiteNegativeStatCacheTest) SetupTest() {
 	mountGCSFuseAndSetupTestDir(s.flags, testDirName)
 }
 
-func (s *finiteNegativeStatCacheTest) Teardown() {
+func (s *finiteNegativeStatCacheTest) TearDownTest() {
 	setup.UnmountGCSFuse(testEnv.rootDir)
 }
 
