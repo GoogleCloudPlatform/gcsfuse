@@ -40,7 +40,7 @@ type staleFileHandleStreamingWritesCommon struct {
 func (t *staleFileHandleStreamingWritesCommon) SetupSuite() {
 	serverCfg := commonServerConfig()
 	serverCfg.Write.EnableStreamingWrites = true
-	serverCfg.Write.BlockSizeMb = operations.MiB
+	serverCfg.Write.BlockSizeMb = 1
 	serverCfg.Write.MaxBlocksPerFile = 1
 	serverCfg.Write.GlobalMaxBlocks = math.MaxInt
 

@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path"
 	"reflect"
@@ -1293,7 +1294,7 @@ func (t *DirectoryTest) CreateHardLink() {
 	err = os.Link(
 		path.Join(mntDir, "foo"),
 		path.Join(mntDir, "bar"))
-
+	log.Println("err:", err)
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("not implemented")))
 }
