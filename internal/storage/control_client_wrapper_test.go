@@ -775,7 +775,7 @@ func (t *ExponentialBackoffTest) TestWaitWithJitter_ContextCancelled() {
 }
 
 func (t *ExponentialBackoffTest) TestWaitWithJitter_NoContextCancelled() {
-	initial := 1000 * time.Microsecond // A short duration to ensure it waits. Making it any shorter can cause random failures
+	initial := time.Millisecond // A short duration to ensure it waits. Making it any shorter can cause random failures
 	// because context cancel itself takes about a millisecond.
 	max := 5 * initial
 	b := newExponentialBackoff(&exponentialBackoffConfig{
@@ -815,64 +815,42 @@ func (testSuite *ControlClientGaxRetryWrapperTest) TestStorageControlClientGaxRe
 	require.Len(testSuite.T(), gaxOpts, 2)
 }
 
-func (testSuite *ControlClientGaxRetryWrapperTest) TestWithGaxRetriesForFolderAPIs_NilRawControlClient() {
+func (testSuite *ControlClientGaxRetryWrapperTest) TestAddGaxRetriesForFolderAPIs_NilRawControlClient() {
 	// Arrange
 	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
 
 	// Act
-	result := withGaxRetriesForFolderAPIs(nil, &clientConfig)
+	err := addGaxRetriesForFolderAPIs(nil, &clientConfig)
 
 	// Assert
-	require.Nil(testSuite.T(), result)
+	require.Error(testSuite.T(), err)
 }
 
-func (testSuite *ControlClientGaxRetryWrapperTest) TestWithGaxRetriesForFolderAPIs_NilClientConfig() {
+func (testSuite *ControlClientGaxRetryWrapperTest) TestAddGaxRetriesForFolderAPIs_NilClientConfig() {
 	// Arrange
 	rawClient := &control.StorageControlClient{}
 
 	// Act
-	result := withGaxRetriesForFolderAPIs(rawClient, nil)
+	err := addGaxRetriesForFolderAPIs(rawClient, nil)
 
 	// Assert
-	require.Equal(testSuite.T(), rawClient, result)
+	require.Error(testSuite.T(), err)
 }
 
-func (testSuite *ControlClientGaxRetryWrapperTest) TestWithGaxRetriesForFolderAPIs_ReturnsNewClient() {
+func (testSuite *ControlClientGaxRetryWrapperTest) TestAddGaxRetriesForFolderAPIs_AppliesGaxOptions() {
 	// Arrange
-	rawClient := &control.StorageControlClient{}
+	rawControlClient := &control.StorageControlClient{CallOptions: &control.StorageControlCallOptions{}}
 	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
 
 	// Act
-	result := withGaxRetriesForFolderAPIs(rawClient, &clientConfig)
+	err := addGaxRetriesForFolderAPIs(rawControlClient, &clientConfig)
 
 	// Assert
-	require.NotNil(testSuite.T(), result)
-	assert.NotSame(testSuite.T(), rawClient, result)
-	require.NotNil(testSuite.T(), result.CallOptions)
-	assert.NotSame(testSuite.T(), rawClient.CallOptions, result.CallOptions) // Should be a new CallOptions object
-	assert.Nil(testSuite.T(), result.CallOptions.GetStorageLayout)           // GetStorageLayout should not have GAX retries applied
-	assert.NotNil(testSuite.T(), result.CallOptions.DeleteFolder)            // DeleteFolder should have GAX retries applied
-	assert.NotNil(testSuite.T(), result.CallOptions.GetFolder)               // GetFolder should have GAX retries applied
-	assert.NotNil(testSuite.T(), result.CallOptions.CreateFolder)            // CreateFolder should have GAX retries applied
-	assert.NotNil(testSuite.T(), result.CallOptions.RenameFolder)            // RenameFolder should have GAX retries applied
-}
-
-func (testSuite *ControlClientGaxRetryWrapperTest) TestWithGaxRetriesForFolderAPIs_AppliesGaxOptions() {
-	// Arrange
-	rawClient := &control.StorageControlClient{}
-	clientConfig := storageutil.GetDefaultStorageClientConfig(keyFile)
-
-	// Act
-	result := withGaxRetriesForFolderAPIs(rawClient, &clientConfig)
-
-	// Assert
-	require.NotNil(testSuite.T(), result.CallOptions.RenameFolder)
-	assert.NotNil(testSuite.T(), result.CallOptions.GetFolder)
-	require.NotNil(testSuite.T(), result.CallOptions.CreateFolder)
-	assert.NotNil(testSuite.T(), result.CallOptions.DeleteFolder)
-	assert.Nil(testSuite.T(), result.CallOptions.GetStorageLayout) // GetStorageLayout should not have GAX retries applied
-	assert.NotNil(testSuite.T(), result.CallOptions.DeleteFolder)  // DeleteFolder should have GAX retries applied
-	assert.NotNil(testSuite.T(), result.CallOptions.GetFolder)     // GetFolder should have GAX retries applied
-	assert.NotNil(testSuite.T(), result.CallOptions.CreateFolder)  // CreateFolder should have GAX retries applied
-	assert.NotNil(testSuite.T(), result.CallOptions.RenameFolder)  // RenameFolder should have GAX retries applied
+	require.NoError(testSuite.T(), err)
+	require.NotNil(testSuite.T(), rawControlClient.CallOptions)
+	assert.Empty(testSuite.T(), rawControlClient.CallOptions.GetStorageLayout) // GetStorageLayout should not have GAX retries applied
+	assert.Len(testSuite.T(), rawControlClient.CallOptions.DeleteFolder, 2)    // DeleteFolder should have GAX retries applied
+	assert.Len(testSuite.T(), rawControlClient.CallOptions.GetFolder, 2)       // GetFolder should have GAX retries applied
+	assert.Len(testSuite.T(), rawControlClient.CallOptions.CreateFolder, 2)    // CreateFolder should have GAX retries applied
+	assert.Len(testSuite.T(), rawControlClient.CallOptions.RenameFolder, 2)    // RenameFolder should have GAX retries applied
 }
