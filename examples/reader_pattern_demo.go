@@ -22,13 +22,13 @@ import (
 )
 
 func main() {
-	fmt.Println("=== Read Pattern Visualizer Demo ===\n")
+	fmt.Println("=== Read Pattern Visualizer Demo ===")
 
 	// Demo 1: Sequential Reading Pattern
 	fmt.Println("Demo 1: Sequential Reading Pattern")
 	fmt.Println("-----------------------------------")
 
-	sequential := common.NewReadPatternVisualizer()
+	sequential := common.NewReadPatternVisualizerWithReader("Sequential Reader")
 	sequential.SetDescription("Sequential File Reading")
 	sequential.SetGraphWidth(60)
 	sequential.SetScaleUnit(1024) // 1KB scale
@@ -47,7 +47,7 @@ func main() {
 	fmt.Println("Demo 2: Random Access Pattern")
 	fmt.Println("------------------------------")
 
-	random := common.NewReadPatternVisualizer()
+	random := common.NewReadPatternVisualizerWithReader("Random Access Reader")
 	random.SetDescription("Random File Access")
 	random.SetGraphWidth(60)
 	random.SetScaleUnit(1024) // 1KB scale
@@ -75,7 +75,7 @@ func main() {
 	fmt.Println("Demo 3: Overlapping Reads Pattern")
 	fmt.Println("----------------------------------")
 
-	overlapping := common.NewReadPatternVisualizer()
+	overlapping := common.NewReadPatternVisualizerWithReader("Overlapping Prefetch Reader")
 	overlapping.SetDescription("Overlapping Read Operations")
 	overlapping.SetGraphWidth(80)
 	overlapping.SetScaleUnit(1024 * 1024) // 1MB scale
@@ -100,10 +100,11 @@ func main() {
 	fmt.Println("Demo 4: Large File Reading (GB scale)")
 	fmt.Println("--------------------------------------")
 
-	largefile := common.NewReadPatternVisualizerWithConfig(
+	largefile := common.NewReadPatternVisualizerWithFullConfig(
 		1024*1024*1024, // 1GB scale unit
 		50,             // narrower graph
-		"Large File Processing")
+		"Large File Processing",
+		"Large File Reader")
 
 	// Simulate reading chunks of a very large file
 	gbSize := int64(1024 * 1024 * 1024)
@@ -121,7 +122,7 @@ func main() {
 	fmt.Println("------------------------------------")
 
 	// Show how consecutive ranges get merged
-	merging := common.NewReadPatternVisualizer()
+	merging := common.NewReadPatternVisualizerWithReader("Range Merging Reader")
 	merging.SetDescription("Range Merging Example")
 	merging.SetGraphWidth(50)
 	merging.SetScaleUnit(1024) // 1KB scale
@@ -169,7 +170,7 @@ func runInteractiveDemo() {
 	fmt.Println("Enter 'done' to finish and display graph")
 	fmt.Println()
 
-	interactive := common.NewReadPatternVisualizer()
+	interactive := common.NewReadPatternVisualizerWithReader("Interactive User Reader")
 	interactive.SetDescription("User-defined Read Pattern")
 	interactive.SetGraphWidth(70)
 
