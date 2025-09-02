@@ -155,7 +155,32 @@ func main() {
 	fmt.Println(merging.DumpGraph())
 	fmt.Println()
 
-	// Demo 6: Interactive example allowing user input
+	// Demo 6: File Output Demonstration
+	fmt.Println("Demo 6: File Output Demonstration")
+	fmt.Println("----------------------------------")
+
+	fileDemo := common.NewReadPatternVisualizerWithReader("File Output Reader")
+	fileDemo.SetDescription("Demonstration of File Output Feature")
+	fileDemo.SetGraphWidth(50)
+
+	// Add some sample ranges
+	fileDemo.AcceptRange(0, 2048)
+	fileDemo.AcceptRange(4096, 6144)
+	fileDemo.AcceptRange(8192, 10240)
+
+	// Write to file
+	outputFile := "read_pattern_output.txt"
+	err := fileDemo.DumpGraphToFile(outputFile)
+	if err != nil {
+		fmt.Printf("Error writing to file: %v\n", err)
+	} else {
+		fmt.Printf("Graph successfully written to: %s\n", outputFile)
+		fmt.Println("File contents:")
+		fmt.Println(fileDemo.DumpGraph())
+	}
+	fmt.Println()
+
+	// Demo 7: Interactive example allowing user input
 	if len(os.Args) > 1 && os.Args[1] == "--interactive" {
 		runInteractiveDemo()
 	}
