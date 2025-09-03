@@ -52,8 +52,8 @@ type ReadPatternVisualizer struct {
 func NewReadPatternVisualizer() *ReadPatternVisualizer {
 	return &ReadPatternVisualizer{
 		ranges:           make([]ReadRange, 0),
-		scaleUnit:        1024, // 1KB default scale
-		graphWidth:       100,  // 100 characters width
+		scaleUnit:        4 * 1024, // 4KB default scale
+		graphWidth:       100,      // 100 characters width
 		readerName:       "",
 		totalRangesAdded: 0,
 	}
@@ -63,8 +63,8 @@ func NewReadPatternVisualizer() *ReadPatternVisualizer {
 func NewReadPatternVisualizerWithReader(readerName string) *ReadPatternVisualizer {
 	return &ReadPatternVisualizer{
 		ranges:           make([]ReadRange, 0),
-		scaleUnit:        1024, // 1KB default scale
-		graphWidth:       100,  // 100 characters width
+		scaleUnit:        4 * 1024, // 4KB default scale
+		graphWidth:       100,      // 100 characters width
 		readerName:       readerName,
 		totalRangesAdded: 0,
 	}

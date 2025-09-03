@@ -18,7 +18,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
@@ -121,11 +120,13 @@ func (fh *FileHandle) Destroy() {
 	if fh.readManager != nil {
 		fh.readManager.Destroy()
 	}
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		logger.Warnf("Unable to get home directory to dump read pattern: %v", err)
-	}
-	fh.readPatternVisualizer.DumpGraphToFile(homeDir + "/read_pattern.txt")
+	// homeDir, err := os.UserHomeDir()
+	// if err != nil {
+	// 	logger.Warnf("Unable to get home directory to dump read pattern: %v", err)
+	// }
+	// logger.Infof(fh.readPatternVisualizer.DumpGraph())
+	fmt.Println(fh.readPatternVisualizer.DumpGraph())
+	// fh.readPatternVisualizer.DumpGraphToFile(homeDir + "/read_pattern.txt")
 }
 
 // Inode returns the inode backing this handle.
