@@ -39,7 +39,7 @@ type StreamingWritesLocalFileTest struct {
 func (t *StreamingWritesLocalFileTest) SetupSuite() {
 	t.serverCfg.NewConfig = &cfg.Config{
 		Write: cfg.WriteConfig{
-			BlockSizeMb:           10,
+			BlockSizeMb:           1,
 			CreateEmptyFile:       false,
 			EnableStreamingWrites: true,
 			GlobalMaxBlocks:       20,

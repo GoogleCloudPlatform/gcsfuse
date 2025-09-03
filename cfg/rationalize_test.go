@@ -429,7 +429,7 @@ func TestRationalize_WriteConfig(t *testing.T) {
 			},
 			expectedCreateEmptyFile:  false,
 			expectedMaxBlocksPerFile: math.MaxInt16,
-			expectedBlockSizeMB:      10 * 1024 * 1024,
+			expectedBlockSizeMB:      10,
 		},
 		{
 			name: "valid_config_global_max_blocks_less_than_blocks_per_file",
@@ -444,7 +444,7 @@ func TestRationalize_WriteConfig(t *testing.T) {
 			},
 			expectedCreateEmptyFile:  false,
 			expectedMaxBlocksPerFile: 20,
-			expectedBlockSizeMB:      5 * 1024 * 1024,
+			expectedBlockSizeMB:      5,
 		},
 		{
 			name: "valid_config_global_max_blocks_more_than_blocks_per_file",
@@ -459,7 +459,7 @@ func TestRationalize_WriteConfig(t *testing.T) {
 			},
 			expectedCreateEmptyFile:  false,
 			expectedMaxBlocksPerFile: 10,
-			expectedBlockSizeMB:      64 * 1024 * 1024,
+			expectedBlockSizeMB:      64,
 		},
 	}
 

@@ -1047,7 +1047,7 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 			Object:                   latestGcsObj,
 			ObjectName:               f.name.GcsObjectName(),
 			Bucket:                   f.bucket,
-			BlockSize:                f.config.Write.BlockSizeMb,
+			BlockSize:                f.config.Write.BlockSizeMb * util.MiB,
 			MaxBlocksPerFile:         f.config.Write.MaxBlocksPerFile,
 			GlobalMaxBlocksSem:       f.globalMaxWriteBlocksSem,
 			ChunkTransferTimeoutSecs: f.config.GcsRetries.ChunkTransferTimeoutSecs,
