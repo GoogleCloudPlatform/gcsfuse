@@ -16,10 +16,13 @@ package client
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
 	"log"
+	"net/http"
+	"net/http/httptrace"
 	"os"
 	"path"
 	"reflect"
@@ -32,9 +35,13 @@ import (
 	"cloud.google.com/go/storage"
 	"cloud.google.com/go/storage/experimental"
 	"github.com/googleapis/gax-go/v2"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/iterator"
@@ -56,7 +63,94 @@ func CreateStorageClient(ctx context.Context) (client *storage.Client, err error
 		if setup.IsZonalBucketRun() {
 			client, err = storage.NewGRPCClient(ctx, experimental.WithGRPCBidiReads())
 		} else {
-			client, err = storage.NewClient(ctx)
+			clientConfig := storageutil.StorageClientConfig{
+				ClientProtocol: cfg.HTTP1,
+				//MaxConnsPerHost:     0,
+				MaxIdleConnsPerHost: 10,
+				//HttpClientTimeout:          newConfig.GcsConnection.HttpClientTimeout,
+				MaxRetrySleep:    30 * time.Second,
+				MaxRetryAttempts: 5,
+				RetryMultiplier:  2.0,
+				//UserAgent:                  userAgent,
+				//CustomEndpoint:             newConfig.GcsConnection.CustomEndpoint,
+				//KeyFile:                    string(newConfig.GcsAuth.KeyFile),
+				AnonymousAccess: false,
+				//TokenUrl:                   newConfig.GcsAuth.TokenUrl,
+				//ReuseTokenFromUrl:          newConfig.GcsAuth.ReuseTokenFromUrl,
+				//ExperimentalEnableJsonRead: newConfig.GcsConnection.ExperimentalEnableJsonRead,
+				//GrpcConnPoolSize:           int(newConfig.GcsConnection.GrpcConnPoolSize),
+				//EnableHNS:                  newConfig.EnableHns,
+				//EnableGoogleLibAuth:        newConfig.EnableGoogleLibAuth,
+				//ReadStallRetryConfig:       newConfig.GcsRetries.ReadStall,
+				//MetricHandle:               metricHandle,
+				//TracingEnabled: cfg.IsTracingEnabled(newConfig),
+			}
+			var clientOpts []option.ClientOption
+			var httpClient *http.Client
+			var err error
+			var transport *http.Transport
+			// Using http1 makes the client more performant.
+			if clientConfig.ClientProtocol == cfg.HTTP1 {
+				transport = &http.Transport{
+					Proxy:               http.ProxyFromEnvironment,
+					MaxConnsPerHost:     clientConfig.MaxConnsPerHost,
+					MaxIdleConnsPerHost: clientConfig.MaxIdleConnsPerHost,
+					// This disables HTTP/2 in transport.
+					TLSNextProto: make(
+						map[string]func(string, *tls.Conn) http.RoundTripper,
+					),
+					ForceAttemptHTTP2: false,
+				}
+			}
+
+			if clientConfig.AnonymousAccess {
+				// UserAgent will not be added if authentication is disabled.
+				// Bypassing authentication prevents the creation of an HTTP transport
+				// because it requires a token source.
+				// Setting a dummy token would conflict with the "WithoutAuthentication" option.
+				// While the "WithUserAgent" option could set a custom User-Agent, it's incompatible
+				// with the "WithHTTPClient" option, preventing the direct injection of a user agent
+				// when authentication is skipped.
+				httpClient = &http.Client{
+					Timeout: clientConfig.HttpClientTimeout,
+				}
+			} else {
+				if tokenSrc == nil {
+					// CreateTokenSource only if tokenSrc is nil, which means it wasn't provided externally.
+					// This indicates the EnableGoogleLibAuth flag is disabled.
+					tokenSrc, err = CreateTokenSource(clientConfig)
+					if err != nil {
+						err = fmt.Errorf("while fetching tokenSource: %w", err)
+						return nil, err
+					}
+				}
+
+				// Custom http client for Go Client.
+				httpClient = &http.Client{
+					Transport: &oauth2.Transport{
+						Base:   transport,
+						Source: tokenSrc,
+					},
+					Timeout: clientConfig.HttpClientTimeout,
+				}
+				// Setting UserAgent through RoundTripper middleware
+				httpClient.Transport = &userAgentRoundTripper{
+					wrapped:   httpClient.Transport,
+					UserAgent: clientConfig.UserAgent,
+				}
+
+				if clientConfig.TracingEnabled {
+					httpClient.Transport = otelhttp.NewTransport(httpClient.Transport, otelhttp.WithClientTrace(func(ctx context.Context) *httptrace.ClientTrace {
+						return otelhttptrace.NewClientTrace(ctx)
+					}), otelhttp.WithTracerProvider(otel.GetTracerProvider()))
+				}
+			}
+			clientOpts = append(clientOpts, option.WithHTTPClient(HttpClient))
+			client, err = storage.NewClient(ctx, clientOpts...)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create storage client for non-zonal bucket: %w", err)
+			}
+			return client, nil
 		}
 	}
 	if err != nil {
