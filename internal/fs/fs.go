@@ -1397,7 +1397,7 @@ func (fs *fileSystem) getAttributes(
 
 	// Set up the expiration time.
 	if fs.inodeAttributeCacheTTL > 0 {
-		expiration = time.Now().Add(fs.inodeAttributeCacheTTL)
+		expiration = time.Now().Add(time.Second * 1)
 	}
 
 	return
@@ -1717,7 +1717,7 @@ func (fs *fileSystem) LookUpInode(
 	e.Child = child.ID()
 	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
 	if fs.newConfig.FileSystem.ExperimentalEnableDentryCache {
-		e.EntryExpiration = e.AttributesExpiration
+		e.EntryExpiration = time.Now().Add(10 * time.Minute)
 	}
 
 	if err != nil {
