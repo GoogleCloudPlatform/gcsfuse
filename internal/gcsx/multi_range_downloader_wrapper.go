@@ -66,8 +66,6 @@ type MultiRangeDownloaderWrapper struct {
 	object *gcs.MinObject
 	bucket gcs.Bucket
 
-	// Refcount is used to determine when to close the MultiRangeDownloader.
-	refCount int
 	// Mutex is used to synchronize access over refCount.
 	mu sync.RWMutex
 	// Holds the cancel function, which can be called to cancel the cleanup function.
@@ -90,74 +88,6 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) SetMinObject(minObj *gcs.MinObjec
 // GetMinObject returns the minObject stored in MultiRangeDownloaderWrapper. Used only for unit testing.
 func (mrdWrapper *MultiRangeDownloaderWrapper) GetMinObject() *gcs.MinObject {
 	return mrdWrapper.object
-}
-
-// GetRefCount returns current refcount.
-func (mrdWrapper *MultiRangeDownloaderWrapper) GetRefCount() int {
-	mrdWrapper.mu.RLock()
-	defer mrdWrapper.mu.RUnlock()
-	return mrdWrapper.refCount
-}
-
-// IncrementRefCount increments the refcount and cancel any running cleanup function.
-// This method should be called exactly once per user of this wrapper.
-// It has to be called before using the MultiRangeDownloader.
-func (mrdWrapper *MultiRangeDownloaderWrapper) IncrementRefCount() {
-	mrdWrapper.mu.Lock()
-	defer mrdWrapper.mu.Unlock()
-
-	mrdWrapper.refCount++
-	if mrdWrapper.cancelCleanup != nil {
-		mrdWrapper.cancelCleanup()
-		mrdWrapper.cancelCleanup = nil
-	}
-}
-
-// DecrementRefCount decrements the refcount. In case refcount reaches 0, cleanup the MRD.
-// Returns error on invalid usage.
-// This method should be called exactly once per user of this wrapper
-// when MultiRangeDownloader is no longer needed & can be cleaned up.
-func (mrdWrapper *MultiRangeDownloaderWrapper) DecrementRefCount() (err error) {
-	mrdWrapper.mu.Lock()
-	defer mrdWrapper.mu.Unlock()
-
-	if mrdWrapper.refCount <= 0 {
-		err = fmt.Errorf("MultiRangeDownloaderWrapper DecrementRefCount: Refcount cannot be negative")
-		return
-	}
-
-	mrdWrapper.refCount--
-	if mrdWrapper.refCount == 0 && mrdWrapper.Wrapped != nil {
-		mrdWrapper.Wrapped.Close()
-		mrdWrapper.Wrapped = nil
-		// TODO (b/391508479): Start using cleanup function when MRD recreation is handled
-		// mrdWrapper.cleanupMultiRangeDownloader()
-	}
-	return
-}
-
-// Spawns a cancellable go routine to close the MRD after the timeout.
-// Always call after taking MultiRangeDownloaderWrapper's mutex lock.
-func (mrdWrapper *MultiRangeDownloaderWrapper) cleanupMultiRangeDownloader() {
-	closeMRD := func(ctx context.Context) {
-		select {
-		case <-mrdWrapper.clock.After(multiRangeDownloaderTimeout):
-			mrdWrapper.mu.Lock()
-			defer mrdWrapper.mu.Unlock()
-
-			if mrdWrapper.refCount == 0 && mrdWrapper.Wrapped != nil {
-				mrdWrapper.Wrapped.Close()
-				mrdWrapper.Wrapped = nil
-				mrdWrapper.cancelCleanup = nil
-			}
-		case <-ctx.Done():
-			return
-		}
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	mrdWrapper.cancelCleanup = cancel
-	go closeMRD(ctx)
 }
 
 // Ensures that MultiRangeDownloader exists, creating it if it does not exist.
