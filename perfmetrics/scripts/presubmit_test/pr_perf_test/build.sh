@@ -36,11 +36,6 @@ integrationTestsStr="$integrationTests"
 integrationTestsOnZBStr="$integrationTestsOnZB"
 packageBuildTestsStr="$packageBuildTests"
 checkpointTestStr="$checkpointTests"
-if [[ "$perfTestStr" != *"$EXECUTE_PERF_TEST_LABEL"*  && "$integrationTestsStr" != *"$EXECUTE_INTEGRATION_TEST_LABEL"*  && "$integrationTestsOnZBStr" != *"$EXECUTE_INTEGRATION_TEST_LABEL_ON_ZB"*  && "$packageBuildTestsStr" != *"$EXECUTE_PACKAGE_BUILD_TEST_LABEL"* && "$checkpointTestStr" != *"$EXECUTE_CHECKPOINT_TEST_LABEL"* ]]
-then
-  echo "No need to execute tests"
-  exit 0
-fi
 
 set -e
 sudo apt-get update
