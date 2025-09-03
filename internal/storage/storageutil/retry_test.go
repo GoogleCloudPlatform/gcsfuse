@@ -253,7 +253,11 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_Timeout() {
 	apiCall := func(ctx context.Context) (string, error) {
 		callCount++
 		// Simulate a call that always takes longer than the per-attempt deadline.
-		time.Sleep(stallDuration)
+		select {
+		case <-time.After(stallDuration):
+		case <-ctx.Done():
+			return "", ctx.Err()
+		}
 		return "", ctx.Err()
 	}
 
@@ -293,7 +297,11 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutSho
 	defer cancel()
 	apiCall := func(ctx context.Context) (string, error) {
 		callCount++
-		time.Sleep(stallDuration)
+		select {
+		case <-time.After(stallDuration):
+		case <-ctx.Done():
+			return "", ctx.Err()
+		}
 		// This will always fail with a retryable error.
 		return "", status.Error(codes.Unavailable, "server unavailable")
 	}
@@ -319,7 +327,11 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutBet
 	defer cancel()
 	apiCall := func(ctx context.Context) (string, error) {
 		callCount++
-		time.Sleep(stallDuration)
+		select {
+		case <-time.After(stallDuration):
+		case <-ctx.Done():
+			return "", ctx.Err()
+		}
 		// This will always fail with a retryable error.
 		return "", status.Error(codes.Unavailable, "server unavailable")
 	}
@@ -339,7 +351,11 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutLon
 	parentCtx, cancel := context.WithTimeout(context.Background(), t.retryConfig.TotalRetryBudget+100*time.Microsecond)
 	defer cancel()
 	apiCall := func(ctx context.Context) (string, error) {
-		time.Sleep(stallDuration)
+		select {
+		case <-time.After(stallDuration):
+		case <-ctx.Done():
+			return "", ctx.Err()
+		}
 		return "", status.Error(codes.Unavailable, "server unavailable")
 	}
 

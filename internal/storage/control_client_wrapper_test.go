@@ -149,15 +149,6 @@ func (t *AllApiRetryWrapperTest) SetupTest() {
 	}
 }
 
-func (t *StorageLayoutRetryWrapperTest) newHelperRetryWrapper(controlClient StorageControlClient, retryDeadline, totalRetryBudget, initialBackoff, maxRetrySleep time.Duration, backoffMultiplier float64, retryFolderAPIs bool) StorageControlClient {
-	t.T().Helper()
-	clientConfig := &storageutil.StorageClientConfig{
-		MaxRetrySleep:   maxRetrySleep,
-		RetryMultiplier: backoffMultiplier,
-	}
-	return newRetryWrapper(t.stallingClient, clientConfig, retryDeadline, totalRetryBudget, initialBackoff, retryFolderAPIs)
-}
-
 func (t *StorageLayoutRetryWrapperTest) TestGetStorageLayout_SuccessOnFirstAttempt() {
 	// Arrange
 	client := t.newHelperRetryWrapper(t.stallingClient, 100*time.Microsecond, 1000*time.Microsecond, time.Microsecond, 10*time.Microsecond, 2, false)
@@ -298,7 +289,7 @@ func (t *StorageLayoutRetryWrapperTest) TestRenameFolder_IsNotRetried() {
 	t.mockRawClient.AssertExpectations(t.T())
 }
 
-func (t *AllApiRetryWrapperTest) newHelperRetryWrapper(controlClient StorageControlClient, retryDeadline, totalRetryBudget, initialBackoff, maxRetrySleep time.Duration, backoffMultiplier float64, retryFolderAPIs bool) StorageControlClient {
+func (t *ControlClientRetryWrapperTest) newHelperRetryWrapper(controlClient StorageControlClient, retryDeadline, totalRetryBudget, initialBackoff, maxRetrySleep time.Duration, backoffMultiplier float64, retryFolderAPIs bool) StorageControlClient {
 	t.T().Helper()
 	clientConfig := &storageutil.StorageClientConfig{
 		MaxRetrySleep:   maxRetrySleep,
