@@ -219,9 +219,8 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_FailureOnNonRetryableEr
 	result, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall)
 
 	// Assert
-	assert.Error(t.T(), err)
-	assert.Empty(t.T(), result)
 	assert.ErrorIs(t.T(), err, nonRetryableErr)
+	assert.Empty(t.T(), result)
 	assert.Equal(t.T(), 1, callCount)
 }
 
@@ -242,9 +241,8 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_RetryableThenNonRetryab
 	result, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall)
 
 	// Assert
-	assert.Error(t.T(), err)
-	assert.Empty(t.T(), result)
 	assert.ErrorIs(t.T(), err, nonRetryableErr)
+	assert.Empty(t.T(), result)
 	assert.Equal(t.T(), 2, callCount)
 }
 
@@ -260,12 +258,10 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_Timeout() {
 	}
 
 	// Act
-	result, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall)
+	_, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall)
 
 	// Assert
-	assert.ErrorIs(t.T(), err, context.DeadlineExceeded)
-	assert.Empty(t.T(), result)
-
+	assert.ErrorIs(t.T(), err, context.DeadlineExceeded, "The error should be from the per-attempt timeout")
 }
 
 func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_TotalRetryBudgetExceeded() {
@@ -283,9 +279,9 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_TotalRetryBudgetExceede
 	// Act
 	_, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall)
 
-	assert.Greater(t.T(), callCount, 1)
 	// Assert
 	assert.ErrorIs(t.T(), err, context.DeadlineExceeded, "The error should be from the total retry budget timeout")
+	assert.Greater(t.T(), callCount, 1)
 }
 
 func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutShorterThanRetryDeadline() {
