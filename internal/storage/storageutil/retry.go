@@ -23,8 +23,15 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 )
 
+const (
+	// Default retry parameters.
+	DefaultRetryDeadline    = 30 * time.Second
+	DefaultTotalRetryBudget = 5 * time.Minute
+	DefaultInitialBackoff   = 1 * time.Millisecond
+)
+
 // ExponentialBackoffConfig is config parameters
-// needed to create an ExponentialBackoff.
+// needed to create an exponentialBackoff.
 type ExponentialBackoffConfig struct {
 	//Initial duration for next backoff.
 	Initial time.Duration
@@ -35,25 +42,25 @@ type ExponentialBackoffConfig struct {
 	Multiplier float64
 }
 
-// ExponentialBackoff holds the duration parameters for exponential backoff.
-type ExponentialBackoff struct {
+// exponentialBackoff holds the duration parameters for exponential backoff.
+type exponentialBackoff struct {
 	// config used to create this backoff object.
 	config ExponentialBackoffConfig
-	// Duration for next backoff. Capped at max. Returned by next().
+	// Duration for next backoff. Capped at Max. Returned by next().
 	next time.Duration
 }
 
-// NewExponentialBackoff returns a new ExponentialBackoff given
+// NewExponentialBackoff returns a new exponentialBackoff given
 // the config for it.
-func NewExponentialBackoff(config *ExponentialBackoffConfig) *ExponentialBackoff {
-	return &ExponentialBackoff{
+func NewExponentialBackoff(config *ExponentialBackoffConfig) *exponentialBackoff {
+	return &exponentialBackoff{
 		config: *config,
 		next:   config.Initial,
 	}
 }
 
 // nextDuration returns the next backoff duration.
-func (b *ExponentialBackoff) nextDuration() time.Duration {
+func (b *exponentialBackoff) nextDuration() time.Duration {
 	next := b.next
 	b.next = min(b.config.Max, time.Duration(float64(b.next)*b.config.Multiplier))
 	return next
@@ -62,7 +69,7 @@ func (b *ExponentialBackoff) nextDuration() time.Duration {
 // WaitWithJitter waits for the next backoff duration with added jitter.
 // The jitter adds randomness to the backoff duration to prevent the thundering herd problem.
 // This is similar to how gax-retries backoff after each failed retry.
-func (b *ExponentialBackoff) WaitWithJitter(ctx context.Context) error {
+func (b *exponentialBackoff) WaitWithJitter(ctx context.Context) error {
 	nextDuration := b.nextDuration()
 	if nextDuration <= 0 {
 		// Avoid a panic from rand.Int63n if the duration is not positive.
@@ -95,19 +102,34 @@ type RetryConfig struct {
 	BackoffConfig ExponentialBackoffConfig
 }
 
+// NewRetryConfig creates a new RetryConfig.
+func NewRetryConfig(clientConfig *StorageClientConfig,
+	retryDeadline,
+	totalRetryBudget,
+	initialBackoff time.Duration) *RetryConfig {
+	return &RetryConfig{
+		RetryDeadline:    retryDeadline,
+		TotalRetryBudget: totalRetryBudget,
+		BackoffConfig: ExponentialBackoffConfig{
+			Initial:    initialBackoff,
+			Max:        clientConfig.MaxRetrySleep,
+			Multiplier: clientConfig.RetryMultiplier,
+		},
+	}
+}
+
 // ExecuteWithRetry encapsulates the retry logic for control client operations.
 // It performs time-bound, exponential backoff retries for a given API call.
 // It is expected that the given apiCall returns a structure, and not an HTTP response,
 // so that it does not leave behind any trace of a pending operation on server.
 func ExecuteWithRetry[T any](
 	ctx context.Context,
-	config RetryConfig,
+	config *RetryConfig,
 	operationName string,
 	reqDescription string,
 	apiCall func(attemptCtx context.Context) (T, error),
 ) (T, error) {
 	var zero T
-
 	parentCtx, cancel := context.WithTimeout(ctx, config.TotalRetryBudget)
 	defer cancel()
 
@@ -118,7 +140,7 @@ func ExecuteWithRetry[T any](
 
 		logger.Tracef("Calling %s for %q with deadline=%v ...", operationName, reqDescription, config.RetryDeadline)
 		result, err := apiCall(attemptCtx)
-		// Cancel attemptCtx after it is no longer needed to free up its resources.
+		// Cancel attemptCtx after it is no longer needed, to free up its resources.
 		attemptCancel()
 
 		if err == nil {

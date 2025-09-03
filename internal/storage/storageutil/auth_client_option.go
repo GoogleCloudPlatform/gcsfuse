@@ -17,19 +17,11 @@ package storageutil
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"cloud.google.com/go/auth/oauth2adapt"
 	auth2 "github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
-)
-
-const (
-	// Default retry parameters for auth client calls.
-	defaultAuthClientRetryDeadline    = 30 * time.Second
-	defaultAuthClientTotalRetryBudget = 5 * time.Minute
-	defaultAuthClientInitialBackoff   = 1 * time.Millisecond
 )
 
 // GetClientAuthOptionsAndToken returns client options and a token source using either a token URL or fallback to key file/ADC.
@@ -54,10 +46,10 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 	tokenSrc := oauth2adapt.TokenSourceFromTokenProvider(cred.TokenProvider)
 
 	retryConfig := RetryConfig{
-		RetryDeadline:    defaultAuthClientRetryDeadline,
-		TotalRetryBudget: defaultAuthClientTotalRetryBudget,
+		RetryDeadline:    DefaultRetryDeadline,
+		TotalRetryBudget: DefaultTotalRetryBudget,
 		BackoffConfig: ExponentialBackoffConfig{
-			Initial:    defaultAuthClientInitialBackoff,
+			Initial:    DefaultInitialBackoff,
 			Max:        config.MaxRetrySleep,
 			Multiplier: config.RetryMultiplier,
 		},
@@ -66,7 +58,7 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 		return cred.UniverseDomain(attemptCtx)
 	}
 
-	domain, err := ExecuteWithRetry(ctx, retryConfig, "cred.UniverseDomain", "credentials", apiCall)
+	domain, err := ExecuteWithRetry(ctx, &retryConfig, "cred.UniverseDomain", "credentials", apiCall)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get UniverseDomain after retries: %w", err)
 	}
