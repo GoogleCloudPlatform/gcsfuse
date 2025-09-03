@@ -288,16 +288,41 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_TotalRetryBudgetExceede
 	assert.ErrorIs(t.T(), err, context.DeadlineExceeded, "The error should be from the total retry budget timeout")
 }
 
-func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeout() {
+func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutShorterThanRetryDeadline() {
 	// Arrange
 	var callCount int
 	stallDuration := t.retryConfig.RetryDeadline + 5*time.Microsecond
 	// Set a parent context timeout that is shorter than the total retry budget.
-	parentCtx, cancel := context.WithTimeout(context.Background(), t.retryConfig.TotalRetryBudget-100*time.Microsecond)
+	parentCtx, cancel := context.WithTimeout(context.Background(), t.retryConfig.RetryDeadline-50*time.Microsecond)
 	defer cancel()
 	apiCall := func(ctx context.Context) (string, error) {
 		callCount++
-		// Simulate a call that always takes longer than the per-attempt deadline.
+		time.Sleep(stallDuration)
+		// This will always fail with a retryable error.
+		return "", status.Error(codes.Unavailable, "server unavailable")
+	}
+
+	// Act
+	// The parent context will be checked within ExecuteWithRetry before the first attempt,
+	// but the attempt will still proceed. The attempt's context will expire
+	// due to the parent's timeout.
+	result, err := ExecuteWithRetry(parentCtx, t.retryConfig, "testOp", "testReq", apiCall)
+
+	// Assert
+	assert.ErrorIs(t.T(), err, context.DeadlineExceeded, "The error should be from the parent context's timeout")
+	assert.Empty(t.T(), result)
+	assert.Equal(t.T(), 1, callCount, "apiCall should have been called once")
+}
+
+func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutBetweenDeadlines() {
+	// Arrange
+	var callCount int
+	stallDuration := t.retryConfig.RetryDeadline + 5*time.Microsecond
+	// Set a parent context timeout that is longer than one attempt but shorter than the total budget.
+	parentCtx, cancel := context.WithTimeout(context.Background(), t.retryConfig.RetryDeadline+50*time.Microsecond)
+	defer cancel()
+	apiCall := func(ctx context.Context) (string, error) {
+		callCount++
 		time.Sleep(stallDuration)
 		// This will always fail with a retryable error.
 		return "", status.Error(codes.Unavailable, "server unavailable")
@@ -308,6 +333,25 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeout() 
 
 	// Assert
 	assert.ErrorIs(t.T(), err, context.DeadlineExceeded, "The error should be from the parent context's timeout")
+	assert.Empty(t.T(), result)
+	assert.Greater(t.T(), callCount, 0, "apiCall should have been called at least once")
+}
+
+func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutLongerThanBudget() {
+	// Arrange
+	stallDuration := t.retryConfig.RetryDeadline + 5*time.Microsecond
+	parentCtx, cancel := context.WithTimeout(context.Background(), t.retryConfig.TotalRetryBudget+100*time.Microsecond)
+	defer cancel()
+	apiCall := func(ctx context.Context) (string, error) {
+		time.Sleep(stallDuration)
+		return "", status.Error(codes.Unavailable, "server unavailable")
+	}
+
+	// Act
+	result, err := ExecuteWithRetry(parentCtx, t.retryConfig, "testOp", "testReq", apiCall)
+
+	// Assert
+	assert.ErrorIs(t.T(), err, context.DeadlineExceeded, "The error should be from context created in ExecuteWithRetry")
 	assert.Empty(t.T(), result)
 }
 
