@@ -63,8 +63,6 @@ func TestMain(m *testing.M) {
 				log.Fatal("Profile label should have been provided for mounted directory test.")
 			}
 			testServiceVersion = setup.ProfileLabelForMountedDirTest()
-		} else {
-			testServiceVersion = fmt.Sprintf("ve2e0.0.0-%s", strings.ReplaceAll(uuid.New().String(), "-", "")[:8])
 		}
 		// Populate the config manually.
 		cfg.CloudProfiler = make([]test_suite.TestConfig, 1)
@@ -111,18 +109,18 @@ func TestMain(m *testing.M) {
 	testServiceVersion = fmt.Sprintf("ve2e0.0.0-%s", strings.ReplaceAll(uuid.New().String(), "-", "")[:8])
 	logger.Infof("Enabling cloud profiler with version tag: %s", testServiceVersion)
 
-	// Iterating over flagSets and updating any empty "--profiling-label=" flags.
-	for i := range flagSets {
-		for j := range flagSets[i] {
-			if flagSets[i][j] == "--profiling-label=" {
-				flagSets[i][j] = fmt.Sprintf(" --profiling-label=%s", testServiceVersion)
-			}
-		}
-	}
-
 	// Run tests for testBucket
 	// 4. Build the flag sets dynamically from the config.
 	flags := setup.BuildFlagSets(cfg.CloudProfiler[0], bucketType)
+
+	// Iterating over flagSets and updating any empty "--profiling-label=" flags.
+	for i := range flags {
+		for j := range flags[i] {
+			if flags[i][j] == "--profiling-label=" {
+				flags[i][j] = fmt.Sprintf("--profiling-label=%s", testServiceVersion)
+			}
+		}
+	}
 	setup.SetUpTestDirForTestBucket(cfg.CloudProfiler[0].TestBucket)
 
 	successCode := static_mounting.RunTestsWithConfigFile(&cfg.CloudProfiler[0], flags, m)
