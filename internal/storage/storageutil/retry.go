@@ -135,10 +135,15 @@ func ExecuteWithRetry[T any](
 
 	// Create a new backoff controller specific to this api call.
 	backoff := NewExponentialBackoff(&config.BackoffConfig)
-	for {
+	for i := 0; ; i++ {
 		attemptCtx, attemptCancel := context.WithTimeout(parentCtx, config.RetryDeadline)
 
-		logger.Tracef("Calling %s for %q with deadline=%v ...", operationName, reqDescription, config.RetryDeadline)
+		if i == 0 {
+			logger.Tracef("Calling %s for %q with deadline=%v ...", operationName, reqDescription, config.RetryDeadline)
+		} else {
+			logger.Tracef("Retrying %s for %q with deadline=%v ...", operationName, reqDescription, config.RetryDeadline)
+		}
+
 		result, err := apiCall(attemptCtx)
 		// Cancel attemptCtx after it is no longer needed, to free up its resources.
 		attemptCancel()

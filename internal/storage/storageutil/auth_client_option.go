@@ -45,22 +45,15 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 
 	tokenSrc := oauth2adapt.TokenSourceFromTokenProvider(cred.TokenProvider)
 
-	retryConfig := RetryConfig{
-		RetryDeadline:    DefaultRetryDeadline,
-		TotalRetryBudget: DefaultTotalRetryBudget,
-		BackoffConfig: ExponentialBackoffConfig{
-			Initial:    DefaultInitialBackoff,
-			Max:        config.MaxRetrySleep,
-			Multiplier: config.RetryMultiplier,
-		},
-	}
+	retryConfig := NewRetryConfig(config, DefaultRetryDeadline, DefaultTotalRetryBudget, DefaultInitialBackoff)
+
 	apiCall := func(attemptCtx context.Context) (string, error) {
 		return cred.UniverseDomain(attemptCtx)
 	}
 
-	domain, err := ExecuteWithRetry(ctx, &retryConfig, "cred.UniverseDomain", "credentials", apiCall)
+	domain, err := ExecuteWithRetry(ctx, retryConfig, "cred.UniverseDomain", "credentials", apiCall)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get UniverseDomain after retries: %w", err)
+		return nil, nil, fmt.Errorf("failed to get UniverseDomain: %w", err)
 	}
 
 	clientOpts := []option.ClientOption{option.WithUniverseDomain(domain), option.WithAuthCredentials(cred)}
