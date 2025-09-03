@@ -94,8 +94,8 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 		readPatternVisualizer: common.NewReadPatternVisualizerWithFullConfig(
 			1024, // 1KB default scale
 			100,  // 100 characters width
-			"Read pattern visualization",
-			inode.Source().Name,
+			"",
+			inode.Name().GcsObjectName(),
 		),
 	}
 
