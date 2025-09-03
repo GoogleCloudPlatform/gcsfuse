@@ -24,6 +24,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"io"
 )
 
 type ExponentialBackoffTestSuite struct {
@@ -237,6 +238,27 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_Timeout() {
 	assert.ErrorIs(t.T(), err, context.DeadlineExceeded)
 }
 
+func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_TotalRetryBudgetExceeded() {
+	// Arrange
+	var callCount int
+	// Set a short total retry budget.
+	t.retryConfig.TotalRetryBudget = 30 * time.Millisecond
+	t.retryConfig.RetryDeadline = 20 * time.Millisecond
+	t.retryConfig.BackoffConfig.initial = 15 * time.Millisecond // Ensure backoff pushes it over the edge.
+
+	apiCall := func(ctx context.Context) (string, error) {
+		callCount++
+		return "", status.Error(codes.Unavailable, "server unavailable")
+	}
+
+	// Act
+	_, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall)
+
+	// Assert
+	assert.Error(t.T(), err)
+	assert.ErrorIs(t.T(), err, context.DeadlineExceeded, "The error should be from the total retry budget timeout")
+}
+
 func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeout() {
 	// Arrange
 	var callCount int
@@ -256,4 +278,45 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeout() 
 	assert.Error(t.T(), err)
 	assert.Empty(t.T(), result)
 	assert.ErrorIs(t.T(), err, context.DeadlineExceeded, "The error should be from the parent context's timeout")
+}
+
+func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextAlreadyCancelled() {
+	// Arrange
+	var callCount int
+	parentCtx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel the context immediately.
+
+	apiCall := func(ctx context.Context) (string, error) {
+		callCount++
+		return "should not be called", nil
+	}
+
+	// Act
+	_, err := ExecuteWithRetry(parentCtx, t.retryConfig, "testOp", "testReq", apiCall)
+
+	// Assert
+	assert.Error(t.T(), err)
+	assert.ErrorIs(t.T(), err, context.Canceled)
+	assert.Equal(t.T(), 0, callCount, "apiCall should not have been executed")
+}
+
+func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_SuccessAfterNonGrpcRetryableError() {
+	// Arrange
+	var callCount int
+	retryableErr := io.ErrUnexpectedEOF
+	apiCall := func(ctx context.Context) (string, error) {
+		callCount++
+		if callCount == 1 {
+			return "", retryableErr
+		}
+		return "success", nil
+	}
+
+	// Act
+	result, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall)
+
+	// Assert
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), "success", result)
+	assert.Equal(t.T(), 2, callCount)
 }
