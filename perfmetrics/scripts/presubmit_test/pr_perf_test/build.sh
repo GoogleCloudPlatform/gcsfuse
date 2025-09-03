@@ -36,6 +36,11 @@ integrationTestsStr="$integrationTests"
 integrationTestsOnZBStr="$integrationTestsOnZB"
 packageBuildTestsStr="$packageBuildTests"
 checkpointTestStr="$checkpointTests"
+if [[ "$perfTestStr" != *"$EXECUTE_PERF_TEST_LABEL"*  && "$integrationTestsStr" != *"$EXECUTE_INTEGRATION_TEST_LABEL"*  && "$integrationTestsOnZBStr" != *"$EXECUTE_INTEGRATION_TEST_LABEL_ON_ZB"*  && "$packageBuildTestsStr" != *"$EXECUTE_PACKAGE_BUILD_TEST_LABEL"* && "$checkpointTestStr" != *"$EXECUTE_CHECKPOINT_TEST_LABEL"* ]]
+then
+  echo "No need to execute tests"
+  exit 0
+fi
 
 set -e
 sudo apt-get update
@@ -117,12 +122,16 @@ then
   /usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --zonal --track-resource-usage
 fi
 
-echo checkout PR branch
-git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
+# Execute integration tests on non-zonal bucket(s).
+if test -n "${integrationTestsStr}" ;
+then
+  echo checkout PR branch
+  git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
-echo "Running e2e tests on non-zonal bucket(s) ..."
-# $1 argument is refering to value of testInstalledPackage.
-/usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --track-resource-usage
+  echo "Running e2e tests on non-zonal bucket(s) ..."
+  # $1 argument is refering to value of testInstalledPackage.
+  /usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --track-resource-usage
+fi
 
 # Execute package build tests.
 if [[ "$packageBuildTestsStr" == *"$EXECUTE_PACKAGE_BUILD_TEST_LABEL"* ]];
