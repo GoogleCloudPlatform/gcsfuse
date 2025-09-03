@@ -585,10 +585,11 @@ run_e2e_tests_for_emulator() {
 }
 
 function print_test_logs_and_create_junit_xml() {
+  local xml_file="${ARTIFACTS_DIR}/test_logs.xml"
+  echo "XML report will be generated at ${xml_file}"
   # Create a temporary file to store the log file name.
-  JUNIT_XML_FILE=$(mktemp)
-  echo '<?xml version="1.0" encoding="UTF-8"?>' > $JUNIT_XML_FILE
-  echo '<testsuites>' >> $JUNIT_XML_FILE
+  echo '<?xml version="1.0" encoding="UTF-8"?>' > "${xml_file}"
+  echo '<testsuites>' >> "${xml_file}"
 
   readarray -t test_logs_array < "$TEST_LOGS_FILE"
   rm "$TEST_LOGS_FILE"
@@ -603,14 +604,13 @@ function print_test_logs_and_create_junit_xml() {
       # remove the first 2 lines and the last line from the xml file
       sed -i '1,2d' "${log_file}.xml"
       sed -i '$d' "${log_file}.xml"
-      cat "${log_file}.xml" >> $JUNIT_XML_FILE
+      cat "${log_file}.xml" >> ${xml_file}
     fi
   done
 
-  echo '</testsuites>' >> $JUNIT_XML_FILE
-  # Final XML file
-  cat $JUNIT_XML_FILE > junit.xml
-  rm $JUNIT_XML_FILE
+  echo '</testsuites>' >> "${xml_file}"
+
+  echo "XML report generated at ${xml_file}"
 }
 
 main() {
@@ -627,6 +627,14 @@ main() {
   log_info ""
   log_info "------ Started running E2E test packages ------"
   log_info ""
+
+  # Create a directory for artifacts
+  if [[ -z "${KOKORO_ARTIFACTS_DIR}" ]]; then
+    ARTIFACTS_DIR=$(mktemp -d)
+  else
+    ARTIFACTS_DIR="${KOKORO_ARTIFACTS_DIR}/gcsfuse_logs/_artifacts"
+  fi
+  mkdir -p "${ARTIFACTS_DIR}"
 
   # Decide whether to build GCSFuse based on RUN_E2E_TESTS_ON_PACKAGE
   if (! ${TEST_INSTALLED_PACKAGE} ) && ${BUILD_BINARY_IN_SCRIPT}; then
