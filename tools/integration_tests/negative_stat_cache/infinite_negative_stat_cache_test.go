@@ -46,28 +46,28 @@ func (s *infiniteNegativeStatCacheTest) TearDownTest() {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCache(t *testing.T) {
+func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCache() {
 	targetDir := path.Join(testEnv.testDirPath, "explicit_dir")
 	// Create test directory
-	operations.CreateDirectory(targetDir, t)
+	operations.CreateDirectory(targetDir, s.T())
 	targetFile := path.Join(targetDir, "file1.txt")
 
 	// Error should be returned as file does not exist
 	_, err := os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
 
-	assert.NotNil(t, err)
+	assert.NotNil(s.T(), err)
 	// Assert the underlying error is File Not Exist
-	assert.ErrorContains(t, err, "explicit_dir/file1.txt: no such file or directory")
+	assert.ErrorContains(s.T(), err, "explicit_dir/file1.txt: no such file or directory")
 
 	// Adding the object with same name
-	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, "explicit_dir/file1.txt", "some-content", t)
+	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, "explicit_dir/file1.txt", "some-content", s.T())
 
 	// Error should be returned again, as call will not be served from GCS due to infinite gcsfuse stat cache
 	_, err = os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
 
-	assert.NotNil(t, err)
+	assert.NotNil(s.T(), err)
 	// Assert the underlying error is File Not Exist
-	assert.ErrorContains(t, err, "explicit_dir/file1.txt: no such file or directory")
+	assert.ErrorContains(s.T(), err, "explicit_dir/file1.txt: no such file or directory")
 }
 
 // TestAlreadyExistFolder tests the scenario where a folder creation attempt fails
@@ -76,29 +76,29 @@ func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCache(t *testing
 // when a folder is created externally after gcsfuse has cached a negative stat entry for that path.
 // The negative cache prevents gcsfuse from seeing the externally created folder,
 // leading to an EEXIST error when attempting to create the same folder again.
-func (s *infiniteNegativeStatCacheTest) TestAlreadyExistFolder(t *testing.T) {
+func (s *infiniteNegativeStatCacheTest) TestAlreadyExistFolder() {
 	dirName := "testAlreadyExistFolder"
 	dirPath := path.Join(testEnv.testDirPath, dirName)
 	dirPathOnBucket := path.Join(testDirName, dirName)
 	// Stat should return an error because the directory doesn't exist yet,
 	// populating the negative metadata cache.
 	_, err := os.Stat(dirPath)
-	require.Error(t, err)
-	require.True(t, os.IsNotExist(err))
+	require.Error(s.T(), err)
+	require.True(s.T(), os.IsNotExist(err))
 	// Create the directory in the bucket using a different client outside of gcsfuse.
 	if setup.IsHierarchicalBucket(testEnv.ctx, testEnv.storageClient) {
 		_, err = client.CreateFolderInBucket(testEnv.ctx, testEnv.storageControlClient, dirPathOnBucket)
 	} else {
 		err = client.CreateObjectOnGCS(testEnv.ctx, testEnv.storageClient, dirPathOnBucket+"/", "")
 	}
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 
 	// Attempting to create the directory again should fail with EEXIST because the
 	// negative stat cache entry persists, causing LookUpInode to return a "not found" error
 	// and triggering a directory creation attempt despite the directory already existing in GCS.
 	err = os.Mkdir(dirPath, setup.DirPermission_0755)
 
-	assert.ErrorIs(t, err, syscall.EEXIST)
+	assert.ErrorIs(s.T(), err, syscall.EEXIST)
 }
 
 ////////////////////////////////////////////////////////////////////////

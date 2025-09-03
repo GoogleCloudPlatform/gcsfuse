@@ -46,75 +46,75 @@ func (s *notifierTest) TearDownTest() {
 	}
 }
 
-func (s *notifierTest) TestWriteFileWithDentryCacheEnabled(t *testing.T) {
+func (s *notifierTest) TestWriteFileWithDentryCacheEnabled() {
 	// Create a file with initial content directly in GCS.
 	filePath := path.Join(setup.MntDir(), testDirName, testFileName)
-	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, testFileName, initialContentSize, t)
+	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, testFileName, initialContentSize, s.T())
 	// Stat file to cache the entry
 	_, err := os.Stat(filePath)
-	require.Nil(t, err)
+	require.Nil(s.T(), err)
 	// Modify the object on GCS.
 	objectName := path.Join(testDirName, testFileName)
 	smallContent, err := operations.GenerateRandomData(updatedContentSize)
-	require.Nil(t, err)
-	require.Nil(t, client.WriteToObject(ctx, storageClient, objectName, string(smallContent), storage.Conditions{}))
+	require.Nil(s.T(), err)
+	require.Nil(s.T(), client.WriteToObject(ctx, storageClient, objectName, string(smallContent), storage.Conditions{}))
 
 	// First Write File attempt.
 	err = operations.WriteFile(filePath, "ShouldNotWrite")
 
 	// First Write File attempt should fail because file has been clobbered.
-	operations.ValidateESTALEError(t, err)
+	operations.ValidateESTALEError(s.T(), err)
 	// Second Write File attempt.
 	err = operations.WriteFile(filePath, "ShouldWrite")
 	// The notifier is triggered after the first write failure, invalidating the kernel cache entry.
 	// Therefore, the second write succeeds even before the metadata cache TTL expires.
-	assert.Nil(t, err)
+	assert.Nil(s.T(), err)
 }
 
-func (s *notifierTest) TestReadFileWithDentryCacheEnabled(t *testing.T) {
+func (s *notifierTest) TestReadFileWithDentryCacheEnabled() {
 	// Create a file with initial content directly in GCS.
 	filePath := path.Join(setup.MntDir(), testDirName, testFileName)
-	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, testFileName, initialContentSize, t)
+	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, testFileName, initialContentSize, s.T())
 	// Stat file to cache the entry
 	_, err := os.Stat(filePath)
-	require.Nil(t, err)
+	require.Nil(s.T(), err)
 	// Modify the object on GCS.
 	objectName := path.Join(testDirName, testFileName)
 	smallContent, err := operations.GenerateRandomData(updatedContentSize)
-	require.Nil(t, err)
-	require.Nil(t, client.WriteToObject(ctx, storageClient, objectName, string(smallContent), storage.Conditions{}))
+	require.Nil(s.T(), err)
+	require.Nil(s.T(), client.WriteToObject(ctx, storageClient, objectName, string(smallContent), storage.Conditions{}))
 
 	// First Read File attempt.
 	_, err = operations.ReadFile(filePath)
 
 	// First Read File attempt should fail because file has been clobbered.
-	operations.ValidateESTALEError(t, err)
+	operations.ValidateESTALEError(s.T(), err)
 	// Second Read File attempt.
 	_, err = operations.ReadFile(filePath)
 	// The notifier is triggered after the first read failure, invalidating the kernel cache entry.
 	// Therefore, the second read succeeds even before the metadata cache TTL expires.
-	assert.Nil(t, err)
+	assert.Nil(s.T(), err)
 }
 
-func (s *notifierTest) TestDeleteFileWithDentryCacheEnabled(t *testing.T) {
+func (s *notifierTest) TestDeleteFileWithDentryCacheEnabled() {
 	// Create a file with initial content directly in GCS.
 	filePath := path.Join(setup.MntDir(), testDirName, testFileName)
-	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, testFileName, initialContentSize, t)
+	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, testFileName, initialContentSize, s.T())
 	// Stat file to cache the entry
 	_, err := os.Stat(filePath)
-	require.Nil(t, err)
+	require.Nil(s.T(), err)
 	// Delete the object directly from GCS.
 	objectName := path.Join(testDirName, testFileName)
-	require.Nil(t, client.DeleteObjectOnGCS(ctx, storageClient, objectName))
+	require.Nil(s.T(), client.DeleteObjectOnGCS(ctx, storageClient, objectName))
 	// Read File to call the notifier to invalidate entry.
 	_, err = operations.ReadFile(filePath)
 	// The notifier is triggered after the first read failure, invalidating the kernel cache entry.
-	operations.ValidateESTALEError(t, err)
+	operations.ValidateESTALEError(s.T(), err)
 
 	// Stat again, it should give error as entry does not exist.
 	_, err = os.Stat(filePath)
 
-	assert.NotNil(t, err)
+	assert.NotNil(s.T(), err)
 }
 
 func TestNotifierTest(t *testing.T) {
