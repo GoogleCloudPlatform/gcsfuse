@@ -632,7 +632,7 @@ main() {
   if [[ -z "${KOKORO_ARTIFACTS_DIR}" ]]; then
     ARTIFACTS_DIR=$(mktemp -d)
   else
-    ARTIFACTS_DIR="${KOKORO_ARTIFACTS_DIR}/gcsfuse_logs"
+    ARTIFACTS_DIR="${KOKORO_ARTIFACTS_DIR}"
   fi
   mkdir -p "${ARTIFACTS_DIR}"
 
