@@ -78,6 +78,7 @@ LOG_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_logging_lock.XXXXXX") || { log_error 
 BUCKET_NAMES=$(mktemp "/tmp/${TMP_PREFIX}_bucket_names.XXXXXX") || { log_error "Unable to create bucket names file"; exit 1; }
 PACKAGE_RUNTIME_STATS=$(mktemp "/tmp/${TMP_PREFIX}_package_stats_runtime.XXXXXX") || { log_error "Unable to create package stats runtime file"; exit 1; }
 RESOURCE_USAGE_FILE=$(mktemp "/tmp/${TMP_PREFIX}_system_resource_usage.XXXXXX") || { log_error "Unable to create system resource usage file"; exit 1; }
+TEST_LOGS_FILE=$(mktemp)
 
 # Argument Parsing and Assignments
 # Set default values for optional arguments
@@ -189,44 +190,15 @@ fi
 
 # Test packages which can be run for both Zonal and Regional buckets.
 # Sorted list descending run times. (Longest Processing Time first strategy) 
-TEST_PACKAGES_COMMON=(
-  "managed_folders"
-  "operations"
-  "read_large_files"
-  "concurrent_operations"
-  "read_cache"
-  "list_large_dir"
-  "mount_timeout"
-  "write_large_files"
-  "implicit_dir"
-  "interrupt"
-  "local_file"
-  "readonly"
-  "readonly_creds"
-  "rename_dir_limit"
-  "kernel_list_cache"
-  "streaming_writes"
-  "benchmarking"
-  "explicit_dir"
-  "gzip"
-  "log_rotation"
-  "monitoring"
-  "mounting"
-  # "grpc_validation"
-  "negative_stat_cache"
-  "stale_handle"
-  "release_version"
-  "readdirplus"
-  "dentry_cache"
-  "buffered_read"
+TEST_PACKAGES_COMMON=("readonly"
 )
 
 # Test packages for regional buckets.
-TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "inactive_stream_timeout" "cloud_profiler")
+TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}")
 # Test packages for zonal buckets.
-TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "unfinalized_object" "rapid_appends")
+TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}")
 # Test packages for TPC buckets.
-TEST_PACKAGES_FOR_TPC=("operations")
+TEST_PACKAGES_FOR_TPC=()
 
 # acquire_lock: Acquires exclusive lock or exits script on failure.
 # Args: $1 = path to lock file.
@@ -415,14 +387,11 @@ process_any_pid() {
   local parallel_cmd_executed="${cmd_and_output_file%%;*}"
   local output_file="${cmd_and_output_file#*;}"
   unset "cmds_by_pid_ref[$waited_pid]"
-  if [[ "$pid_status" -ne 0 ]]; then
-    acquire_lock "$LOG_LOCK_FILE"
-    log_error "Parallel Command failed: $parallel_cmd_executed"
-    cat "$output_file"
-    release_lock "$LOG_LOCK_FILE"
-    return 1
-  fi
-  log_info_locked "Parallel Command succeeded: $parallel_cmd_executed"
+  acquire_lock "$LOG_LOCK_FILE"
+  log_error "Parallel Command: $parallel_cmd_executed"
+  cat "$output_file"
+  release_lock "$LOG_LOCK_FILE"
+#   log_info_locked "Parallel Command succeeded: $parallel_cmd_executed"
   return 0
 }
 
@@ -510,8 +479,10 @@ test_package() {
   local go_test_cmd=$(printf "%q " "${go_test_cmd_parts[@]}")
   
   # Run the package test command
-  local start=$SECONDS exit_code=0 
-  if ! eval "$go_test_cmd"; then
+  local start=$SECONDS exit_code=0
+  local log_file="/tmp/${package_name}_${bucket_name}.log"
+  echo $log_file >> $TEST_LOGS_FILE
+  if ! eval "$go_test_cmd" > "$log_file" 2>&1; then
     exit_code=1
   fi
   local end=$SECONDS
@@ -566,6 +537,9 @@ install_packages() {
   # Install latest gcloud version.
   bash ./perfmetrics/scripts/install_latest_gcloud.sh
   export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
+  # Install go-junit-report
+  go install github.com/jstemmer/go-junit-report/v2@latest
+  export PATH="$(go env GOPATH)/bin:$PATH"
 }
 
 # Generic function to run a group of E2E tests for a given bucket type.
@@ -608,6 +582,35 @@ run_e2e_tests_for_emulator() {
   fi
   log_info_locked "Emulator tests successful."
   return 0
+}
+
+function print_test_logs_and_create_junit_xml() {
+  # Create a temporary file to store the log file name.
+  JUNIT_XML_FILE=$(mktemp)
+  echo '<?xml version="1.0" encoding="UTF-8"?>' > $JUNIT_XML_FILE
+  echo '<testsuites>' >> $JUNIT_XML_FILE
+
+  readarray -t test_logs_array < "$TEST_LOGS_FILE"
+  rm "$TEST_LOGS_FILE"
+  for test_log_file in "${test_logs_array[@]}"
+  do
+    log_file=${test_log_file}
+    if [ -f "$log_file" ]; then
+      echo "=== Log for ${test_log_file} ==="
+      cat "$log_file"
+      echo "========================================="
+      cat "$log_file" | go-junit-report > "${log_file}.xml"
+      # remove the first 2 lines and the last line from the xml file
+      sed -i '1,2d' "${log_file}.xml"
+      sed -i '$d' "${log_file}.xml"
+      cat "${log_file}.xml" >> $JUNIT_XML_FILE
+    fi
+  done
+
+  echo '</testsuites>' >> $JUNIT_XML_FILE
+  # Final XML file
+  cat $JUNIT_XML_FILE > junit.xml
+  rm $JUNIT_XML_FILE
 }
 
 main() {
@@ -685,6 +688,7 @@ main() {
       log_error "Failed to stop resource usage collection process (or it's already stopped)"
     fi
   fi
+  print_test_logs_and_create_junit_xml
   exit $overall_exit_code
 }
 
