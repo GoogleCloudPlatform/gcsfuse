@@ -28,7 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
+	"github.com/stretchr/testify/suite"
 )
 
 const (
@@ -42,21 +42,22 @@ const (
 
 // The permission granted by roles at project, bucket, and managed folder
 // levels apply additively (union) throughout the resource hierarchy.
-// Hence here managed folder will have view permission throughout all the tests.
+// Hence, here managed folder will have view permission throughout all the tests.
 type managedFoldersViewPermission struct {
+	suite.Suite
 }
 
-func (s *managedFoldersViewPermission) Setup(t *testing.T) {
+func (s *managedFoldersViewPermission) SetupTest() {
 }
 
-func (s *managedFoldersViewPermission) Teardown(t *testing.T) {
+func (s *managedFoldersViewPermission) TearDownTest() {
 }
 
-func (s *managedFoldersViewPermission) TestListNonEmptyManagedFolders(t *testing.T) {
-	listNonEmptyManagedFolders(t)
+func (s *managedFoldersViewPermission) TestListNonEmptyManagedFolders() {
+	listNonEmptyManagedFolders(s.T())
 }
 
-func (s *managedFoldersViewPermission) TestCreateObjectInManagedFolder(t *testing.T) {
+func (s *managedFoldersViewPermission) TestCreateObjectInManagedFolder() {
 	filePath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder2, DestFile)
 
 	// The error must happen either at file creation or file handle close.
@@ -65,69 +66,69 @@ func (s *managedFoldersViewPermission) TestCreateObjectInManagedFolder(t *testin
 		err = file.Close()
 	}
 
-	operations.CheckErrorForReadOnlyFileSystem(t, err)
+	operations.CheckErrorForReadOnlyFileSystem(s.T(), err)
 }
 
-func (s *managedFoldersViewPermission) TestDeleteObjectFromManagedFolder(t *testing.T) {
+func (s *managedFoldersViewPermission) TestDeleteObjectFromManagedFolder() {
 	err := os.Remove(path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1, FileInNonEmptyManagedFoldersTest))
 
 	if err == nil {
-		t.Errorf("File from managed folder gets deleted with view only permission.")
+		s.T().Errorf("File from managed folder gets deleted with view only permission.")
 	}
 
-	operations.CheckErrorForReadOnlyFileSystem(t, err)
+	operations.CheckErrorForReadOnlyFileSystem(s.T(), err)
 }
 
-func (s *managedFoldersViewPermission) TestDeleteNonEmptyManagedFolder(t *testing.T) {
+func (s *managedFoldersViewPermission) TestDeleteNonEmptyManagedFolder() {
 	err := os.RemoveAll(path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1))
 
 	if err == nil {
-		t.Errorf("Managed folder deleted with view only permission.")
+		s.T().Errorf("Managed folder deleted with view only permission.")
 	}
 
-	operations.CheckErrorForReadOnlyFileSystem(t, err)
+	operations.CheckErrorForReadOnlyFileSystem(s.T(), err)
 }
 
-func (s *managedFoldersViewPermission) TestMoveManagedFolder(t *testing.T) {
+func (s *managedFoldersViewPermission) TestMoveManagedFolder() {
 	srcDir := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1)
 	destDir := path.Join(setup.MntDir(), TestDirForManagedFolderTest, DestFolder)
 
-	moveAndCheckErrForViewPermission(srcDir, destDir, t)
+	moveAndCheckErrForViewPermission(srcDir, destDir, s.T())
 }
 
-func (s *managedFoldersViewPermission) TestMoveObjectWithInManagedFolder(t *testing.T) {
+func (s *managedFoldersViewPermission) TestMoveObjectWithInManagedFolder() {
 	srcFile := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1, FileInNonEmptyManagedFoldersTest)
 	destFile := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1, DestFile)
 
-	moveAndCheckErrForViewPermission(srcFile, destFile, t)
+	moveAndCheckErrForViewPermission(srcFile, destFile, s.T())
 }
 
-func (s *managedFoldersViewPermission) TestMoveObjectOutOfManagedFolder(t *testing.T) {
+func (s *managedFoldersViewPermission) TestMoveObjectOutOfManagedFolder() {
 	srcFile := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1, FileInNonEmptyManagedFoldersTest)
 	destFile := path.Join(setup.MntDir(), TestDirForManagedFolderTest, DestFile)
 
-	moveAndCheckErrForViewPermission(srcFile, destFile, t)
+	moveAndCheckErrForViewPermission(srcFile, destFile, s.T())
 }
 
-func (s *managedFoldersViewPermission) TestCopyNonEmptyManagedFolder(t *testing.T) {
+func (s *managedFoldersViewPermission) TestCopyNonEmptyManagedFolder() {
 	srcDir := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1)
 	destDir := path.Join(setup.MntDir(), TestDirForManagedFolderTest, DestFolder)
 
-	copyDirAndCheckErrForViewPermission(srcDir, destDir, t)
+	copyDirAndCheckErrForViewPermission(srcDir, destDir, s.T())
 }
 
-func (s *managedFoldersViewPermission) TestCopyObjectWithInManagedFolder(t *testing.T) {
+func (s *managedFoldersViewPermission) TestCopyObjectWithInManagedFolder() {
 	srcFile := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1, FileInNonEmptyManagedFoldersTest)
 	destFile := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1, DestFile)
 
-	copyObjectAndCheckErrForViewPermission(srcFile, destFile, t)
+	copyObjectAndCheckErrForViewPermission(srcFile, destFile, s.T())
 }
 
-func (s *managedFoldersViewPermission) TestCopyObjectOutOfManagedFolder(t *testing.T) {
+func (s *managedFoldersViewPermission) TestCopyObjectOutOfManagedFolder() {
 	srcFile := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1, FileInNonEmptyManagedFoldersTest)
 	destFile := path.Join(setup.MntDir(), TestDirForManagedFolderTest, DestFile)
 
-	copyObjectAndCheckErrForViewPermission(srcFile, destFile, t)
+	copyObjectAndCheckErrForViewPermission(srcFile, destFile, s.T())
 }
 
 // //////////////////////////////////////////////////////////////////////
@@ -157,7 +158,7 @@ func TestManagedFolders_FolderViewPermission(t *testing.T) {
 
 	// Run tests.
 	log.Printf("Running tests with flags and managed folder have nil permissions: %s", flags)
-	test_setup.RunTests(t, ts)
+	suite.Run(t, ts)
 
 	// Provide storage.objectViewer role to managed folders.
 	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, IAMRoleForViewPermission, t)
@@ -166,5 +167,5 @@ func TestManagedFolders_FolderViewPermission(t *testing.T) {
 	time.Sleep(60 * time.Second)
 
 	log.Printf("Running tests with flags and managed folder have view permissions: %s", flags)
-	test_setup.RunTests(t, ts)
+	suite.Run(t, ts)
 }

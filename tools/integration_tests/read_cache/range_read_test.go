@@ -21,11 +21,11 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
+	"github.com/stretchr/testify/suite"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -37,17 +37,18 @@ type rangeReadTest struct {
 	storageClient              *storage.Client
 	ctx                        context.Context
 	isParallelDownloadsEnabled bool
+	suite.Suite
 }
 
-func (s *rangeReadTest) Setup(t *testing.T) {
+func (s *rangeReadTest) SetupTest() {
 	setupForMountedDirectoryTests()
 	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
 	operations.RemoveDir(cacheDirPath)
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
 }
 
-func (s *rangeReadTest) Teardown(t *testing.T) {
-	setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+func (s *rangeReadTest) TearDownTest() {
+	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 }
 
@@ -55,34 +56,34 @@ func (s *rangeReadTest) Teardown(t *testing.T) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *rangeReadTest) TestRangeReadsWithinReadChunkSize(t *testing.T) {
+func (s *rangeReadTest) TestRangeReadsWithinReadChunkSize() {
 	if s.isParallelDownloadsEnabled {
 		// This test verifies that the reads are all cache hit within a downloaded chunk.
 		// However, with parallel downloads, we cannot guarantee this behavior, so
 		// we skip this test when parallel downloads are enabled.
-		t.SkipNow()
+		s.T().SkipNow()
 	}
-	testFileName := setupFileInTestDir(s.ctx, s.storageClient, largeFileSize, t)
+	testFileName := setupFileInTestDir(s.ctx, s.storageClient, largeFileSize, s.T())
 
-	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
-	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offsetForRangeReadWithin8MB, t)
+	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, s.T())
+	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offsetForRangeReadWithin8MB, s.T())
 
-	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, t)
-	validate(expectedOutcome2, structuredReadLogs[1], false, true, 1, t)
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), s.T())
+	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, s.T())
+	validate(expectedOutcome2, structuredReadLogs[1], false, true, 1, s.T())
 }
 
-func (s *rangeReadTest) TestRangeReadsBeyondReadChunkSizeWithFileCached(t *testing.T) {
-	testFileName := setupFileInTestDir(s.ctx, s.storageClient, largeFileSize, t)
+func (s *rangeReadTest) TestRangeReadsBeyondReadChunkSizeWithFileCached() {
+	testFileName := setupFileInTestDir(s.ctx, s.storageClient, largeFileSize, s.T())
 
-	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
-	validateFileInCacheDirectory(testFileName, largeFileSize, ctx, s.storageClient, t)
-	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset10MiB, t)
+	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, s.T())
+	validateFileInCacheDirectory(testFileName, largeFileSize, ctx, s.storageClient, s.T())
+	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset10MiB, s.T())
 
-	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, t)
-	validate(expectedOutcome2, structuredReadLogs[1], false, true, 1, t)
-	validateCacheSizeWithinLimit(largeFileCacheCapacity, t)
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), s.T())
+	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, s.T())
+	validate(expectedOutcome2, structuredReadLogs[1], false, true, 1, s.T())
+	validateCacheSizeWithinLimit(largeFileCacheCapacity, s.T())
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -102,7 +103,7 @@ func TestRangeReadTest(t *testing.T) {
 
 	// Run tests for mounted directory if the flag is set.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 		return
 	}
 
@@ -126,7 +127,7 @@ func TestRangeReadTest(t *testing.T) {
 			ts.flags = append(ts.flags, flags.cliFlags...)
 		}
 		log.Printf("Running tests with flags: %s", ts.flags)
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 	}
 
 	// Run tests with parallel downloads enabled.
@@ -150,6 +151,6 @@ func TestRangeReadTest(t *testing.T) {
 		}
 		ts.isParallelDownloadsEnabled = true
 		log.Printf("Running tests with flags: %s", ts.flags)
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 	}
 }
