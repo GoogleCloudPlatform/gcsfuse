@@ -155,9 +155,7 @@ func (t *StorageLayoutRetryWrapperTest) TestGetStorageLayout_SuccessOnFirstAttem
 		MaxRetrySleep:   10 * time.Microsecond,
 		RetryMultiplier: 2,
 	}
-	client := newRetryWrapper(t.stallingClient, clientConfig, false)
-	client.(*storageControlClientWithRetry).retryConfig.RetryDeadline = 100 * time.Microsecond
-	client.(*storageControlClientWithRetry).retryConfig.TotalRetryBudget = 1000 * time.Microsecond
+	client := newRetryWrapper(t.stallingClient, clientConfig, 100*time.Microsecond, 1000*time.Microsecond, storageutil.DefaultInitialBackoff, false)
 	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
 	expectedLayout := &controlpb.StorageLayout{Location: "some-location"}
 	t.mockRawClient.On("GetStorageLayout", mock.Anything, req, mock.Anything).Return(expectedLayout, nil).Once()
@@ -177,9 +175,7 @@ func (t *StorageLayoutRetryWrapperTest) TestGetStorageLayout_RetryableErrorThenS
 		MaxRetrySleep:   10 * time.Microsecond,
 		RetryMultiplier: 2,
 	}
-	client := newRetryWrapper(t.stallingClient, clientConfig, false)
-	client.(*storageControlClientWithRetry).retryConfig.RetryDeadline = 100 * time.Microsecond
-	client.(*storageControlClientWithRetry).retryConfig.TotalRetryBudget = 1000 * time.Microsecond
+	client := newRetryWrapper(t.stallingClient, clientConfig, 100*time.Microsecond, 1000*time.Microsecond, storageutil.DefaultInitialBackoff, false)
 	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
 	expectedLayout := &controlpb.StorageLayout{Location: "some-location"}
 	retryableErr := status.Error(codes.Unavailable, "try again")
@@ -202,9 +198,7 @@ func (t *StorageLayoutRetryWrapperTest) TestGetStorageLayout_NonRetryableError()
 		MaxRetrySleep:   10 * time.Microsecond,
 		RetryMultiplier: 2,
 	}
-	client := newRetryWrapper(t.stallingClient, clientConfig, false)
-	client.(*storageControlClientWithRetry).retryConfig.RetryDeadline = 100 * time.Microsecond
-	client.(*storageControlClientWithRetry).retryConfig.TotalRetryBudget = 1000 * time.Microsecond
+	client := newRetryWrapper(t.stallingClient, clientConfig, 100*time.Microsecond, 1000*time.Microsecond, storageutil.DefaultInitialBackoff, false)
 	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
 	nonRetryableErr := status.Error(codes.NotFound, "does not exist")
 	t.mockRawClient.On("GetStorageLayout", mock.Anything, req, mock.Anything).Return(nil, nonRetryableErr).Once()
@@ -227,9 +221,7 @@ func (t *StorageLayoutRetryWrapperTest) TestGetStorageLayout_AllAttemptsTimeOut(
 		MaxRetrySleep:   10 * time.Microsecond,
 		RetryMultiplier: 2,
 	}
-	client := newRetryWrapper(t.stallingClient, clientConfig, false)
-	client.(*storageControlClientWithRetry).retryConfig.RetryDeadline = 1000 * time.Microsecond
-	client.(*storageControlClientWithRetry).retryConfig.TotalRetryBudget = 10000 * time.Microsecond
+	client := newRetryWrapper(t.stallingClient, clientConfig, 100*time.Microsecond, 1000*time.Microsecond, storageutil.DefaultInitialBackoff, false)
 	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
 	// Set stall time to be longer than the attempt timeout.
 	t.stallDurationForGetStorageLayout = 6000 * time.Microsecond
@@ -248,9 +240,7 @@ func (t *StorageLayoutRetryWrapperTest) TestGetFolder_IsNotRetried() {
 		MaxRetrySleep:   10 * time.Microsecond,
 		RetryMultiplier: 2,
 	}
-	client := newRetryWrapper(t.stallingClient, clientConfig, false)
-	client.(*storageControlClientWithRetry).retryConfig.RetryDeadline = 100 * time.Microsecond
-	client.(*storageControlClientWithRetry).retryConfig.TotalRetryBudget = 1000 * time.Microsecond
+	client := newRetryWrapper(t.stallingClient, clientConfig, 100*time.Microsecond, 1000*time.Microsecond, storageutil.DefaultInitialBackoff, false)
 	req := &controlpb.GetFolderRequest{Name: "some/folder"}
 	retryableErr := status.Error(codes.Unavailable, "try again")
 	// Mock the raw client to return a retryable error once.
@@ -272,9 +262,7 @@ func (t *StorageLayoutRetryWrapperTest) TestDeleteFolder_IsNotRetried() {
 		MaxRetrySleep:   10 * time.Microsecond,
 		RetryMultiplier: 2,
 	}
-	client := newRetryWrapper(t.stallingClient, clientConfig, false)
-	client.(*storageControlClientWithRetry).retryConfig.RetryDeadline = 100 * time.Microsecond
-	client.(*storageControlClientWithRetry).retryConfig.TotalRetryBudget = 1000 * time.Microsecond
+	client := newRetryWrapper(t.stallingClient, clientConfig, 100*time.Microsecond, 1000*time.Microsecond, storageutil.DefaultInitialBackoff, false)
 	req := &controlpb.DeleteFolderRequest{Name: "some/folder"}
 	retryableErr := status.Error(codes.Unavailable, "try again")
 	// Mock the raw client to return a retryable error once.
@@ -295,9 +283,7 @@ func (t *StorageLayoutRetryWrapperTest) TestCreateFolder_IsNotRetried() {
 		MaxRetrySleep:   10 * time.Microsecond,
 		RetryMultiplier: 2,
 	}
-	client := newRetryWrapper(t.stallingClient, clientConfig, false)
-	client.(*storageControlClientWithRetry).retryConfig.RetryDeadline = 100 * time.Microsecond
-	client.(*storageControlClientWithRetry).retryConfig.TotalRetryBudget = 1000 * time.Microsecond
+	client := newRetryWrapper(t.stallingClient, clientConfig, 100*time.Microsecond, 1000*time.Microsecond, storageutil.DefaultInitialBackoff, false)
 	req := &controlpb.CreateFolderRequest{Parent: "some/", FolderId: "folder"}
 	retryableErr := status.Error(codes.Unavailable, "try again")
 	// Mock the raw client to return a retryable error once.
@@ -319,9 +305,7 @@ func (t *StorageLayoutRetryWrapperTest) TestRenameFolder_IsNotRetried() {
 		MaxRetrySleep:   10 * time.Microsecond,
 		RetryMultiplier: 2,
 	}
-	client := newRetryWrapper(t.stallingClient, clientConfig, false)
-	client.(*storageControlClientWithRetry).retryConfig.RetryDeadline = 100 * time.Microsecond
-	client.(*storageControlClientWithRetry).retryConfig.TotalRetryBudget = 1000 * time.Microsecond
+	client := newRetryWrapper(t.stallingClient, clientConfig, 100*time.Microsecond, 1000*time.Microsecond, storageutil.DefaultInitialBackoff, false)
 	req := &controlpb.RenameFolderRequest{Name: "some/folder", DestinationFolderId: "new/folder"}
 	retryableErr := status.Error(codes.Unavailable, "try again")
 	// Mock the raw client to return a retryable error once.
@@ -343,9 +327,7 @@ func (t *AllApiRetryWrapperTest) TestGetStorageLayout_SuccessOnFirstAttempt() {
 		MaxRetrySleep:   10 * time.Microsecond,
 		RetryMultiplier: 2,
 	}
-	client := newRetryWrapper(t.stallingClient, clientConfig, true)
-	client.(*storageControlClientWithRetry).retryConfig.RetryDeadline = 100 * time.Microsecond
-	client.(*storageControlClientWithRetry).retryConfig.TotalRetryBudget = 1000 * time.Microsecond
+	client := newRetryWrapper(t.stallingClient, clientConfig, 100*time.Microsecond, 1000*time.Microsecond, storageutil.DefaultInitialBackoff, false)
 	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
 	expectedLayout := &controlpb.StorageLayout{Location: "some-location"}
 	t.mockRawClient.On("GetStorageLayout", mock.Anything, req, mock.Anything).Return(expectedLayout, nil).Once()
@@ -365,9 +347,7 @@ func (t *AllApiRetryWrapperTest) TestGetStorageLayout_RetryableErrorThenSuccess(
 		MaxRetrySleep:   10 * time.Microsecond,
 		RetryMultiplier: 2,
 	}
-	client := newRetryWrapper(t.stallingClient, clientConfig, true)
-	client.(*storageControlClientWithRetry).retryConfig.RetryDeadline = 100 * time.Microsecond
-	client.(*storageControlClientWithRetry).retryConfig.TotalRetryBudget = 1000 * time.Microsecond
+	client := newRetryWrapper(t.stallingClient, clientConfig, 100*time.Microsecond, 1000*time.Microsecond, storageutil.DefaultInitialBackoff, false)
 	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
 	expectedLayout := &controlpb.StorageLayout{Location: "some-location"}
 	retryableErr := status.Error(codes.Unavailable, "try again")
@@ -390,9 +370,7 @@ func (t *AllApiRetryWrapperTest) TestGetStorageLayout_NonRetryableError() {
 		MaxRetrySleep:   10 * time.Microsecond,
 		RetryMultiplier: 2,
 	}
-	client := newRetryWrapper(t.stallingClient, clientConfig, true)
-	client.(*storageControlClientWithRetry).retryConfig.RetryDeadline = 100 * time.Microsecond
-	client.(*storageControlClientWithRetry).retryConfig.TotalRetryBudget = 1000 * time.Microsecond
+	client := newRetryWrapper(t.stallingClient, clientConfig, 100*time.Microsecond, 1000*time.Microsecond, storageutil.DefaultInitialBackoff, true)
 	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
 	nonRetryableErr := status.Error(codes.NotFound, "does not exist")
 	t.mockRawClient.On("GetStorageLayout", mock.Anything, req, mock.Anything).Return(nil, nonRetryableErr).Once()
@@ -414,9 +392,7 @@ func (t *AllApiRetryWrapperTest) TestGetStorageLayout_AllAttemptsTimeOut() {
 		MaxRetrySleep:   10 * time.Microsecond,
 		RetryMultiplier: 2,
 	}
-	client := newRetryWrapper(t.stallingClient, clientConfig, true)
-	client.(*storageControlClientWithRetry).retryConfig.RetryDeadline = 1000 * time.Microsecond
-	client.(*storageControlClientWithRetry).retryConfig.TotalRetryBudget = 10000 * time.Microsecond
+	client := newRetryWrapper(t.stallingClient, clientConfig, 100*time.Microsecond, 1000*time.Microsecond, storageutil.DefaultInitialBackoff, true)
 	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
 	// Set stall time to be longer than the attempt timeout.
 	t.stallDurationForGetStorageLayout = 6000 * time.Microsecond
@@ -435,7 +411,7 @@ func (t *AllApiRetryWrapperTest) TestDeleteFolder_SuccessOnFirstAttempt() {
 		MaxRetrySleep:   10 * time.Microsecond,
 		RetryMultiplier: 2,
 	}
-	client := newRetryWrapper(t.stallingClient, clientConfig, true)
+	client := newRetryWrapper(t.stallingClient, clientConfig, 100*time.Microsecond, 1000*time.Microsecond, storageutil.DefaultInitialBackoff, true)
 	client.(*storageControlClientWithRetry).retryConfig.RetryDeadline = 100 * time.Microsecond
 	client.(*storageControlClientWithRetry).retryConfig.TotalRetryBudget = 1000 * time.Microsecond
 	req := &controlpb.DeleteFolderRequest{Name: "some/folder"}
@@ -455,9 +431,7 @@ func (t *AllApiRetryWrapperTest) TestDeleteFolder_RetryableErrorThenSuccess() {
 		MaxRetrySleep:   10 * time.Microsecond,
 		RetryMultiplier: 2,
 	}
-	client := newRetryWrapper(t.stallingClient, clientConfig, true)
-	client.(*storageControlClientWithRetry).retryConfig.RetryDeadline = 100 * time.Microsecond
-	client.(*storageControlClientWithRetry).retryConfig.TotalRetryBudget = 1000 * time.Microsecond
+	client := newRetryWrapper(t.stallingClient, clientConfig, 100*time.Microsecond, 1000*time.Microsecond, storageutil.DefaultInitialBackoff, true)
 	req := &controlpb.DeleteFolderRequest{Name: "some/folder"}
 	retryableErr := status.Error(codes.Unavailable, "try again")
 	// First call fails, second succeeds.
@@ -478,9 +452,7 @@ func (t *AllApiRetryWrapperTest) TestDeleteFolder_NonRetryableError() {
 		MaxRetrySleep:   10 * time.Microsecond,
 		RetryMultiplier: 2,
 	}
-	client := newRetryWrapper(t.stallingClient, clientConfig, true)
-	client.(*storageControlClientWithRetry).retryConfig.RetryDeadline = 100 * time.Microsecond
-	client.(*storageControlClientWithRetry).retryConfig.TotalRetryBudget = 1000 * time.Microsecond
+	client := newRetryWrapper(t.stallingClient, clientConfig, 100*time.Microsecond, 1000*time.Microsecond, storageutil.DefaultInitialBackoff, true)
 	req := &controlpb.DeleteFolderRequest{Name: "some/folder"}
 	nonRetryableErr := status.Error(codes.NotFound, "does not exist")
 	t.mockRawClient.On("DeleteFolder", mock.Anything, req, mock.Anything).Return(nonRetryableErr).Once()
@@ -501,9 +473,7 @@ func (t *AllApiRetryWrapperTest) TestDeleteFolder_AllAttemptsTimeOut() {
 		MaxRetrySleep:   10 * time.Microsecond,
 		RetryMultiplier: 2,
 	}
-	client := newRetryWrapper(t.stallingClient, clientConfig, true)
-	client.(*storageControlClientWithRetry).retryConfig.RetryDeadline = 1000 * time.Microsecond
-	client.(*storageControlClientWithRetry).retryConfig.TotalRetryBudget = 10000 * time.Microsecond
+	client := newRetryWrapper(t.stallingClient, clientConfig, 100*time.Microsecond, 1000*time.Microsecond, storageutil.DefaultInitialBackoff, true)
 	req := &controlpb.DeleteFolderRequest{Name: "some/folder"}
 	// Set stall time to be longer than the attempt timeout.
 	t.stallDurationForFolderAPIs = 6000 * time.Microsecond
@@ -523,9 +493,7 @@ func (t *AllApiRetryWrapperTest) TestGetFolder_SuccessOnFirstAttempt() {
 		MaxRetrySleep:   10 * time.Microsecond,
 		RetryMultiplier: 2,
 	}
-	client := newRetryWrapper(t.stallingClient, clientConfig, true)
-	client.(*storageControlClientWithRetry).retryConfig.RetryDeadline = 100 * time.Microsecond
-	client.(*storageControlClientWithRetry).retryConfig.TotalRetryBudget = 1000 * time.Microsecond
+	client := newRetryWrapper(t.stallingClient, clientConfig, 100*time.Microsecond, 1000*time.Microsecond, storageutil.DefaultInitialBackoff, true)
 	req := &controlpb.GetFolderRequest{Name: "some/folder"}
 	expectedFolder := &controlpb.Folder{Name: "some/folder"}
 	t.mockRawClient.On("GetFolder", mock.Anything, req, mock.Anything).Return(expectedFolder, nil).Once()
@@ -545,9 +513,7 @@ func (t *AllApiRetryWrapperTest) TestGetFolder_RetryableErrorThenSuccess() {
 		MaxRetrySleep:   10 * time.Microsecond,
 		RetryMultiplier: 2,
 	}
-	client := newRetryWrapper(t.stallingClient, clientConfig, true)
-	client.(*storageControlClientWithRetry).retryConfig.RetryDeadline = 100 * time.Microsecond
-	client.(*storageControlClientWithRetry).retryConfig.TotalRetryBudget = 1000 * time.Microsecond
+	client := newRetryWrapper(t.stallingClient, clientConfig, 100*time.Microsecond, 1000*time.Microsecond, storageutil.DefaultInitialBackoff, true)
 	req := &controlpb.GetFolderRequest{Name: "some/folder"}
 	expectedFolder := &controlpb.Folder{Name: "some/folder"}
 	retryableErr := status.Error(codes.Unavailable, "try again")
@@ -570,9 +536,7 @@ func (t *AllApiRetryWrapperTest) TestGetFolder_NonRetryableError() {
 		MaxRetrySleep:   10 * time.Microsecond,
 		RetryMultiplier: 2,
 	}
-	client := newRetryWrapper(t.stallingClient, clientConfig, true)
-	client.(*storageControlClientWithRetry).retryConfig.RetryDeadline = 100 * time.Microsecond
-	client.(*storageControlClientWithRetry).retryConfig.TotalRetryBudget = 1000 * time.Microsecond
+	client := newRetryWrapper(t.stallingClient, clientConfig, 100*time.Microsecond, 1000*time.Microsecond, storageutil.DefaultInitialBackoff, true)
 	req := &controlpb.GetFolderRequest{Name: "some/folder"}
 	nonRetryableErr := status.Error(codes.NotFound, "does not exist")
 	t.mockRawClient.On("GetFolder", mock.Anything, req, mock.Anything).Return(nil, nonRetryableErr).Once()
@@ -594,9 +558,7 @@ func (t *AllApiRetryWrapperTest) TestGetFolder_AllAttemptsTimeOut() {
 		MaxRetrySleep:   10 * time.Microsecond,
 		RetryMultiplier: 2,
 	}
-	client := newRetryWrapper(t.stallingClient, clientConfig, true)
-	client.(*storageControlClientWithRetry).retryConfig.RetryDeadline = 1000 * time.Microsecond
-	client.(*storageControlClientWithRetry).retryConfig.TotalRetryBudget = 10000 * time.Microsecond
+	client := newRetryWrapper(t.stallingClient, clientConfig, 100*time.Microsecond, 1000*time.Microsecond, storageutil.DefaultInitialBackoff, true)
 	req := &controlpb.GetFolderRequest{Name: "some/folder"}
 	// Set execution time to be longer than the attempt timeout.
 	t.stallDurationForFolderAPIs = 6000 * time.Microsecond
@@ -616,9 +578,7 @@ func (t *AllApiRetryWrapperTest) TestRenameFolder_SuccessOnFirstAttempt() {
 		MaxRetrySleep:   10 * time.Microsecond,
 		RetryMultiplier: 2,
 	}
-	client := newRetryWrapper(t.stallingClient, clientConfig, true)
-	client.(*storageControlClientWithRetry).retryConfig.RetryDeadline = 100 * time.Microsecond
-	client.(*storageControlClientWithRetry).retryConfig.TotalRetryBudget = 1000 * time.Microsecond
+	client := newRetryWrapper(t.stallingClient, clientConfig, 100*time.Microsecond, 1000*time.Microsecond, storageutil.DefaultInitialBackoff, true)
 	req := &controlpb.RenameFolderRequest{Name: "some/folder", DestinationFolderId: "new/folder"}
 	expectedOp := &control.RenameFolderOperation{}
 	t.mockRawClient.On("RenameFolder", mock.Anything, req, mock.Anything).Return(expectedOp, nil).Once()
@@ -638,9 +598,7 @@ func (t *AllApiRetryWrapperTest) TestRenameFolder_RetryableErrorThenSuccess() {
 		MaxRetrySleep:   10 * time.Microsecond,
 		RetryMultiplier: 2,
 	}
-	client := newRetryWrapper(t.stallingClient, clientConfig, true)
-	client.(*storageControlClientWithRetry).retryConfig.RetryDeadline = 100 * time.Microsecond
-	client.(*storageControlClientWithRetry).retryConfig.TotalRetryBudget = 1000 * time.Microsecond
+	client := newRetryWrapper(t.stallingClient, clientConfig, 100*time.Microsecond, 1000*time.Microsecond, storageutil.DefaultInitialBackoff, true)
 	req := &controlpb.RenameFolderRequest{Name: "some/folder", DestinationFolderId: "new/folder"}
 	expectedOp := &control.RenameFolderOperation{}
 	retryableErr := status.Error(codes.Unavailable, "try again")
@@ -663,9 +621,7 @@ func (t *AllApiRetryWrapperTest) TestRenameFolder_NonRetryableError() {
 		MaxRetrySleep:   10 * time.Microsecond,
 		RetryMultiplier: 2,
 	}
-	client := newRetryWrapper(t.stallingClient, clientConfig, true)
-	client.(*storageControlClientWithRetry).retryConfig.RetryDeadline = 100 * time.Microsecond
-	client.(*storageControlClientWithRetry).retryConfig.TotalRetryBudget = 1000 * time.Microsecond
+	client := newRetryWrapper(t.stallingClient, clientConfig, 100*time.Microsecond, 1000*time.Microsecond, storageutil.DefaultInitialBackoff, true)
 	req := &controlpb.RenameFolderRequest{Name: "some/folder", DestinationFolderId: "new/folder"}
 	nonRetryableErr := status.Error(codes.NotFound, "does not exist")
 	t.mockRawClient.On("RenameFolder", mock.Anything, req, mock.Anything).Return(nil, nonRetryableErr).Once()
@@ -687,9 +643,7 @@ func (t *AllApiRetryWrapperTest) TestRenameFolder_AllAttemptsTimeOut() {
 		MaxRetrySleep:   10 * time.Microsecond,
 		RetryMultiplier: 2,
 	}
-	client := newRetryWrapper(t.stallingClient, clientConfig, true)
-	client.(*storageControlClientWithRetry).retryConfig.RetryDeadline = 1000 * time.Microsecond
-	client.(*storageControlClientWithRetry).retryConfig.TotalRetryBudget = 10000 * time.Microsecond
+	client := newRetryWrapper(t.stallingClient, clientConfig, 100*time.Microsecond, 1000*time.Microsecond, storageutil.DefaultInitialBackoff, true)
 	req := &controlpb.RenameFolderRequest{Name: "some/folder", DestinationFolderId: "new/folder"}
 	// Set execution time to be longer than the attempt timeout.
 	t.stallDurationForFolderAPIs = 6000 * time.Microsecond
@@ -709,9 +663,7 @@ func (t *AllApiRetryWrapperTest) TestCreateFolder_SuccessOnFirstAttempt() {
 		MaxRetrySleep:   10 * time.Microsecond,
 		RetryMultiplier: 2,
 	}
-	client := newRetryWrapper(t.stallingClient, clientConfig, true)
-	client.(*storageControlClientWithRetry).retryConfig.RetryDeadline = 100 * time.Microsecond
-	client.(*storageControlClientWithRetry).retryConfig.TotalRetryBudget = 1000 * time.Microsecond
+	client := newRetryWrapper(t.stallingClient, clientConfig, 100*time.Microsecond, 1000*time.Microsecond, storageutil.DefaultInitialBackoff, true)
 	req := &controlpb.CreateFolderRequest{Parent: "some/", FolderId: "folder"}
 	expectedFolder := &controlpb.Folder{Name: "some/folder"}
 	t.mockRawClient.On("CreateFolder", mock.Anything, req, mock.Anything).Return(expectedFolder, nil).Once()
@@ -731,9 +683,7 @@ func (t *AllApiRetryWrapperTest) TestCreateFolder_RetryableErrorThenSuccess() {
 		MaxRetrySleep:   10 * time.Microsecond,
 		RetryMultiplier: 2,
 	}
-	client := newRetryWrapper(t.stallingClient, clientConfig, true)
-	client.(*storageControlClientWithRetry).retryConfig.RetryDeadline = 100 * time.Microsecond
-	client.(*storageControlClientWithRetry).retryConfig.TotalRetryBudget = 1000 * time.Microsecond
+	client := newRetryWrapper(t.stallingClient, clientConfig, 100*time.Microsecond, 1000*time.Microsecond, storageutil.DefaultInitialBackoff, true)
 	req := &controlpb.CreateFolderRequest{Parent: "some/", FolderId: "folder"}
 	expectedFolder := &controlpb.Folder{Name: "some/folder"}
 	retryableErr := status.Error(codes.Unavailable, "try again")
@@ -756,9 +706,7 @@ func (t *AllApiRetryWrapperTest) TestCreateFolder_NonRetryableError() {
 		MaxRetrySleep:   10 * time.Microsecond,
 		RetryMultiplier: 2,
 	}
-	client := newRetryWrapper(t.stallingClient, clientConfig, true)
-	client.(*storageControlClientWithRetry).retryConfig.RetryDeadline = 100 * time.Microsecond
-	client.(*storageControlClientWithRetry).retryConfig.TotalRetryBudget = 1000 * time.Microsecond
+	client := newRetryWrapper(t.stallingClient, clientConfig, 100*time.Microsecond, 1000*time.Microsecond, storageutil.DefaultInitialBackoff, true)
 	req := &controlpb.CreateFolderRequest{Parent: "some/", FolderId: "folder"}
 	nonRetryableErr := status.Error(codes.NotFound, "does not exist")
 	t.mockRawClient.On("CreateFolder", mock.Anything, req, mock.Anything).Return(nil, nonRetryableErr).Once()
@@ -780,9 +728,7 @@ func (t *AllApiRetryWrapperTest) TestCreateFolder_AllAttemptsTimeOut() {
 		MaxRetrySleep:   10 * time.Microsecond,
 		RetryMultiplier: 2,
 	}
-	client := newRetryWrapper(t.stallingClient, clientConfig, true)
-	client.(*storageControlClientWithRetry).retryConfig.RetryDeadline = 1000 * time.Microsecond
-	client.(*storageControlClientWithRetry).retryConfig.TotalRetryBudget = 10000 * time.Microsecond
+	client := newRetryWrapper(t.stallingClient, clientConfig, 100*time.Microsecond, 1000*time.Microsecond, storageutil.DefaultInitialBackoff, true)
 	req := &controlpb.CreateFolderRequest{Parent: "some/", FolderId: "folder"}
 	// Set execution time to be longer than the attempt timeout.
 	t.stallDurationForFolderAPIs = 6000 * time.Microsecond

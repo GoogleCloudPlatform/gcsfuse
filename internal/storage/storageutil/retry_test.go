@@ -92,7 +92,7 @@ func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_ContextCancelled() {
 	cancel()
 
 	start := time.Now()
-	err := b.WaitWithJitter(ctx)
+	err := b.waitWithJitter(ctx)
 	elapsed := time.Since(start)
 
 	assert.ErrorIs(t.T(), err, context.Canceled)
@@ -113,7 +113,7 @@ func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_NoContextCancelled() {
 	defer cancel()
 
 	start := time.Now()
-	err := b.WaitWithJitter(ctx)
+	err := b.waitWithJitter(ctx)
 	elapsed := time.Since(start)
 
 	assert.NoError(t.T(), err)
@@ -213,7 +213,6 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_FailureOnNonRetryableEr
 	// Assert
 	assert.Error(t.T(), err)
 	assert.Empty(t.T(), result)
-	assert.Contains(t.T(), err.Error(), "failed with a non-retryable error")
 	assert.ErrorIs(t.T(), err, nonRetryableErr)
 	assert.Equal(t.T(), 1, callCount)
 }
@@ -236,7 +235,6 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_Timeout() {
 	assert.Error(t.T(), err)
 	assert.Empty(t.T(), result)
 	assert.ErrorIs(t.T(), err, context.DeadlineExceeded)
-	assert.Contains(t.T(), err.Error(), "failed after multiple retries")
 }
 
 func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeout() {

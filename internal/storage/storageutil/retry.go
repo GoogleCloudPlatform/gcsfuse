@@ -66,10 +66,10 @@ func (b *exponentialBackoff) nextDuration() time.Duration {
 	return next
 }
 
-// WaitWithJitter waits for the next backoff duration with added jitter.
+// waitWithJitter waits for the next backoff duration with added jitter.
 // The jitter adds randomness to the backoff duration to prevent the thundering herd problem.
 // This is similar to how gax-retries backoff after each failed retry.
-func (b *exponentialBackoff) WaitWithJitter(ctx context.Context) error {
+func (b *exponentialBackoff) waitWithJitter(ctx context.Context) error {
 	nextDuration := b.nextDuration()
 	if nextDuration <= 0 {
 		// Avoid a panic from rand.Int63n if the duration is not positive.
@@ -103,10 +103,7 @@ type RetryConfig struct {
 }
 
 // NewRetryConfig creates a new RetryConfig.
-func NewRetryConfig(clientConfig *StorageClientConfig,
-	retryDeadline,
-	totalRetryBudget,
-	initialBackoff time.Duration) *RetryConfig {
+func NewRetryConfig(clientConfig *StorageClientConfig, retryDeadline, totalRetryBudget, initialBackoff time.Duration) *RetryConfig {
 	return &RetryConfig{
 		RetryDeadline:    retryDeadline,
 		TotalRetryBudget: totalRetryBudget,
@@ -163,7 +160,7 @@ func ExecuteWithRetry[T any](
 		}
 
 		// Do a jittery backoff after each retry.
-		parentCtxErr := backoff.WaitWithJitter(parentCtx)
+		parentCtxErr := backoff.waitWithJitter(parentCtx)
 		if parentCtxErr != nil {
 			return zero, fmt.Errorf("%s for %q failed after multiple retries (last server/client error = %v): %w", operationName, reqDescription, err, parentCtxErr)
 		}

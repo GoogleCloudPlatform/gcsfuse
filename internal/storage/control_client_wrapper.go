@@ -17,6 +17,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	"time"
 
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
@@ -178,18 +179,14 @@ func (sccwros *storageControlClientWithRetry) CreateFolder(ctx context.Context,
 // It accepts various parameters to configure the retry behavior.
 // The returned control client retries storage-layout.
 // It also retries folder-related APIs if `retryFolderAPIs` is true.
-func newRetryWrapper(controlClient StorageControlClient, clientConfig *storageutil.StorageClientConfig, retryFolderAPIs bool) StorageControlClient {
+func newRetryWrapper(controlClient StorageControlClient, clientConfig *storageutil.StorageClientConfig, retryDeadline, totalRetryBudget, initialBackoff time.Duration, retryFolderAPIs bool) StorageControlClient {
 	// Avoid creating a nested wrapper.
 	raw := controlClient
 	if sccwros, ok := controlClient.(*storageControlClientWithRetry); ok {
 		raw = sccwros.raw
 	}
 
-	retryConfig := storageutil.NewRetryConfig(
-		clientConfig,
-		storageutil.DefaultRetryDeadline,
-		storageutil.DefaultTotalRetryBudget,
-		storageutil.DefaultInitialBackoff)
+	retryConfig := storageutil.NewRetryConfig(clientConfig, retryDeadline, totalRetryBudget, initialBackoff)
 	return &storageControlClientWithRetry{
 		raw:                             raw,
 		retryConfig:                     *retryConfig,
@@ -201,13 +198,14 @@ func newRetryWrapper(controlClient StorageControlClient, clientConfig *storageut
 // withRetryOnAllAPIs wraps a StorageControlClient to do a time-bound retry approach for retryable errors for all API calls through it.
 func withRetryOnAllAPIs(controlClient StorageControlClient,
 	clientConfig *storageutil.StorageClientConfig) StorageControlClient {
-	return newRetryWrapper(controlClient, clientConfig, true)
+	return newRetryWrapper(controlClient, clientConfig, storageutil.DefaultRetryDeadline, storageutil.DefaultTotalRetryBudget, storageutil.DefaultInitialBackoff, true)
 }
 
 // withRetryOnStorageLayout wraps a StorageControlClient to do a time-bound retry approach for retryable errors for the GetStorageLayout call through it.
 func withRetryOnStorageLayout(controlClient StorageControlClient,
 	clientConfig *storageutil.StorageClientConfig) StorageControlClient {
-	return newRetryWrapper(controlClient, clientConfig, false)
+	return newRetryWrapper(controlClient, clientConfig, storageutil.DefaultRetryDeadline, storageutil.DefaultTotalRetryBudget, storageutil.DefaultInitialBackoff, false)
+
 }
 
 func storageControlClientGaxRetryOptions(clientConfig *storageutil.StorageClientConfig) []gax.CallOption {
