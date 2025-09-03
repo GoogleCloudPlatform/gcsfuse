@@ -632,7 +632,7 @@ main() {
   if [[ -z "${KOKORO_ARTIFACTS_DIR}" ]]; then
     ARTIFACTS_DIR=$(mktemp -d)
   else
-    ARTIFACTS_DIR="${KOKORO_ARTIFACTS_DIR}"
+    ARTIFACTS_DIR="${KOKORO_ARTIFACTS_DIR}/my_tests"
   fi
   mkdir -p "${ARTIFACTS_DIR}"
 
