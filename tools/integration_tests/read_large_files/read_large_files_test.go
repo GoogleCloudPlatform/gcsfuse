@@ -59,12 +59,12 @@ func TestMain(m *testing.M) {
 			"--implicit-dirs",
 			"--implicit-dirs --client-protocol=grpc",
 		}
-		cacheDirFlag1 := fmt.Sprintf("--implicit-dirs=true --file-cache-max-size-mb=700 --file-cache-cache-file-for-range-read=true --cache-dir=%s/cache-dir-read-large-files-%s", os.TempDir(), setup.GenerateRandomString(4))
-		cfg.ReadLargeFiles[0].Configs[0].Flags = append(cfg.ReadLargeFiles[0].Configs[0].Flags, cacheDirFlag1)
-		cfg.ReadLargeFiles[0].Configs[0].Flags = append(cfg.ReadLargeFiles[0].Configs[0].Flags, cacheDirFlag1, "--client-protocol=grpc")
-		cacheDirFlag2 := fmt.Sprintf("--implicit-dirs=true --file-cache-max-size-mb=-1 --file-cache-cache-file-for-range-read=false --cache-dir=%s/cache-dir-read-large-files-%s", os.TempDir(), setup.GenerateRandomString(4))
-		cfg.ReadLargeFiles[0].Configs[0].Flags = append(cfg.ReadLargeFiles[0].Configs[0].Flags, cacheDirFlag2)
-		cfg.ReadLargeFiles[0].Configs[0].Flags = append(cfg.ReadLargeFiles[0].Configs[0].Flags, cacheDirFlag2, "--client-protocol=grpc")
+		Flag1 := fmt.Sprintf("--implicit-dirs=true --file-cache-max-size-mb=700 --file-cache-cache-file-for-range-read=true --cache-dir=%s/cache-dir-read-large-files-%s", os.TempDir(), setup.GenerateRandomString(4))
+		cfg.ReadLargeFiles[0].Configs[0].Flags = append(cfg.ReadLargeFiles[0].Configs[0].Flags, Flag1)
+		cfg.ReadLargeFiles[0].Configs[0].Flags = append(cfg.ReadLargeFiles[0].Configs[0].Flags, Flag1, "--client-protocol=grpc")
+		Flag2 := fmt.Sprintf("--implicit-dirs=true --file-cache-max-size-mb=-1 --file-cache-cache-file-for-range-read=false --cache-dir=%s/cache-dir-read-large-files-%s", os.TempDir(), setup.GenerateRandomString(4))
+		cfg.ReadLargeFiles[0].Configs[0].Flags = append(cfg.ReadLargeFiles[0].Configs[0].Flags, Flag2)
+		cfg.ReadLargeFiles[0].Configs[0].Flags = append(cfg.ReadLargeFiles[0].Configs[0].Flags, Flag2, "--client-protocol=grpc")
 
 		cfg.ReadLargeFiles[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
