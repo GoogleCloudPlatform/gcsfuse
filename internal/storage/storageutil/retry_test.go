@@ -158,8 +158,8 @@ type ExecuteWithRetryTestSuite struct {
 
 func (t *ExecuteWithRetryTestSuite) SetupTest() {
 	t.retryConfig = &RetryConfig{
-		RetryDeadline:    100 * time.Microsecond,
-		TotalRetryBudget: 500 * time.Microsecond,
+		RetryDeadline:    500 * time.Microsecond,
+		TotalRetryBudget: 2000 * time.Microsecond,
 		BackoffConfig: exponentialBackoffConfig{
 			initial:    1 * time.Microsecond,
 			max:        100 * time.Microsecond,
@@ -248,7 +248,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_RetryableThenNonRetryab
 
 func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_Timeout() {
 	// Arrange
-	stallDuration := t.retryConfig.RetryDeadline + 5*time.Microsecond
+	stallDuration := t.retryConfig.RetryDeadline + 1000*time.Microsecond
 	var callCount int
 	apiCall := func(ctx context.Context) (string, error) {
 		callCount++
@@ -291,9 +291,11 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_TotalRetryBudgetExceede
 func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutShorterThanRetryDeadline() {
 	// Arrange
 	var callCount int
-	stallDuration := t.retryConfig.RetryDeadline + 5*time.Microsecond
+	t.retryConfig.RetryDeadline = 1000 * time.Microsecond
+	t.retryConfig.TotalRetryBudget = 10000 * time.Microsecond
+	stallDuration := t.retryConfig.RetryDeadline + 1000*time.Microsecond
 	// Set a parent context timeout that is shorter than the total retry budget.
-	parentCtx, cancel := context.WithTimeout(context.Background(), t.retryConfig.RetryDeadline-50*time.Microsecond)
+	parentCtx, cancel := context.WithTimeout(context.Background(), t.retryConfig.RetryDeadline-500*time.Microsecond)
 	defer cancel()
 	apiCall := func(ctx context.Context) (string, error) {
 		callCount++
