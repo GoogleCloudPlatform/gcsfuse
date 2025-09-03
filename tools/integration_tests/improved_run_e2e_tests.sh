@@ -585,7 +585,7 @@ run_e2e_tests_for_emulator() {
 }
 
 function print_test_logs_and_create_junit_xml() {
-  local xml_file="${ARTIFACTS_DIR}/test_logs.xml"
+  local xml_file="${ARTIFACTS_DIR}/test.xml"
   echo "XML report will be generated at ${xml_file}"
   # Create a temporary file to store the log file name.
   echo '<?xml version="1.0" encoding="UTF-8"?>' > "${xml_file}"
@@ -632,7 +632,7 @@ main() {
   if [[ -z "${KOKORO_ARTIFACTS_DIR}" ]]; then
     ARTIFACTS_DIR=$(mktemp -d)
   else
-    ARTIFACTS_DIR="${KOKORO_ARTIFACTS_DIR}/gcsfuse_logs/_artifacts"
+    ARTIFACTS_DIR="${KOKORO_ARTIFACTS_DIR}/gcsfuse_logs"
   fi
   mkdir -p "${ARTIFACTS_DIR}"
 
