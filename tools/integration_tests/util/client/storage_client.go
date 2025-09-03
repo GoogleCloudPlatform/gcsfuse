@@ -56,8 +56,7 @@ func CreateHttp1StorageClient(ctx context.Context) (*storage.Client, error) {
 				Proxy:               http.ProxyFromEnvironment,
 				MaxIdleConns:        0, // No connection limit.
 				MaxIdleConnsPerHost: 100,
-				IdleConnTimeout:     90 * time.Second,
-				TLSNextProto:        make(map[string]func(authority string, c *tls.Conn) http.RoundTripper),
+				TLSNextProto:        make(map[string]func(authority string, c *tls.Conn) http.RoundTripper), // Disables HTTP/2 transport.
 			},
 			Source: defaultTokenSrc,
 		},
