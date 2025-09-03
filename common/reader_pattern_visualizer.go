@@ -458,9 +458,9 @@ func (rpv *ReadPatternVisualizer) DumpGraphToFile(filePath string) error {
 	graphOutput := rpv.DumpGraph()
 
 	// Create or overwrite the file
-	file, err := os.Create(filePath)
+	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		return fmt.Errorf("failed to create file %s: %w", filePath, err)
+		return fmt.Errorf("failed to open file %s: %w", filePath, err)
 	}
 	defer file.Close()
 
