@@ -585,7 +585,7 @@ run_e2e_tests_for_emulator() {
 }
 
 function print_test_logs_and_create_junit_xml() {
-  local xml_file="${ARTIFACTS_DIR}/my_tests/sponge_log.xml"
+  local xml_file="${ARTIFACTS_DIR}/sponge_log.xml"
   echo "XML report will be generated at ${xml_file}"
   # Create a temporary file to store the log file name.
   echo '<?xml version="1.0" encoding="UTF-8"?>' > "${xml_file}"
