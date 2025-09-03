@@ -45,9 +45,9 @@ var (
 	ctx           context.Context
 )
 
-// //////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
 // Test Configurations
-// //////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
 
 // testConfig defines a specific GCSfuse configuration for a test run.
 type testConfig struct {
@@ -134,21 +134,21 @@ var readTestConfigs = []*testConfig{
 // appendTestConfigs defines the matrix of configurations for the AppendsTestSuite.
 var appendTestConfigs = []*testConfig{
 	{
-		name:              "SingleMount_BufferedWrite",
+		name:              "SingleMount",
 		isDualMount:       false,
 		primaryMountFlags: []string{"--enable-rapid-appends=true", "--write-block-size-mb=1"},
 	},
 	{
-		name:                "DualMount_BufferedWrite",
+		name:                "DualMount",
 		isDualMount:         true,
 		primaryMountFlags:   []string{"--enable-rapid-appends=true", "--write-block-size-mb=1"},
 		secondaryMountFlags: []string{"--enable-rapid-appends=true", "--write-block-size-mb=1"},
 	},
 }
 
-// //////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
 // Test Runners
-// //////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
 
 // TestReadsSuiteRunner executes all read-after-append tests against the readTestConfigs matrix.
 func TestReadsSuiteRunner(t *testing.T) {
