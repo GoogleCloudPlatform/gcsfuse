@@ -69,6 +69,7 @@ func TestMain(m *testing.M) {
 		cfg.ReadLargeFiles[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
 
+	setup.SetTestBucket(cfg.ReadLargeFiles[0].TestBucket)
 	ctx = context.Background()
 	bucketType := setup.BucketTestEnvironment(ctx, cfg.ReadLargeFiles[0].TestBucket)
 
