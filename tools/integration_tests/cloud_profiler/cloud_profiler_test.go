@@ -111,6 +111,15 @@ func TestMain(m *testing.M) {
 	testServiceVersion = fmt.Sprintf("ve2e0.0.0-%s", strings.ReplaceAll(uuid.New().String(), "-", "")[:8])
 	logger.Infof("Enabling cloud profiler with version tag: %s", testServiceVersion)
 
+	// Iterating over flagSets and updating any empty "--profiling-label=" flags.
+	for i := range flagSets {
+		for j := range flagSets[i] {
+			if flagSets[i][j] == "--profiling-label=" {
+				flagSets[i][j] = fmt.Sprintf(" --profiling-label=%s", testServiceVersion)
+			}
+		}
+	}
+
 	// Run tests for testBucket
 	// 4. Build the flag sets dynamically from the config.
 	flags := setup.BuildFlagSets(cfg.CloudProfiler[0], bucketType)
