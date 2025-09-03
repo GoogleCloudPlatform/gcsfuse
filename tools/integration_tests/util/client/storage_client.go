@@ -16,10 +16,12 @@ package client
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"path"
 	"reflect"
@@ -42,6 +44,28 @@ import (
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
+func CreateHttp1StorageClient(ctx context.Context) (*storage.Client, error) {
+	defaultTokenSrc, err := google.DefaultTokenSource(ctx, storagev1.DevstorageFullControlScope)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create default token source: %w", err)
+	}
+
+	httpClient := &http.Client{
+		Transport: &oauth2.Transport{
+			Base: &http.Transport{
+				Proxy:               http.ProxyFromEnvironment,
+				MaxIdleConns:        0, // No connection limit.
+				MaxIdleConnsPerHost: 100,
+				TLSNextProto:        make(map[string]func(authority string, c *tls.Conn) http.RoundTripper), // Disables HTTP/2 transport.
+			},
+			Source: defaultTokenSrc,
+		},
+		Timeout: 0, // No timeout.
+	}
+
+	return storage.NewClient(ctx, option.WithHTTPClient(httpClient))
+}
+
 func CreateStorageClient(ctx context.Context) (client *storage.Client, err error) {
 	// Create new storage client.
 	if setup.TestOnTPCEndPoint() {
@@ -56,7 +80,7 @@ func CreateStorageClient(ctx context.Context) (client *storage.Client, err error
 		if setup.IsZonalBucketRun() {
 			client, err = storage.NewGRPCClient(ctx, experimental.WithGRPCBidiReads())
 		} else {
-			client, err = storage.NewClient(ctx)
+			client, err = CreateHttp1StorageClient(ctx)
 		}
 	}
 	if err != nil {
