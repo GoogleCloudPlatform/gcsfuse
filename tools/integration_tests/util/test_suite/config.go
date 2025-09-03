@@ -36,7 +36,6 @@ type TestConfig struct {
 	LogFile                       string       `yaml:"log_file,omitempty"`
 	RunOnGKE                      bool         `yaml:"run_on_gke"`
 	Configs                       []ConfigItem `yaml:"configs"`
-	ProfileLabelForMountedDirTest string       `yaml:"profile_label_for_mounted_dir_test,omitempty"`
 }
 
 // ConfigItem defines the variable parts of each test run.

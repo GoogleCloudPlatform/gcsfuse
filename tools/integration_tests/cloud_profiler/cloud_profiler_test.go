@@ -79,8 +79,9 @@ func TestMain(m *testing.M) {
 		cfg.CloudProfiler[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
 
-	setup.SetBucketFromConfigFile(cfg.CloudProfiler[0].TestBucket)
+	setup.SetTestBucket(cfg.CloudProfiler[0].TestBucket)
 	ctx = context.Background()
+
 	bucketType, err := setup.BucketType(ctx, cfg.CloudProfiler[0].TestBucket)
 	if err != nil {
 		log.Fatalf("BucketType failed: %v", err)
@@ -113,7 +114,6 @@ func TestMain(m *testing.M) {
 	// Run tests for testBucket
 	// 4. Build the flag sets dynamically from the config.
 	flags := setup.BuildFlagSets(cfg.CloudProfiler[0], bucketType)
-
 	setup.SetUpTestDirForTestBucket(cfg.CloudProfiler[0].TestBucket)
 
 	successCode := static_mounting.RunTestsWithConfigFile(&cfg.CloudProfiler[0], flags, m)

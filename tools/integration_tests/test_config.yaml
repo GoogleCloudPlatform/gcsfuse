@@ -168,11 +168,11 @@ cloud_profiler:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
     log_file: # Optional
-    profile_label_for_mounted_dir_test: # Optional for not mounted dir test
     run_on_gke: false
     configs:
       - flags:
-          - "--enable-cloud-profiling --profiling-cpu --profiling-heap --profiling-goroutines --profiling-mutex --profiling-allocated-heap --profiling-label=${PROFILE_LABEL}" # Set the 'PROFILE_LABEL' environment variable
+           # Set the 'PROFILE_LABEL' environment variable for GKE
+          - "--enable-cloud-profiling --profiling-cpu --profiling-heap --profiling-goroutines --profiling-mutex --profiling-allocated-heap --profiling-label=${PROFILE_LABEL}"
         compatible:
           flat: true
           hns: true
