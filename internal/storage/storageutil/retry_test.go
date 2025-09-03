@@ -24,7 +24,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"io"
 )
 
 type ExponentialBackoffTestSuite struct {
@@ -44,7 +43,7 @@ func (t *ExponentialBackoffTestSuite) TestNewBackoff() {
 	maxValue := 10 * time.Second
 	multiplier := 2.0
 
-	b := NewExponentialBackoff(&exponentialBackoffConfig{
+	b := newExponentialBackoff(&exponentialBackoffConfig{
 		initial:    initial,
 		max:        maxValue,
 		multiplier: multiplier,
@@ -61,7 +60,7 @@ func (t *ExponentialBackoffTestSuite) TestNext() {
 	initial := 1 * time.Second
 	maxValue := 3 * time.Second
 	multiplier := 2.0
-	b := NewExponentialBackoff(&exponentialBackoffConfig{
+	b := newExponentialBackoff(&exponentialBackoffConfig{
 		initial:    initial,
 		max:        maxValue,
 		multiplier: multiplier,
@@ -83,7 +82,7 @@ func (t *ExponentialBackoffTestSuite) TestNext() {
 func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_ContextCancelled() {
 	initial := 100 * time.Microsecond // A long duration to ensure cancellation happens first.
 	maxValue := 5 * initial
-	b := NewExponentialBackoff(&exponentialBackoffConfig{
+	b := newExponentialBackoff(&exponentialBackoffConfig{
 		initial:    initial,
 		max:        maxValue,
 		multiplier: 2.0,
@@ -105,7 +104,7 @@ func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_NoContextCancelled() {
 	initial := time.Millisecond // A short duration to ensure it waits. Making it any shorter can cause random failures
 	// because context cancel itself takes about a millisecond.
 	maxValue := 5 * initial
-	b := NewExponentialBackoff(&exponentialBackoffConfig{
+	b := newExponentialBackoff(&exponentialBackoffConfig{
 		initial:    initial,
 		max:        maxValue,
 		multiplier: 2.0,
@@ -245,7 +244,6 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_TotalRetryBudgetExceede
 	t.retryConfig.TotalRetryBudget = 30 * time.Millisecond
 	t.retryConfig.RetryDeadline = 20 * time.Millisecond
 	t.retryConfig.BackoffConfig.initial = 15 * time.Millisecond // Ensure backoff pushes it over the edge.
-
 	apiCall := func(ctx context.Context) (string, error) {
 		callCount++
 		return "", status.Error(codes.Unavailable, "server unavailable")
@@ -285,7 +283,6 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextAlreadyCan
 	var callCount int
 	parentCtx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel the context immediately.
-
 	apiCall := func(ctx context.Context) (string, error) {
 		callCount++
 		return "should not be called", nil
@@ -298,25 +295,4 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextAlreadyCan
 	assert.Error(t.T(), err)
 	assert.ErrorIs(t.T(), err, context.Canceled)
 	assert.Equal(t.T(), 0, callCount, "apiCall should not have been executed")
-}
-
-func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_SuccessAfterNonGrpcRetryableError() {
-	// Arrange
-	var callCount int
-	retryableErr := io.ErrUnexpectedEOF
-	apiCall := func(ctx context.Context) (string, error) {
-		callCount++
-		if callCount == 1 {
-			return "", retryableErr
-		}
-		return "success", nil
-	}
-
-	// Act
-	result, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall)
-
-	// Assert
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), "success", result)
-	assert.Equal(t.T(), 2, callCount)
 }

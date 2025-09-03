@@ -46,13 +46,13 @@ type exponentialBackoffConfig struct {
 type exponentialBackoff struct {
 	// config used to create this backoff object.
 	config exponentialBackoffConfig
-	// Duration for next backoff. Capped at Max. Returned by next().
+	// Duration for next backoff. Capped at max. Returned by next().
 	next time.Duration
 }
 
-// NewExponentialBackoff returns a new exponentialBackoff given
+// newExponentialBackoff returns a new exponentialBackoff given
 // the config for it.
-func NewExponentialBackoff(config *exponentialBackoffConfig) *exponentialBackoff {
+func newExponentialBackoff(config *exponentialBackoffConfig) *exponentialBackoff {
 	return &exponentialBackoff{
 		config: *config,
 		next:   config.initial,
@@ -92,7 +92,7 @@ type RetryConfig struct {
 
 // NewRetryConfig creates a new RetryConfig.
 func NewRetryConfig(clientConfig *StorageClientConfig, retryDeadline, totalRetryBudget, initialBackoff time.Duration) *RetryConfig {
-	// TODO: Add checks for non negative time initialization.
+	// TODO: Add checks for non negative value initialization.
 	return &RetryConfig{
 		RetryDeadline:    retryDeadline,
 		TotalRetryBudget: totalRetryBudget,
@@ -115,12 +115,17 @@ func ExecuteWithRetry[T any](
 	reqDescription string,
 	apiCall func(attemptCtx context.Context) (T, error),
 ) (T, error) {
+	// If the context is already cancelled, return immediately.
+	if err := ctx.Err(); err != nil {
+		return *new(T), err
+	}
+
 	var zero T
 	parentCtx, cancel := context.WithTimeout(ctx, config.TotalRetryBudget)
 	defer cancel()
 
 	// Create a new backoff controller specific to this api call.
-	backoff := NewExponentialBackoff(&config.BackoffConfig)
+	backoff := newExponentialBackoff(&config.BackoffConfig)
 	for i := 0; ; i++ {
 		attemptCtx, attemptCancel := context.WithTimeout(parentCtx, config.RetryDeadline)
 
