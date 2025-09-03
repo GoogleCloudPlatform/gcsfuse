@@ -26,7 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
+	"github.com/stretchr/testify/suite"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -37,17 +37,18 @@ type cacheFileForExcludeRegexTest struct {
 	flags         []string
 	storageClient *storage.Client
 	ctx           context.Context
+	suite.Suite
 }
 
-func (s *cacheFileForExcludeRegexTest) Setup(t *testing.T) {
+func (s *cacheFileForExcludeRegexTest) SetupTest() {
 	setupForMountedDirectoryTests()
 	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
 	operations.RemoveDir(cacheDirPath)
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
 }
 
-func (s *cacheFileForExcludeRegexTest) Teardown(t *testing.T) {
-	setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+func (s *cacheFileForExcludeRegexTest) TearDownTest() {
+	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 }
 
@@ -55,16 +56,16 @@ func (s *cacheFileForExcludeRegexTest) Teardown(t *testing.T) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *cacheFileForExcludeRegexTest) TestReadsForExcludedFile(t *testing.T) {
-	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSizeForRangeRead, t)
+func (s *cacheFileForExcludeRegexTest) TestReadsForExcludedFile() {
+	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSizeForRangeRead, s.T())
 
-	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
-	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset1000, t)
+	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, s.T())
+	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset1000, s.T())
 
-	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, t)
-	validate(expectedOutcome2, structuredReadLogs[1], false, false, 1, t)
-	validateFileIsNotCached(testFileName, t)
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), s.T())
+	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, s.T())
+	validate(expectedOutcome2, structuredReadLogs[1], false, false, 1, s.T())
+	validateFileIsNotCached(testFileName, s.T())
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -84,7 +85,7 @@ func TestCacheFileForExcludeRegexTest(t *testing.T) {
 
 	// Run tests for mounted directory if the flag is set.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 		return
 	}
 
@@ -165,6 +166,6 @@ func TestCacheFileForExcludeRegexTest(t *testing.T) {
 			ts.flags = append(ts.flags, test.flags.cliFlags...)
 		}
 		log.Printf("Running tests with flags: %s", ts.flags)
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 	}
 }

@@ -143,18 +143,16 @@ func TestMain(m *testing.M) {
 		os.Exit(setup.RunTestsForMountedDirectory(cfg.ReadOnly[0].MountedDirectory, m))
 	}
 
-	// Run tests for testBucket// Run tests for testBucket
+	// Run tests for testBucket
 	// 4. Build the flag sets dynamically from the config.
 	flags := setup.BuildFlagSets(cfg.ReadOnly[0], bucketType)
-
 	setup.SetUpTestDirForTestBucket(cfg.ReadOnly[0].TestBucket)
 
+	// 5. Run tests.
 	successCode := static_mounting.RunTestsWithConfigFile(&cfg.ReadOnly[0], flags, m)
-
 	if successCode == 0 {
 		successCode = persistent_mounting.RunTestsWithConfigFile(&cfg.ReadOnly[0], flags, m)
 	}
-
 	if successCode == 0 {
 		// These tests don't apply to GCSFuse sidecar.
 		// Validate that tests work with viewer permission on test bucket.

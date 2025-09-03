@@ -23,9 +23,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -34,73 +34,74 @@ import (
 
 type infiniteKernelListCacheDeleteDirTest struct {
 	flags []string
+	suite.Suite
 }
 
-func (s *infiniteKernelListCacheDeleteDirTest) Setup(t *testing.T) {
+func (s *infiniteKernelListCacheDeleteDirTest) SetupTest() {
 	mountGCSFuseAndSetupTestDir(s.flags, testDirName)
 }
 
-func (s *infiniteKernelListCacheDeleteDirTest) Teardown(t *testing.T) {
+func (s *infiniteKernelListCacheDeleteDirTest) TearDownTest() {
 	setup.UnmountGCSFuse(rootDir)
 }
 
-func (s *infiniteKernelListCacheDeleteDirTest) TestKernelListCache_ListAndDeleteDirectory(t *testing.T) {
+func (s *infiniteKernelListCacheDeleteDirTest) TestKernelListCache_ListAndDeleteDirectory() {
 	targetDir := path.Join(testDirPath, "explicit_dir")
-	operations.CreateDirectory(targetDir, t)
+	operations.CreateDirectory(targetDir, s.T())
 	// Create test data
-	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, t)
-	operations.CloseFileShouldNotThrowError(t, f1)
-	f2 := operations.CreateFile(path.Join(targetDir, "file2.txt"), setup.FilePermission_0600, t)
-	operations.CloseFileShouldNotThrowError(t, f2)
+	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, s.T())
+	operations.CloseFileShouldNotThrowError(s.T(), f1)
+	f2 := operations.CreateFile(path.Join(targetDir, "file2.txt"), setup.FilePermission_0600, s.T())
+	operations.CloseFileShouldNotThrowError(s.T(), f2)
 
 	// (a) First read served from GCS, kernel will cache the dir response.
 	f, err := os.Open(targetDir)
-	assert.NoError(t, err)
+	assert.NoError(s.T(), err)
 	names1, err := f.Readdirnames(-1)
-	assert.NoError(t, err)
-	require.Equal(t, 2, len(names1))
-	assert.Equal(t, "file1.txt", names1[0])
-	assert.Equal(t, "file2.txt", names1[1])
+	assert.NoError(s.T(), err)
+	require.Equal(s.T(), 2, len(names1))
+	assert.Equal(s.T(), "file1.txt", names1[0])
+	assert.Equal(s.T(), "file2.txt", names1[1])
 	err = f.Close()
-	assert.NoError(t, err)
+	assert.NoError(s.T(), err)
 	// Adding one object to make sure to change the ReadDir() response.
 	// All files including file3.txt will be deleted by os.RemoveAll
-	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", t)
+	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", s.T())
 
 	err = os.RemoveAll(targetDir)
 
-	assert.NoError(t, err)
+	assert.NoError(s.T(), err)
 }
 
-func (s *infiniteKernelListCacheDeleteDirTest) TestKernelListCache_DeleteAndListDirectory(t *testing.T) {
+func (s *infiniteKernelListCacheDeleteDirTest) TestKernelListCache_DeleteAndListDirectory() {
 	targetDir := path.Join(testDirPath, "explicit_dir")
-	operations.CreateDirectory(targetDir, t)
+	operations.CreateDirectory(targetDir, s.T())
 	// Create test data
-	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, t)
-	operations.CloseFileShouldNotThrowError(t, f1)
-	f2 := operations.CreateFile(path.Join(targetDir, "file2.txt"), setup.FilePermission_0600, t)
-	operations.CloseFileShouldNotThrowError(t, f2)
+	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, s.T())
+	operations.CloseFileShouldNotThrowError(s.T(), f1)
+	f2 := operations.CreateFile(path.Join(targetDir, "file2.txt"), setup.FilePermission_0600, s.T())
+	operations.CloseFileShouldNotThrowError(s.T(), f2)
 
 	err := os.RemoveAll(targetDir)
-	assert.NoError(t, err)
+	assert.NoError(s.T(), err)
 
 	// Adding object to GCS to make sure to change the ReadDir() response.
 	err = client.CreateObjectOnGCS(ctx, storageClient, path.Join(testDirName, "explicit_dir")+"/", "")
-	require.NoError(t, err)
-	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", t)
+	require.NoError(s.T(), err)
+	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", s.T())
 	// Read will be served from GCS as removing the directory also deletes the cache.
 	f, err := os.Open(targetDir)
-	assert.NoError(t, err)
+	assert.NoError(s.T(), err)
 	names1, err := f.Readdirnames(-1)
-	assert.NoError(t, err)
-	require.Equal(t, 1, len(names1))
-	assert.Equal(t, "file3.txt", names1[0])
+	assert.NoError(s.T(), err)
+	require.Equal(s.T(), 1, len(names1))
+	assert.Equal(s.T(), "file3.txt", names1[0])
 	err = f.Close()
-	assert.NoError(t, err)
+	assert.NoError(s.T(), err)
 
 	// 2nd RemoveAll call will also succeed.
 	err = os.RemoveAll(targetDir)
-	assert.NoError(t, err)
+	assert.NoError(s.T(), err)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -114,7 +115,7 @@ func TestInfiniteKernelListCacheDeleteDirTest(t *testing.T) {
 
 	// Run tests for mounted directory if the flag is set.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 		return
 	}
 
@@ -130,6 +131,6 @@ func TestInfiniteKernelListCacheDeleteDirTest(t *testing.T) {
 	for _, flags := range flagsSet {
 		ts.flags = flags
 		log.Printf("Running tests with flags: %s", ts.flags)
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 	}
 }

@@ -21,99 +21,100 @@ import (
 	"testing"
 
 	"cloud.google.com/go/storage"
+	"github.com/stretchr/testify/suite"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type notifierTest struct {
 	flags []string
+	suite.Suite
 }
 
-func (s *notifierTest) Setup(t *testing.T) {
+func (s *notifierTest) SetupTest() {
 	mountGCSFuseAndSetupTestDir(s.flags, testDirName)
 }
 
-func (s *notifierTest) Teardown(t *testing.T) {
+func (s *notifierTest) TearDownTest() {
 	if setup.MountedDirectory() == "" { // Only unmount if not using a pre-mounted directory
 		setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
 		setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 	}
 }
 
-func (s *notifierTest) TestWriteFileWithDentryCacheEnabled(t *testing.T) {
+func (s *notifierTest) TestWriteFileWithDentryCacheEnabled() {
 	// Create a file with initial content directly in GCS.
 	filePath := path.Join(setup.MntDir(), testDirName, testFileName)
-	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, testFileName, initialContentSize, t)
+	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, testFileName, initialContentSize, s.T())
 	// Stat file to cache the entry
 	_, err := os.Stat(filePath)
-	require.Nil(t, err)
+	require.Nil(s.T(), err)
 	// Modify the object on GCS.
 	objectName := path.Join(testDirName, testFileName)
 	smallContent, err := operations.GenerateRandomData(updatedContentSize)
-	require.Nil(t, err)
-	require.Nil(t, client.WriteToObject(ctx, storageClient, objectName, string(smallContent), storage.Conditions{}))
+	require.Nil(s.T(), err)
+	require.Nil(s.T(), client.WriteToObject(ctx, storageClient, objectName, string(smallContent), storage.Conditions{}))
 
 	// First Write File attempt.
 	err = operations.WriteFile(filePath, "ShouldNotWrite")
 
 	// First Write File attempt should fail because file has been clobbered.
-	operations.ValidateESTALEError(t, err)
+	operations.ValidateESTALEError(s.T(), err)
 	// Second Write File attempt.
 	err = operations.WriteFile(filePath, "ShouldWrite")
 	// The notifier is triggered after the first write failure, invalidating the kernel cache entry.
 	// Therefore, the second write succeeds even before the metadata cache TTL expires.
-	assert.Nil(t, err)
+	assert.Nil(s.T(), err)
 }
 
-func (s *notifierTest) TestReadFileWithDentryCacheEnabled(t *testing.T) {
+func (s *notifierTest) TestReadFileWithDentryCacheEnabled() {
 	// Create a file with initial content directly in GCS.
 	filePath := path.Join(setup.MntDir(), testDirName, testFileName)
-	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, testFileName, initialContentSize, t)
+	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, testFileName, initialContentSize, s.T())
 	// Stat file to cache the entry
 	_, err := os.Stat(filePath)
-	require.Nil(t, err)
+	require.Nil(s.T(), err)
 	// Modify the object on GCS.
 	objectName := path.Join(testDirName, testFileName)
 	smallContent, err := operations.GenerateRandomData(updatedContentSize)
-	require.Nil(t, err)
-	require.Nil(t, client.WriteToObject(ctx, storageClient, objectName, string(smallContent), storage.Conditions{}))
+	require.Nil(s.T(), err)
+	require.Nil(s.T(), client.WriteToObject(ctx, storageClient, objectName, string(smallContent), storage.Conditions{}))
 
 	// First Read File attempt.
 	_, err = operations.ReadFile(filePath)
 
 	// First Read File attempt should fail because file has been clobbered.
-	operations.ValidateESTALEError(t, err)
+	operations.ValidateESTALEError(s.T(), err)
 	// Second Read File attempt.
 	_, err = operations.ReadFile(filePath)
 	// The notifier is triggered after the first read failure, invalidating the kernel cache entry.
 	// Therefore, the second read succeeds even before the metadata cache TTL expires.
-	assert.Nil(t, err)
+	assert.Nil(s.T(), err)
 }
 
-func (s *notifierTest) TestDeleteFileWithDentryCacheEnabled(t *testing.T) {
+func (s *notifierTest) TestDeleteFileWithDentryCacheEnabled() {
 	// Create a file with initial content directly in GCS.
 	filePath := path.Join(setup.MntDir(), testDirName, testFileName)
-	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, testFileName, initialContentSize, t)
+	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, testFileName, initialContentSize, s.T())
 	// Stat file to cache the entry
 	_, err := os.Stat(filePath)
-	require.Nil(t, err)
+	require.Nil(s.T(), err)
 	// Delete the object directly from GCS.
 	objectName := path.Join(testDirName, testFileName)
-	require.Nil(t, client.DeleteObjectOnGCS(ctx, storageClient, objectName))
+	require.Nil(s.T(), client.DeleteObjectOnGCS(ctx, storageClient, objectName))
 	// Read File to call the notifier to invalidate entry.
 	_, err = operations.ReadFile(filePath)
 	// The notifier is triggered after the first read failure, invalidating the kernel cache entry.
-	operations.ValidateESTALEError(t, err)
+	operations.ValidateESTALEError(s.T(), err)
 
 	// Stat again, it should give error as entry does not exist.
 	_, err = os.Stat(filePath)
 
-	assert.NotNil(t, err)
+	assert.NotNil(s.T(), err)
 }
 
 func TestNotifierTest(t *testing.T) {
@@ -121,12 +122,12 @@ func TestNotifierTest(t *testing.T) {
 
 	// Run tests for mounted directory if the flag is set.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 		return
 	}
 
 	// Setup flags and run tests.
 	ts.flags = []string{"--implicit-dirs", "--experimental-enable-dentry-cache", "--metadata-cache-ttl-secs=1000"}
 	log.Printf("Running tests with flags: %s", ts.flags)
-	test_setup.RunTests(t, ts)
+	suite.Run(t, ts)
 }

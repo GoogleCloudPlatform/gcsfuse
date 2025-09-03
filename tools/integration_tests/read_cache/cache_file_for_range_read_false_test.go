@@ -27,9 +27,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -41,17 +41,18 @@ type cacheFileForRangeReadFalseTest struct {
 	storageClient              *storage.Client
 	ctx                        context.Context
 	isParallelDownloadsEnabled bool
+	suite.Suite
 }
 
-func (s *cacheFileForRangeReadFalseTest) Setup(t *testing.T) {
+func (s *cacheFileForRangeReadFalseTest) SetupTest() {
 	setupForMountedDirectoryTests()
 	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
 	operations.RemoveDir(cacheDirPath)
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
 }
 
-func (s *cacheFileForRangeReadFalseTest) Teardown(t *testing.T) {
-	setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+func (s *cacheFileForRangeReadFalseTest) TearDownTest() {
+	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 }
 
@@ -79,43 +80,43 @@ func readFileBetweenOffset(t *testing.T, file *os.File, startOffset, endOffSet i
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *cacheFileForRangeReadFalseTest) TestRangeReadsWithCacheMiss(t *testing.T) {
-	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSizeForRangeRead, t)
+func (s *cacheFileForRangeReadFalseTest) TestRangeReadsWithCacheMiss() {
+	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSizeForRangeRead, s.T())
 
 	// Do a random read on file and validate from gcs.
-	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset5000, t)
+	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset5000, s.T())
 	// Read file again from offset 1000 and validate from gcs.
-	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset1000, t)
+	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset1000, s.T())
 
-	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	validate(expectedOutcome1, structuredReadLogs[0], false, false, 1, t)
-	validate(expectedOutcome2, structuredReadLogs[1], false, false, 1, t)
-	validateFileIsNotCached(testFileName, t)
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), s.T())
+	validate(expectedOutcome1, structuredReadLogs[0], false, false, 1, s.T())
+	validate(expectedOutcome2, structuredReadLogs[1], false, false, 1, s.T())
+	validateFileIsNotCached(testFileName, s.T())
 }
 
-func (s *cacheFileForRangeReadFalseTest) TestReadIsTreatedNonSequentialAfterFileIsRemovedFromCache(t *testing.T) {
+func (s *cacheFileForRangeReadFalseTest) TestReadIsTreatedNonSequentialAfterFileIsRemovedFromCache() {
 	var testFileNames [2]string
 	var expectedOutcome [4]*Expected
-	testFileNames[0] = setupFileInTestDir(s.ctx, s.storageClient, fileSizeSameAsCacheCapacity, t)
-	testFileNames[1] = setupFileInTestDir(s.ctx, s.storageClient, fileSizeSameAsCacheCapacity, t)
+	testFileNames[0] = setupFileInTestDir(s.ctx, s.storageClient, fileSizeSameAsCacheCapacity, s.T())
+	testFileNames[1] = setupFileInTestDir(s.ctx, s.storageClient, fileSizeSameAsCacheCapacity, s.T())
 	randomReadChunkCount := fileSizeSameAsCacheCapacity / chunkSizeToRead
 	readTillChunk := randomReadChunkCount / 2
-	fh1 := operations.OpenFile(path.Join(testDirPath, testFileNames[0]), t)
-	defer operations.CloseFileShouldNotThrowError(t, fh1)
-	fh2 := operations.OpenFile(path.Join(testDirPath, testFileNames[1]), t)
-	defer operations.CloseFileShouldNotThrowError(t, fh2)
+	fh1 := operations.OpenFile(path.Join(testDirPath, testFileNames[0]), s.T())
+	defer operations.CloseFileShouldNotThrowError(s.T(), fh1)
+	fh2 := operations.OpenFile(path.Join(testDirPath, testFileNames[1]), s.T())
+	defer operations.CloseFileShouldNotThrowError(s.T(), fh2)
 
 	// Use file handle 1 to read file 1 partially.
-	expectedOutcome[0] = readFileBetweenOffset(t, fh1, 0, int64(readTillChunk*chunkSizeToRead))
+	expectedOutcome[0] = readFileBetweenOffset(s.T(), fh1, 0, int64(readTillChunk*chunkSizeToRead))
 	// Use file handle 2 to read file 2 partially. This will evict file 1 from
 	// cache due to cache capacity constraints.
-	expectedOutcome[1] = readFileBetweenOffset(t, fh2, 0, int64(readTillChunk*chunkSizeToRead))
+	expectedOutcome[1] = readFileBetweenOffset(s.T(), fh2, 0, int64(readTillChunk*chunkSizeToRead))
 	// Read remaining file 1. File 2 remains cached. Cache eviction happens on
 	// cache handler creation, which is tied to the file handle. Since the handle
 	// isn't recreated, eviction doesn't occur.
-	expectedOutcome[2] = readFileBetweenOffset(t, fh1, int64(readTillChunk*chunkSizeToRead)+1, fileSizeSameAsCacheCapacity)
+	expectedOutcome[2] = readFileBetweenOffset(s.T(), fh1, int64(readTillChunk*chunkSizeToRead)+1, fileSizeSameAsCacheCapacity)
 	// Read remaining file 2.
-	expectedOutcome[3] = readFileBetweenOffset(t, fh2, int64(readTillChunk*chunkSizeToRead)+1, fileSizeSameAsCacheCapacity)
+	expectedOutcome[3] = readFileBetweenOffset(s.T(), fh2, int64(readTillChunk*chunkSizeToRead)+1, fileSizeSameAsCacheCapacity)
 
 	// Merge the expected outcomes.
 	expectedOutcome[0].EndTimeStampSeconds = expectedOutcome[2].EndTimeStampSeconds
@@ -123,25 +124,25 @@ func (s *cacheFileForRangeReadFalseTest) TestReadIsTreatedNonSequentialAfterFile
 	expectedOutcome[1].EndTimeStampSeconds = expectedOutcome[3].EndTimeStampSeconds
 	expectedOutcome[1].content = expectedOutcome[1].content + expectedOutcome[3].content
 	// Parse the logs and validate with expected outcome.
-	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	require.Equal(t, 2, len(structuredReadLogs))
-	validate(expectedOutcome[0], structuredReadLogs[0], true, false, randomReadChunkCount, t)
-	validate(expectedOutcome[1], structuredReadLogs[1], true, false, randomReadChunkCount, t)
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), s.T())
+	require.Equal(s.T(), 2, len(structuredReadLogs))
+	validate(expectedOutcome[0], structuredReadLogs[0], true, false, randomReadChunkCount, s.T())
+	validate(expectedOutcome[1], structuredReadLogs[1], true, false, randomReadChunkCount, s.T())
 	// Validate after cache eviction, read was considered non-sequential and cache
 	// hit false for first file.
 	// Checking for the last chunk, not readTillChunk+1, due to potential kernel
 	// over-reads on some architectures.
-	assert.False(t, structuredReadLogs[0].Chunks[randomReadChunkCount-1].IsSequential)
-	assert.False(t, structuredReadLogs[0].Chunks[randomReadChunkCount-1].CacheHit)
+	assert.False(s.T(), structuredReadLogs[0].Chunks[randomReadChunkCount-1].IsSequential)
+	assert.False(s.T(), structuredReadLogs[0].Chunks[randomReadChunkCount-1].CacheHit)
 	// Validate for 2nd file read was considered sequential because of no cache eviction.
-	assert.True(t, structuredReadLogs[1].Chunks[randomReadChunkCount-1].IsSequential)
+	assert.True(s.T(), structuredReadLogs[1].Chunks[randomReadChunkCount-1].IsSequential)
 	if !s.isParallelDownloadsEnabled {
 		// When parallel downloads are enabled, we can't concretely say that the read will be cache Hit.
-		assert.True(t, structuredReadLogs[1].Chunks[randomReadChunkCount-1].CacheHit)
+		assert.True(s.T(), structuredReadLogs[1].Chunks[randomReadChunkCount-1].CacheHit)
 	}
 
-	validateFileIsNotCached(testFileNames[0], t)
-	validateFileInCacheDirectory(testFileNames[1], fileSizeSameAsCacheCapacity, s.ctx, s.storageClient, t)
+	validateFileIsNotCached(testFileNames[0], s.T())
+	validateFileInCacheDirectory(testFileNames[1], fileSizeSameAsCacheCapacity, s.ctx, s.storageClient, s.T())
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -161,7 +162,7 @@ func TestCacheFileForRangeReadFalseTest(t *testing.T) {
 
 	// Run tests for mounted directory if the flag is set.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 		return
 	}
 
@@ -197,7 +198,7 @@ func TestCacheFileForRangeReadFalseTest(t *testing.T) {
 			ts.flags = append(ts.flags, flags.cliFlags...)
 		}
 		log.Printf("Running tests with flags: %s", ts.flags)
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 	}
 
 	// Run tests with parallel downloads enabled.
@@ -248,6 +249,6 @@ func TestCacheFileForRangeReadFalseTest(t *testing.T) {
 		}
 		ts.isParallelDownloadsEnabled = true
 		log.Printf("Running tests with flags: %s", ts.flags)
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 	}
 }

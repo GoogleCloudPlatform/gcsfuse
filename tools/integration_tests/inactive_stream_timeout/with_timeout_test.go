@@ -24,8 +24,8 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 const DefaultSequentialReadSizeMb = 5
@@ -34,14 +34,15 @@ type timeoutEnabledSuite struct {
 	flags         []string
 	storageClient *storage.Client
 	ctx           context.Context
+	suite.Suite
 }
 
-func (s *timeoutEnabledSuite) Setup(t *testing.T) {
+func (s *timeoutEnabledSuite) SetupTest() {
 	mountGCSFuseAndSetupTestDir(s.ctx, s.flags, s.storageClient, kTestDirName)
 }
 
-func (s *timeoutEnabledSuite) Teardown(t *testing.T) {
-	setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+func (s *timeoutEnabledSuite) TearDownTest() {
+	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 	if setup.MountedDirectory() == "" { // Only unmount if not using a pre-mounted directory
 		setup.UnmountGCSFuseAndDeleteLogFile(gRootDir)
 	}
@@ -51,20 +52,20 @@ func (s *timeoutEnabledSuite) Teardown(t *testing.T) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *timeoutEnabledSuite) TestReaderCloses(t *testing.T) {
+func (s *timeoutEnabledSuite) TestReaderCloses() {
 	timeoutDuration := kDefaultInactiveReadTimeoutInSeconds * time.Second
 	gcsFileName := path.Join(kTestDirName, kTestFileName)
-	mountFilePath := setupFile(s.ctx, s.storageClient, kTestFileName, kFileSize, t)
+	mountFilePath := setupFile(s.ctx, s.storageClient, kTestFileName, kFileSize, s.T())
 
 	// 1. Open file.
 	fileHandle, err := operations.OpenFileAsReadonly(mountFilePath)
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 	defer fileHandle.Close()
 
 	// 2. Read small chunk from 0 offset.
 	buff := make([]byte, kChunkSizeToRead)
 	_, err = fileHandle.ReadAt(buff, 0)
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 	endTimeRead := time.Now()
 
 	// 3. Wait for timeout
@@ -72,26 +73,26 @@ func (s *timeoutEnabledSuite) TestReaderCloses(t *testing.T) {
 	endTimeWait := time.Now()
 
 	// 4. "Closing reader" log should be present.
-	validateInactiveReaderClosedLog(t, setup.LogFile(), gcsFileName, true, endTimeRead, endTimeWait)
+	validateInactiveReaderClosedLog(s.T(), setup.LogFile(), gcsFileName, true, endTimeRead, endTimeWait)
 
 	// 5. Further reads should work as it is, yeah it will create a new reader.
 	_, err = fileHandle.ReadAt(buff, 8)
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 }
 
-func (s *timeoutEnabledSuite) TestReaderStaysOpenWithinTimeout(t *testing.T) {
+func (s *timeoutEnabledSuite) TestReaderStaysOpenWithinTimeout() {
 	timeoutDuration := kDefaultInactiveReadTimeoutInSeconds * time.Second
 	gcsFileName := path.Join(kTestDirName, kTestFileName)
-	localFilePath := setupFile(s.ctx, s.storageClient, kTestFileName, kFileSize, t)
+	localFilePath := setupFile(s.ctx, s.storageClient, kTestFileName, kFileSize, s.T())
 
 	fileHandle, err := operations.OpenFileAsReadonly(localFilePath)
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 	defer fileHandle.Close()
 
 	// 1. First read.
 	buff := make([]byte, kChunkSizeToRead)
 	_, err = fileHandle.ReadAt(buff, 0)
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 	endTimeRead1 := time.Now()
 
 	// 2. Wait for a period SHORTER than the timeout.
@@ -100,11 +101,11 @@ func (s *timeoutEnabledSuite) TestReaderStaysOpenWithinTimeout(t *testing.T) {
 
 	// 3. Second read.
 	_, err = fileHandle.ReadAt(buff, int64(kChunkSizeToRead)) // Read the next chunk
-	require.NoError(t, err, "Second read within timeout failed")
+	require.NoError(s.T(), err, "Second read within timeout failed")
 
 	// 4. Check log: "Closing reader for object..." should NOT be present for this object
 	// between the first read's end and the second read's start.
-	validateInactiveReaderClosedLog(t, setup.LogFile(), gcsFileName, false, endTimeRead1, startTimeRead2)
+	validateInactiveReaderClosedLog(s.T(), setup.LogFile(), gcsFileName, false, endTimeRead1, startTimeRead2)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -116,7 +117,7 @@ func TestTimeoutEnabledSuite(t *testing.T) {
 
 	// Run tests for mounted directory if the flag is set.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 		return
 	}
 
@@ -141,6 +142,6 @@ func TestTimeoutEnabledSuite(t *testing.T) {
 		}
 		log.Printf("Running inactive_read_timeout tests with flags: %s", ts.flags)
 
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 	}
 }
