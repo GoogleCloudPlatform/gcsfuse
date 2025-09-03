@@ -1717,6 +1717,7 @@ func (fs *fileSystem) LookUpInode(
 	e.Child = child.ID()
 	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
 	if fs.newConfig.FileSystem.ExperimentalEnableDentryCache {
+		fmt.Println("10min timeout")
 		e.EntryExpiration = time.Now().Add(10 * time.Minute)
 	}
 
