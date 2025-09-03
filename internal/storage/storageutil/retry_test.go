@@ -38,6 +38,10 @@ func TestExecuteWithRetryTestSuite(t *testing.T) {
 	suite.Run(t, new(ExecuteWithRetryTestSuite))
 }
 
+func TestRetryConfigTestSuite(t *testing.T) {
+	suite.Run(t, new(RetryConfigTestSuite))
+}
+
 func (t *ExponentialBackoffTestSuite) TestNewBackoff() {
 	initial := 1 * time.Second
 	maxValue := 10 * time.Second
@@ -121,7 +125,11 @@ func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_NoContextCancelled() {
 	assert.LessOrEqual(t.T(), elapsed, initial*2, "waitWithJitter should not wait excessively long")
 }
 
-func (t *ExponentialBackoffTestSuite) TestNewRetryConfig() {
+type RetryConfigTestSuite struct {
+	suite.Suite
+}
+
+func (t *RetryConfigTestSuite) TestNewRetryConfig() {
 	// Arrange
 	clientConfig := &StorageClientConfig{
 		MaxRetrySleep:   10 * time.Second,
@@ -150,11 +158,11 @@ type ExecuteWithRetryTestSuite struct {
 
 func (t *ExecuteWithRetryTestSuite) SetupTest() {
 	t.retryConfig = &RetryConfig{
-		RetryDeadline:    50 * time.Millisecond,
-		TotalRetryBudget: 200 * time.Millisecond,
+		RetryDeadline:    100 * time.Microsecond,
+		TotalRetryBudget: 500 * time.Microsecond,
 		BackoffConfig: exponentialBackoffConfig{
-			initial:    5 * time.Millisecond,
-			max:        20 * time.Millisecond,
+			initial:    1 * time.Microsecond,
+			max:        100 * time.Microsecond,
 			multiplier: 2,
 		},
 	}
@@ -217,9 +225,32 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_FailureOnNonRetryableEr
 	assert.Equal(t.T(), 1, callCount)
 }
 
+func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_RetryableThenNonRetryableError() {
+	// Arrange
+	var callCount int
+	retryableErr := status.Error(codes.Unavailable, "server unavailable")
+	nonRetryableErr := errors.New("non-retryable error")
+	apiCall := func(ctx context.Context) (string, error) {
+		callCount++
+		if callCount == 1 {
+			return "", retryableErr
+		}
+		return "", nonRetryableErr
+	}
+
+	// Act
+	result, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall)
+
+	// Assert
+	assert.Error(t.T(), err)
+	assert.Empty(t.T(), result)
+	assert.ErrorIs(t.T(), err, nonRetryableErr)
+	assert.Equal(t.T(), 2, callCount)
+}
+
 func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_Timeout() {
 	// Arrange
-	stallDuration := t.retryConfig.RetryDeadline + 5*time.Millisecond
+	stallDuration := t.retryConfig.RetryDeadline + 5*time.Microsecond
 	var callCount int
 	apiCall := func(ctx context.Context) (string, error) {
 		callCount++
@@ -232,18 +263,18 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_Timeout() {
 	result, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall)
 
 	// Assert
-	assert.Error(t.T(), err)
-	assert.Empty(t.T(), result)
 	assert.ErrorIs(t.T(), err, context.DeadlineExceeded)
+	assert.Empty(t.T(), result)
+
 }
 
 func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_TotalRetryBudgetExceeded() {
 	// Arrange
 	var callCount int
 	// Set a short total retry budget.
-	t.retryConfig.TotalRetryBudget = 30 * time.Millisecond
-	t.retryConfig.RetryDeadline = 20 * time.Millisecond
-	t.retryConfig.BackoffConfig.initial = 15 * time.Millisecond // Ensure backoff pushes it over the edge.
+	t.retryConfig.TotalRetryBudget = 500 * time.Microsecond
+	t.retryConfig.RetryDeadline = 100 * time.Microsecond
+	t.retryConfig.BackoffConfig.initial = 1 * time.Microsecond // Ensure backoff pushes it over the edge.
 	apiCall := func(ctx context.Context) (string, error) {
 		callCount++
 		return "", status.Error(codes.Unavailable, "server unavailable")
@@ -252,19 +283,22 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_TotalRetryBudgetExceede
 	// Act
 	_, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall)
 
+	assert.Greater(t.T(), callCount, 1)
 	// Assert
-	assert.Error(t.T(), err)
 	assert.ErrorIs(t.T(), err, context.DeadlineExceeded, "The error should be from the total retry budget timeout")
 }
 
 func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeout() {
 	// Arrange
 	var callCount int
+	stallDuration := t.retryConfig.RetryDeadline + 5*time.Microsecond
 	// Set a parent context timeout that is shorter than the total retry budget.
-	parentCtx, cancel := context.WithTimeout(context.Background(), t.retryConfig.TotalRetryBudget-100*time.Millisecond)
+	parentCtx, cancel := context.WithTimeout(context.Background(), t.retryConfig.TotalRetryBudget-100*time.Microsecond)
 	defer cancel()
 	apiCall := func(ctx context.Context) (string, error) {
 		callCount++
+		// Simulate a call that always takes longer than the per-attempt deadline.
+		time.Sleep(stallDuration)
 		// This will always fail with a retryable error.
 		return "", status.Error(codes.Unavailable, "server unavailable")
 	}
@@ -273,9 +307,8 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeout() 
 	result, err := ExecuteWithRetry(parentCtx, t.retryConfig, "testOp", "testReq", apiCall)
 
 	// Assert
-	assert.Error(t.T(), err)
-	assert.Empty(t.T(), result)
 	assert.ErrorIs(t.T(), err, context.DeadlineExceeded, "The error should be from the parent context's timeout")
+	assert.Empty(t.T(), result)
 }
 
 func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextAlreadyCancelled() {
@@ -292,7 +325,6 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextAlreadyCan
 	_, err := ExecuteWithRetry(parentCtx, t.retryConfig, "testOp", "testReq", apiCall)
 
 	// Assert
-	assert.Error(t.T(), err)
 	assert.ErrorIs(t.T(), err, context.Canceled)
 	assert.Equal(t.T(), 0, callCount, "apiCall should not have been executed")
 }

@@ -109,18 +109,18 @@ func NewRetryConfig(clientConfig *StorageClientConfig, retryDeadline, totalRetry
 // It is expected that the given apiCall returns a structure, and not an HTTP response,
 // so that it does not leave behind any trace of a pending operation on server.
 func ExecuteWithRetry[T any](
-	ctx context.Context,
-	config *RetryConfig,
-	operationName string,
-	reqDescription string,
-	apiCall func(attemptCtx context.Context) (T, error),
+		ctx context.Context,
+		config *RetryConfig,
+		operationName string,
+		reqDescription string,
+		apiCall func(attemptCtx context.Context) (T, error),
 ) (T, error) {
+	var zero T
 	// If the context is already cancelled, return immediately.
 	if err := ctx.Err(); err != nil {
-		return *new(T), err
+		return zero, err
 	}
 
-	var zero T
 	parentCtx, cancel := context.WithTimeout(ctx, config.TotalRetryBudget)
 	defer cancel()
 
