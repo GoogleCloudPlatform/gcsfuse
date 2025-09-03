@@ -40,52 +40,52 @@ func TestExecuteWithRetryTestSuite(t *testing.T) {
 
 func (t *ExponentialBackoffTestSuite) TestNewBackoff() {
 	initial := 1 * time.Second
-	max := 10 * time.Second
+	maxValue := 10 * time.Second
 	multiplier := 2.0
 
-	b := NewExponentialBackoff(&ExponentialBackoffConfig{
-		Initial:    initial,
-		Max:        max,
-		Multiplier: multiplier,
+	b := NewExponentialBackoff(&exponentialBackoffConfig{
+		initial:    initial,
+		max:        maxValue,
+		multiplier: multiplier,
 	})
 
 	assert.NotNil(t.T(), b)
 	assert.Equal(t.T(), initial, b.next)
-	assert.Equal(t.T(), initial, b.config.Initial)
-	assert.Equal(t.T(), max, b.config.Max)
-	assert.Equal(t.T(), multiplier, b.config.Multiplier)
+	assert.Equal(t.T(), initial, b.config.initial)
+	assert.Equal(t.T(), maxValue, b.config.max)
+	assert.Equal(t.T(), multiplier, b.config.multiplier)
 }
 
 func (t *ExponentialBackoffTestSuite) TestNext() {
 	initial := 1 * time.Second
-	max := 3 * time.Second
+	maxValue := 3 * time.Second
 	multiplier := 2.0
-	b := NewExponentialBackoff(&ExponentialBackoffConfig{
-		Initial:    initial,
-		Max:        max,
-		Multiplier: multiplier,
+	b := NewExponentialBackoff(&exponentialBackoffConfig{
+		initial:    initial,
+		max:        maxValue,
+		multiplier: multiplier,
 	})
 
-	// First call to next() should return Initial, and update current.
+	// First call to next() should return initial, and update current.
 	assert.Equal(t.T(), 1*time.Second, b.nextDuration())
 
 	// Second call.
 	assert.Equal(t.T(), 2*time.Second, b.nextDuration())
 
-	// Third call - capped at Max.
+	// Third call - capped at max.
 	assert.Equal(t.T(), 3*time.Second, b.nextDuration())
 
-	// Should stay capped at Max.
+	// Should stay capped at max.
 	assert.Equal(t.T(), 3*time.Second, b.nextDuration())
 }
 
 func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_ContextCancelled() {
 	initial := 100 * time.Microsecond // A long duration to ensure cancellation happens first.
-	max := 5 * initial
-	b := NewExponentialBackoff(&ExponentialBackoffConfig{
-		Initial:    initial,
-		Max:        max,
-		Multiplier: 2.0,
+	maxValue := 5 * initial
+	b := NewExponentialBackoff(&exponentialBackoffConfig{
+		initial:    initial,
+		max:        maxValue,
+		multiplier: 2.0,
 	})
 	ctx, cancel := context.WithCancel(context.Background())
 	// Cancel the context immediately.
@@ -103,11 +103,11 @@ func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_ContextCancelled() {
 func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_NoContextCancelled() {
 	initial := time.Millisecond // A short duration to ensure it waits. Making it any shorter can cause random failures
 	// because context cancel itself takes about a millisecond.
-	max := 5 * initial
-	b := NewExponentialBackoff(&ExponentialBackoffConfig{
-		Initial:    initial,
-		Max:        max,
-		Multiplier: 2.0,
+	maxValue := 5 * initial
+	b := NewExponentialBackoff(&exponentialBackoffConfig{
+		initial:    initial,
+		max:        maxValue,
+		multiplier: 2.0,
 	})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -117,7 +117,7 @@ func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_NoContextCancelled() {
 	elapsed := time.Since(start)
 
 	assert.NoError(t.T(), err)
-	// The function should wait for a duration close to Initial.
+	// The function should wait for a duration close to initial.
 	assert.LessOrEqual(t.T(), elapsed, initial*2, "waitWithJitter should not wait excessively long")
 }
 
@@ -138,9 +138,9 @@ func (t *ExponentialBackoffTestSuite) TestNewRetryConfig() {
 	assert.NotNil(t.T(), retryConfig)
 	assert.Equal(t.T(), retryDeadline, retryConfig.RetryDeadline)
 	assert.Equal(t.T(), totalRetryBudget, retryConfig.TotalRetryBudget)
-	assert.Equal(t.T(), initialBackoff, retryConfig.BackoffConfig.Initial)
-	assert.Equal(t.T(), clientConfig.MaxRetrySleep, retryConfig.BackoffConfig.Max)
-	assert.Equal(t.T(), clientConfig.RetryMultiplier, retryConfig.BackoffConfig.Multiplier)
+	assert.Equal(t.T(), initialBackoff, retryConfig.BackoffConfig.initial)
+	assert.Equal(t.T(), clientConfig.MaxRetrySleep, retryConfig.BackoffConfig.max)
+	assert.Equal(t.T(), clientConfig.RetryMultiplier, retryConfig.BackoffConfig.multiplier)
 }
 
 type ExecuteWithRetryTestSuite struct {
@@ -152,10 +152,10 @@ func (t *ExecuteWithRetryTestSuite) SetupTest() {
 	t.retryConfig = &RetryConfig{
 		RetryDeadline:    50 * time.Millisecond,
 		TotalRetryBudget: 200 * time.Millisecond,
-		BackoffConfig: ExponentialBackoffConfig{
-			Initial:    5 * time.Millisecond,
-			Max:        20 * time.Millisecond,
-			Multiplier: 2,
+		BackoffConfig: exponentialBackoffConfig{
+			initial:    5 * time.Millisecond,
+			max:        20 * time.Millisecond,
+			multiplier: 2,
 		},
 	}
 }

@@ -30,39 +30,39 @@ const (
 	DefaultInitialBackoff   = 1 * time.Millisecond
 )
 
-// ExponentialBackoffConfig is config parameters
+// exponentialBackoffConfig is config parameters
 // needed to create an exponentialBackoff.
-type ExponentialBackoffConfig struct {
-	//Initial duration for next backoff.
-	Initial time.Duration
-	// Max duration for next backoff.
-	Max time.Duration
+type exponentialBackoffConfig struct {
+	// initial duration for next backoff.
+	initial time.Duration
+	// max duration for next backoff.
+	max time.Duration
 	// The rate at which the backoff duration should grow
 	// over subsequent calls to next().
-	Multiplier float64
+	multiplier float64
 }
 
 // exponentialBackoff holds the duration parameters for exponential backoff.
 type exponentialBackoff struct {
 	// config used to create this backoff object.
-	config ExponentialBackoffConfig
+	config exponentialBackoffConfig
 	// Duration for next backoff. Capped at Max. Returned by next().
 	next time.Duration
 }
 
 // NewExponentialBackoff returns a new exponentialBackoff given
 // the config for it.
-func NewExponentialBackoff(config *ExponentialBackoffConfig) *exponentialBackoff {
+func NewExponentialBackoff(config *exponentialBackoffConfig) *exponentialBackoff {
 	return &exponentialBackoff{
 		config: *config,
-		next:   config.Initial,
+		next:   config.initial,
 	}
 }
 
 // nextDuration returns the next backoff duration.
 func (b *exponentialBackoff) nextDuration() time.Duration {
 	next := b.next
-	b.next = min(b.config.Max, time.Duration(float64(b.next)*b.config.Multiplier))
+	b.next = min(b.config.max, time.Duration(float64(b.next)*b.config.multiplier))
 	return next
 }
 
@@ -99,7 +99,7 @@ type RetryConfig struct {
 	// Total duration allowed across all the attempts.
 	TotalRetryBudget time.Duration
 	// Config for managing backoff durations in-between retry attempts.
-	BackoffConfig ExponentialBackoffConfig
+	BackoffConfig exponentialBackoffConfig
 }
 
 // NewRetryConfig creates a new RetryConfig.
@@ -110,10 +110,10 @@ func NewRetryConfig(clientConfig *StorageClientConfig,
 	return &RetryConfig{
 		RetryDeadline:    retryDeadline,
 		TotalRetryBudget: totalRetryBudget,
-		BackoffConfig: ExponentialBackoffConfig{
-			Initial:    initialBackoff,
-			Max:        clientConfig.MaxRetrySleep,
-			Multiplier: clientConfig.RetryMultiplier,
+		BackoffConfig: exponentialBackoffConfig{
+			initial:    initialBackoff,
+			max:        clientConfig.MaxRetrySleep,
+			multiplier: clientConfig.RetryMultiplier,
 		},
 	}
 }
