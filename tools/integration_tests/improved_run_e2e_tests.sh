@@ -628,13 +628,13 @@ main() {
   log_info "------ Started running E2E test packages ------"
   log_info ""
 
-  # Create a directory for artifacts
-  if [[ -z "${KOKORO_ARTIFACTS_DIR}" ]]; then
+#   Create a directory for artifacts
+#   if [[ -z "${KOKORO_ARTIFACTS_DIR}" ]]; then
     ARTIFACTS_DIR=$(mktemp -d)
-  else
-    ARTIFACTS_DIR="${KOKORO_ARTIFACTS_DIR}/my_tests"
-  fi
-  mkdir -p "${ARTIFACTS_DIR}"
+#   else
+#     ARTIFACTS_DIR="${KOKORO_ARTIFACTS_DIR}/my_tests"
+#   fi
+#   mkdir -p "${ARTIFACTS_DIR}"
 
   # Decide whether to build GCSFuse based on RUN_E2E_TESTS_ON_PACKAGE
   if (! ${TEST_INSTALLED_PACKAGE} ) && ${BUILD_BINARY_IN_SCRIPT}; then
