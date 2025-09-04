@@ -960,15 +960,15 @@ func TestValidateProfile(t *testing.T) {
 			wantErr: false,
 		}, {
 			name:    "profile_training",
-			profile: "aiml-training",
+			profile: ProfileAIMLTraining,
 			wantErr: false,
 		}, {
 			name:    "profile_serving",
-			profile: "aiml-serving",
+			profile: ProfileAIMLServing,
 			wantErr: false,
 		}, {
 			name:    "profile_checkpointing",
-			profile: "aiml-checkpointing",
+			profile: ProfileAIMLCheckpointing,
 			wantErr: false,
 		}, {
 			name:    "unsupported_profile",

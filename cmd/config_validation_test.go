@@ -160,7 +160,7 @@ func TestValidateCliFlag(t *testing.T) {
 		},
 		{
 			name:    "valid optimize-flag",
-			args:    []string{"--profile=aiml-training"},
+			args:    []string{"--profile=" + cfg.ProfileAIMLTraining},
 			wantErr: false,
 		},
 		{

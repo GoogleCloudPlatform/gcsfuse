@@ -971,19 +971,19 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 		},
 		{
 			name: "optimize profile with machine-type",
-			args: []string{"gcsfuse", "--profile=aiml-training", "--machine-type=machine-type-1", "abc", "pqr"},
+			args: []string{"gcsfuse", "--profile=" + cfg.ProfileAIMLTraining, "--machine-type=machine-type-1", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem:  expectedDefaultFileSystemConfig,
-				Profile:     "aiml-training",
+				Profile:     cfg.ProfileAIMLTraining,
 				MachineType: "machine-type-1",
 			},
 		},
 		{
 			name: "optimize profile without machine-type",
-			args: []string{"gcsfuse", "--profile=aiml-serving", "abc", "pqr"},
+			args: []string{"gcsfuse", "--profile=" + cfg.ProfileAIMLServing, "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: expectedDefaultFileSystemConfig,
-				Profile:    "aiml-serving",
+				Profile:    cfg.ProfileAIMLServing,
 			},
 		},
 		{

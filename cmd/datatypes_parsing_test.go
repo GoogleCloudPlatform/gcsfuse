@@ -571,9 +571,9 @@ func TestCLIFlagPassing(t *testing.T) {
 		},
 		{
 			name: "profile 1",
-			args: []string{"--profile", "aiml-training"},
+			args: []string{"--profile", cfg.ProfileAIMLTraining},
 			testFn: func(t *testing.T, c *cfg.Config) {
-				assert.Equal(t, "aiml-training", c.Profile)
+				assert.Equal(t, cfg.ProfileAIMLTraining, c.Profile)
 			},
 		},
 	}
