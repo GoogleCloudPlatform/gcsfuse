@@ -596,7 +596,7 @@ function print_test_logs_and_create_junit_xml() {
     return 1
   fi
 
-  local output_dir="${KOKORO_ARTIFACTS_DIR}/${package_name}_${bucket_name}"
+  local output_dir="${KOKORO_ARTIFACTS_DIR}/gcsfuse/${package_name}_${bucket_name}"
   mkdir -p "$output_dir"
   echo "$output_dir" >> "$XML_OUTPUT_DIRS" # Add this line
   local xml_file="${output_dir}/sponge.xml"
