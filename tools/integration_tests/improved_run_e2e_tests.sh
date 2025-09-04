@@ -78,6 +78,7 @@ LOG_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_logging_lock.XXXXXX") || { log_error 
 BUCKET_NAMES=$(mktemp "/tmp/${TMP_PREFIX}_bucket_names.XXXXXX") || { log_error "Unable to create bucket names file"; exit 1; }
 PACKAGE_RUNTIME_STATS=$(mktemp "/tmp/${TMP_PREFIX}_package_stats_runtime.XXXXXX") || { log_error "Unable to create package stats runtime file"; exit 1; }
 RESOURCE_USAGE_FILE=$(mktemp "/tmp/${TMP_PREFIX}_system_resource_usage.XXXXXX") || { log_error "Unable to create system resource usage file"; exit 1; }
+XML_OUTPUT_DIRS=$(mktemp)
 
 # Argument Parsing and Assignments
 # Set default values for optional arguments
@@ -598,6 +599,7 @@ function print_test_logs_and_create_junit_xml() {
 
   local output_dir="/tmp/${package_name}_${bucket_name}"
   mkdir -p "$output_dir"
+  echo "$output_dir" >> "$XML_OUTPUT_DIRS" # Add this line
   local xml_file="${output_dir}/sponge.xml"
 
   echo "XML report will be generated at ${xml_file}"
@@ -614,6 +616,7 @@ function print_test_logs_and_create_junit_xml() {
   echo '</testsuites>' >> "${xml_file}"
   echo "XML report generated at ${xml_file}"
 }
+
 
 main() {
   # Clean up everything on exit.
