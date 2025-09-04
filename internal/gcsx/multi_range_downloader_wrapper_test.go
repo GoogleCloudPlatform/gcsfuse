@@ -254,7 +254,9 @@ func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader() {
 			t.mrdWrapper.object = tc.obj
 			t.mrdWrapper.Wrapped = nil
 			t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond))
-			err := t.mrdWrapper.ensureMultiRangeDownloader()
+			t.mrdWrapper.mu.RLock()
+			defer t.mrdWrapper.mu.RUnlock()
+			err := t.mrdWrapper.ensureMultiRangeDownloader(false)
 			if tc.err == nil {
 				assert.NoError(t.T(), err)
 				assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
@@ -273,8 +275,10 @@ func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader_UnusableExistingMRDTrig
 	t.mrdWrapper.Wrapped = fake.NewFakeMultiRangeDownloaderWithStatusError(t.object, t.objectData, fmt.Errorf("MRD is unusable..."))
 
 	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond))
+	t.mrdWrapper.mu.RLock()
+	defer t.mrdWrapper.mu.RUnlock()
 
-	err := t.mrdWrapper.ensureMultiRangeDownloader()
+	err := t.mrdWrapper.ensureMultiRangeDownloader(false)
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
@@ -285,8 +289,10 @@ func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader_UsableExistingMRDPreven
 	t.mrdWrapper.bucket = t.mockBucket
 	t.mrdWrapper.object = t.object
 	t.mrdWrapper.Wrapped = fake.NewFakeMultiRangeDownloaderWithStatusError(t.object, t.objectData, nil)
+	t.mrdWrapper.mu.RLock()
+	defer t.mrdWrapper.mu.RUnlock()
 
-	err := t.mrdWrapper.ensureMultiRangeDownloader()
+	err := t.mrdWrapper.ensureMultiRangeDownloader(false)
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), t.mrdWrapper.Wrapped)

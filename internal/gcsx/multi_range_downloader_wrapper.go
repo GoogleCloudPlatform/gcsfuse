@@ -91,21 +91,23 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) GetMinObject() *gcs.MinObject {
 }
 
 // Ensures that MultiRangeDownloader exists, creating it if it does not exist.
-func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader() (err error) {
+// LOCK_REQUIRED(mrdWrapper.mu.RLock)
+func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader(forceRecreateMRD bool) (err error) {
 	if mrdWrapper.object == nil || mrdWrapper.bucket == nil {
 		return fmt.Errorf("ensureMultiRangeDownloader error: Missing minObject or bucket")
 	}
 
-	mrdWrapper.mu.RLock()
 	// Create the MRD if it does not exist.
 	// In case the existing MRD is unusable due to closed stream, recreate the MRD.
-	if mrdWrapper.Wrapped == nil || mrdWrapper.Wrapped.Error() != nil {
+	if forceRecreateMRD || mrdWrapper.Wrapped == nil || mrdWrapper.Wrapped.Error() != nil {
 		mrdWrapper.mu.RUnlock()
 		mrdWrapper.mu.Lock()
-		defer mrdWrapper.mu.Unlock()
-
+		defer func() {
+			mrdWrapper.mu.Unlock()
+			mrdWrapper.mu.RLock()
+		}()
 		// Checking if the mrdWrapper state is same after taking the lock.
-		if mrdWrapper.Wrapped == nil || mrdWrapper.Wrapped.Error() != nil {
+		if forceRecreateMRD || mrdWrapper.Wrapped == nil || mrdWrapper.Wrapped.Error() != nil {
 			var mrd gcs.MultiRangeDownloader
 			mrd, err = mrdWrapper.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
 				Name:           mrdWrapper.object.Name,
@@ -117,8 +119,6 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader() (err
 				mrdWrapper.Wrapped = mrd
 			}
 		}
-	} else {
-		mrdWrapper.mu.RUnlock()
 	}
 	return
 }
@@ -131,15 +131,38 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 		return 0, nil
 	}
 
-	err = mrdWrapper.ensureMultiRangeDownloader()
-	if err != nil {
-		err = fmt.Errorf("MultiRangeDownloaderWrapper::Read: Error in creating MultiRangeDownloader:  %v", err)
-		return
-	}
-
 	// We will only read what is requested by the client. Hence, capping end to the requested value.
 	if endOffset > startOffset+int64(len(buf)) {
 		endOffset = startOffset + int64(len(buf))
+	}
+	expectedBytesToRead := endOffset - startOffset
+
+	bytesRead, err = mrdWrapper.readFromMultiRangeReader(ctx, buf, startOffset, endOffset, metricHandle, false)
+
+	// Return if an error was encountered or if the requested data was read.
+	if err != nil || bytesRead >= int(expectedBytesToRead) {
+		return
+	}
+
+	// Retry reading in case of short read.
+	if startOffset+int64(bytesRead) < int64(mrdWrapper.object.Size) {
+		var bytesReadOnRetry int
+		// Need to handle lock issues.
+		bytesReadOnRetry, err = mrdWrapper.readFromMultiRangeReader(ctx, buf[bytesRead:], startOffset+int64(bytesRead), endOffset, metricHandle, true)
+		bytesRead += bytesReadOnRetry
+	}
+
+	return
+}
+
+func (mrdWrapper *MultiRangeDownloaderWrapper) readFromMultiRangeReader(ctx context.Context, buf []byte, startOffset int64, endOffset int64, metricHandle metrics.MetricHandle, forceRecreateMRD bool) (bytesRead int, err error) {
+	mrdWrapper.mu.RLock()
+	defer mrdWrapper.mu.RUnlock()
+
+	err = mrdWrapper.ensureMultiRangeDownloader(forceRecreateMRD)
+	if err != nil {
+		err = fmt.Errorf("MultiRangeDownloaderWrapper::Read: Error in creating MultiRangeDownloader:  %v", err)
+		return
 	}
 
 	buffer := bytes.NewBuffer(buf)
