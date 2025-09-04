@@ -152,10 +152,3 @@ then
   echo "Running checkpoint tests...."
   ./perfmetrics/scripts/ml_tests/checkpoint/Jax/run_checkpoints.sh
 fi
-
-# Copying XML test reports to artifacts directory.
-if [ -d "${KOKORO_ARTIFACTS_DIR}" ]; then
-  echo "Copying XML test reports to artifacts directory..."
-  find /tmp -name sponge.xml -exec echo {} \;
-  find /tmp -type d ! -readable -prune -o -name sponge.xml -exec cp --parents -t "${KOKORO_ARTIFACTS_DIR}"/gcsfuse_logs {} +
-fi
