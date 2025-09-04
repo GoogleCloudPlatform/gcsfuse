@@ -157,5 +157,5 @@ fi
 if [ -d "${KOKORO_ARTIFACTS_DIR}" ]; then
   echo "Copying XML test reports to artifacts directory..."
   find /tmp -name sponge.xml -exec echo {} \;
-  find /tmp -name sponge.xml -exec cp --parents -t "${KOKORO_ARTIFACTS_DIR}/" {} +
+  find /tmp -name sponge.xml -exec cp --parents -t "${KOKORO_ARTIFACTS_DIR}/gcsfuse_logs/" {} +
 fi
