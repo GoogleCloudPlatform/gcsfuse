@@ -190,8 +190,7 @@ fi
 
 # Test packages which can be run for both Zonal and Regional buckets.
 # Sorted list descending run times. (Longest Processing Time first strategy) 
-TEST_PACKAGES_COMMON=("readonly"
-)
+TEST_PACKAGES_COMMON=("implicit_dirs")
 
 # Test packages for regional buckets.
 TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}")
