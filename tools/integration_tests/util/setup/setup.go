@@ -578,6 +578,18 @@ func BucketType(ctx context.Context, testBucket string) (bucketType string, err 
 	return FlatBucket, nil
 }
 
+// AddCacheDirToFlags iterates over a set of flag slices and updates any empty "--cache-dir" flags.
+func AddCacheDirToFlags(flagSets [][]string, testname string) [][]string {
+	for i := range flagSets {
+		for j := range flagSets[i] {
+			if flagSets[i][j] == "--cache-dir=" {
+				flagSets[i][j] = fmt.Sprintf("--cache-dir=%s/cache-dir-%s-%s", os.TempDir(), testname, GenerateRandomString(4))
+			}
+		}
+	}
+	return flagSets
+}
+
 // BuildFlagSets dynamically builds a list of flag sets based on bucket compatibility.
 // bucketType should be "flat", "hns", or "zonal".
 func BuildFlagSets(cfg test_suite.TestConfig, bucketType string) [][]string {

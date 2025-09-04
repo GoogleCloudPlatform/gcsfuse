@@ -95,6 +95,24 @@ gzip:
           hns: true
           zonal: true
 
+read_large_files:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    log_file:  # Not required by read large files tests.
+    run_on_gke: false
+    configs:
+      - flags:
+          - "--implicit-dirs"
+          - "--implicit-dirs --client-protocol=grpc"
+          - "--implicit-dirs=true --file-cache-max-size-mb=700 --file-cache-cache-file-for-range-read=true --cache-dir=${CACHE_DIR_PATH}"
+          - "--implicit-dirs=true --file-cache-max-size-mb=700 --file-cache-cache-file-for-range-read=true --client-protocol=grpc --cache-dir=${CACHE_DIR_PATH}"
+          - "--implicit-dirs=true --file-cache-max-size-mb=-1 --file-cache-cache-file-for-range-read=false --cache-dir=${CACHE_DIR_PATH}"
+          - "--implicit-dirs=true --file-cache-max-size-mb=-1 --file-cache-cache-file-for-range-read=false --client-protocol=grpc --cache-dir=${CACHE_DIR_PATH}"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+
 readonly:
   - mounted_directory: "${MOUNTED_DIR}" # To be passed by GKE after mounting
     test_bucket: "${BUCKET_NAME}" # To be passed by both gcsfuse and gke tests
