@@ -1131,8 +1131,8 @@ func TestArgsParsing_EnableGoogleLibAuthFlag(t *testing.T) {
 		},
 		{
 			name:                        "normal",
-			args:                        []string{"gcsfuse", "--enable-google-lib-auth=false", "abc", "pqr"},
-			expectedEnableGoogleLibAuth: false,
+			args:                        []string{"gcsfuse", "--enable-google-lib-auth=true", "abc", "pqr"},
+			expectedEnableGoogleLibAuth: true,
 		},
 	}
 
