@@ -78,7 +78,6 @@ LOG_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_logging_lock.XXXXXX") || { log_error 
 BUCKET_NAMES=$(mktemp "/tmp/${TMP_PREFIX}_bucket_names.XXXXXX") || { log_error "Unable to create bucket names file"; exit 1; }
 PACKAGE_RUNTIME_STATS=$(mktemp "/tmp/${TMP_PREFIX}_package_stats_runtime.XXXXXX") || { log_error "Unable to create package stats runtime file"; exit 1; }
 RESOURCE_USAGE_FILE=$(mktemp "/tmp/${TMP_PREFIX}_system_resource_usage.XXXXXX") || { log_error "Unable to create system resource usage file"; exit 1; }
-TEST_LOGS_FILE=$(mktemp)
 
 # Argument Parsing and Assignments
 # Set default values for optional arguments
@@ -481,10 +480,13 @@ test_package() {
   # Run the package test command
   local start=$SECONDS exit_code=0
   local log_file="/tmp/${package_name}_${bucket_name}.log"
-  echo $log_file >> $TEST_LOGS_FILE
+  
   if ! eval "$go_test_cmd" > "$log_file" 2>&1; then
     exit_code=1
   fi
+  
+  print_test_logs_and_create_junit_xml "$log_file" "$package_name" "$bucket_name"
+
   local end=$SECONDS
   # Add the package stats to the file.
   echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
@@ -585,31 +587,31 @@ run_e2e_tests_for_emulator() {
 }
 
 function print_test_logs_and_create_junit_xml() {
-  local xml_file="${ARTIFACTS_DIR}/sponge_log.xml"
+  local log_file="$1"
+  local package_name="$2"
+  local bucket_name="$3"
+
+  if [ -z "$log_file" ] || [ -z "$package_name" ] || [ -z "$bucket_name" ]; then
+    log_error_locked "print_test_logs_and_create_junit_xml: log_file, package_name, and bucket_name are required."
+    return 1
+  fi
+
+  local output_dir="/tmp/${package_name}_${bucket_name}"
+  mkdir -p "$output_dir"
+  local xml_file="${output_dir}/sponge.xml"
+
   echo "XML report will be generated at ${xml_file}"
-  # Create a temporary file to store the log file name.
   echo '<?xml version="1.0" encoding="UTF-8"?>' > "${xml_file}"
   echo '<testsuites>' >> "${xml_file}"
 
-  readarray -t test_logs_array < "$TEST_LOGS_FILE"
-  rm "$TEST_LOGS_FILE"
-  for test_log_file in "${test_logs_array[@]}"
-  do
-    log_file=${test_log_file}
-    if [ -f "$log_file" ]; then
-      echo "=== Log for ${test_log_file} ==="
-      cat "$log_file"
-      echo "========================================="
-      cat "$log_file" | go-junit-report > "${log_file}.xml"
-      # remove the first 2 lines and the last line from the xml file
-      sed -i '1,2d' "${log_file}.xml"
-      sed -i '$d' "${log_file}.xml"
-      cat "${log_file}.xml" >> ${xml_file}
-    fi
-  done
+  if [ -f "$log_file" ]; then
+    echo "=== Log for ${log_file} ==="
+    cat "$log_file"
+    echo "========================================="
+    cat "$log_file" | go-junit-report | sed '1,2d' | sed '$d' >> "$xml_file"
+  fi
 
   echo '</testsuites>' >> "${xml_file}"
-
   echo "XML report generated at ${xml_file}"
 }
 
@@ -627,14 +629,6 @@ main() {
   log_info ""
   log_info "------ Started running E2E test packages ------"
   log_info ""
-
-#   Create a directory for artifacts
-#   if [[ -z "${KOKORO_ARTIFACTS_DIR}" ]]; then
-    ARTIFACTS_DIR=$(mktemp -d)
-#   else
-#     ARTIFACTS_DIR="${KOKORO_ARTIFACTS_DIR}/my_tests"
-#   fi
-#   mkdir -p "${ARTIFACTS_DIR}"
 
   # Decide whether to build GCSFuse based on RUN_E2E_TESTS_ON_PACKAGE
   if (! ${TEST_INSTALLED_PACKAGE} ) && ${BUILD_BINARY_IN_SCRIPT}; then
@@ -696,7 +690,6 @@ main() {
       log_error "Failed to stop resource usage collection process (or it's already stopped)"
     fi
   fi
-  print_test_logs_and_create_junit_xml
   exit $overall_exit_code
 }
 
