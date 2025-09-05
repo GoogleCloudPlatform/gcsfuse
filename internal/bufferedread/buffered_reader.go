@@ -41,11 +41,12 @@ import (
 var ErrPrefetchBlockNotAvailable = errors.New("block for prefetching not available")
 
 type BufferedReadConfig struct {
-	MaxPrefetchBlockCnt     int64 // Maximum number of blocks that can be prefetched.
-	PrefetchBlockSizeBytes  int64 // Size of each block to be prefetched.
-	InitialPrefetchBlockCnt int64 // Number of blocks to prefetch initially.
-	MinBlocksPerHandle      int64 // Minimum number of blocks available in block-pool to start buffered-read.
-	RandomSeekThreshold     int64 // Seek count threshold to switch another reader
+	MaxPrefetchBlockCnt     int64                 // Maximum number of blocks that can be prefetched.
+	PrefetchBlockSizeBytes  int64                 // Size of each block to be prefetched.
+	InitialPrefetchBlockCnt int64                 // Number of blocks to prefetch initially.
+	MinBlocksPerHandle      int64                 // Minimum number of blocks available in block-pool to start buffered-read.
+	RandomSeekThreshold     int64                 // Seek count threshold to switch another reader
+	SharedReadState         *gcsx.SharedReadState // Shared read state across all readers
 }
 
 const (
@@ -89,6 +90,9 @@ type BufferedReader struct {
 
 	randomReadsThreshold int64 // Number of random reads after which the reader falls back to another reader.
 
+	// sharedReadState holds shared state across all readers for this file handle
+	sharedReadState *gcsx.SharedReadState
+
 	// `mu` synchronizes access to the buffered reader's shared state.
 	// All shared variables, such as the block pool and queue, require this lock before any operation.
 	mu sync.Mutex
@@ -128,6 +132,12 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 		return nil, fmt.Errorf("NewBufferedReader: creating block-pool: %w", err)
 	}
 
+	// Use provided shared read state or create a default one
+	sharedReadState := config.SharedReadState
+	if sharedReadState == nil {
+		sharedReadState = gcsx.NewSharedReadState()
+	}
+
 	reader := &BufferedReader{
 		object:                   object,
 		bucket:                   bucket,
@@ -141,6 +151,7 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 		metricHandle:             metricHandle,
 		prefetchMultiplier:       defaultPrefetchMultiplier,
 		randomReadsThreshold:     config.RandomSeekThreshold,
+		sharedReadState:          sharedReadState,
 	}
 
 	reader.ctx, reader.cancelFunc = context.WithCancel(context.Background())
@@ -182,6 +193,10 @@ func (p *BufferedReader) handleRandomRead(offset int64, handleID int64) error {
 	if p.randomSeekCount > p.randomReadsThreshold {
 		logger.Warnf("Fallback to another reader for object %q, handle %d. Random seek count %d exceeded threshold %d.", p.object.Name, handleID, p.randomSeekCount, p.randomReadsThreshold)
 		p.metricHandle.BufferedReadFallbackTriggerCount(1, "random_read_detected")
+		// Update shared state to indicate BufferedReader is no longer active
+		if p.sharedReadState != nil {
+			p.sharedReadState.SetActiveReaderType("GCSReader")
+		}
 		return gcsx.FallbackToAnotherReader
 	}
 
