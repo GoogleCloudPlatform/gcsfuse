@@ -117,9 +117,9 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 
 		logger.Tracef("%.13v -> %s", requestID, requestOutput)
 
-		readType := metrics.ReadTypeRandom
+		readType := metrics.ReadTypeRandomConst
 		if isSequential {
-			readType = metrics.ReadTypeSequential
+			readType = metrics.ReadTypeSequentialConst
 		}
 		captureFileCacheMetrics(ctx, fc.metricHandle, metrics.ReadTypeNames[readType], bytesRead, cacheHit, executionTime)
 	}()

@@ -257,9 +257,9 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 		// Here rr.fileCacheHandle will not be nil since we return from the above in those cases.
 		logger.Tracef("%.13v -> %s", requestId, requestOutput)
 
-		readType := metrics.ReadTypeRandom
+		readType := metrics.ReadTypeRandomConst
 		if isSeq {
-			readType = metrics.ReadTypeSequential
+			readType = metrics.ReadTypeSequentialConst
 		}
 		captureFileCacheMetrics(ctx, rr.metricHandle, metrics.ReadTypeNames[readType], n, cacheHit, executionTime)
 	}()
@@ -516,7 +516,7 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 	rr.limit = end
 
 	requestedDataSize := end - start
-	metrics.CaptureGCSReadMetrics(rr.metricHandle, metrics.ReadTypeNames[metrics.ReadTypeSequential], requestedDataSize)
+	metrics.CaptureGCSReadMetrics(rr.metricHandle, metrics.ReadTypeNames[metrics.ReadTypeSequentialConst], requestedDataSize)
 
 	return
 }
@@ -528,11 +528,11 @@ func isSeekNeeded(readType, offset, expectedOffset int64) bool {
 		return false
 	}
 
-	if readType == metrics.ReadTypeRandom {
+	if readType == metrics.ReadTypeRandomConst {
 		return offset != expectedOffset
 	}
 
-	if readType == metrics.ReadTypeSequential {
+	if readType == metrics.ReadTypeSequentialConst {
 		return offset < expectedOffset || offset > expectedOffset+maxReadSize
 	}
 
@@ -553,7 +553,7 @@ func (rr *randomReader) getReadInfo(offset int64, seekRecorded bool) readInfo {
 	}
 
 	if numSeeks >= minSeeksForRandom {
-		readType = metrics.ReadTypeRandom
+		readType = metrics.ReadTypeRandomConst
 	}
 
 	averageReadBytes := rr.totalReadBytes.Load()
@@ -562,7 +562,7 @@ func (rr *randomReader) getReadInfo(offset int64, seekRecorded bool) readInfo {
 	}
 
 	if averageReadBytes >= maxReadSize {
-		readType = metrics.ReadTypeSequential
+		readType = metrics.ReadTypeSequentialConst
 	}
 
 	rr.readType.Store(readType)
@@ -619,7 +619,7 @@ func (rr *randomReader) getEndOffset(
 
 // readerType specifies the go-sdk interface to use for reads.
 func readerType(readType int64, bucketType gcs.BucketType) ReaderType {
-	if readType == metrics.ReadTypeRandom && bucketType.Zonal {
+	if readType == metrics.ReadTypeRandomConst && bucketType.Zonal {
 		return MultiRangeReader
 	}
 	return RangeReader
