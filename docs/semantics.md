@@ -2,9 +2,43 @@
 
 ## Reads
 
+### Default Reads
+
 Cloud Storage FUSE makes API calls to Cloud Storage to read an object directly, without downloading it to a local directory. A TCP connection is established, in which the entire object, or just portions as specified by the application/operating system via an offset, can be read back.
 
 Files that have not been modified are read portion by portion on demand. Cloud Storage FUSE uses a heuristic to detect when a file is being read sequentially, and will issue fewer, larger read requests to Cloud Storage in this case, increasing performance.
+
+### Buffered Reads
+
+Cloud Storage FUSE offers Buffered Read feature support to accelerate large file sequential reads. Buffered Read improves throughput by intelligently prefetching object parts asynchronously and in parallel into an in-memory buffer, serving subsequent reads from this buffer instead of making network calls. This asynchronous and parallel buffering approach improves throughput by saturating network bandwidth without requiring additional application-side parallelism.
+
+The feature is **disabled by default** and can be enabled using:
+- Command-line flag: `--enable-buffered-read`
+- Config file: `read:enable-buffered-read: true`
+
+**Note:** Buffered reads are designed to operate exclusively when the file cache is disabled. If both features are enabled, the file cache takes precedence and buffered reads will be ignored.
+
+**Best Use Cases:**
+- Large sequential file reads (e.g., model loading, data processing pipelines).
+- Single-threaded applications reading large files sequentially.
+
+**Performance Gains:**
+- Can provide 2-5x improvement in sequential read throughput.
+- Most effective for files larger than 100 MB.
+- Optimal for fully sequential access patterns.
+
+**Memory Usage:**
+- **Per file handle:** Up to 320 MB (20 × 16MB memory blocks) while reading.
+- **Global limit:** Controlled by `--read-global-max-blocks` flag or `read:global-max-blocks` config (default: 40 blocks).
+- **Total system limit:** Default maximum of 640 MB (40 × 16MB) across all file handles.
+- **Memory release:** Automatically freed when file handle is closed or system falls back to default read because of random read.
+
+**Important:** Please Consider available system memory when enabling buffered reads or adjusting `--read-global-max-blocks` to prevent out-of-memory (OOM) issues.
+
+**CPU Usage:** The CPU overhead is typically proportional to the performance gains achieved.
+
+**Known Limitations:** Workloads combining sequential and random reads (e.g., some model serving scenarios) may not benefit and could automatically fall back to default reads. Future releases will include improved heuristics for these scenarios.
+
 
 ## Writes
 
