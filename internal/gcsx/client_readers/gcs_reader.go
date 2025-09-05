@@ -88,6 +88,9 @@ type GCSReader struct {
 	// totalReadBytes is the total number of bytes read by the reader.
 	totalReadBytes atomic.Uint64
 
+	// sharedReadState holds shared state across all readers for this file handle
+	sharedReadState *gcsx.SharedReadState
+
 	// mu synchronizes reads through range reader.
 	mu sync.Mutex
 }
@@ -97,15 +100,23 @@ type GCSReaderConfig struct {
 	MrdWrapper           *gcsx.MultiRangeDownloaderWrapper
 	SequentialReadSizeMb int32
 	Config               *cfg.Config
+	SharedReadState      *gcsx.SharedReadState
 }
 
 func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, config *GCSReaderConfig) *GCSReader {
+	// Use provided shared read state or create a default one
+	sharedReadState := config.SharedReadState
+	if sharedReadState == nil {
+		sharedReadState = gcsx.NewSharedReadState()
+	}
+
 	return &GCSReader{
 		object:               obj,
 		bucket:               bucket,
 		sequentialReadSizeMb: config.SequentialReadSizeMb,
 		rangeReader:          NewRangeReader(obj, bucket, config.Config, config.MetricHandle),
 		mrr:                  NewMultiRangeReader(obj, config.MetricHandle, config.MrdWrapper),
+		sharedReadState:      sharedReadState,
 	}
 }
 

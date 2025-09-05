@@ -54,6 +54,11 @@ type FileHandle struct {
 	// GUARDED_BY(mu)
 	readManager gcsx.ReadManager
 
+	// sharedReadState holds shared read state across all readers for this file handle
+	//
+	// GUARDED_BY(mu)
+	sharedReadState *gcsx.SharedReadState
+
 	// fileCacheHandler is used to get file cache handle and read happens using that.
 	// This will be nil if the file cache is disabled.
 	fileCacheHandler *file.CacheHandler
@@ -87,6 +92,7 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 		config:                 c,
 		bufferedReadWorkerPool: bufferedReadWorkerPool,
 		globalMaxReadBlocksSem: globalMaxReadBlocksSem,
+		sharedReadState:        gcsx.NewSharedReadState(),
 	}
 
 	fh.inode.RegisterFileHandle(fh.openMode == util.Read)
@@ -201,6 +207,7 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 			Config:                fh.config,
 			GlobalMaxBlocksSem:    fh.globalMaxReadBlocksSem,
 			WorkerPool:            fh.bufferedReadWorkerPool,
+			SharedReadState:       fh.sharedReadState,
 		})
 
 		// Release RWLock and take RLock on file handle again. Inode lock is not needed now.
@@ -221,6 +228,11 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 
 	case err != nil:
 		return nil, 0, fmt.Errorf("fh.readManager.ReadAt: %w", err)
+	}
+
+	// Record the read operation in shared state (only at file handle level)
+	if fh.sharedReadState != nil && readerResponse.Size > 0 {
+		fh.sharedReadState.RecordRead(offset, int64(readerResponse.Size))
 	}
 
 	return readerResponse.DataBuf, readerResponse.Size, nil
@@ -288,6 +300,12 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 
 	output = objectData.DataBuf
 	n = objectData.Size
+
+	// Record the read operation in shared state (only at file handle level)
+	if fh.sharedReadState != nil && n > 0 {
+		fh.sharedReadState.RecordRead(offset, int64(n))
+	}
+
 	return
 }
 
@@ -371,4 +389,9 @@ func (fh *FileHandle) isValidReader() bool {
 
 func (fh *FileHandle) OpenMode() util.OpenMode {
 	return fh.openMode
+}
+
+// GetSharedReadState returns the shared read state for this file handle
+func (fh *FileHandle) GetSharedReadState() *gcsx.SharedReadState {
+	return fh.sharedReadState
 }
