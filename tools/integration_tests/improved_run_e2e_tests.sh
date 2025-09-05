@@ -487,7 +487,7 @@ test_package() {
     exit_code=1
   fi
   
-  print_test_logs_and_create_junit_xml "$log_file" "$package_name" "$bucket_name"
+  print_test_logs_and_create_junit_xml "$log_file" "$package_name" "$bucket_type"
 
   local end=$SECONDS
   # Add the package stats to the file.
@@ -591,14 +591,14 @@ run_e2e_tests_for_emulator() {
 function print_test_logs_and_create_junit_xml() {
   local log_file="$1"
   local package_name="$2"
-  local bucket_name="$3"
+  local bucket_type="$3"
 
-  if [ -z "$log_file" ] || [ -z "$package_name" ] || [ -z "$bucket_name" ]; then
-    log_error_locked "print_test_logs_and_create_junit_xml: log_file, package_name, and bucket_name are required."
-    return 1
+  if [ -z "$log_file" ] || [ -z "$package_name" ] || [ -z "$bucket_type" ]; then
+    log_error_locked "print_test_logs_and_create_junit_xml: log_file, package_name, and bucket_type are required."
+    return 0
   fi
 
-  local output_dir="${KOKORO_ARTIFACTS_DIR}/${package_name}_${bucket_name}"
+  local output_dir="${KOKORO_ARTIFACTS_DIR}/${package_name}_${bucket_type}"
   mkdir -p "$output_dir"
   echo "$output_dir" >> "$XML_OUTPUT_DIRS" # Add this line
   local xml_file="${output_dir}/sponge_log.xml"
