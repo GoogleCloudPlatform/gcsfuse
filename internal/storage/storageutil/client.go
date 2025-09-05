@@ -17,10 +17,13 @@ package storageutil
 import (
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptrace"
 	"strings"
 	"time"
+
+	"sync"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
@@ -70,11 +73,55 @@ type StorageClientConfig struct {
 	TracingEnabled bool
 }
 
+var (
+	dnsCache      = make(map[string]dnsCacheEntry)
+	dnsCacheMu    sync.RWMutex
+	dnsCacheTTL   = 10 * time.Minute
+	defaultDialer = &net.Dialer{}
+)
+
+type dnsCacheEntry struct {
+	addrs      []string
+	expiration time.Time
+}
+
+func dialContextWithDNSCache(ctx context.Context, network, addr string) (net.Conn, error) {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to split host and port: %w", err)
+	}
+
+	dnsCacheMu.RLock()
+	entry, found := dnsCache[host]
+	dnsCacheMu.RUnlock()
+
+	if !found || time.Now().After(entry.expiration) {
+		addrs, err := net.DefaultResolver.LookupHost(ctx, host)
+		if err != nil {
+			return nil, fmt.Errorf("dns lookup failed for host %s: %w", host, err)
+		}
+		entry = dnsCacheEntry{addrs: addrs, expiration: time.Now().Add(dnsCacheTTL)}
+		dnsCacheMu.Lock()
+		dnsCache[host] = entry
+		dnsCacheMu.Unlock()
+	}
+
+	// Dial any of the resolved addresses.
+	for _, address := range entry.addrs {
+		conn, err := defaultDialer.DialContext(ctx, network, net.JoinHostPort(address, port))
+		if err == nil {
+			return conn, nil
+		}
+	}
+	return nil, fmt.Errorf("failed to dial any of a host's addresses for %s", host)
+}
+
 func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.TokenSource) (httpClient *http.Client, err error) {
 	var transport *http.Transport
 	// Using http1 makes the client more performant.
 	if storageClientConfig.ClientProtocol == cfg.HTTP1 {
 		transport = &http.Transport{
+			DialContext:         dialContextWithDNSCache,
 			Proxy:               http.ProxyFromEnvironment,
 			MaxConnsPerHost:     storageClientConfig.MaxConnsPerHost,
 			MaxIdleConnsPerHost: storageClientConfig.MaxIdleConnsPerHost,
@@ -86,6 +133,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 	} else {
 		// For http2, change in MaxConnsPerHost doesn't affect the performance.
 		transport = &http.Transport{
+			DialContext:       dialContextWithDNSCache,
 			Proxy:             http.ProxyFromEnvironment,
 			DisableKeepAlives: true,
 			MaxConnsPerHost:   storageClientConfig.MaxConnsPerHost,
