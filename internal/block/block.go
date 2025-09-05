@@ -17,7 +17,10 @@ package block
 import (
 	"fmt"
 	"io"
+	"os"
 	"syscall"
+
+	"github.com/jacobsa/fuse/fsutil"
 )
 
 // Block represents the buffer which holds the data.
@@ -42,6 +45,16 @@ type Block interface {
 	// Write writes the given data to block.
 	Write(bytes []byte) (n int, err error)
 }
+
+// BlockType defines the type of block storage backend
+type BlockType int
+
+const (
+	// MemoryBlock uses memory-mapped storage
+	MemoryBlock BlockType = iota
+	// DiskBlock uses disk-based file storage
+	DiskBlock
+)
 
 // TODO: check if we need offset or just storing end is sufficient. We might need
 // for handling ordered writes. It will be decided after ordered writes design.
@@ -155,8 +168,32 @@ func (m *memoryBlock) Deallocate() error {
 	return nil
 }
 
-// createBlock creates a new block.
+// createBlock creates a new memory-based block (legacy function for backward compatibility).
 func createBlock(blockSize int64) (Block, error) {
+	return CreateBlock(blockSize, MemoryBlock)
+}
+
+// CreateBlock creates a new block of the specified type.
+//
+// Examples:
+//   - CreateBlock(1024, MemoryBlock) - Creates a 1KB memory-mapped block
+//   - CreateBlock(1024, DiskBlock)   - Creates a 1KB disk-based block using temporary files
+//
+// Memory blocks use mmap for fast access but are limited by available RAM.
+// Disk blocks use temporary files and are limited by available disk space.
+func CreateBlock(blockSize int64, blockType BlockType) (Block, error) {
+	switch blockType {
+	case MemoryBlock:
+		return createMemoryBlock(blockSize)
+	case DiskBlock:
+		return createDiskBlock(blockSize)
+	default:
+		return nil, fmt.Errorf("unsupported block type: %d", blockType)
+	}
+}
+
+// createMemoryBlock creates a new memory-based block.
+func createMemoryBlock(blockSize int64) (Block, error) {
 	prot, flags := syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_ANON|syscall.MAP_PRIVATE
 	addr, err := syscall.Mmap(-1, 0, int(blockSize), prot, flags)
 	if err != nil {
@@ -168,4 +205,169 @@ func createBlock(blockSize int64) (Block, error) {
 		offset: offset{0, 0},
 	}
 	return &mb, nil
+}
+
+////////////////////////////////////////////////////////////////////////
+// Disk-based Block Implementation
+////////////////////////////////////////////////////////////////////////
+
+type diskBlock struct {
+	Block
+	file     *os.File
+	offset   offset
+	readSeek int64
+	capacity int64
+}
+
+func (d *diskBlock) Reuse() {
+	// Truncate the file to zero and reset offsets
+	d.file.Truncate(0)
+	d.file.Seek(0, io.SeekStart)
+
+	d.offset.end = 0
+	d.offset.start = 0
+	d.readSeek = 0
+}
+
+func (d *diskBlock) Size() int64 {
+	return d.offset.end - d.offset.start
+}
+
+func (d *diskBlock) Cap() int64 {
+	return d.capacity
+}
+
+// Read reads data from the block into the provided byte slice.
+// Please make sure to call Seek before calling Read if you want to read from a specific position.
+func (d *diskBlock) Read(bytes []byte) (int, error) {
+	if d.readSeek < d.offset.start {
+		return 0, fmt.Errorf("readSeek %d is less than start offset %d", d.readSeek, d.offset.start)
+	}
+
+	if d.readSeek >= d.offset.end {
+		return 0, io.EOF
+	}
+
+	// Seek to the correct position in the file
+	_, err := d.file.Seek(d.readSeek, io.SeekStart)
+	if err != nil {
+		return 0, fmt.Errorf("seek error: %v", err)
+	}
+
+	// Calculate how many bytes to read
+	maxRead := d.offset.end - d.readSeek
+	if int64(len(bytes)) > maxRead {
+		bytes = bytes[:maxRead]
+	}
+
+	n, err := d.file.Read(bytes)
+	d.readSeek += int64(n)
+
+	// If readSeek is beyond the end of the block, return EOF early.
+	if d.readSeek >= d.offset.end {
+		if err == nil {
+			err = io.EOF
+		}
+	}
+
+	return n, err
+}
+
+// Seek sets the readSeek position in the block.
+// It returns the new readSeek position and an error if any.
+// The whence argument specifies how the offset should be interpreted:
+//   - io.SeekStart: offset is relative to the start of the block.
+//   - io.SeekCurrent: offset is relative to the current readSeek position.
+//   - io.SeekEnd: offset is relative to the end of the block.
+//
+// It returns an error if the whence value is invalid or if the new
+// readSeek position is out of bounds.
+func (d *diskBlock) Seek(offset int64, whence int) (int64, error) {
+	var newReadSeek int64
+	switch whence {
+	case io.SeekStart:
+		newReadSeek = d.offset.start + offset
+	case io.SeekCurrent:
+		newReadSeek = d.readSeek + offset
+	case io.SeekEnd:
+		newReadSeek = d.offset.end + offset
+	default:
+		return 0, fmt.Errorf("invalid whence value: %d", whence)
+	}
+
+	if newReadSeek < d.offset.start || newReadSeek > d.offset.end {
+		return 0, fmt.Errorf("new readSeek position %d is out of bounds", newReadSeek)
+	}
+
+	d.readSeek = newReadSeek
+	return d.readSeek, nil
+}
+
+func (d *diskBlock) Write(bytes []byte) (int, error) {
+	if d.Size()+int64(len(bytes)) > d.capacity {
+		return 0, fmt.Errorf("received data more than capacity of the block")
+	}
+
+	// Seek to the end of the data in the file
+	_, err := d.file.Seek(d.offset.end, io.SeekStart)
+	if err != nil {
+		return 0, fmt.Errorf("seek error: %v", err)
+	}
+
+	n, err := d.file.Write(bytes)
+	if err != nil {
+		return 0, fmt.Errorf("write error: %v", err)
+	}
+
+	if n != len(bytes) {
+		return 0, fmt.Errorf("error in writing the data to block. Expected %d, got %d", len(bytes), n)
+	}
+
+	d.offset.end += int64(len(bytes))
+	return n, nil
+}
+
+func (d *diskBlock) Deallocate() error {
+	if d.file == nil {
+		return fmt.Errorf("invalid file")
+	}
+
+	err := d.file.Close()
+	d.file = nil
+	if err != nil {
+		return fmt.Errorf("file close error: %v", err)
+	}
+
+	return nil
+}
+
+// createDiskBlock creates a new disk-based block.
+func createDiskBlock(blockSize int64) (Block, error) {
+	// Create an anonymous temporary file
+	file, err := fsutil.AnonymousFile("")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create anonymous file: %v", err)
+	}
+
+	// Pre-allocate the file to the block size to ensure space is available
+	err = file.Truncate(blockSize)
+	if err != nil {
+		file.Close()
+		return nil, fmt.Errorf("failed to truncate file to block size: %v", err)
+	}
+
+	// Reset to beginning of file
+	_, err = file.Seek(0, io.SeekStart)
+	if err != nil {
+		file.Close()
+		return nil, fmt.Errorf("failed to seek to beginning: %v", err)
+	}
+
+	db := diskBlock{
+		file:     file,
+		offset:   offset{0, 0},
+		capacity: blockSize,
+		readSeek: 0,
+	}
+	return &db, nil
 }

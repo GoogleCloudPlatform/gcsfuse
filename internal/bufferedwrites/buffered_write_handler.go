@@ -97,11 +97,24 @@ type CreateBWHandlerRequest struct {
 	MaxBlocksPerFile         int64
 	GlobalMaxBlocksSem       *semaphore.Weighted
 	ChunkTransferTimeoutSecs int64
+	BlockType                block.BlockType // New field to specify block type
 }
 
 // NewBWHandler creates the bufferedWriteHandler struct.
 func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err error) {
-	bp, err := block.NewBlockPool(req.BlockSize, req.MaxBlocksPerFile, 1, req.GlobalMaxBlocksSem)
+	var bp *block.GenBlockPool[block.Block]
+
+	// Choose the appropriate block pool based on the requested block type
+	switch req.BlockType {
+	case block.DiskBlock:
+		bp, err = block.NewDiskBlockPool(req.BlockSize, req.MaxBlocksPerFile, 1, req.GlobalMaxBlocksSem)
+	case block.MemoryBlock:
+		bp, err = block.NewMemoryBlockPool(req.BlockSize, req.MaxBlocksPerFile, 1, req.GlobalMaxBlocksSem)
+	default:
+		// Default to memory blocks for backward compatibility
+		bp, err = block.NewBlockPool(req.BlockSize, req.MaxBlocksPerFile, 1, req.GlobalMaxBlocksSem)
+	}
+
 	if err != nil {
 		return
 	}

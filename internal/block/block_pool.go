@@ -214,6 +214,22 @@ func NewBlockPool(blockSize int64, maxBlocks int64, reservedBlocks int64, global
 	return NewGenBlockPool(blockSize, maxBlocks, reservedBlocks, globalMaxBlocksSem, createBlock)
 }
 
+// NewDiskBlockPool creates GenBlockPool for disk-based block.Block interface.
+func NewDiskBlockPool(blockSize int64, maxBlocks int64, reservedBlocks int64, globalMaxBlocksSem *semaphore.Weighted) (bp *GenBlockPool[Block], err error) {
+	createDiskBlockFunc := func(blockSize int64) (Block, error) {
+		return CreateBlock(blockSize, DiskBlock)
+	}
+	return NewGenBlockPool(blockSize, maxBlocks, reservedBlocks, globalMaxBlocksSem, createDiskBlockFunc)
+}
+
+// NewMemoryBlockPool creates GenBlockPool for memory-based block.Block interface.
+func NewMemoryBlockPool(blockSize int64, maxBlocks int64, reservedBlocks int64, globalMaxBlocksSem *semaphore.Weighted) (bp *GenBlockPool[Block], err error) {
+	createMemoryBlockFunc := func(blockSize int64) (Block, error) {
+		return CreateBlock(blockSize, MemoryBlock)
+	}
+	return NewGenBlockPool(blockSize, maxBlocks, reservedBlocks, globalMaxBlocksSem, createMemoryBlockFunc)
+}
+
 // NewPrefetchBlockPool creates GenBlockPool for block.PrefetchBlock interface.
 func NewPrefetchBlockPool(blockSize int64, maxBlocks int64, reservedBlocks int64, globalMaxBlocksSem *semaphore.Weighted) (bp *GenBlockPool[PrefetchBlock], err error) {
 	return NewGenBlockPool(blockSize, maxBlocks, reservedBlocks, globalMaxBlocksSem, createPrefetchBlock)

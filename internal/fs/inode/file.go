@@ -1051,6 +1051,7 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 			MaxBlocksPerFile:         f.config.Write.MaxBlocksPerFile,
 			GlobalMaxBlocksSem:       f.globalMaxWriteBlocksSem,
 			ChunkTransferTimeoutSecs: f.config.GcsRetries.ChunkTransferTimeoutSecs,
+			BlockType:                block.MemoryBlock, // Default to memory blocks for now
 		})
 		if errors.Is(err, block.CantAllocateAnyBlockError) {
 			logger.Warnf("writes will fall back to staged writes due to err: %v. Please increase block limit using --write-global-max-blocks mount option.", block.CantAllocateAnyBlockError.Error())

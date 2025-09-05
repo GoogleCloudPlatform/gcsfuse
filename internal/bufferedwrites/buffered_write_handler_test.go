@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
@@ -62,6 +63,7 @@ func (testSuite *BufferedWriteTest) setupTestWithBucketType(bucketType gcs.Bucke
 		MaxBlocksPerFile:         10,
 		GlobalMaxBlocksSem:       testSuite.globalSemaphore,
 		ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
+		BlockType:                block.MemoryBlock, // Default to memory blocks for tests
 	})
 	require.Nil(testSuite.T(), err)
 	testSuite.bwh = bwh
