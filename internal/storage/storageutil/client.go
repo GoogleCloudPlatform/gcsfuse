@@ -21,9 +21,8 @@ import (
 	"net/http"
 	"net/http/httptrace"
 	"strings"
+	"sync/atomic"
 	"time"
-
-	"sync"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
@@ -74,13 +73,14 @@ type StorageClientConfig struct {
 }
 
 var (
-	dnsCache      = make(map[string]dnsCacheEntry)
-	dnsCacheMu    sync.RWMutex
-	dnsCacheTTL   = 10 * time.Minute
-	defaultDialer = &net.Dialer{}
+	// dnsCache stores a single, atomically-updated dnsCacheEntry.
+	dnsCache      atomic.Value
+	dnsCacheTTL   = 10 * time.Minute // Time-to-live for DNS cache entries.
+	defaultDialer = &net.Dialer{}    // The underlying dialer used for network connections.
 )
 
 type dnsCacheEntry struct {
+	host       string
 	addrs      []string
 	expiration time.Time
 }
@@ -88,22 +88,32 @@ type dnsCacheEntry struct {
 func dialContextWithDNSCache(ctx context.Context, network, addr string) (net.Conn, error) {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to split host and port: %w", err)
+		return nil, fmt.Errorf("failed to split host and port for address %q: %w", addr, err)
 	}
 
-	dnsCacheMu.RLock()
-	entry, found := dnsCache[host]
-	dnsCacheMu.RUnlock()
+	// Atomically load the cached entry.
+	cached := dnsCache.Load()
+	var entry dnsCacheEntry
 
-	if !found || time.Now().After(entry.expiration) {
+	// Check if the cache is valid for the current host and not expired.
+	if cached != nil {
+		entry = cached.(dnsCacheEntry)
+		if entry.host == host && time.Now().Before(entry.expiration) {
+			// Cache hit and is valid.
+		} else {
+			// Cache is for a different host or is expired.
+			cached = nil
+		}
+	}
+
+	// If the cache is empty or invalid, perform a DNS lookup and update the cache.
+	if cached == nil {
 		addrs, err := net.DefaultResolver.LookupHost(ctx, host)
 		if err != nil {
 			return nil, fmt.Errorf("dns lookup failed for host %s: %w", host, err)
 		}
-		entry = dnsCacheEntry{addrs: addrs, expiration: time.Now().Add(dnsCacheTTL)}
-		dnsCacheMu.Lock()
-		dnsCache[host] = entry
-		dnsCacheMu.Unlock()
+		entry = dnsCacheEntry{host: host, addrs: addrs, expiration: time.Now().Add(dnsCacheTTL)}
+		dnsCache.Store(entry)
 	}
 
 	// Dial any of the resolved addresses.
