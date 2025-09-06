@@ -99,7 +99,6 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 			InitialPrefetchBlockCnt: readConfig.StartBlocksPerHandle,
 			MinBlocksPerHandle:      readConfig.MinBlocksPerHandle,
 			RandomSeekThreshold:     readConfig.RandomSeekThreshold,
-			SharedReadState:         sharedReadState,
 		}
 		bufferedReader, err := bufferedread.NewBufferedReader(
 			object,
@@ -128,7 +127,6 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 			MrdWrapper:           config.MrdWrapper,
 			SequentialReadSizeMb: config.SequentialReadSizeMB,
 			Config:               config.Config,
-			SharedReadState:      sharedReadState,
 		},
 	)
 	// Add the GCS reader as a fallback.
@@ -272,7 +270,7 @@ func (rr *ReadManager) checkAndRestartBufferedReader() {
 
 	// If buffered reader exists and should be restarted, recreate it
 	logger.Infof("Restarting buffered reader due to read pattern change to sequential")
-	
+
 	// Destroy the existing buffered reader
 	if destroyer, ok := rr.readers[bufferedReaderIndex].(interface{ Destroy() }); ok {
 		destroyer.Destroy()
@@ -294,9 +292,8 @@ func (rr *ReadManager) recreateBufferedReader() {
 		InitialPrefetchBlockCnt: readConfig.StartBlocksPerHandle,
 		MinBlocksPerHandle:      readConfig.MinBlocksPerHandle,
 		RandomSeekThreshold:     readConfig.RandomSeekThreshold,
-		SharedReadState:         rr.sharedReadState,
 	}
-	
+
 	bufferedReader, err := bufferedread.NewBufferedReader(
 		rr.object,
 		rr.bucket,
@@ -305,7 +302,7 @@ func (rr *ReadManager) recreateBufferedReader() {
 		rr.config.WorkerPool,
 		rr.config.MetricHandle,
 	)
-	
+
 	if err != nil {
 		logger.Warnf("Failed to recreate bufferedReader: %v. Buffered reading will remain disabled for this file handle.", err)
 		return
