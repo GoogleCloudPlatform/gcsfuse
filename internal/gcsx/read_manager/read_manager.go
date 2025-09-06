@@ -61,7 +61,8 @@ type ReadManagerConfig struct {
 	Config                *cfg.Config
 	GlobalMaxBlocksSem    *semaphore.Weighted
 	WorkerPool            workerpool.WorkerPool
-	SharedReadState       *gcsx.SharedReadState
+	// SharedReadState is optional - if nil, a new one will be created
+	SharedReadState *gcsx.SharedReadState
 }
 
 // NewReadManager creates a new ReadManager for the given GCS object,
@@ -71,7 +72,7 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 	// Create a slice to hold all readers. The file cache reader will be added first if it exists.
 	var readers []gcsx.Reader
 
-	// If no shared read state is provided, create a default one
+	// Create or use provided shared read state - this is now managed at read manager level
 	sharedReadState := config.SharedReadState
 	if sharedReadState == nil {
 		sharedReadState = gcsx.NewSharedReadState()
@@ -99,6 +100,7 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 			InitialPrefetchBlockCnt: readConfig.StartBlocksPerHandle,
 			MinBlocksPerHandle:      readConfig.MinBlocksPerHandle,
 			RandomSeekThreshold:     readConfig.RandomSeekThreshold,
+			SharedReadState:         sharedReadState,
 		}
 		bufferedReader, err := bufferedread.NewBufferedReader(
 			object,
@@ -167,38 +169,14 @@ func (rr *ReadManager) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx
 		return gcsx.ReaderResponse{}, nil
 	}
 
-	// Check if we should restart buffered reader based on read pattern
-	rr.checkAndRestartBufferedReader()
-
 	var readerResponse gcsx.ReaderResponse
 	var err error
-	for i, r := range rr.readers {
+	for _, r := range rr.readers {
 		readerResponse, err = r.ReadAt(ctx, p, offset)
 		if err == nil {
-			// Update shared state to track which reader type was successful
-			if rr.sharedReadState != nil {
-				var readerType string
-				switch i {
-				case 0:
-					if rr.hasFileCacheReader() {
-						readerType = "FileCacheReader"
-					} else if rr.hasBufferedReader() {
-						readerType = "BufferedReader"
-					} else {
-						readerType = "GCSReader"
-					}
-				case 1:
-					if rr.hasFileCacheReader() && rr.hasBufferedReader() {
-						readerType = "BufferedReader"
-					} else {
-						readerType = "GCSReader"
-					}
-				case 2:
-					readerType = "GCSReader"
-				default:
-					readerType = "GCSReader"
-				}
-				rr.sharedReadState.SetActiveReaderType(readerType)
+			// Record the successful read operation in shared state
+			if rr.sharedReadState != nil && readerResponse.Size > 0 {
+				rr.sharedReadState.RecordRead(offset, int64(readerResponse.Size))
 			}
 			return readerResponse, nil
 		}
@@ -264,12 +242,17 @@ func (rr *ReadManager) checkAndRestartBufferedReader() {
 
 	// If no buffered reader exists, try to create one
 	if bufferedReaderIndex == -1 {
+		// Reset shared read state for a fresh start when creating buffered reader
+		rr.sharedReadState.Reset()
 		rr.recreateBufferedReader()
 		return
 	}
 
 	// If buffered reader exists and should be restarted, recreate it
 	logger.Infof("Restarting buffered reader due to read pattern change to sequential")
+
+	// Reset shared read state for a fresh start
+	rr.sharedReadState.Reset()
 
 	// Destroy the existing buffered reader
 	if destroyer, ok := rr.readers[bufferedReaderIndex].(interface{ Destroy() }); ok {
@@ -292,6 +275,7 @@ func (rr *ReadManager) recreateBufferedReader() {
 		InitialPrefetchBlockCnt: readConfig.StartBlocksPerHandle,
 		MinBlocksPerHandle:      readConfig.MinBlocksPerHandle,
 		RandomSeekThreshold:     readConfig.RandomSeekThreshold,
+		SharedReadState:         rr.sharedReadState,
 	}
 
 	bufferedReader, err := bufferedread.NewBufferedReader(
@@ -322,5 +306,13 @@ func (rr *ReadManager) recreateBufferedReader() {
 		rr.readers = append(rr.readers, bufferedReader)
 	}
 
+	// Set the active reader type to BufferedReader
+	rr.sharedReadState.SetActiveReaderType("BufferedReader")
+
 	logger.Infof("Successfully recreated buffered reader")
+}
+
+// GetSharedReadState returns the shared read state for this read manager
+func (rr *ReadManager) GetSharedReadState() *gcsx.SharedReadState {
+	return rr.sharedReadState
 }

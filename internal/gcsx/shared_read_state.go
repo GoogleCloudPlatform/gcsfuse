@@ -17,6 +17,8 @@ package gcsx
 import (
 	"sync"
 	"sync/atomic"
+
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 )
 
 // ReadType represents the overall read pattern
@@ -68,7 +70,7 @@ func (s *SharedReadState) RecordRead(offset int64, size int64) {
 	s.totalBytesRead.Add(uint64(size))
 
 	lastOffset := s.lastReadOffset.Load()
-	isSequential := offset == lastOffset || (lastOffset == 0 && offset == 0)
+	isSequential := offset == lastOffset
 
 	if !isSequential {
 		s.randomSeekCount.Add(1)
@@ -153,9 +155,16 @@ func (s *SharedReadState) GetAverageBytesPerSeek() float64 {
 func (s *SharedReadState) ShouldRestartBufferedReader() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
-	// Restart if current pattern is sequential and we previously had random reads
-	return s.currentReadType == ReadTypeSequential && s.randomSeekCount.Load() > 0
+
+	// Restart if current pattern is sequential, we previously had random reads,
+	// and the average bytes per seek is more than 8 MiB
+	const minAverageBytesForSequential = 8 * 1024 * 1024 // 8 MiB
+	averageBytes := s.getAverageBytesPerSeek()
+	logger.Infof("SharedReadState: randomSeekCount=%d, averageBytes=%.0f", s.randomSeekCount.Load(), averageBytes)
+
+	return s.currentReadType == ReadTypeSequential &&
+		s.randomSeekCount.Load() > 0 &&
+		averageBytes > minAverageBytesForSequential
 }
 
 // Reset clears all accumulated state (useful for testing or when switching contexts)

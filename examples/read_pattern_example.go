@@ -39,9 +39,9 @@ import (
 const (
 	// File size constants
 	fileSize         = 1024 * 1024 * 1024 // 1GB file
-	readBufferSize   = 1024 * 1024               // 1MB read buffer
+	readBufferSize   = 1024 * 1024        // 1MB read buffer
 	randomReadCount  = 8                  // Number of random reads before switching to sequential
-	sequentialReads  = 400                 // Number of sequential reads
+	sequentialReads  = 400                // Number of sequential reads
 	finalRandomReads = 5                  // Number of random reads at the end
 )
 
@@ -91,7 +91,7 @@ func NewReadPatternExample() (*ReadPatternExample, error) {
 			BlockSizeMb:          1,
 			StartBlocksPerHandle: 2,
 			MinBlocksPerHandle:   2,
-			RandomSeekThreshold:  3, // Low threshold to demonstrate reader switching
+			RandomSeekThreshold:  3, // Low threshold to demonstrate reader switching quickly
 		},
 	}
 
