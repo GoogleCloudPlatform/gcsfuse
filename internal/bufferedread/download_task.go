@@ -43,6 +43,10 @@ type downloadTask struct {
 
 	// Used for zonal bucket to bypass the auth & metadata checks.
 	readHandle []byte
+
+	// readHandleUpdater is called with the updated read handle after successful reading.
+	// This allows the caller to update their read handle for future efficient reads.
+	readHandleUpdater func([]byte)
 }
 
 // Execute implements the workerpool.Task interface. It downloads the data from
@@ -51,46 +55,46 @@ type downloadTask struct {
 // download task. The status can be one of the following:
 // - BlockStatusDownloaded: The download was successful.
 // - BlockStatusDownloadFailed: The download failed due to an error.
-func (p *downloadTask) Execute() {
-	startOff := p.block.AbsStartOff()
-	blockId := startOff / p.block.Cap()
-	logger.Tracef("Download: <- block (%s, %v).", p.object.Name, blockId)
+func (dt *downloadTask) Execute() {
+	startOff := dt.block.AbsStartOff()
+	blockId := startOff / dt.block.Cap()
+	logger.Tracef("Download: <- block (%s, %v).", dt.object.Name, blockId)
 	stime := time.Now()
 	var err error
 	var n int64
 	defer func() {
 		dur := time.Since(stime)
 		if err == nil {
-			logger.Tracef("Download: -> block (%s, %v) Ok(%v).", p.object.Name, blockId, dur)
-			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloaded})
-		} else if errors.Is(err, context.Canceled) && p.ctx.Err() == context.Canceled {
-			logger.Tracef("Download: -> block (%s, %v) cancelled: %v.", p.object.Name, blockId, err)
-			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})
+			logger.Tracef("Download: -> block (%s, %v) Ok(%v).", dt.object.Name, blockId, dur)
+			dt.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloaded})
+		} else if errors.Is(err, context.Canceled) && dt.ctx.Err() == context.Canceled {
+			logger.Tracef("Download: -> block (%s, %v) cancelled: %v.", dt.object.Name, blockId, err)
+			dt.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})
 		} else {
-			logger.Errorf("Download: -> block (%s, %v) failed: %v.", p.object.Name, blockId, err)
-			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})
+			logger.Errorf("Download: -> block (%s, %v) failed: %v.", dt.object.Name, blockId, err)
+			dt.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})
 		}
-		p.metricHandle.GcsDownloadBytesCount(n, metrics.ReadTypeBufferedAttr)
+		dt.metricHandle.GcsDownloadBytesCount(n, metrics.ReadTypeBufferedAttr)
 	}()
 
 	start := uint64(startOff)
-	end := min(start+uint64(p.block.Cap()), p.object.Size)
-	newReader, err := p.bucket.NewReaderWithReadHandle(
-		p.ctx,
+	end := min(start+uint64(dt.block.Cap()), dt.object.Size)
+	newReader, err := dt.bucket.NewReaderWithReadHandle(
+		dt.ctx,
 		&gcs.ReadObjectRequest{
-			Name:       p.object.Name,
-			Generation: p.object.Generation,
+			Name:       dt.object.Name,
+			Generation: dt.object.Generation,
 			Range: &gcs.ByteRange{
 				Start: start,
 				Limit: end,
 			},
-			ReadCompressed: p.object.HasContentEncodingGzip(),
-			ReadHandle:     p.readHandle,
+			ReadCompressed: dt.object.HasContentEncodingGzip(),
+			ReadHandle:     dt.readHandle,
 		})
 	if err != nil {
 		var notFoundError *gcs.NotFoundError
 		if errors.As(err, &notFoundError) {
-			err = &gcsfuse_errors.FileClobberedError{Err: err, ObjectName: p.object.Name}
+			err = &gcsfuse_errors.FileClobberedError{Err: err, ObjectName: dt.object.Name}
 			return
 		}
 		err = fmt.Errorf("DownloadTask.Execute: while reader-creations: %w", err)
@@ -98,9 +102,15 @@ func (p *downloadTask) Execute() {
 	}
 	defer newReader.Close()
 
-	n, err = io.CopyN(p.block, newReader, int64(end-start))
+	n, err = io.CopyN(dt.block, newReader, int64(end-start))
 	if err != nil {
 		err = fmt.Errorf("DownloadTask.Execute: while data-copy: %w", err)
 		return
+	}
+
+	// Capture the updated read handle for future efficient reads
+	if dt.readHandleUpdater != nil {
+		updatedReadHandle := newReader.ReadHandle()
+		dt.readHandleUpdater(updatedReadHandle)
 	}
 }
