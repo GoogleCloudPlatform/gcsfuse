@@ -41,11 +41,12 @@ import (
 var ErrPrefetchBlockNotAvailable = errors.New("block for prefetching not available")
 
 type BufferedReadConfig struct {
-	MaxPrefetchBlockCnt     int64 // Maximum number of blocks that can be prefetched.
-	PrefetchBlockSizeBytes  int64 // Size of each block to be prefetched.
-	InitialPrefetchBlockCnt int64 // Number of blocks to prefetch initially.
-	MinBlocksPerHandle      int64 // Minimum number of blocks available in block-pool to start buffered-read.
-	RandomSeekThreshold     int64 // Seek count threshold to switch another reader
+	MaxPrefetchBlockCnt     int64                 // Maximum number of blocks that can be prefetched.
+	PrefetchBlockSizeBytes  int64                 // Size of each block to be prefetched.
+	InitialPrefetchBlockCnt int64                 // Number of blocks to prefetch initially.
+	MinBlocksPerHandle      int64                 // Minimum number of blocks available in block-pool to start buffered-read.
+	RandomSeekThreshold     int64                 // Seek count threshold to switch another reader
+	SharedReadState         *gcsx.SharedReadState // Shared read state across all readers
 }
 
 const (
@@ -88,6 +89,9 @@ type BufferedReader struct {
 	prefetchMultiplier int64 // Multiplier for number of blocks to prefetch.
 
 	randomReadsThreshold int64 // Number of random reads after which the reader falls back to another reader.
+
+	// sharedReadState holds shared state across all readers for this file handle
+	sharedReadState *gcsx.SharedReadState
 
 	// `mu` synchronizes access to the buffered reader's shared state.
 	// All shared variables, such as the block pool and queue, require this lock before any operation.
@@ -133,7 +137,7 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 		bucket:                   bucket,
 		config:                   config,
 		nextBlockIndexToPrefetch: 0,
-		randomSeekCount:          0,
+		randomSeekCount:          1,
 		numPrefetchBlocks:        config.InitialPrefetchBlockCnt,
 		blockQueue:               common.NewLinkedListQueue[*blockQueueEntry](),
 		blockPool:                blockpool,
@@ -141,6 +145,7 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 		metricHandle:             metricHandle,
 		prefetchMultiplier:       defaultPrefetchMultiplier,
 		randomReadsThreshold:     config.RandomSeekThreshold,
+		sharedReadState:          config.SharedReadState,
 	}
 
 	reader.ctx, reader.cancelFunc = context.WithCancel(context.Background())
@@ -150,14 +155,23 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 // handleRandomRead detects and handles random read patterns. A read is considered
 // random if the requested offset is outside the currently prefetched window.
 // If the number of detected random reads exceeds a configured threshold, it
-// returns a gcsx.FallbackToAnotherReader error to signal that another reader
-// should be used. It takes handleID for logging purposes.
+// checks if the read pattern has changed to sequential. If so, it resets the
+// buffered reader state to start serving again. Otherwise, it returns a
+// gcsx.FallbackToAnotherReader error to signal that another reader should be used.
+// It takes handleID for logging purposes.
 // LOCKS_REQUIRED(p.mu)
 func (p *BufferedReader) handleRandomRead(offset int64, handleID int64) error {
 	// Exit early if we have already decided to fall back to another reader.
 	// This avoids re-evaluating the read pattern on every call when the random
 	// read threshold has been met.
 	if p.randomSeekCount > p.randomReadsThreshold {
+		// Check if we should restart buffered reading due to pattern change
+		if p.shouldRestartBufferedReading() {
+			logger.Infof("Restarting buffered reader due to sequential read pattern detected for object %q, handle %d", p.object.Name, handleID)
+			p.resetBufferedReaderState()
+			// Continue with the read operation instead of falling back
+			return nil
+		}
 		return gcsx.FallbackToAnotherReader
 	}
 
@@ -180,6 +194,13 @@ func (p *BufferedReader) handleRandomRead(offset int64, handleID int64) error {
 	}
 
 	if p.randomSeekCount > p.randomReadsThreshold {
+		// Check if we should restart buffered reading due to pattern change
+		if p.shouldRestartBufferedReading() {
+			logger.Infof("Restarting buffered reader due to sequential read pattern detected for object %q, handle %d", p.object.Name, handleID)
+			p.resetBufferedReaderState()
+			// Continue with the read operation instead of falling back
+			return nil
+		}
 		logger.Warnf("Fallback to another reader for object %q, handle %d. Random seek count %d exceeded threshold %d.", p.object.Name, handleID, p.randomSeekCount, p.randomReadsThreshold)
 		p.metricHandle.BufferedReadFallbackTriggerCount(1, "random_read_detected")
 		return gcsx.FallbackToAnotherReader
@@ -505,6 +526,44 @@ func (p *BufferedReader) Destroy() {
 		logger.Warnf("Destroy: clearing free block channel: %v", err)
 	}
 	p.blockPool = nil
+}
+
+// shouldRestartBufferedReading checks if the buffered reader should restart
+// based on the read pattern changing from random to sequential
+// LOCKS_EXCLUDED(p.mu) - called from within a locked context
+func (p *BufferedReader) shouldRestartBufferedReading() bool {
+	if p.sharedReadState == nil {
+		return false
+	}
+
+	// Restart if current pattern is sequential and we previously had random reads
+	return p.sharedReadState.ShouldRestartBufferedReader()
+}
+
+// resetBufferedReaderState resets the internal state to restart buffered reading
+// LOCKS_REQUIRED(p.mu)
+func (p *BufferedReader) resetBufferedReaderState() {
+	// Clear any existing blocks in the queue
+	for !p.blockQueue.IsEmpty() {
+		entry := p.blockQueue.Pop()
+		entry.cancel()
+		if _, waitErr := entry.block.AwaitReady(context.Background()); waitErr != nil {
+			logger.Warnf("resetBufferedReaderState: AwaitReady during discard: %v", waitErr)
+		}
+		p.blockPool.Release(entry.block)
+	}
+
+	// Reset the reader state
+	p.randomSeekCount = 1 // Start with 1 as per the new initialization
+	p.nextBlockIndexToPrefetch = 0
+	p.numPrefetchBlocks = p.config.InitialPrefetchBlockCnt
+
+	// Reset shared state if available
+	if p.sharedReadState != nil {
+		p.sharedReadState.Reset()
+	}
+
+	logger.Infof("BufferedReader state reset successfully for object %q", p.object.Name)
 }
 
 // CheckInvariants checks for internal consistency of the reader.

@@ -106,7 +106,7 @@ func init() {
 		level:     string(logConfig.Severity), // setting log level to INFO by default
 		logRotate: logConfig.LogRotate,
 	}
-	defaultLogger = defaultLoggerFactory.newLogger(cfg.TRACE)
+	defaultLogger = defaultLoggerFactory.newLogger(cfg.INFO)
 }
 
 // SetLogFormat updates the log format of default logger.
