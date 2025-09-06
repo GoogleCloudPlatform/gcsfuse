@@ -16,6 +16,7 @@ package block
 
 import (
 	"container/list"
+	"context"
 	"fmt"
 	"sync"
 
@@ -44,6 +45,9 @@ type BlockCache struct {
 	maxBlocks    int64
 	currentCount int64
 	accessTime   int64 // monotonic counter for LRU ordering
+	
+	// Async download manager (optional)
+	downloadManager *AsyncDownloadManager
 }
 
 // BlockCacheConfig holds configuration for the block cache
@@ -241,7 +245,114 @@ func (bc *BlockCache) Clear() error {
 
 	bc.lruList.Init()
 	bc.currentCount = 0
+	
+	// Cancel any active downloads if download manager is configured
+	if bc.downloadManager != nil {
+		bc.downloadManager.Shutdown()
+	}
+	
 	return nil
+}
+
+// SetAsyncDownloadManager sets the async download manager for the cache
+func (bc *BlockCache) SetAsyncDownloadManager(manager *AsyncDownloadManager) {
+	bc.mu.Lock()
+	defer bc.mu.Unlock()
+	bc.downloadManager = manager
+}
+
+// ScheduleAsyncDownload schedules an asynchronous download for a block
+// This method requires that an AsyncDownloadManager has been set
+func (bc *BlockCache) ScheduleAsyncDownload(ctx context.Context, request *BlockDownloadRequest) (*AsyncBlockDownloadTask, error) {
+	bc.mu.RLock()
+	manager := bc.downloadManager
+	bc.mu.RUnlock()
+	
+	if manager == nil {
+		return nil, fmt.Errorf("async download manager not configured")
+	}
+	
+	return manager.ScheduleDownload(ctx, request)
+}
+
+// GetAsyncDownloadStatus returns the status of an async download
+func (bc *BlockCache) GetAsyncDownloadStatus(key CacheKey) (*DownloadStatus, error) {
+	bc.mu.RLock()
+	manager := bc.downloadManager
+	bc.mu.RUnlock()
+	
+	if manager == nil {
+		return nil, fmt.Errorf("async download manager not configured")
+	}
+	
+	return manager.GetDownloadStatus(key)
+}
+
+// CancelAsyncDownload cancels an active async download
+func (bc *BlockCache) CancelAsyncDownload(key CacheKey) error {
+	bc.mu.RLock()
+	manager := bc.downloadManager
+	bc.mu.RUnlock()
+	
+	if manager == nil {
+		return fmt.Errorf("async download manager not configured")
+	}
+	
+	return manager.CancelDownload(key)
+}
+
+// ListActiveDownloads returns a list of active download keys
+func (bc *BlockCache) ListActiveDownloads() []CacheKey {
+	bc.mu.RLock()
+	manager := bc.downloadManager
+	bc.mu.RUnlock()
+	
+	if manager == nil {
+		return nil
+	}
+	
+	return manager.ListActiveDownloads()
+}
+
+// CleanupCompletedDownloads removes completed downloads from tracking
+func (bc *BlockCache) CleanupCompletedDownloads() int {
+	bc.mu.RLock()
+	manager := bc.downloadManager
+	bc.mu.RUnlock()
+	
+	if manager == nil {
+		return 0
+	}
+	
+	return manager.CleanupCompletedDownloads()
+}
+
+// GetOrScheduleDownload gets a block from cache or schedules its download if not present
+// This is a convenience method that combines cache lookup with async download
+func (bc *BlockCache) GetOrScheduleDownload(ctx context.Context, request *BlockDownloadRequest) (*CachedBlock, *AsyncBlockDownloadTask, error) {
+	// First try to get the block from cache
+	block, err := bc.Get(request.Key)
+	if err == nil {
+		// Block already in cache
+		return block, nil, nil
+	}
+	
+	// Block not in cache, schedule download if manager is available
+	bc.mu.RLock()
+	manager := bc.downloadManager
+	bc.mu.RUnlock()
+	
+	if manager == nil {
+		return nil, nil, fmt.Errorf("block not in cache and async download manager not configured")
+	}
+	
+	// Schedule the download
+	task, err := manager.ScheduleDownload(ctx, request)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to schedule download: %w", err)
+	}
+	
+	return nil, task, nil
 }
 
 // Destroy cleans up the cache and its underlying block pool
