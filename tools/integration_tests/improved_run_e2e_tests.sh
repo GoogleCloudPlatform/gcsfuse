@@ -191,7 +191,7 @@ fi
 # Test packages which can be run for both Zonal and Regional buckets.
 # Sorted list descending run times. (Longest Processing Time first strategy) 
 TEST_PACKAGES_COMMON=(
-  "readonly"
+  "interrupt"
 )
 
 # Test packages for regional buckets.
@@ -601,21 +601,23 @@ function print_test_logs_and_create_junit_xml() {
   local output_dir="${KOKORO_ARTIFACTS_DIR}/${package_name}_${bucket_type}"
   mkdir -p "$output_dir"
   echo "$output_dir" >> "$XML_OUTPUT_DIRS" # Add this line
-  local xml_file="${output_dir}/sponge_log.xml"
+  local sponge_xml_file="${output_dir}/sponge_log.xml"
+  local sponge_log_file="${output_dir}/sponge_log.log"
 
-  echo "XML report will be generated at ${xml_file}"
-  echo '<?xml version="1.0" encoding="UTF-8"?>' > "${xml_file}"
-  echo '<testsuites>' >> "${xml_file}"
+  echo "XML report will be generated at ${sponge_xml_file}"
+  echo '<?xml version="1.0" encoding="UTF-8"?>' > "${sponge_xml_file}"
+  echo '<testsuites>' >> "${sponge_xml_file}"
 
   if [ -f "$log_file" ]; then
     echo "=== Log for ${log_file} ==="
     cat "$log_file"
+	cat "$log_file" >> "$sponge_log_file"
     echo "========================================="
-    cat "$log_file" | go-junit-report | sed '1,2d' | sed '$d' >> "$xml_file"
+    cat "$log_file" | go-junit-report | sed '1,2d' | sed '$d' >> "$sponge_xml_file"
   fi
 
-  echo '</testsuites>' >> "${xml_file}"
-  echo "XML report generated at ${xml_file}"
+  echo '</testsuites>' >> "${sponge_xml_file}"
+  echo "XML report generated at ${sponge_xml_file}"
 }
 
 
