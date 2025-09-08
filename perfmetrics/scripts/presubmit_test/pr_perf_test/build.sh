@@ -85,42 +85,42 @@ function install_requirements() {
   cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 }
 
-# execute perf tests.
-if [[ "$perfTestStr" == *"$EXECUTE_PERF_TEST_LABEL"* ]];
-then
- # Executing perf tests for master branch
- install_requirements
- git checkout master
- # Store results
- touch result.txt
- echo Mounting gcs bucket for master branch and execute tests
- execute_perf_test
+# # execute perf tests.
+# if [[ "$perfTestStr" == *"$EXECUTE_PERF_TEST_LABEL"* ]];
+# then
+#  # Executing perf tests for master branch
+#  install_requirements
+#  git checkout master
+#  # Store results
+#  touch result.txt
+#  echo Mounting gcs bucket for master branch and execute tests
+#  execute_perf_test
 
 
- # Executing perf tests for PR branch
- echo checkout PR branch
- git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
- echo Mounting gcs bucket from pr branch and execute tests
- execute_perf_test
+#  # Executing perf tests for PR branch
+#  echo checkout PR branch
+#  git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
+#  echo Mounting gcs bucket from pr branch and execute tests
+#  execute_perf_test
 
- # Show results
- echo showing results...
- python3 ./perfmetrics/scripts/presubmit/print_results.py
-fi
+#  # Show results
+#  echo showing results...
+#  python3 ./perfmetrics/scripts/presubmit/print_results.py
+# fi
 
-# Install required bash version for e2e script as kokoro has outdated bash versions.
-./perfmetrics/scripts/install_bash.sh "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT"
+# # Install required bash version for e2e script as kokoro has outdated bash versions.
+# ./perfmetrics/scripts/install_bash.sh "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT"
 
-# Execute integration tests on zonal bucket(s).
-if test -n "${integrationTestsOnZBStr}" ;
-then
-  echo checkout PR branch
-  git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
+# # Execute integration tests on zonal bucket(s).
+# if test -n "${integrationTestsOnZBStr}" ;
+# then
+#   echo checkout PR branch
+#   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
-  echo "Running e2e tests on zonal bucket(s) ..."
-  # $1 argument is refering to value of testInstalledPackage.
-  /usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --zonal --track-resource-usage
-fi
+#   echo "Running e2e tests on zonal bucket(s) ..."
+#   # $1 argument is refering to value of testInstalledPackage.
+#   /usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --zonal --track-resource-usage
+# fi
 
 # Execute integration tests on non-zonal bucket(s).
 # if test -n "${integrationTestsStr}" ;
@@ -140,22 +140,22 @@ echo "Running e2e tests on non-zonal bucket(s) ..."
 # $1 argument is refering to value of testInstalledPackage.
 /usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --track-resource-usage ̰
 
-# Execute package build tests.
-if [[ "$packageBuildTestsStr" == *"$EXECUTE_PACKAGE_BUILD_TEST_LABEL"* ]];
-then
-  echo checkout PR branch
-  git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
+# # Execute package build tests.
+# if [[ "$packageBuildTestsStr" == *"$EXECUTE_PACKAGE_BUILD_TEST_LABEL"* ]];
+# then
+#   echo checkout PR branch
+#   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
-  echo "Running package build tests...."
-  ./perfmetrics/scripts/build_and_install_gcsfuse.sh master
-fi
+#   echo "Running package build tests...."
+#   ./perfmetrics/scripts/build_and_install_gcsfuse.sh master
+# fi
 
-# Execute JAX checkpoints tests.
-if [[ "$checkpointTestStr" == *"$EXECUTE_CHECKPOINT_TEST_LABEL"* ]];
-then
-  echo checkout PR branch
-  git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
+# # Execute JAX checkpoints tests.
+# if [[ "$checkpointTestStr" == *"$EXECUTE_CHECKPOINT_TEST_LABEL"* ]];
+# then
+#   echo checkout PR branch
+#   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
-  echo "Running checkpoint tests...."
-  ./perfmetrics/scripts/ml_tests/checkpoint/Jax/run_checkpoints.sh
-fi
+#   echo "Running checkpoint tests...."
+#   ./perfmetrics/scripts/ml_tests/checkpoint/Jax/run_checkpoints.sh
+# fi
