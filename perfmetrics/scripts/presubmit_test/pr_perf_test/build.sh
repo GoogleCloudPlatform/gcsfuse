@@ -86,7 +86,7 @@ function install_requirements() {
 }
 
 # # execute perf tests.
-# if [[ "$perfTestStr" == *"$EXECUTE_PERF_TEST_LABEL"* ]];
+# if [[ "$perfTestStr" == *"$EXECUTE_PERF_TEST_LABEL"* ]]
 # then
 #  # Executing perf tests for master branch
 #  install_requirements
@@ -109,7 +109,11 @@ function install_requirements() {
 # fi
 
 # Install required bash version for e2e script as kokoro has outdated bash versions.
-./perfmetrics/scripts/install_bash.sh "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT"
+# echo "Installing bash version $REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT..."
+# start_time=$(date +%s)
+# ./perfmetrics/scripts/install_bash.sh "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT"
+# end_time=$(date +%s)
+# echo "Bash installation took $(($end_time - $start_time)) seconds."
 
 # # Execute integration tests on zonal bucket(s).
 # if test -n "${integrationTestsOnZBStr}" ;
@@ -138,10 +142,10 @@ function install_requirements() {
 
 echo "Running e2e tests on non-zonal bucket(s) ..."
 # $1 argument is refering to value of testInstalledPackage.
-/usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --track-resource-usage ̰
+/usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --track-resource-usage
 
 # # Execute package build tests.
-# if [[ "$packageBuildTestsStr" == *"$EXECUTE_PACKAGE_BUILD_TEST_LABEL"* ]];
+# if [[ "$packageBuildTestsStr" == *"$EXECUTE_PACKAGE_BUILD_TEST_LABEL"* ]]
 # then
 #   echo checkout PR branch
 #   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
@@ -151,7 +155,7 @@ echo "Running e2e tests on non-zonal bucket(s) ..."
 # fi
 
 # # Execute JAX checkpoints tests.
-# if [[ "$checkpointTestStr" == *"$EXECUTE_CHECKPOINT_TEST_LABEL"* ]];
+# if [[ "$checkpointTestStr" == *"$EXECUTE_CHECKPOINT_TEST_LABEL"* ]]
 # then
 #   echo checkout PR branch
 #   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
