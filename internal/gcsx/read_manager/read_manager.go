@@ -43,12 +43,6 @@ type ReadManager struct {
 
 	// sharedReadState holds shared state across all readers for this file handle
 	sharedReadState *gcsx.SharedReadState
-
-	// config stores the original configuration for potential buffered reader restart
-	config *ReadManagerConfig
-
-	// bucket stores the bucket reference for reader recreation
-	bucket gcs.Bucket
 }
 
 // ReadManagerConfig holds the configuration parameters for creating a new ReadManager.
@@ -88,7 +82,6 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 			config.MetricHandle,
 		)
 		readers = append(readers, fileCacheReader) // File cache reader is prioritized.
-		sharedReadState.SetActiveReaderType("FileCacheReader")
 	}
 
 	// If buffered read is enabled, initialize the buffered reader and add it to the readers.
@@ -114,9 +107,6 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 			logger.Warnf("Failed to create bufferedReader: %v. Buffered reading will be disabled for this file handle.", err)
 		} else {
 			readers = append(readers, bufferedReader)
-			if sharedReadState.GetActiveReaderType() == "" {
-				sharedReadState.SetActiveReaderType("BufferedReader")
-			}
 		}
 	}
 
@@ -133,16 +123,11 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 	)
 	// Add the GCS reader as a fallback.
 	readers = append(readers, gcsReader)
-	if sharedReadState.GetActiveReaderType() == "" {
-		sharedReadState.SetActiveReaderType("GCSReader")
-	}
 
 	return &ReadManager{
 		object:          object,
 		readers:         readers, // Readers are prioritized: file cache first, then GCS.
 		sharedReadState: sharedReadState,
-		config:          config,
-		bucket:          bucket,
 	}
 }
 
@@ -196,120 +181,6 @@ func (rr *ReadManager) Destroy() {
 	for _, r := range rr.readers {
 		r.Destroy()
 	}
-}
-
-// hasFileCacheReader checks if the read manager has a file cache reader
-func (rr *ReadManager) hasFileCacheReader() bool {
-	if len(rr.readers) == 0 {
-		return false
-	}
-	// File cache reader is always first if present
-	_, ok := rr.readers[0].(*gcsx.FileCacheReader)
-	return ok
-}
-
-// hasBufferedReader checks if the read manager has a buffered reader
-func (rr *ReadManager) hasBufferedReader() bool {
-	for _, r := range rr.readers {
-		if _, ok := r.(*bufferedread.BufferedReader); ok {
-			return true
-		}
-	}
-	return false
-}
-
-// checkAndRestartBufferedReader checks if the buffered reader should be restarted
-// based on read pattern changes and recreates it if necessary
-func (rr *ReadManager) checkAndRestartBufferedReader() {
-	// Only proceed if we have a shared read state and buffered reading is enabled
-	if rr.sharedReadState == nil || !rr.config.Config.Read.EnableBufferedRead {
-		return
-	}
-
-	// Check if we should restart buffered reader
-	if !rr.sharedReadState.ShouldRestartBufferedReader() {
-		return
-	}
-
-	// Find current buffered reader index
-	bufferedReaderIndex := -1
-	for i, r := range rr.readers {
-		if _, ok := r.(*bufferedread.BufferedReader); ok {
-			bufferedReaderIndex = i
-			break
-		}
-	}
-
-	// If no buffered reader exists, try to create one
-	if bufferedReaderIndex == -1 {
-		// Reset shared read state for a fresh start when creating buffered reader
-		rr.sharedReadState.Reset()
-		rr.recreateBufferedReader()
-		return
-	}
-
-	// If buffered reader exists and should be restarted, recreate it
-	logger.Infof("Restarting buffered reader due to read pattern change to sequential")
-
-	// Reset shared read state for a fresh start
-	rr.sharedReadState.Reset()
-
-	// Destroy the existing buffered reader
-	if destroyer, ok := rr.readers[bufferedReaderIndex].(interface{ Destroy() }); ok {
-		destroyer.Destroy()
-	}
-
-	// Remove the buffered reader from the slice
-	rr.readers = append(rr.readers[:bufferedReaderIndex], rr.readers[bufferedReaderIndex+1:]...)
-
-	// Recreate the buffered reader
-	rr.recreateBufferedReader()
-}
-
-// recreateBufferedReader creates a new buffered reader and inserts it in the appropriate position
-func (rr *ReadManager) recreateBufferedReader() {
-	readConfig := rr.config.Config.Read
-	bufferedReadConfig := &bufferedread.BufferedReadConfig{
-		MaxPrefetchBlockCnt:     readConfig.MaxBlocksPerHandle,
-		PrefetchBlockSizeBytes:  readConfig.BlockSizeMb * util.MiB,
-		InitialPrefetchBlockCnt: readConfig.StartBlocksPerHandle,
-		MinBlocksPerHandle:      readConfig.MinBlocksPerHandle,
-		RandomSeekThreshold:     readConfig.RandomSeekThreshold,
-		SharedReadState:         rr.sharedReadState,
-	}
-
-	bufferedReader, err := bufferedread.NewBufferedReader(
-		rr.object,
-		rr.bucket,
-		bufferedReadConfig,
-		rr.config.GlobalMaxBlocksSem,
-		rr.config.WorkerPool,
-		rr.config.MetricHandle,
-	)
-
-	if err != nil {
-		logger.Warnf("Failed to recreate bufferedReader: %v. Buffered reading will remain disabled for this file handle.", err)
-		return
-	}
-
-	// Insert the buffered reader in the correct position
-	// It should be after file cache reader (if present) but before GCS reader
-	insertIndex := 0
-	if rr.hasFileCacheReader() {
-		insertIndex = 1
-	}
-
-	// Insert the new buffered reader at the correct position
-	if insertIndex < len(rr.readers) {
-		rr.readers = append(rr.readers[:insertIndex], append([]gcsx.Reader{bufferedReader}, rr.readers[insertIndex:]...)...)
-	} else {
-		rr.readers = append(rr.readers, bufferedReader)
-	}
-
-	// Set the active reader type to BufferedReader
-	rr.sharedReadState.SetActiveReaderType("BufferedReader")
-
-	logger.Infof("Successfully recreated buffered reader")
 }
 
 // GetSharedReadState returns the shared read state for this read manager

@@ -137,7 +137,7 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 		bucket:                   bucket,
 		config:                   config,
 		nextBlockIndexToPrefetch: 0,
-		randomSeekCount:          1,
+		randomSeekCount:          0,
 		numPrefetchBlocks:        config.InitialPrefetchBlockCnt,
 		blockQueue:               common.NewLinkedListQueue[*blockQueueEntry](),
 		blockPool:                blockpool,
@@ -554,7 +554,7 @@ func (p *BufferedReader) resetBufferedReaderState() {
 	}
 
 	// Reset the reader state
-	p.randomSeekCount = 1 // Start with 1 as per the new initialization
+	p.randomSeekCount = 0
 	p.nextBlockIndexToPrefetch = 0
 	p.numPrefetchBlocks = p.config.InitialPrefetchBlockCnt
 

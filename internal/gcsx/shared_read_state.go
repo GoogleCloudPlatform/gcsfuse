@@ -48,21 +48,17 @@ type SharedReadState struct {
 	// lastReadOffset tracks the last read offset to help detect sequential patterns
 	lastReadOffset atomic.Int64
 
-	// GUARDED_BY(mu)
 	// currentReadType indicates the overall read pattern at the current moment
-	currentReadType ReadType
-
-	// GUARDED_BY(mu)
-	// activeReaderType tracks which type of reader is currently handling reads
-	activeReaderType string
+	currentReadType atomic.Int32
 }
 
 // NewSharedReadState creates a new SharedReadState with default configuration
 func NewSharedReadState() *SharedReadState {
-	return &SharedReadState{
-		currentReadType: ReadTypeUnknown,
-		lastReadOffset:  atomic.Int64{},
+	state := &SharedReadState{
+		lastReadOffset: atomic.Int64{},
 	}
+	state.currentReadType.Store(int32(ReadTypeUnknown))
+	return state
 }
 
 // RecordRead records a read operation and updates the shared state
@@ -78,14 +74,11 @@ func (s *SharedReadState) RecordRead(offset int64, size int64) {
 
 	s.lastReadOffset.Store(offset + size)
 
-	// Update current read type under lock
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
+	// Update current read type using atomic operations
 	if isSequential {
-		s.currentReadType = ReadTypeSequential
+		s.currentReadType.Store(int32(ReadTypeSequential))
 	} else {
-		s.currentReadType = ReadTypeRandom
+		s.currentReadType.Store(int32(ReadTypeRandom))
 	}
 }
 
@@ -98,8 +91,7 @@ func (s *SharedReadState) GetReadStats() ReadStats {
 		TotalBytesRead:      s.totalBytesRead.Load(),
 		RandomSeekCount:     s.randomSeekCount.Load(),
 		AverageBytesPerSeek: s.getAverageBytesPerSeek(),
-		CurrentReadType:     s.currentReadType,
-		ActiveReaderType:    s.activeReaderType,
+		CurrentReadType:     ReadType(s.currentReadType.Load()),
 	}
 }
 
@@ -122,25 +114,9 @@ type ReadStats struct {
 	ActiveReaderType    string
 }
 
-// GetActiveReaderType returns the currently active reader type
-func (s *SharedReadState) GetActiveReaderType() string {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.activeReaderType
-}
-
-// SetActiveReaderType sets the currently active reader type
-func (s *SharedReadState) SetActiveReaderType(readerType string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.activeReaderType = readerType
-}
-
 // GetCurrentReadType returns the overall read pattern at the current moment
 func (s *SharedReadState) GetCurrentReadType() ReadType {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.currentReadType
+	return ReadType(s.currentReadType.Load())
 }
 
 // GetAverageBytesPerSeek returns the average bytes read per random seek
@@ -160,14 +136,13 @@ func (s *SharedReadState) ShouldRestartBufferedReader() bool {
 	// and the average bytes per seek is more than 8 MiB
 	const minAverageBytesForSequential = 8 * 1024 * 1024 // 8 MiB
 	averageBytes := s.getAverageBytesPerSeek()
-	logger.Infof("SharedReadState: randomSeekCount=%d, averageBytes=%.0f", s.randomSeekCount.Load(), averageBytes)
+	currentType := ReadType(s.currentReadType.Load())
+	logger.Tracef("SharedReadState: randomSeekCount=%d, averageBytes=%.0f", s.randomSeekCount.Load(), averageBytes)
 
-	return s.currentReadType == ReadTypeSequential &&
+	return currentType == ReadTypeSequential &&
 		s.randomSeekCount.Load() > 0 &&
 		averageBytes > minAverageBytesForSequential
-}
-
-// Reset clears all accumulated state (useful for testing or when switching contexts)
+} // Reset clears all accumulated state (useful for testing or when switching contexts)
 func (s *SharedReadState) Reset() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -175,6 +150,5 @@ func (s *SharedReadState) Reset() {
 	s.totalBytesRead.Store(0)
 	s.randomSeekCount.Store(0)
 	s.lastReadOffset.Store(0)
-	s.currentReadType = ReadTypeUnknown
-	s.activeReaderType = ""
+	s.currentReadType.Store(int32(ReadTypeUnknown))
 }
