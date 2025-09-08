@@ -605,6 +605,7 @@ function print_test_logs_and_create_junit_xml() {
   fi
 
   local output_dir="${KOKORO_ARTIFACTS_DIR}/${bucket_type}"
+  mkdir -p "$output_dir"
 #   echo "$output_dir" >> "$XML_OUTPUT_DIRS" # Add this line
   local sponge_xml_file="${output_dir}/${package_name}_sponge_log.xml"
   local sponge_log_file="${output_dir}/${package_name}_sponge_log.log"
