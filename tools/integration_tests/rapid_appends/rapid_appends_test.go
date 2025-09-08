@@ -25,7 +25,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/stretchr/testify/suite"
 )
 
 const (
@@ -36,8 +35,8 @@ const (
 	// Block size for buffered-writes.
 	blockSize            = operations.OneMiB
 	metadataCacheTTLSecs = 60
-	FileOpenModeRplus    = os.O_RDWR
-	FileOpenModeA        = os.O_APPEND | os.O_WRONLY
+	fileOpenModeRPlus    = os.O_RDWR
+	fileOpenModeAppend   = os.O_APPEND | os.O_WRONLY
 )
 
 var (
@@ -57,123 +56,12 @@ type testConfig struct {
 	// metadataCacheOnRead indicates whether metadata caching is enabled for reads.
 	metadataCacheEnabled bool
 	// fileCache indicates whether file caching is enabled.
-	fileCache bool
+	fileCacheEnabled bool
 	// primaryMountFlags are the GCSFuse flags used for the primary mount.
 	primaryMountFlags []string
 	// secondaryMountFlags are the GCSFuse flags used for the secondary mount.
 	// This is only relevant when isDualMount is true.
 	secondaryMountFlags []string
-}
-
-// readTestConfigs defines the matrix of configurations for the ReadsTestSuite.
-var readTestConfigs = []*testConfig{
-	// Single-Mount Scenarios
-	{
-		name:                 "SingleMount_NoCache",
-		isDualMount:          false,
-		metadataCacheEnabled: false,
-		fileCache:            false,
-		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
-	},
-	{
-		name:                 "SingleMount_MetadataCache",
-		isDualMount:          false,
-		metadataCacheEnabled: true,
-		fileCache:            false,
-		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
-	},
-	{
-		name:                 "SingleMount_FileCache",
-		isDualMount:          false,
-		metadataCacheEnabled: false,
-		fileCache:            true,
-		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
-	},
-	{
-		name:                 "SingleMount_MetadataAndFileCache",
-		isDualMount:          false,
-		metadataCacheEnabled: true,
-		fileCache:            true,
-		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
-	},
-	// Dual-Mount Scenarios
-	{
-		name:                 "DualMount_NoCache",
-		isDualMount:          true,
-		metadataCacheEnabled: false,
-		fileCache:            false,
-		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
-		secondaryMountFlags:  []string{"--enable-rapid-appends=true"},
-	},
-	{
-		name:                 "DualMount_MetadataCache",
-		isDualMount:          true,
-		metadataCacheEnabled: true,
-		fileCache:            false,
-		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
-		secondaryMountFlags:  []string{"--enable-rapid-appends=true"},
-	},
-	{
-		name:                 "DualMount_FileCache",
-		isDualMount:          true,
-		metadataCacheEnabled: false,
-		fileCache:            true,
-		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
-		secondaryMountFlags:  []string{"--enable-rapid-appends=true"},
-	},
-	{
-		name:                 "DualMount_MetadataAndFileCache",
-		isDualMount:          true,
-		metadataCacheEnabled: true,
-		fileCache:            true,
-		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
-		secondaryMountFlags:  []string{"--enable-rapid-appends=true"},
-	},
-}
-
-// appendTestConfigs defines the matrix of configurations for the AppendsTestSuite.
-var appendTestConfigs = []*testConfig{
-	{
-		name:              "SingleMount",
-		isDualMount:       false,
-		primaryMountFlags: []string{"--enable-rapid-appends=true", "--write-block-size-mb=1"},
-	},
-	{
-		name:                "DualMount",
-		isDualMount:         true,
-		primaryMountFlags:   []string{"--enable-rapid-appends=true", "--write-block-size-mb=1"},
-		secondaryMountFlags: []string{"--enable-rapid-appends=true", "--write-block-size-mb=1"},
-	},
-}
-
-////////////////////////////////////////////////////////////////////////
-// Test Runners
-////////////////////////////////////////////////////////////////////////
-
-// TestReadsSuiteRunner executes all read-after-append tests against the readTestConfigs matrix.
-func TestReadsSuiteRunner(t *testing.T) {
-	for _, cfg := range readTestConfigs {
-		t.Run(cfg.name, func(t *testing.T) {
-			if cfg.isDualMount {
-				suite.Run(t, &DualMountReadsTestSuite{BaseSuite{cfg: cfg}})
-			} else {
-				suite.Run(t, &SingleMountReadsTestSuite{BaseSuite{cfg: cfg}})
-			}
-		})
-	}
-}
-
-// TestAppendsSuiteRunner executes all general append tests against the appendTestConfigs matrix.
-func TestAppendsSuiteRunner(t *testing.T) {
-	for _, cfg := range appendTestConfigs {
-		t.Run(cfg.name, func(t *testing.T) {
-			if cfg.isDualMount {
-				suite.Run(t, &DualMountAppendsTestSuite{BaseSuite{cfg: cfg}})
-			} else {
-				suite.Run(t, &SingleMountAppendsTestSuite{BaseSuite{cfg: cfg}})
-			}
-		})
-	}
 }
 
 ////////////////////////////////////////////////////////////////////////

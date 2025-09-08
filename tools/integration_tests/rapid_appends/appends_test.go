@@ -18,6 +18,7 @@ import (
 	"os"
 	"path"
 	"syscall"
+	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
@@ -25,6 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 const (
@@ -45,13 +47,13 @@ func (t *DualMountAppendsTestSuite) TestAppendSessionInvalidatedByAnotherClientU
 	defer t.deleteUnfinalizedObject()
 
 	// Initiate an append session using the primary file handle.
-	appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(t.primaryMount.testDirPath, t.fileName), FileOpenModeA|syscall.O_DIRECT)
+	appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(t.primaryMount.testDirPath, t.fileName), fileOpenModeAppend|syscall.O_DIRECT)
 	n, err := appendFileHandle.WriteString(initialContent)
 	require.NoError(t.T(), err)
 	require.Equal(t.T(), len(initialContent), n)
 
 	// Open a new file handle from the secondary mount to the same file.
-	newAppendFileHandle := operations.OpenFileInMode(t.T(), path.Join(t.secondaryMount.testDirPath, t.fileName), FileOpenModeA|syscall.O_DIRECT)
+	newAppendFileHandle := operations.OpenFileInMode(t.T(), path.Join(t.secondaryMount.testDirPath, t.fileName), fileOpenModeAppend|syscall.O_DIRECT)
 	defer operations.CloseFileShouldNotThrowError(t.T(), newAppendFileHandle)
 
 	// This append should succeed, confirming the takeover.
@@ -91,7 +93,7 @@ func (t *SingleMountAppendsTestSuite) TestContentAppendedInNonAppendModeNotVisib
 	defer t.deleteUnfinalizedObject()
 
 	initialContent := t.fileContent
-	wh, err := os.OpenFile(path.Join(t.primaryMount.testDirPath, t.fileName), FileOpenModeRplus|syscall.O_DIRECT, operations.FilePermission_0600)
+	wh, err := os.OpenFile(path.Join(t.primaryMount.testDirPath, t.fileName), fileOpenModeRPlus|syscall.O_DIRECT, operations.FilePermission_0600)
 	require.NoError(t.T(), err)
 
 	// Write sufficient data to the end of file.
@@ -127,7 +129,7 @@ func (t *SingleMountAppendsTestSuite) TestAppendsToFinalizedObjectNotVisibleUnti
 	// Append to the finalized object from the primary mount.
 	data := setup.GenerateRandomString(contentSizeForBW * operations.OneMiB)
 	filePath := path.Join(t.primaryMount.testDirPath, t.fileName)
-	fh, err := os.OpenFile(filePath, FileOpenModeA|syscall.O_DIRECT, operations.FilePermission_0600)
+	fh, err := os.OpenFile(filePath, fileOpenModeAppend|syscall.O_DIRECT, operations.FilePermission_0600)
 	require.NoError(t.T(), err)
 	n, err := fh.Write([]byte(data))
 	require.NoError(t.T(), err)
@@ -155,9 +157,9 @@ func (t *SingleMountAppendsTestSuite) TestAppendsVisibleInRealTimeWithConcurrent
 
 	primaryPath := path.Join(t.primaryMount.testDirPath, t.fileName)
 	// Open first handle in append mode.
-	appendFileHandle := operations.OpenFileInMode(t.T(), primaryPath, FileOpenModeA|syscall.O_DIRECT)
+	appendFileHandle := operations.OpenFileInMode(t.T(), primaryPath, fileOpenModeAppend|syscall.O_DIRECT)
 	defer appendFileHandle.Close()
-	readHandle := operations.OpenFileInMode(t.T(), primaryPath, FileOpenModeRplus|syscall.O_DIRECT)
+	readHandle := operations.OpenFileInMode(t.T(), primaryPath, fileOpenModeRPlus|syscall.O_DIRECT)
 	defer readHandle.Close()
 
 	// Write initial content with append handle to trigger buffered write workflow.
@@ -192,9 +194,9 @@ func (t *SingleMountAppendsTestSuite) TestRandomWritesVisibleAfterCloseWithConcu
 	defer t.deleteUnfinalizedObject()
 
 	primaryPath := path.Join(t.primaryMount.testDirPath, t.fileName)
-	appendFileHandle := operations.OpenFileInMode(t.T(), primaryPath, FileOpenModeA|syscall.O_DIRECT)
+	appendFileHandle := operations.OpenFileInMode(t.T(), primaryPath, fileOpenModeAppend|syscall.O_DIRECT)
 	defer appendFileHandle.Close()
-	readHandle := operations.OpenFileInMode(t.T(), primaryPath, FileOpenModeRplus|syscall.O_DIRECT)
+	readHandle := operations.OpenFileInMode(t.T(), primaryPath, fileOpenModeRPlus|syscall.O_DIRECT)
 
 	n, err := appendFileHandle.Write([]byte(initialContent))
 	require.NoError(t.T(), err)
@@ -227,9 +229,9 @@ func (t *SingleMountAppendsTestSuite) TestFallbackHappensWhenNonAppendHandleDoes
 	defer t.deleteUnfinalizedObject()
 
 	primaryPath := path.Join(t.primaryMount.testDirPath, t.fileName)
-	appendFileHandle := operations.OpenFileInMode(t.T(), primaryPath, FileOpenModeA|syscall.O_DIRECT)
+	appendFileHandle := operations.OpenFileInMode(t.T(), primaryPath, fileOpenModeAppend|syscall.O_DIRECT)
 	defer appendFileHandle.Close()
-	readHandle := operations.OpenFileInMode(t.T(), primaryPath, FileOpenModeRplus|syscall.O_DIRECT)
+	readHandle := operations.OpenFileInMode(t.T(), primaryPath, fileOpenModeRPlus|syscall.O_DIRECT)
 
 	// Append content using the "r+" handle first.
 	data := setup.GenerateRandomString(contentSizeForBW * blockSize)
@@ -258,7 +260,7 @@ func (t *SingleMountAppendsTestSuite) TestKernelShouldSeeUpdatedSizeOnAppends_Va
 	filePath := path.Join(t.primaryMount.testDirPath, t.fileName)
 
 	// Append to the object and close the file handle.
-	appendFileHandle := operations.OpenFileInMode(t.T(), filePath, FileOpenModeA|syscall.O_DIRECT)
+	appendFileHandle := operations.OpenFileInMode(t.T(), filePath, fileOpenModeAppend|syscall.O_DIRECT)
 	n, err := appendFileHandle.Write([]byte(initialContent))
 	require.NoError(t.T(), err)
 	require.Equal(t.T(), len(initialContent), n)
@@ -279,18 +281,50 @@ func (t *SingleMountAppendsTestSuite) TestKernelShouldSeeUpdatedSizeOnAppends_Ex
 	filePath := path.Join(t.primaryMount.testDirPath, t.fileName)
 
 	// Append to the object and close the file handle.
-	appendFileHandle := operations.OpenFileInMode(t.T(), filePath, FileOpenModeA|syscall.O_DIRECT)
+	appendFileHandle := operations.OpenFileInMode(t.T(), filePath, fileOpenModeAppend|syscall.O_DIRECT)
 	n, err := appendFileHandle.Write([]byte(initialContent))
 	require.NoError(t.T(), err)
 	require.Equal(t.T(), len(initialContent), n)
 	appendFileHandle.Close()
 
 	// Expire stat cache. By default, stat cache ttl is 60 seconds.
-	time.Sleep(time.Minute)
+	time.Sleep(metadataCacheTTLSecs)
 
 	// The stat should now fetch the latest size from the source, reflecting the new size.
 	expectedFileSize := int64(unfinalizedObjectSize + len(initialContent))
 	fileInfo, err := operations.StatFile(filePath)
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), expectedFileSize, (*fileInfo).Size())
+}
+
+////////////////////////////////////////////////////////////////////////
+// Test Runner
+////////////////////////////////////////////////////////////////////////
+
+// appendTestConfigs defines the matrix of configurations for the AppendsTestSuite.
+var appendTestConfigs = []*testConfig{
+	{
+		name:              "SingleMount",
+		isDualMount:       false,
+		primaryMountFlags: []string{"--enable-rapid-appends=true", "--write-block-size-mb=1"},
+	},
+	{
+		name:                "DualMount",
+		isDualMount:         true,
+		primaryMountFlags:   []string{"--enable-rapid-appends=true", "--write-block-size-mb=1"},
+		secondaryMountFlags: []string{"--enable-rapid-appends=true", "--write-block-size-mb=1"},
+	},
+}
+
+// TestAppendsSuiteRunner executes all general append tests against the appendTestConfigs matrix.
+func TestAppendsSuiteRunner(t *testing.T) {
+	for _, cfg := range appendTestConfigs {
+		t.Run(cfg.name, func(t *testing.T) {
+			if cfg.isDualMount {
+				suite.Run(t, &DualMountAppendsTestSuite{BaseSuite{cfg: cfg}})
+			} else {
+				suite.Run(t, &SingleMountAppendsTestSuite{BaseSuite{cfg: cfg}})
+			}
+		})
+	}
 }

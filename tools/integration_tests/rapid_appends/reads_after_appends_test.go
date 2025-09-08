@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -81,7 +82,7 @@ func (t *SingleMountReadsTestSuite) runAppendAndReadTest(verifyFunc readAndVerif
 	t.createUnfinalizedObject()
 	defer t.deleteUnfinalizedObject()
 
-	appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(t.primaryMount.testDirPath, t.fileName), FileOpenModeA|syscall.O_DIRECT)
+	appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(t.primaryMount.testDirPath, t.fileName), fileOpenModeAppend|syscall.O_DIRECT)
 	defer operations.CloseFileShouldNotThrowError(t.T(), appendFileHandle)
 
 	readPath := path.Join(t.primaryMount.testDirPath, t.fileName)
@@ -116,7 +117,7 @@ func (t *DualMountReadsTestSuite) runAppendAndReadTest(verifyFunc readAndVerifyF
 	t.createUnfinalizedObject()
 	defer t.deleteUnfinalizedObject()
 
-	appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(t.getAppendPath(), t.fileName), FileOpenModeA|syscall.O_DIRECT)
+	appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(t.getAppendPath(), t.fileName), fileOpenModeAppend|syscall.O_DIRECT)
 	defer operations.CloseFileShouldNotThrowError(t.T(), appendFileHandle)
 
 	readPath := path.Join(t.primaryMount.testDirPath, t.fileName)
@@ -148,4 +149,87 @@ func (t *DualMountReadsTestSuite) TestSequentialRead() {
 
 func (t *DualMountReadsTestSuite) TestRandomRead() {
 	t.runAppendAndReadTest(readRandomlyAndVerify)
+}
+
+////////////////////////////////////////////////////////////////////////
+// Test Runner
+////////////////////////////////////////////////////////////////////////
+
+// readTestConfigs defines the matrix of configurations for the ReadsTestSuite.
+var readTestConfigs = []*testConfig{
+	// Single-Mount Scenarios
+	{
+		name:                 "SingleMount_NoCache",
+		isDualMount:          false,
+		metadataCacheEnabled: false,
+		fileCacheEnabled:     false,
+		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
+	},
+	{
+		name:                 "SingleMount_MetadataCache",
+		isDualMount:          false,
+		metadataCacheEnabled: true,
+		fileCacheEnabled:     false,
+		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
+	},
+	{
+		name:                 "SingleMount_FileCache",
+		isDualMount:          false,
+		metadataCacheEnabled: false,
+		fileCacheEnabled:     true,
+		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
+	},
+	{
+		name:                 "SingleMount_MetadataAndFileCache",
+		isDualMount:          false,
+		metadataCacheEnabled: true,
+		fileCacheEnabled:     true,
+		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
+	},
+	// Dual-Mount Scenarios
+	{
+		name:                 "DualMount_NoCache",
+		isDualMount:          true,
+		metadataCacheEnabled: false,
+		fileCacheEnabled:     false,
+		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
+		secondaryMountFlags:  []string{"--enable-rapid-appends=true"},
+	},
+	{
+		name:                 "DualMount_MetadataCache",
+		isDualMount:          true,
+		metadataCacheEnabled: true,
+		fileCacheEnabled:     false,
+		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
+		secondaryMountFlags:  []string{"--enable-rapid-appends=true"},
+	},
+	{
+		name:                 "DualMount_FileCache",
+		isDualMount:          true,
+		metadataCacheEnabled: false,
+		fileCacheEnabled:     true,
+		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
+		secondaryMountFlags:  []string{"--enable-rapid-appends=true"},
+	},
+	{
+		name:                 "DualMount_MetadataAndFileCache",
+		isDualMount:          true,
+		metadataCacheEnabled: true,
+		fileCacheEnabled:     true,
+		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
+		secondaryMountFlags:  []string{"--enable-rapid-appends=true"},
+	},
+}
+
+// TestReadsSuiteRunner executes all read-after-append tests against the readTestConfigs matrix.
+func TestReadsSuiteRunner(t *testing.T) {
+	for _, cfg := range readTestConfigs {
+		t.Run(cfg.name, func(t *testing.T) {
+			if cfg.isDualMount {
+				suite.Run(t, &DualMountReadsTestSuite{BaseSuite{cfg: cfg}})
+			} else {
+				suite.Run(t, &SingleMountReadsTestSuite{BaseSuite{cfg: cfg}})
+			}
+		})
+	}
 }

@@ -74,7 +74,7 @@ func (t *BaseSuite) SetupTest() {
 	primaryFlags := make([]string, len(t.cfg.primaryMountFlags))
 	copy(primaryFlags, t.cfg.primaryMountFlags)
 	// Add file cache flags if configured.
-	if t.cfg.fileCache {
+	if t.cfg.fileCacheEnabled {
 		cacheDir := getNewEmptyCacheDir(t.primaryMount.rootDir)
 		primaryFlags = append(primaryFlags, "--file-cache-max-size-mb=-1", "--cache-dir="+cacheDir)
 	}
@@ -83,11 +83,11 @@ func (t *BaseSuite) SetupTest() {
 	} else {
 		primaryFlags = append(primaryFlags, "--metadata-cache-ttl-secs=0")
 	}
-	t.mountPrimaryMount(primaryFlags)
+	t.mountGcsfuse(t.primaryMount, "primary", primaryFlags)
 
 	if t.cfg.isDualMount {
 		t.secondaryMount.setupTestDir()
-		t.mountSecondaryMount(t.cfg.secondaryMountFlags)
+		t.mountGcsfuse(t.secondaryMount, "secondary", t.cfg.secondaryMountFlags)
 	}
 }
 
@@ -100,19 +100,21 @@ func (t *BaseSuite) TearDownTest() {
 		}
 	}
 
-	// Unmount before cleaning up directories.
-	t.unmountPrimaryMount()
-	if t.cfg.isDualMount {
-		t.unmountSecondaryMount()
-	}
-
-	// Clean up the root directories to remove all test artifacts.
+	// Unmount and clean up the root directories to remove all test artifacts.
+	setup.UnmountGCSFuse(t.primaryMount.mntDir)
 	err := os.RemoveAll(t.primaryMount.rootDir)
 	require.NoError(t.T(), err, "Failed to clean up primary mount root directory")
+	// Cleaning up the intermediate generated test files.
+	setup.CleanupDirectoryOnGCS(ctx, storageClient, t.primaryMount.testDirPath)
+
 	if t.cfg.isDualMount {
+		setup.UnmountGCSFuse(t.secondaryMount.mntDir)
 		err := os.RemoveAll(t.secondaryMount.rootDir)
 		require.NoError(t.T(), err, "Failed to clean up secondary mount root directory")
+		// Cleaning up the intermediate generated test files.
+		setup.CleanupDirectoryOnGCS(ctx, storageClient, t.secondaryMount.testDirPath)
 	}
+
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -127,33 +129,21 @@ func (mnt *mountPoint) setupTestDir() {
 	mnt.testDirPath = path.Join(setup.MntDir(), testDirName)
 }
 
-func (t *BaseSuite) mountPrimaryMount(flags []string) {
-	setup.SetMntDir(t.primaryMount.mntDir)
-	setup.SetLogFile(t.primaryMount.logFilePath)
+func (t *BaseSuite) mountGcsfuse(mnt mountPoint, mountType string, flags []string) {
+	setup.SetMntDir(mnt.mntDir)
+	setup.SetLogFile(mnt.logFilePath)
 	err := static_mounting.MountGcsfuseWithStaticMounting(flags)
-	require.NoError(t.T(), err, "Unable to mount primary: %v", err)
-	setup.SetupTestDirectory(testDirName)
-	log.Printf("Running tests with primary mount flags %v", flags)
+	require.NoError(t.T(), err, "Unable to mount %s: %v", mountType, err)
+	mnt.testDirPath = setup.SetupTestDirectory(testDirName)
+	log.Printf("Running tests with %s mount flags %v", mountType, flags)
 }
-
-func (t *BaseSuite) unmountPrimaryMount() { setup.UnmountGCSFuse(t.primaryMount.mntDir) }
-
-func (t *BaseSuite) mountSecondaryMount(flags []string) {
-	setup.SetMntDir(t.secondaryMount.mntDir)
-	setup.SetLogFile(t.secondaryMount.logFilePath)
-	err := static_mounting.MountGcsfuseWithStaticMounting(flags)
-	require.NoError(t.T(), err, "Unable to mount secondary: %v", err)
-	t.secondaryMount.testDirPath = setup.SetupTestDirectory(testDirName)
-	log.Printf("Running tests with secondary mount flags %v", flags)
-}
-
-func (t *BaseSuite) unmountSecondaryMount() { setup.UnmountGCSFuse(t.secondaryMount.mntDir) }
 
 func (t *BaseSuite) createUnfinalizedObject() {
 	t.fileName = fileNamePrefix + setup.GenerateRandomString(5)
 	t.fileContent = setup.GenerateRandomString(unfinalizedObjectSize)
 	client.CreateUnfinalizedObject(ctx, t.T(), storageClient, path.Join(testDirName, t.fileName), t.fileContent)
-	time.Sleep(time.Minute) // Sleep for a minute so that stat returns correct object size.
+	// Sleep for a minute because GCS returns correct updated size of an unclosed unfinalized object only a minute after write.
+	time.Sleep(time.Minute)
 }
 
 func (t *BaseSuite) deleteUnfinalizedObject() {
