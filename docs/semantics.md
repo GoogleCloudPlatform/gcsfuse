@@ -10,7 +10,7 @@ Files that have not been modified are read portion by portion on demand. Cloud S
 
 ### Buffered Reads
 
-Cloud Storage FUSE offers Buffered Read feature to accelerates large sequential reads by asynchronously prefetching data into in-memory buffers and serving subsequent reads from in-memory buffer instead of making network calls.
+Buffered Read feature accelerates large sequential reads by asynchronously prefetching data into in-memory buffers and serving subsequent reads from in-memory buffer instead of making network calls.
 
 The feature is **disabled by default** and can be enabled using:
 - Command-line flag: `--enable-buffered-read`
