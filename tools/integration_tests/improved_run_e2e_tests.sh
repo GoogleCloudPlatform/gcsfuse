@@ -58,13 +58,13 @@ readonly TPCZERO_PROJECT_ID="tpczero-system:gcsfuse-test-project"
 readonly TPC_BUCKET_LOCATION="u-us-prp1"
 readonly BUCKET_PREFIX="gcsfuse-e2e"
 readonly INTEGRATION_TEST_PACKAGE_DIR="./tools/integration_tests"
-readonly INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS=60 
+readonly INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS=60
 readonly TMP_PREFIX="gcsfuse_e2e"
 readonly ZONAL_BUCKET_SUPPORTED_LOCATIONS=("us-central1" "us-west4")
 readonly DELETE_BUCKET_PARALLELISM=10 # Controls how many buckets are deleted in parallel.
 # 6 second delay between creating buckets as both hns and flat runs create buckets in parallel.
 # Ref: https://cloud.google.com/storage/quotas#buckets
-readonly DELAY_BETWEEN_BUCKET_CREATION=6 
+readonly DELAY_BETWEEN_BUCKET_CREATION=6
 readonly ZONAL="zonal"
 readonly FLAT="flat"
 readonly HNS="hns"
@@ -119,7 +119,7 @@ while (( $# >= 1 )); do
             ;;
         --test-installed-package)
             TEST_INSTALLED_PACKAGE=true
-            shift 
+            shift
             ;;
         --skip-non-essential-tests)
             SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=true
@@ -189,9 +189,9 @@ if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
 fi
 
 # Test packages which can be run for both Zonal and Regional buckets.
-# Sorted list descending run times. (Longest Processing Time first strategy) 
+# Sorted list descending run times. (Longest Processing Time first strategy)
 TEST_PACKAGES_COMMON=(
-  "interrupt"
+  "list_large_dir"
 )
 
 # Test packages for regional buckets.
@@ -199,7 +199,7 @@ TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}")
 # Test packages for zonal buckets.
 TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}")
 # Test packages for TPC buckets.
-TEST_PACKAGES_FOR_TPC=("]")
+TEST_PACKAGES_FOR_TPC=("")
 
 # acquire_lock: Acquires exclusive lock or exits script on failure.
 # Args: $1 = path to lock file.
@@ -277,13 +277,13 @@ create_bucket() {
   while : ; do
     attempt=$((attempt - 1))
     if [ $attempt -lt 0 ]; then
-      log_error "Unable to create bucket [${bucket_name}] after 5 attempts." 
+      log_error "Unable to create bucket [${bucket_name}] after 5 attempts."
       cat "$bucket_cmd_log"
       return 1
     fi
     eval "$bucket_cmd" > "$bucket_cmd_log" 2>&1
     if [ $? -eq 0 ]; then
-      sleep "$DELAY_BETWEEN_BUCKET_CREATION" # have 6 seconds gap between creating buckets. 
+      sleep "$DELAY_BETWEEN_BUCKET_CREATION" # have 6 seconds gap between creating buckets.
       break
     fi
   done
@@ -294,7 +294,7 @@ create_bucket() {
 
 # Helper method to create buckets for each of the package.
 setup_package_buckets () {
-  if [[ "$#" -ne 3 ]]; then 
+  if [[ "$#" -ne 3 ]]; then
     log_error "setup_buckets() called with incorrect number of arguments."
     exit 1
   fi
@@ -367,9 +367,9 @@ clean_up() {
         log_info "Successfully deleted all buckets."
     fi
   fi
-  if ! rm -rf /tmp/"${TMP_PREFIX}_"*; then 
+  if ! rm -rf /tmp/"${TMP_PREFIX}_"*; then
     log_error "Failed to delete temporary files"
-  else 
+  else
     log_info "Successfully cleaned up temporary files"
   fi
 }
@@ -450,6 +450,9 @@ test_package() {
   local bucket_name="$2"
   local bucket_type="$3"
 
+  local output_dir="${KOKORO_ARTIFACTS_DIR}/${package_name}_${bucket_type}"
+  mkdir -p "$output_dir"
+
   # Build go package test command.
   local go_test_cmd_parts=("GODEBUG=asyncpreemptoff=1" "go" "test" "-v" "-timeout=${INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS}m" "${INTEGRATION_TEST_PACKAGE_DIR}/${package_name}")
   if ${SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE}; then
@@ -472,21 +475,21 @@ test_package() {
   if ${RUN_TEST_ON_TPC_ENDPOINT}; then
     go_test_cmd_parts+=("--testOnTPCEndPoint")
   fi
-  if [[ -n "$BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR" ]]; then 
+  if [[ -n "$BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR" ]]; then
     go_test_cmd_parts+=("--gcsfuse_prebuilt_dir=${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}")
   fi
   # Use printf %q to quote each argument safely for eval
   # This ensures spaces and special characters within arguments are handled correctly.
   local go_test_cmd=$(printf "%q " "${go_test_cmd_parts[@]}")
-  
+
   # Run the package test command
   local start=$SECONDS exit_code=0
-  local log_file="${KOKORO_ARTIFACTS_DIR}/${package_name}_${bucket_type}/sponge_log.log"
-  
+  local log_file="${output_dir}/sponge_log.log"
+
   if ! eval "$go_test_cmd" > "$log_file" 2>&1; then
     exit_code=1
   fi
-  
+
   print_test_logs_and_create_junit_xml "$log_file" "$package_name" "$bucket_type"
 
   local end=$SECONDS
@@ -598,10 +601,9 @@ function print_test_logs_and_create_junit_xml() {
     return 0
   fi
 
-  local output_dir="${KOKORO_ARTIFACTS_DIR}/${package_name}_${bucket_type}"
-  mkdir -p "$output_dir"
+  local output_dir="${KOKORO_ARTIFACTS_DIR}"
   echo "$output_dir" >> "$XML_OUTPUT_DIRS" # Add this line
-  local sponge_xml_file="${output_dir}/sponge_log.xml"
+  local sponge_xml_file="${output_dir}/${bucket_type}/${package_name}_sponge_log.xml"
   local sponge_log_file="${output_dir}/sponge_log.log"
 
   echo "XML report will be generated at ${sponge_xml_file}"
@@ -611,9 +613,9 @@ function print_test_logs_and_create_junit_xml() {
   if [ -f "$log_file" ]; then
     echo "=== Log for ${log_file} ==="
     cat "$log_file"
-	cat "$log_file" >> "$sponge_log_file"
     echo "========================================="
-    cat "$log_file" | go-junit-report | sed '1,2d' | sed '$d' >> "$sponge_xml_file"
+    cat "$log_file" > "$sponge_log_file" 2>&1
+    cat "$log_file" | go-junit-report | sed '1,2d' | sed '$d' >> "${sponge_xml_file}"
   fi
 
   echo '</testsuites>' >> "${sponge_xml_file}"
@@ -624,6 +626,17 @@ function print_test_logs_and_create_junit_xml() {
 main() {
   # Clean up everything on exit.
   trap clean_up EXIT
+
+  if [[ -n "${KOKORO_ARTIFACTS_DIR}" && ! -d "${KOKORO_ARTIFACTS_DIR}" ]]; then
+    log_error "KOKORO_ARTIFACTS_DIR is set to a file, but it must be a directory."
+    exit 1
+  fi
+  if [[ -z "${KOKORO_ARTIFACTS_DIR}" ]]; then
+    export KOKORO_ARTIFACTS_DIR
+    KOKORO_ARTIFACTS_DIR=$(mktemp -d -t gcsfuse_e2e_artifacts.XXXXXX)
+    log_info "KOKORO_ARTIFACTS_DIR is not set. Creating a temporary directory for artifacts: ${KOKORO_ARTIFACTS_DIR}"
+  fi
+
   log_info ""
   log_info "------ Upgrading gcloud and installing packages ------"
   log_info ""
