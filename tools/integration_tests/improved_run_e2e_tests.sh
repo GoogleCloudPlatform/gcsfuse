@@ -78,7 +78,6 @@ LOG_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_logging_lock.XXXXXX") || { log_error 
 BUCKET_NAMES=$(mktemp "/tmp/${TMP_PREFIX}_bucket_names.XXXXXX") || { log_error "Unable to create bucket names file"; exit 1; }
 PACKAGE_RUNTIME_STATS=$(mktemp "/tmp/${TMP_PREFIX}_package_stats_runtime.XXXXXX") || { log_error "Unable to create package stats runtime file"; exit 1; }
 RESOURCE_USAGE_FILE=$(mktemp "/tmp/${TMP_PREFIX}_system_resource_usage.XXXXXX") || { log_error "Unable to create system resource usage file"; exit 1; }
-XML_OUTPUT_DIRS=$(mktemp)
 
 # Argument Parsing and Assignments
 # Set default values for optional arguments
@@ -94,6 +93,9 @@ PACKAGE_LEVEL_PARALLELISM=10 # Controls how many test packages are run in parall
 # Define options for getopt
 # A long option name followed by a colon indicates it requires an argument.
 LONG=bucket-location:,test-installed-package,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,help
+
+# If KOKORO_ARTIFACTS_DIR is not set, create a temporary directory for sponge outputs.
+SPONGE_OUTPUT_DIRS="${KOKORO_ARTIFACTS_DIR:-$(mktemp -d)}"
 
 # Parse the options using getopt
 # --options "" specifies that there are no short options.
@@ -453,9 +455,6 @@ test_package() {
   local bucket_name="$2"
   local bucket_type="$3"
 
-  local output_dir="${KOKORO_ARTIFACTS_DIR}/${package_name}_${bucket_type}"
-  mkdir -p "$output_dir"
-
   # Build go package test command.
   local go_test_cmd_parts=("GODEBUG=asyncpreemptoff=1" "go" "test" "-v" "-timeout=${INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS}m" "${INTEGRATION_TEST_PACKAGE_DIR}/${package_name}")
   if ${SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE}; then
@@ -487,13 +486,24 @@ test_package() {
 
   # Run the package test command
   local start=$SECONDS exit_code=0
-  local log_file="${output_dir}/sponge_log.log"
 
-  if ! eval "$go_test_cmd" > "$log_file" 2>&1; then
-    exit_code=1
+  if [[ -d "$SPONGE_OUTPUT_DIRS" ]]; then
+    local log_file
+    log_file=$(mktemp)
+    # Ensure the temporary log file is removed on function exit.
+    trap 'rm -f "$log_file"' RETURN
+
+    if ! eval "$go_test_cmd" > "$log_file" 2>&1; then
+      exit_code=1
+    fi
+
+    print_test_logs_and_create_junit_xml "$log_file" "$package_name" "$bucket_type"
+  else
+    # Append to the single temporary file.
+    if ! eval "$go_test_cmd" >> "$SPONGE_OUTPUT_DIRS" 2>&1; then
+      exit_code=1
+    fi
   fi
-
-  print_test_logs_and_create_junit_xml "$log_file" "$package_name" "$bucket_type"
 
   local end=$SECONDS
   # Add the package stats to the file.
@@ -604,9 +614,8 @@ function print_test_logs_and_create_junit_xml() {
     return 0
   fi
 
-  local output_dir="${KOKORO_ARTIFACTS_DIR}/gcsfuse/gcp_ubuntu/presubmits/perf_tests/presubmit/${bucket_type}"
+  local output_dir="${SPONGE_OUTPUT_DIRS}/${bucket_type}"
   mkdir -p "$output_dir"
-#   echo "$output_dir" >> "$XML_OUTPUT_DIRS" # Add this line
   local sponge_xml_file="${output_dir}/${package_name}_sponge_log.xml"
   local sponge_log_file="${output_dir}/${package_name}_sponge_log.log"
 
@@ -616,8 +625,6 @@ function print_test_logs_and_create_junit_xml() {
 
   if [ -f "$log_file" ]; then
     echo "=== Log for ${log_file} ==="
-    cat "$log_file"
-    echo "========================================="
     cat "$log_file" > "$sponge_log_file" 2>&1
     cat "$log_file" | go-junit-report | sed '1,2d' | sed '$d' >> "${sponge_xml_file}"
   fi
@@ -629,18 +636,7 @@ function print_test_logs_and_create_junit_xml() {
 
 main() {
   # Clean up everything on exit.
-  trap clean_up EXIT
-
-  if [[ -n "${KOKORO_ARTIFACTS_DIR}" && ! -d "${KOKORO_ARTIFACTS_DIR}" ]]; then
-    log_error "KOKORO_ARTIFACTS_DIR is set to a file, but it must be a directory."
-    exit 1
-  fi
-  if [[ -z "${KOKORO_ARTIFACTS_DIR}" ]]; then
-    export KOKORO_ARTIFACTS_DIR
-    KOKORO_ARTIFACTS_DIR=$(mktemp -d -t gcsfuse_e2e_artifacts.XXXXXX)
-    log_info "KOKORO_ARTIFACTS_DIR is not set. Creating a temporary directory for artifacts: ${KOKORO_ARTIFACTS_DIR}"
-  fi
-
+  trap clean_up EXIT  
   log_info ""
   log_info "------ Upgrading gcloud and installing packages ------"
   log_info ""
