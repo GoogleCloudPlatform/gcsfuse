@@ -42,14 +42,14 @@ log_error() {
 }
 
 # Confirm bash version before continuing script.
-REQUIRED_BASH_MAJOR=5
-REQUIRED_BASH_MINOR=1
-if (( BASH_VERSINFO[0] < REQUIRED_BASH_MAJOR || ( BASH_VERSINFO[0] == REQUIRED_BASH_MAJOR && BASH_VERSINFO[1] < REQUIRED_BASH_MINOR ) )); then
-    log_error "This script requires Bash version: ${REQUIRED_BASH_MAJOR}.${REQUIRED_BASH_MINOR} or higher."
-    log_error "You are currently using Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
-    exit 1
-fi
-log_info "Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
+# REQUIRED_BASH_MAJOR=5
+# REQUIRED_BASH_MINOR=1
+# if (( BASH_VERSINFO[0] < REQUIRED_BASH_MAJOR || ( BASH_VERSINFO[0] == REQUIRED_BASH_MAJOR && BASH_VERSINFO[1] < REQUIRED_BASH_MINOR ) )); then
+#     log_error "This script requires Bash version: ${REQUIRED_BASH_MAJOR}.${REQUIRED_BASH_MINOR} or higher."
+#     log_error "You are currently using Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
+#     exit 1
+# fi
+# log_info "Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
 
 # Constants
 readonly GO_VERSION="1.24.5"
@@ -191,7 +191,7 @@ fi
 # Test packages which can be run for both Zonal and Regional buckets.
 # Sorted list descending run times. (Longest Processing Time first strategy)
 TEST_PACKAGES_COMMON=(
-  "list_large_dir"
+  "streaming_writes"
 )
 
 # Test packages for regional buckets.
@@ -380,10 +380,13 @@ process_any_pid() {
   local -n cmds_by_pid_ref="$1"
   local waited_pid
   local pid_status # To store the exit status of the waited pid
+  local pids=( "${!cmds_by_pid_ref[@]}" )
+  # 2. Get the first element from the 'pids' array.
+  local first_pid=${pids[0]}
 
-  wait -n -p waited_pid # waited_pid gets the PID, $? gets the status
+  wait $first_pid # waited_pid gets the PID, $? gets the status
   pid_status=$?
-
+  waited_pid=$first_pid
   local cmd_and_output_file="${cmds_by_pid_ref[$waited_pid]}"
   local parallel_cmd_executed="${cmd_and_output_file%%;*}"
   local output_file="${cmd_and_output_file#*;}"
@@ -601,10 +604,10 @@ function print_test_logs_and_create_junit_xml() {
     return 0
   fi
 
-  local output_dir="${KOKORO_ARTIFACTS_DIR}"
-  echo "$output_dir" >> "$XML_OUTPUT_DIRS" # Add this line
-  local sponge_xml_file="${output_dir}/${bucket_type}/${package_name}_sponge_log.xml"
-  local sponge_log_file="${output_dir}/${bucket_type}/${package_name}_sponge_log.log"
+  local output_dir="${KOKORO_ARTIFACTS_DIR}/${bucket_type}"
+#   echo "$output_dir" >> "$XML_OUTPUT_DIRS" # Add this line
+  local sponge_xml_file="${output_dir}/${package_name}_sponge_log.xml"
+  local sponge_log_file="${output_dir}/${package_name}_sponge_log.log"
 
   echo "XML report will be generated at ${sponge_xml_file}"
   echo '<?xml version="1.0" encoding="UTF-8"?>' > "${sponge_xml_file}"
