@@ -537,7 +537,7 @@ func (p *BufferedReader) shouldRestartBufferedReading() bool {
 	}
 
 	// Restart if current pattern is sequential and we previously had random reads
-	return p.sharedReadState.ShouldRestartBufferedReader()
+	return p.sharedReadState.IsReadSequential()
 }
 
 // resetBufferedReaderState resets the internal state to restart buffered reading
@@ -557,13 +557,6 @@ func (p *BufferedReader) resetBufferedReaderState() {
 	p.randomSeekCount = 0
 	p.nextBlockIndexToPrefetch = 0
 	p.numPrefetchBlocks = p.config.InitialPrefetchBlockCnt
-
-	// Reset shared state if available
-	if p.sharedReadState != nil {
-		p.sharedReadState.Reset()
-	}
-
-	logger.Infof("BufferedReader state reset successfully for object %q", p.object.Name)
 }
 
 // CheckInvariants checks for internal consistency of the reader.
