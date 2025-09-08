@@ -604,7 +604,7 @@ function print_test_logs_and_create_junit_xml() {
     return 0
   fi
 
-  local output_dir="${KOKORO_ARTIFACTS_DIR}/${bucket_type}"
+  local output_dir="${KOKORO_ARTIFACTS_DIR}/gcsfuse/gcp_ubuntu/presubmits/perf_tests/presubmit/${bucket_type}"
   mkdir -p "$output_dir"
 #   echo "$output_dir" >> "$XML_OUTPUT_DIRS" # Add this line
   local sponge_xml_file="${output_dir}/${package_name}_sponge_log.xml"
