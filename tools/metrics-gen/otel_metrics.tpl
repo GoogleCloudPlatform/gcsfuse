@@ -83,7 +83,7 @@ func (o *otelMetrics) {{toPascal .Name}}(
 	{{- end }}) {
 {{- if isCounter . }}
 	if inc < 0 {
-		logger.Warnf("Counter metric {{.Name}} received a negative increment: %d", inc)
+		logger.Errorf("Counter metric {{.Name}} received a negative increment: %d", inc)
 		return
 	}
 	{{buildSwitches .}}
