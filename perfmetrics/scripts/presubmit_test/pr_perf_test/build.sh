@@ -109,7 +109,11 @@ function install_requirements() {
 # fi
 
 # Install required bash version for e2e script as kokoro has outdated bash versions.
+echo "Installing bash version $REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT..."
+start_time=$(date +%s)
 ./perfmetrics/scripts/install_bash.sh "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT"
+end_time=$(date +%s)
+echo "Bash installation took $(($end_time - $start_time)) seconds."
 
 # # Execute integration tests on zonal bucket(s).
 # if test -n "${integrationTestsOnZBStr}" ;
