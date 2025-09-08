@@ -468,7 +468,7 @@ func (f *FileInode) Destroy() (err error) {
 	return
 }
 
-var count = 10
+var count = 0
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Attributes(
