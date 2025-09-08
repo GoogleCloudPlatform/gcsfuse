@@ -234,3 +234,10 @@ the following operations:
   hardlinks.
 - **BatchForget:**  This is a performance optimization for batch-forgetting inodes. When this is unimplemented,
   filesystem instead utilizes individual ForgetInode calls.
+
+### Installation error: The repository does not have a Release file
+The full error log would be something like: `Error: The repository 'https://packages.cloud.google.com/apt gcsfuse-<abc> Release' does not have a Release file.`
+
+This occurs when the gcsfuse package corresponding to OS version returned by `lsb_release` (say x) is not in the [list of supported OS versions](https://cloud.google.com/storage/docs/cloud-storage-fuse/overview#frameworks-os-architectures) .
+
+**Workaround**: Install GCSFuse for the closest supported OS version (say y), by running `export GCSFUSE_REPO="gcsfuse-y"` and retrying installation. An example of this is in https://github.com/GoogleCloudPlatform/gcsfuse/issues/3779, with x=`trixie` (for debian-13), and y=`bookworm` (for debian-12).  
