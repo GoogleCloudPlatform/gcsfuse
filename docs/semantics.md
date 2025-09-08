@@ -10,7 +10,7 @@ Files that have not been modified are read portion by portion on demand. Cloud S
 
 ### Buffered Reads
 
-Cloud Storage FUSE offers Buffered Read feature support to accelerate large file sequential reads. Buffered Read improves throughput by intelligently prefetching object parts asynchronously and in parallel into an in-memory buffer, serving subsequent reads from this buffer instead of making network calls. This asynchronous and parallel buffering approach improves throughput by saturating network bandwidth without requiring additional application-side parallelism.
+Cloud Storage FUSE offers Buffered Read feature to accelerates large sequential reads by asynchronously prefetching data into in-memory buffers and serving subsequent reads from in-memory buffer instead of making network calls.
 
 The feature is **disabled by default** and can be enabled using:
 - Command-line flag: `--enable-buffered-read`
@@ -19,19 +19,15 @@ The feature is **disabled by default** and can be enabled using:
 **Note:** Buffered reads are designed to operate exclusively when the file cache is disabled. If both features are enabled, the file cache takes precedence and buffered reads will be ignored.
 
 **Best Use Cases:**
-- Large sequential file reads (e.g., model loading, data processing pipelines).
-- Single-threaded applications reading large files sequentially.
+- Single-threaded applications reading large files (> 100MB) sequentially.
 
 **Performance Gains:**
 - Can provide 2-5x improvement in sequential read throughput.
 - Most effective for files larger than 100 MB.
-- Optimal for fully sequential access patterns.
 
 **Memory Usage:**
 - **Per file handle:** Up to 320 MB (20 × 16MB memory blocks) while reading.
-- **Global limit:** Controlled by `--read-global-max-blocks` flag or `read:global-max-blocks` config (default: 40 blocks).
-- **Total system limit:** Default maximum of 640 MB (40 × 16MB) across all file handles.
-- **Memory release:** Automatically freed when file handle is closed or system falls back to default read because of random read.
+- **Global limit:** Controlled by `--read-global-max-blocks` flag or `read:global-max-blocks` config (default: 40 blocks). By default 640 MB (40 × 16MB) across all the file handles.
 
 **Important:** Please Consider available system memory when enabling buffered reads or adjusting `--read-global-max-blocks` to prevent out-of-memory (OOM) issues.
 
