@@ -1691,6 +1691,7 @@ func (fs *fileSystem) LookUpInode(
 	parent := fs.dirInodeOrDie(op.Parent)
 	fs.mu.Unlock()
 
+	fmt.Println("checking for invalidate")
 	if op.Name == "invalidate.txt" {
 		child2, err := fs.lookUpOrCreateChildInode(ctx, parent, "hi.txt")
 		if err != nil {
