@@ -15,10 +15,13 @@
 package gcsx
 
 import (
-	"sync"
 	"sync/atomic"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+)
+
+const (
+	minAverageBytesForSequential = 8 * 1024 * 1024 // 8MB
 )
 
 // ReadType represents the overall read pattern
@@ -36,8 +39,6 @@ const (
 // SharedReadState holds shared state information across all readers for a file handle.
 // This tracks the overall read pattern and provides average bytes per random seek.
 type SharedReadState struct {
-	// mu protects the non-atomic fields in this structure
-	mu sync.RWMutex
 
 	// totalBytesRead tracks the total number of bytes read across all readers
 	totalBytesRead atomic.Uint64
@@ -55,8 +56,12 @@ type SharedReadState struct {
 // NewSharedReadState creates a new SharedReadState with default configuration
 func NewSharedReadState() *SharedReadState {
 	state := &SharedReadState{
-		lastReadOffset: atomic.Int64{},
+		lastReadOffset:  atomic.Int64{},
+		randomSeekCount: atomic.Uint64{},
+		totalBytesRead:  atomic.Uint64{},
+		currentReadType: atomic.Int32{},
 	}
+	state.randomSeekCount.Store(1)
 	state.currentReadType.Store(int32(ReadTypeUnknown))
 	return state
 }
@@ -73,25 +78,13 @@ func (s *SharedReadState) RecordRead(offset int64, size int64) {
 	}
 
 	s.lastReadOffset.Store(offset + size)
+	averageBytesPerSeek := s.totalBytesRead.Load() / s.randomSeekCount.Load()
+	logger.Tracef("Shared state: averageBytesPerSeek=%v, totalBytesRead=%v, randomSeekCount=%v, lastReadOffset=%v", averageBytesPerSeek, s.totalBytesRead.Load(), s.randomSeekCount.Load(), s.lastReadOffset.Load())
 
-	// Update current read type using atomic operations
-	if isSequential {
+	if averageBytesPerSeek > minAverageBytesForSequential {
 		s.currentReadType.Store(int32(ReadTypeSequential))
 	} else {
 		s.currentReadType.Store(int32(ReadTypeRandom))
-	}
-}
-
-// GetReadStats returns current read statistics
-func (s *SharedReadState) GetReadStats() ReadStats {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	return ReadStats{
-		TotalBytesRead:      s.totalBytesRead.Load(),
-		RandomSeekCount:     s.randomSeekCount.Load(),
-		AverageBytesPerSeek: s.getAverageBytesPerSeek(),
-		CurrentReadType:     ReadType(s.currentReadType.Load()),
 	}
 }
 
@@ -105,50 +98,12 @@ func (s *SharedReadState) getAverageBytesPerSeek() float64 {
 	return float64(s.totalBytesRead.Load()) / float64(seekCount)
 }
 
-// ReadStats contains statistical information about read operations
-type ReadStats struct {
-	TotalBytesRead      uint64
-	RandomSeekCount     uint64
-	AverageBytesPerSeek float64
-	CurrentReadType     ReadType
-	ActiveReaderType    string
-}
-
 // GetCurrentReadType returns the overall read pattern at the current moment
 func (s *SharedReadState) GetCurrentReadType() ReadType {
 	return ReadType(s.currentReadType.Load())
 }
 
-// GetAverageBytesPerSeek returns the average bytes read per random seek
-func (s *SharedReadState) GetAverageBytesPerSeek() float64 {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.getAverageBytesPerSeek()
-}
-
-// ShouldRestartBufferedReader returns true if buffered reader should be restarted
-// based on the read pattern change from random to sequential
-func (s *SharedReadState) ShouldRestartBufferedReader() bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	// Restart if current pattern is sequential, we previously had random reads,
-	// and the average bytes per seek is more than 8 MiB
-	const minAverageBytesForSequential = 8 * 1024 * 1024 // 8 MiB
-	averageBytes := s.getAverageBytesPerSeek()
-	currentType := ReadType(s.currentReadType.Load())
-	logger.Tracef("SharedReadState: randomSeekCount=%d, averageBytes=%.0f", s.randomSeekCount.Load(), averageBytes)
-
-	return currentType == ReadTypeSequential &&
-		s.randomSeekCount.Load() > 0 &&
-		averageBytes > minAverageBytesForSequential
-} // Reset clears all accumulated state (useful for testing or when switching contexts)
-func (s *SharedReadState) Reset() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.totalBytesRead.Store(0)
-	s.randomSeekCount.Store(0)
-	s.lastReadOffset.Store(0)
-	s.currentReadType.Store(int32(ReadTypeUnknown))
+// IsReadSequential returns true if the current read pattern is sequential
+func (s *SharedReadState) IsReadSequential() bool {
+	return s.GetCurrentReadType() == ReadTypeSequential
 }
