@@ -20,9 +20,11 @@ package interrupt
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
@@ -66,18 +68,25 @@ func (s *ignoreInterruptsTest) cloneRepository() (err error) {
 	isRetryableError := func(err error) bool {
 		return strings.Contains(strings.ToLower(err.Error()), "could not resolve host")
 	}
-	for range maxAttempts {
+	for i := range maxAttempts {
 		output, err = operations.ExecuteToolCommandfInDirectory(testDirPath, tool, "clone %s", repoURL)
 
 		if err == nil {
-			break
-		} else if isRetryableError(err) {
+			return nil
+		}
+		if isRetryableError(err) {
 			s.T().Logf("failed to clone %q with stdout = %q and retryable error = %v", repoURL, string(output), err)
+			if i < maxAttempts-1 {
+				// Wait for [1ms, 2000ms] before trying again.
+				time.Sleep(time.Millisecond * time.Duration(1+rand.Intn(2000)))
+			}
 		} else {
+			// Non-retryable error
 			return fmt.Errorf("failed to clone %q with stdout = %q and non-retryable error = %v", repoURL, string(output), err)
 		}
 	}
-	return err
+	// All retries failed
+	return fmt.Errorf("failed to clone %q after %d attempts, last error: %w", repoURL, maxAttempts, err)
 }
 
 func checkoutBranch(branchName string) ([]byte, error) {
