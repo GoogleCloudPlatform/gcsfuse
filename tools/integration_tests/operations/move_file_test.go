@@ -20,6 +20,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
@@ -128,9 +129,9 @@ func TestMoveFileWithDestFileExist(t *testing.T) {
 }
 
 func TestRenameOnUnfinalizedObject(t *testing.T) {
-	// Skipping until MoveObject() API is supported on unfinalized objects.
-	t.Skip()
-
+	if !setup.IsZonalBucketRun() {
+		t.Skip("Skipping as the test is incompatible with non zonal buckets.")
+	}
 	// Set up the test directory.
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 	// Define source and destination file names.
@@ -138,6 +139,8 @@ func TestRenameOnUnfinalizedObject(t *testing.T) {
 	destFilePath := path.Join(testDir, "move2.txt")
 	// Create an unfinalized object named `move1.txt`
 	client.CreateUnfinalizedObject(ctx, t, storageClient, path.Join(DirForOperationTests, "move1.txt"), Content)
+	// Sleep for one minute so that GCS stat() returns the existence of object correctly.
+	time.Sleep(time.Minute)
 
 	err := operations.Move(srcFilePath, destFilePath)
 
