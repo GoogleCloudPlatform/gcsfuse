@@ -94,26 +94,81 @@ echo "Setting the integration test timeout to: $INTEGRATION_TEST_TIMEOUT"
 readonly RANDOM_STRING_LENGTH=5
 # Test directory arrays
 TEST_DIR_PARALLEL=(
+  "monitoring"
+  "local_file"
+  "log_rotation"
+  "mounting"
   "read_cache"
+  # "grpc_validation"
+  "gzip"
+  "write_large_files"
+  "list_large_dir"
+  "rename_dir_limit"
+  "read_large_files"
+  "explicit_dir"
+  "implicit_dir"
+  "interrupt"
+  "operations"
+  "kernel_list_cache"
+  "concurrent_operations"
+  "benchmarking"
+  "mount_timeout"
+  "stale_handle"
+  "negative_stat_cache"
+  "streaming_writes"
+  "inactive_stream_timeout"
+  "cloud_profiler"
+  "release_version"
+  "readdirplus"
+  "dentry_cache"
+  "buffered_read"
 )
 
 # These tests never become parallel as it is changing bucket permissions.
 TEST_DIR_NON_PARALLEL=(
   "readonly"
+  "managed_folders"
+  "readonly_creds"
 )
 
 # Subset of TEST_DIR_PARALLEL,
 # but only those tests which currently
 # pass for zonal buckets.
 TEST_DIR_PARALLEL_FOR_ZB=(
+  "benchmarking"
+  "explicit_dir"
+  "gzip"
   "implicit_dir"
+  "interrupt"
+  "kernel_list_cache"
+  "local_file"
+  "log_rotation"
+  "monitoring"
+  "mount_timeout"
+  "mounting"
+  "negative_stat_cache"
+  "operations"
+  "read_cache"
+  "read_large_files"
+  "rename_dir_limit"
+  "stale_handle"
+  "streaming_writes"
+  "write_large_files"
+  "unfinalized_object"
+   "release_version"
+   "readdirplus"
+   "dentry_cache"
 )
 
 # Subset of TEST_DIR_NON_PARALLEL,
 # but only those tests which currently
 # pass for zonal buckets.
 TEST_DIR_NON_PARALLEL_FOR_ZB=(
+  "concurrent_operations"
+  "list_large_dir"
+  "managed_folders"
   "readonly"
+  "readonly_creds"
 )
 
 # Create a temporary file to store the log file name.
@@ -205,10 +260,6 @@ function install_packages() {
   # Downloading composite object requires integrity checking with CRC32c in gsutil.
   # it requires to install crcmod.
   sudo apt install -y python3-crcmod
-  
-  # Install go-junit-report
-  go install github.com/jstemmer/go-junit-report/v2@latest
-  export PATH="$(go env GOPATH)/bin:$PATH"
 }
 
 function create_bucket() {
@@ -326,13 +377,7 @@ function run_parallel_tests() {
   return $exit_code
 }
 
-function print_test_logs_and_create_junit_xml() {
-  # Create a temporary file to store the log file name.
-  echo "Creating junit.xml file ... $TEST_LOGS_FILE"
-  JUNIT_XML_FILE=$(mktemp)
-  echo '<?xml version="1.0" encoding="UTF-8"?>' > $JUNIT_XML_FILE
-  echo '<testsuites>' >> $JUNIT_XML_FILE
-
+function print_test_logs() {
   readarray -t test_logs_array < "$TEST_LOGS_FILE"
   rm "$TEST_LOGS_FILE"
   for test_log_file in "${test_logs_array[@]}"
@@ -342,18 +387,8 @@ function print_test_logs_and_create_junit_xml() {
       echo "=== Log for ${test_log_file} ==="
       cat "$log_file"
       echo "========================================="
-      cat "$log_file" | go-junit-report > "${log_file}.xml"
-      # remove the first 2 lines and the last line from the xml file
-      sed -i '1,2d' "${log_file}.xml"
-      sed -i '$d' "${log_file}.xml"
-      cat "${log_file}.xml" >> $JUNIT_XML_FILE
     fi
   done
-
-  echo '</testsuites>' >> $JUNIT_XML_FILE
-  # Final XML file
-  cat $JUNIT_XML_FILE > junit.xml
-  rm $JUNIT_XML_FILE
 }
 
 function run_e2e_tests_for_flat_bucket() {
@@ -503,7 +538,7 @@ function main(){
         exit 1
     fi
 
-    USE_PREBUILT_GCSFUSE_BINARY="--gcsfuse_prebuilt__dir=${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
+    USE_PREBUILT_GCSFUSE_BINARY="--gcsfuse_prebuilt_dir=${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
     echo "Script built GCSFuse at: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
   fi
 
@@ -589,7 +624,7 @@ function main(){
 
   set -e
 
-  print_test_logs_and_create_junit_xml
+  print_test_logs
 
   exit $exit_code
 }

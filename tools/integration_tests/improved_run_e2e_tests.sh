@@ -42,14 +42,14 @@ log_error() {
 }
 
 # Confirm bash version before continuing script.
-# REQUIRED_BASH_MAJOR=5
-# REQUIRED_BASH_MINOR=1
-# if (( BASH_VERSINFO[0] < REQUIRED_BASH_MAJOR || ( BASH_VERSINFO[0] == REQUIRED_BASH_MAJOR && BASH_VERSINFO[1] < REQUIRED_BASH_MINOR ) )); then
-#     log_error "This script requires Bash version: ${REQUIRED_BASH_MAJOR}.${REQUIRED_BASH_MINOR} or higher."
-#     log_error "You are currently using Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
-#     exit 1
-# fi
-# log_info "Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
+REQUIRED_BASH_MAJOR=5
+REQUIRED_BASH_MINOR=1
+if (( BASH_VERSINFO[0] < REQUIRED_BASH_MAJOR || ( BASH_VERSINFO[0] == REQUIRED_BASH_MAJOR && BASH_VERSINFO[1] < REQUIRED_BASH_MINOR ) )); then
+    log_error "This script requires Bash version: ${REQUIRED_BASH_MAJOR}.${REQUIRED_BASH_MINOR} or higher."
+    log_error "You are currently using Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
+    exit 1
+fi
+log_info "Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
 
 # Constants
 readonly GO_VERSION="1.24.5"
@@ -58,13 +58,13 @@ readonly TPCZERO_PROJECT_ID="tpczero-system:gcsfuse-test-project"
 readonly TPC_BUCKET_LOCATION="u-us-prp1"
 readonly BUCKET_PREFIX="gcsfuse-e2e"
 readonly INTEGRATION_TEST_PACKAGE_DIR="./tools/integration_tests"
-readonly INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS=60
+readonly INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS=60 
 readonly TMP_PREFIX="gcsfuse_e2e"
 readonly ZONAL_BUCKET_SUPPORTED_LOCATIONS=("us-central1" "us-west4")
 readonly DELETE_BUCKET_PARALLELISM=10 # Controls how many buckets are deleted in parallel.
 # 6 second delay between creating buckets as both hns and flat runs create buckets in parallel.
 # Ref: https://cloud.google.com/storage/quotas#buckets
-readonly DELAY_BETWEEN_BUCKET_CREATION=6
+readonly DELAY_BETWEEN_BUCKET_CREATION=6 
 readonly ZONAL="zonal"
 readonly FLAT="flat"
 readonly HNS="hns"
@@ -121,7 +121,7 @@ while (( $# >= 1 )); do
             ;;
         --test-installed-package)
             TEST_INSTALLED_PACKAGE=true
-            shift
+            shift 
             ;;
         --skip-non-essential-tests)
             SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=true
@@ -191,17 +191,45 @@ if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
 fi
 
 # Test packages which can be run for both Zonal and Regional buckets.
-# Sorted list descending run times. (Longest Processing Time first strategy)
+# Sorted list descending run times. (Longest Processing Time first strategy) 
 TEST_PACKAGES_COMMON=(
+  "managed_folders"
+  "operations"
+  "read_large_files"
+  "concurrent_operations"
+  "read_cache"
+  "list_large_dir"
+  "mount_timeout"
+  "write_large_files"
+  "implicit_dir"
+  "interrupt"
+  "local_file"
+  "readonly"
+  "readonly_creds"
+  "rename_dir_limit"
+  "kernel_list_cache"
   "streaming_writes"
+  "benchmarking"
+  "explicit_dir"
+  "gzip"
+  "log_rotation"
+  "monitoring"
+  "mounting"
+  # "grpc_validation"
+  "negative_stat_cache"
+  "stale_handle"
+  "release_version"
+  "readdirplus"
+  "dentry_cache"
+  "buffered_read"
 )
 
 # Test packages for regional buckets.
-TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}")
+TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "inactive_stream_timeout" "cloud_profiler")
 # Test packages for zonal buckets.
-TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}")
+TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "unfinalized_object" "rapid_appends")
 # Test packages for TPC buckets.
-TEST_PACKAGES_FOR_TPC=("")
+TEST_PACKAGES_FOR_TPC=("operations")
 
 # acquire_lock: Acquires exclusive lock or exits script on failure.
 # Args: $1 = path to lock file.
@@ -279,13 +307,13 @@ create_bucket() {
   while : ; do
     attempt=$((attempt - 1))
     if [ $attempt -lt 0 ]; then
-      log_error "Unable to create bucket [${bucket_name}] after 5 attempts."
+      log_error "Unable to create bucket [${bucket_name}] after 5 attempts." 
       cat "$bucket_cmd_log"
       return 1
     fi
     eval "$bucket_cmd" > "$bucket_cmd_log" 2>&1
     if [ $? -eq 0 ]; then
-      sleep "$DELAY_BETWEEN_BUCKET_CREATION" # have 6 seconds gap between creating buckets.
+      sleep "$DELAY_BETWEEN_BUCKET_CREATION" # have 6 seconds gap between creating buckets. 
       break
     fi
   done
@@ -296,7 +324,7 @@ create_bucket() {
 
 # Helper method to create buckets for each of the package.
 setup_package_buckets () {
-  if [[ "$#" -ne 3 ]]; then
+  if [[ "$#" -ne 3 ]]; then 
     log_error "setup_buckets() called with incorrect number of arguments."
     exit 1
   fi
@@ -369,9 +397,9 @@ clean_up() {
         log_info "Successfully deleted all buckets."
     fi
   fi
-  if ! rm -rf /tmp/"${TMP_PREFIX}_"*; then
+  if ! rm -rf /tmp/"${TMP_PREFIX}_"*; then 
     log_error "Failed to delete temporary files"
-  else
+  else 
     log_info "Successfully cleaned up temporary files"
   fi
 }
@@ -382,22 +410,22 @@ process_any_pid() {
   local -n cmds_by_pid_ref="$1"
   local waited_pid
   local pid_status # To store the exit status of the waited pid
-  local pids=( "${!cmds_by_pid_ref[@]}" )
-  # 2. Get the first element from the 'pids' array.
-  local first_pid=${pids[0]}
 
-  wait $first_pid # waited_pid gets the PID, $? gets the status
+  wait -n -p waited_pid # waited_pid gets the PID, $? gets the status
   pid_status=$?
-  waited_pid=$first_pid
+
   local cmd_and_output_file="${cmds_by_pid_ref[$waited_pid]}"
   local parallel_cmd_executed="${cmd_and_output_file%%;*}"
   local output_file="${cmd_and_output_file#*;}"
   unset "cmds_by_pid_ref[$waited_pid]"
-  acquire_lock "$LOG_LOCK_FILE"
-  log_error "Parallel Command: $parallel_cmd_executed"
-  cat "$output_file"
-  release_lock "$LOG_LOCK_FILE"
-#   log_info_locked "Parallel Command succeeded: $parallel_cmd_executed"
+  if [[ "$pid_status" -ne 0 ]]; then
+    acquire_lock "$LOG_LOCK_FILE"
+    log_error "Parallel Command failed: $parallel_cmd_executed"
+    cat "$output_file"
+    release_lock "$LOG_LOCK_FILE"
+    return 1
+  fi
+  log_info_locked "Parallel Command succeeded: $parallel_cmd_executed"
   return 0
 }
 
@@ -477,13 +505,13 @@ test_package() {
   if ${RUN_TEST_ON_TPC_ENDPOINT}; then
     go_test_cmd_parts+=("--testOnTPCEndPoint")
   fi
-  if [[ -n "$BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR" ]]; then
+  if [[ -n "$BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR" ]]; then 
     go_test_cmd_parts+=("--gcsfuse_prebuilt_dir=${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}")
   fi
   # Use printf %q to quote each argument safely for eval
   # This ensures spaces and special characters within arguments are handled correctly.
   local go_test_cmd=$(printf "%q " "${go_test_cmd_parts[@]}")
-
+  
   # Run the package test command
   local start=$SECONDS exit_code=0
 
@@ -636,7 +664,7 @@ function print_test_logs_and_create_junit_xml() {
 
 main() {
   # Clean up everything on exit.
-  trap clean_up EXIT  
+  trap clean_up EXIT
   log_info ""
   log_info "------ Upgrading gcloud and installing packages ------"
   log_info ""
