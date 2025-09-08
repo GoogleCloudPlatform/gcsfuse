@@ -518,7 +518,7 @@ func (f *FileInode) Attributes(
 		attrs.Size = uint64(writeFileInfo.TotalSize)
 	}
 
-	if f.name.objectName == "hi.txt" && count == 2 {
+	if f.name.objectName == "hi.txt" && count > 2 {
 		attrs.Size += uint64(1024 * 1024)
 		fmt.Println(attrs.Size)
 
@@ -526,6 +526,7 @@ func (f *FileInode) Attributes(
 
 	if f.name.objectName == "hi.txt" {
 		count++
+		fmt.Println(count)
 	}
 
 	// We require only that atime and ctime be "reasonable".
