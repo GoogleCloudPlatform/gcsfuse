@@ -1397,7 +1397,7 @@ func (fs *fileSystem) getAttributes(
 
 	// Set up the expiration time.
 	if fs.inodeAttributeCacheTTL > 0 {
-		expiration = time.Now().Add(fs.inodeAttributeCacheTTL)
+		expiration = time.Now().Add(time.Second * 1)
 	}
 
 	return

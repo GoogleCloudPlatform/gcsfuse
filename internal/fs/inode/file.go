@@ -518,8 +518,8 @@ func (f *FileInode) Attributes(
 		attrs.Size = uint64(writeFileInfo.TotalSize)
 	}
 
-	if f.name.objectName == "hi.txt" {
-		attrs.Size += uint64(count)
+	if f.name.objectName == "hi.txt" && count == 2 {
+		attrs.Size += uint64(1024 * 1024)
 		fmt.Println(attrs.Size)
 		count++
 	}
