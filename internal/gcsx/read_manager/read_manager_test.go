@@ -74,7 +74,7 @@ func (t *readManagerTest) readManagerConfig(fileCacheEnable bool, bufferedReadEn
 		GlobalMaxBlocksSem: semaphore.NewWeighted(20),
 	}
 	if bufferedReadEnable {
-		t.workerPool, _ = workerpool.NewStaticWorkerPool(5, 20)
+		t.workerPool, _ = workerpool.NewStaticWorkerPool(5, 20, 25)
 		t.workerPool.Start()
 		config.WorkerPool = t.workerPool
 	}
