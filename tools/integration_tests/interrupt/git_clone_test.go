@@ -18,7 +18,6 @@
 package interrupt
 
 import (
-	"fmt"
 	"log"
 	"math/rand"
 	"path"
@@ -62,8 +61,7 @@ func (s *ignoreInterruptsTest) SetupTest() {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func (s *ignoreInterruptsTest) cloneRepository() (err error) {
-	var output []byte
+func (s *ignoreInterruptsTest) cloneRepository() (output []byte, err error) {
 	maxAttempts := 5
 	isRetryableError := func(err error) bool {
 		return strings.Contains(strings.ToLower(err.Error()), "could not resolve host")
@@ -71,22 +69,17 @@ func (s *ignoreInterruptsTest) cloneRepository() (err error) {
 	for i := range maxAttempts {
 		output, err = operations.ExecuteToolCommandfInDirectory(testDirPath, tool, "clone %s", repoURL)
 
-		if err == nil {
-			return nil
+		if err == nil || !isRetryableError(err) {
+			return
 		}
-		if isRetryableError(err) {
-			s.T().Logf("failed to clone %q with stdout = %q and retryable error = %v", repoURL, string(output), err)
-			if i < maxAttempts-1 {
-				// Wait for [1ms, 2000ms] before trying again.
-				time.Sleep(time.Millisecond * time.Duration(1+rand.Intn(2000)))
-			}
-		} else {
-			// Non-retryable error
-			return fmt.Errorf("failed to clone %q with stdout = %q and non-retryable error = %v", repoURL, string(output), err)
+		s.T().Logf("failed to clone %q with stdout = %q and retryable error = %v", repoURL, string(output), err)
+		if i < maxAttempts-1 {
+			// Wait for [1ms, 2000ms] before trying again.
+			time.Sleep(time.Millisecond * time.Duration(1+rand.Intn(2000)))
 		}
 	}
 	// All retries failed
-	return fmt.Errorf("failed to clone %q after %d attempts, last error: %w", repoURL, maxAttempts, err)
+	return
 }
 
 func checkoutBranch(branchName string) ([]byte, error) {
@@ -126,15 +119,15 @@ func setGithubUserConfig() {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *ignoreInterruptsTest) TestGitClone() {
-	err := s.cloneRepository()
+	output, err := s.cloneRepository()
 
 	if err != nil {
-		s.T().Errorf("Git clone failed: %v", err)
+		s.T().Errorf("Git clone failed: %s: %v", string(output), err)
 	}
 }
 
 func (s *ignoreInterruptsTest) TestGitCheckout() {
-	err := s.cloneRepository()
+	_, err := s.cloneRepository()
 	if err != nil {
 		s.T().Errorf("cloneRepository() failed: %v", err)
 	}
@@ -147,7 +140,7 @@ func (s *ignoreInterruptsTest) TestGitCheckout() {
 }
 
 func (s *ignoreInterruptsTest) TestGitEmptyCommit() {
-	err := s.cloneRepository()
+	_, err := s.cloneRepository()
 	if err != nil {
 		s.T().Errorf("cloneRepository() failed: %v", err)
 	}
@@ -161,7 +154,7 @@ func (s *ignoreInterruptsTest) TestGitEmptyCommit() {
 }
 
 func (s *ignoreInterruptsTest) TestGitCommitWithChanges() {
-	err := s.cloneRepository()
+	_, err := s.cloneRepository()
 	if err != nil {
 		s.T().Errorf("cloneRepository() failed: %v", err)
 	}
