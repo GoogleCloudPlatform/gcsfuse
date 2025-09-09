@@ -43,6 +43,57 @@
   type: "resolvedPath"
   usage: "Enables file-caching. Specifies the directory to use for file-cache."
 
+- config-path: "cloud-profiler.allocated-heap"
+  flag-name: "cloud-profiler-allocated-heap"
+  type: "bool"
+  usage: "Enables allocated heap (HeapProfileAllocs) profiling. This only works when --enable-cloud-profiler is set to true."
+  default: true
+  hide-flag: true
+
+- config-path: "cloud-profiler.cpu"
+  flag-name: "cloud-profiler-cpu"
+  type: "bool"
+  usage: "Enables cpu profiling. This only works when --enable-cloud-profiler is set to true."
+  default: true
+  hide-flag: true
+
+- config-path: "cloud-profiler.enabled"
+  flag-name: "enable-cloud-profiler"
+  type: "bool"
+  usage: "Enables cloud-profiler, by default disabled."
+  default: false
+  hide-flag: true
+
+- config-path: "cloud-profiler.goroutines"
+  flag-name: "cloud-profiler-goroutines"
+  type: "bool"
+  usage: "Enables goroutines cloud-profiler. This only works when --enable-cloud-profiler is set to true."
+  default: false
+  hide-flag: true
+
+- config-path: "cloud-profiler.heap"
+  flag-name: "cloud-profiler-heap"
+  type: "bool"
+  usage: "Enables heap cloud-profiler. This only works when --enable-cloud-profiler is set to true."
+  default: true
+  hide-flag: true
+
+- config-path: "cloud-profiler.label"
+  flag-name: "cloud-profiler-label"
+  type: "string"
+  usage: >-
+    Allow setting a profile label to uniquely identify and compare cloud-profiler data with other profiles.
+    This only works when --enable-cloud-profiler is set to true.
+  default: "gcsfuse-0.0.0"
+  hide-flag: true
+
+- config-path: "cloud-profiler.mutex"
+  flag-name: "cloud-profiler-mutex"
+  type: "bool"
+  usage: "Enables mutex cloud-profiler. This only works when --enable-cloud-profiler is set to true."
+  default: false
+  hide-flag: true
+
 - config-path: "debug.exit-on-invariant-violation"
   flag-name: "debug_invariants"
   type: "bool"
@@ -249,8 +300,8 @@
   flag-name: "precondition-errors"
   type: "bool"
   usage: >-
-    Throw Stale NFS file handle error in case the object being synced or read 
-    from is modified by some other concurrent process. This helps prevent 
+    Throw Stale NFS file handle error in case the object being synced or read
+    from is modified by some other concurrent process. This helps prevent
     silent data loss or data corruption.
   hide-flag: true
   default: true
@@ -394,9 +445,9 @@
   flag-name: "chunk-transfer-timeout-secs"
   type: "int"
   usage: >-
-    We send larger file uploads in 16 MiB chunks. This flag controls the duration 
-    that the HTTP client will wait for a response after making a request to upload a chunk. 
-    As an example, a value of 10 indicates that the client will wait 10 seconds for upload completion; 
+    We send larger file uploads in 16 MiB chunks. This flag controls the duration
+    that the HTTP client will wait for a response after making a request to upload a chunk.
+    As an example, a value of 10 indicates that the client will wait 10 seconds for upload completion;
     otherwise, it cancels the request and retries for that chunk till chunkRetryDeadline(32s). 0 means no timeout.
   default: "10"
   hide-flag: true
@@ -492,8 +543,8 @@
   type: "resolvedPath"
   usage: >-
     The file for storing logs that can be parsed by fluentd. When not provided,
-    plain text logs are printed to stdout when Cloud Storage FUSE is run 
-    in the foreground, or to syslog when Cloud Storage FUSE is run in the 
+    plain text logs are printed to stdout when Cloud Storage FUSE is run
+    in the foreground, or to syslog when Cloud Storage FUSE is run in the
     background.
 
 - config-path: "logging.format"
@@ -699,62 +750,11 @@
   usage: "Mount only a specific directory within the bucket. See docs/mounting for more information"
   default: ""
 
-- config-path: "profiling.allocated-heap"
-  flag-name: "profiling-allocated-heap"
-  type: "bool"
-  usage: "Enables allocated heap (HeapProfileAllocs) profiling. This only works when --enable-cloud-profiling is set to true."
-  default: true
-  hide-flag: true
-
-- config-path: "profiling.cpu"
-  flag-name: "profiling-cpu"
-  type: "bool"
-  usage: "Enables cpu profiling. This only works when --enable-cloud-profiling is set to true."
-  default: true
-  hide-flag: true
-
-- config-path: "profiling.enabled"
-  flag-name: "enable-cloud-profiling"
-  type: "bool"
-  usage: "Enables cloud profiling, by default disabled."
-  default: false
-  hide-flag: true
-
-- config-path: "profiling.goroutines"
-  flag-name: "profiling-goroutines"
-  type: "bool"
-  usage: "Enables goroutines profiling. This only works when --enable-cloud-profiling is set to true."
-  default: false
-  hide-flag: true
-
-- config-path: "profiling.heap"
-  flag-name: "profiling-heap"
-  type: "bool"
-  usage: "Enables heap profiling. This only works when --enable-cloud-profiling is set to true."
-  default: true
-  hide-flag: true
-
-- config-path: "profiling.label"
-  flag-name: "profiling-label"
-  type: "string"
-  usage: >-
-    Allow setting a profile label to uniquely identify and compare profiling data with other profiles.
-    This only works when --enable-cloud-profiling is set to true.  
-  default: "gcsfuse-0.0.0"
-  hide-flag: true
-
-- config-path: "profiling.mutex"
-  flag-name: "profiling-mutex"
-  type: "bool"
-  usage: "Enables mutex profiling. This only works when --enable-cloud-profiling is set to true."
-  default: false
-  hide-flag: true
-
 - config-path: "read.block-size-mb"
   flag-name: "read-block-size-mb"
   type: "int"
   usage: >-
-    Specifies the block size for buffered reads. The value should be more than 
+    Specifies the block size for buffered reads. The value should be more than
     0. This is used to read data in chunks from GCS.
   default: 16
   hide-flag: true
@@ -791,7 +791,7 @@
   flag-name: "read-max-blocks-per-handle"
   type: "int"
   usage: >-
-    Specifies the maximum number of blocks to be used by a single file handle for 
+    Specifies the maximum number of blocks to be used by a single file handle for
     buffered reads. The value should be >= 0 or -1 (for infinite blocks).
     A value of 0 disables buffered reads.
   default: 20
@@ -826,7 +826,7 @@
   flag-name: "write-block-size-mb"
   type: "int"
   usage: >-
-    Specifies the block size for streaming writes. The value should be more 
+    Specifies the block size for streaming writes. The value should be more
     than 0.
   default: 32
   hide-flag: true
@@ -855,7 +855,7 @@
   flag-name: "write-global-max-blocks"
   type: "int"
   usage: >-
-    Specifies the maximum number of blocks available for streaming writes across all files. 
+    Specifies the maximum number of blocks available for streaming writes across all files.
     The value should be >= 0 or -1 (for infinite blocks).
     A value of 0 disables streaming writes.
   default: 4
@@ -865,7 +865,7 @@
   flag-name: "write-max-blocks-per-file"
   type: "int"
   usage: >-
-    Specifies the maximum number of blocks to be used by a single file for 
+    Specifies the maximum number of blocks to be used by a single file for
     streaming writes. The value should be >= 1 or -1 (for infinite blocks).
   default: 1
   hide-flag: true
