@@ -142,7 +142,7 @@ function install_requirements() {
 
 echo "Running e2e tests on non-zonal bucket(s) ..."
 # $1 argument is refering to value of testInstalledPackage.
-/usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --track-resource-usage
+./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --track-resource-usage
 
 # # Execute package build tests.
 # if [[ "$packageBuildTestsStr" == *"$EXECUTE_PACKAGE_BUILD_TEST_LABEL"* ]];
