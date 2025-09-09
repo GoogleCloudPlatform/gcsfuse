@@ -715,7 +715,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("sequential-read-size-mb", "", 200, "File chunk size to read from GCS in one call. Need to specify the value in MB. ChunkSize less than 1MB is not supported")
 
-	flagSet.DurationP("stackdriver-export-interval", "", 0*time.Nanosecond, "Export metrics to stackdriver with this interval. A value of 0 indicates no exporting.")
+	flagSet.DurationP("stackdriver-export-interval", "", 1000000000000*time.Nanosecond, "Export metrics to stackdriver with this interval. A value of 0 indicates no exporting.")
 
 	if err := flagSet.MarkDeprecated("stackdriver-export-interval", "Please use --cloud-metrics-export-interval-secs instead."); err != nil {
 		return err

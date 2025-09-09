@@ -661,7 +661,7 @@
   usage: >-
     Export metrics to stackdriver with this interval. A value of 0
     indicates no exporting.
-  default: "0s"
+  default: "1000s"
   deprecated: true
   deprecation-warning: "Please use --cloud-metrics-export-interval-secs instead."
 
