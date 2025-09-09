@@ -488,23 +488,16 @@ test_package() {
   # Run the package test command
   local start=$SECONDS exit_code=0
 
-  if [[ -d "$SPONGE_OUTPUT_DIRS" ]]; then
-    local log_file
-    log_file=$(mktemp)
-    # Ensure the temporary log file is removed on function exit.
-    trap 'rm -f "$log_file"' RETURN
+  local log_file
+  log_file=$(mktemp)
+  # Ensure the temporary log file is removed on function exit.
+  trap 'rm -f "$log_file"' RETURN
 
-    if ! eval "$go_test_cmd" > "$log_file" 2>&1; then
-      exit_code=1
-    fi
+  if ! eval "$go_test_cmd" > "$log_file" 2>&1; then
+    exit_code=1
+  fi
 
     print_test_logs_and_create_junit_xml "$log_file" "$package_name" "$bucket_type"
-  else
-    # Append to the single temporary file.
-    if ! eval "$go_test_cmd" >> "$SPONGE_OUTPUT_DIRS" 2>&1; then
-      exit_code=1
-    fi
-  fi
 
   local end=$SECONDS
   # Add the package stats to the file.
