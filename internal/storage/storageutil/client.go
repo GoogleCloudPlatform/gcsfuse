@@ -131,7 +131,10 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 	// Using http1 makes the client more performant.
 	if storageClientConfig.ClientProtocol == cfg.HTTP1 {
 		transport = &http.Transport{
-			DialContext:         dialContextWithDNSCache,
+			DialContext: func() func(context.Context, string, string) (net.Conn, error) {
+				storageClientConfig.MetricHandle.GcsDnsCount(1)
+				return dialContextWithDNSCache
+			}(),
 			Proxy:               http.ProxyFromEnvironment,
 			MaxConnsPerHost:     storageClientConfig.MaxConnsPerHost,
 			MaxIdleConnsPerHost: storageClientConfig.MaxIdleConnsPerHost,
