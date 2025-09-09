@@ -24,13 +24,13 @@ import (
 type startFunctionType func(cloudprofiler.Config, ...option.ClientOption) error
 
 // SetupCloudProfiler initializes and starts the Cloud Profiler based on the application configuration.
-func SetupCloudProfiler(mpc *cfg.ProfilingConfig) error {
+func SetupCloudProfiler(mpc *cfg.CloudProfilerConfig) error {
 	return setupCloudProfiler(mpc, cloudprofiler.Start)
 }
 
 // setupCloudProfiler is an internal helper function with a configurable start function
 // for testing purposes.
-func setupCloudProfiler(mpc *cfg.ProfilingConfig, startFunc startFunctionType) error {
+func setupCloudProfiler(mpc *cfg.CloudProfilerConfig, startFunc startFunctionType) error {
 	if !mpc.Enabled {
 		return nil
 	}

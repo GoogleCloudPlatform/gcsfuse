@@ -1523,25 +1523,25 @@ func TestArgsParsing_ProfilerFlags(t *testing.T) {
 	tests := []struct {
 		name           string
 		args           []string
-		expectedConfig cfg.ProfilingConfig
+		expectedConfig cfg.CloudProfilerConfig
 	}{
 		{
 			name: "Default profiler config (disabled)",
 			args: []string{"gcsfuse", "bucket", "mountpoint"},
-			expectedConfig: cfg.ProfilingConfig{
+			expectedConfig: cfg.CloudProfilerConfig{
 				Enabled:       false, // Profiler is disabled by default
 				Label:         "gcsfuse-0.0.0",
-				Mutex:         false, // Default for --profiling-mutex
-				Cpu:           true,  // Default for --profiling-cpu
-				AllocatedHeap: true,  // Default for --profiling-allocated-heap
-				Heap:          true,  // Default for --profiling-heap
-				Goroutines:    false, // Default for --profiling-goroutines
+				Mutex:         false, // Default for --cloud-profiler-mutex
+				Cpu:           true,  // Default for --cloud-profiler-cpu
+				AllocatedHeap: true,  // Default for --cloud-profiler-allocated-heap
+				Heap:          true,  // Default for --cloud-profiler-heap
+				Goroutines:    false, // Default for --cloud-profiler-goroutines
 			},
 		},
 		{
 			name: "Profiler enabled, sub-profilers default",
-			args: []string{"gcsfuse", "--enable-cloud-profiling", "bucket", "mountpoint"},
-			expectedConfig: cfg.ProfilingConfig{
+			args: []string{"gcsfuse", "--enable-cloud-profiler", "bucket", "mountpoint"},
+			expectedConfig: cfg.CloudProfilerConfig{
 				Enabled:       true,
 				Label:         "gcsfuse-0.0.0",
 				Mutex:         false,
@@ -1553,8 +1553,8 @@ func TestArgsParsing_ProfilerFlags(t *testing.T) {
 		},
 		{
 			name: "Profiler enabled, all sub-profilers explicitly true and label set",
-			args: []string{"gcsfuse", "--enable-cloud-profiling", "--profiling-label=v1.0.0", "--profiling-mutex=true", "--profiling-cpu=true", "--profiling-allocated-heap=true", "--profiling-heap=true", "--profiling-goroutines=true", "bucket", "mountpoint"},
-			expectedConfig: cfg.ProfilingConfig{
+			args: []string{"gcsfuse", "--enable-cloud-profiler", "--cloud-profiler-label=v1.0.0", "--cloud-profiler-mutex=true", "--cloud-profiler-cpu=true", "--cloud-profiler-allocated-heap=true", "--cloud-profiler-heap=true", "--cloud-profiler-goroutines=true", "bucket", "mountpoint"},
+			expectedConfig: cfg.CloudProfilerConfig{
 				Enabled:       true,
 				Label:         "v1.0.0",
 				Mutex:         true,
@@ -1566,8 +1566,8 @@ func TestArgsParsing_ProfilerFlags(t *testing.T) {
 		},
 		{
 			name: "Profiler enabled, all sub-profilers explicitly false",
-			args: []string{"gcsfuse", "--enable-cloud-profiling", "--profiling-mutex=false", "--profiling-cpu=false", "--profiling-allocated-heap=false", "--profiling-heap=false", "--profiling-goroutines=false", "bucket", "mountpoint"},
-			expectedConfig: cfg.ProfilingConfig{
+			args: []string{"gcsfuse", "--enable-cloud-profiler", "--cloud-profiler-mutex=false", "--cloud-profiler-cpu=false", "--cloud-profiler-allocated-heap=false", "--cloud-profiler-heap=false", "--cloud-profiler-goroutines=false", "bucket", "mountpoint"},
+			expectedConfig: cfg.CloudProfilerConfig{
 				Enabled:       true,
 				Label:         "gcsfuse-0.0.0",
 				Mutex:         false,
@@ -1579,8 +1579,8 @@ func TestArgsParsing_ProfilerFlags(t *testing.T) {
 		},
 		{
 			name: "Profiler explicitly disabled, some sub-profiler flags set",
-			args: []string{"gcsfuse", "--enable-cloud-profiling=false", "--profiling-mutex=true", "--profiling-cpu=false", "bucket", "mountpoint"},
-			expectedConfig: cfg.ProfilingConfig{
+			args: []string{"gcsfuse", "--enable-cloud-profiler=false", "--cloud-profiler-mutex=true", "--cloud-profiler-cpu=false", "bucket", "mountpoint"},
+			expectedConfig: cfg.CloudProfilerConfig{
 				Enabled:       false, // Master switch is off
 				Label:         "gcsfuse-0.0.0",
 				Mutex:         true,  // Flag was parsed
@@ -1594,9 +1594,9 @@ func TestArgsParsing_ProfilerFlags(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var gotProfilerConfig cfg.ProfilingConfig
+			var gotProfilerConfig cfg.CloudProfilerConfig
 			cmd, err := newRootCmd(func(c *cfg.Config, _, _ string) error {
-				gotProfilerConfig = c.Profiling
+				gotProfilerConfig = c.CloudProfiler
 				return nil
 			})
 			require.Nil(t, err)
