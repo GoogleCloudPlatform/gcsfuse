@@ -607,7 +607,7 @@ function print_test_logs_and_create_junit_xml() {
     return 0
   fi
 
-  local output_dir="${SPONGE_OUTPUT_DIRS}/${bucket_type}"
+  local output_dir="${SPONGE_OUTPUT_DIRS}/${package_name}/${bucket_type}"
   mkdir -p "$output_dir"
   local sponge_xml_file="${output_dir}/${package_name}_sponge_log.xml"
   local sponge_log_file="${output_dir}/${package_name}_sponge_log.log"
