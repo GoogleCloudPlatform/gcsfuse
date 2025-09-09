@@ -71,7 +71,7 @@ func TestWritesWithDifferentConfig(t *testing.T) {
 				ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t)
 			}
 			data, err := operations.GenerateRandomData(tc.fileSize)
-			if err != nil {
+			if err == nil {
 				t.Fatalf("Error in generating data: %v", err)
 			}
 
