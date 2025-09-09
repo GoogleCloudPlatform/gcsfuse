@@ -496,8 +496,7 @@ test_package() {
   if ! eval "$go_test_cmd" > "$log_file" 2>&1; then
     exit_code=1
   fi
-
-    print_test_logs_and_create_junit_xml "$log_file" "$package_name" "$bucket_type"
+  print_test_logs_and_create_junit_xml "$log_file" "$package_name" "$bucket_type"
 
   local end=$SECONDS
   # Add the package stats to the file.
