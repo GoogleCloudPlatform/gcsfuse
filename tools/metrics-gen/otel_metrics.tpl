@@ -82,6 +82,9 @@ func (o *otelMetrics) {{toPascal .Name}}(
 		{{if $i}}, {{end}}{{toCamel $attr.Name}} {{getGoType $attr.Type}}
 	{{- end }}) {
 {{- if isCounter . }}
+	if inc < 0 {
+		panic(fmt.Sprintf("Counter metric {{.Name}} received a negative increment: %d", inc))
+	}
 	{{buildSwitches .}}
 {{- else }}
 	var record histogramRecord
