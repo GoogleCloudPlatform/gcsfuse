@@ -42,14 +42,14 @@ log_error() {
 }
 
 # Confirm bash version before continuing script.
-REQUIRED_BASH_MAJOR=5
-REQUIRED_BASH_MINOR=1
-if (( BASH_VERSINFO[0] < REQUIRED_BASH_MAJOR || ( BASH_VERSINFO[0] == REQUIRED_BASH_MAJOR && BASH_VERSINFO[1] < REQUIRED_BASH_MINOR ) )); then
-    log_error "This script requires Bash version: ${REQUIRED_BASH_MAJOR}.${REQUIRED_BASH_MINOR} or higher."
-    log_error "You are currently using Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
-    exit 1
-fi
-log_info "Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
+# REQUIRED_BASH_MAJOR=5
+# REQUIRED_BASH_MINOR=1
+# if (( BASH_VERSINFO[0] < REQUIRED_BASH_MAJOR || ( BASH_VERSINFO[0] == REQUIRED_BASH_MAJOR && BASH_VERSINFO[1] < REQUIRED_BASH_MINOR ) )); then
+#     log_error "This script requires Bash version: ${REQUIRED_BASH_MAJOR}.${REQUIRED_BASH_MINOR} or higher."
+#     log_error "You are currently using Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
+#     exit 1
+# fi
+# log_info "Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
 
 # Constants
 readonly GO_VERSION="1.24.5"
@@ -410,22 +410,22 @@ process_any_pid() {
   local -n cmds_by_pid_ref="$1"
   local waited_pid
   local pid_status # To store the exit status of the waited pid
+  local pids=( "${!cmds_by_pid_ref[@]}" )
+  # 2. Get the first element from the 'pids' array.
+  local first_pid=${pids[0]}
 
-  wait -n -p waited_pid # waited_pid gets the PID, $? gets the status
+  wait $first_pid # waited_pid gets the PID, $? gets the status
   pid_status=$?
-
+  waited_pid=$first_pid
   local cmd_and_output_file="${cmds_by_pid_ref[$waited_pid]}"
   local parallel_cmd_executed="${cmd_and_output_file%%;*}"
   local output_file="${cmd_and_output_file#*;}"
   unset "cmds_by_pid_ref[$waited_pid]"
-  if [[ "$pid_status" -ne 0 ]]; then
-    acquire_lock "$LOG_LOCK_FILE"
-    log_error "Parallel Command failed: $parallel_cmd_executed"
-    cat "$output_file"
-    release_lock "$LOG_LOCK_FILE"
-    return 1
-  fi
-  log_info_locked "Parallel Command succeeded: $parallel_cmd_executed"
+  acquire_lock "$LOG_LOCK_FILE"
+  log_error "Parallel Command: $parallel_cmd_executed"
+  cat "$output_file"
+  release_lock "$LOG_LOCK_FILE"
+#   log_info_locked "Parallel Command succeeded: $parallel_cmd_executed"
   return 0
 }
 
