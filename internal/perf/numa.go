@@ -22,28 +22,36 @@ import (
 )
 
 func InitNuma() {
-	if !numa.IsAvailable() {
+	if !numa.Available() {
 		logger.Infof("NUMA not available on this system.")
 		return
 	}
 
-	nodes := numa.AvailableNodes()
-	if len(nodes) > 0 {
-// Pin the process to the first available NUMA node.
-// For a real-world scenario, this should be a more intelligent decision,
-// for example, based on which node has more free memory or is closer to the
-// network card that handles the GCS traffic.
-		err := numa.Affinity(nodes[0])
+	nodes := numa.NodeMask()
+	firstNode := -1
+	for i := 0; i < nodes.Len(); i++ {
+		if nodes.Get(i) {
+			firstNode = i
+			break
+		}
+	}
+
+	if firstNode != -1 {
+		// Pin the process to the first available NUMA node.
+		// For a real-world scenario, this should be a more intelligent decision,
+		// for example, based on which node has more free memory or is closer to the
+		// network card that handles the GCS traffic.
+		err := numa.RunOnNode(firstNode)
 		if err != nil {
 			logger.Errorf("Failed to set NUMA affinity: %v", err)
 		} else {
-			logger.Infof("Process bound to NUMA node %d", nodes[0])
+			logger.Infof("Process bound to NUMA node %d", firstNode)
 		}
 	}
 }
 
 func MonitorNuma() {
-	if !numa.IsAvailable() {
+	if !numa.Available() {
 		return
 	}
 
@@ -57,16 +65,19 @@ func MonitorNuma() {
 		// For this PoC, we just log a message.
 		logger.Infof("Checking NUMA performance...")
 
-		nodes := numa.AvailableNodes()
+		nodesMask := numa.NodeMask()
+		var nodes []int
+		for i := 0; i < nodesMask.Len(); i++ {
+			if nodesMask.Get(i) {
+				nodes = append(nodes, i)
+			}
+		}
+
 		if len(nodes) <= 1 {
 			continue
 		}
 
-		currentNode, err := numa.CurrentNode()
-		if err != nil {
-			logger.Errorf("Failed to get current NUMA node: %v", err)
-			continue
-		}
+		_, currentNode := numa.GetCPUAndNode()
 
 		// Placeholder logic to switch to the next available node.
 		// A real implementation would have a more sophisticated algorithm.
@@ -79,7 +90,7 @@ func MonitorNuma() {
 		}
 
 		if nextNode != -1 && nextNode != currentNode {
-			err := numa.Affinity(nextNode)
+			err := numa.RunOnNode(nextNode)
 			if err != nil {
 				logger.Errorf("Failed to switch NUMA affinity to node %d: %v", nextNode, err)
 			} else {
