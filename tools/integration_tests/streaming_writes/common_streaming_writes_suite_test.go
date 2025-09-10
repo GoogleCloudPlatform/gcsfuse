@@ -16,7 +16,6 @@ package streaming_writes
 
 import (
 	"os"
-	"slices"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
@@ -29,23 +28,17 @@ type StreamingWritesSuite struct {
 	f1       *os.File
 	fileName string
 	// filePath of the above file in the mounted directory.
-	filePath           string
-	data               string
-	fallbackToDiskCase bool
+	filePath string
+	data     string
 	test_suite.TestifySuite
 }
 
 func (t *StreamingWritesSuite) SetupSuite() {
-	if slices.Contains(flags, "--write-global-max-blocks=0") {
-		t.fallbackToDiskCase = true
-	}
-	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
-	testDirPath = setup.SetupTestDirectory(testDirName)
+	testEnv.testDirPath = setup.SetupTestDirectory(testDirName)
 	t.data = setup.GenerateRandomString(5 * util.MiB)
 }
 
 func (t *StreamingWritesSuite) TearDownSuite() {
-	setup.UnmountGCSFuse(rootDir)
 	setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
 }
 

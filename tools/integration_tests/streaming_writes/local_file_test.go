@@ -39,7 +39,7 @@ func (t *streamingWritesLocalFileTestSuite) SetupSubTest() {
 
 func (t *streamingWritesLocalFileTestSuite) createLocalFile() {
 	t.fileName = FileName1 + setup.GenerateRandomString(5)
-	t.filePath = path.Join(testDirPath, t.fileName)
+	t.filePath = path.Join(testEnv.testDirPath, t.fileName)
 	// Create a local file with O_DIRECT.
 	t.f1 = operations.OpenFileWithODirect(t.T(), t.filePath)
 }

@@ -175,11 +175,13 @@ func CompareFileContents(t *testing.T, fileName string, fileContent string) {
 	}
 }
 
-func SetUpTestDir() error {
+// SetUpTestDir creates a test directory, builds GCSFuse into it and returns it's path.
+// This function also creates the mountDir at path testDir/mnt.
+func SetUpTestDir() (string, error) {
 	var err error
 	testDir, err = os.MkdirTemp("", "gcsfuse_readwrite_test_")
 	if err != nil {
-		return fmt.Errorf("TempDir: %w", err)
+		return "", fmt.Errorf("TempDir: %w", err)
 	}
 
 	// Order of priority to choose GCSFuse installation to run the tests
@@ -199,21 +201,21 @@ func SetUpTestDir() error {
 		sbinFile = filepath.Join(prebuiltDir, "sbin/mount.gcsfuse")
 
 		if _, statErr := os.Stat(binFile); statErr != nil {
-			return fmt.Errorf("gcsfuse binary from --gcsfuse_prebuilt_dir not found at %s: %w", binFile, statErr)
+			return "", fmt.Errorf("gcsfuse binary from --gcsfuse_prebuilt_dir not found at %s: %w", binFile, statErr)
 		}
 		if _, statErr := os.Stat(sbinFile); statErr != nil {
-			return fmt.Errorf("mount helper from --gcsfuse_prebuilt_dir not found at %s: %w", sbinFile, statErr)
+			return "", fmt.Errorf("mount helper from --gcsfuse_prebuilt_dir not found at %s: %w", sbinFile, statErr)
 		}
 		// Set PATH to include the bin directory of the pre-built gcsfuse
 		err = os.Setenv(PathEnvVariable, filepath.Dir(binFile)+string(filepath.ListSeparator)+os.Getenv(PathEnvVariable))
 		if err != nil {
-			return fmt.Errorf("error setting PATH for --gcsfuse_prebuilt_dir: %v", err.Error())
+			return "", fmt.Errorf("error setting PATH for --gcsfuse_prebuilt_dir: %v", err.Error())
 		}
 	} else {
 		log.Printf("Building GCSFuse from source in the dir: %s ...", testDir)
 		err = util.BuildGcsfuse(testDir)
 		if err != nil {
-			return fmt.Errorf("BuildGcsfuse(%q): %w", TestDir(), err)
+			return "", fmt.Errorf("BuildGcsfuse(%q): %w", TestDir(), err)
 		}
 		binFile = path.Join(TestDir(), "bin/gcsfuse")
 		sbinFile = path.Join(TestDir(), "sbin/mount.gcsfuse")
@@ -223,18 +225,16 @@ func SetUpTestDir() error {
 		// Setting PATH so that executable is found in test directory.
 		err := os.Setenv(PathEnvVariable, path.Join(TestDir(), "bin")+string(filepath.ListSeparator)+os.Getenv(PathEnvVariable))
 		if err != nil {
-			return fmt.Errorf("error in setting PATH environment variable: %v", err.Error())
+			return "", fmt.Errorf("error in setting PATH environment variable: %v", err.Error())
 		}
 	}
 
-	logFile = path.Join(TestDir(), "gcsfuse.log")
 	mntDir = path.Join(TestDir(), "mnt")
-
 	err = os.Mkdir(mntDir, 0755)
 	if err != nil {
-		return fmt.Errorf("Mkdir(%q): %v", MntDir(), err)
+		return "", fmt.Errorf("Mkdir(%q): %v", MntDir(), err)
 	}
-	return nil
+	return TestDir(), nil
 }
 
 func UnMount() error {
@@ -345,7 +345,15 @@ func ParseSetUpFlags() {
 }
 
 func ConfigFile() string {
-	return *configFile
+	if *configFile == "" {
+		return ""
+	}
+
+	absPath, err := filepath.Abs(*configFile)
+	if err != nil {
+		log.Fatalf("error decoding config file path: %v", err)
+	}
+	return absPath
 }
 
 func IgnoreTestIfIntegrationTestFlagIsSet(t *testing.T) {
@@ -406,24 +414,37 @@ func RunTestsForMountedDirectory(mountedDirectory string, m *testing.M) int {
 	return ExecuteTest(m)
 }
 
-// Deprecated: Use SetUpTestDirForTestBucket instead.
+// SetUpTestDirForTestBucketFlag is Deprecated: Use SetUpTestDirForTestBucket instead.
 // TODO(b/438068132): cleanup deprecated methods after migration is complete.
 func SetUpTestDirForTestBucketFlag() {
-	SetUpTestDirForTestBucket(TestBucket())
+	cfg := &test_suite.TestConfig{
+		GKEMountedDirectory:     MountedDirectory(),
+		GCSFuseMountedDirectory: MntDir(),
+		TestBucket:              TestBucket(),
+		LogFile:                 LogFile(),
+	}
+	SetUpTestDirForTestBucket(cfg)
 }
 
-func SetUpTestDirForTestBucket(testBucket string) {
-	testBucketName := testBucket
-	if testBucketName == "" {
+// SetUpTestDirForTestBucket creates a test directory with GCSFuse binaries, mount point, log file, etc.
+// Test config is passed by reference so it can set the LogFile, mountPath variables in the config
+func SetUpTestDirForTestBucket(cfg *test_suite.TestConfig) {
+	if cfg.TestBucket == "" {
 		log.Fatal("Not running TestBucket tests as --testBucket flag is not set.")
 	}
-	if strings.ContainsAny(testBucketName, unsupportedCharactersInTestBucket) {
-		log.Fatalf("Passed testBucket %q contains one or more of the following unsupported character(s): %q", testBucketName, unsupportedCharactersInTestBucket)
+	if strings.ContainsAny(cfg.TestBucket, unsupportedCharactersInTestBucket) {
+		log.Fatalf("Passed testBucket %q contains one or more of the following unsupported character(s): %q", cfg.TestBucket, unsupportedCharactersInTestBucket)
 	}
-	if err := SetUpTestDir(); err != nil {
+	testDirPath, err := SetUpTestDir()
+	if err != nil {
 		log.Printf("setUpTestDir: %v\n", err)
 		os.Exit(1)
 	}
+
+	cfg.GCSFuseMountedDirectory = path.Join(testDirPath, "mnt")
+	cfg.LogFile = path.Join(TestDir(), "gcsfuse.log")
+	// TODO: clean up this global variable up after migration is complete.
+	SetLogFile(cfg.LogFile)
 }
 
 func SetUpLogDirForTestDirTests(logDirName string) (logDir string) {
@@ -541,11 +562,12 @@ func ResolveIsHierarchicalBucket(ctx context.Context, testBucket string, storage
 	return false
 }
 
-// BucketTestEnvironment sets the global testBucket and isZonalBucket variable
-// based on the bucket type.
-func BucketTestEnvironment(ctx context.Context, bucketName string) string {
-	SetTestBucket(bucketName)
-	bucketType, err := BucketType(ctx, bucketName)
+// TestEnvironment sets the global variables like test bucket, mount point, log file and isZonalBucket variable
+// based on the bucket type. Also returns the bucket type.
+func TestEnvironment(ctx context.Context, cfg *test_suite.TestConfig) string {
+	// TODO: clean up SetGlobalVars after migration completes.
+	SetGlobalVars(cfg)
+	bucketType, err := BucketType(ctx, cfg.TestBucket)
 	if err != nil {
 		log.Fatalf("BucketType failed: %v", err)
 	}
@@ -613,9 +635,10 @@ func BuildFlagSets(cfg test_suite.TestConfig, bucketType string) [][]string {
 	return dynamicFlags
 }
 
-// SetTestBucket sets the testBucket global variable.
-func SetTestBucket(bucketName string) {
-	testBucket = &bucketName
+func SetGlobalVars(cfg *test_suite.TestConfig) {
+	testBucket = &cfg.TestBucket
+	logFile = cfg.LogFile
+	mntDir = cfg.GKEMountedDirectory
 }
 
 // Explicitly set the enable-hns config flag to true when running tests on the HNS bucket.
