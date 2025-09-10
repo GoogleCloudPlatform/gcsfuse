@@ -618,6 +618,7 @@ function print_test_logs_and_create_junit_xml() {
 
   if [ -f "$log_file" ]; then
     echo "=== Log for ${log_file} ==="
+    cat "$log_file"
     cat "$log_file" > "$sponge_log_file" 2>&1
     cat "$log_file" | go-junit-report | sed '1,2d' | sed '$d' >> "${sponge_xml_file}"
   fi
