@@ -159,8 +159,8 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 	// The retiredBlocks cache holds blocks that have been consumed but are kept
 	// to handle potential out-of-order reads. Its size is set to be the same as
 	// the maximum number of prefetch blocks to provide a reasonable buffer for
-	// such reads.
-	reader.retiredBlocks = lru.NewCache(uint64(config.MaxPrefetchBlockCnt * config.PrefetchBlockSizeBytes))
+	// such reads. For example, setting it to half of MaxPrefetchBlockCnt.
+	reader.retiredBlocks = lru.NewCache(uint64(5 * config.PrefetchBlockSizeBytes))
 
 	reader.ctx, reader.cancelFunc = context.WithCancel(context.Background())
 	return reader, nil
@@ -207,14 +207,17 @@ func (p *BufferedReader) handleRandomRead(offset int64, handleID int64) error {
 
 	// When a random seek is detected, the prefetched blocks in the queue become
 	// irrelevant. We must clear the queue, cancel any ongoing downloads, and
-	// release the blocks back to the pool.
+	// release the blocks back to the pool. These blocks were prefetched but never
+	// used, so they are released directly instead of being moved to the retired
+	// cache.
+	logger.Infof("handleRandomRead: discarding %d prefetched blocks due to random seek.", p.blockQueue.Len())
 	for !p.blockQueue.IsEmpty() {
 		entry := p.blockQueue.Pop()
 		entry.cancel()
 		if _, waitErr := entry.block.AwaitReady(context.Background()); waitErr != nil {
 			logger.Warnf("handleRandomRead: AwaitReady during discard (offset=%d): %v", offset, waitErr)
 		}
-		p.retireBlock(entry)
+		p.blockPool.Release(entry.block)
 	}
 
 	if p.randomSeekCount > p.randomReadsThreshold {
@@ -453,7 +456,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 func (p *BufferedReader) prefetch() error {
 	// Determine the number of blocks to prefetch in this cycle, respecting the
 	// MaxPrefetchBlockCnt and the number of blocks remaining in the file.
-	availableSlots := p.config.MaxPrefetchBlockCnt - int64(p.blockQueue.Len())
+	availableSlots := p.config.MaxPrefetchBlockCnt - (int64(p.blockQueue.Len()) + int64(p.retiredBlocks.Len()))
 	if availableSlots <= 0 {
 		return nil
 	}
