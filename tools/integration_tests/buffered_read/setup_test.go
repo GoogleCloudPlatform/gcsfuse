@@ -25,7 +25,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 const (
@@ -62,7 +61,6 @@ func setupForMountedDirectoryTests() {
 		setup.SetLogFile(logFileNameForMountedDirectoryTests)
 	}
 }
-
 func createConfigFile(flags *gcsfuseTestFlags) string {
 	mountConfig := make(map[string]interface{})
 	readConfig := make(map[string]interface{})
@@ -124,17 +122,12 @@ func TestMain(m *testing.M) {
 	}
 
 	// Else run tests for testBucket.
-	setup.SetUpTestDirForTestBucket(setup.TestBucket())
+	setup.SetUpTestDirForTestBucketFlag()
 	rootDir = setup.MntDir()
 
 	// Set up the static mounting function.
 	mountFunc = func(flags []string) error {
-		config := &test_suite.TestConfig{
-			TestBucket:       setup.TestBucket(),
-			MountedDirectory: setup.MountedDirectory(),
-			LogFile:          setup.LogFile(),
-		}
-		return static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(config, flags)
+		return static_mounting.MountGcsfuseWithStaticMounting(flags)
 	}
 
 	// Run the tests.

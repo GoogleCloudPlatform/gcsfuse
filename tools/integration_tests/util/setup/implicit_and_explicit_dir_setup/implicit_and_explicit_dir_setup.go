@@ -68,7 +68,7 @@ func RunTestsForExplicitAndImplicitDir(config *test_suite.TestConfig, flags [][]
 		log.Print("pass test bucket to run the tests")
 		return 1
 	}
-	setup.SetUpTestDirForTestBucket(config.TestBucket)
+	setup.SetUpTestDirForTestBucketFlag()
 
 	successCode := static_mounting.RunTestsWithConfigFile(config, flags, m)
 

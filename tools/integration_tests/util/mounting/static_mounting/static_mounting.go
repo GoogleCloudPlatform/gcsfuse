@@ -24,12 +24,10 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
-// Deprecated: Use MountGcsfuseWithStaticMountingWithConfigFile instead.
-// TODO(b/438068132): cleanup deprecated methods after migration is complete.
 func MountGcsfuseWithStaticMounting(flags []string) (err error) {
 	config := &test_suite.TestConfig{
 		TestBucket:       setup.TestBucket(),
-		MountedDirectory: setup.MountedDirectory(),
+		MountedDirectory: setup.MntDir(),
 		LogFile:          setup.LogFile(),
 	}
 	return MountGcsfuseWithStaticMountingWithConfigFile(config, flags)

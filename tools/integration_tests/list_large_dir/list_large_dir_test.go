@@ -63,7 +63,7 @@ func TestMain(m *testing.M) {
 
 	// 2. Create storage client before running tests.
 	ctx = context.Background()
-	bucketType := setup.BucketTestEnvironment(ctx, cfg.ListLargeDir[0].TestBucket)
+	bucketType := setup.TestEnvironment(ctx, &cfg.ListLargeDir[0])
 	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
 	defer func() {
 		err := closeStorageClient()
@@ -81,8 +81,7 @@ func TestMain(m *testing.M) {
 	// Run tests for testBucket
 	// 4. Build the flag sets dynamically from the config.
 	flags := setup.BuildFlagSets(cfg.ListLargeDir[0], bucketType)
-
-	setup.SetUpTestDirForTestBucket(cfg.ListLargeDir[0].TestBucket)
+	setup.SetUpTestDirForTestBucketFlag()
 
 	successCode := static_mounting.RunTestsWithConfigFile(&cfg.ListLargeDir[0], flags, m)
 

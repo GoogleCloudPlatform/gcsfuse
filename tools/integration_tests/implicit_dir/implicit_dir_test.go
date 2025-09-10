@@ -80,7 +80,7 @@ func TestMain(m *testing.M) {
 
 	// 2. Create storage client before running tests.
 	testEnv.ctx = context.Background()
-	bucketType := setup.BucketTestEnvironment(testEnv.ctx, cfg.ImplicitDir[0].TestBucket)
+	bucketType := setup.TestEnvironment(testEnv.ctx, &cfg.ImplicitDir[0])
 	closeStorageClient := client.CreateStorageClientWithCancel(&testEnv.ctx, &testEnv.storageClient)
 	defer func() {
 		err := closeStorageClient()

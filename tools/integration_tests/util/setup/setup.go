@@ -404,14 +404,8 @@ func RunTestsForMountedDirectory(mountedDirectory string, m *testing.M) int {
 	return ExecuteTest(m)
 }
 
-// Deprecated: Use SetUpTestDirForTestBucket instead.
-// TODO(b/438068132): cleanup deprecated methods after migration is complete.
 func SetUpTestDirForTestBucketFlag() {
-	SetUpTestDirForTestBucket(TestBucket())
-}
-
-func SetUpTestDirForTestBucket(testBucket string) {
-	testBucketName := testBucket
+	testBucketName := TestBucket()
 	if testBucketName == "" {
 		log.Fatal("Not running TestBucket tests as --testBucket flag is not set.")
 	}
@@ -539,11 +533,11 @@ func ResolveIsHierarchicalBucket(ctx context.Context, testBucket string, storage
 	return false
 }
 
-// BucketTestEnvironment sets the global testBucket and isZonalBucket variable
-// based on the bucket type.
-func BucketTestEnvironment(ctx context.Context, bucketName string) string {
-	SetTestBucket(bucketName)
-	bucketType, err := BucketType(ctx, bucketName)
+// TestEnvironment sets the global variables like test bucket, mount point, log file and isZonalBucket variable
+// based on the bucket type. Also returns the bucket type.
+func TestEnvironment(ctx context.Context, cfg *test_suite.TestConfig) string {
+	SetGlobalVars(cfg)
+	bucketType, err := BucketType(ctx, cfg.TestBucket)
 	if err != nil {
 		log.Fatalf("BucketType failed: %v", err)
 	}
@@ -609,9 +603,10 @@ func BuildFlagSets(cfg test_suite.TestConfig, bucketType string) [][]string {
 	return dynamicFlags
 }
 
-// SetTestBucket sets the testBucket global variable.
-func SetTestBucket(bucketName string) {
-	testBucket = &bucketName
+func SetGlobalVars(cfg *test_suite.TestConfig) {
+	testBucket = &cfg.TestBucket
+	logFile = cfg.LogFile
+	mntDir = cfg.MountedDirectory
 }
 
 // Explicitly set the enable-hns config flag to true when running tests on the HNS bucket.

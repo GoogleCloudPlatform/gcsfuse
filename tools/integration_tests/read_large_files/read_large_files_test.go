@@ -66,9 +66,8 @@ func TestMain(m *testing.M) {
 		cfg.ReadLargeFiles[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
 
-	setup.SetTestBucket(cfg.ReadLargeFiles[0].TestBucket)
 	ctx = context.Background()
-	bucketType := setup.BucketTestEnvironment(ctx, cfg.ReadLargeFiles[0].TestBucket)
+	bucketType := setup.TestEnvironment(ctx, &cfg.ReadLargeFiles[0])
 
 	// 2. Create storage client before running tests.
 	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
@@ -89,8 +88,7 @@ func TestMain(m *testing.M) {
 	// 4. Build the flag sets dynamically from the config.
 	flags := setup.BuildFlagSets(cfg.ReadLargeFiles[0], bucketType)
 	flags = setup.AddCacheDirToFlags(flags, "read-large-files")
-
-	setup.SetUpTestDirForTestBucket(cfg.ReadLargeFiles[0].TestBucket)
+	setup.SetUpTestDirForTestBucketFlag()
 
 	successCode := static_mounting.RunTestsWithConfigFile(&cfg.ReadLargeFiles[0], flags, m)
 
