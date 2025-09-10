@@ -25,6 +25,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
@@ -58,6 +59,12 @@ const (
 type blockQueueEntry struct {
 	block  block.PrefetchBlock
 	cancel context.CancelFunc
+}
+
+// Size returns the size of the block in bytes.
+// This is to implement lru.ValueType.
+func (bqe *blockQueueEntry) Size() uint64 {
+	return uint64(bqe.block.Cap())
 }
 
 type BufferedReader struct {
@@ -109,6 +116,12 @@ type BufferedReader struct {
 	// of blocks that can be allocated across all BufferedReader instances.
 	// GUARDED by (mu)
 	blockPool *block.GenBlockPool[block.PrefetchBlock]
+
+	// retiredBlocks is an LRU cache that stores blocks that have been consumed
+	// from the prefetch queue but are kept for a short period to handle
+	// out-of-order or concurrent reads without treating them as random seeks.
+	// GUARDED by (mu)
+	retiredBlocks *lru.Cache
 }
 
 // NewBufferedReader returns a new bufferedReader instance.
@@ -143,8 +156,33 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 		randomReadsThreshold:     config.RandomSeekThreshold,
 	}
 
+	// The retiredBlocks cache holds blocks that have been consumed but are kept
+	// to handle potential out-of-order reads. Its size is set to be the same as
+	// the maximum number of prefetch blocks to provide a reasonable buffer for
+	// such reads.
+	reader.retiredBlocks = lru.NewCache(uint64(config.MaxPrefetchBlockCnt * config.PrefetchBlockSizeBytes))
+
 	reader.ctx, reader.cancelFunc = context.WithCancel(context.Background())
 	return reader, nil
+}
+
+// retireBlock moves a block from the active prefetch queue to the retired
+// blocks LRU cache. If the cache is full, it evicts the least recently used
+// block and releases it back to the pool.
+// LOCKS_REQUIRED(p.mu)
+func (p *BufferedReader) retireBlock(entry *blockQueueEntry) {
+	blockIndex := entry.block.AbsStartOff() / p.config.PrefetchBlockSizeBytes
+	key := fmt.Sprintf("%d", blockIndex)
+	evicted, err := p.retiredBlocks.Insert(key, entry)
+	if err != nil {
+		logger.Warnf("BufferedReader.retireBlock: failed to insert block %d into retired cache: %v", blockIndex, err)
+		p.blockPool.Release(entry.block)
+		return
+	}
+	for _, val := range evicted {
+		evictedEntry := val.(*blockQueueEntry)
+		p.blockPool.Release(evictedEntry.block)
+	}
 }
 
 // handleRandomRead detects and handles random read patterns. A read is considered
@@ -176,7 +214,7 @@ func (p *BufferedReader) handleRandomRead(offset int64, handleID int64) error {
 		if _, waitErr := entry.block.AwaitReady(context.Background()); waitErr != nil {
 			logger.Warnf("handleRandomRead: AwaitReady during discard (offset=%d): %v", offset, waitErr)
 		}
-		p.blockPool.Release(entry.block)
+		p.retireBlock(entry)
 	}
 
 	if p.randomSeekCount > p.randomReadsThreshold {
@@ -191,17 +229,30 @@ func (p *BufferedReader) handleRandomRead(offset int64, handleID int64) error {
 // isRandomSeek checks if the read for the given offset is random or not.
 // LOCKS_REQUIRED(p.mu)
 func (p *BufferedReader) isRandomSeek(offset int64) bool {
+	// Check if the offset is within the active prefetch queue.
+	if !p.blockQueue.IsEmpty() {
+		start := p.blockQueue.Peek().block.AbsStartOff()
+		end := start + int64(p.blockQueue.Len())*p.config.PrefetchBlockSizeBytes
+		if offset >= start && offset < end {
+			return false
+		}
+	}
+
+	// Check if the block for the offset is in the retired cache.
+	blockIndex := offset / p.config.PrefetchBlockSizeBytes
+	key := fmt.Sprintf("%d", blockIndex)
+	if val := p.retiredBlocks.LookUpWithoutChangingOrder(key); val != nil {
+		return false
+	}
+
+	// If the queue is empty and the block is not in the retired cache,
+	// it's a random seek if it's not from the beginning of the file.
 	if p.blockQueue.IsEmpty() {
 		return offset != 0
 	}
 
-	start := p.blockQueue.Peek().block.AbsStartOff()
-	end := start + int64(p.blockQueue.Len())*p.config.PrefetchBlockSizeBytes
-	if offset < start || offset >= end {
-		return true
-	}
-
-	return false
+	// Otherwise, it's a random seek because it's outside the queue and not in cache.
+	return true
 }
 
 // prepareQueueForOffset cleans the head of the block queue by discarding any
@@ -226,7 +277,7 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 				logger.Warnf("prepareQueueForOffset: AwaitReady during discard (offset=%d): %v", offset, waitErr)
 			}
 
-			p.blockPool.Release(block)
+			p.retireBlock(entry)
 		} else {
 			break
 		}
@@ -298,6 +349,39 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 	prefetchTriggered := false
 
 	for bytesRead < len(inputBuf) {
+		// Check if the required block is in the retired cache.
+		blockIndex := off / p.config.PrefetchBlockSizeBytes
+		key := fmt.Sprintf("%d", blockIndex)
+		if val := p.retiredBlocks.LookUp(key); val != nil {
+			entry := val.(*blockQueueEntry)
+			blk := entry.block
+
+			status, waitErr := blk.AwaitReady(ctx)
+			if waitErr != nil {
+				err = fmt.Errorf("BufferedReader.ReadAt: AwaitReady from retired: %w", waitErr)
+				break
+			}
+			if status.State != block.BlockStateDownloaded {
+				p.retiredBlocks.Erase(key)
+				p.blockPool.Release(blk)
+				err = fmt.Errorf("BufferedReader.ReadAt: retired block not downloaded, state: %d", status.State)
+				break
+			}
+
+			relOff := off - blk.AbsStartOff()
+			n, readErr := blk.ReadAt(inputBuf[bytesRead:], relOff)
+			bytesRead += n
+			off += int64(n)
+
+			if readErr != nil && !errors.Is(readErr, io.EOF) {
+				err = fmt.Errorf("BufferedReader.ReadAt: block.ReadAt from retired: %w", readErr)
+				break
+			}
+			if off >= int64(p.object.Size) {
+				break
+			}
+			continue
+		}
 		p.prepareQueueForOffset(off)
 
 		if p.blockQueue.IsEmpty() {
@@ -347,8 +431,8 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		}
 
 		if off >= blk.AbsStartOff()+blk.Size() {
-			p.blockQueue.Pop()
-			p.blockPool.Release(blk)
+			entry := p.blockQueue.Pop()
+			p.retireBlock(entry)
 
 			if !prefetchTriggered {
 				prefetchTriggered = true
@@ -495,6 +579,16 @@ func (p *BufferedReader) Destroy() {
 		p.blockPool.Release(bqe.block)
 	}
 
+	// Clear the retired blocks cache and release all blocks.
+	if p.retiredBlocks != nil {
+		evicted := p.retiredBlocks.Clear()
+		for _, val := range evicted {
+			evictedEntry := val.(*blockQueueEntry)
+			p.blockPool.Release(evictedEntry.block)
+		}
+		p.retiredBlocks = nil
+	}
+
 	if p.cancelFunc != nil {
 		p.cancelFunc()
 		p.cancelFunc = nil
@@ -531,5 +625,9 @@ func (p *BufferedReader) CheckInvariants() {
 	// The random seek count should never exceed randomReadsThreshold.
 	if p.randomSeekCount > p.randomReadsThreshold {
 		panic(fmt.Sprintf("BufferedReader: randomSeekCount %d exceeds threshold %d", p.randomSeekCount, p.randomReadsThreshold))
+	}
+
+	if p.retiredBlocks == nil {
+		panic("BufferedReader: retiredBlocks is nil")
 	}
 }

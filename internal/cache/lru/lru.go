@@ -220,6 +220,23 @@ func (c *Cache) LookUp(key string) (value ValueType) {
 	return e.Value.(entry).Value
 }
 
+// Clear removes all items from the cache and returns the cleared values.
+func (c *Cache) Clear() (clearedValues []ValueType) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	clearedValues = make([]ValueType, 0, c.entries.Len())
+	for e := c.entries.Front(); e != nil; e = e.Next() {
+		clearedValues = append(clearedValues, e.Value.(entry).Value)
+	}
+
+	c.entries.Init()
+	c.index = make(map[string]*list.Element)
+	c.currentSize = 0
+
+	return clearedValues
+}
+
 // LookUpWithoutChangingOrder looks up previously-inserted value for a given key
 // without changing the order of entries in the cache. Return nil if no value
 // is present.
