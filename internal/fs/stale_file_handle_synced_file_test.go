@@ -88,7 +88,7 @@ func (t *staleFileHandleSyncedFile) TestRenamedFileWriteThrowsStaleFileHandleErr
 	assert.NoError(t.T(), err)
 
 	// Attempt to write to file should give ESTALE error.
-	n, err = t.f1.Write([]byte("taco"))
+	_, err = t.f1.Write([]byte("taco"))
 	operations.ValidateESTALEError(t.T(), err)
 	// No error on sync and close because no data was written.
 	err = t.f1.Sync()
