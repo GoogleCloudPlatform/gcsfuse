@@ -193,8 +193,8 @@ fi
 # Test packages which can be run for both Zonal and Regional buckets.
 # Sorted list descending run times. (Longest Processing Time first strategy) 
 TEST_PACKAGES_COMMON=(
-  "streaming_writes",
-  "stale_handle",
+  "streaming_writes"
+  "stale_handle"
   "buffered_read"
 )
 
