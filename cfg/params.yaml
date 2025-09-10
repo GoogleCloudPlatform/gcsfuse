@@ -157,6 +157,13 @@
   default: true
   hide-flag: true
 
+- config-path: "experimental-numa-optimization"
+  flag-name: "experimental-numa-optimization"
+  type: "bool"
+  usage: "Experimental: When set, gcsfuse will try to optimize NUMA binding for better performance."
+  default: false
+  hide-flag: true
+
 - config-path: "file-cache.cache-file-for-range-read"
   flag-name: "file-cache-cache-file-for-range-read"
   type: "bool"

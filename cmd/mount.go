@@ -28,6 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/perf"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/perms"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fsutil"
@@ -43,6 +44,10 @@ func mountWithStorageHandle(
 	newConfig *cfg.Config,
 	storageHandle storage.StorageHandle,
 	metricHandle metrics.MetricHandle) (mfs *fuse.MountedFileSystem, err error) {
+	if newConfig.ExperimentalNumaOptimization {
+		perf.InitNuma()
+		go perf.MonitorNuma()
+	}
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
 	// errors when reading files in the future.
