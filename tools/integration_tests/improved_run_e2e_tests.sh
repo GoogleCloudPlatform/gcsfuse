@@ -488,23 +488,21 @@ test_package() {
   
   # Run the package test command
   local start=$SECONDS exit_code=0
-  if ! eval "$go_test_cmd"; then
+  local log_file
+  log_file=$(mktemp)
+  # Ensure the temporary log file is removed on function exit.
+  trap 'rm -f "$log_file"' RETURN
+
+  if ! eval "$go_test_cmd" > "$log_file" 2>&1; then
     exit_code=1
   fi
-
-#   local log_file
-#   log_file=$(mktemp)
-#   # Ensure the temporary log file is removed on function exit.
-#   trap 'rm -f "$log_file"' RETURN
-
-#   if ! eval "$go_test_cmd" > "$log_file" 2>&1; then
-#     exit_code=1
-#   fi
-#   print_test_logs_and_create_junit_xml "$log_file" "$package_name" "$bucket_type"
 
   local end=$SECONDS
   # Add the package stats to the file.
   echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
+  
+  print_test_logs_and_create_junit_xml "$log_file" "$package_name" "$bucket_type"
+
   return "$exit_code"
 }
 
