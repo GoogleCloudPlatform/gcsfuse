@@ -220,6 +220,13 @@ func (c *Cache) LookUp(key string) (value ValueType) {
 	return e.Value.(entry).Value
 }
 
+// Len returns the number of items in the cache.
+func (c *Cache) Len() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.entries.Len()
+}
+
 // Clear removes all items from the cache and returns the cleared values.
 func (c *Cache) Clear() (clearedValues []ValueType) {
 	c.mu.Lock()

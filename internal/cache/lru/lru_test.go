@@ -382,3 +382,13 @@ func (t *CacheTest) TestClear() {
 	t.insertAndAssert("enchilada", testData{Value: 28, DataSize: 20}, []int64{}, nil)
 	ExpectEq(28, t.cache.LookUp("enchilada").(testData).Value)
 }
+
+func (t *CacheTest) TestLen() {
+	AssertEq(0, t.cache.Len())
+
+	t.insertAndAssert("burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+	AssertEq(1, t.cache.Len())
+
+	t.insertAndAssert("taco", testData{Value: 26, DataSize: 20}, []int64{}, nil)
+	AssertEq(2, t.cache.Len())
+}
