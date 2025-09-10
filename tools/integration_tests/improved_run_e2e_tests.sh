@@ -608,9 +608,11 @@ install_packages() {
   bash ./perfmetrics/scripts/install_latest_gcloud.sh
   export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
 
-  # Install go-junit-report
-  go install github.com/jstemmer/go-junit-report/v2@latest
-  export PATH="$(go env GOPATH)/bin:$PATH"
+  if ! ${KOKORO_DIR_AVAILABLE} ; then
+    # Install go-junit-report
+    go install github.com/jstemmer/go-junit-report/v2@latest
+    export PATH="$(go env GOPATH)/bin:$PATH"
+  fi
 }
 
 # Generic function to run a group of E2E tests for a given bucket type.
