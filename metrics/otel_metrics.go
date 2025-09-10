@@ -1273,6 +1273,10 @@ func (o *otelMetrics) BufferedReadDownloadBlockLatency(
 
 func (o *otelMetrics) BufferedReadFallbackTriggerCount(
 	inc int64, reason string) {
+	if inc < 0 {
+		logger.Errorf("Counter metric buffered_read/fallback_trigger_count received a negative increment: %d", inc)
+		return
+	}
 	switch reason {
 	case "insufficient_memory":
 		o.bufferedReadFallbackTriggerCountReasonInsufficientMemoryAtomic.Add(inc)
@@ -1298,6 +1302,10 @@ func (o *otelMetrics) BufferedReadReadLatency(
 
 func (o *otelMetrics) BufferedReadScheduledBlockCount(
 	inc int64, status string) {
+	if inc < 0 {
+		logger.Errorf("Counter metric buffered_read/scheduled_block_count received a negative increment: %d", inc)
+		return
+	}
 	switch status {
 	case "cancelled":
 		o.bufferedReadScheduledBlockCountStatusCancelledAtomic.Add(inc)
@@ -1314,6 +1322,10 @@ func (o *otelMetrics) BufferedReadScheduledBlockCount(
 
 func (o *otelMetrics) FileCacheReadBytesCount(
 	inc int64, readType string) {
+	if inc < 0 {
+		logger.Errorf("Counter metric file_cache/read_bytes_count received a negative increment: %d", inc)
+		return
+	}
 	switch readType {
 	case "Parallel":
 		o.fileCacheReadBytesCountReadTypeParallelAtomic.Add(inc)
@@ -1330,6 +1342,10 @@ func (o *otelMetrics) FileCacheReadBytesCount(
 
 func (o *otelMetrics) FileCacheReadCount(
 	inc int64, cacheHit bool, readType string) {
+	if inc < 0 {
+		logger.Errorf("Counter metric file_cache/read_count received a negative increment: %d", inc)
+		return
+	}
 	switch cacheHit {
 	case true:
 		switch readType {
@@ -1377,6 +1393,10 @@ func (o *otelMetrics) FileCacheReadLatencies(
 
 func (o *otelMetrics) FsOpsCount(
 	inc int64, fsOp string) {
+	if inc < 0 {
+		logger.Errorf("Counter metric fs/ops_count received a negative increment: %d", inc)
+		return
+	}
 	switch fsOp {
 	case "BatchForget":
 		o.fsOpsCountFsOpBatchForgetAtomic.Add(inc)
@@ -1449,6 +1469,10 @@ func (o *otelMetrics) FsOpsCount(
 
 func (o *otelMetrics) FsOpsErrorCount(
 	inc int64, fsErrorCategory string, fsOp string) {
+	if inc < 0 {
+		logger.Errorf("Counter metric fs/ops_error_count received a negative increment: %d", inc)
+		return
+	}
 	switch fsErrorCategory {
 	case "DEVICE_ERROR":
 		switch fsOp {
@@ -2624,6 +2648,10 @@ func (o *otelMetrics) FsOpsLatency(
 
 func (o *otelMetrics) GcsDownloadBytesCount(
 	inc int64, readType string) {
+	if inc < 0 {
+		logger.Errorf("Counter metric gcs/download_bytes_count received a negative increment: %d", inc)
+		return
+	}
 	switch readType {
 	case "Parallel":
 		o.gcsDownloadBytesCountReadTypeParallelAtomic.Add(inc)
@@ -2640,12 +2668,20 @@ func (o *otelMetrics) GcsDownloadBytesCount(
 
 func (o *otelMetrics) GcsReadBytesCount(
 	inc int64) {
+	if inc < 0 {
+		logger.Errorf("Counter metric gcs/read_bytes_count received a negative increment: %d", inc)
+		return
+	}
 	o.gcsReadBytesCountAtomic.Add(inc)
 
 }
 
 func (o *otelMetrics) GcsReadCount(
 	inc int64, readType string) {
+	if inc < 0 {
+		logger.Errorf("Counter metric gcs/read_count received a negative increment: %d", inc)
+		return
+	}
 	switch readType {
 	case "Parallel":
 		o.gcsReadCountReadTypeParallelAtomic.Add(inc)
@@ -2662,6 +2698,10 @@ func (o *otelMetrics) GcsReadCount(
 
 func (o *otelMetrics) GcsReaderCount(
 	inc int64, ioMethod string) {
+	if inc < 0 {
+		logger.Errorf("Counter metric gcs/reader_count received a negative increment: %d", inc)
+		return
+	}
 	switch ioMethod {
 	case "ReadHandle":
 		o.gcsReaderCountIoMethodReadHandleAtomic.Add(inc)
@@ -2678,6 +2718,10 @@ func (o *otelMetrics) GcsReaderCount(
 
 func (o *otelMetrics) GcsRequestCount(
 	inc int64, gcsMethod string) {
+	if inc < 0 {
+		logger.Errorf("Counter metric gcs/request_count received a negative increment: %d", inc)
+		return
+	}
 	switch gcsMethod {
 	case "ComposeObjects":
 		o.gcsRequestCountGcsMethodComposeObjectsAtomic.Add(inc)
@@ -2779,6 +2823,10 @@ func (o *otelMetrics) GcsRequestLatencies(
 
 func (o *otelMetrics) GcsRetryCount(
 	inc int64, retryErrorCategory string) {
+	if inc < 0 {
+		logger.Errorf("Counter metric gcs/retry_count received a negative increment: %d", inc)
+		return
+	}
 	switch retryErrorCategory {
 	case "OTHER_ERRORS":
 		o.gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic.Add(inc)
