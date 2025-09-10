@@ -733,7 +733,7 @@ func (rr *randomReader) readFromMultiRangeReader(ctx context.Context, p []byte, 
 		return 0, fmt.Errorf("readFromMultiRangeReader: Invalid MultiRangeDownloaderWrapper")
 	}
 
-	bytesRead, err = rr.mrdWrapper.Read(ctx, p, offset, end, rr.metricHandle)
+	bytesRead, err = rr.mrdWrapper.Read(ctx, p, offset, end, rr.metricHandle, false)
 	rr.totalReadBytes.Add(uint64(bytesRead))
 	rr.updateExpectedOffset(offset + int64(bytesRead))
 	return

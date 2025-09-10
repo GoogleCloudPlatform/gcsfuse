@@ -124,42 +124,17 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader(forceR
 }
 
 // Reads the data using MultiRangeDownloader.
-func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []byte, startOffset int64, endOffset int64, metricHandle metrics.MetricHandle) (bytesRead int, err error) {
+func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []byte, startOffset int64, endOffset int64, metricHandle metrics.MetricHandle, forceCreateMRD bool) (bytesRead int, err error) {
 	// Bidi Api with 0 as read_limit means no limit whereas we do not want to read anything with empty buffer.
 	// Hence, handling it separately.
 	if len(buf) == 0 {
 		return 0, nil
 	}
 
-	// We will only read what is requested by the client. Hence, capping end to the requested value.
-	if endOffset > startOffset+int64(len(buf)) {
-		endOffset = startOffset + int64(len(buf))
-	}
-	expectedBytesToRead := endOffset - startOffset
-
-	bytesRead, err = mrdWrapper.readFromMultiRangeReader(ctx, buf, startOffset, endOffset, metricHandle, false)
-
-	// Return if an error was encountered or if the requested data was read.
-	if err != nil || bytesRead >= int(expectedBytesToRead) {
-		return
-	}
-
-	// Retry reading in case of short read.
-	if startOffset+int64(bytesRead) < int64(mrdWrapper.object.Size) {
-		var bytesReadOnRetry int
-		// Need to handle lock issues.
-		bytesReadOnRetry, err = mrdWrapper.readFromMultiRangeReader(ctx, buf[bytesRead:], startOffset+int64(bytesRead), endOffset, metricHandle, true)
-		bytesRead += bytesReadOnRetry
-	}
-
-	return
-}
-
-func (mrdWrapper *MultiRangeDownloaderWrapper) readFromMultiRangeReader(ctx context.Context, buf []byte, startOffset int64, endOffset int64, metricHandle metrics.MetricHandle, forceRecreateMRD bool) (bytesRead int, err error) {
 	mrdWrapper.mu.RLock()
 	defer mrdWrapper.mu.RUnlock()
 
-	err = mrdWrapper.ensureMultiRangeDownloader(forceRecreateMRD)
+	err = mrdWrapper.ensureMultiRangeDownloader(forceCreateMRD)
 	if err != nil {
 		err = fmt.Errorf("MultiRangeDownloaderWrapper::Read: Error in creating MultiRangeDownloader:  %v", err)
 		return
