@@ -74,6 +74,8 @@ type MultiRangeDownloaderWrapper struct {
 	clock clock.Clock
 	// GCSFuse mount config.
 	config *cfg.Config
+
+	handle []byte
 }
 
 // SetMinObject sets the gcs.MinObject stored in the wrapper to passed value, only if it's non nil.
@@ -109,14 +111,19 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader(forceR
 		// Checking if the mrdWrapper state is same after taking the lock.
 		if forceRecreateMRD || mrdWrapper.Wrapped == nil || mrdWrapper.Wrapped.Error() != nil {
 			var mrd gcs.MultiRangeDownloader
+			if forceRecreateMRD {
+				mrdWrapper.handle = nil
+			}
 			mrd, err = mrdWrapper.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
 				Name:           mrdWrapper.object.Name,
 				Generation:     mrdWrapper.object.Generation,
 				ReadCompressed: mrdWrapper.object.HasContentEncodingGzip(),
+				ReadHandle:     mrdWrapper.handle,
 			})
 			if err == nil {
 				// Updating mrdWrapper.Wrapped only when MRD creation was successful.
 				mrdWrapper.Wrapped = mrd
+				mrdWrapper.handle = mrd.GetHandle()
 			}
 		}
 	}

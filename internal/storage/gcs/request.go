@@ -227,6 +227,9 @@ type MultiRangeDownloaderRequest struct {
 	// If present, read the contents of the GCS object as it is on GCS.
 	// This might not be honoured by all the implementations.
 	ReadCompressed bool
+
+	// ReadHandle associated with the object. This would be periodically refreshed.
+	ReadHandle []byte
 }
 
 type StatObjectRequest struct {
