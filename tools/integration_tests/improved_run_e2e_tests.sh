@@ -607,8 +607,8 @@ install_packages() {
   bash ./perfmetrics/scripts/install_latest_gcloud.sh
   export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
 
-  if ! ${KOKORO_DIR_AVAILABLE} ; then
-    # Install go-junit-report
+  if ${KOKORO_DIR_AVAILABLE} ; then
+    # Install go-junit-report to generate XML test reports from go logs.
     go install github.com/jstemmer/go-junit-report/v2@latest
     export PATH="$(go env GOPATH)/bin:$PATH"
   fi
