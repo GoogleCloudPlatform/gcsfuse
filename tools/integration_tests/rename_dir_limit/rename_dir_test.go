@@ -50,6 +50,7 @@ func TestRenameDirectoryWithThreeFiles(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error in renaming directory: %v", err)
 	}
+	t.FailNow()
 }
 
 // As --rename-directory-limit = 3, and the number of objects in the directory is two,

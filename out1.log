@@ -1,0 +1,554 @@
+[INFO] 2025-09-10 09:26:44: Bash version: 5.2
+[INFO] 2025-09-10 09:26:44: 
+[INFO] 2025-09-10 09:26:44: ------ Upgrading gcloud and installing packages ------
+[INFO] 2025-09-10 09:26:44: 
+Reading package lists...
+Building dependency tree...
+Reading state information...
+python3 is already the newest version (3.12.3-0ubuntu2).
+0 upgraded, 0 newly installed, 0 to remove and 11 not upgraded.
+Reading package lists...
+Building dependency tree...
+Reading state information...
+gcc is already the newest version (4:13.2.0-7ubuntu1).
+python3-dev is already the newest version (3.12.3-0ubuntu2).
+python3-setuptools is already the newest version (68.1.2-2ubuntu1.2).
+0 upgraded, 0 newly installed, 0 to remove and 11 not upgraded.
+Reading package lists...
+Building dependency tree...
+Reading state information...
+python3-crcmod is already the newest version (1.7+dfsg-3build4).
+0 upgraded, 0 newly installed, 0 to remove and 11 not upgraded.
+Installing Go version 1.24.5 to /usr/local
+Go version 1.24.5 installed successfully.
+Go version is: 
+go version go1.24.5 linux/amd64
+Go is present at: /usr/local/go/bin/go
+Installing latest gcloud version to /usr/local
+latest gcloud installed successfully.
+gcloud Version is:
+Google Cloud SDK 538.0.0
+alpha 2025.09.05
+bq 2.1.23
+bundled-python3-unix 3.12.9
+core 2025.09.05
+gcloud-crc32c 1.0.0
+gsutil 5.35
+Gcloud is present at: /usr/local/google-cloud-sdk/bin/gcloud
+[INFO] 2025-09-10 09:27:14: ------ Upgrading gcloud and installing packages took 30 seconds ------
+[INFO] 2025-09-10 09:27:14: 
+[INFO] 2025-09-10 09:27:14: ------ Started running E2E test packages ------
+[INFO] 2025-09-10 09:27:14: 
+[INFO] 2025-09-10 09:27:14: TEST_INSTALLED_PACKAGE is not 'true' (value: 'false') and BUILD_BINARY_IN_SCRIPT is 'true'.
+[INFO] 2025-09-10 09:27:14: Building GCSFuse inside script...
+[INFO] 2025-09-10 09:27:14: GCSFuse binaries will be built in /tmp/gcsfuse_e2e_run_build_ofHNcf/
+[INFO] 2025-09-10 09:27:14: Using GCSFuse source directory: /home/alleaditya_google_com/workspace/gcsfuse
+[INFO] 2025-09-10 09:27:14: Building GCSFuse using 'go run ./tools/build_gcsfuse/main.go'...
+[INFO] 2025-09-10 09:27:39: GCSFuse binaries built by script in: /tmp/gcsfuse_e2e_run_build_ofHNcf
+[INFO] 2025-09-10 09:27:39: GCSFuse executable: /tmp/gcsfuse_e2e_run_build_ofHNcf/bin/gcsfuse
+[INFO] 2025-09-10 09:27:39: Script built GCSFuse at: /tmp/gcsfuse_e2e_run_build_ofHNcf
+[INFO] 2025-09-10 09:27:39: Started running e2e tests for REGIONAL group (bucket type: hns).
+[INFO] 2025-09-10 09:27:39: Started running e2e tests for REGIONAL group (bucket type: flat).
+[INFO] 2025-09-10 09:27:39: Started running e2e tests for emulator.
+[INFO] 2025-09-10 09:28:24: Executing Parallel Command: test_package rename_dir_limit gcsfuse-e2e-rename_dir_limit-flat-1757496459594045496 flat
+[INFO] 2025-09-10 09:28:24: Executing Parallel Command: test_package streaming_writes gcsfuse-e2e-streaming_writes-flat-1757496466940629942 flat
+[INFO] 2025-09-10 09:28:24: Executing Parallel Command: test_package stale_handle gcsfuse-e2e-stale_handle-flat-1757496474435160666 flat
+[INFO] 2025-09-10 09:28:24: Executing Parallel Command: test_package buffered_read gcsfuse-e2e-buffered_read-flat-1757496481994155870 flat
+[INFO] 2025-09-10 09:28:24: Executing Parallel Command: test_package inactive_stream_timeout gcsfuse-e2e-inactive_stream_timeout-flat-1757496489599462954 flat
+[INFO] 2025-09-10 09:28:24: Executing Parallel Command: test_package cloud_profiler gcsfuse-e2e-cloud_profiler-flat-1757496497369841574 flat
+[INFO] 2025-09-10 09:28:25: Executing Parallel Command: test_package rename_dir_limit gcsfuse-e2e-rename_dir_limit-hns-1757496459592437733 hns
+[INFO] 2025-09-10 09:28:25: Executing Parallel Command: test_package streaming_writes gcsfuse-e2e-streaming_writes-hns-1757496467123108533 hns
+[INFO] 2025-09-10 09:28:25: Executing Parallel Command: test_package stale_handle gcsfuse-e2e-stale_handle-hns-1757496474604051606 hns
+[INFO] 2025-09-10 09:28:25: Executing Parallel Command: test_package buffered_read gcsfuse-e2e-buffered_read-hns-1757496482156496429 hns
+[INFO] 2025-09-10 09:28:25: Executing Parallel Command: test_package inactive_stream_timeout gcsfuse-e2e-inactive_stream_timeout-hns-1757496489691091079 hns
+[INFO] 2025-09-10 09:28:25: Executing Parallel Command: test_package cloud_profiler gcsfuse-e2e-cloud_profiler-hns-1757496497676637773 hns
+[ERROR] 2025-09-10 09:28:48: Parallel Command failed: test_package rename_dir_limit gcsfuse-e2e-rename_dir_limit-hns-1757496459592437733 hns
+XML report will be generated at /tmp/tmp.JyLsiZVInb/hns/rename_dir_limit/rename_dir_limit_sponge_log.xml
+=== Log for /tmp/tmp.7sCBo1g9nL ===
+{"timestamp":{"seconds":1757496507,"nanos":190437102},"severity":"INFO","message":"No configuration found for rename dir limit tests in config. Using flags instead."}
+{"timestamp":{"seconds":1757496507,"nanos":510215629},"severity":"INFO","message":"Using GCSFuse from pre-built directory specified by --gcsfuse_prebuilt_dir flag: /tmp/gcsfuse_e2e_run_build_ofHNcf"}
+{"timestamp":{"seconds":1757496507,"nanos":510351943},"severity":"INFO","message":"Running static mounting tests..."}
+{"timestamp":{"seconds":1757496507,"nanos":708661920},"severity":"INFO","message":"Running static mounting tests with flags: []"}
+=== RUN   TestMoveDirectoryInNonExistingDirectory
+--- PASS: TestMoveDirectoryInNonExistingDirectory (1.68s)
+=== RUN   TestMoveDirectoryInEmptyDirectory
+--- PASS: TestMoveDirectoryInEmptyDirectory (2.78s)
+=== RUN   TestMoveDirectoryInNonEmptyDirectory
+--- PASS: TestMoveDirectoryInNonEmptyDirectory (3.49s)
+=== RUN   TestMoveEmptyDirectoryInNonEmptyDirectory
+--- PASS: TestMoveEmptyDirectoryInNonEmptyDirectory (2.42s)
+=== RUN   TestMoveEmptyDirectoryInEmptyDirectory
+--- PASS: TestMoveEmptyDirectoryInEmptyDirectory (1.67s)
+=== RUN   TestMoveEmptyDirectoryInNonExistingDirectory
+--- PASS: TestMoveEmptyDirectoryInNonExistingDirectory (1.15s)
+=== RUN   TestRenameDirectoryWithThreeFiles
+--- FAIL: TestRenameDirectoryWithThreeFiles (1.33s)
+=== RUN   TestRenameDirectoryWithTwoFiles
+--- PASS: TestRenameDirectoryWithTwoFiles (1.54s)
+=== RUN   TestRenameDirectoryWithFourFiles
+--- SKIP: TestRenameDirectoryWithFourFiles (0.06s)
+=== RUN   TestRenameDirectoryWithTwoFilesAndOneEmptyDirectory
+--- PASS: TestRenameDirectoryWithTwoFilesAndOneEmptyDirectory (1.75s)
+=== RUN   TestRenameDirectoryWithTwoFilesAndOneNonEmptyDirectory
+--- SKIP: TestRenameDirectoryWithTwoFilesAndOneNonEmptyDirectory (0.05s)
+=== RUN   TestRenameDirectoryWithExistingEmptyDestDirectory
+--- PASS: TestRenameDirectoryWithExistingEmptyDestDirectory (2.52s)
+FAIL
+{"timestamp":{"seconds":1757496528,"nanos":148985734},"severity":"INFO","message":"Test Fails on "}
+{"timestamp":{"seconds":1757496528,"nanos":204233203},"severity":"INFO","message":"Log file saved at /tmp/gcsfuse_readwrite_test_3673992303/gcsfuse-failed-integration-test-logs-7wkj6"}
+{"timestamp":{"seconds":1757496528,"nanos":204260857},"severity":"INFO","message":"Test log: /tmp/gcsfuse_readwrite_test_3673992303/gcsfuse.log"}
+FAIL	github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/rename_dir_limit	21.034s
+FAIL
+XML report generated at /tmp/tmp.JyLsiZVInb/hns/rename_dir_limit/rename_dir_limit_sponge_log.xml
+[ERROR] 2025-09-10 09:28:58: Parallel Command failed: test_package rename_dir_limit gcsfuse-e2e-rename_dir_limit-flat-1757496459594045496 flat
+XML report will be generated at /tmp/tmp.JyLsiZVInb/flat/rename_dir_limit/rename_dir_limit_sponge_log.xml
+=== Log for /tmp/tmp.gT9fXeyN9n ===
+{"timestamp":{"seconds":1757496506,"nanos":642623097},"severity":"INFO","message":"No configuration found for rename dir limit tests in config. Using flags instead."}
+{"timestamp":{"seconds":1757496506,"nanos":999016152},"severity":"INFO","message":"Using GCSFuse from pre-built directory specified by --gcsfuse_prebuilt_dir flag: /tmp/gcsfuse_e2e_run_build_ofHNcf"}
+{"timestamp":{"seconds":1757496506,"nanos":999164706},"severity":"INFO","message":"Running static mounting tests..."}
+{"timestamp":{"seconds":1757496507,"nanos":801949039},"severity":"INFO","message":"Running static mounting tests with flags: [--rename-dir-limit=3 --implicit-dirs --client-protocol=grpc]"}
+=== RUN   TestMoveDirectoryInNonExistingDirectory
+--- PASS: TestMoveDirectoryInNonExistingDirectory (2.80s)
+=== RUN   TestMoveDirectoryInEmptyDirectory
+--- PASS: TestMoveDirectoryInEmptyDirectory (3.64s)
+=== RUN   TestMoveDirectoryInNonEmptyDirectory
+--- PASS: TestMoveDirectoryInNonEmptyDirectory (4.07s)
+=== RUN   TestMoveEmptyDirectoryInNonEmptyDirectory
+--- PASS: TestMoveEmptyDirectoryInNonEmptyDirectory (2.11s)
+=== RUN   TestMoveEmptyDirectoryInEmptyDirectory
+--- PASS: TestMoveEmptyDirectoryInEmptyDirectory (1.62s)
+=== RUN   TestMoveEmptyDirectoryInNonExistingDirectory
+--- PASS: TestMoveEmptyDirectoryInNonExistingDirectory (1.26s)
+=== RUN   TestRenameDirectoryWithThreeFiles
+--- FAIL: TestRenameDirectoryWithThreeFiles (2.27s)
+=== RUN   TestRenameDirectoryWithTwoFiles
+--- PASS: TestRenameDirectoryWithTwoFiles (2.75s)
+=== RUN   TestRenameDirectoryWithFourFiles
+--- PASS: TestRenameDirectoryWithFourFiles (2.73s)
+=== RUN   TestRenameDirectoryWithTwoFilesAndOneEmptyDirectory
+--- PASS: TestRenameDirectoryWithTwoFilesAndOneEmptyDirectory (3.16s)
+=== RUN   TestRenameDirectoryWithTwoFilesAndOneNonEmptyDirectory
+--- PASS: TestRenameDirectoryWithTwoFilesAndOneNonEmptyDirectory (1.72s)
+=== RUN   TestRenameDirectoryWithExistingEmptyDestDirectory
+--- PASS: TestRenameDirectoryWithExistingEmptyDestDirectory (2.29s)
+FAIL
+{"timestamp":{"seconds":1757496538,"nanos":239437726},"severity":"INFO","message":"Test Fails on --rename-dir-limit=3 --implicit-dirs --client-protocol=grpc"}
+{"timestamp":{"seconds":1757496538,"nanos":246869559},"severity":"INFO","message":"Log file saved at /tmp/gcsfuse_readwrite_test_434938873/gcsfuse-failed-integration-test-logs-fpyc3"}
+{"timestamp":{"seconds":1757496538,"nanos":246892437},"severity":"INFO","message":"Test log: /tmp/gcsfuse_readwrite_test_434938873/gcsfuse.log"}
+FAIL	github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/rename_dir_limit	31.623s
+FAIL
+XML report generated at /tmp/tmp.JyLsiZVInb/flat/rename_dir_limit/rename_dir_limit_sponge_log.xml
+[INFO] 2025-09-10 09:29:08: Parallel Command succeeded: test_package buffered_read gcsfuse-e2e-buffered_read-hns-1757496482156496429 hns
+[INFO] 2025-09-10 09:29:09: Parallel Command succeeded: test_package buffered_read gcsfuse-e2e-buffered_read-flat-1757496481994155870 flat
+[INFO] 2025-09-10 09:29:24: Parallel Command succeeded: test_package inactive_stream_timeout gcsfuse-e2e-inactive_stream_timeout-flat-1757496489599462954 flat
+[INFO] 2025-09-10 09:29:27: Parallel Command succeeded: test_package inactive_stream_timeout gcsfuse-e2e-inactive_stream_timeout-hns-1757496489691091079 hns
+[ERROR] 2025-09-10 09:29:52: Parallel Command failed: test_package streaming_writes gcsfuse-e2e-streaming_writes-flat-1757496466940629942 flat
+XML report will be generated at /tmp/tmp.JyLsiZVInb/flat/streaming_writes/streaming_writes_sponge_log.xml
+=== Log for /tmp/tmp.IfzLLXsf1U ===
+{"timestamp":{"seconds":1757496506,"nanos":731358988},"severity":"INFO","message":"Not running mounted directory tests as both --mountedDirectory and --testBucket flags are not set."}
+{"timestamp":{"seconds":1757496506,"nanos":731493835},"severity":"INFO","message":"Using GCSFuse from pre-built directory specified by --gcsfuse_prebuilt_dir flag: /tmp/gcsfuse_e2e_run_build_ofHNcf"}
+{"timestamp":{"seconds":1757496506,"nanos":731539952},"severity":"INFO","message":"Running static mounting tests..."}
+{"timestamp":{"seconds":1757496506,"nanos":731552599},"severity":"INFO","message":"Running tests with flags: [--rename-dir-limit=3 --write-block-size-mb=1 --write-max-blocks-per-file=2 --write-global-max-blocks=0]"}
+=== RUN   TestWritesWithDifferentConfig
+=== RUN   TestWritesWithDifferentConfig/BlockSizeGreaterThanFileSize
+=== RUN   TestWritesWithDifferentConfig/BlockSizeLessThanFileSize
+=== RUN   TestWritesWithDifferentConfig/NumberOfBlocksLessThanFileSize
+=== RUN   TestWritesWithDifferentConfig/BlockSizeEqualToFileSize
+--- PASS: TestWritesWithDifferentConfig (9.62s)
+    --- PASS: TestWritesWithDifferentConfig/BlockSizeGreaterThanFileSize (1.41s)
+    --- PASS: TestWritesWithDifferentConfig/BlockSizeLessThanFileSize (2.49s)
+    --- PASS: TestWritesWithDifferentConfig/NumberOfBlocksLessThanFileSize (4.07s)
+    --- PASS: TestWritesWithDifferentConfig/BlockSizeEqualToFileSize (1.65s)
+=== RUN   TestEmptyGCSFileTestSuiteTest
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestCreateSymlinkForLocalFileAndReadFromSymlink
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestOutOfOrderWriteSyncsFileToGcs
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestOutOfOrderWriteSyncsFileToGcsAndDeletingFileDeletsFileFromGcs
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestReadAfterFlush
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestReadBeforeFileIsFlushed
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestReadBeforeSyncThenWriteAgainAndRead
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestReadFileAfterSync
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestReadingFromSymlinkForDeletedLocalFile
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestRenameBeforeFileIsFlushed
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestSyncAfterRenameSucceeds
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestTruncate
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestTruncateDownAndDeleteFile
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestTruncateNegative
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestWriteAfterTruncate
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestWriteAfterTruncate/ZeroOffset
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestWriteAfterTruncate/RandomOffset
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestWriteAfterTruncate/Append
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestWriteAndTruncate
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestWriteAndTruncate/WriteTruncateToUpper
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestWriteAndTruncate/WriteTruncateToLower
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestWriteTruncateWrite
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestWriteTruncateWrite/WriteTruncateToUpperWrite
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestWriteTruncateWrite/WriteTruncateToLowerWrite
+{"timestamp":{"seconds":1757496537,"nanos":863491307},"severity":"INFO","message":"Log file saved at /tmp/gcsfuse_readwrite_test_3334203621/gcsfuse-failed-integration-test-logs-TestEmptyGCSFileTestSuiteTestsxq0w"}
+--- FAIL: TestEmptyGCSFileTestSuiteTest (21.51s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestCreateSymlinkForLocalFileAndReadFromSymlink (1.56s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestOutOfOrderWriteSyncsFileToGcs (0.74s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestOutOfOrderWriteSyncsFileToGcsAndDeletingFileDeletsFileFromGcs (0.71s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestReadAfterFlush (1.79s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestReadBeforeFileIsFlushed (1.44s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestReadBeforeSyncThenWriteAgainAndRead (1.48s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestReadFileAfterSync (1.71s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestReadingFromSymlinkForDeletedLocalFile (0.67s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestRenameBeforeFileIsFlushed (1.79s)
+    --- FAIL: TestEmptyGCSFileTestSuiteTest/TestSyncAfterRenameSucceeds (1.53s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestTruncate (1.12s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestTruncateDownAndDeleteFile (0.51s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestTruncateNegative (0.40s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestWriteAfterTruncate (2.33s)
+        --- PASS: TestEmptyGCSFileTestSuiteTest/TestWriteAfterTruncate/ZeroOffset (0.65s)
+        --- PASS: TestEmptyGCSFileTestSuiteTest/TestWriteAfterTruncate/RandomOffset (0.58s)
+        --- PASS: TestEmptyGCSFileTestSuiteTest/TestWriteAfterTruncate/Append (0.72s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestWriteAndTruncate (1.54s)
+        --- PASS: TestEmptyGCSFileTestSuiteTest/TestWriteAndTruncate/WriteTruncateToUpper (0.58s)
+        --- PASS: TestEmptyGCSFileTestSuiteTest/TestWriteAndTruncate/WriteTruncateToLower (0.58s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestWriteTruncateWrite (1.58s)
+        --- PASS: TestEmptyGCSFileTestSuiteTest/TestWriteTruncateWrite/WriteTruncateToUpperWrite (0.61s)
+        --- PASS: TestEmptyGCSFileTestSuiteTest/TestWriteTruncateWrite/WriteTruncateToLowerWrite (0.61s)
+=== RUN   TestStreamingWritesLocalFileTestSuite
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestCreateSymlinkForLocalFileAndReadFromSymlink
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestOutOfOrderWriteSyncsFileToGcs
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestOutOfOrderWriteSyncsFileToGcsAndDeletingFileDeletsFileFromGcs
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestReadAfterFlush
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestReadBeforeFileIsFlushed
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestReadBeforeSyncThenWriteAgainAndRead
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestReadFileAfterSync
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestReadingFromSymlinkForDeletedLocalFile
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestRenameBeforeFileIsFlushed
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestSyncAfterRenameSucceeds
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestTruncate
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestTruncateDownAndDeleteFile
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestTruncateNegative
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestWriteAfterTruncate
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestWriteAfterTruncate/ZeroOffset
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestWriteAfterTruncate/RandomOffset
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestWriteAfterTruncate/Append
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestWriteAndTruncate
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestWriteAndTruncate/WriteTruncateToUpper
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestWriteAndTruncate/WriteTruncateToLower
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestWriteTruncateWrite
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestWriteTruncateWrite/WriteTruncateToUpperWrite
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestWriteTruncateWrite/WriteTruncateToLowerWrite
+{"timestamp":{"seconds":1757496551,"nanos":782574177},"severity":"INFO","message":"Log file saved at /tmp/gcsfuse_readwrite_test_3334203621/gcsfuse-failed-integration-test-logs-TestStreamingWritesLocalFileTestSuitemdesr"}
+--- FAIL: TestStreamingWritesLocalFileTestSuite (13.92s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestCreateSymlinkForLocalFileAndReadFromSymlink (1.01s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestOutOfOrderWriteSyncsFileToGcs (0.24s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestOutOfOrderWriteSyncsFileToGcsAndDeletingFileDeletsFileFromGcs (0.12s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestReadAfterFlush (1.33s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestReadBeforeFileIsFlushed (0.89s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestReadBeforeSyncThenWriteAgainAndRead (1.09s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestReadFileAfterSync (1.09s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestReadingFromSymlinkForDeletedLocalFile (0.31s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestRenameBeforeFileIsFlushed (1.39s)
+    --- FAIL: TestStreamingWritesLocalFileTestSuite/TestSyncAfterRenameSucceeds (1.08s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestTruncate (0.78s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestTruncateDownAndDeleteFile (0.12s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestTruncateNegative (0.06s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestWriteAfterTruncate (0.77s)
+        --- PASS: TestStreamingWritesLocalFileTestSuite/TestWriteAfterTruncate/ZeroOffset (0.23s)
+        --- PASS: TestStreamingWritesLocalFileTestSuite/TestWriteAfterTruncate/RandomOffset (0.22s)
+        --- PASS: TestStreamingWritesLocalFileTestSuite/TestWriteAfterTruncate/Append (0.25s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestWriteAndTruncate (0.54s)
+        --- PASS: TestStreamingWritesLocalFileTestSuite/TestWriteAndTruncate/WriteTruncateToUpper (0.23s)
+        --- PASS: TestStreamingWritesLocalFileTestSuite/TestWriteAndTruncate/WriteTruncateToLower (0.24s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestWriteTruncateWrite (0.51s)
+        --- PASS: TestStreamingWritesLocalFileTestSuite/TestWriteTruncateWrite/WriteTruncateToUpperWrite (0.22s)
+        --- PASS: TestStreamingWritesLocalFileTestSuite/TestWriteTruncateWrite/WriteTruncateToLowerWrite (0.23s)
+=== RUN   TestExistingLocalFileTest
+=== RUN   TestExistingLocalFileTest/TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError
+=== RUN   TestExistingLocalFileTest/TestCreateNewFileWhenSameFileExistsOnGCS
+=== RUN   TestExistingLocalFileTest/TestCreateSymlinkForLocalFile
+=== RUN   TestExistingLocalFileTest/TestEmptyFileCreation
+=== RUN   TestExistingLocalFileTest/TestFileWithSameNameCanBeCreatedAfterDelete
+=== RUN   TestExistingLocalFileTest/TestFileWithSameNameCanBeCreatedWhenDeletedBeforeSync
+=== RUN   TestExistingLocalFileTest/TestMultipleOutOfOrderWritesToNewFile
+=== RUN   TestExistingLocalFileTest/TestMultipleWritesToLocalFile
+=== RUN   TestExistingLocalFileTest/TestNewFileShouldNotGetSyncedToGCSTillClose
+=== RUN   TestExistingLocalFileTest/TestNewFileUnderExplicitDirectoryShouldNotGetSyncedToGCSTillClose
+=== RUN   TestExistingLocalFileTest/TestOutOfOrderWritesToNewFile
+=== RUN   TestExistingLocalFileTest/TestReadDir
+=== RUN   TestExistingLocalFileTest/TestReadDirContainingUnlinkedLocalFiles
+=== RUN   TestExistingLocalFileTest/TestReadDirWithSameNameLocalAndGCSFile
+=== RUN   TestExistingLocalFileTest/TestReadLocalFile
+=== RUN   TestExistingLocalFileTest/TestReadSymlinkForDeletedLocalFile
+=== RUN   TestExistingLocalFileTest/TestRecursiveListingWithLocalFiles
+=== RUN   TestExistingLocalFileTest/TestRenameOfDirectoryWithLocalFileFails
+=== RUN   TestExistingLocalFileTest/TestRenameOfDirectoryWithLocalFileSucceedsAfterSync
+=== RUN   TestExistingLocalFileTest/TestRenameOfLocalFileSucceedsAfterSync
+=== RUN   TestExistingLocalFileTest/TestRenameSymlinkForLocalFile
+=== RUN   TestExistingLocalFileTest/TestRmDirOfDirectoryContainingGCSAndLocalFiles
+=== RUN   TestExistingLocalFileTest/TestRmDirOfDirectoryContainingOnlyLocalFiles
+=== RUN   TestExistingLocalFileTest/TestStatLocalFileAfterRecreatingItWithSameName
+=== RUN   TestExistingLocalFileTest/TestStatOnLocalFile
+=== RUN   TestExistingLocalFileTest/TestStatOnLocalFileWithConflictingFileNameSuffix
+=== RUN   TestExistingLocalFileTest/TestStatOnUnlinkedLocalFile
+=== RUN   TestExistingLocalFileTest/TestSyncOnUnlinkedLocalFile
+=== RUN   TestExistingLocalFileTest/TestTruncateLocalFileToSmallerSize
+=== RUN   TestExistingLocalFileTest/TestWriteOnUnlinkedLocalFileSucceeds
+=== RUN   TestExistingLocalFileTest/TestWritesToNewFileStartingAtNonZeroOffset
+--- PASS: TestExistingLocalFileTest (40.73s)
+    --- PASS: TestExistingLocalFileTest/TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError (12.88s)
+    --- PASS: TestExistingLocalFileTest/TestCreateNewFileWhenSameFileExistsOnGCS (6.12s)
+    --- PASS: TestExistingLocalFileTest/TestCreateSymlinkForLocalFile (0.59s)
+    --- PASS: TestExistingLocalFileTest/TestEmptyFileCreation (0.41s)
+    --- PASS: TestExistingLocalFileTest/TestFileWithSameNameCanBeCreatedAfterDelete (0.93s)
+    --- PASS: TestExistingLocalFileTest/TestFileWithSameNameCanBeCreatedWhenDeletedBeforeSync (0.58s)
+    --- PASS: TestExistingLocalFileTest/TestMultipleOutOfOrderWritesToNewFile (0.42s)
+    --- PASS: TestExistingLocalFileTest/TestMultipleWritesToLocalFile (0.41s)
+    --- PASS: TestExistingLocalFileTest/TestNewFileShouldNotGetSyncedToGCSTillClose (0.42s)
+    --- PASS: TestExistingLocalFileTest/TestNewFileUnderExplicitDirectoryShouldNotGetSyncedToGCSTillClose (0.67s)
+    --- PASS: TestExistingLocalFileTest/TestOutOfOrderWritesToNewFile (0.72s)
+    --- PASS: TestExistingLocalFileTest/TestReadDir (1.48s)
+    --- PASS: TestExistingLocalFileTest/TestReadDirContainingUnlinkedLocalFiles (1.28s)
+    --- PASS: TestExistingLocalFileTest/TestReadDirWithSameNameLocalAndGCSFile (2.55s)
+    --- PASS: TestExistingLocalFileTest/TestReadLocalFile (0.54s)
+    --- PASS: TestExistingLocalFileTest/TestReadSymlinkForDeletedLocalFile (0.62s)
+    --- PASS: TestExistingLocalFileTest/TestRecursiveListingWithLocalFiles (0.92s)
+    --- PASS: TestExistingLocalFileTest/TestRenameOfDirectoryWithLocalFileFails (1.14s)
+    --- PASS: TestExistingLocalFileTest/TestRenameOfDirectoryWithLocalFileSucceedsAfterSync (1.74s)
+    --- PASS: TestExistingLocalFileTest/TestRenameOfLocalFileSucceedsAfterSync (1.09s)
+    --- PASS: TestExistingLocalFileTest/TestRenameSymlinkForLocalFile (0.80s)
+    --- PASS: TestExistingLocalFileTest/TestRmDirOfDirectoryContainingGCSAndLocalFiles (1.13s)
+    --- PASS: TestExistingLocalFileTest/TestRmDirOfDirectoryContainingOnlyLocalFiles (0.73s)
+    --- PASS: TestExistingLocalFileTest/TestStatLocalFileAfterRecreatingItWithSameName (0.05s)
+    --- PASS: TestExistingLocalFileTest/TestStatOnLocalFile (0.36s)
+    --- PASS: TestExistingLocalFileTest/TestStatOnLocalFileWithConflictingFileNameSuffix (0.32s)
+    --- PASS: TestExistingLocalFileTest/TestStatOnUnlinkedLocalFile (0.35s)
+    --- PASS: TestExistingLocalFileTest/TestSyncOnUnlinkedLocalFile (0.27s)
+    --- PASS: TestExistingLocalFileTest/TestTruncateLocalFileToSmallerSize (0.35s)
+    --- PASS: TestExistingLocalFileTest/TestWriteOnUnlinkedLocalFileSucceeds (0.25s)
+    --- PASS: TestExistingLocalFileTest/TestWritesToNewFileStartingAtNonZeroOffset (0.31s)
+FAIL
+FAIL	github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/streaming_writes	85.809s
+FAIL
+XML report generated at /tmp/tmp.JyLsiZVInb/flat/streaming_writes/streaming_writes_sponge_log.xml
+[INFO] 2025-09-10 09:29:52: Parallel Command succeeded: test_package stale_handle gcsfuse-e2e-stale_handle-flat-1757496474435160666 flat
+[INFO] 2025-09-10 09:29:54: Parallel Command succeeded: test_package stale_handle gcsfuse-e2e-stale_handle-hns-1757496474604051606 hns
+[ERROR] 2025-09-10 09:30:00: Parallel Command failed: test_package streaming_writes gcsfuse-e2e-streaming_writes-hns-1757496467123108533 hns
+XML report will be generated at /tmp/tmp.JyLsiZVInb/hns/streaming_writes/streaming_writes_sponge_log.xml
+=== Log for /tmp/tmp.c1aUbL9q46 ===
+{"timestamp":{"seconds":1757496507,"nanos":325809401},"severity":"INFO","message":"Not running mounted directory tests as both --mountedDirectory and --testBucket flags are not set."}
+{"timestamp":{"seconds":1757496507,"nanos":325952448},"severity":"INFO","message":"Using GCSFuse from pre-built directory specified by --gcsfuse_prebuilt_dir flag: /tmp/gcsfuse_e2e_run_build_ofHNcf"}
+{"timestamp":{"seconds":1757496507,"nanos":326000852},"severity":"INFO","message":"Running static mounting tests..."}
+{"timestamp":{"seconds":1757496507,"nanos":326023575},"severity":"INFO","message":"Running tests with flags: [--rename-dir-limit=3 --write-block-size-mb=1 --write-max-blocks-per-file=2 --write-global-max-blocks=0]"}
+=== RUN   TestWritesWithDifferentConfig
+=== RUN   TestWritesWithDifferentConfig/BlockSizeGreaterThanFileSize
+=== RUN   TestWritesWithDifferentConfig/BlockSizeLessThanFileSize
+=== RUN   TestWritesWithDifferentConfig/NumberOfBlocksLessThanFileSize
+=== RUN   TestWritesWithDifferentConfig/BlockSizeEqualToFileSize
+--- PASS: TestWritesWithDifferentConfig (11.23s)
+    --- PASS: TestWritesWithDifferentConfig/BlockSizeGreaterThanFileSize (1.54s)
+    --- PASS: TestWritesWithDifferentConfig/BlockSizeLessThanFileSize (2.90s)
+    --- PASS: TestWritesWithDifferentConfig/NumberOfBlocksLessThanFileSize (4.74s)
+    --- PASS: TestWritesWithDifferentConfig/BlockSizeEqualToFileSize (2.05s)
+=== RUN   TestEmptyGCSFileTestSuiteTest
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestCreateSymlinkForLocalFileAndReadFromSymlink
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestOutOfOrderWriteSyncsFileToGcs
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestOutOfOrderWriteSyncsFileToGcsAndDeletingFileDeletsFileFromGcs
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestReadAfterFlush
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestReadBeforeFileIsFlushed
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestReadBeforeSyncThenWriteAgainAndRead
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestReadFileAfterSync
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestReadingFromSymlinkForDeletedLocalFile
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestRenameBeforeFileIsFlushed
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestSyncAfterRenameSucceeds
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestTruncate
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestTruncateDownAndDeleteFile
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestTruncateNegative
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestWriteAfterTruncate
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestWriteAfterTruncate/ZeroOffset
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestWriteAfterTruncate/RandomOffset
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestWriteAfterTruncate/Append
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestWriteAndTruncate
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestWriteAndTruncate/WriteTruncateToUpper
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestWriteAndTruncate/WriteTruncateToLower
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestWriteTruncateWrite
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestWriteTruncateWrite/WriteTruncateToUpperWrite
+=== RUN   TestEmptyGCSFileTestSuiteTest/TestWriteTruncateWrite/WriteTruncateToLowerWrite
+{"timestamp":{"seconds":1757496541,"nanos":443513831},"severity":"INFO","message":"Log file saved at /tmp/gcsfuse_readwrite_test_3913180852/gcsfuse-failed-integration-test-logs-TestEmptyGCSFileTestSuiteTestno6vc"}
+--- FAIL: TestEmptyGCSFileTestSuiteTest (22.89s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestCreateSymlinkForLocalFileAndReadFromSymlink (1.74s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestOutOfOrderWriteSyncsFileToGcs (0.80s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestOutOfOrderWriteSyncsFileToGcsAndDeletingFileDeletsFileFromGcs (0.59s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestReadAfterFlush (1.74s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestReadBeforeFileIsFlushed (1.44s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestReadBeforeSyncThenWriteAgainAndRead (1.61s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestReadFileAfterSync (1.71s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestReadingFromSymlinkForDeletedLocalFile (0.72s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestRenameBeforeFileIsFlushed (1.74s)
+    --- FAIL: TestEmptyGCSFileTestSuiteTest/TestSyncAfterRenameSucceeds (1.68s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestTruncate (1.19s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestTruncateDownAndDeleteFile (0.62s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestTruncateNegative (0.41s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestWriteAfterTruncate (2.46s)
+        --- PASS: TestEmptyGCSFileTestSuiteTest/TestWriteAfterTruncate/ZeroOffset (0.64s)
+        --- PASS: TestEmptyGCSFileTestSuiteTest/TestWriteAfterTruncate/RandomOffset (0.66s)
+        --- PASS: TestEmptyGCSFileTestSuiteTest/TestWriteAfterTruncate/Append (0.74s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestWriteAndTruncate (1.74s)
+        --- PASS: TestEmptyGCSFileTestSuiteTest/TestWriteAndTruncate/WriteTruncateToUpper (0.68s)
+        --- PASS: TestEmptyGCSFileTestSuiteTest/TestWriteAndTruncate/WriteTruncateToLower (0.66s)
+    --- PASS: TestEmptyGCSFileTestSuiteTest/TestWriteTruncateWrite (1.84s)
+        --- PASS: TestEmptyGCSFileTestSuiteTest/TestWriteTruncateWrite/WriteTruncateToUpperWrite (0.67s)
+        --- PASS: TestEmptyGCSFileTestSuiteTest/TestWriteTruncateWrite/WriteTruncateToLowerWrite (0.74s)
+=== RUN   TestStreamingWritesLocalFileTestSuite
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestCreateSymlinkForLocalFileAndReadFromSymlink
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestOutOfOrderWriteSyncsFileToGcs
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestOutOfOrderWriteSyncsFileToGcsAndDeletingFileDeletsFileFromGcs
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestReadAfterFlush
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestReadBeforeFileIsFlushed
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestReadBeforeSyncThenWriteAgainAndRead
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestReadFileAfterSync
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestReadingFromSymlinkForDeletedLocalFile
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestRenameBeforeFileIsFlushed
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestSyncAfterRenameSucceeds
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestTruncate
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestTruncateDownAndDeleteFile
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestTruncateNegative
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestWriteAfterTruncate
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestWriteAfterTruncate/ZeroOffset
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestWriteAfterTruncate/RandomOffset
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestWriteAfterTruncate/Append
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestWriteAndTruncate
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestWriteAndTruncate/WriteTruncateToUpper
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestWriteAndTruncate/WriteTruncateToLower
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestWriteTruncateWrite
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestWriteTruncateWrite/WriteTruncateToUpperWrite
+=== RUN   TestStreamingWritesLocalFileTestSuite/TestWriteTruncateWrite/WriteTruncateToLowerWrite
+{"timestamp":{"seconds":1757496555,"nanos":880067260},"severity":"INFO","message":"Log file saved at /tmp/gcsfuse_readwrite_test_3913180852/gcsfuse-failed-integration-test-logs-TestStreamingWritesLocalFileTestSuite0hm6c"}
+--- FAIL: TestStreamingWritesLocalFileTestSuite (14.44s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestCreateSymlinkForLocalFileAndReadFromSymlink (1.07s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestOutOfOrderWriteSyncsFileToGcs (0.24s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestOutOfOrderWriteSyncsFileToGcsAndDeletingFileDeletsFileFromGcs (0.13s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestReadAfterFlush (0.93s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestReadBeforeFileIsFlushed (1.01s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestReadBeforeSyncThenWriteAgainAndRead (0.91s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestReadFileAfterSync (1.18s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestReadingFromSymlinkForDeletedLocalFile (0.36s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestRenameBeforeFileIsFlushed (1.32s)
+    --- FAIL: TestStreamingWritesLocalFileTestSuite/TestSyncAfterRenameSucceeds (1.22s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestTruncate (0.65s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestTruncateDownAndDeleteFile (0.13s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestTruncateNegative (0.06s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestWriteAfterTruncate (0.89s)
+        --- PASS: TestStreamingWritesLocalFileTestSuite/TestWriteAfterTruncate/ZeroOffset (0.25s)
+        --- PASS: TestStreamingWritesLocalFileTestSuite/TestWriteAfterTruncate/RandomOffset (0.25s)
+        --- PASS: TestStreamingWritesLocalFileTestSuite/TestWriteAfterTruncate/Append (0.24s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestWriteAndTruncate (0.60s)
+        --- PASS: TestStreamingWritesLocalFileTestSuite/TestWriteAndTruncate/WriteTruncateToUpper (0.31s)
+        --- PASS: TestStreamingWritesLocalFileTestSuite/TestWriteAndTruncate/WriteTruncateToLower (0.23s)
+    --- PASS: TestStreamingWritesLocalFileTestSuite/TestWriteTruncateWrite (0.69s)
+        --- PASS: TestStreamingWritesLocalFileTestSuite/TestWriteTruncateWrite/WriteTruncateToUpperWrite (0.30s)
+        --- PASS: TestStreamingWritesLocalFileTestSuite/TestWriteTruncateWrite/WriteTruncateToLowerWrite (0.32s)
+=== RUN   TestExistingLocalFileTest
+=== RUN   TestExistingLocalFileTest/TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError
+=== RUN   TestExistingLocalFileTest/TestCreateNewFileWhenSameFileExistsOnGCS
+=== RUN   TestExistingLocalFileTest/TestCreateSymlinkForLocalFile
+=== RUN   TestExistingLocalFileTest/TestEmptyFileCreation
+=== RUN   TestExistingLocalFileTest/TestFileWithSameNameCanBeCreatedAfterDelete
+=== RUN   TestExistingLocalFileTest/TestFileWithSameNameCanBeCreatedWhenDeletedBeforeSync
+=== RUN   TestExistingLocalFileTest/TestMultipleOutOfOrderWritesToNewFile
+=== RUN   TestExistingLocalFileTest/TestMultipleWritesToLocalFile
+=== RUN   TestExistingLocalFileTest/TestNewFileShouldNotGetSyncedToGCSTillClose
+=== RUN   TestExistingLocalFileTest/TestNewFileUnderExplicitDirectoryShouldNotGetSyncedToGCSTillClose
+=== RUN   TestExistingLocalFileTest/TestOutOfOrderWritesToNewFile
+=== RUN   TestExistingLocalFileTest/TestReadDir
+=== RUN   TestExistingLocalFileTest/TestReadDirContainingUnlinkedLocalFiles
+=== RUN   TestExistingLocalFileTest/TestReadDirWithSameNameLocalAndGCSFile
+=== RUN   TestExistingLocalFileTest/TestReadLocalFile
+=== RUN   TestExistingLocalFileTest/TestReadSymlinkForDeletedLocalFile
+=== RUN   TestExistingLocalFileTest/TestRecursiveListingWithLocalFiles
+=== RUN   TestExistingLocalFileTest/TestRenameOfDirectoryWithLocalFileFails
+=== RUN   TestExistingLocalFileTest/TestRenameOfDirectoryWithLocalFileSucceedsAfterSync
+=== RUN   TestExistingLocalFileTest/TestRenameOfLocalFileSucceedsAfterSync
+=== RUN   TestExistingLocalFileTest/TestRenameSymlinkForLocalFile
+=== RUN   TestExistingLocalFileTest/TestRmDirOfDirectoryContainingGCSAndLocalFiles
+=== RUN   TestExistingLocalFileTest/TestRmDirOfDirectoryContainingOnlyLocalFiles
+=== RUN   TestExistingLocalFileTest/TestStatLocalFileAfterRecreatingItWithSameName
+=== RUN   TestExistingLocalFileTest/TestStatOnLocalFile
+=== RUN   TestExistingLocalFileTest/TestStatOnLocalFileWithConflictingFileNameSuffix
+=== RUN   TestExistingLocalFileTest/TestStatOnUnlinkedLocalFile
+=== RUN   TestExistingLocalFileTest/TestSyncOnUnlinkedLocalFile
+=== RUN   TestExistingLocalFileTest/TestTruncateLocalFileToSmallerSize
+=== RUN   TestExistingLocalFileTest/TestWriteOnUnlinkedLocalFileSucceeds
+=== RUN   TestExistingLocalFileTest/TestWritesToNewFileStartingAtNonZeroOffset
+--- PASS: TestExistingLocalFileTest (44.82s)
+    --- PASS: TestExistingLocalFileTest/TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError (13.90s)
+    --- PASS: TestExistingLocalFileTest/TestCreateNewFileWhenSameFileExistsOnGCS (7.36s)
+    --- PASS: TestExistingLocalFileTest/TestCreateSymlinkForLocalFile (0.57s)
+    --- PASS: TestExistingLocalFileTest/TestEmptyFileCreation (0.45s)
+    --- PASS: TestExistingLocalFileTest/TestFileWithSameNameCanBeCreatedAfterDelete (0.78s)
+    --- PASS: TestExistingLocalFileTest/TestFileWithSameNameCanBeCreatedWhenDeletedBeforeSync (0.54s)
+    --- PASS: TestExistingLocalFileTest/TestMultipleOutOfOrderWritesToNewFile (0.51s)
+    --- PASS: TestExistingLocalFileTest/TestMultipleWritesToLocalFile (0.48s)
+    --- PASS: TestExistingLocalFileTest/TestNewFileShouldNotGetSyncedToGCSTillClose (0.47s)
+    --- PASS: TestExistingLocalFileTest/TestNewFileUnderExplicitDirectoryShouldNotGetSyncedToGCSTillClose (0.67s)
+    --- PASS: TestExistingLocalFileTest/TestOutOfOrderWritesToNewFile (1.02s)
+    --- PASS: TestExistingLocalFileTest/TestReadDir (1.41s)
+    --- PASS: TestExistingLocalFileTest/TestReadDirContainingUnlinkedLocalFiles (1.55s)
+    --- PASS: TestExistingLocalFileTest/TestReadDirWithSameNameLocalAndGCSFile (2.65s)
+    --- PASS: TestExistingLocalFileTest/TestReadLocalFile (0.54s)
+    --- PASS: TestExistingLocalFileTest/TestReadSymlinkForDeletedLocalFile (0.68s)
+    --- PASS: TestExistingLocalFileTest/TestRecursiveListingWithLocalFiles (1.03s)
+    --- PASS: TestExistingLocalFileTest/TestRenameOfDirectoryWithLocalFileFails (1.45s)
+    --- PASS: TestExistingLocalFileTest/TestRenameOfDirectoryWithLocalFileSucceedsAfterSync (1.83s)
+    --- PASS: TestExistingLocalFileTest/TestRenameOfLocalFileSucceedsAfterSync (1.32s)
+    --- PASS: TestExistingLocalFileTest/TestRenameSymlinkForLocalFile (0.91s)
+    --- PASS: TestExistingLocalFileTest/TestRmDirOfDirectoryContainingGCSAndLocalFiles (1.52s)
+    --- PASS: TestExistingLocalFileTest/TestRmDirOfDirectoryContainingOnlyLocalFiles (0.73s)
+    --- PASS: TestExistingLocalFileTest/TestStatLocalFileAfterRecreatingItWithSameName (0.07s)
+    --- PASS: TestExistingLocalFileTest/TestStatOnLocalFile (0.35s)
+    --- PASS: TestExistingLocalFileTest/TestStatOnLocalFileWithConflictingFileNameSuffix (0.34s)
+    --- PASS: TestExistingLocalFileTest/TestStatOnUnlinkedLocalFile (0.26s)
+    --- PASS: TestExistingLocalFileTest/TestSyncOnUnlinkedLocalFile (0.26s)
+    --- PASS: TestExistingLocalFileTest/TestTruncateLocalFileToSmallerSize (0.35s)
+    --- PASS: TestExistingLocalFileTest/TestWriteOnUnlinkedLocalFileSucceeds (0.29s)
+    --- PASS: TestExistingLocalFileTest/TestWritesToNewFileStartingAtNonZeroOffset (0.33s)
+FAIL
+FAIL	github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/streaming_writes	93.415s
+FAIL
+XML report generated at /tmp/tmp.JyLsiZVInb/hns/streaming_writes/streaming_writes_sponge_log.xml
+[INFO] 2025-09-10 09:30:55: Emulator tests successful.
+[INFO] 2025-09-10 09:31:18: Parallel Command succeeded: test_package cloud_profiler gcsfuse-e2e-cloud_profiler-hns-1757496497676637773 hns
+[ERROR] 2025-09-10 09:31:18: The e2e tests for REGIONAL group (bucket type: hns) FAILED.
+[INFO] 2025-09-10 09:31:19: Parallel Command succeeded: test_package cloud_profiler gcsfuse-e2e-cloud_profiler-flat-1757496497369841574 flat
+[ERROR] 2025-09-10 09:31:19: The e2e tests for REGIONAL group (bucket type: flat) FAILED.
+[INFO] 2025-09-10 09:31:19: ------ E2E test packages complete run took 4 minutes ------
+[INFO] 2025-09-10 09:31:19: 
+
+Timings for the e2e test packages run are listed below.
+_ is 1 min wait
+> is 1 min run
++---------------------------+-----------------+----------+------------+------------------------------------------------------------+
+| Package Name              | Bucket Type     | Status   | Total Time |0 min                      runtime                    60 min|
++---------------------------+-----------------+----------+------------+------------------------------------------------------------+
+| buffered_read             | flat            | PASSED   | 1m         |_>                                                          |
++---------------------------+-----------------+----------+------------+------------------------------------------------------------+
+| buffered_read             | hns             | PASSED   | 1m         |_>                                                          |
++---------------------------+-----------------+----------+------------+------------------------------------------------------------+
+| cloud_profiler            | flat            | PASSED   | 3m         |_>>>                                                        |
++---------------------------+-----------------+----------+------------+------------------------------------------------------------+
+| cloud_profiler            | hns             | PASSED   | 3m         |_>>>                                                        |
++---------------------------+-----------------+----------+------------+------------------------------------------------------------+
+| inactive_stream_timeout   | flat            | PASSED   | 2m         |_>>                                                         |
++---------------------------+-----------------+----------+------------+------------------------------------------------------------+
+| inactive_stream_timeout   | hns             | PASSED   | 2m         |_>>                                                         |
++---------------------------+-----------------+----------+------------+------------------------------------------------------------+
+| rename_dir_limit          | flat            | FAILED   | 1m         |_>                                                          |
++---------------------------+-----------------+----------+------------+------------------------------------------------------------+
+| rename_dir_limit          | hns             | FAILED   | 1m         |_>                                                          |
++---------------------------+-----------------+----------+------------+------------------------------------------------------------+
+| stale_handle              | flat            | PASSED   | 2m         |_>>                                                         |
++---------------------------+-----------------+----------+------------+------------------------------------------------------------+
+| stale_handle              | hns             | PASSED   | 2m         |_>>                                                         |
++---------------------------+-----------------+----------+------------+------------------------------------------------------------+
+| streaming_writes          | flat            | FAILED   | 2m         |_>>                                                         |
++---------------------------+-----------------+----------+------------+------------------------------------------------------------+
+| streaming_writes          | hns             | FAILED   | 2m         |_>>                                                         |
++---------------------------+-----------------+----------+------------+------------------------------------------------------------+
+
+[INFO] 2025-09-10 09:31:19: Cleaning up GCSFuse build directory created by script: /tmp/gcsfuse_e2e_run_build_ofHNcf
+[INFO] 2025-09-10 09:31:23: Successfully deleted all buckets.
+[INFO] 2025-09-10 09:31:23: Successfully cleaned up temporary files
