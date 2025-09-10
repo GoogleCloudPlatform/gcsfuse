@@ -15,8 +15,8 @@
 package perf
 
 import (
-	"io/ioutil"
 	"math/rand"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -65,7 +65,7 @@ type networkStats struct {
 // getNetworkStatsPerNumaNode returns a map of NUMA node ID to network stats.
 func getNetworkStatsPerNumaNode() (map[int]networkStats, error) {
 	stats := make(map[int]networkStats)
-	interfaces, err := ioutil.ReadDir("/sys/class/net")
+	interfaces, err := os.ReadDir("/sys/class/net")
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func getNetworkStatsPerNumaNode() (map[int]networkStats, error) {
 	for _, intf := range interfaces {
 		intfName := intf.Name()
 		numaNodePath := filepath.Join("/sys/class/net", intfName, "device", "numa_node")
-		content, err := ioutil.ReadFile(numaNodePath)
+		content, err := os.ReadFile(numaNodePath)
 		if err != nil {
 			// Not all interfaces have a NUMA node file, so we skip them.
 			continue
@@ -107,7 +107,7 @@ func getNetworkStatsPerNumaNode() (map[int]networkStats, error) {
 }
 
 func readUint64FromFile(path string) (uint64, error) {
-	content, err := ioutil.ReadFile(path)
+	content, err := os.ReadFile(path)
 	if err != nil {
 		return 0, err
 	}
@@ -121,23 +121,16 @@ func MonitorNuma(config *cfg.Config) {
 
 	const (
 		STABLE = iota
-		EXPERIMENTING_NODE_SWITCH
-		EXPERIMENTING_UNBOUND
+		EXPERIMENTING
 		ROLLING_BACK
-	)
-	const (
-		NODE_SWITCH_EXPERIMENT = iota
-		UNBINDING_EXPERIMENT
 	)
 
 	state := STABLE
 	var currentNode, previousNode int
 	var currentBandwidth, experimentBandwidth float64
-	var experimentStartTime time.Time
-	nodeSwitchExperimentFrequency := time.Minute // Start with a low frequency
-	unbindingExperimentFrequency := time.Duration(config.ExperimentalNumaUnbindingExperimentFrequencyMultiplier) * nodeSwitchExperimentFrequency
-	var lastNodeSwitchExperimentTime, lastUnbindingExperimentTime time.Time
-	var lastExperimentType int
+	var experimentStartTime, lastExperimentTime time.Time
+	experimentFrequency := time.Minute // Start with a low frequency
+	experimentCounter := 0
 
 	// Get the initial node.
 	_, currentNode = numa.GetCPUAndNode()
@@ -188,52 +181,24 @@ func MonitorNuma(config *cfg.Config) {
 
 			switch state {
 			case STABLE:
-				if currentNode == -1 {
-					// Currently unbound, let's see if binding to a node helps.
-					if time.Since(lastNodeSwitchExperimentTime) > nodeSwitchExperimentFrequency {
-						nodesMask := numa.NodeMask()
-						var nodes []int
-						for i := 0; i < nodesMask.Len(); i++ {
-							if nodesMask.Get(i) {
-								nodes = append(nodes, i)
-							}
-						}
-						if len(nodes) > 0 {
-							// Experiment with a random node.
-							nextNode := nodes[rand.Intn(len(nodes))]
-							logger.Infof("Starting experiment: binding from unbound to node %d", nextNode)
-							experimentBandwidth = currentBandwidth
-							err := numa.RunOnNode(nextNode)
-							if err != nil {
-								logger.Errorf("Failed to switch NUMA affinity to node %d: %v", nextNode, err)
-							} else {
-								previousNode = -1
-								currentNode = nextNode
-								experimentStartTime = time.Now()
-								state = EXPERIMENTING_NODE_SWITCH
-								lastExperimentType = NODE_SWITCH_EXPERIMENT
-								lastNodeSwitchExperimentTime = time.Now()
-							}
-						}
-					}
-				} else {
-					// Currently bound, let's see if unbinding or switching helps.
-					if time.Since(lastUnbindingExperimentTime) > unbindingExperimentFrequency {
+				if time.Since(lastExperimentTime) > experimentFrequency {
+					experimentCounter++
+					experimentBandwidth = currentBandwidth
+					previousNode = currentNode
+
+					if experimentCounter%int(config.ExperimentalNumaUnbindingExperimentFrequencyMultiplier) == 0 {
+						// Unbinding experiment.
 						logger.Infof("Starting unbinding experiment.")
-						experimentBandwidth = currentBandwidth
-						previousNode = currentNode
-						currentNode = -1 // Unbound
 						err := numa.RunOnNode(-1)
 						if err != nil {
 							logger.Errorf("Failed to unbind NUMA affinity: %v", err)
-							currentNode = previousNode
 						} else {
+							currentNode = -1 // Unbound
 							experimentStartTime = time.Now()
-							state = EXPERIMENTING_UNBOUND
-							lastExperimentType = UNBINDING_EXPERIMENT
-							lastUnbindingExperimentTime = time.Now()
+							state = EXPERIMENTING
 						}
-					} else if time.Since(lastNodeSwitchExperimentTime) > nodeSwitchExperimentFrequency {
+					} else {
+						// Node switching experiment.
 						nodesMask := numa.NodeMask()
 						var nodes []int
 						for i := 0; i < nodesMask.Len(); i++ {
@@ -243,44 +208,44 @@ func MonitorNuma(config *cfg.Config) {
 						}
 						if len(nodes) > 1 {
 							// Find the next node to experiment with.
-							nextNode := -1
-							for i, node := range nodes {
-								if node == currentNode {
-									nextNode = nodes[(i+1)%len(nodes)]
-									break
+							var nextNode int
+							if currentNode == -1 {
+								// If unbound, pick a random node.
+								nextNode = nodes[rand.Intn(len(nodes))]
+							} else {
+								// Pick a random node that is not the current one.
+								for {
+									nextNode = nodes[rand.Intn(len(nodes))]
+									if nextNode != currentNode {
+										break
+									}
 								}
 							}
-							if nextNode != -1 {
-								logger.Infof("Starting experiment: switching from node %d to %d", currentNode, nextNode)
-								experimentBandwidth = currentBandwidth
-								err := numa.RunOnNode(nextNode)
-								if err != nil {
-									logger.Errorf("Failed to switch NUMA affinity to node %d: %v", nextNode, err)
-								} else {
-									previousNode = currentNode
-									currentNode = nextNode
-									experimentStartTime = time.Now()
-									state = EXPERIMENTING_NODE_SWITCH
-									lastExperimentType = NODE_SWITCH_EXPERIMENT
-									lastNodeSwitchExperimentTime = time.Now()
-								}
+							logger.Infof("Starting experiment: switching from node %d to %d", currentNode, nextNode)
+							err := numa.RunOnNode(nextNode)
+							if err != nil {
+								logger.Errorf("Failed to switch NUMA affinity to node %d: %v", nextNode, err)
+							} else {
+								currentNode = nextNode
+								experimentStartTime = time.Now()
+								state = EXPERIMENTING
 							}
 						}
 					}
+					lastExperimentTime = time.Now()
 				}
 
-			case EXPERIMENTING_NODE_SWITCH, EXPERIMENTING_UNBOUND:
+			case EXPERIMENTING:
 				if time.Since(experimentStartTime) > time.Duration(config.ExperimentalNumaMeasurementDurationSeconds)*time.Second {
 					// Experiment is over, check the results.
-					improvement := (currentBandwidth - experimentBandwidth) / experimentBandwidth * 100
-					if experimentBandwidth > 0 && improvement > float64(config.ExperimentalNumaImprovementThresholdPercent) {
+					var improvement float64
+					if experimentBandwidth > 0 {
+						improvement = (currentBandwidth - experimentBandwidth) / experimentBandwidth * 100
+					}
+					if improvement >= float64(config.ExperimentalNumaImprovementThresholdPercent) {
 						// Keep the new state.
 						logger.Infof("Experiment successful: bandwidth improved by %f%%.", improvement)
-						if state == EXPERIMENTING_NODE_SWITCH {
-							nodeSwitchExperimentFrequency *= 2 // Double the experiment frequency.
-						} else {
-							unbindingExperimentFrequency *= 2
-						}
+						experimentFrequency *= 2 // Increase the time to the next experiment.
 						state = STABLE
 					} else {
 						// Rollback.
@@ -295,16 +260,9 @@ func MonitorNuma(config *cfg.Config) {
 					logger.Errorf("Failed to rollback NUMA affinity to node %d: %v", previousNode, err)
 				} else {
 					currentNode = previousNode
-					if lastExperimentType == NODE_SWITCH_EXPERIMENT {
-						nodeSwitchExperimentFrequency /= 2
-						if nodeSwitchExperimentFrequency < time.Minute {
-							nodeSwitchExperimentFrequency = time.Minute
-						}
-					} else { // UNBINDING_EXPERIMENT
-						unbindingExperimentFrequency /= 2
-						if unbindingExperimentFrequency < time.Duration(config.ExperimentalNumaUnbindingExperimentFrequencyMultiplier)*time.Minute {
-							unbindingExperimentFrequency = time.Duration(config.ExperimentalNumaUnbindingExperimentFrequencyMultiplier) * time.Minute
-						}
+					experimentFrequency /= 2 // Decrease the time to the next experiment.
+					if experimentFrequency < time.Minute {
+						experimentFrequency = time.Minute
 					}
 					state = STABLE
 				}
