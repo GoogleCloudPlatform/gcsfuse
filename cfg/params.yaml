@@ -157,11 +157,32 @@
   default: true
   hide-flag: true
 
+- config-path: "experimental-numa-improvement-threshold-percent"
+  flag-name: "experimental-numa-improvement-threshold-percent"
+  type: "int"
+  usage: "The percentage of bandwidth improvement to consider a NUMA switch successful."
+  default: 10
+  hide-flag: true
+
+- config-path: "experimental-numa-measurement-duration-seconds"
+  flag-name: "experimental-numa-measurement-duration-seconds"
+  type: "int"
+  usage: "The number of seconds to wait after a NUMA switch to measure the new bandwidth."
+  default: 30
+  hide-flag: true
+
 - config-path: "experimental-numa-optimization"
   flag-name: "experimental-numa-optimization"
   type: "bool"
   usage: "Experimental: When set, gcsfuse will try to optimize NUMA binding for better performance."
   default: false
+  hide-flag: true
+
+- config-path: "experimental-numa-unbinding-experiment-frequency-multiplier"
+  flag-name: "experimental-numa-unbinding-experiment-frequency-multiplier"
+  type: "int"
+  usage: "The multiplier for the node switching experiment frequency to determine the unbinding experiment frequency."
+  default: 10
   hide-flag: true
 
 - config-path: "file-cache.cache-file-for-range-read"

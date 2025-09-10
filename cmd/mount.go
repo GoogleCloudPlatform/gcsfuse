@@ -46,7 +46,7 @@ func mountWithStorageHandle(
 	metricHandle metrics.MetricHandle) (mfs *fuse.MountedFileSystem, err error) {
 	if newConfig.ExperimentalNumaOptimization {
 		perf.InitNuma()
-		go perf.MonitorNuma()
+		go perf.MonitorNuma(newConfig)
 	}
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
