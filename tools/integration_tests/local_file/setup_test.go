@@ -69,6 +69,8 @@ func TestMain(m *testing.M) {
 		{"--implicit-dirs=true", "--rename-dir-limit=3", "--enable-streaming-writes=false"},
 		{"--implicit-dirs=false", "--rename-dir-limit=3", "--enable-streaming-writes=false"},
 		{"--implicit-dirs=false", "--rename-dir-limit=3", "--enable-streaming-writes=false", "--client-protocol=grpc"},
+		// Running with write-global-max-blocks=0 falls back to disk (local file tests behavior)
+		{"--rename-dir-limit=3", "--write-block-size-mb=1", "--write-max-blocks-per-file=2", "--write-global-max-blocks=0"},
 	}
 
 	if !setup.IsZonalBucketRun() {
