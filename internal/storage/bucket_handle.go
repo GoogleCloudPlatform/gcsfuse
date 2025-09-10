@@ -197,8 +197,8 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	wc.ProgressFunc = req.CallBack
 	// All objects in zonal buckets must be appendable.
 	wc.Append = bh.BucketType().Zonal
-	// Objects in zonal buckets should not finalized if rapid-appends is enabled.
-	if bh.enableRapidAppends && bh.BucketType().Zonal {
+	// Objects in zonal buckets should not finalized.
+	if bh.BucketType().Zonal {
 		wc.FinalizeOnClose = false
 	} else {
 		wc.FinalizeOnClose = true
@@ -233,8 +233,8 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	wc.ProgressFunc = callBack
 	// All objects in zonal buckets must be appendable.
 	wc.Append = bh.BucketType().Zonal
-	// Objects in zonal buckets should not finalized if rapid-appends is enabled.
-	if bh.enableRapidAppends && bh.BucketType().Zonal {
+	// Objects in zonal buckets should not finalized.
+	if bh.BucketType().Zonal {
 		wc.FinalizeOnClose = false
 	} else {
 		wc.FinalizeOnClose = true
