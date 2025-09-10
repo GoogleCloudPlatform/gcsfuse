@@ -39,21 +39,26 @@ type Param struct {
 	HideShorthand      bool `yaml:"hide-shorthand"`
 }
 
+// ParamsConfigYAML mirrors the params.yaml file itself.
+type ParamsConfigYAML struct {
+	Flags []Param `yaml:"flags"`
+}
+
 func parseParamsConfig() ([]Param, error) {
 	buf, err := os.ReadFile(*paramsFile)
 	if err != nil {
 		return nil, err
 	}
-	var paramsConfig []Param
+	var paramsConfigYAML ParamsConfigYAML
 	dec := yaml.NewDecoder(bytes.NewReader(buf))
 	dec.KnownFields(true)
-	if err = dec.Decode(&paramsConfig); err != nil {
+	if err = dec.Decode(&paramsConfigYAML); err != nil {
 		return nil, err
 	}
-	if err = validateParams(paramsConfig); err != nil {
+	if err = validateParams(paramsConfigYAML.Flags); err != nil {
 		return nil, err
 	}
-	return paramsConfig, nil
+	return paramsConfigYAML.Flags, nil
 }
 
 func checkFlagName(name string) error {
