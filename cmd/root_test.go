@@ -970,7 +970,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			},
 		},
 		{
-			name: "optimize profile with machine-type",
+			name: "profile_with_machine_type",
 			args: []string{"gcsfuse", "--profile=" + cfg.ProfileAIMLTraining, "--machine-type=machine-type-1", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem:  expectedDefaultFileSystemConfig,
@@ -979,7 +979,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			},
 		},
 		{
-			name: "optimize profile without machine-type",
+			name: "profile_without_machine_type",
 			args: []string{"gcsfuse", "--profile=" + cfg.ProfileAIMLServing, "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: expectedDefaultFileSystemConfig,
@@ -987,7 +987,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			},
 		},
 		{
-			name: "machine-type without profile",
+			name: "machine_type_without_profile",
 			args: []string{"gcsfuse", "--machine-type=machine-type-1", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem:  expectedDefaultFileSystemConfig,
