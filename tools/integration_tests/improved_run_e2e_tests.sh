@@ -193,7 +193,7 @@ fi
 # Test packages which can be run for both Zonal and Regional buckets.
 # Sorted list descending run times. (Longest Processing Time first strategy) 
 TEST_PACKAGES_COMMON=(
-  "streaming_writes"
+  "streaming_writes",
   "stale_handle"
   "buffered_read"
 )
@@ -488,16 +488,19 @@ test_package() {
   
   # Run the package test command
   local start=$SECONDS exit_code=0
-
-  local log_file
-  log_file=$(mktemp)
-  # Ensure the temporary log file is removed on function exit.
-  trap 'rm -f "$log_file"' RETURN
-
-  if ! eval "$go_test_cmd" > "$log_file" 2>&1; then
+  if ! eval "$go_test_cmd"; then
     exit_code=1
   fi
-  print_test_logs_and_create_junit_xml "$log_file" "$package_name" "$bucket_type"
+
+#   local log_file
+#   log_file=$(mktemp)
+#   # Ensure the temporary log file is removed on function exit.
+#   trap 'rm -f "$log_file"' RETURN
+
+#   if ! eval "$go_test_cmd" > "$log_file" 2>&1; then
+#     exit_code=1
+#   fi
+#   print_test_logs_and_create_junit_xml "$log_file" "$package_name" "$bucket_type"
 
   local end=$SECONDS
   # Add the package stats to the file.
