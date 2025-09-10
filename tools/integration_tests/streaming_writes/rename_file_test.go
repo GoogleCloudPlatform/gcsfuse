@@ -61,4 +61,5 @@ func (t *StreamingWritesSuite) TestSyncAfterRenameSucceeds() {
 	require.NoError(t.T(), t.f1.Close())
 	// Check if old object is deleted.
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, t.fileName, t.T())
+	t.T().FailNow()
 }
