@@ -120,7 +120,7 @@ func (t *BufferedReaderTest) SetupTest() {
 		RandomSeekThreshold:     testRandomSeekThreshold,
 	}
 	var err error
-	t.workerPool, err = workerpool.NewStaticWorkerPool(5, 10)
+	t.workerPool, err = workerpool.NewStaticWorkerPool(5, 10, 15)
 	require.NoError(t.T(), err, "Failed to create worker pool")
 	t.workerPool.Start()
 	t.metricHandle = metrics.NewNoopMetrics()

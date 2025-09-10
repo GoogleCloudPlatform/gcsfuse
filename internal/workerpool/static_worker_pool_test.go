@@ -43,7 +43,7 @@ func TestNewStaticWorkerPool_Success(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			pool, err := NewStaticWorkerPool(uint32(tc.priorityWorker), uint32(tc.normalWorker))
+			pool, err := NewStaticWorkerPool(uint32(tc.priorityWorker), uint32(tc.normalWorker), 100)
 
 			assert.NoError(t, err)
 			assert.NotNil(t, pool)
@@ -55,7 +55,7 @@ func TestNewStaticWorkerPool_Success(t *testing.T) {
 }
 
 func TestNewStaticWorkerPool_Failure(t *testing.T) {
-	pool, err := NewStaticWorkerPool(0, 0)
+	pool, err := NewStaticWorkerPool(0, 0, 0)
 
 	assert.Error(t, err)
 	assert.Nil(t, pool)
@@ -63,7 +63,7 @@ func TestNewStaticWorkerPool_Failure(t *testing.T) {
 }
 
 func TestStaticWorkerPool_Start(t *testing.T) {
-	pool, err := NewStaticWorkerPool(2, 3)
+	pool, err := NewStaticWorkerPool(2, 3, 5)
 	require.NoError(t, err)
 	require.NotNil(t, pool)
 
@@ -81,7 +81,7 @@ func TestStaticWorkerPool_Start(t *testing.T) {
 }
 
 func TestStaticWorkerPool_SchedulePriorityTask(t *testing.T) {
-	pool, err := NewStaticWorkerPool(2, 3)
+	pool, err := NewStaticWorkerPool(2, 3, 5)
 	require.NoError(t, err)
 	require.NotNil(t, pool)
 	pool.Start()
@@ -97,7 +97,7 @@ func TestStaticWorkerPool_SchedulePriorityTask(t *testing.T) {
 }
 
 func TestStaticWorkerPool_ScheduleNormalTask(t *testing.T) {
-	pool, err := NewStaticWorkerPool(2, 3)
+	pool, err := NewStaticWorkerPool(2, 3, 5)
 	require.NoError(t, err)
 	require.NotNil(t, pool)
 	pool.Start()
@@ -113,7 +113,7 @@ func TestStaticWorkerPool_ScheduleNormalTask(t *testing.T) {
 }
 
 func TestStaticWorkerPool_HighNumberOfTasks(t *testing.T) {
-	pool, err := NewStaticWorkerPool(5, 10)
+	pool, err := NewStaticWorkerPool(5, 10, 15)
 	require.NoError(t, err)
 	require.NotNil(t, pool)
 	pool.Start()
@@ -132,7 +132,7 @@ func TestStaticWorkerPool_HighNumberOfTasks(t *testing.T) {
 }
 
 func TestStaticWorkerPool_ScheduleAfterStop(t *testing.T) {
-	pool, err := NewStaticWorkerPool(2, 3)
+	pool, err := NewStaticWorkerPool(2, 3, 5)
 	require.NoError(t, err)
 	require.NotNil(t, pool)
 	pool.Start()
@@ -143,7 +143,7 @@ func TestStaticWorkerPool_ScheduleAfterStop(t *testing.T) {
 }
 
 func TestStaticWorkerPool_Stop(t *testing.T) {
-	pool, err := NewStaticWorkerPool(2, 3)
+	pool, err := NewStaticWorkerPool(2, 3, 5)
 	require.NoError(t, err)
 	require.NotNil(t, pool)
 	pool.Start()
