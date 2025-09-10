@@ -549,7 +549,6 @@ generate_test_log_artifacts() {
   local sponge_xml_file="${output_dir}/${package_name}_sponge_log.xml"
   local sponge_log_file="${output_dir}/${package_name}_sponge_log.log"
 
-  echo "XML report will be generated at ${sponge_xml_file}"
   echo '<?xml version="1.0" encoding="UTF-8"?>' > "${sponge_xml_file}"
   echo '<testsuites>' >> "${sponge_xml_file}"
 
