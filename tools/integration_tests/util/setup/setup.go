@@ -559,6 +559,8 @@ const HNSBucket = "hns"
 const ZonalBucket = "zonal"
 
 func BucketType(ctx context.Context, testBucket string) (bucketType string, err error) {
+	// For only-dir mounts bucket name is passed as <test_bucket>/<only_dir> by GKE.
+	testBucket = strings.Split(testBucket, "/")[0]
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	storageClient, err := storage.NewGRPCClient(ctx, experimental.WithGRPCBidiReads())
