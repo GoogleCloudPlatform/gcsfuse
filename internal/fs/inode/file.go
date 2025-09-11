@@ -565,7 +565,7 @@ func (f *FileInode) Read(
 	}
 
 	// Make sure f.content != nil.
-	err = f.ensureContent(ctx) // This shouldn't print any error.
+	err = f.ensureContent(ctx)
 	if err != nil {
 		err = fmt.Errorf("ensureContent: %w", err)
 		return
