@@ -46,11 +46,6 @@ func MonitorNuma(ctx context.Context, config *cfg.Config, metricHandle metrics.M
 	for {
 		select {
 		case <-ticker.C:
-			if bestBandwidth < 10 {
-				experimentInterval = config.ExperimentalNumaExperimentInterval
-				ticker.Reset(experimentInterval)
-				continue
-			}
 			// Run a round of experiments.
 			logger.Infof("Starting a round of NUMA experiments.")
 			newBestNode, newBestBandwidth := runExperimentRound(config, metricHandle, bestNode, bestBandwidth)
