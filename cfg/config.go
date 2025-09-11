@@ -58,13 +58,15 @@ type Config struct {
 
 	EnableNewReader bool `yaml:"enable-new-reader"`
 
+	ExperimentalNumaExperimentInterval time.Duration `yaml:"experimental-numa-experiment-interval"`
+
+	ExperimentalNumaExperimentIntervalMultiplier int64 `yaml:"experimental-numa-experiment-interval-multiplier"`
+
 	ExperimentalNumaImprovementThresholdPercent int64 `yaml:"experimental-numa-improvement-threshold-percent"`
 
 	ExperimentalNumaMeasurementDurationSeconds int64 `yaml:"experimental-numa-measurement-duration-seconds"`
 
 	ExperimentalNumaOptimization bool `yaml:"experimental-numa-optimization"`
-
-	ExperimentalNumaUnbindingExperimentFrequencyMultiplier int64 `yaml:"experimental-numa-unbinding-experiment-frequency-multiplier"`
 
 	FileCache FileCacheConfig `yaml:"file-cache"`
 
@@ -507,6 +509,18 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.DurationP("experimental-numa-experiment-interval", "", 60000000000*time.Nanosecond, "The base interval between NUMA experiments.")
+
+	if err := flagSet.MarkHidden("experimental-numa-experiment-interval"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("experimental-numa-experiment-interval-multiplier", "", 2, "The multiplier to increase the experiment interval when the configuration is stable.")
+
+	if err := flagSet.MarkHidden("experimental-numa-experiment-interval-multiplier"); err != nil {
+		return err
+	}
+
 	flagSet.IntP("experimental-numa-improvement-threshold-percent", "", 10, "The percentage of bandwidth improvement to consider a NUMA switch successful.")
 
 	if err := flagSet.MarkHidden("experimental-numa-improvement-threshold-percent"); err != nil {
@@ -522,12 +536,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("experimental-numa-optimization", "", false, "Experimental: When set, gcsfuse will try to optimize NUMA binding for better performance.")
 
 	if err := flagSet.MarkHidden("experimental-numa-optimization"); err != nil {
-		return err
-	}
-
-	flagSet.IntP("experimental-numa-unbinding-experiment-frequency-multiplier", "", 10, "The multiplier for the node switching experiment frequency to determine the unbinding experiment frequency.")
-
-	if err := flagSet.MarkHidden("experimental-numa-unbinding-experiment-frequency-multiplier"); err != nil {
 		return err
 	}
 
@@ -952,6 +960,14 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("experimental-numa-experiment-interval", flagSet.Lookup("experimental-numa-experiment-interval")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("experimental-numa-experiment-interval-multiplier", flagSet.Lookup("experimental-numa-experiment-interval-multiplier")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("experimental-numa-improvement-threshold-percent", flagSet.Lookup("experimental-numa-improvement-threshold-percent")); err != nil {
 		return err
 	}
@@ -961,10 +977,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("experimental-numa-optimization", flagSet.Lookup("experimental-numa-optimization")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("experimental-numa-unbinding-experiment-frequency-multiplier", flagSet.Lookup("experimental-numa-unbinding-experiment-frequency-multiplier")); err != nil {
 		return err
 	}
 

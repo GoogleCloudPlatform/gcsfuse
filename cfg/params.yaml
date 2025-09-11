@@ -157,6 +157,20 @@
   default: true
   hide-flag: true
 
+- config-path: "experimental-numa-experiment-interval"
+  flag-name: "experimental-numa-experiment-interval"
+  type: "duration"
+  usage: "The base interval between NUMA experiments."
+  default: "1m"
+  hide-flag: true
+
+- config-path: "experimental-numa-experiment-interval-multiplier"
+  flag-name: "experimental-numa-experiment-interval-multiplier"
+  type: "int"
+  usage: "The multiplier to increase the experiment interval when the configuration is stable."
+  default: 2
+  hide-flag: true
+
 - config-path: "experimental-numa-improvement-threshold-percent"
   flag-name: "experimental-numa-improvement-threshold-percent"
   type: "int"
@@ -176,13 +190,6 @@
   type: "bool"
   usage: "Experimental: When set, gcsfuse will try to optimize NUMA binding for better performance."
   default: false
-  hide-flag: true
-
-- config-path: "experimental-numa-unbinding-experiment-frequency-multiplier"
-  flag-name: "experimental-numa-unbinding-experiment-frequency-multiplier"
-  type: "int"
-  usage: "The multiplier for the node switching experiment frequency to determine the unbinding experiment frequency."
-  default: 10
   hide-flag: true
 
 - config-path: "file-cache.cache-file-for-range-read"

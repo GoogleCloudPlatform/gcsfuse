@@ -15,7 +15,7 @@
 package perf
 
 import (
-	"math/rand"
+	"context"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -24,167 +24,120 @@ import (
 )
 
 func InitNuma() {
-	if !numaLib.Available() {
-		logger.Infof("NUMA not available on this system.")
-		return
-	}
-
-	nodes := numaLib.NodeMask()
-	firstNode := -1
-	for i := 0; i < nodes.Len(); i++ {
-		if nodes.Get(i) {
-			firstNode = i
-			break
-		}
-	}
-
-	if firstNode != -1 {
-		// Pin the process to the first available NUMA node.
-		// For a real-world scenario, this should be a more intelligent decision,
-		// for example, based on which node has more free memory or is closer to the
-		// network card that handles the GCS traffic.
-		err := numaLib.RunOnNode(firstNode)
-		if err != nil {
-			logger.Errorf("Failed to set NUMA affinity: %v", err)
-		} else {
-			logger.Infof("Process bound to NUMA node %d", firstNode)
-		}
+	// Start unbound.
+	err := numaLib.RunOnNode(-1)
+	if err != nil {
+		logger.Errorf("Failed to unbind NUMA affinity: %v", err)
 	}
 }
 
-func MonitorNuma(config *cfg.Config, metricHandle metrics.MetricHandle) {
+func MonitorNuma(ctx context.Context, config *cfg.Config, metricHandle metrics.MetricHandle) {
 	if !numaLib.Available() {
 		return
 	}
 
-	const (
-		STABLE = iota
-		EXPERIMENTING
-		ROLLING_BACK
-	)
+	bestNode := -1 // -1 means unbound
+	var bestBandwidth float64
+	experimentInterval := config.ExperimentalNumaExperimentInterval
 
-	state := STABLE
-	var currentNode, previousNode int
-	var currentBandwidth, experimentBandwidth float64
-	var experimentStartTime, lastExperimentTime time.Time
-	experimentFrequency := time.Minute // Start with a low frequency
-	experimentCounter := 0
-
-	// Get the initial node.
-	_, currentNode = numaLib.GetCPUAndNode()
-	previousNode = currentNode
-
-	// Ticker for periodic checks.
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(experimentInterval)
 	defer ticker.Stop()
-
-	// Last stats for bandwidth calculation.
-	var lastReadBytes int64
-	var lastTime time.Time
 
 	for {
 		select {
 		case <-ticker.C:
-			// Calculate bandwidth.
-			readBytes := metricHandle.GcsReadBytesCountValue()
-			if lastTime != (time.Time{}) {
-				duration := time.Since(lastTime).Seconds()
-				if duration > 0 {
-					currentBandwidth = float64(readBytes-lastReadBytes) / duration
-					logger.Infof("Current bandwidth: %f B/s", currentBandwidth)
-				}
+			// Run a round of experiments.
+			logger.Infof("Starting a round of NUMA experiments.")
+			newBestNode, newBestBandwidth := runExperimentRound(config, metricHandle, bestNode, bestBandwidth)
+
+			if newBestNode == bestNode {
+				experimentInterval *= time.Duration(config.ExperimentalNumaExperimentIntervalMultiplier)
+				ticker.Reset(experimentInterval)
+				logger.Infof("Configuration is stable. New experiment interval: %v", experimentInterval)
+			} else {
+				experimentInterval = config.ExperimentalNumaExperimentInterval
+				ticker.Reset(experimentInterval)
+				logger.Infof("Configuration changed. New experiment interval: %v", experimentInterval)
 			}
-			lastReadBytes = readBytes
-			lastTime = time.Now()
+			bestNode = newBestNode
+			bestBandwidth = newBestBandwidth
 
-			switch state {
-			case STABLE:
-				if time.Since(lastExperimentTime) > experimentFrequency {
-					experimentCounter++
-					experimentBandwidth = currentBandwidth
-					previousNode = currentNode
-
-					if experimentCounter%int(config.ExperimentalNumaUnbindingExperimentFrequencyMultiplier) == 0 {
-						// Unbinding experiment.
-						logger.Infof("Starting unbinding experiment.")
-						err := numaLib.RunOnNode(-1)
-						if err != nil {
-							logger.Errorf("Failed to unbind NUMA affinity: %v", err)
-						} else {
-							currentNode = -1 // Unbound
-							experimentStartTime = time.Now()
-							state = EXPERIMENTING
-						}
-					} else {
-						// Node switching experiment.
-						nodesMask := numaLib.NodeMask()
-						var nodes []int
-						for i := 0; i < nodesMask.Len(); i++ {
-							if nodesMask.Get(i) {
-								nodes = append(nodes, i)
-							}
-						}
-						if len(nodes) > 1 {
-							// Find the next node to experiment with.
-							var nextNode int
-							if currentNode == -1 {
-								// If unbound, pick a random node.
-								nextNode = nodes[rand.Intn(len(nodes))]
-							} else {
-								// Pick a random node that is not the current one.
-								for {
-									nextNode = nodes[rand.Intn(len(nodes))]
-									if nextNode != currentNode {
-										break
-									}
-								}
-							}
-							logger.Infof("Starting experiment: switching from node %d to %d", currentNode, nextNode)
-							err := numaLib.RunOnNode(nextNode)
-							if err != nil {
-								logger.Errorf("Failed to switch NUMA affinity to node %d: %v", nextNode, err)
-							} else {
-								currentNode = nextNode
-								experimentStartTime = time.Now()
-								state = EXPERIMENTING
-							}
-						}
-					}
-					lastExperimentTime = time.Now()
-				}
-
-			case EXPERIMENTING:
-				if time.Since(experimentStartTime) > time.Duration(config.ExperimentalNumaMeasurementDurationSeconds)*time.Second {
-					// Experiment is over, check the results.
-					var improvement float64
-					if experimentBandwidth > 0 {
-						improvement = (currentBandwidth - experimentBandwidth) / experimentBandwidth * 100
-					}
-					if improvement >= float64(config.ExperimentalNumaImprovementThresholdPercent) {
-						// Keep the new state.
-						logger.Infof("Experiment successful: bandwidth improved by %f%%.", improvement)
-						experimentFrequency *= 2 // Increase the time to the next experiment.
-						state = STABLE
-					} else {
-						// Rollback.
-						logger.Infof("Experiment failed: bandwidth did not improve enough. Rolling back.")
-						state = ROLLING_BACK
-					}
-				}
-
-			case ROLLING_BACK:
-				err := numaLib.RunOnNode(previousNode)
-				if err != nil {
-					logger.Errorf("Failed to rollback NUMA affinity to node %d: %v", previousNode, err)
-				} else {
-					currentNode = previousNode
-					experimentFrequency /= 2 // Decrease the time to the next experiment.
-					if experimentFrequency < time.Minute {
-						experimentFrequency = time.Minute
-					}
-					state = STABLE
-				}
+			// Bind to the best configuration.
+			err := numaLib.RunOnNode(bestNode)
+			if err != nil {
+				logger.Errorf("Failed to bind to best node %d: %v", bestNode, err)
+			} else {
+				logger.Infof("Best configuration is node %d with bandwidth %f B/s", bestNode, bestBandwidth)
 			}
+		case <-ctx.Done():
+			logger.Infof("Stopping NUMA monitoring.")
+			return
 		}
 	}
+}
+
+func runExperimentRound(config *cfg.Config, metricHandle metrics.MetricHandle, currentBestNode int, currentBestBandwidth float64) (bestNode int, bestBandwidth float64) {
+	bestNode = currentBestNode
+	bestBandwidth = currentBestBandwidth
+
+	// Measure unbound bandwidth.
+	err := numaLib.RunOnNode(-1)
+	if err != nil {
+		logger.Errorf("Failed to unbind NUMA affinity: %v", err)
+	} else {
+		unboundBandwidth := measureBandwidth(config, metricHandle)
+		logger.Infof("Unbound bandwidth: %f B/s", unboundBandwidth)
+		var improvement float64
+		if bestBandwidth > 0 {
+			improvement = (unboundBandwidth - bestBandwidth) / bestBandwidth * 100
+		}
+		if (bestBandwidth == 0 && unboundBandwidth > 0) || (bestBandwidth > 0 && improvement > float64(config.ExperimentalNumaImprovementThresholdPercent)) {
+			bestBandwidth = unboundBandwidth
+			bestNode = -1
+		}
+	}
+
+	// Experiment with each NUMA node.
+	nodesMask := numaLib.NodeMask()
+	var nodes []int
+	for i := 0; i < nodesMask.Len(); i++ {
+		if nodesMask.Get(i) {
+			nodes = append(nodes, i)
+		}
+	}
+
+	for _, node := range nodes {
+		// Bind to the node.
+		err := numaLib.RunOnNode(node)
+		if err != nil {
+			logger.Errorf("Failed to bind to node %d: %v", node, err)
+			continue
+		}
+		logger.Infof("Experimenting with node %d", node)
+
+		// Measure bandwidth.
+		bandwidth := measureBandwidth(config, metricHandle)
+		logger.Infof("Bandwidth on node %d: %f B/s", node, bandwidth)
+
+		// Check for improvement.
+		var improvement float64
+		if bestBandwidth > 0 {
+			improvement = (bandwidth - bestBandwidth) / bestBandwidth * 100
+		}
+		if (bestBandwidth == 0 && bandwidth > 0) || (bestBandwidth > 0 && improvement > float64(config.ExperimentalNumaImprovementThresholdPercent)) {
+			bestBandwidth = bandwidth
+			bestNode = node
+		}
+	}
+	return
+}
+
+func measureBandwidth(config *cfg.Config, metricHandle metrics.MetricHandle) float64 {
+	if config.ExperimentalNumaMeasurementDurationSeconds == 0 {
+		return 0
+	}
+	initialReadBytes := metricHandle.GcsReadBytesCountValue()
+	time.Sleep(time.Duration(config.ExperimentalNumaMeasurementDurationSeconds) * time.Second)
+	finalReadBytes := metricHandle.GcsReadBytesCountValue()
+	return float64(finalReadBytes-initialReadBytes) / float64(config.ExperimentalNumaMeasurementDurationSeconds)
 }
