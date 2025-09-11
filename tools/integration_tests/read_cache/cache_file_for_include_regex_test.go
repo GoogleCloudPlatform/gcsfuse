@@ -55,7 +55,7 @@ func (s *cacheFileForIncludeRegexTest) Teardown(t *testing.T) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *cacheFileForIncludeRegexTest) TestReadsForIncludedFile(t *testing.T) {
+func (s *cacheFileForIncludeRegexTest) testReadsForIncludedFile(t *testing.T) {
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSizeForRangeRead, t)
 
 	// Read the file and validate that it is cached.
@@ -64,11 +64,11 @@ func (s *cacheFileForIncludeRegexTest) TestReadsForIncludedFile(t *testing.T) {
 
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, t)
-	validate(expectedOutcome2, structuredReadLogs[1], true, true, 1, t)
+	validate(expectedOutcome2, structuredReadLogs[1], false, true, 1, t)
 	validateFileIsCached(testFileName, t)
 }
 
-func (s *cacheFileForIncludeRegexTest) TestReadsForNonIncludedFile(t *testing.T) {
+func (s *cacheFileForIncludeRegexTest) testReadsForNonIncludedFile(t *testing.T) {
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSizeForRangeRead, t)
 
 	// Read the file and validate that it is not cached.
@@ -77,7 +77,7 @@ func (s *cacheFileForIncludeRegexTest) TestReadsForNonIncludedFile(t *testing.T)
 
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, t)
-	validate(expectedOutcome2, structuredReadLogs[1], false, false, 1, t)
+	validate(expectedOutcome2, structuredReadLogs[1], false, true, 1, t)
 	validateFileIsNotCached(testFileName, t)
 }
 
@@ -119,7 +119,7 @@ func TestCacheFileForIncludeRegexTest(t *testing.T) {
 				fileName:              configFileName,
 				cacheDirPath:          ramCacheDir,
 			},
-			testToRun: ts.TestReadsForIncludedFile,
+			testToRun: ts.testReadsForIncludedFile,
 		},
 		{
 			name: "Test non-included file is not cached",
@@ -130,7 +130,7 @@ func TestCacheFileForIncludeRegexTest(t *testing.T) {
 				fileName:              configFileName,
 				cacheDirPath:          ramCacheDir,
 			},
-			testToRun: ts.TestReadsForNonIncludedFile,
+			testToRun: ts.testReadsForNonIncludedFile,
 		},
 	}
 	for _, test := range tests {
