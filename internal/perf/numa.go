@@ -55,7 +55,7 @@ func MonitorNuma(ctx context.Context, config *cfg.Config, metricHandle metrics.M
 			logger.Infof("Starting a round of NUMA experiments.")
 			newBestNode, newBestBandwidth := runExperimentRound(config, metricHandle, bestNode, bestBandwidth)
 
-			if newBestNode == bestNode {
+			if newBestNode == bestNode && newBestBandwidth > 100 {
 				experimentInterval *= time.Duration(config.ExperimentalNumaExperimentIntervalMultiplier)
 				ticker.Reset(experimentInterval)
 				logger.Infof("Configuration is stable. New experiment interval: %v", experimentInterval)
