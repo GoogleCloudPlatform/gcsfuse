@@ -24,16 +24,16 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/lrita/numa"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
 
 func InitNuma() {
-	if !numa.Available() {
+	if !numaLib.Available() {
 		logger.Infof("NUMA not available on this system.")
 		return
 	}
 
-	nodes := numa.NodeMask()
+	nodes := numaLib.NodeMask()
 	firstNode := -1
 	for i := 0; i < nodes.Len(); i++ {
 		if nodes.Get(i) {
@@ -47,7 +47,7 @@ func InitNuma() {
 		// For a real-world scenario, this should be a more intelligent decision,
 		// for example, based on which node has more free memory or is closer to the
 		// network card that handles the GCS traffic.
-		err := numa.RunOnNode(firstNode)
+		err := numaLib.RunOnNode(firstNode)
 		if err != nil {
 			logger.Errorf("Failed to set NUMA affinity: %v", err)
 		} else {
@@ -114,8 +114,8 @@ func readUint64FromFile(path string) (uint64, error) {
 	return strconv.ParseUint(strings.TrimSpace(string(content)), 10, 64)
 }
 
-func MonitorNuma(config *cfg.Config) {
-	if !numa.Available() {
+func MonitorNuma(config *cfg.Config, metricHandle metrics.MetricHandle) {
+	if !numaLib.Available() {
 		return
 	}
 
@@ -133,7 +133,7 @@ func MonitorNuma(config *cfg.Config) {
 	experimentCounter := 0
 
 	// Get the initial node.
-	_, currentNode = numa.GetCPUAndNode()
+	_, currentNode = numaLib.GetCPUAndNode()
 	previousNode = currentNode
 
 	// Ticker for periodic checks.
@@ -141,42 +141,22 @@ func MonitorNuma(config *cfg.Config) {
 	defer ticker.Stop()
 
 	// Last stats for bandwidth calculation.
-	var lastStats map[int]networkStats
+	var lastReadBytes int64
 	var lastTime time.Time
 
 	for {
 		select {
 		case <-ticker.C:
-			// Get current network stats.
-			stats, err := getNetworkStatsPerNumaNode()
-			if err != nil {
-				logger.Errorf("Failed to get network stats per NUMA node: %v", err)
-				continue
-			}
-
 			// Calculate bandwidth.
-			if lastStats != nil {
+			readBytes := metricHandle.GcsReadBytesCountValue()
+			if lastTime != (time.Time{}) {
 				duration := time.Since(lastTime).Seconds()
 				if duration > 0 {
-					totalBw := float64(0)
-					for node, s := range stats {
-						lastS, ok := lastStats[node]
-						if !ok {
-							continue
-						}
-						bw := float64(s.rxBytes-lastS.rxBytes+s.txBytes-lastS.txBytes) / duration
-						if node == currentNode {
-							currentBandwidth = bw
-						}
-						totalBw += bw
-						logger.Infof("NUMA node %d: bandwidth %f B/s", node, bw)
-					}
-					if currentNode == -1 { // Unbound
-						currentBandwidth = totalBw
-					}
+					currentBandwidth = float64(readBytes-lastReadBytes) / duration
+					logger.Infof("Current bandwidth: %f B/s", currentBandwidth)
 				}
 			}
-			lastStats = stats
+			lastReadBytes = readBytes
 			lastTime = time.Now()
 
 			switch state {
@@ -189,7 +169,7 @@ func MonitorNuma(config *cfg.Config) {
 					if experimentCounter%int(config.ExperimentalNumaUnbindingExperimentFrequencyMultiplier) == 0 {
 						// Unbinding experiment.
 						logger.Infof("Starting unbinding experiment.")
-						err := numa.RunOnNode(-1)
+						err := numaLib.RunOnNode(-1)
 						if err != nil {
 							logger.Errorf("Failed to unbind NUMA affinity: %v", err)
 						} else {
@@ -199,7 +179,7 @@ func MonitorNuma(config *cfg.Config) {
 						}
 					} else {
 						// Node switching experiment.
-						nodesMask := numa.NodeMask()
+						nodesMask := numaLib.NodeMask()
 						var nodes []int
 						for i := 0; i < nodesMask.Len(); i++ {
 							if nodesMask.Get(i) {
@@ -222,7 +202,7 @@ func MonitorNuma(config *cfg.Config) {
 								}
 							}
 							logger.Infof("Starting experiment: switching from node %d to %d", currentNode, nextNode)
-							err := numa.RunOnNode(nextNode)
+							err := numaLib.RunOnNode(nextNode)
 							if err != nil {
 								logger.Errorf("Failed to switch NUMA affinity to node %d: %v", nextNode, err)
 							} else {
@@ -255,7 +235,7 @@ func MonitorNuma(config *cfg.Config) {
 				}
 
 			case ROLLING_BACK:
-				err := numa.RunOnNode(previousNode)
+				err := numaLib.RunOnNode(previousNode)
 				if err != nil {
 					logger.Errorf("Failed to rollback NUMA affinity to node %d: %v", previousNode, err)
 				} else {

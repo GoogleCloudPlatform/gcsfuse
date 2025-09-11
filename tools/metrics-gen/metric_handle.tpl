@@ -38,4 +38,7 @@ type MetricHandle interface {
 		{{- end }})
 
 {{end}}
+
+	// GcsReadBytesCountValue returns the current value of the gcs/read_bytes_count metric.
+	GcsReadBytesCountValue() int64
 }

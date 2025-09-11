@@ -4754,3 +4754,7 @@ func logUnrecognizedAttribute() {
 		logger.Tracef("Attribute %s is not declared", currentAttr)
 	}
 }
+
+func (o *otelMetrics) GcsReadBytesCountValue() int64 {
+	return o.gcsReadBytesCountAtomic.Load()
+}

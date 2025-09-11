@@ -74,4 +74,7 @@ type MetricHandle interface {
 
 	// GcsRetryCount - The cumulative number of retry requests made to GCS.
 	GcsRetryCount(inc int64, retryErrorCategory string)
+
+	// GcsReadBytesCountValue returns the current value of the gcs/read_bytes_count metric.
+	GcsReadBytesCountValue() int64
 }

@@ -34,6 +34,10 @@ type noopMetrics struct {}
 		{{- end }}){}
 {{end}}
 
+func (n *noopMetrics) GcsReadBytesCountValue() int64 {
+	return 0
+}
+
 func NewNoopMetrics() MetricHandle {
 	var n noopMetrics
 	return &n
