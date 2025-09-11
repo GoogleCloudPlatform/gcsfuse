@@ -92,7 +92,7 @@ func (t *mrdWrapperTest) Test_Read() {
 			t.mrdWrapper.Wrapped = nil
 			t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond))
 
-			bytesRead, err := t.mrdWrapper.Read(context.Background(), buf, int64(tc.start), int64(tc.end), metrics.NewNoopMetrics())
+			bytesRead, err := t.mrdWrapper.Read(context.Background(), buf, int64(tc.start), int64(tc.end), metrics.NewNoopMetrics(), false)
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), tc.end-tc.start, bytesRead)
@@ -105,7 +105,7 @@ func (t *mrdWrapperTest) Test_Read_ErrorInCreatingMRD() {
 	t.mrdWrapper.Wrapped = nil
 	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("Error in creating MRD")).Once()
 
-	bytesRead, err := t.mrdWrapper.Read(context.Background(), make([]byte, t.object.Size), 0, int64(t.object.Size), metrics.NewNoopMetrics())
+	bytesRead, err := t.mrdWrapper.Read(context.Background(), make([]byte, t.object.Size), 0, int64(t.object.Size), metrics.NewNoopMetrics(), false)
 
 	assert.ErrorContains(t.T(), err, "MultiRangeDownloaderWrapper::Read: Error in creating MultiRangeDownloader")
 	assert.Equal(t.T(), 0, bytesRead)
@@ -118,7 +118,7 @@ func (t *mrdWrapperTest) TestReadContextCancelledWithInterruptsEnabled() {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	bytesRead, err := t.mrdWrapper.Read(ctx, make([]byte, t.object.Size), 0, int64(t.object.Size), metrics.NewNoopMetrics())
+	bytesRead, err := t.mrdWrapper.Read(ctx, make([]byte, t.object.Size), 0, int64(t.object.Size), metrics.NewNoopMetrics(), false)
 
 	require.Error(t.T(), err)
 	assert.ErrorContains(t.T(), err, "context canceled")
@@ -131,7 +131,7 @@ func (t *mrdWrapperTest) TestReadContextCancelledWithInterruptsDisabled() {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	bytesRead, err := t.mrdWrapper.Read(ctx, make([]byte, t.object.Size), 0, int64(t.object.Size), metrics.NewNoopMetrics())
+	bytesRead, err := t.mrdWrapper.Read(ctx, make([]byte, t.object.Size), 0, int64(t.object.Size), metrics.NewNoopMetrics(), false)
 
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), 100, bytesRead)
@@ -141,7 +141,7 @@ func (t *mrdWrapperTest) Test_Read_EOF() {
 	t.mrdWrapper.Wrapped = nil
 	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleepAndDefaultError(t.object, t.objectData, time.Microsecond, io.EOF), nil).Once()
 
-	_, err := t.mrdWrapper.Read(context.Background(), make([]byte, t.object.Size), 0, int64(t.object.Size), metrics.NewNoopMetrics())
+	_, err := t.mrdWrapper.Read(context.Background(), make([]byte, t.object.Size), 0, int64(t.object.Size), metrics.NewNoopMetrics(), false)
 
 	assert.ErrorIs(t.T(), err, io.EOF)
 }
@@ -150,7 +150,7 @@ func (t *mrdWrapperTest) Test_Read_Error() {
 	t.mrdWrapper.Wrapped = nil
 	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleepAndDefaultError(t.object, t.objectData, time.Microsecond, fmt.Errorf("Error")), nil).Once()
 
-	bytesRead, err := t.mrdWrapper.Read(context.Background(), make([]byte, t.object.Size), 0, int64(t.object.Size), metrics.NewNoopMetrics())
+	bytesRead, err := t.mrdWrapper.Read(context.Background(), make([]byte, t.object.Size), 0, int64(t.object.Size), metrics.NewNoopMetrics(), false)
 
 	assert.ErrorContains(t.T(), err, "error in Add call")
 	assert.Equal(t.T(), 0, bytesRead)

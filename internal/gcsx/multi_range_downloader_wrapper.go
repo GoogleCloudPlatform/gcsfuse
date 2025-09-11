@@ -146,6 +146,11 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 		return
 	}
 
+	// We will only read what is requested by the client. Hence, capping end to the requested value.
+	if endOffset > startOffset+int64(len(buf)) {
+		endOffset = startOffset + int64(len(buf))
+	}
+
 	buffer := bytes.NewBuffer(buf)
 	buffer.Reset()
 	done := make(chan readResult, 1)
