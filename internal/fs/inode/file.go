@@ -317,7 +317,6 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 		if f.config.Write.EnableStreamingWrites {
 			logger.Warnf("Write on existing file %s of size %d bytes (non-zero) will use legacy staged writes "+
 				"because streaming writes is supported for sequential writes to new/empty files.", f.name.String(), f.src.Size)
-
 		}
 		tf, err := f.contentCache.NewTempFile(rc)
 		if err != nil {
@@ -566,7 +565,7 @@ func (f *FileInode) Read(
 	}
 
 	// Make sure f.content != nil.
-	err = f.ensureContent(ctx)
+	err = f.ensureContent(ctx) // This shouldn't print any error.
 	if err != nil {
 		err = fmt.Errorf("ensureContent: %w", err)
 		return
