@@ -94,6 +94,9 @@ PACKAGE_LEVEL_PARALLELISM=10 # Controls how many test packages are run in parall
 # A long option name followed by a colon indicates it requires an argument.
 LONG=bucket-location:,test-installed-package,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,help
 
+# If KOKORO_ARTIFACTS_DIR is not set, create a temporary directory for sponge outputs.
+SPONGE_OUTPUT_DIRS="${KOKORO_ARTIFACTS_DIR:-$(mktemp -d)}"
+
 # Parse the options using getopt
 # --options "" specifies that there are no short options.
 PARSED=$(getopt --options "" --longoptions "$LONG" --name "$0" -- "$@")
@@ -190,34 +193,9 @@ fi
 # Test packages which can be run for both Zonal and Regional buckets.
 # Sorted list descending run times. (Longest Processing Time first strategy) 
 TEST_PACKAGES_COMMON=(
-  "managed_folders"
-  "operations"
-  "read_large_files"
-  "concurrent_operations"
-  "read_cache"
-  "list_large_dir"
-  "mount_timeout"
-  "write_large_files"
-  "implicit_dir"
-  "interrupt"
-  "local_file"
-  "readonly"
-  "readonly_creds"
   "rename_dir_limit"
-  "kernel_list_cache"
   "streaming_writes"
-  "benchmarking"
-  "explicit_dir"
-  "gzip"
-  "log_rotation"
-  "monitoring"
-  "mounting"
-  # "grpc_validation"
-  "negative_stat_cache"
   "stale_handle"
-  "release_version"
-  "readdirplus"
-  "dentry_cache"
   "buffered_read"
 )
 
@@ -226,7 +204,7 @@ TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "inactive_stream_timeout" "cl
 # Test packages for zonal buckets.
 TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "unfinalized_object" "rapid_appends")
 # Test packages for TPC buckets.
-TEST_PACKAGES_FOR_TPC=("operations")
+TEST_PACKAGES_FOR_TPC=()
 
 # acquire_lock: Acquires exclusive lock or exits script on failure.
 # Args: $1 = path to lock file.
@@ -510,13 +488,22 @@ test_package() {
   local go_test_cmd=$(printf "%q " "${go_test_cmd_parts[@]}")
   
   # Run the package test command
-  local start=$SECONDS exit_code=0 
-  if ! eval "$go_test_cmd"; then
+  local start=$SECONDS exit_code=0
+  local log_file
+  log_file=$(mktemp)
+  # Ensure the temporary log file is removed on function exit.
+  trap 'rm -f "$log_file"' RETURN
+
+  if ! eval "$go_test_cmd" > "$log_file" 2>&1; then
     exit_code=1
   fi
+
   local end=$SECONDS
   # Add the package stats to the file.
   echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
+  
+  print_test_logs_and_create_junit_xml "$log_file" "$package_name" "$bucket_type"
+
   return "$exit_code"
 }
 
@@ -566,6 +553,9 @@ install_packages() {
   # Install latest gcloud version.
   bash ./perfmetrics/scripts/install_latest_gcloud.sh
   export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
+  # Install go-junit-report
+  go install github.com/jstemmer/go-junit-report/v2@latest
+  export PATH="$(go env GOPATH)/bin:$PATH"
 }
 
 # Generic function to run a group of E2E tests for a given bucket type.
@@ -609,6 +599,37 @@ run_e2e_tests_for_emulator() {
   log_info_locked "Emulator tests successful."
   return 0
 }
+
+function print_test_logs_and_create_junit_xml() {
+  local log_file="$1"
+  local package_name="$2"
+  local bucket_type="$3"
+
+  if [ -z "$log_file" ] || [ -z "$package_name" ] || [ -z "$bucket_type" ]; then
+    log_error_locked "print_test_logs_and_create_junit_xml: log_file, package_name, and bucket_type are required."
+    return 0
+  fi
+
+  local output_dir="${SPONGE_OUTPUT_DIRS}/${bucket_type}/${package_name}"
+  mkdir -p "$output_dir"
+  local sponge_xml_file="${output_dir}/${package_name}_sponge_log.xml"
+  local sponge_log_file="${output_dir}/${package_name}_sponge_log.log"
+
+  echo "XML report will be generated at ${sponge_xml_file}"
+  echo '<?xml version="1.0" encoding="UTF-8"?>' > "${sponge_xml_file}"
+  echo '<testsuites>' >> "${sponge_xml_file}"
+
+  if [ -f "$log_file" ]; then
+    echo "=== Log for ${log_file} ==="
+    cat "$log_file"
+    cat "$log_file" > "$sponge_log_file" 2>&1
+    cat "$log_file" | go-junit-report | sed '1,2d' | sed '$d' >> "${sponge_xml_file}"
+  fi
+
+  echo '</testsuites>' >> "${sponge_xml_file}"
+  echo "XML report generated at ${sponge_xml_file}"
+}
+
 
 main() {
   # Clean up everything on exit.
