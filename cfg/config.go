@@ -186,6 +186,8 @@ type GcsConnectionConfig struct {
 
 	MaxIdleConnsPerHost int64 `yaml:"max-idle-conns-per-host"`
 
+	MultiNic bool `yaml:"multi-nic"`
+
 	SequentialReadSizeMb int64 `yaml:"sequential-read-size-mb"`
 }
 
@@ -628,6 +630,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	if err := flagSet.MarkHidden("metrics-workers"); err != nil {
 		return err
 	}
+
+	flagSet.BoolP("multi-nic", "", false, "Enable multi-NIC support.")
 
 	flagSet.StringSliceP("o", "", []string{}, "Additional system-specific mount options. Multiple options can be passed as comma separated. For readonly, use --o ro")
 
@@ -1081,6 +1085,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metrics.workers", flagSet.Lookup("metrics-workers")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("gcs-connection.multi-nic", flagSet.Lookup("multi-nic")); err != nil {
 		return err
 	}
 

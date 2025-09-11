@@ -436,6 +436,12 @@ params:
     usage: "The number of maximum idle connections allowed per server."
     default: "100"
 
+  - config-path: "gcs-connection.multi-nic"
+    flag-name: "multi-nic"
+    type: "bool"
+    usage: "Enable multi-NIC support."
+    default: false
+
   - config-path: "gcs-connection.sequential-read-size-mb"
     flag-name: "sequential-read-size-mb"
     type: "int"

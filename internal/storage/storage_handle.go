@@ -16,10 +16,12 @@ package storage
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -31,6 +33,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
@@ -126,6 +129,14 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 		clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithStatsHandler(otelgrpc.NewClientHandler())))
 	}
 
+	if clientConfig.MultiNic {
+		dialer, err := createMultiNicDialer()
+		if err != nil {
+			return nil, fmt.Errorf("while creating multi-nic dialer: %w", err)
+		}
+		clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithContextDialer(dialer)))
+	}
+
 	clientOpts = append(clientOpts, option.WithGRPCConnectionPool(clientConfig.GrpcConnPoolSize))
 	clientOpts = append(clientOpts, option.WithUserAgent(clientConfig.UserAgent))
 	// Turning off the go-sdk metrics exporter to prevent any problems.
@@ -191,6 +202,26 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	}
 
 	return
+}
+
+func createMultiNicDialer() (func(ctx context.Context, address string) (net.Conn, error), error) {
+	localIPs, err := util.GetLocalIPs()
+	if err != nil {
+		return nil, fmt.Errorf("while getting local IPs: %w", err)
+	}
+	if len(localIPs) == 0 {
+		return nil, fmt.Errorf("no local IPs found")
+	}
+
+	var counter uint32
+	return func(ctx context.Context, address string) (net.Conn, error) {
+		nextIndex := atomic.AddUint32(&counter, 1) % uint32(len(localIPs))
+		localIP := localIPs[nextIndex]
+		dialer := &net.Dialer{
+			LocalAddr: &net.TCPAddr{IP: localIP},
+		}
+		return dialer.DialContext(ctx, "tcp", address)
+	}, nil
 }
 
 func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig) (sc *storage.Client, err error) {
@@ -297,7 +328,7 @@ func (sh *storageClient) getStorageLayout(bucketName string) (*controlpb.Storage
 
 // NewStorageHandle creates control client and stores client config to allow dynamic
 // creation of http or grpc client.
-func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClientConfig, billingProject string) (sh StorageHandle, err error) {
+func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClientConfig) (sh StorageHandle, err error) {
 	// The default protocol for the Go Storage control client's folders API is gRPC.
 	// gcsfuse will initially mirror this behavior due to the client's lack of HTTP support.
 	var controlClient StorageControlClient
@@ -327,7 +358,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 			return nil, fmt.Errorf("could not add custom gax retries to StorageControl Client: %w", err)
 		}
 		// special handling for mounts created with custom billing projects.
-		controlClientWithBillingProject := withBillingProject(rawStorageControlClientWithoutGaxRetries, billingProject)
+		controlClientWithBillingProject := withBillingProject(rawStorageControlClientWithoutGaxRetries, clientConfig.BillingProject)
 		// Wrap the control client with retry-on-stall logic.
 		// This will retry on only on GetStorageLayout call for all buckets.
 		controlClient = withRetryOnStorageLayout(controlClientWithBillingProject, &clientConfig)

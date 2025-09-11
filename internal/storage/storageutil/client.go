@@ -17,13 +17,16 @@ package storageutil
 import (
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptrace"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -68,20 +71,30 @@ type StorageClientConfig struct {
 	MetricHandle metrics.MetricHandle
 
 	TracingEnabled bool
+
+	BillingProject string
+	MultiNic       bool
 }
 
 func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.TokenSource) (httpClient *http.Client, err error) {
-	var transport *http.Transport
+	var transport http.RoundTripper
 	// Using http1 makes the client more performant.
 	if storageClientConfig.ClientProtocol == cfg.HTTP1 {
-		transport = &http.Transport{
-			Proxy:               http.ProxyFromEnvironment,
-			MaxConnsPerHost:     storageClientConfig.MaxConnsPerHost,
-			MaxIdleConnsPerHost: storageClientConfig.MaxIdleConnsPerHost,
-			// This disables HTTP/2 in transport.
-			TLSNextProto: make(
-				map[string]func(string, *tls.Conn) http.RoundTripper,
-			),
+		if storageClientConfig.MultiNic {
+			transport, err = newMultiNicRoundTripper(storageClientConfig)
+			if err != nil {
+				return nil, fmt.Errorf("while creating multi-nic round tripper: %w", err)
+			}
+		} else {
+			transport = &http.Transport{
+				Proxy:               http.ProxyFromEnvironment,
+				MaxConnsPerHost:     storageClientConfig.MaxConnsPerHost,
+				MaxIdleConnsPerHost: storageClientConfig.MaxIdleConnsPerHost,
+				// This disables HTTP/2 in transport.
+				TLSNextProto: make(
+					map[string]func(string, *tls.Conn) http.RoundTripper,
+				),
+			}
 		}
 	} else {
 		// For http2, change in MaxConnsPerHost doesn't affect the performance.
@@ -154,4 +167,48 @@ func StripScheme(url string) string {
 		url = strings.SplitN(url, urlSchemeSeparator, 2)[1]
 	}
 	return url
+}
+
+type multiNicRoundTripper struct {
+	transports []*http.Transport
+	counter    uint32
+}
+
+func (rt *multiNicRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	nextIndex := atomic.AddUint32(&rt.counter, 1) % uint32(len(rt.transports))
+	transport := rt.transports[nextIndex]
+	return transport.RoundTrip(req)
+}
+
+func newMultiNicRoundTripper(storageClientConfig *StorageClientConfig) (*multiNicRoundTripper, error) {
+	localIPs, err := util.GetLocalIPs()
+	if err != nil {
+		return nil, fmt.Errorf("while getting local IPs: %w", err)
+	}
+	if len(localIPs) == 0 {
+		return nil, fmt.Errorf("no local IPs found")
+	}
+
+	transports := make([]*http.Transport, 0, len(localIPs))
+	for _, ip := range localIPs {
+		transport := &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				LocalAddr: &net.TCPAddr{IP: ip},
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
+			MaxConnsPerHost:     storageClientConfig.MaxConnsPerHost,
+			MaxIdleConnsPerHost: storageClientConfig.MaxIdleConnsPerHost,
+			// This disables HTTP/2 in transport.
+			TLSNextProto: make(
+				map[string]func(string, *tls.Conn) http.RoundTripper,
+			),
+		}
+		transports = append(transports, transport)
+	}
+
+	return &multiNicRoundTripper{
+		transports: transports,
+	}, nil
 }
