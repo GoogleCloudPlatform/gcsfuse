@@ -50,7 +50,7 @@ func MonitorNuma(ctx context.Context, config *cfg.Config, metricHandle metrics.M
 			logger.Infof("Starting a round of NUMA experiments.")
 			newBestNode, newBestBandwidth := runExperimentRound(config, metricHandle, bestNode, bestBandwidth)
 
-			if newBestNode == bestNode && newBestBandwidth > 100 {
+			if newBestNode == bestNode && newBestBandwidth > 0 {
 				experimentInterval *= time.Duration(config.ExperimentalNumaExperimentIntervalMultiplier)
 				ticker.Reset(experimentInterval)
 				logger.Infof("Configuration is stable. New experiment interval: %v", experimentInterval)
@@ -89,9 +89,13 @@ func runExperimentRound(config *cfg.Config, metricHandle metrics.MetricHandle, c
 		logger.Infof("Unbound bandwidth: %f B/s", unboundBandwidth)
 		var improvement float64
 		if bestBandwidth > 0 {
-			improvement = (unboundBandwidth - bestBandwidth) / bestBandwidth * 100
+			improvement = ((unboundBandwidth - bestBandwidth) / bestBandwidth) * 100
 		}
-		if (bestBandwidth == 0 && unboundBandwidth > 0) || (bestBandwidth > 0 && improvement > float64(config.ExperimentalNumaImprovementThresholdPercent)) {
+		if unboundBandwidth == 0 {
+			bestBandwidth = 0
+			bestNode = -1
+			return bestNode, bestBandwidth
+		} else if (bestBandwidth == 0 && unboundBandwidth > 0) || (bestBandwidth > 0 && improvement > float64(config.ExperimentalNumaImprovementThresholdPercent)) {
 			bestBandwidth = unboundBandwidth
 			bestNode = -1
 		}

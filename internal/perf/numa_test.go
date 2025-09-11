@@ -78,7 +78,7 @@ func TestRunExperimentRound_NoImprovement(t *testing.T) {
 	mockMetricHandle := metrics.NewMockMetricHandle(ctrl)
 	config := &cfg.Config{
 		ExperimentalNumaImprovementThresholdPercent: 10,
-		ExperimentalNumaMeasurementDurationSeconds:   1,
+		ExperimentalNumaMeasurementDurationSeconds:  1,
 	}
 	currentBestNode := 0
 	currentBestBandwidth := 100.0
@@ -116,7 +116,7 @@ func TestRunExperimentRound_UnboundImproves(t *testing.T) {
 	mockMetricHandle := metrics.NewMockMetricHandle(ctrl)
 	config := &cfg.Config{
 		ExperimentalNumaImprovementThresholdPercent: 10,
-		ExperimentalNumaMeasurementDurationSeconds:   1,
+		ExperimentalNumaMeasurementDurationSeconds:  1,
 	}
 	currentBestNode := 0
 	currentBestBandwidth := 100.0
@@ -154,7 +154,7 @@ func TestRunExperimentRound_NodeImproves(t *testing.T) {
 	mockMetricHandle := metrics.NewMockMetricHandle(ctrl)
 	config := &cfg.Config{
 		ExperimentalNumaImprovementThresholdPercent: 10,
-		ExperimentalNumaMeasurementDurationSeconds:   1,
+		ExperimentalNumaMeasurementDurationSeconds:  1,
 	}
 	currentBestNode := 0
 	currentBestBandwidth := 100.0
@@ -192,7 +192,7 @@ func TestRunExperimentRound_InitialZeroBandwidth(t *testing.T) {
 	mockMetricHandle := metrics.NewMockMetricHandle(ctrl)
 	config := &cfg.Config{
 		ExperimentalNumaImprovementThresholdPercent: 10,
-		ExperimentalNumaMeasurementDurationSeconds:   1,
+		ExperimentalNumaMeasurementDurationSeconds:  1,
 	}
 	currentBestNode := -1
 	currentBestBandwidth := 0.0
