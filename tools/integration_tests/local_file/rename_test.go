@@ -46,6 +46,7 @@ func (t *LocalFileTestSuite) TestRenameOfLocalFile() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create local file with some content.
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
+	defer operations.CloseFileShouldNotThrowError(t.T(), fh)
 	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t.T())
 
 	// Attempt to rename local file.
