@@ -86,6 +86,8 @@ type Config struct {
 
 	OnlyDir string `yaml:"only-dir"`
 
+	Profile string `yaml:"profile"`
+
 	Read ReadConfig `yaml:"read"`
 
 	Write WriteConfig `yaml:"write"`
@@ -637,6 +639,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.StringP("profile", "", "", "The name of the profile to apply. e.g. aiml-training, aiml-serving, aiml-checkpointing")
+
+	if err := flagSet.MarkHidden("profile"); err != nil {
+		return err
+	}
+
 	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
 
 	flagSet.IntP("read-block-size-mb", "", 16, "Specifies the block size for buffered reads. The value should be more than 0. This is used to read data in chunks from GCS.")
@@ -1085,6 +1093,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.precondition-errors", flagSet.Lookup("precondition-errors")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("profile", flagSet.Lookup("profile")); err != nil {
 		return err
 	}
 
