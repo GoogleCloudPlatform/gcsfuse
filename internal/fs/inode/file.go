@@ -949,7 +949,7 @@ func (f *FileInode) truncateUsingBufferedWriteHandler(ctx context.Context, size 
 	err := f.bwh.Truncate(size)
 	// If truncate size is less than the total file size resulting in OutOfOrder write, finalize and fall back to temp file.
 	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
-		logger.Warnf("Out of order write detected.File %s will now use legacy staged writes because "+
+		logger.Warnf("Out of order write detected. File %s will now use legacy staged writes because "+
 			"streaming writes is supported for sequential writes to new/empty files.", f.name.String())
 		// Finalize the object.
 		err = f.flushUsingBufferedWriteHandler()
