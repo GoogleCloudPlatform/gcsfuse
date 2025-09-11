@@ -83,6 +83,7 @@ func validate(expected *Expected, logEntry *read_logs.BufferedReadLogEntry, fall
 func setupFileInTestDir(ctx context.Context, storageClient *storage.Client, testDir string, fileSize int64, t *testing.T) (fileName string) {
 	fileName = testFileName + setup.GenerateRandomString(4)
 	client.SetupFileInTestDirectory(ctx, storageClient, path.Base(testDir), fileName, fileSize, t)
+	operations.WaitForSizeUpdate(setup.IsZonalBucketRun())
 	return fileName
 }
 
