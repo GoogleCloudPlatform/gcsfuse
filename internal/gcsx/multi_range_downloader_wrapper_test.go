@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"sync"
 	"testing"
 	"time"
 
@@ -62,72 +61,6 @@ func (t *mrdWrapperTest) SetupTest() {
 	t.mrdWrapper, err = NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{WaitTime: t.mrdTimeout}, &cfg.Config{})
 	assert.Nil(t.T(), err, "Error in creating MRDWrapper")
 	t.mrdWrapper.Wrapped = fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond)
-	t.mrdWrapper.refCount = 0
-}
-
-func (t *mrdWrapperTest) Test_IncrementRefCount_ParallelUpdates() {
-	const finalRefCount int = 1
-	wg := sync.WaitGroup{}
-	for i := 0; i < finalRefCount; i++ {
-		wg.Add(1)
-		go func() {
-			t.mrdWrapper.IncrementRefCount()
-			wg.Done()
-		}()
-	}
-	wg.Wait()
-
-	assert.Equal(t.T(), finalRefCount, t.mrdWrapper.refCount)
-}
-
-func (t *mrdWrapperTest) Test_IncrementRefCount_CancelCleanup() {
-	const finalRefCount int = 1
-	t.mrdWrapper.IncrementRefCount()
-	err := t.mrdWrapper.DecrementRefCount()
-
-	assert.Nil(t.T(), err)
-	assert.Nil(t.T(), t.mrdWrapper.Wrapped)
-
-	t.mrdWrapper.IncrementRefCount()
-
-	assert.Equal(t.T(), finalRefCount, t.mrdWrapper.refCount)
-	assert.Nil(t.T(), t.mrdWrapper.cancelCleanup)
-}
-
-func (t *mrdWrapperTest) Test_DecrementRefCount_ParallelUpdates() {
-	const finalRefCount int = 0
-	maxRefCount := 10
-	wg := sync.WaitGroup{}
-	// Incrementing refcount in parallel.
-	for i := 0; i < maxRefCount; i++ {
-		wg.Add(1)
-		go func() {
-			t.mrdWrapper.IncrementRefCount()
-			wg.Done()
-		}()
-	}
-	wg.Wait()
-	// Decrementing refcount in parallel.
-	for i := 0; i < maxRefCount; i++ {
-		wg.Add(1)
-		go func() {
-			err := t.mrdWrapper.DecrementRefCount()
-			assert.Nil(t.T(), err)
-			wg.Done()
-		}()
-	}
-	wg.Wait()
-
-	assert.Equal(t.T(), finalRefCount, t.mrdWrapper.GetRefCount())
-	assert.Nil(t.T(), t.mrdWrapper.Wrapped)
-	// Waiting for the cleanup to be done.
-	time.Sleep(t.mrdTimeout + time.Millisecond)
-	assert.Nil(t.T(), t.mrdWrapper.Wrapped)
-}
-
-func (t *mrdWrapperTest) Test_DecrementRefCount_InvalidUse() {
-	errMsg := "MultiRangeDownloaderWrapper DecrementRefCount: Refcount cannot be negative"
-	assert.ErrorContains(t.T(), t.mrdWrapper.DecrementRefCount(), errMsg)
 }
 
 func (t *mrdWrapperTest) Test_Read() {
@@ -159,7 +92,7 @@ func (t *mrdWrapperTest) Test_Read() {
 			t.mrdWrapper.Wrapped = nil
 			t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond))
 
-			bytesRead, err := t.mrdWrapper.Read(context.Background(), buf, int64(tc.start), int64(tc.end), metrics.NewNoopMetrics())
+			bytesRead, err := t.mrdWrapper.Read(context.Background(), buf, int64(tc.start), int64(tc.end), metrics.NewNoopMetrics(), false)
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), tc.end-tc.start, bytesRead)
@@ -172,7 +105,7 @@ func (t *mrdWrapperTest) Test_Read_ErrorInCreatingMRD() {
 	t.mrdWrapper.Wrapped = nil
 	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("Error in creating MRD")).Once()
 
-	bytesRead, err := t.mrdWrapper.Read(context.Background(), make([]byte, t.object.Size), 0, int64(t.object.Size), metrics.NewNoopMetrics())
+	bytesRead, err := t.mrdWrapper.Read(context.Background(), make([]byte, t.object.Size), 0, int64(t.object.Size), metrics.NewNoopMetrics(), false)
 
 	assert.ErrorContains(t.T(), err, "MultiRangeDownloaderWrapper::Read: Error in creating MultiRangeDownloader")
 	assert.Equal(t.T(), 0, bytesRead)
@@ -185,7 +118,7 @@ func (t *mrdWrapperTest) TestReadContextCancelledWithInterruptsEnabled() {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	bytesRead, err := t.mrdWrapper.Read(ctx, make([]byte, t.object.Size), 0, int64(t.object.Size), metrics.NewNoopMetrics())
+	bytesRead, err := t.mrdWrapper.Read(ctx, make([]byte, t.object.Size), 0, int64(t.object.Size), metrics.NewNoopMetrics(), false)
 
 	require.Error(t.T(), err)
 	assert.ErrorContains(t.T(), err, "context canceled")
@@ -198,7 +131,7 @@ func (t *mrdWrapperTest) TestReadContextCancelledWithInterruptsDisabled() {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	bytesRead, err := t.mrdWrapper.Read(ctx, make([]byte, t.object.Size), 0, int64(t.object.Size), metrics.NewNoopMetrics())
+	bytesRead, err := t.mrdWrapper.Read(ctx, make([]byte, t.object.Size), 0, int64(t.object.Size), metrics.NewNoopMetrics(), false)
 
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), 100, bytesRead)
@@ -208,7 +141,7 @@ func (t *mrdWrapperTest) Test_Read_EOF() {
 	t.mrdWrapper.Wrapped = nil
 	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleepAndDefaultError(t.object, t.objectData, time.Microsecond, io.EOF), nil).Once()
 
-	_, err := t.mrdWrapper.Read(context.Background(), make([]byte, t.object.Size), 0, int64(t.object.Size), metrics.NewNoopMetrics())
+	_, err := t.mrdWrapper.Read(context.Background(), make([]byte, t.object.Size), 0, int64(t.object.Size), metrics.NewNoopMetrics(), false)
 
 	assert.ErrorIs(t.T(), err, io.EOF)
 }
@@ -217,7 +150,7 @@ func (t *mrdWrapperTest) Test_Read_Error() {
 	t.mrdWrapper.Wrapped = nil
 	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleepAndDefaultError(t.object, t.objectData, time.Microsecond, fmt.Errorf("Error")), nil).Once()
 
-	bytesRead, err := t.mrdWrapper.Read(context.Background(), make([]byte, t.object.Size), 0, int64(t.object.Size), metrics.NewNoopMetrics())
+	bytesRead, err := t.mrdWrapper.Read(context.Background(), make([]byte, t.object.Size), 0, int64(t.object.Size), metrics.NewNoopMetrics(), false)
 
 	assert.ErrorContains(t.T(), err, "error in Add call")
 	assert.Equal(t.T(), 0, bytesRead)
@@ -321,7 +254,9 @@ func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader() {
 			t.mrdWrapper.object = tc.obj
 			t.mrdWrapper.Wrapped = nil
 			t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond))
-			err := t.mrdWrapper.ensureMultiRangeDownloader()
+			t.mrdWrapper.mu.RLock()
+			defer t.mrdWrapper.mu.RUnlock()
+			err := t.mrdWrapper.ensureMultiRangeDownloader(false)
 			if tc.err == nil {
 				assert.NoError(t.T(), err)
 				assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
@@ -340,8 +275,10 @@ func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader_UnusableExistingMRDTrig
 	t.mrdWrapper.Wrapped = fake.NewFakeMultiRangeDownloaderWithStatusError(t.object, t.objectData, fmt.Errorf("MRD is unusable..."))
 
 	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond))
+	t.mrdWrapper.mu.RLock()
+	defer t.mrdWrapper.mu.RUnlock()
 
-	err := t.mrdWrapper.ensureMultiRangeDownloader()
+	err := t.mrdWrapper.ensureMultiRangeDownloader(false)
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
@@ -352,8 +289,10 @@ func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader_UsableExistingMRDPreven
 	t.mrdWrapper.bucket = t.mockBucket
 	t.mrdWrapper.object = t.object
 	t.mrdWrapper.Wrapped = fake.NewFakeMultiRangeDownloaderWithStatusError(t.object, t.objectData, nil)
+	t.mrdWrapper.mu.RLock()
+	defer t.mrdWrapper.mu.RUnlock()
 
-	err := t.mrdWrapper.ensureMultiRangeDownloader()
+	err := t.mrdWrapper.ensureMultiRangeDownloader(false)
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), t.mrdWrapper.Wrapped)

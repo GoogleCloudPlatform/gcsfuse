@@ -18,10 +18,8 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"sync/atomic"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
@@ -33,9 +31,6 @@ type MultiRangeReader struct {
 
 	// mrdWrapper points to the wrapper object within inode.
 	mrdWrapper *gcsx.MultiRangeDownloaderWrapper
-
-	// boolean variable to determine if MRD is being used or not.
-	isMRDInUse atomic.Bool
 
 	metricHandle metrics.MetricHandle
 }
@@ -63,16 +58,12 @@ func NewMultiRangeReader(object *gcs.MinObject, metricHandle metrics.MetricHandl
 // Returns:
 //   - int: The number of bytes read.
 //   - error: An error if the read operation fails.
-func (mrd *MultiRangeReader) readFromMultiRangeReader(ctx context.Context, p []byte, offset, end int64) (int, error) {
+func (mrd *MultiRangeReader) readFromMultiRangeReader(ctx context.Context, p []byte, offset, end int64, forceCreateMRD bool) (int, error) {
 	if mrd.mrdWrapper == nil {
 		return 0, fmt.Errorf("readFromMultiRangeReader: Invalid MultiRangeDownloaderWrapper")
 	}
 
-	if mrd.isMRDInUse.CompareAndSwap(false, true) {
-		mrd.mrdWrapper.IncrementRefCount()
-	}
-
-	return mrd.mrdWrapper.Read(ctx, p, offset, end, mrd.metricHandle)
+	return mrd.mrdWrapper.Read(ctx, p, offset, end, mrd.metricHandle, forceCreateMRD)
 }
 
 func (mrd *MultiRangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (gcsx.ReaderResponse, error) {
@@ -87,17 +78,10 @@ func (mrd *MultiRangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequ
 		return readerResponse, err
 	}
 
-	readerResponse.Size, err = mrd.readFromMultiRangeReader(ctx, req.Buffer, req.Offset, req.EndOffset)
+	readerResponse.Size, err = mrd.readFromMultiRangeReader(ctx, req.Buffer, req.Offset, req.EndOffset, req.ForceCreateReader)
 
 	return readerResponse, err
 }
 
 func (mrd *MultiRangeReader) destroy() {
-	if mrd.isMRDInUse.Load() {
-		err := mrd.mrdWrapper.DecrementRefCount()
-		if err != nil {
-			logger.Errorf("randomReader::Destroy:%v", err)
-		}
-		mrd.isMRDInUse.Store(false)
-	}
 }

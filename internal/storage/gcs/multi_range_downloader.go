@@ -23,4 +23,5 @@ type MultiRangeDownloader interface {
 	Close() error
 	Wait()
 	Error() error
+	GetHandle() []byte
 }

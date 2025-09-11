@@ -118,6 +118,14 @@ func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (
 	}
 	var err error
 
+	if req.ForceCreateReader && rr.reader != nil {
+		rr.closeReader()
+		rr.reader = nil
+		rr.cancel = nil
+		rr.start = -1
+		rr.limit = -1
+	}
+
 	readerResponse.Size, err = rr.readFromExistingReader(ctx, req)
 	if errors.Is(err, gcsx.FallbackToAnotherReader) {
 		readerResponse.Size, err = rr.readFromRangeReader(ctx, req.Buffer, req.Offset, req.EndOffset, rr.readType)

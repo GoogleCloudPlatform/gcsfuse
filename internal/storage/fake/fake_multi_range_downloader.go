@@ -138,3 +138,7 @@ func (fmrd *fakeMultiRangeDownloader) Wait() {
 func (fmrd *fakeMultiRangeDownloader) Error() error {
 	return fmrd.statusErr
 }
+
+func (fmrd *fakeMultiRangeDownloader) GetHandle() []byte {
+	return nil
+}
