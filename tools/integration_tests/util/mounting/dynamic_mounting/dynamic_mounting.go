@@ -23,10 +23,9 @@ import (
 
 	"cloud.google.com/go/compute/metadata"
 	"cloud.google.com/go/storage"
-
-	client_util "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 const PrefixBucketForDynamicMountingTest = "gcsfuse-dynamic-mounting-test-"
@@ -71,32 +70,8 @@ func runTestsOnGivenMountedTestBucket(bucketName string, flags [][]string, rootM
 	return
 }
 
-func executeTestsForDynamicMounting(flags [][]string, createdBucket string, m *testing.M) (successCode int) {
-	rootMntDir := setup.MntDir()
-
-	// In dynamic mounting all the buckets mounted in mntDir which user has permission.
-	// mntDir - bucket1, bucket2, bucket3, ...
-	// We will test on passed testBucket and one created bucket.
-
-	// SetDynamicBucketMounted to the passed test bucket.
-	setup.SetDynamicBucketMounted(setup.TestBucket())
-	// Test on testBucket
-	successCode = runTestsOnGivenMountedTestBucket(setup.TestBucket(), flags, rootMntDir, m)
-
-	// Test on created bucket.
-	// SetDynamicBucketMounted to the mounted bucket.
-	setup.SetDynamicBucketMounted(createdBucket)
-	if successCode == 0 {
-		successCode = runTestsOnGivenMountedTestBucket(createdBucket, flags, rootMntDir, m)
-	}
-	// Reset SetDynamicBucketMounted to empty after tests are done.
-	setup.SetDynamicBucketMounted("")
-
-	// Setting back the original mntDir after testing.
-	setup.SetMntDir(rootMntDir)
-	return
-}
-
+// Deprecated: Not required
+// TODO(b/438068132): cleanup deprecated methods after migration is complete.
 func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Client) (bucketName string, err error) {
 	projectID, err := metadata.ProjectIDWithContext(ctx)
 	if err != nil {
@@ -136,21 +111,38 @@ func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Cli
 	return
 }
 
+func executeTestsForDynamicMounting(config *test_suite.TestConfig, flagsSet [][]string, m *testing.M) (successCode int) {
+	rootMntDir := setup.MntDir()
+
+	// In dynamic mounting all the buckets mounted in mntDir which user has permission.
+	// mntDir - bucket1, bucket2, bucket3, ...
+
+	// SetDynamicBucketMounted to the passed test bucket.
+	setup.SetDynamicBucketMounted(config.TestBucket)
+	successCode = runTestsOnGivenMountedTestBucket(config.TestBucket, flagsSet, rootMntDir, m)
+
+	// Reset SetDynamicBucketMounted to empty after tests are done.
+	setup.SetDynamicBucketMounted("")
+
+	// Setting back the original mntDir after testing.
+	setup.SetMntDir(rootMntDir)
+	return
+}
+
+// Deprecated: Use RunTestsWithConfigFile instead.
+// TODO(b/438068132): cleanup deprecated methods after migration is complete.
 func RunTests(ctx context.Context, client *storage.Client, flags [][]string, m *testing.M) (successCode int) {
+	config := &test_suite.TestConfig{
+		TestBucket:       setup.TestBucket(),
+		MountedDirectory: setup.MountedDirectory(),
+		LogFile:          setup.LogFile(),
+	}
+	return RunTestsWithConfigFile(config, flags, m)
+}
+
+func RunTestsWithConfigFile(config *test_suite.TestConfig, flagsSet [][]string, m *testing.M) (successCode int) {
 	log.Println("Running dynamic mounting tests...")
-
-	createdBucket, err := CreateTestBucketForDynamicMounting(ctx, client)
-	if err != nil {
-		log.Fatalf("Failed to create bucket for dynamic mounting test: %v", err)
-	}
-
-	successCode = executeTestsForDynamicMounting(flags, createdBucket, m)
-
+	successCode = executeTestsForDynamicMounting(config, flagsSet, m)
 	log.Printf("Test log: %s\n", setup.LogFile())
-
-	if err := client_util.DeleteBucket(ctx, client, createdBucket); err != nil {
-		log.Fatalf("Failed to delete the created bucket for dynamic mounting test: %s. Error: %v", createdBucket, err)
-	}
-
 	return successCode
 }
