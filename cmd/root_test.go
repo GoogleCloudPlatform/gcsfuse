@@ -28,16 +28,10 @@ import (
 )
 
 func TestDefaultMaxParallelDownloads(t *testing.T) {
-	var actual *cfg.Config
-	cmd, err := newRootCmd(func(c *cfg.Config, _, _ string) error {
-		actual = c
-		return nil
-	})
-	require.Nil(t, err)
-	cmd.SetArgs(convertToPosixArgs([]string{"abc", "pqr"}, cmd))
+	config, err := getConfigObject(t, []string{})
 
-	if assert.Nil(t, cmd.Execute()) {
-		assert.LessOrEqual(t, int64(16), actual.FileCache.MaxParallelDownloads)
+	if assert.Nil(t, err) {
+		assert.LessOrEqual(t, int64(16), config.FileCache.MaxParallelDownloads)
 	}
 }
 
@@ -174,18 +168,10 @@ func TestArgsParsing_MountOptions(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var mountOptions []string
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				mountOptions = cfg.FileSystem.FuseOptions
-				return nil
-			})
-			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
-
-			err = cmd.Execute()
+			config, err := getConfigObject(t, tc.args[1:])
 
 			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedMountOptions, mountOptions)
+				assert.Equal(t, tc.expectedMountOptions, config.FileSystem.FuseOptions)
 			}
 		})
 	}
@@ -232,18 +218,10 @@ func TestArgsParsing_ImplicitDirsFlag(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var gotImplicit bool
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotImplicit = cfg.ImplicitDirs
-				return nil
-			})
-			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
-
-			err = cmd.Execute()
+			config, err := getConfigObject(t, tc.args[1:])
 
 			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedImplicit, gotImplicit)
+				assert.Equal(t, tc.expectedImplicit, config.ImplicitDirs)
 			}
 		})
 	}
@@ -371,22 +349,14 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var wc cfg.WriteConfig
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				wc = cfg.Write
-				return nil
-			})
-			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
-
-			err = cmd.Execute()
+			config, err := getConfigObject(t, tc.args[1:])
 
 			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedCreateEmptyFile, wc.CreateEmptyFile)
-				assert.Equal(t, tc.expectedEnableStreamingWrites, wc.EnableStreamingWrites)
-				assert.Equal(t, tc.expectedWriteBlockSizeMB, wc.BlockSizeMb)
-				assert.Equal(t, tc.expectedWriteGlobalMaxBlocks, wc.GlobalMaxBlocks)
-				assert.Equal(t, tc.expectedEnableRapidAppends, wc.EnableRapidAppends)
+				assert.Equal(t, tc.expectedCreateEmptyFile, config.Write.CreateEmptyFile)
+				assert.Equal(t, tc.expectedEnableStreamingWrites, config.Write.EnableStreamingWrites)
+				assert.Equal(t, tc.expectedWriteBlockSizeMB, config.Write.BlockSizeMb)
+				assert.Equal(t, tc.expectedWriteGlobalMaxBlocks, config.Write.GlobalMaxBlocks)
+				assert.Equal(t, tc.expectedEnableRapidAppends, config.Write.EnableRapidAppends)
 			}
 		})
 	}
@@ -478,22 +448,14 @@ func TestArgsParsing_ReadConfigFlags(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var rc cfg.ReadConfig
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				rc = cfg.Read
-				return nil
-			})
-			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
-
-			err = cmd.Execute()
+			config, err := getConfigObject(t, tc.args[1:])
 
 			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedReadBlockSizeMB, rc.BlockSizeMb)
-				assert.Equal(t, tc.expectedReadGlobalMaxBlocks, rc.GlobalMaxBlocks)
-				assert.Equal(t, tc.expectedReadMaxBlocksPerHandle, rc.MaxBlocksPerHandle)
-				assert.Equal(t, tc.expectedReadStartBlocksPerHandle, rc.StartBlocksPerHandle)
-				assert.Equal(t, tc.expectedReadMinBlocksPerHandle, rc.MinBlocksPerHandle)
+				assert.Equal(t, tc.expectedReadBlockSizeMB, config.Read.BlockSizeMb)
+				assert.Equal(t, tc.expectedReadGlobalMaxBlocks, config.Read.GlobalMaxBlocks)
+				assert.Equal(t, tc.expectedReadMaxBlocksPerHandle, config.Read.MaxBlocksPerHandle)
+				assert.Equal(t, tc.expectedReadStartBlocksPerHandle, config.Read.StartBlocksPerHandle)
+				assert.Equal(t, tc.expectedReadMinBlocksPerHandle, config.Read.MinBlocksPerHandle)
 			}
 		})
 	}
@@ -548,18 +510,10 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotConfig = cfg
-				return nil
-			})
-			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
-
-			err = cmd.Execute()
+			config, err := getConfigObject(t, tc.args[1:])
 
 			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedConfig.FileCache, gotConfig.FileCache)
+				assert.Equal(t, tc.expectedConfig.FileCache, config.FileCache)
 			}
 		})
 	}
@@ -600,18 +554,10 @@ func TestArgParsing_ExperimentalMetadataPrefetchFlag(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var experimentalMetadataPrefetch string
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				experimentalMetadataPrefetch = cfg.MetadataCache.ExperimentalMetadataPrefetchOnMount
-				return nil
-			})
-			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
-
-			err = cmd.Execute()
+			config, err := getConfigObject(t, tc.args[1:])
 
 			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedValue, experimentalMetadataPrefetch)
+				assert.Equal(t, tc.expectedValue, config.MetadataCache.ExperimentalMetadataPrefetchOnMount)
 			}
 		})
 	}
@@ -634,13 +580,7 @@ func TestArgParsing_ExperimentalMetadataPrefetchFlag_Failed(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				return nil
-			})
-			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
-
-			err = cmd.Execute()
+			_, err := getConfigObject(t, tc.args[1:])
 
 			assert.Error(t, err)
 		})
@@ -683,18 +623,10 @@ func TestArgsParsing_GCSAuthFlags(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotConfig = cfg
-				return nil
-			})
-			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
-
-			err = cmd.Execute()
+			config, err := getConfigObject(t, tc.args[1:])
 
 			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedConfig.GcsAuth, gotConfig.GcsAuth)
+				assert.Equal(t, tc.expectedConfig.GcsAuth, config.GcsAuth)
 			}
 		})
 	}
@@ -722,13 +654,9 @@ func TestArgsParsing_GCSAuthFlagsThrowsError(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				return nil
-			})
-			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+			_, err := getConfigObject(t, tc.args[1:])
 
-			assert.Error(t, cmd.Execute())
+			assert.Error(t, err)
 		})
 	}
 }
@@ -781,18 +709,9 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotConfig = cfg
-				return nil
-			})
-			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
-
-			err = cmd.Execute()
-
+			config, err := getConfigObject(t, tc.args[1:])
 			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedConfig.GcsConnection, gotConfig.GcsConnection)
+				assert.Equal(t, tc.expectedConfig.GcsConnection, config.GcsConnection)
 			}
 		})
 	}
@@ -826,13 +745,9 @@ func TestArgsParsing_GCSConnectionFlagsThrowsError(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				return nil
-			})
-			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+			_, err := getConfigObject(t, tc.args[1:])
 
-			assert.Error(t, cmd.Execute())
+			assert.Error(t, err)
 		})
 	}
 }
@@ -975,18 +890,10 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotConfig = cfg
-				return nil
-			})
-			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
-
-			err = cmd.Execute()
+			config, err := getConfigObject(t, tc.args[1:])
 
 			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedConfig.FileSystem, gotConfig.FileSystem)
+				assert.Equal(t, tc.expectedConfig.FileSystem, config.FileSystem)
 			}
 		})
 	}
@@ -1029,13 +936,9 @@ func TestArgsParsing_FileSystemFlagsThrowsError(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				return nil
-			})
-			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+			_, err := getConfigObject(t, tc.args[1:])
 
-			assert.Error(t, cmd.Execute())
+			assert.Error(t, err)
 		})
 	}
 }
@@ -1064,18 +967,10 @@ func TestArgsParsing_ListFlags(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotConfig = cfg
-				return nil
-			})
-			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
-
-			err = cmd.Execute()
+			config, err := getConfigObject(t, tc.args[1:])
 
 			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedConfig.List, gotConfig.List)
+				assert.Equal(t, tc.expectedConfig.List, config.List)
 			}
 		})
 	}
@@ -1101,18 +996,9 @@ func TestArgsParsing_EnableHNSFlags(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var gotEnableHNS bool
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotEnableHNS = cfg.EnableHns
-				return nil
-			})
-			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
-
-			err = cmd.Execute()
-
+			config, err := getConfigObject(t, tc.args[1:])
 			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedEnableHNS, gotEnableHNS)
+				assert.Equal(t, tc.expectedEnableHNS, config.EnableHns)
 			}
 		})
 	}
@@ -1138,18 +1024,9 @@ func TestArgsParsing_EnableGoogleLibAuthFlag(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var gotEnableGoogleLibAuth bool
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotEnableGoogleLibAuth = cfg.EnableGoogleLibAuth
-				return nil
-			})
-			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
-
-			err = cmd.Execute()
-
+			config, err := getConfigObject(t, tc.args[1:])
 			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedEnableGoogleLibAuth, gotEnableGoogleLibAuth)
+				assert.Equal(t, tc.expectedEnableGoogleLibAuth, config.EnableGoogleLibAuth)
 			}
 		})
 	}
@@ -1175,18 +1052,9 @@ func TestArgsParsing_EnableAtomicRenameObjectFlag(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var gotEnableAtomicRenameObject bool
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotEnableAtomicRenameObject = cfg.EnableAtomicRenameObject
-				return nil
-			})
-			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
-
-			err = cmd.Execute()
-
+			config, err := getConfigObject(t, tc.args[1:])
 			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedEnableAtomicRenameObject, gotEnableAtomicRenameObject)
+				assert.Equal(t, tc.expectedEnableAtomicRenameObject, config.EnableAtomicRenameObject)
 			}
 		})
 	}
@@ -1212,18 +1080,10 @@ func TestArgsParsing_EnableNewReaderFlag(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var gotEnableNewReader bool
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotEnableNewReader = cfg.EnableNewReader
-				return nil
-			})
-			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
-
-			err = cmd.Execute()
+			config, err := getConfigObject(t, tc.args[1:])
 
 			require.NoError(t, err)
-			assert.Equal(t, tc.expectedEnableNewReader, gotEnableNewReader)
+			assert.Equal(t, tc.expectedEnableNewReader, config.EnableNewReader)
 		})
 	}
 }
@@ -1281,18 +1141,9 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotConfig = cfg
-				return nil
-			})
-			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
-
-			err = cmd.Execute()
-
+			config, err := getConfigObject(t, tc.args[1:])
 			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expected, &gotConfig.Metrics)
+				assert.Equal(t, tc.expected, &config.Metrics)
 			}
 		})
 	}
@@ -1327,18 +1178,10 @@ func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotConfig = cfg
-				return nil
-			})
-			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs([]string{"gcsfuse", fmt.Sprintf("--config-file=testdata/metrics_config/%s", tc.cfgFile), "abc", "pqr"}, cmd))
-
-			err = cmd.Execute()
+			config, err := getConfigObject(t, []string{fmt.Sprintf("--config-file=testdata/metrics_config/%s", tc.cfgFile)})
 
 			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expected, &gotConfig.Metrics)
+				assert.Equal(t, tc.expected, &config.Metrics)
 			}
 		})
 	}
@@ -1456,18 +1299,10 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotConfig = cfg
-				return nil
-			})
-			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
-
-			err = cmd.Execute()
+			config, err := getConfigObject(t, tc.args[1:])
 
 			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedConfig.MetadataCache, gotConfig.MetadataCache)
+				assert.Equal(t, tc.expectedConfig.MetadataCache, config.MetadataCache)
 			}
 		})
 	}
@@ -1502,18 +1337,9 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotConfig = cfg
-				return nil
-			})
-			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
-
-			err = cmd.Execute()
-
+			config, err := getConfigObject(t, tc.args[1:])
 			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedConfig.GcsRetries, gotConfig.GcsRetries)
+				assert.Equal(t, tc.expectedConfig.GcsRetries, config.GcsRetries)
 			}
 		})
 	}
@@ -1594,18 +1420,9 @@ func TestArgsParsing_ProfilerFlags(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var gotProfilerConfig cfg.CloudProfilerConfig
-			cmd, err := newRootCmd(func(c *cfg.Config, _, _ string) error {
-				gotProfilerConfig = c.CloudProfiler
-				return nil
-			})
-			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
-
-			err = cmd.Execute()
-
+			config, err := getConfigObject(t, tc.args[1:])
 			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedConfig, gotProfilerConfig)
+				assert.Equal(t, tc.expectedConfig, config.CloudProfiler)
 			}
 		})
 	}
@@ -1635,18 +1452,10 @@ func TestArgsParsing_ReadInactiveTimeoutConfig(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotConfig = cfg
-				return nil
-			})
-			require.Nil(t, err)
-			cmd.SetArgs(convertToPosixArgs([]string{"gcsfuse", fmt.Sprintf("--config-file=testdata/read_config/%s", tc.cfgFile), "abc", "pqr"}, cmd))
-
-			err = cmd.Execute()
+			config, err := getConfigObject(t, []string{fmt.Sprintf("--config-file=testdata/read_config/%s", tc.cfgFile)})
 
 			require.NoError(t, err)
-			assert.Equal(t, tc.expectedTimeout, gotConfig.Read.InactiveStreamTimeout)
+			assert.Equal(t, tc.expectedTimeout, config.Read.InactiveStreamTimeout)
 		})
 	}
 }

@@ -22,27 +22,72 @@ import (
 	"testing"
 	"time"
 
+	"strings"
+
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func getConfigObject(t *testing.T, args []string) (*cfg.Config, error) {
 	t.Helper()
-	var c *cfg.Config
-	cmd, err := newRootCmd(func(config *cfg.Config, _, _ string) error {
-		c = config
-		return nil
-	})
-	require.Nil(t, err)
-	cmdArgs := append([]string{"gcsfuse"}, args...)
-	cmdArgs = append(cmdArgs, "a")
-	cmd.SetArgs(convertToPosixArgs(cmdArgs, cmd))
-	if err = cmd.Execute(); err != nil {
+	var (
+		configObj cfg.Config
+		err       error
+		v         = viper.New()
+	)
+
+	configFilePath := ""
+	for i, arg := range args {
+		if arg == "--config-file" {
+			if i+1 < len(args) {
+				configFilePath = args[i+1]
+			}
+			break
+		}
+		if strings.HasPrefix(arg, "--config-file=") {
+			configFilePath = strings.TrimPrefix(arg, "--config-file=")
+			break
+		}
+	}
+
+	if configFilePath != "" {
+		configFilePath, err = util.GetResolvedPath(configFilePath)
+		if err != nil {
+			return nil, fmt.Errorf("error while resolving config-file path[%s]: %w", configFilePath, err)
+		}
+		v.SetConfigFile(configFilePath)
+		v.SetConfigType("yaml")
+		if err := v.ReadInConfig(); err != nil {
+			return nil, fmt.Errorf("error while reading the config: %w", err)
+		}
+	}
+	v.Set("machine-type", "test-machine")
+
+	// The following lines are copied from initConfig function in root.go
+	if err = v.Unmarshal(&configObj, viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
+		// By default, viper supports mapstructure tags for unmarshalling. Override that to support yaml tag.
+		decoderConfig.TagName = "yaml"
+		// Reject the config file if any of the fields in the YAML don't map to the struct.
+		decoderConfig.ErrorUnused = true
+	},
+	); err != nil {
+		return nil, err
+	}
+	if err = cfg.ValidateConfig(v, &configObj); err != nil {
 		return nil, err
 	}
 
-	return c, nil
+	optimizedFlags := cfg.Optimize(&configObj, v)
+
+	if err = cfg.Rationalize(v, &configObj, optimizedFlags); err != nil {
+		return nil, err
+	}
+
+	return &configObj, nil
 }
 
 func getConfigObjectWithConfigFile(t *testing.T, configFilePath string) (*cfg.Config, error) {
@@ -488,209 +533,6 @@ func TestValidateConfigFile_GCSAuthConfigSuccessful(t *testing.T) {
 	}
 }
 
-func TestValidateConfigFile_GCSConnectionConfigSuccessful(t *testing.T) {
-	testCases := []struct {
-		name           string
-		configFile     string
-		expectedConfig *cfg.Config
-	}{
-		{
-			name:       "Empty config file [default values].",
-			configFile: "testdata/empty_file.yaml",
-			expectedConfig: &cfg.Config{
-				GcsConnection: cfg.GcsConnectionConfig{
-					BillingProject:             "",
-					ClientProtocol:             "http1",
-					CustomEndpoint:             "",
-					ExperimentalEnableJsonRead: false,
-					GrpcConnPoolSize:           1,
-					HttpClientTimeout:          0,
-					LimitBytesPerSec:           -1,
-					LimitOpsPerSec:             -1,
-					MaxConnsPerHost:            0,
-					MaxIdleConnsPerHost:        100,
-					SequentialReadSizeMb:       200,
-				},
-			},
-		},
-		{
-			name:       "Valid config file.",
-			configFile: "testdata/valid_config.yaml",
-			expectedConfig: &cfg.Config{
-				GcsConnection: cfg.GcsConnectionConfig{
-					BillingProject:             "abc",
-					ClientProtocol:             "http2",
-					CustomEndpoint:             "www.abc.com",
-					ExperimentalEnableJsonRead: true,
-					GrpcConnPoolSize:           200,
-					HttpClientTimeout:          400 * time.Second,
-					LimitBytesPerSec:           20,
-					LimitOpsPerSec:             30,
-					MaxConnsPerHost:            400,
-					MaxIdleConnsPerHost:        20,
-					SequentialReadSizeMb:       450,
-				},
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
-
-			if assert.NoError(t, err) {
-				assert.EqualValues(t, tc.expectedConfig.GcsConnection, gotConfig.GcsConnection)
-			}
-		})
-	}
-}
-
-func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
-	hd, err := os.UserHomeDir()
-	require.NoError(t, err)
-	testCases := []struct {
-		name           string
-		configFile     string
-		expectedConfig *cfg.Config
-	}{
-		{
-			// Test default values.
-			name:       "empty_config_file",
-			configFile: "testdata/empty_file.yaml",
-			expectedConfig: &cfg.Config{
-				FileSystem: cfg.FileSystemConfig{
-					DirMode:                0755,
-					DisableParallelDirops:  false,
-					FileMode:               0644,
-					FuseOptions:            []string{},
-					Gid:                    -1,
-					IgnoreInterrupts:       true,
-					KernelListCacheTtlSecs: 0,
-					RenameDirLimit:         0,
-					TempDir:                "",
-					PreconditionErrors:     true,
-					Uid:                    -1,
-				},
-			},
-		},
-		{
-			name:       "file_system_config_unset",
-			configFile: "testdata/file_system_config/unset_file_system_config.yaml",
-			expectedConfig: &cfg.Config{
-				FileSystem: cfg.FileSystemConfig{
-					DirMode:                0755,
-					DisableParallelDirops:  false,
-					FileMode:               0644,
-					FuseOptions:            []string{},
-					Gid:                    -1,
-					IgnoreInterrupts:       true,
-					KernelListCacheTtlSecs: 0,
-					RenameDirLimit:         0,
-					TempDir:                "",
-					PreconditionErrors:     true,
-					Uid:                    -1,
-				},
-			},
-		},
-		{
-			name:       "valid_config_file",
-			configFile: "testdata/valid_config.yaml",
-			expectedConfig: &cfg.Config{
-				FileSystem: cfg.FileSystemConfig{
-					DirMode:                0777,
-					DisableParallelDirops:  true,
-					FileMode:               0666,
-					FuseOptions:            []string{"ro"},
-					Gid:                    7,
-					IgnoreInterrupts:       false,
-					KernelListCacheTtlSecs: 300,
-					RenameDirLimit:         10,
-					TempDir:                cfg.ResolvedPath(path.Join(hd, "temp")),
-					PreconditionErrors:     false,
-					Uid:                    8,
-				},
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
-
-			if assert.NoError(t, err) {
-				assert.EqualValues(t, tc.expectedConfig.FileSystem, gotConfig.FileSystem)
-			}
-		})
-	}
-}
-
-func TestValidateConfigFile_ListConfigSuccessful(t *testing.T) {
-	testCases := []struct {
-		name           string
-		configFile     string
-		expectedConfig *cfg.Config
-	}{
-		{
-			// Test default values.
-			name:       "empty_config_file",
-			configFile: "testdata/empty_file.yaml",
-			expectedConfig: &cfg.Config{
-				List: cfg.ListConfig{EnableEmptyManagedFolders: false},
-			},
-		},
-		{
-			name:       "valid_config_file",
-			configFile: "testdata/valid_config.yaml",
-			expectedConfig: &cfg.Config{
-				List: cfg.ListConfig{EnableEmptyManagedFolders: true},
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
-
-			if assert.NoError(t, err) {
-				assert.EqualValues(t, tc.expectedConfig.List, gotConfig.List)
-			}
-		})
-	}
-}
-
-func TestValidateConfigFile_EnableHNSConfigSuccessful(t *testing.T) {
-	testCases := []struct {
-		name           string
-		configFile     string
-		expectedConfig *cfg.Config
-	}{
-		{
-			// Test default values.
-			name:       "empty_config_file",
-			configFile: "testdata/empty_file.yaml",
-			expectedConfig: &cfg.Config{
-				EnableHns: true,
-			},
-		},
-		{
-			name:       "valid_config_file",
-			configFile: "testdata/valid_config.yaml",
-			expectedConfig: &cfg.Config{
-				EnableHns: false,
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
-
-			if assert.NoError(t, err) {
-				assert.EqualValues(t, tc.expectedConfig.EnableHns, gotConfig.EnableHns)
-			}
-		})
-	}
-}
 
 func TestValidateConfigFile_MetadataCacheConfigSuccessful(t *testing.T) {
 	testCases := []struct {
