@@ -26,6 +26,24 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// ProfileOptimization holds the rules for a single performance profile.
+type ProfileOptimization struct {
+	Name         string `yaml:"name"`
+	Environments []struct {
+		Name  string `yaml:"name"`
+		Value any    `yaml:"value"`
+	} `yaml:"environments"`
+}
+
+// OptimizationRules holds all defined optimizations for a single flag.
+type OptimizationRules struct {
+	MachineBasedOptimization []struct {
+		Group string `yaml:"group"`
+		Value any    `yaml:"value"`
+	} `yaml:"machine-based-optimization"`
+	Profiles []ProfileOptimization `yaml:"profiles"`
+}
+
 type Param struct {
 	FlagName           string `yaml:"flag-name"`
 	Shorthand          string
@@ -35,8 +53,9 @@ type Param struct {
 	IsDeprecated       bool   `yaml:"deprecated"`
 	DeprecationWarning string `yaml:"deprecation-warning"`
 	Usage              string
-	HideFlag           bool `yaml:"hide-flag"`
-	HideShorthand      bool `yaml:"hide-shorthand"`
+	HideFlag           bool               `yaml:"hide-flag"`
+	HideShorthand      bool               `yaml:"hide-shorthand"`
+	Optimizations      *OptimizationRules `yaml:"optimizations,omitempty"`
 }
 
 // ParamsYAML mirrors the params.yaml file itself.

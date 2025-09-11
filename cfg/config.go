@@ -23,6 +23,112 @@ import (
 	"github.com/spf13/viper"
 )
 
+// OptimizationRules holds all defined optimizations for a single flag.
+type OptimizationRules struct {
+	MachineBasedOptimization []struct {
+		Group string `yaml:"group"`
+		Value any    `yaml:"value"`
+	} `yaml:"machine-based-optimization"`
+	Profiles []ProfileOptimization `yaml:"profiles"`
+}
+
+// ProfileOptimization holds the rules for a single performance profile.
+type ProfileOptimization struct {
+	Name         string `yaml:"name"`
+	Environments []struct {
+		Name  string `yaml:"name"`
+		Value any    `yaml:"value"`
+	} `yaml:"environments"`
+}
+
+// AllFlagOptimizationRules is the generated map from a flag's config-path to its specific rules.
+var AllFlagOptimizationRules = map[string]OptimizationRules{
+	"file-system.rename-dir-limit": {
+		MachineBasedOptimization: []struct {
+			Group string `yaml:"group"`
+			Value any    `yaml:"value"`
+		}{
+			{
+				Group: "high-performance",
+				Value: 200000,
+			},
+		},
+		Profiles: []ProfileOptimization{},
+	},
+	"implicit-dirs": {
+		MachineBasedOptimization: []struct {
+			Group string `yaml:"group"`
+			Value any    `yaml:"value"`
+		}{
+			{
+				Group: "high-performance",
+				Value: true,
+			},
+		},
+		Profiles: []ProfileOptimization{},
+	},
+	"metadata-cache.negative-ttl-secs": {
+		MachineBasedOptimization: []struct {
+			Group string `yaml:"group"`
+			Value any    `yaml:"value"`
+		}{
+			{
+				Group: "high-performance",
+				Value: 0,
+			},
+		},
+		Profiles: []ProfileOptimization{},
+	},
+	"metadata-cache.stat-cache-max-size-mb": {
+		MachineBasedOptimization: []struct {
+			Group string `yaml:"group"`
+			Value any    `yaml:"value"`
+		}{
+			{
+				Group: "high-performance",
+				Value: 1024,
+			},
+		},
+		Profiles: []ProfileOptimization{},
+	},
+	"metadata-cache.ttl-secs": {
+		MachineBasedOptimization: []struct {
+			Group string `yaml:"group"`
+			Value any    `yaml:"value"`
+		}{
+			{
+				Group: "high-performance",
+				Value: -1,
+			},
+		},
+		Profiles: []ProfileOptimization{},
+	},
+	"metadata-cache.type-cache-max-size-mb": {
+		MachineBasedOptimization: []struct {
+			Group string `yaml:"group"`
+			Value any    `yaml:"value"`
+		}{
+			{
+				Group: "high-performance",
+				Value: 128,
+			},
+		},
+		Profiles: []ProfileOptimization{},
+	},
+	"write.global-max-blocks": {
+		MachineBasedOptimization: []struct {
+			Group string `yaml:"group"`
+			Value any    `yaml:"value"`
+		}{
+			{
+				Group: "high-performance",
+				Value: 1600,
+			},
+		},
+		Profiles: []ProfileOptimization{},
+	},
+}
+
 type CloudProfilerConfig struct {
 	AllocatedHeap bool `yaml:"allocated-heap"`
 

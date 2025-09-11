@@ -23,6 +23,61 @@ import (
 	"github.com/spf13/viper"
 )
 
+// OptimizationRules holds all defined optimizations for a single flag.
+type OptimizationRules struct {
+	MachineBasedOptimization []struct {
+		Group string      `yaml:"group"`
+		Value any `yaml:"value"`
+	} `yaml:"machine-based-optimization"`
+	Profiles []ProfileOptimization `yaml:"profiles"`
+}
+
+// ProfileOptimization holds the rules for a single performance profile.
+type ProfileOptimization struct {
+	Name         string `yaml:"name"`
+	Environments []struct {
+		Name  string      `yaml:"name"`
+		Value any `yaml:"value"`
+	} `yaml:"environments"`
+}
+
+// AllFlagOptimizationRules is the generated map from a flag's config-path to its specific rules.
+var AllFlagOptimizationRules = map[string]OptimizationRules{
+{{- range $configPath, $rules := .OptimizationRules }}
+	"{{ $configPath }}": {
+		MachineBasedOptimization: []struct {
+			Group string      `yaml:"group"`
+			Value any `yaml:"value"`
+		}{
+		{{- range .MachineBasedOptimization }}
+			{
+				Group: "{{ .Group }}",
+				Value: {{ .Value }},
+			},
+		{{- end }}
+		},
+		Profiles: []ProfileOptimization{
+		{{- range .Profiles }}
+			{
+				Name: "{{ .Name }}",
+				Environments: []struct {
+					Name  string      `yaml:"name"`
+					Value any `yaml:"value"`
+				}{
+				{{- range .Environments }}
+					{
+						Name:  "{{ .Name }}",
+						Value: {{ .Value }},
+					},
+				{{- end }}
+				},
+			},
+		{{- end }}
+		},
+	},
+{{- end }}
+}
+
 {{$bt := .Backticks}}
 {{range .TypeTemplateData}}
 type {{ .TypeName}} struct {
