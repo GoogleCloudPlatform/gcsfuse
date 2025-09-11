@@ -16,10 +16,6 @@ package perf
 
 import (
 	"math/rand"
-	"os"
-	"path/filepath"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -54,64 +50,6 @@ func InitNuma() {
 			logger.Infof("Process bound to NUMA node %d", firstNode)
 		}
 	}
-}
-
-// networkStats represents the network statistics for a NUMA node.
-type networkStats struct {
-	rxBytes uint64
-	txBytes uint64
-}
-
-// getNetworkStatsPerNumaNode returns a map of NUMA node ID to network stats.
-func getNetworkStatsPerNumaNode() (map[int]networkStats, error) {
-	stats := make(map[int]networkStats)
-	interfaces, err := os.ReadDir("/sys/class/net")
-	if err != nil {
-		return nil, err
-	}
-
-	for _, intf := range interfaces {
-		intfName := intf.Name()
-		numaNodePath := filepath.Join("/sys/class/net", intfName, "device", "numa_node")
-		content, err := os.ReadFile(numaNodePath)
-		if err != nil {
-			// Not all interfaces have a NUMA node file, so we skip them.
-			continue
-		}
-
-		numaNode, err := strconv.Atoi(strings.TrimSpace(string(content)))
-		if err != nil {
-			continue
-		}
-
-		rxBytesPath := filepath.Join("/sys/class/net", intfName, "statistics", "rx_bytes")
-		txBytesPath := filepath.Join("/sys/class/net", intfName, "statistics", "tx_bytes")
-
-		rxBytes, err := readUint64FromFile(rxBytesPath)
-		if err != nil {
-			continue
-		}
-
-		txBytes, err := readUint64FromFile(txBytesPath)
-		if err != nil {
-			continue
-		}
-
-		s := stats[numaNode]
-		s.rxBytes += rxBytes
-		s.txBytes += txBytes
-		stats[numaNode] = s
-	}
-
-	return stats, nil
-}
-
-func readUint64FromFile(path string) (uint64, error) {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return 0, err
-	}
-	return strconv.ParseUint(strings.TrimSpace(string(content)), 10, 64)
 }
 
 func MonitorNuma(config *cfg.Config, metricHandle metrics.MetricHandle) {
