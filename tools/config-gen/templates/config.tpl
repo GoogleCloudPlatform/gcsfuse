@@ -21,7 +21,43 @@ import (
 
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
 )
+
+// AllFlagOptimizationRules is the generated map from a flag's config-path to its specific rules.
+var AllFlagOptimizationRules = map[string]shared.OptimizationRules{
+{{- range $configPath, $rules := .OptimizationRules }}
+	"{{ $configPath }}": {
+		{{- if .MachineBasedOptimization }}
+		MachineBasedOptimization: []shared.MachineBasedOptimization {
+			{{- range .MachineBasedOptimization }}
+				{
+					Group: "{{ .Group }}",
+					Value: {{ .Value }},
+				},
+			{{- end }}
+		},
+		{{- end}}
+		{{- if .Profiles }}
+		Profiles: []shared.ProfileOptimization {
+			{{- range .Profiles }}
+				{
+					Name: "{{ .Name }}",
+					Environments: []shared.EnvironmentOptimization {
+					{{- range .Environments }}
+						{
+							Name:  "{{ .Name }}",
+							Value: {{ .Value }},
+						},
+					{{- end }}
+					},
+				},
+			{{- end }}
+		},
+		{{- end }}
+	},
+{{- end }}
+}
 
 {{$bt := .Backticks}}
 {{range .TypeTemplateData}}
