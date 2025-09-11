@@ -26,7 +26,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
+
+	//test_setup "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
+	"github.com/stretchr/testify/suite"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -37,6 +39,7 @@ type cacheFileForIncludeRegexTest struct {
 	flags         []string
 	storageClient *storage.Client
 	ctx           context.Context
+	suite.Suite
 }
 
 func (s *cacheFileForIncludeRegexTest) Setup(t *testing.T) {
@@ -98,7 +101,7 @@ func TestCacheFileForIncludeRegexTest(t *testing.T) {
 
 	// Run tests for mounted directory if the flag is set.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 		return
 	}
 
@@ -142,7 +145,7 @@ func TestCacheFileForIncludeRegexTest(t *testing.T) {
 				ts.flags = append(ts.flags, test.flags.cliFlags...)
 			}
 			log.Printf("Running tests with flags: %s", ts.flags)
-			test_setup.RunTests(t, ts)
+			suite.Run(t, ts)
 		})
 	}
 }
