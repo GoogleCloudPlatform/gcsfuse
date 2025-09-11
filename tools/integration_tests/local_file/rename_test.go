@@ -24,6 +24,7 @@ import (
 	. "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/require"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -41,10 +42,11 @@ func verifyRenameOperationNotSupported(err error, t *testing.T) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *localFileTestSuite) TestRenameOfLocalFileFails() {
+func (t *LocalFileTestSuite) TestRenameOfLocalFile() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create local file with some content.
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
+	defer operations.CloseFileShouldNotThrowError(t.T(), fh)
 	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t.T())
 
 	// Attempt to rename local file.
@@ -52,16 +54,15 @@ func (t *localFileTestSuite) TestRenameOfLocalFileFails() {
 		path.Join(testDirPath, FileName1),
 		path.Join(testDirPath, NewFileName))
 
-	// Verify rename operation fails.
-	verifyRenameOperationNotSupported(err, t.T())
-	// write more content to local file.
-	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t.T())
-	// Close the local file.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
-		FileName1, FileContents+FileContents, t.T())
+	// Validate that move didn't throw any error.
+	require.NoError(t.T(), err)
+	// Verify the new object contents.
+	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, NewFileName, FileContents, t.T())
+	// Validate old object is deleted.
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
 }
 
-func (t *CommonLocalFileTestSuite) TestRenameOfDirectoryWithLocalFileFails() {
+func (t *LocalFileTestSuite) TestRenameOfDirectoryWithLocalFileFails() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	//Create directory with 1 synced and 1 local file.
 	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t.T())
@@ -88,7 +89,7 @@ func (t *CommonLocalFileTestSuite) TestRenameOfDirectoryWithLocalFileFails() {
 		path.Join(ExplicitDirName, FileName2), FileContents+FileContents, t.T())
 }
 
-func (t *CommonLocalFileTestSuite) TestRenameOfLocalFileSucceedsAfterSync() {
+func (t *LocalFileTestSuite) TestRenameOfLocalFileSucceedsAfterSync() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create local file with some content.
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
@@ -108,7 +109,7 @@ func (t *CommonLocalFileTestSuite) TestRenameOfLocalFileSucceedsAfterSync() {
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
 }
 
-func (t *CommonLocalFileTestSuite) TestRenameOfDirectoryWithLocalFileSucceedsAfterSync() {
+func (t *LocalFileTestSuite) TestRenameOfDirectoryWithLocalFileSucceedsAfterSync() {
 	t.TestRenameOfDirectoryWithLocalFileFails()
 
 	// Attempt to rename directory again after sync.

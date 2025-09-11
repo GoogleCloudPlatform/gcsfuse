@@ -21,7 +21,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
 
-func (t *CommonLocalFileTestSuite) TestMultipleWritesToLocalFile() {
+func (t *LocalFileTestSuite) TestMultipleWritesToLocalFile() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
@@ -37,7 +37,7 @@ func (t *CommonLocalFileTestSuite) TestMultipleWritesToLocalFile() {
 		FileName1, FileContents+FileContents+FileContents, t.T())
 }
 
-func (t *localFileTestSuite) TestRandomWritesToLocalFile() {
+func (t *LocalFileTestSuite) TestRandomWritesToLocalFile() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
@@ -46,14 +46,12 @@ func (t *localFileTestSuite) TestRandomWritesToLocalFile() {
 	operations.WriteAt("string1", 0, fh, t.T())
 	operations.WriteAt("string2", 2, fh, t.T())
 	operations.WriteAt("string3", 3, fh, t.T())
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
 
 	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
-		FileName1, "stsstring3", t.T())
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, FileName1, "stsstring3", t.T())
 }
 
-func (t *CommonLocalFileTestSuite) TestOutOfOrderWritesToNewFile() {
+func (t *LocalFileTestSuite) TestOutOfOrderWritesToNewFile() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
@@ -73,7 +71,7 @@ func (t *CommonLocalFileTestSuite) TestOutOfOrderWritesToNewFile() {
 		FileName1, expectedString, t.T())
 }
 
-func (t *CommonLocalFileTestSuite) TestMultipleOutOfOrderWritesToNewFile() {
+func (t *LocalFileTestSuite) TestMultipleOutOfOrderWritesToNewFile() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
@@ -96,7 +94,7 @@ func (t *CommonLocalFileTestSuite) TestMultipleOutOfOrderWritesToNewFile() {
 		FileName1, expectedString, t.T())
 }
 
-func (t *CommonLocalFileTestSuite) TestWritesToNewFileStartingAtNonZeroOffset() {
+func (t *LocalFileTestSuite) TestWritesToNewFileStartingAtNonZeroOffset() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())

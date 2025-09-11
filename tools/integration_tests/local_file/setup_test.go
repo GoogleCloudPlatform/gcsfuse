@@ -67,10 +67,13 @@ func TestMain(m *testing.M) {
 	// Running these tests with streaming writes disabled because local file tests are already running in streaming_writes test package.
 	flagsSet := [][]string{
 		{"--implicit-dirs=true", "--rename-dir-limit=3", "--enable-streaming-writes=false"},
-		{"--implicit-dirs=false", "--rename-dir-limit=3", "--enable-streaming-writes=false"}}
+		{"--implicit-dirs=false", "--rename-dir-limit=3", "--enable-streaming-writes=false"},
+		{"--implicit-dirs=false", "--rename-dir-limit=3", "--enable-streaming-writes=false", "--client-protocol=grpc"},
+	}
 
-	if !testing.Short() {
-		setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--client-protocol=grpc")
+	if !setup.IsZonalBucketRun() {
+		flagsSet = append(flagsSet, []string{"--rename-dir-limit=3", "--write-block-size-mb=1", "--write-max-blocks-per-file=2", "--write-global-max-blocks=-1"})
+		flagsSet = append(flagsSet, []string{"--rename-dir-limit=3", "--write-block-size-mb=1", "--write-max-blocks-per-file=2", "--write-global-max-blocks=-1", "--client-protocol=grpc"})
 	}
 
 	successCode := static_mounting.RunTests(flagsSet, m)
@@ -91,8 +94,11 @@ func TestMain(m *testing.M) {
 	os.Exit(successCode)
 }
 
+type LocalFileTestSuite struct {
+	suite.Suite
+}
+
 func TestLocalFileTestSuite(t *testing.T) {
-	s := new(localFileTestSuite)
-	s.CommonLocalFileTestSuite.TestifySuite = &s.Suite
+	s := new(LocalFileTestSuite)
 	suite.Run(t, s)
 }

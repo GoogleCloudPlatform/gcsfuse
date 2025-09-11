@@ -61,16 +61,16 @@ func CreateImplicitDir(ctx context.Context, storageClient *storage.Client,
 	}
 }
 
-func ValidateObjectNotFoundErrOnGCS(ctx context.Context, storageClient *storage.Client,
-	testDirName string, fileName string, t *testing.T) {
-	_, err := ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, fileName))
+func ValidateObjectNotFoundErrOnGCS(ctx context.Context, storageClient *storage.Client, testDirName string, fileName string, t *testing.T) {
+	t.Helper()
+	_, err := StatObject(ctx, storageClient, path.Join(testDirName, fileName))
 	if err == nil || !strings.Contains(err.Error(), "storage: object doesn't exist") {
 		t.Fatalf("Incorrect error returned from GCS for file %s: %v", fileName, err)
 	}
 }
 
-func ValidateObjectContentsFromGCS(ctx context.Context, storageClient *storage.Client,
-	testDirName string, fileName string, expectedContent string, t *testing.T) {
+func ValidateObjectContentsFromGCS(ctx context.Context, storageClient *storage.Client, testDirName string, fileName string, expectedContent string, t *testing.T) {
+	t.Helper()
 	gotContent, err := ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, fileName))
 	if err != nil {
 		t.Fatalf("Error while reading file from GCS, Err: %v", err)
