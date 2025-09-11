@@ -315,8 +315,8 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 		}
 
 		if f.config.Write.EnableStreamingWrites {
-			logger.Warnf("Write on existing file %s with size %d bytes (non-zero) will use legacy staged writes "+
-				"because streaming write is supported for sequential writes to new/empty files.", f.name.String(), f.src.Size)
+			logger.Warnf("Write on existing file %s of size %d bytes (non-zero) will use legacy staged writes "+
+				"because streaming writes is supported for sequential writes to new/empty files.", f.name.String(), f.src.Size)
 
 		}
 		tf, err := f.contentCache.NewTempFile(rc)
