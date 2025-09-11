@@ -139,11 +139,10 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 	}
 
 	mrdWrapper.mu.RLock()
-	defer mrdWrapper.mu.RUnlock()
-
 	err = mrdWrapper.ensureMultiRangeDownloader(forceCreateMRD)
 	if err != nil {
 		err = fmt.Errorf("MultiRangeDownloaderWrapper::Read: Error in creating MultiRangeDownloader:  %v", err)
+		mrdWrapper.mu.RUnlock()
 		return
 	}
 
@@ -173,6 +172,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 			e = fmt.Errorf("error in Add call: %w", e)
 		}
 	})
+	mrdWrapper.mu.RUnlock()
 
 	if !mrdWrapper.config.FileSystem.IgnoreInterrupts {
 		select {
