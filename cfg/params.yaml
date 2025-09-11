@@ -32,7 +32,7 @@
 #
 ###################################### DOCUMENTATION ENDS ######################
 
-flags:
+params:
   - config-path: "app-name"
     flag-name: "app-name"
     type: "string"

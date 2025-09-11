@@ -41,7 +41,7 @@ type Param struct {
 
 // ParamsYAML mirrors the params.yaml file itself.
 type ParamsYAML struct {
-	Flags []Param `yaml:"flags"`
+	Params []Param `yaml:"params"`
 }
 
 func parseParamsConfig() ([]Param, error) {
@@ -55,10 +55,10 @@ func parseParamsConfig() ([]Param, error) {
 	if err = dec.Decode(&paramsYAML); err != nil {
 		return nil, err
 	}
-	if err = validateParams(paramsYAML.Flags); err != nil {
+	if err = validateParams(paramsYAML.Params); err != nil {
 		return nil, err
 	}
-	return paramsYAML.Flags, nil
+	return paramsYAML.Params, nil
 }
 
 func checkFlagName(name string) error {
