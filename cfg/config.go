@@ -19,9 +19,70 @@ package cfg
 import (
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
+
+// AllFlagOptimizationRules is the generated map from a flag's config-path to its specific rules.
+var AllFlagOptimizationRules = map[string]shared.OptimizationRules{
+	"file-system.rename-dir-limit": {
+		MachineBasedOptimization: []shared.MachineBasedOptimization{
+			{
+				Group: "high-performance",
+				Value: 200000,
+			},
+		},
+	},
+	"implicit-dirs": {
+		MachineBasedOptimization: []shared.MachineBasedOptimization{
+			{
+				Group: "high-performance",
+				Value: true,
+			},
+		},
+	},
+	"metadata-cache.negative-ttl-secs": {
+		MachineBasedOptimization: []shared.MachineBasedOptimization{
+			{
+				Group: "high-performance",
+				Value: 0,
+			},
+		},
+	},
+	"metadata-cache.stat-cache-max-size-mb": {
+		MachineBasedOptimization: []shared.MachineBasedOptimization{
+			{
+				Group: "high-performance",
+				Value: 1024,
+			},
+		},
+	},
+	"metadata-cache.ttl-secs": {
+		MachineBasedOptimization: []shared.MachineBasedOptimization{
+			{
+				Group: "high-performance",
+				Value: -1,
+			},
+		},
+	},
+	"metadata-cache.type-cache-max-size-mb": {
+		MachineBasedOptimization: []shared.MachineBasedOptimization{
+			{
+				Group: "high-performance",
+				Value: 128,
+			},
+		},
+	},
+	"write.global-max-blocks": {
+		MachineBasedOptimization: []shared.MachineBasedOptimization{
+			{
+				Group: "high-performance",
+				Value: 1600,
+			},
+		},
+	},
+}
 
 type CloudProfilerConfig struct {
 	AllocatedHeap bool `yaml:"allocated-heap"`

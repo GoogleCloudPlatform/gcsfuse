@@ -333,6 +333,10 @@ params:
     type: "int"
     usage: "Allow rename a directory containing fewer descendants than this limit."
     default: "0"
+    optimizations:
+      machine-based-optimization:
+        - group: high-performance
+          value: 200000
 
   - config-path: "file-system.temp-dir"
     flag-name: "temp-dir"
@@ -553,6 +557,10 @@ params:
     type: "bool"
     usage: "Implicitly define directories based on content. See files and directories in docs/semantics for more information"
     default: false
+    optimizations:
+      machine-based-optimization:
+        - group: high-performance
+          value: true
 
   - config-path: "list.enable-empty-managed-folders"
     flag-name: "enable-empty-managed-folders"
@@ -692,6 +700,10 @@ params:
       can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled
       negative entries in metadata-cache. Any value set below -1 will throw an error.
     default: "5"
+    optimizations:
+      machine-based-optimization:
+        - group: high-performance
+          value: 0
 
   - config-path: "metadata-cache.stat-cache-max-size-mb"
     flag-name: "stat-cache-max-size-mb"
@@ -700,6 +712,10 @@ params:
       The maximum size of stat-cache in MiBs. It can also be set to -1 for
       no-size-limit, 0 for no cache. Values below -1 are not supported.
     default: "33"
+    optimizations:
+      machine-based-optimization:
+        - group: high-performance
+          value: 1024
 
   - config-path: "metadata-cache.ttl-secs"
     flag-name: "metadata-cache-ttl-secs"
@@ -709,12 +725,20 @@ params:
       can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled
       metadata-cache. Any value set below -1 will throw an error.
     default: "60"
+    optimizations:
+      machine-based-optimization:
+        - group: high-performance
+          value: -1
 
   - config-path: "metadata-cache.type-cache-max-size-mb"
     flag-name: "type-cache-max-size-mb"
     type: "int"
     usage: "Max size of type-cache maps which are maintained at a per-directory level."
     default: "4"
+    optimizations:
+      machine-based-optimization:
+        - group: high-performance
+          value: 128
 
   - config-path: "metrics.buffer-size"
     flag-name: "metrics-buffer-size"
@@ -896,6 +920,10 @@ params:
       A value of 0 disables streaming writes.
     default: 4
     hide-flag: false
+    optimizations:
+      machine-based-optimization:
+        - group: high-performance
+          value: 1600
 
   - config-path: "write.max-blocks-per-file"
     flag-name: "write-max-blocks-per-file"
