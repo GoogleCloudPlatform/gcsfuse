@@ -41,24 +41,27 @@ type Param struct {
 
 // ParamsYAML mirrors the params.yaml file itself.
 type ParamsYAML struct {
-	Params []Param `yaml:"params"`
+	Params            []Param             `yaml:"params"`
+	MachineTypeGroups map[string][]string `yaml:"machine-type-groups"`
 }
 
-func parseParamsConfig() ([]Param, error) {
+func parseParamsYAML() (ParamsYAML, error) {
+	zero := ParamsYAML{}
 	buf, err := os.ReadFile(*paramsFile)
 	if err != nil {
-		return nil, err
+		return zero, err
 	}
 	var paramsYAML ParamsYAML
 	dec := yaml.NewDecoder(bytes.NewReader(buf))
 	dec.KnownFields(true)
 	if err = dec.Decode(&paramsYAML); err != nil {
-		return nil, err
+		return zero, err
 	}
 	if err = validateParams(paramsYAML.Params); err != nil {
-		return nil, err
+		return zero, err
 	}
-	return paramsYAML.Params, nil
+	// TODO: Validate MachineTypeGroups also.
+	return paramsYAML, nil
 }
 
 func checkFlagName(name string) error {

@@ -81,17 +81,17 @@ func main() {
 		panic(err)
 	}
 
-	paramsConfig, err := parseParamsConfig()
+	paramsYAML, err := parseParamsYAML()
 	if err != nil {
 		panic(err)
 	}
 
-	td, err := constructTypeTemplateData(paramsConfig)
+	td, err := constructTypeTemplateData(paramsYAML.Params)
 	if err != nil {
 		panic(err)
 	}
 
-	fd, err := computeFlagTemplateData(paramsConfig)
+	fd, err := computeFlagTemplateData(paramsYAML.Params)
 	if err != nil {
 		panic(err)
 	}
