@@ -17,6 +17,8 @@
 package cfg
 
 import (
+	"log"
+	"reflect"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
@@ -84,27 +86,6 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{
 	},
 }
 
-// groupToMachineTypesMap is the generated map from machine group to the machine types in that group.
-var groupToMachineTypesMap = map[string][]string{
-	"high-performance": {
-		"a2-megagpu-16g",
-		"a2-ultragpu-8g",
-		"a3-edgegpu-8g",
-		"a3-highgpu-8g",
-		"a3-megagpu-8g",
-		"a3-ultragpu-8g",
-		"a4-highgpu-8g-lowmem",
-		"ct5l-hightpu-8t",
-		"ct5lp-hightpu-8t",
-		"ct5p-hightpu-4t",
-		"ct5p-hightpu-4t-tpu",
-		"ct6e-standard-4t",
-		"ct6e-standard-4t-tpu",
-		"ct6e-standard-8t",
-		"ct6e-standard-8t-tpu",
-	},
-}
-
 // machineTypeToGroupsMap is the generated map from machine type to the groups it belongs to.
 var machineTypeToGroupsMap = map[string][]string{
 	"a2-megagpu-16g": {
@@ -152,6 +133,160 @@ var machineTypeToGroupsMap = map[string][]string{
 	"ct6e-standard-8t-tpu": {
 		"high-performance",
 	},
+}
+
+// ApplyOptimizations modifies the config in-place with optimized values.
+func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
+	var optimizedFlags []string
+	// Skip all optimizations if autoconfig is disabled.
+	if c.DisableAutoconfig {
+		return nil
+	}
+
+	profileName := c.Profile
+	envName := detectGKEEnvironment()
+	machineType, err := getMachineType(isSet)
+	if err != nil {
+		// Non-fatal, just means machine-based optimizations won't apply.
+		machineType = ""
+	}
+	c.MachineType = machineType
+
+	// Apply optimizations for each flag that has rules defined.
+	if !isSet.IsSet("implicit-dirs") {
+		rules := AllFlagOptimizationRules["implicit-dirs"]
+		result := getOptimizedValue(&rules, c.ImplicitDirs, profileName, machineType, envName, machineTypeToGroupsMap)
+		if result.Found {
+			if val, ok := result.Value.(bool); ok {
+				if !reflect.DeepEqual(c.ImplicitDirs, val) {
+					log.Printf(
+						"INFO: For flag '%s', value changed from %v to %v due to: %s",
+						"implicit-dirs",
+						c.ImplicitDirs,
+						val,
+						result.Reason,
+					)
+					c.ImplicitDirs = val
+					optimizedFlags = append(optimizedFlags, "implicit-dirs")
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("metadata-cache-negative-ttl-secs") {
+		rules := AllFlagOptimizationRules["metadata-cache.negative-ttl-secs"]
+		result := getOptimizedValue(&rules, c.MetadataCache.NegativeTtlSecs, profileName, machineType, envName, machineTypeToGroupsMap)
+		if result.Found {
+			if val, ok := result.Value.(int64); ok {
+				if !reflect.DeepEqual(c.MetadataCache.NegativeTtlSecs, val) {
+					log.Printf(
+						"INFO: For flag '%s', value changed from %v to %v due to: %s",
+						"metadata-cache.negative-ttl-secs",
+						c.MetadataCache.NegativeTtlSecs,
+						val,
+						result.Reason,
+					)
+					c.MetadataCache.NegativeTtlSecs = val
+					optimizedFlags = append(optimizedFlags, "metadata-cache.negative-ttl-secs")
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("metadata-cache-ttl-secs") {
+		rules := AllFlagOptimizationRules["metadata-cache.ttl-secs"]
+		result := getOptimizedValue(&rules, c.MetadataCache.TtlSecs, profileName, machineType, envName, machineTypeToGroupsMap)
+		if result.Found {
+			if val, ok := result.Value.(int64); ok {
+				if !reflect.DeepEqual(c.MetadataCache.TtlSecs, val) {
+					log.Printf(
+						"INFO: For flag '%s', value changed from %v to %v due to: %s",
+						"metadata-cache.ttl-secs",
+						c.MetadataCache.TtlSecs,
+						val,
+						result.Reason,
+					)
+					c.MetadataCache.TtlSecs = val
+					optimizedFlags = append(optimizedFlags, "metadata-cache.ttl-secs")
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("rename-dir-limit") {
+		rules := AllFlagOptimizationRules["file-system.rename-dir-limit"]
+		result := getOptimizedValue(&rules, c.FileSystem.RenameDirLimit, profileName, machineType, envName, machineTypeToGroupsMap)
+		if result.Found {
+			if val, ok := result.Value.(int64); ok {
+				if !reflect.DeepEqual(c.FileSystem.RenameDirLimit, val) {
+					log.Printf(
+						"INFO: For flag '%s', value changed from %v to %v due to: %s",
+						"file-system.rename-dir-limit",
+						c.FileSystem.RenameDirLimit,
+						val,
+						result.Reason,
+					)
+					c.FileSystem.RenameDirLimit = val
+					optimizedFlags = append(optimizedFlags, "file-system.rename-dir-limit")
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("stat-cache-max-size-mb") {
+		rules := AllFlagOptimizationRules["metadata-cache.stat-cache-max-size-mb"]
+		result := getOptimizedValue(&rules, c.MetadataCache.StatCacheMaxSizeMb, profileName, machineType, envName, machineTypeToGroupsMap)
+		if result.Found {
+			if val, ok := result.Value.(int64); ok {
+				if !reflect.DeepEqual(c.MetadataCache.StatCacheMaxSizeMb, val) {
+					log.Printf(
+						"INFO: For flag '%s', value changed from %v to %v due to: %s",
+						"metadata-cache.stat-cache-max-size-mb",
+						c.MetadataCache.StatCacheMaxSizeMb,
+						val,
+						result.Reason,
+					)
+					c.MetadataCache.StatCacheMaxSizeMb = val
+					optimizedFlags = append(optimizedFlags, "metadata-cache.stat-cache-max-size-mb")
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("type-cache-max-size-mb") {
+		rules := AllFlagOptimizationRules["metadata-cache.type-cache-max-size-mb"]
+		result := getOptimizedValue(&rules, c.MetadataCache.TypeCacheMaxSizeMb, profileName, machineType, envName, machineTypeToGroupsMap)
+		if result.Found {
+			if val, ok := result.Value.(int64); ok {
+				if !reflect.DeepEqual(c.MetadataCache.TypeCacheMaxSizeMb, val) {
+					log.Printf(
+						"INFO: For flag '%s', value changed from %v to %v due to: %s",
+						"metadata-cache.type-cache-max-size-mb",
+						c.MetadataCache.TypeCacheMaxSizeMb,
+						val,
+						result.Reason,
+					)
+					c.MetadataCache.TypeCacheMaxSizeMb = val
+					optimizedFlags = append(optimizedFlags, "metadata-cache.type-cache-max-size-mb")
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("write-global-max-blocks") {
+		rules := AllFlagOptimizationRules["write.global-max-blocks"]
+		result := getOptimizedValue(&rules, c.Write.GlobalMaxBlocks, profileName, machineType, envName, machineTypeToGroupsMap)
+		if result.Found {
+			if val, ok := result.Value.(int64); ok {
+				if !reflect.DeepEqual(c.Write.GlobalMaxBlocks, val) {
+					log.Printf(
+						"INFO: For flag '%s', value changed from %v to %v due to: %s",
+						"write.global-max-blocks",
+						c.Write.GlobalMaxBlocks,
+						val,
+						result.Reason,
+					)
+					c.Write.GlobalMaxBlocks = val
+					optimizedFlags = append(optimizedFlags, "write.global-max-blocks")
+				}
+			}
+		}
+	}
+	return optimizedFlags
 }
 
 type CloudProfilerConfig struct {
