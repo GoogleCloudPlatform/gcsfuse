@@ -59,6 +59,28 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{
 {{- end }}
 }
 
+// groupToMachineTypesMap is the generated map from machine group to the machine types in that group.
+var groupToMachineTypesMap = map[string][]string{
+{{- range $group, $machineTypes := .GroupToMachineTypesMap }}
+	"{{ $group }}": { 
+	{{- range $machineType := $machineTypes }}
+		"{{ $machineType }}",
+	{{- end }}
+	},
+{{- end }}
+}
+
+// machineTypeToGroupsMap is the generated map from machine type to the groups it belongs to.
+var machineTypeToGroupsMap = map[string][]string{
+{{- range $machineType, $groups := .MachineTypeToGroupsMap }}
+	"{{ $machineType }}": { 
+	{{- range $group := $groups }}
+		"{{ $group }}",
+	{{- end }}
+	},
+{{- end }}
+}
+
 {{$bt := .Backticks}}
 {{range .TypeTemplateData}}
 type {{ .TypeName}} struct {
