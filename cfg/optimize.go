@@ -144,7 +144,7 @@ func getMachineType(isSet isValueSet) (string, error) {
 		}
 	}
 	client := http.Client{Timeout: httpTimeout}
-	for retry := 0; retry < maxRetries; retry++ {
+	for range maxRetries {
 		for _, endpoint := range metadataEndpoints {
 			body, err := getMetadata(&client, endpoint)
 			if err != nil {

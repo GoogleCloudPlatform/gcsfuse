@@ -32,9 +32,12 @@ var (
 	templateDir = flag.String("templateDir", ".", "Directory containing the template files")
 )
 
+type OptimizationRulesMap = map[string]OptimizationRules
+
 type templateData struct {
-	TypeTemplateData []typeTemplateData
-	FlagTemplateData []flagTemplateData
+	TypeTemplateData  []typeTemplateData
+	FlagTemplateData  []flagTemplateData
+	OptimizationRules OptimizationRulesMap
 	// Back-ticks are not supported in templates. So, passing as a parameter.
 	Backticks string
 }
@@ -74,6 +77,16 @@ func write(dataObj any, outputFile, templateFile string) (err error) {
 	return tmpl.Execute(outF, dataObj)
 }
 
+func getOptimizationRulesMap(params []Param) OptimizationRulesMap {
+	rulesMap := make(OptimizationRulesMap)
+	for _, param := range params {
+		if param.Optimizations != nil {
+			rulesMap[param.ConfigPath] = *param.Optimizations
+		}
+	}
+	return rulesMap
+}
+
 func main() {
 	flag.Parse()
 	err := validateFlags()
@@ -81,17 +94,17 @@ func main() {
 		panic(err)
 	}
 
-	paramsConfig, err := parseParamsConfig()
+	paramsYAML, err := parseParamsYAML()
 	if err != nil {
 		panic(err)
 	}
 
-	td, err := constructTypeTemplateData(paramsConfig)
+	td, err := constructTypeTemplateData(paramsYAML.Params)
 	if err != nil {
 		panic(err)
 	}
 
-	fd, err := computeFlagTemplateData(paramsConfig)
+	fd, err := computeFlagTemplateData(paramsYAML.Params)
 	if err != nil {
 		panic(err)
 	}
@@ -104,10 +117,13 @@ func main() {
 		return cmp.Compare(i.FlagName, j.FlagName)
 	})
 
+	optimizationRulesMap := getOptimizationRulesMap(paramsYAML.Params)
+
 	err = write(templateData{
-		FlagTemplateData: fd,
-		TypeTemplateData: td,
-		Backticks:        "`",
+		FlagTemplateData:  fd,
+		TypeTemplateData:  td,
+		OptimizationRules: optimizationRulesMap,
+		Backticks:         "`",
 	},
 		path.Join(*outDir, "config.go"),
 		path.Join(*templateDir, "config.tpl"))
