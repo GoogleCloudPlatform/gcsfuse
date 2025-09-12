@@ -69,23 +69,17 @@ func (p *DownloadTask) Execute() {
 	stime := time.Now()
 	var err error
 	defer func() {
-		var status string
 		dur := time.Since(stime)
 		if err == nil {
-			status = "successful"
 			logger.Tracef("Download: -> block (%s, %v) Ok(%v).", p.object.Name, blockId, dur)
 			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloaded})
 		} else if errors.Is(err, context.Canceled) && p.ctx.Err() == context.Canceled {
-			status = "cancelled"
 			logger.Tracef("Download: -> block (%s, %v) cancelled: %v.", p.object.Name, blockId, err)
 			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})
 		} else {
-			status = "failed"
 			logger.Errorf("Download: -> block (%s, %v) failed: %v.", p.object.Name, blockId, err)
 			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})
 		}
-		p.metricHandle.BufferedReadDownloadBlockLatency(p.ctx, dur, status)
-		p.metricHandle.BufferedReadScheduledBlockCount(1, status)
 	}()
 
 	start := uint64(startOff)
@@ -116,9 +110,10 @@ func (p *DownloadTask) Execute() {
 	}
 	defer newReader.Close()
 
-	_, err = io.CopyN(p.block, newReader, int64(end-start))
+	bytesCopied, err := io.CopyN(p.block, newReader, int64(end-start))
 	if err != nil {
 		err = fmt.Errorf("DownloadTask.Execute: while data-copy: %w", err)
 		return
 	}
+	p.metricHandle.BufferedReadBytesCount(bytesCopied, "downloaded")
 }
