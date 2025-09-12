@@ -40,7 +40,6 @@ type templateData struct {
 	TypeTemplateData       []typeTemplateData
 	FlagTemplateData       []flagTemplateData
 	OptimizationRules      OptimizationRulesMap
-	GroupToMachineTypesMap map[string][]string
 	MachineTypeToGroupsMap map[string][]string
 	// Back-ticks are not supported in templates. So, passing as a parameter.
 	Backticks string
@@ -139,15 +138,14 @@ func main() {
 
 	optimizationRulesMap := getOptimizationRulesMap(paramsYAML.Params)
 
-	// Invert the machine groups map for template consumption
-	invertedGroups := invertMachineTypeGroups(paramsYAML.MachineTypeGroups)
+	// Create a map from given machine type to all the machine type groups that it belongs to.
+	machineTypeToGroupsMap := invertMachineTypeGroups(paramsYAML.MachineTypeGroups)
 
 	err = write(templateData{
 		FlagTemplateData:       fd,
 		TypeTemplateData:       td,
 		OptimizationRules:      optimizationRulesMap,
-		GroupToMachineTypesMap: paramsYAML.MachineTypeGroups,
-		MachineTypeToGroupsMap: invertedGroups,
+		MachineTypeToGroupsMap: machineTypeToGroupsMap,
 		Backticks:              "`",
 	},
 		path.Join(*outDir, "config.go"),

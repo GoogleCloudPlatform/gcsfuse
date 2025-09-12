@@ -17,7 +17,9 @@
 package cfg
 
 import (
+	"log"
 	"time"
+	"reflect"
 
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -59,17 +61,6 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{
 {{- end }}
 }
 
-// groupToMachineTypesMap is the generated map from machine group to the machine types in that group.
-var groupToMachineTypesMap = map[string][]string{
-{{- range $group, $machineTypes := .GroupToMachineTypesMap }}
-	"{{ $group }}": { 
-	{{- range $machineType := $machineTypes }}
-		"{{ $machineType }}",
-	{{- end }}
-	},
-{{- end }}
-}
-
 // machineTypeToGroupsMap is the generated map from machine type to the groups it belongs to.
 var machineTypeToGroupsMap = map[string][]string{
 {{- range $machineType, $groups := .MachineTypeToGroupsMap }}
@@ -79,6 +70,50 @@ var machineTypeToGroupsMap = map[string][]string{
 	{{- end }}
 	},
 {{- end }}
+}
+
+// ApplyOptimizations modifies the config in-place with optimized values.
+func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
+	var optimizedFlags []string
+	// Skip all optimizations if autoconfig is disabled.
+	if c.DisableAutoconfig {
+		return nil
+	}
+
+	profileName := c.Profile
+	envName := detectGKEEnvironment()
+	machineType, err := getMachineType(isSet)
+	if err != nil {
+		// Non-fatal, just means machine-based optimizations won't apply.
+		machineType = ""
+	}
+	c.MachineType = machineType
+
+	// Apply optimizations for each flag that has rules defined.
+{{- range .FlagTemplateData }}
+{{- if .Optimizations }}
+	if !isSet.IsSet("{{ .FlagName }}") {
+		rules := AllFlagOptimizationRules["{{ .ConfigPath }}"]
+		result := getOptimizedValue(&rules, c.{{ .GoPath }}, profileName, machineType, envName, machineTypeToGroupsMap)
+		if result.Found {
+			if val, ok := result.Value.({{ .GoType }}); ok {
+				if !reflect.DeepEqual(c.{{ .GoPath }}, val) {
+					log.Printf(
+						"INFO: For flag '%s', value changed from %v to %v due to: %s",
+						"{{ .ConfigPath }}",
+						c.{{ .GoPath }},
+						val,
+						result.Reason,
+					)
+					c.{{ .GoPath }} = val
+					optimizedFlags = append(optimizedFlags, "{{ .ConfigPath }}")
+				}
+			}
+		}
+	}
+{{- end }}
+{{- end }}
+	return optimizedFlags
 }
 
 {{$bt := .Backticks}}
