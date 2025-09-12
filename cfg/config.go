@@ -129,6 +129,153 @@ var AllFlagOptimizationRules = map[string]OptimizationRules{
 	},
 }
 
+// groupToMachineTypesMap is the generated map from machine group to the machine types in that group.
+var groupToMachineTypesMap = map[string][]string{
+	"high-performance": {
+		"a2-megagpu-16g",
+		"a2-ultragpu-8g",
+		"a3-edgegpu-8g",
+		"a3-highgpu-8g",
+		"a3-megagpu-8g",
+		"a3-ultragpu-8g",
+		"a4-highgpu-8g-lowmem",
+		"ct5l-hightpu-8t",
+		"ct5lp-hightpu-8t",
+		"ct5p-hightpu-4t",
+		"ct5p-hightpu-4t-tpu",
+		"ct6e-standard-4t",
+		"ct6e-standard-4t-tpu",
+		"ct6e-standard-8t",
+		"ct6e-standard-8t-tpu",
+	},
+}
+
+// machineTypeToGroupsMap is the generated map from machine type to the groups it belongs to.
+var machineTypeToGroupsMap = map[string][]string{
+	"a2-megagpu-16g": {
+		"high-performance",
+	},
+	"a2-ultragpu-8g": {
+		"high-performance",
+	},
+	"a3-edgegpu-8g": {
+		"high-performance",
+	},
+	"a3-highgpu-8g": {
+		"high-performance",
+	},
+	"a3-megagpu-8g": {
+		"high-performance",
+	},
+	"a3-ultragpu-8g": {
+		"high-performance",
+	},
+	"a4-highgpu-8g-lowmem": {
+		"high-performance",
+	},
+	"ct5l-hightpu-8t": {
+		"high-performance",
+	},
+	"ct5lp-hightpu-8t": {
+		"high-performance",
+	},
+	"ct5p-hightpu-4t": {
+		"high-performance",
+	},
+	"ct5p-hightpu-4t-tpu": {
+		"high-performance",
+	},
+	"ct6e-standard-4t": {
+		"high-performance",
+	},
+	"ct6e-standard-4t-tpu": {
+		"high-performance",
+	},
+	"ct6e-standard-8t": {
+		"high-performance",
+	},
+	"ct6e-standard-8t-tpu": {
+		"high-performance",
+	},
+}
+
+// ApplyOptimizations modifies the config in-place with optimized values.
+func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
+	var optimizedFlags []string
+	// Skip all optimizations if autoconfig is disabled.
+	if c.DisableAutoconfig {
+		return nil
+	}
+
+	profileName := c.Profile
+	envName := detectGKEEnvironment()
+	machineType, err := getMachineType(isSet)
+	if err != nil {
+		// Non-fatal, just means machine-based optimizations won't apply.
+		machineType = ""
+	}
+	c.MachineType = machineType
+
+	// Apply optimizations for each flag that has rules defined.
+	if !isSet.IsSet("implicit-dirs") {
+		rules := AllFlagOptimizationRules["implicit-dirs"]
+		optimizedVal := getOptimizedValue(&rules, c.ImplicitDirs, profileName, machineType, envName, &machineTypeToGroupsMap)
+		if optimizedVal != c.ImplicitDirs {
+			c.ImplicitDirs = optimizedVal.(bool)
+			optimizedFlags = append(optimizedFlags, "implicit-dirs")
+		}
+	}
+	if !isSet.IsSet("metadata-cache-negative-ttl-secs") {
+		rules := AllFlagOptimizationRules["metadata-cache.negative-ttl-secs"]
+		optimizedVal := getOptimizedValue(&rules, c.MetadataCache.NegativeTtlSecs, profileName, machineType, envName, &machineTypeToGroupsMap)
+		if optimizedVal != c.MetadataCache.NegativeTtlSecs {
+			c.MetadataCache.NegativeTtlSecs = optimizedVal.(int64)
+			optimizedFlags = append(optimizedFlags, "metadata-cache.negative-ttl-secs")
+		}
+	}
+	if !isSet.IsSet("metadata-cache-ttl-secs") {
+		rules := AllFlagOptimizationRules["metadata-cache.ttl-secs"]
+		optimizedVal := getOptimizedValue(&rules, c.MetadataCache.TtlSecs, profileName, machineType, envName, &machineTypeToGroupsMap)
+		if optimizedVal != c.MetadataCache.TtlSecs {
+			c.MetadataCache.TtlSecs = optimizedVal.(int64)
+			optimizedFlags = append(optimizedFlags, "metadata-cache.ttl-secs")
+		}
+	}
+	if !isSet.IsSet("rename-dir-limit") {
+		rules := AllFlagOptimizationRules["file-system.rename-dir-limit"]
+		optimizedVal := getOptimizedValue(&rules, c.FileSystem.RenameDirLimit, profileName, machineType, envName, &machineTypeToGroupsMap)
+		if optimizedVal != c.FileSystem.RenameDirLimit {
+			c.FileSystem.RenameDirLimit = optimizedVal.(int64)
+			optimizedFlags = append(optimizedFlags, "file-system.rename-dir-limit")
+		}
+	}
+	if !isSet.IsSet("stat-cache-max-size-mb") {
+		rules := AllFlagOptimizationRules["metadata-cache.stat-cache-max-size-mb"]
+		optimizedVal := getOptimizedValue(&rules, c.MetadataCache.StatCacheMaxSizeMb, profileName, machineType, envName, &machineTypeToGroupsMap)
+		if optimizedVal != c.MetadataCache.StatCacheMaxSizeMb {
+			c.MetadataCache.StatCacheMaxSizeMb = optimizedVal.(int64)
+			optimizedFlags = append(optimizedFlags, "metadata-cache.stat-cache-max-size-mb")
+		}
+	}
+	if !isSet.IsSet("type-cache-max-size-mb") {
+		rules := AllFlagOptimizationRules["metadata-cache.type-cache-max-size-mb"]
+		optimizedVal := getOptimizedValue(&rules, c.MetadataCache.TypeCacheMaxSizeMb, profileName, machineType, envName, &machineTypeToGroupsMap)
+		if optimizedVal != c.MetadataCache.TypeCacheMaxSizeMb {
+			c.MetadataCache.TypeCacheMaxSizeMb = optimizedVal.(int64)
+			optimizedFlags = append(optimizedFlags, "metadata-cache.type-cache-max-size-mb")
+		}
+	}
+	if !isSet.IsSet("write-global-max-blocks") {
+		rules := AllFlagOptimizationRules["write.global-max-blocks"]
+		optimizedVal := getOptimizedValue(&rules, c.Write.GlobalMaxBlocks, profileName, machineType, envName, &machineTypeToGroupsMap)
+		if optimizedVal != c.Write.GlobalMaxBlocks {
+			c.Write.GlobalMaxBlocks = optimizedVal.(int64)
+			optimizedFlags = append(optimizedFlags, "write.global-max-blocks")
+		}
+	}
+	return optimizedFlags
+}
+
 type CloudProfilerConfig struct {
 	AllocatedHeap bool `yaml:"allocated-heap"`
 

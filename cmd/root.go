@@ -87,7 +87,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 			return
 		}
 
-		optimizedFlags := cfg.Optimize(&configObj, v)
+		optimizedFlags := configObj.ApplyOptimizations(v)
 
 		if cfgErr = cfg.Rationalize(v, &configObj, optimizedFlags); cfgErr != nil {
 			return
