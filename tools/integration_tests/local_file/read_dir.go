@@ -79,6 +79,7 @@ func (t *CommonLocalFileTestSuite) TestReadDir() {
 	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh3, testDirName, FileName2, t.T())
 	// Create GCS synced file.
 	CreateObjectInGCSTestDir(ctx, storageClient, testDirName, FileName3, GCSFileContent, t.T())
+	operations.WaitForSizeUpdate(setup.IsZonalBucketRun())
 
 	// Attempt to list mnt and explicit directory.
 	entriesMnt := operations.ReadDirectory(testDirPath, t.T())
