@@ -360,6 +360,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 	}
 
 	resp.Size = bytesRead
+	p.metricHandle.BufferedReadBytesCount(int64(bytesRead), "read")
 	return resp, err
 }
 
