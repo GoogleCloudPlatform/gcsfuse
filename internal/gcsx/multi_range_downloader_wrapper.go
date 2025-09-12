@@ -102,6 +102,10 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader(forceR
 	// Create the MRD if it does not exist.
 	// In case the existing MRD is unusable due to closed stream, recreate the MRD.
 	if forceRecreateMRD || mrdWrapper.Wrapped == nil || mrdWrapper.Wrapped.Error() != nil {
+		// The calling function holds a read lock. To create a new downloader, we need to
+		// upgrade to a write lock. This is done by releasing the read lock, acquiring
+		// the write lock, and then using a deferred function to downgrade back to a
+		// read lock before this function returns.
 		mrdWrapper.mu.RUnlock()
 		mrdWrapper.mu.Lock()
 		defer func() {
