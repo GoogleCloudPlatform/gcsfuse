@@ -5622,6 +5622,22 @@ func TestFsOpsLatency(t *testing.T) {
 	}
 }
 
+func TestGcsDnsCount(t *testing.T) {
+	ctx := context.Background()
+	encoder := attribute.DefaultEncoder()
+	m, rd := setupOTel(ctx, t)
+
+	m.GcsDnsCount(1024)
+	m.GcsDnsCount(2048)
+	waitForMetricsProcessing()
+
+	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+	metric, ok := metrics["gcs/dns_count"]
+	require.True(t, ok, "gcs/dns_count metric not found")
+	s := attribute.NewSet()
+	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric)
+}
+
 func TestGcsDownloadBytesCount(t *testing.T) {
 	tests := []struct {
 		name     string

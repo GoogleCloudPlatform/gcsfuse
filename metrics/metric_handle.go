@@ -54,6 +54,9 @@ type MetricHandle interface {
 	// FsOpsLatency - The cumulative distribution of file system operation latencies
 	FsOpsLatency(ctx context.Context, duration time.Duration, fsOp string)
 
+	// GcsDnsCount - The cumulative number of dns requests for GCS.
+	GcsDnsCount(inc int64)
+
 	// GcsDownloadBytesCount - The cumulative number of bytes downloaded from GCS along with type - Sequential/Random
 	GcsDownloadBytesCount(inc int64, readType string)
 
