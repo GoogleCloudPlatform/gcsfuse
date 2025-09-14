@@ -16,6 +16,7 @@ package gcsx
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"sync"
@@ -135,7 +136,10 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (reader
 	readerResponse.Size = bytesRead
 
 	// Retry reading in case of short read.
-	if err == nil && bytesRead < len(p) && offset+int64(bytesRead) < int64(gr.object.Size) && gr.bucket.BucketType().Zonal {
+	// This would retry for MRD only as range reader would have created a new reader before trying to read
+	// if the existing reader's limit did not cover the object size
+	if (err == nil || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF)) &&
+		bytesRead < len(p) && offset+int64(bytesRead) < int64(gr.object.Size) && gr.bucket.BucketType().Zonal {
 		readReq.Offset += int64(bytesRead)
 		readReq.Buffer = p[bytesRead:]
 		readReq.ForceCreateReader = true
