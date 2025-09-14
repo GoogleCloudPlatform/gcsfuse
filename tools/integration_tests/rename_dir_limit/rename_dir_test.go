@@ -47,7 +47,7 @@ func TestRenameDirectoryWithThreeFiles(t *testing.T) {
 
 	err := os.Rename(oldDirPath, newDirPath)
 
-	if err != nil {
+	if err == nil {
 		t.Errorf("Error in renaming directory: %v", err)
 	}
 }
@@ -98,6 +98,7 @@ func TestRenameDirectoryWithFourFiles(t *testing.T) {
 	operations.RemoveDir(newDirPath)
 	err := os.Rename(oldDirPath, newDirPath)
 
+	assert.NoError(t, err)
 	if err == nil {
 		t.Errorf("Renaming directory succeeded with objects greater than rename-dir-limit.")
 	}
