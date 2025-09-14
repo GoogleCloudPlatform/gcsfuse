@@ -861,6 +861,31 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateZonalRandomReads() {
 	}
 }
 
+func (t *gcsReaderTest) Test_ReadAt_MRDShortReadOnZonal() {
+	t.object.Size = 200
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true})
+	testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
+	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapper(t.mockBucket, t.object, &cfg.Config{})
+	require.NoError(t.T(), err)
+	t.gcsReader.mrr.mrdWrapper = &fakeMRDWrapper
+	// First call to NewMultiRangeDownloader will return a short read.
+	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithShortRead(t.object, testContent), nil).Once()
+	// Second call for retry will return the full content.
+	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloader(t.object, testContent), nil).Once()
+	t.gcsReader.readType.Store(metrics.ReadTypeRandom)
+	buf := make([]byte, t.object.Size)
+
+	// Act
+	readerResponse, err := t.gcsReader.ReadAt(t.ctx, buf, 0)
+
+	// Assert
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), int(t.object.Size), readerResponse.Size)
+	assert.Equal(t.T(), testContent, buf)
+	assert.Equal(t.T(), int64(t.object.Size), t.gcsReader.expectedOffset.Load())
+	t.mockBucket.AssertExpectations(t.T())
+}
+
 func (t *gcsReaderTest) Test_ReadAt_ParallelRandomReads() {
 	// Setup
 	t.gcsReader.seeks.Store(minSeeksForRandom)

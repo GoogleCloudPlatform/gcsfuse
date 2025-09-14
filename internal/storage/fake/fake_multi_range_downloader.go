@@ -33,6 +33,7 @@ type fakeMultiRangeDownloader struct {
 	defaultErr error
 	statusErr  error
 	sleepTime  time.Duration // Sleep time to simulate real-world.
+	shortRead  bool
 }
 
 func createFakeObject(obj *gcs.MinObject, data []byte) fakeObject {
@@ -45,6 +46,14 @@ func createFakeObject(obj *gcs.MinObject, data []byte) fakeObject {
 
 func NewFakeMultiRangeDownloader(obj *gcs.MinObject, data []byte) gcs.MultiRangeDownloader {
 	return NewFakeMultiRangeDownloaderWithSleepAndDefaultError(obj, data, time.Millisecond, nil)
+}
+
+func NewFakeMultiRangeDownloaderWithShortRead(obj *gcs.MinObject, data []byte) gcs.MultiRangeDownloader {
+	fakeObject := createFakeObject(obj, data)
+	return &fakeMultiRangeDownloader{
+		obj:       &fakeObject,
+		shortRead: true,
+	}
 }
 
 func NewFakeMultiRangeDownloaderWithSleep(obj *gcs.MinObject, data []byte, sleepTime time.Duration) gcs.MultiRangeDownloader {
@@ -109,6 +118,11 @@ func (fmrd *fakeMultiRangeDownloader) Add(output io.Writer, offset, length int64
 	go func() {
 		// clear this goroutine from waitgroup.
 		defer fmrd.wg.Done()
+
+		if fmrd.shortRead {
+			length /= 2
+			fmrd.shortRead = false
+		}
 
 		time.Sleep(fmrd.sleepTime)
 		var n int
