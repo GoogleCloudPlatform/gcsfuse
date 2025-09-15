@@ -124,7 +124,7 @@ func TestWriteAtEndOfFile(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 	fileName := path.Join(testDir, tempFileName)
 
-	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
+	operations.CreateFileWithContent(setup.IsZonalBucketRun(), fileName, setup.FilePermission_0600, Content, t)
 
 	err := operations.WriteFileInAppendMode(fileName, "line 3\n")
 	if err != nil {
@@ -140,7 +140,7 @@ func TestWriteAtStartOfFile(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 	fileName := path.Join(testDir, tempFileName)
 
-	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
+	operations.CreateFileWithContent(setup.IsZonalBucketRun(), fileName, setup.FilePermission_0600, Content, t)
 
 	err := operations.WriteFile(fileName, "line 4\n")
 	if err != nil {
@@ -156,7 +156,7 @@ func TestWriteAtRandom(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 	fileName := path.Join(testDir, tempFileName)
 
-	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
+	operations.CreateFileWithContent(setup.IsZonalBucketRun(), fileName, setup.FilePermission_0600, Content, t)
 
 	f, err := os.OpenFile(fileName, os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
@@ -180,7 +180,7 @@ func TestCreateFile(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 	fileName := path.Join(testDir, tempFileName)
 
-	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
+	operations.CreateFileWithContent(setup.IsZonalBucketRun(), fileName, setup.FilePermission_0600, Content, t)
 
 	// Stat the file to check if it exists.
 	if _, err := os.Stat(fileName); err != nil {
@@ -197,7 +197,7 @@ func TestAppendFileOperationsDoesNotChangeObjectAttributes(t *testing.T) {
 	// Create file.
 	fileName := path.Join(testDir, tempFileName)
 
-	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
+	operations.CreateFileWithContent(setup.IsZonalBucketRun(), fileName, setup.FilePermission_0600, Content, t)
 	attr1 := validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), t)
 	// Append to the file.
 	err := operations.WriteFileInAppendMode(fileName, appendContent)
@@ -215,7 +215,7 @@ func TestWriteAtFileOperationsDoesNotChangeObjectAttributes(t *testing.T) {
 	// Create file.
 	fileName := path.Join(testDir, tempFileName)
 
-	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
+	operations.CreateFileWithContent(setup.IsZonalBucketRun(), fileName, setup.FilePermission_0600, Content, t)
 	attr1 := validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), t)
 	// Over-write the file.
 	fh, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, operations.FilePermission_0600)

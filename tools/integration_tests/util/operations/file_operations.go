@@ -645,19 +645,20 @@ func SyncFileShouldThrowError(t *testing.T, file *os.File) {
 	}
 }
 
-func CreateFileWithContent(filePath string, filePerms os.FileMode, content string, t testing.TB) {
+func CreateFileWithContent(isZonal bool, filePath string, filePerms os.FileMode, content string, t testing.TB) {
 	fh := CreateFile(filePath, filePerms, t)
 	WriteAt(content, 0, fh, t)
 	CloseFileShouldNotThrowError(t, fh)
+	WaitForSizeUpdate(isZonal)
 }
 
 // CreateFileOfSize creates a file of given size with random data.
-func CreateFileOfSize(fileSize int64, filePath string, t testing.TB) {
+func CreateFileOfSize(isZonal bool, fileSize int64, filePath string, t testing.TB) {
 	randomData, err := GenerateRandomData(fileSize)
 	if err != nil {
 		t.Errorf("operations.GenerateRandomData: %v", err)
 	}
-	CreateFileWithContent(filePath, FilePermission_0600, string(randomData), t)
+	CreateFileWithContent(isZonal, filePath, FilePermission_0600, string(randomData), t)
 }
 
 // CalculateCRC32 calculates and returns the CRC-32 checksum of the data from the provided Reader.

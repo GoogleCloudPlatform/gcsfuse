@@ -48,7 +48,7 @@ func runOperationsOnFileTillLogRotation(t *testing.T, wg *sync.WaitGroup, fileNa
 	// Setup file with 5 MiB content in test directory.
 	testDirPath := path.Join(setup.MntDir(), testDirName)
 	filePath := path.Join(testDirPath, fileName)
-	operations.CreateFileWithContent(filePath, filePerms, string(randomData), t)
+	operations.CreateFileWithContent(setup.IsZonalBucketRun(), filePath, filePerms, string(randomData), t)
 
 	// Keep performing operations in mounted directory until log file is rotated.
 	var lastLogFileSize int64 = 0

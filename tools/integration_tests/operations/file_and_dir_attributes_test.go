@@ -59,7 +59,7 @@ func TestFileAttributes(t *testing.T) {
 	// Ref: https://github.com/golang/go/issues/33510
 	preCreateTime := time.Now().Add(-operations.TimeSlop)
 	fileName := path.Join(testDir, tempFileName)
-	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
+	operations.CreateFileWithContent(setup.IsZonalBucketRun(), fileName, setup.FilePermission_0600, Content, t)
 	postCreateTime := time.Now().Add(+operations.TimeSlop)
 
 	// The file size in createTempFile() is BytesWrittenInFile bytes

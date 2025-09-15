@@ -62,10 +62,10 @@ func createDirStructure(t *testing.T) testDirStrucure {
 	operations.CreateDirectory(explicitDir1, t)
 	tds.file1InExplicitDir1Name = "file1-" + setup.GenerateRandomString(5) + ".txt"
 	filePath1 := path.Join(explicitDir1, tds.file1InExplicitDir1Name)
-	operations.CreateFileOfSize(5, filePath1, t)
+	operations.CreateFileOfSize(setup.IsZonalBucketRun(), 5, filePath1, t)
 	tds.file2InExplicitDir1Name = "file2-" + setup.GenerateRandomString(5) + ".txt"
 	filePath2 := path.Join(explicitDir1, tds.file2InExplicitDir1Name)
-	operations.CreateFileOfSize(10, filePath2, t)
+	operations.CreateFileOfSize(setup.IsZonalBucketRun(), 10, filePath2, t)
 
 	// Create explicitDir2 structure
 	tds.explicitDir2Name = "explicitDir2-" + setup.GenerateRandomString(5)
@@ -73,14 +73,14 @@ func createDirStructure(t *testing.T) testDirStrucure {
 	operations.CreateDirectory(explicitDir2, t)
 	tds.file1InExplicitDir2Name = "file1-" + setup.GenerateRandomString(5) + ".txt"
 	filePath1 = path.Join(explicitDir2, tds.file1InExplicitDir2Name)
-	operations.CreateFileOfSize(11, filePath1, t)
+	operations.CreateFileOfSize(setup.IsZonalBucketRun(), 11, filePath1, t)
 
 	tds.file1Name = "file1-" + setup.GenerateRandomString(5) + ".txt"
 	filePath1 = path.Join(tds.testDir, tds.file1Name)
-	operations.CreateFileOfSize(5, filePath1, t)
+	operations.CreateFileOfSize(setup.IsZonalBucketRun(), 5, filePath1, t)
 	tds.file2Name = "file2-" + setup.GenerateRandomString(5) + ".txt"
 	filePath2 = path.Join(tds.testDir, tds.file2Name)
-	operations.CreateFileOfSize(3, filePath2, t)
+	operations.CreateFileOfSize(setup.IsZonalBucketRun(), 3, filePath2, t)
 
 	return tds
 }
