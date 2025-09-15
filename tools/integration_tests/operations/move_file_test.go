@@ -16,6 +16,7 @@
 package operations_test
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"strings"
@@ -110,8 +111,9 @@ func TestMoveFileWithDestFileExist(t *testing.T) {
 	// Set up the test directory.
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 	// Define source and destination file names.
-	srcFilePath := path.Join(testDir, "move1.txt")
-	destFilePath := path.Join(testDir, "move2.txt")
+	prefix := setup.GenerateRandomString(5)
+	srcFilePath := path.Join(testDir, fmt.Sprintf("%vmove1.txt", prefix))
+	destFilePath := path.Join(testDir, fmt.Sprintf("%vmove2.txt", prefix))
 	// Create the source and dest file with some content.
 	operations.CreateFileWithContent(srcFilePath, setup.FilePermission_0600, Content, t)
 	operations.CreateFileWithContent(destFilePath, setup.FilePermission_0600, "Hello from dest file", t)
@@ -135,13 +137,12 @@ func TestRenameOnUnfinalizedObject(t *testing.T) {
 	// Set up the test directory.
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 	// Define source and destination file names.
-	srcFilePath := path.Join(testDir, "move1.txt")
-	destFilePath := path.Join(testDir, "move2.txt")
+	prefix := setup.GenerateRandomString(5)
+	srcFilePath := path.Join(testDir, fmt.Sprintf("%vmove1.txt", prefix))
+	destFilePath := path.Join(testDir, fmt.Sprintf("%vmove2.txt", prefix))
 	// Create an unfinalized object named `move1.txt`
 	client.CreateUnfinalizedObject(ctx, t, storageClient, path.Join(DirForOperationTests, "move1.txt"), Content)
-	// Sleep for one minute so that GCS stat() returns the existence of object correctly.
 	time.Sleep(time.Minute)
-
 	err := operations.Move(srcFilePath, destFilePath)
 
 	assert.NoError(t, err, "error in file moving")

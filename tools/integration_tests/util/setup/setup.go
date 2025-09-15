@@ -286,10 +286,14 @@ func SaveLogFileAsArtifact(logFile, artifactName string) {
 		logDir = TestDir()
 	}
 	artifactPath := path.Join(logDir, artifactName)
-	// err := operations.CopyFile(logFile, artifactPath)
-	// if err != nil {
-	// 	log.Fatalf("Error in copying logfile to artifact path: %v", err)
-	// }
+	logFileData, err := os.ReadFile(logFile)
+	if err != nil {
+		log.Fatalf("Error reading log file: %v", err)
+	}
+	err = os.WriteFile(artifactPath, logFileData, 0600)
+	if err != nil {
+		log.Fatalf("Error in writing log file to artifacts directory: %v", err)
+	}
 	log.Printf("[Skip for now]Log file saved at %v", artifactPath)
 }
 

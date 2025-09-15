@@ -16,6 +16,7 @@
 package operations_test
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"strings"
@@ -52,8 +53,9 @@ func TestRenameFileWithSrcFileDoesNoExist(t *testing.T) {
 	// Set up the test directory.
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 	// Define source and destination file names.
-	srcFilePath := path.Join(testDir, "move1.txt") // This file does not exist.
-	destFilePath := path.Join(testDir, "move2.txt")
+	prefix := setup.GenerateRandomString(5)
+	srcFilePath := path.Join(testDir, fmt.Sprintf("%vmove1.txt", prefix)) // This file does not exist.
+	destFilePath := path.Join(testDir, fmt.Sprintf("%vmove2.txt", prefix))
 
 	// Attempt to rename the non-existent file.
 	err := operations.RenameFile(srcFilePath, destFilePath)
