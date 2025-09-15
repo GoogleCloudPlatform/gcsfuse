@@ -37,7 +37,7 @@ type GCSReaderRequest struct {
 	// This determines GCS range request.
 	EndOffset int64
 
-	// This parameter specifies whether we the reader needs to be discarded for a new reader
+	// This parameter specifies whether the reader needs to be discarded for a new reader.
 	ForceCreateReader bool
 }
 

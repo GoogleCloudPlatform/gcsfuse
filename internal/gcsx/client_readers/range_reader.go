@@ -22,6 +22,7 @@ import (
 	"math"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
@@ -179,7 +180,7 @@ func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset
 		// if the reader peters out early. That's fine, but it means we should
 		// have hit the limit above.
 		if rr.reader != nil {
-			err = fmt.Errorf("range reader returned early by skipping %d bytes", rr.limit-rr.start)
+			err = fmt.Errorf("range reader returned early by skipping %d bytes: %w", rr.limit-rr.start, util.ErrShortRead)
 			return 0, err
 		}
 

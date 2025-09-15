@@ -367,8 +367,9 @@ func (dmrd *debugMultiRangeDownloader) Error() (err error) {
 }
 
 func (dmrd *debugMultiRangeDownloader) GetHandle() []byte {
-	// id, desc, start := dmrd.bucket.startRequest("MultiRangeDownloader.GetHandle()")
-	// defer dmrd.bucket.finishRequest(id, desc, start, nil)
+	id, desc, start := dmrd.bucket.startRequest("MultiRangeDownloader.GetHandle()")
+	var err error
+	defer dmrd.bucket.finishRequest(id, desc, start, &err)
 	return dmrd.wrapped.GetHandle()
 }
 
