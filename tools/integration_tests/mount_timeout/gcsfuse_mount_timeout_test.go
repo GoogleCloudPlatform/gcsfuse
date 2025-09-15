@@ -20,7 +20,7 @@ import (
 	"math"
 	"os"
 	"path"
-	"path/filepath"
+	// "path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -154,9 +154,9 @@ func (testSuite *MountTimeoutTest) mountOrTimeout(bucketName, clientProtocol str
 	minMountTime := time.Duration(math.MaxInt64)
 	logFile := setup.LogFile()
 	defer func() {
-		// if err != nil {
-		// 	setup.SaveLogFileAsArtifact(logFile, setup.GCSFuseLogFilePrefix+filepath.Base(logFile))
-		// }
+		if err != nil {
+			// setup.SaveLogFileAsArtifact(logFile, setup.GCSFuseLogFilePrefix+filepath.Base(logFile))
+		}
 	}()
 
 	// Iterating 10 times to account for randomness in time taken to mount.

@@ -28,6 +28,9 @@ import (
 )
 
 func TestWriteToSameFileConcurrently(t *testing.T) {
+	if setup.IsZonalBucketRun() {
+		t.Skip("Writing to the same file concurrently is not a valid test case for ZB")
+	}
 	// Setup Test directory and files to write to.
 	seqWriteDir := setup.SetupTestDirectory(DirForSeqWrite)
 	mountedDirFilePath := path.Join(seqWriteDir, setup.GenerateRandomString(5))
