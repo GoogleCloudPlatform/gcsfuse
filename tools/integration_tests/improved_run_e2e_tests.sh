@@ -80,7 +80,7 @@ PACKAGE_RUNTIME_STATS=$(mktemp "/tmp/${TMP_PREFIX}_package_stats_runtime.XXXXXX"
 RESOURCE_USAGE_FILE=$(mktemp "/tmp/${TMP_PREFIX}_system_resource_usage.XXXXXX") || { log_error "Unable to create system resource usage file"; exit 1; }
 
 KOKORO_DIR_AVAILABLE=false
-if [[ $KOKORO_ARTIFACTS_DIR = *[!\ ]* ]]; then
+if [[ -n "$KOKORO_ARTIFACTS_DIR" ]]; then
   KOKORO_DIR_AVAILABLE=true
 fi
 
@@ -533,7 +533,7 @@ test_package() {
 
 generate_test_log_artifacts() {
   # If KOKORO_ARTIFACTS_DIR is not set, skip artifact generation.
-  if ! ${KOKORO_DIR_AVAILABLE} ; then
+  if ! $KOKORO_DIR_AVAILABLE; then
     return 0
   fi
 
@@ -541,6 +541,10 @@ generate_test_log_artifacts() {
     log_error_locked "generate_test_log_artifacts() called with incorrect number of arguments."
     return 1
   fi
+
+  local log_file="$1"
+  local package_name="$2"
+  local bucket_type="$3"
 
   local output_dir="${KOKORO_ARTIFACTS_DIR}/${bucket_type}/${package_name}"
   mkdir -p "$output_dir"
@@ -551,8 +555,8 @@ generate_test_log_artifacts() {
   echo '<testsuites>' >> "${sponge_xml_file}"
 
   if [ -f "$log_file" ]; then
-    cat "$log_file" > "$sponge_log_file" 2>&1
-    cat "$log_file" | go-junit-report | sed '1,2d' | sed '$d' >> "${sponge_xml_file}"
+    cp "$log_file" "$sponge_log_file"
+    go-junit-report < "$log_file" | sed '1,2d;$d' >> "${sponge_xml_file}"
   fi
 
   echo '</testsuites>' >> "${sponge_xml_file}"
