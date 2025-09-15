@@ -656,6 +656,10 @@ func (rr *randomReader) invalidateReaderIfMisalignedOrTooSmall(startOffset, endO
 	// We will also clean up the existing reader if it can't serve the entire request.
 	dataToRead := math.Min(float64(endOffset), float64(rr.object.Size))
 	if rr.reader != nil && (rr.start != startOffset || int64(dataToRead) > rr.limit) {
+		// Instead of closing the connection abruptly, we read the entire data and
+		// then close the connection. This will lead to reduction in DNS lookups and
+		// a more efficient usage of connections.
+		readAll(rr.reader)
 		rr.closeReader()
 		rr.reader = nil
 		rr.cancel = nil
@@ -763,6 +767,14 @@ func (rr *randomReader) closeReader() {
 	err := rr.reader.Close()
 	if err != nil {
 		logger.Warnf("error while closing reader: %v", err)
+	}
+}
+
+// readAll consumes and discards all remaining data from the reader until EOF.
+func readAll(reader gcs.StorageReader) {
+	_, err := io.Copy(io.Discard, reader)
+	if err != nil {
+		logger.Warnf("error while discarding remaining data: %v", err)
 	}
 }
 
