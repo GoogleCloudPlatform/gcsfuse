@@ -170,6 +170,9 @@ type randomReader struct {
 	// mrdWrapper points to the wrapper object within inode.
 	mrdWrapper *MultiRangeDownloaderWrapper
 
+	// boolean variable to determine if MRD is being used or not.
+	isMRDInUse atomic.Bool
+
 	metricHandle metrics.MetricHandle
 
 	config *cfg.Config
@@ -389,6 +392,16 @@ func (rr *randomReader) Object() (o *gcs.MinObject) {
 }
 
 func (rr *randomReader) Destroy() {
+	defer func() {
+		if rr.isMRDInUse.Load() {
+			err := rr.mrdWrapper.DecrementRefCount()
+			if err != nil {
+				logger.Errorf("randomReader::Destroy:%v", err)
+			}
+			rr.isMRDInUse.Store(false)
+		}
+	}()
+
 	// Close out the reader, if we have one.
 	if rr.reader != nil {
 		rr.mu.Lock()
@@ -731,6 +744,10 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 func (rr *randomReader) readFromMultiRangeReader(ctx context.Context, p []byte, offset, end int64, timeout time.Duration) (bytesRead int, err error) {
 	if rr.mrdWrapper == nil {
 		return 0, fmt.Errorf("readFromMultiRangeReader: Invalid MultiRangeDownloaderWrapper")
+	}
+
+	if rr.isMRDInUse.CompareAndSwap(false, true) {
+		rr.mrdWrapper.IncrementRefCount()
 	}
 
 	bytesRead, err = rr.mrdWrapper.Read(ctx, p, offset, end, rr.metricHandle, false)

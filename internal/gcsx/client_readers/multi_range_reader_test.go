@@ -95,6 +95,7 @@ func (t *multiRangeReaderTest) Test_ReadFromMultiRangeReader_ReadFull() {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
+			t.multiRangeReader.isMRDInUse.Store(false)
 			t.object.Size = uint64(tc.dataSize)
 			testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
 			fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{}, &cfg.Config{})
@@ -179,6 +180,7 @@ func (t *multiRangeReaderTest) Test_ReadAt_MRDRead() {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
+			t.multiRangeReader.isMRDInUse.Store(false)
 			t.object.Size = uint64(tc.dataSize)
 			testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
 			fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{}, &cfg.Config{})

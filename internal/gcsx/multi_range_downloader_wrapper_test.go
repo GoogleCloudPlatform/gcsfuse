@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync"
 	"testing"
 	"time"
 
@@ -61,6 +62,72 @@ func (t *mrdWrapperTest) SetupTest() {
 	t.mrdWrapper, err = NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{WaitTime: t.mrdTimeout}, &cfg.Config{})
 	assert.Nil(t.T(), err, "Error in creating MRDWrapper")
 	t.mrdWrapper.Wrapped = fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond)
+	t.mrdWrapper.refCount = 0
+}
+
+func (t *mrdWrapperTest) Test_IncrementRefCount_ParallelUpdates() {
+	const finalRefCount int = 1
+	wg := sync.WaitGroup{}
+	for i := 0; i < finalRefCount; i++ {
+		wg.Add(1)
+		go func() {
+			t.mrdWrapper.IncrementRefCount()
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+
+	assert.Equal(t.T(), finalRefCount, t.mrdWrapper.refCount)
+}
+
+func (t *mrdWrapperTest) Test_IncrementRefCount_CancelCleanup() {
+	const finalRefCount int = 1
+	t.mrdWrapper.IncrementRefCount()
+	err := t.mrdWrapper.DecrementRefCount()
+
+	assert.Nil(t.T(), err)
+	assert.Nil(t.T(), t.mrdWrapper.Wrapped)
+
+	t.mrdWrapper.IncrementRefCount()
+
+	assert.Equal(t.T(), finalRefCount, t.mrdWrapper.refCount)
+	assert.Nil(t.T(), t.mrdWrapper.cancelCleanup)
+}
+
+func (t *mrdWrapperTest) Test_DecrementRefCount_ParallelUpdates() {
+	const finalRefCount int = 0
+	maxRefCount := 10
+	wg := sync.WaitGroup{}
+	// Incrementing refcount in parallel.
+	for i := 0; i < maxRefCount; i++ {
+		wg.Add(1)
+		go func() {
+			t.mrdWrapper.IncrementRefCount()
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	// Decrementing refcount in parallel.
+	for i := 0; i < maxRefCount; i++ {
+		wg.Add(1)
+		go func() {
+			err := t.mrdWrapper.DecrementRefCount()
+			assert.Nil(t.T(), err)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+
+	assert.Equal(t.T(), finalRefCount, t.mrdWrapper.GetRefCount())
+	assert.Nil(t.T(), t.mrdWrapper.Wrapped)
+	// Waiting for the cleanup to be done.
+	time.Sleep(t.mrdTimeout + time.Millisecond)
+	assert.Nil(t.T(), t.mrdWrapper.Wrapped)
+}
+
+func (t *mrdWrapperTest) Test_DecrementRefCount_InvalidUse() {
+	errMsg := "MultiRangeDownloaderWrapper DecrementRefCount: Refcount cannot be negative"
+	assert.ErrorContains(t.T(), t.mrdWrapper.DecrementRefCount(), errMsg)
 }
 
 func (t *mrdWrapperTest) Test_Read() {

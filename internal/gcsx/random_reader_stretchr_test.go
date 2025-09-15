@@ -308,6 +308,8 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ParallelMRDReads() {
 
 	// Validation
 	assert.Equal(t.T(), totalBytesReadFromTasks, t.rr.wrapped.totalReadBytes.Load())
+	assert.Equal(t.T(), 1, t.rr.wrapped.mrdWrapper.GetRefCount())
+	assert.True(t.T(), t.rr.wrapped.isMRDInUse.Load())
 }
 
 func (t *RandomReaderStretchrTest) Test_ReaderType() {
@@ -967,6 +969,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ValidateReadType() {
 		t.Run(tc.name, func() {
 			assert.Equal(t.T(), len(tc.readRanges), len(tc.expectedReadTypes), "Test Parameter Error: readRanges and expectedReadTypes should have same length")
 			t.rr.wrapped.reader = nil
+			t.rr.wrapped.isMRDInUse.Store(false)
 			t.rr.wrapped.seeks.Store(0)
 			t.rr.wrapped.readType.Store(metrics.ReadTypeSequential)
 			t.rr.wrapped.expectedOffset.Store(0)
@@ -996,6 +999,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ValidateReadType() {
 // This test validates the bug fix where seeks are not updated correctly in case of zonal bucket random reads (b/410904634).
 func (t *RandomReaderStretchrTest) Test_ReadAt_ValidateZonalRandomReads() {
 	t.rr.wrapped.reader = nil
+	t.rr.wrapped.isMRDInUse.Store(false)
 	t.rr.wrapped.seeks.Store(0)
 	t.rr.wrapped.readType.Store(metrics.ReadTypeSequential)
 	t.rr.wrapped.expectedOffset.Store(0)
@@ -1058,6 +1062,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_MRDRead() {
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
 			t.rr.wrapped.reader = nil
+			t.rr.wrapped.isMRDInUse.Store(false)
 			t.rr.wrapped.expectedOffset.Store(10)
 			t.rr.wrapped.seeks.Store(minSeeksForRandom + 1)
 			t.object.Size = uint64(tc.dataSize)
@@ -1104,6 +1109,7 @@ func (t *RandomReaderStretchrTest) Test_ReadFromMultiRangeReader_ReadFull() {
 	for _, tc := range testCases {
 		t.Run(tc.name, func() {
 			t.rr.wrapped.reader = nil
+			t.rr.wrapped.isMRDInUse.Store(false)
 			t.object.Size = uint64(tc.dataSize)
 			testContent := testutil.GenerateRandomBytes(int(t.object.Size))
 			fakeMRDWrapper, err := NewMultiRangeDownloaderWrapperWithClock(t.mockBucket, t.object, &clock.FakeClock{}, &cfg.Config{})

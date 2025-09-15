@@ -18,8 +18,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync/atomic"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
@@ -31,6 +33,9 @@ type MultiRangeReader struct {
 
 	// mrdWrapper points to the wrapper object within inode.
 	mrdWrapper *gcsx.MultiRangeDownloaderWrapper
+
+	// boolean variable to determine if MRD is being used or not.
+	isMRDInUse atomic.Bool
 
 	metricHandle metrics.MetricHandle
 }
@@ -63,6 +68,10 @@ func (mrd *MultiRangeReader) readFromMultiRangeReader(ctx context.Context, p []b
 		return 0, fmt.Errorf("readFromMultiRangeReader: Invalid MultiRangeDownloaderWrapper")
 	}
 
+	if mrd.isMRDInUse.CompareAndSwap(false, true) {
+		mrd.mrdWrapper.IncrementRefCount()
+	}
+
 	return mrd.mrdWrapper.Read(ctx, p, offset, end, mrd.metricHandle, forceCreateMRD)
 }
 
@@ -84,4 +93,11 @@ func (mrd *MultiRangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequ
 }
 
 func (mrd *MultiRangeReader) destroy() {
+	if mrd.isMRDInUse.Load() {
+		err := mrd.mrdWrapper.DecrementRefCount()
+		if err != nil {
+			logger.Errorf("randomReader::Destroy:%v", err)
+		}
+		mrd.isMRDInUse.Store(false)
+	}
 }
