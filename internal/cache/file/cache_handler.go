@@ -322,6 +322,7 @@ func (chr *CacheHandler) shouldExcludeFromCache(bucket gcs.Bucket, object *gcs.M
 	objectName := path.Join(bucket.Name(), bucket.GCSName(object))
 
 	// Exclude if it matches the exclude pattern.
+	// Exclude flag take precedence over Include regex (if matched).
 	if chr.excludeRegex != nil && chr.excludeRegex.MatchString(objectName) {
 		return true
 	}

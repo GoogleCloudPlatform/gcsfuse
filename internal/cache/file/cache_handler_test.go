@@ -87,10 +87,10 @@ func initializeCacheHandlerTestArgs(t *testing.T, fileCacheConfig *cfg.FileCache
 	jobManager := downloader.NewJobManager(cache, util.DefaultFilePerm,
 		util.DefaultDirPerm, cacheDir, DefaultSequentialReadSizeMb, fileCacheConfig, metrics.NewNoopMetrics())
 
-	// Mocked cached handler object (invalid include regex).
+	// Only added for code coverage (not used in real tests) Mocked cached handler object (invalid include regex).
 	NewCacheHandler(cache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, fileCacheConfig.ExcludeRegex, fileCacheConfig.IncludeRegex+"[")
 
-	// Mocked cached handler object (invalid exclude regex).
+	// Only added for code coverage (not used in real tests) Mocked cached handler object (invalid exclude regex).
 	NewCacheHandler(cache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, fileCacheConfig.ExcludeRegex+"[", fileCacheConfig.IncludeRegex)
 
 	// Mocked cached handler object.
