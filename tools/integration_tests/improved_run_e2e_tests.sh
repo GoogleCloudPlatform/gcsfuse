@@ -79,6 +79,11 @@ BUCKET_NAMES=$(mktemp "/tmp/${TMP_PREFIX}_bucket_names.XXXXXX") || { log_error "
 PACKAGE_RUNTIME_STATS=$(mktemp "/tmp/${TMP_PREFIX}_package_stats_runtime.XXXXXX") || { log_error "Unable to create package stats runtime file"; exit 1; }
 RESOURCE_USAGE_FILE=$(mktemp "/tmp/${TMP_PREFIX}_system_resource_usage.XXXXXX") || { log_error "Unable to create system resource usage file"; exit 1; }
 
+KOKORO_DIR_AVAILABLE=false
+if [[ -n "$KOKORO_ARTIFACTS_DIR" ]]; then
+  KOKORO_DIR_AVAILABLE=true
+fi
+
 # Argument Parsing and Assignments
 # Set default values for optional arguments
 SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=false
@@ -509,15 +514,54 @@ test_package() {
   # This ensures spaces and special characters within arguments are handled correctly.
   local go_test_cmd=$(printf "%q " "${go_test_cmd_parts[@]}")
   
-  # Run the package test command
+  # Run the package test command and capture log output with runtime stats.
   local start=$SECONDS exit_code=0 
-  if ! eval "$go_test_cmd"; then
+  local log_file=$(mktemp)
+  # Ensure the temporary log file is removed on function exit.
+  trap 'rm -f "$log_file"' RETURN
+
+  if ! eval "$go_test_cmd" > "$log_file" 2>&1; then
     exit_code=1
   fi
   local end=$SECONDS
   # Add the package stats to the file.
   echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
+  # Generate Kokoro artifacts(log) files.
+  generate_test_log_artifacts "$log_file" "$package_name" "$bucket_type"
   return "$exit_code"
+}
+
+# Helper method to generate Kokoro artifacts(log) files when building in Kokoro environment.
+generate_test_log_artifacts() {
+  # If KOKORO_ARTIFACTS_DIR is not set, skip artifact generation.
+  if ! $KOKORO_DIR_AVAILABLE; then
+    return 0
+  fi
+
+  if [[ $# -ne 3 ]]; then
+    log_error_locked "generate_test_log_artifacts() called with incorrect number of arguments."
+    return 1
+  fi
+
+  local log_file="$1"
+  local package_name="$2"
+  local bucket_type="$3"
+
+  local output_dir="${KOKORO_ARTIFACTS_DIR}/${bucket_type}/${package_name}"
+  mkdir -p "$output_dir"
+  local sponge_xml_file="${output_dir}/${package_name}_sponge_log.xml"
+  local sponge_log_file="${output_dir}/${package_name}_sponge_log.log"
+
+  echo '<?xml version="1.0" encoding="UTF-8"?>' > "${sponge_xml_file}"
+  echo '<testsuites>' >> "${sponge_xml_file}"
+
+  if [ -f "$log_file" ]; then
+    cp "$log_file" "$sponge_log_file"
+    go-junit-report < "$log_file" | sed '1,2d;$d' >> "${sponge_xml_file}"
+  fi
+
+  echo '</testsuites>' >> "${sponge_xml_file}"
+  return 0
 }
 
 build_gcsfuse_once() {
@@ -566,6 +610,11 @@ install_packages() {
   # Install latest gcloud version.
   bash ./perfmetrics/scripts/install_latest_gcloud.sh
   export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
+  if ${KOKORO_DIR_AVAILABLE} ; then
+    # Install go-junit-report to generate XML test reports from go logs.
+    go install github.com/jstemmer/go-junit-report/v2@latest
+    export PATH="$(go env GOPATH)/bin:$PATH"
+  fi
 }
 
 # Generic function to run a group of E2E tests for a given bucket type.
