@@ -772,7 +772,9 @@ func (rr *randomReader) closeReader() {
 
 // readAll consumes and discards all remaining data from the reader until EOF.
 func readAll(reader gcs.StorageReader) {
-	_, err := io.Copy(io.Discard, reader)
+	// Use a 1MiB buffer to improve performance.
+	buf := make([]byte, 1*MiB)
+	_, err := io.CopyBuffer(io.Discard, reader, buf)
 	if err != nil {
 		logger.Warnf("error while discarding remaining data: %v", err)
 	}
