@@ -146,9 +146,6 @@ func TestCacheFileForIncludeRegexTest(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		if setup.OnlyDirMounted() != "" {
-			continue
-		}
 		ts.cacheEnable = test.cacheEnable
 		t.Run(test.name, func(t *testing.T) {
 			test.flags = appendClientProtocolConfigToFlagSet([]gcsfuseTestFlags{test.flags})[0]
