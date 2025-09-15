@@ -19,12 +19,11 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
 
 func TestReadLargeFileRandomly(t *testing.T) {
 	// Create and copy the local file in mountedDirectory.
-	fileInLocalDisk, fileInMntDir := setup.CreateFileAndCopyToMntDir(t, FiveHundredMB, DirForReadLargeFilesTests)
+	fileInLocalDisk, fileInMntDir := operations.CreateFileAndCopyToMntDir(t, FiveHundredMB, DirForReadLargeFilesTests)
 
 	for i := 0; i < NumberOfRandomReadCalls; i++ {
 		offset := rand.Int63n(MaxReadableByteFromFile - MinReadableByteFromFile)

@@ -26,14 +26,12 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime/debug"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"cloud.google.com/go/storage"
 	"cloud.google.com/go/storage/experimental"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
 	"go.opentelemetry.io/contrib/detectors/gcp"
@@ -288,11 +286,11 @@ func SaveLogFileAsArtifact(logFile, artifactName string) {
 		logDir = TestDir()
 	}
 	artifactPath := path.Join(logDir, artifactName)
-	err := operations.CopyFile(logFile, artifactPath)
-	if err != nil {
-		log.Fatalf("Error in copying logfile to artifact path: %v", err)
-	}
-	log.Printf("Log file saved at %v", artifactPath)
+	// err := operations.CopyFile(logFile, artifactPath)
+	// if err != nil {
+	// 	log.Fatalf("Error in copying logfile to artifact path: %v", err)
+	// }
+	log.Printf("[Skip for now]Log file saved at %v", artifactPath)
 }
 
 // In case of test failure saves GCSFuse log file to
@@ -711,26 +709,6 @@ func AppendFlagsToAllFlagsInTheFlagsSet(flagsSet *[][]string, newFlags ...string
 		}
 	}
 	*flagsSet = resultFlagsSet
-}
-
-// CreateFileAndCopyToMntDir creates a file of given size.
-// The same file will be copied to the mounted directory as well.
-func CreateFileAndCopyToMntDir(t *testing.T, fileSize int, dirName string) (string, string) {
-	testDir := SetupTestDirectory(dirName)
-	fileInLocalDisk := "test_file" + GenerateRandomString(5) + ".txt"
-	filePathInLocalDisk := path.Join(os.TempDir(), fileInLocalDisk)
-	filePathInMntDir := path.Join(testDir, fileInLocalDisk)
-	CreateFileOnDiskAndCopyToMntDir(t, filePathInLocalDisk, filePathInMntDir, fileSize)
-	return filePathInLocalDisk, filePathInMntDir
-}
-
-// CreateFileOnDiskAndCopyToMntDir creates a file of given size and copies to given path.
-func CreateFileOnDiskAndCopyToMntDir(t *testing.T, filePathInLocalDisk string, filePathInMntDir string, fileSize int) {
-	RunScriptForTestData("../util/setup/testdata/write_content_of_fix_size_in_file.sh", filePathInLocalDisk, strconv.Itoa(fileSize))
-	err := operations.CopyFile(filePathInLocalDisk, filePathInMntDir)
-	if err != nil {
-		t.Errorf("Error in copying file:%v", err)
-	}
 }
 
 func CreateProxyServerLogFile(t *testing.T) string {

@@ -18,11 +18,10 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
 
 func TestSeqReadThenRandomThenSeqRead(t *testing.T) {
-	filePathInLocalDisk, filePathInMntDir := setup.CreateFileAndCopyToMntDir(t, 50*OneMB, DirForReadAlgoTests)
+	filePathInLocalDisk, filePathInMntDir := operations.CreateFileAndCopyToMntDir(t, 50*OneMB, DirForReadAlgoTests)
 
 	// Current read algorithm:
 	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/v2.5.1/internal/gcsx/random_reader.go#L275

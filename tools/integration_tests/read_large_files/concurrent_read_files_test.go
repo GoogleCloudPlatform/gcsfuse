@@ -44,7 +44,7 @@ func TestReadFilesConcurrently(t *testing.T) {
 		file := path.Join(testDir, filesInLocalDisk[i])
 		filesPathInMntDir = append(filesPathInMntDir, file)
 
-		setup.CreateFileOnDiskAndCopyToMntDir(t, fileInLocalDisk, file, FiveHundredMB)
+		operations.CreateFileOnDiskAndCopyToMntDir(t, fileInLocalDisk, file, FiveHundredMB)
 	}
 
 	var eG errgroup.Group

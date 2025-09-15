@@ -19,12 +19,11 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
 
 func TestReadLargeFileSequentially(t *testing.T) {
 	// Create file of 500 MB with random data in local disk and copy it in mntDir.
-	fileInLocalDisk, fileInMntDir := setup.CreateFileAndCopyToMntDir(t, FiveHundredMB, DirForReadLargeFilesTests)
+	fileInLocalDisk, fileInMntDir := operations.CreateFileAndCopyToMntDir(t, FiveHundredMB, DirForReadLargeFilesTests)
 
 	// Sequentially read the data from file.
 	content, err := operations.ReadFileSequentially(fileInMntDir, ChunkSize)
