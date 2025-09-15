@@ -531,7 +531,7 @@ test_package() {
   return "$exit_code"
 }
 
-// Helper method to generate Kokoro artifacts(log) files when building in Kokoro environment.
+# Helper method to generate Kokoro artifacts(log) files when building in Kokoro environment.
 generate_test_log_artifacts() {
   # If KOKORO_ARTIFACTS_DIR is not set, skip artifact generation.
   if ! $KOKORO_DIR_AVAILABLE; then
