@@ -47,7 +47,7 @@ func mountWithStorageHandle(
 	// currently. This gives a better user experience than harder to debug EIO
 	// errors when reading files in the future.
 	if newConfig.FileSystem.TempDir != "" {
-		logger.Info(fmt.Sprintf("Creating a temporary directory at %q\n", uuid, newConfig.FileSystem.TempDir))
+		logger.Infof("Creating a temporary directory at %q\n", newConfig.FileSystem.TempDir)
 		var f *os.File
 		f, err = fsutil.AnonymousFile(string(newConfig.FileSystem.TempDir))
 		f.Close()
@@ -127,8 +127,8 @@ be interacting with the file system.`)
 		serverCfg.Notifier = fuse.NewNotifier()
 	}
 
-	logger.Infof(fmt.Sprintf("GCSFuse Mount ID[%s] Creating a new server...\n", uuid))
-	server, err := fs.NewServer(ctx, uuid, serverCfg)
+	logger.Infof("Creating a new server...\n")
+	server, err := fs.NewServer(ctx, serverCfg)
 	if err != nil {
 		err = fmt.Errorf("fs.NewServer: %w", err)
 		return
@@ -141,7 +141,7 @@ be interacting with the file system.`)
 	}
 
 	// Mount the file system.
-	logger.Infof(fmt.Sprintf("GCSFuse Mount ID[%s] Mounting file system %q...", uuid, fsName))
+	logger.Infof("Mounting file system %q...", fsName)
 
 	mountCfg := getFuseMountConfig(fsName, uuid, newConfig)
 	mfs, err = fuse.Mount(mountPoint, server, mountCfg)

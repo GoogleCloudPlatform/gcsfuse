@@ -25,8 +25,8 @@ import (
 )
 
 // NewServer creates a fuse file system server according to the supplied configuration.
-func NewServer(ctx context.Context, uuid string, cfg *ServerConfig) (fuse.Server, error) {
-	fs, err := NewFileSystem(ctx, uuid, cfg)
+func NewServer(ctx context.Context, cfg *ServerConfig) (fuse.Server, error) {
+	fs, err := NewFileSystem(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("create file system: %w", err)
 	}

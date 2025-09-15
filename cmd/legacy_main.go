@@ -123,7 +123,7 @@ func getConfigForUserAgent(mountConfig *cfg.Config) string {
 	}
 	return fmt.Sprintf("%s:%s:%s:%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled, isParallelDownloadsEnabled, areStreamingWritesEnabled)
 }
-func createStorageHandle(newConfig *cfg.Config, uuid, userAgent string, metricHandle metrics.MetricHandle) (storageHandle storage.StorageHandle, err error) {
+func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle metrics.MetricHandle) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
 		ClientProtocol:             newConfig.GcsConnection.ClientProtocol,
 		MaxConnsPerHost:            int(newConfig.GcsConnection.MaxConnsPerHost),
@@ -145,7 +145,7 @@ func createStorageHandle(newConfig *cfg.Config, uuid, userAgent string, metricHa
 		ReadStallRetryConfig:       newConfig.GcsRetries.ReadStall,
 		MetricHandle:               metricHandle,
 	}
-	logger.Infof(fmt.Sprintf("UserAgent = %s\n", uuid, storageClientConfig.UserAgent))
+	logger.Infof("UserAgent = %s\n", storageClientConfig.UserAgent)
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig, newConfig.GcsConnection.BillingProject)
 	return
 }
@@ -172,7 +172,7 @@ func mountWithArgs(uuid, bucketName string, mountPoint string, newConfig *cfg.Co
 	if bucketName != canned.FakeBucketName {
 		userAgent := getUserAgent(newConfig.AppName, getConfigForUserAgent(newConfig))
 		logger.Info("Creating Storage handle...")
-		storageHandle, err = createStorageHandle(newConfig, uuid, userAgent, metricHandle)
+		storageHandle, err = createStorageHandle(newConfig, userAgent, metricHandle)
 		if err != nil {
 			err = fmt.Errorf("failed to create storage handle using createStorageHandle: %w", err)
 			return
@@ -180,7 +180,7 @@ func mountWithArgs(uuid, bucketName string, mountPoint string, newConfig *cfg.Co
 	}
 
 	// Mount the file system.
-	logger.Info(fmt.Sprintf("GCSFuse Mount ID[%s] Creating a mount at %q\n", uuid, mountPoint))
+	logger.Infof("Creating a mount at %q\n", mountPoint)
 	mfs, err = mountWithStorageHandle(
 		context.Background(), uuid,
 		bucketName,
