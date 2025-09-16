@@ -65,13 +65,21 @@ func logGcsfuseConfigs(v *viper.Viper, cmd *cobra.Command, optimizedFlags map[st
 type mountFn func(uuid string, c *cfg.Config, bucketName, mountPoint string) error
 
 // newRootCmd accepts the mountFn that it executes with the parsed configuration
-func newRootCmd(mountLoggerId string, m mountFn) (*cobra.Command, error) {
+func newRootCmd(m mountFn) (*cobra.Command, error) {
 	var (
 		configObj cfg.Config
 		cfgFile   string
 		cfgErr    error
 		v         = viper.New()
 	)
+	// Generate mount logger Id for logger attribute.
+	uuid, err := uuid.NewRandom()
+	mountLoggerId := logger.DefaultMountLoggerId
+	if err == nil && uuid.String() != "" {
+		mountLoggerId = uuid.String()[:8]
+	} else {
+		log.Printf("Could not generate random UUID for logger, err %v. Falling back to default %v", err, logger.DefaultMountLoggerId)
+	}
 	rootCmd := &cobra.Command{
 		Use:   "gcsfuse [flags] bucket mount_point",
 		Short: "Mount a specified GCS bucket or all accessible buckets locally",
@@ -199,14 +207,7 @@ func convertToPosixArgs(args []string, c *cobra.Command) []string {
 }
 
 var ExecuteMountCmd = func() {
-	uuid, err := uuid.NewRandom()
-	mountLoggerId := logger.DefaultMountLoggerId
-	if err == nil && uuid.String() != "" {
-		mountLoggerId = uuid.String()[:8]
-	} else {
-		log.Printf("Could not generate random UUID for logger, err %v. Falling back to default %v", err, logger.DefaultMountLoggerId)
-	}
-	rootCmd, err := newRootCmd(mountLoggerId, Mount)
+	rootCmd, err := newRootCmd(Mount)
 	if err != nil {
 		log.Fatalf("Error occurred while creating the root command on gcsfuse/%s: %v", common.GetVersion(), err)
 	}
