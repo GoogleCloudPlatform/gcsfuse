@@ -18,11 +18,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"log/slog"
 	"log/syslog"
 	"os"
 	"runtime/debug"
 
+	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -42,6 +44,7 @@ const (
 var (
 	defaultLoggerFactory *loggerFactory
 	defaultLogger        *slog.Logger
+	mountLoggerId        string
 )
 
 // InitLogFile initializes the logger factory to create loggers that print to
@@ -51,7 +54,7 @@ var (
 // config.
 // Here, background true means, this InitLogFile has been called for the
 // background daemon.
-func InitLogFile(newLogConfig cfg.LoggingConfig, mountLoggerId string) error {
+func InitLogFile(newLogConfig cfg.LoggingConfig) error {
 	var f *os.File
 	var sysWriter *syslog.Writer
 	var fileWriter *lumberjack.Logger
@@ -87,13 +90,12 @@ func InitLogFile(newLogConfig cfg.LoggingConfig, mountLoggerId string) error {
 	}
 
 	defaultLoggerFactory = &loggerFactory{
-		file:          f,
-		sysWriter:     sysWriter,
-		fileWriter:    fileWriter,
-		format:        newLogConfig.Format,
-		level:         string(newLogConfig.Severity),
-		logRotate:     newLogConfig.LogRotate,
-		mountLoggerId: mountLoggerId,
+		file:       f,
+		sysWriter:  sysWriter,
+		fileWriter: fileWriter,
+		format:     newLogConfig.Format,
+		level:      string(newLogConfig.Severity),
+		logRotate:  newLogConfig.LogRotate,
 	}
 	defaultLogger = defaultLoggerFactory.newLogger(string(newLogConfig.Severity))
 
@@ -103,12 +105,20 @@ func InitLogFile(newLogConfig cfg.LoggingConfig, mountLoggerId string) error {
 // init initializes the logger factory to use stdout and stderr.
 func init() {
 	logConfig := cfg.DefaultLoggingConfig()
+	// Generate mount logger Id for logger attribute.
+	uuid, err := uuid.NewRandom()
+	mountLoggerId = DefaultMountLoggerId
+	if err == nil && uuid.String() != "" {
+		mountLoggerId = uuid.String()[:8]
+		log.Printf("Set the mount logger id %v", mountLoggerId)
+	} else {
+		log.Printf("Could not generate random UUID for logger, err %v. Falling back to default %v", err, DefaultMountLoggerId)
+	}
 	defaultLoggerFactory = &loggerFactory{
-		file:          nil,
-		format:        logConfig.Format,
-		level:         string(logConfig.Severity), // setting log level to INFO by default
-		logRotate:     logConfig.LogRotate,
-		mountLoggerId: DefaultMountLoggerId,
+		file:      nil,
+		format:    logConfig.Format,
+		level:     string(logConfig.Severity), // setting log level to INFO by default
+		logRotate: logConfig.LogRotate,
 	}
 	defaultLogger = defaultLoggerFactory.newLogger(cfg.INFO)
 }
@@ -166,19 +176,18 @@ func Fatal(format string, v ...interface{}) {
 
 type loggerFactory struct {
 	// If nil, log to stdout or stderr. Otherwise, log to this file.
-	file          *os.File
-	sysWriter     *syslog.Writer
-	format        string
-	level         string
-	logRotate     cfg.LogRotateLoggingConfig
-	fileWriter    *lumberjack.Logger
-	mountLoggerId string
+	file       *os.File
+	sysWriter  *syslog.Writer
+	format     string
+	level      string
+	logRotate  cfg.LogRotateLoggingConfig
+	fileWriter *lumberjack.Logger
 }
 
 func (f *loggerFactory) newLogger(level string) *slog.Logger {
 	// create a new logger
 	var programLevel = new(slog.LevelVar)
-	logger := slog.New(f.handler(programLevel, "").WithAttrs([]slog.Attr{slog.String(mountLoggerIdKey, f.mountLoggerId)}))
+	logger := slog.New(f.handler(programLevel, "").WithAttrs([]slog.Attr{slog.String(mountLoggerIdKey, mountLoggerId)}))
 	slog.SetDefault(logger)
 	setLoggingLevel(level, programLevel)
 	return logger

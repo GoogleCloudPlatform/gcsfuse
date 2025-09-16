@@ -155,7 +155,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 ////////////////////////////////////////////////////////////////////////
 
 // Mount the file system according to arguments in the supplied context.
-func mountWithArgs(mountLoggerId, bucketName string, mountPoint string, newConfig *cfg.Config, metricHandle metrics.MetricHandle) (mfs *fuse.MountedFileSystem, err error) {
+func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, metricHandle metrics.MetricHandle) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if newConfig.Debug.ExitOnInvariantViolation {
 		locker.EnableInvariantsCheck()
@@ -182,7 +182,7 @@ func mountWithArgs(mountLoggerId, bucketName string, mountPoint string, newConfi
 	// Mount the file system.
 	logger.Infof("Creating a mount at %q\n", mountPoint)
 	mfs, err = mountWithStorageHandle(
-		context.Background(), mountLoggerId,
+		context.Background(),
 		bucketName,
 		mountPoint,
 		newConfig,
@@ -322,7 +322,7 @@ func forwardedEnvVars() []string {
 	return env
 }
 
-func Mount(mountLoggerId string, newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
+func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	logger.Infof("Start gcsfuse/%s for app %q using mount point: %s\n", common.GetVersion(), newConfig.AppName, mountPoint)
 
 	// The following will not warn if the user explicitly passed the default value for StatCacheCapacity.
@@ -391,7 +391,7 @@ func Mount(mountLoggerId string, newConfig *cfg.Config, bucketName, mountPoint s
 	// daemonize gives us and telling it about the outcome.
 	var mfs *fuse.MountedFileSystem
 	{
-		mfs, err = mountWithArgs(mountLoggerId, bucketName, mountPoint, newConfig, metricHandle)
+		mfs, err = mountWithArgs(bucketName, mountPoint, newConfig, metricHandle)
 
 		// This utility is to absorb the error
 		// returned by daemonize.SignalOutcome calls by simply

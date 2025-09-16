@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	"github.com/go-viper/mapstructure/v2"
-	"github.com/google/uuid"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
@@ -62,7 +62,7 @@ func logGcsfuseConfigs(v *viper.Viper, cmd *cobra.Command, optimizedFlags map[st
 	logger.Info("GCSFuse config", "config", configWrapper)
 }
 
-type mountFn func(uuid string, c *cfg.Config, bucketName, mountPoint string) error
+type mountFn func(c *cfg.Config, bucketName, mountPoint string) error
 
 // newRootCmd accepts the mountFn that it executes with the parsed configuration
 func newRootCmd(m mountFn) (*cobra.Command, error) {
@@ -72,14 +72,7 @@ func newRootCmd(m mountFn) (*cobra.Command, error) {
 		cfgErr    error
 		v         = viper.New()
 	)
-	// Generate mount logger Id for logger attribute.
-	uuid, err := uuid.NewRandom()
-	mountLoggerId := logger.DefaultMountLoggerId
-	if err == nil && uuid.String() != "" {
-		mountLoggerId = uuid.String()[:8]
-	} else {
-		log.Printf("Could not generate random UUID for logger, err %v. Falling back to default %v", err, logger.DefaultMountLoggerId)
-	}
+
 	rootCmd := &cobra.Command{
 		Use:   "gcsfuse [flags] bucket mount_point",
 		Short: "Mount a specified GCS bucket or all accessible buckets locally",
@@ -97,7 +90,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 			if err != nil {
 				return fmt.Errorf("error occurred while extracting the bucket and mountPoint: %w", err)
 			}
-			return m(mountLoggerId, &configObj, bucket, mountPoint)
+			return m(&configObj, bucket, mountPoint)
 		},
 	}
 	initConfig := func() {
@@ -130,7 +123,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 		logger.SetLogFormat(configObj.Logging.Format)
 
 		if configObj.Foreground {
-			cfgErr = logger.InitLogFile(configObj.Logging, mountLoggerId)
+			cfgErr = logger.InitLogFile(configObj.Logging)
 			if cfgErr != nil {
 				return
 			}

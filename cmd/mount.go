@@ -37,8 +37,7 @@ import (
 // Mount the file system based on the supplied arguments, returning a
 // fuse.MountedFileSystem that can be joined to wait for unmounting.
 func mountWithStorageHandle(
-	ctx context.Context,
-	mountLoggerId, bucketName string,
+	ctx context.Context, bucketName string,
 	mountPoint string,
 	newConfig *cfg.Config,
 	storageHandle storage.StorageHandle,
@@ -143,7 +142,7 @@ be interacting with the file system.`)
 	// Mount the file system.
 	logger.Infof("Mounting file system %q...", fsName)
 
-	mountCfg := getFuseMountConfig(fsName, mountLoggerId, newConfig)
+	mountCfg := getFuseMountConfig(fsName, newConfig)
 	mfs, err = fuse.Mount(mountPoint, server, mountCfg)
 	if err != nil {
 		err = fmt.Errorf("mount: %w", err)
@@ -153,7 +152,7 @@ be interacting with the file system.`)
 	return
 }
 
-func getFuseMountConfig(fsName, mountLoggerId string, newConfig *cfg.Config) *fuse.MountConfig {
+func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig {
 	// Handle the repeated "-o" flag.
 	parsedOptions := make(map[string]string)
 	for _, o := range newConfig.FileSystem.FuseOptions {
@@ -189,10 +188,10 @@ func getFuseMountConfig(fsName, mountLoggerId string, newConfig *cfg.Config) *fu
 	// DEBUG         ERROR
 	// TRACE         TRACE
 	if newConfig.Logging.Severity.Rank() <= cfg.ErrorLogSeverity.Rank() {
-		mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ", mountLoggerId)
+		mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ")
 	}
 	if newConfig.Logging.Severity.Rank() <= cfg.TraceLogSeverity.Rank() {
-		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelTrace, "fuse_debug: ", mountLoggerId)
+		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelTrace, "fuse_debug: ")
 	}
 	return mountCfg
 }

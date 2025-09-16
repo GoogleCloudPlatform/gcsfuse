@@ -27,7 +27,7 @@ import (
 // individual log messages.
 // This method is created to support jacobsa/fuse loggers and will be removed
 // after slog support is added.
-func NewLegacyLogger(level slog.Level, prefix, mountLoggerId string) *log.Logger {
+func NewLegacyLogger(level slog.Level, prefix string) *log.Logger {
 	var programLevel = new(slog.LevelVar)
 	handler := defaultLoggerFactory.handler(programLevel, prefix).WithAttrs([]slog.Attr{slog.String(mountLoggerIdKey, mountLoggerId)})
 	logger := slog.NewLogLogger(handler, level)
