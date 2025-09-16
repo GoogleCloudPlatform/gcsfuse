@@ -52,7 +52,7 @@ gcloud auth activate-service-account --key-file=/tmp/sa.key.json
 gcloud config set project $PROJECT_ID
 
 set +e
-/usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --test-installed-package=true --skip-non-essential-tests=true --test-on-tpc-endpoint=true --presubmit=false --zonal=false
+/usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --test-installed-package --skip-non-essential-tests --test-on-tpc-endpoint
 exit_code=$?
 set -e
 
