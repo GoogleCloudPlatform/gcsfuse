@@ -63,6 +63,7 @@ type RangeReader struct {
 	readType     int64
 	config       *cfg.Config
 	metricHandle metrics.MetricHandle
+	bytesRead    int64
 }
 
 func NewRangeReader(object *gcs.MinObject, bucket gcs.Bucket, config *cfg.Config, metricHandle metrics.MetricHandle) *RangeReader {
@@ -104,6 +105,22 @@ func (rr *RangeReader) destroy() {
 
 // closeReader fetches the readHandle before closing the reader instance.
 func (rr *RangeReader) closeReader() {
+	// We want to drain the connection if there is a small amount of data
+	// left, so that the http connection can be re-used. This is because
+	// the go http client will not re-use a connection if the body is not
+	// read to completion.
+	// We only do this for http1, as http2 doesn't have this problem.
+	// We estimate the amount of data left to be read.
+	if rr.config.GcsConnection.ClientProtocol == cfg.HTTP1 {
+		remaining := (rr.limit - rr.start) - rr.bytesRead
+		if remaining > 0 && remaining < 10*MiB {
+			// There is a small amount of data left. We read it and discard it
+			// so that the connection can be re-used.
+			// We don't care about the error, as we are closing the connection
+			// anyway.
+			_, _ = io.CopyN(io.Discard, rr.reader, remaining)
+		}
+	}
 	rr.readHandle = rr.reader.ReadHandle()
 	err := rr.reader.Close()
 	if err != nil {
@@ -218,7 +235,9 @@ func (rr *RangeReader) readFull(ctx context.Context, p []byte) (int, error) {
 		}()
 	}
 
-	return io.ReadFull(rr.reader, p)
+	n, err := io.ReadFull(rr.reader, p)
+	rr.bytesRead += int64(n)
+	return n, err
 }
 
 // Ensure that rr.reader is set up for a range for which [start, start+size) is
@@ -277,6 +296,7 @@ func (rr *RangeReader) startRead(start int64, end int64) error {
 	rr.cancel = cancel
 	rr.start = start
 	rr.limit = end
+	rr.bytesRead = 0
 
 	requestedDataSize := end - start
 	metrics.CaptureGCSReadMetrics(rr.metricHandle, metrics.ReadTypeNames[metrics.ReadTypeSequential], requestedDataSize)
@@ -302,6 +322,7 @@ func (rr *RangeReader) skipBytes(offset int64) {
 			logger.Warnf("Error while skipping reader bytes: %v", copyError)
 		}
 		rr.start += discardedBytes
+		rr.bytesRead += discardedBytes
 	}
 }
 
