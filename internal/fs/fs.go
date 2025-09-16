@@ -2794,6 +2794,7 @@ func (fs *fileSystem) ReleaseDirHandle(
 func (fs *fileSystem) OpenFile(
 	ctx context.Context,
 	op *fuseops.OpenFileOp) (err error) {
+	time.Sleep(1 * time.Second)
 	fs.mu.Lock()
 
 	// Find the inode.
