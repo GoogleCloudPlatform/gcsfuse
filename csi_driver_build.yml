@@ -44,7 +44,7 @@ steps:
   args:
   - '-c'
   - |
-    BUCKET_NAME="gs://${PROJECT_ID}-csibuild-$${BUILD_ID:0:8}"
+    BUCKET_NAME="gs://${PROJECT_ID}-csibuild-${BUILD_ID}"
     gcloud storage buckets create $$BUCKET_NAME
     echo $$BUCKET_NAME > /workspace/bucket_name
 
