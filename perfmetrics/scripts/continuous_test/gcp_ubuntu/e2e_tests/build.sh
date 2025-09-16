@@ -36,15 +36,15 @@ elif test -n "${RUN_TESTS_WITH_ZONAL_BUCKET}" && ${RUN_TESTS_WITH_ZONAL_BUCKET};
   ZONAL_BUCKET_ARG=${RUN_TESTS_WITH_ZONAL_BUCKET}
 fi
 
-### If running for zonal bucket(s), then set the flag to be passed to underlying script(s).
+# If running for zonal bucket(s), then set the flag to be passed to underlying script(s).
 if [ "$ZONAL_BUCKET_ARG" = true ]; then
   ZONAL_FLAG="--zonal"
 fi
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 
-# # Install required bash version for e2e script as kokoro has outdated bash versions.
-# ./perfmetrics/scripts/install_bash.sh "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT"
+# Install required bash version for e2e script as kokoro has outdated bash versions.
+./perfmetrics/scripts/install_bash.sh "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT"
 
 echo "Building and installing gcsfuse..."
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
