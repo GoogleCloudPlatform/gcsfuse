@@ -8,13 +8,15 @@ steps:
 # --- Build GCSFuse ---
 # This step clones the GCSFuse CSI Driver repository.
 - name: 'gcr.io/cloud-builders/git'
-  id: 'clone-csi-driver'
+  id: 'clone-csi-driver' # ID is used in waitFor below.
+  waitFor: ['-'] # This step can run concurrently with other steps that have waitFor: ['-']
   args: ['clone', '--branch', '${_CSI_VERSION}', '--depth', '1', 'https://github.com/GoogleCloudPlatform/gcs-fuse-csi-driver.git', 'csi-driver-src']
 
 # This step builds the GCSFuse binary for each platform specified in the _PLATFORMS substitution.
 # The binaries are placed in the /workspace/gcsfuse-artifacts directory.
 - name: 'golang:${_GOLANG_VERSION}'
-  id: 'build-gcsfuse'
+  id: 'build-gcsfuse' # ID is used in waitFor below.
+  waitFor: ['-'] # This step can run concurrently with other steps that have waitFor: ['-']
   entrypoint: 'bash'
   args:
   - '-c'
@@ -39,7 +41,8 @@ steps:
 # The GCSFuse CSI Driver build process needs to fetch the GCSFuse binaries from a GCS bucket.
 # This step creates a temporary GCS bucket for this purpose.
 - name: 'gcr.io/cloud-builders/gcloud'
-  id: 'create-gcs-bucket'
+  id: 'create-gcs-bucket' # ID is used in waitFor below.
+  waitFor: ['-'] # This step can run concurrently with other steps that have waitFor: ['-']
   entrypoint: 'bash'
   args:
   - '-c'
@@ -84,9 +87,9 @@ steps:
 
     # --- Download gcsfuse binaries ---
     GCSFUSE_PATH=$$(cat /workspace/bucket_name)
-    STAGING_VERSION="build-$${BUILD_ID:0:8}"
+    STAGINGVERSION="build-$${{BUILD_ID}:0:8}"
     REGISTRY="gcr.io/${PROJECT_ID}/${_USER}_gcsfuse-csi"
-    make build-image-and-push-multi-arch REGISTRY=$${REGISTRY} GCSFUSE_PATH=$${GCSFUSE_PATH} STAGING_VERSION=$${STAGING_VERSION}
+    make build-image-and-push-multi-arch REGISTRY=$${REGISTRY} GCSFUSE_PATH=$${GCSFUSE_PATH} STAGINGVERSION=$${STAGINGVERSION}
 
 # This step cleans up the GCS bucket.
 - name: 'gcr.io/cloud-builders/gcloud'
