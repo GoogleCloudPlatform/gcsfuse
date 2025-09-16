@@ -41,6 +41,9 @@ func logGcsfuseConfigs(v *viper.Viper, cmd *cobra.Command, optimizedFlags map[st
 			cliFlags[f.Name] = f.Value.String()
 		}
 	})
+	if os.Getenv(logger.GCSFuseInBackgroundMode) == "true" {
+		delete(cliFlags, "foreground")
+	}
 	configWrapper["cli"] = cliFlags
 	if v.ConfigFileUsed() != "" {
 		configFileViper := viper.New()
@@ -201,7 +204,7 @@ var ExecuteMountCmd = func() {
 	if err == nil && uuid.String() != "" {
 		mountLoggerId = uuid.String()[:8]
 	} else {
-		log.Printf("Could not generate random UUID for logger, err %v. Falling back to default %v", err, defaultMountLoggerId)
+		log.Printf("Could not generate random UUID for logger, err %v. Falling back to default %v", err, logger.DefaultMountLoggerId)
 	}
 	rootCmd, err := newRootCmd(mountLoggerId, Mount)
 	if err != nil {
