@@ -31,8 +31,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-const defaultMountLoggerId string = "00000000"
-
 // logGcsfuseConfigs logs the configuration values provided by the user in CLI flags, config file
 // and optimizations performed on various flags for high performance machine types.
 func logGcsfuseConfigs(v *viper.Viper, cmd *cobra.Command, optimizedFlags map[string]interface{}, config cfg.Config) {
@@ -199,7 +197,7 @@ func convertToPosixArgs(args []string, c *cobra.Command) []string {
 
 var ExecuteMountCmd = func() {
 	uuid, err := uuid.NewRandom()
-	mountLoggerId := defaultMountLoggerId
+	mountLoggerId := logger.DefaultMountLoggerId
 	if err == nil && uuid.String() != "" {
 		mountLoggerId = uuid.String()[:8]
 	} else {

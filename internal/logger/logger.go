@@ -36,6 +36,7 @@ const (
 	GCSFuseInBackgroundMode string = "GCSFUSE_IN_BACKGROUND_MODE"
 	textFormat              string = "text"
 	mountLoggerIdKey        string = "mount_id"
+	DefaultMountLoggerId    string = "00000000"
 )
 
 var (
@@ -97,6 +98,19 @@ func InitLogFile(newLogConfig cfg.LoggingConfig, mountLoggerId string) error {
 	defaultLogger = defaultLoggerFactory.newLogger(string(newLogConfig.Severity))
 
 	return nil
+}
+
+// init initializes the logger factory to use stdout and stderr.
+func init() {
+	logConfig := cfg.DefaultLoggingConfig()
+	defaultLoggerFactory = &loggerFactory{
+		file:          nil,
+		format:        logConfig.Format,
+		level:         string(logConfig.Severity), // setting log level to INFO by default
+		logRotate:     logConfig.LogRotate,
+		mountLoggerId: DefaultMountLoggerId,
+	}
+	defaultLogger = defaultLoggerFactory.newLogger(cfg.INFO)
 }
 
 // SetLogFormat updates the log format of default logger.

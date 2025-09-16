@@ -285,7 +285,7 @@ func (t *LoggerTest) TestInitLogFile() {
 		},
 	}
 
-	err := InitLogFile(newLogConfig)
+	err := InitLogFile(newLogConfig, "myLoggerId")
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), filePath, defaultLoggerFactory.file.Name())
@@ -295,6 +295,7 @@ func (t *LoggerTest) TestInitLogFile() {
 	assert.Equal(t.T(), fileSize, defaultLoggerFactory.logRotate.MaxFileSizeMb)
 	assert.Equal(t.T(), backupFileCount, defaultLoggerFactory.logRotate.BackupFileCount)
 	assert.True(t.T(), defaultLoggerFactory.logRotate.Compress)
+	assert.Equal(t.T(), "myLoggerId", defaultLoggerFactory.mountLoggerId)
 }
 
 func (t *LoggerTest) TestSetLogFormatToText() {
