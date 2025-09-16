@@ -26,8 +26,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-
-	//test_setup "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -38,8 +36,10 @@ import (
 type cacheFileForIncludeRegexTest struct {
 	flags         []string
 	storageClient *storage.Client
-	cacheEnable   bool
-	ctx           context.Context
+	//cacheEnable=true indicates test rely on file is included in cache
+	//cacheEnable=false indicates test rely on file is NOT included in cache
+	cacheEnable bool
+	ctx         context.Context
 	suite.Suite
 }
 
@@ -117,6 +117,8 @@ func TestCacheFileForIncludeRegexTest(t *testing.T) {
 	// Run with cache directory pointing to RAM based dir
 	ramCacheDir := path.Join("/dev/shm", cacheDirName)
 
+	//cacheEnable=true - Test included file is cached
+	//cacheEnable=false - Test non-included file is not cached
 	tests := []struct {
 		name        string
 		flags       gcsfuseTestFlags
