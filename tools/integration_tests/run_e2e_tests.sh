@@ -122,6 +122,7 @@ TEST_DIR_PARALLEL=(
   "readdirplus"
   "dentry_cache"
   "buffered_read"
+  "rename_symlink"
 )
 
 # These tests never become parallel as it is changing bucket permissions.
@@ -158,6 +159,7 @@ TEST_DIR_PARALLEL_FOR_ZB=(
    "release_version"
    "readdirplus"
    "dentry_cache"
+  "rename_symlink"
 )
 
 # Subset of TEST_DIR_NON_PARALLEL,
@@ -252,7 +254,7 @@ function install_packages() {
   # Install required go version.
   ./perfmetrics/scripts/install_go.sh "1.24.5"
   export PATH="/usr/local/go/bin:$PATH"
-  
+
   sudo apt-get update
   sudo apt-get install -y python3
   # install python3-setuptools tools.
@@ -342,7 +344,7 @@ function run_parallel_tests() {
     # The -bench flag yells go test to run the benchmark tests and report their results by
     # enabling the benchmarking framework.
     # The -benchtime flag specifies exact number of iterations a benchmark should run , in this
-    # case, setting this to 100 to avoid flakiness. 
+    # case, setting this to 100 to avoid flakiness.
     if [ $test_dir_p == "benchmarking" ]; then
       benchmark_flags="-bench=. -benchtime=100x"
     fi
