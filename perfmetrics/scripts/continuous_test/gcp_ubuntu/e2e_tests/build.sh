@@ -23,6 +23,7 @@ readonly REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT="5.3"
 
 # This flag, if set true, will indicate to underlying script(s) to run for zonal bucket(s) instead of non-zonal bucket(s).
 ZONAL_BUCKET_ARG=false
+ZONAL_FLAG=""
 if [ $# -gt 0 ]; then
   if [ $1 = "true" ]; then
     ZONAL_BUCKET_ARG=true
@@ -35,7 +36,12 @@ elif test -n "${RUN_TESTS_WITH_ZONAL_BUCKET}" && ${RUN_TESTS_WITH_ZONAL_BUCKET};
   ZONAL_BUCKET_ARG=${RUN_TESTS_WITH_ZONAL_BUCKET}
 fi
 
-# cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
+### If running for zonal bucket(s), then set the flag to be passed to underlying script(s).
+if [ "$ZONAL_BUCKET_ARG" = true ]; then
+  ZONAL_FLAG="--zonal"
+fi
+
+cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 
 # # Install required bash version for e2e script as kokoro has outdated bash versions.
 # ./perfmetrics/scripts/install_bash.sh "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT"
@@ -49,4 +55,4 @@ commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 git checkout $commitId
 
 echo "Running e2e tests on installed package...."
-bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --test-installed-package ${ZONAL_BUCKET_ARG}
+/usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --test-installed-package ${ZONAL_FLAG}
