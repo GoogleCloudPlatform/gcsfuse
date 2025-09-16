@@ -22,17 +22,17 @@ readonly BUCKET_LOCATION=us-central1
 readonly REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT="5.3"
 
 # This flag, if set true, will indicate to underlying script(s) to run for zonal bucket(s) instead of non-zonal bucket(s).
-ZONAL_BUCKET_ARG=false
-if [ $# -gt 0 ]; then
-  if [ $1 = "true" ]; then
-    ZONAL_BUCKET_ARG=true
-  elif [ $1 != "false" ]; then
-    >&2 echo "$0: ZONAL_BUCKET_ARG (\$1) passed as $1 . Expected: true or false"
-    exit  1
+ZONAL_FLAG=""
+if [[ $# -gt 0 ]]; then
+  if [[ "$1" == "true" ]]; then
+    ZONAL_FLAG="--zonal"
+  elif [[ "$1" != "false" ]]; then
+    echo "$0: ZONAL_BUCKET_ARG (\$1) passed as $1. Expected: true or false" >&2
+    exit 1
   fi
-elif test -n "${RUN_TESTS_WITH_ZONAL_BUCKET}" && ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
-  echo "Running for zonal bucket(s) ...";
-  ZONAL_BUCKET_ARG=${RUN_TESTS_WITH_ZONAL_BUCKET}
+elif [[ "${RUN_TESTS_WITH_ZONAL_BUCKET}" == "true" ]]; then
+  echo "Running for zonal bucket(s) ..."
+  ZONAL_FLAG="--zonal"
 fi
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
@@ -49,4 +49,4 @@ commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 git checkout $commitId
 
 echo "Running e2e tests on installed package...."
-/usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --test-installed-package=true --skip-non-essential-tests=false --test-on-tpc-endpoint=false --presubmit=false --zonal=${ZONAL_BUCKET_ARG}
+/usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --test-installed-package ${ZONAL_FLAG}
