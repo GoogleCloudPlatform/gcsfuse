@@ -186,7 +186,7 @@ func CloseFile(file *os.File) {
 	if err := file.Close(); err != nil {
 		log.Fatalf("error in closing: %v", err)
 	}
-	WaitForSizeUpdate(setup.IsZonalBucketRun(), 5*time.Second)
+	WaitForSizeUpdate(setup.IsZonalBucketRun(), 1*time.Second)
 }
 
 func RemoveFile(filePath string) {
@@ -622,7 +622,7 @@ func WriteAt(content string, offset int64, fh *os.File, t testing.TB) {
 func CloseFileShouldNotThrowError(t testing.TB, file *os.File) {
 	err := file.Close()
 	assert.NoError(t, err)
-	WaitForSizeUpdate(setup.IsZonalBucketRun(), 5*time.Second)
+	WaitForSizeUpdate(setup.IsZonalBucketRun(), 1*time.Second)
 }
 
 func CloseFileShouldThrowError(t *testing.T, file *os.File) {
