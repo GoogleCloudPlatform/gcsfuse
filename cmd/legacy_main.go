@@ -410,7 +410,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	shutdownFn := common.JoinShutdownFunc(metricExporterShutdownFn, shutdownTracingFn)
 
 	// No-op if profiler is disabled.
-	if err := profiler.SetupCloudProfiler(&newConfig.Profiling); err != nil {
+	if err := profiler.SetupCloudProfiler(&newConfig.CloudProfiler); err != nil {
 		logger.Warnf("Failed to setup cloud profiler: %v", err)
 	}
 

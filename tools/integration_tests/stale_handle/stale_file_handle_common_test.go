@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -72,7 +73,6 @@ func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHand
 	assert.NoError(s.T(), err)
 
 	operations.ValidateSyncGivenThatFileIsClobbered(s.T(), s.f1, s.isStreamingWritesEnabled)
-
 	err = s.f1.Close()
 	operations.ValidateESTALEError(s.T(), err)
 	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, s.fileName, FileContents, s.T())
@@ -102,14 +102,12 @@ func (s *staleFileHandleCommon) TestRenamedFileSyncAndCloseThrowsStaleFileHandle
 
 	err = operations.RenameFile(s.f1.Name(), path.Join(s.testDirPath, newFile))
 
-	// TODO(b/402335988): Update this test once rename flow is fixed.
-	if s.isLocal && !s.isStreamingWritesEnabled {
-		// Rename operation not supported in this scenario.
-		operations.ValidateEOPNOTSUPPError(s.T(), err)
-		return
-	}
 	assert.NoError(s.T(), err)
-	operations.ValidateWriteGivenThatFileIsRenamed(s.T(), s.f1, s.isStreamingWritesEnabled, s.data)
-	operations.ValidateSyncGivenThatFileIsClobbered(s.T(), s.f1, s.isStreamingWritesEnabled)
-	operations.ValidateCloseGivenThatFileIsRenamed(s.T(), s.f1, s.isStreamingWritesEnabled)
+	_, err = s.f1.WriteString(s.data)
+	operations.ValidateESTALEError(s.T(), err)
+	// Sync/Flush call won't throw error as data couldn't be written after rename, so we don't have anything to upload.
+	err = s.f1.Sync()
+	require.NoError(s.T(), err)
+	err = s.f1.Close()
+	require.NoError(s.T(), err)
 }

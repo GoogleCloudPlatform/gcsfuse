@@ -759,6 +759,10 @@ func validConfig(t *testing.T) Config {
 		MetadataCache: MetadataCacheConfig{
 			ExperimentalMetadataPrefetchOnMount: "disabled",
 		},
+		Metrics: MetricsConfig{
+			Workers:    1,
+			BufferSize: 1,
+		},
 	}
 }
 
@@ -938,6 +942,52 @@ func TestValidateLogSeverityRanks(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tc.wantLogSev.Rank(), level.Rank())
+			}
+		})
+	}
+}
+
+func TestValidateProfile(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name    string
+		profile string
+		wantErr bool
+	}{
+		{
+			name:    "empty_profile",
+			profile: "",
+			wantErr: false,
+		}, {
+			name:    "profile_training",
+			profile: ProfileAIMLTraining,
+			wantErr: false,
+		}, {
+			name:    "profile_serving",
+			profile: ProfileAIMLServing,
+			wantErr: false,
+		}, {
+			name:    "profile_checkpointing",
+			profile: ProfileAIMLCheckpointing,
+			wantErr: false,
+		}, {
+			name:    "unsupported_profile",
+			profile: "unsupported-profile",
+			wantErr: true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			c := validConfig(t)
+			c.Profile = tc.profile
+
+			err := ValidateConfig(&mockIsSet{}, &c)
+
+			if tc.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}

@@ -496,7 +496,7 @@ func ClearCacheControlOnGcsObject(gcsObjPath string) error {
 
 func CreateFile(filePath string, filePerms os.FileMode, t testing.TB) (f *os.File) {
 	// Creating a file shouldn't create file on GCS.
-	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, filePerms)
+	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, filePerms)
 	if err != nil {
 		t.Fatalf("CreateFile(%s): %v", filePath, err)
 	}
@@ -808,7 +808,7 @@ func CheckLogFileForMessage(t *testing.T, expectedLog, logFile string) bool {
 	return false
 }
 
-// This method validates sync operation on file which has already been clobbered.
+// ValidateSyncGivenThatFileIsClobbered method validates sync operation on file which has already been clobbered.
 // 1. With streaming writes sync operation only uploads pending buffers and it doesn't return any error.
 // 2. Without streaming writes file is synced with GCS and returns ESTALE error.
 func ValidateSyncGivenThatFileIsClobbered(t *testing.T, file *os.File, streamingWrites bool) {
@@ -816,33 +816,6 @@ func ValidateSyncGivenThatFileIsClobbered(t *testing.T, file *os.File, streaming
 	err := file.Sync()
 	if streamingWrites {
 		assert.NoError(t, err)
-	} else {
-		ValidateESTALEError(t, err)
-	}
-}
-
-// This method validates write operation on file which has been renamed.
-// 1. With streaming writes write operation returns ESTALE error as buffer upload fails.
-// 2. Without streaming writes write operation succeeds.
-func ValidateWriteGivenThatFileIsRenamed(t *testing.T, file *os.File, streamingWrites bool, content string) {
-	t.Helper()
-	n, err := file.WriteString(content)
-	if streamingWrites {
-		ValidateESTALEError(t, err)
-	} else {
-		require.NoError(t, err)
-		assert.Equal(t, len(content), n)
-	}
-}
-
-// This method validates close operation on file which has been renamed.
-// 1. With streaming writes close operation succeeds as nothing is written on file after rename.
-// 2. Without streaming writes close operation fails as object not found on GCS.
-func ValidateCloseGivenThatFileIsRenamed(t *testing.T, file *os.File, streamingWrites bool) {
-	t.Helper()
-	err := file.Close()
-	if streamingWrites {
-		require.NoError(t, err)
 	} else {
 		ValidateESTALEError(t, err)
 	}

@@ -74,7 +74,7 @@ func TestMain(m *testing.M) {
 	testServiceVersion = fmt.Sprintf("ve2e0.0.0-%s", strings.ReplaceAll(uuid.New().String(), "-", "")[:8])
 
 	flags := [][]string{
-		{"--enable-cloud-profiling", "--profiling-cpu", "--profiling-heap", "--profiling-goroutines", "--profiling-mutex", "--profiling-allocated-heap", fmt.Sprintf("--profiling-label=%s", testServiceVersion)},
+		{"--enable-cloud-profiler", "--cloud-profiler-cpu", "--cloud-profiler-heap", "--cloud-profiler-goroutines", "--cloud-profiler-mutex", "--cloud-profiler-allocated-heap", fmt.Sprintf("--cloud-profiler-label=%s", testServiceVersion)},
 	}
 	logger.Infof("Enabling cloud profiler with version tag: %s", testServiceVersion)
 	successCode := static_mounting.RunTests(flags, m)

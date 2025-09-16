@@ -48,13 +48,10 @@ func ValidateObjectNotFoundErr(ctx context.Context, t *testing.T, bucket gcs.Buc
 }
 
 func ValidateESTALEError(t *testing.T, err error) {
+	t.Helper()
+
 	require.Error(t, err)
 	assert.Regexp(t, syscall.ESTALE.Error(), err.Error())
-}
-
-func ValidateEOPNOTSUPPError(t *testing.T, err error) {
-	require.Error(t, err)
-	assert.Regexp(t, syscall.EOPNOTSUPP.Error(), err.Error())
 }
 
 func CheckErrorForReadOnlyFileSystem(t *testing.T, err error) {
