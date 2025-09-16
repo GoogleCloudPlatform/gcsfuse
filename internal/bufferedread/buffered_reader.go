@@ -397,18 +397,31 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		}
 
 		entry := p.blockQueue.Peek()
+		p.mu.Unlock() // Release lock before waiting for download.
+
+		status, waitErr := entry.block.AwaitReady(ctx)
+
+		p.mu.Lock() // Re-acquire lock to process the result.
+
+		// After re-acquiring the lock, the state might have changed (e.g., due to a
+		// random seek in another goroutine). We must validate that the block we
+		// waited for is still the one we need. If not, we restart the loop to
+		// re-evaluate the state.
+		if p.blockQueue.IsEmpty() || p.blockQueue.Peek() != entry {
+			continue
+		}
+
 		blk := entry.block
 
-		status, waitErr := blk.AwaitReady(ctx)
 		if waitErr != nil {
 			err = fmt.Errorf("BufferedReader.ReadAt: AwaitReady: %w", waitErr)
 			break
 		}
 
 		if status.State != block.BlockStateDownloaded {
-			p.blockQueue.Pop()
-			p.blockPool.Release(blk)
-			entry.cancel()
+			p.blockQueue.Pop()       // The block is invalid, remove it.
+			p.blockPool.Release(blk) // Release it back to the pool.
+			entry.cancel()           // Cancel any ongoing work.
 
 			switch status.State {
 			case block.BlockStateDownloadFailed:
