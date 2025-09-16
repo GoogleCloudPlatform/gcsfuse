@@ -67,9 +67,9 @@ func (s *statWithDentryCacheEnabledTest) TestStatWithDentryCacheEnabled() {
 	assert.Equal(s.T(), int64(initialContentSize), fileInfo.Size())
 	// Wait for a period more than the timeout (1 second), so that entry expires in cache.
 	if setup.IsZonalBucketRun() {
-		time.Sleep(5 * time.Second) // We already sleep for 5 seconds for ZB in WriteToObject method.
+		time.Sleep(1 * time.Second) // We already sleep for 1 second for ZB in WriteToObject method.
 	} else {
-		time.Sleep(10 * time.Second)
+		time.Sleep(2 * time.Second)
 	}
 	// Stat again, it should give updated attributes.
 	fileInfo, err = os.Stat(filePath)
@@ -94,7 +94,7 @@ func (s *statWithDentryCacheEnabledTest) TestStatWhenFileIsDeletedDirectlyFromGC
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), int64(initialContentSize), fileInfo.Size())
 	// Wait for a period more than the timeout (1 second), so that entry expires in cache.
-	time.Sleep(10 * time.Second)
+	time.Sleep(2 * time.Second)
 	// Stat again, it should give error as file does not exist.
 	_, err = os.Stat(filePath)
 	assert.NotNil(s.T(), err)
@@ -110,7 +110,7 @@ func TestStatWithDentryCacheEnabledTest(t *testing.T) {
 	}
 
 	// Setup flags and run tests.
-	ts.flags = []string{"--implicit-dirs", "--experimental-enable-dentry-cache", "--metadata-cache-ttl-secs=10"}
+	ts.flags = []string{"--implicit-dirs", "--experimental-enable-dentry-cache", "--metadata-cache-ttl-secs=2"}
 	log.Printf("Running tests with flags: %s", ts.flags)
 	suite.Run(t, ts)
 }

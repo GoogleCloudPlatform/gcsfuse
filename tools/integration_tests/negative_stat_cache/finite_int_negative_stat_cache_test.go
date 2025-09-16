@@ -59,7 +59,7 @@ func (s *finiteNegativeStatCacheTest) TestFiniteNegativeStatCache() {
 	assert.ErrorContains(s.T(), err, "explicit_dir/file1.txt: no such file or directory")
 
 	// Adding the object with same name
-	// If ZB run, then this already waits for 5 seconds
+	// If ZB run, then this already waits for 1 seconds
 	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, path.Join("explicit_dir", "file1.txt"), "some-content", s.T())
 
 	// Error should be returned again, as call will not be served from GCS due to finite gcsfuse stat cache
@@ -71,9 +71,9 @@ func (s *finiteNegativeStatCacheTest) TestFiniteNegativeStatCache() {
 
 	//Wait for Cache to expire
 	if setup.IsZonalBucketRun() {
-		time.Sleep(6 * time.Second)
+		time.Sleep(2 * time.Second)
 	} else {
-		time.Sleep(11 * time.Second)
+		time.Sleep(3 * time.Second)
 	}
 
 	// File should be returned, as call will be served from GCS and gcsfuse should not return from cache
@@ -99,7 +99,7 @@ func TestFiniteNegativeStatCacheTest(t *testing.T) {
 	}
 
 	// Define flag set to run the tests.
-	flagsSet := []string{"--metadata-cache-negative-ttl-secs=10"}
+	flagsSet := []string{"--metadata-cache-negative-ttl-secs=2"}
 
 	// Run tests.
 	ts.flags = flagsSet

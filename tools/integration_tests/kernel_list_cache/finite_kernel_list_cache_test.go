@@ -77,7 +77,7 @@ func (s *finiteKernelListCacheTest) TestKernelListCache_CacheHitWithinLimit_Cach
 	// Adding one object to make sure to change the ReadDir() response.
 	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", s.T()) // Waiting for 5 secs in ZB
 	if !setup.IsZonalBucketRun() {
-		time.Sleep(5 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 
 	// Kernel cache will not invalidate within ttl.
@@ -90,7 +90,7 @@ func (s *finiteKernelListCacheTest) TestKernelListCache_CacheHitWithinLimit_Cach
 	assert.Equal(s.T(), "file1.txt", names2[0])
 	assert.Equal(s.T(), "file2.txt", names2[1])
 	// Waiting 5 more seconds to exceed the 10-second TTL for invalidating the kernel cache.
-	time.Sleep(5 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	// The response will be served from GCSFuse after the TTL expires.
 	f, err = os.Open(targetDir)
@@ -119,7 +119,7 @@ func TestFiniteKernelListCacheTest(t *testing.T) {
 
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
-		{"--kernel-list-cache-ttl-secs=10", "--rename-dir-limit=10"},
+		{"--kernel-list-cache-ttl-secs=2", "--rename-dir-limit=10"},
 	}
 
 	// Run tests.

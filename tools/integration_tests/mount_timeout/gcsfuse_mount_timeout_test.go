@@ -20,7 +20,7 @@ import (
 	"math"
 	"os"
 	"path"
-	// "path/filepath"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -155,7 +155,7 @@ func (testSuite *MountTimeoutTest) mountOrTimeout(bucketName, clientProtocol str
 	logFile := setup.LogFile()
 	defer func() {
 		if err != nil {
-			// setup.SaveLogFileAsArtifact(logFile, setup.GCSFuseLogFilePrefix+filepath.Base(logFile))
+			setup.SaveLogFileAsArtifact(logFile, setup.GCSFuseLogFilePrefix+filepath.Base(logFile))
 		}
 	}()
 
