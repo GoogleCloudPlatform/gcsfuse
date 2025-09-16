@@ -1675,6 +1675,7 @@ func (fs *fileSystem) StatFS(
 func (fs *fileSystem) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) (err error) {
+	time.Sleep(1 * time.Second)
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
