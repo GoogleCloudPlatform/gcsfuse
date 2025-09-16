@@ -90,7 +90,7 @@ steps:
     GCSFUSE_PATH=$$(cat /workspace/bucket_name)
     STAGINGVERSION=${BUILD_ID}
     STAGINGVERSION=${_IMAGE_PREFIX}-$${STAGINGVERSION:0:8}
-    REGISTRY="gcr.io/${PROJECT_ID}/${_USER}_gcsfuse-csi"
+    REGISTRY="gcr.io/${PROJECT_ID}/${_USER}-gcsfuse-csi"
     make build-image-and-push-multi-arch REGISTRY=$${REGISTRY} GCSFUSE_PATH=$${GCSFUSE_PATH} STAGINGVERSION=$${STAGINGVERSION}
 
 # This step cleans up the GCS bucket.
