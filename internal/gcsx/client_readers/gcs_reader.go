@@ -109,6 +109,29 @@ func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, config *GCSReaderConfig
 	}
 }
 
+// Detects whether the read was short or not and returns whether it should be retried or not.
+// Reads would only be retried in case of zonal buckets and when the read data was less than requested (& object size)
+// and there was no error apart from EOF or short reads.
+func shouldRetryForShortRead(err error, bytesRead int, p []byte, offset int64, objectSize uint64, bucketType gcs.BucketType) bool {
+	if !bucketType.Zonal {
+		return false
+	}
+
+	if bytesRead >= len(p) {
+		return false
+	}
+
+	if offset+int64(bytesRead) >= int64(objectSize) {
+		return false
+	}
+
+	if !(err == nil || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, util.ErrShortRead)) {
+		return false
+	}
+
+	return true
+}
+
 func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (readerResponse gcsx.ReaderResponse, err error) {
 
 	if offset >= int64(gr.object.Size) {
@@ -137,10 +160,7 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (reader
 	readerResponse.Size = bytesRead
 
 	// Retry reading in case of short read.
-	// This would be used for MRD only as range reader would have created a new reader before trying to read
-	// if the existing reader's limit did not cover the object size.
-	if (err == nil || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, util.ErrShortRead)) &&
-		bytesRead < len(p) && offset+int64(bytesRead) < int64(gr.object.Size) && gr.bucket.BucketType().Zonal {
+	if shouldRetryForShortRead(err, bytesRead, p, offset, gr.object.Size, gr.bucket.BucketType()) {
 		readReq.Offset += int64(bytesRead)
 		readReq.Buffer = p[bytesRead:]
 		readReq.ForceCreateReader = true
