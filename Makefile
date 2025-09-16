@@ -46,5 +46,8 @@ clean-gen:
 clean: clean-gen
 	go clean
 
+build-csi: build
+	gcloud builds submit --config csi_driver_build.yml
+
 clean-all: clean-gen
 	go clean -i ./...
