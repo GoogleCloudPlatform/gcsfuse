@@ -17,18 +17,9 @@
 # This will stop execution when any command will have non-zero status.
 set -e
 
-readonly RUN_E2E_TESTS_ON_INSTALLED_PACKAGE=true
-readonly SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=false
-readonly RUN_TEST_ON_TPC_ENDPOINT=false
 readonly PROJECT_ID="gcs-fuse-test-ml"
 readonly BUCKET_LOCATION=us-central1
 readonly REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT="5.3"
-
-# This flag, if set true, will indicate to the underlying script, to customize for a presubmit-run.
-readonly RUN_TESTS_WITH_PRESUBMIT_FLAG=false
-
-# Install required bash version for e2e script as kokoro has outdated bash versions.
-./perfmetrics/scripts/install_bash.sh "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT"
 
 # This flag, if set true, will indicate to underlying script(s) to run for zonal bucket(s) instead of non-zonal bucket(s).
 ZONAL_BUCKET_ARG=false
@@ -45,6 +36,10 @@ elif test -n "${RUN_TESTS_WITH_ZONAL_BUCKET}" && ${RUN_TESTS_WITH_ZONAL_BUCKET};
 fi
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
+
+# Install required bash version for e2e script as kokoro has outdated bash versions.
+./perfmetrics/scripts/install_bash.sh "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT"
+
 echo "Building and installing gcsfuse..."
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
 commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
@@ -55,4 +50,4 @@ git checkout $commitId
 
 echo "Running e2e tests on installed package...."
 # $1 argument is refering to value of testInstalledPackage
-/usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --test-installed-package=$RUN_E2E_TESTS_ON_INSTALLED_PACKAGE --skip-non-essential-tests=$SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE --test-on-tpc-endpoint=$RUN_TEST_ON_TPC_ENDPOINT --presubmit=$RUN_TESTS_WITH_PRESUBMIT_FLAG --zonal=${ZONAL_BUCKET_ARG}
+/usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --test-installed-package=true --skip-non-essential-tests=false --test-on-tpc-endpoint=false --presubmit=false --zonal=${ZONAL_BUCKET_ARG}

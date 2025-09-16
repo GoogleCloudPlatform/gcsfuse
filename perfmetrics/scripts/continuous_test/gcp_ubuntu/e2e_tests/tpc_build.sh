@@ -31,10 +31,10 @@ readonly RUN_TESTS_WITH_PRESUBMIT_FLAG=false
 # This flag, if set true, will indicate to underlying script to also run for zonal buckets.
 readonly RUN_TESTS_WITH_ZONAL_BUCKET=false
 
+cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
+
 # Install required bash version for e2e script as kokoro has outdated bash versions.
 ./perfmetrics/scripts/install_bash.sh "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT"
-
-cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 
 # Install latest gcloud.
 ./perfmetrics/scripts/install_latest_gcloud.sh
@@ -62,7 +62,7 @@ gcloud config set project $PROJECT_ID
 
 set +e
 # $1 argument is refering to value of testInstalledPackage
-/usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --test-installed-package=$RUN_E2E_TESTS_ON_INSTALLED_PACKAGE --skip-non-essential-tests=$SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE --test-on-tpc-endpoint=$RUN_TEST_ON_TPC_ENDPOINT --presubmit=$RUN_TESTS_WITH_PRESUBMIT_FLAG --zonal=${RUN_TESTS_WITH_ZONAL_BUCKET}
+/usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --test-installed-package=true --skip-non-essential-tests=true --test-on-tpc-endpoint=true --presubmit=$RUN_TESTS_WITH_PRESUBMIT_FLAG --zonal=${RUN_TESTS_WITH_ZONAL_BUCKET}
 exit_code=$?
 set -e
 
