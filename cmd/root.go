@@ -35,7 +35,7 @@ const defaultMountLoggerId string = "00000000"
 
 // logGcsfuseConfigs logs the configuration values provided by the user in CLI flags, config file
 // and optimizations performed on various flags for high performance machine types.
-func logGcsfuseConfigs(uuid string, v *viper.Viper, cmd *cobra.Command, optimizedFlags map[string]interface{}, config cfg.Config) {
+func logGcsfuseConfigs(v *viper.Viper, cmd *cobra.Command, optimizedFlags map[string]interface{}, config cfg.Config) {
 	configWrapper := make(map[string]interface{})
 	cliFlags := make(map[string]interface{})
 	cmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
@@ -138,7 +138,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 		// if these are already being logged into a log-file, otherwise
 		// there will be duplicate logs for these in both places (stdout and log-file).
 		if configObj.Foreground || configObj.Logging.FilePath == "" {
-			logGcsfuseConfigs(mountLoggerId, v, rootCmd, optimizedFlags, configObj)
+			logGcsfuseConfigs(v, rootCmd, optimizedFlags, configObj)
 		}
 	}
 	cobra.OnInitialize(initConfig)
