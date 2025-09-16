@@ -1,4 +1,4 @@
-# Copyright 2024 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 substitutions:
   _GOLANG_VERSION: '1.24'
   _CSI_VERSION: 'main'
-  _PLATFORMS: 'linux/amd64'
+  _PLATFORMS: 'linux/amd64,linux/arm64'
   _USER: 'cloudbuild'
   _IMAGE_PREFIX: 'build'
 
