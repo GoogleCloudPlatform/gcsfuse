@@ -155,7 +155,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 ////////////////////////////////////////////////////////////////////////
 
 // Mount the file system according to arguments in the supplied context.
-func mountWithArgs(uuid, bucketName string, mountPoint string, newConfig *cfg.Config, metricHandle metrics.MetricHandle) (mfs *fuse.MountedFileSystem, err error) {
+func mountWithArgs(mountLoggerId, bucketName string, mountPoint string, newConfig *cfg.Config, metricHandle metrics.MetricHandle) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if newConfig.Debug.ExitOnInvariantViolation {
 		locker.EnableInvariantsCheck()
@@ -182,7 +182,7 @@ func mountWithArgs(uuid, bucketName string, mountPoint string, newConfig *cfg.Co
 	// Mount the file system.
 	logger.Infof("Creating a mount at %q\n", mountPoint)
 	mfs, err = mountWithStorageHandle(
-		context.Background(), uuid,
+		context.Background(), mountLoggerId,
 		bucketName,
 		mountPoint,
 		newConfig,
@@ -322,9 +322,8 @@ func forwardedEnvVars() []string {
 	return env
 }
 
-func Mount(uuid string, newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
-	str := fmt.Sprintf("GCSFuse Mount ID[%s] Start gcsfuse/%s for app %q using mount point: %s\n", uuid, common.GetVersion(), newConfig.AppName, mountPoint)
-	logger.Infof(str)
+func Mount(mountLoggerId string, newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
+	logger.Infof("Start gcsfuse/%s for app %q using mount point: %s\n", common.GetVersion(), newConfig.AppName, mountPoint)
 
 	// The following will not warn if the user explicitly passed the default value for StatCacheCapacity.
 	if newConfig.MetadataCache.DeprecatedStatCacheCapacity != mount.DefaultStatCacheCapacity {
@@ -392,7 +391,7 @@ func Mount(uuid string, newConfig *cfg.Config, bucketName, mountPoint string) (e
 	// daemonize gives us and telling it about the outcome.
 	var mfs *fuse.MountedFileSystem
 	{
-		mfs, err = mountWithArgs(uuid, bucketName, mountPoint, newConfig, metricHandle)
+		mfs, err = mountWithArgs(mountLoggerId, bucketName, mountPoint, newConfig, metricHandle)
 
 		// This utility is to absorb the error
 		// returned by daemonize.SignalOutcome calls by simply
@@ -405,8 +404,7 @@ func Mount(uuid string, newConfig *cfg.Config, bucketName, mountPoint string) (e
 
 		markSuccessfulMount := func() {
 			// Print the success message in the log-file/stdout depending on what the logger is set to.
-			str := fmt.Sprintf("GCSFuse Mount ID[%s] %s", uuid, SuccessfulMountMessage)
-			logger.Info(str)
+			logger.Info(SuccessfulMountMessage)
 			callDaemonizeSignalOutcome(nil)
 		}
 

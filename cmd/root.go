@@ -15,7 +15,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -32,72 +31,40 @@ import (
 	"github.com/spf13/viper"
 )
 
-const padding = 10
+const defaultMountLoggerId string = "00000000"
 
-func getLinesWithSize(v interface{}) ([]string, int64) {
-	jsonBytes, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
-		return nil, 0
-	}
-
-	jsonString := string(jsonBytes)
-	jsonString = strings.ReplaceAll(jsonString, "\"", "")
-
-	lines := strings.Split(jsonString, "\n")
-
-	var maxLength int64
-	for _, line := range lines {
-		if int64(len(line)) > maxLength {
-			maxLength = int64(len(line))
-		}
-	}
-
-	return lines, maxLength
-}
-func logJsonPretty(v interface{}, uuid string) {
-	lines, maxLength := getLinesWithSize(v)
-	for _, line := range lines {
-		str := fmt.Sprintf("GCSFuse Mount ID[%s] %s", uuid, line)
-		fstr := fmt.Sprintf("% -*s", maxLength+40, str)
-		logger.Info(fstr)
-	}
-
-}
-
-// logUserSpecifiedAndOptimizedConfig logs the configuration values provided by the user,
-// distinguishing between flags set on the command line and values from the
-// config file and the flag sets that were optimized based on machine type.
-func logUserSpecifiedAndOptimizedConfig(uuid string, v *viper.Viper, cmd *cobra.Command, optimizedFlags map[string]interface{}) {
+// logGcsfuseConfigs logs the configuration values provided by the user in CLI flags, config file
+// and optimizations performed on various flags for high performance machine types.
+func logGcsfuseConfigs(uuid string, v *viper.Viper, cmd *cobra.Command, optimizedFlags map[string]interface{}, config cfg.Config) {
+	configWrapper := make(map[string]interface{})
 	cliFlags := make(map[string]interface{})
 	cmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
 		if f.Changed {
 			cliFlags[f.Name] = f.Value.String()
 		}
 	})
-	if len(cliFlags) > 0 {
-		logger.Infof("GCSFuse Mount ID[%s] GCSFuse CLI flags", uuid)
-		logJsonPretty(cliFlags, uuid)
-	}
-
+	configWrapper["cli"] = cliFlags
 	if v.ConfigFileUsed() != "" {
 		configFileViper := viper.New()
 		configFileViper.SetConfigFile(v.ConfigFileUsed())
 		configFileViper.SetConfigType("yaml")
 		if err := configFileViper.ReadInConfig(); err == nil {
-			logger.Infof("GCSFuse Mount ID[%s] GCSFuse Config flags", uuid)
-			logJsonPretty(configFileViper.AllSettings(), uuid)
+			configWrapper["config"] = configFileViper.AllSettings()
+		} else {
+			log.Printf("Unable to read config file. Error: %v, Config file flags logging skipped", err)
 		}
 	}
 	if len(optimizedFlags) > 0 {
-		logger.Infof("GCSFuse Mount ID[%s] GCSFuse machine type based optimized flags", uuid)
-		logJsonPretty(optimizedFlags, uuid)
+		configWrapper["optimizations"] = optimizedFlags
 	}
+	configWrapper["gcsfuse"] = config
+	logger.Info("GCSFuse config", "config", configWrapper)
 }
 
 type mountFn func(uuid string, c *cfg.Config, bucketName, mountPoint string) error
 
 // newRootCmd accepts the mountFn that it executes with the parsed configuration
-func newRootCmd(uuid string, m mountFn) (*cobra.Command, error) {
+func newRootCmd(mountLoggerId string, m mountFn) (*cobra.Command, error) {
 	var (
 		configObj cfg.Config
 		cfgFile   string
@@ -121,7 +88,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 			if err != nil {
 				return fmt.Errorf("error occurred while extracting the bucket and mountPoint: %w", err)
 			}
-			return m(uuid, &configObj, bucket, mountPoint)
+			return m(mountLoggerId, &configObj, bucket, mountPoint)
 		},
 	}
 	initConfig := func() {
@@ -154,7 +121,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 		logger.SetLogFormat(configObj.Logging.Format)
 
 		if configObj.Foreground {
-			cfgErr = logger.InitLogFile(configObj.Logging, uuid)
+			cfgErr = logger.InitLogFile(configObj.Logging, mountLoggerId)
 			if cfgErr != nil {
 				return
 			}
@@ -166,15 +133,12 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 			return
 		}
 
-		// Log user specified and optimized flags in the log-file.
-		// If there is no log-file, then log these to stdout.
+		// If there is no log-file, then log GCSFuse configs to stdout.
 		// Do not log these in stdout in case of daemonized run
 		// if these are already being logged into a log-file, otherwise
 		// there will be duplicate logs for these in both places (stdout and log-file).
 		if configObj.Foreground || configObj.Logging.FilePath == "" {
-			logUserSpecifiedAndOptimizedConfig(uuid, v, rootCmd, optimizedFlags)
-			logger.Infof("GCSFuse Mount ID[%s] GCSFuse Final Config flags", uuid)
-			logJsonPretty(configObj, uuid)
+			logGcsfuseConfigs(mountLoggerId, v, rootCmd, optimizedFlags, configObj)
 		}
 	}
 	cobra.OnInitialize(initConfig)
@@ -234,9 +198,14 @@ func convertToPosixArgs(args []string, c *cobra.Command) []string {
 }
 
 var ExecuteMountCmd = func() {
-	uuid := uuid.New().String()
-	uuid = uuid[:8]
-	rootCmd, err := newRootCmd(uuid, Mount)
+	uuid, err := uuid.NewRandom()
+	mountLoggerId := defaultMountLoggerId
+	if err == nil && uuid.String() != "" {
+		mountLoggerId = uuid.String()[:8]
+	} else {
+		log.Printf("Could not generate random UUID for logger, err %v. Falling back to default %v", err, defaultMountLoggerId)
+	}
+	rootCmd, err := newRootCmd(mountLoggerId, Mount)
 	if err != nil {
 		log.Fatalf("Error occurred while creating the root command on gcsfuse/%s: %v", common.GetVersion(), err)
 	}

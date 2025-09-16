@@ -35,6 +35,7 @@ const (
 	ProgrammeName           string = "gcsfuse"
 	GCSFuseInBackgroundMode string = "GCSFUSE_IN_BACKGROUND_MODE"
 	textFormat              string = "text"
+	mountLoggerIdKey        string = "mount_id"
 )
 
 var (
@@ -49,7 +50,7 @@ var (
 // config.
 // Here, background true means, this InitLogFile has been called for the
 // background daemon.
-func InitLogFile(newLogConfig cfg.LoggingConfig, mountId string) error {
+func InitLogFile(newLogConfig cfg.LoggingConfig, mountLoggerId string) error {
 	var f *os.File
 	var sysWriter *syslog.Writer
 	var fileWriter *lumberjack.Logger
@@ -85,30 +86,17 @@ func InitLogFile(newLogConfig cfg.LoggingConfig, mountId string) error {
 	}
 
 	defaultLoggerFactory = &loggerFactory{
-		file:       f,
-		sysWriter:  sysWriter,
-		fileWriter: fileWriter,
-		format:     newLogConfig.Format,
-		level:      string(newLogConfig.Severity),
-		logRotate:  newLogConfig.LogRotate,
-		mountId:    mountId,
+		file:          f,
+		sysWriter:     sysWriter,
+		fileWriter:    fileWriter,
+		format:        newLogConfig.Format,
+		level:         string(newLogConfig.Severity),
+		logRotate:     newLogConfig.LogRotate,
+		mountLoggerId: mountLoggerId,
 	}
 	defaultLogger = defaultLoggerFactory.newLogger(string(newLogConfig.Severity))
 
 	return nil
-}
-
-// init initializes the logger factory to use stdout and stderr.
-func init() {
-	logConfig := cfg.DefaultLoggingConfig()
-	defaultLoggerFactory = &loggerFactory{
-		file:      nil,
-		format:    logConfig.Format,
-		level:     string(logConfig.Severity), // setting log level to INFO by default
-		logRotate: logConfig.LogRotate,
-		mountId:   "",
-	}
-	defaultLogger = defaultLoggerFactory.newLogger(cfg.INFO)
 }
 
 // SetLogFormat updates the log format of default logger.
@@ -164,24 +152,21 @@ func Fatal(format string, v ...interface{}) {
 
 type loggerFactory struct {
 	// If nil, log to stdout or stderr. Otherwise, log to this file.
-	file       *os.File
-	sysWriter  *syslog.Writer
-	format     string
-	level      string
-	logRotate  cfg.LogRotateLoggingConfig
-	fileWriter *lumberjack.Logger
-	mountId    string
+	file          *os.File
+	sysWriter     *syslog.Writer
+	format        string
+	level         string
+	logRotate     cfg.LogRotateLoggingConfig
+	fileWriter    *lumberjack.Logger
+	mountLoggerId string
 }
 
 func (f *loggerFactory) newLogger(level string) *slog.Logger {
 	// create a new logger
 	var programLevel = new(slog.LevelVar)
-	logger := slog.New(f.handler(programLevel, ""))
+	logger := slog.New(f.handler(programLevel, "").WithAttrs([]slog.Attr{slog.String(mountLoggerIdKey, f.mountLoggerId)}))
 	slog.SetDefault(logger)
 	setLoggingLevel(level, programLevel)
-	if f.mountId != "" {
-		return logger.With("mount_id", defaultLoggerFactory.mountId)
-	}
 	return logger
 }
 
