@@ -17,9 +17,6 @@
 # This will stop execution when any command will have non-zero status.
 set -e
 
-readonly RUN_E2E_TESTS_ON_INSTALLED_PACKAGE=true
-readonly SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=true
-readonly RUN_TEST_ON_TPC_ENDPOINT=true
 # TPC project id
 readonly PROJECT_ID="tpczero-system:gcsfuse-test-project"
 readonly BUCKET_LOCATION="u-us-prp1"
@@ -30,6 +27,8 @@ readonly RUN_TESTS_WITH_PRESUBMIT_FLAG=false
 
 # This flag, if set true, will indicate to underlying script to also run for zonal buckets.
 readonly RUN_TESTS_WITH_ZONAL_BUCKET=false
+
+cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 
 # Install required bash version for e2e script as kokoro has outdated bash versions.
 ./perfmetrics/scripts/install_bash.sh "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT"
@@ -64,8 +63,7 @@ gcloud auth activate-service-account --key-file=/tmp/sa.key.json
 gcloud config set project $PROJECT_ID
 
 set +e
-# $1 argument is refering to value of testInstalledPackage
-/usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --test-installed-package=true --skip-non-essential-tests=true --test-on-tpc-endpoint=true --presubmit=$RUN_TESTS_WITH_PRESUBMIT_FLAG --zonal=${RUN_TESTS_WITH_ZONAL_BUCKET}
+/usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --test-installed-package=true --skip-non-essential-tests=true --test-on-tpc-endpoint=true --presubmit=false --zonal=false
 exit_code=$?
 set -e
 

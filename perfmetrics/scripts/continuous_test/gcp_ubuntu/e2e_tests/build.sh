@@ -40,6 +40,10 @@ cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 # Install required bash version for e2e script as kokoro has outdated bash versions.
 ./perfmetrics/scripts/install_bash.sh "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT"
 
+
+# Install required bash version for e2e script as kokoro has outdated bash versions.
+./perfmetrics/scripts/install_bash.sh "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT"
+
 echo "Building and installing gcsfuse..."
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
 commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
