@@ -22,22 +22,16 @@ readonly BUCKET_LOCATION=us-central1
 readonly REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT="5.3"
 
 # This flag, if set true, will indicate to underlying script(s) to run for zonal bucket(s) instead of non-zonal bucket(s).
-ZONAL_BUCKET_ARG=false
 ZONAL_FLAG=""
-if [ $# -gt 0 ]; then
-  if [ $1 = "true" ]; then
-    ZONAL_BUCKET_ARG=true
-  elif [ $1 != "false" ]; then
-    >&2 echo "$0: ZONAL_BUCKET_ARG (\$1) passed as $1 . Expected: true or false"
-    exit  1
+if [[ $# -gt 0 ]]; then
+  if [[ "$1" == "true" ]]; then
+    ZONAL_FLAG="--zonal"
+  elif [[ "$1" != "false" ]]; then
+    echo "$0: ZONAL_BUCKET_ARG (\$1) passed as $1. Expected: true or false" >&2
+    exit 1
   fi
-elif test -n "${RUN_TESTS_WITH_ZONAL_BUCKET}" && ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
-  echo "Running for zonal bucket(s) ...";
-  ZONAL_BUCKET_ARG=${RUN_TESTS_WITH_ZONAL_BUCKET}
-fi
-
-# If running for zonal bucket(s), then set the flag to be passed to underlying script(s).
-if [ "$ZONAL_BUCKET_ARG" = true ]; then
+elif [[ "${RUN_TESTS_WITH_ZONAL_BUCKET}" == "true" ]]; then
+  echo "Running for zonal bucket(s) ..."
   ZONAL_FLAG="--zonal"
 fi
 
