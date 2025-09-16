@@ -116,7 +116,7 @@ steps:
   - '-c'
   - |
     BUCKET_NAME=$$(cat /workspace/bucket_name)
-    gcloud storage buckets delete --recursive $$BUCKET_NAME
+    gcloud storage rm --recursive $$BUCKET_NAME
 
 options:
   # Using a more powerful machine is recommended for multi-platform builds.
