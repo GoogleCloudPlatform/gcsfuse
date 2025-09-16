@@ -14,7 +14,7 @@
 
 .DEFAULT_GOAL := build
 
-.PHONY: generate imports fmt vet build buildTest install test clean-gen clean clean-all
+.PHONY: generate imports fmt vet build buildTest install test clean-gen clean clean-all build-csi
 
 generate:
 	go generate ./...
@@ -46,8 +46,8 @@ clean-gen:
 clean: clean-gen
 	go clean
 
-build-csi: build
-	gcloud builds submit --config csi_driver_build.yml
-
 clean-all: clean-gen
 	go clean -i ./...
+
+build-csi: build
+	gcloud builds submit --config csi_driver_build.yml
