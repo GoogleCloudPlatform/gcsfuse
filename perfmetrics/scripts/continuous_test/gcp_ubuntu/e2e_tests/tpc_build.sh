@@ -22,17 +22,6 @@ readonly PROJECT_ID="tpczero-system:gcsfuse-test-project"
 readonly BUCKET_LOCATION="u-us-prp1"
 readonly REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT="5.3"
 
-# This flag, if set true, will indicate to underlying script to customize for a presubmit run.
-readonly RUN_TESTS_WITH_PRESUBMIT_FLAG=false
-
-# This flag, if set true, will indicate to underlying script to also run for zonal buckets.
-readonly RUN_TESTS_WITH_ZONAL_BUCKET=false
-
-cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
-
-# Install required bash version for e2e script as kokoro has outdated bash versions.
-./perfmetrics/scripts/install_bash.sh "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT"
-
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 
 # Install required bash version for e2e script as kokoro has outdated bash versions.
