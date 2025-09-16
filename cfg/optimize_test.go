@@ -22,6 +22,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var (
+	defaultConfig = Config{MetadataCache: MetadataCacheConfig{NegativeTtlSecs: 60, TtlSecs: 60, StatCacheMaxSizeMb: 32, TypeCacheMaxSizeMb: 4}, ImplicitDirs: false, FileSystem: FileSystemConfig{RenameDirLimit: 0}, Write: WriteConfig{EnableStreamingWrites: true}}
+)
+
 // Mock IsValueSet for testing.
 type mockIsValueSet struct {
 	setFlags    map[string]bool
@@ -150,7 +154,8 @@ func TestGetMachineType_QuotaError(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "n1-standard-1", machineType)
 }
-func TestOptimize_DisableAutoConfig(t *testing.T) {
+
+func TestApplyOptimizations_DisableAutoConfig(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a matching machine type.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -159,21 +164,22 @@ func TestOptimize_DisableAutoConfig(t *testing.T) {
 	defer closeTestServer(t, server)
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
-	cfg := &Config{}
-	isSet := &mockIsValueSet{setFlags: map[string]bool{"disable-autoconfig": true}, boolFlags: map[string]bool{"disable-autoconfig": true}}
+	cfg := defaultConfig
+	cfg.DisableAutoconfig = true
+	isSet := &mockIsValueSet{}
 
-	_ = Optimize(cfg, isSet)
+	optimizedFlags := cfg.ApplyOptimizations(isSet)
 
-	assert.False(t, cfg.Write.EnableStreamingWrites)
-	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
-	assert.EqualValues(t, 0, cfg.MetadataCache.TtlSecs)
-	assert.EqualValues(t, 0, cfg.MetadataCache.StatCacheMaxSizeMb)
-	assert.EqualValues(t, 0, cfg.MetadataCache.TypeCacheMaxSizeMb)
+	require.Empty(t, optimizedFlags)
+	assert.EqualValues(t, 60, cfg.MetadataCache.NegativeTtlSecs)
+	assert.EqualValues(t, 60, cfg.MetadataCache.TtlSecs)
+	assert.EqualValues(t, 32, cfg.MetadataCache.StatCacheMaxSizeMb)
+	assert.EqualValues(t, 4, cfg.MetadataCache.TypeCacheMaxSizeMb)
 	assert.False(t, cfg.ImplicitDirs)
 	assert.EqualValues(t, 0, cfg.FileSystem.RenameDirLimit)
 }
 
-func TestApplyMachineTypeOptimizations_MatchingMachineType(t *testing.T) {
+func TestApplyOptimizations_MatchingMachineType(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a matching machine type.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -182,11 +188,10 @@ func TestApplyMachineTypeOptimizations_MatchingMachineType(t *testing.T) {
 	defer closeTestServer(t, server)
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
-	config := defaultOptimizationConfig
-	cfg := &Config{}
+	cfg := defaultConfig
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	optimizedFlags := applyMachineTypeOptimizations(&config, cfg, isSet)
+	optimizedFlags := cfg.ApplyOptimizations(isSet)
 
 	assert.NotEmpty(t, optimizedFlags)
 	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
@@ -197,7 +202,7 @@ func TestApplyMachineTypeOptimizations_MatchingMachineType(t *testing.T) {
 	assert.EqualValues(t, 200000, cfg.FileSystem.RenameDirLimit)
 }
 
-func TestApplyMachineTypeOptimizations_NonMatchingMachineType(t *testing.T) {
+func TestApplyOptimizations_NonMatchingMachineType(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a non-matching machine type.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -206,17 +211,21 @@ func TestApplyMachineTypeOptimizations_NonMatchingMachineType(t *testing.T) {
 	defer closeTestServer(t, server)
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
-	config := defaultOptimizationConfig
-	cfg := &Config{}
+	cfg := defaultConfig
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	optimizedFlags := applyMachineTypeOptimizations(&config, cfg, isSet)
+	optimizedFlags := cfg.ApplyOptimizations(isSet)
 
 	assert.Empty(t, optimizedFlags)
-	assert.False(t, cfg.Write.EnableStreamingWrites)
+	assert.EqualValues(t, 60, cfg.MetadataCache.NegativeTtlSecs)
+	assert.EqualValues(t, 60, cfg.MetadataCache.TtlSecs)
+	assert.EqualValues(t, 32, cfg.MetadataCache.StatCacheMaxSizeMb)
+	assert.EqualValues(t, 4, cfg.MetadataCache.TypeCacheMaxSizeMb)
+	assert.False(t, cfg.ImplicitDirs)
+	assert.EqualValues(t, 0, cfg.FileSystem.RenameDirLimit)
 }
 
-func TestApplyMachineTypeOptimizations_UserSetFlag(t *testing.T) {
+func TestApplyOptimizations_UserSetFlag(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a matching machine type.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -225,13 +234,12 @@ func TestApplyMachineTypeOptimizations_UserSetFlag(t *testing.T) {
 	defer closeTestServer(t, server)
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
-	config := defaultOptimizationConfig
-	cfg := &Config{}
-	isSet := &mockIsValueSet{setFlags: map[string]bool{"file-system.rename-dir-limit": true}}
+	cfg := defaultConfig
+	isSet := &mockIsValueSet{setFlags: map[string]bool{"rename-dir-limit": true}}
 	// Simulate setting config value by user
 	cfg.FileSystem.RenameDirLimit = 10000
 
-	optimizedFlags := applyMachineTypeOptimizations(&config, cfg, isSet)
+	optimizedFlags := cfg.ApplyOptimizations(isSet)
 
 	assert.NotEmpty(t, optimizedFlags)
 	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
@@ -242,33 +250,7 @@ func TestApplyMachineTypeOptimizations_UserSetFlag(t *testing.T) {
 	assert.EqualValues(t, 10000, cfg.FileSystem.RenameDirLimit)
 }
 
-func TestApplyMachineTypeOptimizations_MissingFlagOverrideSet(t *testing.T) {
-	resetMetadataEndpoints(t)
-	// Create a test server that returns a machine type with a missing FlagOverrideSet.
-	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
-	})
-	defer closeTestServer(t, server)
-	// Override metadataEndpoints for testing.
-	metadataEndpoints = []string{server.URL}
-	config := optimizationConfig{
-		flagOverrideSets: []flagOverrideSet{}, // Empty FlagOverrideSets.
-		machineTypes: []machineType{
-			{
-				names:               []string{"a3-highgpu-8g"},
-				flagOverrideSetName: "high-performance",
-			},
-		},
-	}
-	cfg := &Config{}
-	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
-
-	optimizedFlags := applyMachineTypeOptimizations(&config, cfg, isSet)
-
-	require.Empty(t, optimizedFlags)
-}
-
-func TestApplyMachineTypeOptimizations_GetMachineTypeError(t *testing.T) {
+func TestApplyOptimizations_GetMachineTypeError(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns an error.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -277,16 +259,15 @@ func TestApplyMachineTypeOptimizations_GetMachineTypeError(t *testing.T) {
 	defer closeTestServer(t, server)
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
-	config := defaultOptimizationConfig
-	cfg := &Config{}
+	cfg := defaultConfig
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	optimizedFlags := applyMachineTypeOptimizations(&config, cfg, isSet)
+	optimizedFlags := cfg.ApplyOptimizations(isSet)
 
 	assert.Empty(t, optimizedFlags)
 }
 
-func TestApplyMachineTypeOptimizations_NoError(t *testing.T) {
+func TestApplyOptimizations_NoError(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a matching machine type.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -295,11 +276,10 @@ func TestApplyMachineTypeOptimizations_NoError(t *testing.T) {
 	defer closeTestServer(t, server)
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
-	config := defaultOptimizationConfig
-	cfg := &Config{}
+	cfg := defaultConfig
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	optimizedFlags := applyMachineTypeOptimizations(&config, cfg, isSet)
+	optimizedFlags := cfg.ApplyOptimizations(isSet)
 
 	assert.NotEmpty(t, optimizedFlags)
 }
@@ -343,7 +323,7 @@ func TestSetFlagValue_InvalidFlagName(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestApplyMachineTypeOptimizations_NoMachineTypes(t *testing.T) {
+func TestApplyOptimizations_Success(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a matching machine type.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -352,39 +332,10 @@ func TestApplyMachineTypeOptimizations_NoMachineTypes(t *testing.T) {
 	defer closeTestServer(t, server)
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
-	config := optimizationConfig{
-		flagOverrideSets: []flagOverrideSet{
-			{
-				name: "high-performance",
-				overrides: map[string]flagOverride{
-					"write.enable-streaming-writes": {newValue: true},
-				},
-			},
-		},
-		machineTypes: []machineType{},
-	}
-	cfg := &Config{}
+	cfg := defaultConfig
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	_ = applyMachineTypeOptimizations(&config, cfg, isSet)
-
-	// Check that no optimizations were applied as no machine mapping is set.
-	assert.False(t, cfg.Write.EnableStreamingWrites)
-}
-
-func TestOptimize_Success(t *testing.T) {
-	resetMetadataEndpoints(t)
-	// Create a test server that returns a matching machine type.
-	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
-	})
-	defer closeTestServer(t, server)
-	// Override metadataEndpoints for testing.
-	metadataEndpoints = []string{server.URL}
-	cfg := &Config{}
-	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
-
-	optimizedFlags := Optimize(cfg, isSet)
+	optimizedFlags := cfg.ApplyOptimizations(isSet)
 
 	assert.True(t, isFlagPresent(optimizedFlags, "write.global-max-blocks"))
 	assert.EqualValues(t, 1600, cfg.Write.GlobalMaxBlocks)
