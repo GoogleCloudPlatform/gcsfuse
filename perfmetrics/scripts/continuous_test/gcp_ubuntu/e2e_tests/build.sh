@@ -49,5 +49,4 @@ commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 git checkout $commitId
 
 echo "Running e2e tests on installed package...."
-# $1 argument is refering to value of testInstalledPackage
 /usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --test-installed-package=true --skip-non-essential-tests=false --test-on-tpc-endpoint=false --presubmit=false --zonal=${ZONAL_BUCKET_ARG}

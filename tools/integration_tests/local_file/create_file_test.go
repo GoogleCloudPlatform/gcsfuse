@@ -27,14 +27,14 @@ import (
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *CommonLocalFileTestSuite) TestNewFileShouldNotGetSyncedToGCSTillClose() {
+func (t *LocalFileTestSuite) TestNewFileShouldNotGetSyncedToGCSTillClose() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 
 	// Validate.
 	NewFileShouldGetSyncedToGCSAtClose(ctx, storageClient, testDirPath, FileName1, t.T())
 }
 
-func (t *CommonLocalFileTestSuite) TestNewFileUnderExplicitDirectoryShouldNotGetSyncedToGCSTillClose() {
+func (t *LocalFileTestSuite) TestNewFileUnderExplicitDirectoryShouldNotGetSyncedToGCSTillClose() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Make explicit directory.
 	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t.T())
@@ -43,7 +43,7 @@ func (t *CommonLocalFileTestSuite) TestNewFileUnderExplicitDirectoryShouldNotGet
 	NewFileShouldGetSyncedToGCSAtClose(ctx, storageClient, testDirPath, path.Join(ExplicitDirName, ExplicitFileName1), t.T())
 }
 
-func (t *CommonLocalFileTestSuite) TestCreateNewFileWhenSameFileExistsOnGCS() {
+func (t *LocalFileTestSuite) TestCreateNewFileWhenSameFileExistsOnGCS() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
@@ -60,7 +60,7 @@ func (t *CommonLocalFileTestSuite) TestCreateNewFileWhenSameFileExistsOnGCS() {
 	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, FileName1, GCSFileContent, t.T())
 }
 
-func (t *CommonLocalFileTestSuite) TestEmptyFileCreation() {
+func (t *LocalFileTestSuite) TestEmptyFileCreation() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a local file.
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())

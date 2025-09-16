@@ -31,6 +31,9 @@ readonly RUN_TESTS_WITH_PRESUBMIT_FLAG=false
 # This flag, if set true, will indicate to underlying script to also run for zonal buckets.
 readonly RUN_TESTS_WITH_ZONAL_BUCKET=false
 
+# Install required bash version for e2e script as kokoro has outdated bash versions.
+./perfmetrics/scripts/install_bash.sh "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT"
+
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 
 # Install required bash version for e2e script as kokoro has outdated bash versions.
