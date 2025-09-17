@@ -45,6 +45,7 @@ var (
 	defaultLoggerFactory *loggerFactory
 	defaultLogger        *slog.Logger
 	mountLoggerId        string
+	fsName               string
 )
 
 // InitLogFile initializes the logger factory to create loggers that print to
@@ -110,7 +111,6 @@ func init() {
 	mountLoggerId = DefaultMountLoggerId
 	if err == nil && uuid.String() != "" {
 		mountLoggerId = uuid.String()[:8]
-		log.Printf("Set the mount logger id %v", mountLoggerId)
 	} else {
 		log.Printf("Could not generate random UUID for logger, err %v. Falling back to default %v", err, DefaultMountLoggerId)
 	}
@@ -124,11 +124,9 @@ func init() {
 }
 
 // SetLogFormat updates the log format of default logger.
-func SetLogFormat(format string) {
-	if format == defaultLoggerFactory.format {
-		return
-	}
+func SetLogFormatAndFsName(format, name string) {
 	defaultLoggerFactory.format = format
+	fsName = name
 	defaultLogger = defaultLoggerFactory.newLogger(defaultLoggerFactory.level)
 }
 
@@ -187,7 +185,7 @@ type loggerFactory struct {
 func (f *loggerFactory) newLogger(level string) *slog.Logger {
 	// create a new logger
 	var programLevel = new(slog.LevelVar)
-	logger := slog.New(f.handler(programLevel, "").WithAttrs([]slog.Attr{slog.String(mountLoggerIdKey, mountLoggerId)}))
+	logger := slog.New(f.handler(programLevel, "").WithAttrs([]slog.Attr{slog.String(mountLoggerIdKey, fmt.Sprintf("%s-%s", fsName, mountLoggerId))}))
 	slog.SetDefault(logger)
 	setLoggingLevel(level, programLevel)
 	return logger

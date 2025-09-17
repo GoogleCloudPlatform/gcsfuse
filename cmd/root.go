@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	"github.com/go-viper/mapstructure/v2"
-
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
@@ -31,9 +30,9 @@ import (
 	"github.com/spf13/viper"
 )
 
-// logGcsfuseConfigs logs the configuration values provided by the user in CLI flags, config file
+// getGcsfuseConfigs logs the configuration values provided by the user in CLI flags, config file
 // and optimizations performed on various flags for high performance machine types.
-func logGcsfuseConfigs(v *viper.Viper, cmd *cobra.Command, optimizedFlags map[string]interface{}, config cfg.Config) {
+func getGcsfuseConfigs(v *viper.Viper, cmd *cobra.Command, optimizedFlags map[string]interface{}) map[string]interface{} {
 	configWrapper := make(map[string]interface{})
 	cliFlags := make(map[string]interface{})
 	cmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
@@ -58,21 +57,20 @@ func logGcsfuseConfigs(v *viper.Viper, cmd *cobra.Command, optimizedFlags map[st
 	if len(optimizedFlags) > 0 {
 		configWrapper["optimizations"] = optimizedFlags
 	}
-	configWrapper["gcsfuse"] = config
-	logger.Info("GCSFuse config", "config", configWrapper)
+	return configWrapper
 }
 
-type mountFn func(c *cfg.Config, bucketName, mountPoint string) error
+type mountFn func(c *cfg.Config, wc map[string]interface{}, bucketName, mountPoint string) error
 
 // newRootCmd accepts the mountFn that it executes with the parsed configuration
 func newRootCmd(m mountFn) (*cobra.Command, error) {
 	var (
-		configObj cfg.Config
-		cfgFile   string
-		cfgErr    error
-		v         = viper.New()
+		wrapperConfig map[string]interface{}
+		configObj     cfg.Config
+		cfgFile       string
+		cfgErr        error
+		v             = viper.New()
 	)
-
 	rootCmd := &cobra.Command{
 		Use:   "gcsfuse [flags] bucket mount_point",
 		Short: "Mount a specified GCS bucket or all accessible buckets locally",
@@ -90,7 +88,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 			if err != nil {
 				return fmt.Errorf("error occurred while extracting the bucket and mountPoint: %w", err)
 			}
-			return m(&configObj, bucket, mountPoint)
+			return m(&configObj, wrapperConfig, bucket, mountPoint)
 		},
 	}
 	initConfig := func() {
@@ -107,7 +105,6 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 				return
 			}
 		}
-
 		if cfgErr = v.Unmarshal(&configObj, viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
 			// By default, viper supports mapstructure tags for unmarshalling. Override that to support yaml tag.
 			decoderConfig.TagName = "yaml"
@@ -120,28 +117,14 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 		if cfgErr = cfg.ValidateConfig(v, &configObj); cfgErr != nil {
 			return
 		}
-		logger.SetLogFormat(configObj.Logging.Format)
-
-		if configObj.Foreground {
-			cfgErr = logger.InitLogFile(configObj.Logging)
-			if cfgErr != nil {
-				return
-			}
-		}
 
 		optimizedFlags := cfg.Optimize(&configObj, v)
 
 		if cfgErr = cfg.Rationalize(v, &configObj, optimizedFlags); cfgErr != nil {
 			return
 		}
-
-		// If there is no log-file, then log GCSFuse configs to stdout.
-		// Do not log these in stdout in case of daemonized run
-		// if these are already being logged into a log-file, otherwise
-		// there will be duplicate logs for these in both places (stdout and log-file).
-		if configObj.Foreground || configObj.Logging.FilePath == "" {
-			logGcsfuseConfigs(v, rootCmd, optimizedFlags, configObj)
-		}
+		wrapperConfig := getGcsfuseConfigs(v, rootCmd, optimizedFlags)
+		wrapperConfig["gcsfuse"] = configObj
 	}
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringVar(&cfgFile, cfg.ConfigFileFlagName, "", "The path to the config file where all gcsfuse related config needs to be specified. "+

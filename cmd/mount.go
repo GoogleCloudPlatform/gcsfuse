@@ -37,7 +37,8 @@ import (
 // Mount the file system based on the supplied arguments, returning a
 // fuse.MountedFileSystem that can be joined to wait for unmounting.
 func mountWithStorageHandle(
-	ctx context.Context, bucketName string,
+	ctx context.Context,
+	bucketName string,
 	mountPoint string,
 	newConfig *cfg.Config,
 	storageHandle storage.StorageHandle,
@@ -188,10 +189,10 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 	// DEBUG         ERROR
 	// TRACE         TRACE
 	if newConfig.Logging.Severity.Rank() <= cfg.ErrorLogSeverity.Rank() {
-		mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ")
+		mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ", fsName)
 	}
 	if newConfig.Logging.Severity.Rank() <= cfg.TraceLogSeverity.Rank() {
-		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelTrace, "fuse_debug: ")
+		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelTrace, "fuse_debug: ", fsName)
 	}
 	return mountCfg
 }
