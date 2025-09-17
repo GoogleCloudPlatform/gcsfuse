@@ -22,6 +22,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
@@ -180,6 +181,7 @@ func CreateUnfinalizedObject(ctx context.Context, t *testing.T, client *storage.
 	flushOffset, err := writer.Flush()
 	require.NoError(t, err)
 	assert.Equal(t, int64(len(content)), flushOffset)
-
+	// Sleep for a minute after flush to get correct size on stat.
+	time.Sleep(time.Minute)
 	return writer
 }
