@@ -14,16 +14,10 @@
 
 package shared
 
-// EnvironmentOptimization defines an optimization for a specific environment.
-type EnvironmentOptimization struct {
-	Name  string `yaml:"name"`
-	Value any    `yaml:"value"`
-}
-
 // ProfileOptimization holds the rules for a single performance profile.
 type ProfileOptimization struct {
-	Name         string                    `yaml:"name"`
-	Environments []EnvironmentOptimization `yaml:"environments"`
+	Name  string `yaml:"name"`
+	Value any    `yaml:"value"`
 }
 
 // MachineBasedOptimization defines a machine-group-based optimization.

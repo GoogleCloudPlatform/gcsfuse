@@ -201,9 +201,7 @@ params:
           value: -1
       profiles:
         - name: aiml-training
-          environments:
-            - name: default
-              value: -1
+          value: -1
 `
 	// Create a temporary directory and the params.yaml file.
 	tmpDir := t.TempDir()
@@ -251,10 +249,8 @@ params:
 			},
 			Profiles: []shared.ProfileOptimization{
 				{
-					Name: "aiml-training",
-					Environments: []shared.EnvironmentOptimization{
-						{Name: "default", Value: -1},
-					},
+					Name:  "aiml-training",
+					Value: -1,
 				},
 			},
 		}

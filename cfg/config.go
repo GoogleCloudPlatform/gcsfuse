@@ -137,7 +137,6 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 	}
 
 	profileName := c.Profile
-	envName := detectGKEEnvironment()
 	machineType, err := getMachineType(isSet)
 	if err != nil {
 		// Non-fatal, just means machine-based optimizations won't apply.
@@ -148,7 +147,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 	// Apply optimizations for each flag that has rules defined.
 	if !isSet.IsSet("implicit-dirs") {
 		rules := AllFlagOptimizationRules["implicit-dirs"]
-		result := getOptimizedValue(&rules, c.ImplicitDirs, profileName, machineType, envName, machineTypeToGroupsMap)
+		result := getOptimizedValue(&rules, c.ImplicitDirs, profileName, machineType, machineTypeToGroupsMap)
 		if result.Found {
 			if val, ok := result.Value.(bool); ok {
 				if !reflect.DeepEqual(c.ImplicitDirs, val) {
@@ -167,7 +166,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 	}
 	if !isSet.IsSet("metadata-cache-negative-ttl-secs") {
 		rules := AllFlagOptimizationRules["metadata-cache.negative-ttl-secs"]
-		result := getOptimizedValue(&rules, c.MetadataCache.NegativeTtlSecs, profileName, machineType, envName, machineTypeToGroupsMap)
+		result := getOptimizedValue(&rules, c.MetadataCache.NegativeTtlSecs, profileName, machineType, machineTypeToGroupsMap)
 		if result.Found {
 			if val, ok := result.Value.(int64); ok {
 				if !reflect.DeepEqual(c.MetadataCache.NegativeTtlSecs, val) {
@@ -186,7 +185,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 	}
 	if !isSet.IsSet("metadata-cache-ttl-secs") {
 		rules := AllFlagOptimizationRules["metadata-cache.ttl-secs"]
-		result := getOptimizedValue(&rules, c.MetadataCache.TtlSecs, profileName, machineType, envName, machineTypeToGroupsMap)
+		result := getOptimizedValue(&rules, c.MetadataCache.TtlSecs, profileName, machineType, machineTypeToGroupsMap)
 		if result.Found {
 			if val, ok := result.Value.(int64); ok {
 				if !reflect.DeepEqual(c.MetadataCache.TtlSecs, val) {
@@ -205,7 +204,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 	}
 	if !isSet.IsSet("rename-dir-limit") {
 		rules := AllFlagOptimizationRules["file-system.rename-dir-limit"]
-		result := getOptimizedValue(&rules, c.FileSystem.RenameDirLimit, profileName, machineType, envName, machineTypeToGroupsMap)
+		result := getOptimizedValue(&rules, c.FileSystem.RenameDirLimit, profileName, machineType, machineTypeToGroupsMap)
 		if result.Found {
 			if val, ok := result.Value.(int64); ok {
 				if !reflect.DeepEqual(c.FileSystem.RenameDirLimit, val) {
@@ -224,7 +223,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 	}
 	if !isSet.IsSet("stat-cache-max-size-mb") {
 		rules := AllFlagOptimizationRules["metadata-cache.stat-cache-max-size-mb"]
-		result := getOptimizedValue(&rules, c.MetadataCache.StatCacheMaxSizeMb, profileName, machineType, envName, machineTypeToGroupsMap)
+		result := getOptimizedValue(&rules, c.MetadataCache.StatCacheMaxSizeMb, profileName, machineType, machineTypeToGroupsMap)
 		if result.Found {
 			if val, ok := result.Value.(int64); ok {
 				if !reflect.DeepEqual(c.MetadataCache.StatCacheMaxSizeMb, val) {
@@ -243,7 +242,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 	}
 	if !isSet.IsSet("type-cache-max-size-mb") {
 		rules := AllFlagOptimizationRules["metadata-cache.type-cache-max-size-mb"]
-		result := getOptimizedValue(&rules, c.MetadataCache.TypeCacheMaxSizeMb, profileName, machineType, envName, machineTypeToGroupsMap)
+		result := getOptimizedValue(&rules, c.MetadataCache.TypeCacheMaxSizeMb, profileName, machineType, machineTypeToGroupsMap)
 		if result.Found {
 			if val, ok := result.Value.(int64); ok {
 				if !reflect.DeepEqual(c.MetadataCache.TypeCacheMaxSizeMb, val) {
@@ -262,7 +261,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 	}
 	if !isSet.IsSet("write-global-max-blocks") {
 		rules := AllFlagOptimizationRules["write.global-max-blocks"]
-		result := getOptimizedValue(&rules, c.Write.GlobalMaxBlocks, profileName, machineType, envName, machineTypeToGroupsMap)
+		result := getOptimizedValue(&rules, c.Write.GlobalMaxBlocks, profileName, machineType, machineTypeToGroupsMap)
 		if result.Found {
 			if val, ok := result.Value.(int64); ok {
 				if !reflect.DeepEqual(c.Write.GlobalMaxBlocks, val) {
