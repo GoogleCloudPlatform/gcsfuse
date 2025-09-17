@@ -134,11 +134,7 @@ be interacting with the file system.`)
 		return
 	}
 
-	fsName := bucketName
-	if isDynamicMount(bucketName) {
-		// mounting all the buckets at once
-		fsName = "gcsfuse"
-	}
+	fsName := fsName(bucketName)
 
 	// Mount the file system.
 	logger.Infof("Mounting file system %q...", fsName)

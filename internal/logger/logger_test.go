@@ -324,7 +324,7 @@ func (t *LoggerTest) TestSetLogFormatToText() {
 	}
 
 	for _, test := range testData {
-		SetLogFormat(test.format)
+		SetLogFormatAndFsName(test.format, "gcsfuse")
 
 		assert.NotNil(t.T(), defaultLoggerFactory)
 		assert.NotNil(t.T(), defaultLogger)
