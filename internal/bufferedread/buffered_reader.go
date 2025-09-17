@@ -175,12 +175,22 @@ func (p *BufferedReader) retireBlock(entry *blockQueueEntry) {
 	key := fmt.Sprintf("%d", blockIndex)
 	evicted, err := p.retiredBlocks.Insert(key, entry)
 	if err != nil {
+		// This block is not being retired, so we cancel and release it.
+		entry.cancel()
+		if _, waitErr := entry.block.AwaitReady(context.Background()); waitErr != nil {
+			logger.Warnf("BufferedReader.retireBlock: AwaitReady for failed insert: %v", waitErr)
+		}
 		logger.Warnf("BufferedReader.retireBlock: failed to insert block %d into retired cache: %v", blockIndex, err)
 		p.blockPool.Release(entry.block)
 		return
 	}
 	for _, val := range evicted {
 		evictedEntry := val.(*blockQueueEntry)
+		// This block is being evicted from the retired cache, so we cancel and release it.
+		evictedEntry.cancel()
+		if _, waitErr := evictedEntry.block.AwaitReady(context.Background()); waitErr != nil {
+			logger.Warnf("BufferedReader.retireBlock: AwaitReady for evicted block: %v", waitErr)
+		}
 		p.blockPool.Release(evictedEntry.block)
 	}
 }
@@ -232,37 +242,36 @@ func (p *BufferedReader) handleRandomRead(offset int64, handleID int64) error {
 // isRandomSeek checks if the read for the given offset is random or not.
 // LOCKS_REQUIRED(p.mu)
 func (p *BufferedReader) isRandomSeek(offset int64) bool {
-	// Check if the offset is within the active prefetch queue.
+	// A read from offset 0 is never a random seek.
+	if offset == 0 {
+		return false
+	}
+
+	// Check if the block is in the active prefetch queue.
 	if !p.blockQueue.IsEmpty() {
 		start := p.blockQueue.Peek().block.AbsStartOff()
 		end := start + int64(p.blockQueue.Len())*p.config.PrefetchBlockSizeBytes
 		if offset >= start && offset < end {
-			return false
+			return false // The read is within the current prefetch window.
 		}
 	}
 
-	// Check if the block for the offset is in the retired cache.
+	// Check if the block is in the retired cache.
 	blockIndex := offset / p.config.PrefetchBlockSizeBytes
 	key := fmt.Sprintf("%d", blockIndex)
 	if val := p.retiredBlocks.LookUpWithoutChangingOrder(key); val != nil {
 		return false
 	}
 
-	// If the queue is empty and the block is not in the retired cache,
-	// it's a random seek if it's not from the beginning of the file.
-	if p.blockQueue.IsEmpty() {
-		return offset != 0
-	}
-
-	// Otherwise, it's a random seek because it's outside the queue and not in cache.
+	// Otherwise, it's a random seek.
 	return true
 }
 
-// prepareQueueForOffset cleans the head of the block queue by discarding any
-// blocks that are no longer relevant for the given read offset. This occurs on
-// seeks (both forward and backward) that land outside the current block.
-// For each discarded block, its download is cancelled, and it is returned to
-// the block pool.
+// prepareQueueForOffset discards blocks from the head of the prefetch queue
+// that are no longer needed because the current read offset has moved past them.
+// Discarded blocks are moved to the retiredBlocks cache, allowing them to be
+// reused by other concurrent or slightly out-of-order reads without being
+// re-downloaded.
 // LOCKS_REQUIRED(p.mu)
 func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 	for !p.blockQueue.IsEmpty() {
@@ -273,13 +282,8 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 
 		if offset < blockStart || offset >= blockEnd {
 			// Offset is either before or beyond this block – discard.
+			// The block is moved to the retired cache without cancelling its download.
 			p.blockQueue.Pop()
-			entry.cancel()
-
-			if _, waitErr := block.AwaitReady(context.Background()); waitErr != nil {
-				logger.Warnf("prepareQueueForOffset: AwaitReady during discard (offset=%d): %v", offset, waitErr)
-			}
-
 			p.retireBlock(entry)
 		} else {
 			break
@@ -289,12 +293,10 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 
 // ReadAt reads data from the GCS object into the provided buffer starting at
 // the given offset. It implements the gcsx.Reader interface.
-//
-// The read is satisfied by reading from in-memory blocks that are prefetched
-// in the background. The core logic is as follows:
-//  1. Detect if the read pattern is random. If so, and if the random read
-//     threshold is exceeded, it returns a FallbackToAnotherReader error.
-//  2. Prepare the internal block queue by discarding any stale blocks from the
+// The read process is as follows:
+//  1. It first handles any random read patterns, which may result in falling
+//     back to another reader.
+//  2. It prepares the prefetch queue by discarding any blocks from the
 //     head of the queue that are before the requested offset.
 //  3. If the queue becomes empty (e.g., on a fresh read or a large seek), it
 //     initiates a "fresh start" to prefetch blocks starting from the current
@@ -600,6 +602,10 @@ func (p *BufferedReader) Destroy() {
 		evicted := p.retiredBlocks.Clear()
 		for _, val := range evicted {
 			evictedEntry := val.(*blockQueueEntry)
+			evictedEntry.cancel()
+			if _, waitErr := evictedEntry.block.AwaitReady(context.Background()); waitErr != nil {
+				logger.Warnf("Destroy: AwaitReady for retired block: %v", waitErr)
+			}
 			p.blockPool.Release(evictedEntry.block)
 		}
 		p.retiredBlocks = nil
