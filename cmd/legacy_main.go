@@ -349,7 +349,7 @@ func Mount(newConfig *cfg.Config, wrapperConfig map[string]interface{}, bucketNa
 	// if these are already being logged into a log-file, otherwise
 	// there will be duplicate logs for these in both places (stdout and log-file).
 	if newConfig.Foreground || newConfig.Logging.FilePath == "" {
-		logger.Info("GCSFuse config", "config", newConfig)
+		logger.Info("GCSFuse config", "config", wrapperConfig)
 	}
 
 	// The following will not warn if the user explicitly passed the default value for StatCacheCapacity.

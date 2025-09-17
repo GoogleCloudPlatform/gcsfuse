@@ -123,7 +123,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 		if cfgErr = cfg.Rationalize(v, &configObj, optimizedFlags); cfgErr != nil {
 			return
 		}
-		wrapperConfig := getGcsfuseConfigs(v, rootCmd, optimizedFlags)
+		wrapperConfig = getGcsfuseConfigs(v, rootCmd, optimizedFlags)
 		wrapperConfig["gcsfuse"] = configObj
 	}
 	cobra.OnInitialize(initConfig)
