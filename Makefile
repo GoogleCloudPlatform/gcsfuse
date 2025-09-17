@@ -51,5 +51,5 @@ clean: clean-gen
 clean-all: clean-gen
 	go clean -i ./...
 
-build-csi: 
-	echo "gcloud builds submit --config csi_driver_build.yml --substitutions=_CSI_VERSION=$(CSI_VERSION),_GCSFUSE_VERSION=$(GCSFUSE_VERSION)"
+build-csi: build
+	gcloud builds submit --config csi_driver_build.yml --substitutions=_CSI_VERSION=$(CSI_VERSION),_GCSFUSE_VERSION=$(GCSFUSE_VERSION)
