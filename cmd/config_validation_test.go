@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -118,6 +117,16 @@ func TestValidateConfigFile(t *testing.T) {
 			configFile: "testdata/invalid_log_rotate_config_2.yaml",
 			wantErr:    true,
 		},
+		{
+			name:       "invalid_profile",
+			configFile: "testdata/invalid_profile.yaml",
+			wantErr:    true,
+		},
+		{
+			name:       "valid_profile",
+			configFile: "testdata/valid_profile.yaml",
+			wantErr:    false,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -150,6 +159,11 @@ func TestValidateCliFlag(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:    "valid optimize-flag",
+			args:    []string{"--profile=" + cfg.ProfileAIMLTraining},
+			wantErr: false,
+		},
+		{
 			name:    "invalid log severity",
 			args:    []string{"--log-severity=critical"},
 			wantErr: true,
@@ -162,6 +176,11 @@ func TestValidateCliFlag(t *testing.T) {
 		{
 			name:    "invalid log-rotate-backup-file-count",
 			args:    []string{"--log-rotate-backup-file-count=-1"},
+			wantErr: true,
+		},
+		{
+			name:    "invalid optimize-flag",
+			args:    []string{"--profile=unknown-profile"},
 			wantErr: true,
 		},
 	}
@@ -191,7 +210,7 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 			expectedConfig: &cfg.Config{
 				Write: cfg.WriteConfig{
 					CreateEmptyFile:       false,
-					BlockSizeMb:           32 * util.MiB,
+					BlockSizeMb:           32,
 					EnableStreamingWrites: true,
 					GlobalMaxBlocks:       4,
 					MaxBlocksPerFile:      1,
@@ -205,7 +224,7 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 			expectedConfig: &cfg.Config{
 				Write: cfg.WriteConfig{
 					CreateEmptyFile:       false, // changed due to enabled streaming writes.
-					BlockSizeMb:           10 * util.MiB,
+					BlockSizeMb:           10,
 					EnableStreamingWrites: true,
 					GlobalMaxBlocks:       20,
 					MaxBlocksPerFile:      2,
@@ -239,10 +258,11 @@ func TestValidateConfigFile_ReadConfig(t *testing.T) {
 					InactiveStreamTimeout: 10 * time.Second,
 					BlockSizeMb:           16,
 					EnableBufferedRead:    false,
-					GlobalMaxBlocks:       20,
+					GlobalMaxBlocks:       40,
 					MaxBlocksPerHandle:    20,
 					StartBlocksPerHandle:  1,
 					MinBlocksPerHandle:    4,
+					RandomSeekThreshold:   3,
 				},
 			},
 		},
@@ -252,12 +272,13 @@ func TestValidateConfigFile_ReadConfig(t *testing.T) {
 			expectedConfig: &cfg.Config{
 				Read: cfg.ReadConfig{
 					InactiveStreamTimeout: 10 * time.Second,
-					BlockSizeMb:           16,
+					BlockSizeMb:           8,
 					EnableBufferedRead:    true,
 					MaxBlocksPerHandle:    20,
-					GlobalMaxBlocks:       40,
+					GlobalMaxBlocks:       20,
 					StartBlocksPerHandle:  4,
 					MinBlocksPerHandle:    2,
+					RandomSeekThreshold:   10,
 				},
 			},
 		},

@@ -23,9 +23,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -34,13 +34,14 @@ import (
 
 type disabledKernelListCacheTest struct {
 	flags []string
+	suite.Suite
 }
 
-func (s *disabledKernelListCacheTest) Setup(t *testing.T) {
+func (s *disabledKernelListCacheTest) SetupTest() {
 	mountGCSFuseAndSetupTestDir(s.flags, testDirName)
 }
 
-func (s *disabledKernelListCacheTest) Teardown(t *testing.T) {
+func (s *disabledKernelListCacheTest) TearDownTest() {
 	setup.UnmountGCSFuse(rootDir)
 }
 
@@ -48,41 +49,41 @@ func (s *disabledKernelListCacheTest) Teardown(t *testing.T) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *disabledKernelListCacheTest) TestKernelListCache_AlwaysCacheMiss(t *testing.T) {
+func (s *disabledKernelListCacheTest) TestKernelListCache_AlwaysCacheMiss() {
 	targetDir := path.Join(testDirPath, "explicit_dir")
-	operations.CreateDirectory(targetDir, t)
+	operations.CreateDirectory(targetDir, s.T())
 	// Create test data
-	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, t)
-	operations.CloseFileShouldNotThrowError(t, f1)
-	f2 := operations.CreateFile(path.Join(targetDir, "file2.txt"), setup.FilePermission_0600, t)
-	operations.CloseFileShouldNotThrowError(t, f2)
+	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, s.T())
+	operations.CloseFileShouldNotThrowError(s.T(), f1)
+	f2 := operations.CreateFile(path.Join(targetDir, "file2.txt"), setup.FilePermission_0600, s.T())
+	operations.CloseFileShouldNotThrowError(s.T(), f2)
 
 	// First read, kernel will cache the dir response.
 	f, err := os.Open(targetDir)
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 	defer func() {
-		assert.Nil(t, f.Close())
+		assert.Nil(s.T(), f.Close())
 	}()
 	names1, err := f.Readdirnames(-1)
-	assert.Nil(t, err)
-	require.Equal(t, 2, len(names1))
-	require.Equal(t, "file1.txt", names1[0])
-	require.Equal(t, "file2.txt", names1[1])
+	assert.Nil(s.T(), err)
+	require.Equal(s.T(), 2, len(names1))
+	require.Equal(s.T(), "file1.txt", names1[0])
+	require.Equal(s.T(), "file2.txt", names1[1])
 	err = f.Close()
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 	// Adding one object to make sure to change the ReadDir() response.
-	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", t)
+	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", s.T())
 
 	// Zero ttl, means readdir will always be served from gcsfuse.
 	f, err = os.Open(targetDir)
-	assert.NoError(t, err)
+	assert.NoError(s.T(), err)
 	names2, err := f.Readdirnames(-1)
-	assert.NoError(t, err)
+	assert.NoError(s.T(), err)
 
-	require.Equal(t, 3, len(names2))
-	assert.Equal(t, "file1.txt", names2[0])
-	assert.Equal(t, "file2.txt", names2[1])
-	assert.Equal(t, "file3.txt", names2[2])
+	require.Equal(s.T(), 3, len(names2))
+	assert.Equal(s.T(), "file1.txt", names2[0])
+	assert.Equal(s.T(), "file2.txt", names2[1])
+	assert.Equal(s.T(), "file3.txt", names2[2])
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -94,7 +95,7 @@ func TestDisabledKernelListCacheTest(t *testing.T) {
 
 	// Run tests for mounted directory if the flag is set.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 		return
 	}
 
@@ -107,6 +108,6 @@ func TestDisabledKernelListCacheTest(t *testing.T) {
 	for _, flags := range flagsSet {
 		ts.flags = flags
 		log.Printf("Running tests with flags: %s", ts.flags)
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 	}
 }

@@ -40,7 +40,7 @@ import (
 const serviceName = "gcsfuse"
 const cloudMonitoringMetricPrefix = "custom.googleapis.com/gcsfuse/"
 
-var allowedMetricPrefixes = []string{"fs/", "gcs/", "file_cache/"}
+var allowedMetricPrefixes = []string{"fs/", "gcs/", "file_cache/", "buffered_read/"}
 
 // SetupOTelMetricExporters sets up the metrics exporters
 func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config) (shutdownFn common.ShutdownFn) {

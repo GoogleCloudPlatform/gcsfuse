@@ -29,16 +29,18 @@ import (
 )
 
 const (
-	testDirName         = "BufferedReadTest"
-	testFileName        = "foo"
-	clientProtocolHTTP1 = "http1"
-	clientProtocolGRPC  = "grpc"
+	testDirName                         = "BufferedReadTest"
+	testFileName                        = "foo"
+	clientProtocolHTTP1                 = "http1"
+	clientProtocolGRPC                  = "grpc"
+	logFileNameForMountedDirectoryTests = "/tmp/gcsfuse_buffered_read_test_logs/log.json"
 )
 
 var (
 	mountFunc     func([]string) error
 	storageClient *storage.Client
 	ctx           context.Context
+	rootDir       string
 )
 
 type gcsfuseTestFlags struct {
@@ -54,6 +56,12 @@ type gcsfuseTestFlags struct {
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
+
+func setupForMountedDirectoryTests() {
+	if setup.MountedDirectory() != "" {
+		setup.SetLogFile(logFileNameForMountedDirectoryTests)
+	}
+}
 
 func createConfigFile(flags *gcsfuseTestFlags) string {
 	mountConfig := make(map[string]interface{})
@@ -105,14 +113,19 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
+	// A test bucket must be provided for all tests.
+	if setup.TestBucket() == "" {
+		log.Fatal("The --testbucket flag is required for this test.")
+	}
 
 	if setup.MountedDirectory() != "" {
+		rootDir = setup.MountedDirectory()
 		os.Exit(setup.RunTestsForMountedDirectory(setup.MountedDirectory(), m))
 	}
 
 	// Else run tests for testBucket.
 	setup.SetUpTestDirForTestBucket(setup.TestBucket())
+	rootDir = setup.MntDir()
 
 	// Set up the static mounting function.
 	mountFunc = func(flags []string) error {

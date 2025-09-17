@@ -93,7 +93,7 @@ type debugReader struct {
 	requestID uint64
 	desc      string
 	startTime time.Time
-	wrapped   io.ReadCloser
+	wrapped   gcs.StorageReader
 }
 
 func (dr *debugReader) Read(p []byte) (n int, err error) {
@@ -119,9 +119,7 @@ func (dr *debugReader) Close() (err error) {
 }
 
 func (dr *debugReader) ReadHandle() storagev2.ReadHandle {
-	// TODO: b/432639555 fix code to use read handle from previous read.
-	hd := "opaque-handle"
-	return []byte(hd)
+	return dr.wrapped.ReadHandle()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -366,6 +364,13 @@ func (dmrd *debugMultiRangeDownloader) Wait() {
 func (dmrd *debugMultiRangeDownloader) Error() (err error) {
 	err = dmrd.wrapped.Error()
 	return
+}
+
+func (dmrd *debugMultiRangeDownloader) GetHandle() []byte {
+	id, desc, start := dmrd.bucket.startRequest("MultiRangeDownloader.GetHandle()")
+	var err error
+	defer dmrd.bucket.finishRequest(id, desc, start, &err)
+	return dmrd.wrapped.GetHandle()
 }
 
 func (b *debugBucket) NewMultiRangeDownloader(

@@ -105,7 +105,7 @@ func getUserAgent(appName string, config string) string {
 }
 
 func getConfigForUserAgent(mountConfig *cfg.Config) string {
-	// Minimum configuration details created in a bitset fashion. Right now, its restricted only to File Cache Settings.
+	// Minimum configuration details created in a bitset fashion.
 	isFileCacheEnabled := "0"
 	if cfg.IsFileCacheEnabled(mountConfig) {
 		isFileCacheEnabled = "1"
@@ -122,7 +122,11 @@ func getConfigForUserAgent(mountConfig *cfg.Config) string {
 	if mountConfig.Write.EnableStreamingWrites {
 		areStreamingWritesEnabled = "1"
 	}
-	return fmt.Sprintf("%s:%s:%s:%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled, isParallelDownloadsEnabled, areStreamingWritesEnabled)
+	isBufferedReadEnabled := "0"
+	if mountConfig.Read.EnableBufferedRead {
+		isBufferedReadEnabled = "1"
+	}
+	return fmt.Sprintf("%s:%s:%s:%s:%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled, isParallelDownloadsEnabled, areStreamingWritesEnabled, isBufferedReadEnabled)
 }
 func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle metrics.MetricHandle) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
@@ -145,6 +149,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		EnableGoogleLibAuth:        newConfig.EnableGoogleLibAuth,
 		ReadStallRetryConfig:       newConfig.GcsRetries.ReadStall,
 		MetricHandle:               metricHandle,
+		TracingEnabled:             cfg.IsTracingEnabled(newConfig),
 	}
 	logger.Infof("UserAgent = %s\n", storageClientConfig.UserAgent)
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig, newConfig.GcsConnection.BillingProject)
@@ -417,7 +422,7 @@ func Mount(newConfig *cfg.Config, wrapperConfig map[string]interface{}, bucketNa
 	shutdownFn := common.JoinShutdownFunc(metricExporterShutdownFn, shutdownTracingFn)
 
 	// No-op if profiler is disabled.
-	if err := profiler.SetupCloudProfiler(&newConfig.Profiling); err != nil {
+	if err := profiler.SetupCloudProfiler(&newConfig.CloudProfiler); err != nil {
 		logger.Warnf("Failed to setup cloud profiler: %v", err)
 	}
 

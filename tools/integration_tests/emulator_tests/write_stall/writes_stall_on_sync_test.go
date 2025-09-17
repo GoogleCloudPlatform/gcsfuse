@@ -23,9 +23,9 @@ import (
 
 	emulator_tests "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/emulator_tests/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -42,23 +42,24 @@ type chunkTransferTimeoutInfinity struct {
 	proxyProcessId     int
 	proxyServerLogFile string
 	flags              []string
+	suite.Suite
 }
 
-func (s *chunkTransferTimeoutInfinity) Setup(t *testing.T) {
+func (s *chunkTransferTimeoutInfinity) SetupTest() {
 	configPath := "../configs/write_stall_40s.yaml"
-	s.proxyServerLogFile = setup.CreateProxyServerLogFile(t)
+	s.proxyServerLogFile = setup.CreateProxyServerLogFile(s.T())
 	var err error
 	s.port, s.proxyProcessId, err = emulator_tests.StartProxyServer(configPath, s.proxyServerLogFile)
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 	setup.AppendProxyEndpointToFlagSet(&s.flags, s.port)
 	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
 }
 
-func (s *chunkTransferTimeoutInfinity) Teardown(t *testing.T) {
+func (s *chunkTransferTimeoutInfinity) TearDownTest() {
 	setup.UnmountGCSFuse(rootDir)
-	assert.NoError(t, emulator_tests.KillProxyServerProcess(s.proxyProcessId))
-	setup.SaveGCSFuseLogFileInCaseOfFailure(t)
-	setup.SaveProxyServerLogFileInCaseOfFailure(s.proxyServerLogFile, t)
+	assert.NoError(s.T(), emulator_tests.KillProxyServerProcess(s.proxyProcessId))
+	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
+	setup.SaveProxyServerLogFileInCaseOfFailure(s.proxyServerLogFile, s.T())
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -70,15 +71,15 @@ func (s *chunkTransferTimeoutInfinity) Teardown(t *testing.T) {
 // It creates a file, writes data to it, and then calls Sync() to ensure
 // the data is written to GCS. The test measures the time taken for the Sync()
 // operation and asserts that it is greater than or equal to the configured stall time.
-func (s *chunkTransferTimeoutInfinity) TestWriteStallCausesDelay(t *testing.T) {
+func (s *chunkTransferTimeoutInfinity) TestWriteStallCausesDelay() {
 	testDir := "TestWriteStallCausesDelay"
 	testDirPath = setup.SetupTestDirectory(testDir)
 	filePath := path.Join(testDirPath, "file.txt")
 
 	elapsedTime, err := emulator_tests.WriteFileAndSync(filePath, fileSize)
 
-	assert.NoError(t, err)
-	assert.GreaterOrEqual(t, elapsedTime, stallTime)
+	assert.NoError(s.T(), err)
+	assert.GreaterOrEqual(s.T(), elapsedTime, stallTime)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -96,7 +97,7 @@ func TestChunkTransferTimeoutInfinity(t *testing.T) {
 	for _, flags := range flagsSet {
 		ts.flags = flags
 		log.Printf("Running tests with flags: %s", ts.flags)
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 	}
 }
 

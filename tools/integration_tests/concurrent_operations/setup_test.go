@@ -23,10 +23,9 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/dynamic_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 const (
@@ -38,7 +37,35 @@ var (
 	storageClient *storage.Client
 	ctx           context.Context
 	testDirPath   string
+
+	// root directory is the directory to be unmounted.
+	rootDir string
 )
+
+////////////////////////////////////////////////////////////////////////
+// Helper functions
+////////////////////////////////////////////////////////////////////////
+
+func mountGCSFuseAndSetupTestDir(flags []string, testDirName string, t *testing.T) {
+	// When tests are running in GKE environment, use the mounted directory provided as test flag.
+	if setup.MountedDirectory() != "" {
+		testDirPathForRead = setup.MountedDirectory()
+	} else {
+		config := &test_suite.TestConfig{
+			TestBucket:       setup.TestBucket(),
+			MountedDirectory: setup.MountedDirectory(),
+			LogFile:          setup.LogFile(),
+		}
+		if err := static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(config, flags); err != nil {
+			t.Fatalf("Failed to mount GCS FUSE: %v", err)
+			return
+		}
+		testDirPathForRead = setup.MntDir()
+	}
+	setup.SetMntDir(testDirPathForRead)
+	testDirPath := setup.SetupTestDirectory(testDirName)
+	testDirPathForRead = testDirPath
+}
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
@@ -60,21 +87,14 @@ func TestMain(m *testing.M) {
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
 
-	flagsSet := [][]string{
-		{"--kernel-list-cache-ttl-secs=-1"}, {"--kernel-list-cache-ttl-secs=0"},
-	}
-	if !testing.Short() {
-		setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "", "--client-protocol=grpc")
-	}
-	successCode := static_mounting.RunTests(flagsSet, m)
+	// Save root directory variables.
+	rootDir = setup.MntDir()
 
-	if successCode == 0 {
-		successCode = only_dir_mounting.RunTests(flagsSet, onlyDirMounted, m)
-	}
+	log.Println("Running static mounting tests...")
+	successCode := m.Run()
 
-	if successCode == 0 {
-		successCode = dynamic_mounting.RunTests(ctx, storageClient, flagsSet, m)
-	}
+	// If test failed, save the gcsfuse log files for debugging.
+	setup.SaveLogFileInCaseOfFailure(successCode)
 
 	// Clean up test directory created.
 	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))

@@ -97,10 +97,6 @@ func SetIsZonalBucketRun(val bool) {
 	*isZonalBucketRun = val
 }
 
-func IsIntegrationTest() bool {
-	return *integrationTest
-}
-
 func TestBucket() string {
 	return *testBucket
 }
@@ -386,20 +382,6 @@ func ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet() {
 	}
 }
 
-func ExitWithFailureIfMountedDirectoryIsSetOrTestBucketIsNotSet() {
-	ParseSetUpFlags()
-
-	if *testBucket == "" {
-		log.Print("Please pass the name of bucket to be mounted to --testBucket flag. It is required for this test.")
-		os.Exit(1)
-	}
-
-	if *mountedDirectory != "" {
-		log.Print("Please do not pass the mountedDirectory at test runtime. It is not supported for this test.")
-		os.Exit(1)
-	}
-}
-
 // Deprecated: Use RunTestsForMountedDirectory instead.
 // TODO(b/438068132): cleanup deprecated methods after migration is complete.
 func RunTestsForMountedDirectoryFlag(m *testing.M) {
@@ -557,11 +539,28 @@ func ResolveIsHierarchicalBucket(ctx context.Context, testBucket string, storage
 	return false
 }
 
+// BucketTestEnvironment sets the global testBucket and isZonalBucket variable
+// based on the bucket type.
+func BucketTestEnvironment(ctx context.Context, bucketName string) string {
+	SetTestBucket(bucketName)
+	bucketType, err := BucketType(ctx, bucketName)
+	if err != nil {
+		log.Fatalf("BucketType failed: %v", err)
+	}
+	if bucketType == ZonalBucket {
+		SetIsZonalBucketRun(true)
+	}
+
+	return bucketType
+}
+
 const FlatBucket = "flat"
 const HNSBucket = "hns"
 const ZonalBucket = "zonal"
 
 func BucketType(ctx context.Context, testBucket string) (bucketType string, err error) {
+	// For only-dir mounts bucket name is passed as <test_bucket>/<only_dir> by GKE.
+	testBucket = strings.Split(testBucket, "/")[0]
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	storageClient, err := storage.NewGRPCClient(ctx, experimental.WithGRPCBidiReads())
@@ -579,6 +578,18 @@ func BucketType(ctx context.Context, testBucket string) (bucketType string, err 
 		return HNSBucket, nil
 	}
 	return FlatBucket, nil
+}
+
+// AddCacheDirToFlags iterates over a set of flag slices and updates any empty "--cache-dir" flags.
+func AddCacheDirToFlags(flagSets [][]string, testname string) [][]string {
+	for i := range flagSets {
+		for j := range flagSets[i] {
+			if flagSets[i][j] == "--cache-dir=" {
+				flagSets[i][j] = fmt.Sprintf("--cache-dir=%s/cache-dir-%s-%s", os.TempDir(), testname, GenerateRandomString(4))
+			}
+		}
+	}
+	return flagSets
 }
 
 // BuildFlagSets dynamically builds a list of flag sets based on bucket compatibility.
@@ -600,8 +611,9 @@ func BuildFlagSets(cfg test_suite.TestConfig, bucketType string) [][]string {
 	return dynamicFlags
 }
 
-func SetBucketFromConfigFile(testBucketFromConfigFile string) {
-	testBucket = &testBucketFromConfigFile
+// SetTestBucket sets the testBucket global variable.
+func SetTestBucket(bucketName string) {
+	testBucket = &bucketName
 }
 
 // Explicitly set the enable-hns config flag to true when running tests on the HNS bucket.

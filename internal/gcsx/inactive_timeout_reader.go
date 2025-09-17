@@ -236,7 +236,7 @@ func (itr *InactiveTimeoutReader) closeGCSReader() {
 	}
 
 	// Not printing the timeout explicitly, as can be refer from the code/config.
-	logger.Infof("Closing reader for object %q due to inactivity.\n", itr.object.Name)
+	logger.Tracef("Closing reader for object %q due to inactivity.\n", itr.object.Name)
 	itr.readHandle = itr.gcsReader.ReadHandle()
 	if err := itr.gcsReader.Close(); err != nil {
 		logger.Warnf("Error closing inactive reader for object %q: %v", itr.object.Name, err)

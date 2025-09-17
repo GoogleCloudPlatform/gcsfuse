@@ -52,13 +52,13 @@ list_large_dir:
     run_on_gke: false
     configs:
       - flags:
-        - "--implicit-dirs=true --stat-cache-ttl=0 --kernel-list-cache-ttl-secs=-1"
+          - "--implicit-dirs=true --stat-cache-ttl=0 --kernel-list-cache-ttl-secs=-1"
         compatible:
           flat: true
           hns: true
           zonal: true
       - flags:
-        - "--client-protocol=grpc --implicit-dirs=true --stat-cache-ttl=0 --kernel-list-cache-ttl-secs=-1"
+          - "--client-protocol=grpc --implicit-dirs=true --stat-cache-ttl=0 --kernel-list-cache-ttl-secs=-1"
         compatible:
           flat: true
           hns: true
@@ -67,7 +67,7 @@ list_large_dir:
 write_large_files:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
-    log_file: # Optional
+    log_file: # Not Required by write large files tests
     run_on_gke: false
     configs:
       - flags:
@@ -78,5 +78,74 @@ write_large_files:
           - "--write-max-blocks-per-file=2 --write-global-max-blocks=5"
         compatible:
           flat: true
+          hns: true
+          zonal: true
+
+gzip:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    log_file: # Not Required by gzip tests
+    run_on_gke: false
+    configs:
+      - flags:
+          - "--sequential-read-size-mb=1 --implicit-dirs"
+          - "--sequential-read-size-mb=1 --implicit-dirs --client-protocol=grpc"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+
+read_large_files:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    log_file:  # Not required by read large files tests.
+    run_on_gke: false
+    configs:
+      - flags:
+          - "--implicit-dirs"
+          - "--implicit-dirs --client-protocol=grpc"
+          - "--implicit-dirs=true --file-cache-max-size-mb=700 --file-cache-cache-file-for-range-read=true --cache-dir=${CACHE_DIR_PATH}"
+          - "--implicit-dirs=true --file-cache-max-size-mb=700 --file-cache-cache-file-for-range-read=true --client-protocol=grpc --cache-dir=${CACHE_DIR_PATH}"
+          - "--implicit-dirs=true --file-cache-max-size-mb=-1 --file-cache-cache-file-for-range-read=false --cache-dir=${CACHE_DIR_PATH}"
+          - "--implicit-dirs=true --file-cache-max-size-mb=-1 --file-cache-cache-file-for-range-read=false --client-protocol=grpc --cache-dir=${CACHE_DIR_PATH}"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+
+readonly:
+  - mounted_directory: "${MOUNTED_DIR}" # To be passed by GKE after mounting
+    test_bucket: "${BUCKET_NAME}" # To be passed by both gcsfuse and gke tests
+    log_file: # Not required by readonly tests.
+    run_on_gke: false
+    configs:
+      - flags:
+          - "--o=ro --implicit-dirs=true"
+          - "--file-mode=544 --dir-mode=544 --implicit-dirs=true"
+          - "--client-protocol=grpc --o=ro --implicit-dirs=true"
+          - "--o=ro --implicit-dirs=true --cache-dir=${CACHE_DIR_PATH} --file-cache-max-size-mb=3"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+
+rename_dir_limit:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    log_file: # Optional
+    run_on_gke: false
+    configs:
+      - flags:
+          - "--rename-dir-limit=3 --implicit-dirs --client-protocol=grpc"
+          - "--rename-dir-limit=3"
+          - "--rename-dir-limit=3 --client-protocol=grpc"
+        compatible:
+          flat: true
+          hns: false
+          zonal: false
+      - flags: 
+        - ""
+        compatible:
+          flat: false
           hns: true
           zonal: true

@@ -15,7 +15,11 @@
 package cfg
 
 import (
+	"bytes"
+	"log"
 	"math"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -425,7 +429,7 @@ func TestRationalize_WriteConfig(t *testing.T) {
 			},
 			expectedCreateEmptyFile:  false,
 			expectedMaxBlocksPerFile: math.MaxInt16,
-			expectedBlockSizeMB:      10 * 1024 * 1024,
+			expectedBlockSizeMB:      10,
 		},
 		{
 			name: "valid_config_global_max_blocks_less_than_blocks_per_file",
@@ -440,7 +444,7 @@ func TestRationalize_WriteConfig(t *testing.T) {
 			},
 			expectedCreateEmptyFile:  false,
 			expectedMaxBlocksPerFile: 20,
-			expectedBlockSizeMB:      5 * 1024 * 1024,
+			expectedBlockSizeMB:      5,
 		},
 		{
 			name: "valid_config_global_max_blocks_more_than_blocks_per_file",
@@ -455,7 +459,7 @@ func TestRationalize_WriteConfig(t *testing.T) {
 			},
 			expectedCreateEmptyFile:  false,
 			expectedMaxBlocksPerFile: 10,
-			expectedBlockSizeMB:      64 * 1024 * 1024,
+			expectedBlockSizeMB:      64,
 		},
 	}
 
@@ -576,6 +580,140 @@ func TestRationalize_ParallelDownloadsConfig(t *testing.T) {
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedParallelDownloads, tc.config.FileCache.EnableParallelDownloads)
 			}
+		})
+	}
+}
+
+func TestRationalize_FileCacheAndBufferedReadConflict(t *testing.T) {
+	testCases := []struct {
+		name                       string
+		flags                      flagSet
+		config                     *Config
+		expectedEnableBufferedRead bool
+		expectWarning              bool
+	}{
+		{
+			name:  "file cache and buffered read enabled (user set)",
+			flags: flagSet{"read.enable-buffered-read": true},
+			config: &Config{
+				CacheDir: "/some/path",
+				FileCache: FileCacheConfig{
+					MaxSizeMb: -1,
+				},
+				Read: ReadConfig{
+					EnableBufferedRead: true,
+				},
+			},
+			expectedEnableBufferedRead: false,
+			expectWarning:              true,
+		},
+		{
+			name:  "file cache enabled, buffered read enabled (default)",
+			flags: flagSet{},
+			config: &Config{
+				CacheDir: "/some/path",
+				FileCache: FileCacheConfig{
+					MaxSizeMb: -1,
+				},
+				Read: ReadConfig{
+					EnableBufferedRead: true,
+				},
+			},
+			expectedEnableBufferedRead: false,
+			expectWarning:              false,
+		},
+		{
+			name:  "file cache disabled, buffered read enabled",
+			flags: flagSet{"read.enable-buffered-read": true},
+			config: &Config{
+				Read: ReadConfig{
+					EnableBufferedRead: true,
+				},
+			},
+			expectedEnableBufferedRead: true,
+			expectWarning:              false,
+		},
+		{
+			name:                       "both disabled",
+			flags:                      flagSet{},
+			config:                     &Config{},
+			expectedEnableBufferedRead: false,
+			expectWarning:              false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Capture log output.
+			var buf bytes.Buffer
+			log.SetOutput(&buf)
+			// Restore original logger output after test.
+			defer log.SetOutput(os.Stderr)
+
+			err := Rationalize(tc.flags, tc.config, []string{})
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedEnableBufferedRead, tc.config.Read.EnableBufferedRead)
+				logOutput := buf.String()
+				if tc.expectWarning {
+					assert.True(t, strings.Contains(logOutput, "Warning: File Cache and Buffered Read features are mutually exclusive. Disabling Buffered Read in favor of File Cache."))
+				} else {
+					assert.False(t, strings.Contains(logOutput, "Warning: File Cache and Buffered Read features are mutually exclusive. Disabling Buffered Read in favor of File Cache."))
+				}
+			}
+		})
+	}
+}
+
+func TestResolveLoggingConfig(t *testing.T) {
+	testCases := []struct {
+		name              string
+		config            *Config
+		expectedLogFormat string
+	}{
+		{
+			name: "valid_log_format_json",
+			config: &Config{
+				Logging: LoggingConfig{
+					Format: "json",
+				},
+			},
+			expectedLogFormat: "json",
+		},
+		{
+			name: "valid_log_format_text",
+			config: &Config{
+				Logging: LoggingConfig{
+					Format: "text",
+				},
+			},
+			expectedLogFormat: "text",
+		},
+		{
+			name: "valid_case_insensitive_log_format",
+			config: &Config{
+				Logging: LoggingConfig{
+					Format: "TEXT",
+				},
+			},
+			expectedLogFormat: "text",
+		},
+		{
+			name: "invalid_log_format",
+			config: &Config{
+				Logging: LoggingConfig{
+					Format: "INVALID",
+				},
+			},
+			expectedLogFormat: "json",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			resolveLoggingConfig(tc.config)
+
+			assert.Equal(t, tc.expectedLogFormat, tc.config.Logging.Format)
 		})
 	}
 }

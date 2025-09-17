@@ -23,10 +23,28 @@ import (
 	"github.com/spf13/viper"
 )
 
+type CloudProfilerConfig struct {
+	AllocatedHeap bool `yaml:"allocated-heap"`
+
+	Cpu bool `yaml:"cpu"`
+
+	Enabled bool `yaml:"enabled"`
+
+	Goroutines bool `yaml:"goroutines"`
+
+	Heap bool `yaml:"heap"`
+
+	Label string `yaml:"label"`
+
+	Mutex bool `yaml:"mutex"`
+}
+
 type Config struct {
 	AppName string `yaml:"app-name"`
 
 	CacheDir ResolvedPath `yaml:"cache-dir"`
+
+	CloudProfiler CloudProfilerConfig `yaml:"cloud-profiler"`
 
 	Debug DebugConfig `yaml:"debug"`
 
@@ -68,7 +86,7 @@ type Config struct {
 
 	OnlyDir string `yaml:"only-dir"`
 
-	Profiling ProfilingConfig `yaml:"profiling"`
+	Profile string `yaml:"profile"`
 
 	Read ReadConfig `yaml:"read"`
 
@@ -245,22 +263,6 @@ type MonitoringConfig struct {
 	ExperimentalTracingSamplingRatio float64 `yaml:"experimental-tracing-sampling-ratio"`
 }
 
-type ProfilingConfig struct {
-	AllocatedHeap bool `yaml:"allocated-heap"`
-
-	Cpu bool `yaml:"cpu"`
-
-	Enabled bool `yaml:"enabled"`
-
-	Goroutines bool `yaml:"goroutines"`
-
-	Heap bool `yaml:"heap"`
-
-	Label string `yaml:"label"`
-
-	Mutex bool `yaml:"mutex"`
-}
-
 type ReadConfig struct {
 	BlockSizeMb int64 `yaml:"block-size-mb"`
 
@@ -273,6 +275,8 @@ type ReadConfig struct {
 	MaxBlocksPerHandle int64 `yaml:"max-blocks-per-handle"`
 
 	MinBlocksPerHandle int64 `yaml:"min-blocks-per-handle"`
+
+	RandomSeekThreshold int64 `yaml:"random-seek-threshold"`
 
 	StartBlocksPerHandle int64 `yaml:"start-blocks-per-handle"`
 }
@@ -315,7 +319,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("cache-dir", "", "", "Enables file-caching. Specifies the directory to use for file-cache.")
 
-	flagSet.IntP("chunk-transfer-timeout-secs", "", 10, "We send larger file uploads in 16 MiB chunks. This flag controls the duration  that the HTTP client will wait for a response after making a request to upload a chunk.  As an example, a value of 10 indicates that the client will wait 10 seconds for upload completion;  otherwise, it cancels the request and retries for that chunk till chunkRetryDeadline(32s). 0 means no timeout.")
+	flagSet.IntP("chunk-transfer-timeout-secs", "", 10, "We send larger file uploads in 16 MiB chunks. This flag controls the duration that the HTTP client will wait for a response after making a request to upload a chunk. As an example, a value of 10 indicates that the client will wait 10 seconds for upload completion; otherwise, it cancels the request and retries for that chunk till chunkRetryDeadline(32s). 0 means no timeout.")
 
 	if err := flagSet.MarkHidden("chunk-transfer-timeout-secs"); err != nil {
 		return err
@@ -325,7 +329,47 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("cloud-metrics-export-interval-secs", "", 0, "Specifies the interval at which the metrics are uploaded to cloud monitoring")
 
+	flagSet.BoolP("cloud-profiler-allocated-heap", "", true, "Enables allocated heap (HeapProfileAllocs) profiling. This only works when --enable-cloud-profiler is set to true.")
+
+	if err := flagSet.MarkHidden("cloud-profiler-allocated-heap"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("cloud-profiler-cpu", "", true, "Enables cpu profiling. This only works when --enable-cloud-profiler is set to true.")
+
+	if err := flagSet.MarkHidden("cloud-profiler-cpu"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("cloud-profiler-goroutines", "", false, "Enables goroutines cloud-profiler. This only works when --enable-cloud-profiler is set to true.")
+
+	if err := flagSet.MarkHidden("cloud-profiler-goroutines"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("cloud-profiler-heap", "", true, "Enables heap cloud-profiler. This only works when --enable-cloud-profiler is set to true.")
+
+	if err := flagSet.MarkHidden("cloud-profiler-heap"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("cloud-profiler-label", "", "gcsfuse-0.0.0", "Allow setting a profile label to uniquely identify and compare cloud-profiler data with other profiles. This only works when --enable-cloud-profiler is set to true.")
+
+	if err := flagSet.MarkHidden("cloud-profiler-label"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("cloud-profiler-mutex", "", false, "Enables mutex cloud-profiler. This only works when --enable-cloud-profiler is set to true.")
+
+	if err := flagSet.MarkHidden("cloud-profiler-mutex"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("create-empty-file", "", false, "For a new file, it creates an empty file in Cloud Storage bucket as a hold.")
+
+	if err := flagSet.MarkHidden("create-empty-file"); err != nil {
+		return err
+	}
 
 	flagSet.StringP("custom-endpoint", "", "", "Specifies an alternative custom endpoint for fetching data. The custom endpoint must support the equivalent resources and operations as the GCS JSON endpoint, https://storage.googleapis.com/storage/v1. If a custom endpoint is not specified, GCSFuse uses the global GCS JSON API endpoint, https://storage.googleapis.com/storage/v1.")
 
@@ -385,13 +429,9 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-buffered-read", "", false, "When enabled, read starts using buffer to prefetch (asynchronous and in parallel) data from GCS. This improves performance for large file sequential reads. Note: Enabling this flag can increase the memory usage significantly.")
 
-	if err := flagSet.MarkHidden("enable-buffered-read"); err != nil {
-		return err
-	}
+	flagSet.BoolP("enable-cloud-profiler", "", false, "Enables cloud-profiler, by default disabled.")
 
-	flagSet.BoolP("enable-cloud-profiling", "", false, "Enables cloud profiling, by default disabled.")
-
-	if err := flagSet.MarkHidden("enable-cloud-profiling"); err != nil {
+	if err := flagSet.MarkHidden("enable-cloud-profiler"); err != nil {
 		return err
 	}
 
@@ -401,7 +441,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("enable-google-lib-auth", "", true, "Enable google library authentication method to fetch the credentials")
+	flagSet.BoolP("enable-google-lib-auth", "", false, "Enable google library authentication method to fetch the credentials")
 
 	if err := flagSet.MarkHidden("enable-google-lib-auth"); err != nil {
 		return err
@@ -535,7 +575,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.Float64P("limit-ops-per-sec", "", -1, "Operations per second limit, measured over a 30-second window (use -1 for no limit)")
 
-	flagSet.StringP("log-file", "", "", "The file for storing logs that can be parsed by fluentd. When not provided, plain text logs are printed to stdout when Cloud Storage FUSE is run  in the foreground, or to syslog when Cloud Storage FUSE is run in the  background.")
+	flagSet.StringP("log-file", "", "", "The file for storing logs that can be parsed by fluentd. When not provided, plain text logs are printed to stdout when Cloud Storage FUSE is run in the foreground, or to syslog when Cloud Storage FUSE is run in the background.")
 
 	flagSet.StringP("log-format", "", "json", "The format of the log file: 'text' or 'json'.")
 
@@ -593,61 +633,27 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("only-dir", "", "", "Mount only a specific directory within the bucket. See docs/mounting for more information")
 
-	flagSet.BoolP("precondition-errors", "", true, "Throw Stale NFS file handle error in case the object being synced or read  from is modified by some other concurrent process. This helps prevent  silent data loss or data corruption.")
+	flagSet.BoolP("precondition-errors", "", true, "Throw Stale NFS file handle error in case the object being synced or read from is modified by some other concurrent process. This helps prevent silent data loss or data corruption.")
 
 	if err := flagSet.MarkHidden("precondition-errors"); err != nil {
 		return err
 	}
 
-	flagSet.BoolP("profiling-allocated-heap", "", true, "Enables allocated heap (HeapProfileAllocs) profiling. This only works when --enable-cloud-profiling is set to true.")
+	flagSet.StringP("profile", "", "", "The name of the profile to apply. e.g. aiml-training, aiml-serving, aiml-checkpointing")
 
-	if err := flagSet.MarkHidden("profiling-allocated-heap"); err != nil {
-		return err
-	}
-
-	flagSet.BoolP("profiling-cpu", "", true, "Enables cpu profiling. This only works when --enable-cloud-profiling is set to true.")
-
-	if err := flagSet.MarkHidden("profiling-cpu"); err != nil {
-		return err
-	}
-
-	flagSet.BoolP("profiling-goroutines", "", false, "Enables goroutines profiling. This only works when --enable-cloud-profiling is set to true.")
-
-	if err := flagSet.MarkHidden("profiling-goroutines"); err != nil {
-		return err
-	}
-
-	flagSet.BoolP("profiling-heap", "", true, "Enables heap profiling. This only works when --enable-cloud-profiling is set to true.")
-
-	if err := flagSet.MarkHidden("profiling-heap"); err != nil {
-		return err
-	}
-
-	flagSet.StringP("profiling-label", "", "gcsfuse-0.0.0", "Allow setting a profile label to uniquely identify and compare profiling data with other profiles. This only works when --enable-cloud-profiling is set to true.  ")
-
-	if err := flagSet.MarkHidden("profiling-label"); err != nil {
-		return err
-	}
-
-	flagSet.BoolP("profiling-mutex", "", false, "Enables mutex profiling. This only works when --enable-cloud-profiling is set to true.")
-
-	if err := flagSet.MarkHidden("profiling-mutex"); err != nil {
+	if err := flagSet.MarkHidden("profile"); err != nil {
 		return err
 	}
 
 	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
 
-	flagSet.IntP("read-block-size-mb", "", 16, "Specifies the block size for buffered reads. The value should be more than  0. This is used to read data in chunks from GCS.")
+	flagSet.IntP("read-block-size-mb", "", 16, "Specifies the block size for buffered reads. The value should be more than 0. This is used to read data in chunks from GCS.")
 
 	if err := flagSet.MarkHidden("read-block-size-mb"); err != nil {
 		return err
 	}
 
-	flagSet.IntP("read-global-max-blocks", "", 20, "Specifies the maximum number of blocks available for buffered reads across all file-handles. The value should be >= 0 or -1 (for infinite blocks). A value of 0 disables buffered reads.")
-
-	if err := flagSet.MarkHidden("read-global-max-blocks"); err != nil {
-		return err
-	}
+	flagSet.IntP("read-global-max-blocks", "", 40, "Specifies the maximum number of blocks available for buffered reads across all file-handles. The value should be >= 0 or -1 (for infinite blocks). A value of 0 disables buffered reads.")
 
 	flagSet.DurationP("read-inactive-stream-timeout", "", 10000000000*time.Nanosecond, "Duration of inactivity after which an open GCS read stream is automatically closed. This helps conserve resources when a file handle remains open without active Read calls. A value of '0s' disables this timeout.")
 
@@ -655,7 +661,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("read-max-blocks-per-handle", "", 20, "Specifies the maximum number of blocks to be used by a single file handle for  buffered reads. The value should be >= 0 or -1 (for infinite blocks). A value of 0 disables buffered reads.")
+	flagSet.IntP("read-max-blocks-per-handle", "", 20, "Specifies the maximum number of blocks to be used by a single file handle for buffered reads. The value should be >= 0 or -1 (for infinite blocks). A value of 0 disables buffered reads.")
 
 	if err := flagSet.MarkHidden("read-max-blocks-per-handle"); err != nil {
 		return err
@@ -664,6 +670,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.IntP("read-min-blocks-per-handle", "", 4, "Specifies the minimum number of blocks required by a file-handle to start reading via buffered reads. The value should be >= 1 or \"read-max-blocks-per-handle\".")
 
 	if err := flagSet.MarkHidden("read-min-blocks-per-handle"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("read-random-seek-threshold", "", 3, "Specifies the random seek threshold to switch to another reader when random reads are detected.")
+
+	if err := flagSet.MarkHidden("read-random-seek-threshold"); err != nil {
 		return err
 	}
 
@@ -745,15 +757,15 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("uid", "", -1, "UID owner of all inodes.")
 
-	flagSet.IntP("write-block-size-mb", "", 32, "Specifies the block size for streaming writes. The value should be more  than 0.")
+	flagSet.IntP("write-block-size-mb", "", 32, "Specifies the block size for streaming writes. The value should be more than 0.")
 
 	if err := flagSet.MarkHidden("write-block-size-mb"); err != nil {
 		return err
 	}
 
-	flagSet.IntP("write-global-max-blocks", "", 4, "Specifies the maximum number of blocks available for streaming writes across all files.  The value should be >= 0 or -1 (for infinite blocks). A value of 0 disables streaming writes.")
+	flagSet.IntP("write-global-max-blocks", "", 4, "Specifies the maximum number of blocks available for streaming writes across all files. The value should be >= 0 or -1 (for infinite blocks). A value of 0 disables streaming writes.")
 
-	flagSet.IntP("write-max-blocks-per-file", "", 1, "Specifies the maximum number of blocks to be used by a single file for  streaming writes. The value should be >= 1 or -1 (for infinite blocks).")
+	flagSet.IntP("write-max-blocks-per-file", "", 1, "Specifies the maximum number of blocks to be used by a single file for streaming writes. The value should be >= 1 or -1 (for infinite blocks).")
 
 	if err := flagSet.MarkHidden("write-max-blocks-per-file"); err != nil {
 		return err
@@ -789,6 +801,30 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metrics.cloud-metrics-export-interval-secs", flagSet.Lookup("cloud-metrics-export-interval-secs")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("cloud-profiler.allocated-heap", flagSet.Lookup("cloud-profiler-allocated-heap")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("cloud-profiler.cpu", flagSet.Lookup("cloud-profiler-cpu")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("cloud-profiler.goroutines", flagSet.Lookup("cloud-profiler-goroutines")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("cloud-profiler.heap", flagSet.Lookup("cloud-profiler-heap")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("cloud-profiler.label", flagSet.Lookup("cloud-profiler-label")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("cloud-profiler.mutex", flagSet.Lookup("cloud-profiler-mutex")); err != nil {
 		return err
 	}
 
@@ -836,7 +872,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("profiling.enabled", flagSet.Lookup("enable-cloud-profiling")); err != nil {
+	if err := v.BindPFlag("cloud-profiler.enabled", flagSet.Lookup("enable-cloud-profiler")); err != nil {
 		return err
 	}
 
@@ -1060,27 +1096,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("profiling.allocated-heap", flagSet.Lookup("profiling-allocated-heap")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("profiling.cpu", flagSet.Lookup("profiling-cpu")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("profiling.goroutines", flagSet.Lookup("profiling-goroutines")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("profiling.heap", flagSet.Lookup("profiling-heap")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("profiling.label", flagSet.Lookup("profiling-label")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("profiling.mutex", flagSet.Lookup("profiling-mutex")); err != nil {
+	if err := v.BindPFlag("profile", flagSet.Lookup("profile")); err != nil {
 		return err
 	}
 
@@ -1105,6 +1121,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("read.min-blocks-per-handle", flagSet.Lookup("read-min-blocks-per-handle")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.random-seek-threshold", flagSet.Lookup("read-random-seek-threshold")); err != nil {
 		return err
 	}
 

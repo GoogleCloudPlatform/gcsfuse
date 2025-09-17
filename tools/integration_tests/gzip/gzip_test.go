@@ -29,6 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 const (
@@ -193,32 +194,34 @@ func createContentOfSize(contentSize int) (string, error) {
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	var err error
-	ctx = context.Background()
-	if storageClient, err = client.CreateStorageClient(ctx); err != nil {
-		log.Fatalf("Error creating storage client: %v\n", err)
+	// 1. Load and parse the common configuration.
+	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
+	if len(cfg.Gzip) == 0 {
+		log.Println("No configuration found for gzip tests in config. Using flags instead.")
+		// Populate the config manually.
+		cfg.Gzip = make([]test_suite.TestConfig, 1)
+		cfg.Gzip[0].TestBucket = setup.TestBucket()
+		cfg.Gzip[0].MountedDirectory = setup.MountedDirectory()
+		cfg.Gzip[0].Configs = make([]test_suite.ConfigItem, 1)
+		cfg.Gzip[0].Configs[0].Flags = []string{
+			"--sequential-read-size-mb=1 --implicit-dirs",
+			"--sequential-read-size-mb=1 --implicit-dirs --client-protocol=grpc",
+		}
+		cfg.Gzip[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
+
+	// 2. Create storage client before running tests.
+	ctx = context.Background()
+	bucketType := setup.BucketTestEnvironment(ctx, cfg.Gzip[0].TestBucket)
+	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
 	defer func() {
-		if err := storageClient.Close(); err != nil {
-			log.Printf("failed to close storage client: %v", err)
+		err := closeStorageClient()
+		if err != nil {
+			log.Fatalf("closeStorageClient failed: %v", err)
 		}
 	}()
 
-	commonFlags := []string{"--sequential-read-size-mb=" + fmt.Sprint(SeqReadSizeMb), "--implicit-dirs"}
-	flags := [][]string{commonFlags}
-
-	if !testing.Short() {
-		gRPCFlags := append(commonFlags, "--client-protocol=grpc")
-		flags = append(flags, gRPCFlags)
-	}
-
-	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
-
-	if setup.TestBucket() == "" && setup.MountedDirectory() != "" {
-		log.Fatal("Please pass the name of bucket mounted at mountedDirectory to --testBucket flag.")
-	}
-
-	err = setup_testdata()
+	err := setup_testdata()
 	if err != nil {
 		log.Fatalf("Failed to setup test data: %v", err)
 	}
@@ -230,13 +233,19 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
-	setup.RunTestsForMountedDirectoryFlag(m)
+	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	// flags to be set, as Gzip tests validates content from the bucket.
+	if cfg.Gzip[0].MountedDirectory != "" && cfg.Gzip[0].TestBucket != "" {
+		os.Exit(setup.RunTestsForMountedDirectory(cfg.Gzip[0].MountedDirectory, m))
+	}
 
-	// Run tests for testBucket
-	setup.SetUpTestDirForTestBucketFlag()
+	// Run tests for testBucket.
+	// 4. Build the flag sets dynamically from the config.
+	flags := setup.BuildFlagSets(cfg.Gzip[0], bucketType)
 
-	successCode := static_mounting.RunTests(flags, m)
+	setup.SetUpTestDirForTestBucket(cfg.Gzip[0].TestBucket)
+
+	successCode := static_mounting.RunTestsWithConfigFile(&cfg.Gzip[0], flags, m)
 
 	os.Exit(successCode)
 }

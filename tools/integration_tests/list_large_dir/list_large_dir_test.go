@@ -26,7 +26,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
-	"gopkg.in/yaml.v3"
 )
 
 const prefixFileInDirectoryWithTwelveThousandFiles = "fileInDirectoryWithTwelveThousandFiles"
@@ -42,26 +41,11 @@ var (
 	ctx                              context.Context
 )
 
-// Config holds all test configurations parsed from the YAML file.
-type Config struct {
-	ListLargeDir []test_suite.TestConfig `yaml:"list_large_dir"`
-}
-
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	// 1. Load and parse the common configuration.
-	var cfg Config
-	if setup.ConfigFile() != "" {
-		configData, err := os.ReadFile(setup.ConfigFile())
-		if err != nil {
-			log.Fatalf("could not read test_config.yaml: %v", err)
-		}
-		expandedYaml := os.ExpandEnv(string(configData))
-		if err := yaml.Unmarshal([]byte(expandedYaml), &cfg); err != nil {
-			log.Fatalf("Failed to parse config YAML: %v", err)
-		}
-	}
+	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.ListLargeDir) == 0 {
 		log.Println("No configuration found for list large dir tests in config. Using flags instead.")
 		// Populate the config manually.
@@ -78,8 +62,8 @@ func TestMain(m *testing.M) {
 	}
 
 	// 2. Create storage client before running tests.
-	setup.SetBucketFromConfigFile(cfg.ListLargeDir[0].TestBucket)
 	ctx = context.Background()
+	bucketType := setup.BucketTestEnvironment(ctx, cfg.ListLargeDir[0].TestBucket)
 	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
 	defer func() {
 		err := closeStorageClient()
@@ -96,13 +80,6 @@ func TestMain(m *testing.M) {
 
 	// Run tests for testBucket
 	// 4. Build the flag sets dynamically from the config.
-	bucketType, err := setup.BucketType(ctx, cfg.ListLargeDir[0].TestBucket)
-	if err != nil {
-		log.Fatalf("BucketType failed: %v", err)
-	}
-	if bucketType == setup.ZonalBucket {
-		setup.SetIsZonalBucketRun(true)
-	}
 	flags := setup.BuildFlagSets(cfg.ListLargeDir[0], bucketType)
 
 	setup.SetUpTestDirForTestBucket(cfg.ListLargeDir[0].TestBucket)

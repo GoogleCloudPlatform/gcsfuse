@@ -24,19 +24,20 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
 
 type finiteNegativeStatCacheTest struct {
 	flags []string
+	suite.Suite
 }
 
-func (s *finiteNegativeStatCacheTest) Setup(t *testing.T) {
+func (s *finiteNegativeStatCacheTest) SetupTest() {
 	mountGCSFuseAndSetupTestDir(s.flags, testDirName)
 }
 
-func (s *finiteNegativeStatCacheTest) Teardown(t *testing.T) {
+func (s *finiteNegativeStatCacheTest) TearDownTest() {
 	setup.UnmountGCSFuse(testEnv.rootDir)
 }
 
@@ -44,28 +45,28 @@ func (s *finiteNegativeStatCacheTest) Teardown(t *testing.T) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *finiteNegativeStatCacheTest) TestFiniteNegativeStatCache(t *testing.T) {
+func (s *finiteNegativeStatCacheTest) TestFiniteNegativeStatCache() {
 	targetDir := path.Join(testEnv.testDirPath, "explicit_dir")
 	// Create test directory
-	operations.CreateDirectory(targetDir, t)
+	operations.CreateDirectory(targetDir, s.T())
 	targetFile := path.Join(targetDir, "file1.txt")
 
 	// Error should be returned as file does not exist
 	_, err := os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
 
-	assert.NotNil(t, err)
+	assert.NotNil(s.T(), err)
 	// Assert the underlying error is File Not Exist
-	assert.ErrorContains(t, err, "explicit_dir/file1.txt: no such file or directory")
+	assert.ErrorContains(s.T(), err, "explicit_dir/file1.txt: no such file or directory")
 
 	// Adding the object with same name
-	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, path.Join("explicit_dir", "file1.txt"), "some-content", t)
+	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, path.Join("explicit_dir", "file1.txt"), "some-content", s.T())
 
 	// Error should be returned again, as call will not be served from GCS due to finite gcsfuse stat cache
 	_, err = os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
 
-	assert.NotNil(t, err)
+	assert.NotNil(s.T(), err)
 	// Assert the underlying error is File Not Exist
-	assert.ErrorContains(t, err, "explicit_dir/file1.txt: no such file or directory")
+	assert.ErrorContains(s.T(), err, "explicit_dir/file1.txt: no such file or directory")
 
 	//Wait for Cache to expire
 	time.Sleep(3 * time.Second)
@@ -74,9 +75,9 @@ func (s *finiteNegativeStatCacheTest) TestFiniteNegativeStatCache(t *testing.T) 
 	f, err := os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
 
 	//Assert File is found
-	assert.NoError(t, err)
-	assert.Contains(t, f.Name(), "explicit_dir/file1.txt")
-	assert.Nil(t, f.Close())
+	assert.NoError(s.T(), err)
+	assert.Contains(s.T(), f.Name(), "explicit_dir/file1.txt")
+	assert.Nil(s.T(), f.Close())
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -88,7 +89,7 @@ func TestFiniteNegativeStatCacheTest(t *testing.T) {
 
 	// Run tests for mounted directory if the flag is set.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 		return
 	}
 
@@ -98,5 +99,5 @@ func TestFiniteNegativeStatCacheTest(t *testing.T) {
 	// Run tests.
 	ts.flags = flagsSet
 	log.Printf("Running tests with flags: %s", ts.flags)
-	test_setup.RunTests(t, ts)
+	suite.Run(t, ts)
 }

@@ -15,8 +15,11 @@
 package cfg
 
 import (
+	"log"
 	"math"
 	"net/url"
+	"slices"
+	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
@@ -94,8 +97,6 @@ func resolveStreamingWriteConfig(w *WriteConfig) {
 		w.CreateEmptyFile = false
 	}
 
-	w.BlockSizeMb *= util.MiB
-
 	if w.GlobalMaxBlocks == -1 {
 		w.GlobalMaxBlocks = math.MaxInt64
 	}
@@ -121,6 +122,31 @@ func resolveParallelDownloadsValue(v isSet, fc *FileCacheConfig, c *Config) {
 	}
 }
 
+func resolveFileCacheAndBufferedReadConflict(v isSet, c *Config) {
+	if IsFileCacheEnabled(c) && c.Read.EnableBufferedRead {
+		// Log a warning only if the user has explicitly enabled buffered-read.
+		// The default value for enable-buffered-read is true, so we don't want to
+		// log a warning for the default case.
+		if v.IsSet("read.enable-buffered-read") {
+			log.Printf("Warning: File Cache and Buffered Read features are mutually exclusive. Disabling Buffered Read in favor of File Cache.")
+		}
+		c.Read.EnableBufferedRead = false
+	}
+}
+
+func resolveLoggingConfig(config *Config) {
+	if config.Debug.Fuse || config.Debug.Gcs || config.Debug.LogMutex {
+		config.Logging.Severity = "TRACE"
+	}
+
+	configLogFormat := config.Logging.Format // capture initial value for error reporting
+	config.Logging.Format = strings.ToLower(config.Logging.Format)
+	if !slices.Contains([]string{logFormatText, logFormatJSON}, config.Logging.Format) {
+		log.Printf("Unsupported log format provided: %s. Defaulting to %s log format.", configLogFormat, defaultLogFormat)
+		config.Logging.Format = defaultLogFormat // defaulting to json format
+	}
+}
+
 // Rationalize updates the config fields based on the values of other fields.
 func Rationalize(v isSet, c *Config, optimizedFlags []string) error {
 	var err error
@@ -132,15 +158,13 @@ func Rationalize(v isSet, c *Config, optimizedFlags []string) error {
 		return err
 	}
 
-	if c.Debug.Fuse || c.Debug.Gcs || c.Debug.LogMutex {
-		c.Logging.Severity = "TRACE"
-	}
-
+	resolveLoggingConfig(c)
 	resolveStreamingWriteConfig(&c.Write)
 	resolveMetadataCacheTTL(v, &c.MetadataCache, optimizedFlags)
 	resolveStatCacheMaxSizeMB(v, &c.MetadataCache, optimizedFlags)
 	resolveCloudMetricsUploadIntervalSecs(&c.Metrics)
 	resolveParallelDownloadsValue(v, &c.FileCache, c)
+	resolveFileCacheAndBufferedReadConflict(v, c)
 
 	return nil
 }

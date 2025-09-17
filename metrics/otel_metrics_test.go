@@ -140,6 +140,11 @@ func TestBufferedReadDownloadBlockLatency(t *testing.T) {
 			status:    "cancelled",
 		},
 		{
+			name:      "status_failed",
+			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
+			status:    "failed",
+		},
+		{
 			name:      "status_successful",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
 			status:    "successful",
@@ -210,6 +215,14 @@ func TestBufferedReadFallbackTriggerCount(t *testing.T) {
 				attribute.NewSet(attribute.String("reason", "random_read_detected")): 2,
 			},
 		},
+		{
+			name: "negative_increment",
+			f: func(m *otelMetrics) {
+				m.BufferedReadFallbackTriggerCount(-5, "insufficient_memory")
+				m.BufferedReadFallbackTriggerCount(2, "insufficient_memory")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("reason", "insufficient_memory")): 2},
+		},
 	}
 
 	for _, tc := range tests {
@@ -223,7 +236,11 @@ func TestBufferedReadFallbackTriggerCount(t *testing.T) {
 
 			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 			metric, ok := metrics["buffered_read/fallback_trigger_count"]
-			assert.True(t, ok, "buffered_read/fallback_trigger_count metric not found")
+			if len(tc.expected) == 0 {
+				assert.False(t, ok, "buffered_read/fallback_trigger_count metric should not be found")
+				return
+			}
+			require.True(t, ok, "buffered_read/fallback_trigger_count metric not found")
 			expectedMap := make(map[string]int64)
 			for k, v := range tc.expected {
 				expectedMap[k.Encoded(encoder)] = v
@@ -274,6 +291,15 @@ func TestBufferedReadScheduledBlockCount(t *testing.T) {
 			},
 		},
 		{
+			name: "status_failed",
+			f: func(m *otelMetrics) {
+				m.BufferedReadScheduledBlockCount(5, "failed")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("status", "failed")): 5,
+			},
+		},
+		{
 			name: "status_successful",
 			f: func(m *otelMetrics) {
 				m.BufferedReadScheduledBlockCount(5, "successful")
@@ -285,12 +311,20 @@ func TestBufferedReadScheduledBlockCount(t *testing.T) {
 			name: "multiple_attributes_summed",
 			f: func(m *otelMetrics) {
 				m.BufferedReadScheduledBlockCount(5, "cancelled")
-				m.BufferedReadScheduledBlockCount(2, "successful")
+				m.BufferedReadScheduledBlockCount(2, "failed")
 				m.BufferedReadScheduledBlockCount(3, "cancelled")
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("status", "cancelled")): 8,
-				attribute.NewSet(attribute.String("status", "successful")): 2,
+				attribute.NewSet(attribute.String("status", "failed")): 2,
 			},
+		},
+		{
+			name: "negative_increment",
+			f: func(m *otelMetrics) {
+				m.BufferedReadScheduledBlockCount(-5, "cancelled")
+				m.BufferedReadScheduledBlockCount(2, "cancelled")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("status", "cancelled")): 2},
 		},
 	}
 
@@ -305,7 +339,11 @@ func TestBufferedReadScheduledBlockCount(t *testing.T) {
 
 			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 			metric, ok := metrics["buffered_read/scheduled_block_count"]
-			assert.True(t, ok, "buffered_read/scheduled_block_count metric not found")
+			if len(tc.expected) == 0 {
+				assert.False(t, ok, "buffered_read/scheduled_block_count metric should not be found")
+				return
+			}
+			require.True(t, ok, "buffered_read/scheduled_block_count metric not found")
 			expectedMap := make(map[string]int64)
 			for k, v := range tc.expected {
 				expectedMap[k.Encoded(encoder)] = v
@@ -358,6 +396,14 @@ func TestFileCacheReadBytesCount(t *testing.T) {
 				attribute.NewSet(attribute.String("read_type", "Random")): 2,
 			},
 		},
+		{
+			name: "negative_increment",
+			f: func(m *otelMetrics) {
+				m.FileCacheReadBytesCount(-5, "Parallel")
+				m.FileCacheReadBytesCount(2, "Parallel")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("read_type", "Parallel")): 2},
+		},
 	}
 
 	for _, tc := range tests {
@@ -371,7 +417,11 @@ func TestFileCacheReadBytesCount(t *testing.T) {
 
 			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 			metric, ok := metrics["file_cache/read_bytes_count"]
-			assert.True(t, ok, "file_cache/read_bytes_count metric not found")
+			if len(tc.expected) == 0 {
+				assert.False(t, ok, "file_cache/read_bytes_count metric should not be found")
+				return
+			}
+			require.True(t, ok, "file_cache/read_bytes_count metric not found")
 			expectedMap := make(map[string]int64)
 			for k, v := range tc.expected {
 				expectedMap[k.Encoded(encoder)] = v
@@ -451,6 +501,14 @@ func TestFileCacheReadCount(t *testing.T) {
 				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Random")): 2,
 			},
 		},
+		{
+			name: "negative_increment",
+			f: func(m *otelMetrics) {
+				m.FileCacheReadCount(-5, true, "Parallel")
+				m.FileCacheReadCount(2, true, "Parallel")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Parallel")): 2},
+		},
 	}
 
 	for _, tc := range tests {
@@ -464,7 +522,11 @@ func TestFileCacheReadCount(t *testing.T) {
 
 			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 			metric, ok := metrics["file_cache/read_count"]
-			assert.True(t, ok, "file_cache/read_count metric not found")
+			if len(tc.expected) == 0 {
+				assert.False(t, ok, "file_cache/read_count metric should not be found")
+				return
+			}
+			require.True(t, ok, "file_cache/read_count metric not found")
 			expectedMap := make(map[string]int64)
 			for k, v := range tc.expected {
 				expectedMap[k.Encoded(encoder)] = v
@@ -817,6 +879,14 @@ func TestFsOpsCount(t *testing.T) {
 				attribute.NewSet(attribute.String("fs_op", "CreateFile")): 2,
 			},
 		},
+		{
+			name: "negative_increment",
+			f: func(m *otelMetrics) {
+				m.FsOpsCount(-5, "BatchForget")
+				m.FsOpsCount(2, "BatchForget")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("fs_op", "BatchForget")): 2},
+		},
 	}
 
 	for _, tc := range tests {
@@ -830,7 +900,11 @@ func TestFsOpsCount(t *testing.T) {
 
 			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 			metric, ok := metrics["fs/ops_count"]
-			assert.True(t, ok, "fs/ops_count metric not found")
+			if len(tc.expected) == 0 {
+				assert.False(t, ok, "fs/ops_count metric should not be found")
+				return
+			}
+			require.True(t, ok, "fs/ops_count metric not found")
 			expectedMap := make(map[string]int64)
 			for k, v := range tc.expected {
 				expectedMap[k.Encoded(encoder)] = v
@@ -5320,6 +5394,14 @@ func TestFsOpsErrorCount(t *testing.T) {
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "CreateFile")): 2,
 			},
 		},
+		{
+			name: "negative_increment",
+			f: func(m *otelMetrics) {
+				m.FsOpsErrorCount(-5, "DEVICE_ERROR", "BatchForget")
+				m.FsOpsErrorCount(2, "DEVICE_ERROR", "BatchForget")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "BatchForget")): 2},
+		},
 	}
 
 	for _, tc := range tests {
@@ -5333,7 +5415,11 @@ func TestFsOpsErrorCount(t *testing.T) {
 
 			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 			metric, ok := metrics["fs/ops_error_count"]
-			assert.True(t, ok, "fs/ops_error_count metric not found")
+			if len(tc.expected) == 0 {
+				assert.False(t, ok, "fs/ops_error_count metric should not be found")
+				return
+			}
+			require.True(t, ok, "fs/ops_error_count metric not found")
 			expectedMap := make(map[string]int64)
 			for k, v := range tc.expected {
 				expectedMap[k.Encoded(encoder)] = v
@@ -5579,6 +5665,14 @@ func TestGcsDownloadBytesCount(t *testing.T) {
 				attribute.NewSet(attribute.String("read_type", "Random")): 2,
 			},
 		},
+		{
+			name: "negative_increment",
+			f: func(m *otelMetrics) {
+				m.GcsDownloadBytesCount(-5, "Parallel")
+				m.GcsDownloadBytesCount(2, "Parallel")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("read_type", "Parallel")): 2},
+		},
 	}
 
 	for _, tc := range tests {
@@ -5592,7 +5686,11 @@ func TestGcsDownloadBytesCount(t *testing.T) {
 
 			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 			metric, ok := metrics["gcs/download_bytes_count"]
-			assert.True(t, ok, "gcs/download_bytes_count metric not found")
+			if len(tc.expected) == 0 {
+				assert.False(t, ok, "gcs/download_bytes_count metric should not be found")
+				return
+			}
+			require.True(t, ok, "gcs/download_bytes_count metric not found")
 			expectedMap := make(map[string]int64)
 			for k, v := range tc.expected {
 				expectedMap[k.Encoded(encoder)] = v
@@ -5615,7 +5713,16 @@ func TestGcsReadBytesCount(t *testing.T) {
 	metric, ok := metrics["gcs/read_bytes_count"]
 	require.True(t, ok, "gcs/read_bytes_count metric not found")
 	s := attribute.NewSet()
-	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric)
+	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric, "Positive increments should be summed.")
+
+	// Test negative increment
+	m.GcsReadBytesCount(-100)
+	waitForMetricsProcessing()
+
+	metrics = gatherNonZeroCounterMetrics(ctx, t, rd)
+	metric, ok = metrics["gcs/read_bytes_count"]
+	require.True(t, ok, "gcs/read_bytes_count metric not found after negative increment")
+	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric, "Negative increment should not change the metric value.")
 }
 
 func TestGcsReadCount(t *testing.T) {
@@ -5661,6 +5768,14 @@ func TestGcsReadCount(t *testing.T) {
 				attribute.NewSet(attribute.String("read_type", "Random")): 2,
 			},
 		},
+		{
+			name: "negative_increment",
+			f: func(m *otelMetrics) {
+				m.GcsReadCount(-5, "Parallel")
+				m.GcsReadCount(2, "Parallel")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("read_type", "Parallel")): 2},
+		},
 	}
 
 	for _, tc := range tests {
@@ -5674,7 +5789,11 @@ func TestGcsReadCount(t *testing.T) {
 
 			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 			metric, ok := metrics["gcs/read_count"]
-			assert.True(t, ok, "gcs/read_count metric not found")
+			if len(tc.expected) == 0 {
+				assert.False(t, ok, "gcs/read_count metric should not be found")
+				return
+			}
+			require.True(t, ok, "gcs/read_count metric not found")
 			expectedMap := make(map[string]int64)
 			for k, v := range tc.expected {
 				expectedMap[k.Encoded(encoder)] = v
@@ -5727,6 +5846,14 @@ func TestGcsReaderCount(t *testing.T) {
 				attribute.NewSet(attribute.String("io_method", "closed")): 2,
 			},
 		},
+		{
+			name: "negative_increment",
+			f: func(m *otelMetrics) {
+				m.GcsReaderCount(-5, "ReadHandle")
+				m.GcsReaderCount(2, "ReadHandle")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("io_method", "ReadHandle")): 2},
+		},
 	}
 
 	for _, tc := range tests {
@@ -5740,7 +5867,11 @@ func TestGcsReaderCount(t *testing.T) {
 
 			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 			metric, ok := metrics["gcs/reader_count"]
-			assert.True(t, ok, "gcs/reader_count metric not found")
+			if len(tc.expected) == 0 {
+				assert.False(t, ok, "gcs/reader_count metric should not be found")
+				return
+			}
+			require.True(t, ok, "gcs/reader_count metric not found")
 			expectedMap := make(map[string]int64)
 			for k, v := range tc.expected {
 				expectedMap[k.Encoded(encoder)] = v
@@ -5937,6 +6068,14 @@ func TestGcsRequestCount(t *testing.T) {
 				attribute.NewSet(attribute.String("gcs_method", "CopyObject")): 2,
 			},
 		},
+		{
+			name: "negative_increment",
+			f: func(m *otelMetrics) {
+				m.GcsRequestCount(-5, "ComposeObjects")
+				m.GcsRequestCount(2, "ComposeObjects")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("gcs_method", "ComposeObjects")): 2},
+		},
 	}
 
 	for _, tc := range tests {
@@ -5950,7 +6089,11 @@ func TestGcsRequestCount(t *testing.T) {
 
 			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 			metric, ok := metrics["gcs/request_count"]
-			assert.True(t, ok, "gcs/request_count metric not found")
+			if len(tc.expected) == 0 {
+				assert.False(t, ok, "gcs/request_count metric should not be found")
+				return
+			}
+			require.True(t, ok, "gcs/request_count metric not found")
 			expectedMap := make(map[string]int64)
 			for k, v := range tc.expected {
 				expectedMap[k.Encoded(encoder)] = v
@@ -6127,6 +6270,14 @@ func TestGcsRetryCount(t *testing.T) {
 				attribute.NewSet(attribute.String("retry_error_category", "STALLED_READ_REQUEST")): 2,
 			},
 		},
+		{
+			name: "negative_increment",
+			f: func(m *otelMetrics) {
+				m.GcsRetryCount(-5, "OTHER_ERRORS")
+				m.GcsRetryCount(2, "OTHER_ERRORS")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("retry_error_category", "OTHER_ERRORS")): 2},
+		},
 	}
 
 	for _, tc := range tests {
@@ -6140,7 +6291,11 @@ func TestGcsRetryCount(t *testing.T) {
 
 			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 			metric, ok := metrics["gcs/retry_count"]
-			assert.True(t, ok, "gcs/retry_count metric not found")
+			if len(tc.expected) == 0 {
+				assert.False(t, ok, "gcs/retry_count metric should not be found")
+				return
+			}
+			require.True(t, ok, "gcs/retry_count metric not found")
 			expectedMap := make(map[string]int64)
 			for k, v := range tc.expected {
 				expectedMap[k.Encoded(encoder)] = v

@@ -168,6 +168,15 @@ func Test{{toPascal .Name}}(t *testing.T) {
 			},
 		},
 		{{- end}}
+		{
+			name: "negative_increment",
+			f: func(m *otelMetrics) {
+				{{- $firstComb := (index $combinations 0) -}}
+				m.{{toPascal $metric.Name}}(-5, {{getTestFuncArgs $firstComb}})
+				m.{{toPascal $metric.Name}}(2, {{getTestFuncArgs $firstComb}})
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet({{getExpectedAttrs (index $combinations 0)}}): 2},
+		},
 	}
 
 	for _, tc := range tests {
@@ -181,7 +190,11 @@ func Test{{toPascal .Name}}(t *testing.T) {
 
 			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 			metric, ok := metrics["{{.Name}}"]
-			assert.True(t, ok, "{{.Name}} metric not found")
+			if len(tc.expected) == 0 {
+				assert.False(t, ok, "{{.Name}} metric should not be found")
+				return
+			}
+			require.True(t, ok, "{{.Name}} metric not found")
 			expectedMap := make(map[string]int64)
 			for k, v := range tc.expected {
 				expectedMap[k.Encoded(encoder)] = v
@@ -202,7 +215,16 @@ func Test{{toPascal .Name}}(t *testing.T) {
 	metric, ok := metrics["{{.Name}}"]
 	require.True(t, ok, "{{.Name}} metric not found")
 	s := attribute.NewSet()
-	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric)
+	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric, "Positive increments should be summed.")
+
+	// Test negative increment
+	m.{{toPascal .Name}}(-100)
+	waitForMetricsProcessing()
+
+	metrics = gatherNonZeroCounterMetrics(ctx, t, rd)
+	metric, ok = metrics["{{.Name}}"]
+	require.True(t, ok, "{{.Name}} metric not found after negative increment")
+	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric, "Negative increment should not change the metric value.")
 	{{- end}}
 }
 {{else if isHistogram .}}

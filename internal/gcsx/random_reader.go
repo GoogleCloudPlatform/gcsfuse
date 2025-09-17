@@ -750,7 +750,7 @@ func (rr *randomReader) readFromMultiRangeReader(ctx context.Context, p []byte, 
 		rr.mrdWrapper.IncrementRefCount()
 	}
 
-	bytesRead, err = rr.mrdWrapper.Read(ctx, p, offset, end, rr.metricHandle)
+	bytesRead, err = rr.mrdWrapper.Read(ctx, p, offset, end, rr.metricHandle, false)
 	rr.totalReadBytes.Add(uint64(bytesRead))
 	rr.updateExpectedOffset(offset + int64(bytesRead))
 	return

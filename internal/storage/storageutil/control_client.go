@@ -18,42 +18,13 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	control "cloud.google.com/go/storage/control/apiv2"
-	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"google.golang.org/api/option"
-	"google.golang.org/grpc/codes"
 )
 
-func storageControlClientRetryOptions(clientConfig *StorageClientConfig) []gax.CallOption {
-	return []gax.CallOption{
-		gax.WithTimeout(300000 * time.Millisecond),
-		gax.WithRetry(func() gax.Retryer {
-			return gax.OnCodes([]codes.Code{
-				codes.ResourceExhausted,
-				codes.Unavailable,
-				codes.DeadlineExceeded,
-				codes.Internal,
-				codes.Unknown,
-			}, gax.Backoff{
-				Max:        clientConfig.MaxRetrySleep,
-				Multiplier: clientConfig.RetryMultiplier,
-			})
-		}),
-	}
-}
-
-func setRetryConfigForFolderAPIs(sc *control.StorageControlClient, clientConfig *StorageClientConfig) {
-	sc.CallOptions.RenameFolder = storageControlClientRetryOptions(clientConfig)
-	sc.CallOptions.GetFolder = storageControlClientRetryOptions(clientConfig)
-	sc.CallOptions.GetStorageLayout = storageControlClientRetryOptions(clientConfig)
-	sc.CallOptions.CreateFolder = storageControlClientRetryOptions(clientConfig)
-	sc.CallOptions.DeleteFolder = storageControlClientRetryOptions(clientConfig)
-}
-
-func CreateGRPCControlClient(ctx context.Context, clientOpts []option.ClientOption, clientConfig *StorageClientConfig) (controlClient *control.StorageControlClient, err error) {
+func CreateGRPCControlClient(ctx context.Context, clientOpts []option.ClientOption, disableDefaultGaxRetries bool) (controlClient *control.StorageControlClient, err error) {
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
 		logger.Fatal("error setting direct path env var: %v", err)
 	}
@@ -63,8 +34,10 @@ func CreateGRPCControlClient(ctx context.Context, clientOpts []option.ClientOpti
 		return nil, fmt.Errorf("NewStorageControlClient: %w", err)
 	}
 
-	// Set retries for control client.
-	setRetryConfigForFolderAPIs(controlClient, clientConfig)
+	// Remove default gax retry options if requested.
+	if disableDefaultGaxRetries {
+		*controlClient.CallOptions = control.StorageControlCallOptions{}
+	}
 
 	// Unset the environment variable, since it's used only while creation of grpc client.
 	if err := os.Unsetenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"); err != nil {

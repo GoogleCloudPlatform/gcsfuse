@@ -27,7 +27,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
-	"gopkg.in/yaml.v3"
 )
 
 const ExplicitDirInImplicitDir = "explicitDirInImplicitDir"
@@ -61,26 +60,11 @@ func setupTestDir(dirName string) string {
 	return dirPath
 }
 
-// Config holds all test configurations parsed from the YAML file.
-type Config struct {
-	ImplicitDir []test_suite.TestConfig `yaml:"implicit_dir"`
-}
-
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	// 1. Load and parse the common configuration.
-	var cfg Config
-	if setup.ConfigFile() != "" {
-		configData, err := os.ReadFile(setup.ConfigFile())
-		if err != nil {
-			log.Fatalf("could not read test_config.yaml: %v", err)
-		}
-		expandedYaml := os.ExpandEnv(string(configData))
-		if err := yaml.Unmarshal([]byte(expandedYaml), &cfg); err != nil {
-			log.Fatalf("Failed to parse config YAML: %v", err)
-		}
-	}
+	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.ImplicitDir) == 0 {
 		log.Println("No configuration found for implicit_dir tests in config. Using flags instead.")
 		// Populate the config manually.
@@ -95,8 +79,8 @@ func TestMain(m *testing.M) {
 	}
 
 	// 2. Create storage client before running tests.
-	setup.SetBucketFromConfigFile(cfg.ImplicitDir[0].TestBucket)
 	testEnv.ctx = context.Background()
+	bucketType := setup.BucketTestEnvironment(testEnv.ctx, cfg.ImplicitDir[0].TestBucket)
 	closeStorageClient := client.CreateStorageClientWithCancel(&testEnv.ctx, &testEnv.storageClient)
 	defer func() {
 		err := closeStorageClient()
@@ -105,18 +89,14 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	// 4. Build the flag sets dynamically from the config.
-	bucketType, err := setup.BucketType(testEnv.ctx, cfg.ImplicitDir[0].TestBucket)
-	if err != nil {
-		log.Fatalf("BucketType failed: %v", err)
-	}
+	// 3. Build the flag sets dynamically from the config.
 	flags := setup.BuildFlagSets(cfg.ImplicitDir[0], bucketType)
 
-	// 5. Run tests with the dynamically generated flags.
+	// 4. Run tests with the dynamically generated flags.
 	successCode := implicit_and_explicit_dir_setup.RunTestsForExplicitAndImplicitDir(&cfg.ImplicitDir[0], flags, m)
 	setup.SaveLogFileInCaseOfFailure(successCode)
 
-	// Clean up test directory created.
+	// 5. Clean up test directory created.
 	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
 }

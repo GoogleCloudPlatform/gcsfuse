@@ -23,11 +23,13 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	testutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -42,9 +44,10 @@ const (
 type DownloadTaskTestSuite struct {
 	workerpool.Task
 	suite.Suite
-	object     *gcs.MinObject
-	mockBucket *storage.TestifyMockBucket
-	blockPool  *block.GenBlockPool[block.PrefetchBlock]
+	object       *gcs.MinObject
+	mockBucket   *storage.TestifyMockBucket
+	blockPool    *block.GenBlockPool[block.PrefetchBlock]
+	metricHandle metrics.MetricHandle
 }
 
 func TestDownloadTaskTestSuite(t *testing.T) {
@@ -60,6 +63,7 @@ func (dts *DownloadTaskTestSuite) SetupTest() {
 	dts.mockBucket = new(storage.TestifyMockBucket)
 	var err error
 	dts.blockPool, err = block.NewPrefetchBlockPool(testBlockSize, 10, 1, semaphore.NewWeighted(100))
+	dts.metricHandle = metrics.NewNoopMetrics()
 	require.NoError(dts.T(), err, "Failed to create block pool")
 }
 
@@ -74,7 +78,7 @@ func (dts *DownloadTaskTestSuite) TestExecuteSuccess() {
 	require.Nil(dts.T(), err)
 	err = downloadBlock.SetAbsStartOff(0)
 	require.Nil(dts.T(), err)
-	task := NewDownloadTask(context.Background(), dts.object, dts.mockBucket, downloadBlock, nil)
+	task := NewDownloadTask(context.Background(), dts.object, dts.mockBucket, downloadBlock, nil, dts.metricHandle)
 	testContent := testutil.GenerateRandomBytes(testBlockSize)
 	rc := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	readObjectRequest := &gcs.ReadObjectRequest{
@@ -105,7 +109,7 @@ func (dts *DownloadTaskTestSuite) TestExecuteError() {
 	require.Nil(dts.T(), err)
 	err = downloadBlock.SetAbsStartOff(0)
 	require.Nil(dts.T(), err)
-	task := NewDownloadTask(context.Background(), dts.object, dts.mockBucket, downloadBlock, nil)
+	task := NewDownloadTask(context.Background(), dts.object, dts.mockBucket, downloadBlock, nil, dts.metricHandle)
 	readObjectRequest := &gcs.ReadObjectRequest{
 		Name:       dts.object.Name,
 		Generation: dts.object.Generation,
@@ -134,7 +138,7 @@ func (dts *DownloadTaskTestSuite) TestExecuteContextDeadlineExceededByServerTrea
 	require.Nil(dts.T(), err)
 	taskCtx, taskCancelFunc := context.WithTimeout(context.Background(), 1*time.Millisecond)
 	defer taskCancelFunc() // Ensure the context is cancelled after the test.
-	task := NewDownloadTask(taskCtx, dts.object, dts.mockBucket, downloadBlock, nil)
+	task := NewDownloadTask(taskCtx, dts.object, dts.mockBucket, downloadBlock, nil, dts.metricHandle)
 	readObjectRequest := &gcs.ReadObjectRequest{
 		Name:       dts.object.Name,
 		Generation: dts.object.Generation,
@@ -163,7 +167,7 @@ func (dts *DownloadTaskTestSuite) TestExecuteContextCancelledWhileReaderCreation
 	err = downloadBlock.SetAbsStartOff(0)
 	require.Nil(dts.T(), err)
 	taskCtx, taskCancelFunc := context.WithCancel(context.TODO())
-	task := NewDownloadTask(taskCtx, dts.object, dts.mockBucket, downloadBlock, nil)
+	task := NewDownloadTask(taskCtx, dts.object, dts.mockBucket, downloadBlock, nil, dts.metricHandle)
 	rc := &fake.FakeReader{ReadCloser: getReadCloser(nil)} // No content since context is cancelled
 	readObjectRequest := &gcs.ReadObjectRequest{
 		Name:       dts.object.Name,
@@ -208,7 +212,7 @@ func (dts *DownloadTaskTestSuite) TestExecuteContextCancelledWhileReadingFromRea
 	err = downloadBlock.SetAbsStartOff(0)
 	require.Nil(dts.T(), err)
 	taskCtx, taskCancelFunc := context.WithCancel(context.TODO())
-	task := NewDownloadTask(taskCtx, dts.object, dts.mockBucket, downloadBlock, nil)
+	task := NewDownloadTask(taskCtx, dts.object, dts.mockBucket, downloadBlock, nil, dts.metricHandle)
 	rc := &fake.FakeReader{ReadCloser: new(ctxCancelledReader)}
 	readObjectRequest := &gcs.ReadObjectRequest{
 		Name:       dts.object.Name,
@@ -228,6 +232,37 @@ func (dts *DownloadTaskTestSuite) TestExecuteContextCancelledWhileReadingFromRea
 	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
 	defer cancelFunc()
 	status, err := downloadBlock.AwaitReady(ctx)
+	assert.NoError(dts.T(), err)
 	assert.Equal(dts.T(), block.BlockStateDownloadFailed, status.State)
 	assert.ErrorIs(dts.T(), status.Err, context.Canceled)
+}
+
+func (dts *DownloadTaskTestSuite) TestExecuteClobbered() {
+	downloadBlock, err := dts.blockPool.Get()
+	require.Nil(dts.T(), err)
+	err = downloadBlock.SetAbsStartOff(0)
+	require.Nil(dts.T(), err)
+	task := NewDownloadTask(context.Background(), dts.object, dts.mockBucket, downloadBlock, nil, dts.metricHandle)
+	// Simulate NewReaderWithReadHandle returning a NotFoundError.
+	notFoundErr := &gcs.NotFoundError{Err: errors.New("object not found")}
+	readObjectRequest := &gcs.ReadObjectRequest{
+		Name:       dts.object.Name,
+		Generation: dts.object.Generation,
+		Range: &gcs.ByteRange{
+			Start: uint64(0),
+			Limit: uint64(testBlockSize),
+		},
+	}
+	dts.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(nil, notFoundErr).Times(1)
+
+	task.Execute()
+
+	dts.mockBucket.AssertExpectations(dts.T())
+	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
+	defer cancelFunc()
+	status, err := downloadBlock.AwaitReady(ctx)
+	assert.NoError(dts.T(), err)
+	assert.Equal(dts.T(), block.BlockStateDownloadFailed, status.State)
+	var fileClobberedError *gcsfuse_errors.FileClobberedError
+	assert.True(dts.T(), errors.As(status.Err, &fileClobberedError))
 }
