@@ -14,6 +14,7 @@
 
 substitutions:
   _GOLANG_VERSION: '1.24'
+  _GCSFUSE_VERSION: 'v4'
   _CSI_VERSION: 'main'
   _PLATFORMS: 'linux/amd64'
   _USER: 'cloudbuild'
@@ -45,7 +46,7 @@ steps:
       os=$${os_arch[0]}
       arch=$${os_arch[1]}
       echo "Building GCSFuse for $${os}/$${arch}..."
-      GOOS=$${os} GOARCH=$${arch} go run tools/build_gcsfuse/main.go . . v4
+      GOOS=$${os} GOARCH=$${arch} go run tools/build_gcsfuse/main.go . . "${_GCSFUSE_VERSION}"
       mkdir -p "/workspace/gcsfuse-artifacts/$${os}/$${arch}"
       mv "bin/gcsfuse" "/workspace/gcsfuse-artifacts/$${os}/$${arch}/gcsfuse"
       echo "Cleaning up bin and sbin directories..."

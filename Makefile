@@ -13,6 +13,7 @@
 # limitations under the License.
 
 CSI_VERSION ?= main
+GCSFUSE_VERSION ?= $(shell tr -dc A-Za-z0-9 </dev/urandom | head -c 6)
 .DEFAULT_GOAL := build
 
 .PHONY: generate imports fmt vet build buildTest install test clean-gen clean clean-all build-csi
@@ -51,4 +52,4 @@ clean-all: clean-gen
 	go clean -i ./...
 
 build-csi: build
-	gcloud builds submit --config csi_driver_build.yml --substitutions=_CSI_VERSION=$(CSI_VERSION)
+	gcloud builds submit --config csi_driver_build.yml --substitutions=_CSI_VERSION=$(CSI_VERSION),_GCSFUSE_VERSION=$(GCSFUSE_VERSION)
