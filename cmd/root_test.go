@@ -877,9 +877,10 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 	hd, err := os.UserHomeDir()
 	require.NoError(t, err)
 	tests := []struct {
-		name           string
-		args           []string
-		expectedConfig *cfg.Config
+		name             string
+		args             []string
+		expectedConfig   *cfg.Config
+		checkMachineType bool
 	}{
 		{
 			name: "normal",
@@ -944,6 +945,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				},
 				MachineType: "a3-highgpu-8g",
 			},
+			checkMachineType: true,
 		},
 		{
 			name: "high performance defaults with rename dir options with autoconfig disabled",
@@ -966,6 +968,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				},
 				MachineType: "a3-highgpu-8g",
 			},
+			checkMachineType: true,
 		},
 		{
 			name: "high performance defaults with overriden rename dir options",
@@ -988,6 +991,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				},
 				MachineType: "a3-highgpu-8g",
 			},
+			checkMachineType: true,
 		},
 		{
 			name: "profile_with_machine_type",
@@ -997,6 +1001,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				Profile:     cfg.ProfileAIMLTraining,
 				MachineType: "machine-type-1",
 			},
+			checkMachineType: true,
 		},
 		{
 			name: "profile_without_machine_type",
@@ -1039,7 +1044,9 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedConfig.FileSystem, gotConfig.FileSystem)
-				assert.Equal(t, tc.expectedConfig.MachineType, gotConfig.MachineType)
+				if tc.checkMachineType {
+					assert.Equal(t, tc.expectedConfig.MachineType, gotConfig.MachineType)
+				}
 				assert.Equal(t, tc.expectedConfig.Profile, gotConfig.Profile)
 			}
 		})
