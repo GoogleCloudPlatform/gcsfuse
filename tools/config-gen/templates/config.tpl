@@ -17,7 +17,6 @@
 package cfg
 
 import (
-	"log"
 	"time"
 
 	"github.com/spf13/pflag"
@@ -92,13 +91,6 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 		if result.Found {
 			if val, ok := result.Value.({{ .GoType }}); ok {
 				if c.{{ .GoPath }} != val {
-					log.Printf(
-						"INFO: For flag '%s', value changed from %v to %v due to: %s",
-						"{{ .ConfigPath }}",
-						c.{{ .GoPath }},
-						val,
-						result.Reason,
-					)
 					c.{{ .GoPath }} = val
 					optimizedFlags = append(optimizedFlags, "{{ .ConfigPath }}")
 				}

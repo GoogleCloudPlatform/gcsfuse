@@ -17,7 +17,6 @@
 package cfg
 
 import (
-	"log"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
@@ -150,13 +149,6 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 		if result.Found {
 			if val, ok := result.Value.(bool); ok {
 				if c.ImplicitDirs != val {
-					log.Printf(
-						"INFO: For flag '%s', value changed from %v to %v due to: %s",
-						"implicit-dirs",
-						c.ImplicitDirs,
-						val,
-						result.Reason,
-					)
 					c.ImplicitDirs = val
 					optimizedFlags = append(optimizedFlags, "implicit-dirs")
 				}
@@ -169,13 +161,6 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 		if result.Found {
 			if val, ok := result.Value.(int64); ok {
 				if c.MetadataCache.NegativeTtlSecs != val {
-					log.Printf(
-						"INFO: For flag '%s', value changed from %v to %v due to: %s",
-						"metadata-cache.negative-ttl-secs",
-						c.MetadataCache.NegativeTtlSecs,
-						val,
-						result.Reason,
-					)
 					c.MetadataCache.NegativeTtlSecs = val
 					optimizedFlags = append(optimizedFlags, "metadata-cache.negative-ttl-secs")
 				}
@@ -188,13 +173,6 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 		if result.Found {
 			if val, ok := result.Value.(int64); ok {
 				if c.MetadataCache.TtlSecs != val {
-					log.Printf(
-						"INFO: For flag '%s', value changed from %v to %v due to: %s",
-						"metadata-cache.ttl-secs",
-						c.MetadataCache.TtlSecs,
-						val,
-						result.Reason,
-					)
 					c.MetadataCache.TtlSecs = val
 					optimizedFlags = append(optimizedFlags, "metadata-cache.ttl-secs")
 				}
@@ -207,13 +185,6 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 		if result.Found {
 			if val, ok := result.Value.(int64); ok {
 				if c.FileSystem.RenameDirLimit != val {
-					log.Printf(
-						"INFO: For flag '%s', value changed from %v to %v due to: %s",
-						"file-system.rename-dir-limit",
-						c.FileSystem.RenameDirLimit,
-						val,
-						result.Reason,
-					)
 					c.FileSystem.RenameDirLimit = val
 					optimizedFlags = append(optimizedFlags, "file-system.rename-dir-limit")
 				}
@@ -226,13 +197,6 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 		if result.Found {
 			if val, ok := result.Value.(int64); ok {
 				if c.MetadataCache.StatCacheMaxSizeMb != val {
-					log.Printf(
-						"INFO: For flag '%s', value changed from %v to %v due to: %s",
-						"metadata-cache.stat-cache-max-size-mb",
-						c.MetadataCache.StatCacheMaxSizeMb,
-						val,
-						result.Reason,
-					)
 					c.MetadataCache.StatCacheMaxSizeMb = val
 					optimizedFlags = append(optimizedFlags, "metadata-cache.stat-cache-max-size-mb")
 				}
@@ -245,13 +209,6 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 		if result.Found {
 			if val, ok := result.Value.(int64); ok {
 				if c.MetadataCache.TypeCacheMaxSizeMb != val {
-					log.Printf(
-						"INFO: For flag '%s', value changed from %v to %v due to: %s",
-						"metadata-cache.type-cache-max-size-mb",
-						c.MetadataCache.TypeCacheMaxSizeMb,
-						val,
-						result.Reason,
-					)
 					c.MetadataCache.TypeCacheMaxSizeMb = val
 					optimizedFlags = append(optimizedFlags, "metadata-cache.type-cache-max-size-mb")
 				}
@@ -264,13 +221,6 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 		if result.Found {
 			if val, ok := result.Value.(int64); ok {
 				if c.Write.GlobalMaxBlocks != val {
-					log.Printf(
-						"INFO: For flag '%s', value changed from %v to %v due to: %s",
-						"write.global-max-blocks",
-						c.Write.GlobalMaxBlocks,
-						val,
-						result.Reason,
-					)
 					c.Write.GlobalMaxBlocks = val
 					optimizedFlags = append(optimizedFlags, "write.global-max-blocks")
 				}

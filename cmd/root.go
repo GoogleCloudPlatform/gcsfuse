@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"sort"
 	"strings"
 
 	"github.com/go-viper/mapstructure/v2"
@@ -120,11 +119,6 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 
 		isSet := &pflagAsIsValueSet{fs: rootCmd.PersistentFlags()}
 		optimizedFlags := configObj.ApplyOptimizations(isSet)
-		if len(optimizedFlags) > 0 {
-			// Sort the flags for deterministic log output.
-			sort.Strings(optimizedFlags)
-			log.Printf("INFO: The following flags were overwritten by profile optimization or machine-type defaults: [%s]", strings.Join(optimizedFlags, ", "))
-		}
 		if cfgErr = cfg.Rationalize(v, &configObj, optimizedFlags); cfgErr != nil {
 			return
 		}
