@@ -15,6 +15,7 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 
 	"cloud.google.com/go/auth"
@@ -59,4 +60,13 @@ func getCredentials(keyFile string, detectCredential func(*credentials.DetectOpt
 //	error: An error if credential detection fails.
 func GetCredentials(keyFile string) (*auth.Credentials, error) {
 	return getCredentials(keyFile, credentials.DetectDefault)
+}
+
+// CredentialsPropertyFunc is a type adapter to allow the use of ordinary
+// functions as a [CredentialsPropertyProvider].
+type CredentialsPropertyFunc func(context.Context) (string, error)
+
+// GetProperty loads the properly value provided the given context.
+func (p CredentialsPropertyFunc) GetProperty(ctx context.Context) (string, error) {
+	return p(ctx)
 }

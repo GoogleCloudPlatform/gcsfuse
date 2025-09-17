@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	"cloud.google.com/go/auth"
 	"cloud.google.com/go/auth/oauth2adapt"
 	auth2 "github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"golang.org/x/oauth2"
@@ -56,7 +57,14 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 		return nil, nil, fmt.Errorf("failed to get UniverseDomain: %w", err)
 	}
 
-	clientOpts := []option.ClientOption{option.WithUniverseDomain(domain), option.WithAuthCredentials(cred)}
+	newCreds := auth.NewCredentials(&auth.CredentialsOptions{
+		TokenProvider:          cred.TokenProvider,
+		UniverseDomainProvider: auth2.CredentialsPropertyFunc(func(context.Context) (string, error) { return domain, nil }),
+	})
+	clientOpts := []option.ClientOption{
+		option.WithUniverseDomain(domain),
+		option.WithAuthCredentials(newCreds),
+	}
 
 	return clientOpts, tokenSrc, nil
 }
