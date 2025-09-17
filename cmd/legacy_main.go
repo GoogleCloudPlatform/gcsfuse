@@ -319,6 +319,8 @@ func forwardedEnvVars() []string {
 	// process and daemon process. If this environment variable set that means
 	// programme is running as daemon process.
 	env = append(env, fmt.Sprintf("%s=true", logger.GCSFuseInBackgroundMode))
+
+	env = append(env, fmt.Sprintf("%s=%s", logger.GCSFuseMountLoggerId, logger.MountLoggerId))
 	return env
 }
 

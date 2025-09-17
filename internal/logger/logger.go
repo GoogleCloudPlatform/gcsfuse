@@ -36,6 +36,7 @@ import (
 const (
 	ProgrammeName           string = "gcsfuse"
 	GCSFuseInBackgroundMode string = "GCSFUSE_IN_BACKGROUND_MODE"
+	GCSFuseMountLoggerId    string = "GCSFUSE_MOUNT_LOGGER_ID"
 	textFormat              string = "text"
 	mountLoggerIdKey        string = "mount_id"
 	DefaultMountLoggerId    string = "00000000"
@@ -44,8 +45,8 @@ const (
 var (
 	defaultLoggerFactory *loggerFactory
 	defaultLogger        *slog.Logger
-	mountLoggerId        string
-	fsName               string
+	MountLoggerId        string
+	fsName               string = "gcsfuse"
 )
 
 // InitLogFile initializes the logger factory to create loggers that print to
@@ -106,14 +107,25 @@ func InitLogFile(newLogConfig cfg.LoggingConfig) error {
 // init initializes the logger factory to use stdout and stderr.
 func init() {
 	logConfig := cfg.DefaultLoggingConfig()
-	// Generate mount logger Id for logger attribute.
-	uuid, err := uuid.NewRandom()
-	mountLoggerId = DefaultMountLoggerId
-	if err == nil && uuid.String() != "" {
-		mountLoggerId = uuid.String()[:8]
+
+	// Generate or get mount logger Id for logger attribute if running in background mode.
+	if _, ok := os.LookupEnv(GCSFuseInBackgroundMode); ok {
+		if parentMountLoggerId, ok := os.LookupEnv(GCSFuseMountLoggerId); ok && parentMountLoggerId != "" {
+			MountLoggerId = parentMountLoggerId
+		} else {
+			MountLoggerId = DefaultMountLoggerId
+			log.Printf("Could not retrieve %s env variable %v, using default: %v", GCSFuseMountLoggerId, DefaultMountLoggerId)
+		}
 	} else {
-		log.Printf("Could not generate random UUID for logger, err %v. Falling back to default %v", err, DefaultMountLoggerId)
+		uuid, err := uuid.NewRandom()
+		if err == nil && uuid.String() != "" {
+			MountLoggerId = uuid.String()[:8]
+		} else {
+			MountLoggerId = DefaultMountLoggerId
+			log.Printf("Could not generate random UUID for logger, err %v. using default: %v", err, DefaultMountLoggerId)
+		}
 	}
+
 	defaultLoggerFactory = &loggerFactory{
 		file:      nil,
 		format:    logConfig.Format,
@@ -185,7 +197,7 @@ type loggerFactory struct {
 func (f *loggerFactory) newLogger(level string) *slog.Logger {
 	// create a new logger
 	var programLevel = new(slog.LevelVar)
-	logger := slog.New(f.handler(programLevel, "").WithAttrs([]slog.Attr{slog.String(mountLoggerIdKey, fmt.Sprintf("%s-%s", fsName, mountLoggerId))}))
+	logger := slog.New(f.handler(programLevel, "").WithAttrs([]slog.Attr{slog.String(mountLoggerIdKey, fmt.Sprintf("%s-%s", fsName, MountLoggerId))}))
 	slog.SetDefault(logger)
 	setLoggingLevel(level, programLevel)
 	return logger
