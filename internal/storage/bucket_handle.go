@@ -198,10 +198,10 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	// All objects in zonal buckets must be appendable.
 	wc.Append = bh.BucketType().Zonal
 	// Objects in zonal buckets should not finalized.
+	// When writer.Append is false,then this parameter is anyways ignored.
+	// Refer: https://github.com/googleapis/google-cloud-go/blob/main/storage/writer.go#L135
 	if bh.BucketType().Zonal {
 		wc.FinalizeOnClose = false
-	} else {
-		wc.FinalizeOnClose = true
 	}
 
 	// Copy the contents to the writer.
@@ -236,8 +236,6 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	// Objects in zonal buckets should not finalized.
 	if bh.BucketType().Zonal {
 		wc.FinalizeOnClose = false
-	} else {
-		wc.FinalizeOnClose = true
 	}
 
 	return wc, nil

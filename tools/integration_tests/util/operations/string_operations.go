@@ -18,7 +18,6 @@ package operations
 import (
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -55,12 +54,4 @@ func SplitBucketNameAndDirPath(t *testing.T, bucketNameWithDirPath string) (buck
 		t.Fatalf("Unexpected bucketNameWithDirPath: %q. Expected form: <bucket>/<object-name>", bucketNameWithDirPath)
 	}
 	return
-}
-
-// WaitForSizeUpdate waits for a specified time duration to ensure that stat()
-// call returns correct size for unfinalized object.
-func WaitForSizeUpdate(isZonal bool, duration time.Duration) {
-	if isZonal {
-		time.Sleep(duration)
-	}
 }
