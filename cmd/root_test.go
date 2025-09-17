@@ -30,7 +30,7 @@ import (
 
 func TestDefaultMaxParallelDownloads(t *testing.T) {
 	var actual *cfg.Config
-	cmd, err := newRootCmd(func(c *cfg.Config, _, _ string) error {
+	cmd, err := newRootCmd(func(c *cfg.Config, _ map[string]interface{}, _, _ string) error {
 		actual = c
 		return nil
 	})
@@ -72,7 +72,7 @@ func TestCobraArgsNumInRange(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd, err := newRootCmd(func(*cfg.Config, string, string) error { return nil })
+			cmd, err := newRootCmd(func(*cfg.Config, map[string]interface{}, string, string) error { return nil })
 			require.Nil(t, err)
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
@@ -127,7 +127,7 @@ func TestArgsParsing_MountPoint(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var bucketName, mountPoint string
-			cmd, err := newRootCmd(func(_ *cfg.Config, b string, m string) error {
+			cmd, err := newRootCmd(func(_ *cfg.Config, _ map[string]interface{}, b string, m string) error {
 				bucketName = b
 				mountPoint = m
 				return nil
@@ -176,7 +176,7 @@ func TestArgsParsing_MountOptions(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var mountOptions []string
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _ map[string]interface{}, _, _ string) error {
 				mountOptions = cfg.FileSystem.FuseOptions
 				return nil
 			})
@@ -234,7 +234,7 @@ func TestArgsParsing_ImplicitDirsFlag(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotImplicit bool
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _ map[string]interface{}, _, _ string) error {
 				gotImplicit = cfg.ImplicitDirs
 				return nil
 			})
@@ -373,7 +373,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var wc cfg.WriteConfig
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _ map[string]interface{}, _, _ string) error {
 				wc = cfg.Write
 				return nil
 			})
@@ -480,7 +480,7 @@ func TestArgsParsing_ReadConfigFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var rc cfg.ReadConfig
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _ map[string]interface{}, _, _ string) error {
 				rc = cfg.Read
 				return nil
 			})
@@ -550,7 +550,7 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _ map[string]interface{}, _, _ string) error {
 				gotConfig = cfg
 				return nil
 			})
@@ -602,7 +602,7 @@ func TestArgParsing_ExperimentalMetadataPrefetchFlag(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var experimentalMetadataPrefetch string
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _ map[string]interface{}, _, _ string) error {
 				experimentalMetadataPrefetch = cfg.MetadataCache.ExperimentalMetadataPrefetchOnMount
 				return nil
 			})
@@ -635,7 +635,7 @@ func TestArgParsing_ExperimentalMetadataPrefetchFlag_Failed(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _ map[string]interface{}, _, _ string) error {
 				return nil
 			})
 			require.Nil(t, err)
@@ -685,7 +685,7 @@ func TestArgsParsing_GCSAuthFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _ map[string]interface{}, _, _ string) error {
 				gotConfig = cfg
 				return nil
 			})
@@ -723,7 +723,7 @@ func TestArgsParsing_GCSAuthFlagsThrowsError(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _ map[string]interface{}, _, _ string) error {
 				return nil
 			})
 			require.Nil(t, err)
@@ -783,7 +783,7 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _ map[string]interface{}, _, _ string) error {
 				gotConfig = cfg
 				return nil
 			})
@@ -827,7 +827,7 @@ func TestArgsParsing_GCSConnectionFlagsThrowsError(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _ map[string]interface{}, _, _ string) error {
 				return nil
 			})
 			require.Nil(t, err)
@@ -977,7 +977,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _ map[string]interface{}, _, _ string) error {
 				gotConfig = cfg
 				return nil
 			})
@@ -1030,7 +1030,7 @@ func TestArgsParsing_FileSystemFlagsThrowsError(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _ map[string]interface{}, _, _ string) error {
 				return nil
 			})
 			require.Nil(t, err)
@@ -1066,7 +1066,7 @@ func TestArgsParsing_ListFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _ map[string]interface{}, _, _ string) error {
 				gotConfig = cfg
 				return nil
 			})
@@ -1103,7 +1103,7 @@ func TestArgsParsing_EnableHNSFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotEnableHNS bool
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _ map[string]interface{}, _, _ string) error {
 				gotEnableHNS = cfg.EnableHns
 				return nil
 			})
@@ -1140,7 +1140,7 @@ func TestArgsParsing_EnableGoogleLibAuthFlag(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotEnableGoogleLibAuth bool
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _ map[string]interface{}, _, _ string) error {
 				gotEnableGoogleLibAuth = cfg.EnableGoogleLibAuth
 				return nil
 			})
@@ -1177,7 +1177,7 @@ func TestArgsParsing_EnableAtomicRenameObjectFlag(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotEnableAtomicRenameObject bool
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _ map[string]interface{}, _, _ string) error {
 				gotEnableAtomicRenameObject = cfg.EnableAtomicRenameObject
 				return nil
 			})
@@ -1214,7 +1214,7 @@ func TestArgsParsing_EnableNewReaderFlag(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotEnableNewReader bool
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _ map[string]interface{}, _, _ string) error {
 				gotEnableNewReader = cfg.EnableNewReader
 				return nil
 			})
@@ -1283,7 +1283,7 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _ map[string]interface{}, _, _ string) error {
 				gotConfig = cfg
 				return nil
 			})
@@ -1329,7 +1329,7 @@ func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _ map[string]interface{}, _, _ string) error {
 				gotConfig = cfg
 				return nil
 			})
@@ -1458,7 +1458,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _ map[string]interface{}, _, _ string) error {
 				gotConfig = cfg
 				return nil
 			})
@@ -1504,7 +1504,7 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _ map[string]interface{}, _, _ string) error {
 				gotConfig = cfg
 				return nil
 			})
@@ -1596,7 +1596,7 @@ func TestArgsParsing_ProfilerFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotProfilerConfig cfg.ProfilingConfig
-			cmd, err := newRootCmd(func(c *cfg.Config, _, _ string) error {
+			cmd, err := newRootCmd(func(c *cfg.Config, _ map[string]interface{}, _, _ string) error {
 				gotProfilerConfig = c.Profiling
 				return nil
 			})
@@ -1637,7 +1637,7 @@ func TestArgsParsing_ReadInactiveTimeoutConfig(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _ map[string]interface{}, _, _ string) error {
 				gotConfig = cfg
 				return nil
 			})
