@@ -27,63 +27,56 @@ import (
 )
 
 // AllFlagOptimizationRules is the generated map from a flag's config-path to its specific rules.
-var AllFlagOptimizationRules = map[string]shared.OptimizationRules{
-	"file-system.rename-dir-limit": {
-		MachineBasedOptimization: []shared.MachineBasedOptimization{
-			{
-				Group: "high-performance",
-				Value: 200000,
-			},
+var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"implicit-dirs": {
+	MachineBasedOptimization: []shared.MachineBasedOptimization{
+		{
+			Group: "high-performance",
+			Value: bool(true),
 		},
 	},
-	"implicit-dirs": {
-		MachineBasedOptimization: []shared.MachineBasedOptimization{
-			{
-				Group: "high-performance",
-				Value: true,
-			},
+}, "metadata-cache.negative-ttl-secs": {
+	MachineBasedOptimization: []shared.MachineBasedOptimization{
+		{
+			Group: "high-performance",
+			Value: int64(0),
 		},
 	},
-	"metadata-cache.negative-ttl-secs": {
-		MachineBasedOptimization: []shared.MachineBasedOptimization{
-			{
-				Group: "high-performance",
-				Value: 0,
-			},
+}, "metadata-cache.ttl-secs": {
+	MachineBasedOptimization: []shared.MachineBasedOptimization{
+		{
+			Group: "high-performance",
+			Value: int64(-1),
 		},
 	},
-	"metadata-cache.stat-cache-max-size-mb": {
-		MachineBasedOptimization: []shared.MachineBasedOptimization{
-			{
-				Group: "high-performance",
-				Value: 1024,
-			},
+}, "file-system.rename-dir-limit": {
+	MachineBasedOptimization: []shared.MachineBasedOptimization{
+		{
+			Group: "high-performance",
+			Value: int64(200000),
 		},
 	},
-	"metadata-cache.ttl-secs": {
-		MachineBasedOptimization: []shared.MachineBasedOptimization{
-			{
-				Group: "high-performance",
-				Value: -1,
-			},
+}, "metadata-cache.stat-cache-max-size-mb": {
+	MachineBasedOptimization: []shared.MachineBasedOptimization{
+		{
+			Group: "high-performance",
+			Value: int64(1024),
 		},
 	},
-	"metadata-cache.type-cache-max-size-mb": {
-		MachineBasedOptimization: []shared.MachineBasedOptimization{
-			{
-				Group: "high-performance",
-				Value: 128,
-			},
+}, "metadata-cache.type-cache-max-size-mb": {
+	MachineBasedOptimization: []shared.MachineBasedOptimization{
+		{
+			Group: "high-performance",
+			Value: int64(128),
 		},
 	},
-	"write.global-max-blocks": {
-		MachineBasedOptimization: []shared.MachineBasedOptimization{
-			{
-				Group: "high-performance",
-				Value: 1600,
-			},
+}, "write.global-max-blocks": {
+	MachineBasedOptimization: []shared.MachineBasedOptimization{
+		{
+			Group: "high-performance",
+			Value: int64(1600),
 		},
 	},
+},
 }
 
 // machineTypeToGroupsMap is the generated map from machine type to the groups it belongs to.
