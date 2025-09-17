@@ -19,7 +19,6 @@ import (
 	"os"
 	"path"
 	"testing"
-	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
@@ -144,7 +143,6 @@ func (t *CommonAppendsSuite) createUnfinalizedObject() {
 	// Create unfinalized object.
 	t.fileContent = setup.GenerateRandomString(unfinalizedObjectSize)
 	client.CreateUnfinalizedObject(ctx, t.T(), storageClient, path.Join(testDirName, t.fileName), t.fileContent)
-	time.Sleep(time.Minute) // Wait for a minute so that further stat() calls return correct size.
 }
 
 func (t *CommonAppendsSuite) mountPrimaryMount(flags []string) {

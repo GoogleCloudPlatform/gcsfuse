@@ -173,6 +173,8 @@ func NewWriter(ctx context.Context, o *storage.ObjectHandle, client *storage.Cli
 		if setup.IsZonalBucketRun() {
 			// Zonal bucket writers require append-flag to be set.
 			wc.Append = true
+			// Zonal buckets with rapid appends should not finalize on close.
+			wc.FinalizeOnClose = false
 		} else {
 			return nil, fmt.Errorf("found zonal bucket %q in non-zonal e2e test run (--zonal=false)", o.BucketName())
 		}
@@ -200,6 +202,7 @@ func WriteToObject(ctx context.Context, client *storage.Client, object, content 
 	if err := wc.Close(); err != nil {
 		return fmt.Errorf("Writer.Close failed for object %q: %w", object, err)
 	}
+	operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), time.Second)
 
 	return nil
 }
@@ -351,6 +354,7 @@ func UploadGcsObjectWithPreconditions(ctx context.Context, client *storage.Clien
 		if err := w.Close(); err != nil {
 			log.Printf("Failed to close GCS object gs://%s/%s: %v", bucketName, objectName, err)
 		}
+		operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), time.Second)
 	}()
 
 	filePathToUpload := localPath

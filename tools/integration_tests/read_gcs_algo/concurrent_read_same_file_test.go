@@ -22,13 +22,12 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"golang.org/x/sync/errgroup"
 )
 
 func TestReadSameFileConcurrently(t *testing.T) {
 	fileSize := 30 * OneMB
-	filePathInLocalDisk, filePathInMntDir := setup.CreateFileAndCopyToMntDir(t, fileSize, DirForReadAlgoTests)
+	filePathInLocalDisk, filePathInMntDir := operations.CreateFileAndCopyToMntDir(t, fileSize, DirForReadAlgoTests)
 
 	var eG errgroup.Group
 	concurrentReaderCount := 3
