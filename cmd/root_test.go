@@ -1628,9 +1628,9 @@ func TestArgsParsing_ProfilerFlags(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var gotProfilerConfig cfg.ProfilingConfig
+			var gotProfilerConfig cfg.CloudProfilerConfig
 			cmd, err := newRootCmd(func(c *cfg.Config, _ map[string]interface{}, _, _ string) error {
-				gotProfilerConfig = c.Profiling
+				gotProfilerConfig = c.CloudProfiler
 				return nil
 			})
 			require.Nil(t, err)
