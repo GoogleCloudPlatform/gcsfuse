@@ -178,6 +178,18 @@ func (t *mrdWrapperTest) Test_Read_ErrorInCreatingMRD() {
 	assert.Equal(t.T(), 0, bytesRead)
 }
 
+func (t *mrdWrapperTest) Test_Read_ShortRead() {
+	t.mrdWrapper.Wrapped = nil
+	// Configure the fake MRD to return a short read.
+	fakeMRD := fake.NewFakeMultiRangeDownloaderWithShortRead(t.object, t.objectData)
+	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+
+	bytesRead, err := t.mrdWrapper.Read(context.Background(), make([]byte, t.object.Size), 0, int64(t.object.Size), metrics.NewNoopMetrics(), false)
+
+	assert.ErrorIs(t.T(), err, io.EOF)
+	assert.Less(t.T(), bytesRead, int(t.object.Size))
+}
+
 func (t *mrdWrapperTest) TestReadContextCancelledWithInterruptsEnabled() {
 	t.mrdWrapper.Wrapped = nil
 	t.mrdWrapper.config = &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: false}}
@@ -364,4 +376,29 @@ func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader_UsableExistingMRDPreven
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
 	t.mockBucket.AssertNotCalled(t.T(), "NewMultiRangeDownloader")
+}
+
+func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader_ForceRecreateMRD() {
+	t.mrdWrapper.bucket = t.mockBucket
+	t.mrdWrapper.object = t.object
+	t.mrdWrapper.Wrapped = nil
+	// First call to create an MRD.
+	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond), nil).Once()
+	t.mrdWrapper.mu.RLock()
+	err := t.mrdWrapper.ensureMultiRangeDownloader(false)
+	t.mrdWrapper.mu.RUnlock()
+	require.NoError(t.T(), err)
+	initialMRD := t.mrdWrapper.Wrapped
+	require.NotNil(t.T(), initialMRD)
+
+	// Second call with forceRecreateMRD=true should create a new MRD.
+	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond), nil).Once()
+	t.mrdWrapper.mu.RLock()
+	err = t.mrdWrapper.ensureMultiRangeDownloader(true)
+	t.mrdWrapper.mu.RUnlock()
+
+	require.NoError(t.T(), err)
+	assert.NotNil(t.T(), t.mrdWrapper.Wrapped)
+	assert.NotSame(t.T(), initialMRD, t.mrdWrapper.Wrapped, "A new MRD instance should have been created")
+	t.mockBucket.AssertExpectations(t.T())
 }
