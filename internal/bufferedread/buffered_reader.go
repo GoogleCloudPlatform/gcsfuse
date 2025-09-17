@@ -231,7 +231,7 @@ func (p *BufferedReader) handleRandomRead(offset int64, handleID int64) error {
 	}
 
 	if p.randomSeekCount > p.randomReadsThreshold {
-		logger.Warnf("Fallback to another reader for object %q, handle %d. Random seek count %d exceeded threshold %d.", p.object.Name, handleID, p.randomSeekCount, p.randomReadsThreshold)
+		logger.Warnf("Fallback to another reader for object %q, handle %d, at offset %d. Random seek count %d exceeded threshold %d.", p.object.Name, handleID, offset, p.randomSeekCount, p.randomReadsThreshold)
 		p.metricHandle.BufferedReadFallbackTriggerCount(1, "random_read_detected")
 		return gcsx.FallbackToAnotherReader
 	}
@@ -391,7 +391,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 		if p.blockQueue.IsEmpty() {
 			if err = p.freshStart(off); err != nil {
-				logger.Warnf("Fallback to another reader for object %q, handle %d, due to freshStart failure: %v", p.object.Name, handleID, err)
+				logger.Warnf("Fallback to another reader for object %q, handle %d, at offset %d, due to freshStart failure: %v", p.object.Name, handleID, off, err)
 				p.metricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
 				return resp, gcsx.FallbackToAnotherReader
 			}
