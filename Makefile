@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+CSI_VERSION ?= main
 .DEFAULT_GOAL := build
 
 .PHONY: generate imports fmt vet build buildTest install test clean-gen clean clean-all build-csi
@@ -50,4 +51,4 @@ clean-all: clean-gen
 	go clean -i ./...
 
 build-csi: build
-	gcloud builds submit --config csi_driver_build.yml
+	gcloud builds submit --config csi_driver_build.yml --substitutions=_CSI_VERSION=$(CSI_VERSION)
