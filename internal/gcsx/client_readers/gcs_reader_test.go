@@ -161,7 +161,7 @@ func (t *gcsReaderTest) Test_ReadAt_ExistingReaderLimitIsLessThanRequestedDataSi
 		ReadHandle:     expectedHandleInRequest,
 	}
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(rc, nil)
-	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(2)
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(3)
 	requestSize := 6
 
 	readerResponse, err := t.readAt(2, int64(requestSize))
@@ -196,7 +196,7 @@ func (t *gcsReaderTest) Test_ReadAt_ExistingReaderLimitIsLessThanRequestedObject
 		ReadHandle:     expectedHandleInRequest,
 	}
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(rc, nil)
-	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(2)
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(3)
 	requestSize := 6
 
 	readerResponse, err := t.readAt(0, int64(requestSize))
@@ -219,7 +219,7 @@ func (t *gcsReaderTest) Test_ReadAt_ExistingReaderIsFine() {
 	t.gcsReader.totalReadBytes.Store(2)
 	t.gcsReader.rangeReader.limit = 5
 	requestSize := 3
-	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(2)
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(3)
 
 	readerResponse, err := t.readAt(2, int64(requestSize))
 
@@ -261,7 +261,7 @@ func (t *gcsReaderTest) Test_ExistingReader_WrongOffset() {
 			content := "abcde"
 			rc := &fake.FakeReader{ReadCloser: getReadCloser([]byte(content))}
 			t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(rc, nil).Times(1)
-			t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(2)
+			t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(3)
 			requestSize := 6
 
 			readerResponse, err := t.readAt(0, int64(requestSize))
@@ -333,7 +333,7 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateReadType() {
 			require.NoError(t.T(), err, "Error in creating MRDWrapper")
 			t.gcsReader.mrr.mrdWrapper = &fakeMRDWrapper
 			t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, testContent, time.Microsecond))
-			t.mockBucket.On("BucketType", mock.Anything).Return(tc.bucketType).Times(2 * len(tc.readRanges))
+			t.mockBucket.On("BucketType", mock.Anything).Return(tc.bucketType).Times(3 * len(tc.readRanges))
 
 			for i, readRange := range tc.readRanges {
 				t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(&fake.FakeReader{ReadCloser: getReadCloser(testContent)}, nil).Once()
@@ -373,7 +373,7 @@ func (t *gcsReaderTest) Test_ReadAt_PropagatesCancellation() {
 	// Channel to track read completion
 	readReturned := make(chan struct{})
 	var err error
-	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(2)
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(3)
 
 	go func() {
 		_, err = t.gcsReader.ReadAt(ctx, make([]byte, 2), 0)
@@ -803,7 +803,7 @@ func (t *gcsReaderTest) Test_ReadAt_WithAndWithoutReadConfig() {
 				ReadHandle:     nil, // No existing read handle
 			}
 			t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, expectedReadObjectRequest).Return(rc, nil).Once()
-			t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false}).Twice()
+			t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false}).Times(3)
 
 			objectData, err := t.readAt(readOffset, int64(readLength))
 
@@ -861,6 +861,31 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateZonalRandomReads() {
 		assert.Equal(t.T(), metrics.ReadTypeRandom, t.gcsReader.readType.Load())
 		assert.Equal(t.T(), int64(readRange[1]), t.gcsReader.expectedOffset.Load())
 	}
+}
+
+func (t *gcsReaderTest) Test_ReadAt_MRDShortReadOnZonal() {
+	t.object.Size = 200
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true})
+	testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
+	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapper(t.mockBucket, t.object, &cfg.Config{})
+	require.NoError(t.T(), err)
+	t.gcsReader.mrr.mrdWrapper = &fakeMRDWrapper
+	// First call to NewMultiRangeDownloader will return a short read.
+	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithShortRead(t.object, testContent), nil).Once()
+	// Second call for retry will return the full content.
+	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloader(t.object, testContent), nil).Once()
+	t.gcsReader.readType.Store(metrics.ReadTypeRandom)
+	buf := make([]byte, t.object.Size)
+
+	// Act
+	readerResponse, err := t.gcsReader.ReadAt(t.ctx, buf, 0)
+
+	// Assert
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), int(t.object.Size), readerResponse.Size)
+	assert.Equal(t.T(), testContent, buf)
+	assert.Equal(t.T(), int64(t.object.Size), t.gcsReader.expectedOffset.Load())
+	t.mockBucket.AssertExpectations(t.T())
 }
 
 func (t *gcsReaderTest) Test_ReadAt_ParallelRandomReads() {

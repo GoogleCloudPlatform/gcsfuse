@@ -657,6 +657,10 @@ func (bh *bucketHandle) NewMultiRangeDownloader(
 		obj = obj.ReadCompressed(true)
 	}
 
+	if req.ReadHandle != nil {
+		obj = obj.ReadHandle(req.ReadHandle)
+	}
+
 	mrd, err = obj.NewMultiRangeDownloader(ctx)
 	return
 }

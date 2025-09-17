@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
@@ -614,4 +615,71 @@ func (t *rangeReaderTest) Test_ReadAt_ReaderNotExhausted() {
 	assert.Zero(t.T(), cc.closeCount)
 	assert.Equal(t.T(), rc, t.rangeReader.reader)
 	assert.Equal(t.T(), offset+bufSize, t.rangeReader.start)
+}
+
+func (t *rangeReaderTest) Test_ReadAt_ShortRead() {
+	offset := int64(0)
+	size := int64(10)
+	// Create a reader that will return less data than requested
+	shortContent := []byte("hello")
+	r := &fake.FakeReader{ReadCloser: getReadCloser(shortContent)}
+	t.mockNewReaderWithHandleCallForTestBucket(uint64(offset), uint64(offset+size), r)
+
+	resp, err := t.readAt(offset, size)
+
+	assert.Error(t.T(), err)
+	assert.Contains(t.T(), err.Error(), "reader returned early by skipping 5 bytes: short read")
+	assert.ErrorIs(t.T(), err, util.ErrShortRead)
+	assert.Zero(t.T(), resp.Size)
+	t.mockBucket.AssertExpectations(t.T())
+}
+
+// Write a unit test to force recreate a reader and verify that the reader was force created and read was successful
+func (t *rangeReaderTest) Test_ReadAt_ForceCreateReader() {
+	offset := int64(0)
+	size := int64(10)
+	readSize := int64(3)
+	content1 := []byte("first-content")
+	content2 := []byte("second-content")
+
+	// 1. First reader
+	r1 := &fake.FakeReader{ReadCloser: getReadCloser(content1)}
+	t.mockNewReaderWithHandleCallForTestBucket(uint64(offset), uint64(offset+size), r1)
+
+	// 2. Read with forceCreateReader = false (default)
+	req1 := &gcsx.GCSReaderRequest{
+		Offset:    offset,
+		EndOffset: offset + size,
+		Buffer:    make([]byte, readSize),
+	}
+	resp1, err := t.rangeReader.ReadAt(t.ctx, req1)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), int(readSize), resp1.Size)
+	assert.Equal(t.T(), content1[:readSize], resp1.DataBuf)
+	assert.NotNil(t.T(), t.rangeReader.reader) // Reader should be active
+	firstReader := t.rangeReader.reader
+
+	// 3. Second reader (will be created due to forceCreateReader = true)
+	r2 := &fake.FakeReader{ReadCloser: getReadCloser(content2)}
+	t.mockNewReaderWithHandleCallForTestBucket(uint64(offset+readSize), uint64(offset+size), r2)
+	readsize2 := int64(4)
+
+	// 4. Read with forceCreateReader = true. The existing reader can serve this
+	// request, but it will be discarded because ForceCreateReader is true.
+	req2 := &gcsx.GCSReaderRequest{
+		Offset:            offset + readSize,
+		EndOffset:         offset + size,
+		Buffer:            make([]byte, readsize2),
+		ForceCreateReader: true,
+	}
+	resp2, err := t.rangeReader.ReadAt(t.ctx, req2)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), int(readsize2), resp2.Size)
+	assert.Equal(t.T(), content2[:readsize2], resp2.DataBuf)
+	assert.NotNil(t.T(), t.rangeReader.reader) // New reader should not be nil
+	secondReader := t.rangeReader.reader
+	assert.NotEqual(t.T(), firstReader, secondReader)
+	t.mockBucket.AssertExpectations(t.T())
 }
