@@ -19,7 +19,6 @@ package cfg
 import (
 	"log"
 	"time"
-	"reflect"
 
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -92,7 +91,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 		result := getOptimizedValue(&rules, c.{{ .GoPath }}, profileName, machineType, machineTypeToGroupsMap)
 		if result.Found {
 			if val, ok := result.Value.({{ .GoType }}); ok {
-				if !reflect.DeepEqual(c.{{ .GoPath }}, val) {
+				if c.{{ .GoPath }} != val {
 					log.Printf(
 						"INFO: For flag '%s', value changed from %v to %v due to: %s",
 						"{{ .ConfigPath }}",

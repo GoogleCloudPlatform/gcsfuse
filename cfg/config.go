@@ -18,7 +18,6 @@ package cfg
 
 import (
 	"log"
-	"reflect"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
@@ -150,7 +149,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 		result := getOptimizedValue(&rules, c.ImplicitDirs, profileName, machineType, machineTypeToGroupsMap)
 		if result.Found {
 			if val, ok := result.Value.(bool); ok {
-				if !reflect.DeepEqual(c.ImplicitDirs, val) {
+				if c.ImplicitDirs != val {
 					log.Printf(
 						"INFO: For flag '%s', value changed from %v to %v due to: %s",
 						"implicit-dirs",
@@ -169,7 +168,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 		result := getOptimizedValue(&rules, c.MetadataCache.NegativeTtlSecs, profileName, machineType, machineTypeToGroupsMap)
 		if result.Found {
 			if val, ok := result.Value.(int64); ok {
-				if !reflect.DeepEqual(c.MetadataCache.NegativeTtlSecs, val) {
+				if c.MetadataCache.NegativeTtlSecs != val {
 					log.Printf(
 						"INFO: For flag '%s', value changed from %v to %v due to: %s",
 						"metadata-cache.negative-ttl-secs",
@@ -188,7 +187,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 		result := getOptimizedValue(&rules, c.MetadataCache.TtlSecs, profileName, machineType, machineTypeToGroupsMap)
 		if result.Found {
 			if val, ok := result.Value.(int64); ok {
-				if !reflect.DeepEqual(c.MetadataCache.TtlSecs, val) {
+				if c.MetadataCache.TtlSecs != val {
 					log.Printf(
 						"INFO: For flag '%s', value changed from %v to %v due to: %s",
 						"metadata-cache.ttl-secs",
@@ -207,7 +206,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 		result := getOptimizedValue(&rules, c.FileSystem.RenameDirLimit, profileName, machineType, machineTypeToGroupsMap)
 		if result.Found {
 			if val, ok := result.Value.(int64); ok {
-				if !reflect.DeepEqual(c.FileSystem.RenameDirLimit, val) {
+				if c.FileSystem.RenameDirLimit != val {
 					log.Printf(
 						"INFO: For flag '%s', value changed from %v to %v due to: %s",
 						"file-system.rename-dir-limit",
@@ -226,7 +225,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 		result := getOptimizedValue(&rules, c.MetadataCache.StatCacheMaxSizeMb, profileName, machineType, machineTypeToGroupsMap)
 		if result.Found {
 			if val, ok := result.Value.(int64); ok {
-				if !reflect.DeepEqual(c.MetadataCache.StatCacheMaxSizeMb, val) {
+				if c.MetadataCache.StatCacheMaxSizeMb != val {
 					log.Printf(
 						"INFO: For flag '%s', value changed from %v to %v due to: %s",
 						"metadata-cache.stat-cache-max-size-mb",
@@ -245,7 +244,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 		result := getOptimizedValue(&rules, c.MetadataCache.TypeCacheMaxSizeMb, profileName, machineType, machineTypeToGroupsMap)
 		if result.Found {
 			if val, ok := result.Value.(int64); ok {
-				if !reflect.DeepEqual(c.MetadataCache.TypeCacheMaxSizeMb, val) {
+				if c.MetadataCache.TypeCacheMaxSizeMb != val {
 					log.Printf(
 						"INFO: For flag '%s', value changed from %v to %v due to: %s",
 						"metadata-cache.type-cache-max-size-mb",
@@ -264,7 +263,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 		result := getOptimizedValue(&rules, c.Write.GlobalMaxBlocks, profileName, machineType, machineTypeToGroupsMap)
 		if result.Found {
 			if val, ok := result.Value.(int64); ok {
-				if !reflect.DeepEqual(c.Write.GlobalMaxBlocks, val) {
+				if c.Write.GlobalMaxBlocks != val {
 					log.Printf(
 						"INFO: For flag '%s', value changed from %v to %v due to: %s",
 						"write.global-max-blocks",
