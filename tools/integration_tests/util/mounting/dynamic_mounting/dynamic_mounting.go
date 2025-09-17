@@ -70,6 +70,24 @@ func runTestsOnGivenMountedTestBucket(bucketName string, flags [][]string, rootM
 	return
 }
 
+func executeTestsForDynamicMounting(config *test_suite.TestConfig, flagsSet [][]string, m *testing.M) (successCode int) {
+	rootMntDir := setup.MntDir()
+
+	// In dynamic mounting all the buckets mounted in mntDir which user has permission.
+	// mntDir - bucket1, bucket2, bucket3, ...
+
+	// SetDynamicBucketMounted to the passed test bucket.
+	setup.SetDynamicBucketMounted(config.TestBucket)
+	successCode = runTestsOnGivenMountedTestBucket(config.TestBucket, flagsSet, rootMntDir, m)
+
+	// Reset SetDynamicBucketMounted to empty after tests are done.
+	setup.SetDynamicBucketMounted("")
+
+	// Setting back the original mntDir after testing.
+	setup.SetMntDir(rootMntDir)
+	return
+}
+
 // Deprecated: Not required
 // TODO(b/438068132): cleanup deprecated methods after migration is complete.
 func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Client) (bucketName string, err error) {
@@ -108,24 +126,6 @@ func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Cli
 	if err := bucket.Create(ctx, projectID, storageClassAndLocation); err != nil {
 		return "", fmt.Errorf("failed to create bucket: %v", err)
 	}
-	return
-}
-
-func executeTestsForDynamicMounting(config *test_suite.TestConfig, flagsSet [][]string, m *testing.M) (successCode int) {
-	rootMntDir := setup.MntDir()
-
-	// In dynamic mounting all the buckets mounted in mntDir which user has permission.
-	// mntDir - bucket1, bucket2, bucket3, ...
-
-	// SetDynamicBucketMounted to the passed test bucket.
-	setup.SetDynamicBucketMounted(config.TestBucket)
-	successCode = runTestsOnGivenMountedTestBucket(config.TestBucket, flagsSet, rootMntDir, m)
-
-	// Reset SetDynamicBucketMounted to empty after tests are done.
-	setup.SetDynamicBucketMounted("")
-
-	// Setting back the original mntDir after testing.
-	setup.SetMntDir(rootMntDir)
 	return
 }
 
