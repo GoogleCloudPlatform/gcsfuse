@@ -135,7 +135,8 @@ func init() {
 	defaultLogger = defaultLoggerFactory.newLogger(cfg.INFO)
 }
 
-// SetLogFormat updates the log format of default logger.
+// SetLogFormat updates the log format of default logger to given format
+// and initializes the default logger with fsName and mountInstanceId
 func SetLogFormatAndFsName(format, fsName string) {
 	defaultLoggerFactory.format = format
 	MountFsName = fsName

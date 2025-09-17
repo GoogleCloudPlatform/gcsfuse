@@ -40,7 +40,9 @@ func gcsfuseConfigs(v *viper.Viper, cmd *cobra.Command, finalConfig cfg.Config) 
 			cliFlags[f.Name] = f.Value.String()
 		}
 	})
-	if os.Getenv(logger.GCSFuseInBackgroundMode) == "true" {
+	if _, ok := os.LookupEnv(logger.GCSFuseInBackgroundMode); ok {
+		// Do not display --foreground flag to the user in logs if user
+		// hasn't passed this flag and was added by gcsufse during demonized run.
 		delete(cliFlags, "foreground")
 	}
 	wrapperConfig["CliFlags"] = cliFlags
@@ -103,6 +105,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 				return
 			}
 		}
+
 		if cfgErr = v.Unmarshal(&configObj, viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
 			// By default, viper supports mapstructure tags for unmarshalling. Override that to support yaml tag.
 			decoderConfig.TagName = "yaml"
