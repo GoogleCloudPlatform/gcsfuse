@@ -17,6 +17,7 @@
 package cfg
 
 import (
+	"log"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
@@ -213,6 +214,12 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 		if result.Optimized {
 			if val, ok := result.FinalValue.(bool); ok {
 				if c.FileCache.CacheFileForRangeRead != val {
+					log.Printf(
+						"INFO: For flag '%s', value changed to %v due to: %s",
+						"file-cache.cache-file-for-range-read",
+						val,
+						result.OptimizationReason,
+					)
 					c.FileCache.CacheFileForRangeRead = val
 					optimizedFlags = append(optimizedFlags, "file-cache.cache-file-for-range-read")
 				}
@@ -225,6 +232,12 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 		if result.Optimized {
 			if val, ok := result.FinalValue.(bool); ok {
 				if c.ImplicitDirs != val {
+					log.Printf(
+						"INFO: For flag '%s', value changed to %v due to: %s",
+						"implicit-dirs",
+						val,
+						result.OptimizationReason,
+					)
 					c.ImplicitDirs = val
 					optimizedFlags = append(optimizedFlags, "implicit-dirs")
 				}
@@ -237,6 +250,12 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.FileSystem.KernelListCacheTtlSecs != val {
+					log.Printf(
+						"INFO: For flag '%s', value changed to %v due to: %s",
+						"file-system.kernel-list-cache-ttl-secs",
+						val,
+						result.OptimizationReason,
+					)
 					c.FileSystem.KernelListCacheTtlSecs = val
 					optimizedFlags = append(optimizedFlags, "file-system.kernel-list-cache-ttl-secs")
 				}
@@ -249,6 +268,12 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.NegativeTtlSecs != val {
+					log.Printf(
+						"INFO: For flag '%s', value changed to %v due to: %s",
+						"metadata-cache.negative-ttl-secs",
+						val,
+						result.OptimizationReason,
+					)
 					c.MetadataCache.NegativeTtlSecs = val
 					optimizedFlags = append(optimizedFlags, "metadata-cache.negative-ttl-secs")
 				}
@@ -261,6 +286,12 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.TtlSecs != val {
+					log.Printf(
+						"INFO: For flag '%s', value changed to %v due to: %s",
+						"metadata-cache.ttl-secs",
+						val,
+						result.OptimizationReason,
+					)
 					c.MetadataCache.TtlSecs = val
 					optimizedFlags = append(optimizedFlags, "metadata-cache.ttl-secs")
 				}
@@ -273,6 +304,12 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.FileSystem.RenameDirLimit != val {
+					log.Printf(
+						"INFO: For flag '%s', value changed to %v due to: %s",
+						"file-system.rename-dir-limit",
+						val,
+						result.OptimizationReason,
+					)
 					c.FileSystem.RenameDirLimit = val
 					optimizedFlags = append(optimizedFlags, "file-system.rename-dir-limit")
 				}
@@ -285,6 +322,12 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.StatCacheMaxSizeMb != val {
+					log.Printf(
+						"INFO: For flag '%s', value changed to %v due to: %s",
+						"metadata-cache.stat-cache-max-size-mb",
+						val,
+						result.OptimizationReason,
+					)
 					c.MetadataCache.StatCacheMaxSizeMb = val
 					optimizedFlags = append(optimizedFlags, "metadata-cache.stat-cache-max-size-mb")
 				}
@@ -297,6 +340,12 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.TypeCacheMaxSizeMb != val {
+					log.Printf(
+						"INFO: For flag '%s', value changed to %v due to: %s",
+						"metadata-cache.type-cache-max-size-mb",
+						val,
+						result.OptimizationReason,
+					)
 					c.MetadataCache.TypeCacheMaxSizeMb = val
 					optimizedFlags = append(optimizedFlags, "metadata-cache.type-cache-max-size-mb")
 				}
@@ -309,6 +358,12 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.Write.GlobalMaxBlocks != val {
+					log.Printf(
+						"INFO: For flag '%s', value changed to %v due to: %s",
+						"write.global-max-blocks",
+						val,
+						result.OptimizationReason,
+					)
 					c.Write.GlobalMaxBlocks = val
 					optimizedFlags = append(optimizedFlags, "write.global-max-blocks")
 				}
