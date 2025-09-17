@@ -116,8 +116,8 @@ func TestMoveFileWithDestFileExist(t *testing.T) {
 	srcFilePath := path.Join(testDir, fmt.Sprintf("%vmove1.txt", prefix))
 	destFilePath := path.Join(testDir, fmt.Sprintf("%vmove2.txt", prefix))
 	// Create the source and dest file with some content.
-	operations.CreateFileWithContent(srcFilePath, setup.FilePermission_0600, Content, t)
-	operations.CreateFileWithContent(destFilePath, setup.FilePermission_0600, "Hello from dest file", t)
+	operations.CreateFileWithContent(setup.IsZonalBucketRun(), srcFilePath, setup.FilePermission_0600, Content, t)
+	operations.CreateFileWithContent(setup.IsZonalBucketRun(), destFilePath, setup.FilePermission_0600, "Hello from dest file", t)
 
 	// Move the file.
 	err := operations.Move(srcFilePath, destFilePath)

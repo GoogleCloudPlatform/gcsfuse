@@ -28,7 +28,7 @@ func TestCopyFile(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 	fileName := path.Join(testDir, tempFileName)
 
-	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
+	operations.CreateFileWithContent(setup.IsZonalBucketRun(), fileName, setup.FilePermission_0600, Content, t)
 
 	content, err := operations.ReadFile(fileName)
 	if err != nil {

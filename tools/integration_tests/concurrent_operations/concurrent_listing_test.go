@@ -71,8 +71,8 @@ func createDirectoryStructureForTestCase(t *testing.T, testCaseDir string) {
 	// Create explicitDir structure
 	explicitDir := path.Join(testDirPath, testCaseDir, "explicitDir")
 	operations.CreateDirectory(explicitDir, t)
-	operations.CreateFileOfSize(5, path.Join(explicitDir, "file1.txt"), t)
-	operations.CreateFileOfSize(10, path.Join(explicitDir, "file2.txt"), t)
+	operations.CreateFileOfSize(setup.IsZonalBucketRun(), 5, path.Join(explicitDir, "file1.txt"), t)
+	operations.CreateFileOfSize(setup.IsZonalBucketRun(), 10, path.Join(explicitDir, "file2.txt"), t)
 }
 
 ////////////////////////////////////////////////////////////////////////

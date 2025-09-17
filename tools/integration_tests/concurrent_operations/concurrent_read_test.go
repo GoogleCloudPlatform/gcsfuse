@@ -74,7 +74,7 @@ func (s *concurrentReadTest) Test_ConcurrentSequentialAndRandomReads() {
 	)
 	// Create a 500MiB test file
 	testFilePath := path.Join(testDirPathForRead, "large_test_file.bin")
-	operations.CreateFileOfSize(fileSize, testFilePath, s.T())
+	operations.CreateFileOfSize(setup.IsZonalBucketRun(), fileSize, testFilePath, s.T())
 	var wg sync.WaitGroup
 	timeout := 300 * time.Second // 5 minutes timeout for 500MiB operations
 
@@ -140,7 +140,7 @@ func (s *concurrentReadTest) Test_ConcurrentSegmentReadsSharedHandle() {
 	)
 	// Create a 500MiB test file
 	testFilePath := path.Join(testDirPathForRead, "segment_test_file.bin")
-	operations.CreateFileOfSize(fileSize, testFilePath, s.T())
+	operations.CreateFileOfSize(setup.IsZonalBucketRun(), fileSize, testFilePath, s.T())
 	// Open shared file handle that will be used by all goroutines
 	sharedFile, err := os.Open(testFilePath)
 	require.NoError(s.T(), err, "Failed to open shared file handle")

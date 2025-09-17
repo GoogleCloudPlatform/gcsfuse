@@ -56,7 +56,7 @@ func (s *localModificationTest) TearDownTest() {
 
 func (s *localModificationTest) TestReadAfterLocalGCSFuseWriteIsCacheMiss() {
 	testFileName := testDirName + setup.GenerateRandomString(testFileNameSuffixLength)
-	operations.CreateFileOfSize(fileSize, path.Join(testDirPath, testFileName), s.T())
+	operations.CreateFileOfSize(setup.IsZonalBucketRun(), fileSize, path.Join(testDirPath, testFileName), s.T())
 
 	// Read file 1st time.
 	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, s.T())

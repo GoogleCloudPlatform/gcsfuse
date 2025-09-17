@@ -48,7 +48,7 @@ func (s *benchmarkStatTest) TeardownB(b *testing.B) {
 // createFilesToStat creates the below object in the bucket.
 // benchmarking/a.txt
 func createFilesToStat(b *testing.B) {
-	operations.CreateFileOfSize(1, path.Join(testDirPath, "a.txt"), b)
+	operations.CreateFileOfSize(setup.IsZonalBucketRun(), 1, path.Join(testDirPath, "a.txt"), b)
 }
 
 ////////////////////////////////////////////////////////////////////////

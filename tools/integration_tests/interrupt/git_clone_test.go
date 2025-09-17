@@ -161,7 +161,7 @@ func (s *ignoreInterruptsTest) TestGitCommitWithChanges() {
 	setGithubUserConfig()
 
 	filePath := path.Join(testDirPath, repoName, testFileName)
-	operations.CreateFileOfSize(util.MiB, filePath, s.T())
+	operations.CreateFileOfSize(setup.IsZonalBucketRun(), util.MiB, filePath, s.T())
 	output, err := gitAdd(filePath)
 	if err != nil {
 		s.T().Errorf("Git add failed: %s: %v", string(output), err)

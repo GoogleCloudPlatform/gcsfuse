@@ -66,7 +66,7 @@ func mountGCSFuseAndSetupTestDir(flags []string, testDirName string) {
 // benchmarking/a{i}.txt where i is a counter based on the benchtime value.
 func createFiles(b *testing.B) {
 	for i := range b.N {
-		operations.CreateFileOfSize(1, path.Join(testDirPath, fmt.Sprintf("a%d.txt", i)), b)
+		operations.CreateFileOfSize(setup.IsZonalBucketRun(), 1, path.Join(testDirPath, fmt.Sprintf("a%d.txt", i)), b)
 	}
 }
 

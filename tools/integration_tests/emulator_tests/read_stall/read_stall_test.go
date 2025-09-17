@@ -76,7 +76,7 @@ func (r *readStall) TearDownTest() {
 // It creates a file, reads the first byte, and asserts that the elapsed time is less than the expected stall duration.
 func (r *readStall) TestReadFirstByteStallInducedShouldCompleteInLessThanStallTime() {
 	filePath := path.Join(testDirPath, "file.txt")
-	operations.CreateFileOfSize(fileSize, filePath, r.T())
+	operations.CreateFileOfSize(setup.IsZonalBucketRun(), fileSize, filePath, r.T())
 
 	elapsedTime, err := emulator_tests.ReadFirstByte(r.T(), filePath)
 
