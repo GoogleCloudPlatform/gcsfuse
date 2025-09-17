@@ -308,11 +308,9 @@ func TestSetFlagValue_Bool(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	oldValue, newValue, err := setFlagValue(cfg, "implicit-dirs", flagOverride{newValue: true}, isSet)
+	err := setFlagValue(cfg, "implicit-dirs", flagOverride{newValue: true}, isSet)
 
 	require.NoError(t, err)
-	assert.Equal(t, oldValue, "false")
-	assert.Equal(t, newValue, "true")
 	assert.True(t, cfg.ImplicitDirs)
 }
 
@@ -320,32 +318,30 @@ func TestSetFlagValue_String(t *testing.T) {
 	cfg := &Config{}
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	oldValue, newValue, err := setFlagValue(cfg, "app-name", flagOverride{newValue: "optimal_gcsfuse"}, isSet)
+	err := setFlagValue(cfg, "app-name", flagOverride{newValue: "optimal_gcsfuse"}, isSet)
 
 	require.NoError(t, err)
-	assert.Equal(t, oldValue, "")
-	assert.Equal(t, newValue, "optimal_gcsfuse")
 	assert.Equal(t, "optimal_gcsfuse", cfg.AppName)
 }
 
-// func TestSetFlagValue_Int(t *testing.T) {
-// 	cfg := &Config{}
-// 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
+func TestSetFlagValue_Int(t *testing.T) {
+	cfg := &Config{}
+	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-// 	err := setFlagValue(cfg, "metadata-cache.stat-cache-max-size-mb", flagOverride{newValue: 1024}, isSet)
+	err := setFlagValue(cfg, "metadata-cache.stat-cache-max-size-mb", flagOverride{newValue: 1024}, isSet)
 
-// 	require.NoError(t, err)
-// 	assert.EqualValues(t, 1024, cfg.MetadataCache.StatCacheMaxSizeMb)
-// }
+	require.NoError(t, err)
+	assert.EqualValues(t, 1024, cfg.MetadataCache.StatCacheMaxSizeMb)
+}
 
-// func TestSetFlagValue_InvalidFlagName(t *testing.T) {
-// 	cfg := &Config{}
-// 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
+func TestSetFlagValue_InvalidFlagName(t *testing.T) {
+	cfg := &Config{}
+	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-// 	err := setFlagValue(cfg, "invalid-flag", flagOverride{newValue: true}, isSet)
+	err := setFlagValue(cfg, "invalid-flag", flagOverride{newValue: true}, isSet)
 
-// 	assert.Error(t, err)
-// }
+	assert.Error(t, err)
+}
 
 func TestApplyMachineTypeOptimizations_NoMachineTypes(t *testing.T) {
 	resetMetadataEndpoints(t)
@@ -376,27 +372,27 @@ func TestApplyMachineTypeOptimizations_NoMachineTypes(t *testing.T) {
 	assert.False(t, cfg.Write.EnableStreamingWrites)
 }
 
-// func TestOptimize_Success(t *testing.T) {
-// 	resetMetadataEndpoints(t)
-// 	// Create a test server that returns a matching machine type.
-// 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-// 		fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
-// 	})
-// 	defer closeTestServer(t, server)
-// 	// Override metadataEndpoints for testing.
-// 	metadataEndpoints = []string{server.URL}
-// 	cfg := &Config{}
-// 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
+func TestOptimize_Success(t *testing.T) {
+	resetMetadataEndpoints(t)
+	// Create a test server that returns a matching machine type.
+	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
+	})
+	defer closeTestServer(t, server)
+	// Override metadataEndpoints for testing.
+	metadataEndpoints = []string{server.URL}
+	cfg := &Config{}
+	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-// 	optimizedFlags := Optimize(cfg, isSet)
+	optimizedFlags := Optimize(cfg, isSet)
 
-// 	assert.True(t, isFlagPresent(optimizedFlags, "write.global-max-blocks"))
-// 	assert.EqualValues(t, 1600, cfg.Write.GlobalMaxBlocks)
-// 	assert.True(t, isFlagPresent(optimizedFlags, "metadata-cache.negative-ttl-secs"))
-// 	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
-// 	assert.EqualValues(t, -1, cfg.MetadataCache.TtlSecs)
-// 	assert.EqualValues(t, 1024, cfg.MetadataCache.StatCacheMaxSizeMb)
-// 	assert.EqualValues(t, 128, cfg.MetadataCache.TypeCacheMaxSizeMb)
-// 	assert.True(t, cfg.ImplicitDirs)
-// 	assert.EqualValues(t, 200000, cfg.FileSystem.RenameDirLimit)
-// }
+	assert.True(t, isFlagPresent(optimizedFlags, "write.global-max-blocks"))
+	assert.EqualValues(t, 1600, cfg.Write.GlobalMaxBlocks)
+	assert.True(t, isFlagPresent(optimizedFlags, "metadata-cache.negative-ttl-secs"))
+	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
+	assert.EqualValues(t, -1, cfg.MetadataCache.TtlSecs)
+	assert.EqualValues(t, 1024, cfg.MetadataCache.StatCacheMaxSizeMb)
+	assert.EqualValues(t, 128, cfg.MetadataCache.TypeCacheMaxSizeMb)
+	assert.True(t, cfg.ImplicitDirs)
+	assert.EqualValues(t, 200000, cfg.FileSystem.RenameDirLimit)
+}
