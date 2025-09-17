@@ -40,7 +40,6 @@ type OptimizationRulesMap = map[string]shared.OptimizationRules
 type templateData struct {
 	TypeTemplateData       []typeTemplateData
 	FlagTemplateData       []flagTemplateData
-	OptimizationRules      OptimizationRulesMap
 	MachineTypeToGroupsMap map[string][]string
 	// Back-ticks are not supported in templates. So, passing as a parameter.
 	Backticks string
@@ -85,20 +84,6 @@ func write(dataObj any, outputFile, templateFile string) (err error) {
 	return tmpl.Execute(outF, dataObj)
 }
 
-func getOptimizationRulesMap(params []Param) OptimizationRulesMap {
-	rulesMap := make(OptimizationRulesMap)
-	for _, param := range params {
-		if param.ConfigPath == "" {
-			// Ignoring deprecated or badly defined params.
-			continue
-		}
-		if param.Optimizations != nil {
-			rulesMap[param.ConfigPath] = *param.Optimizations
-		}
-	}
-	return rulesMap
-}
-
 // invertMachineTypeGroups takes the parsed map of group->machines
 // and returns a map of machine->groups.
 func invertMachineTypeGroups(groups map[string][]string) map[string][]string {
@@ -141,15 +126,12 @@ func main() {
 		return cmp.Compare(i.FlagName, j.FlagName)
 	})
 
-	optimizationRulesMap := getOptimizationRulesMap(paramsYAML.Params)
-
 	// Create a map from given machine type to all the machine type groups that it belongs to.
 	machineTypeToGroupsMap := invertMachineTypeGroups(paramsYAML.MachineTypeGroups)
 
 	err = write(templateData{
 		FlagTemplateData:       fd,
 		TypeTemplateData:       td,
-		OptimizationRules:      optimizationRulesMap,
 		MachineTypeToGroupsMap: machineTypeToGroupsMap,
 		Backticks:              "`",
 	},

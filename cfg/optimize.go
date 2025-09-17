@@ -22,7 +22,7 @@ import (
 	"time"
 	"unicode"
 
-	. "github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -312,7 +312,7 @@ func isFlagPresent(flags []string, flag string) bool {
 
 // getOptimizedValue contains the generic logic to determine the optimized value for a flag.
 func getOptimizedValue(
-	rules *OptimizationRules,
+	rules *shared.OptimizationRules,
 	currentValue any,
 	profileName string,
 	machineType string,
