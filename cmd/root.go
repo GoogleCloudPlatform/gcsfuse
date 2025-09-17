@@ -32,6 +32,36 @@ import (
 
 type mountFn func(c *cfg.Config, bucketName, mountPoint string) error
 
+// pflagAsIsValueSet is an adapter that makes a pflag.FlagSet satisfy the
+// cfg.isValueSet interface, allowing us to check for user-set flags reliably.
+type pflagAsIsValueSet struct {
+	fs *pflag.FlagSet
+}
+
+// IsSet correctly checks if a flag was set by the user on the command line.
+func (p *pflagAsIsValueSet) IsSet(name string) bool {
+	// The pflag.Changed method is the reliable way to check this.
+	return p.fs.Changed(name)
+}
+
+// GetString is required to satisfy the interface used by getMachineType.
+func (p *pflagAsIsValueSet) GetString(name string) string {
+	val, err := p.fs.GetString(name)
+	if err != nil {
+		return ""
+	}
+	return val
+}
+
+// GetBool is required to satisfy the interface.
+func (p *pflagAsIsValueSet) GetBool(name string) bool {
+	val, err := p.fs.GetBool(name)
+	if err != nil {
+		return false
+	}
+	return val
+}
+
 // newRootCmd accepts the mountFn that it executes with the parsed configuration
 func newRootCmd(m mountFn) (*cobra.Command, error) {
 	var (
@@ -88,7 +118,8 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 			return
 		}
 
-		optimizedFlags := configObj.ApplyOptimizations(v)
+		isSet := &pflagAsIsValueSet{fs: rootCmd.PersistentFlags()}
+		optimizedFlags := configObj.ApplyOptimizations(isSet)
 		if len(optimizedFlags) > 0 {
 			// Sort the flags for deterministic log output.
 			sort.Strings(optimizedFlags)
