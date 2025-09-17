@@ -16,7 +16,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"reflect"
 	"slices"
 	"strings"
@@ -311,48 +310,22 @@ func isFlagPresent(flags []string, flag string) bool {
 	return slices.Contains(flags, flag)
 }
 
-// detectGKEEnvironment checks for environment variables to detect if running in GKE.
-func detectGKEEnvironment() string {
-	if os.Getenv("KUBERNETES_SERVICE_HOST") != "" {
-		return "gke"
-	}
-	return "default"
-}
-
 // getOptimizedValue contains the generic logic to determine the optimized value for a flag.
 func getOptimizedValue(
 	rules *OptimizationRules,
 	currentValue any,
 	profileName string,
 	machineType string,
-	envName string,
 	machineTypeToGroupsMap map[string][]string,
 ) OptimizationResult {
 	// Precedence: Profile -> Machine -> Default
 	// 1. Check for a profile-based optimization.
 	for _, p := range rules.Profiles {
 		if p.Name == profileName {
-			var defaultVal any
-			defaultFound := false
-			for _, e := range p.Environments {
-				if e.Name == envName {
-					return OptimizationResult{
-						Value:  e.Value,
-						Reason: fmt.Sprintf("profile %q with environment %q", profileName, envName),
-						Found:  true,
-					}
-				}
-				if e.Name == "default" {
-					defaultVal = e.Value
-					defaultFound = true
-				}
-			}
-			if defaultFound {
-				return OptimizationResult{
-					Value:  defaultVal,
-					Reason: fmt.Sprintf("profile %q with default environment setting", profileName),
-					Found:  true,
-				}
+			return OptimizationResult{
+				Value:  p.Value,
+				Reason: fmt.Sprintf("profile %q setting", profileName),
+				Found:  true,
 			}
 		}
 	}

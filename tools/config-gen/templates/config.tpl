@@ -47,14 +47,7 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{
 			{{- range .Optimizations.Profiles }}
 			{
 				Name: "{{ .Name }}",
-				Environments: []shared.EnvironmentOptimization{
-					{{- range .Environments }}
-					{
-						Name:  "{{ .Name }}",
-						Value: {{$goType}}({{ formatValue .Value }}),
-					},
-					{{- end }}
-				},
+				Value: {{$goType}}({{ formatValue .Value }}),
 			},
 			{{- end }}
 		},
@@ -84,7 +77,6 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 	}
 
 	profileName := c.Profile
-	envName := detectGKEEnvironment()
 	machineType, err := getMachineType(isSet)
 	if err != nil {
 		// Non-fatal, just means machine-based optimizations won't apply.
@@ -97,7 +89,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 {{- if .Optimizations }}
 	if !isSet.IsSet("{{ .FlagName }}") {
 		rules := AllFlagOptimizationRules["{{ .ConfigPath }}"]
-		result := getOptimizedValue(&rules, c.{{ .GoPath }}, profileName, machineType, envName, machineTypeToGroupsMap)
+		result := getOptimizedValue(&rules, c.{{ .GoPath }}, profileName, machineType, machineTypeToGroupsMap)
 		if result.Found {
 			if val, ok := result.Value.({{ .GoType }}); ok {
 				if !reflect.DeepEqual(c.{{ .GoPath }}, val) {
