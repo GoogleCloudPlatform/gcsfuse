@@ -30,10 +30,10 @@ import (
 	"github.com/spf13/viper"
 )
 
-// getGcsfuseConfigs logs the configuration values provided by the user in CLI flags, config file
-// and optimizations performed on various flags for high performance machine types.
-func getGcsfuseConfigs(v *viper.Viper, cmd *cobra.Command, optimizedFlags map[string]interface{}) map[string]interface{} {
-	configWrapper := make(map[string]interface{})
+// gcsfuseConfigs provides the configuration values provided by the user in CLI flags,
+// config file and full gcsfuse config in a wrapper config.
+func gcsfuseConfigs(v *viper.Viper, cmd *cobra.Command, finalConfig cfg.Config) map[string]interface{} {
+	wrapperConfig := make(map[string]interface{})
 	cliFlags := make(map[string]interface{})
 	cmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
 		if f.Changed {
@@ -43,21 +43,19 @@ func getGcsfuseConfigs(v *viper.Viper, cmd *cobra.Command, optimizedFlags map[st
 	if os.Getenv(logger.GCSFuseInBackgroundMode) == "true" {
 		delete(cliFlags, "foreground")
 	}
-	configWrapper["cli"] = cliFlags
+	wrapperConfig["CliFlags"] = cliFlags
 	if v.ConfigFileUsed() != "" {
 		configFileViper := viper.New()
 		configFileViper.SetConfigFile(v.ConfigFileUsed())
 		configFileViper.SetConfigType("yaml")
 		if err := configFileViper.ReadInConfig(); err == nil {
-			configWrapper["config"] = configFileViper.AllSettings()
+			wrapperConfig["ConfigFileFlags"] = configFileViper.AllSettings()
 		} else {
 			log.Printf("Unable to read config file. Error: %v, Config file flags logging skipped", err)
 		}
 	}
-	if len(optimizedFlags) > 0 {
-		configWrapper["optimizations"] = optimizedFlags
-	}
-	return configWrapper
+	wrapperConfig["FinalConfig"] = finalConfig
+	return wrapperConfig
 }
 
 type mountFn func(c *cfg.Config, wc map[string]interface{}, bucketName, mountPoint string) error
@@ -123,8 +121,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 		if cfgErr = cfg.Rationalize(v, &configObj, optimizedFlags); cfgErr != nil {
 			return
 		}
-		wrapperConfig = getGcsfuseConfigs(v, rootCmd, optimizedFlags)
-		wrapperConfig["gcsfuse"] = configObj
+		wrapperConfig = gcsfuseConfigs(v, rootCmd, configObj)
 	}
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringVar(&cfgFile, cfg.ConfigFileFlagName, "", "The path to the config file where all gcsfuse related config needs to be specified. "+

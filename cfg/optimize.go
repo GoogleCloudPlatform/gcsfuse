@@ -193,14 +193,14 @@ func applyMachineTypeOptimizations(config *optimizationConfig, cfg *Config, isSe
 
 	// Apply all overrides from the set.
 	for flag, override := range flgOverrideSet.overrides {
-		change, err := setFlagValue(cfg, flag, override, isSet)
-		if err == nil && change != "" {
+		oldValue, newValue, err := setFlagValue(cfg, flag, override, isSet)
+		if err == nil && oldValue != "" && newValue != "" {
 			// Split the flag name into parts to create a json like structure.
 			parts := strings.Split(flag, ".")
 			parent := optimizedFlags
 			for i := 0; i < len(parts); i++ {
 				if i == len(parts)-1 {
-					parent[parts[i]] = change
+					parent[parts[i]] = fmt.Sprintf("from %v to %v", oldValue, newValue)
 				} else {
 					if _, ok := parent[parts[i]]; !ok {
 						parent[parts[i]] = make(map[string]interface{})
@@ -245,11 +245,12 @@ func convertToCamelCase(input string) string {
 }
 
 // setFlagValue uses reflection to set the value of a flag in ServerConfig.
-func setFlagValue(cfg *Config, flag string, override flagOverride, isSet isValueSet) (string, error) {
+// It returns the oldValue and newValue of the flaga along with error if any.
+func setFlagValue(cfg *Config, flag string, override flagOverride, isSet isValueSet) (string, string, error) {
 	// Split the flag name into parts to traverse nested structs.
 	parts := strings.Split(flag, ".")
 	if len(parts) == 0 {
-		return "", fmt.Errorf("invalid flag name: %s", flag)
+		return "", "", fmt.Errorf("invalid flag name: %s", flag)
 	}
 
 	// Start with the Config.
@@ -259,19 +260,19 @@ func setFlagValue(cfg *Config, flag string, override flagOverride, isSet isValue
 	for _, part := range parts {
 		field = v.FieldByName(convertToCamelCase(part))
 		if !field.IsValid() {
-			return "", fmt.Errorf("invalid flag name: %s", flag)
+			return "", "", fmt.Errorf("invalid flag name: %s", flag)
 		}
 		v = field
 	}
 
 	// Check if the field exists.
 	if !field.IsValid() {
-		return "", fmt.Errorf("invalid flag name: %s", flag)
+		return "", "", fmt.Errorf("invalid flag name: %s", flag)
 	}
 
 	// Check if the field is settable.
 	if !field.CanSet() {
-		return "", fmt.Errorf("cannot set flag: %s", flag)
+		return "", "", fmt.Errorf("cannot set flag: %s", flag)
 	}
 
 	// Construct the full flag name for IsSet check.
@@ -288,26 +289,26 @@ func setFlagValue(cfg *Config, flag string, override flagOverride, isSet isValue
 		case reflect.Bool:
 			boolValue, ok := override.newValue.(bool)
 			if !ok {
-				return "", fmt.Errorf("invalid boolean value for flag %s: %v", flag, override.newValue)
+				return "", "", fmt.Errorf("invalid boolean value for flag %s: %v", flag, override.newValue)
 			}
 			field.SetBool(boolValue)
 		case reflect.Int, reflect.Int64:
 			intValue, ok := override.newValue.(int)
 			if !ok {
-				return "", fmt.Errorf("invalid integer value for flag %s: %v", flag, override.newValue)
+				return "", "", fmt.Errorf("invalid integer value for flag %s: %v", flag, override.newValue)
 			}
 			field.SetInt(int64(intValue))
 		case reflect.String:
 			stringValue, ok := override.newValue.(string)
 			if !ok {
-				return "", fmt.Errorf("invalid string value for flag %s: %v", flag, override.newValue)
+				return "", "", fmt.Errorf("invalid string value for flag %s: %v", flag, override.newValue)
 			}
 			field.SetString(stringValue)
 		default:
-			return "", fmt.Errorf("unsupported flag type for flag %s", flag)
+			return "", "", fmt.Errorf("unsupported flag type for flag %s", flag)
 		}
-		return fmt.Sprintf("from %v to %v", oldValue, override.newValue), nil
+		return fmt.Sprintf("%v", oldValue), fmt.Sprintf("%v", override.newValue), nil
 	}
 
-	return "", nil
+	return "", "", fmt.Errorf("flag %s has already been set by user", flag)
 }
