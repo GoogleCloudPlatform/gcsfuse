@@ -28,36 +28,39 @@ import (
 
 // AllFlagOptimizationRules is the generated map from a flag's config-path to its specific rules.
 var AllFlagOptimizationRules = map[string]shared.OptimizationRules{
-{{- range $configPath, $rules := .OptimizationRules }}
-	"{{ $configPath }}": {
-		{{- if .MachineBasedOptimization }}
-		MachineBasedOptimization: []shared.MachineBasedOptimization {
-			{{- range .MachineBasedOptimization }}
-				{
-					Group: "{{ .Group }}",
-					Value: {{ .Value }},
-				},
+{{- range .FlagTemplateData }}
+	{{- if .Optimizations }}
+	{{- $goType := .GoType -}}
+	"{{ .ConfigPath }}": {
+		{{- if .Optimizations.MachineBasedOptimization }}
+		MachineBasedOptimization: []shared.MachineBasedOptimization{
+			{{- range .Optimizations.MachineBasedOptimization }}
+			{
+				Group: "{{ .Group }}",
+				Value: {{$goType}}({{ formatValue .Value }}),
+			},
 			{{- end }}
 		},
-		{{- end}}
-		{{- if .Profiles }}
-		Profiles: []shared.ProfileOptimization {
-			{{- range .Profiles }}
-				{
-					Name: "{{ .Name }}",
-					Environments: []shared.EnvironmentOptimization {
+		{{- end }}
+		{{- if .Optimizations.Profiles }}
+		Profiles: []shared.ProfileOptimization{
+			{{- range .Optimizations.Profiles }}
+			{
+				Name: "{{ .Name }}",
+				Environments: []shared.EnvironmentOptimization{
 					{{- range .Environments }}
-						{
-							Name:  "{{ .Name }}",
-							Value: {{ .Value }},
-						},
-					{{- end }}
+					{
+						Name:  "{{ .Name }}",
+						Value: {{$goType}}({{ formatValue .Value }}),
 					},
+					{{- end }}
 				},
+			},
 			{{- end }}
 		},
 		{{- end }}
 	},
+	{{- end }}
 {{- end }}
 }
 

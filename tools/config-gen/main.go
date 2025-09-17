@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"reflect"
 	"slices"
 	"text/template" // NOLINT
 
@@ -71,10 +72,14 @@ func write(dataObj any, outputFile, templateFile string) (err error) {
 			err = closeErr
 		}
 	}()
+	// Define the custom function map.
+	funcMap := template.FuncMap{
+		"formatValue": formatValue,
+	}
 
 	file := path.Base(templateFile)
 	var tmpl *template.Template
-	if tmpl, err = template.New(file).ParseFiles(templateFile); err != nil {
+	if tmpl, err = template.New(file).Funcs(funcMap).ParseFiles(templateFile); err != nil {
 		return err
 	}
 	return tmpl.Execute(outF, dataObj)
@@ -153,5 +158,18 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+}
 
+// formatValue is a custom template function that correctly formats values for Go code.
+// It adds quotes to strings and leaves other types as-is.
+func formatValue(v any) string {
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.String:
+		// Use %q to safely quote strings, e.g., "my-string"
+		return fmt.Sprintf("%q", v)
+	default:
+		// Use %v for other types like int, bool, etc.
+		return fmt.Sprintf("%v", v)
+	}
 }
