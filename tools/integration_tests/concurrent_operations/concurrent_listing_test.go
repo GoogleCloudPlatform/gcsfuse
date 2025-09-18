@@ -383,6 +383,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileEdit() {
 			// Create file
 			err := os.WriteFile(filePath, []byte("Hello, world!"), setup.FilePermission_0600)
 			require.Nil(s.T(), err)
+			time.Sleep(time.Second)
 
 			// Edit file (append some data)
 			f, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, setup.FilePermission_0600)
@@ -444,6 +445,7 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations() {
 			// Create file
 			err := os.WriteFile(filePath, []byte("Hello, world!"), setup.FilePermission_0600)
 			require.Nil(s.T(), err)
+			time.Sleep(time.Second)
 
 			// Edit file (append some data)
 			f, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, setup.FilePermission_0600)
