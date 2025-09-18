@@ -39,7 +39,7 @@ const (
 	GCSFuseMountInstanceIdEnvKey string = "GCSFUSE_MOUNT_INSTANCE_ID"
 	textFormat                   string = "text"
 	mountLoggerIdKey             string = "mount_id"
-	mountDefaultInstanceId       string = "00000000"
+	defaultMountInstanceId       string = "00000000"
 )
 
 var (
@@ -104,28 +104,38 @@ func InitLogFile(newLogConfig cfg.LoggingConfig) error {
 	return nil
 }
 
-// init initializes the logger factory to use stdout and stderr.
+// init runs only once at package initialization.
 func init() {
-	logConfig := cfg.DefaultLoggingConfig()
+	setupMountInstanceID()
+	initializeDefaultLogger()
+}
 
-	// Generate or get mount logger Id for logger attribute if running in background mode.
+// setupMountInstanceID handles the retrieves the MountInstanceId if GCSFuse is in
+// background mode or generates one if running in foreground mode.
+func setupMountInstanceID() {
 	if _, ok := os.LookupEnv(GCSFuseInBackgroundMode); ok {
-		if parentMountLoggerId, ok := os.LookupEnv(GCSFuseMountInstanceIdEnvKey); ok && parentMountLoggerId != "" {
-			MountInstanceId = parentMountLoggerId
+		// If GCSFuse is in background mode then look for the MountInstanceId in env which was set by the caller of demonize run.
+		if parentMountInstanceId, ok := os.LookupEnv(GCSFuseMountInstanceIdEnvKey); ok && parentMountInstanceId != "" {
+			MountInstanceId = parentMountInstanceId
 		} else {
-			MountInstanceId = mountDefaultInstanceId
-			log.Printf("Could not retrieve %s env variable. Using default: %v", GCSFuseMountInstanceIdEnvKey, mountDefaultInstanceId)
+			MountInstanceId = defaultMountInstanceId
+			log.Printf("Could not retrieve %s env variable. Using default: %v", GCSFuseMountInstanceIdEnvKey, defaultMountInstanceId)
 		}
-	} else {
-		uuid, err := uuid.NewRandom()
-		if err == nil && uuid.String() != "" {
-			MountInstanceId = uuid.String()[:8]
-		} else {
-			MountInstanceId = mountDefaultInstanceId
-			log.Printf("Could not generate random UUID for logger, err %v. using default: %v", err, mountDefaultInstanceId)
-		}
+		return
 	}
+	// If GCSFuse is not running in the background mode then generate a random UUID and store the trimmed UUID as MountInstanceId.
+	uuid, err := uuid.NewRandom()
+	if err == nil {
+		MountInstanceId = uuid.String()[:8]
+	} else {
+		MountInstanceId = defaultMountInstanceId
+		log.Printf("Could not generate random UUID for logger, err %v. using default: %v", err, defaultMountInstanceId)
+	}
+}
 
+// initializeDefaultLogger initializes the logger factory to use stdout and stderr.
+func initializeDefaultLogger() {
+	logConfig := cfg.DefaultLoggingConfig()
 	defaultLoggerFactory = &loggerFactory{
 		file:      nil,
 		format:    logConfig.Format,

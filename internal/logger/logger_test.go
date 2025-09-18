@@ -16,9 +16,11 @@ package logger
 
 import (
 	"bytes"
+	"fmt"
 	"log/slog"
 	"os"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -27,17 +29,17 @@ import (
 )
 
 const (
-	textTraceString   = "^time=\"[a-zA-Z0-9/:. ]{26}\" severity=TRACE message=\"TestLogs: www.traceExample.com\""
-	textDebugString   = "^time=\"[a-zA-Z0-9/:. ]{26}\" severity=DEBUG message=\"TestLogs: www.debugExample.com\""
-	textInfoString    = "^time=\"[a-zA-Z0-9/:. ]{26}\" severity=INFO message=\"TestLogs: www.infoExample.com\""
-	textWarningString = "^time=\"[a-zA-Z0-9/:. ]{26}\" severity=WARNING message=\"TestLogs: www.warningExample.com\""
-	textErrorString   = "^time=\"[a-zA-Z0-9/:. ]{26}\" severity=ERROR message=\"TestLogs: www.errorExample.com\""
+	textTraceString   = "^time=\"[a-zA-Z0-9/:. ]{26}\" severity=TRACE message=\"TestLogs: www.traceExample.com\" mount_id=[a-zA-Z0-9-]+\\s*$"
+	textDebugString   = "^time=\"[a-zA-Z0-9/:. ]{26}\" severity=DEBUG message=\"TestLogs: www.debugExample.com\" mount_id=[a-zA-Z0-9-]+\\s*$"
+	textInfoString    = "^time=\"[a-zA-Z0-9/:. ]{26}\" severity=INFO message=\"TestLogs: www.infoExample.com\" mount_id=[a-zA-Z0-9-]+\\s*$"
+	textWarningString = "^time=\"[a-zA-Z0-9/:. ]{26}\" severity=WARNING message=\"TestLogs: www.warningExample.com\" mount_id=[a-zA-Z0-9-]+\\s*$"
+	textErrorString   = "^time=\"[a-zA-Z0-9/:. ]{26}\" severity=ERROR message=\"TestLogs: www.errorExample.com\" mount_id=[a-zA-Z0-9-]+\\s*$"
 
-	jsonTraceString   = "^{\"timestamp\":{\"seconds\":\\d{10},\"nanos\":\\d{0,9}},\"severity\":\"TRACE\",\"message\":\"TestLogs: www.traceExample.com\"}"
-	jsonDebugString   = "^{\"timestamp\":{\"seconds\":\\d{10},\"nanos\":\\d{0,9}},\"severity\":\"DEBUG\",\"message\":\"TestLogs: www.debugExample.com\"}"
-	jsonInfoString    = "^{\"timestamp\":{\"seconds\":\\d{10},\"nanos\":\\d{0,9}},\"severity\":\"INFO\",\"message\":\"TestLogs: www.infoExample.com\"}"
-	jsonWarningString = "^{\"timestamp\":{\"seconds\":\\d{10},\"nanos\":\\d{0,9}},\"severity\":\"WARNING\",\"message\":\"TestLogs: www.warningExample.com\"}"
-	jsonErrorString   = "^{\"timestamp\":{\"seconds\":\\d{10},\"nanos\":\\d{0,9}},\"severity\":\"ERROR\",\"message\":\"TestLogs: www.errorExample.com\"}"
+	jsonTraceString   = "^{\"timestamp\":{\"seconds\":\\d{10},\"nanos\":\\d{0,9}},\"severity\":\"TRACE\",\"message\":\"TestLogs: www.traceExample.com\",\"mount_id\":\"[a-zA-Z0-9-]+\"}\\s*$"
+	jsonDebugString   = "^{\"timestamp\":{\"seconds\":\\d{10},\"nanos\":\\d{0,9}},\"severity\":\"DEBUG\",\"message\":\"TestLogs: www.debugExample.com\",\"mount_id\":\"[a-zA-Z0-9-]+\"}\\s*$"
+	jsonInfoString    = "^{\"timestamp\":{\"seconds\":\\d{10},\"nanos\":\\d{0,9}},\"severity\":\"INFO\",\"message\":\"TestLogs: www.infoExample.com\",\"mount_id\":\"[a-zA-Z0-9-]+\"}\\s*$"
+	jsonWarningString = "^{\"timestamp\":{\"seconds\":\\d{10},\"nanos\":\\d{0,9}},\"severity\":\"WARNING\",\"message\":\"TestLogs: www.warningExample.com\",\"mount_id\":\"[a-zA-Z0-9-]+\"}\\s*$"
+	jsonErrorString   = "^{\"timestamp\":{\"seconds\":\\d{10},\"nanos\":\\d{0,9}},\"severity\":\"ERROR\",\"message\":\"TestLogs: www.errorExample.com\",\"mount_id\":\"[a-zA-Z0-9-]+\"}\\s*$"
 )
 
 type LoggerTest struct {
@@ -54,9 +56,10 @@ func TestLoggerSuite(t *testing.T) {
 
 func redirectLogsToGivenBuffer(buf *bytes.Buffer, level string) {
 	var programLevel = new(slog.LevelVar)
-	defaultLogger = slog.New(
-		defaultLoggerFactory.createJsonOrTextHandler(buf, programLevel, "TestLogs: "),
-	)
+	handler := defaultLoggerFactory.createJsonOrTextHandler(buf, programLevel, "TestLogs: ")
+	handler = handler.WithAttrs([]slog.Attr{slog.String(mountLoggerIdKey,
+		fmt.Sprintf("%s-%s", MountFsName, MountInstanceId))})
+	defaultLogger = slog.New(handler)
 	setLoggingLevel(level, programLevel)
 }
 
@@ -114,7 +117,6 @@ func validateLogOutputAtSpecifiedFormatAndSeverity(t *testing.T, format string, 
 	defaultLoggerFactory.format = format
 
 	output := fetchLogOutputForSpecifiedSeverityLevel(level, getTestLoggingFunctions())
-
 	validateOutput(t, expectedOutput, output)
 }
 
@@ -297,7 +299,7 @@ func (t *LoggerTest) TestInitLogFile() {
 	assert.True(t.T(), defaultLoggerFactory.logRotate.Compress)
 }
 
-func (t *LoggerTest) TestSetLogFormatToText() {
+func (t *LoggerTest) TestSetLogFormatAndFsName() {
 	logConfig := cfg.DefaultLoggingConfig()
 	defaultLoggerFactory = &loggerFactory{
 		file:      nil,
@@ -307,24 +309,28 @@ func (t *LoggerTest) TestSetLogFormatToText() {
 
 	testData := []struct {
 		format         string
+		fsName         string
 		expectedOutput string
 	}{
 		{
 			"text",
+			"gcsfuse",
 			textInfoString,
 		},
 		{
 			"json",
+			"my-bucket",
 			jsonInfoString,
 		},
 		{
 			"",
+			"my-other-bucket",
 			jsonInfoString,
 		},
 	}
 
 	for _, test := range testData {
-		SetLogFormatAndFsName(test.format, "gcsfuse")
+		SetLogFormatAndFsName(test.format, test.fsName)
 
 		assert.NotNil(t.T(), defaultLoggerFactory)
 		assert.NotNil(t.T(), defaultLogger)
@@ -337,5 +343,74 @@ func (t *LoggerTest) TestSetLogFormatToText() {
 		// Compare expected and actual log.
 		expectedRegexp := regexp.MustCompile(test.expectedOutput)
 		assert.True(t.T(), expectedRegexp.MatchString(output))
+		assert.True(t.T(), strings.Contains(output, test.fsName))
+	}
+}
+
+func (t *LoggerTest) TestSetLogFormatAndFsNameWithBackgroundMode() {
+	logConfig := cfg.DefaultLoggingConfig()
+	defaultLoggerFactory = &loggerFactory{
+		file:      nil,
+		level:     string(logConfig.Severity), // setting log level to INFO by default
+		logRotate: logConfig.LogRotate,
+	}
+
+	testData := []struct {
+		name               string
+		instanceIdSet      bool
+		expectedInstanceId string
+		fsName             string
+		format             string
+		expectedOutput     string
+	}{
+		{
+			"MountInstanceIdSet",
+			true,
+			"12121212",
+			"my-bucket",
+			"json",
+			jsonInfoString,
+		},
+		{
+			"MountInstanceIdNotSet",
+			false,
+			defaultMountInstanceId,
+			"gcsfuse",
+			"text",
+			textInfoString,
+		},
+	}
+
+	for _, test := range testData {
+		t.T().Run(test.name, func(t *testing.T) {
+			os.Setenv(GCSFuseInBackgroundMode, "true")
+			if test.instanceIdSet {
+				err := os.Setenv(GCSFuseMountInstanceIdEnvKey, test.expectedInstanceId)
+				if err != nil {
+					t.Fatalf("Unable to set env, err: %v", err)
+				}
+			} else {
+				err := os.Unsetenv(GCSFuseMountInstanceIdEnvKey)
+				if err != nil {
+					t.Fatalf("Unable to unset env, err: %v", err)
+				}
+			}
+			setupMountInstanceID()
+			initializeDefaultLogger()
+			SetLogFormatAndFsName(test.format, test.fsName)
+			assert.NotNil(t, defaultLoggerFactory)
+			assert.NotNil(t, defaultLogger)
+
+			// Create a logger using defaultLoggerFactory that writes to buffer.
+			var buf bytes.Buffer
+			redirectLogsToGivenBuffer(&buf, defaultLoggerFactory.level)
+			Info("www.infoExample.com")
+			output := buf.String()
+
+			// Compare expected and actual log.
+			expectedRegexp := regexp.MustCompile(test.expectedOutput)
+			assert.True(t, expectedRegexp.MatchString(output))
+			assert.True(t, strings.Contains(output, fmt.Sprintf("%s-%s", test.fsName, test.expectedInstanceId)))
+		})
 	}
 }
