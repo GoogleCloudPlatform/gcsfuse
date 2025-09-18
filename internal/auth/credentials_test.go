@@ -122,7 +122,6 @@ func TestCredentialsPropertyFunc(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Arrange
 			// Create a function that matches the test case's behavior.
 			wrappedFunc := func(ctx context.Context) (string, error) {
 				return tc.propertyValue, tc.expectedError
