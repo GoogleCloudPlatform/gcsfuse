@@ -28,9 +28,6 @@ import (
 )
 
 func TestWriteToSameFileConcurrently(t *testing.T) {
-	if setup.IsZonalBucketRun() {
-		t.Skip("Skipping tests related to concurrent mutation of same object for ZB")
-	}
 	// Setup Test directory and files to write to.
 	seqWriteDir := setup.SetupTestDirectory(DirForSeqWrite)
 	mountedDirFilePath := path.Join(seqWriteDir, setup.GenerateRandomString(5))

@@ -260,6 +260,7 @@ func WriteChunkOfRandomBytesToFiles(files []*os.File, chunkSize int, offset int6
 		if err != nil {
 			return fmt.Errorf("error in syncing file: %v", err)
 		}
+		WaitForSizeUpdate(setup.IsZonalBucketRun(), time.Minute)
 	}
 
 	return nil

@@ -153,7 +153,7 @@ func (t *SingleMountAppendsSuite) TestAppendsToFinalizedObjectNotVisibleUntilClo
 
 			t.fileName = fileNamePrefix + setup.GenerateRandomString(5)
 			// Create Finalized Object in the GCS bucket.
-			client.CreateObjectInGCSTestDir(
+			client.CreateFinalizedObjectInGCSTestDir(
 				ctx, storageClient, testDirName, t.fileName, initialContent, t.T())
 
 			// Append to the finalized object from the primary mount.
