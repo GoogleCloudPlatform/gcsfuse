@@ -59,8 +59,12 @@ const (
 // blockQueueEntry holds a data block with a function
 // to cancel its in-flight download.
 type blockQueueEntry struct {
-	block  block.PrefetchBlock
+	block block.PrefetchBlock
+	// cancel is the function to cancel the in-flight download of the block.
 	cancel context.CancelFunc
+	// prefetchTriggered tracks whether this block has already triggered the
+	// prefetching of the next set of blocks.
+	prefetchTriggered bool
 }
 
 // Size returns the size of the block in bytes.
@@ -388,8 +392,6 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		return resp, err
 	}
 
-	prefetchTriggered := false
-
 	for bytesRead < len(inputBuf) {
 		// Check if the required block is in the retired cache.
 		blockIndex := off / p.config.PrefetchBlockSizeBytes
@@ -432,10 +434,16 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 				p.metricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
 				return resp, gcsx.FallbackToAnotherReader
 			}
-			prefetchTriggered = true
 		}
 
 		entry := p.blockQueue.Peek()
+
+		// Proactively trigger the next prefetch as soon as we start processing a
+		// block, ensuring the pipeline stays full.
+		if !entry.prefetchTriggered {
+			p.prefetch()
+			entry.prefetchTriggered = true
+		}
 		p.mu.Unlock() // Release lock before waiting for download.
 
 		status, waitErr := entry.block.AwaitReady(ctx)
@@ -488,13 +496,6 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		if off >= blk.AbsStartOff()+blk.Size() {
 			entry := p.blockQueue.Pop()
 			p.retireBlock(entry)
-
-			if !prefetchTriggered {
-				prefetchTriggered = true
-				if pfErr := p.prefetch(); pfErr != nil {
-					logger.Warnf("BufferedReader.ReadAt: while prefetching: %v", pfErr)
-				}
-			}
 		}
 	}
 
@@ -607,8 +608,9 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockInde
 
 	logger.Infof("Scheduling block: (%s, %d, %t).", p.object.Name, blockIndex, urgent)
 	p.blockQueue.Push(&blockQueueEntry{
-		block:  b,
-		cancel: cancel,
+		block:             b,
+		cancel:            cancel,
+		prefetchTriggered: false,
 	})
 	p.workerPool.Schedule(urgent, task)
 	return nil
