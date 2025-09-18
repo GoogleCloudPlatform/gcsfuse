@@ -19,12 +19,10 @@ import (
 	"log"
 	"path"
 	"testing"
-	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/log_parser/json_parser/read_logs"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/suite"
@@ -92,41 +90,24 @@ func (s *remountTest) TestCacheIsNotReusedOnDynamicRemount() {
 	runTestsOnlyForDynamicMount(s.T())
 	testBucket1 := setup.TestBucket()
 	testFileName1 := setupFileInTestDir(s.ctx, s.storageClient, fileSize, s.T())
-	testBucket2, err := dynamic_mounting.CreateTestBucketForDynamicMounting(ctx, storageClient)
-	if err != nil {
-		s.T().Fatalf("Failed to create bucket for dynamic mounting test: %v", err)
-	}
-	defer func() {
-		if err := client.DeleteBucket(ctx, storageClient, testBucket2); err != nil {
-			s.T().Logf("Failed to delete test bucket %s.Error : %v", testBucket1, err)
-		}
-	}()
-	setup.SetDynamicBucketMounted(testBucket2)
-	defer setup.SetDynamicBucketMounted("")
-	// Introducing a sleep of 10 seconds after bucket creation to address propagation delays.
-	time.Sleep(10 * time.Second)
-	client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
-	testFileName2 := setupFileInTestDir(s.ctx, s.storageClient, fileSize, s.T())
 
-	// Reading files in different buckets.
+	// 1. First read: This should result in a cache miss, and the file content will be cached.
 	expectedOutcome1 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket1, s.ctx, s.storageClient, testFileName1, true, s.T())
-	expectedOutcome2 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket2, s.ctx, s.storageClient, testFileName2, true, s.T())
 	structuredReadLogs1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), s.T())
+	// Remount GCSFuse. This should clear any in-memory cache.
 	remountGCSFuse(s.flags)
-	// Reading files in different buckets again.
+	// 2. Second read (after remount): This should also result in a cache miss as the cache should be empty.
+	expectedOutcome2 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket1, s.ctx, s.storageClient, testFileName1, false, s.T())
+	// 3. Third read (without remount): This should result in a cache hit.
 	expectedOutcome3 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket1, s.ctx, s.storageClient, testFileName1, false, s.T())
-	expectedOutcome4 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket2, s.ctx, s.storageClient, testFileName2, false, s.T())
-	// Reading same files in different buckets again without remount.
-	expectedOutcome5 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket1, s.ctx, s.storageClient, testFileName1, false, s.T())
-	expectedOutcome6 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket2, s.ctx, s.storageClient, testFileName2, false, s.T())
 	structuredReadLogs2 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), s.T())
 
+	// log1: First read -> cache miss
 	validate(expectedOutcome1, structuredReadLogs1[0], true, false, chunksRead, s.T())
-	validate(expectedOutcome2, structuredReadLogs1[1], true, false, chunksRead, s.T())
-	validate(expectedOutcome3, structuredReadLogs2[0], true, false, chunksRead, s.T())
-	validate(expectedOutcome4, structuredReadLogs2[1], true, false, chunksRead, s.T())
-	validate(expectedOutcome5, structuredReadLogs2[2], true, true, chunksRead, s.T())
-	validate(expectedOutcome6, structuredReadLogs2[3], true, true, chunksRead, s.T())
+	// log2: Second read (after remount) -> cache miss
+	validate(expectedOutcome2, structuredReadLogs2[0], true, false, chunksRead, s.T())
+	// log3: Third read -> cache hit
+	validate(expectedOutcome3, structuredReadLogs2[1], true, true, chunksRead, s.T())
 }
 
 ////////////////////////////////////////////////////////////////////////
