@@ -57,6 +57,9 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 		return nil, nil, fmt.Errorf("failed to get UniverseDomain: %w", err)
 	}
 
+	// **Temporary Workaround:** We've created a small auth object here that omits the 'quota project ID'
+	// to bypass a known issue (b/442805436) in the current authentication library.
+	// TODO: Remove this workaround once issue b/442805436 is resolved in the library.
 	newCreds := auth.NewCredentials(&auth.CredentialsOptions{
 		TokenProvider:          cred.TokenProvider,
 		UniverseDomainProvider: auth2.CredentialsPropertyFunc(func(context.Context) (string, error) { return domain, nil }),
