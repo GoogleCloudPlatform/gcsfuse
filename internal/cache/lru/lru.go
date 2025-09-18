@@ -220,6 +220,19 @@ func (c *Cache) LookUp(key string) (value ValueType) {
 	return e.Value.(entry).Value
 }
 
+// Keys returns a slice of the keys in the cache. The order is not guaranteed.
+func (c *Cache) Keys() []string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	keys := make([]string, 0, len(c.index))
+	for k := range c.index {
+		keys = append(keys, k)
+	}
+
+	return keys
+}
+
 // Len returns the number of items in the cache.
 func (c *Cache) Len() int {
 	c.mu.RLock()
