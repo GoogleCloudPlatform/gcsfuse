@@ -319,18 +319,28 @@ func getOptimizedValue(
 	machineTypeToGroupsMap map[string][]string,
 ) OptimizationResult {
 	// Precedence: Profile -> Machine -> Default
-	// 1. Check for a profile-based optimization.
-	for _, p := range rules.Profiles {
-		if p.Name == profileName {
-			return OptimizationResult{
-				Value:  p.Value,
-				Reason: fmt.Sprintf("profile %q setting", profileName),
-				Found:  true,
+
+	// 1. If a profile is active, it takes precedence.
+	if profileName != "" {
+		for _, p := range rules.Profiles {
+			if p.Name == profileName {
+				return OptimizationResult{
+					Value:  p.Value,
+					Reason: fmt.Sprintf("profile %q setting", profileName),
+					Found:  true,
+				}
 			}
+		}
+		// A profile is active, but NO rule was found for this specific flag.
+		// Per the proposal, we must NOT fall back to machine-type optimization.
+		// We stop and return the original value.
+		return OptimizationResult{
+			Value: currentValue,
+			Found: false,
 		}
 	}
 
-	// 2. Check for a machine-based optimization.
+	// 2. Only if no profile is set, check for a machine-based optimization.
 	if groups, ok := machineTypeToGroupsMap[machineType]; ok {
 		for _, groupName := range groups {
 			for _, mbo := range rules.MachineBasedOptimization {
