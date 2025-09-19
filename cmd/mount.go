@@ -133,11 +133,7 @@ be interacting with the file system.`)
 		return
 	}
 
-	fsName := bucketName
-	if isDynamicMount(bucketName) {
-		// mounting all the buckets at once
-		fsName = "gcsfuse"
-	}
+	fsName := fsName(bucketName)
 
 	// Mount the file system.
 	logger.Infof("Mounting file system %q...", fsName)
@@ -188,10 +184,10 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 	// DEBUG         ERROR
 	// TRACE         TRACE
 	if newConfig.Logging.Severity.Rank() <= cfg.ErrorLogSeverity.Rank() {
-		mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ")
+		mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ", fsName)
 	}
 	if newConfig.Logging.Severity.Rank() <= cfg.TraceLogSeverity.Rank() {
-		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelTrace, "fuse_debug: ")
+		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelTrace, "fuse_debug: ", fsName)
 	}
 	return mountCfg
 }
