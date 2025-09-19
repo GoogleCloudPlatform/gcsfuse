@@ -184,6 +184,12 @@ params:
     type: "bool"
     usage: "Whether to cache file for range reads."
     default: false
+    optimizations:
+      profiles:
+        - name: "aiml-serving"
+          value: true
+        - name: "aiml-checkpointing"
+          value: true
 
   - config-path: "file-cache.download-chunk-size-mb"
     flag-name: "file-cache-download-chunk-size-mb"
@@ -317,6 +323,14 @@ params:
       caching. Use -1 to cache for lifetime (no ttl). Negative value other than -1
       will throw error.
     default: "0"
+    optimizations:
+      profiles:
+        - name: "aiml-training"
+          value: 0
+        - name: "aiml-serving"
+          value: -1
+        - name: "aiml-checkpointing"
+          value: 0
 
   - config-path: "file-system.precondition-errors"
     flag-name: "precondition-errors"
@@ -335,7 +349,10 @@ params:
     default: "0"
     optimizations:
       machine-based-optimization:
-        - group: high-performance
+        - group: "high-performance"
+          value: 200000
+      profiles:
+        - name: aiml-checkpointing
           value: 200000
 
   - config-path: "file-system.temp-dir"
@@ -559,7 +576,14 @@ params:
     default: false
     optimizations:
       machine-based-optimization:
-        - group: high-performance
+        - group: "high-performance"
+          value: true
+      profiles:
+        - name: "aiml-training"
+          value: true
+        - name: "aiml-serving"
+          value: true
+        - name: "aiml-checkpointing"
           value: true
 
   - config-path: "list.enable-empty-managed-folders"
@@ -702,7 +726,14 @@ params:
     default: "5"
     optimizations:
       machine-based-optimization:
-        - group: high-performance
+        - group: "high-performance"
+          value: 0
+      profiles:
+        - name: "aiml-training"
+          value: 0
+        - name: "aiml-serving"
+          value: 0
+        - name: "aiml-checkpointing"
           value: 0
 
   - config-path: "metadata-cache.stat-cache-max-size-mb"
@@ -714,8 +745,15 @@ params:
     default: "33"
     optimizations:
       machine-based-optimization:
-        - group: high-performance
+        - group: "high-performance"
           value: 1024
+      profiles:
+        - name: "aiml-training"
+          value: -1
+        - name: "aiml-serving"
+          value: -1
+        - name: "aiml-checkpointing"
+          value: -1
 
   - config-path: "metadata-cache.ttl-secs"
     flag-name: "metadata-cache-ttl-secs"
@@ -727,7 +765,14 @@ params:
     default: "60"
     optimizations:
       machine-based-optimization:
-        - group: high-performance
+        - group: "high-performance"
+          value: -1
+      profiles:
+        - name: "aiml-training"
+          value: -1
+        - name: "aiml-serving"
+          value: -1
+        - name: "aiml-checkpointing"
           value: -1
 
   - config-path: "metadata-cache.type-cache-max-size-mb"
@@ -737,8 +782,15 @@ params:
     default: "4"
     optimizations:
       machine-based-optimization:
-        - group: high-performance
+        - group: "high-performance"
           value: 128
+      profiles:
+        - name: "aiml-training"
+          value: -1
+        - name: "aiml-serving"
+          value: -1
+        - name: "aiml-checkpointing"
+          value: -1
 
   - config-path: "metrics.buffer-size"
     flag-name: "metrics-buffer-size"
@@ -922,7 +974,7 @@ params:
     hide-flag: false
     optimizations:
       machine-based-optimization:
-        - group: high-performance
+        - group: "high-performance"
           value: 1600
 
   - config-path: "write.max-blocks-per-file"

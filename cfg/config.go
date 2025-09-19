@@ -25,17 +25,71 @@ import (
 )
 
 // AllFlagOptimizationRules is the generated map from a flag's config-path to its specific rules.
-var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"implicit-dirs": {
+var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-cache.cache-file-for-range-read": {
+	Profiles: []shared.ProfileOptimization{
+		{
+			Name:  "aiml-serving",
+			Value: bool(true),
+		},
+		{
+			Name:  "aiml-checkpointing",
+			Value: bool(true),
+		},
+	},
+}, "implicit-dirs": {
 	MachineBasedOptimization: []shared.MachineBasedOptimization{
 		{
 			Group: "high-performance",
 			Value: bool(true),
 		},
 	},
+	Profiles: []shared.ProfileOptimization{
+		{
+			Name:  "aiml-training",
+			Value: bool(true),
+		},
+		{
+			Name:  "aiml-serving",
+			Value: bool(true),
+		},
+		{
+			Name:  "aiml-checkpointing",
+			Value: bool(true),
+		},
+	},
+}, "file-system.kernel-list-cache-ttl-secs": {
+	Profiles: []shared.ProfileOptimization{
+		{
+			Name:  "aiml-training",
+			Value: int64(0),
+		},
+		{
+			Name:  "aiml-serving",
+			Value: int64(-1),
+		},
+		{
+			Name:  "aiml-checkpointing",
+			Value: int64(0),
+		},
+	},
 }, "metadata-cache.negative-ttl-secs": {
 	MachineBasedOptimization: []shared.MachineBasedOptimization{
 		{
 			Group: "high-performance",
+			Value: int64(0),
+		},
+	},
+	Profiles: []shared.ProfileOptimization{
+		{
+			Name:  "aiml-training",
+			Value: int64(0),
+		},
+		{
+			Name:  "aiml-serving",
+			Value: int64(0),
+		},
+		{
+			Name:  "aiml-checkpointing",
 			Value: int64(0),
 		},
 	},
@@ -46,10 +100,30 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"implicit-dir
 			Value: int64(-1),
 		},
 	},
+	Profiles: []shared.ProfileOptimization{
+		{
+			Name:  "aiml-training",
+			Value: int64(-1),
+		},
+		{
+			Name:  "aiml-serving",
+			Value: int64(-1),
+		},
+		{
+			Name:  "aiml-checkpointing",
+			Value: int64(-1),
+		},
+	},
 }, "file-system.rename-dir-limit": {
 	MachineBasedOptimization: []shared.MachineBasedOptimization{
 		{
 			Group: "high-performance",
+			Value: int64(200000),
+		},
+	},
+	Profiles: []shared.ProfileOptimization{
+		{
+			Name:  "aiml-checkpointing",
 			Value: int64(200000),
 		},
 	},
@@ -60,11 +134,39 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"implicit-dir
 			Value: int64(1024),
 		},
 	},
+	Profiles: []shared.ProfileOptimization{
+		{
+			Name:  "aiml-training",
+			Value: int64(-1),
+		},
+		{
+			Name:  "aiml-serving",
+			Value: int64(-1),
+		},
+		{
+			Name:  "aiml-checkpointing",
+			Value: int64(-1),
+		},
+	},
 }, "metadata-cache.type-cache-max-size-mb": {
 	MachineBasedOptimization: []shared.MachineBasedOptimization{
 		{
 			Group: "high-performance",
 			Value: int64(128),
+		},
+	},
+	Profiles: []shared.ProfileOptimization{
+		{
+			Name:  "aiml-training",
+			Value: int64(-1),
+		},
+		{
+			Name:  "aiml-serving",
+			Value: int64(-1),
+		},
+		{
+			Name:  "aiml-checkpointing",
+			Value: int64(-1),
 		},
 	},
 }, "write.global-max-blocks": {
@@ -143,6 +245,18 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 	c.MachineType = machineType
 
 	// Apply optimizations for each flag that has rules defined.
+	if !isSet.IsSet("file-cache-cache-file-for-range-read") {
+		rules := AllFlagOptimizationRules["file-cache.cache-file-for-range-read"]
+		result := getOptimizedValue(&rules, c.FileCache.CacheFileForRangeRead, profileName, machineType, machineTypeToGroupsMap)
+		if result.Found {
+			if val, ok := result.Value.(bool); ok {
+				if c.FileCache.CacheFileForRangeRead != val {
+					c.FileCache.CacheFileForRangeRead = val
+					optimizedFlags = append(optimizedFlags, "file-cache.cache-file-for-range-read")
+				}
+			}
+		}
+	}
 	if !isSet.IsSet("implicit-dirs") {
 		rules := AllFlagOptimizationRules["implicit-dirs"]
 		result := getOptimizedValue(&rules, c.ImplicitDirs, profileName, machineType, machineTypeToGroupsMap)
@@ -151,6 +265,18 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 				if c.ImplicitDirs != val {
 					c.ImplicitDirs = val
 					optimizedFlags = append(optimizedFlags, "implicit-dirs")
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("kernel-list-cache-ttl-secs") {
+		rules := AllFlagOptimizationRules["file-system.kernel-list-cache-ttl-secs"]
+		result := getOptimizedValue(&rules, c.FileSystem.KernelListCacheTtlSecs, profileName, machineType, machineTypeToGroupsMap)
+		if result.Found {
+			if val, ok := result.Value.(int64); ok {
+				if c.FileSystem.KernelListCacheTtlSecs != val {
+					c.FileSystem.KernelListCacheTtlSecs = val
+					optimizedFlags = append(optimizedFlags, "file-system.kernel-list-cache-ttl-secs")
 				}
 			}
 		}

@@ -873,6 +873,9 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 		PreconditionErrors:            true,
 		Uid:                           -1,
 	}
+	expectedAIMLCheckpointingFileSystemConfig := expectedDefaultFileSystemConfig
+	expectedAIMLCheckpointingFileSystemConfig.RenameDirLimit = 200000
+	expectedAIMLTrainingFileSystemConfig := expectedDefaultFileSystemConfig
 
 	hd, err := os.UserHomeDir()
 	require.NoError(t, err)
@@ -994,21 +997,41 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			checkMachineType: true,
 		},
 		{
-			name: "profile_with_machine_type",
+			name: "profile_checkpointing_with_low_machine_type",
+			args: []string{"gcsfuse", "--profile=" + cfg.ProfileAIMLCheckpointing, "--machine-type=machine-type-1", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem:  expectedAIMLCheckpointingFileSystemConfig,
+				Profile:     cfg.ProfileAIMLCheckpointing,
+				MachineType: "machine-type-1",
+			},
+			checkMachineType: true,
+		},
+		{
+			name: "profile_checkpointing_with_high_machine_type",
+			args: []string{"gcsfuse", "--profile=" + cfg.ProfileAIMLCheckpointing, "--machine-type=a3-highgpu-8g", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem:  expectedAIMLCheckpointingFileSystemConfig,
+				Profile:     cfg.ProfileAIMLCheckpointing,
+				MachineType: "a3-highgpu-8g",
+			},
+			checkMachineType: true,
+		},
+		{
+			name: "profile_training_with_machine_type",
 			args: []string{"gcsfuse", "--profile=" + cfg.ProfileAIMLTraining, "--machine-type=machine-type-1", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
-				FileSystem:  expectedDefaultFileSystemConfig,
+				FileSystem:  expectedAIMLTrainingFileSystemConfig,
 				Profile:     cfg.ProfileAIMLTraining,
 				MachineType: "machine-type-1",
 			},
 			checkMachineType: true,
 		},
 		{
-			name: "profile_without_machine_type",
-			args: []string{"gcsfuse", "--profile=" + cfg.ProfileAIMLServing, "abc", "pqr"},
+			name: "profile_checkpointing_without_machine_type",
+			args: []string{"gcsfuse", "--profile=" + cfg.ProfileAIMLCheckpointing, "abc", "pqr"},
 			expectedConfig: &cfg.Config{
-				FileSystem: expectedDefaultFileSystemConfig,
-				Profile:    cfg.ProfileAIMLServing,
+				FileSystem: expectedAIMLCheckpointingFileSystemConfig,
+				Profile:    cfg.ProfileAIMLCheckpointing,
 			},
 		},
 		{
