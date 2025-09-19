@@ -17,11 +17,11 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"regexp"
 	"slices"
+	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
 	"gopkg.in/yaml.v3"
@@ -55,13 +55,8 @@ type ParamsYAML struct {
 	MachineTypeGroups map[string][]string `yaml:"machine-type-groups"`
 }
 
-func parseParamsYAML() (ParamsYAML, error) {
-	buf, err := os.ReadFile(*paramsFile)
-	if err != nil {
-		return ParamsYAML{}, err
-	}
-	var paramsYAML ParamsYAML
-	dec := yaml.NewDecoder(bytes.NewReader(buf))
+func parseParamsYAMLStr(paramsYAMLStr string) (paramsYAML ParamsYAML, err error) {
+	dec := yaml.NewDecoder(strings.NewReader(paramsYAMLStr))
 	dec.KnownFields(true)
 	if err = dec.Decode(&paramsYAML); err != nil {
 		return ParamsYAML{}, err
@@ -73,6 +68,14 @@ func parseParamsYAML() (ParamsYAML, error) {
 		return ParamsYAML{}, err
 	}
 	return paramsYAML, nil
+}
+
+func parseParamsYAML() (ParamsYAML, error) {
+	buf, err := os.ReadFile(*paramsFile)
+	if err != nil {
+		return ParamsYAML{}, err
+	}
+	return parseParamsYAMLStr(string(buf))
 }
 
 func checkFlagName(name string) error {

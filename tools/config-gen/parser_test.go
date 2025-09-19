@@ -17,8 +17,6 @@
 package main
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -166,7 +164,7 @@ func TestValidateForDuplicatesInSortedSlice(t *testing.T) {
 	}
 }
 
-func TestParseParamsYAML_Success(t *testing.T) {
+func TestParseParamsYAMLStr_Success(t *testing.T) {
 	// ARRANGE
 	yamlContent := `
 machine-type-groups:
@@ -203,18 +201,9 @@ params:
         - name: aiml-training
           value: -1
 `
-	// Create a temporary directory and the params.yaml file.
-	tmpDir := t.TempDir()
-	tmpFile := filepath.Join(tmpDir, "params.yaml")
-	err := os.WriteFile(tmpFile, []byte(yamlContent), 0644)
-	require.NoError(t, err)
-	// Point the global paramsFile variable to our temporary file.
-	originalParamsFile := *paramsFile
-	*paramsFile = tmpFile
-	defer func() { *paramsFile = originalParamsFile }()
 
 	// ACT
-	parsedYAML, err := parseParamsYAML()
+	parsedYAML, err := parseParamsYAMLStr(yamlContent)
 
 	// ASSERT
 	require.NoError(t, err)
@@ -265,7 +254,7 @@ params:
 	})
 }
 
-func TestParseParamsYAML_Negative(t *testing.T) {
+func TestParseParamsYAMLStr_Negative(t *testing.T) {
 	testCases := []struct {
 		name                   string
 		yamlContent            string
@@ -333,17 +322,9 @@ machine-type-groups:
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// ARRANGE
-			tmpDir := t.TempDir()
-			tmpFile := filepath.Join(tmpDir, "params.yaml")
-			err := os.WriteFile(tmpFile, []byte(tc.yamlContent), 0644)
-			require.NoError(t, err)
-
-			originalParamsFile := *paramsFile
-			*paramsFile = tmpFile
-			defer func() { *paramsFile = originalParamsFile }()
 
 			// ACT
-			_, err = parseParamsYAML()
+			_, err := parseParamsYAMLStr(tc.yamlContent)
 
 			// ASSERT
 			require.Error(t, err)
