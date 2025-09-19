@@ -19,15 +19,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"sort"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
@@ -56,40 +53,11 @@ const (
 	ReadOp                    = "readOp"
 )
 
-// blockQueueEntry holds a data block with a function
-// to cancel its in-flight download.
-type blockQueueEntry struct {
-	block block.PrefetchBlock
-	// cancel is the function to cancel the in-flight download of the block.
-	cancel context.CancelFunc
-	// prefetchTriggered tracks whether this block has already triggered the
-	// prefetching of the next set of blocks.
-	prefetchTriggered bool
-}
-
-// Size returns the size of the block in bytes.
-// This is to implement lru.ValueType.
-func (bqe *blockQueueEntry) Size() uint64 {
-	return uint64(bqe.block.Cap())
-}
-
 type BufferedReader struct {
 	gcsx.Reader
 	object *gcs.MinObject
 	bucket gcs.Bucket
 	config *BufferedReadConfig
-
-	// nextBlockIndexToPrefetch is the index of the next block to be
-	// prefetched.
-	nextBlockIndexToPrefetch int64
-
-	// randomSeekCount is the number of random seeks performed. This is used to
-	// detect if the read pattern is random and fall back to another reader.
-	randomSeekCount int64
-
-	// numPrefetchBlocks is the number of blocks to prefetch in the next
-	// prefetching operation.
-	numPrefetchBlocks int64
 
 	metricHandle metrics.MetricHandle
 
@@ -98,16 +66,20 @@ type BufferedReader struct {
 	ctx        context.Context
 	cancelFunc context.CancelFunc
 
-	prefetchMultiplier int64 // Multiplier for number of blocks to prefetch.
-
-	randomReadsThreshold int64 // Number of random reads after which the reader falls back to another reader.
-
 	// `mu` synchronizes access to the buffered reader's shared state.
 	// All shared variables, such as the block pool and queue, require this lock before any operation.
 	mu sync.Mutex
 
 	// GUARDED by (mu)
 	workerPool workerpool.WorkerPool
+
+	// patternDetector is responsible for detecting random read patterns.
+	// GUARDED by (mu)
+	patternDetector *ReadPatternDetector
+
+	// prefetcher manages the state and logic for prefetching blocks.
+	// GUARDED by (mu)
+	prefetcher *Prefetcher
 
 	// blockQueue is the core of the prefetching pipeline, holding blocks that are
 	// either downloaded or in the process of being downloaded.
@@ -127,7 +99,7 @@ type BufferedReader struct {
 	// from the prefetch queue but are kept for a short period to handle
 	// out-of-order or concurrent reads without treating them as random seeks.
 	// GUARDED by (mu)
-	retiredBlocks *lru.Cache
+	retiredBlocks RetiredBlockCache
 }
 
 // NewBufferedReader returns a new bufferedReader instance.
@@ -148,27 +120,37 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 	}
 
 	reader := &BufferedReader{
-		object:                   object,
-		bucket:                   bucket,
-		config:                   config,
-		nextBlockIndexToPrefetch: 0,
-		randomSeekCount:          0,
-		numPrefetchBlocks:        config.InitialPrefetchBlockCnt,
-		blockQueue:               common.NewLinkedListQueue[*blockQueueEntry](),
-		blockPool:                blockpool,
-		workerPool:               workerPool,
-		metricHandle:             metricHandle,
-		prefetchMultiplier:       defaultPrefetchMultiplier,
-		randomReadsThreshold:     config.RandomSeekThreshold,
+		object:          object,
+		bucket:          bucket,
+		config:          config,
+		blockQueue:      common.NewLinkedListQueue[*blockQueueEntry](),
+		blockPool:       blockpool,
+		workerPool:      workerPool,
+		metricHandle:    metricHandle,
+		patternDetector: NewReadPatternDetector(config.RandomSeekThreshold, config.PrefetchBlockSizeBytes),
 	}
+	reader.ctx, reader.cancelFunc = context.WithCancel(context.Background())
 
 	// The retiredBlocks cache holds blocks that have been consumed but are kept
 	// to handle potential out-of-order reads. Its size is set to be the same as
 	// the maximum number of prefetch blocks to provide a reasonable buffer for
 	// such reads. For example, setting it to half of MaxPrefetchBlockCnt.
-	reader.retiredBlocks = lru.NewCache(uint64(5 * config.PrefetchBlockSizeBytes))
+	reader.retiredBlocks = NewLruRetiredBlockCache(uint64(5 * config.PrefetchBlockSizeBytes))
 
-	reader.ctx, reader.cancelFunc = context.WithCancel(context.Background())
+	prefetcherOpts := &PrefetcherOptions{
+		Object:       object,
+		Bucket:       bucket,
+		Config:       config,
+		Pool:         blockpool,
+		WorkerPool:   workerPool,
+		Queue:        reader.blockQueue,
+		Retired:      reader.retiredBlocks,
+		MetricHandle: metricHandle,
+		ReaderCtx:    reader.ctx,
+		ReadHandle:   reader.readHandle,
+	}
+	reader.prefetcher = NewPrefetcher(prefetcherOpts)
+
 	return reader, nil
 }
 
@@ -178,8 +160,7 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 // LOCKS_REQUIRED(p.mu)
 func (p *BufferedReader) retireBlock(entry *blockQueueEntry) {
 	blockIndex := entry.block.AbsStartOff() / p.config.PrefetchBlockSizeBytes
-	key := fmt.Sprintf("%d", blockIndex)
-	evicted, err := p.retiredBlocks.Insert(key, entry)
+	evicted, err := p.retiredBlocks.Insert(blockIndex, entry)
 	if err != nil {
 		// This block is not being retired, so we cancel and release it.
 		entry.cancel()
@@ -190,8 +171,7 @@ func (p *BufferedReader) retireBlock(entry *blockQueueEntry) {
 		p.blockPool.Release(entry.block)
 		return
 	}
-	for _, val := range evicted {
-		evictedEntry := val.(*blockQueueEntry)
+	for _, evictedEntry := range evicted {
 		// This block is being evicted from the retired cache, so we cancel and release it.
 		evictedEntry.cancel()
 		if _, waitErr := evictedEntry.block.AwaitReady(context.Background()); waitErr != nil {
@@ -199,113 +179,6 @@ func (p *BufferedReader) retireBlock(entry *blockQueueEntry) {
 		}
 		p.blockPool.Release(evictedEntry.block)
 	}
-}
-
-// handleRandomRead detects and handles random read patterns. A read is considered
-// random if the requested offset is outside the currently prefetched window.
-// If the number of detected random reads exceeds a configured threshold, it
-// returns a gcsx.FallbackToAnotherReader error to signal that another reader
-// should be used. It takes handleID for logging purposes.
-// LOCKS_REQUIRED(p.mu)
-func (p *BufferedReader) handleRandomRead(offset int64, handleID int64) error {
-	// Exit early if we have already decided to fall back to another reader.
-	// This avoids re-evaluating the read pattern on every call when the random
-	// read threshold has been met.
-	if p.randomSeekCount > p.randomReadsThreshold {
-		return gcsx.FallbackToAnotherReader
-	}
-
-	if !p.isRandomSeek(offset) {
-		return nil
-	}
-
-	p.randomSeekCount++
-
-	blockIndex := offset / p.config.PrefetchBlockSizeBytes
-
-	// Get block index range from blockQueue for logging.
-	var blockQueueRange string
-	if p.blockQueue.IsEmpty() {
-		blockQueueRange = "[]"
-	} else {
-		temp := make([]*blockQueueEntry, 0, p.blockQueue.Len())
-		for !p.blockQueue.IsEmpty() {
-			entry := p.blockQueue.Pop()
-			temp = append(temp, entry)
-		}
-
-		firstIndex := temp[0].block.AbsStartOff() / p.config.PrefetchBlockSizeBytes
-		if len(temp) == 1 {
-			blockQueueRange = fmt.Sprintf("[%d]", firstIndex)
-		} else {
-			lastIndex := temp[len(temp)-1].block.AbsStartOff() / p.config.PrefetchBlockSizeBytes
-			blockQueueRange = fmt.Sprintf("[%d,%d]", firstIndex, lastIndex)
-		}
-
-		// Restore the queue.
-		for _, entry := range temp {
-			p.blockQueue.Push(entry)
-		}
-	}
-
-	// Get block indexes from retiredBlocks for logging.
-	var retiredBlocksStr string
-	if p.retiredBlocks == nil || p.retiredBlocks.Len() == 0 {
-		retiredBlocksStr = "empty"
-	} else {
-		retiredIndexes := p.retiredBlocks.Keys()
-		sort.Strings(retiredIndexes)
-		retiredBlocksStr = strings.Join(retiredIndexes, ", ")
-	}
-
-	logger.Tracef("Random read detected (%d). Offset: %d, BlockIndex: %d, BlockQueue: %s, RetiredBlocks: [%s]",
-		p.randomSeekCount,
-		offset,
-		blockIndex,
-		blockQueueRange,
-		retiredBlocksStr,
-	)
-
-	for !p.blockQueue.IsEmpty() {
-		entry := p.blockQueue.Pop()
-		p.retireBlock(entry)
-	}
-
-	if p.randomSeekCount > p.randomReadsThreshold {
-		logger.Warnf("Fallback to another reader for object %q, handle %d, at offset %d. Random seek count %d exceeded threshold %d.", p.object.Name, handleID, offset, p.randomSeekCount, p.randomReadsThreshold)
-		p.metricHandle.BufferedReadFallbackTriggerCount(1, "random_read_detected")
-		return gcsx.FallbackToAnotherReader
-	}
-
-	return nil
-}
-
-// isRandomSeek checks if the read for the given offset is random or not.
-// LOCKS_REQUIRED(p.mu)
-func (p *BufferedReader) isRandomSeek(offset int64) bool {
-	// A read from offset 0 is never a random seek.
-	if offset == 0 {
-		return false
-	}
-
-	// Check if the block is in the active prefetch queue.
-	if !p.blockQueue.IsEmpty() {
-		start := p.blockQueue.Peek().block.AbsStartOff()
-		end := start + int64(p.blockQueue.Len())*p.config.PrefetchBlockSizeBytes
-		if offset >= start && offset < end {
-			return false // The read is within the current prefetch window.
-		}
-	}
-
-	// Check if the block is in the retired cache.
-	blockIndex := offset / p.config.PrefetchBlockSizeBytes
-	key := fmt.Sprintf("%d", blockIndex)
-	if val := p.retiredBlocks.LookUpWithoutChangingOrder(key); val != nil {
-		return false
-	}
-
-	// Otherwise, it's a random seek.
-	return true
 }
 
 // prepareQueueForOffset discards blocks from the head of the prefetch queue
@@ -387,17 +260,25 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		}
 	}()
 
-	if err = p.handleRandomRead(off, handleID); err != nil {
-		err = fmt.Errorf("BufferedReader.ReadAt: handleRandomRead: %w", err)
-		return resp, err
+	isRandom, shouldFallback := p.patternDetector.Check(off, p.blockQueue, p.retiredBlocks)
+	if shouldFallback {
+		logger.Warnf("Fallback to another reader for object %q, handle %d, at offset %d. Random seek count exceeded threshold %d.", p.object.Name, handleID, off, p.patternDetector.Threshold())
+		p.metricHandle.BufferedReadFallbackTriggerCount(1, "random_read_detected")
+		return resp, gcsx.FallbackToAnotherReader
+	}
+
+	if isRandom {
+		// On a random read, clear the prefetch queue by retiring all blocks.
+		for !p.blockQueue.IsEmpty() {
+			entry := p.blockQueue.Pop()
+			p.retireBlock(entry)
+		}
 	}
 
 	for bytesRead < len(inputBuf) {
 		// Check if the required block is in the retired cache.
 		blockIndex := off / p.config.PrefetchBlockSizeBytes
-		key := fmt.Sprintf("%d", blockIndex)
-		if val := p.retiredBlocks.LookUp(key); val != nil {
-			entry := val.(*blockQueueEntry)
+		if entry := p.retiredBlocks.LookUp(blockIndex); entry != nil {
 			blk := entry.block
 
 			status, waitErr := blk.AwaitReady(ctx)
@@ -406,7 +287,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 				break
 			}
 			if status.State != block.BlockStateDownloaded {
-				p.retiredBlocks.Erase(key)
+				p.retiredBlocks.Erase(blockIndex)
 				p.blockPool.Release(blk)
 				err = fmt.Errorf("BufferedReader.ReadAt: retired block not downloaded, state: %d", status.State)
 				break
@@ -429,7 +310,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		p.prepareQueueForOffset(off)
 
 		if p.blockQueue.IsEmpty() {
-			if err = p.freshStart(off); err != nil {
+			if err = p.prefetcher.FreshStart(off); err != nil {
 				logger.Warnf("Fallback to another reader for object %q, handle %d, at offset %d, due to freshStart failure: %v", p.object.Name, handleID, off, err)
 				p.metricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
 				return resp, gcsx.FallbackToAnotherReader
@@ -441,7 +322,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		// Proactively trigger the next prefetch as soon as we start processing a
 		// block, ensuring the pipeline stays full.
 		if !entry.prefetchTriggered {
-			p.prefetch()
+			p.prefetcher.Prefetch()
 			entry.prefetchTriggered = true
 		}
 
@@ -492,119 +373,6 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 	return resp, err
 }
 
-// prefetch schedules the next set of blocks for prefetching starting from
-// the nextBlockIndexToPrefetch.
-// LOCKS_REQUIRED(p.mu)
-func (p *BufferedReader) prefetch() error {
-	// Determine the number of blocks to prefetch in this cycle, respecting the
-	// MaxPrefetchBlockCnt and the number of blocks remaining in the file.
-	availableSlots := p.config.MaxPrefetchBlockCnt - (int64(p.blockQueue.Len()) + int64(p.retiredBlocks.Len()))
-	if availableSlots <= 0 {
-		return nil
-	}
-	totalBlockCount := (int64(p.object.Size) + p.config.PrefetchBlockSizeBytes - 1) / p.config.PrefetchBlockSizeBytes
-	remainingBlocksInFile := totalBlockCount - p.nextBlockIndexToPrefetch
-	blockCountToPrefetch := min(min(p.numPrefetchBlocks, availableSlots), remainingBlocksInFile)
-	if blockCountToPrefetch <= 0 {
-		return nil
-	}
-
-	allBlocksScheduledSuccessfully := true
-	for i := int64(0); i < blockCountToPrefetch; i++ {
-		if err := p.scheduleNextBlock(false); err != nil {
-			if errors.Is(err, ErrPrefetchBlockNotAvailable) {
-				// This is not a critical error for a background prefetch. We just stop
-				// trying to prefetch more in this cycle. The specific reason has
-				// already been logged by scheduleNextBlock.
-				allBlocksScheduledSuccessfully = false
-				break // Stop prefetching more blocks.
-			}
-			return fmt.Errorf("prefetch: scheduling block index %d: %w", p.nextBlockIndexToPrefetch, err)
-		}
-	}
-
-	// Only increase the prefetch window size if we successfully scheduled all the
-	// intended blocks. This is a more conservative approach that prevents the
-	// window from growing aggressively if block pool is consistently under pressure.
-	if allBlocksScheduledSuccessfully {
-		// Set the size for the next multiplicative prefetch.
-		p.numPrefetchBlocks *= p.prefetchMultiplier
-
-		// Cap the prefetch window size for the next cycle at the configured
-		// maximum to prevent unbounded growth.
-		if p.numPrefetchBlocks > p.config.MaxPrefetchBlockCnt {
-			p.numPrefetchBlocks = p.config.MaxPrefetchBlockCnt
-		}
-	}
-	return nil
-}
-
-// freshStart resets the prefetching state and schedules the initial set of
-// blocks starting from the given offset.
-// LOCKS_REQUIRED(p.mu)
-func (p *BufferedReader) freshStart(currentOffset int64) error {
-	blockIndex := currentOffset / p.config.PrefetchBlockSizeBytes
-	p.nextBlockIndexToPrefetch = blockIndex
-
-	// Determine the number of blocks for the initial prefetch.
-	p.numPrefetchBlocks = min(p.config.InitialPrefetchBlockCnt, p.config.MaxPrefetchBlockCnt)
-
-	// Schedule the first block as urgent.
-	if err := p.scheduleNextBlock(true); err != nil {
-		return fmt.Errorf("freshStart: scheduling first block: %w", err)
-	}
-
-	// Prefetch the initial blocks.
-	if err := p.prefetch(); err != nil {
-		// A failure during the initial prefetch is not fatal, as the first block
-		// has already been scheduled. Log the error and continue.
-		logger.Warnf("freshStart: initial prefetch: %v", err)
-	}
-	return nil
-}
-
-// scheduleNextBlock schedules the next block for prefetch.
-// LOCKS_REQUIRED(p.mu)
-func (p *BufferedReader) scheduleNextBlock(urgent bool) error {
-	b, err := p.blockPool.TryGet()
-	if err != nil {
-		// Any error from TryGet (e.g., pool exhausted, mmap failure) means we
-		// can't get a block. For the buffered reader, this is a recoverable
-		// condition that should either trigger a fallback to another reader (for
-		// urgent reads) or be ignored (for background prefetches).
-		logger.Tracef("scheduleNextBlock: could not get block from pool (urgent=%t): %v", urgent, err)
-		return ErrPrefetchBlockNotAvailable
-	}
-
-	if err := p.scheduleBlockWithIndex(b, p.nextBlockIndexToPrefetch, urgent); err != nil {
-		p.blockPool.Release(b)
-		return fmt.Errorf("scheduleNextBlock: %w", err)
-	}
-	p.nextBlockIndexToPrefetch++
-	return nil
-}
-
-// scheduleBlockWithIndex schedules a block with a specific index.
-// LOCKS_REQUIRED(p.mu)
-func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockIndex int64, urgent bool) error {
-	startOffset := blockIndex * p.config.PrefetchBlockSizeBytes
-	if err := b.SetAbsStartOff(startOffset); err != nil {
-		return fmt.Errorf("scheduleBlockWithIndex: setting start offset: %w", err)
-	}
-
-	ctx, cancel := context.WithCancel(p.ctx)
-	task := NewDownloadTask(ctx, p.object, p.bucket, b, p.readHandle, p.metricHandle)
-
-	logger.Tracef("Scheduling block: (%s, %d, %t).", p.object.Name, blockIndex, urgent)
-	p.blockQueue.Push(&blockQueueEntry{
-		block:             b,
-		cancel:            cancel,
-		prefetchTriggered: false,
-	})
-	p.workerPool.Schedule(urgent, task)
-	return nil
-}
-
 // LOCKS_EXCLUDED(p.mu)
 func (p *BufferedReader) Destroy() {
 	p.mu.Lock()
@@ -627,9 +395,8 @@ func (p *BufferedReader) Destroy() {
 
 	// Clear the retired blocks cache and release all blocks.
 	if p.retiredBlocks != nil {
-		evicted := p.retiredBlocks.Clear()
-		for _, val := range evicted {
-			evictedEntry := val.(*blockQueueEntry)
+		evictedEntries := p.retiredBlocks.Clear()
+		for _, evictedEntry := range evictedEntries {
 			evictedEntry.cancel()
 			if _, waitErr := evictedEntry.block.AwaitReady(context.Background()); waitErr != nil {
 				logger.Warnf("Destroy: AwaitReady for retired block: %v", waitErr)
@@ -673,8 +440,8 @@ func (p *BufferedReader) CheckInvariants() {
 	}
 
 	// The random seek count should never exceed randomReadsThreshold.
-	if p.randomSeekCount > p.randomReadsThreshold {
-		panic(fmt.Sprintf("BufferedReader: randomSeekCount %d exceeds threshold %d", p.randomSeekCount, p.randomReadsThreshold))
+	if p.patternDetector.IsAboveThreshold() {
+		panic(fmt.Sprintf("BufferedReader: random seek count has exceeded threshold %d", p.patternDetector.Threshold()))
 	}
 
 	if p.retiredBlocks == nil {

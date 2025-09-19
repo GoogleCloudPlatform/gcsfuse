@@ -45,14 +45,24 @@ type DownloadTask struct {
 	readHandle []byte
 }
 
-func NewDownloadTask(ctx context.Context, object *gcs.MinObject, bucket gcs.Bucket, block block.PrefetchBlock, readHandle []byte, metricHandle metrics.MetricHandle) *DownloadTask {
+// DownloadTaskOptions holds the dependencies for a DownloadTask.
+type DownloadTaskOptions struct {
+	Ctx          context.Context
+	Object       *gcs.MinObject
+	Bucket       gcs.Bucket
+	Block        block.PrefetchBlock
+	ReadHandle   []byte
+	MetricHandle metrics.MetricHandle
+}
+
+func NewDownloadTask(opts *DownloadTaskOptions) *DownloadTask {
 	return &DownloadTask{
-		ctx:          ctx,
-		object:       object,
-		bucket:       bucket,
-		block:        block,
-		readHandle:   readHandle,
-		metricHandle: metricHandle,
+		ctx:          opts.Ctx,
+		object:       opts.Object,
+		bucket:       opts.Bucket,
+		block:        opts.Block,
+		readHandle:   opts.ReadHandle,
+		metricHandle: opts.MetricHandle,
 	}
 }
 
