@@ -18,15 +18,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
-
-const takeoverErrMsg = "A different writer has become the exclusive writer of this object."
 
 // A *NotFoundError value is an error that indicates an object name or a
 // particular generation for that name were not found.
@@ -72,11 +69,6 @@ func GetGCSError(err error) error {
 			return &NotFoundError{Err: err}
 		case codes.FailedPrecondition:
 			return &PreconditionError{Err: err}
-		case codes.Aborted:
-			errMsg := rpcErr.Message()
-			if strings.Contains(errMsg, takeoverErrMsg) {
-				return &PreconditionError{Err: err}
-			}
 		}
 	}
 

@@ -139,16 +139,6 @@ func TestGetGCSError(t *testing.T) {
 			inputErr:    fmt.Errorf("wrapped: %w", preconditionAPIErr),
 			expectedErr: &PreconditionError{Err: fmt.Errorf("wrapped: %w", preconditionAPIErr)},
 		},
-		{
-			name:        "grpc_status_Aborted_takeover",
-			inputErr:    status.Error(codes.Aborted, "A different writer has become the exclusive writer of this object."),
-			expectedErr: &PreconditionError{Err: status.Error(codes.Aborted, "A different writer has become the exclusive writer of this object.")},
-		},
-		{
-			name:        "grpc_status_Aborted_other",
-			inputErr:    status.Error(codes.Aborted, "Some other aborted error"),
-			expectedErr: status.Error(codes.Aborted, "Some other aborted error"),
-		},
 	}
 
 	for _, tc := range testCases {
