@@ -16,7 +16,7 @@ substitutions:
   _GOLANG_VERSION: '1.24'
   _GCSFUSE_VERSION: 'v4'
   _CSI_VERSION: 'main'
-  _PLATFORMS: 'linux/amd64'
+  _BUILD_ARM: 'false'
   _USER: 'cloudbuild'
   _IMAGE_PREFIX: 'build'
 
@@ -38,17 +38,16 @@ steps:
   - '-c'
   - |
     set -e
-    # The build command for different platforms can conflict with each other,
-    # so we build them sequentially.
-    IFS=',' read -ra PLATFORMS <<< "${_PLATFORMS}"
-    for platform in "${PLATFORMS[@]}"; do
-      os_arch=(${platform//\// })
-      os=$${os_arch[0]}
-      arch=$${os_arch[1]}
-      echo "Building GCSFuse for $${os}/$${arch}..."
-      GOOS=$${os} GOARCH=$${arch} go run tools/build_gcsfuse/main.go . . "${_GCSFUSE_VERSION}"
-      mkdir -p "/workspace/gcsfuse-artifacts/$${os}/$${arch}"
-      mv "bin/gcsfuse" "/workspace/gcsfuse-artifacts/$${os}/$${arch}/gcsfuse"
+    ARCHS="amd64"
+    if [[ "${_BUILD_ARM}" == "true" ]]; then
+      ARCHS="$$ARCHS arm64"
+    fi
+    
+    for arch in $$ARCHS; do
+      echo "Building GCSFuse for linux/$arch..."
+      GOOS=linux go run tools/build_gcsfuse/main.go --arch=$$arch . . "${_GCSFUSE_VERSION}"
+      mkdir -p "/workspace/gcsfuse-artifacts/linux/$$arch"
+      mv "bin/gcsfuse" "/workspace/gcsfuse-artifacts/linux/$$arch/gcsfuse"
       echo "Cleaning up bin and sbin directories..."
       rm -rf bin sbin
     done
@@ -106,7 +105,8 @@ steps:
     STAGINGVERSION=${BUILD_ID}
     STAGINGVERSION=${_IMAGE_PREFIX}-$${STAGINGVERSION:0:8}
     REGISTRY="gcr.io/${PROJECT_ID}/${_USER}-gcsfuse-csi"
-    make build-image-and-push-multi-arch REGISTRY=$${REGISTRY} GCSFUSE_PATH=$${GCSFUSE_PATH} STAGINGVERSION=$${STAGINGVERSION}
+
+    make build-image-and-push-multi-arch REGISTRY=$${REGISTRY} GCSFUSE_PATH=$${GCSFUSE_PATH} STAGINGVERSION=$${STAGINGVERSION} BUILD_ARM=${_BUILD_ARM}
 
 # This step cleans up the GCS bucket.
 - name: 'gcr.io/cloud-builders/gcloud'
