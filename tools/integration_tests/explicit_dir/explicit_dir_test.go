@@ -51,7 +51,7 @@ func TestMain(m *testing.M) {
 		// Populate the config manually.
 		cfg.ExplicitDir = make([]test_suite.TestConfig, 1)
 		cfg.ExplicitDir[0].TestBucket = setup.TestBucket()
-		cfg.ExplicitDir[0].MountedDirectory = setup.MountedDirectory()
+		cfg.ExplicitDir[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.ExplicitDir[0].Configs = make([]test_suite.ConfigItem, 1)
 		cfg.ExplicitDir[0].Configs[0].Flags = []string{"--implicit-dirs=false", "--implicit-dirs=false --client-protocol=grpc"}
 		cfg.ExplicitDir[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
@@ -59,7 +59,7 @@ func TestMain(m *testing.M) {
 
 	// 2. Create storage client before running tests.
 	testEnv.ctx = context.Background()
-	bucketType := setup.BucketTestEnvironment(testEnv.ctx, cfg.ExplicitDir[0].TestBucket)
+	bucketType := setup.TestEnvironment(testEnv.ctx, &cfg.ExplicitDir[0])
 	closeStorageClient := client.CreateStorageClientWithCancel(&testEnv.ctx, &testEnv.storageClient)
 	defer func() {
 		err := closeStorageClient()

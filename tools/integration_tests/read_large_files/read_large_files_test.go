@@ -53,7 +53,7 @@ func TestMain(m *testing.M) {
 		// Populate the config manually.
 		cfg.ReadLargeFiles = make([]test_suite.TestConfig, 1)
 		cfg.ReadLargeFiles[0].TestBucket = setup.TestBucket()
-		cfg.ReadLargeFiles[0].MountedDirectory = setup.MountedDirectory()
+		cfg.ReadLargeFiles[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.ReadLargeFiles[0].Configs = make([]test_suite.ConfigItem, 1)
 		cfg.ReadLargeFiles[0].Configs[0].Flags = []string{
 			"--implicit-dirs",
@@ -66,9 +66,8 @@ func TestMain(m *testing.M) {
 		cfg.ReadLargeFiles[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
 
-	setup.SetTestBucket(cfg.ReadLargeFiles[0].TestBucket)
 	ctx = context.Background()
-	bucketType := setup.BucketTestEnvironment(ctx, cfg.ReadLargeFiles[0].TestBucket)
+	bucketType := setup.TestEnvironment(ctx, &cfg.ReadLargeFiles[0])
 
 	// 2. Create storage client before running tests.
 	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
@@ -81,8 +80,8 @@ func TestMain(m *testing.M) {
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as ReadLargeFiles tests validates content from the bucket.
-	if cfg.ReadLargeFiles[0].MountedDirectory != "" && cfg.ReadLargeFiles[0].TestBucket != "" {
-		os.Exit(setup.RunTestsForMountedDirectory(cfg.ReadLargeFiles[0].MountedDirectory, m))
+	if cfg.ReadLargeFiles[0].GKEMountedDirectory != "" && cfg.ReadLargeFiles[0].TestBucket != "" {
+		os.Exit(setup.RunTestsForMountedDirectory(cfg.ReadLargeFiles[0].GKEMountedDirectory, m))
 	}
 
 	// Run tests for testBucket.
@@ -90,7 +89,7 @@ func TestMain(m *testing.M) {
 	flags := setup.BuildFlagSets(cfg.ReadLargeFiles[0], bucketType)
 	flags = setup.AddCacheDirToFlags(flags, "read-large-files")
 
-	setup.SetUpTestDirForTestBucket(cfg.ReadLargeFiles[0].TestBucket)
+	setup.SetUpTestDirForTestBucket(&cfg.ReadLargeFiles[0])
 
 	successCode := static_mounting.RunTestsWithConfigFile(&cfg.ReadLargeFiles[0], flags, m)
 
