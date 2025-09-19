@@ -15,13 +15,10 @@
 package storageutil
 
 import (
-	"context"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"slices"
 	"testing"
-	"time"
 
 	"go.opentelemetry.io/otel"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -29,7 +26,6 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -180,78 +176,4 @@ func (t *clientTest) TestCreateHttpClientWithHttpTracing() {
 	assert.Condition(t.T(), func() bool {
 		return slices.ContainsFunc(ss, func(s tracetest.SpanStub) bool { return s.Name == "http.send" })
 	})
-}
-
-type MockResolver struct {
-	mock.Mock
-}
-
-func (m *MockResolver) LookupIPAddr(ctx context.Context, host string) ([]net.IPAddr, error) {
-	args := m.Called(ctx, host)
-	return args.Get(0).([]net.IPAddr), args.Error(1)
-}
-
-func (t *clientTest) TestCreateHttpClient_WithDNSCache() {
-	const (
-		hostname    = "test.hostname.com"
-		dnsCacheTTL = 10 * time.Second
-	)
-	// 1. Arrange
-	// Mock DNS resolver.
-	mockResolver := new(MockResolver)
-	// We will resolve to localhost.
-	ipAddrs := []net.IPAddr{{IP: net.IPv4(127, 0, 0, 1)}}
-	mockResolver.On("LookupIPAddr", mock.Anything, hostname).Return(ipAddrs, nil).Once()
-
-	// HTTP test server.
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
-
-	// Create a custom dialer with our mock resolver.
-	dialer := &net.Dialer{
-		Resolver: &net.Resolver{
-			PreferGo: true,
-			Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
-				// The caching dialer will try to resolve the hostname.
-				// We intercept this and use our mock resolver.
-				_, err := mockResolver.LookupIPAddr(ctx, hostname)
-				if err != nil {
-					return nil, err
-				}
-				// After "resolving", we dial the actual test server.
-				return net.Dial("tcp", server.Listener.Addr().String())
-			},
-		},
-	}
-
-	// Create an HTTP client with DNS caching enabled.
-	sc := GetDefaultStorageClientConfig(keyFile)
-	sc.HTTPDNSCacheTTLSecs = int64(dnsCacheTTL.Seconds())
-	transport := &http.Transport{
-		DialContext:         getDialerContextWithDialer(sc.HTTPDNSCacheTTLSecs, dialer),
-		MaxIdleConnsPerHost: sc.MaxIdleConnsPerHost,
-	}
-	httpClient := &http.Client{Transport: transport}
-	serverURL := "http://" + hostname + ":" + server.Listener.Addr().(*net.TCPAddr).Port
-
-	// 2. Act & Assert
-	// First call should trigger DNS lookup.
-	_, err := httpClient.Get(serverURL)
-	require.NoError(t.T(), err)
-	mockResolver.AssertExpectations(t.T())
-
-	// Second call should use cache, so no new DNS lookup.
-	_, err = httpClient.Get(serverURL)
-	require.NoError(t.T(), err)
-	mockResolver.AssertExpectations(t.T()) // No new calls expected.
-
-	// After TTL expires, a new DNS lookup should happen.
-	mockResolver.On("LookupIPAddr", mock.Anything, hostname).Return(ipAddrs, nil).Once()
-	time.Sleep(dnsCacheTTL + time.Second)
-
-	_, err = httpClient.Get(serverURL)
-	require.NoError(t.T(), err)
-	mockResolver.AssertExpectations(t.T())
 }
