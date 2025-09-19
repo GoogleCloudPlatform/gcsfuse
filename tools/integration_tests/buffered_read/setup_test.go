@@ -130,9 +130,10 @@ func TestMain(m *testing.M) {
 	// Set up the static mounting function.
 	mountFunc = func(flags []string) error {
 		config := &test_suite.TestConfig{
-			TestBucket:          setup.TestBucket(),
-			GKEMountedDirectory: setup.MountedDirectory(),
-			LogFile:             setup.LogFile(),
+			TestBucket:              setup.TestBucket(),
+			GKEMountedDirectory:     setup.MountedDirectory(),
+			GCSFuseMountedDirectory: setup.MntDir(),
+			LogFile:                 setup.LogFile(),
 		}
 		return static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(config, flags)
 	}

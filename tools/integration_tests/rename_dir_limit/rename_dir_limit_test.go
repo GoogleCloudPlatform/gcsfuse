@@ -77,7 +77,8 @@ func TestMain(m *testing.M) {
 	bucketType := setup.TestEnvironment(ctx, &cfg.RenameDirLimit[0])
 
 	// 2. Create storage client before running tests.
-	storageClient, err := client.CreateStorageClient(ctx)
+	var err error
+	storageClient, err = client.CreateStorageClient(ctx)
 	if err != nil {
 		log.Printf("Error creating storage client: %v\n", err)
 		os.Exit(1)
