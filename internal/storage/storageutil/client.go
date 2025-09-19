@@ -17,6 +17,7 @@ package storageutil
 import (
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptrace"
 	"strings"
@@ -25,6 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	dns "github.com/ncruces/go-dns"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
@@ -68,13 +70,37 @@ type StorageClientConfig struct {
 	MetricHandle metrics.MetricHandle
 
 	TracingEnabled bool
+
+	HTTPDNSCacheTTLSecs int64
+}
+
+func getDialerContext(dnsCacheTTLSecs int64) func(ctx context.Context, network, address string) (net.Conn, error) {
+	if dnsCacheTTLSecs == 0 {
+		return nil
+	}
+	dialer := net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+	return getDialerContextWithDialer(dnsCacheTTLSecs, &dialer)
+}
+
+func getDialerContextWithDialer(dnsCacheTTLSecs int64, dialer *net.Dialer) func(ctx context.Context, network, address string) (net.Conn, error) {
+	dnsTTLSecOption := dns.MaxCacheTTL(time.Second * time.Duration(dnsCacheTTLSecs))
+	dialer.Resolver = &net.Resolver{
+		PreferGo: true,
+		Dial:     dns.NewCachingDialer(dialer.Resolver.Dial, dnsTTLSecOption),
+	}
+	return dialer.DialContext
 }
 
 func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.TokenSource) (httpClient *http.Client, err error) {
 	var transport *http.Transport
+
 	// Using http1 makes the client more performant.
 	if storageClientConfig.ClientProtocol == cfg.HTTP1 {
 		transport = &http.Transport{
+			DialContext:         getDialerContext(storageClientConfig.HTTPDNSCacheTTLSecs),
 			Proxy:               http.ProxyFromEnvironment,
 			MaxConnsPerHost:     storageClientConfig.MaxConnsPerHost,
 			MaxIdleConnsPerHost: storageClientConfig.MaxIdleConnsPerHost,
