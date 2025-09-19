@@ -88,8 +88,8 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 	if !isSet.IsSet("{{ .FlagName }}") {
 		rules := AllFlagOptimizationRules["{{ .ConfigPath }}"]
 		result := getOptimizedValue(&rules, c.{{ .GoPath }}, profileName, machineType, machineTypeToGroupsMap)
-		if result.Found {
-			if val, ok := result.Value.({{ .GoType }}); ok {
+		if result.Optimized {
+			if val, ok := result.FinalValue.({{ .GoType }}); ok {
 				if c.{{ .GoPath }} != val {
 					c.{{ .GoPath }} = val
 					optimizedFlags = append(optimizedFlags, "{{ .ConfigPath }}")

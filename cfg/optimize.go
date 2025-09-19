@@ -42,9 +42,12 @@ const (
 // OptimizationResult holds the outcome of an optimization check, including the
 // new value and the reason for the change.
 type OptimizationResult struct {
-	Value  any
-	Reason string
-	Found  bool
+	// FinalValue is the value after applying all the optimizations. This will be the same as the original value if optimizations didn't change anything.
+	FinalValue any
+	// If value is optimized, then this will contain the description of what optimization caused the change, e.g. "profile aiml-training", or "machine-type a3-highgpu-8g" etc.
+	OptimizationReason string
+	// Optimized true indicates that the value was changed by optimization (either machine-type based, or profile-based).
+	Optimized bool
 }
 
 type isValueSet interface {
@@ -325,9 +328,9 @@ func getOptimizedValue(
 		for _, p := range rules.Profiles {
 			if p.Name == profileName {
 				return OptimizationResult{
-					Value:  p.Value,
-					Reason: fmt.Sprintf("profile %q setting", profileName),
-					Found:  true,
+					FinalValue:         p.Value,
+					OptimizationReason: fmt.Sprintf("profile %q setting", profileName),
+					Optimized:          true,
 				}
 			}
 		}
@@ -335,8 +338,8 @@ func getOptimizedValue(
 		// Per the proposal, we must NOT fall back to machine-type optimization.
 		// We stop and return the original value.
 		return OptimizationResult{
-			Value: currentValue,
-			Found: false,
+			FinalValue: currentValue,
+			Optimized:  false,
 		}
 	}
 
@@ -346,9 +349,9 @@ func getOptimizedValue(
 			for _, mbo := range rules.MachineBasedOptimization {
 				if mbo.Group == groupName {
 					return OptimizationResult{
-						Value:  mbo.Value,
-						Reason: fmt.Sprintf("machine-type group %q", groupName),
-						Found:  true,
+						FinalValue:         mbo.Value,
+						OptimizationReason: fmt.Sprintf("machine-type group %q", groupName),
+						Optimized:          true,
 					}
 				}
 			}
@@ -357,7 +360,7 @@ func getOptimizedValue(
 
 	// 3. If no optimization is found, return the original value.
 	return OptimizationResult{
-		Value: currentValue,
-		Found: false,
+		FinalValue: currentValue,
+		Optimized:  false,
 	}
 }
