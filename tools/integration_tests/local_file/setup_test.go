@@ -38,13 +38,34 @@ import (
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
-
 	// set the test dir to local file test
 	testDirName = testDirLocalFileTest
 
-	// Create storage client before running tests.
+	// 1. Load and parse the common configuration.
+	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
+	if len(cfg.LocalFile) == 0 {
+		log.Println("No configuration found for LocalFile tests in config. Using flags instead.")
+		// Populate the config manually.
+		cfg.LocalFile = make([]test_suite.TestConfig, 1)
+		cfg.LocalFile[0].TestBucket = setup.TestBucket()
+		cfg.LocalFile[0].MountedDirectory = setup.MountedDirectory()
+		cfg.LocalFile[0].Configs = make([]test_suite.ConfigItem, 2)
+		cfg.LocalFile[0].Configs[0].Flags = []string{
+			"--implicit-dirs=true --rename-dir-limit=3 --enable-streaming-writes=false",
+			"--implicit-dirs=false --rename-dir-limit=3 --enable-streaming-writes=false",
+			"--implicit-dirs=false --rename-dir-limit=3 --enable-streaming-writes=false --client-protocol=grpc",
+		}
+		cfg.LocalFile[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.LocalFile[0].Configs[1].Flags = []string{
+			"--rename-dir-limit=3 --write-block-size-mb=1 --write-max-blocks-per-file=2 --write-global-max-blocks=-1 --client-protocol=grpc",
+			"--rename-dir-limit=3 --write-block-size-mb=1 --write-max-blocks-per-file=2 --write-global-max-blocks=-1",
+		}
+		cfg.LocalFile[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": false}
+	}
+
+	// 2. Create storage client before running tests.
 	ctx = context.Background()
+	bucketType := setup.BucketTestEnvironment(ctx, cfg.LocalFile[0].TestBucket)
 	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
 	defer func() {
 		err := closeStorageClient()
@@ -52,41 +73,30 @@ func TestMain(m *testing.M) {
 			log.Fatalf("closeStorageClient failed: %v", err)
 		}
 	}()
-	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
-	// flags to be set, as local_file tests validates content from the bucket.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		setup.RunTestsForMountedDirectoryFlag(m)
+
+	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	// flags to be set, as LocalFile tests validates content from the bucket.
+	if cfg.LocalFile[0].MountedDirectory != "" && cfg.LocalFile[0].TestBucket != "" {
+		os.Exit(setup.RunTestsForMountedDirectory(cfg.LocalFile[0].MountedDirectory, m))
 	}
 
-	// Else run tests for testBucket.
-	// Set up test directory.
-	setup.SetUpTestDirForTestBucketFlag()
+	// Run tests for testBucket.
+	// 4. Build the flag sets dynamically from the config.
+	flags := setup.BuildFlagSets(cfg.LocalFile[0], bucketType)
 
-	// Set up flags to run tests on local file test suite.
-	// Not setting config file explicitly with 'create-empty-file: false' as it is default.
-	// Running these tests with streaming writes disabled because local file tests are already running in streaming_writes test package.
-	flagsSet := [][]string{
-		{"--implicit-dirs=true", "--rename-dir-limit=3", "--enable-streaming-writes=false"},
-		{"--implicit-dirs=false", "--rename-dir-limit=3", "--enable-streaming-writes=false"},
-		{"--implicit-dirs=false", "--rename-dir-limit=3", "--enable-streaming-writes=false", "--client-protocol=grpc"},
-	}
+	setup.SetUpTestDirForTestBucket(cfg.LocalFile[0].TestBucket)
 
-	if !setup.IsZonalBucketRun() {
-		flagsSet = append(flagsSet, []string{"--rename-dir-limit=3", "--write-block-size-mb=1", "--write-max-blocks-per-file=2", "--write-global-max-blocks=-1"})
-		flagsSet = append(flagsSet, []string{"--rename-dir-limit=3", "--write-block-size-mb=1", "--write-max-blocks-per-file=2", "--write-global-max-blocks=-1", "--client-protocol=grpc"})
-	}
-
-	successCode := static_mounting.RunTests(flagsSet, m)
+	successCode := static_mounting.RunTestsWithConfigFile(&cfg.LocalFile[0], flags, m)
 
 	if successCode == 0 {
-		successCode = only_dir_mounting.RunTests(flagsSet, onlyDirMounted, m)
+		successCode = only_dir_mounting.RunTestsWithConfigFile(&cfg.LocalFile[0], flags, m)
 	}
 
 	// Dynamic mounting tests create a bucket and perform tests on that bucket,
 	// which is not a hierarchical bucket. So we are not running those tests with
 	// hierarchical bucket.
 	if successCode == 0 && !setup.IsHierarchicalBucket(ctx, storageClient) {
-		successCode = dynamic_mounting.RunTests(ctx, storageClient, flagsSet, m)
+		successCode = dynamic_mounting.RunTestsWithConfigFile(&cfg.LocalFile[0], flags, m)
 	}
 
 	// Clean up test directory created.
