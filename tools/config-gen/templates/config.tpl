@@ -21,7 +21,86 @@ import (
 
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
 )
+
+// AllFlagOptimizationRules is the generated map from a flag's config-path to its specific rules.
+var AllFlagOptimizationRules = map[string]shared.OptimizationRules{
+{{- range .FlagTemplateData }}
+	{{- if .Optimizations }}
+	{{- $goType := .GoType -}}
+	"{{ .ConfigPath }}": {
+		{{- if .Optimizations.MachineBasedOptimization }}
+		MachineBasedOptimization: []shared.MachineBasedOptimization{
+			{{- range .Optimizations.MachineBasedOptimization }}
+			{
+				Group: "{{ .Group }}",
+				Value: {{$goType}}({{ formatValue .Value }}),
+			},
+			{{- end }}
+		},
+		{{- end }}
+		{{- if .Optimizations.Profiles }}
+		Profiles: []shared.ProfileOptimization{
+			{{- range .Optimizations.Profiles }}
+			{
+				Name: "{{ .Name }}",
+				Value: {{$goType}}({{ formatValue .Value }}),
+			},
+			{{- end }}
+		},
+		{{- end }}
+	},
+	{{- end }}
+{{- end }}
+}
+
+// machineTypeToGroupsMap is the generated map from machine type to the groups it belongs to.
+var machineTypeToGroupsMap = map[string][]string{
+{{- range $machineType, $groups := .MachineTypeToGroupsMap }}
+	"{{ $machineType }}": { 
+	{{- range $group := $groups }}
+		"{{ $group }}",
+	{{- end }}
+	},
+{{- end }}
+}
+
+// ApplyOptimizations modifies the config in-place with optimized values.
+func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
+	var optimizedFlags []string
+	// Skip all optimizations if autoconfig is disabled.
+	if c.DisableAutoconfig {
+		return nil
+	}
+
+	profileName := c.Profile
+	machineType, err := getMachineType(isSet)
+	if err != nil {
+		// Non-fatal, just means machine-based optimizations won't apply.
+		machineType = ""
+	}
+	c.MachineType = machineType
+
+	// Apply optimizations for each flag that has rules defined.
+{{- range .FlagTemplateData }}
+{{- if .Optimizations }}
+	if !isSet.IsSet("{{ .FlagName }}") {
+		rules := AllFlagOptimizationRules["{{ .ConfigPath }}"]
+		result := getOptimizedValue(&rules, c.{{ .GoPath }}, profileName, machineType, machineTypeToGroupsMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.({{ .GoType }}); ok {
+				if c.{{ .GoPath }} != val {
+					c.{{ .GoPath }} = val
+					optimizedFlags = append(optimizedFlags, "{{ .ConfigPath }}")
+				}
+			}
+		}
+	}
+{{- end }}
+{{- end }}
+	return optimizedFlags
+}
 
 {{$bt := .Backticks}}
 {{range .TypeTemplateData}}
