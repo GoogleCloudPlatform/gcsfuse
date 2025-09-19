@@ -49,7 +49,7 @@ func TestMain(m *testing.M) {
 		// Populate the config manually.
 		cfg.WriteLargeFiles = make([]test_suite.TestConfig, 1)
 		cfg.WriteLargeFiles[0].TestBucket = setup.TestBucket()
-		cfg.WriteLargeFiles[0].MountedDirectory = setup.MountedDirectory()
+		cfg.WriteLargeFiles[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.WriteLargeFiles[0].Configs = make([]test_suite.ConfigItem, 1)
 		cfg.WriteLargeFiles[0].Configs[0].Flags = []string{
 			"--enable-streaming-writes=false",
@@ -60,7 +60,7 @@ func TestMain(m *testing.M) {
 
 	// 2. Create storage client before running tests.
 	ctx = context.Background()
-	bucketType := setup.BucketTestEnvironment(ctx, cfg.WriteLargeFiles[0].TestBucket)
+	bucketType := setup.TestEnvironment(ctx, &cfg.WriteLargeFiles[0])
 	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
 	defer func() {
 		err := closeStorageClient()
@@ -71,15 +71,15 @@ func TestMain(m *testing.M) {
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as WriteLargeFiles tests validates content from the bucket.
-	if cfg.WriteLargeFiles[0].MountedDirectory != "" && cfg.WriteLargeFiles[0].TestBucket != "" {
-		os.Exit(setup.RunTestsForMountedDirectory(cfg.WriteLargeFiles[0].MountedDirectory, m))
+	if cfg.WriteLargeFiles[0].GKEMountedDirectory != "" && cfg.WriteLargeFiles[0].TestBucket != "" {
+		os.Exit(setup.RunTestsForMountedDirectory(cfg.WriteLargeFiles[0].GKEMountedDirectory, m))
 	}
 
 	// Run tests for testBucket
 	// 4. Build the flag sets dynamically from the config.
 	flags := setup.BuildFlagSets(cfg.WriteLargeFiles[0], bucketType)
 
-	setup.SetUpTestDirForTestBucket(cfg.WriteLargeFiles[0].TestBucket)
+	setup.SetUpTestDirForTestBucket(&cfg.WriteLargeFiles[0])
 
 	successCode := static_mounting.RunTestsWithConfigFile(&cfg.WriteLargeFiles[0], flags, m)
 

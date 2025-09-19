@@ -110,7 +110,7 @@ func TestMain(m *testing.M) {
 		// Populate the config manually.
 		cfg.ReadOnly = make([]test_suite.TestConfig, 1)
 		cfg.ReadOnly[0].TestBucket = setup.TestBucket()
-		cfg.ReadOnly[0].MountedDirectory = setup.MountedDirectory()
+		cfg.ReadOnly[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.ReadOnly[0].Configs = make([]test_suite.ConfigItem, 1)
 		cacheDirPath := path.Join(os.TempDir(), "cache-dir-readonly-"+setup.GenerateRandomString(4))
 		cfg.ReadOnly[0].Configs[0].Flags = []string{
@@ -123,7 +123,7 @@ func TestMain(m *testing.M) {
 	}
 
 	// 2. Create storage client before running tests.
-	bucketType := setup.BucketTestEnvironment(ctx, cfg.ReadOnly[0].TestBucket)
+	bucketType := setup.TestEnvironment(ctx, &cfg.ReadOnly[0])
 	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
 	defer func() {
 		err := closeStorageClient()
@@ -139,14 +139,14 @@ func TestMain(m *testing.M) {
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set.
-	if cfg.ReadOnly[0].MountedDirectory != "" && cfg.ReadOnly[0].TestBucket != "" {
-		os.Exit(setup.RunTestsForMountedDirectory(cfg.ReadOnly[0].MountedDirectory, m))
+	if cfg.ReadOnly[0].GKEMountedDirectory != "" && cfg.ReadOnly[0].TestBucket != "" {
+		os.Exit(setup.RunTestsForMountedDirectory(cfg.ReadOnly[0].GKEMountedDirectory, m))
 	}
 
 	// Run tests for testBucket
 	// 4. Build the flag sets dynamically from the config.
 	flags := setup.BuildFlagSets(cfg.ReadOnly[0], bucketType)
-	setup.SetUpTestDirForTestBucket(cfg.ReadOnly[0].TestBucket)
+	setup.SetUpTestDirForTestBucket(&cfg.ReadOnly[0])
 
 	// 5. Run tests.
 	successCode := static_mounting.RunTestsWithConfigFile(&cfg.ReadOnly[0], flags, m)

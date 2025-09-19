@@ -30,9 +30,10 @@ import (
 // TODO(b/438068132): cleanup deprecated methods after migration is complete.
 func MountGcsfuseWithOnlyDir(flags []string) (err error) {
 	config := &test_suite.TestConfig{
-		TestBucket:       setup.TestBucket(),
-		MountedDirectory: setup.MountedDirectory(),
-		LogFile:          setup.LogFile(),
+		TestBucket:              setup.TestBucket(),
+		GKEMountedDirectory:     setup.MountedDirectory(),
+		GCSFuseMountedDirectory: setup.MntDir(),
+		LogFile:                 setup.LogFile(),
 	}
 	return MountGcsfuseWithOnlyDirWithConfigFile(config, flags)
 }
@@ -41,9 +42,9 @@ func MountGcsfuseWithOnlyDirWithConfigFile(config *test_suite.TestConfig, flags 
 	defaultArg := []string{"--only-dir",
 		setup.OnlyDirMounted(),
 		"--log-severity=trace",
-		"--log-file=" + setup.LogFile(),
+		"--log-file=" + config.LogFile,
 		config.TestBucket,
-		setup.MntDir()}
+		config.GCSFuseMountedDirectory}
 
 	for i := 0; i < len(defaultArg); i++ {
 		flags = append(flags, defaultArg[i])
@@ -109,9 +110,10 @@ func executeTestsForOnlyDirMounting(config *test_suite.TestConfig, flags [][]str
 // TODO(b/438068132): cleanup deprecated methods after migration is complete.
 func RunTests(flags [][]string, dirName string, m *testing.M) (successCode int) {
 	config := &test_suite.TestConfig{
-		TestBucket:       setup.TestBucket(),
-		MountedDirectory: setup.MountedDirectory(),
-		LogFile:          setup.LogFile(),
+		TestBucket:              setup.TestBucket(),
+		GKEMountedDirectory:     setup.MountedDirectory(),
+		GCSFuseMountedDirectory: setup.MntDir(),
+		LogFile:                 setup.LogFile(),
 	}
 	return RunTestsWithConfigFile(config, flags, dirName, m)
 }

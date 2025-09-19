@@ -144,9 +144,7 @@ func TestMain(m *testing.M) {
 		log.Println("Skipping test package : grpc_validation since this is a presubmit test run")
 		os.Exit(0)
 	}
-	if err := setup.SetUpTestDir(); err != nil {
-		log.Fatalf("Failed to setup GCSFuse package. Error: %v", err)
-	}
+	setup.SetUpTestDirForTestBucketFlag()
 
 	// Creating a common storage client for the test
 	ctx = context.Background()
