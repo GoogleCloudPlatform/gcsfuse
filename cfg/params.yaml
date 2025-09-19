@@ -173,7 +173,7 @@ params:
   - config-path: "file-cache.enable-crc"
     flag-name: "file-cache-enable-crc"
     type: "bool"
-    usage: "Performs CRC to ensure that file is correctly downloaded into cache."
+    usage: "Performs CRC to ensure that file is correctly downloaded into cache. No op for rapid storage."
     default: false
     hide-flag: true
 
