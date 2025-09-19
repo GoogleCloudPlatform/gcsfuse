@@ -70,20 +70,31 @@ type StorageClientConfig struct {
 	MetricHandle metrics.MetricHandle
 
 	TracingEnabled bool
+
+	HTTPDNSCacheTTLSecs int64
+}
+
+func getDialerContext(dnsCacheTTLSecs int64) func(ctx context.Context, network, address string) (net.Conn, error) {
+	if dnsCacheTTLSecs == 0 {
+		return nil
+	}
+	dnsTTLSecOption := dns.MaxCacheTTL(time.Second * time.Duration(dnsCacheTTLSecs))
+	dialer := net.Dialer{
+		Resolver: &net.Resolver{
+			PreferGo: true,
+			Dial:     dns.NewCachingDialer(nil, dnsTTLSecOption),
+		},
+	}
+	return dialer.DialContext
 }
 
 func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.TokenSource) (httpClient *http.Client, err error) {
 	var transport *http.Transport
-	dialer := &net.Dialer{
-		Resolver: &net.Resolver{
-			PreferGo: true,
-			Dial:     dns.NewCachingDialer(nil),
-		},
-	}
+
 	// Using http1 makes the client more performant.
 	if storageClientConfig.ClientProtocol == cfg.HTTP1 {
 		transport = &http.Transport{
-			DialContext:         dialer.DialContext,
+			DialContext:         getDialerContext(storageClientConfig.HTTPDNSCacheTTLSecs),
 			Proxy:               http.ProxyFromEnvironment,
 			MaxConnsPerHost:     storageClientConfig.MaxConnsPerHost,
 			MaxIdleConnsPerHost: storageClientConfig.MaxIdleConnsPerHost,
