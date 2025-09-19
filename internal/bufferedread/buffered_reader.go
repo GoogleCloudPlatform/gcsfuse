@@ -258,7 +258,7 @@ func (p *BufferedReader) handleRandomRead(offset int64, handleID int64) error {
 		retiredBlocksStr = strings.Join(retiredIndexes, ", ")
 	}
 
-	logger.Infof("Random read detected (%d). Offset: %d, BlockIndex: %d, BlockQueue: %s, RetiredBlocks: [%s]",
+	logger.Tracef("Random read detected (%d). Offset: %d, BlockIndex: %d, BlockQueue: %s, RetiredBlocks: [%s]",
 		p.randomSeekCount,
 		offset,
 		blockIndex,
@@ -365,7 +365,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		handleID = int64(readOp.Handle)
 	}
 
-	logger.Infof("%.13v <- ReadAt(%s:/%s, %d, %d, %d, %d)", reqID, p.bucket.Name(), p.object.Name, handleID, off, len(inputBuf), blockIdx)
+	logger.Tracef("%.13v <- ReadAt(%s:/%s, %d, %d, %d, %d)", reqID, p.bucket.Name(), p.object.Name, handleID, off, len(inputBuf), blockIdx)
 
 	if off >= int64(p.object.Size) {
 		err = io.EOF
@@ -383,7 +383,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		dur := time.Since(start)
 		p.metricHandle.BufferedReadReadLatency(ctx, dur)
 		if err == nil || errors.Is(err, io.EOF) {
-			logger.Infof("%.13v -> ReadAt(): Ok(%v)", reqID, dur)
+			logger.Tracef("%.13v -> ReadAt(): Ok(%v)", reqID, dur)
 		}
 	}()
 
@@ -444,19 +444,8 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 			p.prefetch()
 			entry.prefetchTriggered = true
 		}
-		p.mu.Unlock() // Release lock before waiting for download.
 
 		status, waitErr := entry.block.AwaitReady(ctx)
-
-		p.mu.Lock() // Re-acquire lock to process the result.
-
-		// After re-acquiring the lock, the state might have changed (e.g., due to a
-		// random seek in another goroutine). We must validate that the block we
-		// waited for is still the one we need. If not, we restart the loop to
-		// re-evaluate the state.
-		if p.blockQueue.IsEmpty() || p.blockQueue.Peek() != entry {
-			continue
-		}
 
 		blk := entry.block
 
@@ -583,7 +572,7 @@ func (p *BufferedReader) scheduleNextBlock(urgent bool) error {
 		// can't get a block. For the buffered reader, this is a recoverable
 		// condition that should either trigger a fallback to another reader (for
 		// urgent reads) or be ignored (for background prefetches).
-		logger.Infof("scheduleNextBlock: could not get block from pool (urgent=%t): %v", urgent, err)
+		logger.Tracef("scheduleNextBlock: could not get block from pool (urgent=%t): %v", urgent, err)
 		return ErrPrefetchBlockNotAvailable
 	}
 
@@ -606,7 +595,7 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockInde
 	ctx, cancel := context.WithCancel(p.ctx)
 	task := NewDownloadTask(ctx, p.object, p.bucket, b, p.readHandle, p.metricHandle)
 
-	logger.Infof("Scheduling block: (%s, %d, %t).", p.object.Name, blockIndex, urgent)
+	logger.Tracef("Scheduling block: (%s, %d, %t).", p.object.Name, blockIndex, urgent)
 	p.blockQueue.Push(&blockQueueEntry{
 		block:             b,
 		cancel:            cancel,
