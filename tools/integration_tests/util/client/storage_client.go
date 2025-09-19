@@ -212,6 +212,24 @@ func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, cont
 	return WriteToObject(ctx, client, object, content, storage.Conditions{DoesNotExist: true})
 }
 
+func CreateFinalizedObjectOnGCS(ctx context.Context, client *storage.Client, object, content string) error {
+	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
+	o := client.Bucket(bucket).Object(object)
+
+	// Upload an object with storage.Writer with finalizeOnClose=true
+	wc := o.NewWriter(ctx)
+	wc.Append = true
+	wc.FinalizeOnClose = true
+	if _, err := io.WriteString(wc, content); err != nil {
+		return fmt.Errorf("io.WriteString failed for object %q: %w", object, err)
+	}
+	if err := wc.Close(); err != nil {
+		return fmt.Errorf("Writer.Close failed for object %q: %w", object, err)
+	}
+	operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), time.Second)
+	return nil
+}
+
 // CreateStorageClientWithCancel creates a new storage client with a cancelable context and returns a function that can be used to cancel the client's operations
 func CreateStorageClientWithCancel(ctx *context.Context, storageClient **storage.Client) func() error {
 	var err error

@@ -126,6 +126,15 @@ func CreateObjectInGCSTestDir(ctx context.Context, storageClient *storage.Client
 	}
 }
 
+func CreateFinalizedObjectInGCSTestDir(ctx context.Context, storageClient *storage.Client,
+	testDirName, fileName, content string, t *testing.T) {
+	objectName := path.Join(testDirName, fileName)
+	err := CreateFinalizedObjectOnGCS(ctx, storageClient, objectName, content)
+	if err != nil {
+		t.Fatalf("Create Object %s on GCS: %v.", objectName, err)
+	}
+}
+
 func SetupFileInTestDirectory(ctx context.Context, storageClient *storage.Client,
 	testDirName, testFileName string, size int64, t *testing.T) {
 	randomData, err := operations.GenerateRandomData(size)
