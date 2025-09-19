@@ -80,6 +80,8 @@ func getDialerContext(dnsCacheTTLSecs int64) func(ctx context.Context, network, 
 	}
 	dnsTTLSecOption := dns.MaxCacheTTL(time.Second * time.Duration(dnsCacheTTLSecs))
 	dialer := net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
 		Resolver: &net.Resolver{
 			PreferGo: true,
 			Dial:     dns.NewCachingDialer(nil, dnsTTLSecOption),
