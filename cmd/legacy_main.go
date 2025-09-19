@@ -125,7 +125,11 @@ func getConfigForUserAgent(mountConfig *cfg.Config) string {
 	if mountConfig.Read.EnableBufferedRead {
 		isBufferedReadEnabled = "1"
 	}
-	return fmt.Sprintf("%s:%s:%s:%s:%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled, isParallelDownloadsEnabled, areStreamingWritesEnabled, isBufferedReadEnabled)
+	isProfileEnabled := "0"
+	if mountConfig.Profile != "" {
+		isProfileEnabled = "1"
+	}
+	return fmt.Sprintf("%s:%s:%s:%s:%s:%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled, isParallelDownloadsEnabled, areStreamingWritesEnabled, isBufferedReadEnabled, isProfileEnabled)
 }
 func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle metrics.MetricHandle) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
