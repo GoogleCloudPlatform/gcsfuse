@@ -124,15 +124,15 @@ func TestMain(m *testing.M) {
 	}
 
 	// Else run tests for testBucket.
-	setup.SetUpTestDirForTestBucket(setup.TestBucket())
+	setup.SetUpTestDirForTestBucketFlag()
 	rootDir = setup.MntDir()
 
 	// Set up the static mounting function.
 	mountFunc = func(flags []string) error {
 		config := &test_suite.TestConfig{
-			TestBucket:       setup.TestBucket(),
-			MountedDirectory: setup.MountedDirectory(),
-			LogFile:          setup.LogFile(),
+			TestBucket:          setup.TestBucket(),
+			GKEMountedDirectory: setup.MountedDirectory(),
+			LogFile:             setup.LogFile(),
 		}
 		return static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(config, flags)
 	}

@@ -70,7 +70,7 @@ func TestMain(m *testing.M) {
 		// Populate the config manually.
 		cfg.ImplicitDir = make([]test_suite.TestConfig, 1)
 		cfg.ImplicitDir[0].TestBucket = setup.TestBucket()
-		cfg.ImplicitDir[0].MountedDirectory = setup.MountedDirectory()
+		cfg.ImplicitDir[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.ImplicitDir[0].Configs = make([]test_suite.ConfigItem, 2)
 		cfg.ImplicitDir[0].Configs[0].Flags = []string{"--implicit-dirs"}
 		cfg.ImplicitDir[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
@@ -80,7 +80,7 @@ func TestMain(m *testing.M) {
 
 	// 2. Create storage client before running tests.
 	testEnv.ctx = context.Background()
-	bucketType := setup.BucketTestEnvironment(testEnv.ctx, cfg.ImplicitDir[0].TestBucket)
+	bucketType := setup.TestEnvironment(testEnv.ctx, &cfg.ImplicitDir[0])
 	closeStorageClient := client.CreateStorageClientWithCancel(&testEnv.ctx, &testEnv.storageClient)
 	defer func() {
 		err := closeStorageClient()
