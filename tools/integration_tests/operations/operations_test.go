@@ -95,14 +95,14 @@ var (
 )
 
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
-	// Set up config file with create-empty-file: true.
 	mountConfig1 := map[string]interface{}{
-		"write": map[string]interface{}{
-			"create-empty-file": true,
+		"metadata-cache": map[string]interface{}{
+			"ttl-secs": 0,
 		},
-		"enable-atomic-rename-object": true,
+		"write": map[string]interface{}{
+			"enable-streaming-writes": false,
+		},
 	}
-
 	filePath1 := setup.YAMLConfigFile(mountConfig1, "config1.yaml")
 	flags = append(flags, []string{"--config-file=" + filePath1})
 
