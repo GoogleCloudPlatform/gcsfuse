@@ -78,14 +78,18 @@ func getDialerContext(dnsCacheTTLSecs int64) func(ctx context.Context, network, 
 	if dnsCacheTTLSecs == 0 {
 		return nil
 	}
-	dnsTTLSecOption := dns.MaxCacheTTL(time.Second * time.Duration(dnsCacheTTLSecs))
 	dialer := net.Dialer{
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
-		Resolver: &net.Resolver{
-			PreferGo: true,
-			Dial:     dns.NewCachingDialer(nil, dnsTTLSecOption),
-		},
+	}
+	return getDialerContextWithDialer(dnsCacheTTLSecs, &dialer)
+}
+
+func getDialerContextWithDialer(dnsCacheTTLSecs int64, dialer *net.Dialer) func(ctx context.Context, network, address string) (net.Conn, error) {
+	dnsTTLSecOption := dns.MaxCacheTTL(time.Second * time.Duration(dnsCacheTTLSecs))
+	dialer.Resolver = &net.Resolver{
+		PreferGo: true,
+		Dial:     dns.NewCachingDialer(dialer.Resolver.Dial, dnsTTLSecOption),
 	}
 	return dialer.DialContext
 }
