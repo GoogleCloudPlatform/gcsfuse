@@ -114,9 +114,11 @@ type FileCacheConfig struct {
 
 	EnableParallelDownloads bool `yaml:"enable-parallel-downloads"`
 
-	ExperimentalExcludeRegex string `yaml:"experimental-exclude-regex"`
+	ExcludeRegex string `yaml:"exclude-regex"`
 
 	ExperimentalParallelDownloadsDefaultOn bool `yaml:"experimental-parallel-downloads-default-on"`
+
+	IncludeRegex string `yaml:"include-regex"`
 
 	MaxParallelDownloads int64 `yaml:"max-parallel-downloads"`
 
@@ -531,15 +533,21 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("file-cache-enable-parallel-downloads", "", false, "Enable parallel downloads.")
 
-	flagSet.StringP("file-cache-experimental-exclude-regex", "", "", "Exclude file paths (in the format bucket_name/object_key) specified by this regex from file caching.")
+	flagSet.StringP("file-cache-exclude-regex", "", "", "Exclude file paths (in the format bucket_name/object_key) specified by this regex from file caching.")
 
-	if err := flagSet.MarkHidden("file-cache-experimental-exclude-regex"); err != nil {
+	if err := flagSet.MarkHidden("file-cache-exclude-regex"); err != nil {
 		return err
 	}
 
 	flagSet.BoolP("file-cache-experimental-parallel-downloads-default-on", "", true, "Enable parallel downloads by default on experimental basis.")
 
 	if err := flagSet.MarkHidden("file-cache-experimental-parallel-downloads-default-on"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("file-cache-include-regex", "", "", "Include file paths (in the format bucket_name/object_key) specified by this regex for file caching.")
+
+	if err := flagSet.MarkHidden("file-cache-include-regex"); err != nil {
 		return err
 	}
 
@@ -956,11 +964,15 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("file-cache.experimental-exclude-regex", flagSet.Lookup("file-cache-experimental-exclude-regex")); err != nil {
+	if err := v.BindPFlag("file-cache.exclude-regex", flagSet.Lookup("file-cache-exclude-regex")); err != nil {
 		return err
 	}
 
 	if err := v.BindPFlag("file-cache.experimental-parallel-downloads-default-on", flagSet.Lookup("file-cache-experimental-parallel-downloads-default-on")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-cache.include-regex", flagSet.Lookup("file-cache-include-regex")); err != nil {
 		return err
 	}
 
