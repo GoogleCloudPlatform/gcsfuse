@@ -777,6 +777,26 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Test http-dns-cache-ttl-secs flag.",
+			args: []string{"gcsfuse", "--http-dns-cache-ttl-secs=120", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				GcsConnection: cfg.GcsConnectionConfig{
+					BillingProject:             "",
+					ClientProtocol:             "http1",
+					CustomEndpoint:             "",
+					ExperimentalEnableJsonRead: false,
+					GrpcConnPoolSize:           1,
+					HttpClientTimeout:          0,
+					LimitBytesPerSec:           -1,
+					LimitOpsPerSec:             -1,
+					MaxConnsPerHost:            0,
+					MaxIdleConnsPerHost:        100,
+					SequentialReadSizeMb:       200,
+					HttpDnsCacheTtlSecs:        120,
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {
