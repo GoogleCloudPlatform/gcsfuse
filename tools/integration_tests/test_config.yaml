@@ -153,7 +153,7 @@ rename_dir_limit:
 local_file:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
-    log_file: # Optional flag required by some tests where log parsing is done to validate end behavior
+    log_file: # Optional
     run_on_gke: false
     configs:
       - flags:

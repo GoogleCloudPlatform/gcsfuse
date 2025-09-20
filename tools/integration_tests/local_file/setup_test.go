@@ -28,6 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -89,13 +90,13 @@ func TestMain(m *testing.M) {
 	successCode := static_mounting.RunTestsWithConfigFile(&cfg.LocalFile[0], flags, m)
 
 	if successCode == 0 {
-		successCode = only_dir_mounting.RunTestsWithConfigFile(&cfg.LocalFile[0], flags, m)
+		successCode = only_dir_mounting.RunTestsWithConfigFile(&cfg.LocalFile[0], flags, onlyDirMounted, m)
 	}
 
 	// Dynamic mounting tests create a bucket and perform tests on that bucket,
 	// which is not a hierarchical bucket. So we are not running those tests with
 	// hierarchical bucket.
-	if successCode == 0 && !setup.IsHierarchicalBucket(ctx, storageClient) {
+	if successCode == 0 && !setup.ResolveIsHierarchicalBucket(ctx, setup.TestBucket(), storageClient) {
 		successCode = dynamic_mounting.RunTestsWithConfigFile(&cfg.LocalFile[0], flags, m)
 	}
 
