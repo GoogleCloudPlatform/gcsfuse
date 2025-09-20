@@ -51,6 +51,18 @@ type AttrValuePair struct {
 	Value string // "true"/"false" for bools
 }
 
+// AttributeConstant holds data for a single constant.
+type AttributeConstant struct {
+	Name  string // e.g. FsOpBatchForget
+	Value string // e.g. "BatchForget"
+}
+
+// AttributeGroup holds a group of related constants.
+type AttributeGroup struct {
+	Name      string // e.g. FsOp
+	Constants []AttributeConstant
+}
+
 // AttrCombination is a list of AttrValuePairs.
 type AttrCombination []AttrValuePair
 
@@ -58,6 +70,7 @@ type AttrCombination []AttrValuePair
 type TemplateData struct {
 	Metrics          []Metric
 	AttrCombinations map[string][]AttrCombination
+	AttributeGroups  []AttributeGroup
 }
 
 // Helper functions for the template.
@@ -446,6 +459,47 @@ func main() {
 		attrCombinations[m.Name] = generateCombinations(m.Attributes)
 	}
 
+	// Collect all string attributes
+	allStringAttributes := make(map[string]map[string]bool) // map[attrName]map[attrValue]bool
+	for _, m := range metrics {
+		for _, a := range m.Attributes {
+			if a.Type == "string" {
+				if _, ok := allStringAttributes[a.Name]; !ok {
+					allStringAttributes[a.Name] = make(map[string]bool)
+				}
+				for _, v := range a.Values {
+					allStringAttributes[a.Name][v] = true
+				}
+			}
+		}
+	}
+
+	// Now create AttributeGroups from allStringAttributes
+	var attributeGroups []AttributeGroup
+	for attrName, valueSet := range allStringAttributes {
+		var constants []AttributeConstant
+		for value := range valueSet {
+			constants = append(constants, AttributeConstant{
+				Name:  toPascal(attrName) + toPascal(value),
+				Value: value,
+			})
+		}
+		// Sort constants for deterministic output
+		sort.Slice(constants, func(i, j int) bool {
+			return constants[i].Name < constants[j].Name
+		})
+
+		attributeGroups = append(attributeGroups, AttributeGroup{
+			Name:      toPascal(attrName),
+			Constants: constants,
+		})
+	}
+
+	// Sort attribute groups for deterministic output
+	sort.Slice(attributeGroups, func(i, j int) bool {
+		return attributeGroups[i].Name < attributeGroups[j].Name
+	})
+
 	// Create the directory if it doesn't exist
 	if err := os.MkdirAll(*outputDir, 0755); err != nil {
 		log.Fatalf("error creating output directory: %v", err)
@@ -453,6 +507,7 @@ func main() {
 	data := TemplateData{
 		Metrics:          metrics,
 		AttrCombinations: attrCombinations,
+		AttributeGroups:  attributeGroups,
 	}
 	createFile(&data, fmt.Sprintf("%s/metric_handle.go", *outputDir), "metric_handle.tpl")
 	createFile(&data, fmt.Sprintf("%s/noop_metrics.go", *outputDir), "noop_metrics.tpl")
