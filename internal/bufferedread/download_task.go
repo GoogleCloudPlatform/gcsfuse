@@ -110,10 +110,11 @@ func (p *DownloadTask) Execute() {
 	}
 	defer newReader.Close()
 
-	bytesCopied, err := io.CopyN(p.block, newReader, int64(end-start))
-	if err != nil {
-		err = fmt.Errorf("DownloadTask.Execute: while data-copy: %w", err)
+	n, copyErr := io.CopyN(p.block, newReader, int64(end-start))
+	p.metricHandle.BufferedReadBytesCount(n, "downloaded")
+	if copyErr != nil && copyErr != io.EOF {
+		err = fmt.Errorf("DownloadTask.Execute: while data-copy: %w", copyErr)
 		return
 	}
-	p.metricHandle.BufferedReadBytesCount(bytesCopied, "downloaded")
+	err = nil
 }
