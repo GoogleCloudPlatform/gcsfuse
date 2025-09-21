@@ -20,7 +20,6 @@ import (
 	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
@@ -75,8 +74,6 @@ type FileHandle struct {
 	// globalMaxReadBlocksSem is a semaphore that limits the total number of blocks
 	// that can be allocated for buffered read across all files in the file system.
 	globalMaxReadBlocksSem *semaphore.Weighted
-
-	readPatternVisualizer *common.ReadPatternVisualizer
 }
 
 // LOCKS_REQUIRED(fh.inode.mu)
@@ -90,12 +87,6 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 		config:                 c,
 		bufferedReadWorkerPool: bufferedReadWorkerPool,
 		globalMaxReadBlocksSem: globalMaxReadBlocksSem,
-		readPatternVisualizer: common.NewReadPatternVisualizerWithFullConfig(
-			1024, // 1KB default scale
-			100,  // 100 characters width
-			"",
-			inode.Name().GcsObjectName(),
-		),
 	}
 
 	fh.inode.RegisterFileHandle(fh.openMode == util.Read)
@@ -120,13 +111,6 @@ func (fh *FileHandle) Destroy() {
 	if fh.readManager != nil {
 		fh.readManager.Destroy()
 	}
-	// homeDir, err := os.UserHomeDir()
-	// if err != nil {
-	// 	logger.Warnf("Unable to get home directory to dump read pattern: %v", err)
-	// }
-	// logger.Infof(fh.readPatternVisualizer.DumpGraph())
-	fmt.Println(fh.readPatternVisualizer.DumpGraph())
-	// fh.readPatternVisualizer.DumpGraphToFile(homeDir + "/read_pattern.txt")
 }
 
 // Inode returns the inode backing this handle.
@@ -177,7 +161,6 @@ func (fh *FileHandle) unlockHandleAndInode(rLock bool) {
 // LOCKS_REQUIRED(fh.inode.mu)
 // UNLOCK_FUNCTION(fh.inode.mu)
 func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offset int64, sequentialReadSizeMb int32) ([]byte, int, error) {
-	fh.readPatternVisualizer.AcceptRange(offset, offset+int64(len(dst)))
 	// If content cache enabled, CacheEnsureContent forces the file handler to fall through to the inode
 	// and fh.inode.SourceGenerationIsAuthoritative() will return false
 	if err := fh.inode.CacheEnsureContent(ctx); err != nil {
@@ -219,6 +202,7 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 			GlobalMaxBlocksSem:    fh.globalMaxReadBlocksSem,
 			WorkerPool:            fh.bufferedReadWorkerPool,
 		})
+		fh.readManager = read_manager.NewVisualizingReadManager(fh.readManager)
 
 		// Release RWLock and take RLock on file handle again. Inode lock is not needed now.
 		fh.mu.Unlock()
