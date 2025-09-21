@@ -111,16 +111,9 @@ func TestMain(m *testing.M) {
 
 	// Run tests for testBucket
 	// 4. Build the flag sets dynamically from the config.
+	cfg.CloudProfiler[0].Configs[0].Flags[0] = strings.ReplaceAll(cfg.CloudProfiler[0].Configs[0].Flags[0], "--cloud-profiler-label=", fmt.Sprintf("--cloud-profiler-label=%s", testServiceVersion))
 	flags := setup.BuildFlagSets(cfg.CloudProfiler[0], bucketType)
 
-	// Iterating over flagSets and updating any empty "--cloud-profiler-label=" flags.
-	for i := range flags {
-		for j := range flags[i] {
-			if flags[i][j] == "--cloud-profiler-label=" {
-				flags[i][j] = fmt.Sprintf("--cloud-profiler-label=%s", testServiceVersion)
-			}
-		}
-	}
 	setup.SetUpTestDirForTestBucket(cfg.CloudProfiler[0].TestBucket)
 
 	successCode := static_mounting.RunTestsWithConfigFile(&cfg.CloudProfiler[0], flags, m)
