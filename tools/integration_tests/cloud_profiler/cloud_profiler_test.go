@@ -70,9 +70,9 @@ func TestMain(m *testing.M) {
 		cfg.CloudProfiler[0].MountedDirectory = setup.MountedDirectory()
 		cfg.CloudProfiler[0].Configs = make([]test_suite.ConfigItem, 1)
 		cfg.CloudProfiler[0].Configs[0].Flags = []string{
-			"--enable-cloud-profiling --profiling-cpu --profiling-heap --profiling-goroutines --profiling-mutex --profiling-allocated-heap",
+			"--enable-cloud-profiler --cloud-profiler-cpu --cloud-profiler-heap --cloud-profiler-goroutines --cloud-profiler-mutex --cloud-profiler-allocated-heap",
 		}
-		testServiceVersionFlag := fmt.Sprintf(" --profiling-label=%s", testServiceVersion)
+		testServiceVersionFlag := fmt.Sprintf(" --cloud-profiler-label=%s", testServiceVersion)
 		cfg.CloudProfiler[0].Configs[0].Flags[0] = cfg.CloudProfiler[0].Configs[0].Flags[0] + testServiceVersionFlag
 		cfg.CloudProfiler[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
@@ -113,11 +113,11 @@ func TestMain(m *testing.M) {
 	// 4. Build the flag sets dynamically from the config.
 	flags := setup.BuildFlagSets(cfg.CloudProfiler[0], bucketType)
 
-	// Iterating over flagSets and updating any empty "--profiling-label=" flags.
+	// Iterating over flagSets and updating any empty "--cloud-profiler-label=" flags.
 	for i := range flags {
 		for j := range flags[i] {
-			if flags[i][j] == "--profiling-label=" {
-				flags[i][j] = fmt.Sprintf("--profiling-label=%s", testServiceVersion)
+			if flags[i][j] == "--cloud-profiler-label=" {
+				flags[i][j] = fmt.Sprintf("--cloud-profiler-label=%s", testServiceVersion)
 			}
 		}
 	}

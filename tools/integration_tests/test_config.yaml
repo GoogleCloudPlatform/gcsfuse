@@ -172,7 +172,7 @@ cloud_profiler:
     configs:
       - flags:
            # Set the 'PROFILE_LABEL' environment variable for GKE
-          - "--enable-cloud-profiling --profiling-cpu --profiling-heap --profiling-goroutines --profiling-mutex --profiling-allocated-heap --profiling-label=${PROFILE_LABEL}"
+          - "--enable-cloud-profiler --cloud-profiler-cpu --cloud-profiler-heap --cloud-profiler-goroutines --cloud-profiler-mutex --cloud-profiler-allocated-heap --cloud-profiler-label=${PROFILE_LABEL}"
         compatible:
           flat: true
           hns: true
