@@ -29,7 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
 
-type DownloadTask struct {
+type downloadTask struct {
 	workerpool.Task
 	object       *gcs.MinObject
 	bucket       gcs.Bucket
@@ -45,8 +45,8 @@ type DownloadTask struct {
 	readHandle []byte
 }
 
-// DownloadTaskOptions holds the dependencies for a DownloadTask.
-type DownloadTaskOptions struct {
+// downloadTaskOptions holds the dependencies for a DownloadTask.
+type downloadTaskOptions struct {
 	Ctx          context.Context
 	Object       *gcs.MinObject
 	Bucket       gcs.Bucket
@@ -55,8 +55,8 @@ type DownloadTaskOptions struct {
 	MetricHandle metrics.MetricHandle
 }
 
-func NewDownloadTask(opts *DownloadTaskOptions) *DownloadTask {
-	return &DownloadTask{
+func newDownloadTask(opts *downloadTaskOptions) *downloadTask {
+	return &downloadTask{
 		ctx:          opts.Ctx,
 		object:       opts.Object,
 		bucket:       opts.Bucket,
@@ -71,8 +71,8 @@ func NewDownloadTask(opts *DownloadTaskOptions) *DownloadTask {
 // After completion, it notifies the block consumer about the status of the
 // download task. The status can be one of the following:
 // - BlockStatusDownloaded: The download was successful.
-// - BlockStatusDownloadFailed: The download failed due to an error.
-func (p *DownloadTask) Execute() {
+// - BlockStateDownloadFailed: The download failed due to an error.
+func (p *downloadTask) Execute() {
 	startOff := p.block.AbsStartOff()
 	blockId := startOff / p.block.Cap()
 	logger.Tracef("Download: <- block (%s, %v).", p.object.Name, blockId)
@@ -121,14 +121,14 @@ func (p *DownloadTask) Execute() {
 			err = &gcsfuse_errors.FileClobberedError{Err: err, ObjectName: p.object.Name}
 			return
 		}
-		err = fmt.Errorf("DownloadTask.Execute: while reader-creations: %w", err)
+		err = fmt.Errorf("downloadTask.Execute: while reader-creations: %w", err)
 		return
 	}
 	defer newReader.Close()
 
 	_, err = io.CopyN(p.block, newReader, int64(end-start))
 	if err != nil {
-		err = fmt.Errorf("DownloadTask.Execute: while data-copy: %w", err)
+		err = fmt.Errorf("downloadTask.Execute: while data-copy: %w", err)
 		return
 	}
 }

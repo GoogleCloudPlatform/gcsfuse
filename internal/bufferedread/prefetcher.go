@@ -27,8 +27,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
 
-// Prefetcher encapsulates the state and logic for prefetching blocks from GCS.
-type Prefetcher struct {
+// prefetcher encapsulates the state and logic for prefetching blocks from GCS.
+type prefetcher struct {
 	// Dependencies
 	object       *gcs.MinObject
 	bucket       gcs.Bucket
@@ -47,8 +47,8 @@ type Prefetcher struct {
 	prefetchMultiplier       int64
 }
 
-// PrefetcherOptions holds the dependencies for a Prefetcher.
-type PrefetcherOptions struct {
+// prefetcherOptions holds the dependencies for a Prefetcher.
+type prefetcherOptions struct {
 	Object       *gcs.MinObject
 	Bucket       gcs.Bucket
 	Config       *BufferedReadConfig
@@ -61,9 +61,9 @@ type PrefetcherOptions struct {
 	ReadHandle   []byte
 }
 
-// NewPrefetcher creates a new Prefetcher instance.
-func NewPrefetcher(opts *PrefetcherOptions) *Prefetcher {
-	return &Prefetcher{
+// newPrefetcher creates a new Prefetcher instance.
+func newPrefetcher(opts *prefetcherOptions) *prefetcher {
+	return &prefetcher{
 		object:                   opts.Object,
 		bucket:                   opts.Bucket,
 		config:                   opts.Config,
@@ -80,8 +80,8 @@ func NewPrefetcher(opts *PrefetcherOptions) *Prefetcher {
 	}
 }
 
-// Prefetch schedules the next set of blocks for prefetching.
-func (p *Prefetcher) Prefetch() error {
+// prefetch schedules the next set of blocks for prefetching.
+func (p *prefetcher) prefetch() error {
 	availableSlots := p.config.MaxPrefetchBlockCnt - (int64(p.queue.Len()) + int64(p.retired.Len()))
 	if availableSlots <= 0 {
 		return nil
@@ -100,7 +100,7 @@ func (p *Prefetcher) Prefetch() error {
 				allBlocksScheduledSuccessfully = false
 				break
 			}
-			return fmt.Errorf("Prefetch: scheduling block index %d: %w", p.nextBlockIndexToPrefetch, err)
+			return fmt.Errorf("prefetch: scheduling block index %d: %w", p.nextBlockIndexToPrefetch, err)
 		}
 	}
 
@@ -113,24 +113,24 @@ func (p *Prefetcher) Prefetch() error {
 	return nil
 }
 
-// FreshStart resets the prefetching state and schedules the initial set of blocks.
-func (p *Prefetcher) FreshStart(currentOffset int64) error {
+// freshStart resets the prefetching state and schedules the initial set of blocks.
+func (p *prefetcher) freshStart(currentOffset int64) error {
 	blockIndex := currentOffset / p.config.PrefetchBlockSizeBytes
 	p.nextBlockIndexToPrefetch = blockIndex
 	p.numPrefetchBlocks = min(p.config.InitialPrefetchBlockCnt, p.config.MaxPrefetchBlockCnt)
 
 	if err := p.scheduleNextBlock(true); err != nil {
-		return fmt.Errorf("FreshStart: scheduling first block: %w", err)
+		return fmt.Errorf("freshStart: scheduling first block: %w", err)
 	}
 
-	if err := p.Prefetch(); err != nil {
-		logger.Warnf("FreshStart: initial prefetch failed: %v", err)
+	if err := p.prefetch(); err != nil {
+		logger.Warnf("freshStart: initial prefetch failed: %v", err)
 	}
 	return nil
 }
 
 // scheduleNextBlock schedules the next block in the sequence for prefetch.
-func (p *Prefetcher) scheduleNextBlock(urgent bool) error {
+func (p *prefetcher) scheduleNextBlock(urgent bool) error {
 	b, err := p.pool.TryGet()
 	if err != nil {
 		logger.Tracef("scheduleNextBlock: could not get block from pool (urgent=%t): %v", urgent, err)
@@ -146,14 +146,14 @@ func (p *Prefetcher) scheduleNextBlock(urgent bool) error {
 }
 
 // scheduleBlockWithIndex schedules a download task for a specific block index.
-func (p *Prefetcher) scheduleBlockWithIndex(b block.PrefetchBlock, blockIndex int64, urgent bool) error {
+func (p *prefetcher) scheduleBlockWithIndex(b block.PrefetchBlock, blockIndex int64, urgent bool) error {
 	startOffset := blockIndex * p.config.PrefetchBlockSizeBytes
 	if err := b.SetAbsStartOff(startOffset); err != nil {
 		return fmt.Errorf("scheduleBlockWithIndex: setting start offset: %w", err)
 	}
 
 	ctx, cancel := context.WithCancel(p.readerCtx)
-	task := NewDownloadTask(&DownloadTaskOptions{
+	task := newDownloadTask(&downloadTaskOptions{
 		Ctx:          ctx,
 		Object:       p.object,
 		Bucket:       p.bucket,

@@ -16,54 +16,61 @@ package bufferedread
 
 import "github.com/googlecloudplatform/gcsfuse/v3/common"
 
-// ReadPatternDetector encapsulates the logic for detecting random read patterns.
-type ReadPatternDetector struct {
+// readPatternDetector encapsulates the logic for detecting random read patterns.
+type readPatternDetector struct {
 	randomSeekCount      int64
 	randomReadsThreshold int64
 	blockSize            int64
 }
 
-// NewReadPatternDetector creates a new detector with a given threshold and block size.
-func NewReadPatternDetector(threshold, blockSize int64) *ReadPatternDetector {
-	return &ReadPatternDetector{
+// newReadPatternDetector creates a new detector with a given threshold and block size.
+func newReadPatternDetector(threshold, blockSize int64) *readPatternDetector {
+	return &readPatternDetector{
 		randomReadsThreshold: threshold,
 		blockSize:            blockSize,
 	}
 }
 
+// patternDetectorCheck holds the inputs for a pattern detection check.
+type patternDetectorCheck struct {
+	Offset        int64
+	Queue         common.Queue[*blockQueueEntry]
+	RetiredBlocks RetiredBlockCache
+}
+
 // isRandomSeek checks if a read at a given offset constitutes a random seek
 // based on the state of the prefetch queue and retired blocks cache.
-func (d *ReadPatternDetector) isRandomSeek(offset int64, queue common.Queue[*blockQueueEntry], retiredBlocks RetiredBlockCache) bool {
-	if offset == 0 {
+func (d *readPatternDetector) isRandomSeek(check *patternDetectorCheck) bool {
+	if check.Offset == 0 {
 		return false
 	}
-	if !queue.IsEmpty() {
-		start := queue.Peek().block.AbsStartOff()
-		end := start + int64(queue.Len())*d.blockSize
-		if offset >= start && offset < end {
+	if !check.Queue.IsEmpty() {
+		start := check.Queue.Peek().block.AbsStartOff()
+		end := start + int64(check.Queue.Len())*d.blockSize
+		if check.Offset >= start && check.Offset < end {
 			return false
 		}
 	}
-	blockIndex := offset / d.blockSize
-	return retiredBlocks.LookUp(blockIndex) == nil
+	blockIndex := check.Offset / d.blockSize
+	return check.RetiredBlocks.LookUp(blockIndex) == nil
 }
 
-// Check determines if a read is random, updates the internal seek count, and
+// check determines if a read is random, updates the internal seek count, and
 // returns whether a fallback to a different reader is recommended.
-func (d *ReadPatternDetector) Check(offset int64, queue common.Queue[*blockQueueEntry], retiredBlocks RetiredBlockCache) (isRandom, shouldFallback bool) {
-	if !d.isRandomSeek(offset, queue, retiredBlocks) {
+func (d *readPatternDetector) check(check *patternDetectorCheck) (isRandom, shouldFallback bool) {
+	if !d.isRandomSeek(check) {
 		return false, false
 	}
 	d.randomSeekCount++
 	return true, d.randomSeekCount > d.randomReadsThreshold
 }
 
-// IsAboveThreshold returns true if the random seek count has exceeded the configured threshold.
-func (d *ReadPatternDetector) IsAboveThreshold() bool {
+// isAboveThreshold returns true if the random seek count has exceeded the configured threshold.
+func (d *readPatternDetector) isAboveThreshold() bool {
 	return d.randomSeekCount > d.randomReadsThreshold
 }
 
-// Threshold returns the configured random read threshold.
-func (d *ReadPatternDetector) Threshold() int64 {
+// threshold returns the configured random read threshold.
+func (d *readPatternDetector) threshold() int64 {
 	return d.randomReadsThreshold
 }

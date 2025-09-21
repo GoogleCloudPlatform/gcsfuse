@@ -75,11 +75,11 @@ type BufferedReader struct {
 
 	// patternDetector is responsible for detecting random read patterns.
 	// GUARDED by (mu)
-	patternDetector *ReadPatternDetector
+	patternDetector *readPatternDetector
 
 	// prefetcher manages the state and logic for prefetching blocks.
 	// GUARDED by (mu)
-	prefetcher *Prefetcher
+	prefetcher *prefetcher
 
 	// blockQueue is the core of the prefetching pipeline, holding blocks that are
 	// either downloaded or in the process of being downloaded.
@@ -102,32 +102,42 @@ type BufferedReader struct {
 	retiredBlocks RetiredBlockCache
 }
 
+// BufferedReaderOptions holds the dependencies for a BufferedReader.
+type BufferedReaderOptions struct {
+	Object             *gcs.MinObject
+	Bucket             gcs.Bucket
+	Config             *BufferedReadConfig
+	GlobalMaxBlocksSem *semaphore.Weighted
+	WorkerPool         workerpool.WorkerPool
+	MetricHandle       metrics.MetricHandle
+}
+
 // NewBufferedReader returns a new bufferedReader instance.
-func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *BufferedReadConfig, globalMaxBlocksSem *semaphore.Weighted, workerPool workerpool.WorkerPool, metricHandle metrics.MetricHandle) (*BufferedReader, error) {
-	if config.PrefetchBlockSizeBytes <= 0 {
-		return nil, fmt.Errorf("NewBufferedReader: PrefetchBlockSizeBytes must be positive, but is %d", config.PrefetchBlockSizeBytes)
+func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
+	if opts.Config.PrefetchBlockSizeBytes <= 0 {
+		return nil, fmt.Errorf("NewBufferedReader: PrefetchBlockSizeBytes must be positive, but is %d", opts.Config.PrefetchBlockSizeBytes)
 	}
 	// To optimize resource usage, reserve only the number of blocks required for
 	// the file, capped by the configured minimum.
-	blocksInFile := (int64(object.Size) + config.PrefetchBlockSizeBytes - 1) / config.PrefetchBlockSizeBytes
-	numBlocksToReserve := min(blocksInFile, config.MinBlocksPerHandle)
-	blockpool, err := block.NewPrefetchBlockPool(config.PrefetchBlockSizeBytes, config.MaxPrefetchBlockCnt, numBlocksToReserve, globalMaxBlocksSem)
+	blocksInFile := (int64(opts.Object.Size) + opts.Config.PrefetchBlockSizeBytes - 1) / opts.Config.PrefetchBlockSizeBytes
+	numBlocksToReserve := min(blocksInFile, opts.Config.MinBlocksPerHandle)
+	blockpool, err := block.NewPrefetchBlockPool(opts.Config.PrefetchBlockSizeBytes, opts.Config.MaxPrefetchBlockCnt, numBlocksToReserve, opts.GlobalMaxBlocksSem)
 	if err != nil {
 		if errors.Is(err, block.CantAllocateAnyBlockError) {
-			metricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
+			opts.MetricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
 		}
 		return nil, fmt.Errorf("NewBufferedReader: creating block-pool: %w", err)
 	}
 
 	reader := &BufferedReader{
-		object:          object,
-		bucket:          bucket,
-		config:          config,
+		object:          opts.Object,
+		bucket:          opts.Bucket,
+		config:          opts.Config,
 		blockQueue:      common.NewLinkedListQueue[*blockQueueEntry](),
 		blockPool:       blockpool,
-		workerPool:      workerPool,
-		metricHandle:    metricHandle,
-		patternDetector: NewReadPatternDetector(config.RandomSeekThreshold, config.PrefetchBlockSizeBytes),
+		workerPool:      opts.WorkerPool,
+		metricHandle:    opts.MetricHandle,
+		patternDetector: newReadPatternDetector(opts.Config.RandomSeekThreshold, opts.Config.PrefetchBlockSizeBytes),
 	}
 	reader.ctx, reader.cancelFunc = context.WithCancel(context.Background())
 
@@ -135,21 +145,21 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 	// to handle potential out-of-order reads. Its size is set to be the same as
 	// the maximum number of prefetch blocks to provide a reasonable buffer for
 	// such reads. For example, setting it to half of MaxPrefetchBlockCnt.
-	reader.retiredBlocks = NewLruRetiredBlockCache(uint64(5 * config.PrefetchBlockSizeBytes))
+	reader.retiredBlocks = NewLruRetiredBlockCache(uint64(2 * opts.Config.PrefetchBlockSizeBytes))
 
-	prefetcherOpts := &PrefetcherOptions{
-		Object:       object,
-		Bucket:       bucket,
-		Config:       config,
+	prefetcherOpts := &prefetcherOptions{
+		Object:       opts.Object,
+		Bucket:       opts.Bucket,
+		Config:       opts.Config,
 		Pool:         blockpool,
-		WorkerPool:   workerPool,
+		WorkerPool:   opts.WorkerPool,
 		Queue:        reader.blockQueue,
 		Retired:      reader.retiredBlocks,
-		MetricHandle: metricHandle,
+		MetricHandle: opts.MetricHandle,
 		ReaderCtx:    reader.ctx,
 		ReadHandle:   reader.readHandle,
 	}
-	reader.prefetcher = NewPrefetcher(prefetcherOpts)
+	reader.prefetcher = newPrefetcher(prefetcherOpts)
 
 	return reader, nil
 }
@@ -260,9 +270,13 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		}
 	}()
 
-	isRandom, shouldFallback := p.patternDetector.Check(off, p.blockQueue, p.retiredBlocks)
+	isRandom, shouldFallback := p.patternDetector.check(&patternDetectorCheck{
+		Offset:        off,
+		Queue:         p.blockQueue,
+		RetiredBlocks: p.retiredBlocks,
+	})
 	if shouldFallback {
-		logger.Warnf("Fallback to another reader for object %q, handle %d, at offset %d. Random seek count exceeded threshold %d.", p.object.Name, handleID, off, p.patternDetector.Threshold())
+		logger.Warnf("Fallback to another reader for object %q, handle %d, at offset %d. Random seek count exceeded threshold %d.", p.object.Name, handleID, off, p.patternDetector.threshold())
 		p.metricHandle.BufferedReadFallbackTriggerCount(1, "random_read_detected")
 		return resp, gcsx.FallbackToAnotherReader
 	}
@@ -310,7 +324,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		p.prepareQueueForOffset(off)
 
 		if p.blockQueue.IsEmpty() {
-			if err = p.prefetcher.FreshStart(off); err != nil {
+			if err = p.prefetcher.freshStart(off); err != nil {
 				logger.Warnf("Fallback to another reader for object %q, handle %d, at offset %d, due to freshStart failure: %v", p.object.Name, handleID, off, err)
 				p.metricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
 				return resp, gcsx.FallbackToAnotherReader
@@ -322,7 +336,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		// Proactively trigger the next prefetch as soon as we start processing a
 		// block, ensuring the pipeline stays full.
 		if !entry.prefetchTriggered {
-			p.prefetcher.Prefetch()
+			p.prefetcher.prefetch()
 			entry.prefetchTriggered = true
 		}
 
@@ -440,8 +454,8 @@ func (p *BufferedReader) CheckInvariants() {
 	}
 
 	// The random seek count should never exceed randomReadsThreshold.
-	if p.patternDetector.IsAboveThreshold() {
-		panic(fmt.Sprintf("BufferedReader: random seek count has exceeded threshold %d", p.patternDetector.Threshold()))
+	if p.patternDetector.isAboveThreshold() {
+		panic(fmt.Sprintf("BufferedReader: random seek count has exceeded threshold %d", p.patternDetector.threshold()))
 	}
 
 	if p.retiredBlocks == nil {
