@@ -110,7 +110,7 @@ func init() {
 	initializeDefaultLogger()
 }
 
-// setupMountInstanceID handles the retrieves the MountInstanceId if GCSFuse is in
+// setupMountInstanceID handles the retrieval of MountInstanceId if GCSFuse is in
 // background mode or generates one if running in foreground mode.
 func setupMountInstanceID() {
 	if _, ok := os.LookupEnv(GCSFuseInBackgroundMode); ok {
