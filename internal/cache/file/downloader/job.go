@@ -525,7 +525,7 @@ func (job *Job) GetStatus() JobStatus {
 // Compares CRC32 of the downloaded file with the CRC32 from GCS object metadata.
 // In case of mismatch deletes the file and corresponding entry from file cache.
 func (job *Job) validateCRC() (err error) {
-	// Skipping crc check for zonal buckets
+	// Todo (b/446440219): Enable crc check for ZB once the it is fixed
 	if !job.fileCacheConfig.EnableCrc || job.bucket.BucketType().Zonal {
 		return
 	}
