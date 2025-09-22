@@ -565,7 +565,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.DurationP("http-client-timeout", "", 0*time.Nanosecond, "The time duration that http client will wait to get response from the server. A value of 0 indicates no timeout.")
 
-	flagSet.IntP("http-dns-cache-ttl-secs", "", 0, "Sets the DNS cache TTL to the specified value. Special values: -1 means infinite TTL and 0 disables caching")
+	flagSet.IntP("http-dns-cache-ttl-secs", "", 0, "Sets the DNS cache TTL for HTTP/1 connection to the specified value in seconds. Special values: -1 means infinite TTL and 0 disables caching")
 
 	if err := flagSet.MarkHidden("http-dns-cache-ttl-secs"); err != nil {
 		return err
