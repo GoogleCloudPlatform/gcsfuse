@@ -38,9 +38,9 @@ var (
 type OptimizationRulesMap = map[string]shared.OptimizationRules
 
 type templateData struct {
-	TypeTemplateData       []typeTemplateData
-	FlagTemplateData       []flagTemplateData
-	MachineTypeToGroupsMap map[string][]string
+	TypeTemplateData      []typeTemplateData
+	FlagTemplateData      []flagTemplateData
+	MachineTypeToGroupMap map[string]string
 	// Back-ticks are not supported in templates. So, passing as a parameter.
 	Backticks string
 }
@@ -85,12 +85,15 @@ func write(dataObj any, outputFile, templateFile string) (err error) {
 }
 
 // invertMachineTypeGroups takes the parsed map of group->machines
-// and returns a map of machine->groups.
-func invertMachineTypeGroups(groups map[string][]string) map[string][]string {
-	inverted := make(map[string][]string)
+// and returns a map of machine->group.
+func invertMachineTypeGroups(groups map[string][]string) map[string]string {
+	inverted := make(map[string]string)
 	for groupName, machineTypes := range groups {
 		for _, machineType := range machineTypes {
-			inverted[machineType] = append(inverted[machineType], groupName)
+			if alreadyMappedGroup, ok := inverted[machineType]; ok {
+				panic(fmt.Sprintf("machine type %q mapped to multiple groups, %q and %q", machineType, alreadyMappedGroup, groupName))
+			}
+			inverted[machineType] = groupName
 		}
 	}
 	return inverted
@@ -127,13 +130,13 @@ func main() {
 	})
 
 	// Create a map from given machine type to all the machine type groups that it belongs to.
-	machineTypeToGroupsMap := invertMachineTypeGroups(paramsYAML.MachineTypeGroups)
+	machineTypeToGroupMap := invertMachineTypeGroups(paramsYAML.MachineTypeGroups)
 
 	err = write(templateData{
-		FlagTemplateData:       fd,
-		TypeTemplateData:       td,
-		MachineTypeToGroupsMap: machineTypeToGroupsMap,
-		Backticks:              "`",
+		FlagTemplateData:      fd,
+		TypeTemplateData:      td,
+		MachineTypeToGroupMap: machineTypeToGroupMap,
+		Backticks:             "`",
 	},
 		path.Join(*outDir, "config.go"),
 		path.Join(*templateDir, "config.tpl"))

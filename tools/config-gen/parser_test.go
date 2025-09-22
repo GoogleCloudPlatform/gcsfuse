@@ -105,6 +105,15 @@ func TestValidateMachineTypeGroups(t *testing.T) {
 			expectErr:   true,
 			errContains: "duplicate machine type found in group \"a-valid-group\"",
 		},
+		{
+			name: "a_machine_type_in_multiple_groups",
+			input: map[string][]string{
+				"a-valid-group":       {"a-vm", "b-vm"},
+				"another-valid-group": {"a-vm", "c-vm"},
+			},
+			expectErr:   true,
+			errContains: "cannot be in multiple groups",
+		},
 	}
 
 	for _, tc := range testCases {

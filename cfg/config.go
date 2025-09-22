@@ -179,53 +179,23 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-cache.c
 },
 }
 
-// machineTypeToGroupsMap is the generated map from machine type to the groups it belongs to.
-var machineTypeToGroupsMap = map[string][]string{
-	"a2-megagpu-16g": {
-		"high-performance",
-	},
-	"a2-ultragpu-8g": {
-		"high-performance",
-	},
-	"a3-edgegpu-8g": {
-		"high-performance",
-	},
-	"a3-highgpu-8g": {
-		"high-performance",
-	},
-	"a3-megagpu-8g": {
-		"high-performance",
-	},
-	"a3-ultragpu-8g": {
-		"high-performance",
-	},
-	"a4-highgpu-8g-lowmem": {
-		"high-performance",
-	},
-	"ct5l-hightpu-8t": {
-		"high-performance",
-	},
-	"ct5lp-hightpu-8t": {
-		"high-performance",
-	},
-	"ct5p-hightpu-4t": {
-		"high-performance",
-	},
-	"ct5p-hightpu-4t-tpu": {
-		"high-performance",
-	},
-	"ct6e-standard-4t": {
-		"high-performance",
-	},
-	"ct6e-standard-4t-tpu": {
-		"high-performance",
-	},
-	"ct6e-standard-8t": {
-		"high-performance",
-	},
-	"ct6e-standard-8t-tpu": {
-		"high-performance",
-	},
+// machineTypeToGroupMap is the generated map from machine type to the group it belongs to.
+var machineTypeToGroupMap = map[string]string{
+	"a2-megagpu-16g":       "high-performance",
+	"a2-ultragpu-8g":       "high-performance",
+	"a3-edgegpu-8g":        "high-performance",
+	"a3-highgpu-8g":        "high-performance",
+	"a3-megagpu-8g":        "high-performance",
+	"a3-ultragpu-8g":       "high-performance",
+	"a4-highgpu-8g-lowmem": "high-performance",
+	"ct5l-hightpu-8t":      "high-performance",
+	"ct5lp-hightpu-8t":     "high-performance",
+	"ct5p-hightpu-4t":      "high-performance",
+	"ct5p-hightpu-4t-tpu":  "high-performance",
+	"ct6e-standard-4t":     "high-performance",
+	"ct6e-standard-4t-tpu": "high-performance",
+	"ct6e-standard-8t":     "high-performance",
+	"ct6e-standard-8t-tpu": "high-performance",
 }
 
 // ApplyOptimizations modifies the config in-place with optimized values.
@@ -247,7 +217,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 	// Apply optimizations for each flag that has rules defined.
 	if !isSet.IsSet("file-cache-cache-file-for-range-read") {
 		rules := AllFlagOptimizationRules["file-cache.cache-file-for-range-read"]
-		result := getOptimizedValue(&rules, c.FileCache.CacheFileForRangeRead, profileName, machineType, machineTypeToGroupsMap)
+		result := getOptimizedValue(&rules, c.FileCache.CacheFileForRangeRead, profileName, machineType, machineTypeToGroupMap)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(bool); ok {
 				if c.FileCache.CacheFileForRangeRead != val {
@@ -259,7 +229,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 	}
 	if !isSet.IsSet("implicit-dirs") {
 		rules := AllFlagOptimizationRules["implicit-dirs"]
-		result := getOptimizedValue(&rules, c.ImplicitDirs, profileName, machineType, machineTypeToGroupsMap)
+		result := getOptimizedValue(&rules, c.ImplicitDirs, profileName, machineType, machineTypeToGroupMap)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(bool); ok {
 				if c.ImplicitDirs != val {
@@ -271,7 +241,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 	}
 	if !isSet.IsSet("kernel-list-cache-ttl-secs") {
 		rules := AllFlagOptimizationRules["file-system.kernel-list-cache-ttl-secs"]
-		result := getOptimizedValue(&rules, c.FileSystem.KernelListCacheTtlSecs, profileName, machineType, machineTypeToGroupsMap)
+		result := getOptimizedValue(&rules, c.FileSystem.KernelListCacheTtlSecs, profileName, machineType, machineTypeToGroupMap)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.FileSystem.KernelListCacheTtlSecs != val {
@@ -283,7 +253,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 	}
 	if !isSet.IsSet("metadata-cache-negative-ttl-secs") {
 		rules := AllFlagOptimizationRules["metadata-cache.negative-ttl-secs"]
-		result := getOptimizedValue(&rules, c.MetadataCache.NegativeTtlSecs, profileName, machineType, machineTypeToGroupsMap)
+		result := getOptimizedValue(&rules, c.MetadataCache.NegativeTtlSecs, profileName, machineType, machineTypeToGroupMap)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.NegativeTtlSecs != val {
@@ -295,7 +265,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 	}
 	if !isSet.IsSet("metadata-cache-ttl-secs") {
 		rules := AllFlagOptimizationRules["metadata-cache.ttl-secs"]
-		result := getOptimizedValue(&rules, c.MetadataCache.TtlSecs, profileName, machineType, machineTypeToGroupsMap)
+		result := getOptimizedValue(&rules, c.MetadataCache.TtlSecs, profileName, machineType, machineTypeToGroupMap)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.TtlSecs != val {
@@ -307,7 +277,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 	}
 	if !isSet.IsSet("rename-dir-limit") {
 		rules := AllFlagOptimizationRules["file-system.rename-dir-limit"]
-		result := getOptimizedValue(&rules, c.FileSystem.RenameDirLimit, profileName, machineType, machineTypeToGroupsMap)
+		result := getOptimizedValue(&rules, c.FileSystem.RenameDirLimit, profileName, machineType, machineTypeToGroupMap)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.FileSystem.RenameDirLimit != val {
@@ -319,7 +289,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 	}
 	if !isSet.IsSet("stat-cache-max-size-mb") {
 		rules := AllFlagOptimizationRules["metadata-cache.stat-cache-max-size-mb"]
-		result := getOptimizedValue(&rules, c.MetadataCache.StatCacheMaxSizeMb, profileName, machineType, machineTypeToGroupsMap)
+		result := getOptimizedValue(&rules, c.MetadataCache.StatCacheMaxSizeMb, profileName, machineType, machineTypeToGroupMap)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.StatCacheMaxSizeMb != val {
@@ -331,7 +301,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 	}
 	if !isSet.IsSet("type-cache-max-size-mb") {
 		rules := AllFlagOptimizationRules["metadata-cache.type-cache-max-size-mb"]
-		result := getOptimizedValue(&rules, c.MetadataCache.TypeCacheMaxSizeMb, profileName, machineType, machineTypeToGroupsMap)
+		result := getOptimizedValue(&rules, c.MetadataCache.TypeCacheMaxSizeMb, profileName, machineType, machineTypeToGroupMap)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.TypeCacheMaxSizeMb != val {
@@ -343,7 +313,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 	}
 	if !isSet.IsSet("write-global-max-blocks") {
 		rules := AllFlagOptimizationRules["write.global-max-blocks"]
-		result := getOptimizedValue(&rules, c.Write.GlobalMaxBlocks, profileName, machineType, machineTypeToGroupsMap)
+		result := getOptimizedValue(&rules, c.Write.GlobalMaxBlocks, profileName, machineType, machineTypeToGroupMap)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.Write.GlobalMaxBlocks != val {

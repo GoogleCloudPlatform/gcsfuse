@@ -319,7 +319,7 @@ func getOptimizedValue(
 	currentValue any,
 	profileName string,
 	machineType string,
-	machineTypeToGroupsMap map[string][]string,
+	machineTypeToGroupMap map[string]string,
 ) OptimizationResult {
 	// Precedence: Profile -> Machine -> Default
 
@@ -344,15 +344,13 @@ func getOptimizedValue(
 	}
 
 	// 2. Only if no profile is set, check for a machine-based optimization.
-	if groups, ok := machineTypeToGroupsMap[machineType]; ok {
-		for _, groupName := range groups {
-			for _, mbo := range rules.MachineBasedOptimization {
-				if mbo.Group == groupName {
-					return OptimizationResult{
-						FinalValue:         mbo.Value,
-						OptimizationReason: fmt.Sprintf("machine-type group %q", groupName),
-						Optimized:          true,
-					}
+	if group, ok := machineTypeToGroupMap[machineType]; ok {
+		for _, mbo := range rules.MachineBasedOptimization {
+			if mbo.Group == group {
+				return OptimizationResult{
+					FinalValue:         mbo.Value,
+					OptimizationReason: fmt.Sprintf("machine-type group %q", group),
+					Optimized:          true,
 				}
 			}
 		}

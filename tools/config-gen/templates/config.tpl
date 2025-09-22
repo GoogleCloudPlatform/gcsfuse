@@ -55,14 +55,10 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{
 {{- end }}
 }
 
-// machineTypeToGroupsMap is the generated map from machine type to the groups it belongs to.
-var machineTypeToGroupsMap = map[string][]string{
-{{- range $machineType, $groups := .MachineTypeToGroupsMap }}
-	"{{ $machineType }}": { 
-	{{- range $group := $groups }}
-		"{{ $group }}",
-	{{- end }}
-	},
+// machineTypeToGroupMap is the generated map from machine type to the group it belongs to.
+var machineTypeToGroupMap = map[string]string{
+{{- range $machineType, $group := .MachineTypeToGroupMap }}
+	"{{ $machineType }}": "{{ $group }}",
 {{- end }}
 }
 
@@ -87,7 +83,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 {{- if .Optimizations }}
 	if !isSet.IsSet("{{ .FlagName }}") {
 		rules := AllFlagOptimizationRules["{{ .ConfigPath }}"]
-		result := getOptimizedValue(&rules, c.{{ .GoPath }}, profileName, machineType, machineTypeToGroupsMap)
+		result := getOptimizedValue(&rules, c.{{ .GoPath }}, profileName, machineType, machineTypeToGroupMap)
 		if result.Optimized {
 			if val, ok := result.FinalValue.({{ .GoType }}); ok {
 				if c.{{ .GoPath }} != val {

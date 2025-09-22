@@ -179,6 +179,8 @@ func validateForDuplicates(params []Param, fn func(param Param) string) error {
 
 // validateMachineTypeGroups validates the machine-type-groups map.
 func validateMachineTypeGroups(groups map[string][]string) error {
+	// Temporary map to check if a machine-type belong to multiple groups.
+	machineTypeToGroupMap := make(map[string]string)
 	// Note: We can't easily validate that the group names themselves are sorted
 	// in the YAML file because Go maps do not preserve insertion order. This
 	// should be enforced through code reviews or a linter.
@@ -198,6 +200,18 @@ func validateMachineTypeGroups(groups map[string][]string) error {
 		}
 		if err := validateForDuplicatesInSortedSlice(machineTypes); err != nil {
 			return fmt.Errorf("duplicate machine type found in group %q: %w", groupName, err)
+		}
+		// Check for cross-group uniqueness for each machine type.
+		for _, machineType := range machineTypes {
+			if existingGroup, ok := machineTypeToGroupMap[machineType]; ok {
+				return fmt.Errorf(
+					"machine type %q cannot be in multiple groups; it is in both %q and %q",
+					machineType,
+					existingGroup,
+					groupName,
+				)
+			}
+			machineTypeToGroupMap[machineType] = groupName
 		}
 	}
 
