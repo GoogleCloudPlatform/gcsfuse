@@ -158,8 +158,8 @@ local_file:
     configs:
       - flags:
           - "--implicit-dirs=true --rename-dir-limit=3 --enable-streaming-writes=false"
-          - "--implicit-dirs=false --rename-dir-limit=3 --enable-streaming-writes=false"
           - "--implicit-dirs=false --rename-dir-limit=3 --enable-streaming-writes=false --client-protocol=grpc"
+          - "--rename-dir-limit=3 --write-block-size-mb=1 --write-max-blocks-per-file=2 --write-global-max-blocks=0"
         compatible:
           flat: true
           hns: true

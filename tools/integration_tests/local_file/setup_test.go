@@ -53,8 +53,8 @@ func TestMain(m *testing.M) {
 		cfg.LocalFile[0].Configs = make([]test_suite.ConfigItem, 2)
 		cfg.LocalFile[0].Configs[0].Flags = []string{
 			"--implicit-dirs=true --rename-dir-limit=3 --enable-streaming-writes=false",
-			"--implicit-dirs=false --rename-dir-limit=3 --enable-streaming-writes=false",
 			"--implicit-dirs=false --rename-dir-limit=3 --enable-streaming-writes=false --client-protocol=grpc",
+			"--rename-dir-limit=3 --write-block-size-mb=1 --write-max-blocks-per-file=2 --write-global-max-blocks=0",
 		}
 		cfg.LocalFile[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.LocalFile[0].Configs[1].Flags = []string{
@@ -93,15 +93,11 @@ func TestMain(m *testing.M) {
 		successCode = only_dir_mounting.RunTestsWithConfigFile(&cfg.LocalFile[0], flags, onlyDirMounted, m)
 	}
 
-	// Dynamic mounting tests create a bucket and perform tests on that bucket,
-	// which is not a hierarchical bucket. So we are not running those tests with
-	// hierarchical bucket.
+	// Dynamic mounting tests perform tests on non-HNS buckets.
 	if successCode == 0 && !setup.ResolveIsHierarchicalBucket(ctx, setup.TestBucket(), storageClient) {
 		successCode = dynamic_mounting.RunTestsWithConfigFile(&cfg.LocalFile[0], flags, m)
 	}
 
-	// Clean up test directory created.
-	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
 }
 
