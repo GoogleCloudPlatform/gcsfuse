@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	defaultConfig = Config{MetadataCache: MetadataCacheConfig{NegativeTtlSecs: 60, TtlSecs: 60, StatCacheMaxSizeMb: 32, TypeCacheMaxSizeMb: 4}, ImplicitDirs: false, FileSystem: FileSystemConfig{RenameDirLimit: 0}, Write: WriteConfig{EnableStreamingWrites: true}}
+	defaultConfig = Config{MetadataCache: MetadataCacheConfig{NegativeTtlSecs: 5, TtlSecs: 60, StatCacheMaxSizeMb: 33, TypeCacheMaxSizeMb: 4}, ImplicitDirs: false, FileSystem: FileSystemConfig{RenameDirLimit: 0}, Write: WriteConfig{EnableStreamingWrites: true}}
 )
 
 // Mock IsValueSet for testing.
@@ -171,9 +171,9 @@ func TestApplyOptimizations_DisableAutoConfig(t *testing.T) {
 	optimizedFlags := cfg.ApplyOptimizations(isSet)
 
 	require.Empty(t, optimizedFlags)
-	assert.EqualValues(t, 60, cfg.MetadataCache.NegativeTtlSecs)
+	assert.EqualValues(t, 5, cfg.MetadataCache.NegativeTtlSecs)
 	assert.EqualValues(t, 60, cfg.MetadataCache.TtlSecs)
-	assert.EqualValues(t, 32, cfg.MetadataCache.StatCacheMaxSizeMb)
+	assert.EqualValues(t, 33, cfg.MetadataCache.StatCacheMaxSizeMb)
 	assert.EqualValues(t, 4, cfg.MetadataCache.TypeCacheMaxSizeMb)
 	assert.False(t, cfg.ImplicitDirs)
 	assert.EqualValues(t, 0, cfg.FileSystem.RenameDirLimit)
@@ -217,9 +217,9 @@ func TestApplyOptimizations_NonMatchingMachineType(t *testing.T) {
 	optimizedFlags := cfg.ApplyOptimizations(isSet)
 
 	assert.Empty(t, optimizedFlags)
-	assert.EqualValues(t, 60, cfg.MetadataCache.NegativeTtlSecs)
+	assert.EqualValues(t, 5, cfg.MetadataCache.NegativeTtlSecs)
 	assert.EqualValues(t, 60, cfg.MetadataCache.TtlSecs)
-	assert.EqualValues(t, 32, cfg.MetadataCache.StatCacheMaxSizeMb)
+	assert.EqualValues(t, 33, cfg.MetadataCache.StatCacheMaxSizeMb)
 	assert.EqualValues(t, 4, cfg.MetadataCache.TypeCacheMaxSizeMb)
 	assert.False(t, cfg.ImplicitDirs)
 	assert.EqualValues(t, 0, cfg.FileSystem.RenameDirLimit)
@@ -265,6 +265,12 @@ func TestApplyOptimizations_GetMachineTypeError(t *testing.T) {
 	optimizedFlags := cfg.ApplyOptimizations(isSet)
 
 	assert.Empty(t, optimizedFlags)
+	assert.EqualValues(t, 5, cfg.MetadataCache.NegativeTtlSecs)
+	assert.EqualValues(t, 60, cfg.MetadataCache.TtlSecs)
+	assert.EqualValues(t, 33, cfg.MetadataCache.StatCacheMaxSizeMb)
+	assert.EqualValues(t, 4, cfg.MetadataCache.TypeCacheMaxSizeMb)
+	assert.False(t, cfg.ImplicitDirs)
+	assert.EqualValues(t, 0, cfg.FileSystem.RenameDirLimit)
 }
 
 func TestApplyOptimizations_NoError(t *testing.T) {
