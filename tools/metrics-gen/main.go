@@ -35,7 +35,7 @@ type Metric struct {
 	Type        string      `yaml:"type"`
 	Unit        string      `yaml:"unit"`
 	Attributes  []Attribute `yaml:"attributes"`
-	Boundaries  []int64     `yaml:"boundaries"`
+	Boundaries  []float64   `yaml:"boundaries"`
 }
 
 type Attribute struct {
@@ -64,13 +64,18 @@ type TemplateData struct {
 var funcMap = template.FuncMap{
 	"toPascal":                    toPascal,
 	"toCamel":                     toCamel,
+	"getOptionVarName":            getOptionVarName,
 	"getVarName":                  getVarName,
-	"getAtomicName":               getAtomicName,
 	"getGoType":                   getGoType,
 	"getUnitMethod":               getUnitMethod,
-	"joinInts":                    joinInts,
+	"getFloatUnitMethod":          getFloatUnitMethod,
+	"joinFloats":                  joinFloats,
 	"isCounter":                   func(m Metric) bool { return m.Type == "int_counter" },
+	"isUpDownCounter":             func(m Metric) bool { return strings.Contains(m.Type, "up_down_counter") },
+	"isGauge":                     func(m Metric) bool { return strings.Contains(m.Type, "gauge") },
 	"isHistogram":                 func(m Metric) bool { return m.Type == "int_histogram" },
+	"isFloat":                     func(m Metric) bool { return strings.HasPrefix(m.Type, "float") },
+	"getMetricType":               func(m Metric) string { return strings.TrimPrefix(m.Type, "int_") },
 	"buildSwitches":               buildSwitches,
 	"getTestName":                 getTestName,
 	"getTestFuncArgs":             getTestFuncArgs,
@@ -101,6 +106,17 @@ func toCamel(s string) string {
 	return ""
 }
 
+func getOptionVarName(metricName string, combo AttrCombination) string {
+	var parts []string
+	parts = append(parts, toCamel(metricName))
+	for _, pair := range combo {
+		parts = append(parts, toPascal(pair.Name))
+		parts = append(parts, toPascal(pair.Value))
+	}
+	parts = append(parts, "Options")
+	return strings.Join(parts, "")
+}
+
 func getVarName(metricName string, combo AttrCombination) string {
 	var parts []string
 	parts = append(parts, toCamel(metricName))
@@ -108,18 +124,6 @@ func getVarName(metricName string, combo AttrCombination) string {
 		parts = append(parts, toPascal(pair.Name))
 		parts = append(parts, toPascal(pair.Value))
 	}
-	parts = append(parts, "AttrSet")
-	return strings.Join(parts, "")
-}
-
-func getAtomicName(metricName string, combo AttrCombination) string {
-	var parts []string
-	parts = append(parts, toCamel(metricName))
-	for _, pair := range combo {
-		parts = append(parts, toPascal(pair.Name))
-		parts = append(parts, toPascal(pair.Value))
-	}
-	parts = append(parts, "Atomic")
 	return strings.Join(parts, "")
 }
 
@@ -129,6 +133,10 @@ func getGoType(t string) string {
 		return "string"
 	case "bool":
 		return "bool"
+	case "int64":
+		return "int64"
+	case "float64":
+		return "float64"
 	default:
 		return "interface{}"
 	}
@@ -148,10 +156,24 @@ func getUnitMethod(unit string) string {
 	}
 }
 
-func joinInts(nums []int64) string {
+func getFloatUnitMethod(unit string) string {
+	switch unit {
+	case "us":
+		return "float64(latency.Microseconds())"
+	case "ms":
+		return "float64(latency.Milliseconds())"
+	case "s":
+		return "latency.Seconds()"
+	default:
+		// Assumes the value is already in the correct unit if not time-based.
+		return "float64(latency)"
+	}
+}
+
+func joinFloats(nums []float64) string {
 	var s []string
 	for _, n := range nums {
-		s = append(s, strconv.FormatInt(n, 10))
+		s = append(s, strconv.FormatFloat(n, 'f', -1, 64))
 	}
 	return strings.Join(s, ", ")
 }
@@ -170,8 +192,19 @@ func getTestName(combo AttrCombination) string {
 }
 
 // getTestFuncArgs generates arguments for the metric function call in tests.
-func getTestFuncArgs(combo AttrCombination) string {
+func getTestFuncArgs(m Metric, combo AttrCombination) string {
 	var parts []string
+	value := "123.456"
+	if !isFloat(m) {
+		value = "123"
+	}
+	if isHistogram(m) {
+		parts = append(parts, "context.Background()", "5*time.Second")
+	} else if isGauge(m) {
+		parts = append(parts, value)
+	} else { // Counter, UpDownCounter
+		parts = append(parts, value)
+	}
 	for _, pair := range combo {
 		if pair.Type == "string" {
 			parts = append(parts, `"`+pair.Value+`"`)
@@ -263,17 +296,25 @@ func validateMetric(m Metric) error {
 	if m.Description == "" {
 		return fmt.Errorf("description is required for metric %q", m.Name)
 	}
-	if m.Type != "int_counter" && m.Type != "int_histogram" {
-		return fmt.Errorf("type for metric %q must be 'int_counter' or 'int_histogram', got %q", m.Name, m.Type)
+	allowedTypes := []string{"int_counter", "int_histogram", "int_up_down_counter", "float_up_down_counter", "int_gauge", "float_gauge"}
+	validType := false
+	for _, t := range allowedTypes {
+		if m.Type == t {
+			validType = true
+			break
+		}
+	}
+	if !validType {
+		return fmt.Errorf("type for metric %q must be one of %v, got %q", m.Name, allowedTypes, m.Type)
 	}
 
 	if m.Type == "int_histogram" {
 		if len(m.Boundaries) == 0 {
 			return fmt.Errorf("boundaries are required for histogram metric %q", m.Name)
 		}
-	} else { // int_counter
+	} else {
 		if len(m.Boundaries) > 0 {
-			return fmt.Errorf("boundaries should not be present for counter metric %q", m.Name)
+			return fmt.Errorf("boundaries should not be present for non-histogram metric %q", m.Name)
 		}
 	}
 
@@ -356,13 +397,21 @@ func buildSwitches(metric Metric) string {
 		if level == len(metric.Attributes) {
 			// Base case: record the metric
 			indent := strings.Repeat("\t", level+1)
-			if metric.Type == "int_counter" {
-				atomicName := getAtomicName(metric.Name, combo)
-				builder.WriteString(fmt.Sprintf("%so.%s.Add(inc)\n", indent, atomicName))
+			varName := getVarName(metric.Name, combo)
+			if isCounter(metric) {
+				builder.WriteString(fmt.Sprintf("%so.%s.Add(inc)\n", indent, varName))
+			} else if isUpDownCounter(metric) {
+				builder.WriteString(fmt.Sprintf("%so.%s.Add(inc)\n", indent, varName))
+			} else if isGauge(metric) {
+				if isFloat(metric) {
+					builder.WriteString(fmt.Sprintf("%s*o.%s = val\n", indent, varName))
+				} else {
+					builder.WriteString(fmt.Sprintf("%so.%s.Store(val)\n", indent, varName))
+				}
 			} else { // histogram
-				varName := getVarName(metric.Name, combo)
+				optionVarName := getOptionVarName(metric.Name, combo)
 				unitMethod := getUnitMethod(metric.Unit)
-				builder.WriteString(fmt.Sprintf("%srecord = histogramRecord{ctx: ctx,instrument: o.%s, value: latency%s, attributes: %s}\n", indent, toCamel(metric.Name), unitMethod, varName))
+				builder.WriteString(fmt.Sprintf("%srecord = histogramRecord{ctx: ctx,instrument: o.%s, value: latency%s, attributes: %s}\n", indent, toCamel(metric.Name), unitMethod, optionVarName))
 			}
 			return
 		}
@@ -394,12 +443,20 @@ func buildSwitches(metric Metric) string {
 	}
 
 	if len(metric.Attributes) == 0 {
-		if metric.Type == "int_histogram" {
+		varName := getVarName(metric.Name, AttrCombination{})
+		if isHistogram(metric) {
 			unitMethod := getUnitMethod(metric.Unit)
 			builder.WriteString(fmt.Sprintf("\trecord = histogramRecord{ctx: ctx, instrument: o.%s, value: latency%s}\n", toCamel(metric.Name), unitMethod))
-		} else if metric.Type == "int_counter" {
-			atomicName := getAtomicName(metric.Name, AttrCombination{})
-			builder.WriteString(fmt.Sprintf("\to.%s.Add(inc)\n", atomicName))
+		} else if isCounter(metric) {
+			builder.WriteString(fmt.Sprintf("\to.%s.Add(inc)\n", varName))
+		} else if isUpDownCounter(metric) {
+			builder.WriteString(fmt.Sprintf("\to.%s.Add(inc)\n", varName))
+		} else if isGauge(metric) {
+			if isFloat(metric) {
+				builder.WriteString(fmt.Sprintf("\t*o.%s = val\n", varName))
+			} else {
+				builder.WriteString(fmt.Sprintf("\to.%s.Store(val)\n", varName))
+			}
 		}
 	} else {
 		recorder(0, AttrCombination{})

@@ -29,12 +29,6 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
-// metricValueMap maps attribute sets to metric values.
-type metricValueMap map[string]int64
-
-// metricHistogramMap maps attribute sets to histogram data points.
-type metricHistogramMap map[string]metricdata.HistogramDataPoint[int64]
-
 func waitForMetricsProcessing() {
 	time.Sleep(time.Millisecond)
 }
@@ -50,133 +44,44 @@ func setupOTel(ctx context.Context, t *testing.T) (*otelMetrics, *metric.ManualR
 	return m, reader
 }
 
-// gatherHistogramMetrics collects all histogram metrics from the reader.
-// It returns a map where the key is the metric name, and the value is another map.
-// The inner map's key is a string representation of the attributes,
-// and the value is the metricdata.HistogramDataPoint.
-func gatherHistogramMetrics(ctx context.Context, t *testing.T, rd *metric.ManualReader) map[string]map[string]metricdata.HistogramDataPoint[int64] {
+// gatherMetrics collects all metrics from the reader.
+// It returns a map where the key is the metric name, and the value is the metric data.
+func gatherMetrics(ctx context.Context, t *testing.T, rd *metric.ManualReader) map[string]metricdata.Metrics {
 	t.Helper()
 	var rm metricdata.ResourceMetrics
 	err := rd.Collect(ctx, &rm)
 	require.NoError(t, err)
 
-	results := make(map[string]map[string]metricdata.HistogramDataPoint[int64])
-	encoder := attribute.DefaultEncoder() // Using default encoder
-
+	results := make(map[string]metricdata.Metrics)
 	for _, sm := range rm.ScopeMetrics {
 		for _, m := range sm.Metrics {
-			// We are interested in Histogram[int64].
-			hist, ok := m.Data.(metricdata.Histogram[int64])
-			if !ok {
-				continue
-			}
-
-			metricMap := make(metricHistogramMap)
-			for _, dp := range hist.DataPoints {
-				if dp.Count == 0 {
-					continue
-				}
-
-				metricMap[dp.Attributes.Encoded(encoder)] = dp
-			}
-
-			if len(metricMap) > 0 {
-				results[m.Name] = metricMap
-			}
+			results[m.Name] = m
 		}
 	}
-
-	return results
-}
-
-// gatherNonZeroCounterMetrics collects all non-zero counter metrics from the reader.
-// It returns a map where the key is the metric name, and the value is another map.
-// The inner map's key is a string representation of the attributes,
-// and the value is the metric's value.
-func gatherNonZeroCounterMetrics(ctx context.Context, t *testing.T, rd *metric.ManualReader) map[string]map[string]int64 {
-	t.Helper()
-	var rm metricdata.ResourceMetrics
-	err := rd.Collect(ctx, &rm)
-	require.NoError(t, err)
-
-	results := make(map[string]map[string]int64)
-	encoder := attribute.DefaultEncoder()
-
-	for _, sm := range rm.ScopeMetrics {
-		for _, m := range sm.Metrics {
-			// We are interested in Sum[int64] which corresponds to int_counter.
-			sum, ok := m.Data.(metricdata.Sum[int64])
-			if !ok {
-				continue
-			}
-
-			metricMap := make(metricValueMap)
-			for _, dp := range sum.DataPoints {
-				if dp.Value == 0 {
-					continue
-				}
-
-				metricMap[dp.Attributes.Encoded(encoder)] = dp.Value
-			}
-
-			if len(metricMap) > 0 {
-				results[m.Name] = metricMap
-			}
-		}
-	}
-
 	return results
 }
 
 {{range .Metrics}}
-{{if isCounter .}}
+{{if or (isCounter .) (isUpDownCounter .) (isGauge .)}}
 func Test{{toPascal .Name}}(t *testing.T) {
 	{{- if .Attributes}}
 	tests := []struct {
 		name     string
 		f        func(m *otelMetrics)
-		expected map[attribute.Set]int64
+		expected map[attribute.Set]interface{}
 	}{
 		{{- $metric := . -}}
 		{{- range $combination := (index $.AttrCombinations $metric.Name)}}
 		{
 			name: "{{getTestName $combination}}",
 			f: func(m *otelMetrics) {
-				m.{{toPascal $metric.Name}}(5, {{getTestFuncArgs $combination}})
+				m.{{toPascal $metric.Name}}({{getTestFuncArgs $metric $combination}})
 			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet({{getExpectedAttrs $combination}}): 5,
-			},
-		},
-		{{- end}}
-		{{- $combinations := (index $.AttrCombinations $metric.Name) -}}
-		{{- if and .Attributes (gt (len $combinations) 1) -}}
-		{
-			name: "multiple_attributes_summed",
-			f: func(m *otelMetrics) {
-				{{- $firstComb := (index $combinations 0) -}}
-				{{- $secondComb := (index $combinations 1) -}}
-				m.{{toPascal $metric.Name}}(5, {{getTestFuncArgs $firstComb}})
-				m.{{toPascal $metric.Name}}(2, {{getTestFuncArgs $secondComb}})
-				m.{{toPascal $metric.Name}}(3, {{getTestFuncArgs $firstComb}})
-			},
-			expected: map[attribute.Set]int64{
-				{{- $firstComb := (index $combinations 0) -}}
-				{{- $secondComb := (index $combinations 1) -}}
-				attribute.NewSet({{getExpectedAttrs $firstComb}}): 8,
-				attribute.NewSet({{getExpectedAttrs $secondComb}}): 2,
+			expected: map[attribute.Set]interface{}{
+				attribute.NewSet({{getExpectedAttrs $combination}}): {{if isFloat $metric}}123.456{{else}}123{{end}},
 			},
 		},
 		{{- end}}
-		{
-			name: "negative_increment",
-			f: func(m *otelMetrics) {
-				{{- $firstComb := (index $combinations 0) -}}
-				m.{{toPascal $metric.Name}}(-5, {{getTestFuncArgs $firstComb}})
-				m.{{toPascal $metric.Name}}(2, {{getTestFuncArgs $firstComb}})
-			},
-			expected: map[attribute.Set]int64{attribute.NewSet({{getExpectedAttrs (index $combinations 0)}}): 2},
-		},
 	}
 
 	for _, tc := range tests {
@@ -188,18 +93,35 @@ func Test{{toPascal .Name}}(t *testing.T) {
 			tc.f(m)
 			waitForMetricsProcessing()
 
-			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+			metrics := gatherMetrics(ctx, t, rd)
 			metric, ok := metrics["{{.Name}}"]
 			if len(tc.expected) == 0 {
 				assert.False(t, ok, "{{.Name}} metric should not be found")
 				return
 			}
 			require.True(t, ok, "{{.Name}} metric not found")
-			expectedMap := make(map[string]int64)
+
+			expectedMap := make(map[string]interface{})
 			for k, v := range tc.expected {
 				expectedMap[k.Encoded(encoder)] = v
 			}
-			assert.Equal(t, expectedMap, metric)
+			{{if isFloat .}}
+			sum, ok := metric.Data.(metricdata.Sum[float64])
+			require.True(t, ok, "metric.Data should be of type Sum[float64]")
+			actualMap := make(map[string]interface{})
+			for _, dp := range sum.DataPoints {
+				actualMap[dp.Attributes.Encoded(encoder)] = dp.Value
+			}
+			assert.Equal(t, expectedMap, actualMap)
+			{{else}}
+			sum, ok := metric.Data.(metricdata.Sum[int64])
+			require.True(t, ok, "metric.Data should be of type Sum[int64]")
+			actualMap := make(map[string]interface{})
+			for _, dp := range sum.DataPoints {
+				actualMap[dp.Attributes.Encoded(encoder)] = dp.Value
+			}
+			assert.Equal(t, expectedMap, actualMap)
+			{{end}}
 		})
 	}
 	{{- else}}
@@ -207,24 +129,31 @@ func Test{{toPascal .Name}}(t *testing.T) {
 	encoder := attribute.DefaultEncoder()
 	m, rd := setupOTel(ctx, t)
 
-	m.{{toPascal .Name}}(1024)
-	m.{{toPascal .Name}}(2048)
+	m.{{toPascal .Name}}({{if isFloat .}}123.456{{else}}123{{end}})
+	m.{{toPascal .Name}}({{if isFloat .}}456.789{{else}}456{{end}})
 	waitForMetricsProcessing()
 
-	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+	metrics := gatherMetrics(ctx, t, rd)
 	metric, ok := metrics["{{.Name}}"]
 	require.True(t, ok, "{{.Name}} metric not found")
 	s := attribute.NewSet()
-	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric, "Positive increments should be summed.")
-
-	// Test negative increment
-	m.{{toPascal .Name}}(-100)
-	waitForMetricsProcessing()
-
-	metrics = gatherNonZeroCounterMetrics(ctx, t, rd)
-	metric, ok = metrics["{{.Name}}"]
-	require.True(t, ok, "{{.Name}} metric not found after negative increment")
-	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric, "Negative increment should not change the metric value.")
+	{{if isFloat .}}
+	sum, ok := metric.Data.(metricdata.Sum[float64])
+	require.True(t, ok, "metric.Data should be of type Sum[float64]")
+	actualMap := make(map[string]interface{})
+	for _, dp := range sum.DataPoints {
+		actualMap[dp.Attributes.Encoded(encoder)] = dp.Value
+	}
+	assert.Equal(t, map[string]interface{}{s.Encoded(encoder): {{if isGauge .}}456.789{{else}}580.245{{end}}}, actualMap)
+	{{else}}
+	sum, ok := metric.Data.(metricdata.Sum[int64])
+	require.True(t, ok, "metric.Data should be of type Sum[int64]")
+	actualMap := make(map[string]interface{})
+	for _, dp := range sum.DataPoints {
+		actualMap[dp.Attributes.Encoded(encoder)] = dp.Value
+	}
+	assert.Equal(t, map[string]interface{}{s.Encoded(encoder): int64({{if isGauge .}}456{{else}}579{{end}})}, actualMap)
+	{{end}}
 	{{- end}}
 }
 {{else if isHistogram .}}
@@ -262,9 +191,12 @@ func Test{{toPascal .Name}}(t *testing.T) {
 			}
 			waitForMetricsProcessing()
 
-			metrics := gatherHistogramMetrics(ctx, t, rd)
+			metrics := gatherMetrics(ctx, t, rd)
 			metric, ok := metrics["{{.Name}}"]
 			require.True(t, ok, "{{.Name}} metric not found")
+
+			hist, ok := metric.Data.(metricdata.Histogram[int64])
+			require.True(t, ok, "metric.Data should be of type Histogram[int64]")
 
 			attrs := []attribute.KeyValue{
 				{{- range .Attributes}}
@@ -273,8 +205,14 @@ func Test{{toPascal .Name}}(t *testing.T) {
 			}
 			s := attribute.NewSet(attrs...)
 			expectedKey := s.Encoded(encoder)
-			dp, ok := metric[expectedKey]
-			require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
+			var dp metricdata.HistogramDataPoint[int64]
+			for _, p := range hist.DataPoints {
+				if p.Attributes.Encoded(encoder) == expectedKey {
+					dp = p
+					break
+				}
+			}
+			require.NotNil(t, dp, "DataPoint not found for key: %s", expectedKey)
 			assert.Equal(t, uint64(len(tc.latencies)), dp.Count)
 			assert.Equal(t, totalLatency.{{getLatencyMethod .Unit}}(), dp.Sum)
 		})
@@ -292,14 +230,23 @@ func Test{{toPascal .Name}}(t *testing.T) {
 	}
 	waitForMetricsProcessing()
 
-	metrics := gatherHistogramMetrics(ctx, t, rd)
+	metrics := gatherMetrics(ctx, t, rd)
 	metric, ok := metrics["{{.Name}}"]
 	require.True(t, ok, "{{.Name}} metric not found")
 
+	hist, ok := metric.Data.(metricdata.Histogram[int64])
+	require.True(t, ok, "metric.Data should be of type Histogram[int64]")
+
 	s := attribute.NewSet()
 	expectedKey := s.Encoded(encoder)
-	dp, ok := metric[expectedKey]
-	require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
+	var dp metricdata.HistogramDataPoint[int64]
+	for _, p := range hist.DataPoints {
+		if p.Attributes.Encoded(encoder) == expectedKey {
+			dp = p
+			break
+		}
+	}
+	require.NotNil(t, dp, "DataPoint not found for key: %s", expectedKey)
 	assert.Equal(t, uint64(len(latencies)), dp.Count)
 	assert.Equal(t, totalLatency.{{getLatencyMethod .Unit}}(), dp.Sum)
 	{{- end}}

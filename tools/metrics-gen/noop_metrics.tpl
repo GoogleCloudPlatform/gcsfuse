@@ -21,12 +21,18 @@ import (
 )
 
 type noopMetrics struct {}
+
+func (*noopMetrics) Close() {}
 {{- range .Metrics}}
 	func (*noopMetrics) {{toPascal .Name}}(
 		{{- if isCounter . -}}
 			inc int64
+		{{- else if isUpDownCounter . -}}
+			inc {{if isFloat .}}float64{{else}}int64{{end}}
+		{{- else if isGauge . -}}
+			val {{if isFloat .}}float64{{else}}int64{{end}}
 		{{- else -}}
-			ctx context.Context, duration time.Duration
+			ctx context.Context, latency time.Duration
 		{{- end }}
 		{{- if .Attributes}}, {{end}}
 		{{- range $i, $attr := .Attributes -}}

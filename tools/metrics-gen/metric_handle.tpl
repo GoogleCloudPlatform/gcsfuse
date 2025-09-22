@@ -24,18 +24,22 @@ import (
 // The methods of this interface are auto-generated from metrics.yaml.
 // Each method corresponds to a metric defined in metrics.yaml.
 type MetricHandle interface {
-{{- range .Metrics}}
+	{{- range .Metrics}}
 	// {{toPascal .Name}} - {{.Description}}
 	{{toPascal .Name}}(
 		{{- if isCounter . -}}
 			inc int64
+		{{- else if isUpDownCounter . -}}
+			inc {{if isFloat .}}float64{{else}}int64{{end}}
+		{{- else if isGauge . -}}
+			val {{if isFloat .}}float64{{else}}int64{{end}}
 		{{- else -}}
-			ctx context.Context, duration time.Duration
+			ctx context.Context, latency time.Duration
 		{{- end }}
 		{{- if .Attributes}}, {{end}}
 		{{- range $i, $attr := .Attributes -}}
 			{{if $i}}, {{end}}{{toCamel $attr.Name}} {{getGoType $attr.Type}}
 		{{- end }})
-
-{{end}}
+	{{- end}}
+	Close()
 }
