@@ -29,6 +29,7 @@ import (
 func MountGcsfuseWithStaticMounting(flags []string) (err error) {
 	config := &test_suite.TestConfig{
 		TestBucket:              setup.TestBucket(),
+		GKEMountedDirectory:     setup.MountedDirectory(),
 		GCSFuseMountedDirectory: setup.MntDir(),
 		LogFile:                 setup.LogFile(),
 	}

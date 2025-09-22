@@ -53,13 +53,13 @@ func CreateCredentials(ctx context.Context) (serviceAccount, localKeyFilePath st
 		setup.LogAndExit(fmt.Sprintf("Error in fetching project id: %v", err))
 	}
 	if strings.Contains(id, "cloudtop") {
+		// In cloudtop environments, well known path is used for auth. So explicitly set the project as whitelisted.
 		id = WhitelistedGcpProjects[0]
 	}
 
 	// return if active GCP project is not in whitelisted gcp projects
 	if !slices.Contains(WhitelistedGcpProjects, id) {
 		log.Printf("The active GCP project is not one of: %s. So the credentials test will not run.", strings.Join(WhitelistedGcpProjects, ", "))
-		return
 	}
 
 	// Service account id format is name@project-id.iam.gserviceaccount.com
