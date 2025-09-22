@@ -245,23 +245,14 @@ func getOptimizedValue(
 ) OptimizationResult {
 	// Precedence: Profile -> Machine -> Default
 
-	// 1. If a profile is active, it takes precedence.
-	if profileName != "" {
-		for _, p := range rules.Profiles {
-			if p.Name == profileName {
-				return OptimizationResult{
-					FinalValue:         p.Value,
-					OptimizationReason: fmt.Sprintf("profile %q setting", profileName),
-					Optimized:          true,
-				}
+	// 1. If a profile with the given name is active and has optimization defined for it, then it takes precedence.
+	for _, p := range rules.Profiles {
+		if p.Name == profileName {
+			return OptimizationResult{
+				FinalValue:         p.Value,
+				OptimizationReason: fmt.Sprintf("profile %q setting", profileName),
+				Optimized:          true,
 			}
-		}
-		// A profile is active, but NO rule was found for this specific flag.
-		// Per the proposal, we must NOT fall back to machine-type optimization.
-		// We stop and return the original value.
-		return OptimizationResult{
-			FinalValue: currentValue,
-			Optimized:  false,
 		}
 	}
 
