@@ -166,7 +166,6 @@ func TestOptimize_DisableAutoConfig(t *testing.T) {
 
 	assert.False(t, cfg.Write.EnableStreamingWrites)
 	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
-	assert.EqualValues(t, 0, cfg.MetadataCache.TtlSecs)
 	assert.EqualValues(t, 0, cfg.MetadataCache.StatCacheMaxSizeMb)
 	assert.EqualValues(t, 0, cfg.MetadataCache.TypeCacheMaxSizeMb)
 	assert.False(t, cfg.ImplicitDirs)
@@ -190,7 +189,6 @@ func TestApplyMachineTypeOptimizations_MatchingMachineType(t *testing.T) {
 
 	assert.NotEmpty(t, optimizedFlags)
 	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
-	assert.EqualValues(t, -1, cfg.MetadataCache.TtlSecs)
 	assert.EqualValues(t, 1024, cfg.MetadataCache.StatCacheMaxSizeMb)
 	assert.EqualValues(t, 128, cfg.MetadataCache.TypeCacheMaxSizeMb)
 	assert.True(t, cfg.ImplicitDirs)
@@ -235,7 +233,6 @@ func TestApplyMachineTypeOptimizations_UserSetFlag(t *testing.T) {
 
 	assert.NotEmpty(t, optimizedFlags)
 	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
-	assert.EqualValues(t, -1, cfg.MetadataCache.TtlSecs)
 	assert.EqualValues(t, 1024, cfg.MetadataCache.StatCacheMaxSizeMb)
 	assert.EqualValues(t, 128, cfg.MetadataCache.TypeCacheMaxSizeMb)
 	assert.True(t, cfg.ImplicitDirs)
@@ -390,7 +387,6 @@ func TestOptimize_Success(t *testing.T) {
 	assert.EqualValues(t, 1600, cfg.Write.GlobalMaxBlocks)
 	assert.True(t, isFlagPresent(optimizedFlags, "metadata-cache.negative-ttl-secs"))
 	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
-	assert.EqualValues(t, -1, cfg.MetadataCache.TtlSecs)
 	assert.EqualValues(t, 1024, cfg.MetadataCache.StatCacheMaxSizeMb)
 	assert.EqualValues(t, 128, cfg.MetadataCache.TypeCacheMaxSizeMb)
 	assert.True(t, cfg.ImplicitDirs)

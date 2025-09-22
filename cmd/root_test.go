@@ -1466,7 +1466,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 					EnableNonexistentTypeCache:          false,
 					ExperimentalMetadataPrefetchOnMount: "disabled",
 					StatCacheMaxSizeMb:                  1024,
-					TtlSecs:                             9223372036,
+					TtlSecs:                             60,
 					NegativeTtlSecs:                     0,
 					TypeCacheMaxSizeMb:                  128,
 				},
