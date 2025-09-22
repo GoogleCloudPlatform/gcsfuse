@@ -630,7 +630,8 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 	// Fall back to temp file for Out-Of-Order Writes.
 	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
 		logger.Warnf("Out of order write detected. File %s will now use legacy staged writes because "+
-			"streaming writes is supported for sequential writes to new/empty files.", f.name.String())
+			"streaming writes is supported for sequential writes to new/empty files. "+
+			"For more details, see: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#writes", f.name.String())
 		// Finalize the object.
 		err = f.flushUsingBufferedWriteHandler()
 		if err != nil {
@@ -945,7 +946,8 @@ func (f *FileInode) truncateUsingBufferedWriteHandler(ctx context.Context, size 
 	// If truncate size is less than the total file size resulting in OutOfOrder write, finalize and fall back to temp file.
 	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
 		logger.Warnf("Out of order write detected. File %s will now use legacy staged writes because "+
-			"streaming writes is supported for sequential writes to new/empty files.", f.name.String())
+			"streaming writes is supported for sequential writes to new/empty files. "+
+			"For more details, see: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#writes", f.name.String())
 		// Finalize the object.
 		err = f.flushUsingBufferedWriteHandler()
 		if err != nil {
@@ -1076,6 +1078,7 @@ func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, obj *gcs.
 		return true
 	}
 	logger.Warnf("Existing file %s of size %d bytes (non-zero) will use legacy staged writes "+
-		"because streaming writes is supported for sequential writes to new/empty files.", f.name.String(), obj.Size)
+		"because streaming writes is supported for sequential writes to new/empty files. "+
+		"For more details, see: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#writes", f.name.String(), obj.Size)
 	return false
 }

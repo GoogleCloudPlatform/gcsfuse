@@ -43,3 +43,5 @@ _testmain.go
 
 # External folders
 vendor/
+
+details/
