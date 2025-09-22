@@ -409,6 +409,13 @@ params:
       server. A value of 0 indicates no timeout.
     default: "0s"
 
+  - config-path: "gcs-connection.http-dns-cache-ttl-secs"
+    flag-name: "http-dns-cache-ttl-secs"
+    type: "int"
+    usage: "Sets the DNS cache TTL for HTTP/1 connection to the specified value in seconds. Special values: -1 means infinite TTL and 0 disables caching"
+    default: "0"
+    hide-flag: true
+
   - config-path: "gcs-connection.limit-bytes-per-sec"
     flag-name: "limit-bytes-per-sec"
     type: "float64"
