@@ -60,16 +60,8 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-cache.c
 }, "file-system.kernel-list-cache-ttl-secs": {
 	Profiles: []shared.ProfileOptimization{
 		{
-			Name:  "aiml-training",
-			Value: int64(0),
-		},
-		{
 			Name:  "aiml-serving",
 			Value: int64(-1),
-		},
-		{
-			Name:  "aiml-checkpointing",
-			Value: int64(0),
 		},
 	},
 }, "metadata-cache.negative-ttl-secs": {
