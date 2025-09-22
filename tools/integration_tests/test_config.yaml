@@ -143,8 +143,8 @@ rename_dir_limit:
           flat: true
           hns: false
           zonal: false
-      - flags: 
-        - ""
+      - flags:
+          - ""
         compatible:
           flat: false
           hns: true
@@ -157,7 +157,6 @@ streaming_writes:
     run_on_gke: false
     configs:
       - flags:
-          - "--rename-dir-limit=3 --write-block-size-mb=1 --write-max-blocks-per-file=2 --write-global-max-blocks=0"
           - "--rename-dir-limit=3 --write-block-size-mb=1 --write-max-blocks-per-file=2 --client-protocol=grpc --write-global-max-blocks=-1"
           - "--rename-dir-limit=3 --write-block-size-mb=1 --write-max-blocks-per-file=2 --write-global-max-blocks=-1"
         compatible:
