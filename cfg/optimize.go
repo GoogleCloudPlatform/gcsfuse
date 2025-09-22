@@ -21,6 +21,8 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -36,6 +38,17 @@ const (
 ////////////////////////////////////////////////////////////////////////
 // Types
 ////////////////////////////////////////////////////////////////////////
+
+// OptimizationResult holds the outcome of an optimization check, including the
+// new value and the reason for the change.
+type OptimizationResult struct {
+	// FinalValue is the value after applying all the optimizations. This will be the same as the original value if optimizations didn't change anything.
+	FinalValue any
+	// If value is optimized, then this will contain the description of what optimization caused the change, e.g. "profile aiml-training", or "machine-type a3-highgpu-8g" etc.
+	OptimizationReason string
+	// Optimized true indicates that the value was changed by optimization (either machine-type based, or profile-based).
+	Optimized bool
+}
 
 type isValueSet interface {
 	IsSet(string) bool
@@ -298,4 +311,54 @@ func setFlagValue(cfg *Config, flag string, override flagOverride, isSet isValue
 
 func isFlagPresent(flags []string, flag string) bool {
 	return slices.Contains(flags, flag)
+}
+
+// getOptimizedValue contains the generic logic to determine the optimized value for a flag.
+func getOptimizedValue(
+	rules *shared.OptimizationRules,
+	currentValue any,
+	profileName string,
+	machineType string,
+	machineTypeToGroupMap map[string]string,
+) OptimizationResult {
+	// Precedence: Profile -> Machine -> Default
+
+	// 1. If a profile is active, it takes precedence.
+	if profileName != "" {
+		for _, p := range rules.Profiles {
+			if p.Name == profileName {
+				return OptimizationResult{
+					FinalValue:         p.Value,
+					OptimizationReason: fmt.Sprintf("profile %q setting", profileName),
+					Optimized:          true,
+				}
+			}
+		}
+		// A profile is active, but NO rule was found for this specific flag.
+		// Per the proposal, we must NOT fall back to machine-type optimization.
+		// We stop and return the original value.
+		return OptimizationResult{
+			FinalValue: currentValue,
+			Optimized:  false,
+		}
+	}
+
+	// 2. Only if no profile is set, check for a machine-based optimization.
+	if group, ok := machineTypeToGroupMap[machineType]; ok {
+		for _, mbo := range rules.MachineBasedOptimization {
+			if mbo.Group == group {
+				return OptimizationResult{
+					FinalValue:         mbo.Value,
+					OptimizationReason: fmt.Sprintf("machine-type group %q", group),
+					Optimized:          true,
+				}
+			}
+		}
+	}
+
+	// 3. If no optimization is found, return the original value.
+	return OptimizationResult{
+		FinalValue: currentValue,
+		Optimized:  false,
+	}
 }

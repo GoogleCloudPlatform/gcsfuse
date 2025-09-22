@@ -19,9 +19,304 @@ package cfg
 import (
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
+
+// AllFlagOptimizationRules is the generated map from a flag's config-path to its specific rules.
+var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-cache.cache-file-for-range-read": {
+	Profiles: []shared.ProfileOptimization{
+		{
+			Name:  "aiml-serving",
+			Value: bool(true),
+		},
+		{
+			Name:  "aiml-checkpointing",
+			Value: bool(true),
+		},
+	},
+}, "implicit-dirs": {
+	MachineBasedOptimization: []shared.MachineBasedOptimization{
+		{
+			Group: "high-performance",
+			Value: bool(true),
+		},
+	},
+	Profiles: []shared.ProfileOptimization{
+		{
+			Name:  "aiml-training",
+			Value: bool(true),
+		},
+		{
+			Name:  "aiml-serving",
+			Value: bool(true),
+		},
+		{
+			Name:  "aiml-checkpointing",
+			Value: bool(true),
+		},
+	},
+}, "file-system.kernel-list-cache-ttl-secs": {
+	Profiles: []shared.ProfileOptimization{
+		{
+			Name:  "aiml-serving",
+			Value: int64(-1),
+		},
+	},
+}, "metadata-cache.negative-ttl-secs": {
+	MachineBasedOptimization: []shared.MachineBasedOptimization{
+		{
+			Group: "high-performance",
+			Value: int64(0),
+		},
+	},
+	Profiles: []shared.ProfileOptimization{
+		{
+			Name:  "aiml-training",
+			Value: int64(0),
+		},
+		{
+			Name:  "aiml-serving",
+			Value: int64(0),
+		},
+		{
+			Name:  "aiml-checkpointing",
+			Value: int64(0),
+		},
+	},
+}, "metadata-cache.ttl-secs": {
+	MachineBasedOptimization: []shared.MachineBasedOptimization{
+		{
+			Group: "high-performance",
+			Value: int64(-1),
+		},
+	},
+	Profiles: []shared.ProfileOptimization{
+		{
+			Name:  "aiml-training",
+			Value: int64(-1),
+		},
+		{
+			Name:  "aiml-serving",
+			Value: int64(-1),
+		},
+		{
+			Name:  "aiml-checkpointing",
+			Value: int64(-1),
+		},
+	},
+}, "file-system.rename-dir-limit": {
+	MachineBasedOptimization: []shared.MachineBasedOptimization{
+		{
+			Group: "high-performance",
+			Value: int64(200000),
+		},
+	},
+	Profiles: []shared.ProfileOptimization{
+		{
+			Name:  "aiml-checkpointing",
+			Value: int64(200000),
+		},
+	},
+}, "metadata-cache.stat-cache-max-size-mb": {
+	MachineBasedOptimization: []shared.MachineBasedOptimization{
+		{
+			Group: "high-performance",
+			Value: int64(1024),
+		},
+	},
+	Profiles: []shared.ProfileOptimization{
+		{
+			Name:  "aiml-training",
+			Value: int64(-1),
+		},
+		{
+			Name:  "aiml-serving",
+			Value: int64(-1),
+		},
+		{
+			Name:  "aiml-checkpointing",
+			Value: int64(-1),
+		},
+	},
+}, "metadata-cache.type-cache-max-size-mb": {
+	MachineBasedOptimization: []shared.MachineBasedOptimization{
+		{
+			Group: "high-performance",
+			Value: int64(128),
+		},
+	},
+	Profiles: []shared.ProfileOptimization{
+		{
+			Name:  "aiml-training",
+			Value: int64(-1),
+		},
+		{
+			Name:  "aiml-serving",
+			Value: int64(-1),
+		},
+		{
+			Name:  "aiml-checkpointing",
+			Value: int64(-1),
+		},
+	},
+}, "write.global-max-blocks": {
+	MachineBasedOptimization: []shared.MachineBasedOptimization{
+		{
+			Group: "high-performance",
+			Value: int64(1600),
+		},
+	},
+},
+}
+
+// machineTypeToGroupMap is the generated map from machine type to the group it belongs to.
+var machineTypeToGroupMap = map[string]string{
+	"a2-megagpu-16g":       "high-performance",
+	"a2-ultragpu-8g":       "high-performance",
+	"a3-edgegpu-8g":        "high-performance",
+	"a3-highgpu-8g":        "high-performance",
+	"a3-megagpu-8g":        "high-performance",
+	"a3-ultragpu-8g":       "high-performance",
+	"a4-highgpu-8g-lowmem": "high-performance",
+	"ct5l-hightpu-8t":      "high-performance",
+	"ct5lp-hightpu-8t":     "high-performance",
+	"ct5p-hightpu-4t":      "high-performance",
+	"ct5p-hightpu-4t-tpu":  "high-performance",
+	"ct6e-standard-4t":     "high-performance",
+	"ct6e-standard-4t-tpu": "high-performance",
+	"ct6e-standard-8t":     "high-performance",
+	"ct6e-standard-8t-tpu": "high-performance",
+}
+
+// ApplyOptimizations modifies the config in-place with optimized values.
+func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
+	var optimizedFlags []string
+	// Skip all optimizations if autoconfig is disabled.
+	if c.DisableAutoconfig {
+		return nil
+	}
+
+	profileName := c.Profile
+	machineType, err := getMachineType(isSet)
+	if err != nil {
+		// Non-fatal, just means machine-based optimizations won't apply.
+		machineType = ""
+	}
+	c.MachineType = machineType
+
+	// Apply optimizations for each flag that has rules defined.
+	if !isSet.IsSet("file-cache-cache-file-for-range-read") {
+		rules := AllFlagOptimizationRules["file-cache.cache-file-for-range-read"]
+		result := getOptimizedValue(&rules, c.FileCache.CacheFileForRangeRead, profileName, machineType, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(bool); ok {
+				if c.FileCache.CacheFileForRangeRead != val {
+					c.FileCache.CacheFileForRangeRead = val
+					optimizedFlags = append(optimizedFlags, "file-cache.cache-file-for-range-read")
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("implicit-dirs") {
+		rules := AllFlagOptimizationRules["implicit-dirs"]
+		result := getOptimizedValue(&rules, c.ImplicitDirs, profileName, machineType, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(bool); ok {
+				if c.ImplicitDirs != val {
+					c.ImplicitDirs = val
+					optimizedFlags = append(optimizedFlags, "implicit-dirs")
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("kernel-list-cache-ttl-secs") {
+		rules := AllFlagOptimizationRules["file-system.kernel-list-cache-ttl-secs"]
+		result := getOptimizedValue(&rules, c.FileSystem.KernelListCacheTtlSecs, profileName, machineType, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.FileSystem.KernelListCacheTtlSecs != val {
+					c.FileSystem.KernelListCacheTtlSecs = val
+					optimizedFlags = append(optimizedFlags, "file-system.kernel-list-cache-ttl-secs")
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("metadata-cache-negative-ttl-secs") {
+		rules := AllFlagOptimizationRules["metadata-cache.negative-ttl-secs"]
+		result := getOptimizedValue(&rules, c.MetadataCache.NegativeTtlSecs, profileName, machineType, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.MetadataCache.NegativeTtlSecs != val {
+					c.MetadataCache.NegativeTtlSecs = val
+					optimizedFlags = append(optimizedFlags, "metadata-cache.negative-ttl-secs")
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("metadata-cache-ttl-secs") {
+		rules := AllFlagOptimizationRules["metadata-cache.ttl-secs"]
+		result := getOptimizedValue(&rules, c.MetadataCache.TtlSecs, profileName, machineType, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.MetadataCache.TtlSecs != val {
+					c.MetadataCache.TtlSecs = val
+					optimizedFlags = append(optimizedFlags, "metadata-cache.ttl-secs")
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("rename-dir-limit") {
+		rules := AllFlagOptimizationRules["file-system.rename-dir-limit"]
+		result := getOptimizedValue(&rules, c.FileSystem.RenameDirLimit, profileName, machineType, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.FileSystem.RenameDirLimit != val {
+					c.FileSystem.RenameDirLimit = val
+					optimizedFlags = append(optimizedFlags, "file-system.rename-dir-limit")
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("stat-cache-max-size-mb") {
+		rules := AllFlagOptimizationRules["metadata-cache.stat-cache-max-size-mb"]
+		result := getOptimizedValue(&rules, c.MetadataCache.StatCacheMaxSizeMb, profileName, machineType, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.MetadataCache.StatCacheMaxSizeMb != val {
+					c.MetadataCache.StatCacheMaxSizeMb = val
+					optimizedFlags = append(optimizedFlags, "metadata-cache.stat-cache-max-size-mb")
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("type-cache-max-size-mb") {
+		rules := AllFlagOptimizationRules["metadata-cache.type-cache-max-size-mb"]
+		result := getOptimizedValue(&rules, c.MetadataCache.TypeCacheMaxSizeMb, profileName, machineType, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.MetadataCache.TypeCacheMaxSizeMb != val {
+					c.MetadataCache.TypeCacheMaxSizeMb = val
+					optimizedFlags = append(optimizedFlags, "metadata-cache.type-cache-max-size-mb")
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("write-global-max-blocks") {
+		rules := AllFlagOptimizationRules["write.global-max-blocks"]
+		result := getOptimizedValue(&rules, c.Write.GlobalMaxBlocks, profileName, machineType, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.Write.GlobalMaxBlocks != val {
+					c.Write.GlobalMaxBlocks = val
+					optimizedFlags = append(optimizedFlags, "write.global-max-blocks")
+				}
+			}
+		}
+	}
+	return optimizedFlags
+}
 
 type CloudProfilerConfig struct {
 	AllocatedHeap bool `yaml:"allocated-heap"`
