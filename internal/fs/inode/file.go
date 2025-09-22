@@ -314,10 +314,6 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 			return err
 		}
 
-		if f.config.Write.EnableStreamingWrites {
-			logger.Warnf("Write on existing file %s of size %d bytes (non-zero) will use legacy staged writes "+
-				"because streaming writes is supported for sequential writes to new/empty files.", f.name.String(), f.src.Size)
-		}
 		tf, err := f.contentCache.NewTempFile(rc)
 		if err != nil {
 			err = fmt.Errorf("NewTempFile: %w", err)
@@ -1076,11 +1072,10 @@ func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, obj *gcs.
 	if f.local || obj.Size == 0 {
 		return true
 	}
-	if !f.config.Write.EnableRapidAppends {
-		return false
-	}
-	if openMode == util.Append && f.bucket.BucketType().Zonal && obj.Finalized.IsZero() {
+	if f.config.Write.EnableRapidAppends && openMode == util.Append && f.bucket.BucketType().Zonal && obj.Finalized.IsZero() {
 		return true
 	}
+	logger.Warnf("Existing file %s of size %d bytes (non-zero) will use legacy staged writes "+
+		"because streaming writes is supported for sequential writes to new/empty files.", f.name.String(), obj.Size)
 	return false
 }
