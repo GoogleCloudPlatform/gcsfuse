@@ -27,12 +27,10 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
-const PrefixBucketForDynamicMountingTest = "gcsfuse-dynamic-mounting-test-"
-
-func MountGcsfuseWithDynamicMounting(flags []string) (err error) {
+func MountGcsfuseWithDynamicMountingWithConfig(cfg *test_suite.TestConfig, flags []string) (err error) {
 	defaultArg := []string{"--log-severity=trace",
-		"--log-file=" + setup.LogFile(),
-		setup.MntDir()}
+		"--log-file=" + cfg.LogFile,
+		cfg.GCSFuseMountedDirectory}
 
 	for i := 0; i < len(defaultArg); i++ {
 		flags = append(flags, defaultArg[i])
@@ -43,15 +41,27 @@ func MountGcsfuseWithDynamicMounting(flags []string) (err error) {
 	return err
 }
 
-func runTestsOnGivenMountedTestBucket(bucketName string, flags [][]string, rootMntDir string, m *testing.M) (successCode int) {
+// MountGcsfuseWithDynamicMounting is deprecated. Use MountGcsfuseWithDynamicMountingWithConfig instead.
+func MountGcsfuseWithDynamicMounting(flags []string) (err error) {
+	cfg := &test_suite.TestConfig{
+		GKEMountedDirectory:     setup.MountedDirectory(),
+		GCSFuseMountedDirectory: setup.MntDir(),
+		TestBucket:              setup.TestBucket(),
+		LogFile:                 setup.LogFile(),
+	}
+	return MountGcsfuseWithDynamicMountingWithConfig(cfg, flags)
+}
+
+func runTestsOnGivenMountedTestBucket(cfg *test_suite.TestConfig, flags [][]string, rootMntDir string, m *testing.M) (successCode int) {
 	for i := 0; i < len(flags); i++ {
-		if err := MountGcsfuseWithDynamicMounting(flags[i]); err != nil {
+		if err := MountGcsfuseWithDynamicMountingWithConfig(cfg, flags[i]); err != nil {
 			setup.LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
 		}
 
 		// Changing mntDir to path of bucket mounted in mntDir for testing.
-		mntDirOfTestBucket := path.Join(setup.MntDir(), bucketName)
-
+		mntDirOfTestBucket := path.Join(cfg.GCSFuseMountedDirectory, cfg.TestBucket)
+		cfg.GCSFuseMountedDirectory = mntDirOfTestBucket
+		// TODO: clean up MntDir.
 		setup.SetMntDir(mntDirOfTestBucket)
 
 		log.Printf("Running dynamic mounting tests with flags: %s", flags[i])
@@ -60,7 +70,9 @@ func runTestsOnGivenMountedTestBucket(bucketName string, flags [][]string, rootM
 
 		// Currently mntDir is mntDir/bucketName.
 		// Unmounting can happen on rootMntDir. Changing mntDir to rootMntDir for unmounting.
+		// TODO: clean up MntDir.
 		setup.SetMntDir(rootMntDir)
+		cfg.GCSFuseMountedDirectory = rootMntDir
 		setup.UnMountAndThrowErrorInFailure(flags[i], successCode)
 		if successCode != 0 {
 			return
@@ -70,20 +82,17 @@ func runTestsOnGivenMountedTestBucket(bucketName string, flags [][]string, rootM
 }
 
 func executeTestsForDynamicMounting(config *test_suite.TestConfig, flagsSet [][]string, m *testing.M) (successCode int) {
-	rootMntDir := setup.MntDir()
+	rootMntDir := config.GCSFuseMountedDirectory
 
 	// In dynamic mounting all the buckets mounted in mntDir which user has permission.
 	// mntDir - bucket1, bucket2, bucket3, ...
 
 	// SetDynamicBucketMounted to the passed test bucket.
 	setup.SetDynamicBucketMounted(config.TestBucket)
-	successCode = runTestsOnGivenMountedTestBucket(config.TestBucket, flagsSet, rootMntDir, m)
-
+	successCode = runTestsOnGivenMountedTestBucket(config, flagsSet, rootMntDir, m)
 	// Reset SetDynamicBucketMounted to empty after tests are done.
 	setup.SetDynamicBucketMounted("")
 
-	// Setting back the original mntDir after testing.
-	setup.SetMntDir(rootMntDir)
 	return
 }
 
@@ -91,9 +100,10 @@ func executeTestsForDynamicMounting(config *test_suite.TestConfig, flagsSet [][]
 // TODO(b/438068132): cleanup deprecated methods after migration is complete.
 func RunTests(ctx context.Context, client *storage.Client, flags [][]string, m *testing.M) (successCode int) {
 	config := &test_suite.TestConfig{
-		TestBucket:       setup.TestBucket(),
-		MountedDirectory: setup.MountedDirectory(),
-		LogFile:          setup.LogFile(),
+		TestBucket:              setup.TestBucket(),
+		GKEMountedDirectory:     setup.MountedDirectory(),
+		GCSFuseMountedDirectory: setup.MntDir(),
+		LogFile:                 setup.LogFile(),
 	}
 	return RunTestsWithConfigFile(config, flags, m)
 }

@@ -28,9 +28,10 @@ import (
 // TODO(b/438068132): cleanup deprecated methods after migration is complete.
 func MountGcsfuseWithStaticMounting(flags []string) (err error) {
 	config := &test_suite.TestConfig{
-		TestBucket:       setup.TestBucket(),
-		MountedDirectory: setup.MountedDirectory(),
-		LogFile:          setup.LogFile(),
+		TestBucket:              setup.TestBucket(),
+		GKEMountedDirectory:     setup.MountedDirectory(),
+		GCSFuseMountedDirectory: setup.MntDir(),
+		LogFile:                 setup.LogFile(),
 	}
 	return MountGcsfuseWithStaticMountingWithConfigFile(config, flags)
 }
@@ -43,9 +44,9 @@ func MountGcsfuseWithStaticMountingWithConfigFile(config *test_suite.TestConfig,
 	}
 
 	defaultArg = append(defaultArg, "--log-severity=trace",
-		"--log-file="+setup.LogFile(),
+		"--log-file="+config.LogFile,
 		config.TestBucket,
-		setup.MntDir())
+		config.GCSFuseMountedDirectory)
 
 	for i := 0; i < len(defaultArg); i++ {
 		flags = append(flags, defaultArg[i])
@@ -76,9 +77,10 @@ func executeTestsForStaticMounting(config *test_suite.TestConfig, flagsSet [][]s
 // TODO(b/438068132): cleanup deprecated methods after migration is complete.
 func RunTests(flagsSet [][]string, m *testing.M) (successCode int) {
 	config := &test_suite.TestConfig{
-		TestBucket:       setup.TestBucket(),
-		MountedDirectory: setup.MountedDirectory(),
-		LogFile:          setup.LogFile(),
+		TestBucket:              setup.TestBucket(),
+		GKEMountedDirectory:     setup.MountedDirectory(),
+		GCSFuseMountedDirectory: setup.MntDir(),
+		LogFile:                 setup.LogFile(),
 	}
 	return RunTestsWithConfigFile(config, flagsSet, m)
 }
@@ -86,6 +88,6 @@ func RunTests(flagsSet [][]string, m *testing.M) (successCode int) {
 func RunTestsWithConfigFile(config *test_suite.TestConfig, flagsSet [][]string, m *testing.M) (successCode int) {
 	log.Println("Running static mounting tests...")
 	successCode = executeTestsForStaticMounting(config, flagsSet, m)
-	log.Printf("Test log: %s\n", setup.LogFile())
+	log.Printf("Test log: %s\n", config.LogFile)
 	return successCode
 }

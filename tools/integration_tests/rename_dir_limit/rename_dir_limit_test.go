@@ -59,7 +59,7 @@ func TestMain(m *testing.M) {
 		// Populate the config manually.
 		cfg.RenameDirLimit = make([]test_suite.TestConfig, 1)
 		cfg.RenameDirLimit[0].TestBucket = setup.TestBucket()
-		cfg.RenameDirLimit[0].MountedDirectory = setup.MountedDirectory()
+		cfg.RenameDirLimit[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.RenameDirLimit[0].Configs = make([]test_suite.ConfigItem, 2)
 		cfg.RenameDirLimit[0].Configs[0].Flags = []string{
 			"--rename-dir-limit=3 --implicit-dirs --client-protocol=grpc",
@@ -73,17 +73,11 @@ func TestMain(m *testing.M) {
 		cfg.RenameDirLimit[0].Configs[1].Compatible = map[string]bool{"flat": false, "hns": true, "zonal": true}
 	}
 
-	setup.SetTestBucket(cfg.RenameDirLimit[0].TestBucket)
 	ctx = context.Background()
-	bucketType, err := setup.BucketType(ctx, cfg.RenameDirLimit[0].TestBucket)
-	if err != nil {
-		log.Fatalf("BucketType failed: %v", err)
-	}
-	if bucketType == setup.ZonalBucket {
-		setup.SetIsZonalBucketRun(true)
-	}
+	bucketType := setup.TestEnvironment(ctx, &cfg.RenameDirLimit[0])
 
 	// 2. Create storage client before running tests.
+	var err error
 	storageClient, err = client.CreateStorageClient(ctx)
 	if err != nil {
 		log.Printf("Error creating storage client: %v\n", err)
@@ -91,15 +85,15 @@ func TestMain(m *testing.M) {
 	}
 	defer storageClient.Close()
 
-	// 4. To run mountedDirectory tests, we need both testBucket and mountedDirectory
-	if cfg.RenameDirLimit[0].MountedDirectory != "" && cfg.RenameDirLimit[0].TestBucket != "" {
-		os.Exit(setup.RunTestsForMountedDirectory(cfg.RenameDirLimit[0].MountedDirectory, m))
+	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	if cfg.RenameDirLimit[0].GKEMountedDirectory != "" && cfg.RenameDirLimit[0].TestBucket != "" {
+		os.Exit(setup.RunTestsForMountedDirectory(cfg.RenameDirLimit[0].GKEMountedDirectory, m))
 	}
 
 	// Run tests for testBucket
-	// 5. Build the flag sets dynamically from the config.
+	// 4. Build the flag sets dynamically from the config.
 	flags := setup.BuildFlagSets(cfg.RenameDirLimit[0], bucketType)
-	setup.SetUpTestDirForTestBucket(cfg.RenameDirLimit[0].TestBucket)
+	setup.SetUpTestDirForTestBucket(&cfg.RenameDirLimit[0])
 
 	successCode := static_mounting.RunTestsWithConfigFile(&cfg.RenameDirLimit[0], flags, m)
 

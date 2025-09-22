@@ -52,6 +52,11 @@ func CreateCredentials(ctx context.Context) (serviceAccount, localKeyFilePath st
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error in fetching project id: %v", err))
 	}
+	if strings.Contains(id, "cloudtop") {
+		// In cloudtop environments, well known path is used for auth. So explicitly set the project as whitelisted.
+		id = WhitelistedGcpProjects[0]
+	}
+
 	// return if active GCP project is not in whitelisted gcp projects
 	if !slices.Contains(WhitelistedGcpProjects, id) {
 		log.Printf("The active GCP project is not one of: %s. So the credentials test will not run.", strings.Join(WhitelistedGcpProjects, ", "))
@@ -127,8 +132,8 @@ func RevokePermission(ctx context.Context, storageClient *storage.Client, servic
 
 func RunTestsForDifferentAuthMethods(ctx context.Context, cfg *test_suite.TestConfig, storageClient *storage.Client, testFlagSet [][]string, permission string, m *testing.M) (successCode int) {
 	serviceAccount, localKeyFilePath := CreateCredentials(ctx)
-	ApplyPermissionToServiceAccount(ctx, storageClient, serviceAccount, permission, setup.TestBucket())
-	defer RevokePermission(ctx, storageClient, serviceAccount, permission, setup.TestBucket())
+	ApplyPermissionToServiceAccount(ctx, storageClient, serviceAccount, permission, cfg.TestBucket)
+	defer RevokePermission(ctx, storageClient, serviceAccount, permission, cfg.TestBucket)
 
 	// Without –key-file flag and GOOGLE_APPLICATION_CREDENTIALS
 	// This case will not get covered as gcsfuse internally authenticates from a metadata server on GCE VM.
@@ -178,9 +183,10 @@ func RunTestsForDifferentAuthMethods(ctx context.Context, cfg *test_suite.TestCo
 // TODO(b/438068132): cleanup deprecated methods after migration is complete.
 func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(ctx context.Context, storageClient *storage.Client, testFlagSet [][]string, permission string, m *testing.M) (successCode int) {
 	config := &test_suite.TestConfig{
-		TestBucket:       setup.TestBucket(),
-		MountedDirectory: setup.MountedDirectory(),
-		LogFile:          setup.LogFile(),
+		TestBucket:              setup.TestBucket(),
+		GKEMountedDirectory:     setup.MountedDirectory(),
+		GCSFuseMountedDirectory: setup.MntDir(),
+		LogFile:                 setup.LogFile(),
 	}
 	return RunTestsForDifferentAuthMethods(ctx, config, storageClient, testFlagSet, permission, m)
 }
