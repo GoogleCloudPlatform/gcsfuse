@@ -17,29 +17,30 @@
 package main
 
 import (
-	"reflect"
-	"sort"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestInvertMachineTypeGroups(t *testing.T) {
 	testCases := []struct {
-		name     string
-		input    map[string][]string
-		expected map[string][]string
+		name          string
+		input         map[string][]string
+		expected      map[string]string
+		expectedError bool
 	}{
 		{
 			name:     "EmptyMap",
 			input:    map[string][]string{},
-			expected: map[string][]string{},
+			expected: map[string]string{},
 		},
 		{
 			name: "OneGroupOneMachine",
 			input: map[string][]string{
 				"group1": {"machine1"},
 			},
-			expected: map[string][]string{
-				"machine1": {"group1"},
+			expected: map[string]string{
+				"machine1": "group1",
 			},
 		},
 		{
@@ -47,9 +48,9 @@ func TestInvertMachineTypeGroups(t *testing.T) {
 			input: map[string][]string{
 				"group1": {"machine1", "machine2"},
 			},
-			expected: map[string][]string{
-				"machine1": {"group1"},
-				"machine2": {"group1"},
+			expected: map[string]string{
+				"machine1": "group1",
+				"machine2": "group1",
 			},
 		},
 		{
@@ -58,9 +59,7 @@ func TestInvertMachineTypeGroups(t *testing.T) {
 				"group1": {"machine1"},
 				"group2": {"machine1"},
 			},
-			expected: map[string][]string{
-				"machine1": {"group1", "group2"},
-			},
+			expectedError: true,
 		},
 		{
 			name: "MultipleGroupsMultipleMachines",
@@ -68,11 +67,7 @@ func TestInvertMachineTypeGroups(t *testing.T) {
 				"group1": {"machine1", "machine2"},
 				"group2": {"machine2", "machine3"},
 			},
-			expected: map[string][]string{
-				"machine1": {"group1"},
-				"machine2": {"group1", "group2"},
-				"machine3": {"group2"},
-			},
+			expectedError: true,
 		},
 		{
 			name: "ComplexCase",
@@ -81,29 +76,23 @@ func TestInvertMachineTypeGroups(t *testing.T) {
 				"high_memory": {"m1-megamem-96", "m2-megamem-416"},
 				"general":     {"c2-standard-8", "m1-megamem-96"},
 			},
-			expected: map[string][]string{
-				"c2-standard-8":  {"general", "high_cpu"},
-				"c2-standard-16": {"high_cpu"},
-				"m1-megamem-96":  {"general", "high_memory"},
-				"m2-megamem-416": {"high_memory"},
-			},
+			expectedError: true,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := invertMachineTypeGroups(tc.input)
-
-			// Sort slices for consistent comparison
-			for _, groups := range actual {
-				sort.Strings(groups)
-			}
-			for _, groups := range tc.expected {
-				sort.Strings(groups)
-			}
-
-			if !reflect.DeepEqual(actual, tc.expected) {
-				t.Errorf("invertMachineTypeGroups() = %v, want %v", actual, tc.expected)
+			defer func() {
+				r := recover()
+				if tc.expectedError && r == nil {
+					t.Errorf("Expected error, but got none.")
+				} else if !tc.expectedError && r != nil {
+					t.Errorf("Unexpectd error: %v", r)
+				}
+			}()
+			machineTypeToGroupMap := invertMachineTypeGroups(tc.input)
+			if !tc.expectedError {
+				assert.Equalf(t, machineTypeToGroupMap, tc.expected, "invertMachineTypeGroups() = %v, want %v", machineTypeToGroupMap, tc.expected)
 			}
 		})
 	}
