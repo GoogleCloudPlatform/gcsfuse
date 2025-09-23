@@ -244,6 +244,7 @@ TEST_DIR_PARALLEL_ZONAL=(
   kernel_list_cache
   local_file
   log_rotation
+  monitoring
   mounting
   mount_timeout
   negative_stat_cache
@@ -251,13 +252,17 @@ TEST_DIR_PARALLEL_ZONAL=(
   rename_dir_limit
   stale_handle
   write_large_files
-  #concurrent_operations
-  #explicit_dir
-  #implicit_dir
-  #list_large_dir
-  #log_content
-  #operations
-  #streaming_writes
+  concurrent_operations
+  explicit_dir
+  implicit_dir
+  log_content
+  operations
+  streaming_writes
+  release_version
+  readdirplus
+  dentry_cache
+  buffered_read
+  unfinalized_object
 )
 
 # For Zonal Buckets :  These tests never become parallel as they are changing bucket permissions.
@@ -265,6 +270,7 @@ TEST_DIR_NON_PARALLEL_ZONAL=(
   "managed_folders"
   "readonly"
   "readonly_creds"
+  "list_large_dir"
 )
 
 # Create a temporary file to store the log file name.
