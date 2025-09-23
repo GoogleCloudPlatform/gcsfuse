@@ -137,7 +137,11 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		metric.WithUnit("{{.Unit}}"),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
 			{{- range $combination := (index $.AttrCombinations $metric.Name)}}
+			{{- if isUpDownCounter $metric}}
+			conditionallyObserveUpDownCounter(obsrv, &{{getAtomicName $metric.Name $combination}}{{if $metric.Attributes}}, {{getVarName $metric.Name $combination}}{{end}})
+			{{- else}}
 			conditionallyObserve(obsrv, &{{getAtomicName $metric.Name $combination}}{{if $metric.Attributes}}, {{getVarName $metric.Name $combination}}{{end}})
+			{{- end}}
 			{{- end}}
 			return nil
 		}))
@@ -184,6 +188,12 @@ func (o *otelMetrics) Close() {
 
 func conditionallyObserve(obsrv metric.Int64Observer, counter *atomic.Int64, obsrvOptions ...metric.ObserveOption) {
 	if val := counter.Load(); val > 0 {
+		obsrv.Observe(val, obsrvOptions...)
+	}
+}
+
+func conditionallyObserveUpDownCounter(obsrv metric.Int64Observer, counter *atomic.Int64, obsrvOptions ...metric.ObserveOption) {
+	if val := counter.Load(); val != 0 {
 		obsrv.Observe(val, obsrvOptions...)
 	}
 }

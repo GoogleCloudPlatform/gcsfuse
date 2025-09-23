@@ -179,9 +179,18 @@
     attribute-type: string
     values: *fs_ops_list
 
+- metric-name: "gcs/active_requests"
+  description: "The number of active GCS requests."
+  type: "int_up_down_counter"
+  attributes:
+  - attribute-name: "request_type"
+    attribute-type: "string"
+    values:
+    - "read"
+    - "write"
 - metric-name: "gcs/connection_count"
   description: "The number of active GCS connections."
-  type: "async_int_up_down_counter"
+  type: "int_up_down_counter"
 - metric-name: "gcs/download_bytes_count"
   description: "The cumulative number of bytes downloaded from GCS along with type - Sequential/Random"
   unit: "By"
