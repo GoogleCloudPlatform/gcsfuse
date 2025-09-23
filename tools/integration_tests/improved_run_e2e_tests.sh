@@ -34,11 +34,11 @@ usage() {
 
 # Logging Helpers
 log_info() {
-  echo "[INFO] $(date +"%Y-%m-%d %H:%M:%S"):$1"
+  echo "[INFO] $(date +"%Y-%m-%d %H:%M:%S"): $1"
 }
 
 log_error() {
-  echo "[ERROR] $(date +"%Y-%m-%d %H:%M:%S"):$1"
+  echo "[ERROR] $(date +"%Y-%m-%d %H:%M:%S"): $1"
 }
 
 # Confirm bash version before continuing script.
@@ -157,7 +157,7 @@ while (( $# >= 1 )); do
             break
             ;;
         *)
-            log_error "Unrecognized arguments [$*]"
+            log_error "Unrecognized arguments [$*]."
             usage 1
             ;;
     esac
@@ -527,7 +527,11 @@ generate_test_log_artifacts() {
 
   if [ -f "$log_file" ]; then
     cp "$log_file" "$sponge_log_file"
-    grep -v '^{\"timestamp\":' "$log_file" | go-junit-report >> "${sponge_xml_file}"
+    if [[ "$package_name" == "benchmarking" ]]; then
+      go-junit-report < "$log_file" | sed '1,2,3d;$d' >> "${sponge_xml_file}"
+    else
+      go-junit-report < "$log_file" | sed '1,2d;$d' >> "${sponge_xml_file}"
+    fi
   fi
   return 0
 }
@@ -550,7 +554,7 @@ build_gcsfuse_once() {
   fi
   log_info "Using GCSFuse source directory: ${gcsfuse_src_dir}"
 
-  log_info "Building GCSFuse using 'go run ./tools/build_gcsfuse/main.go' ભા"
+  log_info "Building GCSFuse using 'go run ./tools/build_gcsfuse/main.go'..."
   (cd "${gcsfuse_src_dir}" && go run ./tools/build_gcsfuse/main.go . "${build_output_dir}" "0.0.0")
   if [ $? -ne 0 ]; then
     log_error "Building GCSFuse binaries using 'go run ./tools/build_gcsfuse/main.go' failed."
@@ -705,5 +709,5 @@ main() {
   exit $overall_exit_code
 }
 
-#Main method to run script.
+#Main method to run script
 main
