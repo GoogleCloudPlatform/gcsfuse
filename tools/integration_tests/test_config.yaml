@@ -143,9 +143,23 @@ rename_dir_limit:
           flat: true
           hns: false
           zonal: false
-      - flags: 
-        - ""
+      - flags:
+          - ""
         compatible:
           flat: false
+          hns: true
+          zonal: true
+
+streaming_writes:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    log_file: # Not Required by streaming writes tests
+    run_on_gke: false
+    configs:
+      - flags:
+          - "--rename-dir-limit=3 --write-block-size-mb=1 --write-max-blocks-per-file=2 --client-protocol=grpc --write-global-max-blocks=-1"
+          - "--rename-dir-limit=3 --write-block-size-mb=1 --write-max-blocks-per-file=2 --write-global-max-blocks=-1"
+        compatible:
+          flat: true
           hns: true
           zonal: true

@@ -237,12 +237,12 @@ func SetUpTestDir() (string, error) {
 	return TestDir(), nil
 }
 
-func UnMount() error {
+func UnMount(dir string) error {
 	fusermount, err := exec.LookPath("fusermount")
 	if err != nil {
 		return fmt.Errorf("cannot find fusermount: %w", err)
 	}
-	cmd := exec.Command(fusermount, "-uz", mntDir)
+	cmd := exec.Command(fusermount, "-uz", dir)
 	if _, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("fusermount error: %w", err)
 	}
@@ -265,7 +265,7 @@ func GenerateRandomString(length int) string {
 }
 
 func UnMountBucket() {
-	err := UnMount()
+	err := UnMount(mntDir)
 	if err != nil {
 		LogAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
 	}
@@ -707,7 +707,17 @@ func UnmountGCSFuse(rootDir string) {
 	SetMntDir(rootDir)
 	if *mountedDirectory == "" {
 		// Unmount GCSFuse only when tests are not running on mounted directory.
-		err := UnMount()
+		err := UnMount(mntDir)
+		if err != nil {
+			LogAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
+		}
+	}
+}
+
+func UnmountGCSFuseWithConfig(cfg *test_suite.TestConfig) {
+	if cfg.GKEMountedDirectory == "" {
+		// Unmount GCSFuse only when tests are not running on mounted directory.
+		err := UnMount(cfg.GCSFuseMountedDirectory)
 		if err != nil {
 			LogAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
 		}
