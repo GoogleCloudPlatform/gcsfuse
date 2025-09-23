@@ -282,7 +282,7 @@ create_bucket() {
   while : ; do
     attempt=$((attempt - 1))
     if [ $attempt -lt 0 ]; then
-      log_error "Unable to create bucket [${bucket_name}] after 5 attempts."
+      log_error "Unable to create bucket [${bucket_name}] after 5 attempts." 
       cat "$bucket_cmd_log"
       return 1
     fi
@@ -525,6 +525,9 @@ generate_test_log_artifacts() {
   local sponge_xml_file="${output_dir}/${package_name}_sponge_log.xml"
   local sponge_log_file="${output_dir}/${package_name}_sponge_log.log"
 
+  echo '<?xml version="1.0" encoding="UTF-8"?>' > "${sponge_xml_file}"
+  echo '<testsuites>' >> "${sponge_xml_file}"
+
   if [ -f "$log_file" ]; then
     cp "$log_file" "$sponge_log_file"
     if [[ "$package_name" == "benchmarking" ]]; then
@@ -533,6 +536,8 @@ generate_test_log_artifacts() {
       go-junit-report < "$log_file" | sed '1,2d;$d' >> "${sponge_xml_file}"
     fi
   fi
+
+  echo '</testsuites>' >> "${sponge_xml_file}"
   return 0
 }
 
