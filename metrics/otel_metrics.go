@@ -4157,7 +4157,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		metric.WithDescription("Test metric for updown counters."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
-			conditionallyObserveUpDownCounter(obsrv, &testUpdownCounterAtomic)
+			observeUpDownCounter(obsrv, &testUpdownCounterAtomic)
 			return nil
 		}))
 
@@ -4165,8 +4165,8 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		metric.WithDescription("Test metric for updown counters with attributes."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
-			conditionallyObserveUpDownCounter(obsrv, &testUpdownCounterWithAttrsRequestTypeAttr1Atomic, testUpdownCounterWithAttrsRequestTypeAttr1AttrSet)
-			conditionallyObserveUpDownCounter(obsrv, &testUpdownCounterWithAttrsRequestTypeAttr2Atomic, testUpdownCounterWithAttrsRequestTypeAttr2AttrSet)
+			observeUpDownCounter(obsrv, &testUpdownCounterWithAttrsRequestTypeAttr1Atomic, testUpdownCounterWithAttrsRequestTypeAttr1AttrSet)
+			observeUpDownCounter(obsrv, &testUpdownCounterWithAttrsRequestTypeAttr2Atomic, testUpdownCounterWithAttrsRequestTypeAttr2AttrSet)
 			return nil
 		}))
 
@@ -4772,7 +4772,7 @@ func conditionallyObserve(obsrv metric.Int64Observer, counter *atomic.Int64, obs
 	}
 }
 
-func conditionallyObserveUpDownCounter(obsrv metric.Int64Observer, counter *atomic.Int64, obsrvOptions ...metric.ObserveOption) {
+func observeUpDownCounter(obsrv metric.Int64Observer, counter *atomic.Int64, obsrvOptions ...metric.ObserveOption) {
 	obsrv.Observe(counter.Load(), obsrvOptions...)
 }
 
