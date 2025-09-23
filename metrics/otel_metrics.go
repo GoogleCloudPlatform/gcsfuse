@@ -4773,9 +4773,7 @@ func conditionallyObserve(obsrv metric.Int64Observer, counter *atomic.Int64, obs
 }
 
 func conditionallyObserveUpDownCounter(obsrv metric.Int64Observer, counter *atomic.Int64, obsrvOptions ...metric.ObserveOption) {
-	if val := counter.Load(); val != 0 {
-		obsrv.Observe(val, obsrvOptions...)
-	}
+	obsrv.Observe(counter.Load(), obsrvOptions...)
 }
 
 func updateUnrecognizedAttribute(newValue string) {
