@@ -57,7 +57,7 @@ type otelMetrics struct {
     ch chan histogramRecord
 	wg *sync.WaitGroup
 	{{- range $metric := .Metrics}}
-		{{- if isCounter $metric}}
+		{{- if or (isCounter $metric) (isUpDownCounter $metric)}}
 			{{- range $combination := (index $.AttrCombinations $metric.Name)}}
 	{{getAtomicName $metric.Name $combination}} *atomic.Int64
 			{{- end}}
@@ -72,7 +72,7 @@ type otelMetrics struct {
 
 {{range .Metrics}}
 func (o *otelMetrics) {{toPascal .Name}}(
-	{{- if isCounter . }}
+	{{- if or (isCounter .) (isUpDownCounter .)}}
 		inc int64
 	{{- else }}
 		ctx context.Context, latency time.Duration
@@ -81,11 +81,13 @@ func (o *otelMetrics) {{toPascal .Name}}(
 	{{- range $i, $attr := .Attributes -}}
 		{{if $i}}, {{end}}{{toCamel $attr.Name}} {{getGoType $attr.Type}}
 	{{- end }}) {
-{{- if isCounter . }}
+{{- if or (isCounter .) (isUpDownCounter .)}}
+	{{- if isCounter . }}
 	if inc < 0 {
 		logger.Errorf("Counter metric {{.Name}} received a negative increment: %d", inc)
 		return
 	}
+	{{- end}}
 	{{buildSwitches .}}
 {{- else }}
 	var record histogramRecord
@@ -117,7 +119,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
   }
   meter := otel.Meter("gcsfuse")
 {{- range $metric := .Metrics}}
-	{{- if isCounter $metric}}
+	{{- if or (isCounter $metric) (isUpDownCounter $metric) }}
 	var {{range $i, $combination := (index $.AttrCombinations $metric.Name)}}{{if $i}},
 	{{end}}{{getAtomicName $metric.Name $combination}}{{end}} atomic.Int64
 	{{- end}}
@@ -125,8 +127,12 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 {{end}}
 
 {{- range $i, $metric := .Metrics}}
-	{{- if isCounter $metric}}
+	{{- if or (isCounter $metric) (isUpDownCounter $metric)}}
+		{{- if isCounter $metric}}
 	_, err{{$i}} := meter.Int64ObservableCounter("{{$metric.Name}}",
+		{{- else}}
+	_, err{{$i}} := meter.Int64ObservableUpDownCounter("{{$metric.Name}}",
+		{{- end}}
 		metric.WithDescription("{{.Description}}"),
 		metric.WithUnit("{{.Unit}}"),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -160,7 +166,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		ch : ch,
 		wg: &wg,
 		{{- range $metric := .Metrics}}
-			{{- if isCounter $metric}}
+			{{- if or (isCounter $metric) (isUpDownCounter $metric)}}
 				{{- range $combination := (index $.AttrCombinations $metric.Name)}}
 			{{getAtomicName $metric.Name $combination}}: &{{getAtomicName $metric.Name $combination}},
 				{{- end}}
