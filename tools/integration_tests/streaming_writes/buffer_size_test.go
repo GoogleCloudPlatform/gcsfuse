@@ -41,17 +41,6 @@ func TestWritesWithDifferentConfig(t *testing.T) {
 	defer func() {
 		testEnv.cfg.GCSFuseMountedDirectory = oldMntDir
 	}()
-	//setup.SetGlobalVars(&test_suite.TestConfig{
-	//	TestBucket:          setup.TestBucket(),
-	//	LogFile:             setup.LogFile(),
-	//	GKEMountedDirectory: newMountDir,
-	//})
-	//defer setup.SetGlobalVars(&test_suite.TestConfig{
-	//	TestBucket:          setup.TestBucket(),
-	//	LogFile:             setup.LogFile(),
-	//	GKEMountedDirectory: oldMntDir,
-	//})
-
 	testCases := []struct {
 		name     string
 		flags    []string
