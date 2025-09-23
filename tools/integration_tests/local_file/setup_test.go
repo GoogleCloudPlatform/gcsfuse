@@ -92,8 +92,8 @@ func TestMain(m *testing.M) {
 		successCode = only_dir_mounting.RunTestsWithConfigFile(&cfg.LocalFile[0], flags, onlyDirMounted, m)
 	}
 
-	// Dynamic mounting tests perform tests on non-HNS buckets.
-	if successCode == 0 && !setup.ResolveIsHierarchicalBucket(ctx, setup.TestBucket(), storageClient) {
+	// Dynamic mounting tests.
+	if successCode == 0 {
 		successCode = dynamic_mounting.RunTestsWithConfigFile(&cfg.LocalFile[0], flags, m)
 	}
 
