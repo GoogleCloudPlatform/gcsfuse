@@ -58,16 +58,10 @@ func TestMain(m *testing.M) {
 	if len(cfg.CloudProfiler) == 0 {
 		log.Println("No configuration found for cloud profiler tests in config. Using flags instead.")
 
-		if setup.MountedDirectory() != "" {
-			if setup.ProfileLabelForMountedDirTest() == "" {
-				log.Fatal("Profile label should have been provided for mounted directory test.")
-			}
-			testServiceVersion = setup.ProfileLabelForMountedDirTest()
-		}
 		// Populate the config manually.
 		cfg.CloudProfiler = make([]test_suite.TestConfig, 1)
 		cfg.CloudProfiler[0].TestBucket = setup.TestBucket()
-		cfg.CloudProfiler[0].MountedDirectory = setup.MountedDirectory()
+		cfg.CloudProfiler[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.CloudProfiler[0].Configs = make([]test_suite.ConfigItem, 1)
 		cfg.CloudProfiler[0].Configs[0].Flags = []string{
 			"--enable-cloud-profiler --cloud-profiler-cpu --cloud-profiler-heap --cloud-profiler-goroutines --cloud-profiler-mutex --cloud-profiler-allocated-heap",
@@ -77,16 +71,9 @@ func TestMain(m *testing.M) {
 		cfg.CloudProfiler[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
 
-	setup.SetTestBucket(cfg.CloudProfiler[0].TestBucket)
 	ctx = context.Background()
 
-	bucketType, err := setup.BucketType(ctx, cfg.CloudProfiler[0].TestBucket)
-	if err != nil {
-		log.Fatalf("BucketType failed: %v", err)
-	}
-	if bucketType == setup.ZonalBucket {
-		setup.SetIsZonalBucketRun(true)
-	}
+	bucketType := setup.TestEnvironment(ctx, &cfg.CloudProfiler[0])
 
 	// 2. Create storage client before running tests.
 	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
@@ -98,12 +85,12 @@ func TestMain(m *testing.M) {
 	}()
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
-	if cfg.CloudProfiler[0].MountedDirectory != "" {
+	if cfg.CloudProfiler[0].GKEMountedDirectory != "" {
 		if setup.ProfileLabelForMountedDirTest() == "" {
 			log.Fatal("Profile label should have been provided for mounted directory test.")
 		}
 		testServiceVersion = setup.ProfileLabelForMountedDirTest()
-		os.Exit(setup.RunTestsForMountedDirectory(cfg.CloudProfiler[0].MountedDirectory, m))
+		os.Exit(setup.RunTestsForMountedDirectory(cfg.CloudProfiler[0].GKEMountedDirectory, m))
 	}
 
 	testServiceVersion = fmt.Sprintf("ve2e0.0.0-%s", strings.ReplaceAll(uuid.New().String(), "-", "")[:8])
@@ -114,7 +101,7 @@ func TestMain(m *testing.M) {
 	cfg.CloudProfiler[0].Configs[0].Flags[0] = strings.ReplaceAll(cfg.CloudProfiler[0].Configs[0].Flags[0], "--cloud-profiler-label=", fmt.Sprintf("--cloud-profiler-label=%s", testServiceVersion))
 	flags := setup.BuildFlagSets(cfg.CloudProfiler[0], bucketType)
 
-	setup.SetUpTestDirForTestBucket(cfg.CloudProfiler[0].TestBucket)
+	setup.SetUpTestDirForTestBucket(&cfg.CloudProfiler[0])
 
 	successCode := static_mounting.RunTestsWithConfigFile(&cfg.CloudProfiler[0], flags, m)
 
