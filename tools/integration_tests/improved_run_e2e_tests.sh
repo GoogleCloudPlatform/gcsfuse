@@ -737,5 +737,5 @@ main() {
   exit $overall_exit_code
 }
 
-#Main method to run script
+#Main method to run script.
 main
