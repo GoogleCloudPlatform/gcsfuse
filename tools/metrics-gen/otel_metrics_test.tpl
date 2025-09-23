@@ -224,7 +224,7 @@ func Test{{toPascal .Name}}(t *testing.T) {
 	metrics = gatherNonZeroCounterMetrics(ctx, t, rd)
 	metric, ok = metrics["{{.Name}}"]
 	require.True(t, ok, "{{.Name}} metric not found after negative increment")
-	assert.Equal(t, map[string]int64{s.Encoded(encoder): {{if isUpDownCounter .}}2972{{else}}3072{{end}}}, metric, "Negative increment should not change the metric value.")
+	assert.Equal(t, map[string]int64{s.Encoded(encoder): {{if isUpDownCounter .}}2972{{else}}3072{{end}}}, metric, "Negative increment should {{if isUpDownCounter .}}change{{else}}not change{{end}} the metric value.")
 	{{- end}}
 }
 {{else if isHistogram .}}

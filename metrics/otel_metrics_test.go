@@ -5644,7 +5644,7 @@ func TestGcsConnectionCount(t *testing.T) {
 	metrics = gatherNonZeroCounterMetrics(ctx, t, rd)
 	metric, ok = metrics["gcs/connection_count"]
 	require.True(t, ok, "gcs/connection_count metric not found after negative increment")
-	assert.Equal(t, map[string]int64{s.Encoded(encoder): 2972}, metric, "Negative increment should not change the metric value.")
+	assert.Equal(t, map[string]int64{s.Encoded(encoder): 2972}, metric, "Negative increment should change the metric value.")
 }
 
 func TestGcsDownloadBytesCount(t *testing.T) {
