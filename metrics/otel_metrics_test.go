@@ -5622,6 +5622,31 @@ func TestFsOpsLatency(t *testing.T) {
 	}
 }
 
+func TestGcsConnectionCount(t *testing.T) {
+	ctx := context.Background()
+	encoder := attribute.DefaultEncoder()
+	m, rd := setupOTel(ctx, t)
+
+	m.GcsConnectionCount(1024)
+	m.GcsConnectionCount(2048)
+	waitForMetricsProcessing()
+
+	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+	metric, ok := metrics["gcs/connection_count"]
+	require.True(t, ok, "gcs/connection_count metric not found")
+	s := attribute.NewSet()
+	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric, "Positive increments should be summed.")
+
+	// Test negative increment
+	m.GcsConnectionCount(-100)
+	waitForMetricsProcessing()
+
+	metrics = gatherNonZeroCounterMetrics(ctx, t, rd)
+	metric, ok = metrics["gcs/connection_count"]
+	require.True(t, ok, "gcs/connection_count metric not found after negative increment")
+	assert.Equal(t, map[string]int64{s.Encoded(encoder): 2972}, metric, "Negative increment should not change the metric value.")
+}
+
 func TestGcsDownloadBytesCount(t *testing.T) {
 	tests := []struct {
 		name     string

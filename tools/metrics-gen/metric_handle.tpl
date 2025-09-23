@@ -27,7 +27,7 @@ type MetricHandle interface {
 {{- range .Metrics}}
 	// {{toPascal .Name}} - {{.Description}}
 	{{toPascal .Name}}(
-		{{- if isCounter . -}}
+		{{- if or (isCounter .) (isUpDownCounter .) -}}
 			inc int64
 		{{- else -}}
 			ctx context.Context, duration time.Duration
