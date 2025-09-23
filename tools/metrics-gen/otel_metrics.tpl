@@ -128,20 +128,21 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 
 {{- range $i, $metric := .Metrics}}
 	{{- if or (isCounter $metric) (isUpDownCounter $metric)}}
-		{{- if isCounter $metric}}
-	_, err{{$i}} := meter.Int64ObservableCounter("{{$metric.Name}}",
-		{{- else}}
-	_, err{{$i}} := meter.Int64ObservableUpDownCounter("{{$metric.Name}}",
-		{{- end}}
+		{{- $instrumentCreationFunc := "" -}}
+		{{- $observationFunc := "" -}}
+		{{- if isCounter $metric -}}
+			{{- $instrumentCreationFunc = "meter.Int64ObservableCounter" -}}
+			{{- $observationFunc = "conditionallyObserve" -}}
+		{{- else -}}
+			{{- $instrumentCreationFunc = "meter.Int64ObservableUpDownCounter" -}}
+			{{- $observationFunc = "observeUpDownCounter" -}}
+		{{- end -}}
+	_, err{{$i}} := {{$instrumentCreationFunc}}("{{$metric.Name}}",
 		metric.WithDescription("{{.Description}}"),
 		metric.WithUnit("{{.Unit}}"),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
 			{{- range $combination := (index $.AttrCombinations $metric.Name)}}
-			{{- if isUpDownCounter $metric}}
-			observeUpDownCounter(obsrv, &{{getAtomicName $metric.Name $combination}}{{if $metric.Attributes}}, {{getVarName $metric.Name $combination}}{{end}})
-			{{- else}}
-			conditionallyObserve(obsrv, &{{getAtomicName $metric.Name $combination}}{{if $metric.Attributes}}, {{getVarName $metric.Name $combination}}{{end}})
-			{{- end}}
+			{{$observationFunc}}(obsrv, &{{getAtomicName $metric.Name $combination}}{{if $metric.Attributes}}, {{getVarName $metric.Name $combination}}{{end}})
 			{{- end}}
 			return nil
 		}))
