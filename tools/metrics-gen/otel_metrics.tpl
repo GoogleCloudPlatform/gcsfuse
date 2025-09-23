@@ -136,7 +136,8 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		{{- else -}}
 			{{- $instrumentCreationFunc = "meter.Int64ObservableUpDownCounter" -}}
 			{{- $observationFunc = "observeUpDownCounter" -}}
-		{{- end -}}
+		{{- end}}
+
 	_, err{{$i}} := {{$instrumentCreationFunc}}("{{$metric.Name}}",
 		metric.WithDescription("{{.Description}}"),
 		metric.WithUnit("{{.Unit}}"),
@@ -146,6 +147,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			{{- end}}
 			return nil
 		}))
+
 	{{- else}}
 	{{toCamel $metric.Name}}, err{{$i}} := meter.Int64Histogram("{{$metric.Name}}",
 		metric.WithDescription("{{.Description}}"),
