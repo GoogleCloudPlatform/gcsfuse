@@ -256,9 +256,12 @@ func WriteChunkOfRandomBytesToFiles(files []*os.File, chunkSize int, offset int6
 			return fmt.Errorf("incorrect number of bytes written in the file %s actual %d, expected %d", file.Name(), n, chunkSize)
 		}
 
-		err = file.Sync()
-		if err != nil {
-			return fmt.Errorf("error in syncing file: %v", err)
+		if !setup.IsZonalBucketRun() {
+			err = file.Sync()
+			if err != nil {
+				return fmt.Errorf("error in syncing file: %v", err)
+			}
+			WaitForSizeUpdate(setup.IsZonalBucketRun(), time.Minute)
 		}
 	}
 
@@ -640,6 +643,13 @@ func SyncFile(fh *os.File, t *testing.T) {
 		t.Fatalf("%s.Sync(): %v", fh.Name(), err)
 	}
 	WaitForSizeUpdate(setup.IsZonalBucketRun(), time.Minute)
+}
+
+func SyncFiles(files []*os.File, t *testing.T) {
+	t.Helper()
+	for _, file := range files {
+		SyncFile(file, t)
+	}
 }
 
 func SyncFileShouldThrowError(t *testing.T, file *os.File) {

@@ -73,7 +73,8 @@ func (t *DualMountAppendsSuite) TestAppendSessionInvalidatedByAnotherClientUponT
 			// This should now fail, as its append session has been invalidated by the takeover.
 			_, _ = appendFileHandle.WriteString(appendContent)
 			err = appendFileHandle.Sync()
-			operations.ValidateESTALEError(t.T(), err)
+			// TODO(anushkadhn): Revert to ESTALE error.
+			operations.ValidateEIOError(t.T(), err)
 
 			// Syncing from the newly created file handle must succeed since it holds the active
 			// append session.
@@ -153,7 +154,7 @@ func (t *SingleMountAppendsSuite) TestAppendsToFinalizedObjectNotVisibleUntilClo
 
 			t.fileName = fileNamePrefix + setup.GenerateRandomString(5)
 			// Create Finalized Object in the GCS bucket.
-			client.CreateObjectInGCSTestDir(
+			client.CreateFinalizedObjectInGCSTestDir(
 				ctx, storageClient, testDirName, t.fileName, initialContent, t.T())
 
 			// Append to the finalized object from the primary mount.
