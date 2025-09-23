@@ -35,6 +35,7 @@ type env struct {
 	storageClient *storage.Client
 	ctx           context.Context
 	testDirPath   string
+	cfg           test_suite.TestConfig
 }
 
 var testEnv env
@@ -61,6 +62,7 @@ func TestMain(m *testing.M) {
 
 	testEnv.ctx = context.Background()
 	bucketType := setup.TestEnvironment(testEnv.ctx, &cfg.StreamingWrites[0])
+	testEnv.cfg = cfg.StreamingWrites[0]
 
 	// 2. Create storage client before running tests.
 	var err error
@@ -72,16 +74,16 @@ func TestMain(m *testing.M) {
 	defer testEnv.storageClient.Close()
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
-	if cfg.StreamingWrites[0].GKEMountedDirectory != "" && cfg.StreamingWrites[0].TestBucket != "" {
-		os.Exit(setup.RunTestsForMountedDirectory(cfg.StreamingWrites[0].GKEMountedDirectory, m))
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
 	}
 
 	// Run tests for testBucket
 	// 4. Build the flag sets dynamically from the config.
-	flagsSet := setup.BuildFlagSets(cfg.StreamingWrites[0], bucketType)
-	setup.SetUpTestDirForTestBucket(&cfg.StreamingWrites[0])
+	flagsSet := setup.BuildFlagSets(testEnv.cfg, bucketType)
+	setup.SetUpTestDirForTestBucket(&testEnv.cfg)
 
-	successCode := static_mounting.RunTestsWithConfigFile(&cfg.StreamingWrites[0], flagsSet, m)
+	successCode := static_mounting.RunTestsWithConfigFile(&testEnv.cfg, flagsSet, m)
 	setup.SaveLogFileInCaseOfFailure(successCode)
 	os.Exit(successCode)
 }

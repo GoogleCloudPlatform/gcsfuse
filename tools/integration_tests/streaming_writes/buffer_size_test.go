@@ -23,31 +23,34 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestWritesWithDifferentConfig(t *testing.T) {
 	// Do not run this test with mounted directory flag.
-	if setup.MountedDirectory() != "" {
+	if testEnv.cfg.GKEMountedDirectory != "" {
 		t.SkipNow()
 	}
 	// Create a separate mountDir for these tests so it doesn't interfere with the other tests.
-	oldMntDir := setup.MntDir()
+	oldMntDir := testEnv.cfg.GCSFuseMountedDirectory
 	newMountDir := path.Join(setup.TestDir(), "mntTestWritesWithDifferentConfig")
 	err := os.MkdirAll(newMountDir, 0755)
 	assert.True(t, err == nil || os.IsExist(err))
-	mountFunc := static_mounting.MountGcsfuseWithStaticMounting
-	setup.SetGlobalVars(&test_suite.TestConfig{
-		TestBucket:          setup.TestBucket(),
-		LogFile:             setup.LogFile(),
-		GKEMountedDirectory: newMountDir,
-	})
-	defer setup.SetGlobalVars(&test_suite.TestConfig{
-		TestBucket:          setup.TestBucket(),
-		LogFile:             setup.LogFile(),
-		GKEMountedDirectory: oldMntDir,
-	})
+	testEnv.cfg.GCSFuseMountedDirectory = newMountDir
+	defer func() {
+		testEnv.cfg.GCSFuseMountedDirectory = oldMntDir
+	}()
+	//setup.SetGlobalVars(&test_suite.TestConfig{
+	//	TestBucket:          setup.TestBucket(),
+	//	LogFile:             setup.LogFile(),
+	//	GKEMountedDirectory: newMountDir,
+	//})
+	//defer setup.SetGlobalVars(&test_suite.TestConfig{
+	//	TestBucket:          setup.TestBucket(),
+	//	LogFile:             setup.LogFile(),
+	//	GKEMountedDirectory: oldMntDir,
+	//})
 
 	testCases := []struct {
 		name     string
@@ -79,9 +82,10 @@ func TestWritesWithDifferentConfig(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			setup.MountGCSFuseWithGivenMountFunc(tc.flags, mountFunc)
+			err := static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(&testEnv.cfg, tc.flags)
+			require.NoError(t, err)
 			defer setup.SaveGCSFuseLogFileInCaseOfFailure(t)
-			defer setup.UnmountGCSFuse(newMountDir)
+			defer setup.UnmountGCSFuseWithConfig(&testEnv.cfg)
 			testEnv.testDirPath = setup.SetupTestDirectory(testDirName)
 			// Create a local file.
 			fh := operations.CreateFile(path.Join(testEnv.testDirPath, FileName1), FilePerms, t)
