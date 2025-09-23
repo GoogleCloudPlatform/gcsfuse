@@ -239,30 +239,31 @@ TEST_DIR_NON_PARALLEL=(
 
 # For Zonal buckets : Test directory arrays
 TEST_DIR_PARALLEL_ZONAL=(
+  buffered_read
+  concurrent_operations
+  dentry_cache
+  explicit_dir
   gzip
+  implicit_dir
   interrupt
   kernel_list_cache
   local_file
+  log_content
   log_rotation
   monitoring
-  mounting
   mount_timeout
+  mounting
   negative_stat_cache
+  operations
+  #rapid_appends
   read_large_files
+  readdirplus
+  release_version
   rename_dir_limit
   stale_handle
-  write_large_files
-  concurrent_operations
-  explicit_dir
-  implicit_dir
-  log_content
-  operations
   streaming_writes
-  release_version
-  readdirplus
-  dentry_cache
-  buffered_read
   unfinalized_object
+  write_large_files
 )
 
 # For Zonal Buckets :  These tests never become parallel as they are changing bucket permissions.
