@@ -154,8 +154,11 @@ const (
 // The methods of this interface are auto-generated from metrics.yaml.
 // Each method corresponds to a metric defined in metrics.yaml.
 type MetricHandle interface {
+	// BufferedReadBytesCount - The cumulative number of bytes read from or downloaded by the buffered reader.
+	BufferedReadBytesCount(inc int64, operationType string)
+
 	// BufferedReadFallbackTriggerCount - The cumulative number of times the BufferedReader falls back to a different reader, along with the reason: random_read_detected or insufficient_memory.
-	BufferedReadFallbackTriggerCount(inc int64, reason Reason)
+	BufferedReadFallbackTriggerCount(inc int64, reason string)
 
 	// BufferedReadReadLatency - The cumulative distribution of latencies for ReadAt calls served by the buffered reader.
 	BufferedReadReadLatency(ctx context.Context, latency time.Duration)

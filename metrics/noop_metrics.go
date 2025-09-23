@@ -22,9 +22,9 @@ import (
 
 type noopMetrics struct{}
 
-func (*noopMetrics) BufferedReadFallbackTriggerCount(inc int64, reason Reason) {}
+func (*noopMetrics) BufferedReadBytesCount(inc int64, operationType string) {}
 
-func (*noopMetrics) BufferedReadReadLatency(ctx context.Context, latency time.Duration) {}
+func (*noopMetrics) BufferedReadFallbackTriggerCount(inc int64, reason string) {}
 
 func (*noopMetrics) FileCacheReadBytesCount(inc int64, readType ReadType) {}
 

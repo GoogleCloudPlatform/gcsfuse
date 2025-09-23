@@ -341,7 +341,8 @@ func (testSuite *PromBufferedReadTest) TestBufferedReadMetrics() {
 	_, err := operations.ReadFile(path.Join(testSuite.mountPoint, "hello/hello.txt"))
 
 	require.NoError(testSuite.T(), err)
-	assertNonZeroCountMetric(testSuite.T(), "buffered_read_bytes_count", "operation_type", "read")
+	assertNonZeroCountMetric(testSuite.T(), "buffered_read_read_bytes", "", "")
+	assertNonZeroCountMetric(testSuite.T(), "buffered_read_downloaded_bytes", "", "")
 	assertNonZeroHistogramMetric(testSuite.T(), "buffered_read_read_latency", "", "")
 }
 

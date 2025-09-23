@@ -68,9 +68,9 @@ func (p *DownloadTask) Execute() {
 	logger.Tracef("Download: <- block (%s, %v).", p.object.Name, blockId)
 	stime := time.Now()
 	var err error
-	var bytesCopied int64
 	defer func() {
 		dur := time.Since(stime)
+		p.metricHandle.BufferedReadDownloadedBytes(n)
 		if err == nil {
 			logger.Tracef("Download: -> block (%s, %v) Ok(%v).", p.object.Name, blockId, dur)
 			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloaded})
@@ -112,14 +112,10 @@ func (p *DownloadTask) Execute() {
 	}
 	defer newReader.Close()
 
-	bytesCopied, err = io.CopyN(p.block, newReader, int64(end-start))
-	if err != nil {
-		err = fmt.Errorf("DownloadTask.Execute: while data-copy: %w", err)
 	n, copyErr := io.CopyN(p.block, newReader, int64(end-start))
 	p.metricHandle.BufferedReadBytesCount(n, "downloaded")
 	if copyErr != nil && copyErr != io.EOF {
 		err = fmt.Errorf("DownloadTask.Execute: while data-copy: %w", copyErr)
 		return
 	}
-	err = nil
 }
