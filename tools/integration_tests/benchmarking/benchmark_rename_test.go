@@ -95,7 +95,7 @@ func (s *benchmarkRenameTest) Benchmark_Rename(b *testing.B) {
 ////////////////////////////////////////////////////////////////////////
 
 func Benchmark_Rename(b *testing.B) {
-	setup.IgnoreTestIfPresubmitFlagIsSet(b)
+	// setup.IgnoreTestIfPresubmitFlagIsSet(b)
 
 	ts := &benchmarkRenameTest{}
 	flagsSet := [][]string{

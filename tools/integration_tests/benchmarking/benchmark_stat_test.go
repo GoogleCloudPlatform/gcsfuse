@@ -103,7 +103,7 @@ func (s *benchmarkStatTest) Benchmark_Stat(b *testing.B) {
 ////////////////////////////////////////////////////////////////////////
 
 func Benchmark_Stat(b *testing.B) {
-	setup.IgnoreTestIfPresubmitFlagIsSet(b)
+	// setup.IgnoreTestIfPresubmitFlagIsSet(b)
 
 	ts := &benchmarkStatTest{}
 	flagsSet := [][]string{
