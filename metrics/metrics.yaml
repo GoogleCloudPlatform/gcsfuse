@@ -1,13 +1,7 @@
-- metric-name: "buffered_read/bytes_count"
-  description: "The cumulative number of bytes read from or downloaded by the buffered reader."
+- metric-name: "buffered_read/downloaded_bytes"
+  description: "The cumulative number of bytes downloaded by the buffered reader."
   unit: "By"
   type: "int_counter"
-  attributes:
-  - attribute-name: operation_type
-    attribute-type: string
-    values:
-    - "read"
-    - "downloaded"
 
 - metric-name: "buffered_read/fallback_trigger_count"
   description: "The cumulative number of times the BufferedReader falls back to a different reader, along with the reason: random_read_detected or insufficient_memory."
@@ -18,6 +12,11 @@
     values:
     - "random_read_detected"
     - "insufficient_memory"
+
+- metric-name: "buffered_read/read_bytes"
+  description: "The cumulative number of bytes read from the buffered reader."
+  unit: "By"
+  type: "int_counter"
 
 - metric-name: "buffered_read/read_latency"
   description: "The cumulative distribution of latencies for ReadAt calls served by the buffered reader."
