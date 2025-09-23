@@ -44,6 +44,8 @@ func (*noopMetrics) FsOpsErrorCount(inc int64, fsErrorCategory string, fsOp stri
 
 func (*noopMetrics) FsOpsLatency(ctx context.Context, duration time.Duration, fsOp string) {}
 
+func (*noopMetrics) GcsActiveRequests(inc int64, requestType string) {}
+
 func (*noopMetrics) GcsConnectionCount(inc int64) {}
 
 func (*noopMetrics) GcsDownloadBytesCount(inc int64, readType string) {}

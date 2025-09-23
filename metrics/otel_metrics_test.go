@@ -5622,6 +5622,75 @@ func TestFsOpsLatency(t *testing.T) {
 	}
 }
 
+func TestGcsActiveRequests(t *testing.T) {
+	tests := []struct {
+		name     string
+		f        func(m *otelMetrics)
+		expected map[attribute.Set]int64
+	}{
+		{
+			name: "request_type_read",
+			f: func(m *otelMetrics) {
+				m.GcsActiveRequests(5, "read")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("request_type", "read")): 5,
+			},
+		},
+		{
+			name: "request_type_write",
+			f: func(m *otelMetrics) {
+				m.GcsActiveRequests(5, "write")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("request_type", "write")): 5,
+			},
+		}, {
+			name: "multiple_attributes_summed",
+			f: func(m *otelMetrics) {
+				m.GcsActiveRequests(5, "read")
+				m.GcsActiveRequests(2, "write")
+				m.GcsActiveRequests(3, "read")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("request_type", "read")): 8,
+				attribute.NewSet(attribute.String("request_type", "write")): 2,
+			},
+		},
+		{
+			name: "negative_increment",
+			f: func(m *otelMetrics) {
+				m.GcsActiveRequests(-5, "read")
+				m.GcsActiveRequests(2, "read")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("request_type", "read")): -3},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			encoder := attribute.DefaultEncoder()
+			m, rd := setupOTel(ctx, t)
+
+			tc.f(m)
+			waitForMetricsProcessing()
+
+			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+			metric, ok := metrics["gcs/active_requests"]
+			if len(tc.expected) == 0 {
+				assert.False(t, ok, "gcs/active_requests metric should not be found")
+				return
+			}
+			require.True(t, ok, "gcs/active_requests metric not found")
+			expectedMap := make(map[string]int64)
+			for k, v := range tc.expected {
+				expectedMap[k.Encoded(encoder)] = v
+			}
+			assert.Equal(t, expectedMap, metric)
+		})
+	}
+}
+
 func TestGcsConnectionCount(t *testing.T) {
 	ctx := context.Background()
 	encoder := attribute.DefaultEncoder()
