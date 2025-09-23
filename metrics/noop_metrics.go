@@ -44,10 +44,6 @@ func (*noopMetrics) FsOpsErrorCount(inc int64, fsErrorCategory string, fsOp stri
 
 func (*noopMetrics) FsOpsLatency(ctx context.Context, duration time.Duration, fsOp string) {}
 
-func (*noopMetrics) GcsActiveRequests(inc int64, requestType string) {}
-
-func (*noopMetrics) GcsConnectionCount(inc int64) {}
-
 func (*noopMetrics) GcsDownloadBytesCount(inc int64, readType string) {}
 
 func (*noopMetrics) GcsReadBytesCount(inc int64) {}
@@ -62,6 +58,10 @@ func (*noopMetrics) GcsRequestLatencies(ctx context.Context, duration time.Durat
 }
 
 func (*noopMetrics) GcsRetryCount(inc int64, retryErrorCategory string) {}
+
+func (*noopMetrics) TestUpdownCounter(inc int64) {}
+
+func (*noopMetrics) TestUpdownCounterWithAttrs(inc int64, requestType string) {}
 
 func NewNoopMetrics() MetricHandle {
 	var n noopMetrics

@@ -610,8 +610,6 @@ var (
 	fsOpsLatencyFsOpSyncFileAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "SyncFile")))
 	fsOpsLatencyFsOpUnlinkAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "Unlink")))
 	fsOpsLatencyFsOpWriteFileAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "WriteFile")))
-	gcsActiveRequestsRequestTypeReadAttrSet                                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("request_type", "read")))
-	gcsActiveRequestsRequestTypeWriteAttrSet                                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("request_type", "write")))
 	gcsDownloadBytesCountReadTypeParallelAttrSet                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel")))
 	gcsDownloadBytesCountReadTypeRandomAttrSet                                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random")))
 	gcsDownloadBytesCountReadTypeSequentialAttrSet                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential")))
@@ -661,6 +659,8 @@ var (
 	gcsRequestLatenciesGcsMethodUpdateObjectAttrSet                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "UpdateObject")))
 	gcsRetryCountRetryErrorCategoryOTHERERRORSAttrSet                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("retry_error_category", "OTHER_ERRORS")))
 	gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("retry_error_category", "STALLED_READ_REQUEST")))
+	testUpdownCounterWithAttrsRequestTypeAttr1AttrSet                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("request_type", "attr1")))
+	testUpdownCounterWithAttrsRequestTypeAttr2AttrSet                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("request_type", "attr2")))
 )
 
 type histogramRecord struct {
@@ -1214,9 +1214,6 @@ type otelMetrics struct {
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSyncFileAtomic                   *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpUnlinkAtomic                     *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAtomic                  *atomic.Int64
-	gcsActiveRequestsRequestTypeReadAtomic                                             *atomic.Int64
-	gcsActiveRequestsRequestTypeWriteAtomic                                            *atomic.Int64
-	gcsConnectionCountAtomic                                                           *atomic.Int64
 	gcsDownloadBytesCountReadTypeParallelAtomic                                        *atomic.Int64
 	gcsDownloadBytesCountReadTypeRandomAtomic                                          *atomic.Int64
 	gcsDownloadBytesCountReadTypeSequentialAtomic                                      *atomic.Int64
@@ -1248,6 +1245,9 @@ type otelMetrics struct {
 	gcsRequestCountGcsMethodUpdateObjectAtomic                                         *atomic.Int64
 	gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic                                   *atomic.Int64
 	gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic                            *atomic.Int64
+	testUpdownCounterAtomic                                                            *atomic.Int64
+	testUpdownCounterWithAttrsRequestTypeAttr1Atomic                                   *atomic.Int64
+	testUpdownCounterWithAttrsRequestTypeAttr2Atomic                                   *atomic.Int64
 	bufferedReadDownloadBlockLatency                                                   metric.Int64Histogram
 	bufferedReadReadLatency                                                            metric.Int64Histogram
 	fileCacheReadLatencies                                                             metric.Int64Histogram
@@ -2651,26 +2651,6 @@ func (o *otelMetrics) FsOpsLatency(
 	}
 }
 
-func (o *otelMetrics) GcsActiveRequests(
-	inc int64, requestType string) {
-	switch requestType {
-	case "read":
-		o.gcsActiveRequestsRequestTypeReadAtomic.Add(inc)
-	case "write":
-		o.gcsActiveRequestsRequestTypeWriteAtomic.Add(inc)
-	default:
-		updateUnrecognizedAttribute(requestType)
-		return
-	}
-
-}
-
-func (o *otelMetrics) GcsConnectionCount(
-	inc int64) {
-	o.gcsConnectionCountAtomic.Add(inc)
-
-}
-
 func (o *otelMetrics) GcsDownloadBytesCount(
 	inc int64, readType string) {
 	if inc < 0 {
@@ -2859,6 +2839,26 @@ func (o *otelMetrics) GcsRetryCount(
 		o.gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic.Add(inc)
 	default:
 		updateUnrecognizedAttribute(retryErrorCategory)
+		return
+	}
+
+}
+
+func (o *otelMetrics) TestUpdownCounter(
+	inc int64) {
+	o.testUpdownCounterAtomic.Add(inc)
+
+}
+
+func (o *otelMetrics) TestUpdownCounterWithAttrs(
+	inc int64, requestType string) {
+	switch requestType {
+	case "attr1":
+		o.testUpdownCounterWithAttrsRequestTypeAttr1Atomic.Add(inc)
+	case "attr2":
+		o.testUpdownCounterWithAttrsRequestTypeAttr2Atomic.Add(inc)
+	default:
+		updateUnrecognizedAttribute(requestType)
 		return
 	}
 
@@ -3430,11 +3430,6 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpUnlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAtomic atomic.Int64
 
-	var gcsActiveRequestsRequestTypeReadAtomic,
-		gcsActiveRequestsRequestTypeWriteAtomic atomic.Int64
-
-	var gcsConnectionCountAtomic atomic.Int64
-
 	var gcsDownloadBytesCountReadTypeParallelAtomic,
 		gcsDownloadBytesCountReadTypeRandomAtomic,
 		gcsDownloadBytesCountReadTypeSequentialAtomic atomic.Int64
@@ -3471,6 +3466,11 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 
 	var gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic,
 		gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic atomic.Int64
+
+	var testUpdownCounterAtomic atomic.Int64
+
+	var testUpdownCounterWithAttrsRequestTypeAttr1Atomic,
+		testUpdownCounterWithAttrsRequestTypeAttr2Atomic atomic.Int64
 
 	bufferedReadDownloadBlockLatency, err0 := meter.Int64Histogram("buffered_read/download_block_latency",
 		metric.WithDescription("The cumulative distribution of block download latencies, along with status: successful, cancelled, or failed."),
@@ -4075,24 +4075,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		metric.WithUnit("us"),
 		metric.WithExplicitBucketBoundaries(1, 2, 3, 4, 5, 6, 8, 10, 13, 16, 20, 25, 30, 40, 50, 65, 80, 100, 130, 160, 200, 250, 300, 400, 500, 650, 800, 1000, 2000, 5000, 10000, 20000, 50000, 100000))
 
-	_, err10 := meter.Int64ObservableUpDownCounter("gcs/active_requests",
-		metric.WithDescription("The number of active GCS requests."),
-		metric.WithUnit(""),
-		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
-			conditionallyObserveUpDownCounter(obsrv, &gcsActiveRequestsRequestTypeReadAtomic, gcsActiveRequestsRequestTypeReadAttrSet)
-			conditionallyObserveUpDownCounter(obsrv, &gcsActiveRequestsRequestTypeWriteAtomic, gcsActiveRequestsRequestTypeWriteAttrSet)
-			return nil
-		}))
-
-	_, err11 := meter.Int64ObservableUpDownCounter("gcs/connection_count",
-		metric.WithDescription("The number of active GCS connections."),
-		metric.WithUnit(""),
-		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
-			conditionallyObserveUpDownCounter(obsrv, &gcsConnectionCountAtomic)
-			return nil
-		}))
-
-	_, err12 := meter.Int64ObservableCounter("gcs/download_bytes_count",
+	_, err10 := meter.Int64ObservableCounter("gcs/download_bytes_count",
 		metric.WithDescription("The cumulative number of bytes downloaded from GCS along with type - Sequential/Random"),
 		metric.WithUnit("By"),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -4102,7 +4085,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err13 := meter.Int64ObservableCounter("gcs/read_bytes_count",
+	_, err11 := meter.Int64ObservableCounter("gcs/read_bytes_count",
 		metric.WithDescription("The cumulative number of bytes read from GCS objects."),
 		metric.WithUnit("By"),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -4110,7 +4093,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err14 := meter.Int64ObservableCounter("gcs/read_count",
+	_, err12 := meter.Int64ObservableCounter("gcs/read_count",
 		metric.WithDescription("Specifies the number of gcs reads made along with type - Sequential/Random"),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -4120,7 +4103,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err15 := meter.Int64ObservableCounter("gcs/reader_count",
+	_, err13 := meter.Int64ObservableCounter("gcs/reader_count",
 		metric.WithDescription("The cumulative number of GCS object readers opened or closed."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -4130,7 +4113,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err16 := meter.Int64ObservableCounter("gcs/request_count",
+	_, err14 := meter.Int64ObservableCounter("gcs/request_count",
 		metric.WithDescription("The cumulative number of GCS requests processed along with the GCS method."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -4156,17 +4139,34 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	gcsRequestLatencies, err17 := meter.Int64Histogram("gcs/request_latencies",
+	gcsRequestLatencies, err15 := meter.Int64Histogram("gcs/request_latencies",
 		metric.WithDescription("The cumulative distribution of the GCS request latencies."),
 		metric.WithUnit("ms"),
 		metric.WithExplicitBucketBoundaries(1, 2, 3, 4, 5, 6, 8, 10, 13, 16, 20, 25, 30, 40, 50, 65, 80, 100, 130, 160, 200, 250, 300, 400, 500, 650, 800, 1000, 2000, 5000, 10000, 20000, 50000, 100000))
 
-	_, err18 := meter.Int64ObservableCounter("gcs/retry_count",
+	_, err16 := meter.Int64ObservableCounter("gcs/retry_count",
 		metric.WithDescription("The cumulative number of retry requests made to GCS."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
 			conditionallyObserve(obsrv, &gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic, gcsRetryCountRetryErrorCategoryOTHERERRORSAttrSet)
 			conditionallyObserve(obsrv, &gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic, gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAttrSet)
+			return nil
+		}))
+
+	_, err17 := meter.Int64ObservableUpDownCounter("test/updown_counter",
+		metric.WithDescription("Test metric for updown counters."),
+		metric.WithUnit(""),
+		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
+			conditionallyObserveUpDownCounter(obsrv, &testUpdownCounterAtomic)
+			return nil
+		}))
+
+	_, err18 := meter.Int64ObservableUpDownCounter("test/updown_counter_with_attrs",
+		metric.WithDescription("Test metric for updown counters with attributes."),
+		metric.WithUnit(""),
+		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
+			conditionallyObserveUpDownCounter(obsrv, &testUpdownCounterWithAttrsRequestTypeAttr1Atomic, testUpdownCounterWithAttrsRequestTypeAttr1AttrSet)
+			conditionallyObserveUpDownCounter(obsrv, &testUpdownCounterWithAttrsRequestTypeAttr2Atomic, testUpdownCounterWithAttrsRequestTypeAttr2AttrSet)
 			return nil
 		}))
 
@@ -4722,10 +4722,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSyncFileAtomic:                   &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSyncFileAtomic,
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpUnlinkAtomic:                     &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpUnlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAtomic:                  &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAtomic,
-		fsOpsLatency:                                               fsOpsLatency,
-		gcsActiveRequestsRequestTypeReadAtomic:                     &gcsActiveRequestsRequestTypeReadAtomic,
-		gcsActiveRequestsRequestTypeWriteAtomic:                    &gcsActiveRequestsRequestTypeWriteAtomic,
-		gcsConnectionCountAtomic:                                   &gcsConnectionCountAtomic,
+		fsOpsLatency: fsOpsLatency,
 		gcsDownloadBytesCountReadTypeParallelAtomic:                &gcsDownloadBytesCountReadTypeParallelAtomic,
 		gcsDownloadBytesCountReadTypeRandomAtomic:                  &gcsDownloadBytesCountReadTypeRandomAtomic,
 		gcsDownloadBytesCountReadTypeSequentialAtomic:              &gcsDownloadBytesCountReadTypeSequentialAtomic,
@@ -4758,6 +4755,9 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		gcsRequestLatencies:                                        gcsRequestLatencies,
 		gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic:           &gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic,
 		gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic:    &gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic,
+		testUpdownCounterAtomic:                                    &testUpdownCounterAtomic,
+		testUpdownCounterWithAttrsRequestTypeAttr1Atomic:           &testUpdownCounterWithAttrsRequestTypeAttr1Atomic,
+		testUpdownCounterWithAttrsRequestTypeAttr2Atomic:           &testUpdownCounterWithAttrsRequestTypeAttr2Atomic,
 	}, nil
 }
 

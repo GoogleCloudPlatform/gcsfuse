@@ -5622,100 +5622,6 @@ func TestFsOpsLatency(t *testing.T) {
 	}
 }
 
-func TestGcsActiveRequests(t *testing.T) {
-	tests := []struct {
-		name     string
-		f        func(m *otelMetrics)
-		expected map[attribute.Set]int64
-	}{
-		{
-			name: "request_type_read",
-			f: func(m *otelMetrics) {
-				m.GcsActiveRequests(5, "read")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("request_type", "read")): 5,
-			},
-		},
-		{
-			name: "request_type_write",
-			f: func(m *otelMetrics) {
-				m.GcsActiveRequests(5, "write")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("request_type", "write")): 5,
-			},
-		}, {
-			name: "multiple_attributes_summed",
-			f: func(m *otelMetrics) {
-				m.GcsActiveRequests(5, "read")
-				m.GcsActiveRequests(2, "write")
-				m.GcsActiveRequests(3, "read")
-			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("request_type", "read")): 8,
-				attribute.NewSet(attribute.String("request_type", "write")): 2,
-			},
-		},
-		{
-			name: "negative_increment",
-			f: func(m *otelMetrics) {
-				m.GcsActiveRequests(-5, "read")
-				m.GcsActiveRequests(2, "read")
-			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("request_type", "read")): -3},
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
-			encoder := attribute.DefaultEncoder()
-			m, rd := setupOTel(ctx, t)
-
-			tc.f(m)
-			waitForMetricsProcessing()
-
-			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
-			metric, ok := metrics["gcs/active_requests"]
-			if len(tc.expected) == 0 {
-				assert.False(t, ok, "gcs/active_requests metric should not be found")
-				return
-			}
-			require.True(t, ok, "gcs/active_requests metric not found")
-			expectedMap := make(map[string]int64)
-			for k, v := range tc.expected {
-				expectedMap[k.Encoded(encoder)] = v
-			}
-			assert.Equal(t, expectedMap, metric)
-		})
-	}
-}
-
-func TestGcsConnectionCount(t *testing.T) {
-	ctx := context.Background()
-	encoder := attribute.DefaultEncoder()
-	m, rd := setupOTel(ctx, t)
-
-	m.GcsConnectionCount(1024)
-	m.GcsConnectionCount(2048)
-	waitForMetricsProcessing()
-
-	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
-	metric, ok := metrics["gcs/connection_count"]
-	require.True(t, ok, "gcs/connection_count metric not found")
-	s := attribute.NewSet()
-	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric, "Positive increments should be summed.")
-
-	// Test negative increment
-	m.GcsConnectionCount(-100)
-	waitForMetricsProcessing()
-
-	metrics = gatherNonZeroCounterMetrics(ctx, t, rd)
-	metric, ok = metrics["gcs/connection_count"]
-	require.True(t, ok, "gcs/connection_count metric not found after negative increment")
-	assert.Equal(t, map[string]int64{s.Encoded(encoder): 2972}, metric, "Negative increment should change the metric value.")
-}
-
 func TestGcsDownloadBytesCount(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -6390,6 +6296,100 @@ func TestGcsRetryCount(t *testing.T) {
 				return
 			}
 			require.True(t, ok, "gcs/retry_count metric not found")
+			expectedMap := make(map[string]int64)
+			for k, v := range tc.expected {
+				expectedMap[k.Encoded(encoder)] = v
+			}
+			assert.Equal(t, expectedMap, metric)
+		})
+	}
+}
+
+func TestTestUpdownCounter(t *testing.T) {
+	ctx := context.Background()
+	encoder := attribute.DefaultEncoder()
+	m, rd := setupOTel(ctx, t)
+
+	m.TestUpdownCounter(1024)
+	m.TestUpdownCounter(2048)
+	waitForMetricsProcessing()
+
+	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+	metric, ok := metrics["test/updown_counter"]
+	require.True(t, ok, "test/updown_counter metric not found")
+	s := attribute.NewSet()
+	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric, "Positive increments should be summed.")
+
+	// Test negative increment
+	m.TestUpdownCounter(-100)
+	waitForMetricsProcessing()
+
+	metrics = gatherNonZeroCounterMetrics(ctx, t, rd)
+	metric, ok = metrics["test/updown_counter"]
+	require.True(t, ok, "test/updown_counter metric not found after negative increment")
+	assert.Equal(t, map[string]int64{s.Encoded(encoder): 2972}, metric, "Negative increment should change the metric value.")
+}
+
+func TestTestUpdownCounterWithAttrs(t *testing.T) {
+	tests := []struct {
+		name     string
+		f        func(m *otelMetrics)
+		expected map[attribute.Set]int64
+	}{
+		{
+			name: "request_type_attr1",
+			f: func(m *otelMetrics) {
+				m.TestUpdownCounterWithAttrs(5, "attr1")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("request_type", "attr1")): 5,
+			},
+		},
+		{
+			name: "request_type_attr2",
+			f: func(m *otelMetrics) {
+				m.TestUpdownCounterWithAttrs(5, "attr2")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("request_type", "attr2")): 5,
+			},
+		}, {
+			name: "multiple_attributes_summed",
+			f: func(m *otelMetrics) {
+				m.TestUpdownCounterWithAttrs(5, "attr1")
+				m.TestUpdownCounterWithAttrs(2, "attr2")
+				m.TestUpdownCounterWithAttrs(3, "attr1")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("request_type", "attr1")): 8,
+				attribute.NewSet(attribute.String("request_type", "attr2")): 2,
+			},
+		},
+		{
+			name: "negative_increment",
+			f: func(m *otelMetrics) {
+				m.TestUpdownCounterWithAttrs(-5, "attr1")
+				m.TestUpdownCounterWithAttrs(2, "attr1")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("request_type", "attr1")): -3},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			encoder := attribute.DefaultEncoder()
+			m, rd := setupOTel(ctx, t)
+
+			tc.f(m)
+			waitForMetricsProcessing()
+
+			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+			metric, ok := metrics["test/updown_counter_with_attrs"]
+			if len(tc.expected) == 0 {
+				assert.False(t, ok, "test/updown_counter_with_attrs metric should not be found")
+				return
+			}
+			require.True(t, ok, "test/updown_counter_with_attrs metric not found")
 			expectedMap := make(map[string]int64)
 			for k, v := range tc.expected {
 				expectedMap[k.Encoded(encoder)] = v
