@@ -633,7 +633,7 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 	}
 	// Fall back to temp file for Out-Of-Order Writes.
 	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
-		logger.Warnf("Out of order write detected. File %s will now use legacy staged writes. "+StreamingWritesSemantics, f.name.String())
+		logger.Infof("Out of order write detected. File %s will now use legacy staged writes. "+StreamingWritesSemantics, f.name.String())
 		// Finalize the object.
 		err = f.flushUsingBufferedWriteHandler()
 		if err != nil {
@@ -947,7 +947,7 @@ func (f *FileInode) truncateUsingBufferedWriteHandler(ctx context.Context, size 
 	err := f.bwh.Truncate(size)
 	// If truncate size is less than the total file size resulting in OutOfOrder write, finalize and fall back to temp file.
 	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
-		logger.Warnf("Out of order write detected. File %s will now use legacy staged writes. "+StreamingWritesSemantics, f.name.String())
+		logger.Infof("Out of order write detected. File %s will now use legacy staged writes. "+StreamingWritesSemantics, f.name.String())
 		// Finalize the object.
 		err = f.flushUsingBufferedWriteHandler()
 		if err != nil {
@@ -1077,6 +1077,6 @@ func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, obj *gcs.
 	if f.config.Write.EnableRapidAppends && openMode == util.Append && f.bucket.BucketType().Zonal && obj.Finalized.IsZero() {
 		return true
 	}
-	logger.Warnf("Existing file %s of size %d bytes (non-zero) will use legacy staged writes. "+StreamingWritesSemantics, f.name.String(), obj.Size)
+	logger.Infof("Existing file %s of size %d bytes (non-zero) will use legacy staged writes. "+StreamingWritesSemantics, f.name.String(), obj.Size)
 	return false
 }
