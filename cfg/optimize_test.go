@@ -22,9 +22,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var (
-	defaultConfig = Config{MetadataCache: MetadataCacheConfig{NegativeTtlSecs: 5, TtlSecs: 60, StatCacheMaxSizeMb: 33, TypeCacheMaxSizeMb: 4}, ImplicitDirs: false, FileSystem: FileSystemConfig{RenameDirLimit: 0}, Write: WriteConfig{EnableStreamingWrites: true}}
-)
+func defaultConfig() Config {
+	return Config{MetadataCache: MetadataCacheConfig{NegativeTtlSecs: 5, TtlSecs: 60, StatCacheMaxSizeMb: 33, TypeCacheMaxSizeMb: 4}, ImplicitDirs: false, FileSystem: FileSystemConfig{RenameDirLimit: 0}, Write: WriteConfig{EnableStreamingWrites: true}}
+}
 
 // Mock IsValueSet for testing.
 type mockIsValueSet struct {
@@ -164,7 +164,7 @@ func TestApplyOptimizations_DisableAutoConfig(t *testing.T) {
 	defer closeTestServer(t, server)
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
-	cfg := defaultConfig
+	cfg := defaultConfig()
 	cfg.DisableAutoconfig = true
 	isSet := &mockIsValueSet{}
 
@@ -188,7 +188,7 @@ func TestApplyOptimizations_MatchingMachineType(t *testing.T) {
 	defer closeTestServer(t, server)
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
-	cfg := defaultConfig
+	cfg := defaultConfig()
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 	optimizedFlags := cfg.ApplyOptimizations(isSet)
@@ -211,7 +211,7 @@ func TestApplyOptimizations_NonMatchingMachineType(t *testing.T) {
 	defer closeTestServer(t, server)
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
-	cfg := defaultConfig
+	cfg := defaultConfig()
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 	optimizedFlags := cfg.ApplyOptimizations(isSet)
@@ -234,7 +234,7 @@ func TestApplyOptimizations_UserSetFlag(t *testing.T) {
 	defer closeTestServer(t, server)
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
-	cfg := defaultConfig
+	cfg := defaultConfig()
 	isSet := &mockIsValueSet{setFlags: map[string]bool{"rename-dir-limit": true}}
 	// Simulate setting config value by user
 	cfg.FileSystem.RenameDirLimit = 10000
@@ -259,7 +259,7 @@ func TestApplyOptimizations_GetMachineTypeError(t *testing.T) {
 	defer closeTestServer(t, server)
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
-	cfg := defaultConfig
+	cfg := defaultConfig()
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 	optimizedFlags := cfg.ApplyOptimizations(isSet)
@@ -282,7 +282,7 @@ func TestApplyOptimizations_NoError(t *testing.T) {
 	defer closeTestServer(t, server)
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
-	cfg := defaultConfig
+	cfg := defaultConfig()
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 	optimizedFlags := cfg.ApplyOptimizations(isSet)
@@ -338,7 +338,7 @@ func TestApplyOptimizations_Success(t *testing.T) {
 	defer closeTestServer(t, server)
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
-	cfg := defaultConfig
+	cfg := defaultConfig()
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 	optimizedFlags := cfg.ApplyOptimizations(isSet)

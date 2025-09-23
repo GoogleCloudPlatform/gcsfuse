@@ -368,7 +368,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteMaxBlocksPerFile: 1,
 		},
 		{
-			name:                          "Test optimization fallback to machine-type config with un-overridden profile on high-end machine",
+			name:                          "Test_optimization_fallback_to_machine-type_config_with_un-overridden_profile_on_high-end_machine",
 			args:                          []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--profile=" + cfg.ProfileAIMLCheckpointing, "abc", "pqr"},
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
@@ -378,7 +378,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteMaxBlocksPerFile: 1,
 		},
 		{
-			name:                          "Test optimization fallback to default config with un-overridden profile on low-end machine",
+			name:                          "Test_optimization_fallback_to_default_config_with_un-overridden_profile_on_low-end_machine",
 			args:                          []string{"gcsfuse", "--machine-type=low-end-machine", "--profile=" + cfg.ProfileAIMLCheckpointing, "abc", "pqr"},
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
@@ -388,7 +388,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteMaxBlocksPerFile: 1,
 		},
 		{
-			name:                          "Test optimization overriden by user config with profile set on high-end machine",
+			name:                          "Test_optimization_overriden_by_user_config_with_profile_set_on_high-end_machine",
 			args:                          []string{"gcsfuse", "--write-global-max-blocks=200", "--machine-type=a3-highgpu-8g", "--profile=" + cfg.ProfileAIMLCheckpointing, "abc", "pqr"},
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
@@ -398,7 +398,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteMaxBlocksPerFile: 1,
 		},
 		{
-			name:                          "Test optimizationoverriden by user config with profile set on low-end machine",
+			name:                          "Test_optimizationoverriden_by_user_config_with_profile_set_on_low-end_machine",
 			args:                          []string{"gcsfuse", "--write-global-max-blocks=16", "--machine-type=low-end-machine", "--profile=" + cfg.ProfileAIMLCheckpointing, "abc", "pqr"},
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
