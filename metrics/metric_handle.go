@@ -54,12 +54,6 @@ type MetricHandle interface {
 	// FsOpsLatency - The cumulative distribution of file system operation latencies
 	FsOpsLatency(ctx context.Context, duration time.Duration, fsOp string)
 
-	// GcsActiveRequests - The number of active GCS requests.
-	GcsActiveRequests(inc int64, requestType string)
-
-	// GcsConnectionCount - The number of active GCS connections.
-	GcsConnectionCount(inc int64)
-
 	// GcsDownloadBytesCount - The cumulative number of bytes downloaded from GCS along with type - Sequential/Random
 	GcsDownloadBytesCount(inc int64, readType string)
 
@@ -80,4 +74,10 @@ type MetricHandle interface {
 
 	// GcsRetryCount - The cumulative number of retry requests made to GCS.
 	GcsRetryCount(inc int64, retryErrorCategory string)
+
+	// TestUpdownCounter - Test metric for updown counters.
+	TestUpdownCounter(inc int64)
+
+	// TestUpdownCounterWithAttrs - Test metric for updown counters with attributes.
+	TestUpdownCounterWithAttrs(inc int64, requestType string)
 }
