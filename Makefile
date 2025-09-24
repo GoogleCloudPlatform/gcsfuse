@@ -44,7 +44,7 @@ test: fmt
 	CGO_ENABLED=0 go test -timeout 5m -count 1 `go list ./... | grep -v internal/cache/...` && CGO_ENABLED=0 go test -timeout 5m -p 1 -count 1 ./internal/cache/...
 
 clean-gen:
-	rm -rf cfg/config.go
+	rm -rf cfg/config.go cfg/config_test.go
 
 clean: clean-gen
 	go clean
