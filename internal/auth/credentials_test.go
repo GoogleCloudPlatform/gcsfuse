@@ -15,8 +15,6 @@
 package auth
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"testing"
 
@@ -95,50 +93,4 @@ func Test_getCredentials_Error(t *testing.T) {
 	assert.Nil(t, creds)
 	assert.ErrorIs(t, err, expectedErr)
 	mockDetector.AssertExpectations(t)
-}
-
-func TestCredentialsPropertyFunc(t *testing.T) {
-	testCases := []struct {
-		name          string
-		propertyValue string
-		expectedError error
-	}{
-		{
-			name:          "Successful property retrieval",
-			propertyValue: "my-universe-domain",
-			expectedError: nil,
-		},
-		{
-			name:          "Error during property retrieval",
-			propertyValue: "",
-			expectedError: errors.New("failed to get property"),
-		},
-		{
-			name:          "Empty property value",
-			propertyValue: "",
-			expectedError: nil,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// Create a function that matches the test case's behavior.
-			wrappedFunc := func(ctx context.Context) (string, error) {
-				return tc.propertyValue, tc.expectedError
-			}
-			// Create an instance of CredentialsPropertyFunc from the function.
-			propertyProvider := CredentialsPropertyFunc(wrappedFunc)
-
-			// Call the GetProperty method on the adapter.
-			val, err := propertyProvider.GetProperty(context.Background())
-
-			// Verify that the returned value and error match the expectations.
-			assert.Equal(t, tc.propertyValue, val)
-			if tc.expectedError != nil {
-				assert.EqualError(t, err, tc.expectedError.Error())
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
 }

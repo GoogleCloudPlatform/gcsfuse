@@ -62,7 +62,7 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 	// TODO: Remove this workaround once issue b/442805436 is resolved in the library.
 	newCreds := auth.NewCredentials(&auth.CredentialsOptions{
 		TokenProvider:          cred.TokenProvider,
-		UniverseDomainProvider: auth2.CredentialsPropertyFunc(func(_ context.Context) (string, error) { return domain, nil }),
+		UniverseDomainProvider: auth.CredentialsPropertyFunc(func(_ context.Context) (string, error) { return domain, nil }),
 	})
 	clientOpts := []option.ClientOption{option.WithUniverseDomain(domain), option.WithAuthCredentials(newCreds)}
 
