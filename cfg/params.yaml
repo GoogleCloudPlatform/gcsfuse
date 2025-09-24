@@ -856,7 +856,6 @@ params:
     type: "string"
     usage: "The name of the profile to apply. e.g. aiml-training, aiml-serving, aiml-checkpointing"
     default: ""
-    hide-flag: true
 
   - config-path: "read.block-size-mb"
     flag-name: "read-block-size-mb"
