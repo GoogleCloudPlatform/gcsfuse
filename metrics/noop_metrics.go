@@ -22,14 +22,13 @@ import (
 
 type noopMetrics struct{}
 
-func (*noopMetrics) BufferedReadDownloadBlockLatency(ctx context.Context, duration time.Duration, status string) {
-}
+func (*noopMetrics) BufferedReadDownloadedBytes(inc int64) {}
 
 func (*noopMetrics) BufferedReadFallbackTriggerCount(inc int64, reason string) {}
 
-func (*noopMetrics) BufferedReadReadLatency(ctx context.Context, duration time.Duration) {}
+func (*noopMetrics) BufferedReadReadBytes(inc int64) {}
 
-func (*noopMetrics) BufferedReadScheduledBlockCount(inc int64, status string) {}
+func (*noopMetrics) BufferedReadReadLatency(ctx context.Context, duration time.Duration) {}
 
 func (*noopMetrics) FileCacheReadBytesCount(inc int64, readType string) {}
 

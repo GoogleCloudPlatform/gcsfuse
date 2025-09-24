@@ -33,14 +33,8 @@ const logInterval = 5 * time.Minute
 
 var (
 	unrecognizedAttr                                                                    atomic.Value
-	bufferedReadDownloadBlockLatencyStatusCancelledAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("status", "cancelled")))
-	bufferedReadDownloadBlockLatencyStatusFailedAttrSet                                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("status", "failed")))
-	bufferedReadDownloadBlockLatencyStatusSuccessfulAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("status", "successful")))
 	bufferedReadFallbackTriggerCountReasonInsufficientMemoryAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "insufficient_memory")))
 	bufferedReadFallbackTriggerCountReasonRandomReadDetectedAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "random_read_detected")))
-	bufferedReadScheduledBlockCountStatusCancelledAttrSet                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("status", "cancelled")))
-	bufferedReadScheduledBlockCountStatusFailedAttrSet                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("status", "failed")))
-	bufferedReadScheduledBlockCountStatusSuccessfulAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("status", "successful")))
 	fileCacheReadBytesCountReadTypeParallelAttrSet                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel")))
 	fileCacheReadBytesCountReadTypeRandomAttrSet                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random")))
 	fileCacheReadBytesCountReadTypeSequentialAttrSet                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential")))
@@ -673,11 +667,10 @@ type histogramRecord struct {
 type otelMetrics struct {
 	ch                                                                                 chan histogramRecord
 	wg                                                                                 *sync.WaitGroup
+	bufferedReadDownloadedBytesAtomic                                                  *atomic.Int64
 	bufferedReadFallbackTriggerCountReasonInsufficientMemoryAtomic                     *atomic.Int64
 	bufferedReadFallbackTriggerCountReasonRandomReadDetectedAtomic                     *atomic.Int64
-	bufferedReadScheduledBlockCountStatusCancelledAtomic                               *atomic.Int64
-	bufferedReadScheduledBlockCountStatusFailedAtomic                                  *atomic.Int64
-	bufferedReadScheduledBlockCountStatusSuccessfulAtomic                              *atomic.Int64
+	bufferedReadReadBytesAtomic                                                        *atomic.Int64
 	fileCacheReadBytesCountReadTypeParallelAtomic                                      *atomic.Int64
 	fileCacheReadBytesCountReadTypeRandomAtomic                                        *atomic.Int64
 	fileCacheReadBytesCountReadTypeSequentialAtomic                                    *atomic.Int64
@@ -1248,32 +1241,20 @@ type otelMetrics struct {
 	testUpdownCounterAtomic                                                            *atomic.Int64
 	testUpdownCounterWithAttrsRequestTypeAttr1Atomic                                   *atomic.Int64
 	testUpdownCounterWithAttrsRequestTypeAttr2Atomic                                   *atomic.Int64
-	bufferedReadDownloadBlockLatency                                                   metric.Int64Histogram
 	bufferedReadReadLatency                                                            metric.Int64Histogram
 	fileCacheReadLatencies                                                             metric.Int64Histogram
 	fsOpsLatency                                                                       metric.Int64Histogram
 	gcsRequestLatencies                                                                metric.Int64Histogram
 }
 
-func (o *otelMetrics) BufferedReadDownloadBlockLatency(
-	ctx context.Context, latency time.Duration, status string) {
-	var record histogramRecord
-	switch status {
-	case "cancelled":
-		record = histogramRecord{ctx: ctx, instrument: o.bufferedReadDownloadBlockLatency, value: latency.Microseconds(), attributes: bufferedReadDownloadBlockLatencyStatusCancelledAttrSet}
-	case "failed":
-		record = histogramRecord{ctx: ctx, instrument: o.bufferedReadDownloadBlockLatency, value: latency.Microseconds(), attributes: bufferedReadDownloadBlockLatencyStatusFailedAttrSet}
-	case "successful":
-		record = histogramRecord{ctx: ctx, instrument: o.bufferedReadDownloadBlockLatency, value: latency.Microseconds(), attributes: bufferedReadDownloadBlockLatencyStatusSuccessfulAttrSet}
-	default:
-		updateUnrecognizedAttribute(status)
+func (o *otelMetrics) BufferedReadDownloadedBytes(
+	inc int64) {
+	if inc < 0 {
+		logger.Errorf("Counter metric buffered_read/downloaded_bytes received a negative increment: %d", inc)
 		return
 	}
+	o.bufferedReadDownloadedBytesAtomic.Add(inc)
 
-	select {
-	case o.ch <- record: // Do nothing
-	default: // Unblock writes to channel if it's full.
-	}
 }
 
 func (o *otelMetrics) BufferedReadFallbackTriggerCount(
@@ -1294,6 +1275,16 @@ func (o *otelMetrics) BufferedReadFallbackTriggerCount(
 
 }
 
+func (o *otelMetrics) BufferedReadReadBytes(
+	inc int64) {
+	if inc < 0 {
+		logger.Errorf("Counter metric buffered_read/read_bytes received a negative increment: %d", inc)
+		return
+	}
+	o.bufferedReadReadBytesAtomic.Add(inc)
+
+}
+
 func (o *otelMetrics) BufferedReadReadLatency(
 	ctx context.Context, latency time.Duration) {
 	var record histogramRecord
@@ -1303,26 +1294,6 @@ func (o *otelMetrics) BufferedReadReadLatency(
 	case o.ch <- record: // Do nothing
 	default: // Unblock writes to channel if it's full.
 	}
-}
-
-func (o *otelMetrics) BufferedReadScheduledBlockCount(
-	inc int64, status string) {
-	if inc < 0 {
-		logger.Errorf("Counter metric buffered_read/scheduled_block_count received a negative increment: %d", inc)
-		return
-	}
-	switch status {
-	case "cancelled":
-		o.bufferedReadScheduledBlockCountStatusCancelledAtomic.Add(inc)
-	case "failed":
-		o.bufferedReadScheduledBlockCountStatusFailedAtomic.Add(inc)
-	case "successful":
-		o.bufferedReadScheduledBlockCountStatusSuccessfulAtomic.Add(inc)
-	default:
-		updateUnrecognizedAttribute(status)
-		return
-	}
-
 }
 
 func (o *otelMetrics) FileCacheReadBytesCount(
@@ -2882,13 +2853,12 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		}()
 	}
 	meter := otel.Meter("gcsfuse")
+	var bufferedReadDownloadedBytesAtomic atomic.Int64
 
 	var bufferedReadFallbackTriggerCountReasonInsufficientMemoryAtomic,
 		bufferedReadFallbackTriggerCountReasonRandomReadDetectedAtomic atomic.Int64
 
-	var bufferedReadScheduledBlockCountStatusCancelledAtomic,
-		bufferedReadScheduledBlockCountStatusFailedAtomic,
-		bufferedReadScheduledBlockCountStatusSuccessfulAtomic atomic.Int64
+	var bufferedReadReadBytesAtomic atomic.Int64
 
 	var fileCacheReadBytesCountReadTypeParallelAtomic,
 		fileCacheReadBytesCountReadTypeRandomAtomic,
@@ -3472,10 +3442,13 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 	var testUpdownCounterWithAttrsRequestTypeAttr1Atomic,
 		testUpdownCounterWithAttrsRequestTypeAttr2Atomic atomic.Int64
 
-	bufferedReadDownloadBlockLatency, err0 := meter.Int64Histogram("buffered_read/download_block_latency",
-		metric.WithDescription("The cumulative distribution of block download latencies, along with status: successful, cancelled, or failed."),
-		metric.WithUnit("us"),
-		metric.WithExplicitBucketBoundaries(1, 2, 3, 4, 5, 6, 8, 10, 13, 16, 20, 25, 30, 40, 50, 65, 80, 100, 130, 160, 200, 250, 300, 400, 500, 650, 800, 1000, 2000, 5000, 10000, 20000, 50000, 100000))
+	_, err0 := meter.Int64ObservableCounter("buffered_read/downloaded_bytes",
+		metric.WithDescription("The cumulative number of bytes downloaded by the buffered reader."),
+		metric.WithUnit("By"),
+		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
+			conditionallyObserve(obsrv, &bufferedReadDownloadedBytesAtomic)
+			return nil
+		}))
 
 	_, err1 := meter.Int64ObservableCounter("buffered_read/fallback_trigger_count",
 		metric.WithDescription("The cumulative number of times the BufferedReader falls back to a different reader, along with the reason: random_read_detected or insufficient_memory."),
@@ -3486,20 +3459,18 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	bufferedReadReadLatency, err2 := meter.Int64Histogram("buffered_read/read_latency",
+	_, err2 := meter.Int64ObservableCounter("buffered_read/read_bytes",
+		metric.WithDescription("The cumulative number of bytes read from the buffered reader."),
+		metric.WithUnit("By"),
+		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
+			conditionallyObserve(obsrv, &bufferedReadReadBytesAtomic)
+			return nil
+		}))
+
+	bufferedReadReadLatency, err3 := meter.Int64Histogram("buffered_read/read_latency",
 		metric.WithDescription("The cumulative distribution of latencies for ReadAt calls served by the buffered reader."),
 		metric.WithUnit("us"),
 		metric.WithExplicitBucketBoundaries(1, 2, 3, 4, 5, 6, 8, 10, 13, 16, 20, 25, 30, 40, 50, 65, 80, 100, 130, 160, 200, 250, 300, 400, 500, 650, 800, 1000, 2000, 5000, 10000, 20000, 50000, 100000))
-
-	_, err3 := meter.Int64ObservableCounter("buffered_read/scheduled_block_count",
-		metric.WithDescription("The cumulative number of scheduled download blocks, along with their final status: successful, cancelled, or failed."),
-		metric.WithUnit(""),
-		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
-			conditionallyObserve(obsrv, &bufferedReadScheduledBlockCountStatusCancelledAtomic, bufferedReadScheduledBlockCountStatusCancelledAttrSet)
-			conditionallyObserve(obsrv, &bufferedReadScheduledBlockCountStatusFailedAtomic, bufferedReadScheduledBlockCountStatusFailedAttrSet)
-			conditionallyObserve(obsrv, &bufferedReadScheduledBlockCountStatusSuccessfulAtomic, bufferedReadScheduledBlockCountStatusSuccessfulAttrSet)
-			return nil
-		}))
 
 	_, err4 := meter.Int64ObservableCounter("file_cache/read_bytes_count",
 		metric.WithDescription("The cumulative number of bytes read from file cache along with read type - Sequential/Random"),
@@ -4176,15 +4147,13 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 	}
 
 	return &otelMetrics{
-		ch:                               ch,
-		wg:                               &wg,
-		bufferedReadDownloadBlockLatency: bufferedReadDownloadBlockLatency,
-		bufferedReadFallbackTriggerCountReasonInsufficientMemoryAtomic: &bufferedReadFallbackTriggerCountReasonInsufficientMemoryAtomic,
-		bufferedReadFallbackTriggerCountReasonRandomReadDetectedAtomic: &bufferedReadFallbackTriggerCountReasonRandomReadDetectedAtomic,
+		ch:                                ch,
+		wg:                                &wg,
+		bufferedReadDownloadedBytesAtomic: &bufferedReadDownloadedBytesAtomic,
+		bufferedReadFallbackTriggerCountReasonInsufficientMemoryAtomic:                     &bufferedReadFallbackTriggerCountReasonInsufficientMemoryAtomic,
+		bufferedReadFallbackTriggerCountReasonRandomReadDetectedAtomic:                     &bufferedReadFallbackTriggerCountReasonRandomReadDetectedAtomic,
+		bufferedReadReadBytesAtomic:                                                        &bufferedReadReadBytesAtomic,
 		bufferedReadReadLatency:                                                            bufferedReadReadLatency,
-		bufferedReadScheduledBlockCountStatusCancelledAtomic:                               &bufferedReadScheduledBlockCountStatusCancelledAtomic,
-		bufferedReadScheduledBlockCountStatusFailedAtomic:                                  &bufferedReadScheduledBlockCountStatusFailedAtomic,
-		bufferedReadScheduledBlockCountStatusSuccessfulAtomic:                              &bufferedReadScheduledBlockCountStatusSuccessfulAtomic,
 		fileCacheReadBytesCountReadTypeParallelAtomic:                                      &fileCacheReadBytesCountReadTypeParallelAtomic,
 		fileCacheReadBytesCountReadTypeRandomAtomic:                                        &fileCacheReadBytesCountReadTypeRandomAtomic,
 		fileCacheReadBytesCountReadTypeSequentialAtomic:                                    &fileCacheReadBytesCountReadTypeSequentialAtomic,

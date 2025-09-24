@@ -24,17 +24,17 @@ import (
 // The methods of this interface are auto-generated from metrics.yaml.
 // Each method corresponds to a metric defined in metrics.yaml.
 type MetricHandle interface {
-	// BufferedReadDownloadBlockLatency - The cumulative distribution of block download latencies, along with status: successful, cancelled, or failed.
-	BufferedReadDownloadBlockLatency(ctx context.Context, duration time.Duration, status string)
+	// BufferedReadDownloadedBytes - The cumulative number of bytes downloaded by the buffered reader.
+	BufferedReadDownloadedBytes(inc int64)
 
 	// BufferedReadFallbackTriggerCount - The cumulative number of times the BufferedReader falls back to a different reader, along with the reason: random_read_detected or insufficient_memory.
 	BufferedReadFallbackTriggerCount(inc int64, reason string)
 
+	// BufferedReadReadBytes - The cumulative number of bytes read from the buffered reader.
+	BufferedReadReadBytes(inc int64)
+
 	// BufferedReadReadLatency - The cumulative distribution of latencies for ReadAt calls served by the buffered reader.
 	BufferedReadReadLatency(ctx context.Context, duration time.Duration)
-
-	// BufferedReadScheduledBlockCount - The cumulative number of scheduled download blocks, along with their final status: successful, cancelled, or failed.
-	BufferedReadScheduledBlockCount(inc int64, status string)
 
 	// FileCacheReadBytesCount - The cumulative number of bytes read from file cache along with read type - Sequential/Random
 	FileCacheReadBytesCount(inc int64, readType string)
