@@ -81,21 +81,19 @@ create_user() {
     sudo adduser --disabled-password --home "${HOMEDIR}" --gecos "" "${USERNAME}"
   elif grep -qi -E 'rhel|centos|rocky' details.txt; then
     # For RHEL, CentOS, Rocky Linux
-    sudo adduser --home-dir "${HOMEDIR}" "${USERNAME}"
-    # Optionally disable password login for the local user, assuming SSH key access
-    sudo passwd -d "${USERNAME}"
+    sudo adduser --home-dir "${HOMEDIR}" "${USERNAME}" && sudo passwd -d "${USERNAME}"
   else
-    echo "Unsupported OS type in details.txt"
+    echo "Unsupported OS type in details.txt" >&2
     return 1
   fi
+  local exit_code=$?
 
-  if [ $? -eq 0 ]; then
+  if [ ${exit_code} -eq 0 ]; then
     echo "User ${USERNAME} created successfully."
-    return 0
   else
-    echo "Failed to create user ${USERNAME}."
-    return 1
+    echo "Failed to create user ${USERNAME}." >&2
   fi
+  return ${exit_code}
 }
 
 # Function to grant sudo access by creating a file in /etc/sudoers.d/
