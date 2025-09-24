@@ -1291,7 +1291,6 @@ func (o *otelMetrics) BufferedReadFallbackTriggerCount(
 		updateUnrecognizedAttribute(reason)
 		return
 	}
-
 }
 
 func (o *otelMetrics) BufferedReadReadLatency(
@@ -1322,7 +1321,6 @@ func (o *otelMetrics) BufferedReadScheduledBlockCount(
 		updateUnrecognizedAttribute(status)
 		return
 	}
-
 }
 
 func (o *otelMetrics) FileCacheReadBytesCount(
@@ -1342,7 +1340,6 @@ func (o *otelMetrics) FileCacheReadBytesCount(
 		updateUnrecognizedAttribute(readType)
 		return
 	}
-
 }
 
 func (o *otelMetrics) FileCacheReadCount(
@@ -1377,7 +1374,6 @@ func (o *otelMetrics) FileCacheReadCount(
 			return
 		}
 	}
-
 }
 
 func (o *otelMetrics) FileCacheReadLatencies(
@@ -1469,7 +1465,6 @@ func (o *otelMetrics) FsOpsCount(
 		updateUnrecognizedAttribute(fsOp)
 		return
 	}
-
 }
 
 func (o *otelMetrics) FsOpsErrorCount(
@@ -2571,7 +2566,6 @@ func (o *otelMetrics) FsOpsErrorCount(
 		updateUnrecognizedAttribute(fsErrorCategory)
 		return
 	}
-
 }
 
 func (o *otelMetrics) FsOpsLatency(
@@ -2668,7 +2662,6 @@ func (o *otelMetrics) GcsDownloadBytesCount(
 		updateUnrecognizedAttribute(readType)
 		return
 	}
-
 }
 
 func (o *otelMetrics) GcsReadBytesCount(
@@ -2678,7 +2671,6 @@ func (o *otelMetrics) GcsReadBytesCount(
 		return
 	}
 	o.gcsReadBytesCountAtomic.Add(inc)
-
 }
 
 func (o *otelMetrics) GcsReadCount(
@@ -2698,7 +2690,6 @@ func (o *otelMetrics) GcsReadCount(
 		updateUnrecognizedAttribute(readType)
 		return
 	}
-
 }
 
 func (o *otelMetrics) GcsReaderCount(
@@ -2718,7 +2709,6 @@ func (o *otelMetrics) GcsReaderCount(
 		updateUnrecognizedAttribute(ioMethod)
 		return
 	}
-
 }
 
 func (o *otelMetrics) GcsRequestCount(
@@ -2770,7 +2760,6 @@ func (o *otelMetrics) GcsRequestCount(
 		updateUnrecognizedAttribute(gcsMethod)
 		return
 	}
-
 }
 
 func (o *otelMetrics) GcsRequestLatencies(
@@ -2841,13 +2830,11 @@ func (o *otelMetrics) GcsRetryCount(
 		updateUnrecognizedAttribute(retryErrorCategory)
 		return
 	}
-
 }
 
 func (o *otelMetrics) TestUpdownCounter(
 	inc int64) {
 	o.testUpdownCounterAtomic.Add(inc)
-
 }
 
 func (o *otelMetrics) TestUpdownCounterWithAttrs(
@@ -2861,7 +2848,6 @@ func (o *otelMetrics) TestUpdownCounterWithAttrs(
 		updateUnrecognizedAttribute(requestType)
 		return
 	}
-
 }
 
 func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetrics, error) {
