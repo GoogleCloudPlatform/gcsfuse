@@ -530,13 +530,13 @@ generate_test_log_artifacts() {
 
   cp "$log_file" "$sponge_log_file"
   
-  local report_log=$(cat "$log_file")
+  local report_log=$(cat "$log_file"| sed '1,2d;$d')
   # For benchmarking package, filter out benchmark results to avoid incorrect XML results.
   if [[ "$package_name" == "benchmarking" ]]; then
     report_log=$(echo "$report_log" | grep -v '^Benchmark_[^[:space:]]*$')
   fi
 
-  echo "$report_log" | go-junit-report | sed '1,2d;$d' >> "${sponge_xml_file}"
+  echo "$report_log" | go-junit-report >> "${sponge_xml_file}"
   return 0
 }
 
