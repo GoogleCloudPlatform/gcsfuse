@@ -547,20 +547,26 @@ generate_test_log_artifacts() {
   local package_name="$2"
   local bucket_type="$3"
 
-  local output_dir="${KOKORO_ARTIFACTS_DIR}/${bucket_type}/${package_name}"
-  mkdir -p "$output_dir"
-  local sponge_xml_file="${output_dir}/${package_name}_sponge_log.xml"
-  local sponge_log_file="${output_dir}/${package_name}_sponge_log.log"
-
-  echo '<?xml version="1.0" encoding="UTF-8"?>' > "${sponge_xml_file}"
-  echo '<testsuites>' >> "${sponge_xml_file}"
-
-  if [ -f "$log_file" ]; then
-    cp "$log_file" "$sponge_log_file"
-    go-junit-report < "$log_file" | sed '1,2d;$d' >> "${sponge_xml_file}"
+  if [ ! -f "$log_file" ]; then
+    return 0
   fi
 
-  echo '</testsuites>' >> "${sponge_xml_file}"
+  local output_dir="${KOKORO_ARTIFACTS_DIR}/${bucket_type}/${package_name}"
+  mkdir -p "$output_dir"
+  local sponge_log_file="${output_dir}/${package_name}_sponge_log.log"
+  local sponge_xml_file="${output_dir}/${package_name}_sponge_log.xml"
+
+  cp "$log_file" "$sponge_log_file"
+  
+  # Remove first 2 lines and last line from log.
+  local report_log=$(cat "$log_file"| sed '1,2d;$d')
+  # For benchmarking package, filter out benchmark results to avoid incorrect XML results.
+  if [[ "$package_name" == "benchmarking" ]]; then
+    report_log=$(echo "$report_log" | grep -v '^Benchmark_[^[:space:]]*$')
+  fi
+
+  echo "$report_log" | go-junit-report >> "${sponge_xml_file}"
+  
   return 0
 }
 
