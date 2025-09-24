@@ -520,15 +520,23 @@ generate_test_log_artifacts() {
   local package_name="$2"
   local bucket_type="$3"
 
+  if [ ! -f "$log_file" ]; then
+    return 0
+  fi
+
   local output_dir="${KOKORO_ARTIFACTS_DIR}/${bucket_type}/${package_name}"
   mkdir -p "$output_dir"
-  local sponge_xml_file="${output_dir}/${package_name}_sponge_log.xml"
   local sponge_log_file="${output_dir}/${package_name}_sponge_log.log"
-  echo '<?xml version="1.0" encoding="UTF-8"?>' > "${sponge_xml_file}"
+  local sponge_xml_file="${output_dir}/${package_name}_sponge_log.xml"
 
-  if [ -f "$log_file" ]; then
-    cp "$log_file" "$sponge_log_file"
-	go-junit-report < "$log_file" | sed '1,2d;$d' >> "${sponge_xml_file}"
+  cp "$log_file" "$sponge_log_file"
+  
+  ## Generate XML report using go-junit-report.
+  # For benchmarking package, filter out benchmark results to avoid incorrect XML results.
+  if [[ "$package_name" == "benchmarking" ]]; then
+    go-junit-report < "$log_file" | grep -v '^Benchmark_[^[:space:]]*$' | sed '1,2d;$d' >> "${sponge_xml_file}"
+  else
+    go-junit-report < "$log_file" | sed '1,2d;$d' >> "${sponge_xml_file}"
   fi
 
   return 0
