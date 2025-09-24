@@ -74,4 +74,10 @@ type MetricHandle interface {
 
 	// GcsRetryCount - The cumulative number of retry requests made to GCS.
 	GcsRetryCount(inc int64, retryErrorCategory string)
+
+	// TestUpdownCounter - Test metric for updown counters.
+	TestUpdownCounter(inc int64)
+
+	// TestUpdownCounterWithAttrs - Test metric for updown counters with attributes.
+	TestUpdownCounterWithAttrs(inc int64, requestType string)
 }
