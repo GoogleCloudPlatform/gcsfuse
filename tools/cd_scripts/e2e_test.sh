@@ -110,15 +110,18 @@ grant_sudo() {
   else
     echo "Granting ${USERNAME} NOPASSWD sudo access..."
     # Create the sudoers file with the correct content
-    echo "${USERNAME} ALL=(ALL:ALL) NOPASSWD:ALL" | sudo tee "${SUDOERS_FILE}"
-
-    if [ $? -ne 0 ]; then
-      echo "Failed to create sudoers file."
+    if ! echo "${USERNAME} ALL=(ALL:ALL) NOPASSWD:ALL" | sudo tee "${SUDOERS_FILE}" > /dev/null; then
+      echo "Failed to create sudoers file." >&2
       return 1
     fi
 
     # Set the correct permissions on the sudoers file
-    sudo chmod 440 "${SUDOERS_FILE}"
+    if ! sudo chmod 440 "${SUDOERS_FILE}"; then
+      echo "Failed to set permissions on sudoers file." >&2
+      # Attempt to clean up the partially created file
+      sudo rm -f "${SUDOERS_FILE}"
+      return 1
+    fi
     echo "Sudo access granted to ${USERNAME} via ${SUDOERS_FILE}."
   fi
   return 0
