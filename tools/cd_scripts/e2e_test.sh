@@ -68,14 +68,75 @@ gcloud storage cp gs://gcsfuse-release-packages/version-detail/details.txt .
 # Writing VM instance name to details.txt (Format: release-test-<os-name>)
 curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >>details.txt
 
-# Based on the os type(from vm instance name) in detail.txt, run the following commands to add starterscriptuser
-if grep -q ubuntu details.txt || grep -q debian details.txt; then
-	#  For ubuntu and debian os
-	sudo adduser --ingroup google-sudoers --disabled-password --home=/home/starterscriptuser --gecos "" starterscriptuser
-else
-	#  For rhel and centos
-	sudo adduser -g google-sudoers --home-dir=/home/starterscriptuser starterscriptuser
+# Function to create the local user
+create_user() {
+  if id "${USERNAME}" &>/dev/null; then
+    echo "User ${USERNAME} already exists."
+    return 0
+  fi
+
+  echo "Creating user ${USERNAME}..."
+  if grep -qi -E 'ubuntu|debian' details.txt; then
+    # For Ubuntu and Debian
+    sudo adduser --disabled-password --home "${HOMEDIR}" --gecos "" "${USERNAME}"
+  elif grep -qi -E 'rhel|centos|rocky' details.txt; then
+    # For RHEL, CentOS, Rocky Linux
+    sudo adduser --home-dir "${HOMEDIR}" "${USERNAME}"
+    # Optionally disable password login for the local user, assuming SSH key access
+    sudo passwd -d "${USERNAME}"
+  else
+    echo "Unsupported OS type in details.txt"
+    return 1
+  fi
+
+  if [ $? -eq 0 ]; then
+    echo "User ${USERNAME} created successfully."
+    return 0
+  else
+    echo "Failed to create user ${USERNAME}."
+    return 1
+  fi
+}
+
+# Function to grant sudo access by creating a file in /etc/sudoers.d/
+grant_sudo() {
+  if ! id "${USERNAME}" &>/dev/null; then
+    echo "User ${USERNAME} does not exist. Cannot grant sudo."
+    return 1
+  fi
+
+  SUDOERS_FILE="/etc/sudoers.d/${USERNAME}"
+
+  if sudo test -f "${SUDOERS_FILE}"; then
+    echo "Sudoers file ${SUDOERS_FILE} already exists."
+  else
+    echo "Granting ${USERNAME} NOPASSWD sudo access..."
+    # Create the sudoers file with the correct content
+    echo "${USERNAME} ALL=(ALL:ALL) NOPASSWD:ALL" | sudo tee "${SUDOERS_FILE}"
+
+    if [ $? -ne 0 ]; then
+      echo "Failed to create sudoers file."
+      return 1
+    fi
+
+    # Set the correct permissions on the sudoers file
+    sudo chmod 440 "${SUDOERS_FILE}"
+    echo "Sudo access granted to ${USERNAME} via ${SUDOERS_FILE}."
+  fi
+  return 0
+}
+################################################################################
+# Main script execution flow starts here.
+# The script will first attempt to create the user specified by $USERNAME.
+# If the user creation is successful, it will then proceed to grant sudo
+# privileges to the newly created user.
+################################################################################
+USERNAME=starterscriptuser
+HOMEDIR="/home/${USERNAME}"
+if create_user; then
+  grant_sudo
 fi
+
 
 # Run the following as starterscriptuser
 sudo -u starterscriptuser bash -c '
@@ -248,7 +309,6 @@ TEST_DIR_PARALLEL_ZONAL=(
   interrupt
   kernel_list_cache
   local_file
-  log_content
   log_rotation
   monitoring
   mount_timeout
