@@ -29,6 +29,19 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
 )
 
+const (
+	configTemplate            = "config.tpl"
+	configTestTemplate        = "config_test.tpl"
+	typeTemplate              = "type.tpl"
+	defaultPermission         = 0644
+	generatedFileHeader       = "// GENERATED CODE - DO NOT EDIT MANUALLY.\n"
+	generatedConfigGoFile     = "config.go"
+	generatedConfigTestGoFile = "config_test.go"
+	generatedTypeGoFile       = "type.go"
+	templatePath              = "templates"
+	yamlPath                  = "cfg/params.yaml"
+)
+
 var (
 	outDir      = flag.String("outDir", "", "Output directory where the auto-generated files are to be placed")
 	paramsFile  = flag.String("paramsFile", "", "Params YAML file")
@@ -140,6 +153,18 @@ func main() {
 	},
 		path.Join(*outDir, "config.go"),
 		path.Join(*templateDir, "config.tpl"))
+	if err != nil {
+		panic(err)
+	}
+
+	err = write(templateData{
+		FlagTemplateData:      fd,
+		TypeTemplateData:      td,
+		MachineTypeToGroupMap: machineTypeToGroupMap,
+		Backticks:             "`",
+	},
+		path.Join(*outDir, "config_test.go"),
+		path.Join(*templateDir, "config_test.tpl"))
 	if err != nil {
 		panic(err)
 	}

@@ -33,10 +33,6 @@ type mockIsValueSet struct {
 	stringFlags map[string]string
 }
 
-func (m *mockIsValueSet) IsValueSet(flag string) bool {
-	return m.setFlags[flag]
-}
-
 func (m *mockIsValueSet) IsSet(flag string) bool {
 	return m.setFlags[flag]
 }
