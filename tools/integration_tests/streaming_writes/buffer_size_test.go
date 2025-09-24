@@ -15,19 +15,32 @@
 package streaming_writes
 
 import (
+	"os"
 	"path"
 	"testing"
 
 	. "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestWritesWithDifferentConfig(t *testing.T) {
 	// Do not run this test with mounted directory flag.
-	if setup.MountedDirectory() != "" {
+	if testEnv.cfg.GKEMountedDirectory != "" {
 		t.SkipNow()
 	}
+	// Create a separate mountDir for these tests so it doesn't interfere with the other tests.
+	oldMntDir := testEnv.cfg.GCSFuseMountedDirectory
+	newMountDir := path.Join(setup.TestDir(), "mntTestWritesWithDifferentConfig")
+	err := os.MkdirAll(newMountDir, 0755)
+	assert.True(t, err == nil || os.IsExist(err))
+	testEnv.cfg.GCSFuseMountedDirectory = newMountDir
+	defer func() {
+		testEnv.cfg.GCSFuseMountedDirectory = oldMntDir
+	}()
 	testCases := []struct {
 		name     string
 		flags    []string
@@ -58,17 +71,18 @@ func TestWritesWithDifferentConfig(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			setup.MountGCSFuseWithGivenMountFunc(tc.flags, mountFunc)
+			err := static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(&testEnv.cfg, tc.flags)
+			require.NoError(t, err)
 			defer setup.SaveGCSFuseLogFileInCaseOfFailure(t)
-			defer setup.UnmountGCSFuse(rootDir)
-			testDirPath = setup.SetupTestDirectory(testDirName)
+			defer setup.UnmountGCSFuseWithConfig(&testEnv.cfg)
+			testEnv.testDirPath = setup.SetupTestDirectory(testDirName)
 			// Create a local file.
-			fh := operations.CreateFile(path.Join(testDirPath, FileName1), FilePerms, t)
-			testDirName := GetDirName(testDirPath)
+			fh := operations.CreateFile(path.Join(testEnv.testDirPath, FileName1), FilePerms, t)
+			testDirName := GetDirName(testEnv.testDirPath)
 			if setup.IsZonalBucketRun() {
-				ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, FileName1, "", t)
+				ValidateObjectContentsFromGCS(testEnv.ctx, testEnv.storageClient, testDirName, FileName1, "", t)
 			} else {
-				ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t)
+				ValidateObjectNotFoundErrOnGCS(testEnv.ctx, testEnv.storageClient, testDirName, FileName1, t)
 			}
 			data, err := operations.GenerateRandomData(tc.fileSize)
 			if err != nil {
@@ -79,7 +93,7 @@ func TestWritesWithDifferentConfig(t *testing.T) {
 			operations.WriteAt(string(data[:]), 0, fh, t)
 
 			// Close the file and validate that the file is created on GCS.
-			CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, FileName1, string(data[:]), t)
+			CloseFileAndValidateContentFromGCS(testEnv.ctx, testEnv.storageClient, fh, testDirName, FileName1, string(data[:]), t)
 		})
 	}
 }

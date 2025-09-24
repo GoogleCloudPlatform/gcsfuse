@@ -21,6 +21,8 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -36,6 +38,17 @@ const (
 ////////////////////////////////////////////////////////////////////////
 // Types
 ////////////////////////////////////////////////////////////////////////
+
+// OptimizationResult holds the outcome of an optimization check, including the
+// new value and the reason for the change.
+type OptimizationResult struct {
+	// FinalValue is the value after applying all the optimizations. This will be the same as the original value if optimizations didn't change anything.
+	FinalValue any
+	// If value is optimized, then this will contain the description of what optimization caused the change, e.g. "profile aiml-training", or "machine-type a3-highgpu-8g" etc.
+	OptimizationReason string
+	// Optimized true indicates that the value was changed by optimization (either machine-type based, or profile-based).
+	Optimized bool
+}
 
 type isValueSet interface {
 	IsSet(string) bool
@@ -71,33 +84,6 @@ type optimizationConfig struct {
 ////////////////////////////////////////////////////////////////////////
 
 var (
-	// defaultOptimizationConfig provides a default configuration for optimizations.
-	defaultOptimizationConfig = optimizationConfig{
-		flagOverrideSets: []flagOverrideSet{
-			{
-				name: "high-performance",
-				overrides: map[string]flagOverride{
-					"write.global-max-blocks":               {newValue: 1600},
-					"metadata-cache.negative-ttl-secs":      {newValue: 0},
-					"metadata-cache.ttl-secs":               {newValue: -1},
-					"metadata-cache.stat-cache-max-size-mb": {newValue: 1024},
-					"metadata-cache.type-cache-max-size-mb": {newValue: 128},
-					"implicit-dirs":                         {newValue: true},
-					"file-system.rename-dir-limit":          {newValue: 200000},
-				},
-			},
-		},
-		machineTypes: []machineType{
-			{
-				names: []string{
-					"a2-megagpu-16g", "a2-ultragpu-8g", "a3-edgegpu-8g", "a3-highgpu-8g", "a3-megagpu-8g", "a3-ultragpu-8g", "a4-highgpu-8g-lowmem",
-					"ct5l-hightpu-8t", "ct5lp-hightpu-8t", "ct5p-hightpu-4t", "ct5p-hightpu-4t-tpu", "ct6e-standard-4t", "ct6e-standard-4t-tpu", "ct6e-standard-8t", "ct6e-standard-8t-tpu"},
-				flagOverrideSetName: "high-performance",
-			},
-			// Add more machine types here as needed.
-		},
-	}
-
 	// metadataEndpoints are the endpoints to try for fetching metadata.
 	// Use an array to make provision for https endpoint in the future: https://cloud.google.com/compute/docs/metadata/querying-metadata#metadata_server_endpoints
 	metadataEndpoints = []string{
@@ -158,57 +144,6 @@ func getMachineType(isSet isValueSet) (string, error) {
 	}
 
 	return "", fmt.Errorf("failed to get machine type from any metadata endpoint after retries")
-}
-
-func applyMachineTypeOptimizations(config *optimizationConfig, cfg *Config, isSet isValueSet) []string {
-	currentMachineType, err := getMachineType(isSet)
-	if err != nil {
-		return nil // Non-fatal error, continue with default settings.
-	}
-	var optimizedFlags []string
-
-	// Find the matching machine type.
-	mtIndex := slices.IndexFunc(config.machineTypes, func(mt machineType) bool {
-		return slices.ContainsFunc(mt.names, func(name string) bool {
-			return strings.HasPrefix(currentMachineType, name)
-		})
-	})
-
-	// If no matching machine type is found, return.
-	if mtIndex == -1 {
-		return optimizedFlags
-	}
-	mt := &config.machineTypes[mtIndex]
-
-	// Find the corresponding flag override set.
-	flgOverrideSetIndex := slices.IndexFunc(config.flagOverrideSets, func(fos flagOverrideSet) bool {
-		return fos.name == mt.flagOverrideSetName
-	})
-
-	// If no matching flag override set is found, return.
-	if flgOverrideSetIndex == -1 {
-		return optimizedFlags
-	}
-	flgOverrideSet := &config.flagOverrideSets[flgOverrideSetIndex]
-
-	// Apply all overrides from the set.
-	for flag, override := range flgOverrideSet.overrides {
-		err := setFlagValue(cfg, flag, override, isSet)
-		if err == nil {
-			optimizedFlags = append(optimizedFlags, flag)
-		}
-	}
-	return optimizedFlags
-}
-
-// Optimize applies machine-type specific optimizations.
-func Optimize(cfg *Config, isSet isValueSet) []string {
-	// Check if disable-autoconfig is set to true.
-	if isSet.GetBool("disable-autoconfig") {
-		return nil
-	}
-	optimizedFlags := applyMachineTypeOptimizations(&defaultOptimizationConfig, cfg, isSet)
-	return optimizedFlags
 }
 
 // convertToCamelCase converts a string from snake-case to CamelCase.
@@ -298,4 +233,45 @@ func setFlagValue(cfg *Config, flag string, override flagOverride, isSet isValue
 
 func isFlagPresent(flags []string, flag string) bool {
 	return slices.Contains(flags, flag)
+}
+
+// getOptimizedValue contains the generic logic to determine the optimized value for a flag.
+func getOptimizedValue(
+	rules *shared.OptimizationRules,
+	currentValue any,
+	profileName string,
+	machineType string,
+	machineTypeToGroupMap map[string]string,
+) OptimizationResult {
+	// Precedence: Profile -> Machine -> Default
+
+	// 1. If a profile with the given name is active and has optimization defined for it, then it takes precedence.
+	for _, p := range rules.Profiles {
+		if p.Name == profileName {
+			return OptimizationResult{
+				FinalValue:         p.Value,
+				OptimizationReason: fmt.Sprintf("profile %q setting", profileName),
+				Optimized:          true,
+			}
+		}
+	}
+
+	// 2. Only if no profile is set, check for a machine-based optimization.
+	if group, ok := machineTypeToGroupMap[machineType]; ok {
+		for _, mbo := range rules.MachineBasedOptimization {
+			if mbo.Group == group {
+				return OptimizationResult{
+					FinalValue:         mbo.Value,
+					OptimizationReason: fmt.Sprintf("machine-type group %q", group),
+					Optimized:          true,
+				}
+			}
+		}
+	}
+
+	// 3. If no optimization is found, return the original value.
+	return OptimizationResult{
+		FinalValue: currentValue,
+		Optimized:  false,
+	}
 }

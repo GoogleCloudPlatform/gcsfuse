@@ -90,7 +90,7 @@ func isHNSTestRun(t *testing.T) bool {
 
 func (testSuite *PromTest) SetupSuite() {
 	setup.IgnoreTestIfIntegrationTestFlagIsNotSet(testSuite.T())
-	err := setup.SetUpTestDir()
+	_, err := setup.SetUpTestDir()
 	require.NoErrorf(testSuite.T(), err, "error while building GCSFuse: %p", err)
 }
 

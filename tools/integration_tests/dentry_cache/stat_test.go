@@ -65,8 +65,8 @@ func (s *statWithDentryCacheEnabledTest) TestStatWithDentryCacheEnabled() {
 
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), int64(initialContentSize), fileInfo.Size())
-	// Wait for a period more than the timeout (1 second), so that entry expires in cache.
-	time.Sleep(1100 * time.Millisecond)
+	// Wait for a period more than the timeout (2 second), so that entry expires in cache.
+	time.Sleep(2100 * time.Millisecond)
 	// Stat again, it should give updated attributes.
 	fileInfo, err = os.Stat(filePath)
 	assert.Nil(s.T(), err)
@@ -89,8 +89,8 @@ func (s *statWithDentryCacheEnabledTest) TestStatWhenFileIsDeletedDirectlyFromGC
 
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), int64(initialContentSize), fileInfo.Size())
-	// Wait for a period more than the timeout (1 second), so that entry expires in cache.
-	time.Sleep(1100 * time.Millisecond)
+	// Wait for a period more than the timeout (2 second), so that entry expires in cache.
+	time.Sleep(2100 * time.Millisecond)
 	// Stat again, it should give error as file does not exist.
 	_, err = os.Stat(filePath)
 	assert.NotNil(s.T(), err)
@@ -106,7 +106,7 @@ func TestStatWithDentryCacheEnabledTest(t *testing.T) {
 	}
 
 	// Setup flags and run tests.
-	ts.flags = []string{"--implicit-dirs", "--experimental-enable-dentry-cache", "--metadata-cache-ttl-secs=1"}
+	ts.flags = []string{"--implicit-dirs", "--experimental-enable-dentry-cache", "--metadata-cache-ttl-secs=2"}
 	log.Printf("Running tests with flags: %s", ts.flags)
 	suite.Run(t, ts)
 }

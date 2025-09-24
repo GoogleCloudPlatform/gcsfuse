@@ -33,6 +33,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
@@ -185,6 +186,7 @@ func CloseFile(file *os.File) {
 	if err := file.Close(); err != nil {
 		log.Fatalf("error in closing: %v", err)
 	}
+	WaitForSizeUpdate(setup.IsZonalBucketRun(), time.Second)
 }
 
 func RemoveFile(filePath string) {
@@ -254,9 +256,12 @@ func WriteChunkOfRandomBytesToFiles(files []*os.File, chunkSize int, offset int6
 			return fmt.Errorf("incorrect number of bytes written in the file %s actual %d, expected %d", file.Name(), n, chunkSize)
 		}
 
-		err = file.Sync()
-		if err != nil {
-			return fmt.Errorf("error in syncing file: %v", err)
+		if !setup.IsZonalBucketRun() {
+			err = file.Sync()
+			if err != nil {
+				return fmt.Errorf("error in syncing file: %v", err)
+			}
+			WaitForSizeUpdate(setup.IsZonalBucketRun(), time.Minute)
 		}
 	}
 
@@ -620,6 +625,7 @@ func WriteAt(content string, offset int64, fh *os.File, t testing.TB) {
 func CloseFileShouldNotThrowError(t testing.TB, file *os.File) {
 	err := file.Close()
 	assert.NoError(t, err)
+	WaitForSizeUpdate(setup.IsZonalBucketRun(), time.Second)
 }
 
 func CloseFileShouldThrowError(t *testing.T, file *os.File) {
@@ -635,6 +641,14 @@ func SyncFile(fh *os.File, t *testing.T) {
 	// Verify fh.Sync operation succeeds.
 	if err != nil {
 		t.Fatalf("%s.Sync(): %v", fh.Name(), err)
+	}
+	WaitForSizeUpdate(setup.IsZonalBucketRun(), time.Minute)
+}
+
+func SyncFiles(files []*os.File, t *testing.T) {
+	t.Helper()
+	for _, file := range files {
+		SyncFile(file, t)
 	}
 }
 
@@ -818,5 +832,25 @@ func ValidateSyncGivenThatFileIsClobbered(t *testing.T, file *os.File, streaming
 		assert.NoError(t, err)
 	} else {
 		ValidateESTALEError(t, err)
+	}
+}
+
+// CreateFileAndCopyToMntDir creates a file of given size.
+// The same file will be copied to the mounted directory as well.
+func CreateFileAndCopyToMntDir(t *testing.T, fileSize int, dirName string) (string, string) {
+	testDir := setup.SetupTestDirectory(dirName)
+	fileInLocalDisk := "test_file" + setup.GenerateRandomString(5) + ".txt"
+	filePathInLocalDisk := path.Join(os.TempDir(), fileInLocalDisk)
+	filePathInMntDir := path.Join(testDir, fileInLocalDisk)
+	CreateFileOnDiskAndCopyToMntDir(t, filePathInLocalDisk, filePathInMntDir, fileSize)
+	return filePathInLocalDisk, filePathInMntDir
+}
+
+// CreateFileOnDiskAndCopyToMntDir creates a file of given size and copies to given path.
+func CreateFileOnDiskAndCopyToMntDir(t *testing.T, filePathInLocalDisk string, filePathInMntDir string, fileSize int) {
+	setup.RunScriptForTestData("../util/setup/testdata/write_content_of_fix_size_in_file.sh", filePathInLocalDisk, strconv.Itoa(fileSize))
+	err := CopyFile(filePathInLocalDisk, filePathInMntDir)
+	if err != nil {
+		t.Errorf("Error in copying file:%v", err)
 	}
 }

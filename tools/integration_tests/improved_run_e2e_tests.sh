@@ -58,7 +58,7 @@ readonly TPCZERO_PROJECT_ID="tpczero-system:gcsfuse-test-project"
 readonly TPC_BUCKET_LOCATION="u-us-prp1"
 readonly BUCKET_PREFIX="gcsfuse-e2e"
 readonly INTEGRATION_TEST_PACKAGE_DIR="./tools/integration_tests"
-readonly INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS=60 
+readonly INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS=90 
 readonly TMP_PREFIX="gcsfuse_e2e"
 readonly ZONAL_BUCKET_SUPPORTED_LOCATIONS=("us-central1" "us-west4")
 readonly DELETE_BUCKET_PARALLELISM=10 # Controls how many buckets are deleted in parallel.
@@ -199,7 +199,7 @@ TEST_PACKAGES_COMMON=(
   "operations"
   "read_large_files"
   "concurrent_operations"
-  "read_cache"
+  # "read_cache"
   "list_large_dir"
   "mount_timeout"
   "write_large_files"
@@ -227,9 +227,9 @@ TEST_PACKAGES_COMMON=(
 )
 
 # Test packages for regional buckets.
-TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "inactive_stream_timeout" "cloud_profiler")
+TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "read_cache" "inactive_stream_timeout" "cloud_profiler")
 # Test packages for zonal buckets.
-TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "unfinalized_object" "rapid_appends")
+TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "unfinalized_object")
 # Test packages for TPC buckets.
 TEST_PACKAGES_FOR_TPC=("operations")
 

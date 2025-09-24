@@ -32,6 +32,27 @@
 #
 ###################################### DOCUMENTATION ENDS ######################
 
+# Keep this section at the top of the file.
+machine-type-groups:
+  high-performance:
+    - "a2-megagpu-16g"
+    - "a2-ultragpu-8g"
+    - "a3-edgegpu-8g"
+    - "a3-highgpu-8g"
+    - "a3-megagpu-8g"
+    - "a3-ultragpu-8g"
+    - "a4-highgpu-8g-lowmem"
+    - "ct5l-hightpu-8t"
+    - "ct5lp-hightpu-8t"
+    - "ct5p-hightpu-4t"
+    - "ct5p-hightpu-4t-tpu"
+    - "ct6e-standard-4t"
+    - "ct6e-standard-4t-tpu"
+    - "ct6e-standard-8t"
+    - "ct6e-standard-8t-tpu"
+    # Add other machine types here as needed.
+  # Add other groups here as needed
+
 params:
   - config-path: "app-name"
     flag-name: "app-name"
@@ -163,6 +184,12 @@ params:
     type: "bool"
     usage: "Whether to cache file for range reads."
     default: false
+    optimizations:
+      profiles:
+        - name: "aiml-serving"
+          value: true
+        - name: "aiml-checkpointing"
+          value: true
 
   - config-path: "file-cache.download-chunk-size-mb"
     flag-name: "file-cache-download-chunk-size-mb"
@@ -173,7 +200,7 @@ params:
   - config-path: "file-cache.enable-crc"
     flag-name: "file-cache-enable-crc"
     type: "bool"
-    usage: "Performs CRC to ensure that file is correctly downloaded into cache."
+    usage: "Performs CRC to ensure that file is correctly downloaded into cache. No op for rapid storage."
     default: false
     hide-flag: true
 
@@ -296,6 +323,10 @@ params:
       caching. Use -1 to cache for lifetime (no ttl). Negative value other than -1
       will throw error.
     default: "0"
+    optimizations:
+      profiles:
+        - name: "aiml-serving"
+          value: -1
 
   - config-path: "file-system.precondition-errors"
     flag-name: "precondition-errors"
@@ -320,6 +351,13 @@ params:
     type: "int"
     usage: "Allow rename a directory containing fewer descendants than this limit."
     default: "0"
+    optimizations:
+      machine-based-optimization:
+        - group: "high-performance"
+          value: 200000
+      profiles:
+        - name: "aiml-checkpointing"
+          value: 200000
 
   - config-path: "file-system.temp-dir"
     flag-name: "temp-dir"
@@ -416,6 +454,13 @@ params:
       The time duration that http client will wait to get response from the
       server. A value of 0 indicates no timeout.
     default: "0s"
+
+  - config-path: "gcs-connection.http-dns-cache-ttl-secs"
+    flag-name: "http-dns-cache-ttl-secs"
+    type: "int"
+    usage: "Sets the DNS cache TTL for HTTP/1 connection to the specified value in seconds. Special values: -1 means infinite TTL and 0 disables caching"
+    default: "0"
+    hide-flag: true
 
   - config-path: "gcs-connection.limit-bytes-per-sec"
     flag-name: "limit-bytes-per-sec"
@@ -533,6 +578,17 @@ params:
     type: "bool"
     usage: "Implicitly define directories based on content. See files and directories in docs/semantics for more information"
     default: false
+    optimizations:
+      machine-based-optimization:
+        - group: "high-performance"
+          value: true
+      profiles:
+        - name: "aiml-training"
+          value: true
+        - name: "aiml-serving"
+          value: true
+        - name: "aiml-checkpointing"
+          value: true
 
   - config-path: "list.enable-empty-managed-folders"
     flag-name: "enable-empty-managed-folders"
@@ -672,6 +728,17 @@ params:
       can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled
       negative entries in metadata-cache. Any value set below -1 will throw an error.
     default: "5"
+    optimizations:
+      machine-based-optimization:
+        - group: "high-performance"
+          value: 0
+      profiles:
+        - name: "aiml-training"
+          value: 0
+        - name: "aiml-serving"
+          value: 0
+        - name: "aiml-checkpointing"
+          value: 0
 
   - config-path: "metadata-cache.stat-cache-max-size-mb"
     flag-name: "stat-cache-max-size-mb"
@@ -680,6 +747,17 @@ params:
       The maximum size of stat-cache in MiBs. It can also be set to -1 for
       no-size-limit, 0 for no cache. Values below -1 are not supported.
     default: "33"
+    optimizations:
+      machine-based-optimization:
+        - group: "high-performance"
+          value: 1024
+      profiles:
+        - name: "aiml-training"
+          value: -1
+        - name: "aiml-serving"
+          value: -1
+        - name: "aiml-checkpointing"
+          value: -1
 
   - config-path: "metadata-cache.ttl-secs"
     flag-name: "metadata-cache-ttl-secs"
@@ -689,12 +767,34 @@ params:
       can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled
       metadata-cache. Any value set below -1 will throw an error.
     default: "60"
+    optimizations:
+      machine-based-optimization:
+        - group: "high-performance"
+          value: -1
+      profiles:
+        - name: "aiml-training"
+          value: -1
+        - name: "aiml-serving"
+          value: -1
+        - name: "aiml-checkpointing"
+          value: -1
 
   - config-path: "metadata-cache.type-cache-max-size-mb"
     flag-name: "type-cache-max-size-mb"
     type: "int"
     usage: "Max size of type-cache maps which are maintained at a per-directory level."
     default: "4"
+    optimizations:
+      machine-based-optimization:
+        - group: "high-performance"
+          value: 128
+      profiles:
+        - name: "aiml-training"
+          value: -1
+        - name: "aiml-serving"
+          value: -1
+        - name: "aiml-checkpointing"
+          value: -1
 
   - config-path: "metrics.buffer-size"
     flag-name: "metrics-buffer-size"
@@ -876,6 +976,10 @@ params:
       A value of 0 disables streaming writes.
     default: 4
     hide-flag: false
+    optimizations:
+      machine-based-optimization:
+        - group: "high-performance"
+          value: 1600
 
   - config-path: "write.max-blocks-per-file"
     flag-name: "write-max-blocks-per-file"

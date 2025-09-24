@@ -14,6 +14,7 @@
 
 CSI_VERSION ?= main
 GCSFUSE_VERSION ?= $(shell HASH=$$(git rev-parse --short=6 HEAD 2>/dev/null); if [ -z "$$HASH" ]; then echo "unknown"; else if [ -n "$$(git status --porcelain)" ]; then echo "$$HASH-dirty"; else echo "$$HASH"; fi; fi)
+BUILD_ARM=false
 .DEFAULT_GOAL := build
 
 .PHONY: generate imports fmt vet build buildTest install test clean-gen clean clean-all build-csi
@@ -52,4 +53,4 @@ clean-all: clean-gen
 	go clean -i ./...
 
 build-csi: build
-	gcloud builds submit --config csi_driver_build.yml --substitutions=_CSI_VERSION=$(CSI_VERSION),_GCSFUSE_VERSION=$(GCSFUSE_VERSION)
+	gcloud builds submit --config csi_driver_build.yml --substitutions=_CSI_VERSION=$(CSI_VERSION),_GCSFUSE_VERSION=$(GCSFUSE_VERSION),_BUILD_ARM=$(BUILD_ARM)

@@ -76,6 +76,9 @@ type MultiRangeDownloaderWrapper struct {
 	clock clock.Clock
 	// GCSFuse mount config.
 	config *cfg.Config
+	// MRD Read handle. Would be updated when MRD is being closed so that it can be used
+	// next time during MRD recreation.
+	handle []byte
 }
 
 // SetMinObject sets the gcs.MinObject stored in the wrapper to passed value, only if it's non nil.
@@ -128,82 +131,73 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) DecrementRefCount() (err error) {
 
 	mrdWrapper.refCount--
 	if mrdWrapper.refCount == 0 && mrdWrapper.Wrapped != nil {
+		mrdWrapper.handle = mrdWrapper.Wrapped.GetHandle()
 		mrdWrapper.Wrapped.Close()
 		mrdWrapper.Wrapped = nil
-		// TODO (b/391508479): Start using cleanup function when MRD recreation is handled
-		// mrdWrapper.cleanupMultiRangeDownloader()
 	}
 	return
 }
 
-// Spawns a cancellable go routine to close the MRD after the timeout.
-// Always call after taking MultiRangeDownloaderWrapper's mutex lock.
-func (mrdWrapper *MultiRangeDownloaderWrapper) cleanupMultiRangeDownloader() {
-	closeMRD := func(ctx context.Context) {
-		select {
-		case <-mrdWrapper.clock.After(multiRangeDownloaderTimeout):
-			mrdWrapper.mu.Lock()
-			defer mrdWrapper.mu.Unlock()
-
-			if mrdWrapper.refCount == 0 && mrdWrapper.Wrapped != nil {
-				mrdWrapper.Wrapped.Close()
-				mrdWrapper.Wrapped = nil
-				mrdWrapper.cancelCleanup = nil
-			}
-		case <-ctx.Done():
-			return
-		}
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	mrdWrapper.cancelCleanup = cancel
-	go closeMRD(ctx)
-}
-
 // Ensures that MultiRangeDownloader exists, creating it if it does not exist.
-func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader() (err error) {
+// LOCK_REQUIRED(mrdWrapper.mu.RLock)
+func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader(forceRecreateMRD bool) (err error) {
 	if mrdWrapper.object == nil || mrdWrapper.bucket == nil {
 		return fmt.Errorf("ensureMultiRangeDownloader error: Missing minObject or bucket")
 	}
 
-	mrdWrapper.mu.RLock()
 	// Create the MRD if it does not exist.
 	// In case the existing MRD is unusable due to closed stream, recreate the MRD.
-	if mrdWrapper.Wrapped == nil || mrdWrapper.Wrapped.Error() != nil {
+	if forceRecreateMRD || mrdWrapper.Wrapped == nil || mrdWrapper.Wrapped.Error() != nil {
+		// The calling function holds a read lock. To create a new downloader, we need to
+		// upgrade to a write lock. This is done by releasing the read lock, acquiring
+		// the write lock, and then using a deferred function to downgrade back to a
+		// read lock before this function returns.
 		mrdWrapper.mu.RUnlock()
 		mrdWrapper.mu.Lock()
-		defer mrdWrapper.mu.Unlock()
-
+		defer func() {
+			mrdWrapper.mu.Unlock()
+			mrdWrapper.mu.RLock()
+		}()
 		// Checking if the mrdWrapper state is same after taking the lock.
-		if mrdWrapper.Wrapped == nil || mrdWrapper.Wrapped.Error() != nil {
+		if forceRecreateMRD || mrdWrapper.Wrapped == nil || mrdWrapper.Wrapped.Error() != nil {
 			var mrd gcs.MultiRangeDownloader
+			var handle []byte
+			if !forceRecreateMRD {
+				// Get read handle from MRD if it exists otherwise use the cached read handle
+				if mrdWrapper.Wrapped != nil {
+					handle = mrdWrapper.Wrapped.GetHandle()
+				} else {
+					handle = mrdWrapper.handle
+				}
+			}
 			mrd, err = mrdWrapper.bucket.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
 				Name:           mrdWrapper.object.Name,
 				Generation:     mrdWrapper.object.Generation,
 				ReadCompressed: mrdWrapper.object.HasContentEncodingGzip(),
+				ReadHandle:     handle,
 			})
 			if err == nil {
 				// Updating mrdWrapper.Wrapped only when MRD creation was successful.
 				mrdWrapper.Wrapped = mrd
 			}
 		}
-	} else {
-		mrdWrapper.mu.RUnlock()
 	}
 	return
 }
 
 // Reads the data using MultiRangeDownloader.
-func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []byte, startOffset int64, endOffset int64, metricHandle metrics.MetricHandle) (bytesRead int, err error) {
+func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []byte, startOffset int64, endOffset int64, metricHandle metrics.MetricHandle, forceCreateMRD bool) (bytesRead int, err error) {
 	// Bidi Api with 0 as read_limit means no limit whereas we do not want to read anything with empty buffer.
 	// Hence, handling it separately.
 	if len(buf) == 0 {
 		return 0, nil
 	}
 
-	err = mrdWrapper.ensureMultiRangeDownloader()
+	mrdWrapper.mu.RLock()
+	err = mrdWrapper.ensureMultiRangeDownloader(forceCreateMRD)
 	if err != nil {
 		err = fmt.Errorf("MultiRangeDownloaderWrapper::Read: Error in creating MultiRangeDownloader:  %v", err)
+		mrdWrapper.mu.RUnlock()
 		return
 	}
 
@@ -238,6 +232,7 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 			e = fmt.Errorf("error in Add call: %w", e)
 		}
 	})
+	mrdWrapper.mu.RUnlock()
 
 	if !mrdWrapper.config.FileSystem.IgnoreInterrupts {
 		select {

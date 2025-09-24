@@ -105,7 +105,7 @@ func (t *multiRangeReaderTest) Test_ReadFromMultiRangeReader_ReadFull() {
 			t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true}).Times(1)
 			buf := make([]byte, tc.dataSize+tc.extraSize)
 
-			bytesRead, err := t.multiRangeReader.readFromMultiRangeReader(t.ctx, buf, 0, int64(t.object.Size))
+			bytesRead, err := t.multiRangeReader.readFromMultiRangeReader(t.ctx, buf, 0, int64(t.object.Size), false)
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), tc.dataSize, bytesRead)
@@ -117,7 +117,7 @@ func (t *multiRangeReaderTest) Test_ReadFromMultiRangeReader_ReadFull() {
 func (t *multiRangeReaderTest) Test_ReadFromMultiRangeReader_NilMRDWrapper() {
 	t.multiRangeReader.mrdWrapper = nil
 
-	bytesRead, err := t.multiRangeReader.readFromMultiRangeReader(t.ctx, make([]byte, t.object.Size), 0, int64(t.object.Size))
+	bytesRead, err := t.multiRangeReader.readFromMultiRangeReader(t.ctx, make([]byte, t.object.Size), 0, int64(t.object.Size), false)
 
 	assert.Error(t.T(), err)
 	assert.ErrorContains(t.T(), err, "readFromMultiRangeReader: Invalid MultiRangeDownloaderWrapper")
@@ -149,7 +149,7 @@ func (t *multiRangeReaderTest) Test_ReadFromMultiRangeReader_ReadChunk() {
 		t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true}).Times(1)
 		buf := make([]byte, tc.end-tc.start)
 
-		bytesRead, err := t.multiRangeReader.readFromMultiRangeReader(t.ctx, buf, int64(tc.start), int64(tc.end))
+		bytesRead, err := t.multiRangeReader.readFromMultiRangeReader(t.ctx, buf, int64(tc.start), int64(tc.end), false)
 
 		assert.NoError(t.T(), err)
 		assert.Equal(t.T(), tc.end-tc.start, bytesRead)

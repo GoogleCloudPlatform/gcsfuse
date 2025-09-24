@@ -22,6 +22,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
@@ -125,6 +126,15 @@ func CreateObjectInGCSTestDir(ctx context.Context, storageClient *storage.Client
 	}
 }
 
+func CreateFinalizedObjectInGCSTestDir(ctx context.Context, storageClient *storage.Client,
+	testDirName, fileName, content string, t *testing.T) {
+	objectName := path.Join(testDirName, fileName)
+	err := CreateFinalizedObjectOnGCS(ctx, storageClient, objectName, content)
+	if err != nil {
+		t.Fatalf("Create Object %s on GCS: %v.", objectName, err)
+	}
+}
+
 func SetupFileInTestDirectory(ctx context.Context, storageClient *storage.Client,
 	testDirName, testFileName string, size int64, t *testing.T) {
 	randomData, err := operations.GenerateRandomData(size)
@@ -180,6 +190,7 @@ func CreateUnfinalizedObject(ctx context.Context, t *testing.T, client *storage.
 	flushOffset, err := writer.Flush()
 	require.NoError(t, err)
 	assert.Equal(t, int64(len(content)), flushOffset)
-
+	// Sleep for a minute after flush to get correct size on stat.
+	time.Sleep(time.Minute)
 	return writer
 }

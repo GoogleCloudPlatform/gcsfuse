@@ -968,7 +968,12 @@ func (dt *downloaderTest) Test_validateCRC_WheContextIsCancelled() {
 	AssertEq(nil, dt.job.status.Err)
 	AssertGe(dt.job.status.Offset, offset)
 
-	dt.job.cancelFunc()
+	// Taking lock to ensure cancelFunc is valid before calling it.
+	dt.job.mu.Lock()
+	if dt.job.cancelFunc != nil {
+		dt.job.cancelFunc()
+	}
+	dt.job.mu.Unlock()
 	dt.waitForCrcCheckToBeCompleted()
 
 	AssertEq(Invalid, dt.job.status.Name)

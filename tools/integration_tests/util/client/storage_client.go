@@ -173,6 +173,8 @@ func NewWriter(ctx context.Context, o *storage.ObjectHandle, client *storage.Cli
 		if setup.IsZonalBucketRun() {
 			// Zonal bucket writers require append-flag to be set.
 			wc.Append = true
+			// Zonal buckets with rapid appends should not finalize on close.
+			wc.FinalizeOnClose = false
 		} else {
 			return nil, fmt.Errorf("found zonal bucket %q in non-zonal e2e test run (--zonal=false)", o.BucketName())
 		}
@@ -200,6 +202,7 @@ func WriteToObject(ctx context.Context, client *storage.Client, object, content 
 	if err := wc.Close(); err != nil {
 		return fmt.Errorf("Writer.Close failed for object %q: %w", object, err)
 	}
+	operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), time.Second)
 
 	return nil
 }
@@ -207,6 +210,24 @@ func WriteToObject(ctx context.Context, client *storage.Client, object, content 
 // CreateObjectOnGCS creates an object with given name and content on GCS.
 func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, content string) error {
 	return WriteToObject(ctx, client, object, content, storage.Conditions{DoesNotExist: true})
+}
+
+func CreateFinalizedObjectOnGCS(ctx context.Context, client *storage.Client, object, content string) error {
+	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
+	o := client.Bucket(bucket).Object(object)
+
+	// Upload an object with storage.Writer with finalizeOnClose=true
+	wc := o.NewWriter(ctx)
+	wc.Append = true
+	wc.FinalizeOnClose = true
+	if _, err := io.WriteString(wc, content); err != nil {
+		return fmt.Errorf("io.WriteString failed for object %q: %w", object, err)
+	}
+	if err := wc.Close(); err != nil {
+		return fmt.Errorf("Writer.Close failed for object %q: %w", object, err)
+	}
+	operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), time.Second)
+	return nil
 }
 
 // CreateStorageClientWithCancel creates a new storage client with a cancelable context and returns a function that can be used to cancel the client's operations
@@ -351,6 +372,7 @@ func UploadGcsObjectWithPreconditions(ctx context.Context, client *storage.Clien
 		if err := w.Close(); err != nil {
 			log.Printf("Failed to close GCS object gs://%s/%s: %v", bucketName, objectName, err)
 		}
+		operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), time.Second)
 	}()
 
 	filePathToUpload := localPath

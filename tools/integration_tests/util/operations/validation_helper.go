@@ -54,6 +54,13 @@ func ValidateESTALEError(t *testing.T, err error) {
 	assert.Regexp(t, syscall.ESTALE.Error(), err.Error())
 }
 
+func ValidateEIOError(t *testing.T, err error) {
+	t.Helper()
+
+	require.Error(t, err)
+	assert.Regexp(t, syscall.EIO.Error(), err.Error())
+}
+
 func CheckErrorForReadOnlyFileSystem(t *testing.T, err error) {
 	if err == nil {
 		t.Error("permission denied error expected but got nil error.")

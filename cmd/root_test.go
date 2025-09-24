@@ -367,6 +367,46 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteGlobalMaxBlocks:  2000,
 			expectedWriteMaxBlocksPerFile: 1,
 		},
+		{
+			name:                          "Test_optimization_fallback_to_machine-type_config_with_un-overridden_profile_on_high-end_machine",
+			args:                          []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--profile=" + cfg.ProfileAIMLCheckpointing, "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: true,
+			expectedEnableRapidAppends:    true,
+			expectedWriteBlockSizeMB:      32,
+			expectedWriteGlobalMaxBlocks:  1600,
+			expectedWriteMaxBlocksPerFile: 1,
+		},
+		{
+			name:                          "Test_optimization_fallback_to_default_config_with_un-overridden_profile_on_low-end_machine",
+			args:                          []string{"gcsfuse", "--machine-type=low-end-machine", "--profile=" + cfg.ProfileAIMLCheckpointing, "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: true,
+			expectedEnableRapidAppends:    true,
+			expectedWriteBlockSizeMB:      32,
+			expectedWriteGlobalMaxBlocks:  4,
+			expectedWriteMaxBlocksPerFile: 1,
+		},
+		{
+			name:                          "Test_optimization_overriden_by_user_config_with_profile_set_on_high-end_machine",
+			args:                          []string{"gcsfuse", "--write-global-max-blocks=200", "--machine-type=a3-highgpu-8g", "--profile=" + cfg.ProfileAIMLCheckpointing, "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: true,
+			expectedEnableRapidAppends:    true,
+			expectedWriteBlockSizeMB:      32,
+			expectedWriteGlobalMaxBlocks:  200,
+			expectedWriteMaxBlocksPerFile: 1,
+		},
+		{
+			name:                          "Test_optimizationoverriden_by_user_config_with_profile_set_on_low-end_machine",
+			args:                          []string{"gcsfuse", "--write-global-max-blocks=16", "--machine-type=low-end-machine", "--profile=" + cfg.ProfileAIMLCheckpointing, "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: true,
+			expectedEnableRapidAppends:    true,
+			expectedWriteBlockSizeMB:      32,
+			expectedWriteGlobalMaxBlocks:  16,
+			expectedWriteMaxBlocksPerFile: 1,
+		},
 	}
 
 	for _, tc := range tests {
@@ -777,6 +817,26 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Test http-dns-cache-ttl-secs flag.",
+			args: []string{"gcsfuse", "--http-dns-cache-ttl-secs=120", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				GcsConnection: cfg.GcsConnectionConfig{
+					BillingProject:             "",
+					ClientProtocol:             "http1",
+					CustomEndpoint:             "",
+					ExperimentalEnableJsonRead: false,
+					GrpcConnPoolSize:           1,
+					HttpClientTimeout:          0,
+					LimitBytesPerSec:           -1,
+					LimitOpsPerSec:             -1,
+					MaxConnsPerHost:            0,
+					MaxIdleConnsPerHost:        100,
+					SequentialReadSizeMb:       200,
+					HttpDnsCacheTtlSecs:        120,
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -853,13 +913,17 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 		PreconditionErrors:            true,
 		Uid:                           -1,
 	}
+	expectedAIMLCheckpointingFileSystemConfig := expectedDefaultFileSystemConfig
+	expectedAIMLCheckpointingFileSystemConfig.RenameDirLimit = 200000
+	expectedAIMLTrainingFileSystemConfig := expectedDefaultFileSystemConfig
 
 	hd, err := os.UserHomeDir()
 	require.NoError(t, err)
 	tests := []struct {
-		name           string
-		args           []string
-		expectedConfig *cfg.Config
+		name             string
+		args             []string
+		expectedConfig   *cfg.Config
+		checkMachineType bool
 	}{
 		{
 			name: "normal",
@@ -924,6 +988,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				},
 				MachineType: "a3-highgpu-8g",
 			},
+			checkMachineType: true,
 		},
 		{
 			name: "high performance defaults with rename dir options with autoconfig disabled",
@@ -946,6 +1011,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				},
 				MachineType: "a3-highgpu-8g",
 			},
+			checkMachineType: true,
 		},
 		{
 			name: "high performance defaults with overriden rename dir options",
@@ -968,22 +1034,44 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				},
 				MachineType: "a3-highgpu-8g",
 			},
+			checkMachineType: true,
 		},
 		{
-			name: "profile_with_machine_type",
+			name: "profile_checkpointing_with_low_machine_type",
+			args: []string{"gcsfuse", "--profile=" + cfg.ProfileAIMLCheckpointing, "--machine-type=machine-type-1", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem:  expectedAIMLCheckpointingFileSystemConfig,
+				Profile:     cfg.ProfileAIMLCheckpointing,
+				MachineType: "machine-type-1",
+			},
+			checkMachineType: true,
+		},
+		{
+			name: "profile_checkpointing_with_high_machine_type",
+			args: []string{"gcsfuse", "--profile=" + cfg.ProfileAIMLCheckpointing, "--machine-type=a3-highgpu-8g", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem:  expectedAIMLCheckpointingFileSystemConfig,
+				Profile:     cfg.ProfileAIMLCheckpointing,
+				MachineType: "a3-highgpu-8g",
+			},
+			checkMachineType: true,
+		},
+		{
+			name: "profile_training_with_machine_type",
 			args: []string{"gcsfuse", "--profile=" + cfg.ProfileAIMLTraining, "--machine-type=machine-type-1", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
-				FileSystem:  expectedDefaultFileSystemConfig,
+				FileSystem:  expectedAIMLTrainingFileSystemConfig,
 				Profile:     cfg.ProfileAIMLTraining,
 				MachineType: "machine-type-1",
 			},
+			checkMachineType: true,
 		},
 		{
-			name: "profile_without_machine_type",
-			args: []string{"gcsfuse", "--profile=" + cfg.ProfileAIMLServing, "abc", "pqr"},
+			name: "profile_checkpointing_without_machine_type",
+			args: []string{"gcsfuse", "--profile=" + cfg.ProfileAIMLCheckpointing, "abc", "pqr"},
 			expectedConfig: &cfg.Config{
-				FileSystem: expectedDefaultFileSystemConfig,
-				Profile:    cfg.ProfileAIMLServing,
+				FileSystem: expectedAIMLCheckpointingFileSystemConfig,
+				Profile:    cfg.ProfileAIMLCheckpointing,
 			},
 		},
 		{
@@ -1019,7 +1107,9 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedConfig.FileSystem, gotConfig.FileSystem)
-				assert.Equal(t, tc.expectedConfig.MachineType, gotConfig.MachineType)
+				if tc.checkMachineType {
+					assert.Equal(t, tc.expectedConfig.MachineType, gotConfig.MachineType)
+				}
 				assert.Equal(t, tc.expectedConfig.Profile, gotConfig.Profile)
 			}
 		})
