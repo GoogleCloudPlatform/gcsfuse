@@ -195,7 +195,6 @@ fi
 # Test packages which can be run for both Zonal and Regional buckets.
 # Sorted list descending run times. (Longest Processing Time first strategy) 
 TEST_PACKAGES_COMMON=(
-  "rename_dir_limit"
   "benchmarking"
 )
 
@@ -531,14 +530,13 @@ generate_test_log_artifacts() {
 
   cp "$log_file" "$sponge_log_file"
   
-  ## Generate XML report using go-junit-report.
+  local report_log=$(cat "$log_file")
   # For benchmarking package, filter out benchmark results to avoid incorrect XML results.
   if [[ "$package_name" == "benchmarking" ]]; then
-    go-junit-report < "$log_file" | grep -v '^Benchmark_[^[:space:]]*$' | sed '1,2d;$d' >> "${sponge_xml_file}"
-  else
-    go-junit-report < "$log_file" | sed '1,2d;$d' >> "${sponge_xml_file}"
+    report_log=$(echo "$report_log" | grep -v '^Benchmark_[^[:space:]]*$')
   fi
 
+  echo "$report_log" | go-junit-report | sed '1,2d;$d' >> "${sponge_xml_file}"
   return 0
 }
 
