@@ -524,20 +524,13 @@ generate_test_log_artifacts() {
   mkdir -p "$output_dir"
   local sponge_xml_file="${output_dir}/${package_name}_sponge_log.xml"
   local sponge_log_file="${output_dir}/${package_name}_sponge_log.log"
-
   echo '<?xml version="1.0" encoding="UTF-8"?>' > "${sponge_xml_file}"
-  echo '<testsuites>' >> "${sponge_xml_file}"
 
   if [ -f "$log_file" ]; then
     cp "$log_file" "$sponge_log_file"
-    if [[ "$package_name" == "benchmarking" ]]; then
-      go-junit-report < "$log_file" | sed '1,2,3d;$d' >> "${sponge_xml_file}"
-    else
-      go-junit-report < "$log_file" | sed '1,2d;$d' >> "${sponge_xml_file}"
-    fi
+	go-junit-report < "$log_file" | sed '1,2d;$d' >> "${sponge_xml_file}"
   fi
 
-  echo '</testsuites>' >> "${sponge_xml_file}"
   return 0
 }
 
