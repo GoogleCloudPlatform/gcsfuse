@@ -106,13 +106,6 @@ func isValidSequentialReadSizeMB(size int64) error {
 	return nil
 }
 
-func isValidHTTPDNSCacheTTLSecs(secs int64) error {
-	if secs < -1 {
-		return fmt.Errorf("the value of http-dns-cache-ttl-secs can't be less than -1")
-	}
-	return nil
-}
-
 // isTTLInSecsValid return nil error if ttlInSecs is valid.
 func isTTLInSecsValid(secs int64) error {
 	if secs < -1 {
@@ -296,10 +289,6 @@ func ValidateConfig(v isSet, config *Config) error {
 
 	if err = isValidURL(config.GcsAuth.TokenUrl); err != nil {
 		return fmt.Errorf("error parsing token-url config: %w", err)
-	}
-
-	if err = isValidHTTPDNSCacheTTLSecs(config.GcsConnection.HttpDnsCacheTtlSecs); err != nil {
-		return fmt.Errorf("error parsing http-dns-cache-ttl-secs config: %w", err)
 	}
 
 	if err = isValidSequentialReadSizeMB(config.GcsConnection.SequentialReadSizeMb); err != nil {
