@@ -16,10 +16,11 @@ package read_cache
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"path"
-	"strconv"
+	"strings"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -29,6 +30,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 const (
@@ -69,89 +71,53 @@ const (
 	enableCrcCheck                         = true
 	http1ClientProtocol                    = "http1"
 	grpcClientProtocol                     = "grpc"
+	GKETempDir                             = "/gcsfuse-tmp"
 )
 
 var (
-	testDirPath  string
 	cacheDirName string
 	cacheDirPath string
-	mountFunc    func([]string) error
+	mountFunc    func(*test_suite.TestConfig, []string) error
 	// mount directory is where our tests run.
 	mountDir string
 	// root directory is the directory to be unmounted.
-	rootDir       string
-	storageClient *storage.Client
-	ctx           context.Context
+	rootDir string
 )
 
-type gcsfuseTestFlags struct {
-	cliFlags                []string
-	cacheSize               int64
-	cacheFileForRangeRead   bool
-	fileName                string
-	enableParallelDownloads bool
-	enableODirect           bool
-	cacheDirPath            string
-	clientProtocol          string
+type env struct {
+	storageClient *storage.Client
+	ctx           context.Context
+	testDirPath   string
+	cfg           *test_suite.TestConfig
+	bucketType    string
 }
+
+var testEnv env
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func setupForMountedDirectoryTests() {
-	if setup.MountedDirectory() != "" {
-		cacheDirPath = path.Join(os.TempDir(), cacheDirName)
-		mountDir = setup.MountedDirectory()
-		setup.SetLogFile(logFileNameForMountedDirectoryTests)
+func setupForMountedDirectoryTestsWithConfig(testName string) {
+	if testEnv.cfg.GKEMountedDirectory != "" {
+		cacheDirPath = path.Join(GKETempDir, testName)
+		mountDir = testEnv.cfg.GKEMountedDirectory
+		logFilePath := path.Join(GKETempDir, testName) + ".log"
+		testEnv.cfg.LogFile = logFilePath
+		setup.SetLogFile(logFilePath)
+		fmt.Println("Setting log file:", logFilePath)
+	} else {
+		cacheDirPath = path.Join(setup.TestDir(), GKETempDir, testName)
+		logFilePath := path.Join(setup.TestDir(), GKETempDir, testName) + ".log"
+		testEnv.cfg.LogFile = logFilePath
+		setup.SetLogFile(logFilePath)
 	}
 }
 
 func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) {
-	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
+	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, flags, mountFunc)
 	setup.SetMntDir(mountDir)
-	testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
-}
-
-func getDefaultCacheDirPathForTests() string {
-	return path.Join(setup.TestDir(), cacheDirName)
-}
-
-func createConfigFile(flags *gcsfuseTestFlags) string {
-	cacheDirPath = flags.cacheDirPath
-
-	// Set up config file for file cache.
-	mountConfig := map[string]interface{}{
-		"file-cache": map[string]interface{}{
-			"max-size-mb":                 flags.cacheSize,
-			"cache-file-for-range-read":   flags.cacheFileForRangeRead,
-			"enable-parallel-downloads":   flags.enableParallelDownloads,
-			"parallel-downloads-per-file": parallelDownloadsPerFile,
-			"max-parallel-downloads":      maxParallelDownloads,
-			"download-chunk-size-mb":      downloadChunkSizeMB,
-			"enable-crc":                  enableCrcCheck,
-			"enable-o-direct":             flags.enableODirect,
-		},
-		"cache-dir": cacheDirPath,
-		"gcs-connection": map[string]interface{}{
-			"client-protocol": flags.clientProtocol,
-		},
-	}
-	filePath := setup.YAMLConfigFile(mountConfig, flags.fileName)
-	return filePath
-}
-
-func appendClientProtocolConfigToFlagSet(testFlagSet []gcsfuseTestFlags) (testFlagsWithHttpAndGrpc []gcsfuseTestFlags) {
-	for _, testFlags := range testFlagSet {
-		testFlagsWithHttp := testFlags
-		testFlagsWithHttp.clientProtocol = http1ClientProtocol
-		testFlagsWithHttpAndGrpc = append(testFlagsWithHttpAndGrpc, testFlagsWithHttp)
-
-		testFlagsWithGrpc := testFlags
-		testFlagsWithGrpc.clientProtocol = grpcClientProtocol
-		testFlagsWithHttpAndGrpc = append(testFlagsWithHttpAndGrpc, testFlagsWithGrpc)
-	}
-	return
+	testEnv.testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -161,37 +127,62 @@ func appendClientProtocolConfigToFlagSet(testFlagSet []gcsfuseTestFlags) (testFl
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	ctx = context.Background()
-	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
-	defer func() {
-		err := closeStorageClient()
-		if err != nil {
-			log.Fatalf("closeStorageClient failed: %v", err)
+	// 1. Load and parse the common configuration.
+	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
+	if len(cfg.ReadCache) == 0 {
+		log.Println("No configuration found for read_cache tests in config. Using flags instead.")
+		// Populate the config manually.
+		cfg.ReadCache = make([]test_suite.TestConfig, 1)
+		cfg.ReadCache[0].TestBucket = setup.TestBucket()
+		cfg.ReadCache[0].GKEMountedDirectory = setup.MountedDirectory()
+		cfg.ReadCache[0].LogFile = setup.LogFile()
+		cfg.ReadCache[0].Configs = make([]test_suite.ConfigItem, 1)
+		cfg.ReadCache[0].Configs[0].Flags = []string{
+			"--implicit-dirs --metadata-cache-ttl-secs=10 --file-cache-max-size-mb=9 --file-cache-cache-file-for-range-read=false --file-cache-enable-parallel-downloads=false --file-cache-enable-o-direct=false --cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest --log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log",
+			"--metadata-cache-ttl-secs=10 --file-cache-max-size-mb=9 --file-cache-cache-file-for-range-read=false --file-cache-enable-parallel-downloads=true --file-cache-enable-o-direct=false -cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest --log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log",
+			"--implicit-dirs --metadata-cache-ttl-secs=10 --file-cache-max-size-mb=9 --file-cache-cache-file-for-range-read=false --file-cache-enable-parallel-downloads=false --file-cache-enable-o-direct=false --cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest --log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log --client-protocol=grpc",
+			"--metadata-cache-ttl-secs=10 --file-cache-max-size-mb=9 --file-cache-cache-file-for-range-read=false --file-cache-enable-parallel-downloads=true --file-cache-enable-o-direct=false -cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest --log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log --client-protocol=grpc",
 		}
-	}()
+		cfg.ReadCache[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.ReadCache[0].Configs[0].Run = "TestSmallCacheTTLTest"
+	}
 
-	cacheDirName = "cache-dir-read-cache-hns-" + strconv.FormatBool(setup.IsHierarchicalBucket(ctx, storageClient))
+	testEnv.ctx = context.Background()
+	testEnv.bucketType = setup.TestEnvironment(testEnv.ctx, &cfg.ReadCache[0])
+	testEnv.cfg = &cfg.ReadCache[0]
 
-	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
+	// 2. Create storage client before running tests.
+	var err error
+	testEnv.storageClient, err = client.CreateStorageClient(testEnv.ctx)
+	if err != nil {
+		log.Printf("Error creating storage client: %v\n", err)
+		os.Exit(1)
+	}
+	defer testEnv.storageClient.Close()
 
-	setup.RunTestsForMountedDirectoryFlag(m)
+	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
+	}
 
-	// Else run tests for testBucket.
+	// Run tests for testBucket
 	// Set up test directory.
-	setup.SetUpTestDirForTestBucketFlag()
+	setup.SetUpTestDirForTestBucket(testEnv.cfg)
+	// Override GKE specific paths with GCSFuse paths if running in GCE environment.
+	overrideFilePathsInFlagSet(testEnv.cfg, setup.TestDir())
 
 	// Save mount and root directory variables.
 	mountDir, rootDir = setup.MntDir(), setup.MntDir()
 
 	log.Println("Running static mounting tests...")
-	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
+	mountFunc = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile
 	successCode := m.Run()
 
 	if successCode == 0 {
 		log.Println("Running dynamic mounting tests...")
 		// Save mount directory variable to have path of bucket to run tests.
 		mountDir = path.Join(setup.MntDir(), setup.TestBucket())
-		mountFunc = dynamic_mounting.MountGcsfuseWithDynamicMounting
+		mountFunc = dynamic_mounting.MountGcsfuseWithDynamicMountingWithConfig
 		successCode = m.Run()
 	}
 
@@ -199,12 +190,21 @@ func TestMain(m *testing.M) {
 		log.Println("Running only dir mounting tests...")
 		setup.SetOnlyDirMounted(onlyDirMounted + "/")
 		mountDir = rootDir
-		mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDir
+		mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDirWithConfigFile
 		successCode = m.Run()
-		setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), setup.OnlyDirMounted(), testDirName))
+		setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), setup.OnlyDirMounted(), testDirName))
 	}
 
 	// Clean up test directory created.
-	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
+	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
+}
+
+func overrideFilePathsInFlagSet(t *test_suite.TestConfig, GCSFuseTempDirPath string) {
+	for _, flags := range t.Configs {
+		for i := range flags.Flags {
+			// Iterate over the indices of the flags slice
+			flags.Flags[i] = strings.ReplaceAll(flags.Flags[i], "/gcsfuse-tmp", path.Join(GCSFuseTempDirPath, "gcsfuse-tmp"))
+		}
+	}
 }
