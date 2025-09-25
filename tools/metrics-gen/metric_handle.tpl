@@ -20,6 +20,15 @@ import (
 	"time"
 )
 
+{{range .AttributeGroups -}}
+// Constants for attribute {{.Name}}
+const (
+{{- range .Constants}}
+	{{.Name}} = "{{.Value}}"
+{{- end}}
+)
+{{end}}
+
 // MetricHandle provides an interface for recording metrics.
 // The methods of this interface are auto-generated from metrics.yaml.
 // Each method corresponds to a metric defined in metrics.yaml.
