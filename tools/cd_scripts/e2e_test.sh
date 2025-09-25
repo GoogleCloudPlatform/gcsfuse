@@ -31,10 +31,20 @@ fi
 
 # Upgrade gcloud
 echo "Upgrade gcloud version"
-gcloud version
 wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
 sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm -r google-cloud-sdk
-sudo /usr/local/google-cloud-sdk/install.sh
+
+# Conditionally install python3.9 and run gcloud installer with it for RHEL 8 and Rocky 8
+INSTALL_COMMAND="sudo /usr/local/google-cloud-sdk/install.sh --quiet"
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    if [[ ($ID == "rhel" || $ID == "rocky") && $VERSION_ID == 8* ]]; then
+        sudo yum install -y python39
+        INSTALL_COMMAND="sudo env CLOUDSDK_PYTHON=/usr/bin/python3.9 /usr/local/google-cloud-sdk/install.sh --quiet"
+    fi
+fi
+$INSTALL_COMMAND 
+
 export PATH=/usr/local/google-cloud-sdk/bin:$PATH
 gcloud version && rm gcloud.tar.gz
 
@@ -70,6 +80,8 @@ curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metada
 
 # Function to create the local user
 create_user() {
+  local USERNAME=$1
+  local HOMEDIR=$2
   if id "${USERNAME}" &>/dev/null; then
     echo "User ${USERNAME} already exists."
     return 0
@@ -98,11 +110,14 @@ create_user() {
 
 # Function to grant sudo access by creating a file in /etc/sudoers.d/
 grant_sudo() {
+  local USERNAME=$1
+  local HOMEDIR=$2
   if ! id "${USERNAME}" &>/dev/null; then
     echo "User ${USERNAME} does not exist. Cannot grant sudo."
     return 1
   fi
 
+  sudo mkdir -p /etc/sudoers.d/
   SUDOERS_FILE="/etc/sudoers.d/${USERNAME}"
 
   if sudo test -f "${SUDOERS_FILE}"; then
@@ -134,9 +149,9 @@ grant_sudo() {
 ################################################################################
 USERNAME=starterscriptuser
 HOMEDIR="/home/${USERNAME}"
-if create_user; then
-  grant_sudo
-fi
+
+create_user $USERNAME $HOMEDIR
+grant_sudo  $USERNAME $HOMEDIR
 
 
 # Run the following as starterscriptuser
