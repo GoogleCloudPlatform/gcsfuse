@@ -82,20 +82,21 @@ curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metada
 create_user() {
   local USERNAME=$1
   local HOMEDIR=$2
+  local DETAILS=$3
   if id "${USERNAME}" &>/dev/null; then
     echo "User ${USERNAME} already exists."
     return 0
   fi
 
   echo "Creating user ${USERNAME}..."
-  if grep -qi -E 'ubuntu|debian' details.txt; then
+  if grep -qi -E 'ubuntu|debian' $DETAILS; then
     # For Ubuntu and Debian
     sudo adduser --disabled-password --home "${HOMEDIR}" --gecos "" "${USERNAME}"
-  elif grep -qi -E 'rhel|centos|rocky' details.txt; then
+  elif grep -qi -E 'rhel|centos|rocky' $DETAILS; then
     # For RHEL, CentOS, Rocky Linux
     sudo adduser --home-dir "${HOMEDIR}" "${USERNAME}" && sudo passwd -d "${USERNAME}"
   else
-    echo "Unsupported OS type in details.txt" >&2
+    echo "Unsupported OS type in details file." >&2
     return 1
   fi
   local exit_code=$?
@@ -149,8 +150,9 @@ grant_sudo() {
 ################################################################################
 USERNAME=starterscriptuser
 HOMEDIR="/home/${USERNAME}"
+DETAILS_FILE=$(pwd)/details.txt
 
-create_user $USERNAME $HOMEDIR
+create_user $USERNAME $HOMEDIR $DETAILS_FILE
 grant_sudo  $USERNAME $HOMEDIR
 
 
