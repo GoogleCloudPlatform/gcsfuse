@@ -2837,10 +2837,13 @@ func (fs *fileSystem) ReadFile(
 
 	fh.Inode().Lock()
 	if fh.Inode().IsUsingBWH() {
-		// Flush Pending streaming writes and issue read within same inode lock.
+		// Flush/Sync Pending streaming writes and issue read within same inode lock.
 		if fh.Inode().Bucket().BucketType().Zonal {
+			// With zonal buckets, we can read from unfinalized objects as well.
+			// Hence, there is no need to finalize the object from here for zonal buckets.
+			// Hence, if FinalizeFileForRapid is set, then we will call syncFile otherwise
+			// we can call flushFile (as it will not finalize when FinalizeFileForRapid is false) itself.
 			if fs.newConfig.Write.FinalizeFileForRapid {
-				// Not calling flushFile as that will finalize the object which is not needed from here.
 				err = fs.syncFile(ctx, fh.Inode())
 			} else {
 				err = fs.flushFile(ctx, fh.Inode())
