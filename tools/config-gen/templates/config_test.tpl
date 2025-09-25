@@ -28,20 +28,18 @@ func TestApplyOptimizations(t *testing.T) {
     {{- $flag := . }}
 	// Tests for {{ $flag.ConfigPath }}
 	t.Run("{{$flag.ConfigPath}}", func(t *testing.T) {
-		// Define a non-default value for testing user-set flags.
-		{{- if eq $flag.GoType "int64" }}
-		const nonDefaultValue = int64(98765)
-		{{- else if eq $flag.GoType "bool" }}
-		nonDefaultValue := !({{$flag.DefaultValue}})
-		{{- end }}
-
 		// Test case 1: User has set the flag to a non-default value; optimizations should be ignored FOR THAT FLAG.
 		t.Run("user_set", func(t *testing.T) {
 			{{- if or (eq $flag.GoType "int64") (eq $flag.GoType "bool") }}
+			{{- if eq $flag.GoType "int64" }}
+			const nonDefaultValue = int64(98765)
+			{{- else if eq $flag.GoType "bool" }}
+			nonDefaultValue := !({{$flag.DefaultValue}})
+			{{- end }}
 			c := &Config{
 				Profile: "aiml-serving", // A profile that would otherwise cause optimization.
 			}
-			c.{{$flag.GoPath}} = nonDefaultValue // Set the non-default value.
+			c.{{$flag.GoPath}} = nonDefaultValue // Set a non-default value.
 			isSet := &mockIsValueSet{
 				setFlags: map[string]bool{
 					"{{$flag.FlagName}}": true,
@@ -65,7 +63,7 @@ func TestApplyOptimizations(t *testing.T) {
 			c.{{$flag.GoPath}} = {{$flag.DefaultValue}}
 			isSet := &mockIsValueSet{
 				setFlags:  map[string]bool{"machine-type": true},
-				stringFlags: map[string]string{"machine-type": "n1-standard-1"}, // A machine type not in any group
+				stringFlags: map[string]string{"machine-type": "low-end-machine"}, // A machine type not in any group
 			}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -123,6 +121,104 @@ func TestApplyOptimizations(t *testing.T) {
 			assert.Equal(t, {{ formatValue $mbo.Value }}, c.{{$flag.GoPath}})
 			{{- end }}
 		})
+		{{- end }}
+
+		{{- if and .Optimizations.Profiles .Optimizations.MachineBasedOptimization }}
+		// Test case: Profile optimization should override machine-based optimization.
+		t.Run("profile_overrides_machine_type", func(t *testing.T) {
+			{{- $profile := index .Optimizations.Profiles 0 -}}
+			{{- $mbo := index .Optimizations.MachineBasedOptimization 0 -}}
+			// Find a machine type from the group to use in the test
+			{{ $machineType := "" -}}
+			{{- range $mt, $group := $.MachineTypeToGroupMap -}}
+				{{- if and (not $machineType) (eq $group $mbo.Group) -}}
+					{{- $machineType = $mt -}}
+				{{- end -}}
+			{{- end -}}
+			c := &Config{ Profile: "{{$profile.Name}}" }
+			c.{{$flag.GoPath}} = {{$flag.DefaultValue}}
+			isSet := &mockIsValueSet{
+				setFlags:  map[string]bool{"machine-type": true},
+				stringFlags: map[string]string{"machine-type": "{{$machineType}}"},
+			}
+
+			optimizedFlags := c.ApplyOptimizations(isSet)
+
+			assert.Contains(t, optimizedFlags, "{{$flag.ConfigPath}}")
+			// Assert that the profile value is used, not the machine-based one.
+			{{- if eq $flag.GoType "int64" }}
+			assert.Equal(t, int64({{ formatValue $profile.Value }}), c.{{$flag.GoPath}})
+			{{- else }}
+			assert.Equal(t, {{ formatValue $profile.Value }}, c.{{$flag.GoPath}})
+			{{- end }}
+		})
+		{{- end }}
+
+		{{- if .Optimizations.MachineBasedOptimization }}
+		// Test case: Fallback to machine-based optimization when profile is non-existent.
+		t.Run("fallback_to_machine_type_with_non_existent_profile", func(t *testing.T) {
+			{{- $mbo := index .Optimizations.MachineBasedOptimization 0 -}}
+			// Find a machine type from the group to use in the test
+			{{ $machineType := "" -}}
+			{{- range $mt, $group := $.MachineTypeToGroupMap -}}
+				{{- if and (not $machineType) (eq $group $mbo.Group) -}}
+					{{- $machineType = $mt -}}
+				{{- end -}}
+			{{- end -}}
+			c := &Config{ Profile: "non_existent_profile" }
+			c.{{$flag.GoPath}} = {{$flag.DefaultValue}}
+			isSet := &mockIsValueSet{
+				setFlags:  map[string]bool{"machine-type": true},
+				stringFlags: map[string]string{"machine-type": "{{$machineType}}"},
+			}
+
+			optimizedFlags := c.ApplyOptimizations(isSet)
+
+			assert.Contains(t, optimizedFlags, "{{$flag.ConfigPath}}")
+			// Assert that the machine-based value is used.
+			{{- if eq $flag.GoType "int64" }}
+			assert.Equal(t, int64({{ formatValue $mbo.Value }}), c.{{$flag.GoPath}})
+			{{- else }}
+			assert.Equal(t, {{ formatValue $mbo.Value }}, c.{{$flag.GoPath}})
+			{{- end }}
+		})
+
+		// Test case: Fallback to machine-based optimization when a profile is set, but has no rule for THIS flag.
+		{{ $unrelatedProfile := "aiml-training" -}}
+		{{- $hasRuleForUnrelatedProfile := false -}}
+		{{- range .Optimizations.Profiles -}}
+			{{- if eq .Name $unrelatedProfile -}}
+				{{- $hasRuleForUnrelatedProfile = true -}}
+			{{- end -}}
+		{{- end -}}
+		{{- if not $hasRuleForUnrelatedProfile -}}
+		t.Run("fallback_to_machine_type_with_unrelated_profile", func(t *testing.T) {
+			{{- $mbo := index .Optimizations.MachineBasedOptimization 0 -}}
+			// Find a machine type from the group to use in the test
+			{{ $machineType := "" -}}
+			{{- range $mt, $group := $.MachineTypeToGroupMap -}}
+				{{- if and (not $machineType) (eq $group $mbo.Group) -}}
+					{{- $machineType = $mt -}}
+				{{- end -}}
+			{{- end -}}
+			c := &Config{ Profile: "{{$unrelatedProfile}}" }
+			c.{{$flag.GoPath}} = {{$flag.DefaultValue}}
+			isSet := &mockIsValueSet{
+				setFlags:  map[string]bool{"machine-type": true},
+				stringFlags: map[string]string{"machine-type": "{{$machineType}}"},
+			}
+
+			optimizedFlags := c.ApplyOptimizations(isSet)
+
+			assert.Contains(t, optimizedFlags, "{{$flag.ConfigPath}}")
+			// Assert that the machine-based value is used.
+			{{- if eq $flag.GoType "int64" }}
+			assert.Equal(t, int64({{ formatValue $mbo.Value }}), c.{{$flag.GoPath}})
+			{{- else }}
+			assert.Equal(t, {{ formatValue $mbo.Value }}, c.{{$flag.GoPath}})
+			{{- end }}
+		})
+		{{- end -}}
 		{{- end }}
 	})
 {{- end }}
