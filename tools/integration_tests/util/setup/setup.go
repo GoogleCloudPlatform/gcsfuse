@@ -686,6 +686,15 @@ func MountGCSFuseWithGivenMountFunc(flags []string, mountFunc func([]string) err
 	}
 }
 
+func MountGCSFuseWithGivenMountWithConfigFunc(config *test_suite.TestConfig, flags []string, mountFunc func(*test_suite.TestConfig, []string) error) {
+	if config.GKEMountedDirectory == "" {
+		// Mount GCSFuse only when tests are not running on mounted directory.
+		if err := mountFunc(config, flags); err != nil {
+			LogAndExit(fmt.Sprintf("Failed to mount GCSFuse: %v", err))
+		}
+	}
+}
+
 func UnmountGCSFuseAndDeleteLogFile(rootDir string) {
 	UnmountGCSFuse(rootDir)
 	// delete log file created
@@ -694,6 +703,16 @@ func UnmountGCSFuseAndDeleteLogFile(rootDir string) {
 		if err != nil {
 			LogAndExit(fmt.Sprintf("Error in deleting log file: %v", err))
 		}
+	}
+}
+
+func UnmountGCSFuseAndDeleteLogFileWithCfg(cfg *test_suite.TestConfig, rootDir string) {
+	SetMntDir(rootDir)
+	UnmountGCSFuseWithConfig(cfg)
+	//delete log file created
+	err := os.Truncate(LogFile(), 0)
+	if err != nil {
+		LogAndExit(fmt.Sprintf("Error in truncating log file: %v", err))
 	}
 }
 
