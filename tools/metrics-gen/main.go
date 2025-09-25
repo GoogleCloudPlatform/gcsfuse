@@ -51,34 +51,62 @@ type AttrValuePair struct {
 	Value string // "true"/"false" for bools
 }
 
+// AttrKey holds info about a distinct attribute key.
+type AttrKey struct {
+	// Original is the attribute name as defined in metrics.yaml.
+	// e.g. "read_type"
+	Original string
+	// Constant is the Go constant name for the attribute key.
+	// e.g. "ReadTypeAttrKey"
+	Constant string
+}
+
+// StringAttrValue holds info about a distinct string attribute value.
+type StringAttrValue struct {
+	// Original is the attribute value as defined in metrics.yaml.
+	// e.g. "Sequential"
+	Original string
+	// Constant is the Go constant name for the attribute value.
+	// e.g. "SequentialAttrValue"
+	Constant string
+}
+
 // AttrCombination is a list of AttrValuePairs.
 type AttrCombination []AttrValuePair
 
 // Data structure to pass to the template.
 type TemplateData struct {
-	Metrics          []Metric
-	AttrCombinations map[string][]AttrCombination
+	Metrics           []Metric
+	AttrCombinations  map[string][]AttrCombination
+	AttrKeys          []AttrKey
+	StringAttrValues  []StringAttrValue
+	attrKeyToConst    map[string]string
+	stringValueToConst map[string]string
 }
 
 // Helper functions for the template.
-var funcMap = template.FuncMap{
-	"toPascal":                    toPascal,
-	"toCamel":                     toCamel,
-	"getVarName":                  getVarName,
-	"getAtomicName":               getAtomicName,
-	"getGoType":                   getGoType,
-	"getUnitMethod":               getUnitMethod,
-	"joinInts":                    joinInts,
-	"isCounter":                   func(m Metric) bool { return m.Type == "int_counter" },
-	"isUpDownCounter":             func(m Metric) bool { return m.Type == "int_up_down_counter" },
-	"isHistogram":                 func(m Metric) bool { return m.Type == "int_histogram" },
-	"buildSwitches":               buildSwitches,
-	"getTestName":                 getTestName,
-	"getTestFuncArgs":             getTestFuncArgs,
-	"getExpectedAttrs":            getExpectedAttrs,
-	"getLatencyUnit":              getLatencyUnit,
-	"getLatencyMethod":            getLatencyMethod,
-	"getTestFuncArgsForHistogram": getTestFuncArgsForHistogram,
+var funcMap template.FuncMap
+
+func init() {
+	funcMap = template.FuncMap{
+		"toPascal":                    toPascal,
+		"toCamel":                     toCamel,
+		"getVarName":                  getVarName,
+		"getAtomicName":               getAtomicName,
+		"getGoType":                   getGoType,
+		"getUnitMethod":               getUnitMethod,
+		"joinInts":                    joinInts,
+		"isCounter":                   func(m Metric) bool { return m.Type == "int_counter" },
+		"isUpDownCounter":             func(m Metric) bool { return m.Type == "int_up_down_counter" },
+		"isHistogram":                 func(m Metric) bool { return m.Type == "int_histogram" },
+		"buildSwitches":               buildSwitches,
+		"getTestName":                 getTestName,
+		"getTestFuncArgs":             getTestFuncArgs,
+		"getExpectedAttrs":            getExpectedAttrs,
+		"getLatencyUnit":              getLatencyUnit,
+		"getLatencyMethod":            getLatencyMethod,
+		"getTestFuncArgsForHistogram": getTestFuncArgsForHistogram,
+	}
 }
 
 func toPascal(s string) string {
@@ -127,7 +155,7 @@ func getAtomicName(metricName string, combo AttrCombination) string {
 func getGoType(t string) string {
 	switch t {
 	case "string":
-		return "string"
+		return "StringAttrValue"
 	case "bool":
 		return "bool"
 	default:
@@ -175,7 +203,7 @@ func getTestFuncArgs(combo AttrCombination) string {
 	var parts []string
 	for _, pair := range combo {
 		if pair.Type == "string" {
-			parts = append(parts, `"`+pair.Value+`"`)
+			parts = append(parts, `StringAttrValue("`+pair.Value+`")`)
 		} else {
 			parts = append(parts, pair.Value)
 		}
@@ -184,13 +212,15 @@ func getTestFuncArgs(combo AttrCombination) string {
 }
 
 // getExpectedAttrs generates attribute set for test expectations.
-func getExpectedAttrs(combo AttrCombination) string {
+func getExpectedAttrs(combo AttrCombination, data TemplateData) string {
 	var parts []string
 	for _, pair := range combo {
 		if pair.Type == "string" {
-			parts = append(parts, fmt.Sprintf(`attribute.String("%s", "%s")`, pair.Name, pair.Value))
+			keyConst := data.attrKeyToConst[pair.Name]
+			parts = append(parts, fmt.Sprintf(`attribute.String(string(%s), "%s")`, keyConst, pair.Value))
 		} else { // bool
-			parts = append(parts, fmt.Sprintf(`attribute.Bool("%s", %s)`, pair.Name, pair.Value))
+			keyConst := data.attrKeyToConst[pair.Name]
+			parts = append(parts, fmt.Sprintf(`attribute.Bool(string(%s), %s)`, keyConst, pair.Value))
 		}
 	}
 	return strings.Join(parts, ", ")
@@ -349,7 +379,7 @@ func validateMetrics(metrics []Metric) error {
 }
 
 // buildSwitches generates the nested switch statement code for a metric method.
-func buildSwitches(metric Metric) string {
+func buildSwitches(metric Metric, data TemplateData) string {
 	var builder strings.Builder
 	var recorder func(level int, combo AttrCombination)
 
@@ -382,7 +412,7 @@ func buildSwitches(metric Metric) string {
 		for _, val := range values {
 			caseVal := val
 			if attr.Type == "string" {
-				caseVal = `"` + val + `"`
+				caseVal = data.stringValueToConst[val]
 			}
 			builder.WriteString(fmt.Sprintf("%scase %s:\n", strings.Repeat("\t", level+2), caseVal))
 			currentCombo := append(combo, AttrValuePair{Name: attr.Name, Type: attr.Type, Value: val})
@@ -407,6 +437,26 @@ func buildSwitches(metric Metric) string {
 	}
 
 	return builder.String()
+}
+
+func validateAttributeConstants(keys []AttrKey, values []StringAttrValue) error {
+	constants := make(map[string]string)
+
+	for _, k := range keys {
+		if original, ok := constants[k.Constant]; ok {
+			return fmt.Errorf("attribute key constant collision: %q and %q both generate constant %q", original, k.Original, k.Constant)
+		}
+		constants[k.Constant] = k.Original
+	}
+
+	for _, v := range values {
+		if original, ok := constants[v.Constant]; ok {
+			return fmt.Errorf("string attribute value constant collision: %q and %q both generate constant %q", original, v.Original, v.Constant)
+		}
+		constants[v.Constant] = v.Original
+	}
+
+	return nil
 }
 
 func main() {
@@ -447,13 +497,64 @@ func main() {
 		attrCombinations[m.Name] = generateCombinations(m.Attributes)
 	}
 
+	// Extract unique attribute keys and string values.
+	attrKeys := make(map[string]bool)
+	stringAttrValues := make(map[string]bool)
+	for _, m := range metrics {
+		for _, a := range m.Attributes {
+			attrKeys[a.Name] = true
+			if a.Type == "string" {
+				for _, v := range a.Values {
+					stringAttrValues[v] = true
+				}
+			}
+		}
+	}
+
+	// Convert to slices of structs for the template.
+	var attrKeySlice []AttrKey
+	attrKeyToConst := make(map[string]string)
+	for k := range attrKeys {
+		constant := toPascal(k) + "AttrKey"
+		attrKeySlice = append(attrKeySlice, AttrKey{
+			Original: k,
+			Constant: constant,
+		})
+		attrKeyToConst[k] = constant
+	}
+	sort.Slice(attrKeySlice, func(i, j int) bool {
+		return attrKeySlice[i].Original < attrKeySlice[j].Original
+	})
+
+	var stringAttrValueSlice []StringAttrValue
+	stringValueToConst := make(map[string]string)
+	for v := range stringAttrValues {
+		constant := toPascal(v) + "AttrValue"
+		stringAttrValueSlice = append(stringAttrValueSlice, StringAttrValue{
+			Original: v,
+			Constant: constant,
+		})
+		stringValueToConst[v] = constant
+	}
+	sort.Slice(stringAttrValueSlice, func(i, j int) bool {
+		return stringAttrValueSlice[i].Original < stringAttrValueSlice[j].Original
+	})
+
+	if err := validateAttributeConstants(attrKeySlice, stringAttrValueSlice); err != nil {
+		log.Fatalf("invalid metrics.yaml: %v", err)
+	}
+
 	// Create the directory if it doesn't exist
 	if err := os.MkdirAll(*outputDir, 0755); err != nil {
 		log.Fatalf("error creating output directory: %v", err)
 	}
 	data := TemplateData{
-		Metrics:          metrics,
-		AttrCombinations: attrCombinations,
+		Metrics:           metrics,
+		AttrCombinations:  attrCombinations,
+		AttrKeys:          attrKeySlice,
+		StringAttrValues:  stringAttrValueSlice,
+		attrKeyToConst:    attrKeyToConst,
+		stringValueToConst: stringValueToConst,
 	}
 	createFile(&data, fmt.Sprintf("%s/metric_handle.go", *outputDir), "metric_handle.tpl")
 	createFile(&data, fmt.Sprintf("%s/noop_metrics.go", *outputDir), "noop_metrics.tpl")
@@ -463,6 +564,16 @@ func main() {
 }
 
 func createFile(data *TemplateData, fName string, templateName string) {
+	// We need to modify the funcMap to pass the TemplateData to some functions.
+	// A bit of a hack, but it's the simplest way to give template functions access
+	// to the top-level data.
+	funcMap["getExpectedAttrs"] = func(combo AttrCombination) string {
+		return getExpectedAttrs(combo, *data)
+	}
+	funcMap["buildSwitches"] = func(metric Metric) string {
+		return buildSwitches(metric, *data)
+	}
+
 	tmpl, err := template.New(templateName).Funcs(funcMap).ParseFiles(templateName)
 	if err != nil {
 		log.Fatalf("error parsing template: %v", err)

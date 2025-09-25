@@ -20,6 +20,24 @@ import (
 	"time"
 )
 
+// AttrKey is a type for metric attribute keys.
+type AttrKey string
+
+// StringAttrValue is a type for string attribute values.
+type StringAttrValue string
+
+const (
+{{- range .AttrKeys}}
+	{{.Constant}} AttrKey = "{{.Original}}"
+{{- end}}
+)
+
+const (
+{{- range .StringAttrValues}}
+	{{.Constant}} StringAttrValue = "{{.Original}}"
+{{- end}}
+)
+
 // MetricHandle provides an interface for recording metrics.
 // The methods of this interface are auto-generated from metrics.yaml.
 // Each method corresponds to a metric defined in metrics.yaml.

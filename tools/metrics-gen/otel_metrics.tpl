@@ -38,7 +38,7 @@ var (
 {{- range $combination := (index $.AttrCombinations $metric.Name)}}
 	{{getVarName $metric.Name $combination}} = metric.WithAttributeSet(attribute.NewSet(
 		{{- range $pair := $combination -}}
-			attribute.{{if eq $pair.Type "string"}}String{{else}}Bool{{end}}("{{$pair.Name}}", {{if eq $pair.Type "string"}}"{{$pair.Value}}"{{else}}{{$pair.Value}}{{end}}),
+			attribute.{{if eq $pair.Type "string"}}String{{else}}Bool{{end}}(string({{ (index $.AttrKeyToConst $pair.Name) }}), {{if eq $pair.Type "string"}}string({{ (index $.StringValueToConst $pair.Value) }}){{else}}{{$pair.Value}}{{end}}),
 		{{- end -}}
 	))
 {{- end -}}
@@ -92,11 +92,12 @@ func (o *otelMetrics) {{toPascal .Name}}(
 {{- else }}
 	var record histogramRecord
 	{{buildSwitches .}}
+
 	select {
-	  case o.ch <- record: // Do nothing
-	  default: // Unblock writes to channel if it's full.
+	case o.ch <- record: // Do nothing
+	default: // Unblock writes to channel if it's full.
 	}
-	{{- end -}}
+{{- end -}}
 }
 {{end}}
 
