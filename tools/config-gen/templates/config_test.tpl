@@ -74,7 +74,7 @@ func TestApplyOptimizations(t *testing.T) {
         {{- $mbo := . }}
 		t.Run("machine_group_{{$mbo.Group}}", func(t *testing.T) {
 			// Find a machine type from the group to use in the test
-			{{- $machineType := "" -}}
+			{{ $machineType := "" -}}
 			{{- range $mt, $group := $.MachineTypeToGroupMap -}}
 			    {{- if and (not $machineType) (eq $group $mbo.Group) -}}
 			        {{- $machineType = $mt -}}

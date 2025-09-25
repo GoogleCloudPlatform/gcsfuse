@@ -139,7 +139,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test cases for machine-based optimizations
 		t.Run("machine_group_high-performance", func(t *testing.T) {
-			// Find a machine type from the group to use in the testc := &Config{ Profile: "" }
+			// Find a machine type from the group to use in the test
+			c := &Config{Profile: ""}
 			c.ImplicitDirs = false
 			isSet := &mockIsValueSet{
 				setFlags:    map[string]bool{"machine-type": true},
@@ -258,7 +259,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test cases for machine-based optimizations
 		t.Run("machine_group_high-performance", func(t *testing.T) {
-			// Find a machine type from the group to use in the testc := &Config{ Profile: "" }
+			// Find a machine type from the group to use in the test
+			c := &Config{Profile: ""}
 			c.MetadataCache.NegativeTtlSecs = 5
 			isSet := &mockIsValueSet{
 				setFlags:    map[string]bool{"machine-type": true},
@@ -334,7 +336,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test cases for machine-based optimizations
 		t.Run("machine_group_high-performance", func(t *testing.T) {
-			// Find a machine type from the group to use in the testc := &Config{ Profile: "" }
+			// Find a machine type from the group to use in the test
+			c := &Config{Profile: ""}
 			c.MetadataCache.TtlSecs = 60
 			isSet := &mockIsValueSet{
 				setFlags:    map[string]bool{"machine-type": true},
@@ -390,7 +393,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test cases for machine-based optimizations
 		t.Run("machine_group_high-performance", func(t *testing.T) {
-			// Find a machine type from the group to use in the testc := &Config{ Profile: "" }
+			// Find a machine type from the group to use in the test
+			c := &Config{Profile: ""}
 			c.FileSystem.RenameDirLimit = 0
 			isSet := &mockIsValueSet{
 				setFlags:    map[string]bool{"machine-type": true},
@@ -466,7 +470,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test cases for machine-based optimizations
 		t.Run("machine_group_high-performance", func(t *testing.T) {
-			// Find a machine type from the group to use in the testc := &Config{ Profile: "" }
+			// Find a machine type from the group to use in the test
+			c := &Config{Profile: ""}
 			c.MetadataCache.StatCacheMaxSizeMb = 33
 			isSet := &mockIsValueSet{
 				setFlags:    map[string]bool{"machine-type": true},
@@ -542,7 +547,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test cases for machine-based optimizations
 		t.Run("machine_group_high-performance", func(t *testing.T) {
-			// Find a machine type from the group to use in the testc := &Config{ Profile: "" }
+			// Find a machine type from the group to use in the test
+			c := &Config{Profile: ""}
 			c.MetadataCache.TypeCacheMaxSizeMb = 4
 			isSet := &mockIsValueSet{
 				setFlags:    map[string]bool{"machine-type": true},
@@ -588,7 +594,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test cases for machine-based optimizations
 		t.Run("machine_group_high-performance", func(t *testing.T) {
-			// Find a machine type from the group to use in the testc := &Config{ Profile: "" }
+			// Find a machine type from the group to use in the test
+			c := &Config{Profile: ""}
 			c.Write.GlobalMaxBlocks = 4
 			isSet := &mockIsValueSet{
 				setFlags:    map[string]bool{"machine-type": true},
