@@ -2837,19 +2837,17 @@ func (fs *fileSystem) ReadFile(
 
 	fh.Inode().Lock()
 	if fh.Inode().IsUsingBWH() {
-		// Flush Pending streaming writes and issue read within same inode lock.
-		if fs.newConfig.Write.FinalizeFileForRapid {
-			// Not finalizing the file for zonal buckets from here.
-			if !fh.Inode().Bucket().BucketType().Zonal {
-				err = fs.flushFile(ctx, fh.Inode())
-			} else {
-				// Flush but don't finalize, in zonal bucket.
+		if fh.Inode().Bucket().BucketType().Zonal {
+			if fs.newConfig.Write.FinalizeFileForRapid {
+				// Not calling flushFile as that will finalize the object which is not needed from here.
 				err = fs.syncFile(ctx, fh.Inode())
+			} else {
+				err = fs.flushFile(ctx, fh.Inode())
 			}
 		} else {
-			// Always call flushFile if FinalizeFileForRapid is false.
 			err = fs.flushFile(ctx, fh.Inode())
 		}
+
 		if err != nil {
 			fh.Inode().Unlock()
 			return err
