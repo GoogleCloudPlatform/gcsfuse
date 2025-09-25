@@ -862,7 +862,11 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("file-mode", "", "0644", "Permissions bits for files, in octal.")
 
-	flagSet.BoolP("finalize-files", "", false, "Finalizes the files on close. Appends will be slower on finalized files.")
+	flagSet.BoolP("finalize-files", "", false, "Finalizes the files on close for Rapid storage. Appends will be slower on finalized files.")
+
+	if err := flagSet.MarkHidden("finalize-files"); err != nil {
+		return err
+	}
 
 	flagSet.BoolP("foreground", "", false, "Stay in the foreground after mounting.")
 

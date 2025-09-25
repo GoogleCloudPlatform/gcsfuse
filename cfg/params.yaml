@@ -961,7 +961,7 @@ params:
   - config-path: "write.finalize-files"
     flag-name: "finalize-files"
     type: "bool"
-    usage: "Finalizes the files on close. Appends will be slower on finalized files."
+    usage: "Finalizes the files on close for Rapid storage. Appends will be slower on finalized files."
     default: false
     hide-flag: true
 
