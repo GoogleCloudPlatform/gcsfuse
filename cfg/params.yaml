@@ -130,6 +130,13 @@ params:
     default: false
     hide-flag: true
 
+  - config-path: "enable-async-reads"
+    flag-name: "enable-async-reads"
+    type: "bool"
+    usage: "Enables fuse async reads."
+    default: false
+    hide-flag: true
+
   - config-path: "enable-atomic-rename-object"
     flag-name: "enable-atomic-rename-object"
     type: "bool"
@@ -821,6 +828,13 @@ params:
       Specifies the random seek threshold to switch to another reader when random reads are detected.
     default: 3
     hide-flag: true
+
+  - config-path: "read.retired-blocks-per-handle"
+    flag-name: "read-retired-blocks-per-handle"
+    type: "int"
+    usage: >-
+      Specifies the number of retired blocks to be kept for a single file handle for buffered reads.
+    default: 2
 
   - config-path: "read.start-blocks-per-handle"
     flag-name: "read-start-blocks-per-handle"

@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"sync"
 	"time"
 
@@ -46,6 +47,7 @@ type BufferedReadConfig struct {
 	InitialPrefetchBlockCnt int64 // Number of blocks to prefetch initially.
 	MinBlocksPerHandle      int64 // Minimum number of blocks available in block-pool to start buffered-read.
 	RandomSeekThreshold     int64 // Seek count threshold to switch another reader
+	RetiredBlocksPerHandle  int64 // Number of retired blocks to keep for a file handle.
 }
 
 const (
@@ -144,8 +146,10 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 	// The retiredBlocks cache holds blocks that have been consumed but are kept
 	// to handle potential out-of-order reads. Its size is set to be the same as
 	// the maximum number of prefetch blocks to provide a reasonable buffer for
-	// such reads. For example, setting it to half of MaxPrefetchBlockCnt.
-	reader.retiredBlocks = NewLruRetiredBlockCache(uint64(2 * opts.Config.PrefetchBlockSizeBytes))
+	// such reads. The capacity is configured by `read.retired-blocks-per-handle`
+	// multiplied by `read.block-size-mb`.
+	reader.retiredBlocks = NewLruRetiredBlockCache(uint64(opts.Config.RetiredBlocksPerHandle * opts.Config.PrefetchBlockSizeBytes))
+	log.Println("opts.Config.RetiredBlocksPerHandle", opts.Config.RetiredBlocksPerHandle)
 
 	prefetcherOpts := &prefetcherOptions{
 		Object:       opts.Object,

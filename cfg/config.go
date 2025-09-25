@@ -50,6 +50,8 @@ type Config struct {
 
 	DisableAutoconfig bool `yaml:"disable-autoconfig"`
 
+	EnableAsyncReads bool `yaml:"enable-async-reads"`
+
 	EnableAtomicRenameObject bool `yaml:"enable-atomic-rename-object"`
 
 	EnableGoogleLibAuth bool `yaml:"enable-google-lib-auth"`
@@ -278,6 +280,8 @@ type ReadConfig struct {
 
 	RandomSeekThreshold int64 `yaml:"random-seek-threshold"`
 
+	RetiredBlocksPerHandle int64 `yaml:"retired-blocks-per-handle"`
+
 	StartBlocksPerHandle int64 `yaml:"start-blocks-per-handle"`
 }
 
@@ -418,6 +422,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("disable-parallel-dirops", "", false, "Specifies whether to allow parallel dir operations (lookups and readers)")
 
 	if err := flagSet.MarkHidden("disable-parallel-dirops"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("enable-async-reads", "", false, "Enables fuse async reads.")
+
+	if err := flagSet.MarkHidden("enable-async-reads"); err != nil {
 		return err
 	}
 
@@ -679,6 +689,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.IntP("read-retired-blocks-per-handle", "", 2, "Specifies the number of retired blocks to be kept for a single file handle for buffered reads.")
+
+	if err := flagSet.MarkHidden("read-retired-blocks-per-handle"); err != nil {
+		return err
+	}
+
 	flagSet.DurationP("read-stall-initial-req-timeout", "", 20000000000*time.Nanosecond, "Initial value of the read-request dynamic timeout.")
 
 	if err := flagSet.MarkHidden("read-stall-initial-req-timeout"); err != nil {
@@ -861,6 +877,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.disable-parallel-dirops", flagSet.Lookup("disable-parallel-dirops")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("enable-async-reads", flagSet.Lookup("enable-async-reads")); err != nil {
 		return err
 	}
 
@@ -1125,6 +1145,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("read.random-seek-threshold", flagSet.Lookup("read-random-seek-threshold")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.retired-blocks-per-handle", flagSet.Lookup("read-retired-blocks-per-handle")); err != nil {
 		return err
 	}
 
