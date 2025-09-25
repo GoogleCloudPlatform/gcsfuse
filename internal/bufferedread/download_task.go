@@ -84,8 +84,8 @@ func (p *DownloadTask) Execute() {
 			logger.Errorf("Download: -> block (%s, %v) failed: %v.", p.object.Name, blockId, err)
 			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})
 		}
-		p.metricHandle.BufferedReadDownloadBlockLatency(p.ctx, dur, status)
-		p.metricHandle.BufferedReadScheduledBlockCount(1, status)
+		p.metricHandle.BufferedReadDownloadBlockLatency(p.ctx, dur, metrics.MetricAttr(status))
+		p.metricHandle.BufferedReadScheduledBlockCount(1, metrics.MetricAttr(status))
 	}()
 
 	start := uint64(startOff)

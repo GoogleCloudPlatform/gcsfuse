@@ -20,6 +20,15 @@ import (
 	"time"
 )
 
+// MetricAttr is a string type for metric attributes.
+type MetricAttr string
+
+const (
+{{- range .StringAttributes}}
+	{{.ConstantName}} MetricAttr = "{{.Value}}"
+{{- end}}
+)
+
 // MetricHandle provides an interface for recording metrics.
 // The methods of this interface are auto-generated from metrics.yaml.
 // Each method corresponds to a metric defined in metrics.yaml.

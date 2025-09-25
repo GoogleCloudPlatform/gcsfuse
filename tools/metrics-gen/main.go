@@ -44,6 +44,12 @@ type Attribute struct {
 	Values []string `yaml:"values"`
 }
 
+// StringAttribute holds the constant name and value for a string attribute.
+type StringAttribute struct {
+	ConstantName string
+	Value        string
+}
+
 // AttrValuePair is a helper struct for generating combinations.
 type AttrValuePair struct {
 	Name  string
@@ -58,12 +64,14 @@ type AttrCombination []AttrValuePair
 type TemplateData struct {
 	Metrics          []Metric
 	AttrCombinations map[string][]AttrCombination
+	StringAttributes []StringAttribute
 }
 
 // Helper functions for the template.
 var funcMap = template.FuncMap{
 	"toPascal":                    toPascal,
 	"toCamel":                     toCamel,
+	"getConstantName":             getConstantName,
 	"getVarName":                  getVarName,
 	"getAtomicName":               getAtomicName,
 	"getGoType":                   getGoType,
@@ -102,6 +110,10 @@ func toCamel(s string) string {
 	return ""
 }
 
+func getConstantName(s string) string {
+	return toPascal(s) + "Attr"
+}
+
 func getVarName(metricName string, combo AttrCombination) string {
 	var parts []string
 	parts = append(parts, toCamel(metricName))
@@ -127,7 +139,7 @@ func getAtomicName(metricName string, combo AttrCombination) string {
 func getGoType(t string) string {
 	switch t {
 	case "string":
-		return "string"
+		return "MetricAttr"
 	case "bool":
 		return "bool"
 	default:
@@ -188,7 +200,7 @@ func getExpectedAttrs(combo AttrCombination) string {
 	var parts []string
 	for _, pair := range combo {
 		if pair.Type == "string" {
-			parts = append(parts, fmt.Sprintf(`attribute.String("%s", "%s")`, pair.Name, pair.Value))
+			parts = append(parts, fmt.Sprintf(`attribute.String("%s", string(%s))`, pair.Name, getConstantName(pair.Value)))
 		} else { // bool
 			parts = append(parts, fmt.Sprintf(`attribute.Bool("%s", %s)`, pair.Name, pair.Value))
 		}
@@ -253,7 +265,7 @@ func generateCombinations(attributes []Attribute) []AttrCombination {
 
 func handleDefaultInSwitchCase(level int, attrName string, builder *strings.Builder) {
 	builder.WriteString(fmt.Sprintf("%sdefault:\n", strings.Repeat("\t", level+2)))
-	builder.WriteString(fmt.Sprintf("%supdateUnrecognizedAttribute(%s)\n", strings.Repeat("\t", level+3), toCamel(attrName)))
+	builder.WriteString(fmt.Sprintf("%supdateUnrecognizedAttribute(string(%s))\n", strings.Repeat("\t", level+3), toCamel(attrName)))
 	builder.WriteString(fmt.Sprintf("%sreturn\n", strings.Repeat("\t", level+3)))
 }
 
@@ -382,7 +394,7 @@ func buildSwitches(metric Metric) string {
 		for _, val := range values {
 			caseVal := val
 			if attr.Type == "string" {
-				caseVal = `"` + val + `"`
+				caseVal = getConstantName(val)
 			}
 			builder.WriteString(fmt.Sprintf("%scase %s:\n", strings.Repeat("\t", level+2), caseVal))
 			currentCombo := append(combo, AttrValuePair{Name: attr.Name, Type: attr.Type, Value: val})
@@ -442,6 +454,29 @@ func main() {
 		}
 	}
 
+	// Collect all unique string attributes and validate them.
+	stringAttributes := make(map[string]string)
+	for _, m := range metrics {
+		for _, a := range m.Attributes {
+			if a.Type == "string" {
+				for _, v := range a.Values {
+					constName := getConstantName(v)
+					if existingVal, ok := stringAttributes[constName]; ok && existingVal != v {
+						log.Fatalf("error: constant %s is generated for two different attribute values: %q and %q", constName, existingVal, v)
+					}
+					stringAttributes[constName] = v
+				}
+			}
+		}
+	}
+	var sortedStringAttributes []StringAttribute
+	for k, v := range stringAttributes {
+		sortedStringAttributes = append(sortedStringAttributes, StringAttribute{ConstantName: k, Value: v})
+	}
+	sort.Slice(sortedStringAttributes, func(i, j int) bool {
+		return sortedStringAttributes[i].ConstantName < sortedStringAttributes[j].ConstantName
+	})
+
 	attrCombinations := make(map[string][]AttrCombination)
 	for _, m := range metrics {
 		attrCombinations[m.Name] = generateCombinations(m.Attributes)
@@ -454,6 +489,7 @@ func main() {
 	data := TemplateData{
 		Metrics:          metrics,
 		AttrCombinations: attrCombinations,
+		StringAttributes: sortedStringAttributes,
 	}
 	createFile(&data, fmt.Sprintf("%s/metric_handle.go", *outputDir), "metric_handle.tpl")
 	createFile(&data, fmt.Sprintf("%s/noop_metrics.go", *outputDir), "noop_metrics.tpl")

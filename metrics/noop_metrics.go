@@ -22,46 +22,46 @@ import (
 
 type noopMetrics struct{}
 
-func (*noopMetrics) BufferedReadDownloadBlockLatency(ctx context.Context, duration time.Duration, status string) {
+func (*noopMetrics) BufferedReadDownloadBlockLatency(ctx context.Context, duration time.Duration, status MetricAttr) {
 }
 
-func (*noopMetrics) BufferedReadFallbackTriggerCount(inc int64, reason string) {}
+func (*noopMetrics) BufferedReadFallbackTriggerCount(inc int64, reason MetricAttr) {}
 
 func (*noopMetrics) BufferedReadReadLatency(ctx context.Context, duration time.Duration) {}
 
-func (*noopMetrics) BufferedReadScheduledBlockCount(inc int64, status string) {}
+func (*noopMetrics) BufferedReadScheduledBlockCount(inc int64, status MetricAttr) {}
 
-func (*noopMetrics) FileCacheReadBytesCount(inc int64, readType string) {}
+func (*noopMetrics) FileCacheReadBytesCount(inc int64, readType MetricAttr) {}
 
-func (*noopMetrics) FileCacheReadCount(inc int64, cacheHit bool, readType string) {}
+func (*noopMetrics) FileCacheReadCount(inc int64, cacheHit bool, readType MetricAttr) {}
 
 func (*noopMetrics) FileCacheReadLatencies(ctx context.Context, duration time.Duration, cacheHit bool) {
 }
 
-func (*noopMetrics) FsOpsCount(inc int64, fsOp string) {}
+func (*noopMetrics) FsOpsCount(inc int64, fsOp MetricAttr) {}
 
-func (*noopMetrics) FsOpsErrorCount(inc int64, fsErrorCategory string, fsOp string) {}
+func (*noopMetrics) FsOpsErrorCount(inc int64, fsErrorCategory MetricAttr, fsOp MetricAttr) {}
 
-func (*noopMetrics) FsOpsLatency(ctx context.Context, duration time.Duration, fsOp string) {}
+func (*noopMetrics) FsOpsLatency(ctx context.Context, duration time.Duration, fsOp MetricAttr) {}
 
-func (*noopMetrics) GcsDownloadBytesCount(inc int64, readType string) {}
+func (*noopMetrics) GcsDownloadBytesCount(inc int64, readType MetricAttr) {}
 
 func (*noopMetrics) GcsReadBytesCount(inc int64) {}
 
-func (*noopMetrics) GcsReadCount(inc int64, readType string) {}
+func (*noopMetrics) GcsReadCount(inc int64, readType MetricAttr) {}
 
-func (*noopMetrics) GcsReaderCount(inc int64, ioMethod string) {}
+func (*noopMetrics) GcsReaderCount(inc int64, ioMethod MetricAttr) {}
 
-func (*noopMetrics) GcsRequestCount(inc int64, gcsMethod string) {}
+func (*noopMetrics) GcsRequestCount(inc int64, gcsMethod MetricAttr) {}
 
-func (*noopMetrics) GcsRequestLatencies(ctx context.Context, duration time.Duration, gcsMethod string) {
+func (*noopMetrics) GcsRequestLatencies(ctx context.Context, duration time.Duration, gcsMethod MetricAttr) {
 }
 
-func (*noopMetrics) GcsRetryCount(inc int64, retryErrorCategory string) {}
+func (*noopMetrics) GcsRetryCount(inc int64, retryErrorCategory MetricAttr) {}
 
 func (*noopMetrics) TestUpdownCounter(inc int64) {}
 
-func (*noopMetrics) TestUpdownCounterWithAttrs(inc int64, requestType string) {}
+func (*noopMetrics) TestUpdownCounterWithAttrs(inc int64, requestType MetricAttr) {}
 
 func NewNoopMetrics() MetricHandle {
 	var n noopMetrics
