@@ -2837,6 +2837,7 @@ func (fs *fileSystem) ReadFile(
 
 	fh.Inode().Lock()
 	if fh.Inode().IsUsingBWH() {
+		// Flush Pending streaming writes and issue read within same inode lock.
 		if fh.Inode().Bucket().BucketType().Zonal {
 			if fs.newConfig.Write.FinalizeFileForRapid {
 				// Not calling flushFile as that will finalize the object which is not needed from here.
