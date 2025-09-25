@@ -145,7 +145,7 @@ then
 else
 #  For rhel and centos
     # uname can be aarch or x86_64
-    uname=$(uname -i)
+    uname=$(uname -m)
 
     if [[ $uname == "x86_64" ]]; then
       architecture="amd64"
