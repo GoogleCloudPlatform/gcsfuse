@@ -28,20 +28,35 @@ func TestApplyOptimizations(t *testing.T) {
     {{- $flag := . }}
 	// Tests for {{ $flag.ConfigPath }}
 	t.Run("{{$flag.ConfigPath}}", func(t *testing.T) {
-		// Test case 1: User has set the flag, no optimization should be applied.
+		// Define a non-default value for testing user-set flags.
+		{{- if eq $flag.GoType "int64" }}
+		const nonDefaultValue = int64(98765)
+		{{- else if eq $flag.GoType "bool" }}
+		nonDefaultValue := !({{$flag.DefaultValue}})
+		{{- end }}
+
+		// Test case 1: User has set the flag to a non-default value; optimizations should be ignored FOR THAT FLAG.
 		t.Run("user_set", func(t *testing.T) {
-			c := &Config{}
-			c.{{$flag.GoPath}} = {{$flag.DefaultValue}}
-			isSet := &mockIsValueSet{setFlags: map[string]bool{"{{$flag.FlagName}}": true}}
+			{{- if or (eq $flag.GoType "int64") (eq $flag.GoType "bool") }}
+			c := &Config{
+				Profile: "aiml-serving", // A profile that would otherwise cause optimization.
+			}
+			c.{{$flag.GoPath}} = nonDefaultValue // Set the non-default value.
+			isSet := &mockIsValueSet{
+				setFlags: map[string]bool{
+					"{{$flag.FlagName}}": true,
+					"machine-type":       true, // A machine type that would otherwise cause optimization.
+				},
+				stringFlags: map[string]string{
+					"machine-type": "a2-megagpu-16g", // From the "high-performance" group.
+				},
+			}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
 
-			assert.Empty(t, optimizedFlags)
-            {{- if eq $flag.GoType "int64" }}
-			assert.Equal(t, int64({{$flag.DefaultValue}}), c.{{$flag.GoPath}})
-            {{- else }}
-			assert.Equal(t, {{$flag.DefaultValue}}, c.{{$flag.GoPath}})
-            {{- end }}
+			assert.NotContains(t, optimizedFlags, "{{$flag.ConfigPath}}")
+			assert.Equal(t, nonDefaultValue, c.{{$flag.GoPath}})
+			{{- end }}
 		})
 
 		// Test case 2: No profile or machine-based optimization match.
@@ -56,11 +71,11 @@ func TestApplyOptimizations(t *testing.T) {
 			optimizedFlags := c.ApplyOptimizations(isSet)
 
 			assert.Empty(t, optimizedFlags)
-            {{- if eq $flag.GoType "int64" }}
+			{{- if eq $flag.GoType "int64" }}
 			assert.Equal(t, int64({{$flag.DefaultValue}}), c.{{$flag.GoPath}})
-            {{- else }}
+			{{- else }}
 			assert.Equal(t, {{$flag.DefaultValue}}, c.{{$flag.GoPath}})
-            {{- end }}
+			{{- end }}
 		})
 
 		// Test cases for profile-based optimizations
@@ -73,11 +88,11 @@ func TestApplyOptimizations(t *testing.T) {
 			optimizedFlags := c.ApplyOptimizations(isSet)
 
 			assert.Contains(t, optimizedFlags, "{{$flag.ConfigPath}}")
-            {{- if eq $flag.GoType "int64" }}
+			{{- if eq $flag.GoType "int64" }}
 			assert.Equal(t, int64({{ formatValue .Value }}), c.{{$flag.GoPath}})
-            {{- else }}
+			{{- else }}
 			assert.Equal(t, {{ formatValue .Value }}, c.{{$flag.GoPath}})
-            {{- end }}
+			{{- end }}
 		})
 		{{- end }}
 
@@ -102,11 +117,11 @@ func TestApplyOptimizations(t *testing.T) {
 			optimizedFlags := c.ApplyOptimizations(isSet)
 
 			assert.Contains(t, optimizedFlags, "{{$flag.ConfigPath}}")
-            {{- if eq $flag.GoType "int64" }}
+			{{- if eq $flag.GoType "int64" }}
 			assert.Equal(t, int64({{ formatValue $mbo.Value }}), c.{{$flag.GoPath}})
-            {{- else }}
+			{{- else }}
 			assert.Equal(t, {{ formatValue $mbo.Value }}, c.{{$flag.GoPath}})
-            {{- end }}
+			{{- end }}
 		})
 		{{- end }}
 	})
