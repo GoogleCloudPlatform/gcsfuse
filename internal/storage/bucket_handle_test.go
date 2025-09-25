@@ -66,7 +66,7 @@ func createBucketHandle(testSuite *BucketHandleTest, resp *controlpb.StorageLayo
 	var err error
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
 		Return(resp, nil)
-	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "")
+	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "", false)
 	testSuite.bucketHandle.controlClient = testSuite.mockClient
 
 	assert.NotNil(testSuite.T(), testSuite.bucketHandle)
@@ -1474,7 +1474,7 @@ func (testSuite *BucketHandleTest) TestBucketHandleWithError() {
 	var err error
 	// Test when the client returns an error.
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).Return(x, errors.New("mocked error"))
-	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "")
+	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "", false)
 
 	assert.Nil(testSuite.T(), testSuite.bucketHandle)
 	assert.Contains(testSuite.T(), err.Error(), "mocked error")
@@ -1485,7 +1485,7 @@ func (testSuite *BucketHandleTest) TestBucketHandleWithRapidAppendsEnabled() {
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).Return(&controlpb.StorageLayout{}, nil)
 	testSuite.mockClient.On("getClient", mock.Anything, mock.Anything).Return(&storage.Client{}, nil)
 
-	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "")
+	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "", false)
 
 	assert.NotNil(testSuite.T(), testSuite.bucketHandle)
 	assert.Nil(testSuite.T(), err)
