@@ -58,7 +58,7 @@ type StorageHandle interface {
 	// to that project rather than to the bucket's owning project.
 	//
 	// A user-project is required for all operations on Requester Pays buckets.
-	BucketHandle(ctx context.Context, bucketName string, billingProject string, finalizeFiles bool) (bh *bucketHandle, err error)
+	BucketHandle(ctx context.Context, bucketName string, billingProject string, finalizeFileForRapid bool) (bh *bucketHandle, err error)
 }
 
 type storageClient struct {
@@ -397,7 +397,7 @@ func (sh *storageClient) controlClientForBucketHandle(bucketType *gcs.BucketType
 	return withBillingProject(controlClientWithoutBillingProject, billingProject)
 }
 
-func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, billingProject string, finalizeFiles bool) (bh *bucketHandle, err error) {
+func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, billingProject string, finalizeFileForRapid bool) (bh *bucketHandle, err error) {
 	var client *storage.Client
 	bucketType, err := sh.lookupBucketType(bucketName)
 	if err != nil {
@@ -426,11 +426,11 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 	controlClient := sh.controlClientForBucketHandle(bucketType, billingProject)
 
 	bh = &bucketHandle{
-		bucket:        storageBucketHandle,
-		bucketName:    bucketName,
-		controlClient: controlClient,
-		bucketType:    bucketType,
-		finalizeFiles: finalizeFiles,
+		bucket:               storageBucketHandle,
+		bucketName:           bucketName,
+		controlClient:        controlClient,
+		bucketType:           bucketType,
+		finalizeFileForRapid: finalizeFileForRapid,
 	}
 
 	return

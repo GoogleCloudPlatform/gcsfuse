@@ -601,7 +601,7 @@ type WriteConfig struct {
 
 	EnableStreamingWrites bool `yaml:"enable-streaming-writes"`
 
-	FinalizeFiles bool `yaml:"finalize-files"`
+	FinalizeFileForRapid bool `yaml:"finalize-file-for-rapid"`
 
 	GlobalMaxBlocks int64 `yaml:"global-max-blocks"`
 
@@ -862,9 +862,9 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("file-mode", "", "0644", "Permissions bits for files, in octal.")
 
-	flagSet.BoolP("finalize-files", "", false, "Finalizes the files on close for Rapid storage. Appends will be slower on finalized files.")
+	flagSet.BoolP("finalize-file-for-rapid", "", false, "Finalizes the files on close for Rapid storage. Appends will be slower on finalized files.")
 
-	if err := flagSet.MarkHidden("finalize-files"); err != nil {
+	if err := flagSet.MarkHidden("finalize-file-for-rapid"); err != nil {
 		return err
 	}
 
@@ -1295,7 +1295,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("write.finalize-files", flagSet.Lookup("finalize-files")); err != nil {
+	if err := v.BindPFlag("write.finalize-file-for-rapid", flagSet.Lookup("finalize-file-for-rapid")); err != nil {
 		return err
 	}
 

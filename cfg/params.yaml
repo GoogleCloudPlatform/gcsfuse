@@ -958,8 +958,8 @@ params:
     default: true
     hide-flag: false
 
-  - config-path: "write.finalize-files"
-    flag-name: "finalize-files"
+  - config-path: "write.finalize-file-for-rapid"
+    flag-name: "finalize-file-for-rapid"
     type: "bool"
     usage: "Finalizes the files on close for Rapid storage. Appends will be slower on finalized files."
     default: false

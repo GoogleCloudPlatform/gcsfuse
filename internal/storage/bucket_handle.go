@@ -38,11 +38,11 @@ const FullBucketPathHNS = "projects/_/buckets/%s"
 
 type bucketHandle struct {
 	gcs.Bucket
-	bucket        *storage.BucketHandle
-	bucketName    string
-	bucketType    *gcs.BucketType
-	controlClient StorageControlClient
-	finalizeFiles bool
+	bucket               *storage.BucketHandle
+	bucketName           string
+	bucketType           *gcs.BucketType
+	controlClient        StorageControlClient
+	finalizeFileForRapid bool
 }
 
 func (bh *bucketHandle) Name() string {
@@ -198,7 +198,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	wc.ProgressFunc = req.CallBack
 	// All objects in zonal buckets must be appendable.
 	wc.Append = bh.BucketType().Zonal
-	if bh.finalizeFiles {
+	if bh.finalizeFileForRapid {
 		wc.FinalizeOnClose = true
 	} else if bh.BucketType().Zonal {
 		// Objects in zonal buckets should not be finalized by default.
@@ -236,7 +236,7 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	wc.ProgressFunc = callBack
 	// All objects in zonal buckets must be appendable.
 	wc.Append = bh.BucketType().Zonal
-	if bh.finalizeFiles {
+	if bh.finalizeFileForRapid {
 		wc.FinalizeOnClose = true
 	} else if bh.BucketType().Zonal {
 		// Objects in zonal buckets should not be finalized by default.

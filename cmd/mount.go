@@ -99,7 +99,7 @@ be interacting with the file system.`)
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
 		ChunkTransferTimeoutSecs:           newConfig.GcsRetries.ChunkTransferTimeoutSecs,
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
-		FinalizeFiles:                      newConfig.Write.FinalizeFiles,
+		FinalizeFileForRapid:               newConfig.Write.FinalizeFileForRapid,
 	}
 	bm := gcsx.NewBucketManager(bucketCfg, storageHandle)
 
