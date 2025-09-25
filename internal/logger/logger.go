@@ -34,19 +34,20 @@ import (
 // used to filter the logs from syslog and write it to respective log files -
 // gcsfuse.log in case of GCSFuse.
 const (
-	ProgrammeName                string = "gcsfuse"
-	GCSFuseInBackgroundMode      string = "GCSFUSE_IN_BACKGROUND_MODE"
-	GCSFuseMountInstanceIdEnvKey string = "GCSFUSE_MOUNT_INSTANCE_ID"
-	textFormat                   string = "text"
-	mountLoggerIdKey             string = "mount_id"
-	defaultMountInstanceId       string = "00000000"
+	ProgrammeName                = "gcsfuse"
+	GCSFuseInBackgroundMode      = "GCSFUSE_IN_BACKGROUND_MODE"
+	GCSFuseMountInstanceIDEnvKey = "GCSFUSE_MOUNT_INSTANCE_ID"
+	textFormat                   = "text"
+	mountLoggerIDKey             = "mount_id"
+	defaultMountInstanceID       = "00000000"
+	defaultMountFSName           = "gcsfuse"
 )
 
 var (
 	defaultLoggerFactory *loggerFactory
 	defaultLogger        *slog.Logger
-	MountInstanceId      string
-	MountFsName          string = "gcsfuse"
+	mountInstanceID      string
+	mountFSName          string
 )
 
 // InitLogFile initializes the logger factory to create loggers that print to
@@ -110,26 +111,26 @@ func init() {
 	initializeDefaultLogger()
 }
 
-// setupMountInstanceID handles the retrieval of MountInstanceId if GCSFuse is in
+// setupMountInstanceID handles the retrieval of mountInstanceId if GCSFuse is in
 // background mode or generates one if running in foreground mode.
 func setupMountInstanceID() {
 	if _, ok := os.LookupEnv(GCSFuseInBackgroundMode); ok {
 		// If GCSFuse is in background mode then look for the MountInstanceId in env which was set by the caller of demonize run.
-		if parentMountInstanceId, ok := os.LookupEnv(GCSFuseMountInstanceIdEnvKey); ok && parentMountInstanceId != "" {
-			MountInstanceId = parentMountInstanceId
+		if parentMountInstanceId, ok := os.LookupEnv(GCSFuseMountInstanceIDEnvKey); ok && parentMountInstanceId != "" {
+			mountInstanceID = parentMountInstanceId
 		} else {
-			MountInstanceId = defaultMountInstanceId
-			log.Printf("Could not retrieve %s env variable. Using default: %v", GCSFuseMountInstanceIdEnvKey, defaultMountInstanceId)
+			mountInstanceID = defaultMountInstanceID
+			log.Printf("Could not retrieve %s env variable. Using default: %v", GCSFuseMountInstanceIDEnvKey, defaultMountInstanceID)
 		}
 		return
 	}
 	// If GCSFuse is not running in the background mode then generate a random UUID and store the trimmed UUID as MountInstanceId.
 	uuid, err := uuid.NewRandom()
 	if err == nil {
-		MountInstanceId = uuid.String()[:8]
+		mountInstanceID = uuid.String()[:8]
 	} else {
-		MountInstanceId = defaultMountInstanceId
-		log.Printf("Could not generate random UUID for logger, err %v. using default: %v", err, defaultMountInstanceId)
+		mountInstanceID = defaultMountInstanceID
+		log.Printf("Could not generate random UUID for logger, err %v. using default: %v", err, defaultMountInstanceID)
 	}
 }
 
@@ -145,11 +146,25 @@ func initializeDefaultLogger() {
 	defaultLogger = defaultLoggerFactory.newLogger(cfg.INFO)
 }
 
+func MountInstanceID() string {
+	if mountInstanceID == "" {
+		return defaultMountInstanceID
+	}
+	return mountInstanceID
+}
+
+func MountFSName() string {
+	if mountFSName == "" {
+		return defaultMountFSName
+	}
+	return mountFSName
+}
+
 // SetLogFormat updates the log format of default logger to given format
 // and initializes the default logger with fsName and mountInstanceId
 func SetLogFormatAndFsName(format, fsName string) {
 	defaultLoggerFactory.format = format
-	MountFsName = fsName
+	mountFSName = fsName
 	defaultLogger = defaultLoggerFactory.newLogger(defaultLoggerFactory.level)
 }
 
@@ -208,8 +223,8 @@ type loggerFactory struct {
 func (f *loggerFactory) newLogger(level string) *slog.Logger {
 	// create a new logger
 	var programLevel = new(slog.LevelVar)
-	logger := slog.New(f.handler(programLevel, "").WithAttrs([]slog.Attr{slog.String(mountLoggerIdKey,
-		fmt.Sprintf("%s-%s", MountFsName, MountInstanceId))}))
+	logger := slog.New(f.handler(programLevel, "").WithAttrs([]slog.Attr{slog.String(mountLoggerIDKey,
+		fmt.Sprintf("%s-%s", MountFSName(), MountInstanceID()))}))
 	slog.SetDefault(logger)
 	setLoggingLevel(level, programLevel)
 	return logger

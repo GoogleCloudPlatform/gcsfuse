@@ -57,8 +57,8 @@ func TestLoggerSuite(t *testing.T) {
 func redirectLogsToGivenBuffer(buf *bytes.Buffer, level string) {
 	var programLevel = new(slog.LevelVar)
 	handler := defaultLoggerFactory.createJsonOrTextHandler(buf, programLevel, "TestLogs: ")
-	handler = handler.WithAttrs([]slog.Attr{slog.String(mountLoggerIdKey,
-		fmt.Sprintf("%s-%s", MountFsName, MountInstanceId))})
+	handler = handler.WithAttrs([]slog.Attr{slog.String(mountLoggerIDKey,
+		fmt.Sprintf("%s-%s", MountFSName(), MountInstanceID()))})
 	defaultLogger = slog.New(handler)
 	setLoggingLevel(level, programLevel)
 }
@@ -299,7 +299,7 @@ func (t *LoggerTest) TestInitLogFile() {
 	assert.True(t.T(), defaultLoggerFactory.logRotate.Compress)
 }
 
-func (t *LoggerTest) TestSetLogFormatAndFsName() {
+func (t *LoggerTest) TestSetLogFormatAndFSName() {
 	logConfig := cfg.DefaultLoggingConfig()
 	defaultLoggerFactory = &loggerFactory{
 		file:      nil,
@@ -351,20 +351,20 @@ func (t *LoggerTest) TestSetLogFormatAndFsNameWithBackgroundMode() {
 	logConfig := cfg.DefaultLoggingConfig()
 	defaultLoggerFactory = &loggerFactory{
 		file:      nil,
-		level:     string(logConfig.Severity), // setting log level to INFO by default
+		level:     string(logConfig.Severity),
 		logRotate: logConfig.LogRotate,
 	}
 
 	testData := []struct {
 		name               string
-		instanceIdSet      bool
-		expectedInstanceId string
+		instanceIDSet      bool
+		expectedInstanceID string
 		fsName             string
 		format             string
 		expectedOutput     string
 	}{
 		{
-			"MountInstanceIdSet",
+			"MountInstanceIDSet",
 			true,
 			"12121212",
 			"my-bucket",
@@ -372,9 +372,9 @@ func (t *LoggerTest) TestSetLogFormatAndFsNameWithBackgroundMode() {
 			jsonInfoString,
 		},
 		{
-			"MountInstanceIdNotSet",
+			"MountInstanceIDNotSet",
 			false,
-			defaultMountInstanceId,
+			defaultMountInstanceID,
 			"gcsfuse",
 			"text",
 			textInfoString,
@@ -383,17 +383,9 @@ func (t *LoggerTest) TestSetLogFormatAndFsNameWithBackgroundMode() {
 
 	for _, test := range testData {
 		t.T().Run(test.name, func(t *testing.T) {
-			os.Setenv(GCSFuseInBackgroundMode, "true")
-			if test.instanceIdSet {
-				err := os.Setenv(GCSFuseMountInstanceIdEnvKey, test.expectedInstanceId)
-				if err != nil {
-					t.Fatalf("Unable to set env, err: %v", err)
-				}
-			} else {
-				err := os.Unsetenv(GCSFuseMountInstanceIdEnvKey)
-				if err != nil {
-					t.Fatalf("Unable to unset env, err: %v", err)
-				}
+			t.Setenv(GCSFuseInBackgroundMode, "true")
+			if test.instanceIDSet {
+				t.Setenv(GCSFuseMountInstanceIDEnvKey, test.expectedInstanceID)
 			}
 			setupMountInstanceID()
 			initializeDefaultLogger()
@@ -410,7 +402,7 @@ func (t *LoggerTest) TestSetLogFormatAndFsNameWithBackgroundMode() {
 			// Compare expected and actual log.
 			expectedRegexp := regexp.MustCompile(test.expectedOutput)
 			assert.True(t, expectedRegexp.MatchString(output))
-			assert.True(t, strings.Contains(output, fmt.Sprintf("%s-%s", test.fsName, test.expectedInstanceId)))
+			assert.True(t, strings.Contains(output, fmt.Sprintf("%s-%s", test.fsName, test.expectedInstanceID)))
 		})
 	}
 }

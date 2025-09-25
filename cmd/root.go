@@ -32,9 +32,9 @@ import (
 
 // gcsfuseConfigs provides the configuration values provided by the user in CLI flags,
 // config file and full gcsfuse config in a wrapper config.
-func gcsfuseConfigs(v *viper.Viper, cmd *cobra.Command, finalConfig cfg.Config) map[string]interface{} {
-	wrapperConfig := make(map[string]interface{})
-	cliFlags := make(map[string]interface{})
+func gcsfuseConfigs(v *viper.Viper, cmd *cobra.Command, finalConfig cfg.Config) map[string]any {
+	wrapperConfig := make(map[string]any)
+	cliFlags := make(map[string]any)
 	cmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
 		if f.Changed {
 			cliFlags[f.Name] = f.Value.String()
@@ -60,12 +60,12 @@ func gcsfuseConfigs(v *viper.Viper, cmd *cobra.Command, finalConfig cfg.Config) 
 	return wrapperConfig
 }
 
-type mountFn func(c *cfg.Config, wc map[string]interface{}, bucketName, mountPoint string) error
+type mountFn func(c *cfg.Config, wc map[string]any, bucketName, mountPoint string) error
 
 // newRootCmd accepts the mountFn that it executes with the parsed configuration
 func newRootCmd(m mountFn) (*cobra.Command, error) {
 	var (
-		wrapperConfig map[string]interface{}
+		wrapperConfig map[string]any
 		configObj     cfg.Config
 		cfgFile       string
 		cfgErr        error

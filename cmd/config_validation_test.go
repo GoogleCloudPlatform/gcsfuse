@@ -30,7 +30,7 @@ import (
 func getConfigObject(t *testing.T, args []string) (*cfg.Config, error) {
 	t.Helper()
 	var c *cfg.Config
-	cmd, err := newRootCmd(func(config *cfg.Config, _ map[string]interface{}, _, _ string) error {
+	cmd, err := newRootCmd(func(config *cfg.Config, _ map[string]any, _, _ string) error {
 		c = config
 		return nil
 	})
