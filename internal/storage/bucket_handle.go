@@ -42,6 +42,7 @@ type bucketHandle struct {
 	bucketName    string
 	bucketType    *gcs.BucketType
 	controlClient StorageControlClient
+	finalizeFiles bool
 }
 
 func (bh *bucketHandle) Name() string {
@@ -197,10 +198,12 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	wc.ProgressFunc = req.CallBack
 	// All objects in zonal buckets must be appendable.
 	wc.Append = bh.BucketType().Zonal
-	// Objects in zonal buckets should not finalized.
-	// When writer.Append is false,then this parameter is anyways ignored.
-	// Refer: https://github.com/googleapis/google-cloud-go/blob/main/storage/writer.go#L135
-	if bh.BucketType().Zonal {
+	if bh.finalizeFiles {
+		wc.FinalizeOnClose = true
+	} else if bh.BucketType().Zonal {
+		// Objects in zonal buckets should not be finalized by default.
+		// When writer.Append is false,then this parameter is anyways ignored.
+		// Refer: https://github.com/googleapis/google-cloud-go/blob/main/storage/writer.go#L135
 		wc.FinalizeOnClose = false
 	}
 
@@ -233,8 +236,10 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	wc.ProgressFunc = callBack
 	// All objects in zonal buckets must be appendable.
 	wc.Append = bh.BucketType().Zonal
-	// Objects in zonal buckets should not finalized.
-	if bh.BucketType().Zonal {
+	if bh.finalizeFiles {
+		wc.FinalizeOnClose = true
+	} else if bh.BucketType().Zonal {
+		// Objects in zonal buckets should not be finalized by default.
 		wc.FinalizeOnClose = false
 	}
 
