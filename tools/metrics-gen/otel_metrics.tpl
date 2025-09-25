@@ -96,7 +96,7 @@ func (o *otelMetrics) {{toPascal .Name}}(
 	  case o.ch <- record: // Do nothing
 	  default: // Unblock writes to channel if it's full.
 	}
-	{{- end}}
+	{{- end -}}
 }
 {{end}}
 
