@@ -25,16 +25,29 @@ import (
 func TestApplyOptimizations(t *testing.T) {
 	// Tests for file-cache.cache-file-for-range-read
 	t.Run("file-cache.cache-file-for-range-read", func(t *testing.T) {
-		// Test case 1: User has set the flag, no optimization should be applied.
+		// Define a non-default value for testing user-set flags.
+		nonDefaultValue := !(false)
+
+		// Test case 1: User has set the flag to a non-default value; optimizations should be ignored FOR THAT FLAG.
 		t.Run("user_set", func(t *testing.T) {
-			c := &Config{}
-			c.FileCache.CacheFileForRangeRead = false
-			isSet := &mockIsValueSet{setFlags: map[string]bool{"file-cache-cache-file-for-range-read": true}}
+			c := &Config{
+				Profile: "aiml-serving", // A profile that would otherwise cause optimization.
+			}
+			c.FileCache.CacheFileForRangeRead = nonDefaultValue // Set the non-default value.
+			isSet := &mockIsValueSet{
+				setFlags: map[string]bool{
+					"file-cache-cache-file-for-range-read": true,
+					"machine-type":                         true, // A machine type that would otherwise cause optimization.
+				},
+				stringFlags: map[string]string{
+					"machine-type": "a2-megagpu-16g", // From the "high-performance" group.
+				},
+			}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
 
-			assert.Empty(t, optimizedFlags)
-			assert.Equal(t, false, c.FileCache.CacheFileForRangeRead)
+			assert.NotContains(t, optimizedFlags, "file-cache.cache-file-for-range-read")
+			assert.Equal(t, nonDefaultValue, c.FileCache.CacheFileForRangeRead)
 		})
 
 		// Test case 2: No profile or machine-based optimization match.
@@ -78,16 +91,29 @@ func TestApplyOptimizations(t *testing.T) {
 	})
 	// Tests for implicit-dirs
 	t.Run("implicit-dirs", func(t *testing.T) {
-		// Test case 1: User has set the flag, no optimization should be applied.
+		// Define a non-default value for testing user-set flags.
+		nonDefaultValue := !(false)
+
+		// Test case 1: User has set the flag to a non-default value; optimizations should be ignored FOR THAT FLAG.
 		t.Run("user_set", func(t *testing.T) {
-			c := &Config{}
-			c.ImplicitDirs = false
-			isSet := &mockIsValueSet{setFlags: map[string]bool{"implicit-dirs": true}}
+			c := &Config{
+				Profile: "aiml-serving", // A profile that would otherwise cause optimization.
+			}
+			c.ImplicitDirs = nonDefaultValue // Set the non-default value.
+			isSet := &mockIsValueSet{
+				setFlags: map[string]bool{
+					"implicit-dirs": true,
+					"machine-type":  true, // A machine type that would otherwise cause optimization.
+				},
+				stringFlags: map[string]string{
+					"machine-type": "a2-megagpu-16g", // From the "high-performance" group.
+				},
+			}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
 
-			assert.Empty(t, optimizedFlags)
-			assert.Equal(t, false, c.ImplicitDirs)
+			assert.NotContains(t, optimizedFlags, "implicit-dirs")
+			assert.Equal(t, nonDefaultValue, c.ImplicitDirs)
 		})
 
 		// Test case 2: No profile or machine-based optimization match.
@@ -155,16 +181,29 @@ func TestApplyOptimizations(t *testing.T) {
 	})
 	// Tests for file-system.kernel-list-cache-ttl-secs
 	t.Run("file-system.kernel-list-cache-ttl-secs", func(t *testing.T) {
-		// Test case 1: User has set the flag, no optimization should be applied.
+		// Define a non-default value for testing user-set flags.
+		const nonDefaultValue = int64(98765)
+
+		// Test case 1: User has set the flag to a non-default value; optimizations should be ignored FOR THAT FLAG.
 		t.Run("user_set", func(t *testing.T) {
-			c := &Config{}
-			c.FileSystem.KernelListCacheTtlSecs = 0
-			isSet := &mockIsValueSet{setFlags: map[string]bool{"kernel-list-cache-ttl-secs": true}}
+			c := &Config{
+				Profile: "aiml-serving", // A profile that would otherwise cause optimization.
+			}
+			c.FileSystem.KernelListCacheTtlSecs = nonDefaultValue // Set the non-default value.
+			isSet := &mockIsValueSet{
+				setFlags: map[string]bool{
+					"kernel-list-cache-ttl-secs": true,
+					"machine-type":               true, // A machine type that would otherwise cause optimization.
+				},
+				stringFlags: map[string]string{
+					"machine-type": "a2-megagpu-16g", // From the "high-performance" group.
+				},
+			}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
 
-			assert.Empty(t, optimizedFlags)
-			assert.Equal(t, int64(0), c.FileSystem.KernelListCacheTtlSecs)
+			assert.NotContains(t, optimizedFlags, "file-system.kernel-list-cache-ttl-secs")
+			assert.Equal(t, nonDefaultValue, c.FileSystem.KernelListCacheTtlSecs)
 		})
 
 		// Test case 2: No profile or machine-based optimization match.
@@ -198,16 +237,29 @@ func TestApplyOptimizations(t *testing.T) {
 	})
 	// Tests for metadata-cache.negative-ttl-secs
 	t.Run("metadata-cache.negative-ttl-secs", func(t *testing.T) {
-		// Test case 1: User has set the flag, no optimization should be applied.
+		// Define a non-default value for testing user-set flags.
+		const nonDefaultValue = int64(98765)
+
+		// Test case 1: User has set the flag to a non-default value; optimizations should be ignored FOR THAT FLAG.
 		t.Run("user_set", func(t *testing.T) {
-			c := &Config{}
-			c.MetadataCache.NegativeTtlSecs = 5
-			isSet := &mockIsValueSet{setFlags: map[string]bool{"metadata-cache-negative-ttl-secs": true}}
+			c := &Config{
+				Profile: "aiml-serving", // A profile that would otherwise cause optimization.
+			}
+			c.MetadataCache.NegativeTtlSecs = nonDefaultValue // Set the non-default value.
+			isSet := &mockIsValueSet{
+				setFlags: map[string]bool{
+					"metadata-cache-negative-ttl-secs": true,
+					"machine-type":                     true, // A machine type that would otherwise cause optimization.
+				},
+				stringFlags: map[string]string{
+					"machine-type": "a2-megagpu-16g", // From the "high-performance" group.
+				},
+			}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
 
-			assert.Empty(t, optimizedFlags)
-			assert.Equal(t, int64(5), c.MetadataCache.NegativeTtlSecs)
+			assert.NotContains(t, optimizedFlags, "metadata-cache.negative-ttl-secs")
+			assert.Equal(t, nonDefaultValue, c.MetadataCache.NegativeTtlSecs)
 		})
 
 		// Test case 2: No profile or machine-based optimization match.
@@ -275,16 +327,29 @@ func TestApplyOptimizations(t *testing.T) {
 	})
 	// Tests for metadata-cache.ttl-secs
 	t.Run("metadata-cache.ttl-secs", func(t *testing.T) {
-		// Test case 1: User has set the flag, no optimization should be applied.
+		// Define a non-default value for testing user-set flags.
+		const nonDefaultValue = int64(98765)
+
+		// Test case 1: User has set the flag to a non-default value; optimizations should be ignored FOR THAT FLAG.
 		t.Run("user_set", func(t *testing.T) {
-			c := &Config{}
-			c.MetadataCache.TtlSecs = 60
-			isSet := &mockIsValueSet{setFlags: map[string]bool{"metadata-cache-ttl-secs": true}}
+			c := &Config{
+				Profile: "aiml-serving", // A profile that would otherwise cause optimization.
+			}
+			c.MetadataCache.TtlSecs = nonDefaultValue // Set the non-default value.
+			isSet := &mockIsValueSet{
+				setFlags: map[string]bool{
+					"metadata-cache-ttl-secs": true,
+					"machine-type":            true, // A machine type that would otherwise cause optimization.
+				},
+				stringFlags: map[string]string{
+					"machine-type": "a2-megagpu-16g", // From the "high-performance" group.
+				},
+			}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
 
-			assert.Empty(t, optimizedFlags)
-			assert.Equal(t, int64(60), c.MetadataCache.TtlSecs)
+			assert.NotContains(t, optimizedFlags, "metadata-cache.ttl-secs")
+			assert.Equal(t, nonDefaultValue, c.MetadataCache.TtlSecs)
 		})
 
 		// Test case 2: No profile or machine-based optimization match.
@@ -352,16 +417,29 @@ func TestApplyOptimizations(t *testing.T) {
 	})
 	// Tests for file-system.rename-dir-limit
 	t.Run("file-system.rename-dir-limit", func(t *testing.T) {
-		// Test case 1: User has set the flag, no optimization should be applied.
+		// Define a non-default value for testing user-set flags.
+		const nonDefaultValue = int64(98765)
+
+		// Test case 1: User has set the flag to a non-default value; optimizations should be ignored FOR THAT FLAG.
 		t.Run("user_set", func(t *testing.T) {
-			c := &Config{}
-			c.FileSystem.RenameDirLimit = 0
-			isSet := &mockIsValueSet{setFlags: map[string]bool{"rename-dir-limit": true}}
+			c := &Config{
+				Profile: "aiml-serving", // A profile that would otherwise cause optimization.
+			}
+			c.FileSystem.RenameDirLimit = nonDefaultValue // Set the non-default value.
+			isSet := &mockIsValueSet{
+				setFlags: map[string]bool{
+					"rename-dir-limit": true,
+					"machine-type":     true, // A machine type that would otherwise cause optimization.
+				},
+				stringFlags: map[string]string{
+					"machine-type": "a2-megagpu-16g", // From the "high-performance" group.
+				},
+			}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
 
-			assert.Empty(t, optimizedFlags)
-			assert.Equal(t, int64(0), c.FileSystem.RenameDirLimit)
+			assert.NotContains(t, optimizedFlags, "file-system.rename-dir-limit")
+			assert.Equal(t, nonDefaultValue, c.FileSystem.RenameDirLimit)
 		})
 
 		// Test case 2: No profile or machine-based optimization match.
@@ -409,16 +487,29 @@ func TestApplyOptimizations(t *testing.T) {
 	})
 	// Tests for metadata-cache.stat-cache-max-size-mb
 	t.Run("metadata-cache.stat-cache-max-size-mb", func(t *testing.T) {
-		// Test case 1: User has set the flag, no optimization should be applied.
+		// Define a non-default value for testing user-set flags.
+		const nonDefaultValue = int64(98765)
+
+		// Test case 1: User has set the flag to a non-default value; optimizations should be ignored FOR THAT FLAG.
 		t.Run("user_set", func(t *testing.T) {
-			c := &Config{}
-			c.MetadataCache.StatCacheMaxSizeMb = 33
-			isSet := &mockIsValueSet{setFlags: map[string]bool{"stat-cache-max-size-mb": true}}
+			c := &Config{
+				Profile: "aiml-serving", // A profile that would otherwise cause optimization.
+			}
+			c.MetadataCache.StatCacheMaxSizeMb = nonDefaultValue // Set the non-default value.
+			isSet := &mockIsValueSet{
+				setFlags: map[string]bool{
+					"stat-cache-max-size-mb": true,
+					"machine-type":           true, // A machine type that would otherwise cause optimization.
+				},
+				stringFlags: map[string]string{
+					"machine-type": "a2-megagpu-16g", // From the "high-performance" group.
+				},
+			}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
 
-			assert.Empty(t, optimizedFlags)
-			assert.Equal(t, int64(33), c.MetadataCache.StatCacheMaxSizeMb)
+			assert.NotContains(t, optimizedFlags, "metadata-cache.stat-cache-max-size-mb")
+			assert.Equal(t, nonDefaultValue, c.MetadataCache.StatCacheMaxSizeMb)
 		})
 
 		// Test case 2: No profile or machine-based optimization match.
@@ -486,16 +577,29 @@ func TestApplyOptimizations(t *testing.T) {
 	})
 	// Tests for metadata-cache.type-cache-max-size-mb
 	t.Run("metadata-cache.type-cache-max-size-mb", func(t *testing.T) {
-		// Test case 1: User has set the flag, no optimization should be applied.
+		// Define a non-default value for testing user-set flags.
+		const nonDefaultValue = int64(98765)
+
+		// Test case 1: User has set the flag to a non-default value; optimizations should be ignored FOR THAT FLAG.
 		t.Run("user_set", func(t *testing.T) {
-			c := &Config{}
-			c.MetadataCache.TypeCacheMaxSizeMb = 4
-			isSet := &mockIsValueSet{setFlags: map[string]bool{"type-cache-max-size-mb": true}}
+			c := &Config{
+				Profile: "aiml-serving", // A profile that would otherwise cause optimization.
+			}
+			c.MetadataCache.TypeCacheMaxSizeMb = nonDefaultValue // Set the non-default value.
+			isSet := &mockIsValueSet{
+				setFlags: map[string]bool{
+					"type-cache-max-size-mb": true,
+					"machine-type":           true, // A machine type that would otherwise cause optimization.
+				},
+				stringFlags: map[string]string{
+					"machine-type": "a2-megagpu-16g", // From the "high-performance" group.
+				},
+			}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
 
-			assert.Empty(t, optimizedFlags)
-			assert.Equal(t, int64(4), c.MetadataCache.TypeCacheMaxSizeMb)
+			assert.NotContains(t, optimizedFlags, "metadata-cache.type-cache-max-size-mb")
+			assert.Equal(t, nonDefaultValue, c.MetadataCache.TypeCacheMaxSizeMb)
 		})
 
 		// Test case 2: No profile or machine-based optimization match.
@@ -563,16 +667,29 @@ func TestApplyOptimizations(t *testing.T) {
 	})
 	// Tests for write.global-max-blocks
 	t.Run("write.global-max-blocks", func(t *testing.T) {
-		// Test case 1: User has set the flag, no optimization should be applied.
+		// Define a non-default value for testing user-set flags.
+		const nonDefaultValue = int64(98765)
+
+		// Test case 1: User has set the flag to a non-default value; optimizations should be ignored FOR THAT FLAG.
 		t.Run("user_set", func(t *testing.T) {
-			c := &Config{}
-			c.Write.GlobalMaxBlocks = 4
-			isSet := &mockIsValueSet{setFlags: map[string]bool{"write-global-max-blocks": true}}
+			c := &Config{
+				Profile: "aiml-serving", // A profile that would otherwise cause optimization.
+			}
+			c.Write.GlobalMaxBlocks = nonDefaultValue // Set the non-default value.
+			isSet := &mockIsValueSet{
+				setFlags: map[string]bool{
+					"write-global-max-blocks": true,
+					"machine-type":            true, // A machine type that would otherwise cause optimization.
+				},
+				stringFlags: map[string]string{
+					"machine-type": "a2-megagpu-16g", // From the "high-performance" group.
+				},
+			}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
 
-			assert.Empty(t, optimizedFlags)
-			assert.Equal(t, int64(4), c.Write.GlobalMaxBlocks)
+			assert.NotContains(t, optimizedFlags, "write.global-max-blocks")
+			assert.Equal(t, nonDefaultValue, c.Write.GlobalMaxBlocks)
 		})
 
 		// Test case 2: No profile or machine-based optimization match.
