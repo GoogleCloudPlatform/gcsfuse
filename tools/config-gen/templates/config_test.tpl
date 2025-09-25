@@ -22,9 +22,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// mockIsValueSet is a mock implementation of the isValueSet interface for testing.
-// It is directly borrowed from optimize_test.go .
-
 func TestApplyOptimizations(t *testing.T) {
 {{- range .FlagTemplateData }}
 {{- if .Optimizations }}
@@ -33,7 +30,8 @@ func TestApplyOptimizations(t *testing.T) {
 	t.Run("{{$flag.ConfigPath}}", func(t *testing.T) {
 		// Test case 1: User has set the flag, no optimization should be applied.
 		t.Run("user_set", func(t *testing.T) {
-			c := &Config{ {{$flag.GoPath}}: {{$flag.DefaultValue}} }
+			c := &Config{}
+			c.{{$flag.GoPath}} = {{$flag.DefaultValue}}
 			isSet := &mockIsValueSet{setFlags: map[string]bool{"{{$flag.FlagName}}": true}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -44,7 +42,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test case 2: No profile or machine-based optimization match.
 		t.Run("no_optimization", func(t *testing.T) {
-			c := &Config{ Profile: "non_existent_profile", {{$flag.GoPath}}: {{$flag.DefaultValue}} }
+			c := &Config{ Profile: "non_existent_profile" }
+			c.{{$flag.GoPath}} = {{$flag.DefaultValue}}
 			isSet := &mockIsValueSet{
 				setFlags:  map[string]bool{"machine-type": true},
 				stringFlags: map[string]string{"machine-type": "n1-standard-1"}, // A machine type not in any group
@@ -59,7 +58,8 @@ func TestApplyOptimizations(t *testing.T) {
 		// Test cases for profile-based optimizations
 		{{- range .Optimizations.Profiles }}
 		t.Run("profile_{{.Name}}", func(t *testing.T) {
-			c := &Config{ Profile: "{{.Name}}", {{$flag.GoPath}}: {{$flag.DefaultValue}} }
+			c := &Config{ Profile: "{{.Name}}" }
+			c.{{$flag.GoPath}} = {{$flag.DefaultValue}}
 			isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -80,7 +80,8 @@ func TestApplyOptimizations(t *testing.T) {
 			        {{- $machineType = $mt -}}
 			    {{- end -}}
 			{{- end -}}
-			c := &Config{ Profile: "", {{$flag.GoPath}}: {{$flag.DefaultValue}} }
+			c := &Config{ Profile: "" }
+			c.{{$flag.GoPath}} = {{$flag.DefaultValue}}
 			isSet := &mockIsValueSet{
 				setFlags:  map[string]bool{"machine-type": true},
 				stringFlags: map[string]string{"machine-type": "{{$machineType}}"},

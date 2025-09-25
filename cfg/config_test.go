@@ -22,15 +22,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// mockIsValueSet is a mock implementation of the isValueSet interface for testing.
-// It is directly borrowed from optimize_test.go .
-
 func TestApplyOptimizations(t *testing.T) {
 	// Tests for file-cache.cache-file-for-range-read
 	t.Run("file-cache.cache-file-for-range-read", func(t *testing.T) {
 		// Test case 1: User has set the flag, no optimization should be applied.
 		t.Run("user_set", func(t *testing.T) {
-			c := &Config{FileCache.CacheFileForRangeRead: false}
+			c := &Config{}
+			c.FileCache.CacheFileForRangeRead = false
 			isSet := &mockIsValueSet{setFlags: map[string]bool{"file-cache-cache-file-for-range-read": true}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -41,7 +39,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test case 2: No profile or machine-based optimization match.
 		t.Run("no_optimization", func(t *testing.T) {
-			c := &Config{Profile: "non_existent_profile", FileCache.CacheFileForRangeRead: false}
+			c := &Config{Profile: "non_existent_profile"}
+			c.FileCache.CacheFileForRangeRead = false
 			isSet := &mockIsValueSet{
 				setFlags:    map[string]bool{"machine-type": true},
 				stringFlags: map[string]string{"machine-type": "n1-standard-1"}, // A machine type not in any group
@@ -55,7 +54,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test cases for profile-based optimizations
 		t.Run("profile_aiml-serving", func(t *testing.T) {
-			c := &Config{Profile: "aiml-serving", FileCache.CacheFileForRangeRead: false}
+			c := &Config{Profile: "aiml-serving"}
+			c.FileCache.CacheFileForRangeRead = false
 			isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -64,7 +64,8 @@ func TestApplyOptimizations(t *testing.T) {
 			assert.Equal(t, true, c.FileCache.CacheFileForRangeRead)
 		})
 		t.Run("profile_aiml-checkpointing", func(t *testing.T) {
-			c := &Config{Profile: "aiml-checkpointing", FileCache.CacheFileForRangeRead: false}
+			c := &Config{Profile: "aiml-checkpointing"}
+			c.FileCache.CacheFileForRangeRead = false
 			isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -79,7 +80,8 @@ func TestApplyOptimizations(t *testing.T) {
 	t.Run("implicit-dirs", func(t *testing.T) {
 		// Test case 1: User has set the flag, no optimization should be applied.
 		t.Run("user_set", func(t *testing.T) {
-			c := &Config{ImplicitDirs: false}
+			c := &Config{}
+			c.ImplicitDirs = false
 			isSet := &mockIsValueSet{setFlags: map[string]bool{"implicit-dirs": true}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -90,7 +92,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test case 2: No profile or machine-based optimization match.
 		t.Run("no_optimization", func(t *testing.T) {
-			c := &Config{Profile: "non_existent_profile", ImplicitDirs: false}
+			c := &Config{Profile: "non_existent_profile"}
+			c.ImplicitDirs = false
 			isSet := &mockIsValueSet{
 				setFlags:    map[string]bool{"machine-type": true},
 				stringFlags: map[string]string{"machine-type": "n1-standard-1"}, // A machine type not in any group
@@ -104,7 +107,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test cases for profile-based optimizations
 		t.Run("profile_aiml-training", func(t *testing.T) {
-			c := &Config{Profile: "aiml-training", ImplicitDirs: false}
+			c := &Config{Profile: "aiml-training"}
+			c.ImplicitDirs = false
 			isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -113,7 +117,8 @@ func TestApplyOptimizations(t *testing.T) {
 			assert.Equal(t, true, c.ImplicitDirs)
 		})
 		t.Run("profile_aiml-serving", func(t *testing.T) {
-			c := &Config{Profile: "aiml-serving", ImplicitDirs: false}
+			c := &Config{Profile: "aiml-serving"}
+			c.ImplicitDirs = false
 			isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -122,7 +127,8 @@ func TestApplyOptimizations(t *testing.T) {
 			assert.Equal(t, true, c.ImplicitDirs)
 		})
 		t.Run("profile_aiml-checkpointing", func(t *testing.T) {
-			c := &Config{Profile: "aiml-checkpointing", ImplicitDirs: false}
+			c := &Config{Profile: "aiml-checkpointing"}
+			c.ImplicitDirs = false
 			isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -133,7 +139,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test cases for machine-based optimizations
 		t.Run("machine_group_high-performance", func(t *testing.T) {
-			// Find a machine type from the group to use in the testc := &Config{ Profile: "", ImplicitDirs: false }
+			// Find a machine type from the group to use in the testc := &Config{ Profile: "" }
+			c.ImplicitDirs = false
 			isSet := &mockIsValueSet{
 				setFlags:    map[string]bool{"machine-type": true},
 				stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
@@ -149,7 +156,8 @@ func TestApplyOptimizations(t *testing.T) {
 	t.Run("file-system.kernel-list-cache-ttl-secs", func(t *testing.T) {
 		// Test case 1: User has set the flag, no optimization should be applied.
 		t.Run("user_set", func(t *testing.T) {
-			c := &Config{FileSystem.KernelListCacheTtlSecs: 0}
+			c := &Config{}
+			c.FileSystem.KernelListCacheTtlSecs = 0
 			isSet := &mockIsValueSet{setFlags: map[string]bool{"kernel-list-cache-ttl-secs": true}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -160,7 +168,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test case 2: No profile or machine-based optimization match.
 		t.Run("no_optimization", func(t *testing.T) {
-			c := &Config{Profile: "non_existent_profile", FileSystem.KernelListCacheTtlSecs: 0}
+			c := &Config{Profile: "non_existent_profile"}
+			c.FileSystem.KernelListCacheTtlSecs = 0
 			isSet := &mockIsValueSet{
 				setFlags:    map[string]bool{"machine-type": true},
 				stringFlags: map[string]string{"machine-type": "n1-standard-1"}, // A machine type not in any group
@@ -174,7 +183,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test cases for profile-based optimizations
 		t.Run("profile_aiml-serving", func(t *testing.T) {
-			c := &Config{Profile: "aiml-serving", FileSystem.KernelListCacheTtlSecs: 0}
+			c := &Config{Profile: "aiml-serving"}
+			c.FileSystem.KernelListCacheTtlSecs = 0
 			isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -189,7 +199,8 @@ func TestApplyOptimizations(t *testing.T) {
 	t.Run("metadata-cache.negative-ttl-secs", func(t *testing.T) {
 		// Test case 1: User has set the flag, no optimization should be applied.
 		t.Run("user_set", func(t *testing.T) {
-			c := &Config{MetadataCache.NegativeTtlSecs: 5}
+			c := &Config{}
+			c.MetadataCache.NegativeTtlSecs = 5
 			isSet := &mockIsValueSet{setFlags: map[string]bool{"metadata-cache-negative-ttl-secs": true}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -200,7 +211,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test case 2: No profile or machine-based optimization match.
 		t.Run("no_optimization", func(t *testing.T) {
-			c := &Config{Profile: "non_existent_profile", MetadataCache.NegativeTtlSecs: 5}
+			c := &Config{Profile: "non_existent_profile"}
+			c.MetadataCache.NegativeTtlSecs = 5
 			isSet := &mockIsValueSet{
 				setFlags:    map[string]bool{"machine-type": true},
 				stringFlags: map[string]string{"machine-type": "n1-standard-1"}, // A machine type not in any group
@@ -214,7 +226,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test cases for profile-based optimizations
 		t.Run("profile_aiml-training", func(t *testing.T) {
-			c := &Config{Profile: "aiml-training", MetadataCache.NegativeTtlSecs: 5}
+			c := &Config{Profile: "aiml-training"}
+			c.MetadataCache.NegativeTtlSecs = 5
 			isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -223,7 +236,8 @@ func TestApplyOptimizations(t *testing.T) {
 			assert.Equal(t, 0, c.MetadataCache.NegativeTtlSecs)
 		})
 		t.Run("profile_aiml-serving", func(t *testing.T) {
-			c := &Config{Profile: "aiml-serving", MetadataCache.NegativeTtlSecs: 5}
+			c := &Config{Profile: "aiml-serving"}
+			c.MetadataCache.NegativeTtlSecs = 5
 			isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -232,7 +246,8 @@ func TestApplyOptimizations(t *testing.T) {
 			assert.Equal(t, 0, c.MetadataCache.NegativeTtlSecs)
 		})
 		t.Run("profile_aiml-checkpointing", func(t *testing.T) {
-			c := &Config{Profile: "aiml-checkpointing", MetadataCache.NegativeTtlSecs: 5}
+			c := &Config{Profile: "aiml-checkpointing"}
+			c.MetadataCache.NegativeTtlSecs = 5
 			isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -243,7 +258,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test cases for machine-based optimizations
 		t.Run("machine_group_high-performance", func(t *testing.T) {
-			// Find a machine type from the group to use in the testc := &Config{ Profile: "", MetadataCache.NegativeTtlSecs: 5 }
+			// Find a machine type from the group to use in the testc := &Config{ Profile: "" }
+			c.MetadataCache.NegativeTtlSecs = 5
 			isSet := &mockIsValueSet{
 				setFlags:    map[string]bool{"machine-type": true},
 				stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
@@ -259,7 +275,8 @@ func TestApplyOptimizations(t *testing.T) {
 	t.Run("metadata-cache.ttl-secs", func(t *testing.T) {
 		// Test case 1: User has set the flag, no optimization should be applied.
 		t.Run("user_set", func(t *testing.T) {
-			c := &Config{MetadataCache.TtlSecs: 60}
+			c := &Config{}
+			c.MetadataCache.TtlSecs = 60
 			isSet := &mockIsValueSet{setFlags: map[string]bool{"metadata-cache-ttl-secs": true}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -270,7 +287,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test case 2: No profile or machine-based optimization match.
 		t.Run("no_optimization", func(t *testing.T) {
-			c := &Config{Profile: "non_existent_profile", MetadataCache.TtlSecs: 60}
+			c := &Config{Profile: "non_existent_profile"}
+			c.MetadataCache.TtlSecs = 60
 			isSet := &mockIsValueSet{
 				setFlags:    map[string]bool{"machine-type": true},
 				stringFlags: map[string]string{"machine-type": "n1-standard-1"}, // A machine type not in any group
@@ -284,7 +302,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test cases for profile-based optimizations
 		t.Run("profile_aiml-training", func(t *testing.T) {
-			c := &Config{Profile: "aiml-training", MetadataCache.TtlSecs: 60}
+			c := &Config{Profile: "aiml-training"}
+			c.MetadataCache.TtlSecs = 60
 			isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -293,7 +312,8 @@ func TestApplyOptimizations(t *testing.T) {
 			assert.Equal(t, -1, c.MetadataCache.TtlSecs)
 		})
 		t.Run("profile_aiml-serving", func(t *testing.T) {
-			c := &Config{Profile: "aiml-serving", MetadataCache.TtlSecs: 60}
+			c := &Config{Profile: "aiml-serving"}
+			c.MetadataCache.TtlSecs = 60
 			isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -302,7 +322,8 @@ func TestApplyOptimizations(t *testing.T) {
 			assert.Equal(t, -1, c.MetadataCache.TtlSecs)
 		})
 		t.Run("profile_aiml-checkpointing", func(t *testing.T) {
-			c := &Config{Profile: "aiml-checkpointing", MetadataCache.TtlSecs: 60}
+			c := &Config{Profile: "aiml-checkpointing"}
+			c.MetadataCache.TtlSecs = 60
 			isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -313,7 +334,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test cases for machine-based optimizations
 		t.Run("machine_group_high-performance", func(t *testing.T) {
-			// Find a machine type from the group to use in the testc := &Config{ Profile: "", MetadataCache.TtlSecs: 60 }
+			// Find a machine type from the group to use in the testc := &Config{ Profile: "" }
+			c.MetadataCache.TtlSecs = 60
 			isSet := &mockIsValueSet{
 				setFlags:    map[string]bool{"machine-type": true},
 				stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
@@ -329,7 +351,8 @@ func TestApplyOptimizations(t *testing.T) {
 	t.Run("file-system.rename-dir-limit", func(t *testing.T) {
 		// Test case 1: User has set the flag, no optimization should be applied.
 		t.Run("user_set", func(t *testing.T) {
-			c := &Config{FileSystem.RenameDirLimit: 0}
+			c := &Config{}
+			c.FileSystem.RenameDirLimit = 0
 			isSet := &mockIsValueSet{setFlags: map[string]bool{"rename-dir-limit": true}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -340,7 +363,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test case 2: No profile or machine-based optimization match.
 		t.Run("no_optimization", func(t *testing.T) {
-			c := &Config{Profile: "non_existent_profile", FileSystem.RenameDirLimit: 0}
+			c := &Config{Profile: "non_existent_profile"}
+			c.FileSystem.RenameDirLimit = 0
 			isSet := &mockIsValueSet{
 				setFlags:    map[string]bool{"machine-type": true},
 				stringFlags: map[string]string{"machine-type": "n1-standard-1"}, // A machine type not in any group
@@ -354,7 +378,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test cases for profile-based optimizations
 		t.Run("profile_aiml-checkpointing", func(t *testing.T) {
-			c := &Config{Profile: "aiml-checkpointing", FileSystem.RenameDirLimit: 0}
+			c := &Config{Profile: "aiml-checkpointing"}
+			c.FileSystem.RenameDirLimit = 0
 			isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -365,7 +390,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test cases for machine-based optimizations
 		t.Run("machine_group_high-performance", func(t *testing.T) {
-			// Find a machine type from the group to use in the testc := &Config{ Profile: "", FileSystem.RenameDirLimit: 0 }
+			// Find a machine type from the group to use in the testc := &Config{ Profile: "" }
+			c.FileSystem.RenameDirLimit = 0
 			isSet := &mockIsValueSet{
 				setFlags:    map[string]bool{"machine-type": true},
 				stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
@@ -381,7 +407,8 @@ func TestApplyOptimizations(t *testing.T) {
 	t.Run("metadata-cache.stat-cache-max-size-mb", func(t *testing.T) {
 		// Test case 1: User has set the flag, no optimization should be applied.
 		t.Run("user_set", func(t *testing.T) {
-			c := &Config{MetadataCache.StatCacheMaxSizeMb: 33}
+			c := &Config{}
+			c.MetadataCache.StatCacheMaxSizeMb = 33
 			isSet := &mockIsValueSet{setFlags: map[string]bool{"stat-cache-max-size-mb": true}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -392,7 +419,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test case 2: No profile or machine-based optimization match.
 		t.Run("no_optimization", func(t *testing.T) {
-			c := &Config{Profile: "non_existent_profile", MetadataCache.StatCacheMaxSizeMb: 33}
+			c := &Config{Profile: "non_existent_profile"}
+			c.MetadataCache.StatCacheMaxSizeMb = 33
 			isSet := &mockIsValueSet{
 				setFlags:    map[string]bool{"machine-type": true},
 				stringFlags: map[string]string{"machine-type": "n1-standard-1"}, // A machine type not in any group
@@ -406,7 +434,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test cases for profile-based optimizations
 		t.Run("profile_aiml-training", func(t *testing.T) {
-			c := &Config{Profile: "aiml-training", MetadataCache.StatCacheMaxSizeMb: 33}
+			c := &Config{Profile: "aiml-training"}
+			c.MetadataCache.StatCacheMaxSizeMb = 33
 			isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -415,7 +444,8 @@ func TestApplyOptimizations(t *testing.T) {
 			assert.Equal(t, -1, c.MetadataCache.StatCacheMaxSizeMb)
 		})
 		t.Run("profile_aiml-serving", func(t *testing.T) {
-			c := &Config{Profile: "aiml-serving", MetadataCache.StatCacheMaxSizeMb: 33}
+			c := &Config{Profile: "aiml-serving"}
+			c.MetadataCache.StatCacheMaxSizeMb = 33
 			isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -424,7 +454,8 @@ func TestApplyOptimizations(t *testing.T) {
 			assert.Equal(t, -1, c.MetadataCache.StatCacheMaxSizeMb)
 		})
 		t.Run("profile_aiml-checkpointing", func(t *testing.T) {
-			c := &Config{Profile: "aiml-checkpointing", MetadataCache.StatCacheMaxSizeMb: 33}
+			c := &Config{Profile: "aiml-checkpointing"}
+			c.MetadataCache.StatCacheMaxSizeMb = 33
 			isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -435,7 +466,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test cases for machine-based optimizations
 		t.Run("machine_group_high-performance", func(t *testing.T) {
-			// Find a machine type from the group to use in the testc := &Config{ Profile: "", MetadataCache.StatCacheMaxSizeMb: 33 }
+			// Find a machine type from the group to use in the testc := &Config{ Profile: "" }
+			c.MetadataCache.StatCacheMaxSizeMb = 33
 			isSet := &mockIsValueSet{
 				setFlags:    map[string]bool{"machine-type": true},
 				stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
@@ -451,7 +483,8 @@ func TestApplyOptimizations(t *testing.T) {
 	t.Run("metadata-cache.type-cache-max-size-mb", func(t *testing.T) {
 		// Test case 1: User has set the flag, no optimization should be applied.
 		t.Run("user_set", func(t *testing.T) {
-			c := &Config{MetadataCache.TypeCacheMaxSizeMb: 4}
+			c := &Config{}
+			c.MetadataCache.TypeCacheMaxSizeMb = 4
 			isSet := &mockIsValueSet{setFlags: map[string]bool{"type-cache-max-size-mb": true}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -462,7 +495,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test case 2: No profile or machine-based optimization match.
 		t.Run("no_optimization", func(t *testing.T) {
-			c := &Config{Profile: "non_existent_profile", MetadataCache.TypeCacheMaxSizeMb: 4}
+			c := &Config{Profile: "non_existent_profile"}
+			c.MetadataCache.TypeCacheMaxSizeMb = 4
 			isSet := &mockIsValueSet{
 				setFlags:    map[string]bool{"machine-type": true},
 				stringFlags: map[string]string{"machine-type": "n1-standard-1"}, // A machine type not in any group
@@ -476,7 +510,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test cases for profile-based optimizations
 		t.Run("profile_aiml-training", func(t *testing.T) {
-			c := &Config{Profile: "aiml-training", MetadataCache.TypeCacheMaxSizeMb: 4}
+			c := &Config{Profile: "aiml-training"}
+			c.MetadataCache.TypeCacheMaxSizeMb = 4
 			isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -485,7 +520,8 @@ func TestApplyOptimizations(t *testing.T) {
 			assert.Equal(t, -1, c.MetadataCache.TypeCacheMaxSizeMb)
 		})
 		t.Run("profile_aiml-serving", func(t *testing.T) {
-			c := &Config{Profile: "aiml-serving", MetadataCache.TypeCacheMaxSizeMb: 4}
+			c := &Config{Profile: "aiml-serving"}
+			c.MetadataCache.TypeCacheMaxSizeMb = 4
 			isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -494,7 +530,8 @@ func TestApplyOptimizations(t *testing.T) {
 			assert.Equal(t, -1, c.MetadataCache.TypeCacheMaxSizeMb)
 		})
 		t.Run("profile_aiml-checkpointing", func(t *testing.T) {
-			c := &Config{Profile: "aiml-checkpointing", MetadataCache.TypeCacheMaxSizeMb: 4}
+			c := &Config{Profile: "aiml-checkpointing"}
+			c.MetadataCache.TypeCacheMaxSizeMb = 4
 			isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -505,7 +542,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test cases for machine-based optimizations
 		t.Run("machine_group_high-performance", func(t *testing.T) {
-			// Find a machine type from the group to use in the testc := &Config{ Profile: "", MetadataCache.TypeCacheMaxSizeMb: 4 }
+			// Find a machine type from the group to use in the testc := &Config{ Profile: "" }
+			c.MetadataCache.TypeCacheMaxSizeMb = 4
 			isSet := &mockIsValueSet{
 				setFlags:    map[string]bool{"machine-type": true},
 				stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
@@ -521,7 +559,8 @@ func TestApplyOptimizations(t *testing.T) {
 	t.Run("write.global-max-blocks", func(t *testing.T) {
 		// Test case 1: User has set the flag, no optimization should be applied.
 		t.Run("user_set", func(t *testing.T) {
-			c := &Config{Write.GlobalMaxBlocks: 4}
+			c := &Config{}
+			c.Write.GlobalMaxBlocks = 4
 			isSet := &mockIsValueSet{setFlags: map[string]bool{"write-global-max-blocks": true}}
 
 			optimizedFlags := c.ApplyOptimizations(isSet)
@@ -532,7 +571,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test case 2: No profile or machine-based optimization match.
 		t.Run("no_optimization", func(t *testing.T) {
-			c := &Config{Profile: "non_existent_profile", Write.GlobalMaxBlocks: 4}
+			c := &Config{Profile: "non_existent_profile"}
+			c.Write.GlobalMaxBlocks = 4
 			isSet := &mockIsValueSet{
 				setFlags:    map[string]bool{"machine-type": true},
 				stringFlags: map[string]string{"machine-type": "n1-standard-1"}, // A machine type not in any group
@@ -548,7 +588,8 @@ func TestApplyOptimizations(t *testing.T) {
 
 		// Test cases for machine-based optimizations
 		t.Run("machine_group_high-performance", func(t *testing.T) {
-			// Find a machine type from the group to use in the testc := &Config{ Profile: "", Write.GlobalMaxBlocks: 4 }
+			// Find a machine type from the group to use in the testc := &Config{ Profile: "" }
+			c.Write.GlobalMaxBlocks = 4
 			isSet := &mockIsValueSet{
 				setFlags:    map[string]bool{"machine-type": true},
 				stringFlags: map[string]string{"machine-type": "a2-megagpu-16g"},
