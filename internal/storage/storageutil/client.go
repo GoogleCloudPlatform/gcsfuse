@@ -79,7 +79,7 @@ func getDialerContext(enableHTTPDNSCache bool) func(ctx context.Context, network
 		return nil
 	}
 	dialer := net.Dialer{
-		Resolver: dns.NewCachingResolver(nil),
+		Resolver: dns.NewCachingResolver(nil, dns.MinCacheTTL(1*time.Minute)),
 	}
 	return dialer.DialContext
 }
