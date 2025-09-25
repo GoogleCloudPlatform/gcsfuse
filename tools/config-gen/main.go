@@ -145,28 +145,19 @@ func main() {
 	// Create a map from given machine type to all the machine type groups that it belongs to.
 	machineTypeToGroupMap := invertMachineTypeGroups(paramsYAML.MachineTypeGroups)
 
-	err = write(templateData{
-		FlagTemplateData:      fd,
-		TypeTemplateData:      td,
-		MachineTypeToGroupMap: machineTypeToGroupMap,
-		Backticks:             "`",
-	},
-		path.Join(*outDir, "config.go"),
-		path.Join(*templateDir, "config.tpl"))
-	if err != nil {
-		panic(err)
-	}
-
-	err = write(templateData{
-		FlagTemplateData:      fd,
-		TypeTemplateData:      td,
-		MachineTypeToGroupMap: machineTypeToGroupMap,
-		Backticks:             "`",
-	},
-		path.Join(*outDir, "config_test.go"),
-		path.Join(*templateDir, "config_test.tpl"))
-	if err != nil {
-		panic(err)
+	for _, rootFileName := range []string{"config", "config_test"} {
+		generatedFilePath := path.Join(*outDir, rootFileName+".go")
+		templateFilePath := path.Join(*templateDir, rootFileName+".tpl")
+		err = write(templateData{
+			FlagTemplateData:      fd,
+			TypeTemplateData:      td,
+			MachineTypeToGroupMap: machineTypeToGroupMap,
+			Backticks:             "`",
+		},
+			generatedFilePath, templateFilePath)
+		if err != nil {
+			panic(fmt.Sprintf("failed to generate file %q", generatedFilePath))
+		}
 	}
 }
 
