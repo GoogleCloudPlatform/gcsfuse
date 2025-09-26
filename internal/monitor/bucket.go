@@ -216,13 +216,13 @@ func (mb *monitoringBucket) GCSName(obj *gcs.MinObject) string {
 }
 
 // recordReader increments the reader count when it's opened or closed.
-func recordReader(metricHandle metrics.MetricHandle, ioMethod string) {
-	metricHandle.GcsReaderCount(1, metrics.IoMethod(ioMethod))
+func recordReader(metricHandle metrics.MetricHandle, ioMethod metrics.IoMethod) {
+	metricHandle.GcsReaderCount(1, ioMethod)
 }
 
 // Monitoring on the object reader
 func newMonitoringReadCloser(ctx context.Context, object string, rc gcs.StorageReader, metricHandle metrics.MetricHandle) gcs.StorageReader {
-	recordReader(metricHandle, "opened")
+	recordReader(metricHandle, metrics.IoMethodOpenedAttr)
 	return &monitoringReadCloser{
 		ctx:          ctx,
 		object:       object,
@@ -249,12 +249,12 @@ func (mrc *monitoringReadCloser) Close() (err error) {
 	if err != nil {
 		return fmt.Errorf("close reader: %w", err)
 	}
-	recordReader(mrc.metricHandle, "closed")
+	recordReader(mrc.metricHandle, metrics.IoMethodClosedAttr)
 	return
 }
 
 func (mrc *monitoringReadCloser) ReadHandle() (rh storagev2.ReadHandle) {
 	rh = mrc.wrapped.ReadHandle()
-	recordReader(mrc.metricHandle, "ReadHandle")
+	recordReader(mrc.metricHandle, metrics.IoMethodReadHandleAttr)
 	return
 }

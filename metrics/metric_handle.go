@@ -120,6 +120,7 @@ const (
 	ReadTypeParallelAttr   ReadType = "Parallel"
 	ReadTypeRandomAttr     ReadType = "Random"
 	ReadTypeSequentialAttr ReadType = "Sequential"
+	ReadTypeUnknownAttr    ReadType = "Unknown"
 )
 
 // Reason is a custom type for the reason attribute.

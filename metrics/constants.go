@@ -21,9 +21,9 @@ const (
 	ReadTypeParallel   int64 = 2
 )
 
-var ReadTypeNames = map[int64]string{
-	ReadTypeUnknown:    "Unhandled",
-	ReadTypeSequential: "Sequential",
-	ReadTypeRandom:     "Random",
-	ReadTypeParallel:   "Parallel",
+var ReadTypeNames = map[int64]ReadType{
+	ReadTypeUnknown:    ReadTypeUnknownAttr,
+	ReadTypeSequential: ReadTypeSequentialAttr,
+	ReadTypeRandom:     ReadTypeRandomAttr,
+	ReadTypeParallel:   ReadTypeParallelAttr,
 }
