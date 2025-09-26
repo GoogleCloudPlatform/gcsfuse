@@ -69,18 +69,18 @@ func (p *DownloadTask) Execute() {
 	stime := time.Now()
 	var err error
 	defer func() {
-		var status string
+		var status metrics.Status
 		dur := time.Since(stime)
 		if err == nil {
-			status = "successful"
+			status = metrics.StatusSuccessfulAttr
 			logger.Tracef("Download: -> block (%s, %v) Ok(%v).", p.object.Name, blockId, dur)
 			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloaded})
 		} else if errors.Is(err, context.Canceled) && p.ctx.Err() == context.Canceled {
-			status = "cancelled"
+			status = metrics.StatusCancelledAttr
 			logger.Tracef("Download: -> block (%s, %v) cancelled: %v.", p.object.Name, blockId, err)
 			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})
 		} else {
-			status = "failed"
+			status = metrics.StatusFailedAttr
 			logger.Errorf("Download: -> block (%s, %v) failed: %v.", p.object.Name, blockId, err)
 			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})
 		}

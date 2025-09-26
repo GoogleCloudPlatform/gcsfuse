@@ -243,7 +243,7 @@ func Test{{toPascal .Name}}(t *testing.T) {
 			name:      "{{getTestName $combination}}",
 			latencies: []time.Duration{100 * time.{{getLatencyUnit $metric.Unit}}, 200 * time.{{getLatencyUnit $metric.Unit}}},
 			{{- range $pair := $combination}}
-			{{toCamel $pair.Name}}: {{if eq $pair.Type "string"}}"{{$pair.Value}}"{{else}}{{$pair.Value}}{{end}},
+			{{toCamel $pair.Name}}: {{if eq $pair.Type "bool"}}{{$pair.Value}}{{else}}"{{$pair.Value}}"{{end}},
 			{{- end}}
 		},
 		{{- end}}
@@ -268,7 +268,7 @@ func Test{{toPascal .Name}}(t *testing.T) {
 
 			attrs := []attribute.KeyValue{
 				{{- range .Attributes}}
-				attribute.{{if eq .Type "string"}}String{{else}}Bool{{end}}("{{.Name}}", tc.{{toCamel .Name}}),
+				attribute.{{if eq .Type "bool"}}Bool("{{.Name}}", tc.{{toCamel .Name}}){{else}}String("{{.Name}}", string(tc.{{toCamel .Name}})){{end}},
 				{{- end}}
 			}
 			s := attribute.NewSet(attrs...)
