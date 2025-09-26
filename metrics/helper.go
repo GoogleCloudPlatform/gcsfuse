@@ -16,7 +16,7 @@ package metrics
 
 // CaptureGCSReadMetrics is a helper function to encapsulate the logic for recording
 // GCS read-related metrics.
-func CaptureGCSReadMetrics(mh MetricHandle, readType string, downloadBytes int64) {
+func CaptureGCSReadMetrics(mh MetricHandle, readType ReadType, downloadBytes int64) {
 	mh.GcsReadCount(1, readType)
 	mh.GcsDownloadBytesCount(downloadBytes, readType)
 }

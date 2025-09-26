@@ -38,7 +38,7 @@ var (
 {{- range $combination := (index $.AttrCombinations $metric.Name)}}
 	{{getVarName $metric.Name $combination}} = metric.WithAttributeSet(attribute.NewSet(
 		{{- range $pair := $combination -}}
-			attribute.{{if eq $pair.Type "string"}}String{{else}}Bool{{end}}("{{$pair.Name}}", {{if eq $pair.Type "string"}}"{{$pair.Value}}"{{else}}{{$pair.Value}}{{end}}),
+		{{if eq $pair.Type "string"}}attribute.String("{{$pair.Name}}", string({{getAttributeConstant $pair.Name $pair.Value}})){{else}}attribute.Bool("{{$pair.Name}}", {{$pair.Value}}){{end}},
 		{{- end -}}
 	))
 {{- end -}}
@@ -79,7 +79,7 @@ func (o *otelMetrics) {{toPascal .Name}}(
 	{{- end }}
 	{{- if .Attributes}}, {{end}}
 	{{- range $i, $attr := .Attributes -}}
-		{{if $i}}, {{end}}{{toCamel $attr.Name}} {{getGoType $attr.Type}}
+		{{if $i}}, {{end}}{{toCamel $attr.Name}} {{getGoType $attr}}
 	{{- end }}) {
 {{- if or (isCounter .) (isUpDownCounter .)}}
 	{{- if isCounter . }}

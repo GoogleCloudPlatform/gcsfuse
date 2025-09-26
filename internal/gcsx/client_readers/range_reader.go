@@ -61,7 +61,6 @@ type RangeReader struct {
 	readHandle []byte
 	cancel     func()
 
-	readType     int64
 	config       *cfg.Config
 	metricHandle metrics.MetricHandle
 }
@@ -129,7 +128,7 @@ func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (
 
 	readerResponse.Size, err = rr.readFromExistingReader(ctx, req)
 	if errors.Is(err, gcsx.FallbackToAnotherReader) {
-		readerResponse.Size, err = rr.readFromRangeReader(ctx, req.Buffer, req.Offset, req.EndOffset, rr.readType)
+		readerResponse.Size, err = rr.readFromRangeReader(ctx, req.Buffer, req.Offset, req.EndOffset)
 	}
 	return readerResponse, err
 }
@@ -137,7 +136,7 @@ func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (
 // readFromRangeReader reads using the NewReader interface of go-sdk. It uses
 // the existing reader if available, otherwise makes a call to GCS.
 // Before calling this method we have to use invalidateReaderIfMisalignedOrTooSmall to get the reader start at the correct position.
-func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType int64) (int, error) {
+func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64) (int, error) {
 	var err error
 	// If we don't have a reader, start a read operation.
 	if rr.reader == nil {
@@ -193,7 +192,7 @@ func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset
 	}
 
 	requestedDataSize := end - offset
-	metrics.CaptureGCSReadMetrics(rr.metricHandle, metrics.ReadTypeNames[readType], requestedDataSize)
+	metrics.CaptureGCSReadMetrics(rr.metricHandle, metrics.ReadTypeSequentialAttr, requestedDataSize)
 
 	return n, err
 }
@@ -288,7 +287,7 @@ func (rr *RangeReader) startRead(start int64, end int64) error {
 	rr.limit = end
 
 	requestedDataSize := end - start
-	metrics.CaptureGCSReadMetrics(rr.metricHandle, metrics.ReadTypeNames[metrics.ReadTypeSequential], requestedDataSize)
+	metrics.CaptureGCSReadMetrics(rr.metricHandle, metrics.ReadTypeSequentialAttr, requestedDataSize)
 
 	return nil
 }
@@ -346,7 +345,7 @@ func (rr *RangeReader) readFromExistingReader(ctx context.Context, req *gcsx.GCS
 
 	rr.invalidateReaderIfMisalignedOrTooSmall(req.Offset, endOffset)
 	if rr.reader != nil {
-		return rr.readFromRangeReader(ctx, req.Buffer, req.Offset, endOffset, rr.readType)
+		return rr.readFromRangeReader(ctx, req.Buffer, req.Offset, endOffset)
 	}
 
 	return 0, gcsx.FallbackToAnotherReader

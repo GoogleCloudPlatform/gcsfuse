@@ -54,31 +54,56 @@ type AttrValuePair struct {
 // AttrCombination is a list of AttrValuePairs.
 type AttrCombination []AttrValuePair
 
+// Constant represents a generated constant for an attribute value.
+type Constant struct {
+	Name  string
+	Value string
+	Type  string
+}
+
+// AttributeType represents a generated type for an attribute.
+type AttributeType struct {
+	Name      string
+	Constants []Constant
+}
+
 // Data structure to pass to the template.
 type TemplateData struct {
 	Metrics          []Metric
+	AttributeTypes   []AttributeType
 	AttrCombinations map[string][]AttrCombination
 }
 
 // Helper functions for the template.
-var funcMap = template.FuncMap{
-	"toPascal":                    toPascal,
-	"toCamel":                     toCamel,
-	"getVarName":                  getVarName,
-	"getAtomicName":               getAtomicName,
-	"getGoType":                   getGoType,
-	"getUnitMethod":               getUnitMethod,
-	"joinInts":                    joinInts,
-	"isCounter":                   func(m Metric) bool { return m.Type == "int_counter" },
-	"isUpDownCounter":             func(m Metric) bool { return m.Type == "int_up_down_counter" },
-	"isHistogram":                 func(m Metric) bool { return m.Type == "int_histogram" },
-	"buildSwitches":               buildSwitches,
-	"getTestName":                 getTestName,
-	"getTestFuncArgs":             getTestFuncArgs,
-	"getExpectedAttrs":            getExpectedAttrs,
-	"getLatencyUnit":              getLatencyUnit,
-	"getLatencyMethod":            getLatencyMethod,
-	"getTestFuncArgsForHistogram": getTestFuncArgsForHistogram,
+var (
+	attributeTypesByName map[string]AttributeType
+	funcMap              = template.FuncMap{
+		"toPascal":                    toPascal,
+		"toCamel":                     toCamel,
+		"getVarName":                  getVarName,
+		"getAtomicName":               getAtomicName,
+		"getGoType":                   getGoType,
+		"getUnitMethod":               getUnitMethod,
+		"joinInts":                    joinInts,
+		"isCounter":                   func(m Metric) bool { return m.Type == "int_counter" },
+		"isUpDownCounter":             func(m Metric) bool { return m.Type == "int_up_down_counter" },
+		"isHistogram":                 func(m Metric) bool { return m.Type == "int_histogram" },
+		"buildSwitches":               buildSwitches,
+		"getTestName":                 getTestName,
+		"getTestFuncArgs":             getTestFuncArgs,
+		"getExpectedAttrs":            getExpectedAttrs,
+		"getLatencyUnit":              getLatencyUnit,
+		"getLatencyMethod":            getLatencyMethod,
+		"getTestFuncArgsForHistogram": getTestFuncArgsForHistogram,
+		"getAttributeType":            getAttributeType,
+		"getAttributeConstant":        getAttributeConstant,
+		"hasAttributeType":            hasAttributeType,
+	}
+)
+
+func hasAttributeType(name string) bool {
+	_, ok := attributeTypesByName[name]
+	return ok
 }
 
 func toPascal(s string) string {
@@ -124,8 +149,11 @@ func getAtomicName(metricName string, combo AttrCombination) string {
 	return strings.Join(parts, "")
 }
 
-func getGoType(t string) string {
-	switch t {
+func getGoType(a Attribute) string {
+	if t, ok := attributeTypesByName[a.Name]; ok {
+		return t.Name
+	}
+	switch a.Type {
 	case "string":
 		return "string"
 	case "bool":
@@ -221,6 +249,26 @@ func getTestFuncArgsForHistogram(prefix string, attrs []Attribute) string {
 	return strings.Join(parts, ", ")
 }
 
+func getAttributeType(name string) (AttributeType, error) {
+	attr, ok := attributeTypesByName[name]
+	if !ok {
+		return AttributeType{}, fmt.Errorf("attribute type %s not found", name)
+	}
+	return attr, nil
+}
+
+func getAttributeConstant(attrName, value string) string {
+	if attr, ok := attributeTypesByName[attrName]; ok {
+		for _, c := range attr.Constants {
+			if c.Value == value {
+				return c.Name
+			}
+		}
+	}
+	// Fallback for bools or other types not getting constants.
+	return `"` + value + `"`
+}
+
 // generateCombinations creates all possible combinations of attribute values.
 func generateCombinations(attributes []Attribute) []AttrCombination {
 	if len(attributes) == 0 {
@@ -251,9 +299,13 @@ func generateCombinations(attributes []Attribute) []AttrCombination {
 	return result
 }
 
-func handleDefaultInSwitchCase(level int, attrName string, builder *strings.Builder) {
+func handleDefaultInSwitchCase(level int, attr Attribute, builder *strings.Builder) {
+	varName := toCamel(attr.Name)
+	if _, err := getAttributeType(attr.Name); err == nil {
+		varName = "string(" + varName + ")"
+	}
 	builder.WriteString(fmt.Sprintf("%sdefault:\n", strings.Repeat("\t", level+2)))
-	builder.WriteString(fmt.Sprintf("%supdateUnrecognizedAttribute(%s)\n", strings.Repeat("\t", level+3), toCamel(attrName)))
+	builder.WriteString(fmt.Sprintf("%supdateUnrecognizedAttribute(%s)\n", strings.Repeat("\t", level+3), varName))
 	builder.WriteString(fmt.Sprintf("%sreturn\n", strings.Repeat("\t", level+3)))
 }
 
@@ -381,7 +433,9 @@ func buildSwitches(metric Metric) string {
 
 		for _, val := range values {
 			caseVal := val
-			if attr.Type == "string" {
+			if _, err := getAttributeType(attr.Name); err == nil {
+				caseVal = getAttributeConstant(attr.Name, val)
+			} else if attr.Type == "string" {
 				caseVal = `"` + val + `"`
 			}
 			builder.WriteString(fmt.Sprintf("%scase %s:\n", strings.Repeat("\t", level+2), caseVal))
@@ -389,7 +443,7 @@ func buildSwitches(metric Metric) string {
 			recorder(level+1, currentCombo)
 		}
 		if attr.Type == "string" {
-			handleDefaultInSwitchCase(level, attr.Name, &builder)
+			handleDefaultInSwitchCase(level, attr, &builder)
 		}
 		builder.WriteString(fmt.Sprintf("%s}\n", indent))
 	}
@@ -407,6 +461,59 @@ func buildSwitches(metric Metric) string {
 	}
 
 	return builder.String()
+}
+
+func generateAttributeTypes(metrics []Metric) ([]AttributeType, error) {
+	attributeTypesByName = make(map[string]AttributeType)
+	consts := make(map[string]bool)
+
+	for _, m := range metrics {
+		for _, a := range m.Attributes {
+			if a.Type != "string" {
+				continue
+			}
+			typeName := toPascal(a.Name)
+			attrType, ok := attributeTypesByName[a.Name]
+			if !ok {
+				attrType = AttributeType{
+					Name: typeName,
+				}
+			}
+			existingValues := make(map[string]bool)
+			for _, c := range attrType.Constants {
+				existingValues[c.Value] = true
+			}
+			for _, v := range a.Values {
+				if existingValues[v] {
+					continue
+				}
+				constName := typeName + toPascal(v) + "Attr"
+				if consts[constName] {
+					return nil, fmt.Errorf("duplicate constant name %s", constName)
+				}
+				attrType.Constants = append(attrType.Constants, Constant{
+					Name:  constName,
+					Value: v,
+					Type:  typeName,
+				})
+				consts[constName] = true
+				existingValues[v] = true
+			}
+			attributeTypesByName[a.Name] = attrType
+		}
+	}
+
+	var result []AttributeType
+	for _, attrType := range attributeTypesByName {
+		sort.Slice(attrType.Constants, func(i, j int) bool {
+			return attrType.Constants[i].Name < attrType.Constants[j].Name
+		})
+		result = append(result, attrType)
+	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Name < result[j].Name
+	})
+	return result, nil
 }
 
 func main() {
@@ -447,12 +554,18 @@ func main() {
 		attrCombinations[m.Name] = generateCombinations(m.Attributes)
 	}
 
+	attributeTypes, err := generateAttributeTypes(metrics)
+	if err != nil {
+		log.Fatalf("error generating attribute types: %v", err)
+	}
+
 	// Create the directory if it doesn't exist
 	if err := os.MkdirAll(*outputDir, 0755); err != nil {
 		log.Fatalf("error creating output directory: %v", err)
 	}
 	data := TemplateData{
 		Metrics:          metrics,
+		AttributeTypes:   attributeTypes,
 		AttrCombinations: attrCombinations,
 	}
 	createFile(&data, fmt.Sprintf("%s/metric_handle.go", *outputDir), "metric_handle.tpl")

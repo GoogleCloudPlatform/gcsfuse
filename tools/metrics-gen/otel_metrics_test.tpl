@@ -128,6 +128,19 @@ func gatherNonZeroCounterMetrics(ctx context.Context, t *testing.T, rd *metric.M
 	return results
 }
 
+{{- define "testFuncArgs" -}}
+{{- range $i, $p := . -}}
+{{- if $i}}, {{end}}
+{{- if hasAttributeType $p.Name -}}
+{{- getAttributeConstant $p.Name $p.Value -}}
+{{- else if eq $p.Type "string" -}}
+"{{$p.Value}}"
+{{- else -}}
+{{- $p.Value -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
 {{range .Metrics}}
 {{if or (isCounter .) (isUpDownCounter .)}}
 func Test{{toPascal .Name}}(t *testing.T) {
@@ -142,7 +155,7 @@ func Test{{toPascal .Name}}(t *testing.T) {
 		{
 			name: "{{getTestName $combination}}",
 			f: func(m *otelMetrics) {
-				m.{{toPascal $metric.Name}}(5, {{getTestFuncArgs $combination}})
+				m.{{toPascal $metric.Name}}(5, {{template "testFuncArgs" $combination}})
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet({{getExpectedAttrs $combination}}): 5,
@@ -156,9 +169,9 @@ func Test{{toPascal .Name}}(t *testing.T) {
 			f: func(m *otelMetrics) {
 				{{- $firstComb := (index $combinations 0) -}}
 				{{- $secondComb := (index $combinations 1) -}}
-				m.{{toPascal $metric.Name}}(5, {{getTestFuncArgs $firstComb}})
-				m.{{toPascal $metric.Name}}(2, {{getTestFuncArgs $secondComb}})
-				m.{{toPascal $metric.Name}}(3, {{getTestFuncArgs $firstComb}})
+				m.{{toPascal $metric.Name}}(5, {{template "testFuncArgs" $firstComb}})
+				m.{{toPascal $metric.Name}}(2, {{template "testFuncArgs" $secondComb}})
+				m.{{toPascal $metric.Name}}(3, {{template "testFuncArgs" $firstComb}})
 			},
 			expected: map[attribute.Set]int64{
 				{{- $firstComb := (index $combinations 0) -}}
@@ -172,8 +185,8 @@ func Test{{toPascal .Name}}(t *testing.T) {
 			name: "negative_increment",
 			f: func(m *otelMetrics) {
 				{{- $firstComb := (index $combinations 0) -}}
-				m.{{toPascal $metric.Name}}(-5, {{getTestFuncArgs $firstComb}})
-				m.{{toPascal $metric.Name}}(2, {{getTestFuncArgs $firstComb}})
+				m.{{toPascal $metric.Name}}(-5, {{template "testFuncArgs" $firstComb}})
+				m.{{toPascal $metric.Name}}(2, {{template "testFuncArgs" $firstComb}})
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet({{getExpectedAttrs (index $combinations 0)}}): {{if isUpDownCounter $metric}}-3{{else}}2{{end}}},
 		},
@@ -234,7 +247,7 @@ func Test{{toPascal .Name}}(t *testing.T) {
 		name      string
 		latencies []time.Duration
 		{{- range .Attributes}}
-		{{toCamel .Name}} {{getGoType .Type}}
+		{{toCamel .Name}} {{getGoType .}}
 		{{- end}}
 	}{
 		{{- $metric := . -}}
@@ -243,7 +256,7 @@ func Test{{toPascal .Name}}(t *testing.T) {
 			name:      "{{getTestName $combination}}",
 			latencies: []time.Duration{100 * time.{{getLatencyUnit $metric.Unit}}, 200 * time.{{getLatencyUnit $metric.Unit}}},
 			{{- range $pair := $combination}}
-			{{toCamel $pair.Name}}: {{if eq $pair.Type "string"}}"{{$pair.Value}}"{{else}}{{$pair.Value}}{{end}},
+			{{toCamel $pair.Name}}: {{if hasAttributeType $pair.Name}}{{getAttributeConstant $pair.Name $pair.Value}}{{else if eq $pair.Type "string"}}"{{$pair.Value}}"{{else}}{{$pair.Value}}{{end}},
 			{{- end}}
 		},
 		{{- end}}
@@ -268,7 +281,7 @@ func Test{{toPascal .Name}}(t *testing.T) {
 
 			attrs := []attribute.KeyValue{
 				{{- range .Attributes}}
-				attribute.{{if eq .Type "string"}}String{{else}}Bool{{end}}("{{.Name}}", tc.{{toCamel .Name}}),
+				{{if hasAttributeType .Name}}attribute.String("{{.Name}}", string(tc.{{toCamel .Name}})){{else}}attribute.{{if eq .Type "string"}}String{{else}}Bool{{end}}("{{.Name}}", tc.{{toCamel .Name}}){{end}},
 				{{- end}}
 			}
 			s := attribute.NewSet(attrs...)

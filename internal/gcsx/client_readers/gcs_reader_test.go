@@ -325,7 +325,7 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateReadType() {
 			require.Equal(t.T(), len(tc.readRanges), len(tc.expectedReadTypes), "Test Parameter Error: readRanges and expectedReadTypes should have same length")
 			t.gcsReader.mrr.isMRDInUse.Store(false)
 			t.gcsReader.seeks.Store(0)
-			t.gcsReader.rangeReader.readType = metrics.ReadTypeSequential
+			t.gcsReader.readType.Store(metrics.ReadTypeSequential)
 			t.gcsReader.expectedOffset.Store(0)
 			t.object.Size = uint64(tc.dataSize)
 			testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
@@ -826,7 +826,7 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateZonalRandomReads() {
 	t.gcsReader.rangeReader.reader = nil
 	t.gcsReader.mrr.isMRDInUse.Store(false)
 	t.gcsReader.seeks.Store(0)
-	t.gcsReader.rangeReader.readType = metrics.ReadTypeSequential
+	t.gcsReader.readType.Store(metrics.ReadTypeSequential)
 	t.gcsReader.expectedOffset.Store(0)
 	t.gcsReader.totalReadBytes.Store(0)
 	t.object.Size = 20 * MiB

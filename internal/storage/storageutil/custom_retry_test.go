@@ -154,10 +154,10 @@ type fakeMetricHandle struct {
 
 	gcsRetryCountCalled bool
 	gcsRetryCountInc    int64
-	gcsRetryCountVal    string
+	gcsRetryCountVal    metrics.RetryErrorCategory
 }
 
-func (m *fakeMetricHandle) GcsRetryCount(inc int64, val string) {
+func (m *fakeMetricHandle) GcsRetryCount(inc int64, val metrics.RetryErrorCategory) {
 	m.gcsRetryCountCalled = true
 	m.gcsRetryCountInc = inc
 	m.gcsRetryCountVal = val
@@ -198,17 +198,17 @@ func TestShouldRetryWithMonitoringForRetryableErrors(t *testing.T) {
 	testCases := []struct {
 		name                   string
 		err                    error
-		expectedMetricCategory string
+		expectedMetricCategory metrics.RetryErrorCategory
 	}{
 		{
 			name:                   "retryable error, DeadlineExceeded",
 			err:                    context.DeadlineExceeded,
-			expectedMetricCategory: "STALLED_READ_REQUEST",
+			expectedMetricCategory: metrics.RetryErrorCategorySTALLEDREADREQUESTAttr,
 		},
 		{
 			name:                   "retryable error, not DeadlineExceeded",
 			err:                    retryableErr,
-			expectedMetricCategory: "OTHER_ERRORS",
+			expectedMetricCategory: metrics.RetryErrorCategoryOTHERERRORSAttr,
 		},
 	}
 

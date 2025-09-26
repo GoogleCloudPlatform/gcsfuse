@@ -257,11 +257,11 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 		// Here rr.fileCacheHandle will not be nil since we return from the above in those cases.
 		logger.Tracef("%.13v -> %s", requestId, requestOutput)
 
-		readType := metrics.ReadTypeRandom
+		readType := metrics.ReadTypeRandomAttr
 		if isSeq {
-			readType = metrics.ReadTypeSequential
+			readType = metrics.ReadTypeSequentialAttr
 		}
-		captureFileCacheMetrics(ctx, rr.metricHandle, metrics.ReadTypeNames[readType], n, cacheHit, executionTime)
+		captureFileCacheMetrics(ctx, rr.metricHandle, readType, n, cacheHit, executionTime)
 	}()
 
 	// Create fileCacheHandle if not already.
@@ -516,7 +516,7 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 	rr.limit = end
 
 	requestedDataSize := end - start
-	metrics.CaptureGCSReadMetrics(rr.metricHandle, metrics.ReadTypeNames[metrics.ReadTypeSequential], requestedDataSize)
+	metrics.CaptureGCSReadMetrics(rr.metricHandle, metrics.ReadTypeSequentialAttr, requestedDataSize)
 
 	return
 }
@@ -735,7 +735,17 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 	}
 
 	requestedDataSize := end - offset
-	metrics.CaptureGCSReadMetrics(rr.metricHandle, metrics.ReadTypeNames[readType], requestedDataSize)
+	var readTypeAttr metrics.ReadType
+	switch readType {
+	case metrics.ReadTypeSequential:
+		readTypeAttr = metrics.ReadTypeSequentialAttr
+	case metrics.ReadTypeRandom:
+		readTypeAttr = metrics.ReadTypeRandomAttr
+	default:
+		// Fallback to random for any other case.
+		readTypeAttr = metrics.ReadTypeRandomAttr
+	}
+	metrics.CaptureGCSReadMetrics(rr.metricHandle, readTypeAttr, requestedDataSize)
 	rr.updateExpectedOffset(offset + int64(n))
 
 	return

@@ -33,634 +33,634 @@ const logInterval = 5 * time.Minute
 
 var (
 	unrecognizedAttr                                                                    atomic.Value
-	bufferedReadDownloadBlockLatencyStatusCancelledAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("status", "cancelled")))
-	bufferedReadDownloadBlockLatencyStatusFailedAttrSet                                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("status", "failed")))
-	bufferedReadDownloadBlockLatencyStatusSuccessfulAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("status", "successful")))
-	bufferedReadFallbackTriggerCountReasonInsufficientMemoryAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "insufficient_memory")))
-	bufferedReadFallbackTriggerCountReasonRandomReadDetectedAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", "random_read_detected")))
-	bufferedReadScheduledBlockCountStatusCancelledAttrSet                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("status", "cancelled")))
-	bufferedReadScheduledBlockCountStatusFailedAttrSet                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("status", "failed")))
-	bufferedReadScheduledBlockCountStatusSuccessfulAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("status", "successful")))
-	fileCacheReadBytesCountReadTypeParallelAttrSet                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel")))
-	fileCacheReadBytesCountReadTypeRandomAttrSet                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random")))
-	fileCacheReadBytesCountReadTypeSequentialAttrSet                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential")))
-	fileCacheReadCountCacheHitTrueReadTypeParallelAttrSet                               = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Parallel")))
-	fileCacheReadCountCacheHitTrueReadTypeRandomAttrSet                                 = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Random")))
-	fileCacheReadCountCacheHitTrueReadTypeSequentialAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Sequential")))
-	fileCacheReadCountCacheHitFalseReadTypeParallelAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", "Parallel")))
-	fileCacheReadCountCacheHitFalseReadTypeRandomAttrSet                                = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", "Random")))
-	fileCacheReadCountCacheHitFalseReadTypeSequentialAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", "Sequential")))
+	bufferedReadDownloadBlockLatencyStatusCancelledAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("status", string(StatusCancelledAttr))))
+	bufferedReadDownloadBlockLatencyStatusFailedAttrSet                                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("status", string(StatusFailedAttr))))
+	bufferedReadDownloadBlockLatencyStatusSuccessfulAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("status", string(StatusSuccessfulAttr))))
+	bufferedReadFallbackTriggerCountReasonInsufficientMemoryAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", string(ReasonInsufficientMemoryAttr))))
+	bufferedReadFallbackTriggerCountReasonRandomReadDetectedAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("reason", string(ReasonRandomReadDetectedAttr))))
+	bufferedReadScheduledBlockCountStatusCancelledAttrSet                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("status", string(StatusCancelledAttr))))
+	bufferedReadScheduledBlockCountStatusFailedAttrSet                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("status", string(StatusFailedAttr))))
+	bufferedReadScheduledBlockCountStatusSuccessfulAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("status", string(StatusSuccessfulAttr))))
+	fileCacheReadBytesCountReadTypeParallelAttrSet                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", string(ReadTypeParallelAttr))))
+	fileCacheReadBytesCountReadTypeRandomAttrSet                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", string(ReadTypeRandomAttr))))
+	fileCacheReadBytesCountReadTypeSequentialAttrSet                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", string(ReadTypeSequentialAttr))))
+	fileCacheReadCountCacheHitTrueReadTypeParallelAttrSet                               = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", string(ReadTypeParallelAttr))))
+	fileCacheReadCountCacheHitTrueReadTypeRandomAttrSet                                 = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", string(ReadTypeRandomAttr))))
+	fileCacheReadCountCacheHitTrueReadTypeSequentialAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", string(ReadTypeSequentialAttr))))
+	fileCacheReadCountCacheHitFalseReadTypeParallelAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", string(ReadTypeParallelAttr))))
+	fileCacheReadCountCacheHitFalseReadTypeRandomAttrSet                                = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", string(ReadTypeRandomAttr))))
+	fileCacheReadCountCacheHitFalseReadTypeSequentialAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", string(ReadTypeSequentialAttr))))
 	fileCacheReadLatenciesCacheHitTrueAttrSet                                           = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true)))
 	fileCacheReadLatenciesCacheHitFalseAttrSet                                          = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false)))
-	fsOpsCountFsOpBatchForgetAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "BatchForget")))
-	fsOpsCountFsOpCreateFileAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "CreateFile")))
-	fsOpsCountFsOpCreateLinkAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "CreateLink")))
-	fsOpsCountFsOpCreateSymlinkAttrSet                                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "CreateSymlink")))
-	fsOpsCountFsOpFallocateAttrSet                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "Fallocate")))
-	fsOpsCountFsOpFlushFileAttrSet                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "FlushFile")))
-	fsOpsCountFsOpForgetInodeAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ForgetInode")))
-	fsOpsCountFsOpGetInodeAttributesAttrSet                                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "GetInodeAttributes")))
-	fsOpsCountFsOpGetXattrAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "GetXattr")))
-	fsOpsCountFsOpListXattrAttrSet                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ListXattr")))
-	fsOpsCountFsOpLookUpInodeAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "LookUpInode")))
-	fsOpsCountFsOpMkDirAttrSet                                                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "MkDir")))
-	fsOpsCountFsOpMkNodeAttrSet                                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "MkNode")))
-	fsOpsCountFsOpOpenDirAttrSet                                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "OpenDir")))
-	fsOpsCountFsOpOpenFileAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "OpenFile")))
-	fsOpsCountFsOpReadDirAttrSet                                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadDir")))
-	fsOpsCountFsOpReadDirPlusAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadDirPlus")))
-	fsOpsCountFsOpReadFileAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadFile")))
-	fsOpsCountFsOpReadSymlinkAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadSymlink")))
-	fsOpsCountFsOpReleaseDirHandleAttrSet                                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReleaseDirHandle")))
-	fsOpsCountFsOpReleaseFileHandleAttrSet                                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReleaseFileHandle")))
-	fsOpsCountFsOpRemoveXattrAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "RemoveXattr")))
-	fsOpsCountFsOpRenameAttrSet                                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "Rename")))
-	fsOpsCountFsOpRmDirAttrSet                                                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "RmDir")))
-	fsOpsCountFsOpSetInodeAttributesAttrSet                                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "SetInodeAttributes")))
-	fsOpsCountFsOpSetXattrAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "SetXattr")))
-	fsOpsCountFsOpStatFSAttrSet                                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "StatFS")))
-	fsOpsCountFsOpSyncFSAttrSet                                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "SyncFS")))
-	fsOpsCountFsOpSyncFileAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "SyncFile")))
-	fsOpsCountFsOpUnlinkAttrSet                                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "Unlink")))
-	fsOpsCountFsOpWriteFileAttrSet                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "WriteFile")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpBatchForgetAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "BatchForget")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpCreateFileAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "CreateFile")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpCreateLinkAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "CreateLink")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpCreateSymlinkAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "CreateSymlink")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpFallocateAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "Fallocate")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpFlushFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "FlushFile")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpForgetInodeAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ForgetInode")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpGetInodeAttributesAttrSet              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "GetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpGetXattrAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "GetXattr")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpListXattrAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ListXattr")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpLookUpInodeAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "LookUpInode")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpMkDirAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "MkDir")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpMkNodeAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "MkNode")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpOpenDirAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "OpenDir")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpOpenFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "OpenFile")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadDirAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ReadDir")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadDirPlusAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ReadDirPlus")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ReadFile")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadSymlinkAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ReadSymlink")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReleaseDirHandleAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReleaseFileHandleAttrSet               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ReleaseFileHandle")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpRemoveXattrAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "RemoveXattr")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpRenameAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "Rename")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpRmDirAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "RmDir")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpSetInodeAttributesAttrSet              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "SetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpSetXattrAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "SetXattr")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpStatFSAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "StatFS")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpSyncFSAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "SyncFS")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpSyncFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "SyncFile")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpUnlinkAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "Unlink")))
-	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpWriteFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "WriteFile")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpBatchForgetAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "BatchForget")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpCreateFileAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "CreateFile")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpCreateLinkAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "CreateLink")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpCreateSymlinkAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "CreateSymlink")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpFallocateAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "Fallocate")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpFlushFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "FlushFile")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpForgetInodeAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ForgetInode")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpGetInodeAttributesAttrSet              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "GetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpGetXattrAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "GetXattr")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpListXattrAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ListXattr")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpLookUpInodeAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "LookUpInode")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpMkDirAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "MkDir")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpMkNodeAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "MkNode")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpOpenDirAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "OpenDir")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpOpenFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "OpenFile")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadDirAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ReadDir")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadDirPlusAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ReadDirPlus")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ReadFile")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadSymlinkAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ReadSymlink")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReleaseDirHandleAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ReleaseDirHandle")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReleaseFileHandleAttrSet               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ReleaseFileHandle")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpRemoveXattrAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "RemoveXattr")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpRenameAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "Rename")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpRmDirAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "RmDir")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpSetInodeAttributesAttrSet              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "SetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpSetXattrAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "SetXattr")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpStatFSAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "StatFS")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpSyncFSAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "SyncFS")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpSyncFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "SyncFile")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpUnlinkAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "Unlink")))
-	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpWriteFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "WriteFile")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpBatchForgetAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "BatchForget")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpCreateFileAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "CreateFile")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpCreateLinkAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "CreateLink")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpCreateSymlinkAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "CreateSymlink")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpFallocateAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "Fallocate")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpFlushFileAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "FlushFile")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpForgetInodeAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ForgetInode")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpGetInodeAttributesAttrSet             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "GetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpGetXattrAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "GetXattr")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpListXattrAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ListXattr")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpLookUpInodeAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "LookUpInode")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpMkDirAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "MkDir")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpMkNodeAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "MkNode")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpOpenDirAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "OpenDir")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpOpenFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "OpenFile")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadDirAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ReadDir")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadDirPlusAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ReadDirPlus")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ReadFile")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadSymlinkAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ReadSymlink")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReleaseDirHandleAttrSet               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReleaseFileHandleAttrSet              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ReleaseFileHandle")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpRemoveXattrAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "RemoveXattr")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpRenameAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "Rename")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpRmDirAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "RmDir")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpSetInodeAttributesAttrSet             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "SetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpSetXattrAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "SetXattr")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpStatFSAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "StatFS")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpSyncFSAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "SyncFS")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpSyncFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "SyncFile")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpUnlinkAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "Unlink")))
-	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpWriteFileAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "WriteFile")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpBatchForgetAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "BatchForget")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpCreateFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "CreateFile")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpCreateLinkAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "CreateLink")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpCreateSymlinkAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "CreateSymlink")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpFallocateAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "Fallocate")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpFlushFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "FlushFile")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpForgetInodeAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ForgetInode")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpGetInodeAttributesAttrSet               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "GetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpGetXattrAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "GetXattr")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpListXattrAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ListXattr")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpLookUpInodeAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "LookUpInode")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpMkDirAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "MkDir")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpMkNodeAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "MkNode")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpOpenDirAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "OpenDir")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpOpenFileAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "OpenFile")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadDirAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ReadDir")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadDirPlusAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ReadDirPlus")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadFileAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ReadFile")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadSymlinkAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ReadSymlink")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReleaseDirHandleAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ReleaseDirHandle")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReleaseFileHandleAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ReleaseFileHandle")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpRemoveXattrAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "RemoveXattr")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpRenameAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "Rename")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpRmDirAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "RmDir")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpSetInodeAttributesAttrSet               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "SetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpSetXattrAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "SetXattr")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpStatFSAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "StatFS")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpSyncFSAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "SyncFS")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpSyncFileAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "SyncFile")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpUnlinkAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "Unlink")))
-	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpWriteFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "WriteFile")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpBatchForgetAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "BatchForget")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpCreateFileAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "CreateFile")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpCreateLinkAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "CreateLink")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpCreateSymlinkAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "CreateSymlink")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpFallocateAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "Fallocate")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpFlushFileAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "FlushFile")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpForgetInodeAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ForgetInode")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpGetInodeAttributesAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "GetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpGetXattrAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "GetXattr")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpListXattrAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ListXattr")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpLookUpInodeAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "LookUpInode")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpMkDirAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "MkDir")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpMkNodeAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "MkNode")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpOpenDirAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "OpenDir")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpOpenFileAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "OpenFile")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadDirAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ReadDir")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadDirPlusAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ReadDirPlus")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadFileAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ReadFile")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadSymlinkAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ReadSymlink")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReleaseDirHandleAttrSet             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReleaseFileHandleAttrSet            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ReleaseFileHandle")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpRemoveXattrAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "RemoveXattr")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpRenameAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "Rename")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpRmDirAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "RmDir")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpSetInodeAttributesAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "SetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpSetXattrAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "SetXattr")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpStatFSAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "StatFS")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpSyncFSAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "SyncFS")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpSyncFileAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "SyncFile")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpUnlinkAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "Unlink")))
-	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpWriteFileAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "WriteFile")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpBatchForgetAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "BatchForget")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpCreateFileAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "CreateFile")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpCreateLinkAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "CreateLink")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpCreateSymlinkAttrSet               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "CreateSymlink")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpFallocateAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "Fallocate")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpFlushFileAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "FlushFile")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpForgetInodeAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ForgetInode")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpGetInodeAttributesAttrSet          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "GetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpGetXattrAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "GetXattr")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpListXattrAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ListXattr")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpLookUpInodeAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "LookUpInode")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpMkDirAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "MkDir")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpMkNodeAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "MkNode")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpOpenDirAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "OpenDir")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpOpenFileAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "OpenFile")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadDirAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ReadDir")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadDirPlusAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ReadDirPlus")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadFileAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ReadFile")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadSymlinkAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ReadSymlink")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReleaseDirHandleAttrSet            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ReleaseDirHandle")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReleaseFileHandleAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ReleaseFileHandle")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpRemoveXattrAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "RemoveXattr")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpRenameAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "Rename")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpRmDirAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "RmDir")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpSetInodeAttributesAttrSet          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "SetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpSetXattrAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "SetXattr")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpStatFSAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "StatFS")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpSyncFSAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "SyncFS")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpSyncFileAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "SyncFile")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpUnlinkAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "Unlink")))
-	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpWriteFileAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "WriteFile")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpBatchForgetAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "BatchForget")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpCreateFileAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "CreateFile")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpCreateLinkAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "CreateLink")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpCreateSymlinkAttrSet              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "CreateSymlink")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpFallocateAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "Fallocate")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpFlushFileAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "FlushFile")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpForgetInodeAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ForgetInode")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpGetInodeAttributesAttrSet         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "GetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpGetXattrAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "GetXattr")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpListXattrAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ListXattr")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpLookUpInodeAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "LookUpInode")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpMkDirAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "MkDir")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpMkNodeAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "MkNode")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpOpenDirAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "OpenDir")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpOpenFileAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "OpenFile")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadDirAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ReadDir")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadDirPlusAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ReadDirPlus")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadFileAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ReadFile")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadSymlinkAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ReadSymlink")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReleaseDirHandleAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ReleaseDirHandle")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReleaseFileHandleAttrSet          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ReleaseFileHandle")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpRemoveXattrAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "RemoveXattr")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpRenameAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "Rename")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpRmDirAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "RmDir")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpSetInodeAttributesAttrSet         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "SetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpSetXattrAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "SetXattr")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpStatFSAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "StatFS")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpSyncFSAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "SyncFS")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpSyncFileAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "SyncFile")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpUnlinkAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "Unlink")))
-	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpWriteFileAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "WriteFile")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpBatchForgetAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "BatchForget")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpCreateFileAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "CreateFile")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpCreateLinkAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "CreateLink")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpCreateSymlinkAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "CreateSymlink")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpFallocateAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "Fallocate")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpFlushFileAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "FlushFile")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpForgetInodeAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ForgetInode")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpGetInodeAttributesAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "GetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpGetXattrAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "GetXattr")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpListXattrAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ListXattr")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpLookUpInodeAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "LookUpInode")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpMkDirAttrSet                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "MkDir")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpMkNodeAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "MkNode")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpOpenDirAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "OpenDir")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpOpenFileAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "OpenFile")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadDirAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ReadDir")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadDirPlusAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ReadDirPlus")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadFileAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ReadFile")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadSymlinkAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ReadSymlink")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpReleaseDirHandleAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpReleaseFileHandleAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ReleaseFileHandle")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpRemoveXattrAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "RemoveXattr")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpRenameAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "Rename")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpRmDirAttrSet                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "RmDir")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpSetInodeAttributesAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "SetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpSetXattrAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "SetXattr")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpStatFSAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "StatFS")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpSyncFSAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "SyncFS")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpSyncFileAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "SyncFile")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpUnlinkAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "Unlink")))
-	fsOpsErrorCountFsErrorCategoryIOERRORFsOpWriteFileAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "WriteFile")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpBatchForgetAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "BatchForget")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpCreateFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "CreateFile")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpCreateLinkAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "CreateLink")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpCreateSymlinkAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "CreateSymlink")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpFallocateAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "Fallocate")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpFlushFileAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "FlushFile")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpForgetInodeAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ForgetInode")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpGetInodeAttributesAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "GetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpGetXattrAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "GetXattr")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpListXattrAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ListXattr")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpLookUpInodeAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "LookUpInode")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpMkDirAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "MkDir")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpMkNodeAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "MkNode")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpOpenDirAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "OpenDir")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpOpenFileAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "OpenFile")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadDirAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ReadDir")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadDirPlusAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ReadDirPlus")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadFileAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ReadFile")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadSymlinkAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ReadSymlink")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReleaseDirHandleAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReleaseFileHandleAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ReleaseFileHandle")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpRemoveXattrAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "RemoveXattr")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpRenameAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "Rename")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpRmDirAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "RmDir")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpSetInodeAttributesAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "SetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpSetXattrAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "SetXattr")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpStatFSAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "StatFS")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpSyncFSAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "SyncFS")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpSyncFileAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "SyncFile")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpUnlinkAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "Unlink")))
-	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpWriteFileAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "WriteFile")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpBatchForgetAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "BatchForget")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpCreateFileAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "CreateFile")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpCreateLinkAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "CreateLink")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpCreateSymlinkAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "CreateSymlink")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpFallocateAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "Fallocate")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpFlushFileAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "FlushFile")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpForgetInodeAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ForgetInode")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpGetInodeAttributesAttrSet             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "GetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpGetXattrAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "GetXattr")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpListXattrAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ListXattr")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpLookUpInodeAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "LookUpInode")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpMkDirAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "MkDir")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpMkNodeAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "MkNode")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpOpenDirAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "OpenDir")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpOpenFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "OpenFile")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadDirAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ReadDir")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadDirPlusAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ReadDirPlus")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ReadFile")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadSymlinkAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ReadSymlink")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReleaseDirHandleAttrSet               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReleaseFileHandleAttrSet              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ReleaseFileHandle")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpRemoveXattrAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "RemoveXattr")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpRenameAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "Rename")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpRmDirAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "RmDir")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpSetInodeAttributesAttrSet             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "SetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpSetXattrAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "SetXattr")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpStatFSAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "StatFS")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpSyncFSAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "SyncFS")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpSyncFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "SyncFile")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpUnlinkAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "Unlink")))
-	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpWriteFileAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "WriteFile")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpBatchForgetAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "BatchForget")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpCreateFileAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "CreateFile")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpCreateLinkAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "CreateLink")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpCreateSymlinkAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "CreateSymlink")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpFallocateAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "Fallocate")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpFlushFileAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "FlushFile")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpForgetInodeAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ForgetInode")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpGetInodeAttributesAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "GetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpGetXattrAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "GetXattr")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpListXattrAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ListXattr")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpLookUpInodeAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "LookUpInode")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpMkDirAttrSet                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "MkDir")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpMkNodeAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "MkNode")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpOpenDirAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "OpenDir")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpOpenFileAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "OpenFile")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadDirAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ReadDir")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadDirPlusAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ReadDirPlus")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadFileAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ReadFile")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadSymlinkAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ReadSymlink")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReleaseDirHandleAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ReleaseDirHandle")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReleaseFileHandleAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ReleaseFileHandle")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpRemoveXattrAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "RemoveXattr")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpRenameAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "Rename")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpRmDirAttrSet                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "RmDir")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpSetInodeAttributesAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "SetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpSetXattrAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "SetXattr")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpStatFSAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "StatFS")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpSyncFSAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "SyncFS")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpSyncFileAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "SyncFile")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpUnlinkAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "Unlink")))
-	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpWriteFileAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "WriteFile")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpBatchForgetAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "BatchForget")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpCreateFileAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "CreateFile")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpCreateLinkAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "CreateLink")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpCreateSymlinkAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "CreateSymlink")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpFallocateAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "Fallocate")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpFlushFileAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "FlushFile")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpForgetInodeAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ForgetInode")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpGetInodeAttributesAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "GetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpGetXattrAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "GetXattr")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpListXattrAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ListXattr")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpLookUpInodeAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "LookUpInode")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpMkDirAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "MkDir")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpMkNodeAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "MkNode")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpOpenDirAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "OpenDir")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpOpenFileAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "OpenFile")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadDirAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ReadDir")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadDirPlusAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ReadDirPlus")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadFileAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ReadFile")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadSymlinkAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ReadSymlink")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReleaseDirHandleAttrSet             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ReleaseDirHandle")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReleaseFileHandleAttrSet            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ReleaseFileHandle")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpRemoveXattrAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "RemoveXattr")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpRenameAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "Rename")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpRmDirAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "RmDir")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpSetInodeAttributesAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "SetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpSetXattrAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "SetXattr")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpStatFSAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "StatFS")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpSyncFSAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "SyncFS")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpSyncFileAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "SyncFile")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpUnlinkAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "Unlink")))
-	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpWriteFileAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "WriteFile")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpBatchForgetAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "BatchForget")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpCreateFileAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "CreateFile")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpCreateLinkAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "CreateLink")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpCreateSymlinkAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "CreateSymlink")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpFallocateAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "Fallocate")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpFlushFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "FlushFile")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpForgetInodeAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ForgetInode")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpGetInodeAttributesAttrSet              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "GetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpGetXattrAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "GetXattr")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpListXattrAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ListXattr")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpLookUpInodeAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "LookUpInode")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpMkDirAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "MkDir")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpMkNodeAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "MkNode")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpOpenDirAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "OpenDir")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpOpenFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "OpenFile")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadDirAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ReadDir")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadDirPlusAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ReadDirPlus")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ReadFile")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadSymlinkAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ReadSymlink")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReleaseDirHandleAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ReleaseDirHandle")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReleaseFileHandleAttrSet               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ReleaseFileHandle")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpRemoveXattrAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "RemoveXattr")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpRenameAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "Rename")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpRmDirAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "RmDir")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpSetInodeAttributesAttrSet              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "SetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpSetXattrAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "SetXattr")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpStatFSAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "StatFS")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpSyncFSAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "SyncFS")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpSyncFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "SyncFile")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpUnlinkAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "Unlink")))
-	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpWriteFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "WriteFile")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpBatchForgetAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "BatchForget")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpCreateFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "CreateFile")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpCreateLinkAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "CreateLink")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpCreateSymlinkAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "CreateSymlink")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpFallocateAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "Fallocate")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpFlushFileAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "FlushFile")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpForgetInodeAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ForgetInode")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpGetInodeAttributesAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "GetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpGetXattrAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "GetXattr")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpListXattrAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ListXattr")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpLookUpInodeAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "LookUpInode")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpMkDirAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "MkDir")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpMkNodeAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "MkNode")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpOpenDirAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "OpenDir")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpOpenFileAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "OpenFile")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadDirAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ReadDir")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadDirPlusAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ReadDirPlus")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadFileAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ReadFile")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadSymlinkAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ReadSymlink")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReleaseDirHandleAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReleaseFileHandleAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ReleaseFileHandle")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpRemoveXattrAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "RemoveXattr")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpRenameAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "Rename")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpRmDirAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "RmDir")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpSetInodeAttributesAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "SetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpSetXattrAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "SetXattr")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpStatFSAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "StatFS")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpSyncFSAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "SyncFS")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpSyncFileAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "SyncFile")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpUnlinkAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "Unlink")))
-	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpWriteFileAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "WriteFile")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpBatchForgetAttrSet        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "BatchForget")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpCreateFileAttrSet         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "CreateFile")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpCreateLinkAttrSet         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "CreateLink")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpCreateSymlinkAttrSet      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "CreateSymlink")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpFallocateAttrSet          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "Fallocate")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpFlushFileAttrSet          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "FlushFile")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpForgetInodeAttrSet        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ForgetInode")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpGetInodeAttributesAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "GetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpGetXattrAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "GetXattr")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpListXattrAttrSet          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ListXattr")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpLookUpInodeAttrSet        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "LookUpInode")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpMkDirAttrSet              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "MkDir")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpMkNodeAttrSet             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "MkNode")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpOpenDirAttrSet            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "OpenDir")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpOpenFileAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "OpenFile")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadDirAttrSet            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ReadDir")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadDirPlusAttrSet        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ReadDirPlus")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadFileAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ReadFile")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadSymlinkAttrSet        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ReadSymlink")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReleaseDirHandleAttrSet   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReleaseFileHandleAttrSet  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ReleaseFileHandle")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpRemoveXattrAttrSet        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "RemoveXattr")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpRenameAttrSet             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "Rename")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpRmDirAttrSet              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "RmDir")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpSetInodeAttributesAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "SetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpSetXattrAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "SetXattr")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpStatFSAttrSet             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "StatFS")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpSyncFSAttrSet             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "SyncFS")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpSyncFileAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "SyncFile")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpUnlinkAttrSet             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "Unlink")))
-	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpWriteFileAttrSet          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "WriteFile")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpBatchForgetAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "BatchForget")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpCreateFileAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "CreateFile")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpCreateLinkAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "CreateLink")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpCreateSymlinkAttrSet              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "CreateSymlink")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpFallocateAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "Fallocate")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpFlushFileAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "FlushFile")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpForgetInodeAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ForgetInode")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpGetInodeAttributesAttrSet         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "GetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpGetXattrAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "GetXattr")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpListXattrAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ListXattr")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpLookUpInodeAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "LookUpInode")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpMkDirAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "MkDir")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpMkNodeAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "MkNode")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpOpenDirAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "OpenDir")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpOpenFileAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "OpenFile")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadDirAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ReadDir")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadDirPlusAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ReadDirPlus")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadFileAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ReadFile")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadSymlinkAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ReadSymlink")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReleaseDirHandleAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ReleaseDirHandle")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReleaseFileHandleAttrSet          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ReleaseFileHandle")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpRemoveXattrAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "RemoveXattr")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpRenameAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "Rename")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpRmDirAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "RmDir")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSetInodeAttributesAttrSet         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "SetInodeAttributes")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSetXattrAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "SetXattr")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpStatFSAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "StatFS")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSyncFSAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "SyncFS")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSyncFileAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "SyncFile")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpUnlinkAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "Unlink")))
-	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "WriteFile")))
-	fsOpsLatencyFsOpBatchForgetAttrSet                                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "BatchForget")))
-	fsOpsLatencyFsOpCreateFileAttrSet                                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "CreateFile")))
-	fsOpsLatencyFsOpCreateLinkAttrSet                                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "CreateLink")))
-	fsOpsLatencyFsOpCreateSymlinkAttrSet                                                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "CreateSymlink")))
-	fsOpsLatencyFsOpFallocateAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "Fallocate")))
-	fsOpsLatencyFsOpFlushFileAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "FlushFile")))
-	fsOpsLatencyFsOpForgetInodeAttrSet                                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ForgetInode")))
-	fsOpsLatencyFsOpGetInodeAttributesAttrSet                                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "GetInodeAttributes")))
-	fsOpsLatencyFsOpGetXattrAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "GetXattr")))
-	fsOpsLatencyFsOpListXattrAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ListXattr")))
-	fsOpsLatencyFsOpLookUpInodeAttrSet                                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "LookUpInode")))
-	fsOpsLatencyFsOpMkDirAttrSet                                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "MkDir")))
-	fsOpsLatencyFsOpMkNodeAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "MkNode")))
-	fsOpsLatencyFsOpOpenDirAttrSet                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "OpenDir")))
-	fsOpsLatencyFsOpOpenFileAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "OpenFile")))
-	fsOpsLatencyFsOpReadDirAttrSet                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadDir")))
-	fsOpsLatencyFsOpReadDirPlusAttrSet                                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadDirPlus")))
-	fsOpsLatencyFsOpReadFileAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadFile")))
-	fsOpsLatencyFsOpReadSymlinkAttrSet                                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadSymlink")))
-	fsOpsLatencyFsOpReleaseDirHandleAttrSet                                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReleaseDirHandle")))
-	fsOpsLatencyFsOpReleaseFileHandleAttrSet                                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReleaseFileHandle")))
-	fsOpsLatencyFsOpRemoveXattrAttrSet                                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "RemoveXattr")))
-	fsOpsLatencyFsOpRenameAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "Rename")))
-	fsOpsLatencyFsOpRmDirAttrSet                                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "RmDir")))
-	fsOpsLatencyFsOpSetInodeAttributesAttrSet                                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "SetInodeAttributes")))
-	fsOpsLatencyFsOpSetXattrAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "SetXattr")))
-	fsOpsLatencyFsOpStatFSAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "StatFS")))
-	fsOpsLatencyFsOpSyncFSAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "SyncFS")))
-	fsOpsLatencyFsOpSyncFileAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "SyncFile")))
-	fsOpsLatencyFsOpUnlinkAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "Unlink")))
-	fsOpsLatencyFsOpWriteFileAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "WriteFile")))
-	gcsDownloadBytesCountReadTypeParallelAttrSet                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel")))
-	gcsDownloadBytesCountReadTypeRandomAttrSet                                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random")))
-	gcsDownloadBytesCountReadTypeSequentialAttrSet                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential")))
-	gcsReadCountReadTypeParallelAttrSet                                                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel")))
-	gcsReadCountReadTypeRandomAttrSet                                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random")))
-	gcsReadCountReadTypeSequentialAttrSet                                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential")))
-	gcsReaderCountIoMethodReadHandleAttrSet                                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("io_method", "ReadHandle")))
-	gcsReaderCountIoMethodClosedAttrSet                                                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("io_method", "closed")))
-	gcsReaderCountIoMethodOpenedAttrSet                                                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("io_method", "opened")))
-	gcsRequestCountGcsMethodComposeObjectsAttrSet                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "ComposeObjects")))
-	gcsRequestCountGcsMethodCopyObjectAttrSet                                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "CopyObject")))
-	gcsRequestCountGcsMethodCreateAppendableObjectWriterAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "CreateAppendableObjectWriter")))
-	gcsRequestCountGcsMethodCreateFolderAttrSet                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "CreateFolder")))
-	gcsRequestCountGcsMethodCreateObjectAttrSet                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "CreateObject")))
-	gcsRequestCountGcsMethodCreateObjectChunkWriterAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "CreateObjectChunkWriter")))
-	gcsRequestCountGcsMethodDeleteFolderAttrSet                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "DeleteFolder")))
-	gcsRequestCountGcsMethodDeleteObjectAttrSet                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "DeleteObject")))
-	gcsRequestCountGcsMethodFinalizeUploadAttrSet                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "FinalizeUpload")))
-	gcsRequestCountGcsMethodFlushPendingWritesAttrSet                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "FlushPendingWrites")))
-	gcsRequestCountGcsMethodGetFolderAttrSet                                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "GetFolder")))
-	gcsRequestCountGcsMethodListObjectsAttrSet                                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "ListObjects")))
-	gcsRequestCountGcsMethodMoveObjectAttrSet                                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "MoveObject")))
-	gcsRequestCountGcsMethodMultiRangeDownloaderAddAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "MultiRangeDownloader::Add")))
-	gcsRequestCountGcsMethodNewMultiRangeDownloaderAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "NewMultiRangeDownloader")))
-	gcsRequestCountGcsMethodNewReaderAttrSet                                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "NewReader")))
-	gcsRequestCountGcsMethodRenameFolderAttrSet                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "RenameFolder")))
-	gcsRequestCountGcsMethodStatObjectAttrSet                                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "StatObject")))
-	gcsRequestCountGcsMethodUpdateObjectAttrSet                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "UpdateObject")))
-	gcsRequestLatenciesGcsMethodComposeObjectsAttrSet                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "ComposeObjects")))
-	gcsRequestLatenciesGcsMethodCopyObjectAttrSet                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "CopyObject")))
-	gcsRequestLatenciesGcsMethodCreateAppendableObjectWriterAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "CreateAppendableObjectWriter")))
-	gcsRequestLatenciesGcsMethodCreateFolderAttrSet                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "CreateFolder")))
-	gcsRequestLatenciesGcsMethodCreateObjectAttrSet                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "CreateObject")))
-	gcsRequestLatenciesGcsMethodCreateObjectChunkWriterAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "CreateObjectChunkWriter")))
-	gcsRequestLatenciesGcsMethodDeleteFolderAttrSet                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "DeleteFolder")))
-	gcsRequestLatenciesGcsMethodDeleteObjectAttrSet                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "DeleteObject")))
-	gcsRequestLatenciesGcsMethodFinalizeUploadAttrSet                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "FinalizeUpload")))
-	gcsRequestLatenciesGcsMethodFlushPendingWritesAttrSet                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "FlushPendingWrites")))
-	gcsRequestLatenciesGcsMethodGetFolderAttrSet                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "GetFolder")))
-	gcsRequestLatenciesGcsMethodListObjectsAttrSet                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "ListObjects")))
-	gcsRequestLatenciesGcsMethodMoveObjectAttrSet                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "MoveObject")))
-	gcsRequestLatenciesGcsMethodMultiRangeDownloaderAddAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "MultiRangeDownloader::Add")))
-	gcsRequestLatenciesGcsMethodNewMultiRangeDownloaderAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "NewMultiRangeDownloader")))
-	gcsRequestLatenciesGcsMethodNewReaderAttrSet                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "NewReader")))
-	gcsRequestLatenciesGcsMethodRenameFolderAttrSet                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "RenameFolder")))
-	gcsRequestLatenciesGcsMethodStatObjectAttrSet                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "StatObject")))
-	gcsRequestLatenciesGcsMethodUpdateObjectAttrSet                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "UpdateObject")))
-	gcsRetryCountRetryErrorCategoryOTHERERRORSAttrSet                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("retry_error_category", "OTHER_ERRORS")))
-	gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("retry_error_category", "STALLED_READ_REQUEST")))
-	testUpdownCounterWithAttrsRequestTypeAttr1AttrSet                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("request_type", "attr1")))
-	testUpdownCounterWithAttrsRequestTypeAttr2AttrSet                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("request_type", "attr2")))
+	fsOpsCountFsOpBatchForgetAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpBatchForgetAttr))))
+	fsOpsCountFsOpCreateFileAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpCreateFileAttr))))
+	fsOpsCountFsOpCreateLinkAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpCreateLinkAttr))))
+	fsOpsCountFsOpCreateSymlinkAttrSet                                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpCreateSymlinkAttr))))
+	fsOpsCountFsOpFallocateAttrSet                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpFallocateAttr))))
+	fsOpsCountFsOpFlushFileAttrSet                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpFlushFileAttr))))
+	fsOpsCountFsOpForgetInodeAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpForgetInodeAttr))))
+	fsOpsCountFsOpGetInodeAttributesAttrSet                                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpGetInodeAttributesAttr))))
+	fsOpsCountFsOpGetXattrAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpGetXattrAttr))))
+	fsOpsCountFsOpListXattrAttrSet                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpListXattrAttr))))
+	fsOpsCountFsOpLookUpInodeAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpLookUpInodeAttr))))
+	fsOpsCountFsOpMkDirAttrSet                                                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpMkDirAttr))))
+	fsOpsCountFsOpMkNodeAttrSet                                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpMkNodeAttr))))
+	fsOpsCountFsOpOpenDirAttrSet                                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpOpenDirAttr))))
+	fsOpsCountFsOpOpenFileAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpOpenFileAttr))))
+	fsOpsCountFsOpReadDirAttrSet                                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpReadDirAttr))))
+	fsOpsCountFsOpReadDirPlusAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpReadDirPlusAttr))))
+	fsOpsCountFsOpReadFileAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpReadFileAttr))))
+	fsOpsCountFsOpReadSymlinkAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpReadSymlinkAttr))))
+	fsOpsCountFsOpReleaseDirHandleAttrSet                                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpReleaseDirHandleAttr))))
+	fsOpsCountFsOpReleaseFileHandleAttrSet                                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpReleaseFileHandleAttr))))
+	fsOpsCountFsOpRemoveXattrAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpRemoveXattrAttr))))
+	fsOpsCountFsOpRenameAttrSet                                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpRenameAttr))))
+	fsOpsCountFsOpRmDirAttrSet                                                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpRmDirAttr))))
+	fsOpsCountFsOpSetInodeAttributesAttrSet                                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpSetInodeAttributesAttr))))
+	fsOpsCountFsOpSetXattrAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpSetXattrAttr))))
+	fsOpsCountFsOpStatFSAttrSet                                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpStatFSAttr))))
+	fsOpsCountFsOpSyncFSAttrSet                                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpSyncFSAttr))))
+	fsOpsCountFsOpSyncFileAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpSyncFileAttr))))
+	fsOpsCountFsOpUnlinkAttrSet                                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpUnlinkAttr))))
+	fsOpsCountFsOpWriteFileAttrSet                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpWriteFileAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpBatchForgetAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpBatchForgetAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpCreateFileAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpCreateFileAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpCreateLinkAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpCreateLinkAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpCreateSymlinkAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpCreateSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpFallocateAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpFallocateAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpFlushFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpFlushFileAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpForgetInodeAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpForgetInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpGetInodeAttributesAttrSet              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpGetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpGetXattrAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpGetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpListXattrAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpListXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpLookUpInodeAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpLookUpInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpMkDirAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpMkDirAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpMkNodeAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpMkNodeAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpOpenDirAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpOpenDirAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpOpenFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpOpenFileAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadDirAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpReadDirAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadDirPlusAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpReadDirPlusAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpReadFileAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadSymlinkAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpReadSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReleaseDirHandleAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpReleaseDirHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReleaseFileHandleAttrSet               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpReleaseFileHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpRemoveXattrAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpRemoveXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpRenameAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpRenameAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpRmDirAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpRmDirAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpSetInodeAttributesAttrSet              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpSetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpSetXattrAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpSetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpStatFSAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpStatFSAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpSyncFSAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpSyncFSAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpSyncFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpSyncFileAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpUnlinkAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpUnlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpWriteFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDEVICEERRORAttr)), attribute.String("fs_op", string(FsOpWriteFileAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpBatchForgetAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpBatchForgetAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpCreateFileAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpCreateFileAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpCreateLinkAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpCreateLinkAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpCreateSymlinkAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpCreateSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpFallocateAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpFallocateAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpFlushFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpFlushFileAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpForgetInodeAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpForgetInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpGetInodeAttributesAttrSet              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpGetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpGetXattrAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpGetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpListXattrAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpListXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpLookUpInodeAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpLookUpInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpMkDirAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpMkDirAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpMkNodeAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpMkNodeAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpOpenDirAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpOpenDirAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpOpenFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpOpenFileAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadDirAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpReadDirAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadDirPlusAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpReadDirPlusAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpReadFileAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadSymlinkAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpReadSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReleaseDirHandleAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpReleaseDirHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReleaseFileHandleAttrSet               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpReleaseFileHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpRemoveXattrAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpRemoveXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpRenameAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpRenameAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpRmDirAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpRmDirAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpSetInodeAttributesAttrSet              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpSetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpSetXattrAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpSetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpStatFSAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpStatFSAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpSyncFSAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpSyncFSAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpSyncFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpSyncFileAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpUnlinkAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpUnlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpWriteFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryDIRNOTEMPTYAttr)), attribute.String("fs_op", string(FsOpWriteFileAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpBatchForgetAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpBatchForgetAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpCreateFileAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpCreateFileAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpCreateLinkAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpCreateLinkAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpCreateSymlinkAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpCreateSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpFallocateAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpFallocateAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpFlushFileAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpFlushFileAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpForgetInodeAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpForgetInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpGetInodeAttributesAttrSet             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpGetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpGetXattrAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpGetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpListXattrAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpListXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpLookUpInodeAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpLookUpInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpMkDirAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpMkDirAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpMkNodeAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpMkNodeAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpOpenDirAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpOpenDirAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpOpenFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpOpenFileAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadDirAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpReadDirAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadDirPlusAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpReadDirPlusAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpReadFileAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadSymlinkAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpReadSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReleaseDirHandleAttrSet               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpReleaseDirHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReleaseFileHandleAttrSet              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpReleaseFileHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpRemoveXattrAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpRemoveXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpRenameAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpRenameAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpRmDirAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpRmDirAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpSetInodeAttributesAttrSet             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpSetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpSetXattrAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpSetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpStatFSAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpStatFSAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpSyncFSAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpSyncFSAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpSyncFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpSyncFileAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpUnlinkAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpUnlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpWriteFileAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEDIRERRORAttr)), attribute.String("fs_op", string(FsOpWriteFileAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpBatchForgetAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpBatchForgetAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpCreateFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpCreateFileAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpCreateLinkAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpCreateLinkAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpCreateSymlinkAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpCreateSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpFallocateAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpFallocateAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpFlushFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpFlushFileAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpForgetInodeAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpForgetInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpGetInodeAttributesAttrSet               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpGetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpGetXattrAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpGetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpListXattrAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpListXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpLookUpInodeAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpLookUpInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpMkDirAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpMkDirAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpMkNodeAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpMkNodeAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpOpenDirAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpOpenDirAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpOpenFileAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpOpenFileAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadDirAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpReadDirAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadDirPlusAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpReadDirPlusAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadFileAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpReadFileAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadSymlinkAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpReadSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReleaseDirHandleAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpReleaseDirHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReleaseFileHandleAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpReleaseFileHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpRemoveXattrAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpRemoveXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpRenameAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpRenameAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpRmDirAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpRmDirAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpSetInodeAttributesAttrSet               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpSetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpSetXattrAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpSetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpStatFSAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpStatFSAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpSyncFSAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpSyncFSAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpSyncFileAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpSyncFileAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpUnlinkAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpUnlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpWriteFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryFILEEXISTSAttr)), attribute.String("fs_op", string(FsOpWriteFileAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpBatchForgetAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpBatchForgetAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpCreateFileAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpCreateFileAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpCreateLinkAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpCreateLinkAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpCreateSymlinkAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpCreateSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpFallocateAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpFallocateAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpFlushFileAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpFlushFileAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpForgetInodeAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpForgetInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpGetInodeAttributesAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpGetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpGetXattrAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpGetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpListXattrAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpListXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpLookUpInodeAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpLookUpInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpMkDirAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpMkDirAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpMkNodeAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpMkNodeAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpOpenDirAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpOpenDirAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpOpenFileAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpOpenFileAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadDirAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpReadDirAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadDirPlusAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpReadDirPlusAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadFileAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpReadFileAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadSymlinkAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpReadSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReleaseDirHandleAttrSet             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpReleaseDirHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReleaseFileHandleAttrSet            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpReleaseFileHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpRemoveXattrAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpRemoveXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpRenameAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpRenameAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpRmDirAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpRmDirAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpSetInodeAttributesAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpSetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpSetXattrAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpSetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpStatFSAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpStatFSAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpSyncFSAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpSyncFSAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpSyncFileAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpSyncFileAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpUnlinkAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpUnlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpWriteFileAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINTERRUPTERRORAttr)), attribute.String("fs_op", string(FsOpWriteFileAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpBatchForgetAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpBatchForgetAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpCreateFileAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpCreateFileAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpCreateLinkAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpCreateLinkAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpCreateSymlinkAttrSet               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpCreateSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpFallocateAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpFallocateAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpFlushFileAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpFlushFileAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpForgetInodeAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpForgetInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpGetInodeAttributesAttrSet          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpGetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpGetXattrAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpGetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpListXattrAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpListXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpLookUpInodeAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpLookUpInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpMkDirAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpMkDirAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpMkNodeAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpMkNodeAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpOpenDirAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpOpenDirAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpOpenFileAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpOpenFileAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadDirAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpReadDirAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadDirPlusAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpReadDirPlusAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadFileAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpReadFileAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadSymlinkAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpReadSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReleaseDirHandleAttrSet            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpReleaseDirHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReleaseFileHandleAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpReleaseFileHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpRemoveXattrAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpRemoveXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpRenameAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpRenameAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpRmDirAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpRmDirAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpSetInodeAttributesAttrSet          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpSetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpSetXattrAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpSetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpStatFSAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpStatFSAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpSyncFSAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpSyncFSAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpSyncFileAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpSyncFileAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpUnlinkAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpUnlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpWriteFileAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDARGUMENTAttr)), attribute.String("fs_op", string(FsOpWriteFileAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpBatchForgetAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpBatchForgetAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpCreateFileAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpCreateFileAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpCreateLinkAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpCreateLinkAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpCreateSymlinkAttrSet              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpCreateSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpFallocateAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpFallocateAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpFlushFileAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpFlushFileAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpForgetInodeAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpForgetInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpGetInodeAttributesAttrSet         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpGetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpGetXattrAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpGetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpListXattrAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpListXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpLookUpInodeAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpLookUpInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpMkDirAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpMkDirAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpMkNodeAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpMkNodeAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpOpenDirAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpOpenDirAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpOpenFileAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpOpenFileAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadDirAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpReadDirAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadDirPlusAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpReadDirPlusAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadFileAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpReadFileAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadSymlinkAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpReadSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReleaseDirHandleAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpReleaseDirHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReleaseFileHandleAttrSet          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpReleaseFileHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpRemoveXattrAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpRemoveXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpRenameAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpRenameAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpRmDirAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpRmDirAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpSetInodeAttributesAttrSet         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpSetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpSetXattrAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpSetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpStatFSAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpStatFSAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpSyncFSAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpSyncFSAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpSyncFileAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpSyncFileAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpUnlinkAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpUnlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpWriteFileAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryINVALIDOPERATIONAttr)), attribute.String("fs_op", string(FsOpWriteFileAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpBatchForgetAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpBatchForgetAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpCreateFileAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpCreateFileAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpCreateLinkAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpCreateLinkAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpCreateSymlinkAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpCreateSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpFallocateAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpFallocateAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpFlushFileAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpFlushFileAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpForgetInodeAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpForgetInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpGetInodeAttributesAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpGetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpGetXattrAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpGetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpListXattrAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpListXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpLookUpInodeAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpLookUpInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpMkDirAttrSet                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpMkDirAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpMkNodeAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpMkNodeAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpOpenDirAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpOpenDirAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpOpenFileAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpOpenFileAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadDirAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpReadDirAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadDirPlusAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpReadDirPlusAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadFileAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpReadFileAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadSymlinkAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpReadSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpReleaseDirHandleAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpReleaseDirHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpReleaseFileHandleAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpReleaseFileHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpRemoveXattrAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpRemoveXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpRenameAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpRenameAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpRmDirAttrSet                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpRmDirAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpSetInodeAttributesAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpSetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpSetXattrAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpSetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpStatFSAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpStatFSAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpSyncFSAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpSyncFSAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpSyncFileAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpSyncFileAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpUnlinkAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpUnlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryIOERRORFsOpWriteFileAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryIOERRORAttr)), attribute.String("fs_op", string(FsOpWriteFileAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpBatchForgetAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpBatchForgetAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpCreateFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpCreateFileAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpCreateLinkAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpCreateLinkAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpCreateSymlinkAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpCreateSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpFallocateAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpFallocateAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpFlushFileAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpFlushFileAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpForgetInodeAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpForgetInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpGetInodeAttributesAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpGetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpGetXattrAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpGetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpListXattrAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpListXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpLookUpInodeAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpLookUpInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpMkDirAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpMkDirAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpMkNodeAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpMkNodeAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpOpenDirAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpOpenDirAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpOpenFileAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpOpenFileAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadDirAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpReadDirAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadDirPlusAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpReadDirPlusAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadFileAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpReadFileAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadSymlinkAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpReadSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReleaseDirHandleAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpReleaseDirHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReleaseFileHandleAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpReleaseFileHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpRemoveXattrAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpRemoveXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpRenameAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpRenameAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpRmDirAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpRmDirAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpSetInodeAttributesAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpSetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpSetXattrAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpSetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpStatFSAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpStatFSAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpSyncFSAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpSyncFSAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpSyncFileAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpSyncFileAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpUnlinkAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpUnlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryMISCERRORFsOpWriteFileAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryMISCERRORAttr)), attribute.String("fs_op", string(FsOpWriteFileAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpBatchForgetAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpBatchForgetAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpCreateFileAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpCreateFileAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpCreateLinkAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpCreateLinkAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpCreateSymlinkAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpCreateSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpFallocateAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpFallocateAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpFlushFileAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpFlushFileAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpForgetInodeAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpForgetInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpGetInodeAttributesAttrSet             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpGetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpGetXattrAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpGetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpListXattrAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpListXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpLookUpInodeAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpLookUpInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpMkDirAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpMkDirAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpMkNodeAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpMkNodeAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpOpenDirAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpOpenDirAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpOpenFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpOpenFileAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadDirAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpReadDirAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadDirPlusAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpReadDirPlusAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpReadFileAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadSymlinkAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpReadSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReleaseDirHandleAttrSet               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpReleaseDirHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReleaseFileHandleAttrSet              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpReleaseFileHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpRemoveXattrAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpRemoveXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpRenameAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpRenameAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpRmDirAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpRmDirAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpSetInodeAttributesAttrSet             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpSetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpSetXattrAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpSetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpStatFSAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpStatFSAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpSyncFSAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpSyncFSAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpSyncFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpSyncFileAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpUnlinkAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpUnlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpWriteFileAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNETWORKERRORAttr)), attribute.String("fs_op", string(FsOpWriteFileAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpBatchForgetAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpBatchForgetAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpCreateFileAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpCreateFileAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpCreateLinkAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpCreateLinkAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpCreateSymlinkAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpCreateSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpFallocateAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpFallocateAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpFlushFileAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpFlushFileAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpForgetInodeAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpForgetInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpGetInodeAttributesAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpGetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpGetXattrAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpGetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpListXattrAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpListXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpLookUpInodeAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpLookUpInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpMkDirAttrSet                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpMkDirAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpMkNodeAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpMkNodeAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpOpenDirAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpOpenDirAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpOpenFileAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpOpenFileAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadDirAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpReadDirAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadDirPlusAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpReadDirPlusAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadFileAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpReadFileAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadSymlinkAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpReadSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReleaseDirHandleAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpReleaseDirHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReleaseFileHandleAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpReleaseFileHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpRemoveXattrAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpRemoveXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpRenameAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpRenameAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpRmDirAttrSet                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpRmDirAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpSetInodeAttributesAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpSetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpSetXattrAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpSetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpStatFSAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpStatFSAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpSyncFSAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpSyncFSAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpSyncFileAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpSyncFileAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpUnlinkAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpUnlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTADIRFsOpWriteFileAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTADIRAttr)), attribute.String("fs_op", string(FsOpWriteFileAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpBatchForgetAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpBatchForgetAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpCreateFileAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpCreateFileAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpCreateLinkAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpCreateLinkAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpCreateSymlinkAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpCreateSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpFallocateAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpFallocateAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpFlushFileAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpFlushFileAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpForgetInodeAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpForgetInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpGetInodeAttributesAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpGetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpGetXattrAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpGetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpListXattrAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpListXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpLookUpInodeAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpLookUpInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpMkDirAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpMkDirAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpMkNodeAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpMkNodeAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpOpenDirAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpOpenDirAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpOpenFileAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpOpenFileAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadDirAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpReadDirAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadDirPlusAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpReadDirPlusAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadFileAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpReadFileAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadSymlinkAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpReadSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReleaseDirHandleAttrSet             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpReleaseDirHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReleaseFileHandleAttrSet            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpReleaseFileHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpRemoveXattrAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpRemoveXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpRenameAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpRenameAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpRmDirAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpRmDirAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpSetInodeAttributesAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpSetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpSetXattrAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpSetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpStatFSAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpStatFSAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpSyncFSAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpSyncFSAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpSyncFileAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpSyncFileAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpUnlinkAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpUnlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpWriteFileAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOTIMPLEMENTEDAttr)), attribute.String("fs_op", string(FsOpWriteFileAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpBatchForgetAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpBatchForgetAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpCreateFileAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpCreateFileAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpCreateLinkAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpCreateLinkAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpCreateSymlinkAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpCreateSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpFallocateAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpFallocateAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpFlushFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpFlushFileAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpForgetInodeAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpForgetInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpGetInodeAttributesAttrSet              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpGetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpGetXattrAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpGetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpListXattrAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpListXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpLookUpInodeAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpLookUpInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpMkDirAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpMkDirAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpMkNodeAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpMkNodeAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpOpenDirAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpOpenDirAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpOpenFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpOpenFileAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadDirAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpReadDirAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadDirPlusAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpReadDirPlusAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpReadFileAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadSymlinkAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpReadSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReleaseDirHandleAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpReleaseDirHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReleaseFileHandleAttrSet               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpReleaseFileHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpRemoveXattrAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpRemoveXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpRenameAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpRenameAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpRmDirAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpRmDirAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpSetInodeAttributesAttrSet              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpSetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpSetXattrAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpSetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpStatFSAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpStatFSAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpSyncFSAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpSyncFSAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpSyncFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpSyncFileAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpUnlinkAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpUnlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpWriteFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryNOFILEORDIRAttr)), attribute.String("fs_op", string(FsOpWriteFileAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpBatchForgetAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpBatchForgetAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpCreateFileAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpCreateFileAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpCreateLinkAttrSet                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpCreateLinkAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpCreateSymlinkAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpCreateSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpFallocateAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpFallocateAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpFlushFileAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpFlushFileAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpForgetInodeAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpForgetInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpGetInodeAttributesAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpGetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpGetXattrAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpGetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpListXattrAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpListXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpLookUpInodeAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpLookUpInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpMkDirAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpMkDirAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpMkNodeAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpMkNodeAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpOpenDirAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpOpenDirAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpOpenFileAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpOpenFileAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadDirAttrSet                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpReadDirAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadDirPlusAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpReadDirPlusAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadFileAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpReadFileAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadSymlinkAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpReadSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReleaseDirHandleAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpReleaseDirHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReleaseFileHandleAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpReleaseFileHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpRemoveXattrAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpRemoveXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpRenameAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpRenameAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpRmDirAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpRmDirAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpSetInodeAttributesAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpSetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpSetXattrAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpSetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpStatFSAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpStatFSAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpSyncFSAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpSyncFSAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpSyncFileAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpSyncFileAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpUnlinkAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpUnlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryPERMERRORFsOpWriteFileAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPERMERRORAttr)), attribute.String("fs_op", string(FsOpWriteFileAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpBatchForgetAttrSet        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpBatchForgetAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpCreateFileAttrSet         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpCreateFileAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpCreateLinkAttrSet         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpCreateLinkAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpCreateSymlinkAttrSet      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpCreateSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpFallocateAttrSet          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpFallocateAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpFlushFileAttrSet          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpFlushFileAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpForgetInodeAttrSet        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpForgetInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpGetInodeAttributesAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpGetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpGetXattrAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpGetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpListXattrAttrSet          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpListXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpLookUpInodeAttrSet        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpLookUpInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpMkDirAttrSet              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpMkDirAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpMkNodeAttrSet             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpMkNodeAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpOpenDirAttrSet            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpOpenDirAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpOpenFileAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpOpenFileAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadDirAttrSet            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpReadDirAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadDirPlusAttrSet        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpReadDirPlusAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadFileAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpReadFileAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadSymlinkAttrSet        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpReadSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReleaseDirHandleAttrSet   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpReleaseDirHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReleaseFileHandleAttrSet  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpReleaseFileHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpRemoveXattrAttrSet        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpRemoveXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpRenameAttrSet             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpRenameAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpRmDirAttrSet              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpRmDirAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpSetInodeAttributesAttrSet = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpSetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpSetXattrAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpSetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpStatFSAttrSet             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpStatFSAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpSyncFSAttrSet             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpSyncFSAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpSyncFileAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpSyncFileAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpUnlinkAttrSet             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpUnlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpWriteFileAttrSet          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr)), attribute.String("fs_op", string(FsOpWriteFileAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpBatchForgetAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpBatchForgetAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpCreateFileAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpCreateFileAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpCreateLinkAttrSet                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpCreateLinkAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpCreateSymlinkAttrSet              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpCreateSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpFallocateAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpFallocateAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpFlushFileAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpFlushFileAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpForgetInodeAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpForgetInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpGetInodeAttributesAttrSet         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpGetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpGetXattrAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpGetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpListXattrAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpListXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpLookUpInodeAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpLookUpInodeAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpMkDirAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpMkDirAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpMkNodeAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpMkNodeAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpOpenDirAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpOpenDirAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpOpenFileAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpOpenFileAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadDirAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpReadDirAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadDirPlusAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpReadDirPlusAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadFileAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpReadFileAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadSymlinkAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpReadSymlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReleaseDirHandleAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpReleaseDirHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReleaseFileHandleAttrSet          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpReleaseFileHandleAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpRemoveXattrAttrSet                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpRemoveXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpRenameAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpRenameAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpRmDirAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpRmDirAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSetInodeAttributesAttrSet         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpSetInodeAttributesAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSetXattrAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpSetXattrAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpStatFSAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpStatFSAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSyncFSAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpSyncFSAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSyncFileAttrSet                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpSyncFileAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpUnlinkAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpUnlinkAttr))))
+	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAttrSet                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", string(FsErrorCategoryTOOMANYOPENFILESAttr)), attribute.String("fs_op", string(FsOpWriteFileAttr))))
+	fsOpsLatencyFsOpBatchForgetAttrSet                                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpBatchForgetAttr))))
+	fsOpsLatencyFsOpCreateFileAttrSet                                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpCreateFileAttr))))
+	fsOpsLatencyFsOpCreateLinkAttrSet                                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpCreateLinkAttr))))
+	fsOpsLatencyFsOpCreateSymlinkAttrSet                                                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpCreateSymlinkAttr))))
+	fsOpsLatencyFsOpFallocateAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpFallocateAttr))))
+	fsOpsLatencyFsOpFlushFileAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpFlushFileAttr))))
+	fsOpsLatencyFsOpForgetInodeAttrSet                                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpForgetInodeAttr))))
+	fsOpsLatencyFsOpGetInodeAttributesAttrSet                                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpGetInodeAttributesAttr))))
+	fsOpsLatencyFsOpGetXattrAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpGetXattrAttr))))
+	fsOpsLatencyFsOpListXattrAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpListXattrAttr))))
+	fsOpsLatencyFsOpLookUpInodeAttrSet                                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpLookUpInodeAttr))))
+	fsOpsLatencyFsOpMkDirAttrSet                                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpMkDirAttr))))
+	fsOpsLatencyFsOpMkNodeAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpMkNodeAttr))))
+	fsOpsLatencyFsOpOpenDirAttrSet                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpOpenDirAttr))))
+	fsOpsLatencyFsOpOpenFileAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpOpenFileAttr))))
+	fsOpsLatencyFsOpReadDirAttrSet                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpReadDirAttr))))
+	fsOpsLatencyFsOpReadDirPlusAttrSet                                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpReadDirPlusAttr))))
+	fsOpsLatencyFsOpReadFileAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpReadFileAttr))))
+	fsOpsLatencyFsOpReadSymlinkAttrSet                                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpReadSymlinkAttr))))
+	fsOpsLatencyFsOpReleaseDirHandleAttrSet                                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpReleaseDirHandleAttr))))
+	fsOpsLatencyFsOpReleaseFileHandleAttrSet                                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpReleaseFileHandleAttr))))
+	fsOpsLatencyFsOpRemoveXattrAttrSet                                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpRemoveXattrAttr))))
+	fsOpsLatencyFsOpRenameAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpRenameAttr))))
+	fsOpsLatencyFsOpRmDirAttrSet                                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpRmDirAttr))))
+	fsOpsLatencyFsOpSetInodeAttributesAttrSet                                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpSetInodeAttributesAttr))))
+	fsOpsLatencyFsOpSetXattrAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpSetXattrAttr))))
+	fsOpsLatencyFsOpStatFSAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpStatFSAttr))))
+	fsOpsLatencyFsOpSyncFSAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpSyncFSAttr))))
+	fsOpsLatencyFsOpSyncFileAttrSet                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpSyncFileAttr))))
+	fsOpsLatencyFsOpUnlinkAttrSet                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpUnlinkAttr))))
+	fsOpsLatencyFsOpWriteFileAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", string(FsOpWriteFileAttr))))
+	gcsDownloadBytesCountReadTypeParallelAttrSet                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", string(ReadTypeParallelAttr))))
+	gcsDownloadBytesCountReadTypeRandomAttrSet                                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", string(ReadTypeRandomAttr))))
+	gcsDownloadBytesCountReadTypeSequentialAttrSet                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", string(ReadTypeSequentialAttr))))
+	gcsReadCountReadTypeParallelAttrSet                                                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", string(ReadTypeParallelAttr))))
+	gcsReadCountReadTypeRandomAttrSet                                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", string(ReadTypeRandomAttr))))
+	gcsReadCountReadTypeSequentialAttrSet                                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", string(ReadTypeSequentialAttr))))
+	gcsReaderCountIoMethodReadHandleAttrSet                                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("io_method", string(IoMethodReadHandleAttr))))
+	gcsReaderCountIoMethodClosedAttrSet                                                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("io_method", string(IoMethodClosedAttr))))
+	gcsReaderCountIoMethodOpenedAttrSet                                                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("io_method", string(IoMethodOpenedAttr))))
+	gcsRequestCountGcsMethodComposeObjectsAttrSet                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodComposeObjectsAttr))))
+	gcsRequestCountGcsMethodCopyObjectAttrSet                                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodCopyObjectAttr))))
+	gcsRequestCountGcsMethodCreateAppendableObjectWriterAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodCreateAppendableObjectWriterAttr))))
+	gcsRequestCountGcsMethodCreateFolderAttrSet                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodCreateFolderAttr))))
+	gcsRequestCountGcsMethodCreateObjectAttrSet                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodCreateObjectAttr))))
+	gcsRequestCountGcsMethodCreateObjectChunkWriterAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodCreateObjectChunkWriterAttr))))
+	gcsRequestCountGcsMethodDeleteFolderAttrSet                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodDeleteFolderAttr))))
+	gcsRequestCountGcsMethodDeleteObjectAttrSet                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodDeleteObjectAttr))))
+	gcsRequestCountGcsMethodFinalizeUploadAttrSet                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodFinalizeUploadAttr))))
+	gcsRequestCountGcsMethodFlushPendingWritesAttrSet                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodFlushPendingWritesAttr))))
+	gcsRequestCountGcsMethodGetFolderAttrSet                                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodGetFolderAttr))))
+	gcsRequestCountGcsMethodListObjectsAttrSet                                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodListObjectsAttr))))
+	gcsRequestCountGcsMethodMoveObjectAttrSet                                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodMoveObjectAttr))))
+	gcsRequestCountGcsMethodMultiRangeDownloaderAddAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodMultiRangeDownloaderAddAttr))))
+	gcsRequestCountGcsMethodNewMultiRangeDownloaderAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodNewMultiRangeDownloaderAttr))))
+	gcsRequestCountGcsMethodNewReaderAttrSet                                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodNewReaderAttr))))
+	gcsRequestCountGcsMethodRenameFolderAttrSet                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodRenameFolderAttr))))
+	gcsRequestCountGcsMethodStatObjectAttrSet                                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodStatObjectAttr))))
+	gcsRequestCountGcsMethodUpdateObjectAttrSet                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodUpdateObjectAttr))))
+	gcsRequestLatenciesGcsMethodComposeObjectsAttrSet                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodComposeObjectsAttr))))
+	gcsRequestLatenciesGcsMethodCopyObjectAttrSet                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodCopyObjectAttr))))
+	gcsRequestLatenciesGcsMethodCreateAppendableObjectWriterAttrSet                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodCreateAppendableObjectWriterAttr))))
+	gcsRequestLatenciesGcsMethodCreateFolderAttrSet                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodCreateFolderAttr))))
+	gcsRequestLatenciesGcsMethodCreateObjectAttrSet                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodCreateObjectAttr))))
+	gcsRequestLatenciesGcsMethodCreateObjectChunkWriterAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodCreateObjectChunkWriterAttr))))
+	gcsRequestLatenciesGcsMethodDeleteFolderAttrSet                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodDeleteFolderAttr))))
+	gcsRequestLatenciesGcsMethodDeleteObjectAttrSet                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodDeleteObjectAttr))))
+	gcsRequestLatenciesGcsMethodFinalizeUploadAttrSet                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodFinalizeUploadAttr))))
+	gcsRequestLatenciesGcsMethodFlushPendingWritesAttrSet                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodFlushPendingWritesAttr))))
+	gcsRequestLatenciesGcsMethodGetFolderAttrSet                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodGetFolderAttr))))
+	gcsRequestLatenciesGcsMethodListObjectsAttrSet                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodListObjectsAttr))))
+	gcsRequestLatenciesGcsMethodMoveObjectAttrSet                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodMoveObjectAttr))))
+	gcsRequestLatenciesGcsMethodMultiRangeDownloaderAddAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodMultiRangeDownloaderAddAttr))))
+	gcsRequestLatenciesGcsMethodNewMultiRangeDownloaderAttrSet                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodNewMultiRangeDownloaderAttr))))
+	gcsRequestLatenciesGcsMethodNewReaderAttrSet                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodNewReaderAttr))))
+	gcsRequestLatenciesGcsMethodRenameFolderAttrSet                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodRenameFolderAttr))))
+	gcsRequestLatenciesGcsMethodStatObjectAttrSet                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodStatObjectAttr))))
+	gcsRequestLatenciesGcsMethodUpdateObjectAttrSet                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", string(GcsMethodUpdateObjectAttr))))
+	gcsRetryCountRetryErrorCategoryOTHERERRORSAttrSet                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("retry_error_category", string(RetryErrorCategoryOTHERERRORSAttr))))
+	gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("retry_error_category", string(RetryErrorCategorySTALLEDREADREQUESTAttr))))
+	testUpdownCounterWithAttrsRequestTypeAttr1AttrSet                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("request_type", string(RequestTypeAttr1Attr))))
+	testUpdownCounterWithAttrsRequestTypeAttr2AttrSet                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("request_type", string(RequestTypeAttr2Attr))))
 )
 
 type histogramRecord struct {
@@ -1256,17 +1256,17 @@ type otelMetrics struct {
 }
 
 func (o *otelMetrics) BufferedReadDownloadBlockLatency(
-	ctx context.Context, latency time.Duration, status string) {
+	ctx context.Context, latency time.Duration, status Status) {
 	var record histogramRecord
 	switch status {
-	case "cancelled":
+	case StatusCancelledAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.bufferedReadDownloadBlockLatency, value: latency.Microseconds(), attributes: bufferedReadDownloadBlockLatencyStatusCancelledAttrSet}
-	case "failed":
+	case StatusFailedAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.bufferedReadDownloadBlockLatency, value: latency.Microseconds(), attributes: bufferedReadDownloadBlockLatencyStatusFailedAttrSet}
-	case "successful":
+	case StatusSuccessfulAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.bufferedReadDownloadBlockLatency, value: latency.Microseconds(), attributes: bufferedReadDownloadBlockLatencyStatusSuccessfulAttrSet}
 	default:
-		updateUnrecognizedAttribute(status)
+		updateUnrecognizedAttribute(string(status))
 		return
 	}
 
@@ -1277,18 +1277,18 @@ func (o *otelMetrics) BufferedReadDownloadBlockLatency(
 }
 
 func (o *otelMetrics) BufferedReadFallbackTriggerCount(
-	inc int64, reason string) {
+	inc int64, reason Reason) {
 	if inc < 0 {
 		logger.Errorf("Counter metric buffered_read/fallback_trigger_count received a negative increment: %d", inc)
 		return
 	}
 	switch reason {
-	case "insufficient_memory":
+	case ReasonInsufficientMemoryAttr:
 		o.bufferedReadFallbackTriggerCountReasonInsufficientMemoryAtomic.Add(inc)
-	case "random_read_detected":
+	case ReasonRandomReadDetectedAttr:
 		o.bufferedReadFallbackTriggerCountReasonRandomReadDetectedAtomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(reason)
+		updateUnrecognizedAttribute(string(reason))
 		return
 	}
 }
@@ -1305,45 +1305,45 @@ func (o *otelMetrics) BufferedReadReadLatency(
 }
 
 func (o *otelMetrics) BufferedReadScheduledBlockCount(
-	inc int64, status string) {
+	inc int64, status Status) {
 	if inc < 0 {
 		logger.Errorf("Counter metric buffered_read/scheduled_block_count received a negative increment: %d", inc)
 		return
 	}
 	switch status {
-	case "cancelled":
+	case StatusCancelledAttr:
 		o.bufferedReadScheduledBlockCountStatusCancelledAtomic.Add(inc)
-	case "failed":
+	case StatusFailedAttr:
 		o.bufferedReadScheduledBlockCountStatusFailedAtomic.Add(inc)
-	case "successful":
+	case StatusSuccessfulAttr:
 		o.bufferedReadScheduledBlockCountStatusSuccessfulAtomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(status)
+		updateUnrecognizedAttribute(string(status))
 		return
 	}
 }
 
 func (o *otelMetrics) FileCacheReadBytesCount(
-	inc int64, readType string) {
+	inc int64, readType ReadType) {
 	if inc < 0 {
 		logger.Errorf("Counter metric file_cache/read_bytes_count received a negative increment: %d", inc)
 		return
 	}
 	switch readType {
-	case "Parallel":
+	case ReadTypeParallelAttr:
 		o.fileCacheReadBytesCountReadTypeParallelAtomic.Add(inc)
-	case "Random":
+	case ReadTypeRandomAttr:
 		o.fileCacheReadBytesCountReadTypeRandomAtomic.Add(inc)
-	case "Sequential":
+	case ReadTypeSequentialAttr:
 		o.fileCacheReadBytesCountReadTypeSequentialAtomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(readType)
+		updateUnrecognizedAttribute(string(readType))
 		return
 	}
 }
 
 func (o *otelMetrics) FileCacheReadCount(
-	inc int64, cacheHit bool, readType string) {
+	inc int64, cacheHit bool, readType ReadType) {
 	if inc < 0 {
 		logger.Errorf("Counter metric file_cache/read_count received a negative increment: %d", inc)
 		return
@@ -1351,26 +1351,26 @@ func (o *otelMetrics) FileCacheReadCount(
 	switch cacheHit {
 	case true:
 		switch readType {
-		case "Parallel":
+		case ReadTypeParallelAttr:
 			o.fileCacheReadCountCacheHitTrueReadTypeParallelAtomic.Add(inc)
-		case "Random":
+		case ReadTypeRandomAttr:
 			o.fileCacheReadCountCacheHitTrueReadTypeRandomAtomic.Add(inc)
-		case "Sequential":
+		case ReadTypeSequentialAttr:
 			o.fileCacheReadCountCacheHitTrueReadTypeSequentialAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(readType)
+			updateUnrecognizedAttribute(string(readType))
 			return
 		}
 	case false:
 		switch readType {
-		case "Parallel":
+		case ReadTypeParallelAttr:
 			o.fileCacheReadCountCacheHitFalseReadTypeParallelAtomic.Add(inc)
-		case "Random":
+		case ReadTypeRandomAttr:
 			o.fileCacheReadCountCacheHitFalseReadTypeRandomAtomic.Add(inc)
-		case "Sequential":
+		case ReadTypeSequentialAttr:
 			o.fileCacheReadCountCacheHitFalseReadTypeSequentialAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(readType)
+			updateUnrecognizedAttribute(string(readType))
 			return
 		}
 	}
@@ -1393,1249 +1393,1249 @@ func (o *otelMetrics) FileCacheReadLatencies(
 }
 
 func (o *otelMetrics) FsOpsCount(
-	inc int64, fsOp string) {
+	inc int64, fsOp FsOp) {
 	if inc < 0 {
 		logger.Errorf("Counter metric fs/ops_count received a negative increment: %d", inc)
 		return
 	}
 	switch fsOp {
-	case "BatchForget":
+	case FsOpBatchForgetAttr:
 		o.fsOpsCountFsOpBatchForgetAtomic.Add(inc)
-	case "CreateFile":
+	case FsOpCreateFileAttr:
 		o.fsOpsCountFsOpCreateFileAtomic.Add(inc)
-	case "CreateLink":
+	case FsOpCreateLinkAttr:
 		o.fsOpsCountFsOpCreateLinkAtomic.Add(inc)
-	case "CreateSymlink":
+	case FsOpCreateSymlinkAttr:
 		o.fsOpsCountFsOpCreateSymlinkAtomic.Add(inc)
-	case "Fallocate":
+	case FsOpFallocateAttr:
 		o.fsOpsCountFsOpFallocateAtomic.Add(inc)
-	case "FlushFile":
+	case FsOpFlushFileAttr:
 		o.fsOpsCountFsOpFlushFileAtomic.Add(inc)
-	case "ForgetInode":
+	case FsOpForgetInodeAttr:
 		o.fsOpsCountFsOpForgetInodeAtomic.Add(inc)
-	case "GetInodeAttributes":
+	case FsOpGetInodeAttributesAttr:
 		o.fsOpsCountFsOpGetInodeAttributesAtomic.Add(inc)
-	case "GetXattr":
+	case FsOpGetXattrAttr:
 		o.fsOpsCountFsOpGetXattrAtomic.Add(inc)
-	case "ListXattr":
+	case FsOpListXattrAttr:
 		o.fsOpsCountFsOpListXattrAtomic.Add(inc)
-	case "LookUpInode":
+	case FsOpLookUpInodeAttr:
 		o.fsOpsCountFsOpLookUpInodeAtomic.Add(inc)
-	case "MkDir":
+	case FsOpMkDirAttr:
 		o.fsOpsCountFsOpMkDirAtomic.Add(inc)
-	case "MkNode":
+	case FsOpMkNodeAttr:
 		o.fsOpsCountFsOpMkNodeAtomic.Add(inc)
-	case "OpenDir":
+	case FsOpOpenDirAttr:
 		o.fsOpsCountFsOpOpenDirAtomic.Add(inc)
-	case "OpenFile":
+	case FsOpOpenFileAttr:
 		o.fsOpsCountFsOpOpenFileAtomic.Add(inc)
-	case "ReadDir":
+	case FsOpReadDirAttr:
 		o.fsOpsCountFsOpReadDirAtomic.Add(inc)
-	case "ReadDirPlus":
+	case FsOpReadDirPlusAttr:
 		o.fsOpsCountFsOpReadDirPlusAtomic.Add(inc)
-	case "ReadFile":
+	case FsOpReadFileAttr:
 		o.fsOpsCountFsOpReadFileAtomic.Add(inc)
-	case "ReadSymlink":
+	case FsOpReadSymlinkAttr:
 		o.fsOpsCountFsOpReadSymlinkAtomic.Add(inc)
-	case "ReleaseDirHandle":
+	case FsOpReleaseDirHandleAttr:
 		o.fsOpsCountFsOpReleaseDirHandleAtomic.Add(inc)
-	case "ReleaseFileHandle":
+	case FsOpReleaseFileHandleAttr:
 		o.fsOpsCountFsOpReleaseFileHandleAtomic.Add(inc)
-	case "RemoveXattr":
+	case FsOpRemoveXattrAttr:
 		o.fsOpsCountFsOpRemoveXattrAtomic.Add(inc)
-	case "Rename":
+	case FsOpRenameAttr:
 		o.fsOpsCountFsOpRenameAtomic.Add(inc)
-	case "RmDir":
+	case FsOpRmDirAttr:
 		o.fsOpsCountFsOpRmDirAtomic.Add(inc)
-	case "SetInodeAttributes":
+	case FsOpSetInodeAttributesAttr:
 		o.fsOpsCountFsOpSetInodeAttributesAtomic.Add(inc)
-	case "SetXattr":
+	case FsOpSetXattrAttr:
 		o.fsOpsCountFsOpSetXattrAtomic.Add(inc)
-	case "StatFS":
+	case FsOpStatFSAttr:
 		o.fsOpsCountFsOpStatFSAtomic.Add(inc)
-	case "SyncFS":
+	case FsOpSyncFSAttr:
 		o.fsOpsCountFsOpSyncFSAtomic.Add(inc)
-	case "SyncFile":
+	case FsOpSyncFileAttr:
 		o.fsOpsCountFsOpSyncFileAtomic.Add(inc)
-	case "Unlink":
+	case FsOpUnlinkAttr:
 		o.fsOpsCountFsOpUnlinkAtomic.Add(inc)
-	case "WriteFile":
+	case FsOpWriteFileAttr:
 		o.fsOpsCountFsOpWriteFileAtomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(fsOp)
+		updateUnrecognizedAttribute(string(fsOp))
 		return
 	}
 }
 
 func (o *otelMetrics) FsOpsErrorCount(
-	inc int64, fsErrorCategory string, fsOp string) {
+	inc int64, fsErrorCategory FsErrorCategory, fsOp FsOp) {
 	if inc < 0 {
 		logger.Errorf("Counter metric fs/ops_error_count received a negative increment: %d", inc)
 		return
 	}
 	switch fsErrorCategory {
-	case "DEVICE_ERROR":
+	case FsErrorCategoryDEVICEERRORAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "DIR_NOT_EMPTY":
+	case FsErrorCategoryDIRNOTEMPTYAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "FILE_DIR_ERROR":
+	case FsErrorCategoryFILEDIRERRORAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "FILE_EXISTS":
+	case FsErrorCategoryFILEEXISTSAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "INTERRUPT_ERROR":
+	case FsErrorCategoryINTERRUPTERRORAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "INVALID_ARGUMENT":
+	case FsErrorCategoryINVALIDARGUMENTAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "INVALID_OPERATION":
+	case FsErrorCategoryINVALIDOPERATIONAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "IO_ERROR":
+	case FsErrorCategoryIOERRORAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "MISC_ERROR":
+	case FsErrorCategoryMISCERRORAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "NETWORK_ERROR":
+	case FsErrorCategoryNETWORKERRORAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "NOT_A_DIR":
+	case FsErrorCategoryNOTADIRAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "NOT_IMPLEMENTED":
+	case FsErrorCategoryNOTIMPLEMENTEDAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "NO_FILE_OR_DIR":
+	case FsErrorCategoryNOFILEORDIRAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "PERM_ERROR":
+	case FsErrorCategoryPERMERRORAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "PROCESS_RESOURCE_MGMT_ERROR":
+	case FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "TOO_MANY_OPEN_FILES":
+	case FsErrorCategoryTOOMANYOPENFILESAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
 	default:
-		updateUnrecognizedAttribute(fsErrorCategory)
+		updateUnrecognizedAttribute(string(fsErrorCategory))
 		return
 	}
 }
 
 func (o *otelMetrics) FsOpsLatency(
-	ctx context.Context, latency time.Duration, fsOp string) {
+	ctx context.Context, latency time.Duration, fsOp FsOp) {
 	var record histogramRecord
 	switch fsOp {
-	case "BatchForget":
+	case FsOpBatchForgetAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpBatchForgetAttrSet}
-	case "CreateFile":
+	case FsOpCreateFileAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpCreateFileAttrSet}
-	case "CreateLink":
+	case FsOpCreateLinkAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpCreateLinkAttrSet}
-	case "CreateSymlink":
+	case FsOpCreateSymlinkAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpCreateSymlinkAttrSet}
-	case "Fallocate":
+	case FsOpFallocateAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpFallocateAttrSet}
-	case "FlushFile":
+	case FsOpFlushFileAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpFlushFileAttrSet}
-	case "ForgetInode":
+	case FsOpForgetInodeAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpForgetInodeAttrSet}
-	case "GetInodeAttributes":
+	case FsOpGetInodeAttributesAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpGetInodeAttributesAttrSet}
-	case "GetXattr":
+	case FsOpGetXattrAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpGetXattrAttrSet}
-	case "ListXattr":
+	case FsOpListXattrAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpListXattrAttrSet}
-	case "LookUpInode":
+	case FsOpLookUpInodeAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpLookUpInodeAttrSet}
-	case "MkDir":
+	case FsOpMkDirAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpMkDirAttrSet}
-	case "MkNode":
+	case FsOpMkNodeAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpMkNodeAttrSet}
-	case "OpenDir":
+	case FsOpOpenDirAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpOpenDirAttrSet}
-	case "OpenFile":
+	case FsOpOpenFileAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpOpenFileAttrSet}
-	case "ReadDir":
+	case FsOpReadDirAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReadDirAttrSet}
-	case "ReadDirPlus":
+	case FsOpReadDirPlusAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReadDirPlusAttrSet}
-	case "ReadFile":
+	case FsOpReadFileAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReadFileAttrSet}
-	case "ReadSymlink":
+	case FsOpReadSymlinkAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReadSymlinkAttrSet}
-	case "ReleaseDirHandle":
+	case FsOpReleaseDirHandleAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReleaseDirHandleAttrSet}
-	case "ReleaseFileHandle":
+	case FsOpReleaseFileHandleAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReleaseFileHandleAttrSet}
-	case "RemoveXattr":
+	case FsOpRemoveXattrAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpRemoveXattrAttrSet}
-	case "Rename":
+	case FsOpRenameAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpRenameAttrSet}
-	case "RmDir":
+	case FsOpRmDirAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpRmDirAttrSet}
-	case "SetInodeAttributes":
+	case FsOpSetInodeAttributesAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpSetInodeAttributesAttrSet}
-	case "SetXattr":
+	case FsOpSetXattrAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpSetXattrAttrSet}
-	case "StatFS":
+	case FsOpStatFSAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpStatFSAttrSet}
-	case "SyncFS":
+	case FsOpSyncFSAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpSyncFSAttrSet}
-	case "SyncFile":
+	case FsOpSyncFileAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpSyncFileAttrSet}
-	case "Unlink":
+	case FsOpUnlinkAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpUnlinkAttrSet}
-	case "WriteFile":
+	case FsOpWriteFileAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpWriteFileAttrSet}
 	default:
-		updateUnrecognizedAttribute(fsOp)
+		updateUnrecognizedAttribute(string(fsOp))
 		return
 	}
 
@@ -2646,20 +2646,20 @@ func (o *otelMetrics) FsOpsLatency(
 }
 
 func (o *otelMetrics) GcsDownloadBytesCount(
-	inc int64, readType string) {
+	inc int64, readType ReadType) {
 	if inc < 0 {
 		logger.Errorf("Counter metric gcs/download_bytes_count received a negative increment: %d", inc)
 		return
 	}
 	switch readType {
-	case "Parallel":
+	case ReadTypeParallelAttr:
 		o.gcsDownloadBytesCountReadTypeParallelAtomic.Add(inc)
-	case "Random":
+	case ReadTypeRandomAttr:
 		o.gcsDownloadBytesCountReadTypeRandomAtomic.Add(inc)
-	case "Sequential":
+	case ReadTypeSequentialAttr:
 		o.gcsDownloadBytesCountReadTypeSequentialAtomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(readType)
+		updateUnrecognizedAttribute(string(readType))
 		return
 	}
 }
@@ -2674,138 +2674,138 @@ func (o *otelMetrics) GcsReadBytesCount(
 }
 
 func (o *otelMetrics) GcsReadCount(
-	inc int64, readType string) {
+	inc int64, readType ReadType) {
 	if inc < 0 {
 		logger.Errorf("Counter metric gcs/read_count received a negative increment: %d", inc)
 		return
 	}
 	switch readType {
-	case "Parallel":
+	case ReadTypeParallelAttr:
 		o.gcsReadCountReadTypeParallelAtomic.Add(inc)
-	case "Random":
+	case ReadTypeRandomAttr:
 		o.gcsReadCountReadTypeRandomAtomic.Add(inc)
-	case "Sequential":
+	case ReadTypeSequentialAttr:
 		o.gcsReadCountReadTypeSequentialAtomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(readType)
+		updateUnrecognizedAttribute(string(readType))
 		return
 	}
 }
 
 func (o *otelMetrics) GcsReaderCount(
-	inc int64, ioMethod string) {
+	inc int64, ioMethod IoMethod) {
 	if inc < 0 {
 		logger.Errorf("Counter metric gcs/reader_count received a negative increment: %d", inc)
 		return
 	}
 	switch ioMethod {
-	case "ReadHandle":
+	case IoMethodReadHandleAttr:
 		o.gcsReaderCountIoMethodReadHandleAtomic.Add(inc)
-	case "closed":
+	case IoMethodClosedAttr:
 		o.gcsReaderCountIoMethodClosedAtomic.Add(inc)
-	case "opened":
+	case IoMethodOpenedAttr:
 		o.gcsReaderCountIoMethodOpenedAtomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(ioMethod)
+		updateUnrecognizedAttribute(string(ioMethod))
 		return
 	}
 }
 
 func (o *otelMetrics) GcsRequestCount(
-	inc int64, gcsMethod string) {
+	inc int64, gcsMethod GcsMethod) {
 	if inc < 0 {
 		logger.Errorf("Counter metric gcs/request_count received a negative increment: %d", inc)
 		return
 	}
 	switch gcsMethod {
-	case "ComposeObjects":
+	case GcsMethodComposeObjectsAttr:
 		o.gcsRequestCountGcsMethodComposeObjectsAtomic.Add(inc)
-	case "CopyObject":
+	case GcsMethodCopyObjectAttr:
 		o.gcsRequestCountGcsMethodCopyObjectAtomic.Add(inc)
-	case "CreateAppendableObjectWriter":
+	case GcsMethodCreateAppendableObjectWriterAttr:
 		o.gcsRequestCountGcsMethodCreateAppendableObjectWriterAtomic.Add(inc)
-	case "CreateFolder":
+	case GcsMethodCreateFolderAttr:
 		o.gcsRequestCountGcsMethodCreateFolderAtomic.Add(inc)
-	case "CreateObject":
+	case GcsMethodCreateObjectAttr:
 		o.gcsRequestCountGcsMethodCreateObjectAtomic.Add(inc)
-	case "CreateObjectChunkWriter":
+	case GcsMethodCreateObjectChunkWriterAttr:
 		o.gcsRequestCountGcsMethodCreateObjectChunkWriterAtomic.Add(inc)
-	case "DeleteFolder":
+	case GcsMethodDeleteFolderAttr:
 		o.gcsRequestCountGcsMethodDeleteFolderAtomic.Add(inc)
-	case "DeleteObject":
+	case GcsMethodDeleteObjectAttr:
 		o.gcsRequestCountGcsMethodDeleteObjectAtomic.Add(inc)
-	case "FinalizeUpload":
+	case GcsMethodFinalizeUploadAttr:
 		o.gcsRequestCountGcsMethodFinalizeUploadAtomic.Add(inc)
-	case "FlushPendingWrites":
+	case GcsMethodFlushPendingWritesAttr:
 		o.gcsRequestCountGcsMethodFlushPendingWritesAtomic.Add(inc)
-	case "GetFolder":
+	case GcsMethodGetFolderAttr:
 		o.gcsRequestCountGcsMethodGetFolderAtomic.Add(inc)
-	case "ListObjects":
+	case GcsMethodListObjectsAttr:
 		o.gcsRequestCountGcsMethodListObjectsAtomic.Add(inc)
-	case "MoveObject":
+	case GcsMethodMoveObjectAttr:
 		o.gcsRequestCountGcsMethodMoveObjectAtomic.Add(inc)
-	case "MultiRangeDownloader::Add":
+	case GcsMethodMultiRangeDownloaderAddAttr:
 		o.gcsRequestCountGcsMethodMultiRangeDownloaderAddAtomic.Add(inc)
-	case "NewMultiRangeDownloader":
+	case GcsMethodNewMultiRangeDownloaderAttr:
 		o.gcsRequestCountGcsMethodNewMultiRangeDownloaderAtomic.Add(inc)
-	case "NewReader":
+	case GcsMethodNewReaderAttr:
 		o.gcsRequestCountGcsMethodNewReaderAtomic.Add(inc)
-	case "RenameFolder":
+	case GcsMethodRenameFolderAttr:
 		o.gcsRequestCountGcsMethodRenameFolderAtomic.Add(inc)
-	case "StatObject":
+	case GcsMethodStatObjectAttr:
 		o.gcsRequestCountGcsMethodStatObjectAtomic.Add(inc)
-	case "UpdateObject":
+	case GcsMethodUpdateObjectAttr:
 		o.gcsRequestCountGcsMethodUpdateObjectAtomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(gcsMethod)
+		updateUnrecognizedAttribute(string(gcsMethod))
 		return
 	}
 }
 
 func (o *otelMetrics) GcsRequestLatencies(
-	ctx context.Context, latency time.Duration, gcsMethod string) {
+	ctx context.Context, latency time.Duration, gcsMethod GcsMethod) {
 	var record histogramRecord
 	switch gcsMethod {
-	case "ComposeObjects":
+	case GcsMethodComposeObjectsAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodComposeObjectsAttrSet}
-	case "CopyObject":
+	case GcsMethodCopyObjectAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodCopyObjectAttrSet}
-	case "CreateAppendableObjectWriter":
+	case GcsMethodCreateAppendableObjectWriterAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodCreateAppendableObjectWriterAttrSet}
-	case "CreateFolder":
+	case GcsMethodCreateFolderAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodCreateFolderAttrSet}
-	case "CreateObject":
+	case GcsMethodCreateObjectAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodCreateObjectAttrSet}
-	case "CreateObjectChunkWriter":
+	case GcsMethodCreateObjectChunkWriterAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodCreateObjectChunkWriterAttrSet}
-	case "DeleteFolder":
+	case GcsMethodDeleteFolderAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodDeleteFolderAttrSet}
-	case "DeleteObject":
+	case GcsMethodDeleteObjectAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodDeleteObjectAttrSet}
-	case "FinalizeUpload":
+	case GcsMethodFinalizeUploadAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodFinalizeUploadAttrSet}
-	case "FlushPendingWrites":
+	case GcsMethodFlushPendingWritesAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodFlushPendingWritesAttrSet}
-	case "GetFolder":
+	case GcsMethodGetFolderAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodGetFolderAttrSet}
-	case "ListObjects":
+	case GcsMethodListObjectsAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodListObjectsAttrSet}
-	case "MoveObject":
+	case GcsMethodMoveObjectAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodMoveObjectAttrSet}
-	case "MultiRangeDownloader::Add":
+	case GcsMethodMultiRangeDownloaderAddAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodMultiRangeDownloaderAddAttrSet}
-	case "NewMultiRangeDownloader":
+	case GcsMethodNewMultiRangeDownloaderAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodNewMultiRangeDownloaderAttrSet}
-	case "NewReader":
+	case GcsMethodNewReaderAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodNewReaderAttrSet}
-	case "RenameFolder":
+	case GcsMethodRenameFolderAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodRenameFolderAttrSet}
-	case "StatObject":
+	case GcsMethodStatObjectAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodStatObjectAttrSet}
-	case "UpdateObject":
+	case GcsMethodUpdateObjectAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodUpdateObjectAttrSet}
 	default:
-		updateUnrecognizedAttribute(gcsMethod)
+		updateUnrecognizedAttribute(string(gcsMethod))
 		return
 	}
 
@@ -2816,18 +2816,18 @@ func (o *otelMetrics) GcsRequestLatencies(
 }
 
 func (o *otelMetrics) GcsRetryCount(
-	inc int64, retryErrorCategory string) {
+	inc int64, retryErrorCategory RetryErrorCategory) {
 	if inc < 0 {
 		logger.Errorf("Counter metric gcs/retry_count received a negative increment: %d", inc)
 		return
 	}
 	switch retryErrorCategory {
-	case "OTHER_ERRORS":
+	case RetryErrorCategoryOTHERERRORSAttr:
 		o.gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic.Add(inc)
-	case "STALLED_READ_REQUEST":
+	case RetryErrorCategorySTALLEDREADREQUESTAttr:
 		o.gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(retryErrorCategory)
+		updateUnrecognizedAttribute(string(retryErrorCategory))
 		return
 	}
 }
@@ -2838,14 +2838,14 @@ func (o *otelMetrics) TestUpdownCounter(
 }
 
 func (o *otelMetrics) TestUpdownCounterWithAttrs(
-	inc int64, requestType string) {
+	inc int64, requestType RequestType) {
 	switch requestType {
-	case "attr1":
+	case RequestTypeAttr1Attr:
 		o.testUpdownCounterWithAttrsRequestTypeAttr1Atomic.Add(inc)
-	case "attr2":
+	case RequestTypeAttr2Attr:
 		o.testUpdownCounterWithAttrsRequestTypeAttr2Atomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(requestType)
+		updateUnrecognizedAttribute(string(requestType))
 		return
 	}
 }
