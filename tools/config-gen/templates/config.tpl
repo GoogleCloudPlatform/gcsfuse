@@ -70,20 +70,22 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 		return nil
 	}
 
-	profileName := c.Profile
-	machineType, err := getMachineType(isSet)
-	if err != nil {
-		// Non-fatal, just means machine-based optimizations won't apply.
-		machineType = ""
+	// 1. Use MachineType from the config struct if already set.
+	if c.MachineType == "" {
+		// 2. Otherwise, try to discover it from flags.
+		discoveredMachineType, err := getMachineType(isSet)
+		if err == nil {
+			c.MachineType = discoveredMachineType
+		}
+		// If machine-type is not known, it's not a fatal error, just means machine-based optimizations won't apply.
 	}
-	c.MachineType = machineType
 
 	// Apply optimizations for each flag that has rules defined.
 {{- range .FlagTemplateData }}
 {{- if .Optimizations }}
 	if !isSet.IsSet("{{ .FlagName }}") {
 		rules := AllFlagOptimizationRules["{{ .ConfigPath }}"]
-		result := getOptimizedValue(&rules, c.{{ .GoPath }}, profileName, machineType, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.{{ .GoPath }}, c.Profile, c.MachineType, machineTypeToGroupMap)
 		if result.Optimized {
 			if val, ok := result.FinalValue.({{ .GoType }}); ok {
 				if c.{{ .GoPath }} != val {
