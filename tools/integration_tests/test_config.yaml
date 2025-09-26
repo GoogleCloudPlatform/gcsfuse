@@ -45,6 +45,22 @@ implicit_dir:
           hns: true
           zonal: false
 
+flag_overrides:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    log_file: # Optional
+    run_on_gke: false
+    configs:
+      - flags:
+          - "--machine-type a3-highgpu-8g"
+          - "--profile aiml-training"
+          - "--profile aiml-serving"
+          - "--profile aiml-checkpointing"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+
 list_large_dir:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
