@@ -308,6 +308,7 @@ TEST_DIR_PARALLEL=(
   "buffered_read"
   # Disabled because of b/451462914.
   #"requester_pays_bucket"
+  "flag_optimizations"
 )
 
 # These tests never become parallel as they are changing bucket permissions.
@@ -324,6 +325,7 @@ TEST_DIR_PARALLEL_ZONAL=(
   concurrent_operations
   dentry_cache
   explicit_dir
+  flag_optimizations
   gzip
   implicit_dir
   interrupt

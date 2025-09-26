@@ -78,6 +78,7 @@ type Config struct {
 	RapidAppends          []TestConfig `yaml:"rapid_appends"`
 	MountTimeout          []TestConfig `yaml:"mount_timeout"`
 	Monitoring            []TestConfig `yaml:"monitoring"`
+	FlagOptimizations     []TestConfig `yaml:"flag_optimizations"`
 }
 
 func processTestConfigs(configs []TestConfig) {
@@ -118,6 +119,7 @@ func (c *Config) postProcessConfig() {
 	processTestConfigs(c.RapidAppends)
 	processTestConfigs(c.MountTimeout)
 	processTestConfigs(c.Monitoring)
+	processTestConfigs(c.FlagOptimizations)
 }
 
 // ReadConfigFile returns a Config struct from the YAML file.
