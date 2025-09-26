@@ -289,12 +289,13 @@ func (t *fileTest) Test_Read_Success() {
 	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{}, nil, nil)
 	buf := make([]byte, len(expectedData))
 	fh.inode.Lock()
+	defer fh.inode.Unlock()
 
-	output, n, err := fh.Read(t.ctx, buf, 0, 200)
+	resp, err := fh.Read(t.ctx, buf, 0)
 
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), len(expectedData), n)
-	assert.Equal(t.T(), expectedData, output)
+	assert.Equal(t.T(), len(expectedData), resp.Size)
+	assert.Equal(t.T(), expectedData, resp.DataBuf)
 }
 
 // Test_ReadWithReadManager_Success validates successful read behavior using the readManager.
@@ -305,12 +306,13 @@ func (t *fileTest) Test_ReadWithReadManager_Success() {
 	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{}, nil, nil)
 	buf := make([]byte, len(expectedData))
 	fh.inode.Lock()
+	defer fh.inode.Unlock()
 
-	output, n, err := fh.ReadWithReadManager(t.ctx, buf, 0, 200)
+	resp, err := fh.ReadWithReadManager(t.ctx, buf, 0)
 
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), len(expectedData), n)
-	assert.Equal(t.T(), expectedData, output)
+	assert.Equal(t.T(), len(expectedData), resp.Size)
+	assert.Equal(t.T(), expectedData, resp.DataBuf)
 }
 
 // Test_ReadWithReadManager_Concurrent validates concurrent read behavior using the readManager.
@@ -345,12 +347,12 @@ func (t *fileTest) Test_ReadWithReadManager_Concurrent() {
 
 			fh.inode.Lock() // Lock required by ReadWithReadManager
 			// The method is responsible for unlocking.
-			_, n, err := fh.ReadWithReadManager(t.ctx, dst, int64(offset), 200)
+			resp, err := fh.ReadWithReadManager(t.ctx, dst, int64(offset))
 
 			// Assertions
 			assert.NoError(t.T(), err)
-			assert.Equal(t.T(), readSize, n)
-			assert.Equal(t.T(), objectContent[offset:offset+readSize], dst[:n])
+			assert.Equal(t.T(), readSize, resp.Size)
+			assert.Equal(t.T(), objectContent[offset:offset+readSize], dst[:resp.Size])
 		}()
 	}
 
@@ -401,12 +403,12 @@ func (t *fileTest) Test_Read_Concurrent() {
 
 			fh.inode.Lock() // Lock required by ReadWithReadManager
 			// The method is responsible for unlocking.
-			_, n, err := fh.Read(t.ctx, dst, int64(offset), 200)
+			resp, err := fh.Read(t.ctx, dst, int64(offset))
 
 			// Assertions
 			assert.NoError(t.T(), err)
-			assert.Equal(t.T(), readSize, n)
-			assert.Equal(t.T(), objectContent[offset:offset+readSize], dst[:n])
+			assert.Equal(t.T(), readSize, resp.Size)
+			assert.Equal(t.T(), objectContent[offset:offset+readSize], dst[:resp.Size])
 		}()
 	}
 
@@ -453,10 +455,9 @@ func (t *fileTest) Test_ReadWithReadManager_ErrorScenarios() {
 			mockRM.On("Object").Return(&object)
 			fh.readManager = mockRM
 
-			output, n, err := fh.ReadWithReadManager(t.ctx, dst, 0, 200)
+			resp, err := fh.ReadWithReadManager(t.ctx, dst, 0)
 
-			assert.Zero(t.T(), n, "expected 0 bytes read")
-			assert.Nil(t.T(), output, "expected output to be nil")
+			assert.Zero(t.T(), resp.Size, "expected 0 bytes read")
 			assert.True(t.T(), errors.Is(err, tc.returnErr), "expected error to match")
 			mockRM.AssertExpectations(t.T())
 		})
@@ -491,10 +492,9 @@ func (t *fileTest) Test_Read_ErrorScenarios() {
 			mockReader.On("Object").Return(&object)
 			fh.reader = mockReader
 
-			output, n, err := fh.Read(t.ctx, dst, 0, 200)
+			resp, err := fh.Read(t.ctx, dst, 0)
 
-			assert.Zero(t.T(), n, "expected 0 bytes read")
-			assert.Nil(t.T(), output, "expected output to be nil")
+			assert.Zero(t.T(), resp.Size, "expected 0 bytes read")
 			assert.True(t.T(), errors.Is(err, tc.returnErr), "expected error to match")
 			mockReader.AssertExpectations(t.T())
 		})
@@ -514,11 +514,11 @@ func (t *fileTest) Test_ReadWithReadManager_FallbackToInode() {
 	mockRM := new(read_manager.MockReadManager)
 	fh.readManager = mockRM
 
-	output, n, err := fh.ReadWithReadManager(t.ctx, dst, 0, 200)
+	resp, err := fh.ReadWithReadManager(t.ctx, dst, 0)
 
 	assert.Equal(t.T(), io.EOF, err)
-	assert.Equal(t.T(), len(objectData), n)
-	assert.Equal(t.T(), objectData, output[:n])
+	assert.Equal(t.T(), len(objectData), resp.Size)
+	assert.Equal(t.T(), objectData, resp.DataBuf[:resp.Size])
 	mockRM.AssertExpectations(t.T())
 }
 
@@ -535,11 +535,11 @@ func (t *fileTest) Test_Read_FallbackToInode() {
 	mockR := new(gcsx.MockRandomReader)
 	fh.reader = mockR
 
-	output, n, err := fh.Read(t.ctx, dst, 0, 200)
+	resp, err := fh.Read(t.ctx, dst, 0)
 
 	assert.Equal(t.T(), io.EOF, err)
-	assert.Equal(t.T(), len(objectData), n)
-	assert.Equal(t.T(), objectData, output[:n])
+	assert.Equal(t.T(), len(objectData), resp.Size)
+	assert.Equal(t.T(), objectData, resp.DataBuf[:resp.Size])
 	mockR.AssertExpectations(t.T())
 }
 
@@ -555,7 +555,7 @@ func (t *fileTest) Test_ReadWithReadManager_ReadManagerInvalidatedByGenerationCh
 
 	// First read, to create a readManager.
 	fh.inode.Lock()
-	_, _, err := fh.ReadWithReadManager(t.ctx, make([]byte, len(content1)), 0, 200)
+	_, err := fh.ReadWithReadManager(t.ctx, make([]byte, len(content1)), 0)
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), fh.readManager)
 	oldReadManager := fh.readManager
@@ -574,13 +574,13 @@ func (t *fileTest) Test_ReadWithReadManager_ReadManagerInvalidatedByGenerationCh
 	// The next ReadWithReadManager call should detect this, destroy the old one,
 	// create a new one, and read the new content.
 	fh.inode.Lock()
-	output, n, err := fh.ReadWithReadManager(t.ctx, dst, 0, 200)
+	resp, err := fh.ReadWithReadManager(t.ctx, dst, 0)
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), fh.readManager)
 	assert.NotEqual(t.T(), oldReadManager, fh.readManager)
-	assert.Equal(t.T(), len(content2), n)
-	assert.Equal(t.T(), content2, output)
+	assert.Equal(t.T(), len(content2), resp.Size)
+	assert.Equal(t.T(), content2, resp.DataBuf)
 }
 
 func (t *fileTest) Test_Read_ReaderInvalidatedByGenerationChange() {
@@ -595,7 +595,7 @@ func (t *fileTest) Test_Read_ReaderInvalidatedByGenerationChange() {
 
 	// First read, to create a reader.
 	fh.inode.Lock()
-	_, _, err := fh.Read(t.ctx, make([]byte, len(content1)), 0, 200)
+	_, err := fh.Read(t.ctx, make([]byte, len(content1)), 0)
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), fh.reader)
 	oldReader := fh.reader
@@ -614,13 +614,13 @@ func (t *fileTest) Test_Read_ReaderInvalidatedByGenerationChange() {
 	// The next Read call should detect this, destroy the old one,
 	// create a new one, and read the new content.
 	fh.inode.Lock()
-	output, n, err := fh.Read(t.ctx, dst, 0, 200)
+	resp, err := fh.Read(t.ctx, dst, 0)
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), fh.reader)
 	assert.NotEqual(t.T(), oldReader, fh.reader)
-	assert.Equal(t.T(), len(content2), n)
-	assert.Equal(t.T(), content2, output)
+	assert.Equal(t.T(), len(content2), resp.Size)
+	assert.Equal(t.T(), content2, resp.DataBuf)
 }
 
 func (t *fileTest) TestOpenMode() {
@@ -943,11 +943,11 @@ func (t *fileTest) Test_ReadWithReadManager_FullReadSuccessWithBufferedRead() {
 	buf := make([]byte, fileSize)
 
 	// ReadWithReadManager will unlock the inode.
-	output, n, err := fh.ReadWithReadManager(context.Background(), buf, 0, 200)
+	resp, err := fh.ReadWithReadManager(context.Background(), buf, 0)
 
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), fileSize, n)
-	assert.Equal(t.T(), expectedData, output)
+	assert.Equal(t.T(), fileSize, resp.Size)
+	assert.Equal(t.T(), expectedData, resp.DataBuf)
 }
 
 func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() {
@@ -990,11 +990,11 @@ func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() 
 			fh.inode.Lock()
 
 			// Each goroutine use same file handle.
-			output, n, err := fh.ReadWithReadManager(context.Background(), readBuf, offset, int32(readSize))
+			resp, err := fh.ReadWithReadManager(context.Background(), readBuf, offset)
 
 			assert.NoError(t.T(), err)
-			assert.Equal(t.T(), readSize, n)
-			results[index] = output
+			assert.Equal(t.T(), readSize, resp.Size)
+			results[index] = resp.DataBuf
 		}(i)
 	}
 	// Wait for all goroutines to finish.

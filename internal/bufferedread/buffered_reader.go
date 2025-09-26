@@ -184,13 +184,40 @@ func (p *BufferedReader) retireBlock(entry *blockQueueEntry) {
 		return
 	}
 	for _, evictedEntry := range evicted {
-		// This block is being evicted from the retired cache, so we cancel and release it.
-		evictedEntry.cancel()
-		if _, waitErr := evictedEntry.block.AwaitReady(context.Background()); waitErr != nil {
-			logger.Warnf("BufferedReader.retireBlock: AwaitReady for evicted block: %v", waitErr)
+		// This block is being evicted from the retired cache. If it's not in use,
+		// we can release it. Otherwise, we set a callback to release it later.
+		if evictedEntry.block.RefCount() == 0 {
+			p.releaseBlock(evictedEntry)
+		} else {
+			evictedEntry.block.SetWasEvicted(true)
 		}
-		p.blockPool.Release(evictedEntry.block)
 	}
+}
+
+// tryZeroCopyRead attempts to perform a zero-copy read from the given block.
+// It returns the reader response and a boolean indicating success. A successful
+// zero-copy read means the entire requested data was returned as a slice of the
+// block's buffer.
+func (p *BufferedReader) tryZeroCopyRead(entry *blockQueueEntry, off int64, inputBuf []byte) (gcsx.ReaderResponse, bool) {
+	resp := gcsx.ReaderResponse{}
+	blk := entry.block
+	relOff := off - blk.AbsStartOff()
+
+	// Check if the entire read can be satisfied by this single block.
+	if relOff >= 0 && relOff+int64(len(inputBuf)) <= blk.Size() {
+		slice, sliceErr := blk.ReadAtSlice(len(inputBuf), relOff)
+		if sliceErr == nil {
+			// For async reads, we need to ensure the block is not released until the
+			// kernel is done. We increment its reference count here. The caller is
+			// responsible for decrementing it via the returned Done function.
+			resp.DataBuf = slice
+			resp.Size = len(slice)
+			// log.Printf("Zero Copy succeeded <-(%d, %d)", off, len(slice))
+			return resp, true
+		}
+		logger.Warnf("BufferedReader.ReadAt: ReadAtSlice failed, falling back to copy: %v", sliceErr)
+	}
+	return resp, false
 }
 
 // prepareQueueForOffset discards blocks from the head of the prefetch queue
@@ -208,7 +235,7 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 
 		if offset < blockStart || offset >= blockEnd {
 			// Offset is either before or beyond this block – discard.
-			// The block is moved to the retired cache without cancelling its download.
+			// The block is moved to the retired cache.
 			p.blockQueue.Pop()
 			p.retireBlock(entry)
 		} else {
@@ -295,10 +322,6 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		// Check if the required block is in the retired cache.
 		blockIndex := off / p.config.PrefetchBlockSizeBytes
 		if entry := p.retiredBlocks.LookUp(blockIndex); entry != nil {
-			// For async reads, we need to ensure the block is not released until the
-			// kernel is done. We increment its reference count here. The caller is
-			// responsible for decrementing it via the returned Done function.
-			entry.block.IncrementRef()
 			blk := entry.block
 
 			status, waitErr := blk.AwaitReady(ctx)
@@ -317,10 +340,6 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 			n, readErr := blk.ReadAt(inputBuf[bytesRead:], relOff)
 			bytesRead += n
 			off += int64(n)
-
-			resp.Done = func() {
-				entry.block.DecrementRef()
-			}
 
 			if readErr != nil && !errors.Is(readErr, io.EOF) {
 				err = fmt.Errorf("BufferedReader.ReadAt: block.ReadAt from retired: %w", readErr)
@@ -343,10 +362,6 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 		entry := p.blockQueue.Peek()
 
-		// For async reads, we increment the block's reference count. The caller
-		// must call the returned Done function to decrement it later.
-		entry.block.IncrementRef()
-
 		// Proactively trigger the next prefetch as soon as we start processing a
 		// block, ensuring the pipeline stays full.
 		if !entry.prefetchTriggered {
@@ -359,16 +374,13 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		blk := entry.block
 
 		if waitErr != nil {
-			entry.block.DecrementRef() // Decrement ref on error.
 			err = fmt.Errorf("BufferedReader.ReadAt: AwaitReady: %w", waitErr)
 			break
 		}
 
 		if status.State != block.BlockStateDownloaded {
-			p.blockQueue.Pop()         // The block is invalid, remove it.
-			p.blockPool.Release(blk)   // Release it back to the pool.
-			entry.cancel()             // Cancel any ongoing work.
-			entry.block.DecrementRef() // Decrement ref on error.
+			p.blockQueue.Pop() // The block is invalid, remove it.
+			p.releaseBlock(entry)
 
 			switch status.State {
 			case block.BlockStateDownloadFailed:
@@ -379,14 +391,21 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 			break
 		}
 
+		// On the first iteration, check if the read can be satisfied from a single
+		// block without copying.
+		// A zero-copy read is only possible if the entire request can be fulfilled
+		// by the current block.
+		if bytesRead == 0 && len(inputBuf) <= int(blk.Size()) {
+			zeroCopyResp, zeroCopySuccess := p.tryZeroCopyRead(entry, off, inputBuf)
+			if zeroCopySuccess {
+				return zeroCopyResp, nil
+			}
+		}
+
 		relOff := off - blk.AbsStartOff()
 		n, readErr := blk.ReadAt(inputBuf[bytesRead:], relOff)
 		bytesRead += n
 		off += int64(n)
-
-		resp.Done = func() {
-			entry.block.DecrementRef()
-		}
 
 		if readErr != nil && !errors.Is(readErr, io.EOF) {
 			err = fmt.Errorf("BufferedReader.ReadAt: block.ReadAt: %w", readErr)
@@ -414,28 +433,17 @@ func (p *BufferedReader) Destroy() {
 
 	for !p.blockQueue.IsEmpty() {
 		bqe := p.blockQueue.Pop()
-		bqe.cancel()
-
-		// We wait for the block's worker goroutine to finish. We expect its
-		// status to contain a context.Canceled error because we just called cancel.
-		status, err := bqe.block.AwaitReady(context.Background())
-		if err != nil {
-			logger.Warnf("Destroy: AwaitReady for block failed: %v", err)
-		} else if status.Err != nil && !errors.Is(status.Err, context.Canceled) {
-			logger.Warnf("Destroy: waiting for block on destroy: %v", status.Err)
-		}
-		p.blockPool.Release(bqe.block)
+		p.releaseBlock(bqe)
 	}
 
 	// Clear the retired blocks cache and release all blocks.
 	if p.retiredBlocks != nil {
 		evictedEntries := p.retiredBlocks.Clear()
 		for _, evictedEntry := range evictedEntries {
-			evictedEntry.cancel()
-			if _, waitErr := evictedEntry.block.AwaitReady(context.Background()); waitErr != nil {
-				logger.Warnf("Destroy: AwaitReady for retired block: %v", waitErr)
+			// If the block is not in use, we can release it.
+			if evictedEntry.block.RefCount() == 0 {
+				p.releaseBlock(evictedEntry)
 			}
-			p.blockPool.Release(evictedEntry.block)
 		}
 		p.retiredBlocks = nil
 	}
@@ -450,6 +458,22 @@ func (p *BufferedReader) Destroy() {
 		logger.Warnf("Destroy: clearing free block channel: %v", err)
 	}
 	p.blockPool = nil
+}
+
+// releaseBlock cancels the download if in progress, waits for it to complete,
+// and releases the block back to the pool.
+// LOCKS_REQUIRED(p.mu)
+func (p *BufferedReader) releaseBlock(entry *blockQueueEntry) {
+	entry.cancel()
+	// We wait for the block's worker goroutine to finish. We expect its
+	// status to contain a context.Canceled error because we just called cancel.
+	status, err := entry.block.AwaitReady(context.Background())
+	if err != nil {
+		logger.Warnf("releaseBlock: AwaitReady for block failed: %v", err)
+	} else if status.Err != nil && !errors.Is(status.Err, context.Canceled) {
+		logger.Warnf("releaseBlock: waiting for block on destroy: %v", status.Err)
+	}
+	p.blockPool.Release(entry.block)
 }
 
 // CheckInvariants checks for internal consistency of the reader.
