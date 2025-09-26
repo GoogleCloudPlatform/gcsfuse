@@ -162,7 +162,7 @@ params:
     config-path: "enable-google-lib-auth"
     type: "bool"
     usage: "Enable google library authentication method to fetch the credentials"
-    default: false
+    default: true
     hide-flag: true
 
   - config-path: "enable-hns"
