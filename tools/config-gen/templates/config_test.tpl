@@ -30,14 +30,15 @@ func TestApplyOptimizations(t *testing.T) {
 	t.Run("{{$flag.ConfigPath}}", func(t *testing.T) {
 		// Test case 1: User has set the flag to a non-default value; optimizations should be ignored FOR THAT FLAG.
 		t.Run("user_set", func(t *testing.T) {
-			{{- if or (eq $flag.GoType "int64") (eq $flag.GoType "bool") }}
+			{{- if and .Optimizations.Profiles (or (eq $flag.GoType "int64") (eq $flag.GoType "bool")) }}
+			{{- $profile := index .Optimizations.Profiles 0 -}}
 			{{- if eq $flag.GoType "int64" }}
 			const nonDefaultValue = int64(98765)
 			{{- else if eq $flag.GoType "bool" }}
 			nonDefaultValue := !({{$flag.DefaultValue}})
 			{{- end }}
 			c := &Config{
-				Profile: "aiml-serving", // A profile that would otherwise cause optimization.
+				Profile: "{{$profile.Name}}", // A profile that would otherwise cause optimization.
 			}
 			c.{{$flag.GoPath}} = nonDefaultValue // Set a non-default value.
 			isSet := &mockIsValueSet{
