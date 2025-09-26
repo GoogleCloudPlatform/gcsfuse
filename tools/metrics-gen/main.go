@@ -185,7 +185,7 @@ func getTestFuncArgs(combo AttrCombination) string {
 	var parts []string
 	for _, pair := range combo {
 		if pair.Type != "bool" {
-			parts = append(parts, fmt.Sprintf(`%s("%s")`, toPascal(pair.Type), pair.Value))
+			parts = append(parts, fmt.Sprintf(`"%s"`, pair.Value))
 		} else {
 			parts = append(parts, pair.Value)
 		}
