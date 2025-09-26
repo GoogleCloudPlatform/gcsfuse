@@ -143,7 +143,7 @@ func main() {
 		},
 			generatedFilePath, templateFilePath)
 		if err != nil {
-			panic(fmt.Sprintf("failed to generate file %q", generatedFilePath))
+			panic(fmt.Sprintf("failed to generate file %q: %v", generatedFilePath, err))
 		}
 	}
 }
