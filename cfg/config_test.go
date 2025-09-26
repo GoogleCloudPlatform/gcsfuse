@@ -864,6 +864,25 @@ func TestApplyOptimizations(t *testing.T) {
 	t.Run("write.global-max-blocks", func(t *testing.T) {
 		// Test case 1: User has set the flag to a non-default value; optimizations should be ignored FOR THAT FLAG.
 		t.Run("user_set", func(t *testing.T) {
+			const nonDefaultValue = int64(98765)
+			c := &Config{
+				Profile: "", // A profile that would otherwise cause optimization.
+			}
+			c.Write.GlobalMaxBlocks = nonDefaultValue // Set a non-default value.
+			isSet := &mockIsValueSet{
+				setFlags: map[string]bool{
+					"write-global-max-blocks": true,
+					"machine-type":            true, // A machine type that would otherwise cause optimization.
+				},
+				stringFlags: map[string]string{
+					"machine-type": "a2-megagpu-16g", // From the "high-performance" group.
+				},
+			}
+
+			optimizedFlags := c.ApplyOptimizations(isSet)
+
+			assert.NotContains(t, optimizedFlags, "write.global-max-blocks")
+			assert.Equal(t, nonDefaultValue, c.Write.GlobalMaxBlocks)
 		})
 
 		// Test case 2: No profile or machine-based optimization match.

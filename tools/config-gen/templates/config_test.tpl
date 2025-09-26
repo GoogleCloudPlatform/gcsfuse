@@ -30,15 +30,34 @@ func TestApplyOptimizations(t *testing.T) {
 	t.Run("{{$flag.ConfigPath}}", func(t *testing.T) {
 		// Test case 1: User has set the flag to a non-default value; optimizations should be ignored FOR THAT FLAG.
 		t.Run("user_set", func(t *testing.T) {
-			{{- if and .Optimizations.Profiles (or (eq $flag.GoType "int64") (eq $flag.GoType "bool")) }}
+			{{- if and .Optimizations (or (eq $flag.GoType "int64") (eq $flag.GoType "bool")) }}
+			{{- $profileName := "" -}}
+			{{- if .Optimizations.Profiles -}}
 			{{- $profile := index .Optimizations.Profiles 0 -}}
+			{{- $profileName = $profile.Name -}}
+			{{- end }}
+			{{- $machineTypeForOptimisation := "a2-megagpu-16g" -}}
+			{{- $machineTypeComment := "From the \"high-performance\" group." -}}
+			{{- if .Optimizations.MachineBasedOptimization -}}
+				{{- $mbo := index .Optimizations.MachineBasedOptimization 0 -}}
+				{{- $foundMachineType := "" -}}
+				{{- range $mt, $group := $.MachineTypeToGroupMap -}}
+					{{- if and (not $foundMachineType) (eq $group $mbo.Group) -}}
+						{{- $foundMachineType = $mt -}}
+					{{- end -}}
+				{{- end -}}
+				{{- if $foundMachineType -}}
+					{{- $machineTypeForOptimisation = $foundMachineType -}}
+					{{- $machineTypeComment = printf "From the %q group." $mbo.Group -}}
+				{{- end -}}
+			{{- end }}
 			{{- if eq $flag.GoType "int64" }}
 			const nonDefaultValue = int64(98765)
 			{{- else if eq $flag.GoType "bool" }}
 			nonDefaultValue := !({{$flag.DefaultValue}})
 			{{- end }}
 			c := &Config{
-				Profile: "{{$profile.Name}}", // A profile that would otherwise cause optimization.
+				Profile: "{{$profileName}}", // A profile that would otherwise cause optimization.
 			}
 			c.{{$flag.GoPath}} = nonDefaultValue // Set a non-default value.
 			isSet := &mockIsValueSet{
@@ -47,7 +66,7 @@ func TestApplyOptimizations(t *testing.T) {
 					"machine-type":       true, // A machine type that would otherwise cause optimization.
 				},
 				stringFlags: map[string]string{
-					"machine-type": "a2-megagpu-16g", // From the "high-performance" group.
+					"machine-type": "{{$machineTypeForOptimisation}}", // {{ $machineTypeComment }}
 				},
 			}
 
