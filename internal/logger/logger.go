@@ -18,11 +18,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"log/slog"
 	"log/syslog"
 	"os"
 	"runtime/debug"
 
+	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -32,14 +34,20 @@ import (
 // used to filter the logs from syslog and write it to respective log files -
 // gcsfuse.log in case of GCSFuse.
 const (
-	ProgrammeName           string = "gcsfuse"
-	GCSFuseInBackgroundMode string = "GCSFUSE_IN_BACKGROUND_MODE"
-	textFormat              string = "text"
+	ProgrammeName                = "gcsfuse"
+	GCSFuseInBackgroundMode      = "GCSFUSE_IN_BACKGROUND_MODE"
+	GCSFuseMountInstanceIDEnvKey = "GCSFUSE_MOUNT_INSTANCE_ID"
+	textFormat                   = "text"
+	mountLoggerIDKey             = "mount_id"
+	defaultMountInstanceID       = "00000000"
+	defaultMountFSName           = "gcsfuse"
 )
 
 var (
 	defaultLoggerFactory *loggerFactory
 	defaultLogger        *slog.Logger
+	mountInstanceID      string
+	mountFSName          string
 )
 
 // InitLogFile initializes the logger factory to create loggers that print to
@@ -97,8 +105,37 @@ func InitLogFile(newLogConfig cfg.LoggingConfig) error {
 	return nil
 }
 
-// init initializes the logger factory to use stdout and stderr.
+// init runs only once at package initialization.
 func init() {
+	setupMountInstanceID()
+	initializeDefaultLogger()
+}
+
+// setupMountInstanceID handles the retrieval of mountInstanceId if GCSFuse is in
+// background mode or generates one if running in foreground mode.
+func setupMountInstanceID() {
+	if _, ok := os.LookupEnv(GCSFuseInBackgroundMode); ok {
+		// If GCSFuse is in background mode then look for the MountInstanceId in env which was set by the caller of demonize run.
+		if parentMountInstanceId, ok := os.LookupEnv(GCSFuseMountInstanceIDEnvKey); ok && parentMountInstanceId != "" {
+			mountInstanceID = parentMountInstanceId
+		} else {
+			mountInstanceID = defaultMountInstanceID
+			log.Printf("Could not retrieve %s env variable. Using default: %v", GCSFuseMountInstanceIDEnvKey, defaultMountInstanceID)
+		}
+		return
+	}
+	// If GCSFuse is not running in the background mode then generate a random UUID and store the trimmed UUID as MountInstanceId.
+	uuid, err := uuid.NewRandom()
+	if err == nil {
+		mountInstanceID = uuid.String()[:8]
+	} else {
+		mountInstanceID = defaultMountInstanceID
+		log.Printf("Could not generate random UUID for logger, err %v. using default: %v", err, defaultMountInstanceID)
+	}
+}
+
+// initializeDefaultLogger initializes the logger factory to use stdout and stderr.
+func initializeDefaultLogger() {
 	logConfig := cfg.DefaultLoggingConfig()
 	defaultLoggerFactory = &loggerFactory{
 		file:      nil,
@@ -109,12 +146,25 @@ func init() {
 	defaultLogger = defaultLoggerFactory.newLogger(cfg.INFO)
 }
 
-// SetLogFormat updates the log format of default logger.
-func SetLogFormat(format string) {
-	if format == defaultLoggerFactory.format {
-		return
+func MountInstanceID() string {
+	if mountInstanceID == "" {
+		return defaultMountInstanceID
 	}
+	return mountInstanceID
+}
+
+func MountFSName() string {
+	if mountFSName == "" {
+		return defaultMountFSName
+	}
+	return mountFSName
+}
+
+// SetLogFormat updates the log format of default logger to given format
+// and initializes the default logger with fsName and mountInstanceId
+func SetLogFormatAndFsName(format, fsName string) {
 	defaultLoggerFactory.format = format
+	mountFSName = fsName
 	defaultLogger = defaultLoggerFactory.newLogger(defaultLoggerFactory.level)
 }
 
@@ -173,7 +223,8 @@ type loggerFactory struct {
 func (f *loggerFactory) newLogger(level string) *slog.Logger {
 	// create a new logger
 	var programLevel = new(slog.LevelVar)
-	logger := slog.New(f.handler(programLevel, ""))
+	logger := slog.New(f.handler(programLevel, "").WithAttrs([]slog.Attr{slog.String(mountLoggerIDKey,
+		fmt.Sprintf("%s-%s", MountFSName(), MountInstanceID()))}))
 	slog.SetDefault(logger)
 	setLoggingLevel(level, programLevel)
 	return logger
