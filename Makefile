@@ -23,7 +23,7 @@ generate:
 	go generate ./...
 
 imports: generate
-	goimports -w .
+	/home/jules/go/bin/goimports -w .
 
 fmt: imports
 	go mod tidy && go fmt ./...
