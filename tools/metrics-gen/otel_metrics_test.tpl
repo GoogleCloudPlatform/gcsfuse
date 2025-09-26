@@ -243,7 +243,7 @@ func Test{{toPascal .Name}}(t *testing.T) {
 			name:      "{{getTestName $combination}}",
 			latencies: []time.Duration{100 * time.{{getLatencyUnit $metric.Unit}}, 200 * time.{{getLatencyUnit $metric.Unit}}},
 			{{- range $pair := $combination}}
-			{{toCamel $pair.Name}}: {{if eq $pair.Type "bool"}}{{$pair.Value}}{{else}}{{getGoType $pair.Type}}("{{$pair.Value}}"){{end}},
+			{{toCamel $pair.Name}}: {{if eq $pair.Type "bool"}}{{$pair.Value}}{{else}}"{{$pair.Value}}"{{end}},
 			{{- end}}
 		},
 		{{- end}}
