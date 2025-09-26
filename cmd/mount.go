@@ -16,7 +16,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"time"
 
@@ -145,7 +144,6 @@ be interacting with the file system.`)
 
 	mountCfg := getFuseMountConfig(fsName, newConfig)
 	mountCfg.EnableAsyncReads = newConfig.EnableAsyncReads
-	log.Println("AsyncReads:", newConfig.EnableAsyncReads)
 	mfs, err = fuse.Mount(mountPoint, server, mountCfg)
 	if err != nil {
 		err = fmt.Errorf("mount: %w", err)
