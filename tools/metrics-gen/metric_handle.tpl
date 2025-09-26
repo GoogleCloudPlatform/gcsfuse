@@ -34,8 +34,20 @@ type MetricHandle interface {
 		{{- end }}
 		{{- if .Attributes}}, {{end}}
 		{{- range $i, $attr := .Attributes -}}
-			{{if $i}}, {{end}}{{toCamel $attr.Name}} {{getGoType $attr.Type}}
+			{{if $i}}, {{end}}{{toCamel $attr.Name}} {{getGoType $attr}}
 		{{- end }})
 
 {{end}}
 }
+
+{{range $attrType := .AttributeTypes}}
+// {{$attrType.Name}} is a custom type for the {{$attrType.Name}} attribute.
+type {{$attrType.Name}} {{$attrType.GoType}}
+
+const (
+{{- range $attrType.Constants}}
+	// {{.Name}} is the "{{.Value}}" value for the {{$attrType.Name}} type.
+	{{.Name}} {{$attrType.Name}} = "{{.Value}}"
+{{- end}}
+)
+{{end}}

@@ -92,11 +92,11 @@ func (t *RandomReaderStretchrTest) Test_GetReadInfo() {
 		name                  string
 		offset                int64
 		seekRecorded          bool
-		initialReadType       int64
+		initialReadType       metrics.ReadType
 		initialExpOffset      int64
 		initialNumSeeks       uint64
 		initialTotalReadBytes uint64
-		expectedReadType      int64
+		expectedReadType      metrics.ReadType
 		expectedNumSeeks      uint64
 	}{
 		{
@@ -315,7 +315,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ParallelMRDReads() {
 func (t *RandomReaderStretchrTest) Test_ReaderType() {
 	testCases := []struct {
 		name       string
-		readType   int64
+		readType   metrics.ReadType
 		start      int64
 		end        int64
 		bucketType gcs.BucketType
@@ -368,7 +368,7 @@ func (t *RandomReaderStretchrTest) Test_GetEndOffset() {
 		name                  string
 		start                 int64
 		objectSize            int64
-		initialReadType       int64
+		initialReadType       metrics.ReadType
 		initialNumSeeks       uint64
 		initialTotalReadBytes uint64
 		sequentialReadSizeMb  int32
@@ -456,7 +456,7 @@ func (t *RandomReaderStretchrTest) Test_GetEndOffset() {
 func (t *RandomReaderStretchrTest) Test_IsSeekNeeded() {
 	testCases := []struct {
 		name           string
-		readType       int64
+		readType       metrics.ReadType
 		offset         int64
 		expectedOffset int64
 		want           bool
@@ -517,13 +517,6 @@ func (t *RandomReaderStretchrTest) Test_IsSeekNeeded() {
 			expectedOffset: 100,
 			want:           true,
 		},
-		{
-			name:           "Unknown read type",
-			readType:       -1, // An invalid read type
-			offset:         200,
-			expectedOffset: 100,
-			want:           false,
-		},
 	}
 
 	for _, tc := range testCases {
@@ -572,7 +565,7 @@ func (t *RandomReaderStretchrTest) Test_ReadFromRangeReader_WhenExistingReaderIs
 			t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(rc, nil).Times(1)
 			buf := make([]byte, dataSize)
 
-			n, err := t.rr.wrapped.readFromRangeReader(t.rr.ctx, buf, 0, int64(t.object.Size), metrics.ReadTypeUnknown)
+			n, err := t.rr.wrapped.readFromRangeReader(t.rr.ctx, buf, 0, int64(t.object.Size), metrics.ReadTypeSequential)
 
 			t.mockBucket.AssertExpectations(t.T())
 			assert.NoError(t.T(), err)
@@ -600,7 +593,7 @@ func (t *RandomReaderStretchrTest) Test_ReadFromRangeReader_WhenExistingReaderIs
 	t.rr.wrapped.cancel = func() {}
 	buf := make([]byte, dataSize)
 
-	n, err := t.rr.wrapped.readFromRangeReader(t.rr.ctx, buf, 4, 8, metrics.ReadTypeUnknown)
+	n, err := t.rr.wrapped.readFromRangeReader(t.rr.ctx, buf, 4, 8, metrics.ReadTypeSequential)
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), dataSize, n)
@@ -644,7 +637,7 @@ func (t *RandomReaderStretchrTest) Test_ReadFromRangeReader_WhenAllDataFromReade
 			t.rr.wrapped.cancel = func() {}
 			buf := make([]byte, dataSize)
 
-			n, err := t.rr.wrapped.readFromRangeReader(t.rr.ctx, buf, 4, 10, metrics.ReadTypeUnknown)
+			n, err := t.rr.wrapped.readFromRangeReader(t.rr.ctx, buf, 4, 10, metrics.ReadTypeSequential)
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), dataSize, n)
@@ -691,7 +684,7 @@ func (t *RandomReaderStretchrTest) Test_ReadFromRangeReader_WhenReaderHasLessDat
 			t.rr.wrapped.cancel = func() {}
 			buf := make([]byte, 10)
 
-			n, err := t.rr.wrapped.readFromRangeReader(t.rr.ctx, buf, 0, 10, metrics.ReadTypeUnknown)
+			n, err := t.rr.wrapped.readFromRangeReader(t.rr.ctx, buf, 0, 10, metrics.ReadTypeSequential)
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), dataSize, n)
@@ -738,7 +731,7 @@ func (t *RandomReaderStretchrTest) Test_ReadFromRangeReader_WhenReaderReturnedMo
 			t.rr.wrapped.cancel = func() {}
 			buf := make([]byte, 10)
 
-			_, err := t.rr.wrapped.readFromRangeReader(t.rr.ctx, buf, 0, 10, metrics.ReadTypeUnknown)
+			_, err := t.rr.wrapped.readFromRangeReader(t.rr.ctx, buf, 0, 10, metrics.ReadTypeSequential)
 
 			assert.True(t.T(), strings.Contains(err.Error(), "extra bytes: 2"))
 			assert.Nil(t.T(), t.rr.wrapped.reader)
@@ -763,7 +756,7 @@ func (t *RandomReaderStretchrTest) Test_ReadFromRangeReader_WhenReaderReturnedEO
 	t.rr.wrapped.cancel = func() {}
 	buf := make([]byte, 10)
 
-	_, err := t.rr.wrapped.readFromRangeReader(t.rr.ctx, buf, 0, 10, metrics.ReadTypeUnknown)
+	_, err := t.rr.wrapped.readFromRangeReader(t.rr.ctx, buf, 0, 10, metrics.ReadTypeSequential)
 
 	assert.True(t.T(), strings.Contains(err.Error(), "skipping 4 bytes"))
 	assert.Equal(t.T(), int64(0), t.rr.wrapped.expectedOffset.Load())
@@ -928,7 +921,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ValidateReadType() {
 		dataSize          int
 		bucketType        gcs.BucketType
 		readRanges        [][]int
-		expectedReadTypes []int64
+		expectedReadTypes []metrics.ReadType
 		expectedSeeks     []int
 	}{
 		{
@@ -936,7 +929,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ValidateReadType() {
 			dataSize:          100,
 			bucketType:        gcs.BucketType{Zonal: false},
 			readRanges:        [][]int{{0, 10}, {10, 20}, {20, 35}, {35, 50}},
-			expectedReadTypes: []int64{metrics.ReadTypeSequential, metrics.ReadTypeSequential, metrics.ReadTypeSequential, metrics.ReadTypeSequential},
+			expectedReadTypes: []metrics.ReadType{metrics.ReadTypeSequential, metrics.ReadTypeSequential, metrics.ReadTypeSequential, metrics.ReadTypeSequential},
 			expectedSeeks:     []int{0, 0, 0, 0, 0},
 		},
 		{
@@ -944,7 +937,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ValidateReadType() {
 			dataSize:          100,
 			bucketType:        gcs.BucketType{Zonal: true},
 			readRanges:        [][]int{{0, 10}, {10, 20}, {20, 35}, {35, 50}},
-			expectedReadTypes: []int64{metrics.ReadTypeSequential, metrics.ReadTypeSequential, metrics.ReadTypeSequential, metrics.ReadTypeSequential},
+			expectedReadTypes: []metrics.ReadType{metrics.ReadTypeSequential, metrics.ReadTypeSequential, metrics.ReadTypeSequential, metrics.ReadTypeSequential},
 			expectedSeeks:     []int{0, 0, 0, 0, 0},
 		},
 		{
@@ -952,7 +945,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ValidateReadType() {
 			dataSize:          100,
 			bucketType:        gcs.BucketType{Zonal: false},
 			readRanges:        [][]int{{0, 50}, {30, 40}, {10, 20}, {20, 30}, {30, 40}},
-			expectedReadTypes: []int64{metrics.ReadTypeSequential, metrics.ReadTypeSequential, metrics.ReadTypeRandom, metrics.ReadTypeRandom, metrics.ReadTypeRandom},
+			expectedReadTypes: []metrics.ReadType{metrics.ReadTypeSequential, metrics.ReadTypeSequential, metrics.ReadTypeRandom, metrics.ReadTypeRandom, metrics.ReadTypeRandom},
 			expectedSeeks:     []int{0, 1, 2, 2, 2},
 		},
 		{
@@ -960,7 +953,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_ValidateReadType() {
 			dataSize:          100,
 			bucketType:        gcs.BucketType{Zonal: true},
 			readRanges:        [][]int{{0, 50}, {30, 40}, {10, 20}, {20, 30}, {30, 40}},
-			expectedReadTypes: []int64{metrics.ReadTypeSequential, metrics.ReadTypeSequential, metrics.ReadTypeRandom, metrics.ReadTypeRandom, metrics.ReadTypeRandom},
+			expectedReadTypes: []metrics.ReadType{metrics.ReadTypeSequential, metrics.ReadTypeSequential, metrics.ReadTypeRandom, metrics.ReadTypeRandom, metrics.ReadTypeRandom},
 			expectedSeeks:     []int{0, 1, 2, 2, 2},
 		},
 	}

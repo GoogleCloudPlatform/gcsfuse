@@ -57,7 +57,7 @@ const (
 // readInfo Stores information for this read request.
 type readInfo struct {
 	// readType stores the read type evaluated for this request.
-	readType int64
+	readType metrics.ReadType
 	// expectedOffset stores the expected offset for this request. Will be
 	// used to determine if re-evaluation of readType is required or not with range reader.
 	expectedOffset int64
@@ -74,7 +74,7 @@ type GCSReader struct {
 	mrr         *MultiRangeReader
 
 	// ReadType of the reader. Will be sequential by default.
-	readType atomic.Int64
+	readType atomic.Value // of type metrics.ReadType
 
 	sequentialReadSizeMb int32
 
@@ -100,13 +100,15 @@ type GCSReaderConfig struct {
 }
 
 func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, config *GCSReaderConfig) *GCSReader {
-	return &GCSReader{
+	gr := &GCSReader{
 		object:               obj,
 		bucket:               bucket,
 		sequentialReadSizeMb: config.SequentialReadSizeMb,
 		rangeReader:          NewRangeReader(obj, bucket, config.Config, config.MetricHandle),
 		mrr:                  NewMultiRangeReader(obj, config.MetricHandle, config.MrdWrapper),
 	}
+	gr.readType.Store(metrics.ReadTypeSequential)
+	return gr
 }
 
 // Detects whether the read was short or not and returns whether it should be retried or not.
@@ -208,7 +210,7 @@ func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest) (
 }
 
 // readerType specifies the go-sdk interface to use for reads.
-func (gr *GCSReader) readerType(readType int64, bucketType gcs.BucketType) ReaderType {
+func (gr *GCSReader) readerType(readType metrics.ReadType, bucketType gcs.BucketType) ReaderType {
 	if readType == metrics.ReadTypeRandom && bucketType.Zonal {
 		return MultiRangeReaderType
 	}
@@ -217,7 +219,7 @@ func (gr *GCSReader) readerType(readType int64, bucketType gcs.BucketType) Reade
 
 // isSeekNeeded determines if the current read at `offset` should be considered a
 // seek, given the previous read pattern & the expected offset.
-func isSeekNeeded(readType, offset, expectedOffset int64) bool {
+func isSeekNeeded(readType metrics.ReadType, offset, expectedOffset int64) bool {
 	if expectedOffset == 0 {
 		return false
 	}
@@ -246,7 +248,7 @@ func (gr *GCSReader) getEndOffset(
 // reader's internal state based on the read pattern.
 // seekRecorded parameter describes whether a seek has already been recorded for this request.
 func (gr *GCSReader) getReadInfo(offset int64, seekRecorded bool) readInfo {
-	readType := gr.readType.Load()
+	readType := gr.readType.Load().(metrics.ReadType)
 	expOffset := gr.expectedOffset.Load()
 	numSeeks := gr.seeks.Load()
 
@@ -280,7 +282,6 @@ func (gr *GCSReader) getReadInfo(offset int64, seekRecorded bool) readInfo {
 func (gr *GCSReader) determineEnd(start int64) int64 {
 	end := int64(gr.object.Size)
 	if seeks := gr.seeks.Load(); seeks >= minSeeksForRandom {
-		gr.readType.Store(metrics.ReadTypeRandom)
 		averageReadBytes := gr.totalReadBytes.Load() / seeks
 		if averageReadBytes < maxReadSize {
 			randomReadSize := int64(((averageReadBytes / MB) + 1) * MB)

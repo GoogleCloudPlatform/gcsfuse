@@ -154,10 +154,10 @@ type fakeMetricHandle struct {
 
 	gcsRetryCountCalled bool
 	gcsRetryCountInc    int64
-	gcsRetryCountVal    string
+	gcsRetryCountVal    metrics.RetryErrorCategory
 }
 
-func (m *fakeMetricHandle) GcsRetryCount(inc int64, val string) {
+func (m *fakeMetricHandle) GcsRetryCount(inc int64, val metrics.RetryErrorCategory) {
 	m.gcsRetryCountCalled = true
 	m.gcsRetryCountInc = inc
 	m.gcsRetryCountVal = val
@@ -223,7 +223,7 @@ func TestShouldRetryWithMonitoringForRetryableErrors(t *testing.T) {
 			assert.True(t, shouldRetry)
 			assert.True(t, fakeMetrics.gcsRetryCountCalled)
 			assert.Equal(t, int64(1), fakeMetrics.gcsRetryCountInc)
-			assert.Equal(t, tc.expectedMetricCategory, fakeMetrics.gcsRetryCountVal)
+			assert.Equal(t, metrics.RetryErrorCategory(tc.expectedMetricCategory), fakeMetrics.gcsRetryCountVal)
 		})
 	}
 }

@@ -117,11 +117,11 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 
 		logger.Tracef("%.13v -> %s", requestID, requestOutput)
 
-		readType := metrics.ReadTypeRandom
+		var readType metrics.ReadType = metrics.ReadTypeRandom
 		if isSequential {
 			readType = metrics.ReadTypeSequential
 		}
-		captureFileCacheMetrics(ctx, fc.metricHandle, metrics.ReadTypeNames[readType], bytesRead, cacheHit, executionTime)
+		captureFileCacheMetrics(ctx, fc.metricHandle, readType, bytesRead, cacheHit, executionTime)
 	}()
 
 	// Create fileCacheHandle if not already.
@@ -207,7 +207,7 @@ func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (
 	return readerResponse, err
 }
 
-func captureFileCacheMetrics(ctx context.Context, metricHandle metrics.MetricHandle, readType string, readDataSize int, cacheHit bool, readLatency time.Duration) {
+func captureFileCacheMetrics(ctx context.Context, metricHandle metrics.MetricHandle, readType metrics.ReadType, readDataSize int, cacheHit bool, readLatency time.Duration) {
 	metricHandle.FileCacheReadCount(1, cacheHit, readType)
 	metricHandle.FileCacheReadBytesCount(int64(readDataSize), readType)
 	metricHandle.FileCacheReadLatencies(ctx, readLatency, cacheHit)

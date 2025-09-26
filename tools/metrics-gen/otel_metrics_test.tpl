@@ -234,7 +234,7 @@ func Test{{toPascal .Name}}(t *testing.T) {
 		name      string
 		latencies []time.Duration
 		{{- range .Attributes}}
-		{{toCamel .Name}} {{getGoType .Type}}
+		{{toCamel .Name}} {{getGoType .}}
 		{{- end}}
 	}{
 		{{- $metric := . -}}
@@ -268,7 +268,11 @@ func Test{{toPascal .Name}}(t *testing.T) {
 
 			attrs := []attribute.KeyValue{
 				{{- range .Attributes}}
-				attribute.{{if eq .Type "string"}}String{{else}}Bool{{end}}("{{.Name}}", tc.{{toCamel .Name}}),
+				{{- if eq .Type "string"}}
+				attribute.String("{{.Name}}", string(tc.{{toCamel .Name}})),
+				{{- else}}
+				attribute.Bool("{{.Name}}", tc.{{toCamel .Name}}),
+				{{- end}}
 				{{- end}}
 			}
 			s := attribute.NewSet(attrs...)

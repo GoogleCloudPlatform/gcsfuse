@@ -51,12 +51,24 @@ type AttrValuePair struct {
 	Value string // "true"/"false" for bools
 }
 
+type AttributeConstant struct {
+	Name  string
+	Value string
+}
+
+type AttributeType struct {
+	Name      string
+	GoType    string
+	Constants []AttributeConstant
+}
+
 // AttrCombination is a list of AttrValuePairs.
 type AttrCombination []AttrValuePair
 
 // Data structure to pass to the template.
 type TemplateData struct {
 	Metrics          []Metric
+	AttributeTypes   []AttributeType
 	AttrCombinations map[string][]AttrCombination
 }
 
@@ -67,6 +79,7 @@ var funcMap = template.FuncMap{
 	"getVarName":                  getVarName,
 	"getAtomicName":               getAtomicName,
 	"getGoType":                   getGoType,
+	"getConstantName":             getConstantName,
 	"getUnitMethod":               getUnitMethod,
 	"joinInts":                    joinInts,
 	"isCounter":                   func(m Metric) bool { return m.Type == "int_counter" },
@@ -124,15 +137,15 @@ func getAtomicName(metricName string, combo AttrCombination) string {
 	return strings.Join(parts, "")
 }
 
-func getGoType(t string) string {
-	switch t {
-	case "string":
-		return "string"
-	case "bool":
-		return "bool"
-	default:
-		return "interface{}"
+func getConstantName(typeName, value string) string {
+	return toPascal(typeName) + toPascal(value)
+}
+
+func getGoType(a Attribute) string {
+	if a.Type == "string" {
+		return toPascal(a.Name)
 	}
+	return a.Type
 }
 
 func getUnitMethod(unit string) string {
@@ -175,7 +188,8 @@ func getTestFuncArgs(combo AttrCombination) string {
 	var parts []string
 	for _, pair := range combo {
 		if pair.Type == "string" {
-			parts = append(parts, `"`+pair.Value+`"`)
+			typeName := toPascal(pair.Name)
+			parts = append(parts, fmt.Sprintf(`%s("%s")`, typeName, pair.Value))
 		} else {
 			parts = append(parts, pair.Value)
 		}
@@ -253,7 +267,7 @@ func generateCombinations(attributes []Attribute) []AttrCombination {
 
 func handleDefaultInSwitchCase(level int, attrName string, builder *strings.Builder) {
 	builder.WriteString(fmt.Sprintf("%sdefault:\n", strings.Repeat("\t", level+2)))
-	builder.WriteString(fmt.Sprintf("%supdateUnrecognizedAttribute(%s)\n", strings.Repeat("\t", level+3), toCamel(attrName)))
+	builder.WriteString(fmt.Sprintf("%supdateUnrecognizedAttribute(string(%s))\n", strings.Repeat("\t", level+3), toCamel(attrName)))
 	builder.WriteString(fmt.Sprintf("%sreturn\n", strings.Repeat("\t", level+3)))
 }
 
@@ -294,6 +308,35 @@ func validateMetric(m Metric) error {
 		if a.Type == "bool" && len(a.Values) != 0 {
 			return fmt.Errorf("values should not be present for bool attribute %q in metric %q", a.Name, m.Name)
 		}
+	}
+	return nil
+}
+
+func validateAttributeTypes(attributeTypes []AttributeType) error {
+	for _, at := range attributeTypes {
+		if at.GoType != "string" {
+			continue
+		}
+		// Check for duplicate constant names within the same attribute type.
+		// This can happen if two values resolve to the same PascalCase name.
+		// e.g. "my-value" and "my_value" both become "MyValue"
+		constNames := make(map[string]bool)
+		for _, c := range at.Constants {
+			if constNames[c.Name] {
+				return fmt.Errorf("duplicate constant name %s for attribute type %s", c.Name, at.Name)
+			}
+			constNames[c.Name] = true
+		}
+	}
+
+	// Check that no two attribute types resolve to the same Go type name.
+	// This would cause a type redefinition error.
+	goTypes := make(map[string]bool)
+	for _, at := range attributeTypes {
+		if goTypes[at.Name] {
+			return fmt.Errorf("duplicate attribute type name: %s", at.Name)
+		}
+		goTypes[at.Name] = true
 	}
 	return nil
 }
@@ -382,7 +425,7 @@ func buildSwitches(metric Metric) string {
 		for _, val := range values {
 			caseVal := val
 			if attr.Type == "string" {
-				caseVal = `"` + val + `"`
+				caseVal = getConstantName(attr.Name, val)
 			}
 			builder.WriteString(fmt.Sprintf("%scase %s:\n", strings.Repeat("\t", level+2), caseVal))
 			currentCombo := append(combo, AttrValuePair{Name: attr.Name, Type: attr.Type, Value: val})
@@ -442,6 +485,46 @@ func main() {
 		}
 	}
 
+	// Generate attribute types and constants
+	attributeTypesMap := make(map[string]map[string]bool)
+	for _, m := range metrics {
+		for _, a := range m.Attributes {
+			if a.Type == "string" {
+				if _, ok := attributeTypesMap[a.Name]; !ok {
+					attributeTypesMap[a.Name] = make(map[string]bool)
+				}
+				for _, v := range a.Values {
+					attributeTypesMap[a.Name][v] = true
+				}
+			}
+		}
+	}
+	var attributeTypes []AttributeType
+	for name, valuesMap := range attributeTypesMap {
+		var constants []AttributeConstant
+		for value := range valuesMap {
+			constants = append(constants, AttributeConstant{
+				Name:  getConstantName(name, value),
+				Value: value,
+			})
+		}
+		sort.Slice(constants, func(i, j int) bool {
+			return constants[i].Name < constants[j].Name
+		})
+		attributeTypes = append(attributeTypes, AttributeType{
+			Name:      toPascal(name),
+			GoType:    "string",
+			Constants: constants,
+		})
+	}
+	sort.Slice(attributeTypes, func(i, j int) bool {
+		return attributeTypes[i].Name < attributeTypes[j].Name
+	})
+
+	if err := validateAttributeTypes(attributeTypes); err != nil {
+		log.Fatalf("invalid attribute types: %v", err)
+	}
+
 	attrCombinations := make(map[string][]AttrCombination)
 	for _, m := range metrics {
 		attrCombinations[m.Name] = generateCombinations(m.Attributes)
@@ -453,6 +536,7 @@ func main() {
 	}
 	data := TemplateData{
 		Metrics:          metrics,
+		AttributeTypes:   attributeTypes,
 		AttrCombinations: attrCombinations,
 	}
 	createFile(&data, fmt.Sprintf("%s/metric_handle.go", *outputDir), "metric_handle.tpl")
