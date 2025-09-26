@@ -616,7 +616,6 @@ var (
 	gcsReadCountReadTypeParallelAttrSet                                                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel")))
 	gcsReadCountReadTypeRandomAttrSet                                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random")))
 	gcsReadCountReadTypeSequentialAttrSet                                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential")))
-	gcsReaderCountIoMethodReadHandleAttrSet                                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("io_method", "ReadHandle")))
 	gcsReaderCountIoMethodClosedAttrSet                                                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("io_method", "closed")))
 	gcsReaderCountIoMethodOpenedAttrSet                                                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("io_method", "opened")))
 	gcsRequestCountGcsMethodComposeObjectsAttrSet                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "ComposeObjects")))
@@ -1221,7 +1220,6 @@ type otelMetrics struct {
 	gcsReadCountReadTypeParallelAtomic                                                 *atomic.Int64
 	gcsReadCountReadTypeRandomAtomic                                                   *atomic.Int64
 	gcsReadCountReadTypeSequentialAtomic                                               *atomic.Int64
-	gcsReaderCountIoMethodReadHandleAtomic                                             *atomic.Int64
 	gcsReaderCountIoMethodClosedAtomic                                                 *atomic.Int64
 	gcsReaderCountIoMethodOpenedAtomic                                                 *atomic.Int64
 	gcsRequestCountGcsMethodComposeObjectsAtomic                                       *atomic.Int64
@@ -2699,8 +2697,6 @@ func (o *otelMetrics) GcsReaderCount(
 		return
 	}
 	switch ioMethod {
-	case "ReadHandle":
-		o.gcsReaderCountIoMethodReadHandleAtomic.Add(inc)
 	case "closed":
 		o.gcsReaderCountIoMethodClosedAtomic.Add(inc)
 	case "opened":
@@ -3426,8 +3422,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		gcsReadCountReadTypeRandomAtomic,
 		gcsReadCountReadTypeSequentialAtomic atomic.Int64
 
-	var gcsReaderCountIoMethodReadHandleAtomic,
-		gcsReaderCountIoMethodClosedAtomic,
+	var gcsReaderCountIoMethodClosedAtomic,
 		gcsReaderCountIoMethodOpenedAtomic atomic.Int64
 
 	var gcsRequestCountGcsMethodComposeObjectsAtomic,
@@ -4093,7 +4088,6 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		metric.WithDescription("The cumulative number of GCS object readers opened or closed."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
-			conditionallyObserve(obsrv, &gcsReaderCountIoMethodReadHandleAtomic, gcsReaderCountIoMethodReadHandleAttrSet)
 			conditionallyObserve(obsrv, &gcsReaderCountIoMethodClosedAtomic, gcsReaderCountIoMethodClosedAttrSet)
 			conditionallyObserve(obsrv, &gcsReaderCountIoMethodOpenedAtomic, gcsReaderCountIoMethodOpenedAttrSet)
 			return nil
@@ -4716,7 +4710,6 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		gcsReadCountReadTypeParallelAtomic:                         &gcsReadCountReadTypeParallelAtomic,
 		gcsReadCountReadTypeRandomAtomic:                           &gcsReadCountReadTypeRandomAtomic,
 		gcsReadCountReadTypeSequentialAtomic:                       &gcsReadCountReadTypeSequentialAtomic,
-		gcsReaderCountIoMethodReadHandleAtomic:                     &gcsReaderCountIoMethodReadHandleAtomic,
 		gcsReaderCountIoMethodClosedAtomic:                         &gcsReaderCountIoMethodClosedAtomic,
 		gcsReaderCountIoMethodOpenedAtomic:                         &gcsReaderCountIoMethodOpenedAtomic,
 		gcsRequestCountGcsMethodComposeObjectsAtomic:               &gcsRequestCountGcsMethodComposeObjectsAtomic,
