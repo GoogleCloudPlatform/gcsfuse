@@ -20,18 +20,19 @@ import (
 	"time"
 )
 
-type noopMetrics struct {}
-{{- range .Metrics}}
-	func (*noopMetrics) {{toPascal .Name}}(
-		{{- if or (isCounter .) (isUpDownCounter .) -}}
-			inc int64
-		{{- else -}}
-			ctx context.Context, duration time.Duration
-		{{- end }}
-		{{- if .Attributes}}, {{end}}
-		{{- range $i, $attr := .Attributes -}}
-			{{if $i}}, {{end}}{{toCamel $attr.Name}} {{getGoType $attr.Type}}
-		{{- end }}){}
+type noopMetrics struct{}
+
+{{range .Metrics}}
+func (*noopMetrics) {{toPascal .Name}}(
+	{{- if or (isCounter .) (isUpDownCounter .) -}}
+		inc int64
+	{{- else -}}
+		ctx context.Context, duration time.Duration
+	{{- end }}
+	{{- if .Attributes}}, {{end}}
+	{{- range $i, $attr := .Attributes -}}
+		{{if $i}}, {{end}}{{toCamel $attr.Name}} {{getGoType $attr}}
+	{{- end }}) {}
 {{end}}
 
 func NewNoopMetrics() MetricHandle {

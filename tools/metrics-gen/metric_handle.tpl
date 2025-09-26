@@ -20,6 +20,17 @@ import (
 	"time"
 )
 
+{{range .AttributeTypes}}
+{{$typeName := .TypeName}}
+// {{$typeName}} is a user-defined type for the {{$typeName}} attribute.
+type {{$typeName}} string
+const (
+{{- range .Values}}
+	{{.ConstName}} {{$typeName}} = "{{.Value}}"
+{{- end}}
+)
+{{end}}
+
 // MetricHandle provides an interface for recording metrics.
 // The methods of this interface are auto-generated from metrics.yaml.
 // Each method corresponds to a metric defined in metrics.yaml.
@@ -34,7 +45,7 @@ type MetricHandle interface {
 		{{- end }}
 		{{- if .Attributes}}, {{end}}
 		{{- range $i, $attr := .Attributes -}}
-			{{if $i}}, {{end}}{{toCamel $attr.Name}} {{getGoType $attr.Type}}
+			{{if $i}}, {{end}}{{toCamel $attr.Name}} {{getGoType $attr}}
 		{{- end }})
 
 {{end}}

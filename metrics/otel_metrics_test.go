@@ -132,22 +132,22 @@ func TestBufferedReadDownloadBlockLatency(t *testing.T) {
 	tests := []struct {
 		name      string
 		latencies []time.Duration
-		status    string
+		status    Status
 	}{
 		{
 			name:      "status_cancelled",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			status:    "cancelled",
+			status:    StatusCancelled,
 		},
 		{
 			name:      "status_failed",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			status:    "failed",
+			status:    StatusFailed,
 		},
 		{
 			name:      "status_successful",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			status:    "successful",
+			status:    StatusSuccessful,
 		},
 	}
 
@@ -169,7 +169,7 @@ func TestBufferedReadDownloadBlockLatency(t *testing.T) {
 			require.True(t, ok, "buffered_read/download_block_latency metric not found")
 
 			attrs := []attribute.KeyValue{
-				attribute.String("status", tc.status),
+				attribute.String("status", string(tc.status)),
 			}
 			s := attribute.NewSet(attrs...)
 			expectedKey := s.Encoded(encoder)
@@ -190,7 +190,7 @@ func TestBufferedReadFallbackTriggerCount(t *testing.T) {
 		{
 			name: "reason_insufficient_memory",
 			f: func(m *otelMetrics) {
-				m.BufferedReadFallbackTriggerCount(5, "insufficient_memory")
+				m.BufferedReadFallbackTriggerCount(5, ReasonInsufficientMemory)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("reason", "insufficient_memory")): 5,
@@ -199,7 +199,7 @@ func TestBufferedReadFallbackTriggerCount(t *testing.T) {
 		{
 			name: "reason_random_read_detected",
 			f: func(m *otelMetrics) {
-				m.BufferedReadFallbackTriggerCount(5, "random_read_detected")
+				m.BufferedReadFallbackTriggerCount(5, ReasonRandomReadDetected)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("reason", "random_read_detected")): 5,
@@ -207,9 +207,9 @@ func TestBufferedReadFallbackTriggerCount(t *testing.T) {
 		}, {
 			name: "multiple_attributes_summed",
 			f: func(m *otelMetrics) {
-				m.BufferedReadFallbackTriggerCount(5, "insufficient_memory")
-				m.BufferedReadFallbackTriggerCount(2, "random_read_detected")
-				m.BufferedReadFallbackTriggerCount(3, "insufficient_memory")
+				m.BufferedReadFallbackTriggerCount(5, ReasonInsufficientMemory)
+				m.BufferedReadFallbackTriggerCount(2, ReasonRandomReadDetected)
+				m.BufferedReadFallbackTriggerCount(3, ReasonInsufficientMemory)
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("reason", "insufficient_memory")): 8,
 				attribute.NewSet(attribute.String("reason", "random_read_detected")): 2,
@@ -218,8 +218,8 @@ func TestBufferedReadFallbackTriggerCount(t *testing.T) {
 		{
 			name: "negative_increment",
 			f: func(m *otelMetrics) {
-				m.BufferedReadFallbackTriggerCount(-5, "insufficient_memory")
-				m.BufferedReadFallbackTriggerCount(2, "insufficient_memory")
+				m.BufferedReadFallbackTriggerCount(-5, ReasonInsufficientMemory)
+				m.BufferedReadFallbackTriggerCount(2, ReasonInsufficientMemory)
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("reason", "insufficient_memory")): 2},
 		},
@@ -284,7 +284,7 @@ func TestBufferedReadScheduledBlockCount(t *testing.T) {
 		{
 			name: "status_cancelled",
 			f: func(m *otelMetrics) {
-				m.BufferedReadScheduledBlockCount(5, "cancelled")
+				m.BufferedReadScheduledBlockCount(5, StatusCancelled)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("status", "cancelled")): 5,
@@ -293,7 +293,7 @@ func TestBufferedReadScheduledBlockCount(t *testing.T) {
 		{
 			name: "status_failed",
 			f: func(m *otelMetrics) {
-				m.BufferedReadScheduledBlockCount(5, "failed")
+				m.BufferedReadScheduledBlockCount(5, StatusFailed)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("status", "failed")): 5,
@@ -302,7 +302,7 @@ func TestBufferedReadScheduledBlockCount(t *testing.T) {
 		{
 			name: "status_successful",
 			f: func(m *otelMetrics) {
-				m.BufferedReadScheduledBlockCount(5, "successful")
+				m.BufferedReadScheduledBlockCount(5, StatusSuccessful)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("status", "successful")): 5,
@@ -310,9 +310,9 @@ func TestBufferedReadScheduledBlockCount(t *testing.T) {
 		}, {
 			name: "multiple_attributes_summed",
 			f: func(m *otelMetrics) {
-				m.BufferedReadScheduledBlockCount(5, "cancelled")
-				m.BufferedReadScheduledBlockCount(2, "failed")
-				m.BufferedReadScheduledBlockCount(3, "cancelled")
+				m.BufferedReadScheduledBlockCount(5, StatusCancelled)
+				m.BufferedReadScheduledBlockCount(2, StatusFailed)
+				m.BufferedReadScheduledBlockCount(3, StatusCancelled)
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("status", "cancelled")): 8,
 				attribute.NewSet(attribute.String("status", "failed")): 2,
@@ -321,8 +321,8 @@ func TestBufferedReadScheduledBlockCount(t *testing.T) {
 		{
 			name: "negative_increment",
 			f: func(m *otelMetrics) {
-				m.BufferedReadScheduledBlockCount(-5, "cancelled")
-				m.BufferedReadScheduledBlockCount(2, "cancelled")
+				m.BufferedReadScheduledBlockCount(-5, StatusCancelled)
+				m.BufferedReadScheduledBlockCount(2, StatusCancelled)
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("status", "cancelled")): 2},
 		},
@@ -362,7 +362,7 @@ func TestFileCacheReadBytesCount(t *testing.T) {
 		{
 			name: "read_type_Parallel",
 			f: func(m *otelMetrics) {
-				m.FileCacheReadBytesCount(5, "Parallel")
+				m.FileCacheReadBytesCount(5, ReadTypeParallel)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("read_type", "Parallel")): 5,
@@ -371,7 +371,7 @@ func TestFileCacheReadBytesCount(t *testing.T) {
 		{
 			name: "read_type_Random",
 			f: func(m *otelMetrics) {
-				m.FileCacheReadBytesCount(5, "Random")
+				m.FileCacheReadBytesCount(5, ReadTypeRandom)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("read_type", "Random")): 5,
@@ -380,7 +380,7 @@ func TestFileCacheReadBytesCount(t *testing.T) {
 		{
 			name: "read_type_Sequential",
 			f: func(m *otelMetrics) {
-				m.FileCacheReadBytesCount(5, "Sequential")
+				m.FileCacheReadBytesCount(5, ReadTypeSequential)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("read_type", "Sequential")): 5,
@@ -388,9 +388,9 @@ func TestFileCacheReadBytesCount(t *testing.T) {
 		}, {
 			name: "multiple_attributes_summed",
 			f: func(m *otelMetrics) {
-				m.FileCacheReadBytesCount(5, "Parallel")
-				m.FileCacheReadBytesCount(2, "Random")
-				m.FileCacheReadBytesCount(3, "Parallel")
+				m.FileCacheReadBytesCount(5, ReadTypeParallel)
+				m.FileCacheReadBytesCount(2, ReadTypeRandom)
+				m.FileCacheReadBytesCount(3, ReadTypeParallel)
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("read_type", "Parallel")): 8,
 				attribute.NewSet(attribute.String("read_type", "Random")): 2,
@@ -399,8 +399,8 @@ func TestFileCacheReadBytesCount(t *testing.T) {
 		{
 			name: "negative_increment",
 			f: func(m *otelMetrics) {
-				m.FileCacheReadBytesCount(-5, "Parallel")
-				m.FileCacheReadBytesCount(2, "Parallel")
+				m.FileCacheReadBytesCount(-5, ReadTypeParallel)
+				m.FileCacheReadBytesCount(2, ReadTypeParallel)
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("read_type", "Parallel")): 2},
 		},
@@ -440,7 +440,7 @@ func TestFileCacheReadCount(t *testing.T) {
 		{
 			name: "cache_hit_true_read_type_Parallel",
 			f: func(m *otelMetrics) {
-				m.FileCacheReadCount(5, true, "Parallel")
+				m.FileCacheReadCount(5, true, ReadTypeParallel)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Parallel")): 5,
@@ -449,7 +449,7 @@ func TestFileCacheReadCount(t *testing.T) {
 		{
 			name: "cache_hit_true_read_type_Random",
 			f: func(m *otelMetrics) {
-				m.FileCacheReadCount(5, true, "Random")
+				m.FileCacheReadCount(5, true, ReadTypeRandom)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Random")): 5,
@@ -458,7 +458,7 @@ func TestFileCacheReadCount(t *testing.T) {
 		{
 			name: "cache_hit_true_read_type_Sequential",
 			f: func(m *otelMetrics) {
-				m.FileCacheReadCount(5, true, "Sequential")
+				m.FileCacheReadCount(5, true, ReadTypeSequential)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Sequential")): 5,
@@ -467,7 +467,7 @@ func TestFileCacheReadCount(t *testing.T) {
 		{
 			name: "cache_hit_false_read_type_Parallel",
 			f: func(m *otelMetrics) {
-				m.FileCacheReadCount(5, false, "Parallel")
+				m.FileCacheReadCount(5, false, ReadTypeParallel)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", "Parallel")): 5,
@@ -476,7 +476,7 @@ func TestFileCacheReadCount(t *testing.T) {
 		{
 			name: "cache_hit_false_read_type_Random",
 			f: func(m *otelMetrics) {
-				m.FileCacheReadCount(5, false, "Random")
+				m.FileCacheReadCount(5, false, ReadTypeRandom)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", "Random")): 5,
@@ -485,7 +485,7 @@ func TestFileCacheReadCount(t *testing.T) {
 		{
 			name: "cache_hit_false_read_type_Sequential",
 			f: func(m *otelMetrics) {
-				m.FileCacheReadCount(5, false, "Sequential")
+				m.FileCacheReadCount(5, false, ReadTypeSequential)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", "Sequential")): 5,
@@ -493,9 +493,9 @@ func TestFileCacheReadCount(t *testing.T) {
 		}, {
 			name: "multiple_attributes_summed",
 			f: func(m *otelMetrics) {
-				m.FileCacheReadCount(5, true, "Parallel")
-				m.FileCacheReadCount(2, true, "Random")
-				m.FileCacheReadCount(3, true, "Parallel")
+				m.FileCacheReadCount(5, true, ReadTypeParallel)
+				m.FileCacheReadCount(2, true, ReadTypeRandom)
+				m.FileCacheReadCount(3, true, ReadTypeParallel)
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Parallel")): 8,
 				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Random")): 2,
@@ -504,8 +504,8 @@ func TestFileCacheReadCount(t *testing.T) {
 		{
 			name: "negative_increment",
 			f: func(m *otelMetrics) {
-				m.FileCacheReadCount(-5, true, "Parallel")
-				m.FileCacheReadCount(2, true, "Parallel")
+				m.FileCacheReadCount(-5, true, ReadTypeParallel)
+				m.FileCacheReadCount(2, true, ReadTypeParallel)
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Parallel")): 2},
 		},
@@ -593,7 +593,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_BatchForget",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "BatchForget")
+				m.FsOpsCount(5, FsOpBatchForget)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "BatchForget")): 5,
@@ -602,7 +602,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_CreateFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "CreateFile")
+				m.FsOpsCount(5, FsOpCreateFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "CreateFile")): 5,
@@ -611,7 +611,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_CreateLink",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "CreateLink")
+				m.FsOpsCount(5, FsOpCreateLink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "CreateLink")): 5,
@@ -620,7 +620,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_CreateSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "CreateSymlink")
+				m.FsOpsCount(5, FsOpCreateSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "CreateSymlink")): 5,
@@ -629,7 +629,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_Fallocate",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "Fallocate")
+				m.FsOpsCount(5, FsOpFallocate)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "Fallocate")): 5,
@@ -638,7 +638,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_FlushFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "FlushFile")
+				m.FsOpsCount(5, FsOpFlushFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "FlushFile")): 5,
@@ -647,7 +647,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_ForgetInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "ForgetInode")
+				m.FsOpsCount(5, FsOpForgetInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "ForgetInode")): 5,
@@ -656,7 +656,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_GetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "GetInodeAttributes")
+				m.FsOpsCount(5, FsOpGetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "GetInodeAttributes")): 5,
@@ -665,7 +665,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_GetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "GetXattr")
+				m.FsOpsCount(5, FsOpGetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "GetXattr")): 5,
@@ -674,7 +674,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_ListXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "ListXattr")
+				m.FsOpsCount(5, FsOpListXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "ListXattr")): 5,
@@ -683,7 +683,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_LookUpInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "LookUpInode")
+				m.FsOpsCount(5, FsOpLookUpInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "LookUpInode")): 5,
@@ -692,7 +692,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_MkDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "MkDir")
+				m.FsOpsCount(5, FsOpMkDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "MkDir")): 5,
@@ -701,7 +701,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_MkNode",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "MkNode")
+				m.FsOpsCount(5, FsOpMkNode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "MkNode")): 5,
@@ -710,7 +710,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_OpenDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "OpenDir")
+				m.FsOpsCount(5, FsOpOpenDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "OpenDir")): 5,
@@ -719,7 +719,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_OpenFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "OpenFile")
+				m.FsOpsCount(5, FsOpOpenFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "OpenFile")): 5,
@@ -728,7 +728,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_ReadDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "ReadDir")
+				m.FsOpsCount(5, FsOpReadDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "ReadDir")): 5,
@@ -737,7 +737,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_ReadDirPlus",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "ReadDirPlus")
+				m.FsOpsCount(5, FsOpReadDirPlus)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "ReadDirPlus")): 5,
@@ -746,7 +746,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_ReadFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "ReadFile")
+				m.FsOpsCount(5, FsOpReadFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "ReadFile")): 5,
@@ -755,7 +755,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_ReadSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "ReadSymlink")
+				m.FsOpsCount(5, FsOpReadSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "ReadSymlink")): 5,
@@ -764,7 +764,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_ReleaseDirHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "ReleaseDirHandle")
+				m.FsOpsCount(5, FsOpReleaseDirHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "ReleaseDirHandle")): 5,
@@ -773,7 +773,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_ReleaseFileHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "ReleaseFileHandle")
+				m.FsOpsCount(5, FsOpReleaseFileHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "ReleaseFileHandle")): 5,
@@ -782,7 +782,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_RemoveXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "RemoveXattr")
+				m.FsOpsCount(5, FsOpRemoveXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "RemoveXattr")): 5,
@@ -791,7 +791,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_Rename",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "Rename")
+				m.FsOpsCount(5, FsOpRename)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "Rename")): 5,
@@ -800,7 +800,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_RmDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "RmDir")
+				m.FsOpsCount(5, FsOpRmDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "RmDir")): 5,
@@ -809,7 +809,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_SetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "SetInodeAttributes")
+				m.FsOpsCount(5, FsOpSetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "SetInodeAttributes")): 5,
@@ -818,7 +818,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_SetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "SetXattr")
+				m.FsOpsCount(5, FsOpSetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "SetXattr")): 5,
@@ -827,7 +827,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_StatFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "StatFS")
+				m.FsOpsCount(5, FsOpStatFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "StatFS")): 5,
@@ -836,7 +836,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_SyncFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "SyncFS")
+				m.FsOpsCount(5, FsOpSyncFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "SyncFS")): 5,
@@ -845,7 +845,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_SyncFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "SyncFile")
+				m.FsOpsCount(5, FsOpSyncFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "SyncFile")): 5,
@@ -854,7 +854,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_Unlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "Unlink")
+				m.FsOpsCount(5, FsOpUnlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "Unlink")): 5,
@@ -863,7 +863,7 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "fs_op_WriteFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "WriteFile")
+				m.FsOpsCount(5, FsOpWriteFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_op", "WriteFile")): 5,
@@ -871,9 +871,9 @@ func TestFsOpsCount(t *testing.T) {
 		}, {
 			name: "multiple_attributes_summed",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(5, "BatchForget")
-				m.FsOpsCount(2, "CreateFile")
-				m.FsOpsCount(3, "BatchForget")
+				m.FsOpsCount(5, FsOpBatchForget)
+				m.FsOpsCount(2, FsOpCreateFile)
+				m.FsOpsCount(3, FsOpBatchForget)
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("fs_op", "BatchForget")): 8,
 				attribute.NewSet(attribute.String("fs_op", "CreateFile")): 2,
@@ -882,8 +882,8 @@ func TestFsOpsCount(t *testing.T) {
 		{
 			name: "negative_increment",
 			f: func(m *otelMetrics) {
-				m.FsOpsCount(-5, "BatchForget")
-				m.FsOpsCount(2, "BatchForget")
+				m.FsOpsCount(-5, FsOpBatchForget)
+				m.FsOpsCount(2, FsOpBatchForget)
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("fs_op", "BatchForget")): 2},
 		},
@@ -923,7 +923,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_BatchForget",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "BatchForget")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpBatchForget)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "BatchForget")): 5,
@@ -932,7 +932,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_CreateFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "CreateFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpCreateFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "CreateFile")): 5,
@@ -941,7 +941,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_CreateLink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "CreateLink")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpCreateLink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "CreateLink")): 5,
@@ -950,7 +950,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_CreateSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "CreateSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpCreateSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "CreateSymlink")): 5,
@@ -959,7 +959,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_Fallocate",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "Fallocate")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpFallocate)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "Fallocate")): 5,
@@ -968,7 +968,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_FlushFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "FlushFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpFlushFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "FlushFile")): 5,
@@ -977,7 +977,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_ForgetInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "ForgetInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpForgetInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ForgetInode")): 5,
@@ -986,7 +986,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_GetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "GetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpGetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "GetInodeAttributes")): 5,
@@ -995,7 +995,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_GetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "GetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpGetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "GetXattr")): 5,
@@ -1004,7 +1004,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_ListXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "ListXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpListXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ListXattr")): 5,
@@ -1013,7 +1013,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_LookUpInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "LookUpInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpLookUpInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "LookUpInode")): 5,
@@ -1022,7 +1022,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_MkDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "MkDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpMkDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "MkDir")): 5,
@@ -1031,7 +1031,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_MkNode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "MkNode")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpMkNode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "MkNode")): 5,
@@ -1040,7 +1040,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_OpenDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "OpenDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpOpenDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "OpenDir")): 5,
@@ -1049,7 +1049,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_OpenFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "OpenFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpOpenFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "OpenFile")): 5,
@@ -1058,7 +1058,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_ReadDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "ReadDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpReadDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ReadDir")): 5,
@@ -1067,7 +1067,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_ReadDirPlus",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "ReadDirPlus")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpReadDirPlus)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ReadDirPlus")): 5,
@@ -1076,7 +1076,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_ReadFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "ReadFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpReadFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ReadFile")): 5,
@@ -1085,7 +1085,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_ReadSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "ReadSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpReadSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ReadSymlink")): 5,
@@ -1094,7 +1094,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_ReleaseDirHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "ReleaseDirHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpReleaseDirHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
@@ -1103,7 +1103,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_ReleaseFileHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "ReleaseFileHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpReleaseFileHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
@@ -1112,7 +1112,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_RemoveXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "RemoveXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpRemoveXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "RemoveXattr")): 5,
@@ -1121,7 +1121,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_Rename",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "Rename")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpRename)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "Rename")): 5,
@@ -1130,7 +1130,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_RmDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "RmDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpRmDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "RmDir")): 5,
@@ -1139,7 +1139,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_SetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "SetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpSetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "SetInodeAttributes")): 5,
@@ -1148,7 +1148,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_SetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "SetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpSetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "SetXattr")): 5,
@@ -1157,7 +1157,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_StatFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "StatFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpStatFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "StatFS")): 5,
@@ -1166,7 +1166,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_SyncFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "SyncFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpSyncFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "SyncFS")): 5,
@@ -1175,7 +1175,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_SyncFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "SyncFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpSyncFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "SyncFile")): 5,
@@ -1184,7 +1184,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_Unlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "Unlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpUnlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "Unlink")): 5,
@@ -1193,7 +1193,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DEVICE_ERROR_fs_op_WriteFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "WriteFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpWriteFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "WriteFile")): 5,
@@ -1202,7 +1202,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_BatchForget",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "BatchForget")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpBatchForget)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "BatchForget")): 5,
@@ -1211,7 +1211,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_CreateFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "CreateFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpCreateFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "CreateFile")): 5,
@@ -1220,7 +1220,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_CreateLink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "CreateLink")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpCreateLink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "CreateLink")): 5,
@@ -1229,7 +1229,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_CreateSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "CreateSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpCreateSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "CreateSymlink")): 5,
@@ -1238,7 +1238,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_Fallocate",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "Fallocate")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpFallocate)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "Fallocate")): 5,
@@ -1247,7 +1247,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_FlushFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "FlushFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpFlushFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "FlushFile")): 5,
@@ -1256,7 +1256,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_ForgetInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "ForgetInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpForgetInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ForgetInode")): 5,
@@ -1265,7 +1265,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_GetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "GetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpGetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "GetInodeAttributes")): 5,
@@ -1274,7 +1274,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_GetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "GetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpGetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "GetXattr")): 5,
@@ -1283,7 +1283,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_ListXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "ListXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpListXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ListXattr")): 5,
@@ -1292,7 +1292,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_LookUpInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "LookUpInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpLookUpInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "LookUpInode")): 5,
@@ -1301,7 +1301,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_MkDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "MkDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpMkDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "MkDir")): 5,
@@ -1310,7 +1310,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_MkNode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "MkNode")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpMkNode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "MkNode")): 5,
@@ -1319,7 +1319,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_OpenDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "OpenDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpOpenDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "OpenDir")): 5,
@@ -1328,7 +1328,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_OpenFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "OpenFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpOpenFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "OpenFile")): 5,
@@ -1337,7 +1337,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_ReadDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "ReadDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpReadDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ReadDir")): 5,
@@ -1346,7 +1346,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_ReadDirPlus",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "ReadDirPlus")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpReadDirPlus)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ReadDirPlus")): 5,
@@ -1355,7 +1355,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_ReadFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "ReadFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpReadFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ReadFile")): 5,
@@ -1364,7 +1364,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_ReadSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "ReadSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpReadSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ReadSymlink")): 5,
@@ -1373,7 +1373,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_ReleaseDirHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "ReleaseDirHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpReleaseDirHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
@@ -1382,7 +1382,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_ReleaseFileHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "ReleaseFileHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpReleaseFileHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
@@ -1391,7 +1391,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_RemoveXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "RemoveXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpRemoveXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "RemoveXattr")): 5,
@@ -1400,7 +1400,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_Rename",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "Rename")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpRename)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "Rename")): 5,
@@ -1409,7 +1409,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_RmDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "RmDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpRmDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "RmDir")): 5,
@@ -1418,7 +1418,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_SetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "SetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpSetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "SetInodeAttributes")): 5,
@@ -1427,7 +1427,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_SetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "SetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpSetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "SetXattr")): 5,
@@ -1436,7 +1436,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_StatFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "StatFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpStatFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "StatFS")): 5,
@@ -1445,7 +1445,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_SyncFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "SyncFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpSyncFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "SyncFS")): 5,
@@ -1454,7 +1454,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_SyncFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "SyncFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpSyncFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "SyncFile")): 5,
@@ -1463,7 +1463,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_Unlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "Unlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpUnlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "Unlink")): 5,
@@ -1472,7 +1472,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_DIR_NOT_EMPTY_fs_op_WriteFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DIR_NOT_EMPTY", "WriteFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryDIRNOTEMPTY, FsOpWriteFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "DIR_NOT_EMPTY"), attribute.String("fs_op", "WriteFile")): 5,
@@ -1481,7 +1481,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_BatchForget",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "BatchForget")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpBatchForget)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "BatchForget")): 5,
@@ -1490,7 +1490,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_CreateFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "CreateFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpCreateFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "CreateFile")): 5,
@@ -1499,7 +1499,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_CreateLink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "CreateLink")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpCreateLink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "CreateLink")): 5,
@@ -1508,7 +1508,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_CreateSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "CreateSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpCreateSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "CreateSymlink")): 5,
@@ -1517,7 +1517,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_Fallocate",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "Fallocate")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpFallocate)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "Fallocate")): 5,
@@ -1526,7 +1526,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_FlushFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "FlushFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpFlushFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "FlushFile")): 5,
@@ -1535,7 +1535,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_ForgetInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "ForgetInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpForgetInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ForgetInode")): 5,
@@ -1544,7 +1544,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_GetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "GetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpGetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "GetInodeAttributes")): 5,
@@ -1553,7 +1553,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_GetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "GetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpGetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "GetXattr")): 5,
@@ -1562,7 +1562,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_ListXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "ListXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpListXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ListXattr")): 5,
@@ -1571,7 +1571,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_LookUpInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "LookUpInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpLookUpInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "LookUpInode")): 5,
@@ -1580,7 +1580,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_MkDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "MkDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpMkDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "MkDir")): 5,
@@ -1589,7 +1589,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_MkNode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "MkNode")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpMkNode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "MkNode")): 5,
@@ -1598,7 +1598,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_OpenDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "OpenDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpOpenDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "OpenDir")): 5,
@@ -1607,7 +1607,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_OpenFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "OpenFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpOpenFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "OpenFile")): 5,
@@ -1616,7 +1616,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_ReadDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "ReadDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpReadDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ReadDir")): 5,
@@ -1625,7 +1625,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_ReadDirPlus",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "ReadDirPlus")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpReadDirPlus)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ReadDirPlus")): 5,
@@ -1634,7 +1634,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_ReadFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "ReadFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpReadFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ReadFile")): 5,
@@ -1643,7 +1643,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_ReadSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "ReadSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpReadSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ReadSymlink")): 5,
@@ -1652,7 +1652,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_ReleaseDirHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "ReleaseDirHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpReleaseDirHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
@@ -1661,7 +1661,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_ReleaseFileHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "ReleaseFileHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpReleaseFileHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
@@ -1670,7 +1670,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_RemoveXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "RemoveXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpRemoveXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "RemoveXattr")): 5,
@@ -1679,7 +1679,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_Rename",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "Rename")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpRename)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "Rename")): 5,
@@ -1688,7 +1688,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_RmDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "RmDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpRmDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "RmDir")): 5,
@@ -1697,7 +1697,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_SetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "SetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpSetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "SetInodeAttributes")): 5,
@@ -1706,7 +1706,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_SetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "SetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpSetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "SetXattr")): 5,
@@ -1715,7 +1715,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_StatFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "StatFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpStatFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "StatFS")): 5,
@@ -1724,7 +1724,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_SyncFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "SyncFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpSyncFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "SyncFS")): 5,
@@ -1733,7 +1733,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_SyncFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "SyncFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpSyncFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "SyncFile")): 5,
@@ -1742,7 +1742,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_Unlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "Unlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpUnlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "Unlink")): 5,
@@ -1751,7 +1751,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_DIR_ERROR_fs_op_WriteFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_DIR_ERROR", "WriteFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEDIRERROR, FsOpWriteFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_DIR_ERROR"), attribute.String("fs_op", "WriteFile")): 5,
@@ -1760,7 +1760,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_BatchForget",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "BatchForget")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpBatchForget)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "BatchForget")): 5,
@@ -1769,7 +1769,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_CreateFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "CreateFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpCreateFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "CreateFile")): 5,
@@ -1778,7 +1778,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_CreateLink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "CreateLink")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpCreateLink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "CreateLink")): 5,
@@ -1787,7 +1787,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_CreateSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "CreateSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpCreateSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "CreateSymlink")): 5,
@@ -1796,7 +1796,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_Fallocate",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "Fallocate")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpFallocate)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "Fallocate")): 5,
@@ -1805,7 +1805,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_FlushFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "FlushFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpFlushFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "FlushFile")): 5,
@@ -1814,7 +1814,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_ForgetInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "ForgetInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpForgetInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ForgetInode")): 5,
@@ -1823,7 +1823,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_GetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "GetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpGetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "GetInodeAttributes")): 5,
@@ -1832,7 +1832,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_GetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "GetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpGetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "GetXattr")): 5,
@@ -1841,7 +1841,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_ListXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "ListXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpListXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ListXattr")): 5,
@@ -1850,7 +1850,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_LookUpInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "LookUpInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpLookUpInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "LookUpInode")): 5,
@@ -1859,7 +1859,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_MkDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "MkDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpMkDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "MkDir")): 5,
@@ -1868,7 +1868,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_MkNode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "MkNode")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpMkNode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "MkNode")): 5,
@@ -1877,7 +1877,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_OpenDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "OpenDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpOpenDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "OpenDir")): 5,
@@ -1886,7 +1886,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_OpenFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "OpenFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpOpenFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "OpenFile")): 5,
@@ -1895,7 +1895,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_ReadDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "ReadDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpReadDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ReadDir")): 5,
@@ -1904,7 +1904,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_ReadDirPlus",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "ReadDirPlus")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpReadDirPlus)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ReadDirPlus")): 5,
@@ -1913,7 +1913,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_ReadFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "ReadFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpReadFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ReadFile")): 5,
@@ -1922,7 +1922,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_ReadSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "ReadSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpReadSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ReadSymlink")): 5,
@@ -1931,7 +1931,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_ReleaseDirHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "ReleaseDirHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpReleaseDirHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
@@ -1940,7 +1940,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_ReleaseFileHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "ReleaseFileHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpReleaseFileHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
@@ -1949,7 +1949,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_RemoveXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "RemoveXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpRemoveXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "RemoveXattr")): 5,
@@ -1958,7 +1958,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_Rename",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "Rename")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpRename)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "Rename")): 5,
@@ -1967,7 +1967,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_RmDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "RmDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpRmDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "RmDir")): 5,
@@ -1976,7 +1976,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_SetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "SetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpSetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "SetInodeAttributes")): 5,
@@ -1985,7 +1985,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_SetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "SetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpSetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "SetXattr")): 5,
@@ -1994,7 +1994,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_StatFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "StatFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpStatFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "StatFS")): 5,
@@ -2003,7 +2003,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_SyncFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "SyncFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpSyncFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "SyncFS")): 5,
@@ -2012,7 +2012,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_SyncFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "SyncFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpSyncFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "SyncFile")): 5,
@@ -2021,7 +2021,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_Unlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "Unlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpUnlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "Unlink")): 5,
@@ -2030,7 +2030,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_FILE_EXISTS_fs_op_WriteFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "FILE_EXISTS", "WriteFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryFILEEXISTS, FsOpWriteFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "FILE_EXISTS"), attribute.String("fs_op", "WriteFile")): 5,
@@ -2039,7 +2039,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_BatchForget",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "BatchForget")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpBatchForget)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "BatchForget")): 5,
@@ -2048,7 +2048,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_CreateFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "CreateFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpCreateFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "CreateFile")): 5,
@@ -2057,7 +2057,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_CreateLink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "CreateLink")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpCreateLink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "CreateLink")): 5,
@@ -2066,7 +2066,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_CreateSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "CreateSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpCreateSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "CreateSymlink")): 5,
@@ -2075,7 +2075,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_Fallocate",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "Fallocate")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpFallocate)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "Fallocate")): 5,
@@ -2084,7 +2084,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_FlushFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "FlushFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpFlushFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "FlushFile")): 5,
@@ -2093,7 +2093,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_ForgetInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "ForgetInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpForgetInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ForgetInode")): 5,
@@ -2102,7 +2102,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_GetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "GetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpGetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "GetInodeAttributes")): 5,
@@ -2111,7 +2111,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_GetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "GetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpGetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "GetXattr")): 5,
@@ -2120,7 +2120,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_ListXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "ListXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpListXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ListXattr")): 5,
@@ -2129,7 +2129,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_LookUpInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "LookUpInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpLookUpInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "LookUpInode")): 5,
@@ -2138,7 +2138,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_MkDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "MkDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpMkDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "MkDir")): 5,
@@ -2147,7 +2147,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_MkNode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "MkNode")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpMkNode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "MkNode")): 5,
@@ -2156,7 +2156,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_OpenDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "OpenDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpOpenDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "OpenDir")): 5,
@@ -2165,7 +2165,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_OpenFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "OpenFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpOpenFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "OpenFile")): 5,
@@ -2174,7 +2174,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_ReadDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "ReadDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpReadDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ReadDir")): 5,
@@ -2183,7 +2183,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_ReadDirPlus",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "ReadDirPlus")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpReadDirPlus)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ReadDirPlus")): 5,
@@ -2192,7 +2192,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_ReadFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "ReadFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpReadFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ReadFile")): 5,
@@ -2201,7 +2201,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_ReadSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "ReadSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpReadSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ReadSymlink")): 5,
@@ -2210,7 +2210,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_ReleaseDirHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "ReleaseDirHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpReleaseDirHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
@@ -2219,7 +2219,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_ReleaseFileHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "ReleaseFileHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpReleaseFileHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
@@ -2228,7 +2228,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_RemoveXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "RemoveXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpRemoveXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "RemoveXattr")): 5,
@@ -2237,7 +2237,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_Rename",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "Rename")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpRename)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "Rename")): 5,
@@ -2246,7 +2246,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_RmDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "RmDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpRmDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "RmDir")): 5,
@@ -2255,7 +2255,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_SetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "SetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpSetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "SetInodeAttributes")): 5,
@@ -2264,7 +2264,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_SetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "SetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpSetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "SetXattr")): 5,
@@ -2273,7 +2273,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_StatFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "StatFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpStatFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "StatFS")): 5,
@@ -2282,7 +2282,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_SyncFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "SyncFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpSyncFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "SyncFS")): 5,
@@ -2291,7 +2291,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_SyncFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "SyncFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpSyncFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "SyncFile")): 5,
@@ -2300,7 +2300,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_Unlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "Unlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpUnlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "Unlink")): 5,
@@ -2309,7 +2309,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INTERRUPT_ERROR_fs_op_WriteFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INTERRUPT_ERROR", "WriteFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryINTERRUPTERROR, FsOpWriteFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INTERRUPT_ERROR"), attribute.String("fs_op", "WriteFile")): 5,
@@ -2318,7 +2318,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_BatchForget",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "BatchForget")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpBatchForget)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "BatchForget")): 5,
@@ -2327,7 +2327,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_CreateFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "CreateFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpCreateFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "CreateFile")): 5,
@@ -2336,7 +2336,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_CreateLink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "CreateLink")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpCreateLink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "CreateLink")): 5,
@@ -2345,7 +2345,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_CreateSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "CreateSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpCreateSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "CreateSymlink")): 5,
@@ -2354,7 +2354,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_Fallocate",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "Fallocate")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpFallocate)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "Fallocate")): 5,
@@ -2363,7 +2363,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_FlushFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "FlushFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpFlushFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "FlushFile")): 5,
@@ -2372,7 +2372,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_ForgetInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "ForgetInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpForgetInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ForgetInode")): 5,
@@ -2381,7 +2381,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_GetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "GetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpGetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "GetInodeAttributes")): 5,
@@ -2390,7 +2390,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_GetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "GetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpGetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "GetXattr")): 5,
@@ -2399,7 +2399,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_ListXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "ListXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpListXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ListXattr")): 5,
@@ -2408,7 +2408,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_LookUpInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "LookUpInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpLookUpInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "LookUpInode")): 5,
@@ -2417,7 +2417,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_MkDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "MkDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpMkDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "MkDir")): 5,
@@ -2426,7 +2426,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_MkNode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "MkNode")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpMkNode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "MkNode")): 5,
@@ -2435,7 +2435,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_OpenDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "OpenDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpOpenDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "OpenDir")): 5,
@@ -2444,7 +2444,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_OpenFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "OpenFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpOpenFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "OpenFile")): 5,
@@ -2453,7 +2453,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_ReadDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "ReadDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpReadDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ReadDir")): 5,
@@ -2462,7 +2462,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_ReadDirPlus",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "ReadDirPlus")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpReadDirPlus)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ReadDirPlus")): 5,
@@ -2471,7 +2471,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_ReadFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "ReadFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpReadFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ReadFile")): 5,
@@ -2480,7 +2480,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_ReadSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "ReadSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpReadSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ReadSymlink")): 5,
@@ -2489,7 +2489,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_ReleaseDirHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "ReleaseDirHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpReleaseDirHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
@@ -2498,7 +2498,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_ReleaseFileHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "ReleaseFileHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpReleaseFileHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
@@ -2507,7 +2507,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_RemoveXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "RemoveXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpRemoveXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "RemoveXattr")): 5,
@@ -2516,7 +2516,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_Rename",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "Rename")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpRename)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "Rename")): 5,
@@ -2525,7 +2525,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_RmDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "RmDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpRmDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "RmDir")): 5,
@@ -2534,7 +2534,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_SetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "SetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpSetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "SetInodeAttributes")): 5,
@@ -2543,7 +2543,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_SetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "SetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpSetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "SetXattr")): 5,
@@ -2552,7 +2552,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_StatFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "StatFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpStatFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "StatFS")): 5,
@@ -2561,7 +2561,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_SyncFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "SyncFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpSyncFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "SyncFS")): 5,
@@ -2570,7 +2570,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_SyncFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "SyncFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpSyncFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "SyncFile")): 5,
@@ -2579,7 +2579,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_Unlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "Unlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpUnlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "Unlink")): 5,
@@ -2588,7 +2588,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_ARGUMENT_fs_op_WriteFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_ARGUMENT", "WriteFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDARGUMENT, FsOpWriteFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_ARGUMENT"), attribute.String("fs_op", "WriteFile")): 5,
@@ -2597,7 +2597,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_BatchForget",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "BatchForget")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpBatchForget)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "BatchForget")): 5,
@@ -2606,7 +2606,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_CreateFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "CreateFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpCreateFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "CreateFile")): 5,
@@ -2615,7 +2615,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_CreateLink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "CreateLink")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpCreateLink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "CreateLink")): 5,
@@ -2624,7 +2624,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_CreateSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "CreateSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpCreateSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "CreateSymlink")): 5,
@@ -2633,7 +2633,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_Fallocate",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "Fallocate")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpFallocate)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "Fallocate")): 5,
@@ -2642,7 +2642,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_FlushFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "FlushFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpFlushFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "FlushFile")): 5,
@@ -2651,7 +2651,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_ForgetInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "ForgetInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpForgetInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ForgetInode")): 5,
@@ -2660,7 +2660,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_GetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "GetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpGetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "GetInodeAttributes")): 5,
@@ -2669,7 +2669,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_GetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "GetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpGetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "GetXattr")): 5,
@@ -2678,7 +2678,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_ListXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "ListXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpListXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ListXattr")): 5,
@@ -2687,7 +2687,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_LookUpInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "LookUpInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpLookUpInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "LookUpInode")): 5,
@@ -2696,7 +2696,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_MkDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "MkDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpMkDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "MkDir")): 5,
@@ -2705,7 +2705,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_MkNode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "MkNode")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpMkNode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "MkNode")): 5,
@@ -2714,7 +2714,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_OpenDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "OpenDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpOpenDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "OpenDir")): 5,
@@ -2723,7 +2723,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_OpenFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "OpenFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpOpenFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "OpenFile")): 5,
@@ -2732,7 +2732,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_ReadDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "ReadDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpReadDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ReadDir")): 5,
@@ -2741,7 +2741,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_ReadDirPlus",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "ReadDirPlus")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpReadDirPlus)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ReadDirPlus")): 5,
@@ -2750,7 +2750,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_ReadFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "ReadFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpReadFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ReadFile")): 5,
@@ -2759,7 +2759,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_ReadSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "ReadSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpReadSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ReadSymlink")): 5,
@@ -2768,7 +2768,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_ReleaseDirHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "ReleaseDirHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpReleaseDirHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
@@ -2777,7 +2777,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_ReleaseFileHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "ReleaseFileHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpReleaseFileHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
@@ -2786,7 +2786,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_RemoveXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "RemoveXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpRemoveXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "RemoveXattr")): 5,
@@ -2795,7 +2795,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_Rename",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "Rename")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpRename)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "Rename")): 5,
@@ -2804,7 +2804,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_RmDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "RmDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpRmDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "RmDir")): 5,
@@ -2813,7 +2813,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_SetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "SetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpSetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "SetInodeAttributes")): 5,
@@ -2822,7 +2822,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_SetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "SetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpSetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "SetXattr")): 5,
@@ -2831,7 +2831,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_StatFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "StatFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpStatFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "StatFS")): 5,
@@ -2840,7 +2840,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_SyncFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "SyncFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpSyncFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "SyncFS")): 5,
@@ -2849,7 +2849,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_SyncFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "SyncFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpSyncFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "SyncFile")): 5,
@@ -2858,7 +2858,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_Unlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "Unlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpUnlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "Unlink")): 5,
@@ -2867,7 +2867,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_INVALID_OPERATION_fs_op_WriteFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "INVALID_OPERATION", "WriteFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryINVALIDOPERATION, FsOpWriteFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "INVALID_OPERATION"), attribute.String("fs_op", "WriteFile")): 5,
@@ -2876,7 +2876,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_BatchForget",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "BatchForget")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpBatchForget)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "BatchForget")): 5,
@@ -2885,7 +2885,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_CreateFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "CreateFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpCreateFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "CreateFile")): 5,
@@ -2894,7 +2894,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_CreateLink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "CreateLink")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpCreateLink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "CreateLink")): 5,
@@ -2903,7 +2903,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_CreateSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "CreateSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpCreateSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "CreateSymlink")): 5,
@@ -2912,7 +2912,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_Fallocate",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "Fallocate")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpFallocate)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "Fallocate")): 5,
@@ -2921,7 +2921,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_FlushFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "FlushFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpFlushFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "FlushFile")): 5,
@@ -2930,7 +2930,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_ForgetInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "ForgetInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpForgetInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ForgetInode")): 5,
@@ -2939,7 +2939,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_GetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "GetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpGetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "GetInodeAttributes")): 5,
@@ -2948,7 +2948,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_GetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "GetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpGetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "GetXattr")): 5,
@@ -2957,7 +2957,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_ListXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "ListXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpListXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ListXattr")): 5,
@@ -2966,7 +2966,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_LookUpInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "LookUpInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpLookUpInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "LookUpInode")): 5,
@@ -2975,7 +2975,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_MkDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "MkDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpMkDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "MkDir")): 5,
@@ -2984,7 +2984,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_MkNode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "MkNode")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpMkNode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "MkNode")): 5,
@@ -2993,7 +2993,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_OpenDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "OpenDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpOpenDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "OpenDir")): 5,
@@ -3002,7 +3002,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_OpenFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "OpenFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpOpenFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "OpenFile")): 5,
@@ -3011,7 +3011,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_ReadDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "ReadDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpReadDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ReadDir")): 5,
@@ -3020,7 +3020,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_ReadDirPlus",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "ReadDirPlus")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpReadDirPlus)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ReadDirPlus")): 5,
@@ -3029,7 +3029,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_ReadFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "ReadFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpReadFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ReadFile")): 5,
@@ -3038,7 +3038,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_ReadSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "ReadSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpReadSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ReadSymlink")): 5,
@@ -3047,7 +3047,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_ReleaseDirHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "ReleaseDirHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpReleaseDirHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
@@ -3056,7 +3056,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_ReleaseFileHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "ReleaseFileHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpReleaseFileHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
@@ -3065,7 +3065,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_RemoveXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "RemoveXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpRemoveXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "RemoveXattr")): 5,
@@ -3074,7 +3074,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_Rename",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "Rename")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpRename)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "Rename")): 5,
@@ -3083,7 +3083,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_RmDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "RmDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpRmDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "RmDir")): 5,
@@ -3092,7 +3092,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_SetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "SetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpSetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "SetInodeAttributes")): 5,
@@ -3101,7 +3101,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_SetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "SetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpSetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "SetXattr")): 5,
@@ -3110,7 +3110,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_StatFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "StatFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpStatFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "StatFS")): 5,
@@ -3119,7 +3119,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_SyncFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "SyncFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpSyncFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "SyncFS")): 5,
@@ -3128,7 +3128,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_SyncFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "SyncFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpSyncFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "SyncFile")): 5,
@@ -3137,7 +3137,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_Unlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "Unlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpUnlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "Unlink")): 5,
@@ -3146,7 +3146,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_IO_ERROR_fs_op_WriteFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "IO_ERROR", "WriteFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryIOERROR, FsOpWriteFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "IO_ERROR"), attribute.String("fs_op", "WriteFile")): 5,
@@ -3155,7 +3155,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_BatchForget",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "BatchForget")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpBatchForget)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "BatchForget")): 5,
@@ -3164,7 +3164,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_CreateFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "CreateFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpCreateFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "CreateFile")): 5,
@@ -3173,7 +3173,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_CreateLink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "CreateLink")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpCreateLink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "CreateLink")): 5,
@@ -3182,7 +3182,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_CreateSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "CreateSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpCreateSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "CreateSymlink")): 5,
@@ -3191,7 +3191,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_Fallocate",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "Fallocate")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpFallocate)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "Fallocate")): 5,
@@ -3200,7 +3200,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_FlushFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "FlushFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpFlushFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "FlushFile")): 5,
@@ -3209,7 +3209,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_ForgetInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "ForgetInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpForgetInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ForgetInode")): 5,
@@ -3218,7 +3218,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_GetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "GetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpGetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "GetInodeAttributes")): 5,
@@ -3227,7 +3227,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_GetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "GetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpGetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "GetXattr")): 5,
@@ -3236,7 +3236,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_ListXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "ListXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpListXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ListXattr")): 5,
@@ -3245,7 +3245,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_LookUpInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "LookUpInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpLookUpInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "LookUpInode")): 5,
@@ -3254,7 +3254,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_MkDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "MkDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpMkDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "MkDir")): 5,
@@ -3263,7 +3263,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_MkNode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "MkNode")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpMkNode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "MkNode")): 5,
@@ -3272,7 +3272,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_OpenDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "OpenDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpOpenDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "OpenDir")): 5,
@@ -3281,7 +3281,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_OpenFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "OpenFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpOpenFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "OpenFile")): 5,
@@ -3290,7 +3290,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_ReadDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "ReadDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpReadDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ReadDir")): 5,
@@ -3299,7 +3299,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_ReadDirPlus",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "ReadDirPlus")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpReadDirPlus)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ReadDirPlus")): 5,
@@ -3308,7 +3308,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_ReadFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "ReadFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpReadFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ReadFile")): 5,
@@ -3317,7 +3317,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_ReadSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "ReadSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpReadSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ReadSymlink")): 5,
@@ -3326,7 +3326,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_ReleaseDirHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "ReleaseDirHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpReleaseDirHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
@@ -3335,7 +3335,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_ReleaseFileHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "ReleaseFileHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpReleaseFileHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
@@ -3344,7 +3344,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_RemoveXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "RemoveXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpRemoveXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "RemoveXattr")): 5,
@@ -3353,7 +3353,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_Rename",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "Rename")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpRename)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "Rename")): 5,
@@ -3362,7 +3362,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_RmDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "RmDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpRmDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "RmDir")): 5,
@@ -3371,7 +3371,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_SetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "SetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpSetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "SetInodeAttributes")): 5,
@@ -3380,7 +3380,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_SetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "SetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpSetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "SetXattr")): 5,
@@ -3389,7 +3389,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_StatFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "StatFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpStatFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "StatFS")): 5,
@@ -3398,7 +3398,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_SyncFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "SyncFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpSyncFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "SyncFS")): 5,
@@ -3407,7 +3407,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_SyncFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "SyncFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpSyncFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "SyncFile")): 5,
@@ -3416,7 +3416,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_Unlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "Unlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpUnlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "Unlink")): 5,
@@ -3425,7 +3425,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_MISC_ERROR_fs_op_WriteFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "MISC_ERROR", "WriteFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryMISCERROR, FsOpWriteFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "MISC_ERROR"), attribute.String("fs_op", "WriteFile")): 5,
@@ -3434,7 +3434,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_BatchForget",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "BatchForget")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpBatchForget)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "BatchForget")): 5,
@@ -3443,7 +3443,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_CreateFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "CreateFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpCreateFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "CreateFile")): 5,
@@ -3452,7 +3452,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_CreateLink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "CreateLink")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpCreateLink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "CreateLink")): 5,
@@ -3461,7 +3461,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_CreateSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "CreateSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpCreateSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "CreateSymlink")): 5,
@@ -3470,7 +3470,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_Fallocate",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "Fallocate")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpFallocate)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "Fallocate")): 5,
@@ -3479,7 +3479,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_FlushFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "FlushFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpFlushFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "FlushFile")): 5,
@@ -3488,7 +3488,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_ForgetInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "ForgetInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpForgetInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ForgetInode")): 5,
@@ -3497,7 +3497,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_GetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "GetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpGetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "GetInodeAttributes")): 5,
@@ -3506,7 +3506,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_GetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "GetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpGetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "GetXattr")): 5,
@@ -3515,7 +3515,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_ListXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "ListXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpListXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ListXattr")): 5,
@@ -3524,7 +3524,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_LookUpInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "LookUpInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpLookUpInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "LookUpInode")): 5,
@@ -3533,7 +3533,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_MkDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "MkDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpMkDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "MkDir")): 5,
@@ -3542,7 +3542,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_MkNode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "MkNode")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpMkNode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "MkNode")): 5,
@@ -3551,7 +3551,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_OpenDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "OpenDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpOpenDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "OpenDir")): 5,
@@ -3560,7 +3560,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_OpenFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "OpenFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpOpenFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "OpenFile")): 5,
@@ -3569,7 +3569,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_ReadDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "ReadDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpReadDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ReadDir")): 5,
@@ -3578,7 +3578,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_ReadDirPlus",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "ReadDirPlus")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpReadDirPlus)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ReadDirPlus")): 5,
@@ -3587,7 +3587,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_ReadFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "ReadFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpReadFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ReadFile")): 5,
@@ -3596,7 +3596,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_ReadSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "ReadSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpReadSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ReadSymlink")): 5,
@@ -3605,7 +3605,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_ReleaseDirHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "ReleaseDirHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpReleaseDirHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
@@ -3614,7 +3614,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_ReleaseFileHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "ReleaseFileHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpReleaseFileHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
@@ -3623,7 +3623,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_RemoveXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "RemoveXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpRemoveXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "RemoveXattr")): 5,
@@ -3632,7 +3632,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_Rename",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "Rename")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpRename)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "Rename")): 5,
@@ -3641,7 +3641,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_RmDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "RmDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpRmDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "RmDir")): 5,
@@ -3650,7 +3650,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_SetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "SetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpSetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "SetInodeAttributes")): 5,
@@ -3659,7 +3659,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_SetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "SetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpSetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "SetXattr")): 5,
@@ -3668,7 +3668,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_StatFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "StatFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpStatFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "StatFS")): 5,
@@ -3677,7 +3677,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_SyncFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "SyncFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpSyncFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "SyncFS")): 5,
@@ -3686,7 +3686,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_SyncFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "SyncFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpSyncFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "SyncFile")): 5,
@@ -3695,7 +3695,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_Unlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "Unlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpUnlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "Unlink")): 5,
@@ -3704,7 +3704,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NETWORK_ERROR_fs_op_WriteFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NETWORK_ERROR", "WriteFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryNETWORKERROR, FsOpWriteFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NETWORK_ERROR"), attribute.String("fs_op", "WriteFile")): 5,
@@ -3713,7 +3713,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_BatchForget",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "BatchForget")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpBatchForget)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "BatchForget")): 5,
@@ -3722,7 +3722,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_CreateFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "CreateFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpCreateFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "CreateFile")): 5,
@@ -3731,7 +3731,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_CreateLink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "CreateLink")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpCreateLink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "CreateLink")): 5,
@@ -3740,7 +3740,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_CreateSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "CreateSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpCreateSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "CreateSymlink")): 5,
@@ -3749,7 +3749,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_Fallocate",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "Fallocate")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpFallocate)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "Fallocate")): 5,
@@ -3758,7 +3758,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_FlushFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "FlushFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpFlushFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "FlushFile")): 5,
@@ -3767,7 +3767,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_ForgetInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "ForgetInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpForgetInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ForgetInode")): 5,
@@ -3776,7 +3776,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_GetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "GetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpGetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "GetInodeAttributes")): 5,
@@ -3785,7 +3785,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_GetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "GetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpGetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "GetXattr")): 5,
@@ -3794,7 +3794,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_ListXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "ListXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpListXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ListXattr")): 5,
@@ -3803,7 +3803,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_LookUpInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "LookUpInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpLookUpInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "LookUpInode")): 5,
@@ -3812,7 +3812,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_MkDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "MkDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpMkDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "MkDir")): 5,
@@ -3821,7 +3821,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_MkNode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "MkNode")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpMkNode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "MkNode")): 5,
@@ -3830,7 +3830,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_OpenDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "OpenDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpOpenDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "OpenDir")): 5,
@@ -3839,7 +3839,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_OpenFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "OpenFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpOpenFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "OpenFile")): 5,
@@ -3848,7 +3848,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_ReadDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "ReadDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpReadDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ReadDir")): 5,
@@ -3857,7 +3857,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_ReadDirPlus",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "ReadDirPlus")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpReadDirPlus)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ReadDirPlus")): 5,
@@ -3866,7 +3866,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_ReadFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "ReadFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpReadFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ReadFile")): 5,
@@ -3875,7 +3875,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_ReadSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "ReadSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpReadSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ReadSymlink")): 5,
@@ -3884,7 +3884,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_ReleaseDirHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "ReleaseDirHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpReleaseDirHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
@@ -3893,7 +3893,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_ReleaseFileHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "ReleaseFileHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpReleaseFileHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
@@ -3902,7 +3902,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_RemoveXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "RemoveXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpRemoveXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "RemoveXattr")): 5,
@@ -3911,7 +3911,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_Rename",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "Rename")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpRename)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "Rename")): 5,
@@ -3920,7 +3920,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_RmDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "RmDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpRmDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "RmDir")): 5,
@@ -3929,7 +3929,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_SetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "SetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpSetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "SetInodeAttributes")): 5,
@@ -3938,7 +3938,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_SetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "SetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpSetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "SetXattr")): 5,
@@ -3947,7 +3947,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_StatFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "StatFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpStatFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "StatFS")): 5,
@@ -3956,7 +3956,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_SyncFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "SyncFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpSyncFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "SyncFS")): 5,
@@ -3965,7 +3965,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_SyncFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "SyncFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpSyncFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "SyncFile")): 5,
@@ -3974,7 +3974,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_Unlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "Unlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpUnlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "Unlink")): 5,
@@ -3983,7 +3983,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_A_DIR_fs_op_WriteFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_A_DIR", "WriteFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTADIR, FsOpWriteFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_A_DIR"), attribute.String("fs_op", "WriteFile")): 5,
@@ -3992,7 +3992,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_BatchForget",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "BatchForget")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpBatchForget)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "BatchForget")): 5,
@@ -4001,7 +4001,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_CreateFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "CreateFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpCreateFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "CreateFile")): 5,
@@ -4010,7 +4010,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_CreateLink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "CreateLink")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpCreateLink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "CreateLink")): 5,
@@ -4019,7 +4019,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_CreateSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "CreateSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpCreateSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "CreateSymlink")): 5,
@@ -4028,7 +4028,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_Fallocate",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "Fallocate")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpFallocate)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "Fallocate")): 5,
@@ -4037,7 +4037,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_FlushFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "FlushFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpFlushFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "FlushFile")): 5,
@@ -4046,7 +4046,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_ForgetInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "ForgetInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpForgetInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ForgetInode")): 5,
@@ -4055,7 +4055,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_GetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "GetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpGetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "GetInodeAttributes")): 5,
@@ -4064,7 +4064,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_GetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "GetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpGetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "GetXattr")): 5,
@@ -4073,7 +4073,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_ListXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "ListXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpListXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ListXattr")): 5,
@@ -4082,7 +4082,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_LookUpInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "LookUpInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpLookUpInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "LookUpInode")): 5,
@@ -4091,7 +4091,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_MkDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "MkDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpMkDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "MkDir")): 5,
@@ -4100,7 +4100,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_MkNode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "MkNode")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpMkNode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "MkNode")): 5,
@@ -4109,7 +4109,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_OpenDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "OpenDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpOpenDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "OpenDir")): 5,
@@ -4118,7 +4118,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_OpenFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "OpenFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpOpenFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "OpenFile")): 5,
@@ -4127,7 +4127,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_ReadDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "ReadDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpReadDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ReadDir")): 5,
@@ -4136,7 +4136,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_ReadDirPlus",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "ReadDirPlus")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpReadDirPlus)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ReadDirPlus")): 5,
@@ -4145,7 +4145,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_ReadFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "ReadFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpReadFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ReadFile")): 5,
@@ -4154,7 +4154,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_ReadSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "ReadSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpReadSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ReadSymlink")): 5,
@@ -4163,7 +4163,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_ReleaseDirHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "ReleaseDirHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpReleaseDirHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
@@ -4172,7 +4172,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_ReleaseFileHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "ReleaseFileHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpReleaseFileHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
@@ -4181,7 +4181,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_RemoveXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "RemoveXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpRemoveXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "RemoveXattr")): 5,
@@ -4190,7 +4190,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_Rename",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "Rename")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpRename)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "Rename")): 5,
@@ -4199,7 +4199,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_RmDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "RmDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpRmDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "RmDir")): 5,
@@ -4208,7 +4208,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_SetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "SetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpSetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "SetInodeAttributes")): 5,
@@ -4217,7 +4217,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_SetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "SetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpSetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "SetXattr")): 5,
@@ -4226,7 +4226,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_StatFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "StatFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpStatFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "StatFS")): 5,
@@ -4235,7 +4235,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_SyncFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "SyncFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpSyncFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "SyncFS")): 5,
@@ -4244,7 +4244,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_SyncFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "SyncFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpSyncFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "SyncFile")): 5,
@@ -4253,7 +4253,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_Unlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "Unlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpUnlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "Unlink")): 5,
@@ -4262,7 +4262,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NOT_IMPLEMENTED_fs_op_WriteFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NOT_IMPLEMENTED", "WriteFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOTIMPLEMENTED, FsOpWriteFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NOT_IMPLEMENTED"), attribute.String("fs_op", "WriteFile")): 5,
@@ -4271,7 +4271,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_BatchForget",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "BatchForget")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpBatchForget)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "BatchForget")): 5,
@@ -4280,7 +4280,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_CreateFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "CreateFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpCreateFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "CreateFile")): 5,
@@ -4289,7 +4289,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_CreateLink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "CreateLink")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpCreateLink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "CreateLink")): 5,
@@ -4298,7 +4298,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_CreateSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "CreateSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpCreateSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "CreateSymlink")): 5,
@@ -4307,7 +4307,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_Fallocate",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "Fallocate")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpFallocate)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "Fallocate")): 5,
@@ -4316,7 +4316,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_FlushFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "FlushFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpFlushFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "FlushFile")): 5,
@@ -4325,7 +4325,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_ForgetInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "ForgetInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpForgetInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ForgetInode")): 5,
@@ -4334,7 +4334,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_GetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "GetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpGetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "GetInodeAttributes")): 5,
@@ -4343,7 +4343,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_GetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "GetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpGetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "GetXattr")): 5,
@@ -4352,7 +4352,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_ListXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "ListXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpListXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ListXattr")): 5,
@@ -4361,7 +4361,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_LookUpInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "LookUpInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpLookUpInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "LookUpInode")): 5,
@@ -4370,7 +4370,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_MkDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "MkDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpMkDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "MkDir")): 5,
@@ -4379,7 +4379,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_MkNode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "MkNode")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpMkNode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "MkNode")): 5,
@@ -4388,7 +4388,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_OpenDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "OpenDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpOpenDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "OpenDir")): 5,
@@ -4397,7 +4397,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_OpenFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "OpenFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpOpenFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "OpenFile")): 5,
@@ -4406,7 +4406,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_ReadDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "ReadDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpReadDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ReadDir")): 5,
@@ -4415,7 +4415,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_ReadDirPlus",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "ReadDirPlus")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpReadDirPlus)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ReadDirPlus")): 5,
@@ -4424,7 +4424,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_ReadFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "ReadFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpReadFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ReadFile")): 5,
@@ -4433,7 +4433,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_ReadSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "ReadSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpReadSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ReadSymlink")): 5,
@@ -4442,7 +4442,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_ReleaseDirHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "ReleaseDirHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpReleaseDirHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
@@ -4451,7 +4451,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_ReleaseFileHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "ReleaseFileHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpReleaseFileHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
@@ -4460,7 +4460,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_RemoveXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "RemoveXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpRemoveXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "RemoveXattr")): 5,
@@ -4469,7 +4469,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_Rename",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "Rename")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpRename)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "Rename")): 5,
@@ -4478,7 +4478,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_RmDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "RmDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpRmDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "RmDir")): 5,
@@ -4487,7 +4487,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_SetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "SetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpSetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "SetInodeAttributes")): 5,
@@ -4496,7 +4496,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_SetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "SetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpSetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "SetXattr")): 5,
@@ -4505,7 +4505,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_StatFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "StatFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpStatFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "StatFS")): 5,
@@ -4514,7 +4514,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_SyncFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "SyncFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpSyncFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "SyncFS")): 5,
@@ -4523,7 +4523,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_SyncFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "SyncFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpSyncFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "SyncFile")): 5,
@@ -4532,7 +4532,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_Unlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "Unlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpUnlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "Unlink")): 5,
@@ -4541,7 +4541,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_NO_FILE_OR_DIR_fs_op_WriteFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "NO_FILE_OR_DIR", "WriteFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryNOFILEORDIR, FsOpWriteFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "NO_FILE_OR_DIR"), attribute.String("fs_op", "WriteFile")): 5,
@@ -4550,7 +4550,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_BatchForget",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "BatchForget")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpBatchForget)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "BatchForget")): 5,
@@ -4559,7 +4559,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_CreateFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "CreateFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpCreateFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "CreateFile")): 5,
@@ -4568,7 +4568,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_CreateLink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "CreateLink")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpCreateLink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "CreateLink")): 5,
@@ -4577,7 +4577,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_CreateSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "CreateSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpCreateSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "CreateSymlink")): 5,
@@ -4586,7 +4586,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_Fallocate",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "Fallocate")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpFallocate)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "Fallocate")): 5,
@@ -4595,7 +4595,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_FlushFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "FlushFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpFlushFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "FlushFile")): 5,
@@ -4604,7 +4604,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_ForgetInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "ForgetInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpForgetInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ForgetInode")): 5,
@@ -4613,7 +4613,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_GetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "GetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpGetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "GetInodeAttributes")): 5,
@@ -4622,7 +4622,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_GetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "GetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpGetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "GetXattr")): 5,
@@ -4631,7 +4631,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_ListXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "ListXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpListXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ListXattr")): 5,
@@ -4640,7 +4640,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_LookUpInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "LookUpInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpLookUpInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "LookUpInode")): 5,
@@ -4649,7 +4649,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_MkDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "MkDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpMkDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "MkDir")): 5,
@@ -4658,7 +4658,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_MkNode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "MkNode")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpMkNode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "MkNode")): 5,
@@ -4667,7 +4667,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_OpenDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "OpenDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpOpenDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "OpenDir")): 5,
@@ -4676,7 +4676,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_OpenFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "OpenFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpOpenFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "OpenFile")): 5,
@@ -4685,7 +4685,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_ReadDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "ReadDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpReadDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ReadDir")): 5,
@@ -4694,7 +4694,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_ReadDirPlus",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "ReadDirPlus")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpReadDirPlus)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ReadDirPlus")): 5,
@@ -4703,7 +4703,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_ReadFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "ReadFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpReadFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ReadFile")): 5,
@@ -4712,7 +4712,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_ReadSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "ReadSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpReadSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ReadSymlink")): 5,
@@ -4721,7 +4721,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_ReleaseDirHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "ReleaseDirHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpReleaseDirHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
@@ -4730,7 +4730,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_ReleaseFileHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "ReleaseFileHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpReleaseFileHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
@@ -4739,7 +4739,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_RemoveXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "RemoveXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpRemoveXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "RemoveXattr")): 5,
@@ -4748,7 +4748,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_Rename",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "Rename")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpRename)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "Rename")): 5,
@@ -4757,7 +4757,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_RmDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "RmDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpRmDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "RmDir")): 5,
@@ -4766,7 +4766,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_SetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "SetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpSetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "SetInodeAttributes")): 5,
@@ -4775,7 +4775,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_SetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "SetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpSetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "SetXattr")): 5,
@@ -4784,7 +4784,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_StatFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "StatFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpStatFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "StatFS")): 5,
@@ -4793,7 +4793,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_SyncFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "SyncFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpSyncFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "SyncFS")): 5,
@@ -4802,7 +4802,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_SyncFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "SyncFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpSyncFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "SyncFile")): 5,
@@ -4811,7 +4811,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_Unlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "Unlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpUnlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "Unlink")): 5,
@@ -4820,7 +4820,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PERM_ERROR_fs_op_WriteFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PERM_ERROR", "WriteFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryPERMERROR, FsOpWriteFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PERM_ERROR"), attribute.String("fs_op", "WriteFile")): 5,
@@ -4829,7 +4829,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_BatchForget",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "BatchForget")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpBatchForget)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "BatchForget")): 5,
@@ -4838,7 +4838,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_CreateFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "CreateFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpCreateFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "CreateFile")): 5,
@@ -4847,7 +4847,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_CreateLink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "CreateLink")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpCreateLink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "CreateLink")): 5,
@@ -4856,7 +4856,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_CreateSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "CreateSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpCreateSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "CreateSymlink")): 5,
@@ -4865,7 +4865,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_Fallocate",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "Fallocate")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpFallocate)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "Fallocate")): 5,
@@ -4874,7 +4874,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_FlushFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "FlushFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpFlushFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "FlushFile")): 5,
@@ -4883,7 +4883,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_ForgetInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "ForgetInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpForgetInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ForgetInode")): 5,
@@ -4892,7 +4892,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_GetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "GetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpGetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "GetInodeAttributes")): 5,
@@ -4901,7 +4901,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_GetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "GetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpGetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "GetXattr")): 5,
@@ -4910,7 +4910,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_ListXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "ListXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpListXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ListXattr")): 5,
@@ -4919,7 +4919,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_LookUpInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "LookUpInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpLookUpInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "LookUpInode")): 5,
@@ -4928,7 +4928,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_MkDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "MkDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpMkDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "MkDir")): 5,
@@ -4937,7 +4937,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_MkNode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "MkNode")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpMkNode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "MkNode")): 5,
@@ -4946,7 +4946,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_OpenDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "OpenDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpOpenDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "OpenDir")): 5,
@@ -4955,7 +4955,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_OpenFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "OpenFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpOpenFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "OpenFile")): 5,
@@ -4964,7 +4964,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_ReadDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "ReadDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpReadDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ReadDir")): 5,
@@ -4973,7 +4973,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_ReadDirPlus",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "ReadDirPlus")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpReadDirPlus)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ReadDirPlus")): 5,
@@ -4982,7 +4982,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_ReadFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "ReadFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpReadFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ReadFile")): 5,
@@ -4991,7 +4991,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_ReadSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "ReadSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpReadSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ReadSymlink")): 5,
@@ -5000,7 +5000,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_ReleaseDirHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "ReleaseDirHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpReleaseDirHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
@@ -5009,7 +5009,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_ReleaseFileHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "ReleaseFileHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpReleaseFileHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
@@ -5018,7 +5018,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_RemoveXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "RemoveXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpRemoveXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "RemoveXattr")): 5,
@@ -5027,7 +5027,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_Rename",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "Rename")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpRename)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "Rename")): 5,
@@ -5036,7 +5036,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_RmDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "RmDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpRmDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "RmDir")): 5,
@@ -5045,7 +5045,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_SetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "SetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpSetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "SetInodeAttributes")): 5,
@@ -5054,7 +5054,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_SetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "SetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpSetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "SetXattr")): 5,
@@ -5063,7 +5063,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_StatFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "StatFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpStatFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "StatFS")): 5,
@@ -5072,7 +5072,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_SyncFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "SyncFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpSyncFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "SyncFS")): 5,
@@ -5081,7 +5081,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_SyncFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "SyncFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpSyncFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "SyncFile")): 5,
@@ -5090,7 +5090,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_Unlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "Unlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpUnlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "Unlink")): 5,
@@ -5099,7 +5099,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_PROCESS_RESOURCE_MGMT_ERROR_fs_op_WriteFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "PROCESS_RESOURCE_MGMT_ERROR", "WriteFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryPROCESSRESOURCEMGMTERROR, FsOpWriteFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "PROCESS_RESOURCE_MGMT_ERROR"), attribute.String("fs_op", "WriteFile")): 5,
@@ -5108,7 +5108,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_BatchForget",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "BatchForget")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpBatchForget)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "BatchForget")): 5,
@@ -5117,7 +5117,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_CreateFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "CreateFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpCreateFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "CreateFile")): 5,
@@ -5126,7 +5126,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_CreateLink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "CreateLink")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpCreateLink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "CreateLink")): 5,
@@ -5135,7 +5135,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_CreateSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "CreateSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpCreateSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "CreateSymlink")): 5,
@@ -5144,7 +5144,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_Fallocate",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "Fallocate")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpFallocate)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "Fallocate")): 5,
@@ -5153,7 +5153,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_FlushFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "FlushFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpFlushFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "FlushFile")): 5,
@@ -5162,7 +5162,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_ForgetInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "ForgetInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpForgetInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ForgetInode")): 5,
@@ -5171,7 +5171,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_GetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "GetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpGetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "GetInodeAttributes")): 5,
@@ -5180,7 +5180,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_GetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "GetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpGetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "GetXattr")): 5,
@@ -5189,7 +5189,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_ListXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "ListXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpListXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ListXattr")): 5,
@@ -5198,7 +5198,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_LookUpInode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "LookUpInode")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpLookUpInode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "LookUpInode")): 5,
@@ -5207,7 +5207,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_MkDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "MkDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpMkDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "MkDir")): 5,
@@ -5216,7 +5216,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_MkNode",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "MkNode")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpMkNode)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "MkNode")): 5,
@@ -5225,7 +5225,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_OpenDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "OpenDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpOpenDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "OpenDir")): 5,
@@ -5234,7 +5234,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_OpenFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "OpenFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpOpenFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "OpenFile")): 5,
@@ -5243,7 +5243,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_ReadDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "ReadDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpReadDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ReadDir")): 5,
@@ -5252,7 +5252,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_ReadDirPlus",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "ReadDirPlus")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpReadDirPlus)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ReadDirPlus")): 5,
@@ -5261,7 +5261,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_ReadFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "ReadFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpReadFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ReadFile")): 5,
@@ -5270,7 +5270,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_ReadSymlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "ReadSymlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpReadSymlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ReadSymlink")): 5,
@@ -5279,7 +5279,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_ReleaseDirHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "ReleaseDirHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpReleaseDirHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ReleaseDirHandle")): 5,
@@ -5288,7 +5288,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_ReleaseFileHandle",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "ReleaseFileHandle")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpReleaseFileHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "ReleaseFileHandle")): 5,
@@ -5297,7 +5297,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_RemoveXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "RemoveXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpRemoveXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "RemoveXattr")): 5,
@@ -5306,7 +5306,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_Rename",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "Rename")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpRename)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "Rename")): 5,
@@ -5315,7 +5315,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_RmDir",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "RmDir")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpRmDir)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "RmDir")): 5,
@@ -5324,7 +5324,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_SetInodeAttributes",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "SetInodeAttributes")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpSetInodeAttributes)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "SetInodeAttributes")): 5,
@@ -5333,7 +5333,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_SetXattr",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "SetXattr")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpSetXattr)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "SetXattr")): 5,
@@ -5342,7 +5342,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_StatFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "StatFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpStatFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "StatFS")): 5,
@@ -5351,7 +5351,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_SyncFS",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "SyncFS")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpSyncFS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "SyncFS")): 5,
@@ -5360,7 +5360,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_SyncFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "SyncFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpSyncFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "SyncFile")): 5,
@@ -5369,7 +5369,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_Unlink",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "Unlink")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpUnlink)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "Unlink")): 5,
@@ -5378,7 +5378,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "fs_error_category_TOO_MANY_OPEN_FILES_fs_op_WriteFile",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "TOO_MANY_OPEN_FILES", "WriteFile")
+				m.FsOpsErrorCount(5, FsErrorCategoryTOOMANYOPENFILES, FsOpWriteFile)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "WriteFile")): 5,
@@ -5386,9 +5386,9 @@ func TestFsOpsErrorCount(t *testing.T) {
 		}, {
 			name: "multiple_attributes_summed",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(5, "DEVICE_ERROR", "BatchForget")
-				m.FsOpsErrorCount(2, "DEVICE_ERROR", "CreateFile")
-				m.FsOpsErrorCount(3, "DEVICE_ERROR", "BatchForget")
+				m.FsOpsErrorCount(5, FsErrorCategoryDEVICEERROR, FsOpBatchForget)
+				m.FsOpsErrorCount(2, FsErrorCategoryDEVICEERROR, FsOpCreateFile)
+				m.FsOpsErrorCount(3, FsErrorCategoryDEVICEERROR, FsOpBatchForget)
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "BatchForget")): 8,
 				attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "CreateFile")): 2,
@@ -5397,8 +5397,8 @@ func TestFsOpsErrorCount(t *testing.T) {
 		{
 			name: "negative_increment",
 			f: func(m *otelMetrics) {
-				m.FsOpsErrorCount(-5, "DEVICE_ERROR", "BatchForget")
-				m.FsOpsErrorCount(2, "DEVICE_ERROR", "BatchForget")
+				m.FsOpsErrorCount(-5, FsErrorCategoryDEVICEERROR, FsOpBatchForget)
+				m.FsOpsErrorCount(2, FsErrorCategoryDEVICEERROR, FsOpBatchForget)
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("fs_error_category", "DEVICE_ERROR"), attribute.String("fs_op", "BatchForget")): 2},
 		},
@@ -5433,162 +5433,162 @@ func TestFsOpsLatency(t *testing.T) {
 	tests := []struct {
 		name      string
 		latencies []time.Duration
-		fsOp      string
+		fsOp      FsOp
 	}{
 		{
 			name:      "fs_op_BatchForget",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "BatchForget",
+			fsOp:      FsOpBatchForget,
 		},
 		{
 			name:      "fs_op_CreateFile",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "CreateFile",
+			fsOp:      FsOpCreateFile,
 		},
 		{
 			name:      "fs_op_CreateLink",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "CreateLink",
+			fsOp:      FsOpCreateLink,
 		},
 		{
 			name:      "fs_op_CreateSymlink",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "CreateSymlink",
+			fsOp:      FsOpCreateSymlink,
 		},
 		{
 			name:      "fs_op_Fallocate",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "Fallocate",
+			fsOp:      FsOpFallocate,
 		},
 		{
 			name:      "fs_op_FlushFile",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "FlushFile",
+			fsOp:      FsOpFlushFile,
 		},
 		{
 			name:      "fs_op_ForgetInode",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "ForgetInode",
+			fsOp:      FsOpForgetInode,
 		},
 		{
 			name:      "fs_op_GetInodeAttributes",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "GetInodeAttributes",
+			fsOp:      FsOpGetInodeAttributes,
 		},
 		{
 			name:      "fs_op_GetXattr",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "GetXattr",
+			fsOp:      FsOpGetXattr,
 		},
 		{
 			name:      "fs_op_ListXattr",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "ListXattr",
+			fsOp:      FsOpListXattr,
 		},
 		{
 			name:      "fs_op_LookUpInode",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "LookUpInode",
+			fsOp:      FsOpLookUpInode,
 		},
 		{
 			name:      "fs_op_MkDir",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "MkDir",
+			fsOp:      FsOpMkDir,
 		},
 		{
 			name:      "fs_op_MkNode",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "MkNode",
+			fsOp:      FsOpMkNode,
 		},
 		{
 			name:      "fs_op_OpenDir",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "OpenDir",
+			fsOp:      FsOpOpenDir,
 		},
 		{
 			name:      "fs_op_OpenFile",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "OpenFile",
+			fsOp:      FsOpOpenFile,
 		},
 		{
 			name:      "fs_op_ReadDir",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "ReadDir",
+			fsOp:      FsOpReadDir,
 		},
 		{
 			name:      "fs_op_ReadDirPlus",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "ReadDirPlus",
+			fsOp:      FsOpReadDirPlus,
 		},
 		{
 			name:      "fs_op_ReadFile",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "ReadFile",
+			fsOp:      FsOpReadFile,
 		},
 		{
 			name:      "fs_op_ReadSymlink",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "ReadSymlink",
+			fsOp:      FsOpReadSymlink,
 		},
 		{
 			name:      "fs_op_ReleaseDirHandle",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "ReleaseDirHandle",
+			fsOp:      FsOpReleaseDirHandle,
 		},
 		{
 			name:      "fs_op_ReleaseFileHandle",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "ReleaseFileHandle",
+			fsOp:      FsOpReleaseFileHandle,
 		},
 		{
 			name:      "fs_op_RemoveXattr",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "RemoveXattr",
+			fsOp:      FsOpRemoveXattr,
 		},
 		{
 			name:      "fs_op_Rename",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "Rename",
+			fsOp:      FsOpRename,
 		},
 		{
 			name:      "fs_op_RmDir",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "RmDir",
+			fsOp:      FsOpRmDir,
 		},
 		{
 			name:      "fs_op_SetInodeAttributes",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "SetInodeAttributes",
+			fsOp:      FsOpSetInodeAttributes,
 		},
 		{
 			name:      "fs_op_SetXattr",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "SetXattr",
+			fsOp:      FsOpSetXattr,
 		},
 		{
 			name:      "fs_op_StatFS",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "StatFS",
+			fsOp:      FsOpStatFS,
 		},
 		{
 			name:      "fs_op_SyncFS",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "SyncFS",
+			fsOp:      FsOpSyncFS,
 		},
 		{
 			name:      "fs_op_SyncFile",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "SyncFile",
+			fsOp:      FsOpSyncFile,
 		},
 		{
 			name:      "fs_op_Unlink",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "Unlink",
+			fsOp:      FsOpUnlink,
 		},
 		{
 			name:      "fs_op_WriteFile",
 			latencies: []time.Duration{100 * time.Microsecond, 200 * time.Microsecond},
-			fsOp:      "WriteFile",
+			fsOp:      FsOpWriteFile,
 		},
 	}
 
@@ -5610,7 +5610,7 @@ func TestFsOpsLatency(t *testing.T) {
 			require.True(t, ok, "fs/ops_latency metric not found")
 
 			attrs := []attribute.KeyValue{
-				attribute.String("fs_op", tc.fsOp),
+				attribute.String("fs_op", string(tc.fsOp)),
 			}
 			s := attribute.NewSet(attrs...)
 			expectedKey := s.Encoded(encoder)
@@ -5631,7 +5631,7 @@ func TestGcsDownloadBytesCount(t *testing.T) {
 		{
 			name: "read_type_Parallel",
 			f: func(m *otelMetrics) {
-				m.GcsDownloadBytesCount(5, "Parallel")
+				m.GcsDownloadBytesCount(5, ReadTypeParallel)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("read_type", "Parallel")): 5,
@@ -5640,7 +5640,7 @@ func TestGcsDownloadBytesCount(t *testing.T) {
 		{
 			name: "read_type_Random",
 			f: func(m *otelMetrics) {
-				m.GcsDownloadBytesCount(5, "Random")
+				m.GcsDownloadBytesCount(5, ReadTypeRandom)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("read_type", "Random")): 5,
@@ -5649,7 +5649,7 @@ func TestGcsDownloadBytesCount(t *testing.T) {
 		{
 			name: "read_type_Sequential",
 			f: func(m *otelMetrics) {
-				m.GcsDownloadBytesCount(5, "Sequential")
+				m.GcsDownloadBytesCount(5, ReadTypeSequential)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("read_type", "Sequential")): 5,
@@ -5657,9 +5657,9 @@ func TestGcsDownloadBytesCount(t *testing.T) {
 		}, {
 			name: "multiple_attributes_summed",
 			f: func(m *otelMetrics) {
-				m.GcsDownloadBytesCount(5, "Parallel")
-				m.GcsDownloadBytesCount(2, "Random")
-				m.GcsDownloadBytesCount(3, "Parallel")
+				m.GcsDownloadBytesCount(5, ReadTypeParallel)
+				m.GcsDownloadBytesCount(2, ReadTypeRandom)
+				m.GcsDownloadBytesCount(3, ReadTypeParallel)
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("read_type", "Parallel")): 8,
 				attribute.NewSet(attribute.String("read_type", "Random")): 2,
@@ -5668,8 +5668,8 @@ func TestGcsDownloadBytesCount(t *testing.T) {
 		{
 			name: "negative_increment",
 			f: func(m *otelMetrics) {
-				m.GcsDownloadBytesCount(-5, "Parallel")
-				m.GcsDownloadBytesCount(2, "Parallel")
+				m.GcsDownloadBytesCount(-5, ReadTypeParallel)
+				m.GcsDownloadBytesCount(2, ReadTypeParallel)
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("read_type", "Parallel")): 2},
 		},
@@ -5734,7 +5734,7 @@ func TestGcsReadCount(t *testing.T) {
 		{
 			name: "read_type_Parallel",
 			f: func(m *otelMetrics) {
-				m.GcsReadCount(5, "Parallel")
+				m.GcsReadCount(5, ReadTypeParallel)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("read_type", "Parallel")): 5,
@@ -5743,7 +5743,7 @@ func TestGcsReadCount(t *testing.T) {
 		{
 			name: "read_type_Random",
 			f: func(m *otelMetrics) {
-				m.GcsReadCount(5, "Random")
+				m.GcsReadCount(5, ReadTypeRandom)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("read_type", "Random")): 5,
@@ -5752,7 +5752,7 @@ func TestGcsReadCount(t *testing.T) {
 		{
 			name: "read_type_Sequential",
 			f: func(m *otelMetrics) {
-				m.GcsReadCount(5, "Sequential")
+				m.GcsReadCount(5, ReadTypeSequential)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("read_type", "Sequential")): 5,
@@ -5760,9 +5760,9 @@ func TestGcsReadCount(t *testing.T) {
 		}, {
 			name: "multiple_attributes_summed",
 			f: func(m *otelMetrics) {
-				m.GcsReadCount(5, "Parallel")
-				m.GcsReadCount(2, "Random")
-				m.GcsReadCount(3, "Parallel")
+				m.GcsReadCount(5, ReadTypeParallel)
+				m.GcsReadCount(2, ReadTypeRandom)
+				m.GcsReadCount(3, ReadTypeParallel)
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("read_type", "Parallel")): 8,
 				attribute.NewSet(attribute.String("read_type", "Random")): 2,
@@ -5771,8 +5771,8 @@ func TestGcsReadCount(t *testing.T) {
 		{
 			name: "negative_increment",
 			f: func(m *otelMetrics) {
-				m.GcsReadCount(-5, "Parallel")
-				m.GcsReadCount(2, "Parallel")
+				m.GcsReadCount(-5, ReadTypeParallel)
+				m.GcsReadCount(2, ReadTypeParallel)
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("read_type", "Parallel")): 2},
 		},
@@ -5812,7 +5812,7 @@ func TestGcsReaderCount(t *testing.T) {
 		{
 			name: "io_method_ReadHandle",
 			f: func(m *otelMetrics) {
-				m.GcsReaderCount(5, "ReadHandle")
+				m.GcsReaderCount(5, IoMethodReadHandle)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("io_method", "ReadHandle")): 5,
@@ -5821,7 +5821,7 @@ func TestGcsReaderCount(t *testing.T) {
 		{
 			name: "io_method_closed",
 			f: func(m *otelMetrics) {
-				m.GcsReaderCount(5, "closed")
+				m.GcsReaderCount(5, IoMethodClosed)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("io_method", "closed")): 5,
@@ -5830,7 +5830,7 @@ func TestGcsReaderCount(t *testing.T) {
 		{
 			name: "io_method_opened",
 			f: func(m *otelMetrics) {
-				m.GcsReaderCount(5, "opened")
+				m.GcsReaderCount(5, IoMethodOpened)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("io_method", "opened")): 5,
@@ -5838,9 +5838,9 @@ func TestGcsReaderCount(t *testing.T) {
 		}, {
 			name: "multiple_attributes_summed",
 			f: func(m *otelMetrics) {
-				m.GcsReaderCount(5, "ReadHandle")
-				m.GcsReaderCount(2, "closed")
-				m.GcsReaderCount(3, "ReadHandle")
+				m.GcsReaderCount(5, IoMethodReadHandle)
+				m.GcsReaderCount(2, IoMethodClosed)
+				m.GcsReaderCount(3, IoMethodReadHandle)
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("io_method", "ReadHandle")): 8,
 				attribute.NewSet(attribute.String("io_method", "closed")): 2,
@@ -5849,8 +5849,8 @@ func TestGcsReaderCount(t *testing.T) {
 		{
 			name: "negative_increment",
 			f: func(m *otelMetrics) {
-				m.GcsReaderCount(-5, "ReadHandle")
-				m.GcsReaderCount(2, "ReadHandle")
+				m.GcsReaderCount(-5, IoMethodReadHandle)
+				m.GcsReaderCount(2, IoMethodReadHandle)
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("io_method", "ReadHandle")): 2},
 		},
@@ -5890,7 +5890,7 @@ func TestGcsRequestCount(t *testing.T) {
 		{
 			name: "gcs_method_ComposeObjects",
 			f: func(m *otelMetrics) {
-				m.GcsRequestCount(5, "ComposeObjects")
+				m.GcsRequestCount(5, GcsMethodComposeObjects)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("gcs_method", "ComposeObjects")): 5,
@@ -5899,7 +5899,7 @@ func TestGcsRequestCount(t *testing.T) {
 		{
 			name: "gcs_method_CopyObject",
 			f: func(m *otelMetrics) {
-				m.GcsRequestCount(5, "CopyObject")
+				m.GcsRequestCount(5, GcsMethodCopyObject)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("gcs_method", "CopyObject")): 5,
@@ -5908,7 +5908,7 @@ func TestGcsRequestCount(t *testing.T) {
 		{
 			name: "gcs_method_CreateAppendableObjectWriter",
 			f: func(m *otelMetrics) {
-				m.GcsRequestCount(5, "CreateAppendableObjectWriter")
+				m.GcsRequestCount(5, GcsMethodCreateAppendableObjectWriter)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("gcs_method", "CreateAppendableObjectWriter")): 5,
@@ -5917,7 +5917,7 @@ func TestGcsRequestCount(t *testing.T) {
 		{
 			name: "gcs_method_CreateFolder",
 			f: func(m *otelMetrics) {
-				m.GcsRequestCount(5, "CreateFolder")
+				m.GcsRequestCount(5, GcsMethodCreateFolder)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("gcs_method", "CreateFolder")): 5,
@@ -5926,7 +5926,7 @@ func TestGcsRequestCount(t *testing.T) {
 		{
 			name: "gcs_method_CreateObject",
 			f: func(m *otelMetrics) {
-				m.GcsRequestCount(5, "CreateObject")
+				m.GcsRequestCount(5, GcsMethodCreateObject)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("gcs_method", "CreateObject")): 5,
@@ -5935,7 +5935,7 @@ func TestGcsRequestCount(t *testing.T) {
 		{
 			name: "gcs_method_CreateObjectChunkWriter",
 			f: func(m *otelMetrics) {
-				m.GcsRequestCount(5, "CreateObjectChunkWriter")
+				m.GcsRequestCount(5, GcsMethodCreateObjectChunkWriter)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("gcs_method", "CreateObjectChunkWriter")): 5,
@@ -5944,7 +5944,7 @@ func TestGcsRequestCount(t *testing.T) {
 		{
 			name: "gcs_method_DeleteFolder",
 			f: func(m *otelMetrics) {
-				m.GcsRequestCount(5, "DeleteFolder")
+				m.GcsRequestCount(5, GcsMethodDeleteFolder)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("gcs_method", "DeleteFolder")): 5,
@@ -5953,7 +5953,7 @@ func TestGcsRequestCount(t *testing.T) {
 		{
 			name: "gcs_method_DeleteObject",
 			f: func(m *otelMetrics) {
-				m.GcsRequestCount(5, "DeleteObject")
+				m.GcsRequestCount(5, GcsMethodDeleteObject)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("gcs_method", "DeleteObject")): 5,
@@ -5962,7 +5962,7 @@ func TestGcsRequestCount(t *testing.T) {
 		{
 			name: "gcs_method_FinalizeUpload",
 			f: func(m *otelMetrics) {
-				m.GcsRequestCount(5, "FinalizeUpload")
+				m.GcsRequestCount(5, GcsMethodFinalizeUpload)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("gcs_method", "FinalizeUpload")): 5,
@@ -5971,7 +5971,7 @@ func TestGcsRequestCount(t *testing.T) {
 		{
 			name: "gcs_method_FlushPendingWrites",
 			f: func(m *otelMetrics) {
-				m.GcsRequestCount(5, "FlushPendingWrites")
+				m.GcsRequestCount(5, GcsMethodFlushPendingWrites)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("gcs_method", "FlushPendingWrites")): 5,
@@ -5980,7 +5980,7 @@ func TestGcsRequestCount(t *testing.T) {
 		{
 			name: "gcs_method_GetFolder",
 			f: func(m *otelMetrics) {
-				m.GcsRequestCount(5, "GetFolder")
+				m.GcsRequestCount(5, GcsMethodGetFolder)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("gcs_method", "GetFolder")): 5,
@@ -5989,7 +5989,7 @@ func TestGcsRequestCount(t *testing.T) {
 		{
 			name: "gcs_method_ListObjects",
 			f: func(m *otelMetrics) {
-				m.GcsRequestCount(5, "ListObjects")
+				m.GcsRequestCount(5, GcsMethodListObjects)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("gcs_method", "ListObjects")): 5,
@@ -5998,7 +5998,7 @@ func TestGcsRequestCount(t *testing.T) {
 		{
 			name: "gcs_method_MoveObject",
 			f: func(m *otelMetrics) {
-				m.GcsRequestCount(5, "MoveObject")
+				m.GcsRequestCount(5, GcsMethodMoveObject)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("gcs_method", "MoveObject")): 5,
@@ -6007,7 +6007,7 @@ func TestGcsRequestCount(t *testing.T) {
 		{
 			name: "gcs_method_MultiRangeDownloader::Add",
 			f: func(m *otelMetrics) {
-				m.GcsRequestCount(5, "MultiRangeDownloader::Add")
+				m.GcsRequestCount(5, GcsMethodMultiRangeDownloaderAdd)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("gcs_method", "MultiRangeDownloader::Add")): 5,
@@ -6016,7 +6016,7 @@ func TestGcsRequestCount(t *testing.T) {
 		{
 			name: "gcs_method_NewMultiRangeDownloader",
 			f: func(m *otelMetrics) {
-				m.GcsRequestCount(5, "NewMultiRangeDownloader")
+				m.GcsRequestCount(5, GcsMethodNewMultiRangeDownloader)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("gcs_method", "NewMultiRangeDownloader")): 5,
@@ -6025,7 +6025,7 @@ func TestGcsRequestCount(t *testing.T) {
 		{
 			name: "gcs_method_NewReader",
 			f: func(m *otelMetrics) {
-				m.GcsRequestCount(5, "NewReader")
+				m.GcsRequestCount(5, GcsMethodNewReader)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("gcs_method", "NewReader")): 5,
@@ -6034,7 +6034,7 @@ func TestGcsRequestCount(t *testing.T) {
 		{
 			name: "gcs_method_RenameFolder",
 			f: func(m *otelMetrics) {
-				m.GcsRequestCount(5, "RenameFolder")
+				m.GcsRequestCount(5, GcsMethodRenameFolder)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("gcs_method", "RenameFolder")): 5,
@@ -6043,7 +6043,7 @@ func TestGcsRequestCount(t *testing.T) {
 		{
 			name: "gcs_method_StatObject",
 			f: func(m *otelMetrics) {
-				m.GcsRequestCount(5, "StatObject")
+				m.GcsRequestCount(5, GcsMethodStatObject)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("gcs_method", "StatObject")): 5,
@@ -6052,7 +6052,7 @@ func TestGcsRequestCount(t *testing.T) {
 		{
 			name: "gcs_method_UpdateObject",
 			f: func(m *otelMetrics) {
-				m.GcsRequestCount(5, "UpdateObject")
+				m.GcsRequestCount(5, GcsMethodUpdateObject)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("gcs_method", "UpdateObject")): 5,
@@ -6060,9 +6060,9 @@ func TestGcsRequestCount(t *testing.T) {
 		}, {
 			name: "multiple_attributes_summed",
 			f: func(m *otelMetrics) {
-				m.GcsRequestCount(5, "ComposeObjects")
-				m.GcsRequestCount(2, "CopyObject")
-				m.GcsRequestCount(3, "ComposeObjects")
+				m.GcsRequestCount(5, GcsMethodComposeObjects)
+				m.GcsRequestCount(2, GcsMethodCopyObject)
+				m.GcsRequestCount(3, GcsMethodComposeObjects)
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("gcs_method", "ComposeObjects")): 8,
 				attribute.NewSet(attribute.String("gcs_method", "CopyObject")): 2,
@@ -6071,8 +6071,8 @@ func TestGcsRequestCount(t *testing.T) {
 		{
 			name: "negative_increment",
 			f: func(m *otelMetrics) {
-				m.GcsRequestCount(-5, "ComposeObjects")
-				m.GcsRequestCount(2, "ComposeObjects")
+				m.GcsRequestCount(-5, GcsMethodComposeObjects)
+				m.GcsRequestCount(2, GcsMethodComposeObjects)
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("gcs_method", "ComposeObjects")): 2},
 		},
@@ -6107,102 +6107,102 @@ func TestGcsRequestLatencies(t *testing.T) {
 	tests := []struct {
 		name      string
 		latencies []time.Duration
-		gcsMethod string
+		gcsMethod GcsMethod
 	}{
 		{
 			name:      "gcs_method_ComposeObjects",
 			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
-			gcsMethod: "ComposeObjects",
+			gcsMethod: GcsMethodComposeObjects,
 		},
 		{
 			name:      "gcs_method_CopyObject",
 			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
-			gcsMethod: "CopyObject",
+			gcsMethod: GcsMethodCopyObject,
 		},
 		{
 			name:      "gcs_method_CreateAppendableObjectWriter",
 			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
-			gcsMethod: "CreateAppendableObjectWriter",
+			gcsMethod: GcsMethodCreateAppendableObjectWriter,
 		},
 		{
 			name:      "gcs_method_CreateFolder",
 			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
-			gcsMethod: "CreateFolder",
+			gcsMethod: GcsMethodCreateFolder,
 		},
 		{
 			name:      "gcs_method_CreateObject",
 			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
-			gcsMethod: "CreateObject",
+			gcsMethod: GcsMethodCreateObject,
 		},
 		{
 			name:      "gcs_method_CreateObjectChunkWriter",
 			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
-			gcsMethod: "CreateObjectChunkWriter",
+			gcsMethod: GcsMethodCreateObjectChunkWriter,
 		},
 		{
 			name:      "gcs_method_DeleteFolder",
 			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
-			gcsMethod: "DeleteFolder",
+			gcsMethod: GcsMethodDeleteFolder,
 		},
 		{
 			name:      "gcs_method_DeleteObject",
 			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
-			gcsMethod: "DeleteObject",
+			gcsMethod: GcsMethodDeleteObject,
 		},
 		{
 			name:      "gcs_method_FinalizeUpload",
 			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
-			gcsMethod: "FinalizeUpload",
+			gcsMethod: GcsMethodFinalizeUpload,
 		},
 		{
 			name:      "gcs_method_FlushPendingWrites",
 			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
-			gcsMethod: "FlushPendingWrites",
+			gcsMethod: GcsMethodFlushPendingWrites,
 		},
 		{
 			name:      "gcs_method_GetFolder",
 			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
-			gcsMethod: "GetFolder",
+			gcsMethod: GcsMethodGetFolder,
 		},
 		{
 			name:      "gcs_method_ListObjects",
 			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
-			gcsMethod: "ListObjects",
+			gcsMethod: GcsMethodListObjects,
 		},
 		{
 			name:      "gcs_method_MoveObject",
 			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
-			gcsMethod: "MoveObject",
+			gcsMethod: GcsMethodMoveObject,
 		},
 		{
 			name:      "gcs_method_MultiRangeDownloader::Add",
 			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
-			gcsMethod: "MultiRangeDownloader::Add",
+			gcsMethod: GcsMethodMultiRangeDownloaderAdd,
 		},
 		{
 			name:      "gcs_method_NewMultiRangeDownloader",
 			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
-			gcsMethod: "NewMultiRangeDownloader",
+			gcsMethod: GcsMethodNewMultiRangeDownloader,
 		},
 		{
 			name:      "gcs_method_NewReader",
 			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
-			gcsMethod: "NewReader",
+			gcsMethod: GcsMethodNewReader,
 		},
 		{
 			name:      "gcs_method_RenameFolder",
 			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
-			gcsMethod: "RenameFolder",
+			gcsMethod: GcsMethodRenameFolder,
 		},
 		{
 			name:      "gcs_method_StatObject",
 			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
-			gcsMethod: "StatObject",
+			gcsMethod: GcsMethodStatObject,
 		},
 		{
 			name:      "gcs_method_UpdateObject",
 			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
-			gcsMethod: "UpdateObject",
+			gcsMethod: GcsMethodUpdateObject,
 		},
 	}
 
@@ -6224,7 +6224,7 @@ func TestGcsRequestLatencies(t *testing.T) {
 			require.True(t, ok, "gcs/request_latencies metric not found")
 
 			attrs := []attribute.KeyValue{
-				attribute.String("gcs_method", tc.gcsMethod),
+				attribute.String("gcs_method", string(tc.gcsMethod)),
 			}
 			s := attribute.NewSet(attrs...)
 			expectedKey := s.Encoded(encoder)
@@ -6245,7 +6245,7 @@ func TestGcsRetryCount(t *testing.T) {
 		{
 			name: "retry_error_category_OTHER_ERRORS",
 			f: func(m *otelMetrics) {
-				m.GcsRetryCount(5, "OTHER_ERRORS")
+				m.GcsRetryCount(5, RetryErrorCategoryOTHERERRORS)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("retry_error_category", "OTHER_ERRORS")): 5,
@@ -6254,7 +6254,7 @@ func TestGcsRetryCount(t *testing.T) {
 		{
 			name: "retry_error_category_STALLED_READ_REQUEST",
 			f: func(m *otelMetrics) {
-				m.GcsRetryCount(5, "STALLED_READ_REQUEST")
+				m.GcsRetryCount(5, RetryErrorCategorySTALLEDREADREQUEST)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("retry_error_category", "STALLED_READ_REQUEST")): 5,
@@ -6262,9 +6262,9 @@ func TestGcsRetryCount(t *testing.T) {
 		}, {
 			name: "multiple_attributes_summed",
 			f: func(m *otelMetrics) {
-				m.GcsRetryCount(5, "OTHER_ERRORS")
-				m.GcsRetryCount(2, "STALLED_READ_REQUEST")
-				m.GcsRetryCount(3, "OTHER_ERRORS")
+				m.GcsRetryCount(5, RetryErrorCategoryOTHERERRORS)
+				m.GcsRetryCount(2, RetryErrorCategorySTALLEDREADREQUEST)
+				m.GcsRetryCount(3, RetryErrorCategoryOTHERERRORS)
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("retry_error_category", "OTHER_ERRORS")): 8,
 				attribute.NewSet(attribute.String("retry_error_category", "STALLED_READ_REQUEST")): 2,
@@ -6273,8 +6273,8 @@ func TestGcsRetryCount(t *testing.T) {
 		{
 			name: "negative_increment",
 			f: func(m *otelMetrics) {
-				m.GcsRetryCount(-5, "OTHER_ERRORS")
-				m.GcsRetryCount(2, "OTHER_ERRORS")
+				m.GcsRetryCount(-5, RetryErrorCategoryOTHERERRORS)
+				m.GcsRetryCount(2, RetryErrorCategoryOTHERERRORS)
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("retry_error_category", "OTHER_ERRORS")): 2},
 		},
@@ -6339,7 +6339,7 @@ func TestTestUpdownCounterWithAttrs(t *testing.T) {
 		{
 			name: "request_type_attr1",
 			f: func(m *otelMetrics) {
-				m.TestUpdownCounterWithAttrs(5, "attr1")
+				m.TestUpdownCounterWithAttrs(5, RequestTypeAttr1)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("request_type", "attr1")): 5,
@@ -6348,7 +6348,7 @@ func TestTestUpdownCounterWithAttrs(t *testing.T) {
 		{
 			name: "request_type_attr2",
 			f: func(m *otelMetrics) {
-				m.TestUpdownCounterWithAttrs(5, "attr2")
+				m.TestUpdownCounterWithAttrs(5, RequestTypeAttr2)
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("request_type", "attr2")): 5,
@@ -6356,9 +6356,9 @@ func TestTestUpdownCounterWithAttrs(t *testing.T) {
 		}, {
 			name: "multiple_attributes_summed",
 			f: func(m *otelMetrics) {
-				m.TestUpdownCounterWithAttrs(5, "attr1")
-				m.TestUpdownCounterWithAttrs(2, "attr2")
-				m.TestUpdownCounterWithAttrs(3, "attr1")
+				m.TestUpdownCounterWithAttrs(5, RequestTypeAttr1)
+				m.TestUpdownCounterWithAttrs(2, RequestTypeAttr2)
+				m.TestUpdownCounterWithAttrs(3, RequestTypeAttr1)
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("request_type", "attr1")): 8,
 				attribute.NewSet(attribute.String("request_type", "attr2")): 2,
@@ -6367,8 +6367,8 @@ func TestTestUpdownCounterWithAttrs(t *testing.T) {
 		{
 			name: "negative_increment",
 			f: func(m *otelMetrics) {
-				m.TestUpdownCounterWithAttrs(-5, "attr1")
-				m.TestUpdownCounterWithAttrs(2, "attr1")
+				m.TestUpdownCounterWithAttrs(-5, RequestTypeAttr1)
+				m.TestUpdownCounterWithAttrs(2, RequestTypeAttr1)
 			},
 			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("request_type", "attr1")): -3},
 		},

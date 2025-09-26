@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -54,31 +56,63 @@ type AttrValuePair struct {
 // AttrCombination is a list of AttrValuePairs.
 type AttrCombination []AttrValuePair
 
+// AttributeValue represents a single possible value for a string attribute.
+type AttributeValue struct {
+	ConstName string // e.g. ReadTypeSequential
+	Value     string // e.g. "sequential"
+}
+
+// AttributeType represents a distinct string attribute that should have a Go type generated for it.
+type AttributeType struct {
+	TypeName string           // e.g. ReadType
+	Values   []AttributeValue // e.g. ReadTypeSequential, ReadTypeRandom
+}
+
 // Data structure to pass to the template.
 type TemplateData struct {
 	Metrics          []Metric
 	AttrCombinations map[string][]AttrCombination
+	AttributeTypes   map[string]AttributeType
 }
 
 // Helper functions for the template.
-var funcMap = template.FuncMap{
-	"toPascal":                    toPascal,
-	"toCamel":                     toCamel,
-	"getVarName":                  getVarName,
-	"getAtomicName":               getAtomicName,
-	"getGoType":                   getGoType,
-	"getUnitMethod":               getUnitMethod,
-	"joinInts":                    joinInts,
-	"isCounter":                   func(m Metric) bool { return m.Type == "int_counter" },
-	"isUpDownCounter":             func(m Metric) bool { return m.Type == "int_up_down_counter" },
-	"isHistogram":                 func(m Metric) bool { return m.Type == "int_histogram" },
-	"buildSwitches":               buildSwitches,
-	"getTestName":                 getTestName,
-	"getTestFuncArgs":             getTestFuncArgs,
-	"getExpectedAttrs":            getExpectedAttrs,
-	"getLatencyUnit":              getLatencyUnit,
-	"getLatencyMethod":            getLatencyMethod,
-	"getTestFuncArgsForHistogram": getTestFuncArgsForHistogram,
+var funcMap template.FuncMap
+
+func init() {
+	funcMap = template.FuncMap{
+		"toPascal":                    toPascal,
+		"toCamel":                     toCamel,
+		"getVarName":                  getVarName,
+		"getAtomicName":               getAtomicName,
+		"getGoType":                   getGoType,
+		"getUnitMethod":               getUnitMethod,
+		"joinInts":                    joinInts,
+		"isCounter":                   func(m Metric) bool { return m.Type == "int_counter" },
+		"isUpDownCounter":             func(m Metric) bool { return m.Type == "int_up_down_counter" },
+		"isHistogram":                 func(m Metric) bool { return m.Type == "int_histogram" },
+		"buildSwitches":               buildSwitches,
+		"getTestName":                 getTestName,
+		"getTestFuncArgs":             getTestFuncArgs,
+		"getExpectedAttrs":            getExpectedAttrs,
+		"getLatencyUnit":              getLatencyUnit,
+		"getLatencyMethod":            getLatencyMethod,
+		"getTestFuncArgsForHistogram": getTestFuncArgsForHistogram,
+		"isTypedAttr":                 isTypedAttr,
+		"getAttrTypeName":             getAttrTypeName,
+		"getAttrConstName":            getAttrConstName,
+	}
+}
+
+func getAttrTypeName(attrName string) string {
+	return toPascal(attrName)
+}
+
+func getAttrConstName(attrName, value string) string {
+	return toPascal(attrName) + toPascal(value)
+}
+
+func isTypedAttr(attr Attribute) bool {
+	return attr.Type == "string" && len(attr.Values) > 0
 }
 
 func toPascal(s string) string {
@@ -124,8 +158,11 @@ func getAtomicName(metricName string, combo AttrCombination) string {
 	return strings.Join(parts, "")
 }
 
-func getGoType(t string) string {
-	switch t {
+func getGoType(a Attribute) string {
+	if isTypedAttr(a) {
+		return getAttrTypeName(a.Name)
+	}
+	switch a.Type {
 	case "string":
 		return "string"
 	case "bool":
@@ -171,12 +208,24 @@ func getTestName(combo AttrCombination) string {
 }
 
 // getTestFuncArgs generates arguments for the metric function call in tests.
-func getTestFuncArgs(combo AttrCombination) string {
+func getTestFuncArgs(m Metric, combo AttrCombination) string {
+	var typedAttrs = make(map[string]bool)
+	for _, attr := range m.Attributes {
+		if isTypedAttr(attr) {
+			typedAttrs[attr.Name] = true
+		}
+	}
+
 	var parts []string
 	for _, pair := range combo {
-		if pair.Type == "string" {
+		if typedAttrs[pair.Name] {
+			// Use the generated constant for typed string attributes
+			parts = append(parts, getAttrConstName(pair.Name, pair.Value))
+		} else if pair.Type == "string" {
+			// Use raw string for non-typed string attributes
 			parts = append(parts, `"`+pair.Value+`"`)
 		} else {
+			// Use value for bools
 			parts = append(parts, pair.Value)
 		}
 	}
@@ -216,7 +265,8 @@ func getLatencyMethod(unit string) string {
 func getTestFuncArgsForHistogram(prefix string, attrs []Attribute) string {
 	var parts []string
 	for _, attr := range attrs {
-		parts = append(parts, prefix+"."+toCamel(attr.Name))
+		arg := prefix + "." + toCamel(attr.Name)
+		parts = append(parts, arg)
 	}
 	return strings.Join(parts, ", ")
 }
@@ -251,9 +301,13 @@ func generateCombinations(attributes []Attribute) []AttrCombination {
 	return result
 }
 
-func handleDefaultInSwitchCase(level int, attrName string, builder *strings.Builder) {
+func handleDefaultInSwitchCase(level int, attrName string, isTyped bool, builder *strings.Builder) {
+	callArg := toCamel(attrName)
+	if isTyped {
+		callArg = "string(" + callArg + ")"
+	}
 	builder.WriteString(fmt.Sprintf("%sdefault:\n", strings.Repeat("\t", level+2)))
-	builder.WriteString(fmt.Sprintf("%supdateUnrecognizedAttribute(%s)\n", strings.Repeat("\t", level+3), toCamel(attrName)))
+	builder.WriteString(fmt.Sprintf("%supdateUnrecognizedAttribute(%s)\n", strings.Repeat("\t", level+3), callArg))
 	builder.WriteString(fmt.Sprintf("%sreturn\n", strings.Repeat("\t", level+3)))
 }
 
@@ -370,7 +424,14 @@ func buildSwitches(metric Metric) string {
 
 		attr := metric.Attributes[level]
 		indent := strings.Repeat("\t", level+1)
-		builder.WriteString(fmt.Sprintf("%sswitch %s {\n", indent, toCamel(attr.Name)))
+
+		// For typed attributes, we need to convert them to string for the switch.
+		switchVar := toCamel(attr.Name)
+		if isTypedAttr(attr) {
+			builder.WriteString(fmt.Sprintf("%sswitch string(%s) {\n", indent, switchVar))
+		} else {
+			builder.WriteString(fmt.Sprintf("%sswitch %s {\n", indent, switchVar))
+		}
 
 		var values []string
 		if attr.Type == "string" {
@@ -388,8 +449,9 @@ func buildSwitches(metric Metric) string {
 			currentCombo := append(combo, AttrValuePair{Name: attr.Name, Type: attr.Type, Value: val})
 			recorder(level+1, currentCombo)
 		}
+
 		if attr.Type == "string" {
-			handleDefaultInSwitchCase(level, attr.Name, &builder)
+			handleDefaultInSwitchCase(level, switchVar, isTypedAttr(attr), &builder)
 		}
 		builder.WriteString(fmt.Sprintf("%s}\n", indent))
 	}
@@ -447,6 +509,12 @@ func main() {
 		attrCombinations[m.Name] = generateCombinations(m.Attributes)
 	}
 
+	// Generate attribute types
+	attributeTypes, err := generateAttributeTypes(metrics)
+	if err != nil {
+		log.Fatalf("error generating attribute types: %v", err)
+	}
+
 	// Create the directory if it doesn't exist
 	if err := os.MkdirAll(*outputDir, 0755); err != nil {
 		log.Fatalf("error creating output directory: %v", err)
@@ -454,26 +522,86 @@ func main() {
 	data := TemplateData{
 		Metrics:          metrics,
 		AttrCombinations: attrCombinations,
+		AttributeTypes:   attributeTypes,
 	}
 	createFile(&data, fmt.Sprintf("%s/metric_handle.go", *outputDir), "metric_handle.tpl")
 	createFile(&data, fmt.Sprintf("%s/noop_metrics.go", *outputDir), "noop_metrics.tpl")
 	createFile(&data, fmt.Sprintf("%s/otel_metrics.go", *outputDir), "otel_metrics.tpl")
 	createFile(&data, fmt.Sprintf("%s/otel_metrics_test.go", *outputDir), "otel_metrics_test.tpl")
+}
 
+func generateAttributeTypes(metrics []Metric) (map[string]AttributeType, error) {
+	attributeTypes := make(map[string]AttributeType)
+	constNameCounts := make(map[string]map[string]bool) // For validation
+
+	for _, m := range metrics {
+		for _, a := range m.Attributes {
+			if !isTypedAttr(a) {
+				continue
+			}
+
+			typeName := getAttrTypeName(a.Name)
+			attrType, ok := attributeTypes[a.Name]
+			if !ok {
+				attrType = AttributeType{
+					TypeName: typeName,
+					Values:   []AttributeValue{},
+				}
+				constNameCounts[typeName] = make(map[string]bool)
+			}
+
+			existingValues := make(map[string]bool)
+			for _, v := range attrType.Values {
+				existingValues[v.Value] = true
+			}
+
+			for _, v := range a.Values {
+				if existingValues[v] {
+					continue
+				}
+				constName := getAttrConstName(a.Name, v)
+
+				// Validation: check for duplicate constant names
+				if _, exists := constNameCounts[typeName][constName]; exists {
+					return nil, fmt.Errorf("duplicate constant name %s for type %s", constName, typeName)
+				}
+				constNameCounts[typeName][constName] = true
+
+				attrType.Values = append(attrType.Values, AttributeValue{
+					ConstName: constName,
+					Value:     v,
+				})
+				existingValues[v] = true
+			}
+			sort.Slice(attrType.Values, func(i, j int) bool {
+				return attrType.Values[i].ConstName < attrType.Values[j].ConstName
+			})
+			attributeTypes[a.Name] = attrType
+		}
+	}
+	return attributeTypes, nil
 }
 
 func createFile(data *TemplateData, fName string, templateName string) {
-	tmpl, err := template.New(templateName).Funcs(funcMap).ParseFiles(templateName)
+	// Get the directory of the currently running file, to find the templates.
+	_, mainGoPath, _, ok := runtime.Caller(0)
+	if !ok {
+		log.Fatalf("could not get path to the current file")
+	}
+	templatesDir := filepath.Dir(mainGoPath)
+	templatePath := filepath.Join(templatesDir, templateName)
+
+	tmpl, err := template.New(templateName).Funcs(funcMap).ParseFiles(templatePath)
 	if err != nil {
-		log.Fatalf("error parsing template: %v", err)
+		log.Fatalf("error parsing template %s: %v", templatePath, err)
 	}
 	var buf bytes.Buffer
 	err = tmpl.Execute(&buf, data)
 	if err != nil {
-		log.Fatalf("error executing template: %v", err)
+		log.Fatalf("error executing template %s: %v", templateName, err)
 	}
 
 	if err := os.WriteFile(fName, buf.Bytes(), 0644); err != nil {
-		log.Fatalf("error writing output file: %v", err)
+		log.Fatalf("error writing output file %s: %v", fName, err)
 	}
 }

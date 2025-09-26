@@ -1256,9 +1256,9 @@ type otelMetrics struct {
 }
 
 func (o *otelMetrics) BufferedReadDownloadBlockLatency(
-	ctx context.Context, latency time.Duration, status string) {
+	ctx context.Context, latency time.Duration, status Status) {
 	var record histogramRecord
-	switch status {
+	switch string(status) {
 	case "cancelled":
 		record = histogramRecord{ctx: ctx, instrument: o.bufferedReadDownloadBlockLatency, value: latency.Microseconds(), attributes: bufferedReadDownloadBlockLatencyStatusCancelledAttrSet}
 	case "failed":
@@ -1266,7 +1266,7 @@ func (o *otelMetrics) BufferedReadDownloadBlockLatency(
 	case "successful":
 		record = histogramRecord{ctx: ctx, instrument: o.bufferedReadDownloadBlockLatency, value: latency.Microseconds(), attributes: bufferedReadDownloadBlockLatencyStatusSuccessfulAttrSet}
 	default:
-		updateUnrecognizedAttribute(status)
+		updateUnrecognizedAttribute(string(status))
 		return
 	}
 
@@ -1277,18 +1277,18 @@ func (o *otelMetrics) BufferedReadDownloadBlockLatency(
 }
 
 func (o *otelMetrics) BufferedReadFallbackTriggerCount(
-	inc int64, reason string) {
+	inc int64, reason Reason) {
 	if inc < 0 {
 		logger.Errorf("Counter metric buffered_read/fallback_trigger_count received a negative increment: %d", inc)
 		return
 	}
-	switch reason {
+	switch string(reason) {
 	case "insufficient_memory":
 		o.bufferedReadFallbackTriggerCountReasonInsufficientMemoryAtomic.Add(inc)
 	case "random_read_detected":
 		o.bufferedReadFallbackTriggerCountReasonRandomReadDetectedAtomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(reason)
+		updateUnrecognizedAttribute(string(reason))
 		return
 	}
 }
@@ -1305,12 +1305,12 @@ func (o *otelMetrics) BufferedReadReadLatency(
 }
 
 func (o *otelMetrics) BufferedReadScheduledBlockCount(
-	inc int64, status string) {
+	inc int64, status Status) {
 	if inc < 0 {
 		logger.Errorf("Counter metric buffered_read/scheduled_block_count received a negative increment: %d", inc)
 		return
 	}
-	switch status {
+	switch string(status) {
 	case "cancelled":
 		o.bufferedReadScheduledBlockCountStatusCancelledAtomic.Add(inc)
 	case "failed":
@@ -1318,18 +1318,18 @@ func (o *otelMetrics) BufferedReadScheduledBlockCount(
 	case "successful":
 		o.bufferedReadScheduledBlockCountStatusSuccessfulAtomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(status)
+		updateUnrecognizedAttribute(string(status))
 		return
 	}
 }
 
 func (o *otelMetrics) FileCacheReadBytesCount(
-	inc int64, readType string) {
+	inc int64, readType ReadType) {
 	if inc < 0 {
 		logger.Errorf("Counter metric file_cache/read_bytes_count received a negative increment: %d", inc)
 		return
 	}
-	switch readType {
+	switch string(readType) {
 	case "Parallel":
 		o.fileCacheReadBytesCountReadTypeParallelAtomic.Add(inc)
 	case "Random":
@@ -1337,20 +1337,20 @@ func (o *otelMetrics) FileCacheReadBytesCount(
 	case "Sequential":
 		o.fileCacheReadBytesCountReadTypeSequentialAtomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(readType)
+		updateUnrecognizedAttribute(string(readType))
 		return
 	}
 }
 
 func (o *otelMetrics) FileCacheReadCount(
-	inc int64, cacheHit bool, readType string) {
+	inc int64, cacheHit bool, readType ReadType) {
 	if inc < 0 {
 		logger.Errorf("Counter metric file_cache/read_count received a negative increment: %d", inc)
 		return
 	}
 	switch cacheHit {
 	case true:
-		switch readType {
+		switch string(readType) {
 		case "Parallel":
 			o.fileCacheReadCountCacheHitTrueReadTypeParallelAtomic.Add(inc)
 		case "Random":
@@ -1358,11 +1358,11 @@ func (o *otelMetrics) FileCacheReadCount(
 		case "Sequential":
 			o.fileCacheReadCountCacheHitTrueReadTypeSequentialAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(readType)
+			updateUnrecognizedAttribute(string(readType))
 			return
 		}
 	case false:
-		switch readType {
+		switch string(readType) {
 		case "Parallel":
 			o.fileCacheReadCountCacheHitFalseReadTypeParallelAtomic.Add(inc)
 		case "Random":
@@ -1370,7 +1370,7 @@ func (o *otelMetrics) FileCacheReadCount(
 		case "Sequential":
 			o.fileCacheReadCountCacheHitFalseReadTypeSequentialAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(readType)
+			updateUnrecognizedAttribute(string(readType))
 			return
 		}
 	}
@@ -1393,12 +1393,12 @@ func (o *otelMetrics) FileCacheReadLatencies(
 }
 
 func (o *otelMetrics) FsOpsCount(
-	inc int64, fsOp string) {
+	inc int64, fsOp FsOp) {
 	if inc < 0 {
 		logger.Errorf("Counter metric fs/ops_count received a negative increment: %d", inc)
 		return
 	}
-	switch fsOp {
+	switch string(fsOp) {
 	case "BatchForget":
 		o.fsOpsCountFsOpBatchForgetAtomic.Add(inc)
 	case "CreateFile":
@@ -1462,20 +1462,20 @@ func (o *otelMetrics) FsOpsCount(
 	case "WriteFile":
 		o.fsOpsCountFsOpWriteFileAtomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(fsOp)
+		updateUnrecognizedAttribute(string(fsOp))
 		return
 	}
 }
 
 func (o *otelMetrics) FsOpsErrorCount(
-	inc int64, fsErrorCategory string, fsOp string) {
+	inc int64, fsErrorCategory FsErrorCategory, fsOp FsOp) {
 	if inc < 0 {
 		logger.Errorf("Counter metric fs/ops_error_count received a negative increment: %d", inc)
 		return
 	}
-	switch fsErrorCategory {
+	switch string(fsErrorCategory) {
 	case "DEVICE_ERROR":
-		switch fsOp {
+		switch string(fsOp) {
 		case "BatchForget":
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpBatchForgetAtomic.Add(inc)
 		case "CreateFile":
@@ -1539,11 +1539,11 @@ func (o *otelMetrics) FsOpsErrorCount(
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
 	case "DIR_NOT_EMPTY":
-		switch fsOp {
+		switch string(fsOp) {
 		case "BatchForget":
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpBatchForgetAtomic.Add(inc)
 		case "CreateFile":
@@ -1607,11 +1607,11 @@ func (o *otelMetrics) FsOpsErrorCount(
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
 	case "FILE_DIR_ERROR":
-		switch fsOp {
+		switch string(fsOp) {
 		case "BatchForget":
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpBatchForgetAtomic.Add(inc)
 		case "CreateFile":
@@ -1675,11 +1675,11 @@ func (o *otelMetrics) FsOpsErrorCount(
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
 	case "FILE_EXISTS":
-		switch fsOp {
+		switch string(fsOp) {
 		case "BatchForget":
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpBatchForgetAtomic.Add(inc)
 		case "CreateFile":
@@ -1743,11 +1743,11 @@ func (o *otelMetrics) FsOpsErrorCount(
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
 	case "INTERRUPT_ERROR":
-		switch fsOp {
+		switch string(fsOp) {
 		case "BatchForget":
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpBatchForgetAtomic.Add(inc)
 		case "CreateFile":
@@ -1811,11 +1811,11 @@ func (o *otelMetrics) FsOpsErrorCount(
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
 	case "INVALID_ARGUMENT":
-		switch fsOp {
+		switch string(fsOp) {
 		case "BatchForget":
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpBatchForgetAtomic.Add(inc)
 		case "CreateFile":
@@ -1879,11 +1879,11 @@ func (o *otelMetrics) FsOpsErrorCount(
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
 	case "INVALID_OPERATION":
-		switch fsOp {
+		switch string(fsOp) {
 		case "BatchForget":
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpBatchForgetAtomic.Add(inc)
 		case "CreateFile":
@@ -1947,11 +1947,11 @@ func (o *otelMetrics) FsOpsErrorCount(
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
 	case "IO_ERROR":
-		switch fsOp {
+		switch string(fsOp) {
 		case "BatchForget":
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpBatchForgetAtomic.Add(inc)
 		case "CreateFile":
@@ -2015,11 +2015,11 @@ func (o *otelMetrics) FsOpsErrorCount(
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
 	case "MISC_ERROR":
-		switch fsOp {
+		switch string(fsOp) {
 		case "BatchForget":
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpBatchForgetAtomic.Add(inc)
 		case "CreateFile":
@@ -2083,11 +2083,11 @@ func (o *otelMetrics) FsOpsErrorCount(
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
 	case "NETWORK_ERROR":
-		switch fsOp {
+		switch string(fsOp) {
 		case "BatchForget":
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpBatchForgetAtomic.Add(inc)
 		case "CreateFile":
@@ -2151,11 +2151,11 @@ func (o *otelMetrics) FsOpsErrorCount(
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
 	case "NOT_A_DIR":
-		switch fsOp {
+		switch string(fsOp) {
 		case "BatchForget":
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpBatchForgetAtomic.Add(inc)
 		case "CreateFile":
@@ -2219,11 +2219,11 @@ func (o *otelMetrics) FsOpsErrorCount(
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
 	case "NOT_IMPLEMENTED":
-		switch fsOp {
+		switch string(fsOp) {
 		case "BatchForget":
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpBatchForgetAtomic.Add(inc)
 		case "CreateFile":
@@ -2287,11 +2287,11 @@ func (o *otelMetrics) FsOpsErrorCount(
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
 	case "NO_FILE_OR_DIR":
-		switch fsOp {
+		switch string(fsOp) {
 		case "BatchForget":
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpBatchForgetAtomic.Add(inc)
 		case "CreateFile":
@@ -2355,11 +2355,11 @@ func (o *otelMetrics) FsOpsErrorCount(
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
 	case "PERM_ERROR":
-		switch fsOp {
+		switch string(fsOp) {
 		case "BatchForget":
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpBatchForgetAtomic.Add(inc)
 		case "CreateFile":
@@ -2423,11 +2423,11 @@ func (o *otelMetrics) FsOpsErrorCount(
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
 	case "PROCESS_RESOURCE_MGMT_ERROR":
-		switch fsOp {
+		switch string(fsOp) {
 		case "BatchForget":
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpBatchForgetAtomic.Add(inc)
 		case "CreateFile":
@@ -2491,11 +2491,11 @@ func (o *otelMetrics) FsOpsErrorCount(
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
 	case "TOO_MANY_OPEN_FILES":
-		switch fsOp {
+		switch string(fsOp) {
 		case "BatchForget":
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpBatchForgetAtomic.Add(inc)
 		case "CreateFile":
@@ -2559,19 +2559,19 @@ func (o *otelMetrics) FsOpsErrorCount(
 		case "WriteFile":
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
 	default:
-		updateUnrecognizedAttribute(fsErrorCategory)
+		updateUnrecognizedAttribute(string(fsErrorCategory))
 		return
 	}
 }
 
 func (o *otelMetrics) FsOpsLatency(
-	ctx context.Context, latency time.Duration, fsOp string) {
+	ctx context.Context, latency time.Duration, fsOp FsOp) {
 	var record histogramRecord
-	switch fsOp {
+	switch string(fsOp) {
 	case "BatchForget":
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpBatchForgetAttrSet}
 	case "CreateFile":
@@ -2635,7 +2635,7 @@ func (o *otelMetrics) FsOpsLatency(
 	case "WriteFile":
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpWriteFileAttrSet}
 	default:
-		updateUnrecognizedAttribute(fsOp)
+		updateUnrecognizedAttribute(string(fsOp))
 		return
 	}
 
@@ -2646,12 +2646,12 @@ func (o *otelMetrics) FsOpsLatency(
 }
 
 func (o *otelMetrics) GcsDownloadBytesCount(
-	inc int64, readType string) {
+	inc int64, readType ReadType) {
 	if inc < 0 {
 		logger.Errorf("Counter metric gcs/download_bytes_count received a negative increment: %d", inc)
 		return
 	}
-	switch readType {
+	switch string(readType) {
 	case "Parallel":
 		o.gcsDownloadBytesCountReadTypeParallelAtomic.Add(inc)
 	case "Random":
@@ -2659,7 +2659,7 @@ func (o *otelMetrics) GcsDownloadBytesCount(
 	case "Sequential":
 		o.gcsDownloadBytesCountReadTypeSequentialAtomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(readType)
+		updateUnrecognizedAttribute(string(readType))
 		return
 	}
 }
@@ -2674,12 +2674,12 @@ func (o *otelMetrics) GcsReadBytesCount(
 }
 
 func (o *otelMetrics) GcsReadCount(
-	inc int64, readType string) {
+	inc int64, readType ReadType) {
 	if inc < 0 {
 		logger.Errorf("Counter metric gcs/read_count received a negative increment: %d", inc)
 		return
 	}
-	switch readType {
+	switch string(readType) {
 	case "Parallel":
 		o.gcsReadCountReadTypeParallelAtomic.Add(inc)
 	case "Random":
@@ -2687,18 +2687,18 @@ func (o *otelMetrics) GcsReadCount(
 	case "Sequential":
 		o.gcsReadCountReadTypeSequentialAtomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(readType)
+		updateUnrecognizedAttribute(string(readType))
 		return
 	}
 }
 
 func (o *otelMetrics) GcsReaderCount(
-	inc int64, ioMethod string) {
+	inc int64, ioMethod IoMethod) {
 	if inc < 0 {
 		logger.Errorf("Counter metric gcs/reader_count received a negative increment: %d", inc)
 		return
 	}
-	switch ioMethod {
+	switch string(ioMethod) {
 	case "ReadHandle":
 		o.gcsReaderCountIoMethodReadHandleAtomic.Add(inc)
 	case "closed":
@@ -2706,18 +2706,18 @@ func (o *otelMetrics) GcsReaderCount(
 	case "opened":
 		o.gcsReaderCountIoMethodOpenedAtomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(ioMethod)
+		updateUnrecognizedAttribute(string(ioMethod))
 		return
 	}
 }
 
 func (o *otelMetrics) GcsRequestCount(
-	inc int64, gcsMethod string) {
+	inc int64, gcsMethod GcsMethod) {
 	if inc < 0 {
 		logger.Errorf("Counter metric gcs/request_count received a negative increment: %d", inc)
 		return
 	}
-	switch gcsMethod {
+	switch string(gcsMethod) {
 	case "ComposeObjects":
 		o.gcsRequestCountGcsMethodComposeObjectsAtomic.Add(inc)
 	case "CopyObject":
@@ -2757,15 +2757,15 @@ func (o *otelMetrics) GcsRequestCount(
 	case "UpdateObject":
 		o.gcsRequestCountGcsMethodUpdateObjectAtomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(gcsMethod)
+		updateUnrecognizedAttribute(string(gcsMethod))
 		return
 	}
 }
 
 func (o *otelMetrics) GcsRequestLatencies(
-	ctx context.Context, latency time.Duration, gcsMethod string) {
+	ctx context.Context, latency time.Duration, gcsMethod GcsMethod) {
 	var record histogramRecord
-	switch gcsMethod {
+	switch string(gcsMethod) {
 	case "ComposeObjects":
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodComposeObjectsAttrSet}
 	case "CopyObject":
@@ -2805,7 +2805,7 @@ func (o *otelMetrics) GcsRequestLatencies(
 	case "UpdateObject":
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodUpdateObjectAttrSet}
 	default:
-		updateUnrecognizedAttribute(gcsMethod)
+		updateUnrecognizedAttribute(string(gcsMethod))
 		return
 	}
 
@@ -2816,18 +2816,18 @@ func (o *otelMetrics) GcsRequestLatencies(
 }
 
 func (o *otelMetrics) GcsRetryCount(
-	inc int64, retryErrorCategory string) {
+	inc int64, retryErrorCategory RetryErrorCategory) {
 	if inc < 0 {
 		logger.Errorf("Counter metric gcs/retry_count received a negative increment: %d", inc)
 		return
 	}
-	switch retryErrorCategory {
+	switch string(retryErrorCategory) {
 	case "OTHER_ERRORS":
 		o.gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic.Add(inc)
 	case "STALLED_READ_REQUEST":
 		o.gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(retryErrorCategory)
+		updateUnrecognizedAttribute(string(retryErrorCategory))
 		return
 	}
 }
@@ -2838,14 +2838,14 @@ func (o *otelMetrics) TestUpdownCounter(
 }
 
 func (o *otelMetrics) TestUpdownCounterWithAttrs(
-	inc int64, requestType string) {
-	switch requestType {
+	inc int64, requestType RequestType) {
+	switch string(requestType) {
 	case "attr1":
 		o.testUpdownCounterWithAttrsRequestTypeAttr1Atomic.Add(inc)
 	case "attr2":
 		o.testUpdownCounterWithAttrsRequestTypeAttr2Atomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(requestType)
+		updateUnrecognizedAttribute(string(requestType))
 		return
 	}
 }
