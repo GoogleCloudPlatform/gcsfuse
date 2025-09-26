@@ -29,19 +29,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
 )
 
-const (
-	configTemplate            = "config.tpl"
-	configTestTemplate        = "config_test.tpl"
-	typeTemplate              = "type.tpl"
-	defaultPermission         = 0644
-	generatedFileHeader       = "// GENERATED CODE - DO NOT EDIT MANUALLY.\n"
-	generatedConfigGoFile     = "config.go"
-	generatedConfigTestGoFile = "config_test.go"
-	generatedTypeGoFile       = "type.go"
-	templatePath              = "templates"
-	yamlPath                  = "cfg/params.yaml"
-)
-
 var (
 	outDir      = flag.String("outDir", "", "Output directory where the auto-generated files are to be placed")
 	paramsFile  = flag.String("paramsFile", "", "Params YAML file")
