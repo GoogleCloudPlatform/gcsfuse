@@ -70,6 +70,7 @@ var funcMap = template.FuncMap{
 	"getUnitMethod":               getUnitMethod,
 	"joinInts":                    joinInts,
 	"isCounter":                   func(m Metric) bool { return m.Type == "int_counter" },
+	"isUpDownCounter":             func(m Metric) bool { return m.Type == "int_up_down_counter" },
 	"isHistogram":                 func(m Metric) bool { return m.Type == "int_histogram" },
 	"buildSwitches":               buildSwitches,
 	"getTestName":                 getTestName,
@@ -263,8 +264,8 @@ func validateMetric(m Metric) error {
 	if m.Description == "" {
 		return fmt.Errorf("description is required for metric %q", m.Name)
 	}
-	if m.Type != "int_counter" && m.Type != "int_histogram" {
-		return fmt.Errorf("type for metric %q must be 'int_counter' or 'int_histogram', got %q", m.Name, m.Type)
+	if m.Type != "int_counter" && m.Type != "int_histogram" && m.Type != "int_up_down_counter" {
+		return fmt.Errorf("type for metric %q must be 'int_counter', 'int_histogram', or 'int_up_down_counter', got %q", m.Name, m.Type)
 	}
 
 	if m.Type == "int_histogram" {
@@ -356,7 +357,7 @@ func buildSwitches(metric Metric) string {
 		if level == len(metric.Attributes) {
 			// Base case: record the metric
 			indent := strings.Repeat("\t", level+1)
-			if metric.Type == "int_counter" {
+			if metric.Type == "int_counter" || metric.Type == "int_up_down_counter" {
 				atomicName := getAtomicName(metric.Name, combo)
 				builder.WriteString(fmt.Sprintf("%so.%s.Add(inc)\n", indent, atomicName))
 			} else { // histogram
@@ -397,7 +398,7 @@ func buildSwitches(metric Metric) string {
 		if metric.Type == "int_histogram" {
 			unitMethod := getUnitMethod(metric.Unit)
 			builder.WriteString(fmt.Sprintf("\trecord = histogramRecord{ctx: ctx, instrument: o.%s, value: latency%s}\n", toCamel(metric.Name), unitMethod))
-		} else if metric.Type == "int_counter" {
+		} else if metric.Type == "int_counter" || metric.Type == "int_up_down_counter" {
 			atomicName := getAtomicName(metric.Name, AttrCombination{})
 			builder.WriteString(fmt.Sprintf("\to.%s.Add(inc)\n", atomicName))
 		}

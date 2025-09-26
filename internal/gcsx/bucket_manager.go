@@ -67,6 +67,8 @@ type BucketConfig struct {
 	AppendThreshold          int64
 	ChunkTransferTimeoutSecs int64
 	TmpObjectPrefix          string
+	// Used in Zonal buckets to determine if objects should be finalized or not.
+	FinalizeFileForRapid bool
 }
 
 // BucketManager manages the lifecycle of buckets.
@@ -169,7 +171,7 @@ func (bm *bucketManager) SetUpBucket(
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
 	} else {
-		b, err = bm.storageHandle.BucketHandle(ctx, name, bm.config.BillingProject)
+		b, err = bm.storageHandle.BucketHandle(ctx, name, bm.config.BillingProject, bm.config.FinalizeFileForRapid)
 		if err != nil {
 			err = fmt.Errorf("BucketHandle: %w", err)
 			return

@@ -129,7 +129,7 @@ func gatherNonZeroCounterMetrics(ctx context.Context, t *testing.T, rd *metric.M
 }
 
 {{range .Metrics}}
-{{if isCounter .}}
+{{if or (isCounter .) (isUpDownCounter .)}}
 func Test{{toPascal .Name}}(t *testing.T) {
 	{{- if .Attributes}}
 	tests := []struct {
@@ -175,7 +175,7 @@ func Test{{toPascal .Name}}(t *testing.T) {
 				m.{{toPascal $metric.Name}}(-5, {{getTestFuncArgs $firstComb}})
 				m.{{toPascal $metric.Name}}(2, {{getTestFuncArgs $firstComb}})
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet({{getExpectedAttrs (index $combinations 0)}}): 2},
+			expected: map[attribute.Set]int64{attribute.NewSet({{getExpectedAttrs (index $combinations 0)}}): {{if isUpDownCounter $metric}}-3{{else}}2{{end}}},
 		},
 	}
 
@@ -224,7 +224,7 @@ func Test{{toPascal .Name}}(t *testing.T) {
 	metrics = gatherNonZeroCounterMetrics(ctx, t, rd)
 	metric, ok = metrics["{{.Name}}"]
 	require.True(t, ok, "{{.Name}} metric not found after negative increment")
-	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric, "Negative increment should not change the metric value.")
+	assert.Equal(t, map[string]int64{s.Encoded(encoder): {{if isUpDownCounter .}}2972{{else}}3072{{end}}}, metric, "Negative increment should {{if isUpDownCounter .}}change{{else}}not change{{end}} the metric value.")
 	{{- end}}
 }
 {{else if isHistogram .}}

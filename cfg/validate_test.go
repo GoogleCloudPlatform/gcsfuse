@@ -480,36 +480,6 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 	}
 }
 
-func Test_isValidHTTPDNSCacheTTLSecsValid(t *testing.T) {
-	t.Parallel()
-	testCases := []struct {
-		name string
-		secs int64
-	}{
-		{
-			name: "minus_one",
-			secs: -1,
-		},
-		{
-			name: "zero",
-			secs: 0,
-		},
-		{
-			name: "positive_value",
-			secs: 100,
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			assert.NoError(t, isValidHTTPDNSCacheTTLSecs(tc.secs))
-		})
-	}
-}
-
-func Test_isValidHTTPDNSCacheTTLSecsInvalid(t *testing.T) {
-	assert.Error(t, isValidHTTPDNSCacheTTLSecs(-2))
-}
-
 func Test_IsTtlInSecsValid_ErrorScenarios(t *testing.T) {
 	var testCases = []struct {
 		testName  string

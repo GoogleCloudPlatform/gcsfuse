@@ -38,10 +38,11 @@ const FullBucketPathHNS = "projects/_/buckets/%s"
 
 type bucketHandle struct {
 	gcs.Bucket
-	bucket        *storage.BucketHandle
-	bucketName    string
-	bucketType    *gcs.BucketType
-	controlClient StorageControlClient
+	bucket               *storage.BucketHandle
+	bucketName           string
+	bucketType           *gcs.BucketType
+	controlClient        StorageControlClient
+	finalizeFileForRapid bool
 }
 
 func (bh *bucketHandle) Name() string {
@@ -197,12 +198,10 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	wc.ProgressFunc = req.CallBack
 	// All objects in zonal buckets must be appendable.
 	wc.Append = bh.BucketType().Zonal
-	// Objects in zonal buckets should not finalized.
+	// Objects in zonal buckets should not be finalized by default. Finalize them if finalizeFileForRapid is set to true.
 	// When writer.Append is false,then this parameter is anyways ignored.
 	// Refer: https://github.com/googleapis/google-cloud-go/blob/main/storage/writer.go#L135
-	if bh.BucketType().Zonal {
-		wc.FinalizeOnClose = false
-	}
+	wc.FinalizeOnClose = bh.finalizeFileForRapid
 
 	// Copy the contents to the writer.
 	if _, err = io.Copy(wc, req.Contents); err != nil {
@@ -233,10 +232,10 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	wc.ProgressFunc = callBack
 	// All objects in zonal buckets must be appendable.
 	wc.Append = bh.BucketType().Zonal
-	// Objects in zonal buckets should not finalized.
-	if bh.BucketType().Zonal {
-		wc.FinalizeOnClose = false
-	}
+	// Objects in zonal buckets should not be finalized by default. Finalize them if finalizeFileForRapid is set to true.
+	// When writer.Append is false, then this parameter is anyways ignored.
+	// Refer: https://github.com/googleapis/google-cloud-go/blob/main/storage/writer.go#L135
+	wc.FinalizeOnClose = bh.finalizeFileForRapid
 
 	return wc, nil
 }
@@ -250,7 +249,7 @@ func (bh *bucketHandle) CreateAppendableObjectWriter(ctx context.Context,
 	opts := storage.AppendableWriterOpts{
 		ChunkSize:       req.ChunkSize,
 		ProgressFunc:    req.CallBack,
-		FinalizeOnClose: false,
+		FinalizeOnClose: bh.finalizeFileForRapid,
 	}
 
 	tw, off, err := obj.NewWriterFromAppendableObject(ctx, &opts) // Takeover writer tw created from offset off.
