@@ -41,6 +41,7 @@ type templateData struct {
 	TypeTemplateData      []typeTemplateData
 	FlagTemplateData      []flagTemplateData
 	MachineTypeToGroupMap map[string]string
+	MachineTypeGroups     map[string][]string
 	// Back-ticks are not supported in templates. So, passing as a parameter.
 	Backticks string
 }
@@ -139,6 +140,7 @@ func main() {
 			FlagTemplateData:      fd,
 			TypeTemplateData:      td,
 			MachineTypeToGroupMap: machineTypeToGroupMap,
+			MachineTypeGroups:     paramsYAML.MachineTypeGroups,
 			Backticks:             "`",
 		},
 			generatedFilePath, templateFilePath)
