@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync/atomic"
 	"syscall"
 )
 
@@ -64,6 +65,12 @@ type PrefetchBlock interface {
 	// - BlockStatusDownloaded: Download of this block is complete.
 	// - BlockStatusDownloadFailed: Download of this block has failed.
 	NotifyReady(val BlockStatus)
+
+	// IncrementRef increments the reference count of the block.
+	IncrementRef()
+
+	// DecrementRef decrements the reference count of the block.
+	DecrementRef()
 }
 
 type prefetchMemoryBlock struct {
@@ -77,6 +84,9 @@ type prefetchMemoryBlock struct {
 
 	// Stores the absolute start offset of the block-segment in the file.
 	absStartOff int64
+
+	// refCount tracks the number of active references to the block.
+	refCount atomic.Int32
 }
 
 func (pmb *prefetchMemoryBlock) Reuse() {
@@ -85,6 +95,7 @@ func (pmb *prefetchMemoryBlock) Reuse() {
 	pmb.notification = make(chan BlockStatus, 1)
 	pmb.status = BlockStatus{State: BlockStateInProgress}
 	pmb.absStartOff = -1
+	pmb.refCount.Store(0)
 }
 
 // createPrefetchBlock creates a new PrefetchBlock.
@@ -177,4 +188,12 @@ func (pmb *prefetchMemoryBlock) NotifyReady(val BlockStatus) {
 	default:
 		panic("Expected to notify only once, but got multiple notifications.")
 	}
+}
+
+func (pmb *prefetchMemoryBlock) IncrementRef() {
+	pmb.refCount.Add(1)
+}
+
+func (pmb *prefetchMemoryBlock) DecrementRef() {
+	pmb.refCount.Add(-1)
 }

@@ -2848,10 +2848,16 @@ func (fs *fileSystem) ReadFile(
 	}
 	// Serve the read.
 
+	var readerResponse gcsx.ReaderResponse
 	if fs.newConfig.EnableNewReader {
-		op.Dst, op.BytesRead, err = fh.ReadWithReadManager(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
+		readerResponse, err = fh.ReadWithReadManager(ctx, op.Dst, op.Offset)
 	} else {
-		op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
+		readerResponse, err = fh.Read(ctx, op.Dst, op.Offset)
+	}
+	if readerResponse.DataBuf != nil {
+		op.BytesRead = readerResponse.Size
+		op.Dst = readerResponse.DataBuf
+		op.Callback = readerResponse.Done
 	}
 
 	// A FileClobberedError indicates the underlying GCS object has changed,

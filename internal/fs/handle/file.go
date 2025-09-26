@@ -160,18 +160,21 @@ func (fh *FileHandle) unlockHandleAndInode(rLock bool) {
 //
 // LOCKS_REQUIRED(fh.inode.mu)
 // UNLOCK_FUNCTION(fh.inode.mu)
-func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offset int64, sequentialReadSizeMb int32) ([]byte, int, error) {
+func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offset int64) (gcsx.ReaderResponse, error) {
 	// If content cache enabled, CacheEnsureContent forces the file handler to fall through to the inode
 	// and fh.inode.SourceGenerationIsAuthoritative() will return false
 	if err := fh.inode.CacheEnsureContent(ctx); err != nil {
-		return nil, 0, fmt.Errorf("failed to ensure inode content: %w", err)
+		return gcsx.ReaderResponse{}, fmt.Errorf("failed to ensure inode content: %w", err)
 	}
 
 	if !fh.inode.SourceGenerationIsAuthoritative() {
 		// Read from inode if source generation is not authoratative
 		defer fh.inode.Unlock()
 		n, err := fh.inode.Read(ctx, dst, offset)
-		return dst, n, err
+		return gcsx.ReaderResponse{
+			DataBuf: dst,
+			Size:    n,
+		}, err
 	}
 
 	fh.lockHandleAndRelockInode(true)
@@ -193,7 +196,7 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 		fh.destroyReadManager()
 		// Create a new read manager for the current inode state.
 		fh.readManager = read_manager.NewReadManager(minObj, bucket, &read_manager.ReadManagerConfig{
-			SequentialReadSizeMB:  sequentialReadSizeMb,
+			SequentialReadSizeMB:  int32(fh.config.GcsConnection.SequentialReadSizeMb),
 			FileCacheHandler:      fh.fileCacheHandler,
 			CacheFileForRangeRead: fh.cacheFileForRangeRead,
 			MetricHandle:          fh.metricHandle,
@@ -215,15 +218,14 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 	switch {
 	case errors.Is(err, io.EOF):
 		if err != io.EOF {
-			logger.Warnf("Unexpected EOF error encountered while reading, err: %v type: %T ", err, err)
+			logger.Warnf("Unexpected EOF error encountered while reading, err: %v type: %T", err, err)
 		}
-		return nil, 0, io.EOF
-
+		return readerResponse, io.EOF
 	case err != nil:
-		return nil, 0, fmt.Errorf("fh.readManager.ReadAt: %w", err)
+		return gcsx.ReaderResponse{}, fmt.Errorf("fh.readManager.ReadAt: %w", err)
 	}
 
-	return readerResponse.DataBuf, readerResponse.Size, nil
+	return readerResponse, nil
 }
 
 // Equivalent to locking fh.Inode() and calling fh.Inode().Read, but may be
@@ -231,20 +233,20 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 //
 // LOCKS_REQUIRED(fh.inode.mu)
 // UNLOCK_FUNCTION(fh.inode.mu)
-func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequentialReadSizeMb int32) (output []byte, n int, err error) {
+func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64) (gcsx.ReaderResponse, error) {
 	// If content cache enabled, CacheEnsureContent forces the file handler to fall through to the inode
 	// and fh.inode.SourceGenerationIsAuthoritative() will return false
-	err = fh.inode.CacheEnsureContent(ctx)
+	err := fh.inode.CacheEnsureContent(ctx)
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to ensure inode content: %w", err)
+		return gcsx.ReaderResponse{}, fmt.Errorf("failed to ensure inode content: %w", err)
 	}
 
 	// If the inode is dirty, there's nothing we can do. Throw away our reader if
 	// we have one.
 	if !fh.inode.SourceGenerationIsAuthoritative() {
 		defer fh.inode.Unlock()
-		n, err = fh.inode.Read(ctx, dst, offset)
-		return dst, n, err
+		n, err := fh.inode.Read(ctx, dst, offset)
+		return gcsx.ReaderResponse{DataBuf: dst, Size: n}, err
 	}
 
 	fh.lockHandleAndRelockInode(true)
@@ -263,7 +265,7 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 
 		fh.destroyReader()
 		// Attempt to create an appropriate reader.
-		fh.reader = gcsx.NewRandomReader(minObj, bucket, sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, mrdWrapper, fh.config)
+		fh.reader = gcsx.NewRandomReader(minObj, bucket, int32(fh.config.GcsConnection.SequentialReadSizeMb), fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, mrdWrapper, fh.config)
 
 		// Release RWLock and take RLock on file handle again
 		fh.mu.Unlock()
@@ -271,24 +273,23 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	}
 
 	// Use the reader to read data.
-	var objectData gcsx.ObjectData
-	objectData, err = fh.reader.ReadAt(ctx, dst, offset)
+	objectData, err := fh.reader.ReadAt(ctx, dst, offset)
 	switch {
 	case errors.Is(err, io.EOF):
 		if err != io.EOF {
-			logger.Warnf("Unexpected EOF error encountered while reading, err: %v type: %T ", err, err)
+			logger.Warnf("Unexpected EOF error encountered while reading, err: %v type: %T", err, err)
 			err = io.EOF
 		}
-		return
+		return gcsx.ReaderResponse{DataBuf: objectData.DataBuf, Size: objectData.Size}, err
 
 	case err != nil:
-		err = fmt.Errorf("fh.reader.ReadAt: %w", err)
-		return
+		return gcsx.ReaderResponse{}, fmt.Errorf("fh.reader.ReadAt: %w", err)
 	}
 
-	output = objectData.DataBuf
-	n = objectData.Size
-	return
+	return gcsx.ReaderResponse{
+		DataBuf: objectData.DataBuf,
+		Size:    objectData.Size,
+	}, nil
 }
 
 // Adding the Write() method to fileHandle to be able to pass the fileOpenMode

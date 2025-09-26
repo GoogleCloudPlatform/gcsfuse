@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"sync"
 	"time"
 
@@ -149,7 +148,6 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 	// such reads. The capacity is configured by `read.retired-blocks-per-handle`
 	// multiplied by `read.block-size-mb`.
 	reader.retiredBlocks = NewLruRetiredBlockCache(uint64(opts.Config.RetiredBlocksPerHandle * opts.Config.PrefetchBlockSizeBytes))
-	log.Println("opts.Config.RetiredBlocksPerHandle", opts.Config.RetiredBlocksPerHandle)
 
 	prefetcherOpts := &prefetcherOptions{
 		Object:       opts.Object,
@@ -297,6 +295,10 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		// Check if the required block is in the retired cache.
 		blockIndex := off / p.config.PrefetchBlockSizeBytes
 		if entry := p.retiredBlocks.LookUp(blockIndex); entry != nil {
+			// For async reads, we need to ensure the block is not released until the
+			// kernel is done. We increment its reference count here. The caller is
+			// responsible for decrementing it via the returned Done function.
+			entry.block.IncrementRef()
 			blk := entry.block
 
 			status, waitErr := blk.AwaitReady(ctx)
@@ -315,6 +317,10 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 			n, readErr := blk.ReadAt(inputBuf[bytesRead:], relOff)
 			bytesRead += n
 			off += int64(n)
+
+			resp.Done = func() {
+				entry.block.DecrementRef()
+			}
 
 			if readErr != nil && !errors.Is(readErr, io.EOF) {
 				err = fmt.Errorf("BufferedReader.ReadAt: block.ReadAt from retired: %w", readErr)
@@ -337,6 +343,10 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 		entry := p.blockQueue.Peek()
 
+		// For async reads, we increment the block's reference count. The caller
+		// must call the returned Done function to decrement it later.
+		entry.block.IncrementRef()
+
 		// Proactively trigger the next prefetch as soon as we start processing a
 		// block, ensuring the pipeline stays full.
 		if !entry.prefetchTriggered {
@@ -349,14 +359,16 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		blk := entry.block
 
 		if waitErr != nil {
+			entry.block.DecrementRef() // Decrement ref on error.
 			err = fmt.Errorf("BufferedReader.ReadAt: AwaitReady: %w", waitErr)
 			break
 		}
 
 		if status.State != block.BlockStateDownloaded {
-			p.blockQueue.Pop()       // The block is invalid, remove it.
-			p.blockPool.Release(blk) // Release it back to the pool.
-			entry.cancel()           // Cancel any ongoing work.
+			p.blockQueue.Pop()         // The block is invalid, remove it.
+			p.blockPool.Release(blk)   // Release it back to the pool.
+			entry.cancel()             // Cancel any ongoing work.
+			entry.block.DecrementRef() // Decrement ref on error.
 
 			switch status.State {
 			case block.BlockStateDownloadFailed:
@@ -371,6 +383,10 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		n, readErr := blk.ReadAt(inputBuf[bytesRead:], relOff)
 		bytesRead += n
 		off += int64(n)
+
+		resp.Done = func() {
+			entry.block.DecrementRef()
+		}
 
 		if readErr != nil && !errors.Is(readErr, io.EOF) {
 			err = fmt.Errorf("BufferedReader.ReadAt: block.ReadAt: %w", readErr)

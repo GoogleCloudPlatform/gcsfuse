@@ -49,6 +49,11 @@ type ReaderResponse struct {
 
 	// Size indicates how many bytes were read into DataBuf.
 	Size int
+
+	// Done is an optional callback to be invoked when the consumer is finished
+	// with DataBuf. This is crucial for asynchronous reads to manage buffer
+	// lifecycles and resource cleanup (e.g., reference counting).
+	Done func()
 }
 
 type Reader interface {
