@@ -205,8 +205,6 @@ func TestApplyOptimizations(t *testing.T) {
 			assert.Equal(t, true, c.ImplicitDirs)
 		})
 
-		// Test case: Fallback to machine-based optimization when a profile is set, but has no rule for THIS flag.
-
 	})
 	// Tests for file-system.kernel-list-cache-ttl-secs
 	t.Run("file-system.kernel-list-cache-ttl-secs", func(t *testing.T) {
@@ -380,8 +378,6 @@ func TestApplyOptimizations(t *testing.T) {
 			assert.Equal(t, int64(0), c.MetadataCache.NegativeTtlSecs)
 		})
 
-		// Test case: Fallback to machine-based optimization when a profile is set, but has no rule for THIS flag.
-
 	})
 	// Tests for metadata-cache.ttl-secs
 	t.Run("metadata-cache.ttl-secs", func(t *testing.T) {
@@ -500,8 +496,6 @@ func TestApplyOptimizations(t *testing.T) {
 			// Assert that the machine-based value is used.
 			assert.Equal(t, int64(-1), c.MetadataCache.TtlSecs)
 		})
-
-		// Test case: Fallback to machine-based optimization when a profile is set, but has no rule for THIS flag.
 
 	})
 	// Tests for file-system.rename-dir-limit
@@ -736,8 +730,6 @@ func TestApplyOptimizations(t *testing.T) {
 			assert.Equal(t, int64(1024), c.MetadataCache.StatCacheMaxSizeMb)
 		})
 
-		// Test case: Fallback to machine-based optimization when a profile is set, but has no rule for THIS flag.
-
 	})
 	// Tests for metadata-cache.type-cache-max-size-mb
 	t.Run("metadata-cache.type-cache-max-size-mb", func(t *testing.T) {
@@ -856,8 +848,6 @@ func TestApplyOptimizations(t *testing.T) {
 			// Assert that the machine-based value is used.
 			assert.Equal(t, int64(128), c.MetadataCache.TypeCacheMaxSizeMb)
 		})
-
-		// Test case: Fallback to machine-based optimization when a profile is set, but has no rule for THIS flag.
 
 	})
 	// Tests for write.global-max-blocks

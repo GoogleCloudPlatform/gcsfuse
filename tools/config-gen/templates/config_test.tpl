@@ -207,7 +207,6 @@ func TestApplyOptimizations(t *testing.T) {
 			{{- end }}
 		})
 
-		// Test case: Fallback to machine-based optimization when a profile is set, but has no rule for THIS flag.
 		{{ $unrelatedProfile := "aiml-training" -}}
 		{{- $hasRuleForUnrelatedProfile := false -}}
 		{{- range .Optimizations.Profiles -}}
@@ -216,6 +215,7 @@ func TestApplyOptimizations(t *testing.T) {
 			{{- end -}}
 		{{- end -}}
 		{{- if not $hasRuleForUnrelatedProfile -}}
+		// Test case: Fallback to machine-based optimization when a profile is set, but has no rule for THIS flag.
 		t.Run("fallback_to_machine_type_with_unrelated_profile", func(t *testing.T) {
 			{{- $mbo := index .Optimizations.MachineBasedOptimization 0 -}}
 			// Find a machine type from the group to use in the test
