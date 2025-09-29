@@ -86,10 +86,7 @@ func TestMain(m *testing.M) {
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	if cfg.CloudProfiler[0].GKEMountedDirectory != "" {
-		if setup.ProfileLabelForMountedDirTest() == "" {
-			log.Fatal("Profile label should have been provided for mounted directory test.")
-		}
-		testServiceVersion = setup.ProfileLabelForMountedDirTest()
+		testServiceVersion = setup.ExtractServiceVersionFromFlags(cfg.CloudProfiler[0].Configs[0].Flags)
 		os.Exit(setup.RunTestsForMountedDirectory(cfg.CloudProfiler[0].GKEMountedDirectory, m))
 	}
 
