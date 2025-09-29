@@ -23,6 +23,7 @@ import (
 	"log/syslog"
 	"os"
 	"runtime/debug"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -39,15 +40,17 @@ const (
 	GCSFuseMountInstanceIDEnvKey = "GCSFUSE_MOUNT_INSTANCE_ID"
 	textFormat                   = "text"
 	mountLoggerIDKey             = "mount_id"
-	defaultMountInstanceID       = "00000000"
-	defaultMountFSName           = "gcsfuse"
+	// Max possible length can be 32 as UUID has 32 characters excluding 4 hyphens.
+	mountInstanceIDLength = 8
+	defaultMountFSName    = "gcsfuse"
 )
 
 var (
-	defaultLoggerFactory *loggerFactory
-	defaultLogger        *slog.Logger
-	mountInstanceID      string
-	mountFSName          string
+	defaultLoggerFactory   *loggerFactory
+	defaultLogger          *slog.Logger
+	mountInstanceID        string
+	mountFSName            string
+	defaultMountInstanceID string
 )
 
 // InitLogFile initializes the logger factory to create loggers that print to
@@ -107,6 +110,7 @@ func InitLogFile(newLogConfig cfg.LoggingConfig) error {
 
 // init runs only once at package initialization.
 func init() {
+	defaultMountInstanceID = strings.Repeat("0", mountInstanceIDLength)
 	setupMountInstanceID()
 	initializeDefaultLogger()
 }
@@ -119,7 +123,9 @@ func generateMountInstanceID() string {
 		log.Printf("Could not generate random UUID for logger, err %v. using default: %v", err, defaultMountInstanceID)
 		return defaultMountInstanceID
 	}
-	return uuid.String()[:8]
+	uuidStr := strings.ReplaceAll(uuid.String(), "-", "")
+
+	return uuidStr[:mountInstanceIDLength]
 }
 
 // setupMountInstanceID handles the retrieval of mountInstanceId if GCSFuse is in
