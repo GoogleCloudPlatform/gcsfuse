@@ -272,42 +272,64 @@ func (t *MainTest) TestCallListRecursiveOnNonExistingDirectory() {
 }
 
 func (t *MainTest) TestIsDynamicMount() {
-	for _, input := range []struct {
+	testCases := []struct {
+		name       string
 		bucketName string
 		isDynamic  bool
 	}{
 		{
+			name:       "Empty bucket name",
 			bucketName: "",
 			isDynamic:  true,
-		}, {
+		},
+		{
+			name:       "Underscore bucket name",
 			bucketName: "_",
 			isDynamic:  true,
-		}, {
+		},
+		{
+			name:       "Regular bucket name",
 			bucketName: "abc",
 			isDynamic:  false,
 		},
-	} {
-		assert.Equal(t.T(), input.isDynamic, isDynamicMount(input.bucketName))
+	}
+
+	for _, tc := range testCases {
+		t.T().Run(tc.name, func(t *testing.T) {
+			isDynamic := isDynamicMount(tc.bucketName)
+
+			assert.Equal(t, tc.isDynamic, isDynamic)
+		})
 	}
 }
 
 func (t *MainTest) TestFSName() {
-	for _, input := range []struct {
+	testCases := []struct {
+		name       string
 		bucketName string
 		fsName     string
 	}{
 		{
+			name:       "Empty bucket name",
 			bucketName: "",
 			fsName:     DynamicMountFSName,
 		}, {
+			name:       "Underscore bucket name",
 			bucketName: "_",
 			fsName:     DynamicMountFSName,
 		}, {
+			name:       "Regular bucket name",
 			bucketName: "abc",
 			fsName:     "abc",
 		},
-	} {
-		assert.Equal(t.T(), input.fsName, fsName(input.bucketName))
+	}
+
+	for _, tc := range testCases {
+		t.T().Run(tc.name, func(t *testing.T) {
+			actualFSName := fsName(tc.bucketName)
+
+			assert.Equal(t, tc.fsName, actualFSName)
+		})
 	}
 }
 
