@@ -290,6 +290,26 @@ func (t *MainTest) TestIsDynamicMount() {
 	}
 }
 
+func (t *MainTest) TestFSName() {
+	for _, input := range []struct {
+		bucketName string
+		fsName     string
+	}{
+		{
+			bucketName: "",
+			fsName:     DynamicMountFSName,
+		}, {
+			bucketName: "_",
+			fsName:     DynamicMountFSName,
+		}, {
+			bucketName: "abc",
+			fsName:     "abc",
+		},
+	} {
+		assert.Equal(t.T(), input.fsName, fsName(input.bucketName))
+	}
+}
+
 func (t *MainTest) TestForwardedEnvVars() {
 	for _, input := range []struct {
 		inputEnvVars                   map[string]string
