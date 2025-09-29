@@ -670,7 +670,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.StringP("custom-endpoint", "", "", "Specifies an alternative custom endpoint for fetching data.  The custom endpoint must support resources equivalent to storage.googleapis.com:443.  If a custom endpoint is not specified, GCSFuse uses the default endpoint, which is storage.googleapis.com:443.")
+	flagSet.StringP("custom-endpoint", "", "", "To specify a custom storage endpoint, ensure it supports the same resources as the default storage.googleapis.com:443 and includes the port number.")
 
 	flagSet.BoolP("debug_fs", "", false, "This flag is unused.")
 
