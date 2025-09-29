@@ -22,6 +22,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -335,6 +336,9 @@ func (t *MainTest) TestForwardedEnvVars() {
 	}, {
 		inputEnvVars:             map[string]string{"GRPC_GO_LOG_VERBOSITY_LEVEL": "99", "GRPC_GO_LOG_SEVERITY_LEVEL": "INFO"},
 		expectedForwardedEnvVars: []string{"GRPC_GO_LOG_VERBOSITY_LEVEL=99", "GRPC_GO_LOG_SEVERITY_LEVEL=INFO"},
+	}, {
+		inputEnvVars:             map[string]string{"GCSFUSE_IN_BACKGROUND_MODE": "true", "GCSFUSE_MOUNT_INSTANCE_ID": logger.MountInstanceID()},
+		expectedForwardedEnvVars: []string{"GCSFUSE_IN_BACKGROUND_MODE=true", "GCSFUSE_MOUNT_INSTANCE_ID=" + logger.MountInstanceID()},
 	},
 	} {
 		for envvar, envval := range input.inputEnvVars {
