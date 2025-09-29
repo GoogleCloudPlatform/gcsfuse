@@ -42,7 +42,8 @@ import (
 // A GCS object metadata key for file mtimes. mtimes are UTC, and are stored in
 // the format defined by time.RFC3339Nano.
 const (
-	FileMtimeMetadataKey     = gcs.MtimeMetadataKey
+	FileMtimeMetadataKey = gcs.MtimeMetadataKey
+	// TODO(b/447991081): Update streaming writes semantic message once semantics for ZB are updated on semantics doc.
 	StreamingWritesSemantics = "Streaming writes is supported for sequential writes to new/empty files. " +
 		"For more details, see: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#writes"
 )
