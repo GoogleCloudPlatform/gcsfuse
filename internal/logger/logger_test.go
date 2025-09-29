@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -29,21 +28,22 @@ import (
 )
 
 const (
-	textTraceString   = "^time=\"[a-zA-Z0-9/:. ]{26}\" severity=TRACE message=\"TestLogs: www.traceExample.com\" mount_id=[a-zA-Z0-9-]+\\s*$"
-	textDebugString   = "^time=\"[a-zA-Z0-9/:. ]{26}\" severity=DEBUG message=\"TestLogs: www.debugExample.com\" mount_id=[a-zA-Z0-9-]+\\s*$"
-	textInfoString    = "^time=\"[a-zA-Z0-9/:. ]{26}\" severity=INFO message=\"TestLogs: www.infoExample.com\" mount_id=[a-zA-Z0-9-]+\\s*$"
-	textWarningString = "^time=\"[a-zA-Z0-9/:. ]{26}\" severity=WARNING message=\"TestLogs: www.warningExample.com\" mount_id=[a-zA-Z0-9-]+\\s*$"
-	textErrorString   = "^time=\"[a-zA-Z0-9/:. ]{26}\" severity=ERROR message=\"TestLogs: www.errorExample.com\" mount_id=[a-zA-Z0-9-]+\\s*$"
-
-	jsonTraceString   = "^{\"timestamp\":{\"seconds\":\\d{10},\"nanos\":\\d{0,9}},\"severity\":\"TRACE\",\"message\":\"TestLogs: www.traceExample.com\",\"mount_id\":\"[a-zA-Z0-9-]+\"}\\s*$"
-	jsonDebugString   = "^{\"timestamp\":{\"seconds\":\\d{10},\"nanos\":\\d{0,9}},\"severity\":\"DEBUG\",\"message\":\"TestLogs: www.debugExample.com\",\"mount_id\":\"[a-zA-Z0-9-]+\"}\\s*$"
-	jsonInfoString    = "^{\"timestamp\":{\"seconds\":\\d{10},\"nanos\":\\d{0,9}},\"severity\":\"INFO\",\"message\":\"TestLogs: www.infoExample.com\",\"mount_id\":\"[a-zA-Z0-9-]+\"}\\s*$"
-	jsonWarningString = "^{\"timestamp\":{\"seconds\":\\d{10},\"nanos\":\\d{0,9}},\"severity\":\"WARNING\",\"message\":\"TestLogs: www.warningExample.com\",\"mount_id\":\"[a-zA-Z0-9-]+\"}\\s*$"
-	jsonErrorString   = "^{\"timestamp\":{\"seconds\":\\d{10},\"nanos\":\\d{0,9}},\"severity\":\"ERROR\",\"message\":\"TestLogs: www.errorExample.com\",\"mount_id\":\"[a-zA-Z0-9-]+\"}\\s*$"
+	textLogPattern = `^time="[a-zA-Z0-9/:. ]{26}" severity=%s message="TestLogs: %s" mount_id=[a-zA-Z0-9-]+\s*$`
+	jsonLogPattern = `^{\"timestamp\":{\"seconds\":\d{10},\"nanos\":\d{0,9}},\"severity\":\"%s\",\"message\":\"TestLogs: %s\",\"mount_id\":\"[a-zA-Z0-9-]+\"}\s*$`
 )
 
 type LoggerTest struct {
 	suite.Suite
+}
+
+func expectedLogRegex(format, severity, message string) string {
+	if format == "text" {
+		return fmt.Sprintf(textLogPattern, severity, message)
+	}
+	if format == "json" {
+		return fmt.Sprintf(jsonLogPattern, severity, message)
+	}
+	return ""
 }
 
 func TestLoggerSuite(t *testing.T) {
@@ -106,8 +106,7 @@ func validateOutput(t *testing.T, expected []string, output []string) {
 		if expected[i] == "" {
 			assert.Equal(t, expected[i], output[i])
 		} else {
-			expectedRegexp := regexp.MustCompile(expected[i])
-			assert.True(t, expectedRegexp.MatchString(output[i]))
+			assert.Regexp(t, expected[i], output[i])
 		}
 	}
 }
@@ -134,7 +133,7 @@ func (t *LoggerTest) TestTextFormatLogs_LogLevelOFF() {
 
 func (t *LoggerTest) TestTextFormatLogs_LogLevelERROR() {
 	var expected = []string{
-		"", "", "", "", textErrorString,
+		"", "", "", "", expectedLogRegex("text", "ERROR", "www.errorExample.com"),
 	}
 
 	// Assert only error logs are logged when log level is ERROR.
@@ -143,7 +142,7 @@ func (t *LoggerTest) TestTextFormatLogs_LogLevelERROR() {
 
 func (t *LoggerTest) TestTextFormatLogs_LogLevelWARNING() {
 	var expected = []string{
-		"", "", "", textWarningString, textErrorString,
+		"", "", "", expectedLogRegex("text", "WARNING", "www.warningExample.com"), expectedLogRegex("text", "ERROR", "www.errorExample.com"),
 	}
 
 	// Assert warning and error logs are logged when log level is WARNING.
@@ -152,7 +151,7 @@ func (t *LoggerTest) TestTextFormatLogs_LogLevelWARNING() {
 
 func (t *LoggerTest) TestTextFormatLogs_LogLevelINFO() {
 	var expected = []string{
-		"", "", textInfoString, textWarningString, textErrorString,
+		"", "", expectedLogRegex("text", "INFO", "www.infoExample.com"), expectedLogRegex("text", "WARNING", "www.warningExample.com"), expectedLogRegex("text", "ERROR", "www.errorExample.com"),
 	}
 
 	// Assert info, warning & error logs are logged when log level is INFO.
@@ -161,7 +160,7 @@ func (t *LoggerTest) TestTextFormatLogs_LogLevelINFO() {
 
 func (t *LoggerTest) TestTextFormatLogs_LogLevelDEBUG() {
 	var expected = []string{
-		"", textDebugString, textInfoString, textWarningString, textErrorString,
+		"", expectedLogRegex("text", "DEBUG", "www.debugExample.com"), expectedLogRegex("text", "INFO", "www.infoExample.com"), expectedLogRegex("text", "WARNING", "www.warningExample.com"), expectedLogRegex("text", "ERROR", "www.errorExample.com"),
 	}
 
 	// Assert debug, info, warning & error logs are logged when log level is DEBUG.
@@ -170,7 +169,7 @@ func (t *LoggerTest) TestTextFormatLogs_LogLevelDEBUG() {
 
 func (t *LoggerTest) TestTextFormatLogs_LogLevelTRACE() {
 	var expected = []string{
-		textTraceString, textDebugString, textInfoString, textWarningString, textErrorString,
+		expectedLogRegex("text", "TRACE", "www.traceExample.com"), expectedLogRegex("text", "DEBUG", "www.debugExample.com"), expectedLogRegex("text", "INFO", "www.infoExample.com"), expectedLogRegex("text", "WARNING", "www.warningExample.com"), expectedLogRegex("text", "ERROR", "www.errorExample.com"),
 	}
 
 	// Assert all logs are logged when log level is TRACE.
@@ -188,7 +187,7 @@ func (t *LoggerTest) TestJSONFormatLogs_LogLevelOFF() {
 
 func (t *LoggerTest) TestJSONFormatLogs_LogLevelERROR() {
 	var expected = []string{
-		"", "", "", "", jsonErrorString,
+		"", "", "", "", expectedLogRegex("json", "ERROR", "www.errorExample.com"),
 	}
 
 	// Assert only error logs are logged when log level is ERROR.
@@ -197,7 +196,7 @@ func (t *LoggerTest) TestJSONFormatLogs_LogLevelERROR() {
 
 func (t *LoggerTest) TestJSONFormatLogs_LogLevelWARNING() {
 	var expected = []string{
-		"", "", "", jsonWarningString, jsonErrorString,
+		"", "", "", expectedLogRegex("json", "WARNING", "www.warningExample.com"), expectedLogRegex("json", "ERROR", "www.errorExample.com"),
 	}
 
 	// Assert warning and error logs are logged when log level is WARNING.
@@ -206,7 +205,7 @@ func (t *LoggerTest) TestJSONFormatLogs_LogLevelWARNING() {
 
 func (t *LoggerTest) TestJSONFormatLogs_LogLevelINFO() {
 	var expected = []string{
-		"", "", jsonInfoString, jsonWarningString, jsonErrorString,
+		"", "", expectedLogRegex("json", "INFO", "www.infoExample.com"), expectedLogRegex("json", "WARNING", "www.warningExample.com"), expectedLogRegex("json", "ERROR", "www.errorExample.com"),
 	}
 
 	// Assert info, warning & error logs are logged when log level is INFO.
@@ -215,7 +214,7 @@ func (t *LoggerTest) TestJSONFormatLogs_LogLevelINFO() {
 
 func (t *LoggerTest) TestJSONFormatLogs_LogLevelDEBUG() {
 	var expected = []string{
-		"", jsonDebugString, jsonInfoString, jsonWarningString, jsonErrorString,
+		"", expectedLogRegex("json", "DEBUG", "www.debugExample.com"), expectedLogRegex("json", "INFO", "www.infoExample.com"), expectedLogRegex("json", "WARNING", "www.warningExample.com"), expectedLogRegex("json", "ERROR", "www.errorExample.com"),
 	}
 
 	// Assert debug, info, warning & error logs are logged when log level is DEBUG.
@@ -224,7 +223,7 @@ func (t *LoggerTest) TestJSONFormatLogs_LogLevelDEBUG() {
 
 func (t *LoggerTest) TestJSONFormatLogs_LogLevelTRACE() {
 	var expected = []string{
-		jsonTraceString, jsonDebugString, jsonInfoString, jsonWarningString, jsonErrorString,
+		expectedLogRegex("json", "TRACE", "www.traceExample.com"), expectedLogRegex("json", "DEBUG", "www.debugExample.com"), expectedLogRegex("json", "INFO", "www.infoExample.com"), expectedLogRegex("json", "WARNING", "www.warningExample.com"), expectedLogRegex("json", "ERROR", "www.errorExample.com"),
 	}
 
 	// Assert all logs are logged when log level is TRACE.
@@ -315,17 +314,17 @@ func (t *LoggerTest) TestSetLogFormatAndFSName() {
 		{
 			"text",
 			"gcsfuse",
-			textInfoString,
+			expectedLogRegex("text", "INFO", "www.infoExample.com"),
 		},
 		{
 			"json",
 			"my-bucket",
-			jsonInfoString,
+			expectedLogRegex("json", "INFO", "www.infoExample.com"),
 		},
 		{
 			"",
 			"my-other-bucket",
-			jsonInfoString,
+			expectedLogRegex("json", "INFO", "www.infoExample.com"),
 		},
 	}
 
@@ -341,8 +340,7 @@ func (t *LoggerTest) TestSetLogFormatAndFSName() {
 		Infof("www.infoExample.com")
 		output := buf.String()
 		// Compare expected and actual log.
-		expectedRegexp := regexp.MustCompile(test.expectedOutput)
-		assert.True(t.T(), expectedRegexp.MatchString(output))
+		assert.Regexp(t.T(), test.expectedOutput, output)
 		assert.True(t.T(), strings.Contains(output, test.fsName))
 	}
 }
@@ -369,7 +367,7 @@ func (t *LoggerTest) TestSetLogFormatAndFsNameWithBackgroundMode() {
 			"12121212",
 			"my-bucket",
 			"json",
-			jsonInfoString,
+			expectedLogRegex("json", "INFO", "www.infoExample.com"),
 		},
 		{
 			"MountInstanceIDNotSet",
@@ -377,7 +375,7 @@ func (t *LoggerTest) TestSetLogFormatAndFsNameWithBackgroundMode() {
 			defaultMountInstanceID,
 			"gcsfuse",
 			"text",
-			textInfoString,
+			expectedLogRegex("text", "INFO", "www.infoExample.com"),
 		},
 	}
 
@@ -400,8 +398,7 @@ func (t *LoggerTest) TestSetLogFormatAndFsNameWithBackgroundMode() {
 			output := buf.String()
 
 			// Compare expected and actual log.
-			expectedRegexp := regexp.MustCompile(test.expectedOutput)
-			assert.True(t, expectedRegexp.MatchString(output))
+			assert.Regexp(t, test.expectedOutput, output)
 			assert.True(t, strings.Contains(output, fmt.Sprintf("%s-%s", test.fsName, test.expectedInstanceID)))
 		})
 	}
