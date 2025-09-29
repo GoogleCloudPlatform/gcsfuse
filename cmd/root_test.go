@@ -367,6 +367,46 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteGlobalMaxBlocks:  2000,
 			expectedWriteMaxBlocksPerFile: 1,
 		},
+		{
+			name:                          "Test_optimization_fallback_to_machine-type_config_with_un-overridden_profile_on_high-end_machine",
+			args:                          []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--profile=" + cfg.ProfileAIMLCheckpointing, "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: true,
+			expectedEnableRapidAppends:    true,
+			expectedWriteBlockSizeMB:      32,
+			expectedWriteGlobalMaxBlocks:  1600,
+			expectedWriteMaxBlocksPerFile: 1,
+		},
+		{
+			name:                          "Test_optimization_fallback_to_default_config_with_un-overridden_profile_on_low-end_machine",
+			args:                          []string{"gcsfuse", "--machine-type=low-end-machine", "--profile=" + cfg.ProfileAIMLCheckpointing, "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: true,
+			expectedEnableRapidAppends:    true,
+			expectedWriteBlockSizeMB:      32,
+			expectedWriteGlobalMaxBlocks:  4,
+			expectedWriteMaxBlocksPerFile: 1,
+		},
+		{
+			name:                          "Test_optimization_overriden_by_user_config_with_profile_set_on_high-end_machine",
+			args:                          []string{"gcsfuse", "--write-global-max-blocks=200", "--machine-type=a3-highgpu-8g", "--profile=" + cfg.ProfileAIMLCheckpointing, "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: true,
+			expectedEnableRapidAppends:    true,
+			expectedWriteBlockSizeMB:      32,
+			expectedWriteGlobalMaxBlocks:  200,
+			expectedWriteMaxBlocksPerFile: 1,
+		},
+		{
+			name:                          "Test_optimizationoverriden_by_user_config_with_profile_set_on_low-end_machine",
+			args:                          []string{"gcsfuse", "--write-global-max-blocks=16", "--machine-type=low-end-machine", "--profile=" + cfg.ProfileAIMLCheckpointing, "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: true,
+			expectedEnableRapidAppends:    true,
+			expectedWriteBlockSizeMB:      32,
+			expectedWriteGlobalMaxBlocks:  16,
+			expectedWriteMaxBlocksPerFile: 1,
+		},
 	}
 
 	for _, tc := range tests {
@@ -778,8 +818,8 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 			},
 		},
 		{
-			name: "Test http-dns-cache-ttl-secs flag.",
-			args: []string{"gcsfuse", "--http-dns-cache-ttl-secs=120", "abc", "pqr"},
+			name: "test_dns_cache",
+			args: []string{"gcsfuse", "--enable-http-dns-cache", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				GcsConnection: cfg.GcsConnectionConfig{
 					BillingProject:             "",
@@ -793,7 +833,7 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 					MaxConnsPerHost:            0,
 					MaxIdleConnsPerHost:        100,
 					SequentialReadSizeMb:       200,
-					HttpDnsCacheTtlSecs:        120,
+					EnableHttpDnsCache:         true,
 				},
 			},
 		},
@@ -1211,12 +1251,12 @@ func TestArgsParsing_EnableGoogleLibAuthFlag(t *testing.T) {
 		{
 			name:                        "default",
 			args:                        []string{"gcsfuse", "abc", "pqr"},
-			expectedEnableGoogleLibAuth: false,
+			expectedEnableGoogleLibAuth: true,
 		},
 		{
 			name:                        "normal",
-			args:                        []string{"gcsfuse", "--enable-google-lib-auth=true", "abc", "pqr"},
-			expectedEnableGoogleLibAuth: true,
+			args:                        []string{"gcsfuse", "--enable-google-lib-auth=false", "abc", "pqr"},
+			expectedEnableGoogleLibAuth: false,
 		},
 	}
 

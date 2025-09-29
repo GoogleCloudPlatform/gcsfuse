@@ -467,13 +467,13 @@ type GcsConnectionConfig struct {
 
 	CustomEndpoint string `yaml:"custom-endpoint"`
 
+	EnableHttpDnsCache bool `yaml:"enable-http-dns-cache"`
+
 	ExperimentalEnableJsonRead bool `yaml:"experimental-enable-json-read"`
 
 	GrpcConnPoolSize int64 `yaml:"grpc-conn-pool-size"`
 
 	HttpClientTimeout time.Duration `yaml:"http-client-timeout"`
-
-	HttpDnsCacheTtlSecs int64 `yaml:"http-dns-cache-ttl-secs"`
 
 	LimitBytesPerSec float64 `yaml:"limit-bytes-per-sec"`
 
@@ -601,6 +601,8 @@ type WriteConfig struct {
 
 	EnableStreamingWrites bool `yaml:"enable-streaming-writes"`
 
+	FinalizeFileForRapid bool `yaml:"finalize-file-for-rapid"`
+
 	GlobalMaxBlocks int64 `yaml:"global-max-blocks"`
 
 	MaxBlocksPerFile int64 `yaml:"max-blocks-per-file"`
@@ -668,7 +670,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.StringP("custom-endpoint", "", "", "Specifies an alternative custom endpoint for fetching data. The custom endpoint must support the equivalent resources and operations as the GCS JSON endpoint, https://storage.googleapis.com/storage/v1. If a custom endpoint is not specified, GCSFuse uses the global GCS JSON API endpoint, https://storage.googleapis.com/storage/v1.")
+	flagSet.StringP("custom-endpoint", "", "", "To specify a custom storage endpoint, ensure it supports the same resources as the default storage.googleapis.com:443 and includes the port number.")
 
 	flagSet.BoolP("debug_fs", "", false, "This flag is unused.")
 
@@ -738,7 +740,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("enable-google-lib-auth", "", false, "Enable google library authentication method to fetch the credentials")
+	flagSet.BoolP("enable-google-lib-auth", "", true, "Enable google library authentication method to fetch the credentials")
 
 	if err := flagSet.MarkHidden("enable-google-lib-auth"); err != nil {
 		return err
@@ -747,6 +749,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("enable-hns", "", true, "Enables support for HNS buckets")
 
 	if err := flagSet.MarkHidden("enable-hns"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("enable-http-dns-cache", "", false, "Enables DNS cache for HTTP/1 connections")
+
+	if err := flagSet.MarkHidden("enable-http-dns-cache"); err != nil {
 		return err
 	}
 
@@ -814,7 +822,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("file-cache-download-chunk-size-mb", "", 200, "Size of chunks in MiB that each concurrent request downloads.")
 
-	flagSet.BoolP("file-cache-enable-crc", "", false, "Performs CRC to ensure that file is correctly downloaded into cache.")
+	flagSet.BoolP("file-cache-enable-crc", "", false, "Performs CRC to ensure that file is correctly downloaded into cache. No op for rapid storage.")
 
 	if err := flagSet.MarkHidden("file-cache-enable-crc"); err != nil {
 		return err
@@ -854,17 +862,17 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("file-mode", "", "0644", "Permissions bits for files, in octal.")
 
+	flagSet.BoolP("finalize-file-for-rapid", "", false, "Finalizes the files on close for Rapid storage. Appends will be slower on finalized files.")
+
+	if err := flagSet.MarkHidden("finalize-file-for-rapid"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("foreground", "", false, "Stay in the foreground after mounting.")
 
 	flagSet.IntP("gid", "", -1, "GID owner of all inodes.")
 
 	flagSet.DurationP("http-client-timeout", "", 0*time.Nanosecond, "The time duration that http client will wait to get response from the server. A value of 0 indicates no timeout.")
-
-	flagSet.IntP("http-dns-cache-ttl-secs", "", 0, "Sets the DNS cache TTL for HTTP/1 connection to the specified value in seconds. Special values: -1 means infinite TTL and 0 disables caching")
-
-	if err := flagSet.MarkHidden("http-dns-cache-ttl-secs"); err != nil {
-		return err
-	}
 
 	flagSet.BoolP("ignore-interrupts", "", true, "Instructs gcsfuse to ignore system interrupt signals (like SIGINT, triggered by Ctrl+C). This prevents those signals from immediately terminating gcsfuse inflight operations.")
 
@@ -943,10 +951,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.StringP("profile", "", "", "The name of the profile to apply. e.g. aiml-training, aiml-serving, aiml-checkpointing")
-
-	if err := flagSet.MarkHidden("profile"); err != nil {
-		return err
-	}
 
 	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
 
@@ -1191,6 +1195,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("gcs-connection.enable-http-dns-cache", flagSet.Lookup("enable-http-dns-cache")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("enable-new-reader", flagSet.Lookup("enable-new-reader")); err != nil {
 		return err
 	}
@@ -1287,6 +1295,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("write.finalize-file-for-rapid", flagSet.Lookup("finalize-file-for-rapid")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("foreground", flagSet.Lookup("foreground")); err != nil {
 		return err
 	}
@@ -1296,10 +1308,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-connection.http-client-timeout", flagSet.Lookup("http-client-timeout")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("gcs-connection.http-dns-cache-ttl-secs", flagSet.Lookup("http-dns-cache-ttl-secs")); err != nil {
 		return err
 	}
 

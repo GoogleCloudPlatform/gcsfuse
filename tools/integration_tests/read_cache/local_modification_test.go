@@ -25,6 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -69,13 +70,31 @@ func (s *localModificationTest) TestReadAfterLocalGCSFuseWriteIsCacheMiss() {
 	if err != nil {
 		s.T().Errorf("Error in appending data in file: %v", err)
 	}
-	// Read file 2nd time.
-	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize+smallContentSize, true, s.T())
+	if !setup.IsZonalBucketRun() {
+		// Read file 2nd time.
+		expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize+smallContentSize, true, s.T())
 
-	// Parse the log file and validate cache hit or miss from the structured logs.
-	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), s.T())
-	validate(expectedOutcome1, structuredReadLogs[0], true, false, chunksRead, s.T())
-	validate(expectedOutcome2, structuredReadLogs[1], true, false, chunksRead+1, s.T())
+		// Parse the log file and validate cache hit or miss from the structured logs.
+		structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), s.T())
+		validate(expectedOutcome1, structuredReadLogs[0], true, false, chunksRead, s.T())
+		validate(expectedOutcome2, structuredReadLogs[1], true, false, chunksRead+1, s.T())
+	} else {
+		// Read file 2nd time.
+		expectedOutcome2 := readFileAndGetExpectedOutcome(testDirPath, testFileName, true, zeroOffset, s.T())
+		expectedPathOfCachedFile := getCachedFilePath(testFileName)
+		fileInfo, err := operations.StatFile(expectedPathOfCachedFile)
+
+		// Validate cache size is within limit and cache file size is same as the original file size.
+		// This is because for unfinalized objects, we do not trigger a new download job due to appends,
+		// we simply fall back to another reader to serve newer reads (which are not cached).
+		validateCacheSizeWithinLimit(cacheCapacityInMB, s.T())
+		assert.NoError(s.T(), err)
+		assert.Equal(s.T(), int64(fileSize), (*fileInfo).Size())
+
+		// Parse the log file and validate cache hit or miss from the structured logs.
+		structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), s.T())
+		validate(expectedOutcome2, structuredReadLogs[1], true, true, chunksRead+1, s.T())
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////

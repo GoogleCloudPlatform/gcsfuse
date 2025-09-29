@@ -177,3 +177,10 @@ func (t *clientTest) TestCreateHttpClientWithHttpTracing() {
 		return slices.ContainsFunc(ss, func(s tracetest.SpanStub) bool { return s.Name == "http.send" })
 	})
 }
+
+func TestGetDialerContext_nilWhenDNSCacheDisabled(t *testing.T) {
+	assert.Nil(t, getDialerContext(false))
+}
+func TestGetDialerContext_notNilWhenDNSCacheEnabled(t *testing.T) {
+	assert.NotNil(t, getDialerContext(true))
+}

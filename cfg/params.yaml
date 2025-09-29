@@ -162,7 +162,7 @@ params:
     config-path: "enable-google-lib-auth"
     type: "bool"
     usage: "Enable google library authentication method to fetch the credentials"
-    default: false
+    default: true
     hide-flag: true
 
   - config-path: "enable-hns"
@@ -200,7 +200,7 @@ params:
   - config-path: "file-cache.enable-crc"
     flag-name: "file-cache-enable-crc"
     type: "bool"
-    usage: "Performs CRC to ensure that file is correctly downloaded into cache."
+    usage: "Performs CRC to ensure that file is correctly downloaded into cache. No op for rapid storage."
     default: false
     hide-flag: true
 
@@ -414,12 +414,15 @@ params:
     flag-name: "custom-endpoint"
     type: "string"
     usage: >-
-      Specifies an alternative custom endpoint for fetching data. The custom endpoint
-      must support the equivalent resources and operations as the GCS JSON endpoint,
-      https://storage.googleapis.com/storage/v1. If a custom endpoint is not
-      specified, GCSFuse uses the global GCS JSON API endpoint,
-      https://storage.googleapis.com/storage/v1.
+      To specify a custom storage endpoint, ensure it supports the same resources as the default storage.googleapis.com:443 and includes the port number.
     default: ""
+
+  - config-path: "gcs-connection.enable-http-dns-cache"
+    flag-name: "enable-http-dns-cache"
+    type: "bool"
+    usage: "Enables DNS cache for HTTP/1 connections"
+    default: false
+    hide-flag: true
 
   - config-path: "gcs-connection.experimental-enable-json-read"
     flag-name: "experimental-enable-json-read"
@@ -446,13 +449,6 @@ params:
       The time duration that http client will wait to get response from the
       server. A value of 0 indicates no timeout.
     default: "0s"
-
-  - config-path: "gcs-connection.http-dns-cache-ttl-secs"
-    flag-name: "http-dns-cache-ttl-secs"
-    type: "int"
-    usage: "Sets the DNS cache TTL for HTTP/1 connection to the specified value in seconds. Special values: -1 means infinite TTL and 0 disables caching"
-    default: "0"
-    hide-flag: true
 
   - config-path: "gcs-connection.limit-bytes-per-sec"
     flag-name: "limit-bytes-per-sec"
@@ -856,7 +852,6 @@ params:
     type: "string"
     usage: "The name of the profile to apply. e.g. aiml-training, aiml-serving, aiml-checkpointing"
     default: ""
-    hide-flag: true
 
   - config-path: "read.block-size-mb"
     flag-name: "read-block-size-mb"
@@ -958,6 +953,13 @@ params:
     usage: "Enables streaming uploads during write file operation."
     default: true
     hide-flag: false
+
+  - config-path: "write.finalize-file-for-rapid"
+    flag-name: "finalize-file-for-rapid"
+    type: "bool"
+    usage: "Finalizes the files on close for Rapid storage. Appends will be slower on finalized files."
+    default: false
+    hide-flag: true
 
   - config-path: "write.global-max-blocks"
     flag-name: "write-global-max-blocks"

@@ -103,29 +103,24 @@ func getUserAgent(appName string, config string) string {
 	}
 }
 
+func boolToBin(b bool) string {
+	if b {
+		return "1"
+	}
+	return "0"
+}
+
 func getConfigForUserAgent(mountConfig *cfg.Config) string {
 	// Minimum configuration details created in a bitset fashion.
-	isFileCacheEnabled := "0"
-	if cfg.IsFileCacheEnabled(mountConfig) {
-		isFileCacheEnabled = "1"
+	parts := []string{
+		boolToBin(cfg.IsFileCacheEnabled(mountConfig)),
+		boolToBin(mountConfig.FileCache.CacheFileForRangeRead),
+		boolToBin(cfg.IsParallelDownloadsEnabled(mountConfig)),
+		boolToBin(mountConfig.Write.EnableStreamingWrites),
+		boolToBin(mountConfig.Read.EnableBufferedRead),
+		boolToBin(mountConfig.Profile != ""),
 	}
-	isFileCacheForRangeReadEnabled := "0"
-	if mountConfig.FileCache.CacheFileForRangeRead {
-		isFileCacheForRangeReadEnabled = "1"
-	}
-	isParallelDownloadsEnabled := "0"
-	if cfg.IsParallelDownloadsEnabled(mountConfig) {
-		isParallelDownloadsEnabled = "1"
-	}
-	areStreamingWritesEnabled := "0"
-	if mountConfig.Write.EnableStreamingWrites {
-		areStreamingWritesEnabled = "1"
-	}
-	isBufferedReadEnabled := "0"
-	if mountConfig.Read.EnableBufferedRead {
-		isBufferedReadEnabled = "1"
-	}
-	return fmt.Sprintf("%s:%s:%s:%s:%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled, isParallelDownloadsEnabled, areStreamingWritesEnabled, isBufferedReadEnabled)
+	return strings.Join(parts, ":")
 }
 func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle metrics.MetricHandle) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
@@ -149,6 +144,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		ReadStallRetryConfig:       newConfig.GcsRetries.ReadStall,
 		MetricHandle:               metricHandle,
 		TracingEnabled:             cfg.IsTracingEnabled(newConfig),
+		EnableHTTPDNSCache:         newConfig.GcsConnection.EnableHttpDnsCache,
 	}
 	logger.Infof("UserAgent = %s\n", storageClientConfig.UserAgent)
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig, newConfig.GcsConnection.BillingProject)

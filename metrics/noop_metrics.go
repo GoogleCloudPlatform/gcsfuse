@@ -59,6 +59,10 @@ func (*noopMetrics) GcsRequestLatencies(ctx context.Context, duration time.Durat
 
 func (*noopMetrics) GcsRetryCount(inc int64, retryErrorCategory string) {}
 
+func (*noopMetrics) TestUpdownCounter(inc int64) {}
+
+func (*noopMetrics) TestUpdownCounterWithAttrs(inc int64, requestType string) {}
+
 func NewNoopMetrics() MetricHandle {
 	var n noopMetrics
 	return &n

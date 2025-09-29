@@ -196,9 +196,9 @@ fi
 # Sorted list descending run times. (Longest Processing Time first strategy) 
 TEST_PACKAGES_COMMON=(
   "managed_folders"
-  # "operations"
+  "operations"
   "read_large_files"
-  # "concurrent_operations"
+  "concurrent_operations"
   # "read_cache"
   "list_large_dir"
   "mount_timeout"
@@ -227,7 +227,7 @@ TEST_PACKAGES_COMMON=(
 )
 
 # Test packages for regional buckets.
-TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "operations" "concurrent_operations" "read_cache" "inactive_stream_timeout" "cloud_profiler")
+TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "read_cache" "inactive_stream_timeout" "cloud_profiler")
 # Test packages for zonal buckets.
 TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "unfinalized_object")
 # Test packages for TPC buckets.
@@ -547,20 +547,30 @@ generate_test_log_artifacts() {
   local package_name="$2"
   local bucket_type="$3"
 
+  if [ ! -f "$log_file" ]; then
+    return 0
+  fi
+
   local output_dir="${KOKORO_ARTIFACTS_DIR}/${bucket_type}/${package_name}"
   mkdir -p "$output_dir"
-  local sponge_xml_file="${output_dir}/${package_name}_sponge_log.xml"
   local sponge_log_file="${output_dir}/${package_name}_sponge_log.log"
+  local sponge_xml_file="${output_dir}/${package_name}_sponge_log.xml"
 
+  cp "$log_file" "$sponge_log_file"
+  
   echo '<?xml version="1.0" encoding="UTF-8"?>' > "${sponge_xml_file}"
   echo '<testsuites>' >> "${sponge_xml_file}"
 
-  if [ -f "$log_file" ]; then
-    cp "$log_file" "$sponge_log_file"
-    go-junit-report < "$log_file" | sed '1,2d;$d' >> "${sponge_xml_file}"
+  # Remove first 2 lines and last line from log.
+  local report_log=$(cat "$log_file")
+  # For benchmarking package, filter out benchmark results to avoid incorrect XML results.
+  if [[ "$package_name" == "benchmarking" ]]; then
+    report_log=$(echo "$report_log" | grep -v '^Benchmark_[^[:space:]]*$')
   fi
 
+  echo "$report_log" | go-junit-report | sed '1,2d;$d' >> "${sponge_xml_file}"
   echo '</testsuites>' >> "${sponge_xml_file}"
+  
   return 0
 }
 
