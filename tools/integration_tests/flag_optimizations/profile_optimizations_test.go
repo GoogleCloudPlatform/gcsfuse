@@ -45,52 +45,29 @@ type aimlTrainingProfileTests struct {
 	profileTests
 }
 
-func (s *aimlTrainingProfileTests) SetupTest() {
-	s.profileTests.SetupTest()
-}
-
-func (s *aimlTrainingProfileTests) TearDownTest() {
-	s.profileTests.TearDownTest()
 }
 
 type aimlServingProfileTests struct {
 	profileTests
 }
-
-func (s *aimlServingProfileTests) SetupTest() {
-	s.profileTests.SetupTest()
-}
-
-func (s *aimlServingProfileTests) TearDownTest() {
-	s.profileTests.TearDownTest()
 }
 
 type aimlCheckpointingProfileTests struct {
 	profileTests
 }
-
-func (s *aimlCheckpointingProfileTests) SetupTest() {
-	s.profileTests.SetupTest()
-}
-
-func (s *aimlCheckpointingProfileTests) TearDownTest() {
-	s.profileTests.TearDownTest()
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (t *aimlTrainingProfileTests) TestUnnamedTest() {
-	t.T().Log("Unnamed test for AIML training profile")
+func (t *aimlTrainingProfileTests) TestUnnamedTrainingProfileTest() {
 }
 
-func (t *aimlServingProfileTests) TestUnnamedTest() {
-	t.T().Log("Unnamed test for AIML serving profile")
+func (t *aimlServingProfileTests) TestUnnamedServingProfileTest() {
 }
 
-func (t *aimlCheckpointingProfileTests) TestUnnamedTest() {
-	t.T().Log("Unnamed test for AIML checkpointing profile")
+func (t *aimlCheckpointingProfileTests) TestUnnamedCheckpointingProfileTest() {
 }
 
 ////////////////////////////////////////////////////////////////////////
