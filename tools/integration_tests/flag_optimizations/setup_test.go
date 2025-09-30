@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	testDirName                         = "dirForFlagOptimizationsTests"
+	testDirName                         = "FlagOptimizationsTests"
 	logFileNameForMountedDirectoryTests = "/tmp/gcsfuse_flag_optimizations_logs/log.json"
 )
 
