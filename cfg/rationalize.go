@@ -134,6 +134,12 @@ func resolveFileCacheAndBufferedReadConflict(v isSet, c *Config) {
 	}
 }
 
+func resolveReadConfig(r *ReadConfig) {
+	if r.GlobalMaxBlocks == -1 {
+		r.GlobalMaxBlocks = math.MaxInt32
+	}
+}
+
 func resolveLoggingConfig(config *Config) {
 	if config.Debug.Fuse || config.Debug.Gcs || config.Debug.LogMutex {
 		config.Logging.Severity = "TRACE"
@@ -159,6 +165,7 @@ func Rationalize(v isSet, c *Config, optimizedFlags []string) error {
 	}
 
 	resolveLoggingConfig(c)
+	resolveReadConfig(&c.Read)
 	resolveStreamingWriteConfig(&c.Write)
 	resolveMetadataCacheTTL(v, &c.MetadataCache, optimizedFlags)
 	resolveStatCacheMaxSizeMB(v, &c.MetadataCache, optimizedFlags)
