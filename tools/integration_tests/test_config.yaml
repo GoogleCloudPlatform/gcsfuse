@@ -185,3 +185,17 @@ streaming_writes:
           flat: true
           hns: true
           zonal: true
+
+cloud_profiler:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    log_file: # Optional
+    run_on_gke: false
+    configs:
+      - flags:
+           # Set the 'PROFILE_LABEL' environment variable for GKE
+          - "--enable-cloud-profiler --cloud-profiler-cpu --cloud-profiler-heap --cloud-profiler-goroutines --cloud-profiler-mutex --cloud-profiler-allocated-heap --cloud-profiler-label=${PROFILE_LABEL}"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true

@@ -47,7 +47,6 @@ var integrationTest = flag.Bool("integrationTest", false, "Run tests only when t
 var testInstalledPackage = flag.Bool("testInstalledPackage", false, "[Optional] Run tests on the package pre-installed on the host machine. By default, integration tests build a new package to run the tests.")
 var testOnTPCEndPoint = flag.Bool("testOnTPCEndPoint", false, "Run tests on TPC endpoint only when the flag value is true.")
 var gcsfusePreBuiltDir = flag.String("gcsfuse_prebuilt_dir", "", "Path to the pre-built GCSFuse directory containing bin/gcsfuse and sbin/mount.gcsfuse.")
-var profileLabelForMountedDirTest = flag.String("profile_label", "", "To pass profile-label for the cloud-profile test.")
 var configFile = flag.String("config-file", "", "Common GCSFuse config file to run tests with.")
 
 const (
@@ -152,11 +151,6 @@ func SetOnlyDirMounted(onlyDirValue string) {
 // DynamicBucketMounted returns the name of the bucket in case of dynamic mount.
 func DynamicBucketMounted() string {
 	return dynamicBucketMounted
-}
-
-// ProfileLabelForMountedDirTest returns the profile-label required for cloud-profiler test package.
-func ProfileLabelForMountedDirTest() string {
-	return *profileLabelForMountedDirTest
 }
 
 // SetDynamicBucketMounted sets the name of the bucket in case of dynamic mount.
@@ -796,4 +790,20 @@ func GetGCERegion(gceZone string) (string, error) {
 		return region, fmt.Errorf("zone %q returned by GCE metadata server is not a valid zone-string: %w", region, err)
 	}
 	return region, nil
+}
+
+// ExtractServiceVersionFromFlags parses the cloud-profiler-label from a slice of flag strings.
+func ExtractServiceVersionFromFlags(flags []string) string {
+	// Regex to find --cloud-profiler-label=some_value or --cloud-profiler-label some_value
+	re := regexp.MustCompile(`--cloud-profiler-label[=\s]([^\s]+)`)
+	for _, flagSet := range flags {
+		matches := re.FindStringSubmatch(flagSet)
+		// matches[0] is the full match, e.g., "--cloud-profiler-label=v1"
+		// matches[1] is the first capturing group, e.g., "v1"
+		if len(matches) > 1 {
+			return matches[1]
+		}
+	}
+	log.Fatal("Profile label should have been provided for mounted directory test.")
+	return ""
 }
