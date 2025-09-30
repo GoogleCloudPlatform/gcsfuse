@@ -29,8 +29,11 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
+const (
+	testDirName = "FlagOptimizationsTests"
+)
+
 var (
-	testDirName                         = "FlagOptimizationsTests"
 	logFileNameForMountedDirectoryTests = path.Join(os.TempDir(), "gcsfuse_flag_optimizations_logs", "log.json")
 )
 

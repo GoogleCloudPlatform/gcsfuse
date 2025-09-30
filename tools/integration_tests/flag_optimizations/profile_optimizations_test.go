@@ -15,14 +15,15 @@
 package flag_optimizations
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -35,15 +36,6 @@ type profileTests struct {
 	flags []string
 }
 
-func (s *profileTests) SetupSuite() {
-	if setup.MountedDirectory() != "" {
-		setupForMountedDirectoryTests()
-		return
-	}
-	// Mount GCSFuse.
-	setup.MountGCSFuseWithGivenMountFunc(s.flags, testEnv.mountFunc)
-}
-
 func (s *profileTests) SetupTest() {
 	setupForMountedDirectoryTests()
 	mountGCSFuseAndSetupTestDir(s.flags, testEnv.ctx, testEnv.storageClient)
@@ -52,6 +44,10 @@ func (s *profileTests) SetupTest() {
 func (s *profileTests) TearDownTest() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 	setup.UnmountGCSFuseAndDeleteLogFile(testEnv.rootDir)
+}
+
+type noProfileTests struct {
+	profileTests
 }
 
 type aimlProfileTests struct {
@@ -74,22 +70,68 @@ type aimlCheckpointingProfileTests struct {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (t *aimlProfileTests) TestImplicitDirsEnabled() {
-	implicitDirPath := filepath.Join(testEnv.testDirPath, "implicitDir", setup.GenerateRandomString(5))
+func (t *noProfileTests) TestNoImplicitDirsEnabled() {
+	if setup.ResolveIsHierarchicalBucket(testEnv.ctx, setup.TestBucket(), testEnv.storageClient) {
+		t.T().Skipf("test not applicable for HNS buckets")
+	}
+	implicitDirPath := filepath.Join(testDirName, "implicitDir", setup.GenerateRandomString(5))
+	mountedImplicitDirPath := filepath.Join(setup.MntDir(), implicitDirPath)
 	client.CreateImplicitDir(testEnv.ctx, testEnv.storageClient, implicitDirPath, t.T())
 	defer client.DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, implicitDirPath)
 
+	_, err := os.Stat(mountedImplicitDirPath)
+
+	require.Error(t.T(), err, "Found unexpected implicit directory %q", mountedImplicitDirPath)
+}
+
+func (t *noProfileTests) TestZeroRenameDirLimit() {
+	if setup.ResolveIsHierarchicalBucket(testEnv.ctx, setup.TestBucket(), testEnv.storageClient) {
+		t.T().Skipf("test not applicable for HNS buckets")
+	}
+	srcDirPath := filepath.Join(testDirName, "srcDirContainingFiles", setup.GenerateRandomString(5))
+	mountedSrcDirPath := filepath.Join(setup.MntDir(), srcDirPath)
+	dstDirPath := filepath.Join(testDirName, "dstDirContainingFiles", setup.GenerateRandomString(5))
+	mountedDstDirPath := filepath.Join(setup.MntDir(), dstDirPath)
+	client.CreateGcsDir(testEnv.ctx, testEnv.storageClient, srcDirPath, setup.TestBucket(), "")
+	client.CreateNFilesInDir(testEnv.ctx, testEnv.storageClient, 1, "file", 1024, srcDirPath, t.T())
+	defer client.DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, srcDirPath)
+
+	err := os.Rename(mountedSrcDirPath, mountedDstDirPath)
+
+	require.Error(t.T(), err, "Unexpectedly succeeded in renaming directory %q to %q", mountedSrcDirPath, mountedDstDirPath)
+}
+
+func (t *aimlProfileTests) TestImplicitDirsEnabled() {
+	if setup.ResolveIsHierarchicalBucket(testEnv.ctx, setup.TestBucket(), testEnv.storageClient) {
+		t.T().Skipf("test not applicable for HNS buckets")
+	}
+	implicitDirPath := filepath.Join(testDirName, "implicitDir", setup.GenerateRandomString(5))
 	mountedImplicitDirPath := filepath.Join(setup.MntDir(), implicitDirPath)
-	assert.True(t.T(), operations.ValidateNoFileOrDirError(t.T(), mountedImplicitDirPath), "Expected directory %q but not found", mountedImplicitDirPath)
+	client.CreateImplicitDir(testEnv.ctx, testEnv.storageClient, implicitDirPath, t.T())
+	defer client.DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, implicitDirPath)
+
+	fi, err := os.Stat(mountedImplicitDirPath)
+
+	require.NoError(t.T(), err, "Got error statting %q: %v", mountedImplicitDirPath, err)
+	require.NotNil(t.T(), fi, "Expected directory %q", mountedImplicitDirPath)
+	assert.True(t.T(), fi.IsDir(), "Expected %q to be a directory, but got not-dir", mountedImplicitDirPath)
 }
 
-func (t *aimlTrainingProfileTests) TestUnnamedTrainingProfileTest() {
-}
+func (t *aimlCheckpointingProfileTests) TestNonZeroRenameDirLimit() {
+	if setup.ResolveIsHierarchicalBucket(testEnv.ctx, setup.TestBucket(), testEnv.storageClient) {
+		t.T().Skipf("test not applicable for HNS buckets")
+	}
+	srcDirPath := filepath.Join(testDirName, "srcDirContainingFiles"+setup.GenerateRandomString(5))
+	mountedSrcDirPath := filepath.Join(setup.MntDir(), srcDirPath)
+	dstDirPath := filepath.Join(testDirName, "dstDirContainingFiles"+setup.GenerateRandomString(5))
+	mountedDstDirPath := filepath.Join(setup.MntDir(), dstDirPath)
+	client.CreateGcsDir(testEnv.ctx, testEnv.storageClient, srcDirPath, setup.TestBucket(), "")
+	client.CreateNFilesInDir(testEnv.ctx, testEnv.storageClient, 1, "file", 1024, srcDirPath, t.T())
+	defer client.DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, srcDirPath)
 
-func (t *aimlServingProfileTests) TestUnnamedServingProfileTest() {
-}
+	err := os.Rename(mountedSrcDirPath, mountedDstDirPath)
 
-func (t *aimlCheckpointingProfileTests) TestUnnamedCheckpointingProfileTest() {
+	require.NoError(t.T(), err, "Failed to rename directory %q to %q: %v", mountedSrcDirPath, mountedDstDirPath, err)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -98,16 +140,31 @@ func (t *aimlCheckpointingProfileTests) TestUnnamedCheckpointingProfileTest() {
 
 func TestProfile(t *testing.T) {
 	flagSet := func(profile string) [][]string {
-		return [][]string{{"--profile", profile}}
+		if profile != "" {
+			return [][]string{{"--profile", profile}}
+		} else {
+			return [][]string{{}}
+		}
 	}
-	tcName := func(flags []string) string {
-		return strings.ReplaceAll(strings.Join(flags, ","), "--", "")
+	tcNameFromProfile := func(profile string) string {
+		if profile != "" {
+			return profile
+		} else {
+			return "no-profile"
+		}
+	}
+	tcNameFromFlags := func(flags []string) string {
+		if len(flags) > 0 {
+			return strings.ReplaceAll(strings.Join(flags, ","), "--", "")
+		} else {
+			return "noflags"
+		}
 	}
 
-	profiles := []string{"aiml-training", "aiml-serving", "aiml-checkpointing"}
+	profiles := []string{"aiml-training", "aiml-serving", "aiml-checkpointing", ""}
 
 	for _, profile := range profiles {
-		t.Run(profile, func(t *testing.T) {
+		t.Run(tcNameFromProfile(profile), func(t *testing.T) {
 			var ts suite.TestingSuite
 			var pTests *profileTests
 
@@ -124,6 +181,10 @@ func TestProfile(t *testing.T) {
 				s := &aimlCheckpointingProfileTests{}
 				ts = s
 				pTests = &s.profileTests
+			case "":
+				s := &noProfileTests{}
+				ts = s
+				pTests = &s.profileTests
 			}
 
 			if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
@@ -135,7 +196,7 @@ func TestProfile(t *testing.T) {
 			flagsSet := flagSet(profile)
 			for _, flags := range flagsSet {
 				pTests.flags = flags
-				t.Run(tcName(flags), func(t *testing.T) {
+				t.Run(tcNameFromFlags(flags), func(t *testing.T) {
 					suite.Run(t, ts)
 				})
 			}
