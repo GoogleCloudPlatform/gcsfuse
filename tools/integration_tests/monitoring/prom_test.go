@@ -248,8 +248,8 @@ func (testSuite *PromTest) TestReadMetrics() {
 	assertNonZeroCountMetric(testSuite.T(), "gcs_reader_count", "io_method", "opened")
 	assertNonZeroCountMetric(testSuite.T(), "gcs_reader_count", "io_method", "closed")
 	assertNonZeroCountMetric(testSuite.T(), "gcs_read_count", "read_type", "Parallel")
-	assertNonZeroCountMetric(testSuite.T(), "gcs_download_bytes_count", "", "")
-	assertNonZeroCountMetric(testSuite.T(), "gcs_read_bytes_count", "", "")
+	assertNonZeroCountMetric(testSuite.T(), "gcs_download_bytes_count", "read_type", "Parallel")
+	assertNonZeroCountMetric(testSuite.T(), "gcs_read_bytes_count", "reader", "default")
 	assertNonZeroHistogramMetric(testSuite.T(), "gcs_request_latencies", "gcs_method", "NewReader")
 }
 
@@ -297,8 +297,8 @@ func (testSuite *PromBufferedReadTest) TestBufferedReadMetrics() {
 	_, err := operations.ReadFile(path.Join(testSuite.mountPoint, "hello/hello.txt"))
 
 	require.NoError(testSuite.T(), err)
-	assertNonZeroCountMetric(testSuite.T(), "buffered_read_read_bytes", "", "")
-	assertNonZeroCountMetric(testSuite.T(), "buffered_read_downloaded_bytes", "", "")
+	assertNonZeroCountMetric(testSuite.T(), "gcs_read_bytes_count", "reader", "buffered")
+	assertNonZeroCountMetric(testSuite.T(), "gcs_download_bytes_count", "read_type", "buffered")
 	assertNonZeroHistogramMetric(testSuite.T(), "buffered_read_read_latency", "", "")
 }
 

@@ -22,11 +22,7 @@ import (
 
 type noopMetrics struct{}
 
-func (*noopMetrics) BufferedReadDownloadedBytes(inc int64) {}
-
 func (*noopMetrics) BufferedReadFallbackTriggerCount(inc int64, reason string) {}
-
-func (*noopMetrics) BufferedReadReadBytes(inc int64) {}
 
 func (*noopMetrics) BufferedReadReadLatency(ctx context.Context, duration time.Duration) {}
 
@@ -45,7 +41,7 @@ func (*noopMetrics) FsOpsLatency(ctx context.Context, duration time.Duration, fs
 
 func (*noopMetrics) GcsDownloadBytesCount(inc int64, readType string) {}
 
-func (*noopMetrics) GcsReadBytesCount(inc int64) {}
+func (*noopMetrics) GcsReadBytesCount(inc int64, reader string) {}
 
 func (*noopMetrics) GcsReadCount(inc int64, readType string) {}
 

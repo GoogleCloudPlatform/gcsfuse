@@ -24,14 +24,8 @@ import (
 // The methods of this interface are auto-generated from metrics.yaml.
 // Each method corresponds to a metric defined in metrics.yaml.
 type MetricHandle interface {
-	// BufferedReadDownloadedBytes - The cumulative number of bytes downloaded by the buffered reader.
-	BufferedReadDownloadedBytes(inc int64)
-
 	// BufferedReadFallbackTriggerCount - The cumulative number of times the BufferedReader falls back to a different reader, along with the reason: random_read_detected or insufficient_memory.
 	BufferedReadFallbackTriggerCount(inc int64, reason string)
-
-	// BufferedReadReadBytes - The cumulative number of bytes read from the buffered reader.
-	BufferedReadReadBytes(inc int64)
 
 	// BufferedReadReadLatency - The cumulative distribution of latencies for ReadAt calls served by the buffered reader.
 	BufferedReadReadLatency(ctx context.Context, duration time.Duration)
@@ -58,7 +52,7 @@ type MetricHandle interface {
 	GcsDownloadBytesCount(inc int64, readType string)
 
 	// GcsReadBytesCount - The cumulative number of bytes read from GCS objects.
-	GcsReadBytesCount(inc int64)
+	GcsReadBytesCount(inc int64, reader string)
 
 	// GcsReadCount - Specifies the number of gcs reads made along with type - Sequential/Random
 	GcsReadCount(inc int64, readType string)
