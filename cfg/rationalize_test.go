@@ -69,6 +69,43 @@ func TestRationalizeCustomEndpointSuccessful(t *testing.T) {
 	}
 }
 
+func TestRationalize_ReadConfig(t *testing.T) {
+	testCases := []struct {
+		name                    string
+		config                  *Config
+		expectedGlobalMaxBlocks int64
+	}{
+		{
+			name: "global-max-blocks is -1",
+			config: &Config{
+				Read: ReadConfig{
+					GlobalMaxBlocks: -1,
+				},
+			},
+			expectedGlobalMaxBlocks: math.MaxInt32,
+		},
+		{
+			name: "global-max-blocks is not -1",
+			config: &Config{
+				Read: ReadConfig{
+					GlobalMaxBlocks: 100,
+				},
+			},
+			expectedGlobalMaxBlocks: 100,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := Rationalize(&mockIsSet{}, tc.config, []string{})
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedGlobalMaxBlocks, tc.config.Read.GlobalMaxBlocks)
+			}
+		})
+	}
+}
+
 func TestRationalizeCustomEndpointUnsuccessful(t *testing.T) {
 	testCases := []struct {
 		name   string
