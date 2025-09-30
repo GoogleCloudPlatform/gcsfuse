@@ -45,7 +45,7 @@ implicit_dir:
           hns: true
           zonal: false
 
-flag_overrides:
+flag_optimizations:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
     log_file: # Optional

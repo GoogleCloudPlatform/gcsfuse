@@ -68,7 +68,7 @@ type Config struct {
 	KernelListCache       []TestConfig `yaml:"kernel_list_cache"`
 	ReadDirPlus           []TestConfig `yaml:"readdirplus"`
 	DentryCache           []TestConfig `yaml:"dentry_cache"`
-	FlagOverrides         []TestConfig `yaml:"flag_overrides"`
+	FlagOptimizations     []TestConfig `yaml:"flag_optimizations"`
 }
 
 // ReadConfigFile returns a Config struct from the YAML file.

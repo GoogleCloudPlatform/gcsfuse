@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package flag_overrides_test
+package flag_optimizations
 
 import (
 	"strings"

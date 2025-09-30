@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Provide tests for cases where bucket is mounted with flag(s) --machine-type and/or --profile.
-package flag_overrides_test
+package flag_optimizations
 
 import (
 	"context"
@@ -29,8 +29,8 @@ import (
 )
 
 const (
-	testDirName                         = "dirForFlagOverridesTests"
-	logFileNameForMountedDirectoryTests = "/tmp/gcsfuse_flag_overrides_logs/log.json"
+	testDirName                         = "dirForFlagOptimizationsTests"
+	logFileNameForMountedDirectoryTests = "/tmp/gcsfuse_flag_optimizations_logs/log.json"
 )
 
 // IMPORTANT: To prevent global variable pollution, enhance code clarity,
