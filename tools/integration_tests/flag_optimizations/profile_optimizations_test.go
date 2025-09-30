@@ -53,12 +53,44 @@ func (s *aimlTrainingProfileTests) TearDownTest() {
 	s.profileTests.TearDownTest()
 }
 
+type aimlServingProfileTests struct {
+	profileTests
+}
+
+func (s *aimlServingProfileTests) SetupTest() {
+	s.profileTests.SetupTest()
+}
+
+func (s *aimlServingProfileTests) TearDownTest() {
+	s.profileTests.TearDownTest()
+}
+
+type aimlCheckpointingProfileTests struct {
+	profileTests
+}
+
+func (s *aimlCheckpointingProfileTests) SetupTest() {
+	s.profileTests.SetupTest()
+}
+
+func (s *aimlCheckpointingProfileTests) TearDownTest() {
+	s.profileTests.TearDownTest()
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
 func (t *aimlTrainingProfileTests) TestUnnamedTest() {
 	t.T().Log("Unnamed test for AIML training profile")
+}
+
+func (t *aimlServingProfileTests) TestUnnamedTest() {
+	t.T().Log("Unnamed test for AIML serving profile")
+}
+
+func (t *aimlCheckpointingProfileTests) TestUnnamedTest() {
+	t.T().Log("Unnamed test for AIML checkpointing profile")
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -92,7 +124,7 @@ func TestProfile(t *testing.T) {
 	})
 	profile = "aiml-serving"
 	t.Run(profile, func(t *testing.T) {
-		ts := &aimlTrainingProfileTests{}
+		ts := &aimlTrainingServingTests{}
 		if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
 			// Run tests for mounted directory if the flag is set.
 			suite.Run(t, ts)
@@ -109,7 +141,7 @@ func TestProfile(t *testing.T) {
 	})
 	profile = "aiml-checkpointing"
 	t.Run(profile, func(t *testing.T) {
-		ts := &aimlTrainingProfileTests{}
+		ts := &aimlTrainingCheckpointingTests{}
 		if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
 			// Run tests for mounted directory if the flag is set.
 			suite.Run(t, ts)
