@@ -161,6 +161,18 @@ If it's running on GKE, the issue could be caused by an Out-of-Memory (OOM) erro
 **Solution:** This happens when the mounting bucket contains an object with suffix `/\n` like, `gs://gcs-bkt/a/\n`
 You need to find such objects and replace them with any other valid gcs object names. - [How](https://github.com/GoogleCloudPlatform/gcsfuse/discussions/2894)?
 
+### Mount fails with 'can't create with 0 workers' when using buffered read
+
+When using buffered reads (`--enable-buffered-read`) with `--read-global-max-blocks` set to `-1`, GCSFuse versions `v3.3.0` and `v3.4.0` fail to mount with an error similar to this:
+
+```
+Error: ... failed to create worker pool for buffered read: staticWorkerPool: can't create with 0 workers, priority: 0, normal: 0
+```
+
+This is a known issue and is fixed in later versions.
+
+**Workaround:** If you are using an affected version, avoid setting `--read-global-max-blocks` to `-1`. Instead, set it to a large positive integer (e.g., `2147483647`) to approximate an infinite limit while avoiding the bug.
+
 ### OSError [ErrNo 28] No space left on device
 
 The Writes in GCSFuse are staged locally before they are uploaded to GCS buckets. It takes up disk space equivalent to the size of the files that are being uploaded concurrently and deleted locally once they are uploaded. During this time, since the disk is used, this error may come up.
