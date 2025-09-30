@@ -51,6 +51,7 @@ var (
 	mountInstanceID        string
 	mountFSName            string
 	defaultMountInstanceID string
+	newRandomUUID          = uuid.NewRandom
 )
 
 // InitLogFile initializes the logger factory to create loggers that print to
@@ -115,10 +116,10 @@ func init() {
 	initializeDefaultLogger()
 }
 
-// generateMountInstanceID generates a random 8-character UUID for the mount instance.
-// It falls back to a default ID if the UUID generation fails.
+// generateMountInstanceID generates a random string of mountInstanceIDLength characters
+// from a new UUID. It falls back to defaultMountInstanceID on failure.
 func generateMountInstanceID() string {
-	uuid, err := uuid.NewRandom()
+	uuid, err := newRandomUUID()
 	if err != nil {
 		log.Printf("Could not generate random UUID for logger, err %v. using default: %v", err, defaultMountInstanceID)
 		return defaultMountInstanceID

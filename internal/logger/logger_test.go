@@ -16,12 +16,14 @@ package logger
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -400,6 +402,82 @@ func (t *LoggerTest) TestSetLogFormatAndFsNameWithBackgroundMode() {
 			// Compare expected and actual log.
 			assert.Regexp(t, test.expectedOutput, output)
 			assert.True(t, strings.Contains(output, fmt.Sprintf("%s-%s", test.fsName, test.expectedInstanceID)))
+		})
+	}
+}
+
+func (t *LoggerTest) TestGenerateMountInstanceID_Success() {
+	id := generateMountInstanceID()
+
+	assert.Len(t.T(), id, mountInstanceIDLength)
+	assert.NotEqual(t.T(), defaultMountInstanceID, id)
+	assert.Regexp(t.T(), fmt.Sprintf("^[0-9a-f]{%d}$", mountInstanceIDLength), id)
+}
+
+func (t *LoggerTest) TestGenerateMountInstanceID_Failure() {
+	originalNewRandom := newRandomUUID
+	defer func() { newRandomUUID = originalNewRandom }()
+
+	newRandomUUID = func() (uuid.UUID, error) {
+		return uuid.UUID{}, errors.New("uuid generation error")
+	}
+
+	id := generateMountInstanceID()
+
+	assert.Equal(t.T(), defaultMountInstanceID, id)
+}
+
+func (t *LoggerTest) TestSetupMountInstanceID() {
+	testCases := []struct {
+		name               string
+		inBackgroundMode   bool
+		mountInstanceIDEnv string
+		expectDefaultID    bool
+		expectedID         string
+	}{
+		{
+			name:             "ForegroundMode",
+			inBackgroundMode: false,
+			expectDefaultID:  false,
+		},
+		{
+			name:               "BackgroundModeWithInstanceID",
+			inBackgroundMode:   true,
+			mountInstanceIDEnv: "12345678",
+			expectDefaultID:    false,
+			expectedID:         "12345678",
+		},
+		{
+			name:             "BackgroundModeWithoutInstanceID",
+			inBackgroundMode: true,
+			expectDefaultID:  true,
+		},
+		{
+			name:               "BackgroundModeWithEmptyInstanceID",
+			inBackgroundMode:   true,
+			mountInstanceIDEnv: "",
+			expectDefaultID:    true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.T().Run(tc.name, func(t *testing.T) {
+			if tc.inBackgroundMode {
+				t.Setenv(GCSFuseInBackgroundMode, "true")
+				t.Setenv(GCSFuseMountInstanceIDEnvKey, tc.mountInstanceIDEnv)
+			}
+
+			setupMountInstanceID()
+
+			if tc.expectDefaultID {
+				assert.Equal(t, defaultMountInstanceID, mountInstanceID)
+			} else if tc.expectedID != "" {
+				assert.Equal(t, tc.expectedID, mountInstanceID)
+			} else {
+				assert.NotEqual(t, defaultMountInstanceID, mountInstanceID)
+				assert.Len(t, mountInstanceID, mountInstanceIDLength)
+				assert.Regexp(t, fmt.Sprintf("^[0-9a-f]{%d}$", mountInstanceIDLength), mountInstanceID)
+			}
 		})
 	}
 }
