@@ -2787,6 +2787,7 @@ func (fs *fileSystem) OpenFile(
 	ctx context.Context,
 	op *fuseops.OpenFileOp) (err error) {
 	if fs.newConfig.FileSystem.ODirect {
+		fmt.Printf("Enabling o-direct used in the branch.")
 		op.UseDirectIO = true
 	}
 	fs.mu.Lock()
