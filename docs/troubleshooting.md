@@ -208,10 +208,10 @@ Starting with [version 3.0.0](https://github.com/GoogleCloudPlatform/gcsfuse/rel
 ### Writes still using legacy staged writes even though streaming writes are enabled.
 If you observe that GCSFuse is still utilizing staged writes despite streaming writes being enabled, several factors could be at play.
 
-- **Concurrent Streaming Write Limit Reached:** When the number of concurrent streaming writes exceeds the configured limit (`--write-global-max-blocks`), GCSFuse automatically falls back to staged writes for new files. You will see an warnining log message when this happens, similar to:
+- **Concurrent Streaming Write Limit Reached:** When the number of concurrent streaming writes exceeds the configured limit (`--write-global-max-blocks`), GCSFuse automatically uses legacy staged writes for concurrent file writes above this limit. You will see an warnining log message when this happens, similar to:
   > File <var>file_name</var> will use legacy staged writes because concurrent streaming write limit (set by --write-global-max-blocks) has been reached.
 
-  This is not an error, but a fallback mechanism to manage memory usage. If your system has sufficient memory, you can increase the number of allowed concurrent streaming writes by adjusting the `--write-global-max-blocks` flag to prevent this warning.
+  This is not an error, but a fallback mechanism to manage memory usage. If your system has sufficient memory, you can increase the number of allowed concurrent streaming writes by adjusting the `--write-global-max-blocks` flag to prevent this warning. For memory usage refer [write semantics](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#writes) doc for more details.
 
 - **Unsupported Streaming Write Operations:** Streaming writes only work for sequential writes to new or empty files. GCSFuse will automatically revert to legacy staged writes for the following scenarios:
     - **Modifying existing files (non-zero size):** Writing to a file that is not empty will cause that file to use legacy staged writes. You will see an informational log message similar to:
