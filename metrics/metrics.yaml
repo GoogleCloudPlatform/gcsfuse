@@ -1,7 +1,7 @@
 - metric-name: "buffered_read/fallback_trigger_count"
   description: "The cumulative number of times the BufferedReader falls back to a different reader, along with the reason: random_read_detected or insufficient_memory."
   type: "int_counter"
-  attributes:
+  attributes: &buffered_read_fallback_attributes
   - attribute-name: reason
     attribute-type: string
     values:
@@ -158,10 +158,10 @@
   - attribute-name: read_type
     attribute-type: string
     values:
-    - "Buffered"
     - "Parallel"
     - "Random"
     - "Sequential"
+    - "buffered"
 
 - metric-name: "gcs/read_bytes_count"
   description: "The cumulative number of bytes read from GCS objects."
@@ -170,9 +170,9 @@
   attributes:
   - attribute-name: reader
     attribute-type: string
-    values:
-    - "Buffered"
-    - "Others"
+    values: &reader_types_list
+    - "default"
+    - "buffered"
 
 - metric-name: "gcs/read_count"
   description: "Specifies the number of gcs reads made along with type - Sequential/Random"

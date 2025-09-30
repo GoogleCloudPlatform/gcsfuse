@@ -22,6 +22,7 @@ import (
 
 type noopMetrics struct{}
 
+<<<<<<< HEAD
 func (*noopMetrics) BufferedReadBytesCount(inc int64, operationType string) {}
 
 func (*noopMetrics) BufferedReadFallbackTriggerCount(inc int64, reason string) {}
@@ -29,6 +30,11 @@ func (*noopMetrics) BufferedReadFallbackTriggerCount(inc int64, reason string) {
 func (*noopMetrics) FileCacheReadBytesCount(inc int64, readType ReadType) {}
 
 func (*noopMetrics) FileCacheReadCount(inc int64, cacheHit bool, readType ReadType) {}
+=======
+func (*noopMetrics) BufferedReadFallbackTriggerCount(inc int64, reason string) {}
+
+func (*noopMetrics) BufferedReadReadLatency(ctx context.Context, duration time.Duration) {}
+>>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
 
 func (*noopMetrics) FileCacheReadLatencies(ctx context.Context, latency time.Duration, cacheHit bool) {
 }
@@ -41,7 +47,11 @@ func (*noopMetrics) FsOpsLatency(ctx context.Context, latency time.Duration, fsO
 
 func (*noopMetrics) GcsDownloadBytesCount(inc int64, readType ReadType) {}
 
+<<<<<<< HEAD
 func (*noopMetrics) GcsReadBytesCount(inc int64, reader Reader) {}
+=======
+func (*noopMetrics) GcsReadBytesCount(inc int64, reader string) {}
+>>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
 
 func (*noopMetrics) GcsReadCount(inc int64, readType ReadType) {}
 

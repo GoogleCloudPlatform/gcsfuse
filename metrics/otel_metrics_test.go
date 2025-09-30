@@ -266,31 +266,6 @@ func TestBufferedReadFallbackTriggerCount(t *testing.T) {
 	}
 }
 
-func TestBufferedReadReadBytes(t *testing.T) {
-	ctx := context.Background()
-	encoder := attribute.DefaultEncoder()
-	m, rd := setupOTel(ctx, t)
-
-	m.BufferedReadReadBytes(1024)
-	m.BufferedReadReadBytes(2048)
-	waitForMetricsProcessing()
-
-	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
-	metric, ok := metrics["buffered_read/read_bytes"]
-	require.True(t, ok, "buffered_read/read_bytes metric not found")
-	s := attribute.NewSet()
-	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric, "Positive increments should be summed.")
-
-	// Test negative increment
-	m.BufferedReadReadBytes(-100)
-	waitForMetricsProcessing()
-
-	metrics = gatherNonZeroCounterMetrics(ctx, t, rd)
-	metric, ok = metrics["buffered_read/read_bytes"]
-	require.True(t, ok, "buffered_read/read_bytes metric not found after negative increment")
-	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric, "Negative increment should not change the metric value.")
-}
-
 func TestBufferedReadReadLatency(t *testing.T) {
 	ctx := context.Background()
 	encoder := attribute.DefaultEncoder()
@@ -4704,6 +4679,15 @@ func TestGcsDownloadBytesCount(t *testing.T) {
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("read_type", "Sequential")): 5,
+			},
+		},
+		{
+			name: "read_type_buffered",
+			f: func(m *otelMetrics) {
+				m.GcsDownloadBytesCount(5, "buffered")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("read_type", "buffered")): 5,
 			},
 		}, {
 			name: "multiple_attributes_summed",

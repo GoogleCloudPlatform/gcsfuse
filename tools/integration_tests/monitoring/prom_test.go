@@ -118,7 +118,6 @@ func isHNSTestRun(t *testing.T) bool {
 	require.NoError(t, err, "error while creating storage client")
 	defer storageClient.Close()
 	return setup.ResolveIsHierarchicalBucket(context.Background(), setup.TestBucket(), storageClient)
-	return setup.ResolveIsHierarchicalBucket(context.Background(), setup.TestBucket(), storageClient)
 }
 
 func (testSuite *PromTest) SetupTest() {
@@ -141,11 +140,8 @@ func (testSuite *PromTest) mount(bucketName string) error {
 
 	flags := []string{fmt.Sprintf("--prometheus-port=%d", prometheusPort), "--cache-dir", cacheDir}
 	return testSuite.mountGcsfuse(bucketName, flags)
-	return testSuite.mountGcsfuse(bucketName, flags)
 }
 
-func parsePromFormat(t *testing.T) (map[string]*promclient.MetricFamily, error) {
-	t.Helper()
 func parsePromFormat(t *testing.T) (map[string]*promclient.MetricFamily, error) {
 	t.Helper()
 
@@ -156,10 +152,6 @@ func parsePromFormat(t *testing.T) (map[string]*promclient.MetricFamily, error) 
 }
 
 // assertNonZeroCountMetric asserts that the specified count metric is present and is positive in the Prometheus export
-func assertNonZeroCountMetric(t *testing.T, metricName, labelName, labelValue string) {
-	t.Helper()
-	mf, err := parsePromFormat(t)
-	require.NoError(t, err)
 func assertNonZeroCountMetric(t *testing.T, metricName, labelName, labelValue string) {
 	t.Helper()
 	mf, err := parsePromFormat(t)
@@ -184,15 +176,10 @@ func assertNonZeroCountMetric(t *testing.T, metricName, labelName, labelValue st
 
 	}
 	assert.Fail(t, fmt.Sprintf("Didn't find the metric with name: %s, labelName: %s and labelValue: %s",
-	assert.Fail(t, fmt.Sprintf("Didn't find the metric with name: %s, labelName: %s and labelValue: %s",
 		metricName, labelName, labelValue))
 }
 
 // assertNonZeroHistogramMetric asserts that the specified histogram metric is present and is positive for at least one of the buckets in the Prometheus export.
-func assertNonZeroHistogramMetric(t *testing.T, metricName, labelName, labelValue string) {
-	t.Helper()
-	mf, err := parsePromFormat(t)
-	require.NoError(t, err)
 func assertNonZeroHistogramMetric(t *testing.T, metricName, labelName, labelValue string) {
 	t.Helper()
 	mf, err := parsePromFormat(t)
@@ -280,6 +267,7 @@ func (testSuite *PromTest) TestReadMetrics() {
 	assertNonZeroCountMetric(testSuite.T(), "gcs_reader_count", "io_method", "closed")
 	assertNonZeroCountMetric(testSuite.T(), "gcs_read_count", "read_type", "Parallel")
 	assertNonZeroCountMetric(testSuite.T(), "gcs_download_bytes_count", "read_type", "Parallel")
+<<<<<<< HEAD
 	assertNonZeroCountMetric(testSuite.T(), "gcs_read_bytes_count", "reader", "Others")
 	assertNonZeroHistogramMetric(testSuite.T(), "gcs_request_latencies", "gcs_method", "NewReader")
 	assertNonZeroCountMetric(testSuite.T(), "file_cache_read_bytes_count", "read_type", "Sequential")
@@ -294,6 +282,10 @@ func (testSuite *PromTest) TestReadMetrics() {
 	assertNonZeroCountMetric(testSuite.T(), "gcs_read_count", "read_type", "Parallel")
 	assertNonZeroCountMetric(testSuite.T(), "gcs_download_bytes_count", "", "")
 	assertNonZeroCountMetric(testSuite.T(), "gcs_read_bytes_count", "", "")
+=======
+	assertNonZeroCountMetric(testSuite.T(), "gcs_read_bytes_count", "reader", "default")
+>>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
+	assertNonZeroCountMetric(testSuite.T(), "gcs_read_bytes_count", "reader", "Default")
 	assertNonZeroHistogramMetric(testSuite.T(), "gcs_request_latencies", "gcs_method", "NewReader")
 }
 
@@ -341,8 +333,8 @@ func (testSuite *PromBufferedReadTest) TestBufferedReadMetrics() {
 	_, err := operations.ReadFile(path.Join(testSuite.mountPoint, "hello/hello.txt"))
 
 	require.NoError(testSuite.T(), err)
-	assertNonZeroCountMetric(testSuite.T(), "buffered_read_read_bytes", "", "")
-	assertNonZeroCountMetric(testSuite.T(), "buffered_read_downloaded_bytes", "", "")
+	assertNonZeroCountMetric(testSuite.T(), "gcs_read_bytes_count", "reader", "buffered")
+	assertNonZeroCountMetric(testSuite.T(), "gcs_download_bytes_count", "read_type", "buffered")
 	assertNonZeroHistogramMetric(testSuite.T(), "buffered_read_read_latency", "", "")
 }
 
