@@ -15,10 +15,14 @@
 package flag_optimizations
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -29,6 +33,15 @@ import (
 type profileTests struct {
 	suite.Suite
 	flags []string
+}
+
+func (s *profileTests) SetupSuite() {
+	if setup.MountedDirectory() != "" {
+		setupForMountedDirectoryTests()
+		return
+	}
+	// Mount GCSFuse.
+	setup.MountGCSFuseWithGivenMountFunc(s.flags, testEnv.mountFunc)
 }
 
 func (s *profileTests) SetupTest() {
@@ -61,7 +74,13 @@ type aimlCheckpointingProfileTests struct {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (t *aimlProfileTests) TestUnnamedProfileTest() {
+func (t *aimlProfileTests) TestImplicitDirsEnabled() {
+	implicitDirPath := filepath.Join(testEnv.testDirPath, "implicitDir", setup.GenerateRandomString(5))
+	client.CreateImplicitDir(testEnv.ctx, testEnv.storageClient, implicitDirPath, t.T())
+	defer client.DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, implicitDirPath)
+
+	mountedImplicitDirPath := filepath.Join(setup.MntDir(), implicitDirPath)
+	assert.True(t.T(), operations.ValidateNoFileOrDirError(t.T(), mountedImplicitDirPath), "Expected directory %q but not found", mountedImplicitDirPath)
 }
 
 func (t *aimlTrainingProfileTests) TestUnnamedTrainingProfileTest() {
