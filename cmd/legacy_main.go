@@ -132,7 +132,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		MaxRetryAttempts:           int(newConfig.GcsRetries.MaxRetryAttempts),
 		RetryMultiplier:            newConfig.GcsRetries.Multiplier,
 		UserAgent:                  userAgent,
-		CustomEndpoint:             newConfig.GcsConnection.CustomEndpoint,
+		CustomEndpoint:             "storage-preprod-test-grpc.googleusercontent.com:443",
 		KeyFile:                    string(newConfig.GcsAuth.KeyFile),
 		AnonymousAccess:            newConfig.GcsAuth.AnonymousAccess,
 		TokenUrl:                   newConfig.GcsAuth.TokenUrl,
