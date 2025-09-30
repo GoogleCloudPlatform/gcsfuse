@@ -1278,28 +1278,6 @@ func (o *otelMetrics) BufferedReadReadLatency(
 	}
 }
 
-<<<<<<< HEAD
-func (o *otelMetrics) BufferedReadScheduledBlockCount(
-	inc int64, status string) {
-	if inc < 0 {
-		logger.Errorf("Counter metric buffered_read/scheduled_block_count received a negative increment: %d", inc)
-		return
-	}
-	switch status {
-	case "cancelled":
-		o.bufferedReadScheduledBlockCountStatusCancelledAtomic.Add(inc)
-	case "failed":
-		o.bufferedReadScheduledBlockCountStatusFailedAtomic.Add(inc)
-	case "successful":
-		o.bufferedReadScheduledBlockCountStatusSuccessfulAtomic.Add(inc)
-	default:
-		updateUnrecognizedAttribute(status)
-		return
-	}
-}
-
-=======
->>>>>>> 78ddafea5 (Add Bytes count metric to buffered read)
 func (o *otelMetrics) FileCacheReadBytesCount(
 	inc int64, readType string) {
 	if inc < 0 {
@@ -2649,9 +2627,6 @@ func (o *otelMetrics) GcsReadBytesCount(
 		logger.Errorf("Counter metric gcs/read_bytes_count received a negative increment: %d", inc)
 		return
 	}
-<<<<<<< HEAD
-	o.gcsReadBytesCountAtomic.Add(inc)
-=======
 	switch reader {
 	case "buffered":
 		o.gcsReadBytesCountReaderBufferedAtomic.Add(inc)
@@ -2661,8 +2636,6 @@ func (o *otelMetrics) GcsReadBytesCount(
 		updateUnrecognizedAttribute(reader)
 		return
 	}
-
->>>>>>> f9cd706d8 (Use gcs metric for read and download bytes)
 }
 
 func (o *otelMetrics) GcsReadCount(
