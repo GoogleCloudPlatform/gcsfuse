@@ -236,6 +236,10 @@ func (b *fastStatBucket) CreateObject(
 		return
 	}
 
+	if o == nil {
+		logger.Errorf("ABHISHEK Error in creating object; Returned object is nil")
+	}
+
 	// Record the new object.
 	b.insert(o)
 

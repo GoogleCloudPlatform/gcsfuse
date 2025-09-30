@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
@@ -174,6 +175,9 @@ func (sc *statCacheBucketView) key(objectName string) string {
 }
 
 func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
+	if m == nil {
+		logger.Errorf("ABHISHEK statCacheBucketView::Insert object to be inserted is nil; Will panic")
+	}
 	name := sc.key(m.Name)
 
 	// Is there already a better entry?
