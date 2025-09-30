@@ -41,25 +41,28 @@ func (s *profileTests) TearDownTest() {
 	setup.UnmountGCSFuseAndDeleteLogFile(testEnv.rootDir)
 }
 
-type aimlTrainingProfileTests struct {
+type aimlProfileTests struct {
 	profileTests
 }
 
+type aimlTrainingProfileTests struct {
+	aimlProfileTests
 }
 
 type aimlServingProfileTests struct {
-	profileTests
-}
+	aimlProfileTests
 }
 
 type aimlCheckpointingProfileTests struct {
-	profileTests
-}
+	aimlProfileTests
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
+
+func (t *aimlProfileTests) TestUnnamedProfileTest() {
+}
 
 func (t *aimlTrainingProfileTests) TestUnnamedTrainingProfileTest() {
 }
