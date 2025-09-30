@@ -105,55 +105,41 @@ func TestProfile(t *testing.T) {
 		return strings.ReplaceAll(strings.Join(flags, ","), "--", "")
 	}
 
-	profile := "aiml-training"
-	t.Run(profile, func(t *testing.T) {
-		ts := &aimlTrainingProfileTests{}
-		if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-			// Run tests for mounted directory if the flag is set.
-			suite.Run(t, ts)
-			return
-		}
+	profiles := []string{"aiml-training", "aiml-serving", "aiml-checkpointing"}
 
-		flagsSet := flagSet(profile)
-		for _, flags := range flagsSet {
-			ts.flags = flags
-			t.Run(tcName(flags), func(t *testing.T) {
-				suite.Run(t, ts)
-			})
-		}
-	})
-	profile = "aiml-serving"
-	t.Run(profile, func(t *testing.T) {
-		ts := &aimlServingProfileTests{}
-		if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-			// Run tests for mounted directory if the flag is set.
-			suite.Run(t, ts)
-			return
-		}
+	for _, profile := range profiles {
+		t.Run(profile, func(t *testing.T) {
+			var ts suite.TestingSuite
+			var pTests *profileTests
 
-		flagsSet := flagSet(profile)
-		for _, flags := range flagsSet {
-			ts.flags = flags
-			t.Run(tcName(flags), func(t *testing.T) {
-				suite.Run(t, ts)
-			})
-		}
-	})
-	profile = "aiml-checkpointing"
-	t.Run(profile, func(t *testing.T) {
-		ts := &aimlCheckpointingProfileTests{}
-		if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-			// Run tests for mounted directory if the flag is set.
-			suite.Run(t, ts)
-			return
-		}
+			switch profile {
+			case "aiml-training":
+				s := &aimlTrainingProfileTests{}
+				ts = s
+				pTests = &s.profileTests
+			case "aiml-serving":
+				s := &aimlServingProfileTests{}
+				ts = s
+				pTests = &s.profileTests
+			case "aiml-checkpointing":
+				s := &aimlCheckpointingProfileTests{}
+				ts = s
+				pTests = &s.profileTests
+			}
 
-		flagsSet := flagSet(profile)
-		for _, flags := range flagsSet {
-			ts.flags = flags
-			t.Run(tcName(flags), func(t *testing.T) {
+			if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+				// Run tests for mounted directory if the flag is set.
 				suite.Run(t, ts)
-			})
-		}
-	})
+				return
+			}
+
+			flagsSet := flagSet(profile)
+			for _, flags := range flagsSet {
+				pTests.flags = flags
+				t.Run(tcName(flags), func(t *testing.T) {
+					suite.Run(t, ts)
+				})
+			}
+		})
+	}
 }
