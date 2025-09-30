@@ -23,6 +23,9 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -81,6 +84,121 @@ func TestCobraArgsNumInRange(t *testing.T) {
 				assert.NotNil(t, err)
 			} else {
 				assert.Nil(t, err)
+			}
+		})
+	}
+}
+
+func TestGcsfuseConfigs(t *testing.T) {
+	// Helper to create a temporary config file.
+	createTempConfigFile := func(content string) string {
+		file, err := os.CreateTemp(t.TempDir(), "config-*.yaml")
+		require.NoError(t, err)
+		_, err = file.WriteString(content)
+		require.NoError(t, err)
+		require.NoError(t, file.Close())
+		return file.Name()
+	}
+
+	testCases := []struct {
+		name                  string
+		setup                 func(t *testing.T, v *viper.Viper, cmd *cobra.Command)
+		expectedCliFlags      map[string]any
+		expectConfigFile      bool
+		expectedConfigFileVal map[string]any
+	}{
+		{
+			name: "Only CLI flags",
+			setup: func(t *testing.T, v *viper.Viper, cmd *cobra.Command) {
+				*cmd = cobra.Command{} // Create a new command to avoid flag redefinition
+				cmd.PersistentFlags().String("app-name", "", "")
+				require.NoError(t, cmd.PersistentFlags().Set("app-name", "test-app"))
+			},
+			expectedCliFlags: map[string]any{
+				"app-name": "test-app",
+			},
+			expectConfigFile: false,
+		},
+		{
+			name: "Only config file",
+			setup: func(t *testing.T, v *viper.Viper, cmd *cobra.Command) {
+				configFile := createTempConfigFile("app-name: config-app")
+				v.SetConfigFile(configFile)
+			},
+			expectedCliFlags:      map[string]any{},
+			expectConfigFile:      true,
+			expectedConfigFileVal: map[string]any{"app-name": "config-app"},
+		},
+		{
+			name: "Both CLI and config file",
+			setup: func(t *testing.T, v *viper.Viper, cmd *cobra.Command) {
+				*cmd = cobra.Command{}
+				cmd.PersistentFlags().String("app-name", "", "")
+				require.NoError(t, cmd.PersistentFlags().Set("app-name", "cli-app"))
+				configFile := createTempConfigFile("foreground: true")
+				v.SetConfigFile(configFile)
+			},
+			expectedCliFlags: map[string]any{
+				"app-name": "cli-app",
+			},
+			expectConfigFile:      true,
+			expectedConfigFileVal: map[string]any{"foreground": true},
+		},
+		{
+			name: "Background mode hides foreground flag",
+			setup: func(t *testing.T, v *viper.Viper, cmd *cobra.Command) {
+				*cmd = cobra.Command{}
+				t.Setenv(logger.GCSFuseInBackgroundMode, "true")
+				cmd.PersistentFlags().Bool("foreground", false, "")
+				require.NoError(t, cmd.PersistentFlags().Set("foreground", "true"))
+				cmd.PersistentFlags().String("app-name", "", "")
+				require.NoError(t, cmd.PersistentFlags().Set("app-name", "bg-app"))
+			},
+			expectedCliFlags: map[string]any{
+				"app-name": "bg-app", // foreground flag should be removed
+			},
+			expectConfigFile: false,
+		},
+		{
+			name: "Non-existent config file",
+			setup: func(t *testing.T, v *viper.Viper, cmd *cobra.Command) {
+				v.SetConfigFile("/path/to/non/existent/file.yaml")
+			},
+			expectedCliFlags: map[string]any{},
+			expectConfigFile: false, // Because read fails
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			v := viper.New()
+			cmd, err := newRootCmd(nil)
+			require.NoError(t, err)
+			finalConfig := cfg.Config{AppName: "final-app"}
+			if tc.setup != nil {
+				tc.setup(t, v, cmd)
+			}
+
+			wrapperConfig := gcsfuseConfigs(v, cmd, finalConfig)
+
+			if assert.Contains(t, wrapperConfig, "CliFlags") {
+				cliFlags, ok := wrapperConfig["CliFlags"].(map[string]any)
+				assert.True(t, ok)
+				assert.Equal(t, tc.expectedCliFlags, cliFlags)
+			}
+			if tc.expectConfigFile {
+				if assert.Contains(t, wrapperConfig, "ConfigFileFlags") {
+					configFileFlags, ok := wrapperConfig["ConfigFileFlags"].(map[string]any)
+					assert.True(t, ok)
+					assert.Equal(t, tc.expectedConfigFileVal, configFileFlags)
+				}
+			} else {
+				assert.NotContains(t, wrapperConfig, "ConfigFileFlags")
+			}
+			if assert.Contains(t, wrapperConfig, "FinalConfig") {
+				fc, ok := wrapperConfig["FinalConfig"].(cfg.Config)
+				assert.True(t, ok)
+				assert.Equal(t, finalConfig, fc)
 			}
 		})
 	}
