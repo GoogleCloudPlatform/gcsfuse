@@ -124,7 +124,7 @@ func TestProfile(t *testing.T) {
 	})
 	profile = "aiml-serving"
 	t.Run(profile, func(t *testing.T) {
-		ts := &aimlTrainingServingTests{}
+		ts := &aimlServingProfileTests{}
 		if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
 			// Run tests for mounted directory if the flag is set.
 			suite.Run(t, ts)
@@ -141,7 +141,7 @@ func TestProfile(t *testing.T) {
 	})
 	profile = "aiml-checkpointing"
 	t.Run(profile, func(t *testing.T) {
-		ts := &aimlTrainingCheckpointingTests{}
+		ts := &aimlCheckpointingProfileTests{}
 		if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
 			// Run tests for mounted directory if the flag is set.
 			suite.Run(t, ts)
