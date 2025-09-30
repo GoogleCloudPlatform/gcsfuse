@@ -26,6 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 const (
@@ -86,6 +87,16 @@ func setupForMountedDirectoryTests() {
 	}
 }
 
+func staticMountFunc(flags []string) error {
+	config := &test_suite.TestConfig{
+		TestBucket:              setup.TestBucket(),
+		GKEMountedDirectory:     setup.MountedDirectory(),
+		GCSFuseMountedDirectory: setup.MntDir(),
+		LogFile:                 setup.LogFile(),
+	}
+	return static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(config, flags)
+}
+
 func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) {
 	setup.MountGCSFuseWithGivenMountFunc(flags, testEnv.mountFunc)
 	setup.SetMntDir(testEnv.mountDir)
@@ -120,7 +131,7 @@ func TestMain(m *testing.M) {
 	testEnv.mountDir, testEnv.rootDir = setup.MntDir(), setup.MntDir()
 
 	log.Println("Running static mounting tests...")
-	testEnv.mountFunc = static_mounting.MountGcsfuseWithStaticMounting
+	testEnv.mountFunc = staticMountFunc
 	successCode := m.Run()
 
 	// If failed, then save the gcsfuse log file(s).
