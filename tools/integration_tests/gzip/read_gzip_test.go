@@ -114,8 +114,8 @@ func verifyRangedRead(t *testing.T, filename string) {
 // downloadGzipGcsObjectAsCompressed downloads given gzipped GCS object (with path without 'gs://') to local disk.
 // Fails if the object doesn't exist or permission to read object is not
 // available.
-// Uses go storage client library to download object. Use of gsutil/gcloud is not
-// possible as they both always read back objects with content-encoding: gzip as
+// Uses go storage client library to download object. Use of gcloud storage is not
+// possible as it always reads back objects with content-encoding: gzip as
 // uncompressed/decompressed irrespective of any argument passed.
 func downloadGzipGcsObjectAsCompressed(t *testing.T, objPathInBucket string) (tempfile string, err error) {
 	gcsObjectSize, err := client.GetGcsObjectSize(ctx, storageClient, objPathInBucket)
