@@ -79,7 +79,7 @@ func (t *optimizationTests) testImplicitDirsNotEnabled() {
 	implicitDirPath := filepath.Join(testDirName, "implicitDir", setup.GenerateRandomString(5))
 	mountedImplicitDirPath := filepath.Join(setup.MntDir(), implicitDirPath)
 	client.CreateImplicitDir(testEnv.ctx, testEnv.storageClient, implicitDirPath, t.T())
-	defer client.DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, implicitDirPath)
+	defer client.MustDeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, implicitDirPath)
 
 	_, err := os.Stat(mountedImplicitDirPath)
 
@@ -91,9 +91,9 @@ func (t *optimizationTests) testRenameDirLimitNotSet() {
 	mountedSrcDirPath := filepath.Join(setup.MntDir(), srcDirPath)
 	dstDirPath := filepath.Join(testDirName, "dstDirContainingFiles", setup.GenerateRandomString(5))
 	mountedDstDirPath := filepath.Join(setup.MntDir(), dstDirPath)
-	client.CreateGcsDir(testEnv.ctx, testEnv.storageClient, srcDirPath, setup.TestBucket(), "")
+	require.NoError(t.T(), client.CreateGcsDir(testEnv.ctx, testEnv.storageClient, srcDirPath, setup.TestBucket(), ""))
 	client.CreateNFilesInDir(testEnv.ctx, testEnv.storageClient, 1, "file", 1024, srcDirPath, t.T())
-	defer client.DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, srcDirPath)
+	defer client.MustDeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, srcDirPath)
 
 	err := os.Rename(mountedSrcDirPath, mountedDstDirPath)
 
@@ -104,7 +104,7 @@ func (t *optimizationTests) testImplicitDirsEnabled() {
 	implicitDirPath := filepath.Join(testDirName, "implicitDir", setup.GenerateRandomString(5))
 	mountedImplicitDirPath := filepath.Join(setup.MntDir(), implicitDirPath)
 	client.CreateImplicitDir(testEnv.ctx, testEnv.storageClient, implicitDirPath, t.T())
-	defer client.DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, implicitDirPath)
+	defer client.MustDeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, implicitDirPath)
 
 	fi, err := os.Stat(mountedImplicitDirPath)
 
@@ -114,16 +114,13 @@ func (t *optimizationTests) testImplicitDirsEnabled() {
 }
 
 func (t *optimizationTests) testRenameDirLimitSet() {
-	if setup.ResolveIsHierarchicalBucket(testEnv.ctx, setup.TestBucket(), testEnv.storageClient) {
-		t.T().Skipf("test not applicable for HNS buckets")
-	}
 	srcDirPath := filepath.Join(testDirName, "srcDirContainingFiles"+setup.GenerateRandomString(5))
 	mountedSrcDirPath := filepath.Join(setup.MntDir(), srcDirPath)
 	dstDirPath := filepath.Join(testDirName, "dstDirContainingFiles"+setup.GenerateRandomString(5))
 	mountedDstDirPath := filepath.Join(setup.MntDir(), dstDirPath)
-	client.CreateGcsDir(testEnv.ctx, testEnv.storageClient, srcDirPath, setup.TestBucket(), "")
+	require.NoError(t.T(), client.CreateGcsDir(testEnv.ctx, testEnv.storageClient, srcDirPath, setup.TestBucket(), ""))
 	client.CreateNFilesInDir(testEnv.ctx, testEnv.storageClient, 1, "file", 1024, srcDirPath, t.T())
-	defer client.DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, srcDirPath)
+	defer client.MustDeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, srcDirPath)
 
 	err := os.Rename(mountedSrcDirPath, mountedDstDirPath)
 
