@@ -43,16 +43,21 @@ type DownloadTask struct {
 
 	// Used for zonal bucket to bypass the auth & metadata checks.
 	readHandle []byte
+
+	// readHandleUpdater is called with the updated read handle after successful reading.
+	// This allows the caller to update their read handle for future efficient reads.
+	readHandleUpdater func([]byte)
 }
 
-func NewDownloadTask(ctx context.Context, object *gcs.MinObject, bucket gcs.Bucket, block block.PrefetchBlock, readHandle []byte, metricHandle metrics.MetricHandle) *DownloadTask {
+func NewDownloadTask(ctx context.Context, object *gcs.MinObject, bucket gcs.Bucket, block block.PrefetchBlock, readHandle []byte, metricHandle metrics.MetricHandle, readHandleUpdater func([]byte)) *DownloadTask {
 	return &DownloadTask{
-		ctx:          ctx,
-		object:       object,
-		bucket:       bucket,
-		block:        block,
-		readHandle:   readHandle,
-		metricHandle: metricHandle,
+		ctx:               ctx,
+		object:            object,
+		bucket:            bucket,
+		block:             block,
+		readHandle:        readHandle,
+		metricHandle:      metricHandle,
+		readHandleUpdater: readHandleUpdater,
 	}
 }
 
@@ -62,10 +67,10 @@ func NewDownloadTask(ctx context.Context, object *gcs.MinObject, bucket gcs.Buck
 // download task. The status can be one of the following:
 // - BlockStatusDownloaded: The download was successful.
 // - BlockStatusDownloadFailed: The download failed due to an error.
-func (p *DownloadTask) Execute() {
-	startOff := p.block.AbsStartOff()
-	blockId := startOff / p.block.Cap()
-	logger.Tracef("Download: <- block (%s, %v).", p.object.Name, blockId)
+func (dt *DownloadTask) Execute() {
+	startOff := dt.block.AbsStartOff()
+	blockId := startOff / dt.block.Cap()
+	logger.Tracef("Download: <- block (%s, %v).", dt.object.Name, blockId)
 	stime := time.Now()
 	var err error
 	defer func() {
@@ -73,42 +78,42 @@ func (p *DownloadTask) Execute() {
 		dur := time.Since(stime)
 		if err == nil {
 			status = "successful"
-			logger.Tracef("Download: -> block (%s, %v) Ok(%v).", p.object.Name, blockId, dur)
-			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloaded})
-		} else if errors.Is(err, context.Canceled) && p.ctx.Err() == context.Canceled {
+			logger.Tracef("Download: -> block (%s, %v) Ok(%v).", dt.object.Name, blockId, dur)
+			dt.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloaded})
+		} else if errors.Is(err, context.Canceled) && dt.ctx.Err() == context.Canceled {
 			status = "cancelled"
-			logger.Tracef("Download: -> block (%s, %v) cancelled: %v.", p.object.Name, blockId, err)
-			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})
+			logger.Tracef("Download: -> block (%s, %v) cancelled: %v.", dt.object.Name, blockId, err)
+			dt.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})
 		} else {
 			status = "failed"
-			logger.Errorf("Download: -> block (%s, %v) failed: %v.", p.object.Name, blockId, err)
-			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})
+			logger.Errorf("Download: -> block (%s, %v) failed: %v.", dt.object.Name, blockId, err)
+			dt.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})
 		}
-		p.metricHandle.BufferedReadDownloadBlockLatency(p.ctx, dur, status)
-		p.metricHandle.BufferedReadScheduledBlockCount(1, status)
+		dt.metricHandle.BufferedReadDownloadBlockLatency(dt.ctx, dur, status)
+		dt.metricHandle.BufferedReadScheduledBlockCount(1, status)
 	}()
 
 	start := uint64(startOff)
-	end := start + uint64(p.block.Cap())
-	if end > p.object.Size {
-		end = p.object.Size
+	end := start + uint64(dt.block.Cap())
+	if end > dt.object.Size {
+		end = dt.object.Size
 	}
-	newReader, err := p.bucket.NewReaderWithReadHandle(
-		p.ctx,
+	newReader, err := dt.bucket.NewReaderWithReadHandle(
+		dt.ctx,
 		&gcs.ReadObjectRequest{
-			Name:       p.object.Name,
-			Generation: p.object.Generation,
+			Name:       dt.object.Name,
+			Generation: dt.object.Generation,
 			Range: &gcs.ByteRange{
 				Start: start,
 				Limit: end,
 			},
-			ReadCompressed: p.object.HasContentEncodingGzip(),
-			ReadHandle:     p.readHandle,
+			ReadCompressed: dt.object.HasContentEncodingGzip(),
+			ReadHandle:     dt.readHandle,
 		})
 	if err != nil {
 		var notFoundError *gcs.NotFoundError
 		if errors.As(err, &notFoundError) {
-			err = &gcsfuse_errors.FileClobberedError{Err: err, ObjectName: p.object.Name}
+			err = &gcsfuse_errors.FileClobberedError{Err: err, ObjectName: dt.object.Name}
 			return
 		}
 		err = fmt.Errorf("DownloadTask.Execute: while reader-creations: %w", err)
@@ -116,9 +121,15 @@ func (p *DownloadTask) Execute() {
 	}
 	defer newReader.Close()
 
-	_, err = io.CopyN(p.block, newReader, int64(end-start))
+	_, err = io.CopyN(dt.block, newReader, int64(end-start))
 	if err != nil {
 		err = fmt.Errorf("DownloadTask.Execute: while data-copy: %w", err)
 		return
+	}
+
+	// Capture the updated read handle for future efficient reads
+	if dt.readHandleUpdater != nil {
+		updatedReadHandle := newReader.ReadHandle()
+		dt.readHandleUpdater(updatedReadHandle)
 	}
 }
