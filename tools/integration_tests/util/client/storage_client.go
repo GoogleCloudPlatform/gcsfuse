@@ -346,6 +346,15 @@ func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, pre
 	return errors.Join(errs...)
 }
 
+// MustDeleteAllObjectsWithPrefixi wraps over DeleteAllObjectsWithPrefix and
+// panics instead of returning error.
+func MustDeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, prefix string) {
+	err := DeleteAllObjectsWithPrefix(ctx, client, prefix)
+	if err != nil {
+		panic(fmt.Sprintf("DeleteAllObjectsWithPrefix(%q) failed: %v", prefix, err))
+	}
+}
+
 func StatObject(ctx context.Context, client *storage.Client, object string) (*storage.ObjectAttrs, error) {
 	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
 
