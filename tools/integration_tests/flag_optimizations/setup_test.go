@@ -33,11 +33,7 @@ const (
 	testDirName = "FlagOptimizationsTests"
 )
 
-var (
-	logFileNameForMountedDirectoryTests = path.Join(os.TempDir(), "gcsfuse_flag_optimizations_logs", "log.json")
-)
-
-// IMPORTANT: To prevent global variable pollution, enhance code clarity,
+// To prevent global variable pollution, enhance code clarity,
 // and avoid inadvertent errors. We strongly suggest that, all new package-level
 // variables (which would otherwise be declared with `var` at the package root) should
 // be added as fields to this 'env' struct instead.
@@ -52,9 +48,9 @@ type env struct {
 	ctx           context.Context
 }
 
-var testEnv env
-
 var (
+	logFileNameForMountedDirectoryTests = path.Join(os.TempDir(), "gcsfuse_flag_optimizations_logs", "log.json")
+	testEnv                             env
 	// Taken from gcsfuse/cfg/params.yaml .
 	highEndMachines = []string{
 		"a2-megagpu-16g",
