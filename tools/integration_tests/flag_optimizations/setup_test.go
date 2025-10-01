@@ -55,6 +55,7 @@ type env struct {
 var testEnv env
 
 var (
+	// Taken from gcsfuse/cfg/params.yaml .
 	highEndMachines = []string{
 		"a2-megagpu-16g",
 		"a2-ultragpu-8g",

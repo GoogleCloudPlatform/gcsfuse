@@ -70,10 +70,7 @@ type aimlCheckpointingProfileTests struct {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (t *noProfileTests) TestNoImplicitDirsEnabled() {
-	if setup.ResolveIsHierarchicalBucket(testEnv.ctx, setup.TestBucket(), testEnv.storageClient) {
-		t.T().Skipf("test not applicable for HNS buckets")
-	}
+func (t *noProfileTests) TestImplicitDirsNotEnabled() {
 	implicitDirPath := filepath.Join(testDirName, "implicitDir", setup.GenerateRandomString(5))
 	mountedImplicitDirPath := filepath.Join(setup.MntDir(), implicitDirPath)
 	client.CreateImplicitDir(testEnv.ctx, testEnv.storageClient, implicitDirPath, t.T())
@@ -84,10 +81,7 @@ func (t *noProfileTests) TestNoImplicitDirsEnabled() {
 	require.Error(t.T(), err, "Found unexpected implicit directory %q", mountedImplicitDirPath)
 }
 
-func (t *noProfileTests) TestZeroRenameDirLimit() {
-	if setup.ResolveIsHierarchicalBucket(testEnv.ctx, setup.TestBucket(), testEnv.storageClient) {
-		t.T().Skipf("test not applicable for HNS buckets")
-	}
+func (t *noProfileTests) TestRenameDirLimitNotSet() {
 	srcDirPath := filepath.Join(testDirName, "srcDirContainingFiles", setup.GenerateRandomString(5))
 	mountedSrcDirPath := filepath.Join(setup.MntDir(), srcDirPath)
 	dstDirPath := filepath.Join(testDirName, "dstDirContainingFiles", setup.GenerateRandomString(5))
@@ -102,9 +96,6 @@ func (t *noProfileTests) TestZeroRenameDirLimit() {
 }
 
 func (t *aimlProfileTests) TestImplicitDirsEnabled() {
-	if setup.ResolveIsHierarchicalBucket(testEnv.ctx, setup.TestBucket(), testEnv.storageClient) {
-		t.T().Skipf("test not applicable for HNS buckets")
-	}
 	implicitDirPath := filepath.Join(testDirName, "implicitDir", setup.GenerateRandomString(5))
 	mountedImplicitDirPath := filepath.Join(setup.MntDir(), implicitDirPath)
 	client.CreateImplicitDir(testEnv.ctx, testEnv.storageClient, implicitDirPath, t.T())
@@ -117,7 +108,7 @@ func (t *aimlProfileTests) TestImplicitDirsEnabled() {
 	assert.True(t.T(), fi.IsDir(), "Expected %q to be a directory, but got not-dir", mountedImplicitDirPath)
 }
 
-func (t *aimlCheckpointingProfileTests) TestNonZeroRenameDirLimit() {
+func (t *aimlCheckpointingProfileTests) TestRenameDirLimitSet() {
 	if setup.ResolveIsHierarchicalBucket(testEnv.ctx, setup.TestBucket(), testEnv.storageClient) {
 		t.T().Skipf("test not applicable for HNS buckets")
 	}
@@ -139,6 +130,15 @@ func (t *aimlCheckpointingProfileTests) TestNonZeroRenameDirLimit() {
 ////////////////////////////////////////////////////////////////////////
 
 func TestProfile(t *testing.T) {
+	// Currently all the tests in this suite are applicable only for non-HNS buckets,
+	// so skipping for HNS buckets (and zonal by extension).
+	// Remove this check when tests are added which work on HNS buckets.
+	if setup.ResolveIsHierarchicalBucket(testEnv.ctx, setup.TestBucket(), testEnv.storageClient) {
+		t.Skipf("test not applicable for HNS buckets")
+	}
+
+	// The flags only set profile, to show that
+	// profiles work independently of machine-type.
 	flagSet := func(profile string) [][]string {
 		if profile != "" {
 			return [][]string{{"--profile", profile}}
