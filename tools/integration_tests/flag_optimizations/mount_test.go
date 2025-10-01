@@ -62,8 +62,7 @@ func TestMountSucceeds(t *testing.T) {
 }
 
 func TestMountFails(t *testing.T) {
-	// Nothing to test for mounted directory, as the mount itself must have succeeded
-	// to reach this stage.
+	// This test is not applicable for mounted directory testing.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
 		return
 	}
