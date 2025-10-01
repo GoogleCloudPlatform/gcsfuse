@@ -338,6 +338,7 @@ TEST_DIR_PARALLEL_ZONAL=(
   readdirplus
   release_version
   rename_dir_limit
+  requester_pays_bucket
   stale_handle
   streaming_writes
   unfinalized_object
