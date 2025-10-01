@@ -75,7 +75,7 @@ type aimlCheckpointingProfileTests struct {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (t *noOptimizationTests) TestImplicitDirsNotEnabled() {
+func (t *optimizationTests) testImplicitDirsNotEnabled() {
 	implicitDirPath := filepath.Join(testDirName, "implicitDir", setup.GenerateRandomString(5))
 	mountedImplicitDirPath := filepath.Join(setup.MntDir(), implicitDirPath)
 	client.CreateImplicitDir(testEnv.ctx, testEnv.storageClient, implicitDirPath, t.T())
@@ -86,7 +86,7 @@ func (t *noOptimizationTests) TestImplicitDirsNotEnabled() {
 	require.Error(t.T(), err, "Found unexpected implicit directory %q", mountedImplicitDirPath)
 }
 
-func (t *noOptimizationTests) TestRenameDirLimitNotSet() {
+func (t *optimizationTests) testRenameDirLimitNotSet() {
 	srcDirPath := filepath.Join(testDirName, "srcDirContainingFiles", setup.GenerateRandomString(5))
 	mountedSrcDirPath := filepath.Join(setup.MntDir(), srcDirPath)
 	dstDirPath := filepath.Join(testDirName, "dstDirContainingFiles", setup.GenerateRandomString(5))
@@ -100,7 +100,7 @@ func (t *noOptimizationTests) TestRenameDirLimitNotSet() {
 	require.Error(t.T(), err, "Unexpectedly succeeded in renaming directory %q to %q", mountedSrcDirPath, mountedDstDirPath)
 }
 
-func (t *highEndMachineOptimizationTests) TestImplicitDirsEnabled() {
+func (t *optimizationTests) testImplicitDirsEnabled() {
 	implicitDirPath := filepath.Join(testDirName, "implicitDir", setup.GenerateRandomString(5))
 	mountedImplicitDirPath := filepath.Join(setup.MntDir(), implicitDirPath)
 	client.CreateImplicitDir(testEnv.ctx, testEnv.storageClient, implicitDirPath, t.T())
@@ -111,53 +111,47 @@ func (t *highEndMachineOptimizationTests) TestImplicitDirsEnabled() {
 	require.NoError(t.T(), err, "Got error statting %q: %v", mountedImplicitDirPath, err)
 	require.NotNil(t.T(), fi, "Expected directory %q", mountedImplicitDirPath)
 	assert.True(t.T(), fi.IsDir(), "Expected %q to be a directory, but got not-dir", mountedImplicitDirPath)
+}
+
+func (t *optimizationTests) testRenameDirLimitSet() {
+	if setup.ResolveIsHierarchicalBucket(testEnv.ctx, setup.TestBucket(), testEnv.storageClient) {
+		t.T().Skipf("test not applicable for HNS buckets")
+	}
+	srcDirPath := filepath.Join(testDirName, "srcDirContainingFiles"+setup.GenerateRandomString(5))
+	mountedSrcDirPath := filepath.Join(setup.MntDir(), srcDirPath)
+	dstDirPath := filepath.Join(testDirName, "dstDirContainingFiles"+setup.GenerateRandomString(5))
+	mountedDstDirPath := filepath.Join(setup.MntDir(), dstDirPath)
+	client.CreateGcsDir(testEnv.ctx, testEnv.storageClient, srcDirPath, setup.TestBucket(), "")
+	client.CreateNFilesInDir(testEnv.ctx, testEnv.storageClient, 1, "file", 1024, srcDirPath, t.T())
+	defer client.DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, srcDirPath)
+
+	err := os.Rename(mountedSrcDirPath, mountedDstDirPath)
+
+	require.NoError(t.T(), err, "Failed to rename directory %q to %q: %v", mountedSrcDirPath, mountedDstDirPath, err)
+}
+
+func (t *noOptimizationTests) TestImplicitDirsNotEnabled() {
+	t.optimizationTests.testImplicitDirsNotEnabled()
+}
+
+func (t *noOptimizationTests) TestRenameDirLimitNotSet() {
+	t.optimizationTests.testRenameDirLimitNotSet()
+}
+
+func (t *highEndMachineOptimizationTests) TestImplicitDirsEnabled() {
+	t.optimizationTests.testImplicitDirsEnabled()
 }
 
 func (t *highEndMachineOptimizationTests) TestRenameDirLimitSet() {
-	if setup.ResolveIsHierarchicalBucket(testEnv.ctx, setup.TestBucket(), testEnv.storageClient) {
-		t.T().Skipf("test not applicable for HNS buckets")
-	}
-	srcDirPath := filepath.Join(testDirName, "srcDirContainingFiles"+setup.GenerateRandomString(5))
-	mountedSrcDirPath := filepath.Join(setup.MntDir(), srcDirPath)
-	dstDirPath := filepath.Join(testDirName, "dstDirContainingFiles"+setup.GenerateRandomString(5))
-	mountedDstDirPath := filepath.Join(setup.MntDir(), dstDirPath)
-	client.CreateGcsDir(testEnv.ctx, testEnv.storageClient, srcDirPath, setup.TestBucket(), "")
-	client.CreateNFilesInDir(testEnv.ctx, testEnv.storageClient, 1, "file", 1024, srcDirPath, t.T())
-	defer client.DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, srcDirPath)
-
-	err := os.Rename(mountedSrcDirPath, mountedDstDirPath)
-
-	require.NoError(t.T(), err, "Failed to rename directory %q to %q: %v", mountedSrcDirPath, mountedDstDirPath, err)
+	t.optimizationTests.testRenameDirLimitSet()
 }
 
 func (t *aimlProfileTests) TestImplicitDirsEnabled() {
-	implicitDirPath := filepath.Join(testDirName, "implicitDir", setup.GenerateRandomString(5))
-	mountedImplicitDirPath := filepath.Join(setup.MntDir(), implicitDirPath)
-	client.CreateImplicitDir(testEnv.ctx, testEnv.storageClient, implicitDirPath, t.T())
-	defer client.DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, implicitDirPath)
-
-	fi, err := os.Stat(mountedImplicitDirPath)
-
-	require.NoError(t.T(), err, "Got error statting %q: %v", mountedImplicitDirPath, err)
-	require.NotNil(t.T(), fi, "Expected directory %q", mountedImplicitDirPath)
-	assert.True(t.T(), fi.IsDir(), "Expected %q to be a directory, but got not-dir", mountedImplicitDirPath)
+	t.optimizationTests.testImplicitDirsEnabled()
 }
 
 func (t *aimlCheckpointingProfileTests) TestRenameDirLimitSet() {
-	if setup.ResolveIsHierarchicalBucket(testEnv.ctx, setup.TestBucket(), testEnv.storageClient) {
-		t.T().Skipf("test not applicable for HNS buckets")
-	}
-	srcDirPath := filepath.Join(testDirName, "srcDirContainingFiles"+setup.GenerateRandomString(5))
-	mountedSrcDirPath := filepath.Join(setup.MntDir(), srcDirPath)
-	dstDirPath := filepath.Join(testDirName, "dstDirContainingFiles"+setup.GenerateRandomString(5))
-	mountedDstDirPath := filepath.Join(setup.MntDir(), dstDirPath)
-	client.CreateGcsDir(testEnv.ctx, testEnv.storageClient, srcDirPath, setup.TestBucket(), "")
-	client.CreateNFilesInDir(testEnv.ctx, testEnv.storageClient, 1, "file", 1024, srcDirPath, t.T())
-	defer client.DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, srcDirPath)
-
-	err := os.Rename(mountedSrcDirPath, mountedDstDirPath)
-
-	require.NoError(t.T(), err, "Failed to rename directory %q to %q: %v", mountedSrcDirPath, mountedDstDirPath, err)
+	t.optimizationTests.testRenameDirLimitSet()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -202,7 +196,7 @@ func TestOptimization(t *testing.T) {
 		{profile: "aiml-serving", name: "serving_on_low_end_machine"},
 		{profile: "aiml-checkpointing", name: "checkpointing_on_low_end_machine"},
 		{name: "no_profile_on_low_end_machine"},
-		{machineType: highEndMachineType, name: "no_profile_onhigh_end_machine"},
+		{machineType: highEndMachineType, name: "no_profile_on_high_end_machine"},
 		{machineType: highEndMachineType, profile: "aiml-checkpointing", name: "checkpointing_on_high_end_machine"},
 		{machineType: highEndMachineType, profile: "aiml-serving", name: "serving_on_high_end_machine"},
 		{machineType: highEndMachineType, profile: "aiml-training", name: "training_on_high_end_machine"},
