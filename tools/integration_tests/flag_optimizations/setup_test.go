@@ -46,7 +46,7 @@ type env struct {
 	mountFunc   func([]string) error
 	// mount directory is where our tests run.
 	mountDir string
-	// root directory is the directory to be unmounted.
+	// root directory is the directory to be mounted/unmounted.
 	rootDir       string
 	storageClient *storage.Client
 	ctx           context.Context

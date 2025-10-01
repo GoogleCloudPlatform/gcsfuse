@@ -32,31 +32,31 @@ import (
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type optimizationsTests struct {
+type optimizationTests struct {
 	suite.Suite
 	flags []string
 }
 
-func (s *optimizationsTests) SetupTest() {
+func (s *optimizationTests) SetupTest() {
 	setupForMountedDirectoryTests()
 	mountGCSFuseAndSetupTestDir(s.flags, testEnv.ctx, testEnv.storageClient)
 }
 
-func (s *optimizationsTests) TearDownTest() {
+func (s *optimizationTests) TearDownTest() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 	setup.UnmountGCSFuseAndDeleteLogFile(testEnv.rootDir)
 }
 
 type noOptimizationTests struct {
-	optimizationsTests
+	optimizationTests
 }
 
 type highEndMachineOptimizationTests struct {
-	optimizationsTests
+	optimizationTests
 }
 
 type aimlProfileTests struct {
-	optimizationsTests
+	optimizationTests
 }
 
 type aimlTrainingProfileTests struct {
@@ -172,6 +172,7 @@ func TestOptimization(t *testing.T) {
 		t.Skipf("test not applicable for HNS buckets")
 	}
 
+	// Helper functions to create flags, test case names etc.
 	flags := func(profile string, machineType string) []string {
 		flags := []string{}
 		if profile != "" {
@@ -190,6 +191,7 @@ func TestOptimization(t *testing.T) {
 		}
 	}
 
+	// Define test cases to be run.
 	highEndMachineType := highEndMachines[0]
 	testCases := []struct {
 		profile     string
@@ -206,24 +208,25 @@ func TestOptimization(t *testing.T) {
 		{machineType: highEndMachineType, profile: "aiml-training", name: "training_on_high_end_machine"},
 	}
 
+	// Run test cases.
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			var ts suite.TestingSuite
-			var pTests *optimizationsTests
+			var pTests *optimizationTests
 
 			switch tc.profile {
 			case "aiml-training":
 				s := &aimlTrainingProfileTests{}
 				ts = s
-				pTests = &s.optimizationsTests
+				pTests = &s.optimizationTests
 			case "aiml-serving":
 				s := &aimlServingProfileTests{}
 				ts = s
-				pTests = &s.optimizationsTests
+				pTests = &s.optimizationTests
 			case "aiml-checkpointing":
 				s := &aimlCheckpointingProfileTests{}
 				ts = s
-				pTests = &s.optimizationsTests
+				pTests = &s.optimizationTests
 			case "":
 				// handled in fallback.
 			default:
@@ -235,11 +238,11 @@ func TestOptimization(t *testing.T) {
 				if slices.Contains(highEndMachines, tc.machineType) {
 					s := &highEndMachineOptimizationTests{}
 					ts = s
-					pTests = &s.optimizationsTests
+					pTests = &s.optimizationTests
 				} else {
 					s := &noOptimizationTests{}
 					ts = s
-					pTests = &s.optimizationsTests
+					pTests = &s.optimizationTests
 				}
 			}
 
