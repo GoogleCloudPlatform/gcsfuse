@@ -100,8 +100,8 @@ func TestMain(m *testing.M) {
 		log.Fatal("testBucket not passed")
 	}
 	testEnv.bucketName = strings.Split(setup.TestBucket(), "/")[0]
-	client.EnableRequesterPays(testEnv.ctx, testEnv.bucketName)
-	defer client.DisableRequesterPays(testEnv.ctx, testEnv.bucketName)
+	client.MustEnableRequesterPays(testEnv.ctx, testEnv.bucketName)
+	defer client.MustDisableRequesterPays(testEnv.ctx, testEnv.bucketName)
 	// Set up storage-client.
 	closeStorageClient := client.CreateStorageClientWithCancel(&testEnv.ctx, &testEnv.storageClient)
 	defer func() {
