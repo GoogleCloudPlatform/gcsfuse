@@ -17,6 +17,7 @@
 package cfg
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
@@ -191,8 +192,8 @@ var machineTypeToGroupMap = map[string]string{
 }
 
 // ApplyOptimizations modifies the config in-place with optimized values.
-func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
-	var optimizedFlags []string
+func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]any {
+	optimizedFlags := map[string]any{}
 	// Skip all optimizations if autoconfig is disabled.
 	if c.DisableAutoconfig {
 		return nil
@@ -214,7 +215,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(bool); ok {
 				if c.FileCache.CacheFileForRangeRead != val {
 					c.FileCache.CacheFileForRangeRead = val
-					optimizedFlags = append(optimizedFlags, "file-cache.cache-file-for-range-read")
+					optimizedFlags["file-cache.cache-file-for-range-read"] = fmt.Sprintf("flag %s value changed to %v due to %s", "file-cache.cache-file-for-range-read", val, result.OptimizationReason)
 				}
 			}
 		}
@@ -226,7 +227,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(bool); ok {
 				if c.ImplicitDirs != val {
 					c.ImplicitDirs = val
-					optimizedFlags = append(optimizedFlags, "implicit-dirs")
+					optimizedFlags["implicit-dirs"] = fmt.Sprintf("flag %s value changed to %v due to %s", "implicit-dirs", val, result.OptimizationReason)
 				}
 			}
 		}
@@ -238,7 +239,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.FileSystem.KernelListCacheTtlSecs != val {
 					c.FileSystem.KernelListCacheTtlSecs = val
-					optimizedFlags = append(optimizedFlags, "file-system.kernel-list-cache-ttl-secs")
+					optimizedFlags["file-system.kernel-list-cache-ttl-secs"] = fmt.Sprintf("flag %s value changed to %v due to %s", "file-system.kernel-list-cache-ttl-secs", val, result.OptimizationReason)
 				}
 			}
 		}
@@ -250,7 +251,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.NegativeTtlSecs != val {
 					c.MetadataCache.NegativeTtlSecs = val
-					optimizedFlags = append(optimizedFlags, "metadata-cache.negative-ttl-secs")
+					optimizedFlags["metadata-cache.negative-ttl-secs"] = fmt.Sprintf("flag %s value changed to %v due to %s", "metadata-cache.negative-ttl-secs", val, result.OptimizationReason)
 				}
 			}
 		}
@@ -262,7 +263,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.TtlSecs != val {
 					c.MetadataCache.TtlSecs = val
-					optimizedFlags = append(optimizedFlags, "metadata-cache.ttl-secs")
+					optimizedFlags["metadata-cache.ttl-secs"] = fmt.Sprintf("flag %s value changed to %v due to %s", "metadata-cache.ttl-secs", val, result.OptimizationReason)
 				}
 			}
 		}
@@ -274,7 +275,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.FileSystem.RenameDirLimit != val {
 					c.FileSystem.RenameDirLimit = val
-					optimizedFlags = append(optimizedFlags, "file-system.rename-dir-limit")
+					optimizedFlags["file-system.rename-dir-limit"] = fmt.Sprintf("flag %s value changed to %v due to %s", "file-system.rename-dir-limit", val, result.OptimizationReason)
 				}
 			}
 		}
@@ -286,7 +287,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.StatCacheMaxSizeMb != val {
 					c.MetadataCache.StatCacheMaxSizeMb = val
-					optimizedFlags = append(optimizedFlags, "metadata-cache.stat-cache-max-size-mb")
+					optimizedFlags["metadata-cache.stat-cache-max-size-mb"] = fmt.Sprintf("flag %s value changed to %v due to %s", "metadata-cache.stat-cache-max-size-mb", val, result.OptimizationReason)
 				}
 			}
 		}
@@ -298,7 +299,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.TypeCacheMaxSizeMb != val {
 					c.MetadataCache.TypeCacheMaxSizeMb = val
-					optimizedFlags = append(optimizedFlags, "metadata-cache.type-cache-max-size-mb")
+					optimizedFlags["metadata-cache.type-cache-max-size-mb"] = fmt.Sprintf("flag %s value changed to %v due to %s", "metadata-cache.type-cache-max-size-mb", val, result.OptimizationReason)
 				}
 			}
 		}
@@ -310,7 +311,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.Write.GlobalMaxBlocks != val {
 					c.Write.GlobalMaxBlocks = val
-					optimizedFlags = append(optimizedFlags, "write.global-max-blocks")
+					optimizedFlags["write.global-max-blocks"] = fmt.Sprintf("flag %s value changed to %v due to %s", "write.global-max-blocks", val, result.OptimizationReason)
 				}
 			}
 		}
