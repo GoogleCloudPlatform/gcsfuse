@@ -17,6 +17,7 @@ package flag_optimizations
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -31,27 +32,31 @@ import (
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type profileTests struct {
+type optimizationsTests struct {
 	suite.Suite
 	flags []string
 }
 
-func (s *profileTests) SetupTest() {
+func (s *optimizationsTests) SetupTest() {
 	setupForMountedDirectoryTests()
 	mountGCSFuseAndSetupTestDir(s.flags, testEnv.ctx, testEnv.storageClient)
 }
 
-func (s *profileTests) TearDownTest() {
+func (s *optimizationsTests) TearDownTest() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 	setup.UnmountGCSFuseAndDeleteLogFile(testEnv.rootDir)
 }
 
-type noProfileTests struct {
-	profileTests
+type noOptimizationTests struct {
+	optimizationsTests
+}
+
+type highEndMachineOptimizationTests struct {
+	optimizationsTests
 }
 
 type aimlProfileTests struct {
-	profileTests
+	optimizationsTests
 }
 
 type aimlTrainingProfileTests struct {
@@ -70,7 +75,7 @@ type aimlCheckpointingProfileTests struct {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (t *noProfileTests) TestImplicitDirsNotEnabled() {
+func (t *noOptimizationTests) TestImplicitDirsNotEnabled() {
 	implicitDirPath := filepath.Join(testDirName, "implicitDir", setup.GenerateRandomString(5))
 	mountedImplicitDirPath := filepath.Join(setup.MntDir(), implicitDirPath)
 	client.CreateImplicitDir(testEnv.ctx, testEnv.storageClient, implicitDirPath, t.T())
@@ -81,7 +86,7 @@ func (t *noProfileTests) TestImplicitDirsNotEnabled() {
 	require.Error(t.T(), err, "Found unexpected implicit directory %q", mountedImplicitDirPath)
 }
 
-func (t *noProfileTests) TestRenameDirLimitNotSet() {
+func (t *noOptimizationTests) TestRenameDirLimitNotSet() {
 	srcDirPath := filepath.Join(testDirName, "srcDirContainingFiles", setup.GenerateRandomString(5))
 	mountedSrcDirPath := filepath.Join(setup.MntDir(), srcDirPath)
 	dstDirPath := filepath.Join(testDirName, "dstDirContainingFiles", setup.GenerateRandomString(5))
@@ -93,6 +98,36 @@ func (t *noProfileTests) TestRenameDirLimitNotSet() {
 	err := os.Rename(mountedSrcDirPath, mountedDstDirPath)
 
 	require.Error(t.T(), err, "Unexpectedly succeeded in renaming directory %q to %q", mountedSrcDirPath, mountedDstDirPath)
+}
+
+func (t *highEndMachineOptimizationTests) TestImplicitDirsEnabled() {
+	implicitDirPath := filepath.Join(testDirName, "implicitDir", setup.GenerateRandomString(5))
+	mountedImplicitDirPath := filepath.Join(setup.MntDir(), implicitDirPath)
+	client.CreateImplicitDir(testEnv.ctx, testEnv.storageClient, implicitDirPath, t.T())
+	defer client.DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, implicitDirPath)
+
+	fi, err := os.Stat(mountedImplicitDirPath)
+
+	require.NoError(t.T(), err, "Got error statting %q: %v", mountedImplicitDirPath, err)
+	require.NotNil(t.T(), fi, "Expected directory %q", mountedImplicitDirPath)
+	assert.True(t.T(), fi.IsDir(), "Expected %q to be a directory, but got not-dir", mountedImplicitDirPath)
+}
+
+func (t *highEndMachineOptimizationTests) TestRenameDirLimitSet() {
+	if setup.ResolveIsHierarchicalBucket(testEnv.ctx, setup.TestBucket(), testEnv.storageClient) {
+		t.T().Skipf("test not applicable for HNS buckets")
+	}
+	srcDirPath := filepath.Join(testDirName, "srcDirContainingFiles"+setup.GenerateRandomString(5))
+	mountedSrcDirPath := filepath.Join(setup.MntDir(), srcDirPath)
+	dstDirPath := filepath.Join(testDirName, "dstDirContainingFiles"+setup.GenerateRandomString(5))
+	mountedDstDirPath := filepath.Join(setup.MntDir(), dstDirPath)
+	client.CreateGcsDir(testEnv.ctx, testEnv.storageClient, srcDirPath, setup.TestBucket(), "")
+	client.CreateNFilesInDir(testEnv.ctx, testEnv.storageClient, 1, "file", 1024, srcDirPath, t.T())
+	defer client.DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, srcDirPath)
+
+	err := os.Rename(mountedSrcDirPath, mountedDstDirPath)
+
+	require.NoError(t.T(), err, "Failed to rename directory %q to %q: %v", mountedSrcDirPath, mountedDstDirPath, err)
 }
 
 func (t *aimlProfileTests) TestImplicitDirsEnabled() {
@@ -129,7 +164,7 @@ func (t *aimlCheckpointingProfileTests) TestRenameDirLimitSet() {
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestProfile(t *testing.T) {
+func TestOptimization(t *testing.T) {
 	// Currently all the tests in this suite are applicable only for non-HNS buckets,
 	// so skipping for HNS buckets (and zonal by extension).
 	// Remove this check when tests are added which work on HNS buckets.
@@ -137,21 +172,15 @@ func TestProfile(t *testing.T) {
 		t.Skipf("test not applicable for HNS buckets")
 	}
 
-	// The flags only set profile, to show that
-	// profiles work independently of machine-type.
-	flagSet := func(profile string) [][]string {
+	flags := func(profile string, machineType string) []string {
+		flags := []string{}
 		if profile != "" {
-			return [][]string{{"--profile", profile}}
-		} else {
-			return [][]string{{}}
+			flags = append(flags, "--profile="+profile)
 		}
-	}
-	tcNameFromProfile := func(profile string) string {
-		if profile != "" {
-			return profile
-		} else {
-			return "no-profile"
+		if machineType != "" {
+			flags = append(flags, "--machine-type="+machineType)
 		}
+		return flags
 	}
 	tcNameFromFlags := func(flags []string) string {
 		if len(flags) > 0 {
@@ -161,30 +190,57 @@ func TestProfile(t *testing.T) {
 		}
 	}
 
-	profiles := []string{"aiml-training", "aiml-serving", "aiml-checkpointing", ""}
+	highEndMachineType := highEndMachines[0]
+	testCases := []struct {
+		profile     string
+		machineType string
+		name        string
+	}{
+		{profile: "aiml-training", name: "training_on_low_end_machine"},
+		{profile: "aiml-serving", name: "serving_on_low_end_machine"},
+		{profile: "aiml-checkpointing", name: "checkpointing_on_low_end_machine"},
+		{name: "no_profile_on_low_end_machine"},
+		{machineType: highEndMachineType, name: "no_profile_onhigh_end_machine"},
+		{machineType: highEndMachineType, profile: "aiml-checkpointing", name: "checkpointing_on_high_end_machine"},
+		{machineType: highEndMachineType, profile: "aiml-serving", name: "serving_on_high_end_machine"},
+		{machineType: highEndMachineType, profile: "aiml-training", name: "training_on_high_end_machine"},
+	}
 
-	for _, profile := range profiles {
-		t.Run(tcNameFromProfile(profile), func(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
 			var ts suite.TestingSuite
-			var pTests *profileTests
+			var pTests *optimizationsTests
 
-			switch profile {
+			switch tc.profile {
 			case "aiml-training":
 				s := &aimlTrainingProfileTests{}
 				ts = s
-				pTests = &s.profileTests
+				pTests = &s.optimizationsTests
 			case "aiml-serving":
 				s := &aimlServingProfileTests{}
 				ts = s
-				pTests = &s.profileTests
+				pTests = &s.optimizationsTests
 			case "aiml-checkpointing":
 				s := &aimlCheckpointingProfileTests{}
 				ts = s
-				pTests = &s.profileTests
+				pTests = &s.optimizationsTests
 			case "":
-				s := &noProfileTests{}
-				ts = s
-				pTests = &s.profileTests
+				// handled in fallback.
+			default:
+				t.Errorf("Unexpected profile: %v", tc.profile)
+			}
+			// fallback
+			if ts == nil {
+				// fallback to high-end machine-type if applicable.
+				if slices.Contains(highEndMachines, tc.machineType) {
+					s := &highEndMachineOptimizationTests{}
+					ts = s
+					pTests = &s.optimizationsTests
+				} else {
+					s := &noOptimizationTests{}
+					ts = s
+					pTests = &s.optimizationsTests
+				}
 			}
 
 			if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
@@ -193,13 +249,10 @@ func TestProfile(t *testing.T) {
 				return
 			}
 
-			flagsSet := flagSet(profile)
-			for _, flags := range flagsSet {
-				pTests.flags = flags
-				t.Run(tcNameFromFlags(flags), func(t *testing.T) {
-					suite.Run(t, ts)
-				})
-			}
+			pTests.flags = flags(tc.profile, tc.machineType)
+			t.Run(tcNameFromFlags(pTests.flags), func(t *testing.T) {
+				suite.Run(t, ts)
+			})
 		})
 	}
 }
