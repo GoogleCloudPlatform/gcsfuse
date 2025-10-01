@@ -173,6 +173,9 @@ func (b *debugBucket) CreateObject(
 		}
 	}
 	o, err = b.wrapped.CreateObject(ctx, req)
+	if o == nil {
+		logger.Errorf("ABHISHEK debugBucket::CreateObject Error in creating object; Returned object is nil for object %s", req.Name)
+	}
 	return
 }
 

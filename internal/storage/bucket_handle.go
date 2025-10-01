@@ -28,6 +28,7 @@ import (
 	"cloud.google.com/go/storage"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"google.golang.org/api/iterator"
@@ -218,7 +219,15 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 
 	attrs := wc.Attrs() // Retrieving the attributes of the created object.
 	// Converting attrs to type *Object.
+
+	if attrs == nil {
+		logger.Errorf("ABHISHEK bucketHandle::CreateObject wc.Attrs returned nil for object %s", req.Name)
+	}
+
 	o = storageutil.ObjectAttrsToBucketObject(attrs)
+	if o == nil {
+		logger.Errorf("ABHISHEK bucketHandle::CreateObject returned nil object after wc.Attrs() for object %s", req.Name)
+	}
 	return
 }
 
