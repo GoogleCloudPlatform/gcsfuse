@@ -336,7 +336,7 @@ def _list_directory(path) -> list:
   """
 
   contents = subprocess.check_output(
-      'gsutil -m ls {}'.format(path), shell=True)
+      'gcloud storage ls {}'.format(path), shell=True)
   contents_url = contents.decode('utf-8').split('\n')[:-1]
   return contents_url
 
@@ -530,7 +530,7 @@ if __name__ == '__main__':
 
   args = _parse_arguments(argv)
 
-  check_dependencies(['gsutil', 'gcsfuse'],log)
+  check_dependencies(['gcloud', 'gcsfuse'],log)
 
   with open(os.path.abspath(args.config_file)) as file:
     config_json = json.load(file)
@@ -554,7 +554,7 @@ if __name__ == '__main__':
         Creating a new one.\n""")
     log.info('Deleting previously present directories in the GCS bucket.\n')
     subprocess.call(
-        'gsutil -m rm -r gs://{}/*'.format(directory_structure.name),
+        'gcloud storage rm --recursive gs://{}/*'.format(directory_structure.name),
         shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
   # Creating a temp directory which will be needed by the generate_files
