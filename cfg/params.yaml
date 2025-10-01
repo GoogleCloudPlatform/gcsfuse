@@ -344,7 +344,7 @@ params:
     usage: >-
       By-passes page cache for file reads and writes, so every request is served
       via GCSFuse.
-    default: "false"
+    default: "true"
 
   - config-path: "file-system.rename-dir-limit"
     flag-name: "rename-dir-limit"
