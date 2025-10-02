@@ -23,13 +23,44 @@ import (
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
-type mountFn func(c *cfg.Config, bucketName, mountPoint string) error
+// gcsfuseConfigs provides the configuration values provided by the user in CLI flags,
+// config file and full gcsfuse config in a wrapper config.
+func gcsfuseConfigs(v *viper.Viper, cmd *cobra.Command, finalConfig cfg.Config) map[string]any {
+	wrapperConfig := make(map[string]any)
+	cliFlags := make(map[string]any)
+	cmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
+		if f.Changed {
+			cliFlags[f.Name] = f.Value.String()
+		}
+	})
+	if _, ok := os.LookupEnv(logger.GCSFuseInBackgroundMode); ok {
+		// Do not display --foreground flag to the user in logs if user
+		// hasn't passed this flag and was added by gcsufse during demonized run.
+		delete(cliFlags, "foreground")
+	}
+	wrapperConfig["CliFlags"] = cliFlags
+	if v.ConfigFileUsed() != "" {
+		configFileViper := viper.New()
+		configFileViper.SetConfigFile(v.ConfigFileUsed())
+		configFileViper.SetConfigType("yaml")
+		if err := configFileViper.ReadInConfig(); err == nil {
+			wrapperConfig["ConfigFileFlags"] = configFileViper.AllSettings()
+		} else {
+			log.Printf("Unable to read config file. Error: %v, Config file flags logging skipped", err)
+		}
+	}
+	wrapperConfig["FinalConfig"] = finalConfig
+	return wrapperConfig
+}
+
+type mountFn func(c *cfg.Config, wc map[string]any, bucketName, mountPoint string) error
 
 // pflagAsIsValueSet is an adapter that makes a pflag.FlagSet satisfy the
 // cfg.isValueSet interface, allowing us to check for user-set flags reliably.
@@ -64,10 +95,11 @@ func (p *pflagAsIsValueSet) GetBool(name string) bool {
 // newRootCmd accepts the mountFn that it executes with the parsed configuration
 func newRootCmd(m mountFn) (*cobra.Command, error) {
 	var (
-		configObj cfg.Config
-		cfgFile   string
-		cfgErr    error
-		v         = viper.New()
+		wrapperConfig map[string]any
+		configObj     cfg.Config
+		cfgFile       string
+		cfgErr        error
+		v             = viper.New()
 	)
 	rootCmd := &cobra.Command{
 		Use:   "gcsfuse [flags] bucket mount_point",
@@ -86,7 +118,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 			if err != nil {
 				return fmt.Errorf("error occurred while extracting the bucket and mountPoint: %w", err)
 			}
-			return m(&configObj, bucket, mountPoint)
+			return m(&configObj, wrapperConfig, bucket, mountPoint)
 		},
 	}
 	initConfig := func() {
@@ -122,6 +154,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 		if cfgErr = cfg.Rationalize(v, &configObj, optimizedFlags); cfgErr != nil {
 			return
 		}
+		wrapperConfig = gcsfuseConfigs(v, rootCmd, configObj)
 	}
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringVar(&cfgFile, cfg.ConfigFileFlagName, "", "The path to the config file where all gcsfuse related config needs to be specified. "+

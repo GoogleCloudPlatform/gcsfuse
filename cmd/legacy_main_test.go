@@ -22,6 +22,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -292,22 +293,64 @@ func (t *MainTest) TestCallListRecursiveOnNonExistingDirectory() {
 }
 
 func (t *MainTest) TestIsDynamicMount() {
-	for _, input := range []struct {
+	testCases := []struct {
+		name       string
 		bucketName string
 		isDynamic  bool
 	}{
 		{
+			name:       "Empty bucket name",
 			bucketName: "",
 			isDynamic:  true,
-		}, {
+		},
+		{
+			name:       "Underscore bucket name",
 			bucketName: "_",
 			isDynamic:  true,
-		}, {
+		},
+		{
+			name:       "Regular bucket name",
 			bucketName: "abc",
 			isDynamic:  false,
 		},
-	} {
-		assert.Equal(t.T(), input.isDynamic, isDynamicMount(input.bucketName))
+	}
+
+	for _, tc := range testCases {
+		t.T().Run(tc.name, func(t *testing.T) {
+			isDynamic := isDynamicMount(tc.bucketName)
+
+			assert.Equal(t, tc.isDynamic, isDynamic)
+		})
+	}
+}
+
+func (t *MainTest) TestFSName() {
+	testCases := []struct {
+		name       string
+		bucketName string
+		fsName     string
+	}{
+		{
+			name:       "Empty bucket name",
+			bucketName: "",
+			fsName:     DynamicMountFSName,
+		}, {
+			name:       "Underscore bucket name",
+			bucketName: "_",
+			fsName:     DynamicMountFSName,
+		}, {
+			name:       "Regular bucket name",
+			bucketName: "abc",
+			fsName:     "abc",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.T().Run(tc.name, func(t *testing.T) {
+			actualFSName := fsName(tc.bucketName)
+
+			assert.Equal(t, tc.fsName, actualFSName)
+		})
 	}
 }
 
@@ -336,6 +379,9 @@ func (t *MainTest) TestForwardedEnvVars() {
 	}, {
 		inputEnvVars:             map[string]string{"GRPC_GO_LOG_VERBOSITY_LEVEL": "99", "GRPC_GO_LOG_SEVERITY_LEVEL": "INFO"},
 		expectedForwardedEnvVars: []string{"GRPC_GO_LOG_VERBOSITY_LEVEL=99", "GRPC_GO_LOG_SEVERITY_LEVEL=INFO"},
+	}, {
+		inputEnvVars:             map[string]string{"GCSFUSE_IN_BACKGROUND_MODE": "true", "GCSFUSE_MOUNT_INSTANCE_ID": logger.MountInstanceID()},
+		expectedForwardedEnvVars: []string{"GCSFUSE_IN_BACKGROUND_MODE=true", "GCSFUSE_MOUNT_INSTANCE_ID=" + logger.MountInstanceID()},
 	},
 	} {
 		for envvar, envval := range input.inputEnvVars {
