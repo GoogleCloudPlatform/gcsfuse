@@ -41,6 +41,7 @@ type templateData struct {
 	TypeTemplateData      []typeTemplateData
 	FlagTemplateData      []flagTemplateData
 	MachineTypeToGroupMap map[string]string
+	MachineTypeGroups     map[string][]string
 	// Back-ticks are not supported in templates. So, passing as a parameter.
 	Backticks string
 }
@@ -132,16 +133,20 @@ func main() {
 	// Create a map from given machine type to all the machine type groups that it belongs to.
 	machineTypeToGroupMap := invertMachineTypeGroups(paramsYAML.MachineTypeGroups)
 
-	err = write(templateData{
-		FlagTemplateData:      fd,
-		TypeTemplateData:      td,
-		MachineTypeToGroupMap: machineTypeToGroupMap,
-		Backticks:             "`",
-	},
-		path.Join(*outDir, "config.go"),
-		path.Join(*templateDir, "config.tpl"))
-	if err != nil {
-		panic(err)
+	for _, rootFileName := range []string{"config", "config_test"} {
+		generatedFilePath := path.Join(*outDir, rootFileName+".go")
+		templateFilePath := path.Join(*templateDir, rootFileName+".tpl")
+		err = write(templateData{
+			FlagTemplateData:      fd,
+			TypeTemplateData:      td,
+			MachineTypeToGroupMap: machineTypeToGroupMap,
+			MachineTypeGroups:     paramsYAML.MachineTypeGroups,
+			Backticks:             "`",
+		},
+			generatedFilePath, templateFilePath)
+		if err != nil {
+			panic(fmt.Sprintf("failed to generate file %q: %v", generatedFilePath, err))
+		}
 	}
 }
 
