@@ -50,14 +50,18 @@ func NewStaticWorkerPool(priorityWorker uint32, normalWorker uint32, readGlobalM
 
 	logger.Infof("staticWorkerPool: creating with %d normal, and %d priority workers.", normalWorker, priorityWorker)
 
-	// We can schedule at most readGlobalMaxBlocks tasks at any given time,
-	// so we don't need channel capacity more than that.
+	// The channel capacity is set to the minimum of a worker-based buffer size
+	// and a global cap. This prevents creating overly large channels, which can be
+	// slow to initialize and consume unnecessary memory. The cap is based on
+	// `readGlobalMaxBlocks` because we can't schedule more download tasks than this at once.
+	priorityChSize := min(int(priorityWorker)*200, int(2*readGlobalMaxBlocks))
+	normalChSize := min(int(normalWorker)*5000, int(2*readGlobalMaxBlocks))
 	return &staticWorkerPool{
 		priorityWorker: priorityWorker,
 		normalWorker:   normalWorker,
 		stop:           make(chan bool),
-		priorityCh:     make(chan Task, 2*readGlobalMaxBlocks),
-		normalCh:       make(chan Task, 2*readGlobalMaxBlocks),
+		priorityCh:     make(chan Task, priorityChSize),
+		normalCh:       make(chan Task, normalChSize),
 	}, nil
 }
 
