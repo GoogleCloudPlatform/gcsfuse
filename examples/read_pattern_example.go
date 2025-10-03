@@ -34,6 +34,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/sync/semaphore"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 )
 
 const (
@@ -58,6 +59,7 @@ func NewReadPatternExample() (*ReadPatternExample, error) {
 	// Create a fake bucket for testing
 	realClock := timeutil.RealClock()
 	bucket := fake.NewFakeBucket(realClock, "test-bucket", gcs.BucketType{})
+	bucket = storage.NewDebugBucket(bucket) // Wrap with debug bucket to log operations
 
 	// Create test data
 	testData := make([]byte, fileSize)
@@ -86,9 +88,9 @@ func NewReadPatternExample() (*ReadPatternExample, error) {
 	// Create configuration for the read manager
 	config := &cfg.Config{
 		Read: cfg.ReadConfig{
-			EnableBufferedRead:   true,
+			EnableBufferedRead:   false,
 			MaxBlocksPerHandle:   10,
-			BlockSizeMb:          1,
+			BlockSizeMb:          16,
 			StartBlocksPerHandle: 2,
 			MinBlocksPerHandle:   2,
 			RandomSeekThreshold:  3, // Low threshold to demonstrate reader switching quickly

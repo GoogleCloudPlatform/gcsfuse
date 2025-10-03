@@ -55,7 +55,7 @@ func (b *debugBucket) requestLogf(
 	id uint64,
 	format string,
 	v ...interface{}) {
-	logger.Tracef("gcs: Req %#16x: %s", id, fmt.Sprintf(format, v...))
+	logger.Infof("gcs: Req %#16x: %s", id, fmt.Sprintf(format, v...))
 }
 
 func (b *debugBucket) startRequest(

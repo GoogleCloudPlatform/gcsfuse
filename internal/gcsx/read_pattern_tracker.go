@@ -26,15 +26,6 @@ const (
 	MB = 1 << 20
 )
 
-// ReaderType enum values.
-const (
-	// RangeReaderType corresponds to NewReader method in bucket_handle.go
-	RangeReaderType ReaderType = iota
-
-	// MultiRangeReaderType corresponds to NewMultiRangeDownloader method in bucket_handle.go
-	MultiRangeReaderType
-)
-
 // readInfo Stores information for this read request.
 type ReadInfo struct {
 	// readType stores the read type evaluated for this request.
@@ -66,27 +57,31 @@ type ReadPatternTracker struct {
 }
 
 // NewReadPatternTracker creates a new ReadPatternTracker with default configuration
-func NewReadPatternTracker() *ReadPatternTracker {
+func NewReadPatternTracker(sequentialReadSizeMb int64) *ReadPatternTracker {
 	state := &ReadPatternTracker{
 		readType:       atomic.Int64{},
 		expectedOffset: atomic.Int64{},
 		seeks:         atomic.Uint64{},
 		totalReadBytes: atomic.Uint64{},
-		sequentialReadSizeMb: 200, // default to 200MB
+		sequentialReadSizeMb: sequentialReadSizeMb,
 	}
-	state.seeks.Store(1)
-	state.expectedOffset.Store(0)
-	state.readType.Store(metrics.ReadTypeSequential)
+
+	state.seeks.Store(1) // Start with 1 seek to avoid division by zero in average read size calculation.
+	state.expectedOffset.Store(0) // Start with 0 expected offset.
+	state.readType.Store(metrics.ReadTypeSequential) // Start with sequential read type.
 	return state
 }
 
-func (s *ReadPatternTracker) RecordStart(offset int64, size int64) {
-	s.GetReadInfo(offset, false)
+// RecordSeek records a seek operation at the given offset.
+func (rpt *ReadPatternTracker) RecordSeek(offset int64, size int64) {
+	rpt.GetReadInfo(offset, false)
 }
 
-func (s *ReadPatternTracker) RecordRead(offset int64, size int64) {
-	s.totalReadBytes.Add(uint64(size))
-	s.expectedOffset.Store(offset + size)
+// RecordRead records a read operation of the given size at the given offset.
+// Call it after the read is done.
+func (rpt *ReadPatternTracker) RecordRead(offset int64, sizeRead int64) {
+	rpt.totalReadBytes.Add(uint64(sizeRead))
+	rpt.expectedOffset.Store(offset + sizeRead)
 }
 
 // isSeekNeeded determines if the current read at `offset` should be considered a
@@ -96,10 +91,14 @@ func (gr *ReadPatternTracker) isSeekNeeded(offset int64) bool {
 		return false
 	}
 
+	// Read from unexpected offset in random read is considered a seek.
 	if gr.readType.Load() == metrics.ReadTypeRandom {
 		return gr.expectedOffset.Load() != offset
 	}
 
+	// In sequential read, read backward or too far (> maxReadSize) forward is considered a seek.
+	// This allows for some level of kernel readahead in sequential reads.
+	maxReadSize := gr.sequentialReadSizeMb * MB
 	if gr.readType.Load() == metrics.ReadTypeSequential {
 		return offset < gr.expectedOffset.Load() || offset > gr.expectedOffset.Load()+maxReadSize
 	}

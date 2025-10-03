@@ -69,7 +69,7 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 	// Create or use provided pattern tracker - this is now managed at read manager level
 	patternTracker := config.PatternTracker
 	if patternTracker == nil {
-		patternTracker = gcsx.NewReadPatternTracker()
+		patternTracker = gcsx.NewReadPatternTracker(int64(config.SequentialReadSizeMB))
 	}
 
 	// If a file cache handler is provided, initialize the file cache reader and add it to the readers slice first.
@@ -155,7 +155,7 @@ func (rr *ReadManager) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx
 		return gcsx.ReaderResponse{}, nil
 	}
 
-	rr.patternTracker.RecordStart(offset, int64(len(p)))
+	rr.patternTracker.RecordSeek(offset, int64(len(p)))
 
 	var readerResponse gcsx.ReaderResponse
 	var err error
