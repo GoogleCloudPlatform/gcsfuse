@@ -33,21 +33,24 @@ import (
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type cacheFileForExcludeRegexTest struct {
+type cacheFileForIncludeRegexTest struct {
 	flags         []string
 	storageClient *storage.Client
-	ctx           context.Context
+	//cacheEnable=true indicates test rely on file is included in cache
+	//cacheEnable=false indicates test rely on file is NOT included in cache
+	cacheEnable bool
+	ctx         context.Context
 	suite.Suite
 }
 
-func (s *cacheFileForExcludeRegexTest) SetupTest() {
+func (s *cacheFileForIncludeRegexTest) SetupTest() {
 	setupForMountedDirectoryTests()
 	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
 	operations.RemoveDir(cacheDirPath)
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
 }
 
-func (s *cacheFileForExcludeRegexTest) TearDownTest() {
+func (s *cacheFileForIncludeRegexTest) TearDownTest() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 }
@@ -56,9 +59,30 @@ func (s *cacheFileForExcludeRegexTest) TearDownTest() {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *cacheFileForExcludeRegexTest) TestReadsForExcludedFile() {
+func (s *cacheFileForIncludeRegexTest) TestReadsForIncludedFile() {
+	if !s.cacheEnable {
+		return
+	}
+
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSizeForRangeRead, s.T())
 
+	// Read the file and validate that it is cached.
+	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, s.T())
+	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset1000, s.T())
+
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), s.T())
+	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, s.T())
+	validate(expectedOutcome2, structuredReadLogs[1], false, true, 1, s.T())
+	validateFileIsCached(testFileName, s.T())
+}
+
+func (s *cacheFileForIncludeRegexTest) TestReadsForNonIncludedFile() {
+	if s.cacheEnable {
+		return
+	}
+	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSizeForRangeRead, s.T())
+
+	// Read the file and validate that it is not cached.
 	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, s.T())
 	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset1000, s.T())
 
@@ -72,8 +96,8 @@ func (s *cacheFileForExcludeRegexTest) TestReadsForExcludedFile() {
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestCacheFileForExcludeRegexTest(t *testing.T) {
-	ts := &cacheFileForExcludeRegexTest{ctx: context.Background()}
+func TestCacheFileForIncludeRegexTest(t *testing.T) {
+	ts := &cacheFileForIncludeRegexTest{ctx: context.Background()}
 	// Create storage client before running tests.
 	closeStorageClient := client.CreateStorageClientWithCancel(&ts.ctx, &ts.storageClient)
 	defer func() {
@@ -85,6 +109,7 @@ func TestCacheFileForExcludeRegexTest(t *testing.T) {
 
 	// Run tests for mounted directory if the flag is set.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		ts.cacheEnable = true
 		suite.Run(t, ts)
 		return
 	}
@@ -92,80 +117,49 @@ func TestCacheFileForExcludeRegexTest(t *testing.T) {
 	// Run with cache directory pointing to RAM based dir
 	ramCacheDir := path.Join("/dev/shm", cacheDirName)
 
+	//cacheEnable=true - Test included file is cached
+	//cacheEnable=false - Test non-included file is not cached
 	tests := []struct {
+		name        string
 		flags       gcsfuseTestFlags
-		onlyDirTest bool
+		cacheEnable bool
 	}{
 		{
+			name: "Test included file is cached",
 			flags: gcsfuseTestFlags{
-				cliFlags:                []string{"--implicit-dirs", "--file-cache-exclude-regex=."},
-				cacheSize:               cacheCapacityForRangeReadTestInMiB,
-				cacheFileForRangeRead:   false,
-				fileName:                configFileName,
-				enableParallelDownloads: false,
-				enableODirect:           false,
-				cacheDirPath:            getDefaultCacheDirPathForTests(),
+				cliFlags:              []string{fmt.Sprintf("--file-cache-include-regex=^%s/", setup.TestBucket())},
+				cacheSize:             cacheCapacityForRangeReadTestInMiB,
+				cacheFileForRangeRead: true,
+				fileName:              configFileName,
+				cacheDirPath:          ramCacheDir,
 			},
+			cacheEnable: true,
 		},
 		{
+			name: "Test non-included file is not cached",
 			flags: gcsfuseTestFlags{
-				cliFlags:                []string{"--file-cache-exclude-regex=."},
-				cacheSize:               cacheCapacityForRangeReadTestInMiB,
-				cacheFileForRangeRead:   false,
-				fileName:                configFileName,
-				enableParallelDownloads: false,
-				enableODirect:           false,
-				cacheDirPath:            ramCacheDir,
+				cliFlags:              []string{"--file-cache-include-regex=non-matching-regex"},
+				cacheSize:             cacheCapacityForRangeReadTestInMiB,
+				cacheFileForRangeRead: true,
+				fileName:              configFileName,
+				cacheDirPath:          ramCacheDir,
 			},
-		},
-		{
-			flags: gcsfuseTestFlags{
-				cliFlags:                []string{"--file-cache-exclude-regex=."},
-				cacheSize:               cacheCapacityForRangeReadTestInMiB,
-				cacheFileForRangeRead:   true,
-				fileName:                configFileName,
-				enableParallelDownloads: false,
-				enableODirect:           false,
-				cacheDirPath:            ramCacheDir,
-			},
-		},
-		{
-			flags: gcsfuseTestFlags{
-				// Exclude regex is set to bucket name as the prefix of the string, so should exclude all objects.
-				cliFlags:                []string{fmt.Sprintf("--file-cache-exclude-regex=^%s/", setup.TestBucket())},
-				cacheSize:               cacheCapacityForRangeReadTestInMiB,
-				cacheFileForRangeRead:   true,
-				fileName:                configFileName,
-				enableParallelDownloads: false,
-				enableODirect:           false,
-				cacheDirPath:            ramCacheDir,
-			},
-		},
-		{
-			flags: gcsfuseTestFlags{
-				// Exclude regex is set to the only-dir value which is not present in local paths, but should be present in all cloud paths.
-				cliFlags:                []string{fmt.Sprintf("--file-cache-exclude-regex=^%s/%s/", setup.TestBucket(), onlyDirMounted)},
-				cacheSize:               cacheCapacityForRangeReadTestInMiB,
-				cacheFileForRangeRead:   true,
-				fileName:                configFileName,
-				enableParallelDownloads: false,
-				enableODirect:           false,
-				cacheDirPath:            ramCacheDir,
-			},
-			onlyDirTest: true,
+			cacheEnable: false,
 		},
 	}
 	for _, test := range tests {
-		test.flags = appendClientProtocolConfigToFlagSet([]gcsfuseTestFlags{test.flags})[0]
-		if test.onlyDirTest && setup.OnlyDirMounted() == "" {
-			continue
-		}
-		configFilePath := createConfigFile(&test.flags)
-		ts.flags = []string{"--config-file=" + configFilePath}
-		if test.flags.cliFlags != nil {
-			ts.flags = append(ts.flags, test.flags.cliFlags...)
-		}
-		log.Printf("Running tests with flags: %s", ts.flags)
-		suite.Run(t, ts)
+		ts.cacheEnable = test.cacheEnable
+		t.Run(test.name, func(t *testing.T) {
+			test.flags = appendClientProtocolConfigToFlagSet([]gcsfuseTestFlags{test.flags})[0]
+			configFilePath := createConfigFile(&test.flags)
+			ts.flags = []string{"--config-file=" + configFilePath}
+			if test.flags.cliFlags != nil {
+				ts.flags = append(ts.flags, test.flags.cliFlags...)
+			}
+			log.Printf("Running tests with flags: %s", ts.flags)
+			suite.Run(t, ts)
+		})
+
 	}
+
 }

@@ -166,6 +166,15 @@ func validateFileIsNotCached(fileName string, t *testing.T) {
 	}
 }
 
+func validateFileIsCached(fileName string, t *testing.T) {
+	// Validate that the file is present in cache location.
+	expectedPathOfCachedFile := getCachedFilePath(fileName)
+	_, err := operations.StatFile(expectedPathOfCachedFile)
+	if err != nil {
+		t.Errorf("File %s not found in cache directory", expectedPathOfCachedFile)
+	}
+}
+
 func remountGCSFuse(flags []string) {
 	setup.SetMntDir(rootDir)
 	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
