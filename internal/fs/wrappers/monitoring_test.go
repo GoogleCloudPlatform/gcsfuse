@@ -19,6 +19,7 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,7 +27,7 @@ func TestFsErrStrAndCategory(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		fsErr            error
-		expectedCategory string
+		expectedCategory metrics.FsErrorCategory
 	}{
 		{
 			fsErr:            fmt.Errorf("some random error"),

@@ -20,6 +20,17 @@ import (
 	"time"
 )
 
+{{range .DistinctAttrs}}
+{{- $attr := . -}}
+// {{.TypeName}} is a custom type for the {{.AttributeName}} attribute.
+type {{.TypeName}} string
+const (
+{{- range .Values}}
+	{{getAttrConstName $attr.TypeName .}} {{$attr.TypeName}} = "{{.}}"
+{{- end}}
+)
+{{end}}
+
 // MetricHandle provides an interface for recording metrics.
 // The methods of this interface are auto-generated from metrics.yaml.
 // Each method corresponds to a metric defined in metrics.yaml.
@@ -30,7 +41,7 @@ type MetricHandle interface {
 		{{- if or (isCounter .) (isUpDownCounter .) -}}
 			inc int64
 		{{- else -}}
-			ctx context.Context, duration time.Duration
+			ctx context.Context, latency time.Duration
 		{{- end }}
 		{{- if .Attributes}}, {{end}}
 		{{- range $i, $attr := .Attributes -}}
