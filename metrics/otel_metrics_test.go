@@ -385,6 +385,15 @@ func TestFileCacheReadBytesCount(t *testing.T) {
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("read_type", "Sequential")): 5,
 			},
+		},
+		{
+			name: "read_type_Unknown",
+			f: func(m *otelMetrics) {
+				m.FileCacheReadBytesCount(5, "Unknown")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("read_type", "Unknown")): 5,
+			},
 		}, {
 			name: "multiple_attributes_summed",
 			f: func(m *otelMetrics) {
@@ -465,6 +474,15 @@ func TestFileCacheReadCount(t *testing.T) {
 			},
 		},
 		{
+			name: "cache_hit_true_read_type_Unknown",
+			f: func(m *otelMetrics) {
+				m.FileCacheReadCount(5, true, "Unknown")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Unknown")): 5,
+			},
+		},
+		{
 			name: "cache_hit_false_read_type_Parallel",
 			f: func(m *otelMetrics) {
 				m.FileCacheReadCount(5, false, "Parallel")
@@ -489,6 +507,15 @@ func TestFileCacheReadCount(t *testing.T) {
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", "Sequential")): 5,
+			},
+		},
+		{
+			name: "cache_hit_false_read_type_Unknown",
+			f: func(m *otelMetrics) {
+				m.FileCacheReadCount(5, false, "Unknown")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", "Unknown")): 5,
 			},
 		}, {
 			name: "multiple_attributes_summed",
@@ -5654,6 +5681,15 @@ func TestGcsDownloadBytesCount(t *testing.T) {
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("read_type", "Sequential")): 5,
 			},
+		},
+		{
+			name: "read_type_Unknown",
+			f: func(m *otelMetrics) {
+				m.GcsDownloadBytesCount(5, "Unknown")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("read_type", "Unknown")): 5,
+			},
 		}, {
 			name: "multiple_attributes_summed",
 			f: func(m *otelMetrics) {
@@ -5756,6 +5792,15 @@ func TestGcsReadCount(t *testing.T) {
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("read_type", "Sequential")): 5,
+			},
+		},
+		{
+			name: "read_type_Unknown",
+			f: func(m *otelMetrics) {
+				m.GcsReadCount(5, "Unknown")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("read_type", "Unknown")): 5,
 			},
 		}, {
 			name: "multiple_attributes_summed",
