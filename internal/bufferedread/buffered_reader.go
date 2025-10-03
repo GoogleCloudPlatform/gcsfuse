@@ -41,12 +41,12 @@ import (
 var ErrPrefetchBlockNotAvailable = errors.New("block for prefetching not available")
 
 type BufferedReadConfig struct {
-	MaxPrefetchBlockCnt     int64                 // Maximum number of blocks that can be prefetched.
-	PrefetchBlockSizeBytes  int64                 // Size of each block to be prefetched.
-	InitialPrefetchBlockCnt int64                 // Number of blocks to prefetch initially.
-	MinBlocksPerHandle      int64                 // Minimum number of blocks available in block-pool to start buffered-read.
-	RandomSeekThreshold     int64                 // Seek count threshold to switch another reader
-	SharedReadState         *gcsx.SharedReadState // Shared read state across all readers
+	MaxPrefetchBlockCnt     int64                    // Maximum number of blocks that can be prefetched.
+	PrefetchBlockSizeBytes  int64                    // Size of each block to be prefetched.
+	InitialPrefetchBlockCnt int64                    // Number of blocks to prefetch initially.
+	MinBlocksPerHandle      int64                    // Minimum number of blocks available in block-pool to start buffered-read.
+	RandomSeekThreshold     int64                    // Seek count threshold to switch another reader
+	ReadPatternTracker      *gcsx.ReadPatternTracker // Shared read state across all readers
 }
 
 const (
@@ -90,8 +90,8 @@ type BufferedReader struct {
 
 	randomReadsThreshold int64 // Number of random reads after which the reader falls back to another reader.
 
-	// sharedReadState holds shared state across all readers for this file handle
-	sharedReadState *gcsx.SharedReadState
+	// readPatternTracker holds shared state across all readers for this file handle
+	readPatternTracker *gcsx.ReadPatternTracker
 
 	// `mu` synchronizes access to the buffered reader's shared state.
 	// All shared variables, such as the block pool and queue, require this lock before any operation.
@@ -101,6 +101,7 @@ type BufferedReader struct {
 	workerPool workerpool.WorkerPool
 
 	// blockQueue is the core of the prefetching pipeline, holding blocks that are
+
 	// either downloaded or in the process of being downloaded.
 	// GUARDED by (mu)
 	blockQueue common.Queue[*blockQueueEntry]
@@ -145,7 +146,7 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 		metricHandle:             metricHandle,
 		prefetchMultiplier:       defaultPrefetchMultiplier,
 		randomReadsThreshold:     config.RandomSeekThreshold,
-		sharedReadState:          config.SharedReadState,
+		readPatternTracker:       config.ReadPatternTracker,
 	}
 
 	reader.ctx, reader.cancelFunc = context.WithCancel(context.Background())
@@ -532,12 +533,12 @@ func (p *BufferedReader) Destroy() {
 // based on the read pattern changing from random to sequential
 // LOCKS_EXCLUDED(p.mu) - called from within a locked context
 func (p *BufferedReader) shouldRestartBufferedReading() bool {
-	if p.sharedReadState == nil {
+	if p.readPatternTracker == nil {
 		return false
 	}
 
 	// Restart if current pattern is sequential and we previously had random reads
-	return p.sharedReadState.IsReadSequential()
+	return p.readPatternTracker.IsReadSequential()
 }
 
 // resetBufferedReaderState resets the internal state to restart buffered reading

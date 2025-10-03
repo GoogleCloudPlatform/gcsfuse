@@ -33,6 +33,7 @@ type DownloadTask struct {
 	workerpool.Task
 	object       *gcs.MinObject
 	bucket       gcs.Bucket
+	
 	metricHandle metrics.MetricHandle
 
 	// block is the block to which the data will be downloaded.
