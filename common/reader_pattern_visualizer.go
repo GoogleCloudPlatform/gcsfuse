@@ -19,7 +19,14 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 )
+
+// Global mutex to protect while dumping read pattern visual to file.
+var gMutex sync.Mutex
+func init() {
+	gMutex = sync.Mutex{}
+}
 
 // ReadRange represents a read operation range with start and end offsets.
 type ReadRange struct {
@@ -456,6 +463,11 @@ func (rpv *ReadPatternVisualizer) getScaleUnitAbbrev() string {
 // The file will be created if it doesn't exist, or overwritten if it does exist.
 func (rpv *ReadPatternVisualizer) DumpGraphToFile(filePath string) error {
 	graphOutput := rpv.DumpGraph()
+
+	// Lock to ensure only one goroutine writes to the read-pattern file at a time,
+	// to avoid interleaved writes.
+	gMutex.Lock()
+	defer gMutex.Unlock()
 
 	// Create or overwrite the file
 	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)

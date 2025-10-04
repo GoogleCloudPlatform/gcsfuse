@@ -37,16 +37,11 @@ func (vrm *VisualizingReadManager) ReadAt(ctx context.Context, p []byte, offset 
 }
 
 func (vrm *VisualizingReadManager) Destroy() {
-	// Dump the visualization before destroying
-	// homeDir, err := os.UserHomeDir()
-	// if err != nil {
-	// 	logger.Warnf("Unable to get home directory to dump read pattern: %v", err)
-	// }
-	// logger.Infof(fh.readPatternVisualizer.DumpGraph())
-	fmt.Println(vrm.visualizer.DumpGraph())
-	// fh.readPatternVisualizer.DumpGraphToFile(homeDir + "/read_pattern.txt")
-	// graph := vrm.visualizer.DumpGraph()
-	// log.Printf("Read Pattern Visualization for object %v:\n%s", vrm.wrapped.Object().Name, graph)
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		logger.Warnf("Unable to get home directory to dump read pattern: %v", err)
+	}
+	vrm.visualizer.DumpGraphToFile(homeDir + "/read_pattern.txt")
 	vrm.wrapped.Destroy()
 }
 
