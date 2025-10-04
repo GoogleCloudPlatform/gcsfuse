@@ -464,7 +464,7 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockInde
 	}
 
 	ctx, cancel := context.WithCancel(p.ctx)
-	task := NewDownloadTask(ctx, p.object, p.bucket, b, p.readHandle, p.metricHandle)
+	task := NewDownloadTask(ctx, p.object, p.bucket, b, p.readHandle, p.metricHandle, p.updateReadHandle)
 
 	logger.Tracef("Scheduling block: (%s, %d, %t).", p.object.Name, blockIndex, urgent)
 	p.blockQueue.Push(&blockQueueEntry{
@@ -505,6 +505,20 @@ func (p *BufferedReader) Destroy() {
 		logger.Warnf("Destroy: clearing free block channel: %v", err)
 	}
 	p.blockPool = nil
+}
+
+// updateReadHandle updates the read handle used for subsequent reads.
+// This is called by DownloadTask after successful reads to enable more efficient subsequent reads.
+// This method is non-blocking to avoid deadlocks because of cyclic dependencies between main reader
+// thread and download task threads.
+func (p *BufferedReader) updateReadHandle(newReadHandle []byte) {
+	// Use TryLock to avoid any blocking - if we can't get the lock immediately,
+	// we just skip the update since it's an optimization, not critical functionality.
+	if p.mu.TryLock() {
+		logger.Tracef("updateReadHandle: updating read handle for object: %v", p.object.Name)
+		p.readHandle = newReadHandle
+		p.mu.Unlock()
+	}
 }
 
 // CheckInvariants checks for internal consistency of the reader.

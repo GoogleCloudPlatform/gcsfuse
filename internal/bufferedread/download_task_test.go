@@ -78,7 +78,7 @@ func (dts *DownloadTaskTestSuite) TestExecuteSuccess() {
 	require.Nil(dts.T(), err)
 	err = downloadBlock.SetAbsStartOff(0)
 	require.Nil(dts.T(), err)
-	task := NewDownloadTask(context.Background(), dts.object, dts.mockBucket, downloadBlock, nil, dts.metricHandle)
+	task := NewDownloadTask(context.Background(), dts.object, dts.mockBucket, downloadBlock, nil, dts.metricHandle, nil)
 	testContent := testutil.GenerateRandomBytes(testBlockSize)
 	rc := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	readObjectRequest := &gcs.ReadObjectRequest{
@@ -109,7 +109,7 @@ func (dts *DownloadTaskTestSuite) TestExecuteError() {
 	require.Nil(dts.T(), err)
 	err = downloadBlock.SetAbsStartOff(0)
 	require.Nil(dts.T(), err)
-	task := NewDownloadTask(context.Background(), dts.object, dts.mockBucket, downloadBlock, nil, dts.metricHandle)
+	task := NewDownloadTask(context.Background(), dts.object, dts.mockBucket, downloadBlock, nil, dts.metricHandle, nil)
 	readObjectRequest := &gcs.ReadObjectRequest{
 		Name:       dts.object.Name,
 		Generation: dts.object.Generation,
@@ -138,7 +138,7 @@ func (dts *DownloadTaskTestSuite) TestExecuteContextDeadlineExceededByServerTrea
 	require.Nil(dts.T(), err)
 	taskCtx, taskCancelFunc := context.WithTimeout(context.Background(), 1*time.Millisecond)
 	defer taskCancelFunc() // Ensure the context is cancelled after the test.
-	task := NewDownloadTask(taskCtx, dts.object, dts.mockBucket, downloadBlock, nil, dts.metricHandle)
+	task := NewDownloadTask(taskCtx, dts.object, dts.mockBucket, downloadBlock, nil, dts.metricHandle, nil)
 	readObjectRequest := &gcs.ReadObjectRequest{
 		Name:       dts.object.Name,
 		Generation: dts.object.Generation,
@@ -167,7 +167,7 @@ func (dts *DownloadTaskTestSuite) TestExecuteContextCancelledWhileReaderCreation
 	err = downloadBlock.SetAbsStartOff(0)
 	require.Nil(dts.T(), err)
 	taskCtx, taskCancelFunc := context.WithCancel(context.TODO())
-	task := NewDownloadTask(taskCtx, dts.object, dts.mockBucket, downloadBlock, nil, dts.metricHandle)
+	task := NewDownloadTask(taskCtx, dts.object, dts.mockBucket, downloadBlock, nil, dts.metricHandle, nil)
 	rc := &fake.FakeReader{ReadCloser: getReadCloser(nil)} // No content since context is cancelled
 	readObjectRequest := &gcs.ReadObjectRequest{
 		Name:       dts.object.Name,
@@ -212,7 +212,7 @@ func (dts *DownloadTaskTestSuite) TestExecuteContextCancelledWhileReadingFromRea
 	err = downloadBlock.SetAbsStartOff(0)
 	require.Nil(dts.T(), err)
 	taskCtx, taskCancelFunc := context.WithCancel(context.TODO())
-	task := NewDownloadTask(taskCtx, dts.object, dts.mockBucket, downloadBlock, nil, dts.metricHandle)
+	task := NewDownloadTask(taskCtx, dts.object, dts.mockBucket, downloadBlock, nil, dts.metricHandle, nil)
 	rc := &fake.FakeReader{ReadCloser: new(ctxCancelledReader)}
 	readObjectRequest := &gcs.ReadObjectRequest{
 		Name:       dts.object.Name,
@@ -242,7 +242,7 @@ func (dts *DownloadTaskTestSuite) TestExecuteClobbered() {
 	require.Nil(dts.T(), err)
 	err = downloadBlock.SetAbsStartOff(0)
 	require.Nil(dts.T(), err)
-	task := NewDownloadTask(context.Background(), dts.object, dts.mockBucket, downloadBlock, nil, dts.metricHandle)
+	task := NewDownloadTask(context.Background(), dts.object, dts.mockBucket, downloadBlock, nil, dts.metricHandle, nil)
 	// Simulate NewReaderWithReadHandle returning a NotFoundError.
 	notFoundErr := &gcs.NotFoundError{Err: errors.New("object not found")}
 	readObjectRequest := &gcs.ReadObjectRequest{
