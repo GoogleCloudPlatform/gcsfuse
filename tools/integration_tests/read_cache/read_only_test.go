@@ -55,7 +55,7 @@ func (s *readOnlyTest) TearDownTest() {
 ////////////////////////////////////////////////////////////////////////
 
 func readMultipleFiles(numFiles int, ctx context.Context, storageClient *storage.Client, fileNames []string, t *testing.T) (expectedOutcome []*Expected) {
-	for i := 0; i < numFiles; i++ {
+	for i := range numFiles {
 		expectedOutcome = append(expectedOutcome, readFileAndValidateCacheWithGCS(ctx, storageClient, fileNames[i], fileSize, true, t))
 	}
 	return expectedOutcome

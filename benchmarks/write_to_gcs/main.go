@@ -71,10 +71,7 @@ func run() (err error) {
 
 	for bytesWritten < *fFileSize {
 		// Decide how many bytes to write.
-		toWrite := *fFileSize - bytesWritten
-		if toWrite > *fWriteSize {
-			toWrite = *fWriteSize
-		}
+		toWrite := min(*fFileSize-bytesWritten, *fWriteSize)
 
 		// Write them.
 		_, err = f.Write(buf)

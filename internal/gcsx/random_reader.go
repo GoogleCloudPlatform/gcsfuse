@@ -593,10 +593,7 @@ func (rr *randomReader) getEndOffset(
 	if seeks := rr.seeks.Load(); seeks >= minSeeksForRandom {
 		averageReadBytes := rr.totalReadBytes.Load() / seeks
 		if averageReadBytes < maxReadSize {
-			randomReadSize := int64(((averageReadBytes / MiB) + 1) * MiB)
-			if randomReadSize < minReadSize {
-				randomReadSize = minReadSize
-			}
+			randomReadSize := max(int64(((averageReadBytes/MiB)+1)*MiB), minReadSize)
 			if randomReadSize > maxReadSize {
 				randomReadSize = maxReadSize
 			}

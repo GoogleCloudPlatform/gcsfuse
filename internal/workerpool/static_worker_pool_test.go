@@ -153,7 +153,7 @@ func TestStaticWorkerPool_HighNumberOfTasks(t *testing.T) {
 	defer pool.Stop()
 
 	// Schedule a large number of tasks.
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		dt := &dummyTask{}
 		pool.Schedule(i%2 == 0, dt) // Alternate between priority and normal tasks
 	}

@@ -381,7 +381,7 @@ func (p *BufferedReader) prefetch() error {
 	}
 
 	allBlocksScheduledSuccessfully := true
-	for i := int64(0); i < blockCountToPrefetch; i++ {
+	for range blockCountToPrefetch {
 		if err := p.scheduleNextBlock(false); err != nil {
 			if errors.Is(err, ErrPrefetchBlockNotAvailable) {
 				// This is not a critical error for a background prefetch. We just stop

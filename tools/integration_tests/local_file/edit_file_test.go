@@ -29,7 +29,7 @@ func (t *LocalFileTestSuite) TestEditsToNewlyCreatedFile() {
 	// Create a local file.
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
 	// Write some contents to file sequentially.
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		operations.WriteWithoutClose(fh, FileContents, t.T())
 	}
 	// Close the file and validate that the file is created on GCS.
@@ -50,7 +50,7 @@ func (t *LocalFileTestSuite) TestAppendsToNewlyCreatedFile() {
 	// Create a local file.
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
 	// Write some contents to file sequentially.
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		operations.WriteWithoutClose(fh, FileContents, t.T())
 	}
 	// Close the file and validate that the file is created on GCS.

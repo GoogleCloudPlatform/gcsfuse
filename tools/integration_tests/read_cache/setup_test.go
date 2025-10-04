@@ -120,8 +120,8 @@ func createConfigFile(flags *gcsfuseTestFlags) string {
 	cacheDirPath = flags.cacheDirPath
 
 	// Set up config file for file cache.
-	mountConfig := map[string]interface{}{
-		"file-cache": map[string]interface{}{
+	mountConfig := map[string]any{
+		"file-cache": map[string]any{
 			"max-size-mb":                 flags.cacheSize,
 			"cache-file-for-range-read":   flags.cacheFileForRangeRead,
 			"enable-parallel-downloads":   flags.enableParallelDownloads,
@@ -132,7 +132,7 @@ func createConfigFile(flags *gcsfuseTestFlags) string {
 			"enable-o-direct":             flags.enableODirect,
 		},
 		"cache-dir": cacheDirPath,
-		"gcs-connection": map[string]interface{}{
+		"gcs-connection": map[string]any{
 			"client-protocol": flags.clientProtocol,
 		},
 	}

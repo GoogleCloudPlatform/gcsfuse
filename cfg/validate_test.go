@@ -867,7 +867,6 @@ func TestValidateMetrics(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			c := validConfig(t)
@@ -929,7 +928,6 @@ func TestValidateLogSeverityRanks(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.logSev, func(t *testing.T) {
 			t.Parallel()
 			level := LogSeverity(tc.logSev)

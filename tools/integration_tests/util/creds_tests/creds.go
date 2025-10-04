@@ -154,7 +154,7 @@ func RunTestsForDifferentAuthMethods(ctx context.Context, cfg *test_suite.TestCo
 	// Testing with --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
 	keyFileFlag := "--key-file=" + localKeyFilePath
 
-	for i := 0; i < len(testFlagSet); i++ {
+	for i := range testFlagSet {
 		testFlagSet[i] = append(testFlagSet[i], keyFileFlag)
 	}
 

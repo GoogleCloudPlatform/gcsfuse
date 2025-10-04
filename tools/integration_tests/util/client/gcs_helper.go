@@ -160,7 +160,7 @@ func SetupTestDirectory(ctx context.Context, storageClient *storage.Client, test
 }
 
 func CreateNFilesInDir(ctx context.Context, storageClient *storage.Client, numFiles int, fileName string, fileSize int64, dirName string, t *testing.T) (fileNames []string) {
-	for i := 0; i < numFiles; i++ {
+	for range numFiles {
 		testFileName := fileName + setup.GenerateRandomString(4)
 		fileNames = append(fileNames, testFileName)
 		SetupFileInTestDirectory(ctx, storageClient, dirName, testFileName, fileSize, t)

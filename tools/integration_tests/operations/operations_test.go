@@ -95,19 +95,19 @@ var (
 )
 
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
-	mountConfig1 := map[string]interface{}{
-		"metadata-cache": map[string]interface{}{
+	mountConfig1 := map[string]any{
+		"metadata-cache": map[string]any{
 			"ttl-secs": 0,
 		},
-		"write": map[string]interface{}{
+		"write": map[string]any{
 			"enable-streaming-writes": false,
 		},
 	}
 	filePath1 := setup.YAMLConfigFile(mountConfig1, "config1.yaml")
 	flags = append(flags, []string{"--config-file=" + filePath1})
 
-	mountConfig2 := map[string]interface{}{
-		"file-system": map[string]interface{}{
+	mountConfig2 := map[string]any{
+		"file-system": map[string]any{
 			"kernel-list-cache-ttl-secs": -1,
 		},
 	}

@@ -134,14 +134,14 @@ func mountGCSFuseAndSetupTestDir(ctx context.Context, flags []string, storageCli
 
 // createConfigFile generate mount config.yaml.
 func createConfigFile(flags *gcsfuseTestFlags) string {
-	mountConfig := map[string]interface{}{
-		"read": map[string]interface{}{
+	mountConfig := map[string]any{
+		"read": map[string]any{
 			"inactive-stream-timeout": flags.inactiveReadTimeout.String(),
 		},
-		"gcs-connection": map[string]interface{}{
+		"gcs-connection": map[string]any{
 			"client-protocol": flags.clientProtocol,
 		},
-		"logging": map[string]interface{}{
+		"logging": map[string]any{
 			"file-path": setup.LogFile(),
 			"format":    "json", // Ensure JSON logs for easier parsing
 		},

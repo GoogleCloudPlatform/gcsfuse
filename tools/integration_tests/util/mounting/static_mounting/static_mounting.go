@@ -60,7 +60,7 @@ func MountGcsfuseWithStaticMountingWithConfigFile(config *test_suite.TestConfig,
 func executeTestsForStaticMounting(config *test_suite.TestConfig, flagsSet [][]string, m *testing.M) (successCode int) {
 	var err error
 
-	for i := 0; i < len(flagsSet); i++ {
+	for i := range flagsSet {
 		if err = MountGcsfuseWithStaticMountingWithConfigFile(config, flagsSet[i]); err != nil {
 			setup.LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
 		}

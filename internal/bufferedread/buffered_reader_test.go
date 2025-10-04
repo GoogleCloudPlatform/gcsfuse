@@ -90,7 +90,7 @@ func assertBlockContent(t *testing.T, blk block.PrefetchBlock, expectedOffset in
 // for a given absolute starting offset.
 func assertBufferContent(t *testing.T, buf []byte, absStartOffset int64) {
 	t.Helper()
-	for i := 0; i < len(buf); i++ {
+	for i := range buf {
 		expected := byte('A' + ((int(absStartOffset) + i) % 26))
 		assert.Equalf(t, expected, buf[i], "Mismatch at buffer index %d (absolute offset %d)", i, absStartOffset+int64(i))
 	}
@@ -1365,7 +1365,7 @@ func (t *BufferedReaderTest) TestReadAtConcurrentReads() {
 	// Each go routine will read different range to avoid duplicate calls for same range.
 	// That's why we are multiplying by 3 to have offset 3 blocks apart.
 	var readIndex = 3
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		go func(index int) {
 			defer wg.Done()
 			offset := int64(index * readIndex * readSize)

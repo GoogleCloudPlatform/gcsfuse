@@ -67,7 +67,7 @@ func ParseOptions(m map[string]string, s string) {
 	// as I can tell there is no way to properly escape or quote a comma in the
 	// options list for an fstab entry. So put our fingers in our ears and hope
 	// that nobody needs a comma.
-	for _, p := range strings.Split(s, ",") {
+	for p := range strings.SplitSeq(s, ",") {
 		var name string
 		var value string
 

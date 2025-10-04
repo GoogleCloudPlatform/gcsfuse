@@ -62,8 +62,8 @@ func createConfigFileForJobChunkTest(cacheFileForRangeRead bool, fileName string
 	cacheDirPath = path.Join(setup.TestDir(), cacheDirName)
 
 	// Set up config file for file cache.
-	mountConfig := map[string]interface{}{
-		"file-cache": map[string]interface{}{
+	mountConfig := map[string]any{
+		"file-cache": map[string]any{
 			"max-size-mb":                 cacheSizeMB,
 			"cache-file-for-range-read":   cacheFileForRangeRead,
 			"enable-parallel-downloads":   true,
@@ -73,7 +73,7 @@ func createConfigFileForJobChunkTest(cacheFileForRangeRead bool, fileName string
 			"enable-crc":                  enableCrcCheck,
 		},
 		"cache-dir": cacheDirPath,
-		"gcs-connection": map[string]interface{}{
+		"gcs-connection": map[string]any{
 			"client-protocol": clientProtocol,
 		},
 	}
@@ -119,7 +119,7 @@ func (s *jobChunkTest) TestJobChunkSizeForMultipleFileReads() {
 
 	// Read 2 files in parallel.
 	var wg sync.WaitGroup
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		wg.Add(1)
 		i := i
 		go func() {
@@ -140,7 +140,7 @@ func (s *jobChunkTest) TestJobChunkSizeForMultipleFileReads() {
 		testFileNames[0], testFileNames[1] = testFileNames[1], testFileNames[0]
 	}
 
-	for fileIndex := 0; fileIndex < 2; fileIndex++ {
+	for fileIndex := range 2 {
 		assert.Equal(s.T(), expectedOutcome[fileIndex].BucketName, structuredJobLogs[fileIndex].BucketName)
 		assert.Equal(s.T(), expectedOutcome[fileIndex].ObjectName, structuredJobLogs[fileIndex].ObjectName)
 

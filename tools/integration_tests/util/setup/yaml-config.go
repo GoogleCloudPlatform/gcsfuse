@@ -22,7 +22,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func YAMLConfigFile(yamlContent interface{}, fileName string) (filePath string) {
+func YAMLConfigFile(yamlContent any, fileName string) (filePath string) {
 	yamlData, err := yaml.Marshal(yamlContent)
 	if err != nil {
 		LogAndExit(fmt.Sprintf("Error while marshaling config file: %v", err))

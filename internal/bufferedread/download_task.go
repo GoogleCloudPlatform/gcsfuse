@@ -89,10 +89,7 @@ func (p *DownloadTask) Execute() {
 	}()
 
 	start := uint64(startOff)
-	end := start + uint64(p.block.Cap())
-	if end > p.object.Size {
-		end = p.object.Size
-	}
+	end := min(start+uint64(p.block.Cap()), p.object.Size)
 	newReader, err := p.bucket.NewReaderWithReadHandle(
 		p.ctx,
 		&gcs.ReadObjectRequest{

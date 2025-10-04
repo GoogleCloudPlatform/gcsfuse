@@ -651,7 +651,7 @@ func Test_GetCacheHandle_ConcurrentSameFile(t *testing.T) {
 			}
 
 			// Start concurrent GetCacheHandle()
-			for i := 0; i < 5; i++ {
+			for range 5 {
 				wg.Add(1)
 				go getCacheHandleTestFun(t)
 			}
@@ -687,7 +687,7 @@ func Test_GetCacheHandle_ConcurrentDifferentFiles(t *testing.T) {
 	}
 
 	// Start concurrent GetCacheHandle()
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		wg.Add(1)
 		go getCacheHandleTestFun(i)
 	}
@@ -859,7 +859,7 @@ func Test_InvalidateCache_ConcurrentSameFile(t *testing.T) {
 			}
 
 			// Start concurrent GetCacheHandle()
-			for i := 0; i < 5; i++ {
+			for range 5 {
 				wg.Add(1)
 				go invalidateCacheTestFun(t)
 			}
@@ -910,7 +910,7 @@ func Test_InvalidateCache_ConcurrentDifferentFiles(t *testing.T) {
 			}
 
 			// Start concurrent GetCacheHandle()
-			for i := 0; i < 5; i++ {
+			for i := range 5 {
 				wg.Add(1)
 				go invalidateCacheTestFun(i)
 			}
@@ -971,7 +971,7 @@ func Test_InvalidateCache_GetCacheHandle_Concurrent(t *testing.T) {
 			}
 
 			// Start concurrent GetCacheHandle()
-			for i := 0; i < 5; i++ {
+			for i := range 5 {
 				wg.Add(1)
 				go invalidateCacheTestFun(i)
 				wg.Add(1)

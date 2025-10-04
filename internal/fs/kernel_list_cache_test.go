@@ -135,7 +135,7 @@ func (t *KernelListCacheTestWithPositiveTtl) Test_Parallel_OpenDirAndLookUpInode
 
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsPerGoroutine; i++ {
+		for range iterationsPerGoroutine {
 			f, err := os.Open(path.Join(mntDir, "explicitDir"))
 			assert.Nil(t.T(), err)
 
@@ -145,7 +145,7 @@ func (t *KernelListCacheTestWithPositiveTtl) Test_Parallel_OpenDirAndLookUpInode
 	}()
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsPerGoroutine; i++ {
+		for range iterationsPerGoroutine {
 			_, err := os.Stat(path.Join(mntDir, "explicitDir"))
 			assert.Nil(t.T(), err)
 		}
@@ -177,11 +177,11 @@ func (t *KernelListCacheTestWithPositiveTtl) Test_Concurrent_ReadDir() {
 
 	dirPath := path.Join(mntDir, "explicitDir")
 
-	for i := 0; i < goroutineCount; i++ {
+	for range goroutineCount {
 		go func() {
 			defer wg.Done()
 
-			for j := 0; j < iterationsPerGoroutine; j++ {
+			for range iterationsPerGoroutine {
 				f, err := os.Open(dirPath)
 				assert.Nil(t.T(), err)
 
@@ -222,7 +222,7 @@ func (t *KernelListCacheTestWithPositiveTtl) Test_Parallel_ReadDirAndFileOperati
 	// Goroutine 1: Repeatedly calls Readdir
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsPerGoroutine; i++ { // Adjust iteration count if needed
+		for range iterationsPerGoroutine { // Adjust iteration count if needed
 			f, err := os.Open(dirPath)
 			assert.Nil(t.T(), err)
 
@@ -237,7 +237,7 @@ func (t *KernelListCacheTestWithPositiveTtl) Test_Parallel_ReadDirAndFileOperati
 	// Goroutine 2: Creates and deletes files
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsPerGoroutine; i++ { // Adjust iteration count if needed
+		for range iterationsPerGoroutine { // Adjust iteration count if needed
 			filePath := path.Join(dirPath, "tmp_file.txt")
 			renamedFilePath := path.Join(dirPath, "renamed_tmp_file.txt")
 
@@ -286,7 +286,7 @@ func (t *KernelListCacheTestWithPositiveTtl) Test_Parallel_ReadDirAndDirOperatio
 	// Goroutine 1: Repeatedly calls Readdir
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsPerGoroutine; i++ {
+		for range iterationsPerGoroutine {
 			f, err := os.Open(parentDir)
 			assert.Nil(t.T(), err)
 
@@ -301,7 +301,7 @@ func (t *KernelListCacheTestWithPositiveTtl) Test_Parallel_ReadDirAndDirOperatio
 	// Goroutine 2: Creates and deletes directories
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsPerGoroutine; i++ {
+		for range iterationsPerGoroutine {
 			dirPath := path.Join(parentDir, "test_dir")
 			renamedDirPath := path.Join(parentDir, "renamed_test_dir")
 

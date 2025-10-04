@@ -119,7 +119,7 @@ func setupPrometheus(port int64) ([]metric.Option, common.ShutdownFn) {
 		return nil, nil
 	}
 	shutdownCh := make(chan context.Context)
-	done := make(chan interface{})
+	done := make(chan any)
 	go serveMetrics(port, shutdownCh, done)
 	return []metric.Option{metric.WithReader(exporter)}, func(ctx context.Context) error {
 		shutdownCh <- ctx
@@ -130,7 +130,7 @@ func setupPrometheus(port int64) ([]metric.Option, common.ShutdownFn) {
 	}
 }
 
-func serveMetrics(port int64, shutdownCh <-chan context.Context, done chan<- interface{}) {
+func serveMetrics(port int64, shutdownCh <-chan context.Context, done chan<- any) {
 	logger.Infof("Serving metrics at localhost:%d/metrics", port)
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
