@@ -115,7 +115,7 @@ func (t *SingleMountAppendsTestSuite) TestAppendsToFinalizedObjectNotVisibleUnti
 
 	t.fileName = fileNamePrefix + setup.GenerateRandomString(5)
 	// Create Finalized Object in the GCS bucket.
-	client.CreateObjectInGCSTestDir(
+	client.CreateFinalizedObjectInGCSTestDir(
 		ctx, storageClient, testDirName, t.fileName, initialContent, t.T())
 
 	// Append to the finalized object from the primary mount.
@@ -191,21 +191,22 @@ func (t *SingleMountAppendsTestSuite) TestRandomWritesVisibleAfterCloseWithConcu
 	n, err := appendFileHandle.Write([]byte(initialContent))
 	require.NoError(t.T(), err)
 	require.Equal(t.T(), len(initialContent), n)
+	t.fileContent = t.fileContent + initialContent
 
 	// Random write at an incorrect offset.
 	data := setup.GenerateRandomString(contentSizeForBW * blockSize)
-	n, err = readHandle.WriteAt([]byte(data), int64(len(initialContent))+1)
+	n, err = readHandle.WriteAt([]byte(data), int64(len(t.fileContent))+1)
 	require.NoError(t.T(), err)
 	require.Equal(t.T(), len(data), n)
 
 	// Validate content is not yet visible.
 	contentBeforeClose, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
 	require.NoError(t.T(), err)
-	assert.Equal(t.T(), initialContent, string(contentBeforeClose))
+	assert.Equal(t.T(), t.fileContent, string(contentBeforeClose))
 
 	// Close handle and validate final content (with null byte for the gap).
 	readHandle.Close()
-	expectedContent := t.fileContent + initialContent + "\x00" + data
+	expectedContent := t.fileContent + "\x00" + data
 	contentAfterClose, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, t.fileName))
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), expectedContent, string(contentAfterClose))
