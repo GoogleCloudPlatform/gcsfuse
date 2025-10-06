@@ -55,8 +55,7 @@ func (t *unfinalizedObjectOperations) TeardownTest() {}
 
 func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCreatedOutsideOfMountReportsNonZeroSize() {
 	size := operations.MiB
-	writer := client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, t.fileName), setup.GenerateRandomString(size))
-	defer writer.Close()
+	_ = client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, t.fileName), setup.GenerateRandomString(size))
 
 	statRes, err := operations.StatFile(path.Join(t.testDirPath, t.fileName))
 

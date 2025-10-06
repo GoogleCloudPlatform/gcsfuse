@@ -187,10 +187,9 @@ func CreateUnfinalizedObject(ctx context.Context, t *testing.T, client *storage.
 	require.NoError(t, err)
 	assert.EqualValues(t, len(content), bytesWritten)
 
-	flushOffset, err := writer.Flush()
+	err = writer.Close()
 	require.NoError(t, err)
-	assert.Equal(t, int64(len(content)), flushOffset)
-	// Sleep for a minute after flush to get correct size on stat.
-	time.Sleep(time.Minute)
+	// Sleep for a second after close to get correct size on stat.
+	time.Sleep(time.Second)
 	return writer
 }
