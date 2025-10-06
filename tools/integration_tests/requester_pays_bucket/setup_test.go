@@ -73,7 +73,7 @@ func TestMain(m *testing.M) {
 		cfg.RequesterPaysBucket[0].Configs[0].Flags = []string{""}
 		cfg.RequesterPaysBucket[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": false}
 		cfg.RequesterPaysBucket[0].Configs[1].Flags = []string{
-			"--billing-project=gcs-fuse-test",
+			"--billing-project=gcs-fuse-test-ml",
 		}
 		cfg.RequesterPaysBucket[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": false}
 	}

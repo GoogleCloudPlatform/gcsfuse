@@ -213,7 +213,7 @@ requester_pays_bucket:
           hns: true
           zonal: false
       - flags:
-          - "--billing-project=gcs-fuse-test"
+          - "--billing-project=gcs-fuse-test-ml"
         compatible:
           flat: true
           hns: true
