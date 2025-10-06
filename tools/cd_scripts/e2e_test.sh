@@ -306,6 +306,7 @@ TEST_DIR_PARALLEL=(
   "readdirplus"
   "dentry_cache"
   "buffered_read"
+  "requester_pays_bucket"
 )
 
 # These tests never become parallel as they are changing bucket permissions.
@@ -338,7 +339,6 @@ TEST_DIR_PARALLEL_ZONAL=(
   readdirplus
   release_version
   rename_dir_limit
-  requester_pays_bucket
   stale_handle
   streaming_writes
   unfinalized_object

@@ -160,7 +160,6 @@ TEST_DIR_PARALLEL_FOR_ZB=(
   "release_version"
   "readdirplus"
   "dentry_cache"
-  "requester_pays_bucket"
 )
 
 # Subset of TEST_DIR_NON_PARALLEL,
