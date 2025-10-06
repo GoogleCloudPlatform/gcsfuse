@@ -277,7 +277,7 @@ func (t *SingleMountAppendsTestSuite) TestKernelShouldSeeUpdatedSizeOnAppends_Ex
 	appendFileHandle.Close()
 
 	// Expire stat cache. By default, stat cache ttl is 60 seconds.
-	time.Sleep(metadataCacheTTLSecs)
+	time.Sleep(time.Minute)
 
 	// The stat should now fetch the latest size from the source, reflecting the new size.
 	expectedFileSize := int64(unfinalizedObjectSize + len(initialContent))

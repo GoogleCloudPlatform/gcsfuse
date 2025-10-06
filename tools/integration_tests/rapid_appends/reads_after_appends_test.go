@@ -129,14 +129,15 @@ func (t *DualMountReadsTestSuite) runAppendAndReadTest(verifyFunc readAndVerifyF
 		// If metadata cache is enabled, gcsfuse reads up to the cached file size.
 		// The initial read (i=0) bypasses cache, seeing the latest file size.
 		if !t.cfg.metadataCacheEnabled || (i == 0) {
-			time.Sleep(time.Minute)
 			verifyFunc(t.T(), readPath, []byte(t.fileContent[:sizeAfterAppend]))
 		} else {
 			// Read only up to the cached file size (before append).
 			verifyFunc(t.T(), readPath, []byte(t.fileContent[:sizeBeforeAppend]))
 
 			// Wait for metadata cache to expire to fetch the latest size for the next read.
-			time.Sleep(time.Duration(metadataCacheTTLSecs) * time.Second)
+			// Metadata update for appends in current iteration itself takes a minute, so the
+			// cached size will expire in ttl-60 secs from now, so wait accordingly.
+			time.Sleep(time.Duration(metadataCacheTTLSecs-60) * time.Second)
 			// Expect read up to the latest file size which is the size after the append.
 			verifyFunc(t.T(), readPath, []byte(t.fileContent[:sizeAfterAppend]))
 		}

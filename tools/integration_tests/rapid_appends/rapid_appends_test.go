@@ -37,7 +37,7 @@ const (
 	numAppends            = 2  // Number of appends to perform on test file.
 	appendSize            = 10 // Size in bytes for each append.
 	unfinalizedObjectSize = 10 // Size in bytes of initial unfinalized Object.
-	metadataCacheTTLSecs  = 60
+	metadataCacheTTLSecs  = 70
 	fileOpenModeRPlus     = os.O_RDWR
 	fileOpenModeAppend    = os.O_APPEND | os.O_WRONLY
 )
