@@ -50,32 +50,45 @@ func (t *folderOperationTests) TearDownSuite() {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
+// Test all the folder operations in the mount.
 func (t *folderOperationTests) TestDirOperations() {
-	var err error
 	dirName := "dir" + setup.GenerateRandomString(5)
 	mountedDirPath := filepath.Join(testEnv.testDirPath, dirName)
 
-	_, err = os.Stat(mountedDirPath)
-
+	// Check that the directory does not exist initially.
+	_, err := os.Stat(mountedDirPath)
 	assert.Error(t.T(), err)
+	assert.True(t.T(), os.IsNotExist(err), "Directory should not exist before creation")
 
+	// Create the directory.
 	err = os.Mkdir(mountedDirPath, setup.FilePermission_0600)
-
 	assert.NoError(t.T(), err)
 
+	// Check that the directory now exists.
 	_, err = os.Stat(mountedDirPath)
-
 	assert.NoError(t.T(), err)
 
+	// Rename the directory.
 	renamedDirName := "dir" + setup.GenerateRandomString(5)
 	mountedRenamedDirPath := filepath.Join(testEnv.testDirPath, renamedDirName)
 	err = os.Rename(mountedDirPath, mountedRenamedDirPath)
-
 	assert.NoError(t.T(), err)
 
+	// Check that the old path no longer exists and the new one does.
+	_, err = os.Stat(mountedDirPath)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), os.IsNotExist(err), "Old directory path should not exist after rename")
+	_, err = os.Stat(mountedRenamedDirPath)
+	assert.NoError(t.T(), err, "New directory path should exist after rename")
+
+	// Remove the directory.
 	err = os.RemoveAll(mountedRenamedDirPath)
-
 	assert.NoError(t.T(), err)
+
+	// Check that the directory is removed.
+	_, err = os.Stat(mountedRenamedDirPath)
+	assert.Error(t.T(), err)
+	assert.True(t.T(), os.IsNotExist(err), "Directory should not exist after removal")
 }
 
 ////////////////////////////////////////////////////////////////////////
