@@ -94,6 +94,23 @@ func TestMain(m *testing.M) {
 		log.Fatal("Test not supported for zonal bucket as they don't support requester-pays feature")
 	}
 
+	// Load and parse the common configuration.
+	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
+	if len(cfg.RequesterPaysBucket) == 0 {
+		log.Println("No configuration found for requester pays bucket tests in config. Using flags instead.")
+		// Populate the config manually.
+		cfg.RequesterPaysBucket = make([]test_suite.TestConfig, 1)
+		cfg.RequesterPaysBucket[0].TestBucket = setup.TestBucket()
+		cfg.RequesterPaysBucket[0].GKEMountedDirectory = setup.MountedDirectory()
+		cfg.RequesterPaysBucket[0].Configs = make([]test_suite.ConfigItem, 2)
+		cfg.RequesterPaysBucket[0].Configs[0].Flags = []string{""}
+		cfg.RequesterPaysBucket[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": false}
+		cfg.RequesterPaysBucket[0].Configs[1].Flags = []string{
+			"--billing-project=gcs-fuse-test",
+		}
+		cfg.RequesterPaysBucket[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": false}
+	}
+
 	testEnv.ctx = context.Background()
 	// Temporarily enable --requester-pays metadata flag for the test bucket.
 	if setup.TestBucket() == "" {

@@ -199,3 +199,23 @@ cloud_profiler:
           flat: true
           hns: true
           zonal: true
+
+requester_pays_bucket:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    log_file: # Optional flag required by some tests where log parsing is done to validate end behavior
+    run_on_gke: false
+    configs:
+      - flags:
+          - ""
+        compatible:
+          flat: true
+          hns: true
+          zonal: false
+      - flags:
+          - "--billing-project=gcs-fuse-test"
+        compatible:
+          flat: true
+          hns: true
+          zonal: false
+
