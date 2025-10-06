@@ -440,6 +440,39 @@ func buildSwitches(metric Metric) string {
 	return builder.String()
 }
 
+// findDistinctAttributes finds all unique string attributes across all metrics
+// and returns them as a slice of DistinctAttr, sorted by attribute name.
+func findDistinctAttributes(metrics []Metric) []DistinctAttr {
+	distinctAttrsMap := make(map[string]map[string]bool) // map[attrName]map[value]bool
+	for _, m := range metrics {
+		for _, attr := range m.Attributes {
+			// We only generate constants for string attributes.
+			if attr.Type == "string" {
+				if _, ok := distinctAttrsMap[attr.Name]; !ok {
+					distinctAttrsMap[attr.Name] = make(map[string]bool)
+				}
+				for _, val := range attr.Values {
+					distinctAttrsMap[attr.Name][val] = true
+				}
+			}
+		}
+	}
+	var distinctAttrs []DistinctAttr
+	for attrName, valuesMap := range distinctAttrsMap {
+		var values []string
+		for val := range valuesMap {
+			values = append(values, val)
+		}
+		sort.Strings(values)
+		distinctAttrs = append(distinctAttrs, DistinctAttr{
+			TypeName:      toPascal(attrName),
+			AttributeName: attrName,
+			Values:        values,
+		})
+	}
+	return distinctAttrs
+}
+
 func main() {
 	inputFile := flag.String("input", "metrics.yaml", "Input YAML file")
 	outputDir := flag.String("outDir", ".", "Output directory to dump artifacts.")
@@ -473,34 +506,7 @@ func main() {
 		}
 	}
 
-	// Find all distinct string attributes to generate types and constants for them.
-	distinctAttrsMap := make(map[string]map[string]bool) // map[attrName]map[value]bool
-	for _, m := range metrics {
-		for _, attr := range m.Attributes {
-			// We only generate constants for string attributes.
-			if attr.Type == "string" {
-				if _, ok := distinctAttrsMap[attr.Name]; !ok {
-					distinctAttrsMap[attr.Name] = make(map[string]bool)
-				}
-				for _, val := range attr.Values {
-					distinctAttrsMap[attr.Name][val] = true
-				}
-			}
-		}
-	}
-	var distinctAttrs []DistinctAttr
-	for attrName, valuesMap := range distinctAttrsMap {
-		var values []string
-		for val := range valuesMap {
-			values = append(values, val)
-		}
-		sort.Strings(values)
-		distinctAttrs = append(distinctAttrs, DistinctAttr{
-			TypeName:      toPascal(attrName),
-			AttributeName: attrName,
-			Values:        values,
-		})
-	}
+	distinctAttrs := findDistinctAttributes(metrics)
 	// Sort for deterministic output.
 	sort.Slice(distinctAttrs, func(i, j int) bool {
 		return distinctAttrs[i].AttributeName < distinctAttrs[j].AttributeName
@@ -514,8 +520,13 @@ func main() {
 	// for the distinct attributes. This allows the templates to generate the
 	// correct type in function signatures.
 	for i, m := range metrics {
+		distinctAttrsMap := make(map[string]bool)
+		for _, da := range distinctAttrs {
+			distinctAttrsMap[da.AttributeName] = true
+		}
+
 		for j, attr := range m.Attributes {
-			if _, isDistinct := distinctAttrsMap[attr.Name]; isDistinct {
+			if distinctAttrsMap[attr.Name] {
 				metrics[i].Attributes[j].Type = attr.Name
 			}
 		}
