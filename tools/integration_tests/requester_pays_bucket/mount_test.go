@@ -26,7 +26,7 @@ import (
 // Test Functions
 ////////////////////////////////////////////////////////////////////////
 
-func TestMountSucceeds(t *testing.T) {
+func TestMount(t *testing.T) {
 	// Nothing to test for mounted directory, as the mount itself must have succeeded
 	// to reach this stage.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
