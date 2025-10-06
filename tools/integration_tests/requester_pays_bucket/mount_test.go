@@ -33,7 +33,7 @@ func TestMount(t *testing.T) {
 		return
 	}
 
-	flagsSet := [][]string{{"--billing-project=gcs-fuse-test"}}
+	flagsSet := [][]string{{}, {"--billing-project=gcs-fuse-test"}}
 	for _, flags := range flagsSet {
 		tcName := strings.ReplaceAll(strings.Join(flags, ","), "--", "")
 		t.Run(tcName, func(t *testing.T) {
