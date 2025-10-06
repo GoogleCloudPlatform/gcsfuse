@@ -17,7 +17,6 @@ package requester_pays_bucket
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
@@ -31,17 +30,20 @@ import (
 
 type folderOperationTests struct {
 	suite.Suite
-	flags []string
 }
 
-func (s *folderOperationTests) SetupTest() {
-	setupForMountedDirectoryTests()
-	mountGCSFuseAndSetupTestDir(s.flags, testEnv.ctx, testEnv.storageClient)
+func (t *folderOperationTests) SetupSuite() {
+	testEnv.testDirPath = filepath.Join(setup.MntDir(), testDirName)
+	err := os.MkdirAll(testEnv.testDirPath, 0755)
+	if err != nil {
+		t.T().Fatalf("Failed to create directory: %v", err)
+	}
+
 }
 
-func (s *folderOperationTests) TearDownTest() {
-	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
-	setup.UnmountGCSFuseAndDeleteLogFile(testEnv.rootDir)
+func (t *folderOperationTests) TearDownSuite() {
+	err := os.RemoveAll(testEnv.testDirPath)
+	assert.NoError(t.T(), err)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -80,33 +82,6 @@ func (t *folderOperationTests) TestDirOperations() {
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestOperations(t *testing.T) {
-	// Helper functions to create flags, test case names etc.
-	tcNameFromFlags := func(flags []string) string {
-		if len(flags) > 0 {
-			return strings.ReplaceAll(strings.Join(flags, ","), "--", "")
-		} else {
-			return "noflags"
-		}
-	}
-
-	// Define test cases to be run.
-	testCases := []struct {
-		name  string
-		flags []string
-	}{
-		{name: "WithoutBillingProject"},
-		{name: "WithBillingProject", flags: []string{"--billing-project=gcs-fuse-test"}},
-	}
-
-	// Run test cases.
-	ts := &folderOperationTests{}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			ts.flags = tc.flags
-			t.Run(tcNameFromFlags(ts.flags), func(t *testing.T) {
-				suite.Run(t, ts)
-			})
-		})
-	}
+func TestFolderOperations(t *testing.T) {
+	suite.Run(t, new(folderOperationTests))
 }
