@@ -40,48 +40,15 @@ const (
 // variables (which would otherwise be declared with `var` at the package root) should
 // be added as fields to this 'env' struct instead.
 type env struct {
-	testDirPath string
-	mountFunc   func([]string) error
-	// mount directory is where our tests run.
-	mountDir string
-	// root directory is the directory to be mounted/unmounted.
-	rootDir       string
+	testDirPath   string
 	storageClient *storage.Client
 	ctx           context.Context
 	bucketName    string
 }
 
 var (
-	logFileNameForMountedDirectoryTests = path.Join(os.TempDir(), "gcsfuse_requester_pays_bucket_test_logs", "log.json")
-	testEnv                             env
+	testEnv env
 )
-
-////////////////////////////////////////////////////////////////////////
-// Helpers
-////////////////////////////////////////////////////////////////////////
-
-func setupForMountedDirectoryTests() {
-	if setup.MountedDirectory() != "" {
-		testEnv.mountDir = setup.MountedDirectory()
-		setup.SetLogFile(logFileNameForMountedDirectoryTests)
-	}
-}
-
-func staticMountFunc(flags []string) error {
-	config := &test_suite.TestConfig{
-		TestBucket:              setup.TestBucket(),
-		GKEMountedDirectory:     setup.MountedDirectory(),
-		GCSFuseMountedDirectory: setup.MntDir(),
-		LogFile:                 setup.LogFile(),
-	}
-	return static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(config, flags)
-}
-
-func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) {
-	setup.MountGCSFuseWithGivenMountFunc(flags, testEnv.mountFunc)
-	setup.SetMntDir(testEnv.mountDir)
-	testEnv.testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
-}
 
 ////////////////////////////////////////////////////////////////////////
 // TestMain
@@ -112,6 +79,8 @@ func TestMain(m *testing.M) {
 	}
 
 	testEnv.ctx = context.Background()
+	bucketType := setup.TestEnvironment(testEnv.ctx, &cfg.RequesterPaysBucket[0])
+
 	// Temporarily enable --requester-pays metadata flag for the test bucket.
 	if setup.TestBucket() == "" {
 		log.Fatal("testBucket not passed")
@@ -119,7 +88,8 @@ func TestMain(m *testing.M) {
 	testEnv.bucketName = strings.Split(setup.TestBucket(), "/")[0]
 	client.MustEnableRequesterPays(testEnv.ctx, testEnv.bucketName)
 	defer client.MustDisableRequesterPays(testEnv.ctx, testEnv.bucketName)
-	// Set up storage-client.
+
+	// Create storage client before running tests.
 	closeStorageClient := client.CreateStorageClientWithCancel(&testEnv.ctx, &testEnv.storageClient)
 	defer func() {
 		err := closeStorageClient()
@@ -128,20 +98,20 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	if setup.MountedDirectory() != "" {
-		os.Exit(setup.RunTestsForMountedDirectory(setup.MountedDirectory(), m))
+	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	// flags to be set, as RequesterPaysBucket tests validates content from the bucket.
+	if cfg.RequesterPaysBucket[0].GKEMountedDirectory != "" && cfg.RequesterPaysBucket[0].TestBucket != "" {
+		os.Exit(setup.RunTestsForMountedDirectory(cfg.RequesterPaysBucket[0].GKEMountedDirectory, m))
 	}
 
-	// Else run tests for testBucket.
-	// Set up test directory.
-	setup.SetUpTestDirForTestBucketFlag()
+	// Run tests for testBucket
+	// Build the flag sets dynamically from the config.
+	flags := setup.BuildFlagSets(cfg.RequesterPaysBucket[0], bucketType)
 
-	// Save mount and root directory variables.
-	testEnv.mountDir, testEnv.rootDir = setup.MntDir(), setup.MntDir()
+	setup.SetUpTestDirForTestBucket(&cfg.RequesterPaysBucket[0])
 
 	log.Println("Running static mounting tests...")
-	testEnv.mountFunc = staticMountFunc
-	successCode := m.Run()
+	successCode := static_mounting.RunTestsWithConfigFile(&cfg.RequesterPaysBucket[0], flags, m)
 
 	// If failed, then save the gcsfuse log file(s).
 	setup.SaveLogFileInCaseOfFailure(successCode)
