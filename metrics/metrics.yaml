@@ -83,6 +83,7 @@
     - "Parallel"
     - "Random"
     - "Sequential"
+    - "Unknown"
 
 - metric-name: "file_cache/read_count"
   description: "Specifies the number of read requests made via file cache along with type - Sequential/Random and cache hit - true/false"

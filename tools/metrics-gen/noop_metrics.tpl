@@ -26,7 +26,7 @@ type noopMetrics struct {}
 		{{- if or (isCounter .) (isUpDownCounter .) -}}
 			inc int64
 		{{- else -}}
-			ctx context.Context, duration time.Duration
+			ctx context.Context, latency time.Duration
 		{{- end }}
 		{{- if .Attributes}}, {{end}}
 		{{- range $i, $attr := .Attributes -}}

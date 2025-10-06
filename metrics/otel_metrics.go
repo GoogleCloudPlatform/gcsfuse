@@ -44,12 +44,15 @@ var (
 	fileCacheReadBytesCountReadTypeParallelAttrSet                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel")))
 	fileCacheReadBytesCountReadTypeRandomAttrSet                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random")))
 	fileCacheReadBytesCountReadTypeSequentialAttrSet                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential")))
+	fileCacheReadBytesCountReadTypeUnknownAttrSet                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Unknown")))
 	fileCacheReadCountCacheHitTrueReadTypeParallelAttrSet                               = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Parallel")))
 	fileCacheReadCountCacheHitTrueReadTypeRandomAttrSet                                 = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Random")))
 	fileCacheReadCountCacheHitTrueReadTypeSequentialAttrSet                             = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Sequential")))
+	fileCacheReadCountCacheHitTrueReadTypeUnknownAttrSet                                = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Unknown")))
 	fileCacheReadCountCacheHitFalseReadTypeParallelAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", "Parallel")))
 	fileCacheReadCountCacheHitFalseReadTypeRandomAttrSet                                = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", "Random")))
 	fileCacheReadCountCacheHitFalseReadTypeSequentialAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", "Sequential")))
+	fileCacheReadCountCacheHitFalseReadTypeUnknownAttrSet                               = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", "Unknown")))
 	fileCacheReadLatenciesCacheHitTrueAttrSet                                           = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", true)))
 	fileCacheReadLatenciesCacheHitFalseAttrSet                                          = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false)))
 	fsOpsCountFsOpBatchForgetAttrSet                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "BatchForget")))
@@ -613,9 +616,11 @@ var (
 	gcsDownloadBytesCountReadTypeParallelAttrSet                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel")))
 	gcsDownloadBytesCountReadTypeRandomAttrSet                                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random")))
 	gcsDownloadBytesCountReadTypeSequentialAttrSet                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential")))
+	gcsDownloadBytesCountReadTypeUnknownAttrSet                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Unknown")))
 	gcsReadCountReadTypeParallelAttrSet                                                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel")))
 	gcsReadCountReadTypeRandomAttrSet                                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random")))
 	gcsReadCountReadTypeSequentialAttrSet                                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential")))
+	gcsReadCountReadTypeUnknownAttrSet                                                  = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Unknown")))
 	gcsReaderCountIoMethodReadHandleAttrSet                                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("io_method", "ReadHandle")))
 	gcsReaderCountIoMethodClosedAttrSet                                                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("io_method", "closed")))
 	gcsReaderCountIoMethodOpenedAttrSet                                                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("io_method", "opened")))
@@ -681,12 +686,15 @@ type otelMetrics struct {
 	fileCacheReadBytesCountReadTypeParallelAtomic                                      *atomic.Int64
 	fileCacheReadBytesCountReadTypeRandomAtomic                                        *atomic.Int64
 	fileCacheReadBytesCountReadTypeSequentialAtomic                                    *atomic.Int64
+	fileCacheReadBytesCountReadTypeUnknownAtomic                                       *atomic.Int64
 	fileCacheReadCountCacheHitTrueReadTypeParallelAtomic                               *atomic.Int64
 	fileCacheReadCountCacheHitTrueReadTypeRandomAtomic                                 *atomic.Int64
 	fileCacheReadCountCacheHitTrueReadTypeSequentialAtomic                             *atomic.Int64
+	fileCacheReadCountCacheHitTrueReadTypeUnknownAtomic                                *atomic.Int64
 	fileCacheReadCountCacheHitFalseReadTypeParallelAtomic                              *atomic.Int64
 	fileCacheReadCountCacheHitFalseReadTypeRandomAtomic                                *atomic.Int64
 	fileCacheReadCountCacheHitFalseReadTypeSequentialAtomic                            *atomic.Int64
+	fileCacheReadCountCacheHitFalseReadTypeUnknownAtomic                               *atomic.Int64
 	fsOpsCountFsOpBatchForgetAtomic                                                    *atomic.Int64
 	fsOpsCountFsOpCreateFileAtomic                                                     *atomic.Int64
 	fsOpsCountFsOpCreateLinkAtomic                                                     *atomic.Int64
@@ -1217,10 +1225,12 @@ type otelMetrics struct {
 	gcsDownloadBytesCountReadTypeParallelAtomic                                        *atomic.Int64
 	gcsDownloadBytesCountReadTypeRandomAtomic                                          *atomic.Int64
 	gcsDownloadBytesCountReadTypeSequentialAtomic                                      *atomic.Int64
+	gcsDownloadBytesCountReadTypeUnknownAtomic                                         *atomic.Int64
 	gcsReadBytesCountAtomic                                                            *atomic.Int64
 	gcsReadCountReadTypeParallelAtomic                                                 *atomic.Int64
 	gcsReadCountReadTypeRandomAtomic                                                   *atomic.Int64
 	gcsReadCountReadTypeSequentialAtomic                                               *atomic.Int64
+	gcsReadCountReadTypeUnknownAtomic                                                  *atomic.Int64
 	gcsReaderCountIoMethodReadHandleAtomic                                             *atomic.Int64
 	gcsReaderCountIoMethodClosedAtomic                                                 *atomic.Int64
 	gcsReaderCountIoMethodOpenedAtomic                                                 *atomic.Int64
@@ -1256,17 +1266,17 @@ type otelMetrics struct {
 }
 
 func (o *otelMetrics) BufferedReadDownloadBlockLatency(
-	ctx context.Context, latency time.Duration, status string) {
+	ctx context.Context, latency time.Duration, status Status) {
 	var record histogramRecord
 	switch status {
-	case "cancelled":
+	case StatusCancelledAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.bufferedReadDownloadBlockLatency, value: latency.Microseconds(), attributes: bufferedReadDownloadBlockLatencyStatusCancelledAttrSet}
-	case "failed":
+	case StatusFailedAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.bufferedReadDownloadBlockLatency, value: latency.Microseconds(), attributes: bufferedReadDownloadBlockLatencyStatusFailedAttrSet}
-	case "successful":
+	case StatusSuccessfulAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.bufferedReadDownloadBlockLatency, value: latency.Microseconds(), attributes: bufferedReadDownloadBlockLatencyStatusSuccessfulAttrSet}
 	default:
-		updateUnrecognizedAttribute(status)
+		updateUnrecognizedAttribute(string(status))
 		return
 	}
 
@@ -1277,18 +1287,18 @@ func (o *otelMetrics) BufferedReadDownloadBlockLatency(
 }
 
 func (o *otelMetrics) BufferedReadFallbackTriggerCount(
-	inc int64, reason string) {
+	inc int64, reason Reason) {
 	if inc < 0 {
 		logger.Errorf("Counter metric buffered_read/fallback_trigger_count received a negative increment: %d", inc)
 		return
 	}
 	switch reason {
-	case "insufficient_memory":
+	case ReasonInsufficientMemoryAttr:
 		o.bufferedReadFallbackTriggerCountReasonInsufficientMemoryAtomic.Add(inc)
-	case "random_read_detected":
+	case ReasonRandomReadDetectedAttr:
 		o.bufferedReadFallbackTriggerCountReasonRandomReadDetectedAtomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(reason)
+		updateUnrecognizedAttribute(string(reason))
 		return
 	}
 }
@@ -1305,45 +1315,47 @@ func (o *otelMetrics) BufferedReadReadLatency(
 }
 
 func (o *otelMetrics) BufferedReadScheduledBlockCount(
-	inc int64, status string) {
+	inc int64, status Status) {
 	if inc < 0 {
 		logger.Errorf("Counter metric buffered_read/scheduled_block_count received a negative increment: %d", inc)
 		return
 	}
 	switch status {
-	case "cancelled":
+	case StatusCancelledAttr:
 		o.bufferedReadScheduledBlockCountStatusCancelledAtomic.Add(inc)
-	case "failed":
+	case StatusFailedAttr:
 		o.bufferedReadScheduledBlockCountStatusFailedAtomic.Add(inc)
-	case "successful":
+	case StatusSuccessfulAttr:
 		o.bufferedReadScheduledBlockCountStatusSuccessfulAtomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(status)
+		updateUnrecognizedAttribute(string(status))
 		return
 	}
 }
 
 func (o *otelMetrics) FileCacheReadBytesCount(
-	inc int64, readType string) {
+	inc int64, readType ReadType) {
 	if inc < 0 {
 		logger.Errorf("Counter metric file_cache/read_bytes_count received a negative increment: %d", inc)
 		return
 	}
 	switch readType {
-	case "Parallel":
+	case ReadTypeParallelAttr:
 		o.fileCacheReadBytesCountReadTypeParallelAtomic.Add(inc)
-	case "Random":
+	case ReadTypeRandomAttr:
 		o.fileCacheReadBytesCountReadTypeRandomAtomic.Add(inc)
-	case "Sequential":
+	case ReadTypeSequentialAttr:
 		o.fileCacheReadBytesCountReadTypeSequentialAtomic.Add(inc)
+	case ReadTypeUnknownAttr:
+		o.fileCacheReadBytesCountReadTypeUnknownAtomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(readType)
+		updateUnrecognizedAttribute(string(readType))
 		return
 	}
 }
 
 func (o *otelMetrics) FileCacheReadCount(
-	inc int64, cacheHit bool, readType string) {
+	inc int64, cacheHit bool, readType ReadType) {
 	if inc < 0 {
 		logger.Errorf("Counter metric file_cache/read_count received a negative increment: %d", inc)
 		return
@@ -1351,26 +1363,30 @@ func (o *otelMetrics) FileCacheReadCount(
 	switch cacheHit {
 	case true:
 		switch readType {
-		case "Parallel":
+		case ReadTypeParallelAttr:
 			o.fileCacheReadCountCacheHitTrueReadTypeParallelAtomic.Add(inc)
-		case "Random":
+		case ReadTypeRandomAttr:
 			o.fileCacheReadCountCacheHitTrueReadTypeRandomAtomic.Add(inc)
-		case "Sequential":
+		case ReadTypeSequentialAttr:
 			o.fileCacheReadCountCacheHitTrueReadTypeSequentialAtomic.Add(inc)
+		case ReadTypeUnknownAttr:
+			o.fileCacheReadCountCacheHitTrueReadTypeUnknownAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(readType)
+			updateUnrecognizedAttribute(string(readType))
 			return
 		}
 	case false:
 		switch readType {
-		case "Parallel":
+		case ReadTypeParallelAttr:
 			o.fileCacheReadCountCacheHitFalseReadTypeParallelAtomic.Add(inc)
-		case "Random":
+		case ReadTypeRandomAttr:
 			o.fileCacheReadCountCacheHitFalseReadTypeRandomAtomic.Add(inc)
-		case "Sequential":
+		case ReadTypeSequentialAttr:
 			o.fileCacheReadCountCacheHitFalseReadTypeSequentialAtomic.Add(inc)
+		case ReadTypeUnknownAttr:
+			o.fileCacheReadCountCacheHitFalseReadTypeUnknownAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(readType)
+			updateUnrecognizedAttribute(string(readType))
 			return
 		}
 	}
@@ -1393,1249 +1409,1249 @@ func (o *otelMetrics) FileCacheReadLatencies(
 }
 
 func (o *otelMetrics) FsOpsCount(
-	inc int64, fsOp string) {
+	inc int64, fsOp FsOp) {
 	if inc < 0 {
 		logger.Errorf("Counter metric fs/ops_count received a negative increment: %d", inc)
 		return
 	}
 	switch fsOp {
-	case "BatchForget":
+	case FsOpBatchForgetAttr:
 		o.fsOpsCountFsOpBatchForgetAtomic.Add(inc)
-	case "CreateFile":
+	case FsOpCreateFileAttr:
 		o.fsOpsCountFsOpCreateFileAtomic.Add(inc)
-	case "CreateLink":
+	case FsOpCreateLinkAttr:
 		o.fsOpsCountFsOpCreateLinkAtomic.Add(inc)
-	case "CreateSymlink":
+	case FsOpCreateSymlinkAttr:
 		o.fsOpsCountFsOpCreateSymlinkAtomic.Add(inc)
-	case "Fallocate":
+	case FsOpFallocateAttr:
 		o.fsOpsCountFsOpFallocateAtomic.Add(inc)
-	case "FlushFile":
+	case FsOpFlushFileAttr:
 		o.fsOpsCountFsOpFlushFileAtomic.Add(inc)
-	case "ForgetInode":
+	case FsOpForgetInodeAttr:
 		o.fsOpsCountFsOpForgetInodeAtomic.Add(inc)
-	case "GetInodeAttributes":
+	case FsOpGetInodeAttributesAttr:
 		o.fsOpsCountFsOpGetInodeAttributesAtomic.Add(inc)
-	case "GetXattr":
+	case FsOpGetXattrAttr:
 		o.fsOpsCountFsOpGetXattrAtomic.Add(inc)
-	case "ListXattr":
+	case FsOpListXattrAttr:
 		o.fsOpsCountFsOpListXattrAtomic.Add(inc)
-	case "LookUpInode":
+	case FsOpLookUpInodeAttr:
 		o.fsOpsCountFsOpLookUpInodeAtomic.Add(inc)
-	case "MkDir":
+	case FsOpMkDirAttr:
 		o.fsOpsCountFsOpMkDirAtomic.Add(inc)
-	case "MkNode":
+	case FsOpMkNodeAttr:
 		o.fsOpsCountFsOpMkNodeAtomic.Add(inc)
-	case "OpenDir":
+	case FsOpOpenDirAttr:
 		o.fsOpsCountFsOpOpenDirAtomic.Add(inc)
-	case "OpenFile":
+	case FsOpOpenFileAttr:
 		o.fsOpsCountFsOpOpenFileAtomic.Add(inc)
-	case "ReadDir":
+	case FsOpReadDirAttr:
 		o.fsOpsCountFsOpReadDirAtomic.Add(inc)
-	case "ReadDirPlus":
+	case FsOpReadDirPlusAttr:
 		o.fsOpsCountFsOpReadDirPlusAtomic.Add(inc)
-	case "ReadFile":
+	case FsOpReadFileAttr:
 		o.fsOpsCountFsOpReadFileAtomic.Add(inc)
-	case "ReadSymlink":
+	case FsOpReadSymlinkAttr:
 		o.fsOpsCountFsOpReadSymlinkAtomic.Add(inc)
-	case "ReleaseDirHandle":
+	case FsOpReleaseDirHandleAttr:
 		o.fsOpsCountFsOpReleaseDirHandleAtomic.Add(inc)
-	case "ReleaseFileHandle":
+	case FsOpReleaseFileHandleAttr:
 		o.fsOpsCountFsOpReleaseFileHandleAtomic.Add(inc)
-	case "RemoveXattr":
+	case FsOpRemoveXattrAttr:
 		o.fsOpsCountFsOpRemoveXattrAtomic.Add(inc)
-	case "Rename":
+	case FsOpRenameAttr:
 		o.fsOpsCountFsOpRenameAtomic.Add(inc)
-	case "RmDir":
+	case FsOpRmDirAttr:
 		o.fsOpsCountFsOpRmDirAtomic.Add(inc)
-	case "SetInodeAttributes":
+	case FsOpSetInodeAttributesAttr:
 		o.fsOpsCountFsOpSetInodeAttributesAtomic.Add(inc)
-	case "SetXattr":
+	case FsOpSetXattrAttr:
 		o.fsOpsCountFsOpSetXattrAtomic.Add(inc)
-	case "StatFS":
+	case FsOpStatFSAttr:
 		o.fsOpsCountFsOpStatFSAtomic.Add(inc)
-	case "SyncFS":
+	case FsOpSyncFSAttr:
 		o.fsOpsCountFsOpSyncFSAtomic.Add(inc)
-	case "SyncFile":
+	case FsOpSyncFileAttr:
 		o.fsOpsCountFsOpSyncFileAtomic.Add(inc)
-	case "Unlink":
+	case FsOpUnlinkAttr:
 		o.fsOpsCountFsOpUnlinkAtomic.Add(inc)
-	case "WriteFile":
+	case FsOpWriteFileAttr:
 		o.fsOpsCountFsOpWriteFileAtomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(fsOp)
+		updateUnrecognizedAttribute(string(fsOp))
 		return
 	}
 }
 
 func (o *otelMetrics) FsOpsErrorCount(
-	inc int64, fsErrorCategory string, fsOp string) {
+	inc int64, fsErrorCategory FsErrorCategory, fsOp FsOp) {
 	if inc < 0 {
 		logger.Errorf("Counter metric fs/ops_error_count received a negative increment: %d", inc)
 		return
 	}
 	switch fsErrorCategory {
-	case "DEVICE_ERROR":
+	case FsErrorCategoryDEVICEERRORAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "DIR_NOT_EMPTY":
+	case FsErrorCategoryDIRNOTEMPTYAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryDIRNOTEMPTYFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "FILE_DIR_ERROR":
+	case FsErrorCategoryFILEDIRERRORAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEDIRERRORFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "FILE_EXISTS":
+	case FsErrorCategoryFILEEXISTSAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryFILEEXISTSFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "INTERRUPT_ERROR":
+	case FsErrorCategoryINTERRUPTERRORAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINTERRUPTERRORFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "INVALID_ARGUMENT":
+	case FsErrorCategoryINVALIDARGUMENTAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDARGUMENTFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "INVALID_OPERATION":
+	case FsErrorCategoryINVALIDOPERATIONAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryINVALIDOPERATIONFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "IO_ERROR":
+	case FsErrorCategoryIOERRORAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryIOERRORFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "MISC_ERROR":
+	case FsErrorCategoryMISCERRORAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryMISCERRORFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "NETWORK_ERROR":
+	case FsErrorCategoryNETWORKERRORAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNETWORKERRORFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "NOT_A_DIR":
+	case FsErrorCategoryNOTADIRAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTADIRFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "NOT_IMPLEMENTED":
+	case FsErrorCategoryNOTIMPLEMENTEDAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOTIMPLEMENTEDFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "NO_FILE_OR_DIR":
+	case FsErrorCategoryNOFILEORDIRAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryNOFILEORDIRFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "PERM_ERROR":
+	case FsErrorCategoryPERMERRORAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryPERMERRORFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "PROCESS_RESOURCE_MGMT_ERROR":
+	case FsErrorCategoryPROCESSRESOURCEMGMTERRORAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryPROCESSRESOURCEMGMTERRORFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
-	case "TOO_MANY_OPEN_FILES":
+	case FsErrorCategoryTOOMANYOPENFILESAttr:
 		switch fsOp {
-		case "BatchForget":
+		case FsOpBatchForgetAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpBatchForgetAtomic.Add(inc)
-		case "CreateFile":
+		case FsOpCreateFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpCreateFileAtomic.Add(inc)
-		case "CreateLink":
+		case FsOpCreateLinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpCreateLinkAtomic.Add(inc)
-		case "CreateSymlink":
+		case FsOpCreateSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpCreateSymlinkAtomic.Add(inc)
-		case "Fallocate":
+		case FsOpFallocateAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpFallocateAtomic.Add(inc)
-		case "FlushFile":
+		case FsOpFlushFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpFlushFileAtomic.Add(inc)
-		case "ForgetInode":
+		case FsOpForgetInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpForgetInodeAtomic.Add(inc)
-		case "GetInodeAttributes":
+		case FsOpGetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpGetInodeAttributesAtomic.Add(inc)
-		case "GetXattr":
+		case FsOpGetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpGetXattrAtomic.Add(inc)
-		case "ListXattr":
+		case FsOpListXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpListXattrAtomic.Add(inc)
-		case "LookUpInode":
+		case FsOpLookUpInodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpLookUpInodeAtomic.Add(inc)
-		case "MkDir":
+		case FsOpMkDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpMkDirAtomic.Add(inc)
-		case "MkNode":
+		case FsOpMkNodeAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpMkNodeAtomic.Add(inc)
-		case "OpenDir":
+		case FsOpOpenDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpOpenDirAtomic.Add(inc)
-		case "OpenFile":
+		case FsOpOpenFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpOpenFileAtomic.Add(inc)
-		case "ReadDir":
+		case FsOpReadDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadDirAtomic.Add(inc)
-		case "ReadDirPlus":
+		case FsOpReadDirPlusAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadDirPlusAtomic.Add(inc)
-		case "ReadFile":
+		case FsOpReadFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadFileAtomic.Add(inc)
-		case "ReadSymlink":
+		case FsOpReadSymlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReadSymlinkAtomic.Add(inc)
-		case "ReleaseDirHandle":
+		case FsOpReleaseDirHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReleaseDirHandleAtomic.Add(inc)
-		case "ReleaseFileHandle":
+		case FsOpReleaseFileHandleAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpReleaseFileHandleAtomic.Add(inc)
-		case "RemoveXattr":
+		case FsOpRemoveXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpRemoveXattrAtomic.Add(inc)
-		case "Rename":
+		case FsOpRenameAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpRenameAtomic.Add(inc)
-		case "RmDir":
+		case FsOpRmDirAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpRmDirAtomic.Add(inc)
-		case "SetInodeAttributes":
+		case FsOpSetInodeAttributesAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSetInodeAttributesAtomic.Add(inc)
-		case "SetXattr":
+		case FsOpSetXattrAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSetXattrAtomic.Add(inc)
-		case "StatFS":
+		case FsOpStatFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpStatFSAtomic.Add(inc)
-		case "SyncFS":
+		case FsOpSyncFSAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSyncFSAtomic.Add(inc)
-		case "SyncFile":
+		case FsOpSyncFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSyncFileAtomic.Add(inc)
-		case "Unlink":
+		case FsOpUnlinkAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpUnlinkAtomic.Add(inc)
-		case "WriteFile":
+		case FsOpWriteFileAttr:
 			o.fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAtomic.Add(inc)
 		default:
-			updateUnrecognizedAttribute(fsOp)
+			updateUnrecognizedAttribute(string(fsOp))
 			return
 		}
 	default:
-		updateUnrecognizedAttribute(fsErrorCategory)
+		updateUnrecognizedAttribute(string(fsErrorCategory))
 		return
 	}
 }
 
 func (o *otelMetrics) FsOpsLatency(
-	ctx context.Context, latency time.Duration, fsOp string) {
+	ctx context.Context, latency time.Duration, fsOp FsOp) {
 	var record histogramRecord
 	switch fsOp {
-	case "BatchForget":
+	case FsOpBatchForgetAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpBatchForgetAttrSet}
-	case "CreateFile":
+	case FsOpCreateFileAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpCreateFileAttrSet}
-	case "CreateLink":
+	case FsOpCreateLinkAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpCreateLinkAttrSet}
-	case "CreateSymlink":
+	case FsOpCreateSymlinkAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpCreateSymlinkAttrSet}
-	case "Fallocate":
+	case FsOpFallocateAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpFallocateAttrSet}
-	case "FlushFile":
+	case FsOpFlushFileAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpFlushFileAttrSet}
-	case "ForgetInode":
+	case FsOpForgetInodeAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpForgetInodeAttrSet}
-	case "GetInodeAttributes":
+	case FsOpGetInodeAttributesAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpGetInodeAttributesAttrSet}
-	case "GetXattr":
+	case FsOpGetXattrAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpGetXattrAttrSet}
-	case "ListXattr":
+	case FsOpListXattrAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpListXattrAttrSet}
-	case "LookUpInode":
+	case FsOpLookUpInodeAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpLookUpInodeAttrSet}
-	case "MkDir":
+	case FsOpMkDirAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpMkDirAttrSet}
-	case "MkNode":
+	case FsOpMkNodeAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpMkNodeAttrSet}
-	case "OpenDir":
+	case FsOpOpenDirAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpOpenDirAttrSet}
-	case "OpenFile":
+	case FsOpOpenFileAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpOpenFileAttrSet}
-	case "ReadDir":
+	case FsOpReadDirAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReadDirAttrSet}
-	case "ReadDirPlus":
+	case FsOpReadDirPlusAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReadDirPlusAttrSet}
-	case "ReadFile":
+	case FsOpReadFileAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReadFileAttrSet}
-	case "ReadSymlink":
+	case FsOpReadSymlinkAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReadSymlinkAttrSet}
-	case "ReleaseDirHandle":
+	case FsOpReleaseDirHandleAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReleaseDirHandleAttrSet}
-	case "ReleaseFileHandle":
+	case FsOpReleaseFileHandleAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReleaseFileHandleAttrSet}
-	case "RemoveXattr":
+	case FsOpRemoveXattrAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpRemoveXattrAttrSet}
-	case "Rename":
+	case FsOpRenameAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpRenameAttrSet}
-	case "RmDir":
+	case FsOpRmDirAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpRmDirAttrSet}
-	case "SetInodeAttributes":
+	case FsOpSetInodeAttributesAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpSetInodeAttributesAttrSet}
-	case "SetXattr":
+	case FsOpSetXattrAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpSetXattrAttrSet}
-	case "StatFS":
+	case FsOpStatFSAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpStatFSAttrSet}
-	case "SyncFS":
+	case FsOpSyncFSAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpSyncFSAttrSet}
-	case "SyncFile":
+	case FsOpSyncFileAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpSyncFileAttrSet}
-	case "Unlink":
+	case FsOpUnlinkAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpUnlinkAttrSet}
-	case "WriteFile":
+	case FsOpWriteFileAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpWriteFileAttrSet}
 	default:
-		updateUnrecognizedAttribute(fsOp)
+		updateUnrecognizedAttribute(string(fsOp))
 		return
 	}
 
@@ -2646,20 +2662,22 @@ func (o *otelMetrics) FsOpsLatency(
 }
 
 func (o *otelMetrics) GcsDownloadBytesCount(
-	inc int64, readType string) {
+	inc int64, readType ReadType) {
 	if inc < 0 {
 		logger.Errorf("Counter metric gcs/download_bytes_count received a negative increment: %d", inc)
 		return
 	}
 	switch readType {
-	case "Parallel":
+	case ReadTypeParallelAttr:
 		o.gcsDownloadBytesCountReadTypeParallelAtomic.Add(inc)
-	case "Random":
+	case ReadTypeRandomAttr:
 		o.gcsDownloadBytesCountReadTypeRandomAtomic.Add(inc)
-	case "Sequential":
+	case ReadTypeSequentialAttr:
 		o.gcsDownloadBytesCountReadTypeSequentialAtomic.Add(inc)
+	case ReadTypeUnknownAttr:
+		o.gcsDownloadBytesCountReadTypeUnknownAtomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(readType)
+		updateUnrecognizedAttribute(string(readType))
 		return
 	}
 }
@@ -2674,138 +2692,140 @@ func (o *otelMetrics) GcsReadBytesCount(
 }
 
 func (o *otelMetrics) GcsReadCount(
-	inc int64, readType string) {
+	inc int64, readType ReadType) {
 	if inc < 0 {
 		logger.Errorf("Counter metric gcs/read_count received a negative increment: %d", inc)
 		return
 	}
 	switch readType {
-	case "Parallel":
+	case ReadTypeParallelAttr:
 		o.gcsReadCountReadTypeParallelAtomic.Add(inc)
-	case "Random":
+	case ReadTypeRandomAttr:
 		o.gcsReadCountReadTypeRandomAtomic.Add(inc)
-	case "Sequential":
+	case ReadTypeSequentialAttr:
 		o.gcsReadCountReadTypeSequentialAtomic.Add(inc)
+	case ReadTypeUnknownAttr:
+		o.gcsReadCountReadTypeUnknownAtomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(readType)
+		updateUnrecognizedAttribute(string(readType))
 		return
 	}
 }
 
 func (o *otelMetrics) GcsReaderCount(
-	inc int64, ioMethod string) {
+	inc int64, ioMethod IoMethod) {
 	if inc < 0 {
 		logger.Errorf("Counter metric gcs/reader_count received a negative increment: %d", inc)
 		return
 	}
 	switch ioMethod {
-	case "ReadHandle":
+	case IoMethodReadHandleAttr:
 		o.gcsReaderCountIoMethodReadHandleAtomic.Add(inc)
-	case "closed":
+	case IoMethodClosedAttr:
 		o.gcsReaderCountIoMethodClosedAtomic.Add(inc)
-	case "opened":
+	case IoMethodOpenedAttr:
 		o.gcsReaderCountIoMethodOpenedAtomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(ioMethod)
+		updateUnrecognizedAttribute(string(ioMethod))
 		return
 	}
 }
 
 func (o *otelMetrics) GcsRequestCount(
-	inc int64, gcsMethod string) {
+	inc int64, gcsMethod GcsMethod) {
 	if inc < 0 {
 		logger.Errorf("Counter metric gcs/request_count received a negative increment: %d", inc)
 		return
 	}
 	switch gcsMethod {
-	case "ComposeObjects":
+	case GcsMethodComposeObjectsAttr:
 		o.gcsRequestCountGcsMethodComposeObjectsAtomic.Add(inc)
-	case "CopyObject":
+	case GcsMethodCopyObjectAttr:
 		o.gcsRequestCountGcsMethodCopyObjectAtomic.Add(inc)
-	case "CreateAppendableObjectWriter":
+	case GcsMethodCreateAppendableObjectWriterAttr:
 		o.gcsRequestCountGcsMethodCreateAppendableObjectWriterAtomic.Add(inc)
-	case "CreateFolder":
+	case GcsMethodCreateFolderAttr:
 		o.gcsRequestCountGcsMethodCreateFolderAtomic.Add(inc)
-	case "CreateObject":
+	case GcsMethodCreateObjectAttr:
 		o.gcsRequestCountGcsMethodCreateObjectAtomic.Add(inc)
-	case "CreateObjectChunkWriter":
+	case GcsMethodCreateObjectChunkWriterAttr:
 		o.gcsRequestCountGcsMethodCreateObjectChunkWriterAtomic.Add(inc)
-	case "DeleteFolder":
+	case GcsMethodDeleteFolderAttr:
 		o.gcsRequestCountGcsMethodDeleteFolderAtomic.Add(inc)
-	case "DeleteObject":
+	case GcsMethodDeleteObjectAttr:
 		o.gcsRequestCountGcsMethodDeleteObjectAtomic.Add(inc)
-	case "FinalizeUpload":
+	case GcsMethodFinalizeUploadAttr:
 		o.gcsRequestCountGcsMethodFinalizeUploadAtomic.Add(inc)
-	case "FlushPendingWrites":
+	case GcsMethodFlushPendingWritesAttr:
 		o.gcsRequestCountGcsMethodFlushPendingWritesAtomic.Add(inc)
-	case "GetFolder":
+	case GcsMethodGetFolderAttr:
 		o.gcsRequestCountGcsMethodGetFolderAtomic.Add(inc)
-	case "ListObjects":
+	case GcsMethodListObjectsAttr:
 		o.gcsRequestCountGcsMethodListObjectsAtomic.Add(inc)
-	case "MoveObject":
+	case GcsMethodMoveObjectAttr:
 		o.gcsRequestCountGcsMethodMoveObjectAtomic.Add(inc)
-	case "MultiRangeDownloader::Add":
+	case GcsMethodMultiRangeDownloaderAddAttr:
 		o.gcsRequestCountGcsMethodMultiRangeDownloaderAddAtomic.Add(inc)
-	case "NewMultiRangeDownloader":
+	case GcsMethodNewMultiRangeDownloaderAttr:
 		o.gcsRequestCountGcsMethodNewMultiRangeDownloaderAtomic.Add(inc)
-	case "NewReader":
+	case GcsMethodNewReaderAttr:
 		o.gcsRequestCountGcsMethodNewReaderAtomic.Add(inc)
-	case "RenameFolder":
+	case GcsMethodRenameFolderAttr:
 		o.gcsRequestCountGcsMethodRenameFolderAtomic.Add(inc)
-	case "StatObject":
+	case GcsMethodStatObjectAttr:
 		o.gcsRequestCountGcsMethodStatObjectAtomic.Add(inc)
-	case "UpdateObject":
+	case GcsMethodUpdateObjectAttr:
 		o.gcsRequestCountGcsMethodUpdateObjectAtomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(gcsMethod)
+		updateUnrecognizedAttribute(string(gcsMethod))
 		return
 	}
 }
 
 func (o *otelMetrics) GcsRequestLatencies(
-	ctx context.Context, latency time.Duration, gcsMethod string) {
+	ctx context.Context, latency time.Duration, gcsMethod GcsMethod) {
 	var record histogramRecord
 	switch gcsMethod {
-	case "ComposeObjects":
+	case GcsMethodComposeObjectsAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodComposeObjectsAttrSet}
-	case "CopyObject":
+	case GcsMethodCopyObjectAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodCopyObjectAttrSet}
-	case "CreateAppendableObjectWriter":
+	case GcsMethodCreateAppendableObjectWriterAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodCreateAppendableObjectWriterAttrSet}
-	case "CreateFolder":
+	case GcsMethodCreateFolderAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodCreateFolderAttrSet}
-	case "CreateObject":
+	case GcsMethodCreateObjectAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodCreateObjectAttrSet}
-	case "CreateObjectChunkWriter":
+	case GcsMethodCreateObjectChunkWriterAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodCreateObjectChunkWriterAttrSet}
-	case "DeleteFolder":
+	case GcsMethodDeleteFolderAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodDeleteFolderAttrSet}
-	case "DeleteObject":
+	case GcsMethodDeleteObjectAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodDeleteObjectAttrSet}
-	case "FinalizeUpload":
+	case GcsMethodFinalizeUploadAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodFinalizeUploadAttrSet}
-	case "FlushPendingWrites":
+	case GcsMethodFlushPendingWritesAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodFlushPendingWritesAttrSet}
-	case "GetFolder":
+	case GcsMethodGetFolderAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodGetFolderAttrSet}
-	case "ListObjects":
+	case GcsMethodListObjectsAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodListObjectsAttrSet}
-	case "MoveObject":
+	case GcsMethodMoveObjectAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodMoveObjectAttrSet}
-	case "MultiRangeDownloader::Add":
+	case GcsMethodMultiRangeDownloaderAddAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodMultiRangeDownloaderAddAttrSet}
-	case "NewMultiRangeDownloader":
+	case GcsMethodNewMultiRangeDownloaderAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodNewMultiRangeDownloaderAttrSet}
-	case "NewReader":
+	case GcsMethodNewReaderAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodNewReaderAttrSet}
-	case "RenameFolder":
+	case GcsMethodRenameFolderAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodRenameFolderAttrSet}
-	case "StatObject":
+	case GcsMethodStatObjectAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodStatObjectAttrSet}
-	case "UpdateObject":
+	case GcsMethodUpdateObjectAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodUpdateObjectAttrSet}
 	default:
-		updateUnrecognizedAttribute(gcsMethod)
+		updateUnrecognizedAttribute(string(gcsMethod))
 		return
 	}
 
@@ -2816,18 +2836,18 @@ func (o *otelMetrics) GcsRequestLatencies(
 }
 
 func (o *otelMetrics) GcsRetryCount(
-	inc int64, retryErrorCategory string) {
+	inc int64, retryErrorCategory RetryErrorCategory) {
 	if inc < 0 {
 		logger.Errorf("Counter metric gcs/retry_count received a negative increment: %d", inc)
 		return
 	}
 	switch retryErrorCategory {
-	case "OTHER_ERRORS":
+	case RetryErrorCategoryOTHERERRORSAttr:
 		o.gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic.Add(inc)
-	case "STALLED_READ_REQUEST":
+	case RetryErrorCategorySTALLEDREADREQUESTAttr:
 		o.gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(retryErrorCategory)
+		updateUnrecognizedAttribute(string(retryErrorCategory))
 		return
 	}
 }
@@ -2838,14 +2858,14 @@ func (o *otelMetrics) TestUpdownCounter(
 }
 
 func (o *otelMetrics) TestUpdownCounterWithAttrs(
-	inc int64, requestType string) {
+	inc int64, requestType RequestType) {
 	switch requestType {
-	case "attr1":
+	case RequestTypeAttr1Attr:
 		o.testUpdownCounterWithAttrsRequestTypeAttr1Atomic.Add(inc)
-	case "attr2":
+	case RequestTypeAttr2Attr:
 		o.testUpdownCounterWithAttrsRequestTypeAttr2Atomic.Add(inc)
 	default:
-		updateUnrecognizedAttribute(requestType)
+		updateUnrecognizedAttribute(string(requestType))
 		return
 	}
 }
@@ -2878,14 +2898,17 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 
 	var fileCacheReadBytesCountReadTypeParallelAtomic,
 		fileCacheReadBytesCountReadTypeRandomAtomic,
-		fileCacheReadBytesCountReadTypeSequentialAtomic atomic.Int64
+		fileCacheReadBytesCountReadTypeSequentialAtomic,
+		fileCacheReadBytesCountReadTypeUnknownAtomic atomic.Int64
 
 	var fileCacheReadCountCacheHitTrueReadTypeParallelAtomic,
 		fileCacheReadCountCacheHitTrueReadTypeRandomAtomic,
 		fileCacheReadCountCacheHitTrueReadTypeSequentialAtomic,
+		fileCacheReadCountCacheHitTrueReadTypeUnknownAtomic,
 		fileCacheReadCountCacheHitFalseReadTypeParallelAtomic,
 		fileCacheReadCountCacheHitFalseReadTypeRandomAtomic,
-		fileCacheReadCountCacheHitFalseReadTypeSequentialAtomic atomic.Int64
+		fileCacheReadCountCacheHitFalseReadTypeSequentialAtomic,
+		fileCacheReadCountCacheHitFalseReadTypeUnknownAtomic atomic.Int64
 
 	var fsOpsCountFsOpBatchForgetAtomic,
 		fsOpsCountFsOpCreateFileAtomic,
@@ -3418,13 +3441,15 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 
 	var gcsDownloadBytesCountReadTypeParallelAtomic,
 		gcsDownloadBytesCountReadTypeRandomAtomic,
-		gcsDownloadBytesCountReadTypeSequentialAtomic atomic.Int64
+		gcsDownloadBytesCountReadTypeSequentialAtomic,
+		gcsDownloadBytesCountReadTypeUnknownAtomic atomic.Int64
 
 	var gcsReadBytesCountAtomic atomic.Int64
 
 	var gcsReadCountReadTypeParallelAtomic,
 		gcsReadCountReadTypeRandomAtomic,
-		gcsReadCountReadTypeSequentialAtomic atomic.Int64
+		gcsReadCountReadTypeSequentialAtomic,
+		gcsReadCountReadTypeUnknownAtomic atomic.Int64
 
 	var gcsReaderCountIoMethodReadHandleAtomic,
 		gcsReaderCountIoMethodClosedAtomic,
@@ -3494,6 +3519,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			conditionallyObserve(obsrv, &fileCacheReadBytesCountReadTypeParallelAtomic, fileCacheReadBytesCountReadTypeParallelAttrSet)
 			conditionallyObserve(obsrv, &fileCacheReadBytesCountReadTypeRandomAtomic, fileCacheReadBytesCountReadTypeRandomAttrSet)
 			conditionallyObserve(obsrv, &fileCacheReadBytesCountReadTypeSequentialAtomic, fileCacheReadBytesCountReadTypeSequentialAttrSet)
+			conditionallyObserve(obsrv, &fileCacheReadBytesCountReadTypeUnknownAtomic, fileCacheReadBytesCountReadTypeUnknownAttrSet)
 			return nil
 		}))
 
@@ -3504,9 +3530,11 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			conditionallyObserve(obsrv, &fileCacheReadCountCacheHitTrueReadTypeParallelAtomic, fileCacheReadCountCacheHitTrueReadTypeParallelAttrSet)
 			conditionallyObserve(obsrv, &fileCacheReadCountCacheHitTrueReadTypeRandomAtomic, fileCacheReadCountCacheHitTrueReadTypeRandomAttrSet)
 			conditionallyObserve(obsrv, &fileCacheReadCountCacheHitTrueReadTypeSequentialAtomic, fileCacheReadCountCacheHitTrueReadTypeSequentialAttrSet)
+			conditionallyObserve(obsrv, &fileCacheReadCountCacheHitTrueReadTypeUnknownAtomic, fileCacheReadCountCacheHitTrueReadTypeUnknownAttrSet)
 			conditionallyObserve(obsrv, &fileCacheReadCountCacheHitFalseReadTypeParallelAtomic, fileCacheReadCountCacheHitFalseReadTypeParallelAttrSet)
 			conditionallyObserve(obsrv, &fileCacheReadCountCacheHitFalseReadTypeRandomAtomic, fileCacheReadCountCacheHitFalseReadTypeRandomAttrSet)
 			conditionallyObserve(obsrv, &fileCacheReadCountCacheHitFalseReadTypeSequentialAtomic, fileCacheReadCountCacheHitFalseReadTypeSequentialAttrSet)
+			conditionallyObserve(obsrv, &fileCacheReadCountCacheHitFalseReadTypeUnknownAtomic, fileCacheReadCountCacheHitFalseReadTypeUnknownAttrSet)
 			return nil
 		}))
 
@@ -4068,6 +4096,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			conditionallyObserve(obsrv, &gcsDownloadBytesCountReadTypeParallelAtomic, gcsDownloadBytesCountReadTypeParallelAttrSet)
 			conditionallyObserve(obsrv, &gcsDownloadBytesCountReadTypeRandomAtomic, gcsDownloadBytesCountReadTypeRandomAttrSet)
 			conditionallyObserve(obsrv, &gcsDownloadBytesCountReadTypeSequentialAtomic, gcsDownloadBytesCountReadTypeSequentialAttrSet)
+			conditionallyObserve(obsrv, &gcsDownloadBytesCountReadTypeUnknownAtomic, gcsDownloadBytesCountReadTypeUnknownAttrSet)
 			return nil
 		}))
 
@@ -4086,6 +4115,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			conditionallyObserve(obsrv, &gcsReadCountReadTypeParallelAtomic, gcsReadCountReadTypeParallelAttrSet)
 			conditionallyObserve(obsrv, &gcsReadCountReadTypeRandomAtomic, gcsReadCountReadTypeRandomAttrSet)
 			conditionallyObserve(obsrv, &gcsReadCountReadTypeSequentialAtomic, gcsReadCountReadTypeSequentialAttrSet)
+			conditionallyObserve(obsrv, &gcsReadCountReadTypeUnknownAtomic, gcsReadCountReadTypeUnknownAttrSet)
 			return nil
 		}))
 
@@ -4174,12 +4204,15 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fileCacheReadBytesCountReadTypeParallelAtomic:                                      &fileCacheReadBytesCountReadTypeParallelAtomic,
 		fileCacheReadBytesCountReadTypeRandomAtomic:                                        &fileCacheReadBytesCountReadTypeRandomAtomic,
 		fileCacheReadBytesCountReadTypeSequentialAtomic:                                    &fileCacheReadBytesCountReadTypeSequentialAtomic,
+		fileCacheReadBytesCountReadTypeUnknownAtomic:                                       &fileCacheReadBytesCountReadTypeUnknownAtomic,
 		fileCacheReadCountCacheHitTrueReadTypeParallelAtomic:                               &fileCacheReadCountCacheHitTrueReadTypeParallelAtomic,
 		fileCacheReadCountCacheHitTrueReadTypeRandomAtomic:                                 &fileCacheReadCountCacheHitTrueReadTypeRandomAtomic,
 		fileCacheReadCountCacheHitTrueReadTypeSequentialAtomic:                             &fileCacheReadCountCacheHitTrueReadTypeSequentialAtomic,
+		fileCacheReadCountCacheHitTrueReadTypeUnknownAtomic:                                &fileCacheReadCountCacheHitTrueReadTypeUnknownAtomic,
 		fileCacheReadCountCacheHitFalseReadTypeParallelAtomic:                              &fileCacheReadCountCacheHitFalseReadTypeParallelAtomic,
 		fileCacheReadCountCacheHitFalseReadTypeRandomAtomic:                                &fileCacheReadCountCacheHitFalseReadTypeRandomAtomic,
 		fileCacheReadCountCacheHitFalseReadTypeSequentialAtomic:                            &fileCacheReadCountCacheHitFalseReadTypeSequentialAtomic,
+		fileCacheReadCountCacheHitFalseReadTypeUnknownAtomic:                               &fileCacheReadCountCacheHitFalseReadTypeUnknownAtomic,
 		fileCacheReadLatencies:                                                             fileCacheReadLatencies,
 		fsOpsCountFsOpBatchForgetAtomic:                                                    &fsOpsCountFsOpBatchForgetAtomic,
 		fsOpsCountFsOpCreateFileAtomic:                                                     &fsOpsCountFsOpCreateFileAtomic,
@@ -4712,10 +4745,12 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		gcsDownloadBytesCountReadTypeParallelAtomic:                &gcsDownloadBytesCountReadTypeParallelAtomic,
 		gcsDownloadBytesCountReadTypeRandomAtomic:                  &gcsDownloadBytesCountReadTypeRandomAtomic,
 		gcsDownloadBytesCountReadTypeSequentialAtomic:              &gcsDownloadBytesCountReadTypeSequentialAtomic,
+		gcsDownloadBytesCountReadTypeUnknownAtomic:                 &gcsDownloadBytesCountReadTypeUnknownAtomic,
 		gcsReadBytesCountAtomic:                                    &gcsReadBytesCountAtomic,
 		gcsReadCountReadTypeParallelAtomic:                         &gcsReadCountReadTypeParallelAtomic,
 		gcsReadCountReadTypeRandomAtomic:                           &gcsReadCountReadTypeRandomAtomic,
 		gcsReadCountReadTypeSequentialAtomic:                       &gcsReadCountReadTypeSequentialAtomic,
+		gcsReadCountReadTypeUnknownAtomic:                          &gcsReadCountReadTypeUnknownAtomic,
 		gcsReaderCountIoMethodReadHandleAtomic:                     &gcsReaderCountIoMethodReadHandleAtomic,
 		gcsReaderCountIoMethodClosedAtomic:                         &gcsReaderCountIoMethodClosedAtomic,
 		gcsReaderCountIoMethodOpenedAtomic:                         &gcsReaderCountIoMethodOpenedAtomic,

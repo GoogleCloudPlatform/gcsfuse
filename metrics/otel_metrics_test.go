@@ -132,7 +132,7 @@ func TestBufferedReadDownloadBlockLatency(t *testing.T) {
 	tests := []struct {
 		name      string
 		latencies []time.Duration
-		status    string
+		status    Status
 	}{
 		{
 			name:      "status_cancelled",
@@ -169,7 +169,7 @@ func TestBufferedReadDownloadBlockLatency(t *testing.T) {
 			require.True(t, ok, "buffered_read/download_block_latency metric not found")
 
 			attrs := []attribute.KeyValue{
-				attribute.String("status", tc.status),
+				attribute.String("status", string(tc.status)),
 			}
 			s := attribute.NewSet(attrs...)
 			expectedKey := s.Encoded(encoder)
@@ -385,6 +385,15 @@ func TestFileCacheReadBytesCount(t *testing.T) {
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("read_type", "Sequential")): 5,
 			},
+		},
+		{
+			name: "read_type_Unknown",
+			f: func(m *otelMetrics) {
+				m.FileCacheReadBytesCount(5, "Unknown")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("read_type", "Unknown")): 5,
+			},
 		}, {
 			name: "multiple_attributes_summed",
 			f: func(m *otelMetrics) {
@@ -465,6 +474,15 @@ func TestFileCacheReadCount(t *testing.T) {
 			},
 		},
 		{
+			name: "cache_hit_true_read_type_Unknown",
+			f: func(m *otelMetrics) {
+				m.FileCacheReadCount(5, true, "Unknown")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", true), attribute.String("read_type", "Unknown")): 5,
+			},
+		},
+		{
 			name: "cache_hit_false_read_type_Parallel",
 			f: func(m *otelMetrics) {
 				m.FileCacheReadCount(5, false, "Parallel")
@@ -489,6 +507,15 @@ func TestFileCacheReadCount(t *testing.T) {
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", "Sequential")): 5,
+			},
+		},
+		{
+			name: "cache_hit_false_read_type_Unknown",
+			f: func(m *otelMetrics) {
+				m.FileCacheReadCount(5, false, "Unknown")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("read_type", "Unknown")): 5,
 			},
 		}, {
 			name: "multiple_attributes_summed",
@@ -5433,7 +5460,7 @@ func TestFsOpsLatency(t *testing.T) {
 	tests := []struct {
 		name      string
 		latencies []time.Duration
-		fsOp      string
+		fsOp      FsOp
 	}{
 		{
 			name:      "fs_op_BatchForget",
@@ -5610,7 +5637,7 @@ func TestFsOpsLatency(t *testing.T) {
 			require.True(t, ok, "fs/ops_latency metric not found")
 
 			attrs := []attribute.KeyValue{
-				attribute.String("fs_op", tc.fsOp),
+				attribute.String("fs_op", string(tc.fsOp)),
 			}
 			s := attribute.NewSet(attrs...)
 			expectedKey := s.Encoded(encoder)
@@ -5653,6 +5680,15 @@ func TestGcsDownloadBytesCount(t *testing.T) {
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("read_type", "Sequential")): 5,
+			},
+		},
+		{
+			name: "read_type_Unknown",
+			f: func(m *otelMetrics) {
+				m.GcsDownloadBytesCount(5, "Unknown")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("read_type", "Unknown")): 5,
 			},
 		}, {
 			name: "multiple_attributes_summed",
@@ -5756,6 +5792,15 @@ func TestGcsReadCount(t *testing.T) {
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("read_type", "Sequential")): 5,
+			},
+		},
+		{
+			name: "read_type_Unknown",
+			f: func(m *otelMetrics) {
+				m.GcsReadCount(5, "Unknown")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("read_type", "Unknown")): 5,
 			},
 		}, {
 			name: "multiple_attributes_summed",
@@ -6107,7 +6152,7 @@ func TestGcsRequestLatencies(t *testing.T) {
 	tests := []struct {
 		name      string
 		latencies []time.Duration
-		gcsMethod string
+		gcsMethod GcsMethod
 	}{
 		{
 			name:      "gcs_method_ComposeObjects",
@@ -6224,7 +6269,7 @@ func TestGcsRequestLatencies(t *testing.T) {
 			require.True(t, ok, "gcs/request_latencies metric not found")
 
 			attrs := []attribute.KeyValue{
-				attribute.String("gcs_method", tc.gcsMethod),
+				attribute.String("gcs_method", string(tc.gcsMethod)),
 			}
 			s := attribute.NewSet(attrs...)
 			expectedKey := s.Encoded(encoder)

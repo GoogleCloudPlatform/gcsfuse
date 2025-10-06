@@ -152,15 +152,15 @@ func TestShouldRetryReturnsTrueForUnauthenticatedGrpcErrors(t *testing.T) {
 type fakeMetricHandle struct {
 	metrics.MetricHandle
 
-	gcsRetryCountCalled bool
-	gcsRetryCountInc    int64
-	gcsRetryCountVal    string
+	gcsRetryCountCalled   bool
+	gcsRetryCountInc      int64
+	gcsRetryErrorCategory string
 }
 
-func (m *fakeMetricHandle) GcsRetryCount(inc int64, val string) {
+func (m *fakeMetricHandle) GcsRetryCount(inc int64, val metrics.RetryErrorCategory) {
 	m.gcsRetryCountCalled = true
 	m.gcsRetryCountInc = inc
-	m.gcsRetryCountVal = val
+	m.gcsRetryErrorCategory = string(val)
 }
 
 func TestShouldRetryWithMonitoringForNonRetryableErrors(t *testing.T) {
@@ -223,7 +223,7 @@ func TestShouldRetryWithMonitoringForRetryableErrors(t *testing.T) {
 			assert.True(t, shouldRetry)
 			assert.True(t, fakeMetrics.gcsRetryCountCalled)
 			assert.Equal(t, int64(1), fakeMetrics.gcsRetryCountInc)
-			assert.Equal(t, tc.expectedMetricCategory, fakeMetrics.gcsRetryCountVal)
+			assert.Equal(t, tc.expectedMetricCategory, fakeMetrics.gcsRetryErrorCategory)
 		})
 	}
 }
