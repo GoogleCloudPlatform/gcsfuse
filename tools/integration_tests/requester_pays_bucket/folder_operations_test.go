@@ -29,17 +29,17 @@ import (
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type requesterPaysBucketTests struct {
+type folderOperationTests struct {
 	suite.Suite
 	flags []string
 }
 
-func (s *requesterPaysBucketTests) SetupTest() {
+func (s *folderOperationTests) SetupTest() {
 	setupForMountedDirectoryTests()
 	mountGCSFuseAndSetupTestDir(s.flags, testEnv.ctx, testEnv.storageClient)
 }
 
-func (s *requesterPaysBucketTests) TearDownTest() {
+func (s *folderOperationTests) TearDownTest() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 	setup.UnmountGCSFuseAndDeleteLogFile(testEnv.rootDir)
 }
@@ -48,7 +48,7 @@ func (s *requesterPaysBucketTests) TearDownTest() {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (t *requesterPaysBucketTests) TestDirOperations() {
+func (t *folderOperationTests) TestDirOperations() {
 	var err error
 	dirName := "dir" + setup.GenerateRandomString(5)
 	mountedDirPath := filepath.Join(testEnv.testDirPath, dirName)
@@ -100,7 +100,7 @@ func TestOperations(t *testing.T) {
 	}
 
 	// Run test cases.
-	ts := &requesterPaysBucketTests{}
+	ts := &folderOperationTests{}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ts.flags = tc.flags
