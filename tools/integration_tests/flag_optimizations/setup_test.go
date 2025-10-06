@@ -121,7 +121,9 @@ func TestMain(m *testing.M) {
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
-	setup.RunTestsForMountedDirectory(setup.MountedDirectory(), m)
+	if setup.MountedDirectory() != "" {
+		os.Exit(setup.RunTestsForMountedDirectory(setup.MountedDirectory(), m))
+	}
 
 	// Else run tests for testBucket.
 	// Set up test directory.
