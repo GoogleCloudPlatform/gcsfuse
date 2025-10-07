@@ -20,6 +20,6 @@ set -e
 
 echo Installing requirements..
 pip install --require-hashes -r requirements.txt --user
-gsutil cp gs://periodic-perf-tests/creds.json ./gsheet
+gcloud storage cp gs://periodic-perf-tests/creds.json ./gsheet
 echo Fetching results..
 python3 populate_vm_metrics.py $1 $2
