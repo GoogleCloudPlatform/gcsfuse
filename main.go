@@ -22,6 +22,8 @@ package main
 import (
 	"log"
 
+	"fmt"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/cmd"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/perf"
@@ -50,5 +52,6 @@ func main() {
 	go perf.HandleCPUProfileSignals()
 	go perf.HandleMemoryProfileSignals()
 
+	fmt.Printf("About to execute mount command")
 	cmd.ExecuteMountCmd()
 }
