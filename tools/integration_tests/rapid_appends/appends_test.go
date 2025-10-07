@@ -277,7 +277,7 @@ func (t *SingleMountAppendsTestSuite) TestKernelShouldSeeUpdatedSizeOnAppends_Ex
 	appendFileHandle.Close()
 
 	// Expire stat cache. By default, stat cache ttl is 60 seconds.
-	time.Sleep(time.Minute)
+	time.Sleep(defaultMetadataCacheTTL)
 
 	// The stat should now fetch the latest size from the source, reflecting the new size.
 	expectedFileSize := int64(unfinalizedObjectSize + len(initialContent))
@@ -295,13 +295,13 @@ var appendTestConfigs = []*testConfig{
 	{
 		name:              "SingleMount",
 		isDualMount:       false,
-		primaryMountFlags: []string{"--enable-rapid-appends=true", "--write-block-size-mb=1"},
+		primaryMountFlags: []string{"--write-block-size-mb=1"},
 	},
 	{
 		name:                "DualMount",
 		isDualMount:         true,
-		primaryMountFlags:   []string{"--enable-rapid-appends=true", "--write-block-size-mb=1"},
-		secondaryMountFlags: []string{"--enable-rapid-appends=true", "--write-block-size-mb=1"},
+		primaryMountFlags:   []string{"--write-block-size-mb=1"},
+		secondaryMountFlags: []string{"--write-block-size-mb=1"},
 	},
 }
 

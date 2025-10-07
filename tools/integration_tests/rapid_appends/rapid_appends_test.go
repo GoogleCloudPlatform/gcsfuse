@@ -20,6 +20,7 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
@@ -33,13 +34,14 @@ const (
 	// Minimum content size to trigger block upload; calculated as (2*blocksize+1) MiB.
 	contentSizeForBW = 3
 	// Block size for buffered-writes.
-	blockSize             = operations.OneMiB
-	numAppends            = 2  // Number of appends to perform on test file.
-	appendSize            = 10 // Size in bytes for each append.
-	unfinalizedObjectSize = 10 // Size in bytes of initial unfinalized Object.
-	metadataCacheTTLSecs  = 70
-	fileOpenModeRPlus     = os.O_RDWR
-	fileOpenModeAppend    = os.O_APPEND | os.O_WRONLY
+	blockSize               = operations.OneMiB
+	numAppends              = 2  // Number of appends to perform on test file.
+	appendSize              = 10 // Size in bytes for each append.
+	unfinalizedObjectSize   = 10 // Size in bytes of initial unfinalized Object.
+	defaultMetadataCacheTTL = time.Minute
+	metadataCacheTTLSecs    = 70
+	fileOpenModeRPlus       = os.O_RDWR
+	fileOpenModeAppend      = os.O_APPEND | os.O_WRONLY
 )
 
 var (

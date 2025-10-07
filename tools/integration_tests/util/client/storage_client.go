@@ -202,7 +202,7 @@ func WriteToObject(ctx context.Context, client *storage.Client, object, content 
 	if err := wc.Close(); err != nil {
 		return fmt.Errorf("Writer.Close failed for object %q: %w", object, err)
 	}
-	operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), time.Second)
+	operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), operations.WaitDurationAfterCloseZB)
 
 	return nil
 }
@@ -226,7 +226,7 @@ func CreateFinalizedObjectOnGCS(ctx context.Context, client *storage.Client, obj
 	if err := wc.Close(); err != nil {
 		return fmt.Errorf("Writer.Close failed for object %q: %w", object, err)
 	}
-	operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), time.Second)
+	operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), operations.WaitDurationAfterCloseZB)
 	return nil
 }
 
@@ -372,7 +372,7 @@ func UploadGcsObjectWithPreconditions(ctx context.Context, client *storage.Clien
 		if err := w.Close(); err != nil {
 			log.Printf("Failed to close GCS object gs://%s/%s: %v", bucketName, objectName, err)
 		}
-		operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), time.Second)
+		operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), operations.WaitDurationAfterCloseZB)
 	}()
 
 	filePathToUpload := localPath

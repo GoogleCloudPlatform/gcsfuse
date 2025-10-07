@@ -51,7 +51,9 @@ const (
 	TimeSlop = 25 * time.Millisecond
 	// TmpDirectory specifies the directory where temporary files will be created.
 	// In this case, we are using the system's default temporary directory.
-	TmpDirectory = "/tmp"
+	TmpDirectory             = "/tmp"
+	WaitDurationAfterFlushZB = time.Minute
+	WaitDurationAfterCloseZB = time.Second
 )
 
 func copyFile(srcFileName, dstFileName string, allowOverwrite bool) (err error) {
@@ -186,7 +188,7 @@ func CloseFile(file *os.File) {
 	if err := file.Close(); err != nil {
 		log.Fatalf("error in closing: %v", err)
 	}
-	WaitForSizeUpdate(setup.IsZonalBucketRun(), time.Second)
+	WaitForSizeUpdate(setup.IsZonalBucketRun(), WaitDurationAfterCloseZB)
 }
 
 func RemoveFile(filePath string) {
@@ -261,7 +263,7 @@ func WriteChunkOfRandomBytesToFiles(files []*os.File, chunkSize int, offset int6
 			if err != nil {
 				return fmt.Errorf("error in syncing file: %v", err)
 			}
-			WaitForSizeUpdate(setup.IsZonalBucketRun(), time.Minute)
+			WaitForSizeUpdate(setup.IsZonalBucketRun(), WaitDurationAfterFlushZB)
 		}
 	}
 
@@ -625,7 +627,7 @@ func WriteAt(content string, offset int64, fh *os.File, t testing.TB) {
 func CloseFileShouldNotThrowError(t testing.TB, file *os.File) {
 	err := file.Close()
 	assert.NoError(t, err)
-	WaitForSizeUpdate(setup.IsZonalBucketRun(), time.Second)
+	WaitForSizeUpdate(setup.IsZonalBucketRun(), WaitDurationAfterCloseZB)
 }
 
 func CloseFileShouldThrowError(t *testing.T, file *os.File) {
@@ -642,7 +644,7 @@ func SyncFile(fh *os.File, t *testing.T) {
 	if err != nil {
 		t.Fatalf("%s.Sync(): %v", fh.Name(), err)
 	}
-	WaitForSizeUpdate(setup.IsZonalBucketRun(), time.Minute)
+	WaitForSizeUpdate(setup.IsZonalBucketRun(), WaitDurationAfterFlushZB)
 }
 
 func SyncFiles(files []*os.File, t *testing.T) {

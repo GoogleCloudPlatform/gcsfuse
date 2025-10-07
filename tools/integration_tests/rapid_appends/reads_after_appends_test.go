@@ -89,7 +89,7 @@ func (t *SingleMountReadsTestSuite) runAppendAndReadTest(verifyFunc readAndVerif
 	for i := range numAppends {
 		// Wait for a minute for stat to return the correct file size, which is needed by appendToFile.
 		if i > 0 {
-			time.Sleep(time.Minute)
+			time.Sleep(operations.WaitDurationAfterFlushZB)
 		}
 
 		t.appendToFile(appendFileHandle, setup.GenerateRandomString(appendSize))
@@ -137,7 +137,7 @@ func (t *DualMountReadsTestSuite) runAppendAndReadTest(verifyFunc readAndVerifyF
 			// Wait for metadata cache to expire to fetch the latest size for the next read.
 			// Metadata update for appends in current iteration itself takes a minute, so the
 			// cached size will expire in ttl-60 secs from now, so wait accordingly.
-			time.Sleep(time.Duration(metadataCacheTTLSecs-60) * time.Second)
+			time.Sleep(time.Duration(metadataCacheTTLSecs*time.Second - operations.WaitDurationAfterFlushZB))
 			// Expect read up to the latest file size which is the size after the append.
 			verifyFunc(t.T(), readPath, []byte(t.fileContent[:sizeAfterAppend]))
 		}
@@ -164,28 +164,24 @@ var readTestConfigs = []*testConfig{
 		isDualMount:          false,
 		metadataCacheEnabled: false,
 		fileCacheEnabled:     false,
-		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
 	},
 	{
 		name:                 "SingleMount_MetadataCache",
 		isDualMount:          false,
 		metadataCacheEnabled: true,
 		fileCacheEnabled:     false,
-		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
 	},
 	{
 		name:                 "SingleMount_FileCache",
 		isDualMount:          false,
 		metadataCacheEnabled: false,
 		fileCacheEnabled:     true,
-		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
 	},
 	{
 		name:                 "SingleMount_MetadataAndFileCache",
 		isDualMount:          false,
 		metadataCacheEnabled: true,
 		fileCacheEnabled:     true,
-		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
 	},
 	// Dual-Mount Scenarios
 	{
@@ -193,32 +189,24 @@ var readTestConfigs = []*testConfig{
 		isDualMount:          true,
 		metadataCacheEnabled: false,
 		fileCacheEnabled:     false,
-		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
-		secondaryMountFlags:  []string{"--enable-rapid-appends=true"},
 	},
 	{
 		name:                 "DualMount_MetadataCache",
 		isDualMount:          true,
 		metadataCacheEnabled: true,
 		fileCacheEnabled:     false,
-		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
-		secondaryMountFlags:  []string{"--enable-rapid-appends=true"},
 	},
 	{
 		name:                 "DualMount_FileCache",
 		isDualMount:          true,
 		metadataCacheEnabled: false,
 		fileCacheEnabled:     true,
-		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
-		secondaryMountFlags:  []string{"--enable-rapid-appends=true"},
 	},
 	{
 		name:                 "DualMount_MetadataAndFileCache",
 		isDualMount:          true,
 		metadataCacheEnabled: true,
 		fileCacheEnabled:     true,
-		primaryMountFlags:    []string{"--enable-rapid-appends=true"},
-		secondaryMountFlags:  []string{"--enable-rapid-appends=true"},
 	},
 }
 
