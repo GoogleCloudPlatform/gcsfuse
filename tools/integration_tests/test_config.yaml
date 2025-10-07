@@ -133,7 +133,7 @@ readonly:
 
 rename_dir_limit:
   - mounted_directory: "${MOUNTED_DIR}"
-    test_bucket: "${BUCKET_NAME}"
+    test_bucket: "${BUCKET_NAME}/${ONLY_DIR}"
     log_file: # Optional
     configs:
       - flags:
