@@ -612,14 +612,15 @@ func AddCacheDirToFlags(flagSets [][]string, testname string) [][]string {
 
 // BuildFlagSets dynamically builds a list of flag sets based on bucket compatibility.
 // bucketType should be "flat", "hns", or "zonal".
-func BuildFlagSets(cfg test_suite.TestConfig, bucketType string) [][]string {
+func BuildFlagSets(cfg test_suite.TestConfig, bucketType string, run string) [][]string {
 	var dynamicFlags [][]string
 
 	// 1. Iterate through each defined test configuration (e.g., HTTP, gRPC).
 	for _, testCase := range cfg.Configs {
 		// 2. Check if the current test case is compatible with the bucket type.
 		// This is a safe and concise way to check the map.
-		if isCompatible, ok := testCase.Compatible[bucketType]; ok && isCompatible {
+		isCompatible, ok := testCase.Compatible[bucketType]
+		if ok && isCompatible && (run == "" || run == testCase.Run) {
 			// 3. If compatible, process its flags and add them to the result.
 			for _, flagString := range testCase.Flags {
 				dynamicFlags = append(dynamicFlags, strings.Fields(flagString))
@@ -703,16 +704,6 @@ func UnmountGCSFuseAndDeleteLogFile(rootDir string) {
 		if err != nil {
 			LogAndExit(fmt.Sprintf("Error in deleting log file: %v", err))
 		}
-	}
-}
-
-func UnmountGCSFuseAndDeleteLogFileWithCfg(cfg *test_suite.TestConfig, rootDir string) {
-	SetMntDir(rootDir)
-	UnmountGCSFuseWithConfig(cfg)
-	//delete log file created
-	err := os.Truncate(LogFile(), 0)
-	if err != nil {
-		LogAndExit(fmt.Sprintf("Error in truncating log file: %v", err))
 	}
 }
 

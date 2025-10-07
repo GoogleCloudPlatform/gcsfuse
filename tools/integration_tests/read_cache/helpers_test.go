@@ -106,7 +106,7 @@ func getCachedFilePath(fileName string) string {
 	if setup.DynamicBucketMounted() != "" {
 		bucketName = setup.DynamicBucketMounted()
 	}
-	return path.Join(cacheDirPath, cacheSubDirectoryName, bucketName, testDirName, fileName)
+	return path.Join(testEnv.cacheDirPath, cacheSubDirectoryName, bucketName, testDirName, fileName)
 }
 
 func validateFileSizeInCacheDirectory(fileName string, filesize int64, t *testing.T) {
@@ -207,19 +207,16 @@ func readChunkAndValidateObjectContentsFromGCS(ctx context.Context, storageClien
 	return expectedOutcome
 }
 
-func readFileAndValidateFileIsNotCached(ctx context.Context, storageClient *storage.Client,
-	readFullFile bool, offset int64, t *testing.T) (expectedOutcome *Expected) {
+func readFileAndValidateFileIsNotCached(ctx context.Context, storageClient *storage.Client, fileName string, readFullFile bool, offset int64, t *testing.T) (expectedOutcome *Expected) {
 	// Read file via gcsfuse mount.
-	expectedOutcome = readFileAndGetExpectedOutcome(testEnv.testDirPath, largeFileName, readFullFile, offset, t)
+	expectedOutcome = readFileAndGetExpectedOutcome(testEnv.testDirPath, fileName, readFullFile, offset, t)
 	// Validate that the file is not cached.
-	validateFileIsNotCached(largeFileName, t)
+	validateFileIsNotCached(fileName, t)
 	// validate the content read matches the content on GCS.
 	if readFullFile {
-		client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, largeFileName,
-			expectedOutcome.content, t)
+		client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, fileName, expectedOutcome.content, t)
 	} else {
-		client.ValidateObjectChunkFromGCS(ctx, storageClient, testDirName, largeFileName,
-			offset, chunkSizeToRead, expectedOutcome.content, t)
+		client.ValidateObjectChunkFromGCS(ctx, storageClient, testDirName, fileName, offset, chunkSizeToRead, expectedOutcome.content, t)
 	}
 	return expectedOutcome
 }
@@ -237,7 +234,7 @@ func modifyFile(ctx context.Context, storageClient *storage.Client, testFileName
 }
 
 func validateCacheSizeWithinLimit(cacheCapacity int64, t *testing.T) {
-	cacheSize, err := operations.DirSizeMiB(cacheDirPath)
+	cacheSize, err := operations.DirSizeMiB(testEnv.cacheDirPath)
 	if err != nil {
 		t.Errorf("Error in getting cache size: %v", cacheSize)
 	}
