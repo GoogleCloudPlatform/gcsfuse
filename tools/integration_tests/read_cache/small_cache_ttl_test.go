@@ -16,13 +16,14 @@ package read_cache
 
 import (
 	"context"
-	"fmt"
 	"log"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
@@ -42,19 +43,26 @@ type smallCacheTTLTest struct {
 	suite.Suite
 }
 
-func (s *smallCacheTTLTest) SetupTest() {
-	setupForMountedDirectoryTestsWithConfig(s.baseTestName)
-	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
-	fmt.Println("cacheDirPath is ", cacheDirPath)
-	operations.RemoveDir(cacheDirPath)
+func (s *smallCacheTTLTest) SetupSuite() {
+	setupLogFileAndCacheDir(s.baseTestName)
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
 }
 
-func (s *smallCacheTTLTest) TearDownTest() {
-	fmt.Println("running teardown")
+func (s *smallCacheTTLTest) SetupTest() {
+	//Truncate log file created.
+	err := os.Truncate(testEnv.cfg.LogFile, 0)
+	require.NoError(s.T(), err)
+	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
+	operations.RemoveDir(testEnv.cacheDirPath)
+	testEnv.testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
+}
 
+func (s *smallCacheTTLTest) TearDownTest() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
-	setup.UnmountGCSFuseAndDeleteLogFileWithCfg(testEnv.cfg, rootDir)
+}
+
+func (s *smallCacheTTLTest) TearDownSuite() {
+	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -80,7 +88,7 @@ func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss() {
 	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, smallContentSize, true, s.T())
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
-	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), s.T())
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
 	require.Equal(s.T(), 3, len(structuredReadLogs))
 	validate(expectedOutcome1, structuredReadLogs[0], true, false, chunksRead, s.T())
 	validate(expectedOutcome2, structuredReadLogs[1], true, true, chunksRead, s.T())
@@ -99,7 +107,7 @@ func (s *smallCacheTTLTest) TestReadForLowMetaDataCacheTTLIsCacheHit() {
 	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, s.T())
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
-	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), s.T())
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
 	require.Equal(s.T(), 3, len(structuredReadLogs))
 	validate(expectedOutcome1, structuredReadLogs[0], true, false, chunksRead, s.T())
 	validate(expectedOutcome2, structuredReadLogs[1], true, true, chunksRead, s.T())
@@ -120,13 +128,9 @@ func TestSmallCacheTTLTest(t *testing.T) {
 	}
 
 	// Run tests for GCE environment otherwise.
-	for _, configs := range testEnv.cfg.Configs {
-		if configs.Run == t.Name() {
-			flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType)
-			for _, ts.flags = range flagsSet {
-				log.Printf("Running tests with flags: %s", ts.flags)
-				suite.Run(t, ts)
-			}
-		}
+	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
+	for _, ts.flags = range flagsSet {
+		log.Printf("Running tests with flags: %s", ts.flags)
+		suite.Run(t, ts)
 	}
 }

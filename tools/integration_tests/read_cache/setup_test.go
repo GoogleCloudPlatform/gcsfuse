@@ -16,7 +16,6 @@ package read_cache
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"path"
@@ -50,7 +49,6 @@ const (
 	NumberOfFilesMoreThanCacheLimit        = (cacheCapacityInMB*util.MiB)/fileSize + 1
 	largeFileSize                          = 15 * util.MiB
 	largeFileCacheCapacity                 = 15
-	largeFileName                          = "15MBFile"
 	largeFileChunksRead                    = largeFileSize / chunkSizeToRead
 	chunksReadAfterUpdate                  = 1
 	metadataCacheTTlInSec                  = 10
@@ -76,7 +74,6 @@ const (
 
 var (
 	cacheDirName string
-	cacheDirPath string
 	mountFunc    func(*test_suite.TestConfig, []string) error
 	// mount directory is where our tests run.
 	mountDir string
@@ -90,6 +87,7 @@ type env struct {
 	testDirPath   string
 	cfg           *test_suite.TestConfig
 	bucketType    string
+	cacheDirPath  string
 }
 
 var testEnv env
@@ -98,20 +96,17 @@ var testEnv env
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func setupForMountedDirectoryTestsWithConfig(testName string) {
+func setupLogFileAndCacheDir(testName string) {
+	var logFilePath string
+	testEnv.cacheDirPath = path.Join(setup.TestDir(), GKETempDir, testName)
+	logFilePath = path.Join(setup.TestDir(), GKETempDir, testName) + ".log"
 	if testEnv.cfg.GKEMountedDirectory != "" {
-		cacheDirPath = path.Join(GKETempDir, testName)
+		testEnv.cacheDirPath = path.Join(GKETempDir, testName)
 		mountDir = testEnv.cfg.GKEMountedDirectory
-		logFilePath := path.Join(GKETempDir, testName) + ".log"
-		testEnv.cfg.LogFile = logFilePath
-		setup.SetLogFile(logFilePath)
-		fmt.Println("Setting log file:", logFilePath)
-	} else {
-		cacheDirPath = path.Join(setup.TestDir(), GKETempDir, testName)
-		logFilePath := path.Join(setup.TestDir(), GKETempDir, testName) + ".log"
-		testEnv.cfg.LogFile = logFilePath
-		setup.SetLogFile(logFilePath)
+		logFilePath = path.Join(GKETempDir, testName) + ".log"
 	}
+	testEnv.cfg.LogFile = logFilePath
+	setup.SetLogFile(logFilePath)
 }
 
 func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) {
