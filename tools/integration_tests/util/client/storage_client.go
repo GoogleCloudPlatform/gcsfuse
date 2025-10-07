@@ -329,14 +329,18 @@ func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, pre
 				<-sem // Release the semaphore slot
 				wg.Done()
 			}()
+			log.Printf("(anushkadhn) : Starting to delete file %s\n", attrs.Name)
 			if err := DeleteObjectOnGCS(ctx, client, attrs.Name); err != nil {
 				errChan <- fmt.Errorf("error deleting object %s: %w", attrs.Name, err)
 			}
+			log.Printf("(anushkadhn) : Done deleting file  %s\n", attrs.Name)
 		}(attrs)
 	}
 
 	wg.Wait()
+	log.Printf("(anushkadhn) : Done deletion and waiting ....\n")
 	close(errChan)
+	log.Printf("(anushkadhn) : Closed error channel....\n")
 
 	var errs []error
 	for err := range errChan {

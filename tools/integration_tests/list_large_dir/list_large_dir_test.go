@@ -20,6 +20,7 @@ import (
 	"log"
 	"os"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
@@ -64,12 +65,16 @@ func TestMain(m *testing.M) {
 	// 2. Create storage client before running tests.
 	ctx = context.Background()
 	bucketType := setup.TestEnvironment(ctx, &cfg.ListLargeDir[0])
+	start := time.Now()
 	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
+	log.Printf("(anushkadhn) Time taken to create the storage client : %v", time.Since(start))
 	defer func() {
+		start := time.Now()
 		err := closeStorageClient()
 		if err != nil {
 			log.Fatalf("closeStorageClient failed: %v", err)
 		}
+		log.Printf("(anushkadhn) Time taken to close the storage client : %v", time.Since(start))
 	}()
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
