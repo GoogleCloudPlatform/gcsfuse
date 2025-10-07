@@ -86,7 +86,7 @@ func TestMain(m *testing.M) {
 
 	// Run tests for testBucket.
 	// 4. Build the flag sets dynamically from the config.
-	flags := setup.BuildFlagSets(cfg.ReadLargeFiles[0], bucketType)
+	flags := setup.BuildFlagSets(cfg.ReadLargeFiles[0], bucketType, "")
 	flags = setup.AddCacheDirToFlags(flags, "read-large-files")
 
 	setup.SetUpTestDirForTestBucket(&cfg.ReadLargeFiles[0])
