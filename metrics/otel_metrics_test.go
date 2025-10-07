@@ -135,21 +135,21 @@ func TestBufferedReadFallbackTriggerCount(t *testing.T) {
 		expected map[attribute.Set]int64
 	}{
 		{
-			name: "reason_insufficient_memory",
+			name: "fallback_reason_insufficient_memory",
 			f: func(m *otelMetrics) {
 				m.BufferedReadFallbackTriggerCount(5, "insufficient_memory")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("reason", "insufficient_memory")): 5,
+				attribute.NewSet(attribute.String("fallback_reason", "insufficient_memory")): 5,
 			},
 		},
 		{
-			name: "reason_random_read_detected",
+			name: "fallback_reason_random_read_detected",
 			f: func(m *otelMetrics) {
 				m.BufferedReadFallbackTriggerCount(5, "random_read_detected")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("reason", "random_read_detected")): 5,
+				attribute.NewSet(attribute.String("fallback_reason", "random_read_detected")): 5,
 			},
 		}, {
 			name: "multiple_attributes_summed",
@@ -158,8 +158,8 @@ func TestBufferedReadFallbackTriggerCount(t *testing.T) {
 				m.BufferedReadFallbackTriggerCount(2, "random_read_detected")
 				m.BufferedReadFallbackTriggerCount(3, "insufficient_memory")
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("reason", "insufficient_memory")): 8,
-				attribute.NewSet(attribute.String("reason", "random_read_detected")): 2,
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("fallback_reason", "insufficient_memory")): 8,
+				attribute.NewSet(attribute.String("fallback_reason", "random_read_detected")): 2,
 			},
 		},
 		{
@@ -168,7 +168,7 @@ func TestBufferedReadFallbackTriggerCount(t *testing.T) {
 				m.BufferedReadFallbackTriggerCount(-5, "insufficient_memory")
 				m.BufferedReadFallbackTriggerCount(2, "insufficient_memory")
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("reason", "insufficient_memory")): 2},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("fallback_reason", "insufficient_memory")): 2},
 		},
 	}
 
@@ -5498,6 +5498,15 @@ func TestGcsDownloadBytesCount(t *testing.T) {
 		expected map[attribute.Set]int64
 	}{
 		{
+			name: "read_type_Buffered",
+			f: func(m *otelMetrics) {
+				m.GcsDownloadBytesCount(5, "Buffered")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("read_type", "Buffered")): 5,
+			},
+		},
+		{
 			name: "read_type_Parallel",
 			f: func(m *otelMetrics) {
 				m.GcsDownloadBytesCount(5, "Parallel")
@@ -5523,33 +5532,24 @@ func TestGcsDownloadBytesCount(t *testing.T) {
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("read_type", "Sequential")): 5,
 			},
-		},
-		{
-			name: "read_type_buffered",
-			f: func(m *otelMetrics) {
-				m.GcsDownloadBytesCount(5, "buffered")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("read_type", "buffered")): 5,
-			},
 		}, {
 			name: "multiple_attributes_summed",
 			f: func(m *otelMetrics) {
-				m.GcsDownloadBytesCount(5, "Parallel")
-				m.GcsDownloadBytesCount(2, "Random")
-				m.GcsDownloadBytesCount(3, "Parallel")
+				m.GcsDownloadBytesCount(5, "Buffered")
+				m.GcsDownloadBytesCount(2, "Parallel")
+				m.GcsDownloadBytesCount(3, "Buffered")
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("read_type", "Parallel")): 8,
-				attribute.NewSet(attribute.String("read_type", "Random")): 2,
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("read_type", "Buffered")): 8,
+				attribute.NewSet(attribute.String("read_type", "Parallel")): 2,
 			},
 		},
 		{
 			name: "negative_increment",
 			f: func(m *otelMetrics) {
-				m.GcsDownloadBytesCount(-5, "Parallel")
-				m.GcsDownloadBytesCount(2, "Parallel")
+				m.GcsDownloadBytesCount(-5, "Buffered")
+				m.GcsDownloadBytesCount(2, "Buffered")
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("read_type", "Parallel")): 2},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("read_type", "Buffered")): 2},
 		},
 	}
 
@@ -5585,40 +5585,40 @@ func TestGcsReadBytesCount(t *testing.T) {
 		expected map[attribute.Set]int64
 	}{
 		{
-			name: "reader_buffered",
+			name: "reader_Buffered",
 			f: func(m *otelMetrics) {
-				m.GcsReadBytesCount(5, "buffered")
+				m.GcsReadBytesCount(5, "Buffered")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("reader", "buffered")): 5,
+				attribute.NewSet(attribute.String("reader", "Buffered")): 5,
 			},
 		},
 		{
-			name: "reader_default",
+			name: "reader_Default",
 			f: func(m *otelMetrics) {
-				m.GcsReadBytesCount(5, "default")
+				m.GcsReadBytesCount(5, "Default")
 			},
 			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("reader", "default")): 5,
+				attribute.NewSet(attribute.String("reader", "Default")): 5,
 			},
 		}, {
 			name: "multiple_attributes_summed",
 			f: func(m *otelMetrics) {
-				m.GcsReadBytesCount(5, "buffered")
-				m.GcsReadBytesCount(2, "default")
-				m.GcsReadBytesCount(3, "buffered")
+				m.GcsReadBytesCount(5, "Buffered")
+				m.GcsReadBytesCount(2, "Default")
+				m.GcsReadBytesCount(3, "Buffered")
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("reader", "buffered")): 8,
-				attribute.NewSet(attribute.String("reader", "default")): 2,
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("reader", "Buffered")): 8,
+				attribute.NewSet(attribute.String("reader", "Default")): 2,
 			},
 		},
 		{
 			name: "negative_increment",
 			f: func(m *otelMetrics) {
-				m.GcsReadBytesCount(-5, "buffered")
-				m.GcsReadBytesCount(2, "buffered")
+				m.GcsReadBytesCount(-5, "Buffered")
+				m.GcsReadBytesCount(2, "Buffered")
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("reader", "buffered")): 2},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("reader", "Buffered")): 2},
 		},
 	}
 

@@ -73,7 +73,7 @@ func (p *DownloadTask) Execute() {
 	)
 	defer func() {
 		dur := time.Since(stime)
-		p.metricHandle.GcsDownloadBytesCount(n, "buffered")
+		p.metricHandle.GcsDownloadBytesCount(n, "Buffered")
 		if err == nil {
 			logger.Tracef("Download: -> block (%s, %v) Ok(%v).", p.object.Name, blockId, dur)
 			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloaded})

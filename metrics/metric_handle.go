@@ -25,7 +25,7 @@ import (
 // Each method corresponds to a metric defined in metrics.yaml.
 type MetricHandle interface {
 	// BufferedReadFallbackTriggerCount - The cumulative number of times the BufferedReader falls back to a different reader, along with the reason: random_read_detected or insufficient_memory.
-	BufferedReadFallbackTriggerCount(inc int64, reason string)
+	BufferedReadFallbackTriggerCount(inc int64, fallbackReason string)
 
 	// BufferedReadReadLatency - The cumulative distribution of latencies for ReadAt calls served by the buffered reader.
 	BufferedReadReadLatency(ctx context.Context, duration time.Duration)
