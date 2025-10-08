@@ -47,25 +47,27 @@ func createTestFileSystemWithMetrics(ctx context.Context, t *testing.T) (gcs.Buc
 
 	mh, err := metrics.NewOTelMetrics(ctx, 1, 100)
 	require.NoError(t, err, "metrics.NewOTelMetrics")
-	serverCfg := fs.ServerConfig{}
-	serverCfg.NewConfig = &cfg.Config{
-		Write: cfg.WriteConfig{
-			GlobalMaxBlocks: 1,
+	bucketName := "test-bucket"
+	bucket := fake.NewFakeBucket(timeutil.RealClock(), bucketName, gcs.BucketType{Hierarchical: false})
+	serverCfg := &fs.ServerConfig{
+		NewConfig: &cfg.Config{
+			Write: cfg.WriteConfig{
+				GlobalMaxBlocks: 1,
+			},
+			Read: cfg.ReadConfig{
+				GlobalMaxBlocks: 1,
+			},
 		},
-		Read: cfg.ReadConfig{
-			GlobalMaxBlocks: 1,
+		MetricHandle: mh,
+		CacheClock:   &timeutil.SimulatedClock{},
+		BucketName:   bucketName,
+		BucketManager: &fakeBucketManager{
+			buckets: map[string]gcs.Bucket{
+				bucketName: bucket,
+			},
 		},
 	}
-	serverCfg.MetricHandle = mh
-	serverCfg.CacheClock = &timeutil.SimulatedClock{}
-	serverCfg.BucketName = "test-bucket"
-	bucket := fake.NewFakeBucket(timeutil.RealClock(), serverCfg.BucketName, gcs.BucketType{Hierarchical: false})
-	serverCfg.BucketManager = &fakeBucketManager{
-		buckets: map[string]gcs.Bucket{
-			serverCfg.BucketName: bucket,
-		},
-	}
-	server, err := fs.NewFileSystem(ctx, &serverCfg)
+	server, err := fs.NewFileSystem(ctx, serverCfg)
 	require.NoError(t, err, "NewFileSystem")
 	return bucket, server, mh, reader
 }
