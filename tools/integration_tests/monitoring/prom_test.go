@@ -28,6 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
+	"github.com/pkg/xattr"
 	promclient "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
 	"github.com/stretchr/testify/assert"
@@ -225,6 +226,13 @@ func (testSuite *PromTest) TestListMetrics() {
 	assertNonZeroCountMetric(testSuite, "fs_ops_count", "fs_op", "OpenDir")
 	assertNonZeroCountMetric(testSuite, "gcs_request_count", "gcs_method", "ListObjects")
 	assertNonZeroHistogramMetric(testSuite, "gcs_request_latencies", "gcs_method", "ListObjects")
+}
+
+func (testSuite *PromTest) TestSetXAttrMetrics() {
+	err := xattr.Set(path.Join(testSuite.mountPoint, "hello/hello.txt"), "alpha", []byte("beta"))
+
+	assert.Error(testSuite.T(), err)
+	assertNonZeroCountMetric(testSuite, "fs_ops_count", "fs_op", "Others")
 }
 
 func (testSuite *PromTest) TestReadMetrics() {
