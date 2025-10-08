@@ -139,11 +139,10 @@ func TestLookUpInode_Metrics(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
 			bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
-			const content = "test"
+			content := "test"
 			if tc.createFile {
 				createWithContents(ctx, t, bucket, tc.fileName, content)
 			}
-
 			server = wrappers.WithMonitoring(server, mh)
 			op := &fuseops.LookUpInodeOp{
 				Parent: fuseops.RootInodeID,
