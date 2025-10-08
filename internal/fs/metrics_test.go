@@ -38,6 +38,9 @@ import (
 )
 
 func createTestFileSystemWithMetrics(ctx context.Context, t *testing.T) (gcs.Bucket, fuseutil.FileSystem, metrics.MetricHandle, *metric.ManualReader) {
+	t.Helper()
+	origProvider := otel.GetMeterProvider()
+	t.Cleanup(func() { otel.SetMeterProvider(origProvider) })
 	reader := metric.NewManualReader()
 	provider := metric.NewMeterProvider(metric.WithReader(reader))
 	otel.SetMeterProvider(provider)
