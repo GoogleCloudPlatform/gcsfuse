@@ -232,7 +232,7 @@ func (testSuite *PromTest) TestSetXAttrMetrics() {
 	err := xattr.Set(path.Join(testSuite.mountPoint, "hello/hello.txt"), "alpha", []byte("beta"))
 
 	assert.Error(testSuite.T(), err)
-	assertNonZeroCountMetric(testSuite, "fs_ops_count", "fs_op", "NotImplemented")
+	assertNonZeroCountMetric(testSuite, "fs_ops_count", "fs_op", "Others")
 }
 
 func (testSuite *PromTest) TestReadMetrics() {
