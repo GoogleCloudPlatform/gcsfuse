@@ -109,37 +109,49 @@ func verifyCounterMetric(t *testing.T, ctx context.Context, reader *metric.Manua
 	require.True(t, foundMetric, "metric %s not found", metricName)
 }
 
-func TestLookUpInode_NonExistent(t *testing.T) {
-	ctx := context.Background()
-	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
-	server = wrappers.WithMonitoring(server, mh)
-	op := &fuseops.LookUpInodeOp{
-		Parent: fuseops.RootInodeID,
-		Name:   "non_existent",
+func TestLookUpInode_Metrics(t *testing.T) {
+	testCases := []struct {
+		name          string
+		fileName      string
+		createFile    bool
+		expectedError error
+	}{
+		{
+			name:          "non-existent file",
+			fileName:      "non_existent",
+			createFile:    false,
+			expectedError: fuse.ENOENT,
+		},
+		{
+			name:          "existing file",
+			fileName:      "test",
+			createFile:    true,
+			expectedError: nil,
+		},
 	}
 
-	err := server.LookUpInode(ctx, op)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+			const content = "test"
 
-	assert.Equal(t, fuse.ENOENT, err)
-	attrs := attribute.NewSet(attribute.String("fs_op", "LookUpInode"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-}
+			if tc.createFile {
+				createWithContents(ctx, t, bucket, tc.fileName, content)
+			}
 
-func TestLookUpInode(t *testing.T) {
-	ctx := context.Background()
-	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
-	const name = "test"
-	const content = "test"
-	createWithContents(ctx, t, bucket, name, content)
-	server = wrappers.WithMonitoring(server, mh)
-	op := &fuseops.LookUpInodeOp{
-		Parent: fuseops.RootInodeID,
-		Name:   name,
+			server = wrappers.WithMonitoring(server, mh)
+			op := &fuseops.LookUpInodeOp{
+				Parent: fuseops.RootInodeID,
+				Name:   tc.fileName,
+			}
+
+			err := server.LookUpInode(ctx, op)
+
+			assert.Equal(t, tc.expectedError, err)
+
+			attrs := attribute.NewSet(attribute.String("fs_op", "LookUpInode"))
+			verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+		})
 	}
-
-	err := server.LookUpInode(ctx, op)
-
-	assert.NoError(t, err)
-	attrs := attribute.NewSet(attribute.String("fs_op", "LookUpInode"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
 }
