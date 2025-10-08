@@ -264,7 +264,7 @@ func (fs *monitoring) invokeWrapped(ctx context.Context, opName metrics.FsOp, w 
 }
 
 func (fs *monitoring) StatFS(ctx context.Context, op *fuseops.StatFSOp) error {
-	return fs.invokeWrapped(ctx, metrics.FsOpStatFSAttr, func(ctx context.Context) error { return fs.wrapped.StatFS(ctx, op) })
+	return fs.invokeWrapped(ctx, metrics.FsOpOthersAttr, func(ctx context.Context) error { return fs.wrapped.StatFS(ctx, op) })
 }
 
 func (fs *monitoring) LookUpInode(ctx context.Context, op *fuseops.LookUpInodeOp) error {
@@ -364,25 +364,25 @@ func (fs *monitoring) ReadSymlink(ctx context.Context, op *fuseops.ReadSymlinkOp
 }
 
 func (fs *monitoring) RemoveXattr(ctx context.Context, op *fuseops.RemoveXattrOp) error {
-	return fs.invokeWrapped(ctx, metrics.FsOpRemoveXattrAttr, func(ctx context.Context) error { return fs.wrapped.RemoveXattr(ctx, op) })
+	return fs.invokeWrapped(ctx, metrics.FsOpNotImplementedAttr, func(ctx context.Context) error { return fs.wrapped.RemoveXattr(ctx, op) })
 }
 
 func (fs *monitoring) GetXattr(ctx context.Context, op *fuseops.GetXattrOp) error {
-	return fs.invokeWrapped(ctx, metrics.FsOpGetXattrAttr, func(ctx context.Context) error { return fs.wrapped.GetXattr(ctx, op) })
+	return fs.invokeWrapped(ctx, metrics.FsOpNotImplementedAttr, func(ctx context.Context) error { return fs.wrapped.GetXattr(ctx, op) })
 }
 
 func (fs *monitoring) ListXattr(ctx context.Context, op *fuseops.ListXattrOp) error {
-	return fs.invokeWrapped(ctx, metrics.FsOpListXattrAttr, func(ctx context.Context) error { return fs.wrapped.ListXattr(ctx, op) })
+	return fs.invokeWrapped(ctx, metrics.FsOpNotImplementedAttr, func(ctx context.Context) error { return fs.wrapped.ListXattr(ctx, op) })
 }
 
 func (fs *monitoring) SetXattr(ctx context.Context, op *fuseops.SetXattrOp) error {
-	return fs.invokeWrapped(ctx, metrics.FsOpSetXattrAttr, func(ctx context.Context) error { return fs.wrapped.SetXattr(ctx, op) })
+	return fs.invokeWrapped(ctx, metrics.FsOpNotImplementedAttr, func(ctx context.Context) error { return fs.wrapped.SetXattr(ctx, op) })
 }
 
 func (fs *monitoring) Fallocate(ctx context.Context, op *fuseops.FallocateOp) error {
-	return fs.invokeWrapped(ctx, metrics.FsOpFallocateAttr, func(ctx context.Context) error { return fs.wrapped.Fallocate(ctx, op) })
+	return fs.invokeWrapped(ctx, metrics.FsOpNotImplementedAttr, func(ctx context.Context) error { return fs.wrapped.Fallocate(ctx, op) })
 }
 
 func (fs *monitoring) SyncFS(ctx context.Context, op *fuseops.SyncFSOp) error {
-	return fs.invokeWrapped(ctx, metrics.FsOpSyncFSAttr, func(ctx context.Context) error { return fs.wrapped.SyncFS(ctx, op) })
+	return fs.invokeWrapped(ctx, metrics.FsOpNotImplementedAttr, func(ctx context.Context) error { return fs.wrapped.SyncFS(ctx, op) })
 }
