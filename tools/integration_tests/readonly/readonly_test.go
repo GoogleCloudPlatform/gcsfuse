@@ -145,7 +145,7 @@ func TestMain(m *testing.M) {
 
 	// Run tests for testBucket
 	// 4. Build the flag sets dynamically from the config.
-	flags := setup.BuildFlagSets(cfg.ReadOnly[0], bucketType)
+	flags := setup.BuildFlagSets(cfg.ReadOnly[0], bucketType, "")
 	setup.SetUpTestDirForTestBucket(&cfg.ReadOnly[0])
 
 	// 5. Run tests.

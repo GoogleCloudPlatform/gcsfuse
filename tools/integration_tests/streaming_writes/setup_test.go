@@ -80,7 +80,7 @@ func TestMain(m *testing.M) {
 
 	// Run tests for testBucket
 	// 4. Build the flag sets dynamically from the config.
-	flagsSet := setup.BuildFlagSets(testEnv.cfg, bucketType)
+	flagsSet := setup.BuildFlagSets(testEnv.cfg, bucketType, "")
 	setup.SetUpTestDirForTestBucket(&testEnv.cfg)
 
 	successCode := static_mounting.RunTestsWithConfigFile(&testEnv.cfg, flagsSet, m)
