@@ -264,7 +264,7 @@ func (fs *monitoring) invokeWrapped(ctx context.Context, opName metrics.FsOp, w 
 }
 
 func (fs *monitoring) StatFS(ctx context.Context, op *fuseops.StatFSOp) error {
-	return fs.invokeWrapped(ctx, metrics.FsOpOthersAttr, func(ctx context.Context) error { return fs.wrapped.StatFS(ctx, op) })
+	return fs.invokeWrapped(ctx, metrics.FsOpStatFSAttr, func(ctx context.Context) error { return fs.wrapped.StatFS(ctx, op) })
 }
 
 func (fs *monitoring) LookUpInode(ctx context.Context, op *fuseops.LookUpInodeOp) error {

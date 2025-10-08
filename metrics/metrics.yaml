@@ -132,7 +132,7 @@
     - "Rename"
     - "RmDir"
     - "SetInodeAttributes"
-    - "Others"
+    - "StatFS"
     - "SyncFile"
     - "Unlink"
     - "WriteFile"
