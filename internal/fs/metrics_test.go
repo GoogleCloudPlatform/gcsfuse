@@ -114,6 +114,41 @@ func verifyCounterMetric(t *testing.T, ctx context.Context, reader *metric.Manua
 	require.True(t, foundMetric, "metric %s not found", metricName)
 }
 
+// verifyHistogramMetric finds a histogram metric and verifies that the data point
+// matching the provided attributes has the expected count.
+func verifyHistogramMetric(t *testing.T, ctx context.Context, reader *metric.ManualReader, metricName string, attrs attribute.Set, expectedCount uint64) {
+	t.Helper()
+	var rm metricdata.ResourceMetrics
+	err := reader.Collect(ctx, &rm)
+	require.NoError(t, err, "reader.Collect")
+	encoder := attribute.DefaultEncoder()
+	expectedKey := attrs.Encoded(encoder)
+
+	require.Len(t, rm.ScopeMetrics, 1, "expected 1 scope metric")
+	require.NotEmpty(t, rm.ScopeMetrics[0].Metrics, "expected at least 1 metric")
+
+	foundMetric := false
+	for _, m := range rm.ScopeMetrics[0].Metrics {
+		if m.Name == metricName {
+			foundMetric = true
+			data, ok := m.Data.(metricdata.Histogram[int64])
+			require.True(t, ok, "metric %s is not a Histogram[int64], but %T", metricName, m.Data)
+
+			foundDataPoint := false
+			for _, dp := range data.DataPoints {
+				if dp.Attributes.Encoded(encoder) == expectedKey {
+					foundDataPoint = true
+					assert.Equal(t, expectedCount, dp.Count, "metric count mismatch for attributes: %s", attrs.Encoded(encoder))
+					break
+				}
+			}
+			require.True(t, foundDataPoint, "Data point for attributes %v not found in %s metric", attrs, metricName)
+			break
+		}
+	}
+	require.True(t, foundMetric, "metric %s not found", metricName)
+}
+
 func TestLookUpInode_Metrics(t *testing.T) {
 	testCases := []struct {
 		name          string
@@ -154,6 +189,7 @@ func TestLookUpInode_Metrics(t *testing.T) {
 			assert.Equal(t, tc.expectedError, err)
 			attrs := attribute.NewSet(attribute.String("fs_op", "LookUpInode"))
 			verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+			verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 		})
 	}
 }
