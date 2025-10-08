@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"strings"
@@ -307,7 +308,7 @@ func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, pre
 	errChan := make(chan error, 100)
 
 	// Determine the number of concurrent goroutines using CPU cores
-	numCores := runtime.NumCPU()
+	numCores := max(16, runtime.NumCPU())
 	sem := make(chan struct{}, numCores) // Semaphore to limit concurrency
 
 	var wg sync.WaitGroup
@@ -512,4 +513,109 @@ func CreateGcsDir(ctx context.Context, client *storage.Client, dirName, bucketNa
 	}
 
 	return nil
+}
+
+func uploadGcsObjectWithPreconditionsWithoutIntermediateDelays(ctx context.Context, client *storage.Client, localPath, bucketName, objectName string, uploadGzipEncoded bool, preconditions *storage.Conditions) error {
+	// Create a writer to upload the object.
+	obj := client.Bucket(bucketName).Object(objectName)
+	if preconditions != nil {
+		obj = obj.If(*preconditions)
+	}
+	w, err := NewWriter(ctx, obj, client)
+	if err != nil {
+		return fmt.Errorf("failed to open writer for GCS object gs://%s/%s: %w", bucketName, objectName, err)
+	}
+	defer func() {
+		if err := w.Close(); err != nil {
+			log.Printf("Failed to close GCS object gs://%s/%s: %v", bucketName, objectName, err)
+		}
+	}()
+
+	filePathToUpload := localPath
+	// Set content encoding if gzip compression is needed.
+	if uploadGzipEncoded {
+		data, err := os.ReadFile(localPath)
+		if err != nil {
+			return err
+		}
+
+		content := string(data)
+		if filePathToUpload, err = operations.CreateLocalTempFile(content, true); err != nil {
+			return fmt.Errorf("failed to create local gzip file from %s for upload to bucket: %w", localPath, err)
+		}
+		defer func() {
+			if removeErr := os.Remove(filePathToUpload); removeErr != nil {
+				log.Printf("Error removing temporary gzip file %s: %v", filePathToUpload, removeErr)
+			}
+		}()
+	}
+
+	// Open the local file for reading.
+	f, err := operations.OpenFileAsReadonly(filePathToUpload)
+	if err != nil {
+		return fmt.Errorf("failed to open local file %s: %w", filePathToUpload, err)
+	}
+	// Defer the Close() call immediately after the error check.
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil {
+			log.Printf("Warning: error closing file %s: %v", filePathToUpload, closeErr)
+		}
+	}()
+
+	// Copy the file contents to the object writer.
+	if _, err := io.Copy(w, f); err != nil {
+		return fmt.Errorf("failed to copy file %s to gs://%s/%s: %w", localPath, bucketName, objectName, err)
+	}
+	return nil
+}
+
+func BatchUploadFilesWithoutIntermediateDelays(ctx context.Context, storageClient *storage.Client, bucketName, dirPathInBucket, srcDir, filesPrefix string) (err error) {
+	srcFilesFullPathPrefix := filepath.Join(srcDir, filesPrefix)
+	matches, err := filepath.Glob(srcFilesFullPathPrefix + "*")
+	if err != nil {
+		err = fmt.Errorf("failed to get files of pattern %s*: %w", srcFilesFullPathPrefix, err)
+	}
+	type copyRequest struct {
+		srcLocalFilePath string
+		dstGCSObjectPath string
+	}
+	channel := make(chan copyRequest, len(matches))
+
+	// Copy request producer.
+	go func() {
+		for _, match := range matches {
+			_, fileName := filepath.Split(match)
+			if len(fileName) > 0 {
+				req := copyRequest{srcLocalFilePath: match, dstGCSObjectPath: filepath.Join(dirPathInBucket, fileName)}
+				channel <- req
+			}
+		}
+		// Close the channel to let the go-routines know that there is no more object to be copied.
+		close(channel)
+	}()
+
+	// Copy request consumers.
+	numCopyGoroutines := max(16, runtime.NumCPU()/2)
+	var wg sync.WaitGroup
+	for range numCopyGoroutines {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				copyRequest, ok := <-channel
+				if !ok {
+					break
+				}
+				err = uploadGcsObjectWithPreconditionsWithoutIntermediateDelays(ctx, storageClient, copyRequest.srcLocalFilePath, bucketName, copyRequest.dstGCSObjectPath, false, &storage.Conditions{DoesNotExist: true})
+				if err != nil {
+					err = fmt.Errorf("failed to upload files at %s/%s : err: %w", bucketName, dirPathInBucket, err)
+				}
+			}
+		}()
+	}
+	wg.Wait()
+
+	// Wait for metadata updates after object creation.
+	time.Sleep(time.Second)
+	return err
 }
