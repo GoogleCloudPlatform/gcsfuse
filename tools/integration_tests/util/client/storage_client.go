@@ -40,6 +40,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	storagev1 "google.golang.org/api/storage/v1"
@@ -569,53 +570,48 @@ func uploadGcsObjectWithPreconditionsWithoutIntermediateDelays(ctx context.Conte
 	return nil
 }
 
-func BatchUploadFilesWithoutIntermediateDelays(ctx context.Context, storageClient *storage.Client, bucketName, dirPathInBucket, srcDir, filesPrefix string) (err error) {
+func BatchUploadFilesWithoutIntermediateDelays(ctx context.Context, storageClient *storage.Client, bucketName, dirPathInBucket, srcDir, filesPrefix string) error {
 	srcFilesFullPathPrefix := filepath.Join(srcDir, filesPrefix)
 	matches, err := filepath.Glob(srcFilesFullPathPrefix + "*")
 	if err != nil {
-		err = fmt.Errorf("failed to get files of pattern %s*: %w", srcFilesFullPathPrefix, err)
+		return fmt.Errorf("failed to get files of pattern %s*: %w", srcFilesFullPathPrefix, err)
 	}
-	type copyRequest struct {
-		srcLocalFilePath string
-		dstGCSObjectPath string
-	}
-	channel := make(chan copyRequest, len(matches))
 
-	// Copy request producer.
-	go func() {
-		for _, match := range matches {
-			_, fileName := filepath.Split(match)
-			if len(fileName) > 0 {
-				req := copyRequest{srcLocalFilePath: match, dstGCSObjectPath: filepath.Join(dirPathInBucket, fileName)}
-				channel <- req
-			}
+	if len(matches) == 0 {
+		return nil // No files to upload
+	}
+
+	group, ctx := errgroup.WithContext(ctx)
+
+	// Limit the number of concurrent uploads to avoid overwhelming resources.
+	maxConcurrentUploads := max(16, runtime.NumCPU()/2)
+	group.SetLimit(maxConcurrentUploads)
+
+	for _, match := range matches {
+		srcLocalFilePath := match
+
+		_, fileName := filepath.Split(match)
+		if len(fileName) == 0 {
+			continue
 		}
-		// Close the channel to let the go-routines know that there is no more object to be copied.
-		close(channel)
-	}()
 
-	// Copy request consumers.
-	numCopyGoroutines := max(16, runtime.NumCPU()/2)
-	var wg sync.WaitGroup
-	for range numCopyGoroutines {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for {
-				copyRequest, ok := <-channel
-				if !ok {
-					break
-				}
-				err = uploadGcsObjectWithPreconditionsWithoutIntermediateDelays(ctx, storageClient, copyRequest.srcLocalFilePath, bucketName, copyRequest.dstGCSObjectPath, false, &storage.Conditions{DoesNotExist: true})
-				if err != nil {
-					err = fmt.Errorf("failed to upload files at %s/%s : err: %w", bucketName, dirPathInBucket, err)
-				}
+		dstGCSObjectPath := filepath.Join(dirPathInBucket, fileName)
+
+		group.Go(func() error {
+			err := uploadGcsObjectWithPreconditionsWithoutIntermediateDelays(ctx, storageClient, srcLocalFilePath, bucketName, dstGCSObjectPath, false, &storage.Conditions{DoesNotExist: true})
+			if err != nil {
+				return fmt.Errorf("failed to upload %s to gs://%s/%s: %w", srcLocalFilePath, bucketName, dstGCSObjectPath, err)
 			}
-		}()
+			return nil
+		})
 	}
-	wg.Wait()
+
+	// Wait for all uploads to complete or for the first error.
+	if err := group.Wait(); err != nil {
+		return err
+	}
 
 	// Wait for metadata updates after object creation.
 	time.Sleep(time.Second)
-	return err
+	return nil
 }
