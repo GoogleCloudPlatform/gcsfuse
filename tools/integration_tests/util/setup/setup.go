@@ -365,7 +365,7 @@ func IgnoreTestIfIntegrationTestFlagIsNotSet(t *testing.T) {
 	flag.Parse()
 
 	if !*integrationTest {
-		t.SkipNow()
+		//t.SkipNow()
 	}
 }
 
