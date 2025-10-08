@@ -138,7 +138,6 @@ func TestLookUpInode_Metrics(t *testing.T) {
 			ctx := context.Background()
 			bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
 			const content = "test"
-
 			if tc.createFile {
 				createWithContents(ctx, t, bucket, tc.fileName, content)
 			}
@@ -152,7 +151,6 @@ func TestLookUpInode_Metrics(t *testing.T) {
 			err := server.LookUpInode(ctx, op)
 
 			assert.Equal(t, tc.expectedError, err)
-
 			attrs := attribute.NewSet(attribute.String("fs_op", "LookUpInode"))
 			verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
 		})
