@@ -346,7 +346,7 @@ func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, pre
 	return errors.Join(errs...)
 }
 
-// MustDeleteAllObjectsWithPrefixi wraps over DeleteAllObjectsWithPrefix and
+// MustDeleteAllObjectsWithPrefix wraps over DeleteAllObjectsWithPrefix and
 // panics instead of returning error.
 func MustDeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, prefix string) {
 	err := DeleteAllObjectsWithPrefix(ctx, client, prefix)

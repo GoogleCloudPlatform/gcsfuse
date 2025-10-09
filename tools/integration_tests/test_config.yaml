@@ -45,22 +45,6 @@ implicit_dir:
           hns: true
           zonal: false
 
-flag_optimizations:
-  - mounted_directory: "${MOUNTED_DIR}"
-    test_bucket: "${BUCKET_NAME}"
-    log_file: # Optional
-    run_on_gke: false
-    configs:
-      - flags:
-          - "--machine-type a3-highgpu-8g"
-          - "--profile aiml-training"
-          - "--profile aiml-serving"
-          - "--profile aiml-checkpointing"
-        compatible:
-          flat: true
-          hns: true
-          zonal: true
-
 list_large_dir:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
@@ -211,6 +195,19 @@ cloud_profiler:
       - flags:
            # Set the 'PROFILE_LABEL' environment variable for GKE
           - "--enable-cloud-profiler --cloud-profiler-cpu --cloud-profiler-heap --cloud-profiler-goroutines --cloud-profiler-mutex --cloud-profiler-allocated-heap --cloud-profiler-label=${PROFILE_LABEL}"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+
+flag_optimizations:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    log_file: # Optional
+    run_on_gke: false
+    configs:
+      - flags:
+          - ""
         compatible:
           flat: true
           hns: true
