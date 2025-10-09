@@ -21,6 +21,7 @@ import (
 	"log/slog"
 	"os"
 	"regexp"
+	"sync"
 	"testing"
 
 	"github.com/google/uuid"
@@ -417,6 +418,10 @@ func (t *LoggerTest) TestSetupMountInstanceID_Success() {
 	}
 	for _, tc := range testCases {
 		t.T().Run(tc.name, func(t *testing.T) {
+			t.Cleanup(func() {
+				mountInstanceID = ""
+				setupMountInstanceIDOnce = sync.Once{}
+			})
 			if tc.inBackgroundMode {
 				t.Setenv(GCSFuseInBackgroundMode, "true")
 				t.Setenv(GCSFuseMountInstanceIDEnvKey, tc.mountInstanceIDEnv)
@@ -455,6 +460,10 @@ func (t *LoggerTest) TestSetupMountInstanceID_Failure() {
 	}
 	for _, tc := range testCases {
 		t.T().Run(tc.name, func(t *testing.T) {
+			t.Cleanup(func() {
+				mountInstanceID = ""
+				setupMountInstanceIDOnce = sync.Once{}
+			})
 			if tc.inBackgroundMode {
 				t.Setenv(GCSFuseInBackgroundMode, "true")
 				t.Setenv(GCSFuseMountInstanceIDEnvKey, tc.mountInstanceIDEnv)
