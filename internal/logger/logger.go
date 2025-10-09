@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"log/syslog"
 	"os"
@@ -143,7 +142,7 @@ func setupMountInstanceID() {
 		// If GCSFuse is in background mode then look for the MountInstanceId in env which was set by the caller of demonize run.
 		mountInstanceID, ok = os.LookupEnv(GCSFuseMountInstanceIDEnvKey)
 		if !ok || mountInstanceID == "" {
-			log.Printf("Could not retrieve %s env variable. Using default: %s", GCSFuseMountInstanceIDEnvKey, defaultMountInstanceID)
+			Warnf("Could not retrieve %s env variable. Using default: %s", GCSFuseMountInstanceIDEnvKey, defaultMountInstanceID)
 			mountInstanceID = defaultMountInstanceID
 		}
 	} else {
@@ -151,7 +150,7 @@ func setupMountInstanceID() {
 		var err error
 		mountInstanceID, err = generateMountInstanceID(mountInstanceIDLength, uuid.NewRandom)
 		if err != nil {
-			log.Printf("Could not generate MountInstanceID, Using default: %s, err: %v", defaultMountInstanceID, err)
+			Warnf("Could not generate MountInstanceID, Using default: %s, err: %v", defaultMountInstanceID, err)
 			mountInstanceID = defaultMountInstanceID
 		}
 	}
