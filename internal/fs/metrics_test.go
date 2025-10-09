@@ -17,6 +17,7 @@ package fs_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs"
@@ -75,6 +76,10 @@ func createTestFileSystemWithMetrics(ctx context.Context, t *testing.T) (gcs.Buc
 func createWithContents(ctx context.Context, t *testing.T, bucket gcs.Bucket, name string, contents string) {
 	err := storageutil.CreateObjects(ctx, bucket, map[string][]byte{name: []byte(contents)})
 	require.NoError(t, err, "CreateObjects")
+}
+
+func waitForMetricsProcessing() {
+	time.Sleep(time.Millisecond)
 }
 
 // verifyCounterMetric finds a counter metric and verifies that the data point
@@ -185,6 +190,7 @@ func TestLookUpInode_Metrics(t *testing.T) {
 			}
 
 			err := server.LookUpInode(ctx, op)
+			waitForMetricsProcessing()
 
 			assert.Equal(t, tc.expectedError, err)
 			attrs := attribute.NewSet(attribute.String("fs_op", "LookUpInode"))
