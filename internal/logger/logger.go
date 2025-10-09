@@ -121,6 +121,9 @@ func init() {
 // generateMountInstanceID generates a random string of size
 // from UUID returned from uuidGenerator.
 func generateMountInstanceID(size int, uuidGenerator func() (uuid.UUID, error)) (string, error) {
+	if size <= 0 {
+		return "", fmt.Errorf("requested size for MountInstanceID must be positive, but got %d", size)
+	}
 	uuid, err := uuidGenerator()
 	if err != nil {
 		return "", err
@@ -148,7 +151,7 @@ func setupMountInstanceID() {
 		var err error
 		mountInstanceID, err = generateMountInstanceID(mountInstanceIDLength, uuid.NewRandom)
 		if err != nil {
-			log.Printf("Could not generate MountInstanceID, Using default: %s, err: %v", err, defaultMountInstanceID)
+			log.Printf("Could not generate MountInstanceID, Using default: %s, err: %v", defaultMountInstanceID, err)
 			mountInstanceID = defaultMountInstanceID
 		}
 	}

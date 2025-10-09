@@ -388,6 +388,14 @@ func (t *LoggerTest) TestGenerateMountInstanceID_FailureDueToUUIDSize() {
 	assert.Equal(t.T(), "", mountInstanceID)
 }
 
+func (t *LoggerTest) TestGenerateMountInstanceID_FailureDueToNegativeSize() {
+	mountInstanceID, err := generateMountInstanceID(0, uuid.NewRandom)
+
+	require.Error(t.T(), err)
+	assert.Contains(t.T(), err.Error(), "MountInstanceID must be positive")
+	assert.Equal(t.T(), "", mountInstanceID)
+}
+
 func (t *LoggerTest) TestSetupMountInstanceID_Success() {
 	testCases := []struct {
 		name               string
@@ -407,7 +415,6 @@ func (t *LoggerTest) TestSetupMountInstanceID_Success() {
 			expectedID:         "12345678",
 		},
 	}
-
 	for _, tc := range testCases {
 		t.T().Run(tc.name, func(t *testing.T) {
 			if tc.inBackgroundMode {
@@ -446,7 +453,6 @@ func (t *LoggerTest) TestSetupMountInstanceID_Failure() {
 			expectedID:         "00000000",
 		},
 	}
-
 	for _, tc := range testCases {
 		t.T().Run(tc.name, func(t *testing.T) {
 			if tc.inBackgroundMode {
