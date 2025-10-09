@@ -163,10 +163,6 @@ func TestOptimization(t *testing.T) {
 		t.Skipf("test not applicable for HNS buckets")
 	}
 
-	//if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-	//t.Skipf("test not applicable for mountedDirectory")
-	//}
-
 	// Helper functions to create flags, test case names etc.
 	flags := func(profile string, machineType string) []string {
 		flags := []string{}
