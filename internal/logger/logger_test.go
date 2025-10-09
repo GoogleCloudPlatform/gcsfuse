@@ -16,13 +16,17 @@ package logger
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"regexp"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -337,5 +341,122 @@ func (t *LoggerTest) TestSetLogFormatToText() {
 		// Compare expected and actual log.
 		expectedRegexp := regexp.MustCompile(test.expectedOutput)
 		assert.True(t.T(), expectedRegexp.MatchString(output))
+	}
+}
+
+func (t *LoggerTest) TestGenerateMountInstanceID_Success() {
+	testCases := []struct {
+		name string
+		size int
+	}{
+		{
+			name: "TenChars",
+			size: 10,
+		},
+		{
+			name: "ThirtyTwoChars",
+			size: 32,
+		},
+	}
+	for _, tc := range testCases {
+		t.T().Run(tc.name, func(t *testing.T) {
+			mountInstanceID, err := generateMountInstanceID(tc.size, uuid.NewRandom)
+
+			require.NoError(t, err)
+			assert.Regexp(t, fmt.Sprintf("^[0-9a-f]{%d}$", tc.size), mountInstanceID)
+		})
+	}
+}
+
+func (t *LoggerTest) TestGenerateMountInstanceID_FailureInUUIDGeneration() {
+	mockUUIDGenerator := func() (uuid.UUID, error) {
+		return uuid.UUID{}, errors.New("uuid generation error")
+	}
+
+	mountInstanceID, err := generateMountInstanceID(mountInstanceIDLength, mockUUIDGenerator)
+
+	require.Error(t.T(), err)
+	assert.Contains(t.T(), err.Error(), "uuid generation error")
+	assert.Equal(t.T(), "", mountInstanceID)
+}
+
+func (t *LoggerTest) TestGenerateMountInstanceID_FailureDueToUUIDSize() {
+	mountInstanceID, err := generateMountInstanceID(999, uuid.NewRandom)
+
+	require.Error(t.T(), err)
+	assert.Contains(t.T(), err.Error(), "UUID is smaller than requested size")
+	assert.Equal(t.T(), "", mountInstanceID)
+}
+
+func (t *LoggerTest) TestSetupMountInstanceID_Success() {
+	testCases := []struct {
+		name               string
+		inBackgroundMode   bool
+		mountInstanceIDEnv string
+		expectedID         string
+	}{
+		{
+			name:             "ForegroundMode",
+			inBackgroundMode: false,
+			expectedID:       "",
+		},
+		{
+			name:               "BackgroundModeWithInstanceID",
+			inBackgroundMode:   true,
+			mountInstanceIDEnv: "12345678",
+			expectedID:         "12345678",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.T().Run(tc.name, func(t *testing.T) {
+			if tc.inBackgroundMode {
+				t.Setenv(GCSFuseInBackgroundMode, "true")
+				t.Setenv(GCSFuseMountInstanceIDEnvKey, tc.mountInstanceIDEnv)
+			}
+
+			setupMountInstanceID()
+
+			if tc.expectedID != "" {
+				assert.Equal(t, tc.expectedID, mountInstanceID)
+			} else {
+				assert.Len(t, mountInstanceID, mountInstanceIDLength)
+				assert.Regexp(t, fmt.Sprintf("^[0-9a-f]{%d}$", mountInstanceIDLength), mountInstanceID)
+			}
+		})
+	}
+}
+
+func (t *LoggerTest) TestSetupMountInstanceID_Failure() {
+	testCases := []struct {
+		name               string
+		inBackgroundMode   bool
+		mountInstanceIDEnv string
+		expectedID         string
+	}{
+		{
+			name:             "BackgroundModeWithoutInstanceID",
+			inBackgroundMode: true,
+			expectedID:       "00000000",
+		},
+		{
+			name:               "BackgroundModeWithEmptyInstanceID",
+			inBackgroundMode:   true,
+			mountInstanceIDEnv: "",
+			expectedID:         "00000000",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.T().Run(tc.name, func(t *testing.T) {
+			if tc.inBackgroundMode {
+				t.Setenv(GCSFuseInBackgroundMode, "true")
+				t.Setenv(GCSFuseMountInstanceIDEnvKey, tc.mountInstanceIDEnv)
+			}
+
+			setupMountInstanceID()
+
+			assert.Equal(t, tc.expectedID, mountInstanceID)
+		})
 	}
 }
