@@ -745,3 +745,22 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/buffered_read/... -p
 sudo umount $MOUNT_DIR
 
 rm -rf $log_dir
+
+# Package flag_optimizations
+declare -A flag_optimizations_scenarios
+flag_optimizations_scenarios["--profile=aiml-training"]="TestOptimization/.*/profile=aiml-training.*"
+flag_optimizations_scenarios["--profile=aiml-checkpointing"]="TestOptimization/.*/profile=aiml-checkpointing.*"
+flag_optimizations_scenarios["--profile=aiml-serving"]="TestOptimization/.*/profile=aiml-serving.*"
+flag_optimizations_scenarios[" "]="TestOptimization/no_profile_on_low_end_machine"
+flag_optimizations_scenarios["--machine-type=a3-highgpu-8g"]="TestOptimization/no_profile_on_high_end_machine"
+for flags in "${!flag_optimizations_scenarios[@]}"; do
+  printf "\n=============================================================\n"
+  echo "Running flag_optimizations test with \"${flags}\" ... "
+  printf "\n=============================================================\n"
+  gcsuse_mount_args=" --log-severity=trace ${flags} $TEST_BUCKET_NAME $MOUNT_DIR"
+  gcsfuse ${gcsuse_mount_args}
+  testfilter="${flag_optimizations_scenarios[${flags}]}"
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/flag_optimizations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG} -test.run ${testfilter}
+sudo umount $MOUNT_DIR
+done
+
