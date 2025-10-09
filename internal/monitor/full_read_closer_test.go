@@ -59,7 +59,7 @@ func TestFullReaderCloser(t *testing.T) {
 			data:         []byte("0123"),
 			bufSize:      5,
 			expectedData: []byte("0123"),
-			expectedErr:  io.EOF,
+			expectedErr:  io.ErrUnexpectedEOF,
 		},
 		{
 			name:         "small_buffer",

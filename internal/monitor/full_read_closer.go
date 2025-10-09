@@ -31,17 +31,11 @@ func newGCSFullReadCloser(reader gcs.StorageReader) gcs.StorageReader {
 }
 
 // Read reads exactly len(buf) bytes from the wrapped StorageReader into buf.
-// 1. the number of bytes copied and an EOF if response size < buffer size
-// 2. n == len(buf) if and only if err == nil.
+// 1. the number of bytes copied and an ErrUnexpectedEOF if response size < buffer size
+// 2. EOF only if no bytes were read.
+// 3. n == len(buf) if and only if err == nil.
 func (frc gcsFullReadCloser) Read(buf []byte) (n int, err error) {
-	n, err = io.ReadFull(frc.wrapped, buf)
-	if err == io.ErrUnexpectedEOF {
-		// if an EOF is encountered before reading the full length of the buffer,
-		// ReadFull returns an ErrUnexpectedEOF error. This needs to be convered
-		// to EOF in order to have a consistent behavior (error) with and without gcsFullReadCloser.
-		err = io.EOF
-	}
-	return n, err
+	return io.ReadFull(frc.wrapped, buf)
 }
 
 func (frc gcsFullReadCloser) ReadHandle() (rh storagev2.ReadHandle) {
