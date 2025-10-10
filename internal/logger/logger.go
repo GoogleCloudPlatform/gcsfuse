@@ -117,16 +117,12 @@ func init() {
 	defaultLogger = defaultLoggerFactory.newLogger(cfg.INFO)
 }
 
-// generateMountInstanceID generates a random string of size
-// from UUID returned from uuidGenerator.
-func generateMountInstanceID(size int, uuidGenerator func() (uuid.UUID, error)) (string, error) {
+// generateMountInstanceID generates a random string of size from UUID.
+func generateMountInstanceID(size int) (string, error) {
 	if size <= 0 {
 		return "", fmt.Errorf("requested size for MountInstanceID must be positive, but got %d", size)
 	}
-	uuid, err := uuidGenerator()
-	if err != nil {
-		return "", err
-	}
+	uuid := uuid.New()
 	uuidStr := strings.ReplaceAll(uuid.String(), "-", "")
 	if size > len(uuidStr) {
 		return "", fmt.Errorf("UUID is smaller than requested size %d for MountInstanceID, UUID: %s", size, uuidStr)
@@ -137,19 +133,16 @@ func generateMountInstanceID(size int, uuidGenerator func() (uuid.UUID, error)) 
 // setupMountInstanceID handles the retrieval of mountInstanceId if GCSFuse is in
 // background mode or generates one if running in foreground mode.
 func setupMountInstanceID() {
-	defaultMountInstanceID := strings.Repeat("0", mountInstanceIDLength)
 	if _, ok := os.LookupEnv(GCSFuseInBackgroundMode); ok {
 		// If GCSFuse is in background mode then look for the MountInstanceId in env which was set by the caller of demonize run.
 		if mountInstanceID, ok = os.LookupEnv(GCSFuseMountInstanceIDEnvKey); !ok || mountInstanceID == "" {
-			Warnf("Could not retrieve %s env variable or it's empty. Using default: %s", GCSFuseMountInstanceIDEnvKey, defaultMountInstanceID)
-			mountInstanceID = defaultMountInstanceID
+			Fatal("Could not retrieve %s env variable or it's empty.", GCSFuseMountInstanceIDEnvKey)
 		}
 	} else {
 		// If GCSFuse is not running in the background mode then generate a random UUID.
 		var err error
-		if mountInstanceID, err = generateMountInstanceID(mountInstanceIDLength, uuid.NewRandom); err != nil {
-			Warnf("Could not generate MountInstanceID, Using default: %s, err: %v", defaultMountInstanceID, err)
-			mountInstanceID = defaultMountInstanceID
+		if mountInstanceID, err = generateMountInstanceID(mountInstanceIDLength); err != nil {
+			Fatal("Could not generate MountInstanceID of length %d, err: %v", mountInstanceIDLength, err)
 		}
 	}
 }
