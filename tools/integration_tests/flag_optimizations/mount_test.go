@@ -41,7 +41,7 @@ func TestMountSucceeds(t *testing.T) {
 		for _, machineType := range highEndMachines {
 			flagsSet = append(flagsSet, []string{"--machine-type=" + machineType})
 		}
-		highEndMachine := highEndMachines[0]
+		highEndMachine := "a3-highgpuu-8g"
 		for _, profile := range supportedAIMLProfiles {
 			flagsSet = append(flagsSet, []string{"--profile=" + profile, "--machine-type=" + highEndMachine})
 		}

@@ -186,7 +186,7 @@ func TestOptimization(t *testing.T) {
 	}
 
 	// Define test cases to be run.
-	highEndMachineType := highEndMachines[0]
+	highEndMachineType := "a3-highgpu-8g"
 	testCases := []struct {
 		profile     string
 		machineType string
@@ -211,33 +211,23 @@ func TestOptimization(t *testing.T) {
 			switch tc.profile {
 			case "aiml-training":
 				s := &aimlTrainingProfileTests{}
-				ts = s
-				pTests = &s.optimizationTests
+				ts, pTests = s, &s.optimizationTests
 			case "aiml-serving":
 				s := &aimlServingProfileTests{}
-				ts = s
-				pTests = &s.optimizationTests
+				ts, pTests = s, &s.optimizationTests
 			case "aiml-checkpointing":
 				s := &aimlCheckpointingProfileTests{}
-				ts = s
-				pTests = &s.optimizationTests
+				ts, pTests = s, &s.optimizationTests
 			case "":
-				// handled in fallback.
-			default:
-				t.Errorf("Unexpected profile: %v", tc.profile)
-			}
-			// fallback
-			if ts == nil {
-				// fallback to high-end machine-type if applicable.
 				if slices.Contains(highEndMachines, tc.machineType) {
 					s := &highEndMachineOptimizationTests{}
-					ts = s
-					pTests = &s.optimizationTests
+					ts, pTests = s, &s.optimizationTests
 				} else {
 					s := &noOptimizationTests{}
-					ts = s
-					pTests = &s.optimizationTests
+					ts, pTests = s, &s.optimizationTests
 				}
+			default:
+				t.Errorf("Unexpected profile: %v", tc.profile)
 			}
 
 			pTests.flags = flags(tc.profile, tc.machineType)
