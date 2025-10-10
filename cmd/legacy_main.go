@@ -320,6 +320,10 @@ func forwardedEnvVars() []string {
 	// process and daemon process. If this environment variable set that means
 	// programme is running as daemon process.
 	env = append(env, fmt.Sprintf("%s=true", logger.GCSFuseInBackgroundMode))
+
+	// This environment variable is used to enhance gcsfuse logging by using unique
+	// MountInstanceID to identify logs from different mounts.
+	env = append(env, fmt.Sprintf("%s=%s", logger.GCSFuseMountInstanceIDEnvKey, logger.MountInstanceID()))
 	return env
 }
 
