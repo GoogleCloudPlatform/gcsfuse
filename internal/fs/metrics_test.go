@@ -237,3 +237,693 @@ func TestReadFile_BufferedReadMetrics(t *testing.T) {
 	verifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count", attribute.NewSet(attribute.String("reader", string(metrics.ReaderBufferedAttr))), int64(len(content)))
 	verifyHistogramMetric(t, ctx, reader, "buffered_read/read_latency", attribute.NewSet(), uint64(1))
 }
+
+func TestGetInodeAttributes_Metrics(t *testing.T) {
+	ctx := context.Background()
+	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+	server = wrappers.WithMonitoring(server, mh)
+	op := &fuseops.GetInodeAttributesOp{
+		Inode: fuseops.RootInodeID,
+	}
+
+	err := server.GetInodeAttributes(ctx, op)
+	waitForMetricsProcessing()
+
+	assert.NoError(t, err)
+	attrs := attribute.NewSet(attribute.String("fs_op", "GetInodeAttributes"))
+	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestRemoveXattr_Metrics(t *testing.T) {
+	ctx := context.Background()
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test"
+	createWithContents(ctx, t, bucket, fileName, "test")
+	lookUpOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookUpOp)
+	require.NoError(t, err)
+	op := &fuseops.RemoveXattrOp{
+		Inode: lookUpOp.Entry.Child,
+		Name:  "user.test",
+	}
+
+	err = server.RemoveXattr(ctx, op)
+	waitForMetricsProcessing()
+
+	// The operation is not implemented, so we expect an error.
+	assert.NotNil(t, err)
+	attrs := attribute.NewSet(attribute.String("fs_op", "Others"))
+	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestListXattr_Metrics(t *testing.T) {
+	ctx := context.Background()
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test"
+	createWithContents(ctx, t, bucket, fileName, "test")
+	lookUpOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookUpOp)
+	require.Nil(t, err)
+	op := &fuseops.ListXattrOp{
+		Inode: lookUpOp.Entry.Child,
+	}
+
+	err = server.ListXattr(ctx, op)
+	waitForMetricsProcessing()
+
+	// The operation is not implemented, so we expect an error.
+	assert.NotNil(t, err)
+	attrs := attribute.NewSet(attribute.String("fs_op", "Others"))
+	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestSetXattr_Metrics(t *testing.T) {
+	ctx := context.Background()
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test"
+	createWithContents(ctx, t, bucket, fileName, "test")
+	lookUpOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookUpOp)
+	require.Nil(t, err)
+	op := &fuseops.SetXattrOp{
+		Inode: lookUpOp.Entry.Child,
+		Name:  "user.test",
+		Value: []byte("test"),
+	}
+
+	err = server.SetXattr(ctx, op)
+	waitForMetricsProcessing()
+
+	// The operation is not implemented, so we expect an error.
+	assert.NotNil(t, err)
+	attrs := attribute.NewSet(attribute.String("fs_op", "Others"))
+	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestGetXattr_Metrics(t *testing.T) {
+	ctx := context.Background()
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test"
+	createWithContents(ctx, t, bucket, fileName, "test")
+	lookUpOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookUpOp)
+	require.NoError(t, err)
+	op := &fuseops.GetXattrOp{
+		Inode: lookUpOp.Entry.Child,
+		Name:  "user.test",
+	}
+
+	err = server.GetXattr(ctx, op)
+	waitForMetricsProcessing()
+
+	// The operation is not implemented, so we expect an error.
+	assert.NotNil(t, err)
+	attrs := attribute.NewSet(attribute.String("fs_op", "Others"))
+	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestFallocate_Metrics(t *testing.T) {
+	ctx := context.Background()
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test"
+	createWithContents(ctx, t, bucket, fileName, "test")
+	lookUpOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookUpOp)
+	require.Nil(t, err)
+	openOp := &fuseops.OpenFileOp{
+		Inode: lookUpOp.Entry.Child,
+	}
+	err = server.OpenFile(ctx, openOp)
+	require.Nil(t, err)
+	op := &fuseops.FallocateOp{
+		Inode:  lookUpOp.Entry.Child,
+		Handle: openOp.Handle,
+		Offset: 0,
+		Length: 10,
+		Mode:   0,
+	}
+
+	err = server.Fallocate(ctx, op)
+	waitForMetricsProcessing()
+
+	// The operation is not implemented, so we expect an error.
+	assert.Error(t, err)
+	attrs := attribute.NewSet(attribute.String("fs_op", "Others"))
+	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestCreateLink_Metrics(t *testing.T) {
+	ctx := context.Background()
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test"
+	createWithContents(ctx, t, bucket, fileName, "test")
+	lookUpOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookUpOp)
+	require.Nil(t, err)
+	op := &fuseops.CreateLinkOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "link",
+		Target: lookUpOp.Entry.Child,
+	}
+
+	err = server.CreateLink(ctx, op)
+	waitForMetricsProcessing()
+
+	// The operation is not implemented, so we expect an error.
+	assert.Error(t, err)
+	attrs := attribute.NewSet(attribute.String("fs_op", "CreateLink"))
+	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestStatFS_Metrics(t *testing.T) {
+	ctx := context.Background()
+	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+	server = wrappers.WithMonitoring(server, mh)
+	op := &fuseops.StatFSOp{}
+
+	err := server.StatFS(ctx, op)
+	waitForMetricsProcessing()
+
+	assert.NoError(t, err)
+	attrs := attribute.NewSet(attribute.String("fs_op", "Others"))
+	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestReleaseFileHandle_Metrics(t *testing.T) {
+	ctx := context.Background()
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test"
+	createWithContents(ctx, t, bucket, fileName, "")
+	lookUpOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookUpOp)
+	require.NoError(t, err)
+	openOp := &fuseops.OpenFileOp{
+		Inode: lookUpOp.Entry.Child,
+	}
+	err = server.OpenFile(ctx, openOp)
+	require.NoError(t, err)
+	op := &fuseops.ReleaseFileHandleOp{
+		Handle: openOp.Handle,
+	}
+
+	err = server.ReleaseFileHandle(ctx, op)
+	waitForMetricsProcessing()
+
+	assert.NoError(t, err)
+	attrs := attribute.NewSet(attribute.String("fs_op", "ReleaseFileHandle"))
+	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestFlushFile_Metrics(t *testing.T) {
+	ctx := context.Background()
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test"
+	createWithContents(ctx, t, bucket, fileName, "")
+	lookUpOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookUpOp)
+	require.NoError(t, err)
+	openOp := &fuseops.OpenFileOp{
+		Inode: lookUpOp.Entry.Child,
+	}
+	err = server.OpenFile(ctx, openOp)
+	require.NoError(t, err)
+	op := &fuseops.FlushFileOp{
+		Inode:  lookUpOp.Entry.Child,
+		Handle: openOp.Handle,
+	}
+
+	err = server.FlushFile(ctx, op)
+	waitForMetricsProcessing()
+
+	assert.NoError(t, err)
+	attrs := attribute.NewSet(attribute.String("fs_op", "FlushFile"))
+	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestSyncFile_Metrics(t *testing.T) {
+	ctx := context.Background()
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test"
+	createWithContents(ctx, t, bucket, fileName, "")
+	lookUpOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookUpOp)
+	assert.NoError(t, err)
+	op := &fuseops.SyncFileOp{
+		Inode: lookUpOp.Entry.Child,
+	}
+
+	err = server.SyncFile(ctx, op)
+	waitForMetricsProcessing()
+
+	assert.NoError(t, err)
+	attrs := attribute.NewSet(attribute.String("fs_op", "SyncFile"))
+	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestWriteFile_Metrics(t *testing.T) {
+	ctx := context.Background()
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test"
+	createWithContents(ctx, t, bucket, fileName, "")
+	lookUpOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookUpOp)
+	require.NoError(t, err)
+	openOp := &fuseops.OpenFileOp{
+		Inode: lookUpOp.Entry.Child,
+	}
+	err = server.OpenFile(ctx, openOp)
+	require.NoError(t, err)
+	op := &fuseops.WriteFileOp{
+		Inode:  lookUpOp.Entry.Child,
+		Handle: openOp.Handle,
+		Offset: 0,
+		Data:   []byte("test"),
+	}
+
+	err = server.WriteFile(ctx, op)
+	waitForMetricsProcessing()
+
+	assert.NoError(t, err)
+	attrs := attribute.NewSet(attribute.String("fs_op", "WriteFile"))
+	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestReadSymlink_Metrics(t *testing.T) {
+	ctx := context.Background()
+	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+	server = wrappers.WithMonitoring(server, mh)
+	symlinkName := "test"
+	target := "target"
+	createSymlinkOp := &fuseops.CreateSymlinkOp{
+		Parent: fuseops.RootInodeID,
+		Name:   symlinkName,
+		Target: target,
+	}
+	err := server.CreateSymlink(ctx, createSymlinkOp)
+	require.NoError(t, err)
+	op := &fuseops.ReadSymlinkOp{
+		Inode: createSymlinkOp.Entry.Child,
+	}
+
+	err = server.ReadSymlink(ctx, op)
+	waitForMetricsProcessing()
+
+	assert.NoError(t, err)
+	attrs := attribute.NewSet(attribute.String("fs_op", "ReadSymlink"))
+	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestReadFile_Metrics(t *testing.T) {
+	ctx := context.Background()
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test"
+	content := "test content"
+	createWithContents(ctx, t, bucket, fileName, content)
+	lookUpOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookUpOp)
+	require.NoError(t, err)
+	openOp := &fuseops.OpenFileOp{
+		Inode: lookUpOp.Entry.Child,
+	}
+	err = server.OpenFile(ctx, openOp)
+	require.NoError(t, err)
+	op := &fuseops.ReadFileOp{
+		Inode:  lookUpOp.Entry.Child,
+		Handle: openOp.Handle,
+		Offset: 0,
+		Dst:    make([]byte, len(content)),
+	}
+
+	err = server.ReadFile(ctx, op)
+	waitForMetricsProcessing()
+
+	assert.NoError(t, err)
+	attrs := attribute.NewSet(attribute.String("fs_op", "ReadFile"))
+	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestOpenFile_Metrics(t *testing.T) {
+	ctx := context.Background()
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test"
+	createWithContents(ctx, t, bucket, fileName, "test")
+	lookUpOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookUpOp)
+	require.NoError(t, err)
+	op := &fuseops.OpenFileOp{
+		Inode: lookUpOp.Entry.Child,
+	}
+
+	err = server.OpenFile(ctx, op)
+	waitForMetricsProcessing()
+
+	require.NoError(t, err)
+	attrs := attribute.NewSet(attribute.String("fs_op", "OpenFile"))
+	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestReleaseDirHandle_Metrics(t *testing.T) {
+	ctx := context.Background()
+	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+	server = wrappers.WithMonitoring(server, mh)
+	openOp := &fuseops.OpenDirOp{
+		Inode: fuseops.RootInodeID,
+	}
+	err := server.OpenDir(ctx, openOp)
+	require.NoError(t, err)
+	op := &fuseops.ReleaseDirHandleOp{
+		Handle: openOp.Handle,
+	}
+
+	err = server.ReleaseDirHandle(ctx, op)
+	waitForMetricsProcessing()
+
+	assert.NoError(t, err)
+	attrs := attribute.NewSet(attribute.String("fs_op", "ReleaseDirHandle"))
+	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestReadDirPlus_Metrics(t *testing.T) {
+	ctx := context.Background()
+	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+	server = wrappers.WithMonitoring(server, mh)
+	openOp := &fuseops.OpenDirOp{
+		Inode: fuseops.RootInodeID,
+	}
+	err := server.OpenDir(ctx, openOp)
+	require.NoError(t, err)
+	op := &fuseops.ReadDirPlusOp{
+		ReadDirOp: fuseops.ReadDirOp{
+			Inode:  fuseops.RootInodeID,
+			Handle: openOp.Handle,
+			Offset: 0,
+			Dst:    make([]byte, 1024),
+		},
+	}
+
+	err = server.ReadDirPlus(ctx, op)
+	waitForMetricsProcessing()
+
+	assert.NoError(t, err)
+	attrs := attribute.NewSet(attribute.String("fs_op", "ReadDirPlus"))
+	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestReadDir_Metrics(t *testing.T) {
+	ctx := context.Background()
+	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+	server = wrappers.WithMonitoring(server, mh)
+	openOp := &fuseops.OpenDirOp{
+		Inode: fuseops.RootInodeID,
+	}
+	err := server.OpenDir(ctx, openOp)
+	require.NoError(t, err)
+	op := &fuseops.ReadDirOp{
+		Inode:  fuseops.RootInodeID,
+		Handle: openOp.Handle,
+		Offset: 0,
+		Dst:    make([]byte, 1024),
+	}
+
+	err = server.ReadDir(ctx, op)
+	waitForMetricsProcessing()
+
+	assert.NoError(t, err)
+	attrs := attribute.NewSet(attribute.String("fs_op", "ReadDir"))
+	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestOpenDir_Metrics(t *testing.T) {
+	ctx := context.Background()
+	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+	server = wrappers.WithMonitoring(server, mh)
+	op := &fuseops.OpenDirOp{
+		Inode: fuseops.RootInodeID,
+	}
+
+	err := server.OpenDir(ctx, op)
+	waitForMetricsProcessing()
+
+	assert.NoError(t, err)
+	attrs := attribute.NewSet(attribute.String("fs_op", "OpenDir"))
+	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestForgetInode_Metrics(t *testing.T) {
+	ctx := context.Background()
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test"
+	createWithContents(ctx, t, bucket, fileName, "test")
+	lookUpOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookUpOp)
+	require.Nil(t, err)
+	op := &fuseops.ForgetInodeOp{
+		Inode: lookUpOp.Entry.Child,
+		N:     1,
+	}
+
+	err = server.ForgetInode(ctx, op)
+	waitForMetricsProcessing()
+
+	assert.NoError(t, err)
+	attrs := attribute.NewSet(attribute.String("fs_op", "ForgetInode"))
+	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestRename_Metrics(t *testing.T) {
+	ctx := context.Background()
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+	server = wrappers.WithMonitoring(server, mh)
+	oldName := "old"
+	newName := "new"
+	createWithContents(ctx, t, bucket, oldName, "test")
+	op := &fuseops.RenameOp{
+		OldParent: fuseops.RootInodeID,
+		OldName:   oldName,
+		NewParent: fuseops.RootInodeID,
+		NewName:   newName,
+	}
+
+	err := server.Rename(ctx, op)
+	waitForMetricsProcessing()
+
+	assert.NoError(t, err)
+	attrs := attribute.NewSet(attribute.String("fs_op", "Rename"))
+	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestUnlink_Metrics(t *testing.T) {
+	ctx := context.Background()
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test"
+	createWithContents(ctx, t, bucket, fileName, "test")
+	op := &fuseops.UnlinkOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+
+	err := server.Unlink(ctx, op)
+	waitForMetricsProcessing()
+
+	assert.NoError(t, err)
+	attrs := attribute.NewSet(attribute.String("fs_op", "Unlink"))
+	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestRmDir_Metrics(t *testing.T) {
+	ctx := context.Background()
+	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+	server = wrappers.WithMonitoring(server, mh)
+	dirName := "test"
+	mkDirOp := &fuseops.MkDirOp{
+		Parent: fuseops.RootInodeID,
+		Name:   dirName,
+	}
+	err := server.MkDir(ctx, mkDirOp)
+	require.Nil(t, err)
+	op := &fuseops.RmDirOp{
+		Parent: fuseops.RootInodeID,
+		Name:   dirName,
+	}
+
+	err = server.RmDir(ctx, op)
+	waitForMetricsProcessing()
+
+	assert.NoError(t, err)
+	attrs := attribute.NewSet(attribute.String("fs_op", "RmDir"))
+	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestCreateSymlink_Metrics(t *testing.T) {
+	ctx := context.Background()
+	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+	server = wrappers.WithMonitoring(server, mh)
+	op := &fuseops.CreateSymlinkOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "test",
+		Target: "target",
+	}
+
+	err := server.CreateSymlink(ctx, op)
+	waitForMetricsProcessing()
+
+	assert.NoError(t, err)
+	attrs := attribute.NewSet(attribute.String("fs_op", "CreateSymlink"))
+	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestCreateFile_Metrics(t *testing.T) {
+	ctx := context.Background()
+	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+	server = wrappers.WithMonitoring(server, mh)
+	op := &fuseops.CreateFileOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "test",
+	}
+
+	err := server.CreateFile(ctx, op)
+	waitForMetricsProcessing()
+
+	assert.NoError(t, err)
+	attrs := attribute.NewSet(attribute.String("fs_op", "CreateFile"))
+	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestMkNode_Metrics(t *testing.T) {
+	ctx := context.Background()
+	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+	server = wrappers.WithMonitoring(server, mh)
+	op := &fuseops.MkNodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "test",
+	}
+
+	err := server.MkNode(ctx, op)
+	waitForMetricsProcessing()
+
+	assert.NoError(t, err)
+	attrs := attribute.NewSet(attribute.String("fs_op", "MkNode"))
+	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestMkDir_Metrics(t *testing.T) {
+	ctx := context.Background()
+	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+	server = wrappers.WithMonitoring(server, mh)
+	op := &fuseops.MkDirOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "test",
+	}
+
+	err := server.MkDir(ctx, op)
+	waitForMetricsProcessing()
+
+	assert.NoError(t, err)
+	attrs := attribute.NewSet(attribute.String("fs_op", "MkDir"))
+	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestSetInodeAttributes_Metrics(t *testing.T) {
+	ctx := context.Background()
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test"
+	createWithContents(ctx, t, bucket, fileName, "test")
+	lookUpOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookUpOp)
+	require.NoError(t, err)
+	op := &fuseops.SetInodeAttributesOp{
+		Inode: lookUpOp.Entry.Child,
+	}
+
+	err = server.SetInodeAttributes(ctx, op)
+	waitForMetricsProcessing()
+
+	assert.NoError(t, err)
+	attrs := attribute.NewSet(attribute.String("fs_op", "SetInodeAttributes"))
+	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
