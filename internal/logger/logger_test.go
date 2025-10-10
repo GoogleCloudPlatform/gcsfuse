@@ -17,7 +17,6 @@ package logger
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"log/slog"
 	"os"
 	"regexp"
@@ -347,16 +346,19 @@ func (t *LoggerTest) TestSetLogFormatToText() {
 
 func (t *LoggerTest) TestGenerateMountInstanceID_Success() {
 	testCases := []struct {
-		name string
-		size int
+		name                         string
+		size                         int
+		expectedMountInstanceIDRegex string
 	}{
 		{
-			name: "TenChars",
-			size: 10,
+			name:                         "TenChars",
+			size:                         10,
+			expectedMountInstanceIDRegex: "^[0-9a-f]{10}$",
 		},
 		{
-			name: "ThirtyTwoChars",
-			size: 32,
+			name:                         "ThirtyTwoChars",
+			size:                         32,
+			expectedMountInstanceIDRegex: "^[0-9a-f]{32}$",
 		},
 	}
 	for _, tc := range testCases {
@@ -364,7 +366,7 @@ func (t *LoggerTest) TestGenerateMountInstanceID_Success() {
 			mountInstanceID, err := generateMountInstanceID(tc.size, uuid.NewRandom)
 
 			require.NoError(t, err)
-			assert.Regexp(t, fmt.Sprintf("^[0-9a-f]{%d}$", tc.size), mountInstanceID)
+			assert.Regexp(t, tc.expectedMountInstanceIDRegex, mountInstanceID)
 		})
 	}
 }
@@ -399,15 +401,17 @@ func (t *LoggerTest) TestGenerateMountInstanceID_FailureDueToNegativeSize() {
 
 func (t *LoggerTest) TestSetupMountInstanceID_Success() {
 	testCases := []struct {
-		name               string
-		inBackgroundMode   bool
-		mountInstanceIDEnv string
-		expectedID         string
+		name                         string
+		inBackgroundMode             bool
+		mountInstanceIDEnv           string
+		expectedID                   string
+		expectedMountInstanceIDRegex string
 	}{
 		{
-			name:             "ForegroundMode",
-			inBackgroundMode: false,
-			expectedID:       "",
+			name:                         "ForegroundMode",
+			inBackgroundMode:             false,
+			expectedID:                   "",
+			expectedMountInstanceIDRegex: "^[0-9a-f]{8}$", // default size for MountInstanceID is 8.
 		},
 		{
 			name:               "BackgroundModeWithInstanceID",
@@ -433,7 +437,7 @@ func (t *LoggerTest) TestSetupMountInstanceID_Success() {
 				assert.Equal(t, tc.expectedID, mountInstanceID)
 			} else {
 				assert.Len(t, mountInstanceID, mountInstanceIDLength)
-				assert.Regexp(t, fmt.Sprintf("^[0-9a-f]{%d}$", mountInstanceIDLength), mountInstanceID)
+				assert.Regexp(t, tc.expectedMountInstanceIDRegex, mountInstanceID)
 			}
 		})
 	}
@@ -442,19 +446,19 @@ func (t *LoggerTest) TestSetupMountInstanceID_Success() {
 func (t *LoggerTest) TestSetupMountInstanceID_Failure() {
 	testCases := []struct {
 		name               string
-		inBackgroundMode   bool
+		setMountInstanceID bool
 		mountInstanceIDEnv string
 		expectedID         string
 	}{
 		{
-			name:             "BackgroundModeWithoutInstanceID",
-			inBackgroundMode: true,
-			expectedID:       "00000000",
+			name:               "BackgroundModeWithoutInstanceID",
+			expectedID:         "00000000",
+			setMountInstanceID: false,
 		},
 		{
 			name:               "BackgroundModeWithEmptyInstanceID",
-			inBackgroundMode:   true,
 			mountInstanceIDEnv: "",
+			setMountInstanceID: true,
 			expectedID:         "00000000",
 		},
 	}
@@ -464,10 +468,10 @@ func (t *LoggerTest) TestSetupMountInstanceID_Failure() {
 				mountInstanceID = ""
 				setupMountInstanceIDOnce = sync.Once{}
 			})
-			if tc.inBackgroundMode {
-				t.Setenv(GCSFuseInBackgroundMode, "true")
+			if tc.setMountInstanceID {
 				t.Setenv(GCSFuseMountInstanceIDEnvKey, tc.mountInstanceIDEnv)
 			}
+			t.Setenv(GCSFuseInBackgroundMode, "true")
 
 			setupMountInstanceID()
 

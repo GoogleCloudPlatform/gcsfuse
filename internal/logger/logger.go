@@ -140,16 +140,14 @@ func setupMountInstanceID() {
 	defaultMountInstanceID := strings.Repeat("0", mountInstanceIDLength)
 	if _, ok := os.LookupEnv(GCSFuseInBackgroundMode); ok {
 		// If GCSFuse is in background mode then look for the MountInstanceId in env which was set by the caller of demonize run.
-		mountInstanceID, ok = os.LookupEnv(GCSFuseMountInstanceIDEnvKey)
-		if !ok || mountInstanceID == "" {
-			Warnf("Could not retrieve %s env variable. Using default: %s", GCSFuseMountInstanceIDEnvKey, defaultMountInstanceID)
+		if mountInstanceID, ok = os.LookupEnv(GCSFuseMountInstanceIDEnvKey); !ok || mountInstanceID == "" {
+			Warnf("Could not retrieve %s env variable or it's empty. Using default: %s", GCSFuseMountInstanceIDEnvKey, defaultMountInstanceID)
 			mountInstanceID = defaultMountInstanceID
 		}
 	} else {
 		// If GCSFuse is not running in the background mode then generate a random UUID.
 		var err error
-		mountInstanceID, err = generateMountInstanceID(mountInstanceIDLength, uuid.NewRandom)
-		if err != nil {
+		if mountInstanceID, err = generateMountInstanceID(mountInstanceIDLength, uuid.NewRandom); err != nil {
 			Warnf("Could not generate MountInstanceID, Using default: %s, err: %v", defaultMountInstanceID, err)
 			mountInstanceID = defaultMountInstanceID
 		}
