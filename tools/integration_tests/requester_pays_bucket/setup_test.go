@@ -26,13 +26,15 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 const (
-	testDirName = "RequesterPaysBucketTests"
+	testDirName        = "RequesterPaysBucketTests"
+	onlyDirTestDirName = "OnlyDirRequesterPaysBucketTests"
 )
 
 // To prevent global variable pollution, enhance code clarity,
@@ -112,6 +114,11 @@ func TestMain(m *testing.M) {
 
 	log.Println("Running static mounting tests...")
 	successCode := static_mounting.RunTestsWithConfigFile(&cfg.RequesterPaysBucket[0], flags, m)
+
+	if successCode == 0 {
+		log.Printf("Running only-dir mounting tests ...")
+		successCode = only_dir_mounting.RunTestsWithConfigFile(&cfg.RequesterPaysBucket[0], flags, onlyDirTestDirName, m)
+	}
 
 	// If failed, then save the gcsfuse log file(s).
 	setup.SaveLogFileInCaseOfFailure(successCode)
