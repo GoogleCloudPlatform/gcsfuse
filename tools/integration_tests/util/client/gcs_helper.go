@@ -194,3 +194,36 @@ func CreateUnfinalizedObject(ctx context.Context, t *testing.T, client *storage.
 	time.Sleep(time.Minute)
 	return writer
 }
+
+// setRequesterPays sets requester-pays flag to given boolean for the given bucket.
+func setRequesterPays(ctx context.Context, bucketName string, enable bool) error {
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return fmt.Errorf("storage.NewClient: %w", err)
+	}
+	defer client.Close()
+
+	bucket := client.Bucket(bucketName)
+	bucketAttrsToUpdate := storage.BucketAttrsToUpdate{
+		RequesterPays: enable,
+	}
+	if _, err := bucket.Update(ctx, bucketAttrsToUpdate); err != nil {
+		return fmt.Errorf("failed to set requester-pays to %v for bucket %s: %w", enable, bucketName, err)
+	}
+	log.Printf("requester-pays set to %v for bucket %v\n", enable, bucketName)
+	return nil
+}
+
+// MustEnableRequesterPays enables requester-pays for the given bucket and panics if it fails.
+func MustEnableRequesterPays(ctx context.Context, bucketName string) {
+	if err := setRequesterPays(ctx, bucketName, true); err != nil {
+		panic(fmt.Sprintf("failed to enable requester-pays for bucket %s: %v", bucketName, err))
+	}
+}
+
+// MustDisableRequesterPays disables requester-pays for the given bucket and panics if it fails.
+func MustDisableRequesterPays(ctx context.Context, bucketName string) {
+	if err := setRequesterPays(ctx, bucketName, false); err != nil {
+		panic(fmt.Sprintf("failed to disable requester-pays for bucket %s: %v", bucketName, err))
+	}
+}
