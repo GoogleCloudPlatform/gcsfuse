@@ -147,8 +147,12 @@ func setupMountInstanceID() {
 	}
 }
 
+// MountInstanceID returns a unique ID for the current GCSFuse mount instance,
+// ensuring the ID is initialized only once. On the first call, it either
+// generates a random ID (foreground mode) or retrieves it from the
+// GCSFUSE_MOUNT_INSTANCE_ID environment variable (background mode).
+// Subsequent calls return the same cached ID.
 func MountInstanceID() string {
-	// Runs the setupMountInstanceID only once when MountInstanceID is invoked.
 	setupMountInstanceIDOnce.Do(setupMountInstanceID)
 	return mountInstanceID
 }
