@@ -26,6 +26,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs"
+	intfs "github.com/googlecloudplatform/gcsfuse/v3/internal/fs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/perms"
@@ -42,8 +43,8 @@ func mountWithStorageHandle(
 	mountPoint string,
 	newConfig *cfg.Config,
 	storageHandle storage.StorageHandle,
-	metricHandle metrics.MetricHandle) (mfs *fuse.MountedFileSystem, err error) {
-	// Sanity check: make sure the temporary directory exists and is writable
+	metricHandle metrics.MetricHandle) (mfs *fuse.MountedFileSystem, server intfs.Server, err error) {
+	// Sanity check: make sure the temporary directory exists and is writable.
 	// currently. This gives a better user experience than harder to debug EIO
 	// errors when reading files in the future.
 	if newConfig.FileSystem.TempDir != "" {
@@ -128,7 +129,7 @@ be interacting with the file system.`)
 	}
 
 	logger.Infof("Creating a new server...\n")
-	server, err := fs.NewServer(ctx, serverCfg)
+	server, err = fs.NewServer(ctx, serverCfg)
 	if err != nil {
 		err = fmt.Errorf("fs.NewServer: %w", err)
 		return
@@ -144,11 +145,13 @@ be interacting with the file system.`)
 	logger.Infof("Mounting file system %q...", fsName)
 
 	mountCfg := getFuseMountConfig(fsName, newConfig)
-	mfs, err = fuse.Mount(mountPoint, server, mountCfg)
+	mfs, err = fuse.Mount(mountPoint, server, mountCfg) // server now implements fuse.Server
 	if err != nil {
 		err = fmt.Errorf("mount: %w", err)
 		return
 	}
+
+	server.SetMountedFS(mfs)
 
 	return
 }

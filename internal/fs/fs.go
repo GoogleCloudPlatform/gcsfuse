@@ -209,6 +209,8 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		globalMaxReadBlocksSem:     semaphore.NewWeighted(serverCfg.NewConfig.Read.GlobalMaxBlocks),
 	}
 	if serverCfg.Notifier != nil {
+		// TODO: remove this field from fileSystem struct and use it directly in
+		// NewServer method.
 		fs.notifier = serverCfg.Notifier
 	}
 
@@ -218,6 +220,8 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		if err != nil {
 			return nil, fmt.Errorf("failed to create worker pool for buffered read: %w", err)
 		}
+		// Create a cancellable context for the file system.
+		fs.ctx, fs.cancel = context.WithCancel(ctx)
 	}
 
 	// Set up root bucket
@@ -494,7 +498,6 @@ type fileSystem struct {
 	//
 	// GUARDED_BY(mu)
 	nextHandleID fuseops.HandleID
-
 	// newConfig specified by the user using config-file flag and CLI flags.
 	newConfig *cfg.Config
 

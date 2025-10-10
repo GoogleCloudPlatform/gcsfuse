@@ -28,13 +28,12 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
-	"golang.org/x/sys/unix"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/canned"
+	intfs "github.com/googlecloudplatform/gcsfuse/v3/internal/fs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
@@ -43,10 +42,12 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
 	"github.com/kardianos/osext"
 	"golang.org/x/net/context"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -54,11 +55,16 @@ const (
 	UnsuccessfulMountMessagePrefix = "Error while mounting gcsfuse"
 )
 
+const (
+	unmountRetryDelay    = 500 * time.Millisecond
+	unmountRetryAttempts = 10
+)
+
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func registerTerminatingSignalHandler(mountPoint string) {
+func registerTerminatingSignalHandler(mountPoint string, server intfs.Server) {
 	// Register for SIGINT.
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt, unix.SIGTERM)
@@ -76,17 +82,29 @@ func registerTerminatingSignalHandler(mountPoint string) {
 			}
 			logger.Infof("Received %s, attempting to unmount...", sigName)
 
+			if server != nil {
+				// Don't accept any new requests from this point.
+				server.PrepareToUnmount()
+				logger.Infof("Waiting for all in-flight requests to finish...")
+			}
+
 			err := fuse.Unmount(mountPoint)
 			if err != nil {
-				if errors.Is(err, fuse.ErrExternallyManagedMountPoint) {
+				// This is not a failure, we are just logging that we are not unmounting.
+				if strings.Contains(err.Error(), "not mounted") ||
+					strings.Contains(err.Error(), "no such file or directory") {
+					logger.Infof("Mount point %s is not mounted, skipping unmount.", mountPoint)
+				} else if errors.Is(err, fuse.ErrExternallyManagedMountPoint) {
 					logger.Infof("Mount point %s is externally managed; gcsfuse will not unmount it.", mountPoint)
-					return
+				} else {
+					logger.Errorf("Failed to unmount in response to %s: %v", sigName, err)
 				}
-				logger.Errorf("Failed to unmount in response to %s: %v", sigName, err)
 			} else {
 				logger.Infof("Successfully unmounted in response to %s.", sigName)
-				return
 			}
+			// We always exit, even if unmount fails, to avoid leaving a zombie process.
+			// The user can then manually unmount if necessary.
+			os.Exit(0)
 		}
 	}()
 }
@@ -156,7 +174,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 ////////////////////////////////////////////////////////////////////////
 
 // Mount the file system according to arguments in the supplied context.
-func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, metricHandle metrics.MetricHandle) (mfs *fuse.MountedFileSystem, err error) {
+func mountWithArgs(ctx context.Context, bucketName string, mountPoint string, newConfig *cfg.Config, metricHandle metrics.MetricHandle) (mfs *fuse.MountedFileSystem, server intfs.Server, err error) {
 	// Enable invariant checking if requested.
 	if newConfig.Debug.ExitOnInvariantViolation {
 		locker.EnableInvariantsCheck()
@@ -182,8 +200,8 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, 
 
 	// Mount the file system.
 	logger.Infof("Creating a mount at %q\n", mountPoint)
-	mfs, err = mountWithStorageHandle(
-		context.Background(),
+	mfs, server, err = mountWithStorageHandle(
+		ctx,
 		bucketName,
 		mountPoint,
 		newConfig,
@@ -396,12 +414,6 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	ctx := context.Background()
 	var metricExporterShutdownFn common.ShutdownFn
 	metricHandle := metrics.NewNoopMetrics()
-	if cfg.IsMetricsEnabled(&newConfig.Metrics) {
-		metricExporterShutdownFn = monitor.SetupOTelMetricExporters(ctx, newConfig)
-		if metricHandle, err = metrics.NewOTelMetrics(ctx, int(newConfig.Metrics.Workers), int(newConfig.Metrics.BufferSize)); err != nil {
-			metricHandle = metrics.NewNoopMetrics()
-		}
-	}
 	shutdownTracingFn := monitor.SetupTracing(ctx, newConfig)
 	shutdownFn := common.JoinShutdownFunc(metricExporterShutdownFn, shutdownTracingFn)
 
@@ -410,14 +422,21 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 		logger.Warnf("Failed to setup cloud profiler: %v", err)
 	}
 
+	if cfg.IsMetricsEnabled(&newConfig.Metrics) {
+		metricExporterShutdownFn = monitor.SetupOTelMetricExporters(ctx, newConfig)
+		if metricHandle, err = metrics.NewOTelMetrics(ctx, int(newConfig.Metrics.Workers), int(newConfig.Metrics.BufferSize)); err != nil {
+			metricHandle = metrics.NewNoopMetrics()
+		}
+	}
+
 	// Mount, writing information about our progress to the writer that package
 	// daemonize gives us and telling it about the outcome.
-	var mfs *fuse.MountedFileSystem
+	var server intfs.Server
 	{
-		mfs, err = mountWithArgs(bucketName, mountPoint, newConfig, metricHandle)
+		mfs, server, err := mountWithArgs(ctx, bucketName, mountPoint, newConfig, metricHandle)
 
 		// This utility is to absorb the error
-		// returned by daemonize.SignalOutcome calls by simply
+		// returned by daemonize.SignalOutcome calls by simply.
 		// logging them as error logs.
 		callDaemonizeSignalOutcome := func(err error) {
 			if err2 := daemonize.SignalOutcome(err); err2 != nil {
@@ -425,13 +444,13 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 			}
 		}
 
-		markSuccessfulMount := func() {
+		markSuccessfulMount := func(mfs *fuse.MountedFileSystem) {
 			// Print the success message in the log-file/stdout depending on what the logger is set to.
 			logger.Info(SuccessfulMountMessage)
 			callDaemonizeSignalOutcome(nil)
 		}
 
-		markMountFailure := func(err error) {
+		markMountFailure := func(err error, server intfs.Server) {
 			// Printing via mountStatus will have duplicate logs on the console while
 			// mounting gcsfuse in foreground mode. But this is important to avoid
 			// losing error logs when run in the background mode.
@@ -441,14 +460,14 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 		}
 
 		if err != nil {
-			markMountFailure(err)
+			markMountFailure(err, server)
 			return err
 		}
 		if !isDynamicMount(bucketName) {
 			switch newConfig.MetadataCache.ExperimentalMetadataPrefetchOnMount {
 			case cfg.ExperimentalMetadataPrefetchOnMountSynchronous:
 				if err = callListRecursive(mountPoint); err != nil {
-					markMountFailure(err)
+					markMountFailure(err, server)
 					return err
 				}
 			case cfg.ExperimentalMetadataPrefetchOnMountAsynchronous:
@@ -459,14 +478,16 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 				}()
 			}
 		}
-		markSuccessfulMount()
+		markSuccessfulMount(mfs)
 	}
 
 	// Let the user unmount with Ctrl-C (SIGINT).
-	registerTerminatingSignalHandler(mfs.Dir())
+	registerTerminatingSignalHandler(mountPoint, server)
+	// We will not close the cancel func here, we will let the OS kill the process.
+	// Otherwise, the process will be killed before the unmount is complete.
 
 	// Wait for the file system to be unmounted.
-	if err = mfs.Join(ctx); err != nil {
+	if err = server.Serve(ctx); err != nil {
 		err = fmt.Errorf("MountedFileSystem.Join: %w", err)
 	}
 
