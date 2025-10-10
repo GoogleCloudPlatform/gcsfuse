@@ -24,13 +24,16 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/dynamic_mounting"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 const (
-	testDirName = "FlagOptimizationsTests"
+	testDirName    = "FlagOptimizationsTests"
+	onlyDirMounted = "OnlyDirMountFlagOptimizations"
 )
 
 // To prevent global variable pollution, enhance code clarity,
@@ -97,6 +100,16 @@ func staticMountFunc(flags []string) error {
 	return static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(config, flags)
 }
 
+func onlyDirMountFunc(flags []string) error {
+	config := &test_suite.TestConfig{
+		TestBucket:              setup.TestBucket(),
+		GKEMountedDirectory:     setup.MountedDirectory(),
+		GCSFuseMountedDirectory: setup.MntDir(),
+		LogFile:                 setup.LogFile(),
+	}
+	return only_dir_mounting.MountGcsfuseWithOnlyDirWithConfigFile(config, flags)
+}
+
 func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) {
 	setup.MountGCSFuseWithGivenMountFunc(flags, testEnv.mountFunc)
 	setup.SetMntDir(testEnv.mountDir)
@@ -135,6 +148,23 @@ func TestMain(m *testing.M) {
 	log.Println("Running static mounting tests...")
 	testEnv.mountFunc = staticMountFunc
 	successCode := m.Run()
+
+	if successCode == 0 {
+		log.Println("Running dynamic mounting tests...")
+		// Save mount directory variable to have path of bucket to run tests.
+		testEnv.mountDir = path.Join(setup.MntDir(), setup.TestBucket())
+		testEnv.mountFunc = dynamic_mounting.MountGcsfuseWithDynamicMounting
+		successCode = m.Run()
+	}
+
+	if successCode == 0 {
+		log.Println("Running only dir mounting tests...")
+		setup.SetOnlyDirMounted(onlyDirMounted + "/")
+		testEnv.mountDir = testEnv.rootDir
+		testEnv.mountFunc = onlyDirMountFunc
+		successCode = m.Run()
+		setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), setup.OnlyDirMounted(), testDirName))
+	}
 
 	// If failed, then save the gcsfuse log file(s).
 	setup.SaveLogFileInCaseOfFailure(successCode)
