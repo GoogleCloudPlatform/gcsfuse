@@ -322,6 +322,7 @@ TEST_DIR_PARALLEL_ZONAL=(
   concurrent_operations
   dentry_cache
   explicit_dir
+  flag_optimizations
   gzip
   implicit_dir
   interrupt
