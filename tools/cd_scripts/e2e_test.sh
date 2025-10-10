@@ -333,7 +333,7 @@ TEST_DIR_PARALLEL_ZONAL=(
   mounting
   negative_stat_cache
   operations
-  #rapid_appends
+  rapid_appends
   read_large_files
   readdirplus
   release_version
