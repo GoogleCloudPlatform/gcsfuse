@@ -276,7 +276,7 @@ func TestRemoveXattr_Metrics(t *testing.T) {
 	waitForMetricsProcessing()
 
 	// The operation is not implemented, so we expect an error.
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "Others"))
 	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
 	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
