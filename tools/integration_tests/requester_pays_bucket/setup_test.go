@@ -83,14 +83,6 @@ func TestMain(m *testing.M) {
 	testEnv.ctx = context.Background()
 	bucketType := setup.TestEnvironment(testEnv.ctx, &cfg.RequesterPaysBucket[0])
 
-	// Temporarily enable --requester-pays metadata flag for the test bucket.
-	if setup.TestBucket() == "" {
-		log.Fatal("testBucket not passed")
-	}
-	testEnv.bucketName = strings.Split(setup.TestBucket(), "/")[0]
-	client.MustEnableRequesterPays(testEnv.ctx, testEnv.bucketName)
-	defer client.MustDisableRequesterPays(testEnv.ctx, testEnv.bucketName)
-
 	// Create storage client before running tests.
 	closeStorageClient := client.CreateStorageClientWithCancel(&testEnv.ctx, &testEnv.storageClient)
 	defer func() {
@@ -99,6 +91,11 @@ func TestMain(m *testing.M) {
 			log.Fatalf("closeStorageClient failed: %v", err)
 		}
 	}()
+
+	// Temporarily enable --requester-pays metadata flag for the test bucket.
+	testEnv.bucketName = strings.Split(setup.TestBucket(), "/")[0]
+	client.MustEnableRequesterPays(testEnv.storageClient, testEnv.ctx, testEnv.bucketName)
+	defer client.MustDisableRequesterPays(testEnv.storageClient, testEnv.ctx, testEnv.bucketName)
 
 	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as RequesterPaysBucket tests validates content from the bucket.
