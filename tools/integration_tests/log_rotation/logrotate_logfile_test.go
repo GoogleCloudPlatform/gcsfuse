@@ -47,34 +47,75 @@ func runOperationsOnFileTillLogRotation(t *testing.T, wg *sync.WaitGroup, fileNa
 	}
 	// Setup file with 5 MiB content in test directory.
 	testDirPath := path.Join(setup.MntDir(), testDirName)
+	t.Logf("testDirPath: %s", testDirPath) // Added for debugging
 	filePath := path.Join(testDirPath, fileName)
+	t.Logf("filePath: %s", filePath) // Added for debugging
 	operations.CreateFileWithContent(filePath, filePerms, string(randomData), t)
-
+	t.Logf("adadas %v", logFilePath)
 	// Keep performing operations in mounted directory until log file is rotated.
-	var lastLogFileSize int64 = 0
-	var retryStatLogFile = true
+var lastLogFileSize int64 = 0
+const maxStatRetries = 2 // Max times to retry StatFile error before failing
+var currentStatRetries = 0
+
+// Set a limit for the main loop to prevent infinite execution
+const maxIterations = 2
+var currentIteration = 0
+
 	for {
-		// Perform Read operation to generate logs.
+		currentIteration++
+
+		// --- 1. Check Overall Loop Limit ---
+		if currentIteration > maxIterations {
+			t.Fatalf("Log file rotation loop exceeded maximum iterations (%d) without rotation.", maxIterations)
+		}
+		t.Logf("--- Iteration %d ---", currentIteration)
+
+		// --- 2. Perform Read operation to generate logs ---
+		t.Logf("Performing ReadFile operation on: %s", filePath)
 		_, err = operations.ReadFile(filePath)
 		if err != nil {
 			t.Errorf("ReadFile failed: %v", err)
+			// Note: You might want to break or continue here depending on whether
+			// a ReadFile error should halt the rotation check. Assuming it continues.
 		}
 
-		// Break the loop when log file is rotated.
+		// --- 3. Stat Log File and Check for Rotation ---
+		t.Logf("Checking log file size for rotation: %s", logFilePath)
 		fi, err := operations.StatFile(logFilePath)
+
 		if err != nil {
-			t.Logf("stat operation on file %s failed: %v", logFilePath, err)
-			if !retryStatLogFile {
-				t.Errorf("Stat retry exhausted on log file: %s", logFilePath)
+			// --- StatFile Error Handling with Retry Limit ---
+			t.Logf("Stat operation on file %s failed: %v. Retry attempt %d/%d.",
+				logFilePath, err, currentStatRetries+1, maxStatRetries)
+
+			if currentStatRetries >= maxStatRetries {
+				t.Fatalf("Stat operation failed persistently on log file %s after %d retries.",
+					logFilePath, maxStatRetries)
+				// Note: Use t.Fatalf to stop the test entirely if a crucial stat operation fails
 			}
-			retryStatLogFile = false
-			continue
+			currentStatRetries++
+			continue // Skip to next iteration to retry stat
 		}
-		if (*fi).Size() < lastLogFileSize {
+
+		// Reset stat retry counter on successful stat
+		currentStatRetries = 0
+
+		// --- 4. Check for Rotation ---
+		currentSize := (*fi).Size()
+		t.Logf("Current log file size: %d bytes. Last recorded size: %d bytes.", currentSize, lastLogFileSize)
+
+		if currentSize < lastLogFileSize {
 			// Log file got rotated as current log file size < last log file size.
+			t.Logf("SUCCESS: Log file rotated! Current size (%d) < last size (%d).", currentSize, lastLogFileSize)
 			break
 		}
-		lastLogFileSize = (*fi).Size()
+
+		// If size increased or stayed the same, update the last recorded size
+		lastLogFileSize = currentSize
+		t.Logf("Log file size updated to: %d bytes. Continuing to next iteration.", lastLogFileSize)
+
+		// Optional: Add a small sleep here to avoid thrashing the CPU if the loop is very fast
+		// time.Sleep(10 * time.Millisecond)
 	}
 }
 
