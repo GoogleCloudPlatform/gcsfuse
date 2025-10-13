@@ -196,8 +196,7 @@ func CreateUnfinalizedObject(ctx context.Context, t *testing.T, client *storage.
 
 // setRequesterPays sets requester-pays flag to given boolean for the given bucket.
 func setRequesterPays(storageClient *storage.Client, ctx context.Context, bucketName string, enable bool) error {
-	client := storageClient
-	bucket := client.Bucket(bucketName)
+	bucket := storageClient.Bucket(bucketName)
 	bucketAttrsToUpdate := storage.BucketAttrsToUpdate{
 		RequesterPays: enable,
 	}
