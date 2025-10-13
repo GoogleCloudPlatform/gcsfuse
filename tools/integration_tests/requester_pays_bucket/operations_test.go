@@ -98,7 +98,7 @@ func (t *operationTests) TestDirOperations() {
 	require.True(t.T(), os.IsNotExist(err), "Directory should not exist after removal")
 }
 
-// Test all the folder operations in the mount.
+// Test all the file operations in the mount.
 func (t *operationTests) TestFileOperations() {
 	var fi fs.FileInfo
 	var err error
