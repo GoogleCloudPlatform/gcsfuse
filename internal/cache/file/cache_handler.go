@@ -65,23 +65,8 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 	var compiledExcludeRegex *regexp.Regexp
 	var compiledIncludeRegex *regexp.Regexp
 
-	if excludeRegex != "" {
-		var err error
-		compiledExcludeRegex, err = regexp.Compile(excludeRegex)
-		if err != nil {
-			logger.Warnf("Failed to compile exclude regex %q: %v", excludeRegex, err)
-			compiledExcludeRegex = nil
-		}
-	}
-
-	if includeRegex != "" {
-		var err error
-		compiledIncludeRegex, err = regexp.Compile(includeRegex)
-		if err != nil {
-			logger.Warnf("Failed to compile include regex %q: %v", includeRegex, err)
-			compiledIncludeRegex = nil
-		}
-	}
+	compiledExcludeRegex = compileRegex(excludeRegex)
+	compiledIncludeRegex = compileRegex(includeRegex)
 
 	return &CacheHandler{
 		fileInfoCache: fileInfoCache,
@@ -93,6 +78,20 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 		excludeRegex:  compiledExcludeRegex,
 		includeRegex:  compiledIncludeRegex,
 	}
+}
+
+func compileRegex(regexString string) *regexp.Regexp {
+	var compiledRegex *regexp.Regexp
+	compiledRegex = nil
+
+	if regexString != "" {
+		var err error
+		compiledRegex, err = regexp.Compile(regexString)
+		if err != nil {
+			logger.Warnf("Failed to compile regex %q: %v", regexString, err)
+		}
+	}
+	return compiledRegex
 }
 
 func (chr *CacheHandler) createLocalFileReadHandle(objectName string, bucketName string) (*os.File, error) {
