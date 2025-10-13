@@ -128,75 +128,6 @@ func gatherNonZeroCounterMetrics(ctx context.Context, t *testing.T, rd *metric.M
 	return results
 }
 
-func TestBufferedReadBytesCount(t *testing.T) {
-	tests := []struct {
-		name     string
-		f        func(m *otelMetrics)
-		expected map[attribute.Set]int64
-	}{
-		{
-			name: "operation_type_downloaded",
-			f: func(m *otelMetrics) {
-				m.BufferedReadBytesCount(5, "downloaded")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("operation_type", "downloaded")): 5,
-			},
-		},
-		{
-			name: "operation_type_read",
-			f: func(m *otelMetrics) {
-				m.BufferedReadBytesCount(5, "read")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("operation_type", "read")): 5,
-			},
-		}, {
-			name: "multiple_attributes_summed",
-			f: func(m *otelMetrics) {
-				m.BufferedReadBytesCount(5, "downloaded")
-				m.BufferedReadBytesCount(2, "read")
-				m.BufferedReadBytesCount(3, "downloaded")
-			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("operation_type", "downloaded")): 8,
-				attribute.NewSet(attribute.String("operation_type", "read")): 2,
-			},
-		},
-		{
-			name: "negative_increment",
-			f: func(m *otelMetrics) {
-				m.BufferedReadBytesCount(-5, "downloaded")
-				m.BufferedReadBytesCount(2, "downloaded")
-			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("operation_type", "downloaded")): 2},
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
-			encoder := attribute.DefaultEncoder()
-			m, rd := setupOTel(ctx, t)
-
-			tc.f(m)
-			waitForMetricsProcessing()
-
-			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
-			metric, ok := metrics["buffered_read/bytes_count"]
-			if len(tc.expected) == 0 {
-				assert.False(t, ok, "buffered_read/bytes_count metric should not be found")
-				return
-			}
-			require.True(t, ok, "buffered_read/bytes_count metric not found")
-			expectedMap := make(map[string]int64)
-			for k, v := range tc.expected {
-				expectedMap[k.Encoded(encoder)] = v
-			}
-			assert.Equal(t, expectedMap, metric)
-		})
-	}
-}
-
 func TestBufferedReadFallbackTriggerCount(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -4679,15 +4610,6 @@ func TestGcsDownloadBytesCount(t *testing.T) {
 			},
 			expected: map[attribute.Set]int64{
 				attribute.NewSet(attribute.String("read_type", "Sequential")): 5,
-			},
-		},
-		{
-			name: "read_type_buffered",
-			f: func(m *otelMetrics) {
-				m.GcsDownloadBytesCount(5, "buffered")
-			},
-			expected: map[attribute.Set]int64{
-				attribute.NewSet(attribute.String("read_type", "buffered")): 5,
 			},
 		}, {
 			name: "multiple_attributes_summed",

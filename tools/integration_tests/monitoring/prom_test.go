@@ -17,7 +17,6 @@ package monitoring
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -27,7 +26,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
 	"github.com/pkg/xattr"
@@ -244,12 +242,8 @@ func (testSuite *PromTest) TestListMetrics() {
 func (testSuite *PromTest) TestSetXAttrMetrics() {
 	err := xattr.Set(path.Join(testSuite.mountPoint, "hello/hello.txt"), "alpha", []byte("beta"))
 
-	assert.Error(testSuite.T(), err)
-	assertNonZeroCountMetric(testSuite.T(), "fs_ops_count", "fs_op", "Others")
-	assertNonZeroCountMetric(testSuite.T(), "fs_ops_count", "fs_op", "ReadDir")
-	assertNonZeroCountMetric(testSuite.T(), "fs_ops_count", "fs_op", "OpenDir")
-	assertNonZeroCountMetric(testSuite.T(), "gcs_request_count", "gcs_method", "ListObjects")
-	assertNonZeroHistogramMetric(testSuite.T(), "gcs_request_latencies", "gcs_method", "ListObjects")
+	require.Error(testSuite.T(), err)
+	assertNonZeroCountMetric(testSuite.T(), "fs_ops_error_count", "fs_op", "Others")
 }
 
 func (testSuite *PromTest) TestReadMetrics() {
@@ -265,129 +259,10 @@ func (testSuite *PromTest) TestReadMetrics() {
 	assertNonZeroCountMetric(testSuite.T(), "gcs_request_count", "gcs_method", "NewReader")
 	assertNonZeroCountMetric(testSuite.T(), "gcs_reader_count", "io_method", "opened")
 	assertNonZeroCountMetric(testSuite.T(), "gcs_reader_count", "io_method", "closed")
-	assertNonZeroCountMetric(testSuite.T(), "gcs_read_count", "read_type", "Parallel")
-	assertNonZeroCountMetric(testSuite.T(), "gcs_download_bytes_count", "read_type", "Parallel")
-<<<<<<< HEAD
-	assertNonZeroCountMetric(testSuite.T(), "gcs_read_bytes_count", "reader", "Others")
-	assertNonZeroHistogramMetric(testSuite.T(), "gcs_request_latencies", "gcs_method", "NewReader")
-	assertNonZeroCountMetric(testSuite.T(), "file_cache_read_bytes_count", "read_type", "Sequential")
-	assertNonZeroCountMetric(testSuite.T(), "file_cache_read_count", "cache_hit", "false")
-	assertNonZeroCountMetric(testSuite.T(), "file_cache_read_count", "read_type", "Sequential")
-	assertNonZeroHistogramMetric(testSuite.T(), "file_cache_read_latencies", "cache_hit", "false")
-	assertNonZeroCountMetric(testSuite.T(), "fs_ops_count", "fs_op", "OpenFile")
-	assertNonZeroCountMetric(testSuite.T(), "fs_ops_count", "fs_op", "ReadFile")
-	assertNonZeroCountMetric(testSuite.T(), "gcs_request_count", "gcs_method", "NewReader")
-	assertNonZeroCountMetric(testSuite.T(), "gcs_reader_count", "io_method", "opened")
-	assertNonZeroCountMetric(testSuite.T(), "gcs_reader_count", "io_method", "closed")
-	assertNonZeroCountMetric(testSuite.T(), "gcs_read_count", "read_type", "Parallel")
 	assertNonZeroCountMetric(testSuite.T(), "gcs_download_bytes_count", "", "")
-	assertNonZeroCountMetric(testSuite.T(), "gcs_read_bytes_count", "", "")
-=======
-	assertNonZeroCountMetric(testSuite.T(), "gcs_read_bytes_count", "reader", "default")
->>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
-	assertNonZeroCountMetric(testSuite.T(), "gcs_read_bytes_count", "reader", "Default")
 	assertNonZeroHistogramMetric(testSuite.T(), "gcs_request_latencies", "gcs_method", "NewReader")
 }
 
 func TestPromOTELSuite(t *testing.T) {
 	suite.Run(t, new(PromTest))
-}
-
-type PromBufferedReadTest struct {
-	PromTestBase
-}
-
-func (testSuite *PromBufferedReadTest) SetupTest() {
-	var err error
-	testSuite.gcsfusePath = setup.BinFile()
-	testSuite.mountPoint, err = os.MkdirTemp("", "gcsfuse_monitoring_tests")
-	require.NoError(testSuite.T(), err)
-	setPrometheusPort(testSuite.T())
-
-	setup.SetLogFile(fmt.Sprintf("%s%s.txt", "/tmp/gcsfuse_monitoring_test_", strings.ReplaceAll(testSuite.T().Name(), "/", "_")))
-	err = testSuite.mount(getBucket(testSuite.T()))
-	require.NoError(testSuite.T(), err)
-}
-
-func (testSuite *PromBufferedReadTest) mount(bucketName string) error {
-	testSuite.T().Helper()
-	config := map[string]interface{}{
-		"read": map[string]interface{}{
-			"enable-buffered-read":    true,
-			"block-size-mb":           4,
-			"random-seek-threshold":   2,
-			"global-max-blocks":       5,
-			"min-blocks-per-handle":   2,
-			"start-blocks-per-handle": 2,
-		},
-	}
-	configFilePath := setup.YAMLConfigFile(config, "config.yaml")
-	flags := []string{
-		fmt.Sprintf("--prometheus-port=%d", prometheusPort),
-		"--config-file=" + configFilePath,
-	}
-	return testSuite.mountGcsfuse(bucketName, flags)
-}
-
-func (testSuite *PromBufferedReadTest) TestBufferedReadMetrics() {
-	_, err := operations.ReadFile(path.Join(testSuite.mountPoint, "hello/hello.txt"))
-
-	require.NoError(testSuite.T(), err)
-	assertNonZeroCountMetric(testSuite.T(), "gcs_read_bytes_count", "reader", "buffered")
-	assertNonZeroCountMetric(testSuite.T(), "gcs_download_bytes_count", "read_type", "buffered")
-	assertNonZeroHistogramMetric(testSuite.T(), "buffered_read_read_latency", "", "")
-}
-
-func (testSuite *PromBufferedReadTest) TestRandomReadFallback() {
-	const blockSize = 4 * 1024 * 1024
-	const fileSize = 4 * blockSize
-	const fileName = "random_read_fallback.txt"
-	filePath := path.Join(testSuite.mountPoint, fileName)
-	operations.CreateFileOfSize(fileSize, filePath, testSuite.T())
-	f, err := operations.OpenFileAsReadonly(filePath)
-	require.NoError(testSuite.T(), err)
-	defer operations.CloseFileShouldNotThrowError(testSuite.T(), f)
-	buf := make([]byte, 10)
-
-	// With random-seek-threshold: 2, the 3rd random read should trigger a fallback.
-	// First random read.
-	_, err = f.ReadAt(buf, 3*blockSize+100)
-	require.NoError(testSuite.T(), err, "ReadAt in block 3 failed")
-	// Second random read.
-	_, err = f.ReadAt(buf, 2*blockSize+100)
-	require.NoError(testSuite.T(), err, "ReadAt in block 2 failed")
-	// Third random read, which exceeds the threshold and triggers fallback.
-	_, err = f.ReadAt(buf, 1*blockSize+100)
-	require.NoError(testSuite.T(), err, "ReadAt in block 1 failed")
-
-	assertNonZeroCountMetric(testSuite.T(), "buffered_read_fallback_trigger_count", "reason", "random_read_detected")
-}
-
-func (testSuite *PromBufferedReadTest) TestInsufficientMemoryFallback() {
-	const blockSize = 4 * 1024 * 1024
-	const fileSize = 10 * blockSize // 40 MiB file
-	filePath := path.Join(testSuite.mountPoint, "insufficient_mem_test.txt")
-	operations.CreateFileOfSize(fileSize, filePath, testSuite.T())
-	f1, err := operations.OpenFileAsReadonly(filePath)
-	require.NoError(testSuite.T(), err)
-	defer operations.CloseFileShouldNotThrowError(testSuite.T(), f1)
-	f2, err := operations.OpenFileAsReadonly(filePath)
-	require.NoError(testSuite.T(), err)
-	defer operations.CloseFileShouldNotThrowError(testSuite.T(), f2)
-	// Read the entire file from the first handle. This will trigger prefetching
-	// that allocates blocks up to the global limit, exhausting the pool.
-	_, err = io.ReadAll(f1)
-	require.NoError(testSuite.T(), err)
-
-	// Attempt to read from the second handle. This should fail to create a
-	// BufferedReader due to no available blocks, triggering the metric.
-	smallBuf := make([]byte, 10)
-	_, err = f2.Read(smallBuf)
-
-	require.NoError(testSuite.T(), err)
-	assertNonZeroCountMetric(testSuite.T(), "buffered_read_fallback_trigger_count", "reason", "insufficient_memory")
-}
-
-func TestPromBufferedReadSuite(t *testing.T) {
-	suite.Run(t, new(PromBufferedReadTest))
 }

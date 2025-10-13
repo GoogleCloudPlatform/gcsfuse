@@ -503,14 +503,8 @@ var (
 	gcsDownloadBytesCountReadTypeParallelAttrSet                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel")))
 	gcsDownloadBytesCountReadTypeRandomAttrSet                                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random")))
 	gcsDownloadBytesCountReadTypeSequentialAttrSet                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential")))
-<<<<<<< HEAD
 	gcsReadBytesCountReaderBufferedAttrSet                                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("reader", "Buffered")))
 	gcsReadBytesCountReaderOthersAttrSet                                                = metric.WithAttributeSet(attribute.NewSet(attribute.String("reader", "Others")))
-=======
-	gcsDownloadBytesCountReadTypeBufferedAttrSet                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "buffered")))
-	gcsReadBytesCountReaderBufferedAttrSet                                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("reader", "buffered")))
-	gcsReadBytesCountReaderDefaultAttrSet                                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("reader", "default")))
->>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
 	gcsReadCountReadTypeParallelAttrSet                                                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Parallel")))
 	gcsReadCountReadTypeRandomAttrSet                                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Random")))
 	gcsReadCountReadTypeSequentialAttrSet                                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Sequential")))
@@ -563,7 +557,7 @@ var (
 )
 
 type histogramRecord struct {
-	ctx context.Context
+	ctx        context.Context
 	instrument metric.Int64Histogram
 	value      int64
 	attributes metric.RecordOption
@@ -572,11 +566,6 @@ type histogramRecord struct {
 type otelMetrics struct {
 	ch                                                                                 chan histogramRecord
 	wg                                                                                 *sync.WaitGroup
-<<<<<<< HEAD
-	bufferedReadBytesCountOperationTypeDownloadedAtomic                                *atomic.Int64
-	bufferedReadBytesCountOperationTypeReadAtomic                                      *atomic.Int64
-=======
->>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
 	bufferedReadFallbackTriggerCountReasonInsufficientMemoryAtomic                     *atomic.Int64
 	bufferedReadFallbackTriggerCountReasonRandomReadDetectedAtomic                     *atomic.Int64
 	fileCacheReadBytesCountReadTypeParallelAtomic                                      *atomic.Int64
@@ -1020,14 +1009,8 @@ type otelMetrics struct {
 	gcsDownloadBytesCountReadTypeParallelAtomic                                        *atomic.Int64
 	gcsDownloadBytesCountReadTypeRandomAtomic                                          *atomic.Int64
 	gcsDownloadBytesCountReadTypeSequentialAtomic                                      *atomic.Int64
-<<<<<<< HEAD
 	gcsReadBytesCountReaderBufferedAtomic                                              *atomic.Int64
 	gcsReadBytesCountReaderOthersAtomic                                                *atomic.Int64
-=======
-	gcsDownloadBytesCountReadTypeBufferedAtomic                                        *atomic.Int64
-	gcsReadBytesCountReaderBufferedAtomic                                              *atomic.Int64
-	gcsReadBytesCountReaderDefaultAtomic                                               *atomic.Int64
->>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
 	gcsReadCountReadTypeParallelAtomic                                                 *atomic.Int64
 	gcsReadCountReadTypeRandomAtomic                                                   *atomic.Int64
 	gcsReadCountReadTypeSequentialAtomic                                               *atomic.Int64
@@ -1065,27 +1048,6 @@ type otelMetrics struct {
 	gcsRequestLatencies                                                                metric.Int64Histogram
 }
 
-<<<<<<< HEAD
-func (o *otelMetrics) BufferedReadBytesCount(
-	inc int64, operationType string) {
-	if inc < 0 {
-		logger.Errorf("Counter metric buffered_read/bytes_count received a negative increment: %d", inc)
-		return
-	}
-	switch operationType {
-	case "downloaded":
-		o.bufferedReadBytesCountOperationTypeDownloadedAtomic.Add(inc)
-	case "read":
-		o.bufferedReadBytesCountOperationTypeReadAtomic.Add(inc)
-	default:
-		updateUnrecognizedAttribute(operationType)
-		return
-	}
-
-}
-
-=======
->>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
 func (o *otelMetrics) BufferedReadFallbackTriggerCount(
 	inc int64, reason Reason) {
 	if inc < 0 {
@@ -1104,14 +1066,15 @@ func (o *otelMetrics) BufferedReadFallbackTriggerCount(
 }
 
 func (o *otelMetrics) BufferedReadReadLatency(
-		ctx context.Context, latency time.Duration) {
+	ctx context.Context, latency time.Duration) {
 	var record histogramRecord
-		record = histogramRecord{ctx: ctx, instrument: o.bufferedReadReadLatency, value: latency.Microseconds()}
+	record = histogramRecord{ctx: ctx, instrument: o.bufferedReadReadLatency, value: latency.Microseconds()}
 
 	select {
-	  case o.ch <- record: // Do nothing
-	  default: // Unblock writes to channel if it's full.
-	}}
+	case o.ch <- record: // Do nothing
+	default: // Unblock writes to channel if it's full.
+	}
+}
 
 func (o *otelMetrics) FileCacheReadBytesCount(
 	inc int64, readType ReadType) {
@@ -1140,8 +1103,8 @@ func (o *otelMetrics) FileCacheReadCount(
 		logger.Errorf("Counter metric file_cache/read_count received a negative increment: %d", inc)
 		return
 	}
-		switch cacheHit {
-		case true:
+	switch cacheHit {
+	case true:
 		switch readType {
 		case ReadTypeParallelAttr:
 			o.fileCacheReadCountCacheHitTrueReadTypeParallelAtomic.Add(inc)
@@ -1155,7 +1118,7 @@ func (o *otelMetrics) FileCacheReadCount(
 			updateUnrecognizedAttribute(string(readType))
 			return
 		}
-		case false:
+	case false:
 		switch readType {
 		case ReadTypeParallelAttr:
 			o.fileCacheReadCountCacheHitFalseReadTypeParallelAtomic.Add(inc)
@@ -1173,19 +1136,20 @@ func (o *otelMetrics) FileCacheReadCount(
 }
 
 func (o *otelMetrics) FileCacheReadLatencies(
-		ctx context.Context, latency time.Duration, cacheHit bool) {
+	ctx context.Context, latency time.Duration, cacheHit bool) {
 	var record histogramRecord
-		switch cacheHit {
-		case true:
-		record = histogramRecord{ctx: ctx,instrument: o.fileCacheReadLatencies, value: latency.Microseconds(), attributes: fileCacheReadLatenciesCacheHitTrueAttrSet}
-		case false:
-		record = histogramRecord{ctx: ctx,instrument: o.fileCacheReadLatencies, value: latency.Microseconds(), attributes: fileCacheReadLatenciesCacheHitFalseAttrSet}
+	switch cacheHit {
+	case true:
+		record = histogramRecord{ctx: ctx, instrument: o.fileCacheReadLatencies, value: latency.Microseconds(), attributes: fileCacheReadLatenciesCacheHitTrueAttrSet}
+	case false:
+		record = histogramRecord{ctx: ctx, instrument: o.fileCacheReadLatencies, value: latency.Microseconds(), attributes: fileCacheReadLatenciesCacheHitFalseAttrSet}
 	}
 
 	select {
-	  case o.ch <- record: // Do nothing
-	  default: // Unblock writes to channel if it's full.
-	}}
+	case o.ch <- record: // Do nothing
+	default: // Unblock writes to channel if it's full.
+	}
+}
 
 func (o *otelMetrics) FsOpsCount(
 	inc int64, fsOp FsOp) {
@@ -2219,9 +2183,10 @@ func (o *otelMetrics) FsOpsLatency(
 	}
 
 	select {
-	  case o.ch <- record: // Do nothing
-	  default: // Unblock writes to channel if it's full.
-	}}
+	case o.ch <- record: // Do nothing
+	default: // Unblock writes to channel if it's full.
+	}
+}
 
 func (o *otelMetrics) GcsDownloadBytesCount(
 	inc int64, readType ReadType) {
@@ -2238,8 +2203,6 @@ func (o *otelMetrics) GcsDownloadBytesCount(
 		o.gcsDownloadBytesCountReadTypeRandomAtomic.Add(inc)
 	case ReadTypeSequentialAttr:
 		o.gcsDownloadBytesCountReadTypeSequentialAtomic.Add(inc)
-	case "buffered":
-		o.gcsDownloadBytesCountReadTypeBufferedAtomic.Add(inc)
 	default:
 		updateUnrecognizedAttribute(string(readType))
 		return
@@ -2247,16 +2210,11 @@ func (o *otelMetrics) GcsDownloadBytesCount(
 }
 
 func (o *otelMetrics) GcsReadBytesCount(
-<<<<<<< HEAD
 	inc int64, reader Reader) {
-=======
-	inc int64, reader string) {
->>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
 	if inc < 0 {
 		logger.Errorf("Counter metric gcs/read_bytes_count received a negative increment: %d", inc)
 		return
 	}
-<<<<<<< HEAD
 	switch reader {
 	case ReaderBufferedAttr:
 		o.gcsReadBytesCountReaderBufferedAtomic.Add(inc)
@@ -2266,22 +2224,6 @@ func (o *otelMetrics) GcsReadBytesCount(
 		updateUnrecognizedAttribute(string(reader))
 		return
 	}
-=======
-<<<<<<< HEAD
-	o.gcsReadBytesCountAtomic.Add(inc)
-=======
-	switch reader {
-	case "buffered":
-		o.gcsReadBytesCountReaderBufferedAtomic.Add(inc)
-		case "Default":
-		o.gcsReadBytesCountReaderDefaultAtomic.Add(inc)
-		default:
-			updateUnrecognizedAttribute(reader)
-			return
-	}
-
->>>>>>> f9cd706d8 (Use gcs metric for read and download bytes)
->>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
 }
 
 func (o *otelMetrics) GcsReadCount(
@@ -2423,9 +2365,10 @@ func (o *otelMetrics) GcsRequestLatencies(
 	}
 
 	select {
-	  case o.ch <- record: // Do nothing
-	  default: // Unblock writes to channel if it's full.
-	}}
+	case o.ch <- record: // Do nothing
+	default: // Unblock writes to channel if it's full.
+	}
+}
 
 func (o *otelMetrics) GcsRetryCount(
 	inc int64, retryErrorCategory RetryErrorCategory) {
@@ -2445,8 +2388,8 @@ func (o *otelMetrics) GcsRetryCount(
 }
 
 func (o *otelMetrics) TestUpdownCounter(
-		inc int64) {
-		o.testUpdownCounterAtomic.Add(inc)
+	inc int64) {
+	o.testUpdownCounterAtomic.Add(inc)
 }
 
 func (o *otelMetrics) TestUpdownCounterWithAttrs(
@@ -2461,7 +2404,6 @@ func (o *otelMetrics) TestUpdownCounterWithAttrs(
 		return
 	}
 }
-
 
 func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetrics, error) {
 	ch := make(chan histogramRecord, bufferSize)
@@ -2481,12 +2423,6 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		}()
 	}
 	meter := otel.Meter("gcsfuse")
-<<<<<<< HEAD
-	var bufferedReadBytesCountOperationTypeDownloadedAtomic,
-		bufferedReadBytesCountOperationTypeReadAtomic atomic.Int64
-
-=======
->>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
 	var bufferedReadFallbackTriggerCountReasonInsufficientMemoryAtomic,
 		bufferedReadFallbackTriggerCountReasonRandomReadDetectedAtomic atomic.Int64
 
@@ -2494,7 +2430,6 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fileCacheReadBytesCountReadTypeRandomAtomic,
 		fileCacheReadBytesCountReadTypeSequentialAtomic,
 		fileCacheReadBytesCountReadTypeUnknownAtomic atomic.Int64
-
 
 	var fileCacheReadCountCacheHitTrueReadTypeParallelAtomic,
 		fileCacheReadCountCacheHitTrueReadTypeRandomAtomic,
@@ -2504,9 +2439,6 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fileCacheReadCountCacheHitFalseReadTypeRandomAtomic,
 		fileCacheReadCountCacheHitFalseReadTypeSequentialAtomic,
 		fileCacheReadCountCacheHitFalseReadTypeUnknownAtomic atomic.Int64
-
-
-
 
 	var fsOpsCountFsOpBatchForgetAtomic,
 		fsOpsCountFsOpCreateFileAtomic,
@@ -2533,7 +2465,6 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsCountFsOpSyncFileAtomic,
 		fsOpsCountFsOpUnlinkAtomic,
 		fsOpsCountFsOpWriteFileAtomic atomic.Int64
-
 
 	var fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpBatchForgetAtomic,
 		fsOpsErrorCountFsErrorCategoryDEVICEERRORFsOpCreateFileAtomic,
@@ -2939,93 +2870,63 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 	var gcsDownloadBytesCountReadTypeBufferedAtomic,
 		gcsDownloadBytesCountReadTypeParallelAtomic,
 		gcsDownloadBytesCountReadTypeRandomAtomic,
-		gcsDownloadBytesCountReadTypeSequentialAtomic,
-		gcsDownloadBytesCountReadTypeBufferedAtomic atomic.Int64
+		gcsDownloadBytesCountReadTypeSequentialAtomic atomic.Int64
 
 	var gcsReadBytesCountReaderBufferedAtomic,
-<<<<<<< HEAD
 		gcsReadBytesCountReaderOthersAtomic atomic.Int64
-=======
-		gcsReadBytesCountReaderDefaultAtomic atomic.Int64
->>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
-
 
 	var gcsReadCountReadTypeParallelAtomic,
 		gcsReadCountReadTypeRandomAtomic,
 		gcsReadCountReadTypeSequentialAtomic,
 		gcsReadCountReadTypeUnknownAtomic atomic.Int64
 
-
 	var gcsReaderCountIoMethodReadHandleAtomic,
-	gcsReaderCountIoMethodClosedAtomic,
-	gcsReaderCountIoMethodOpenedAtomic atomic.Int64
-
+		gcsReaderCountIoMethodClosedAtomic,
+		gcsReaderCountIoMethodOpenedAtomic atomic.Int64
 
 	var gcsRequestCountGcsMethodComposeObjectsAtomic,
-	gcsRequestCountGcsMethodCopyObjectAtomic,
-	gcsRequestCountGcsMethodCreateAppendableObjectWriterAtomic,
-	gcsRequestCountGcsMethodCreateFolderAtomic,
-	gcsRequestCountGcsMethodCreateObjectAtomic,
-	gcsRequestCountGcsMethodCreateObjectChunkWriterAtomic,
-	gcsRequestCountGcsMethodDeleteFolderAtomic,
-	gcsRequestCountGcsMethodDeleteObjectAtomic,
-	gcsRequestCountGcsMethodFinalizeUploadAtomic,
-	gcsRequestCountGcsMethodFlushPendingWritesAtomic,
-	gcsRequestCountGcsMethodGetFolderAtomic,
-	gcsRequestCountGcsMethodListObjectsAtomic,
-	gcsRequestCountGcsMethodMoveObjectAtomic,
-	gcsRequestCountGcsMethodMultiRangeDownloaderAddAtomic,
-	gcsRequestCountGcsMethodNewMultiRangeDownloaderAtomic,
-	gcsRequestCountGcsMethodNewReaderAtomic,
-	gcsRequestCountGcsMethodRenameFolderAtomic,
-	gcsRequestCountGcsMethodStatObjectAtomic,
-	gcsRequestCountGcsMethodUpdateObjectAtomic atomic.Int64
-
-
-
+		gcsRequestCountGcsMethodCopyObjectAtomic,
+		gcsRequestCountGcsMethodCreateAppendableObjectWriterAtomic,
+		gcsRequestCountGcsMethodCreateFolderAtomic,
+		gcsRequestCountGcsMethodCreateObjectAtomic,
+		gcsRequestCountGcsMethodCreateObjectChunkWriterAtomic,
+		gcsRequestCountGcsMethodDeleteFolderAtomic,
+		gcsRequestCountGcsMethodDeleteObjectAtomic,
+		gcsRequestCountGcsMethodFinalizeUploadAtomic,
+		gcsRequestCountGcsMethodFlushPendingWritesAtomic,
+		gcsRequestCountGcsMethodGetFolderAtomic,
+		gcsRequestCountGcsMethodListObjectsAtomic,
+		gcsRequestCountGcsMethodMoveObjectAtomic,
+		gcsRequestCountGcsMethodMultiRangeDownloaderAddAtomic,
+		gcsRequestCountGcsMethodNewMultiRangeDownloaderAtomic,
+		gcsRequestCountGcsMethodNewReaderAtomic,
+		gcsRequestCountGcsMethodRenameFolderAtomic,
+		gcsRequestCountGcsMethodStatObjectAtomic,
+		gcsRequestCountGcsMethodUpdateObjectAtomic atomic.Int64
 
 	var gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic,
-	gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic atomic.Int64
-
+		gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic atomic.Int64
 
 	var testUpdownCounterAtomic atomic.Int64
 
-
 	var testUpdownCounterWithAttrsRequestTypeAttr1Atomic,
-	testUpdownCounterWithAttrsRequestTypeAttr2Atomic atomic.Int64
+		testUpdownCounterWithAttrsRequestTypeAttr2Atomic atomic.Int64
 
-<<<<<<< HEAD
-	bufferedReadDownloadBlockLatency, err0 := meter.Int64Histogram("buffered_read/download_block_latency",
-		metric.WithDescription("The cumulative distribution of block download latencies, along with status: successful, cancelled, or failed."),
-		metric.WithUnit("us"),
-		metric.WithExplicitBucketBoundaries(1, 2, 3, 4, 5, 6, 8, 10, 13, 16, 20, 25, 30, 40, 50, 65, 80, 100, 130, 160, 200, 250, 300, 400, 500, 650, 800, 1000, 2000, 5000, 10000, 20000, 50000, 100000))
-
-	_, err1 := meter.Int64ObservableCounter("buffered_read/fallback_trigger_count",
-=======
 	_, err0 := meter.Int64ObservableCounter("buffered_read/fallback_trigger_count",
->>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
 		metric.WithDescription("The cumulative number of times the BufferedReader falls back to a different reader, along with the reason: random_read_detected or insufficient_memory."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
-			conditionallyObserve(obsrv, &bufferedReadFallbackTriggerCountFallbackReasonInsufficientMemoryAtomic, bufferedReadFallbackTriggerCountFallbackReasonInsufficientMemoryAttrSet)
-			conditionallyObserve(obsrv, &bufferedReadFallbackTriggerCountFallbackReasonRandomReadDetectedAtomic, bufferedReadFallbackTriggerCountFallbackReasonRandomReadDetectedAttrSet)
+			conditionallyObserve(obsrv, &bufferedReadFallbackTriggerCountReasonInsufficientMemoryAtomic, bufferedReadFallbackTriggerCountReasonInsufficientMemoryAttrSet)
+			conditionallyObserve(obsrv, &bufferedReadFallbackTriggerCountReasonRandomReadDetectedAtomic, bufferedReadFallbackTriggerCountReasonRandomReadDetectedAttrSet)
 			return nil
 		}))
 
-<<<<<<< HEAD
-	bufferedReadReadLatency, err2 := meter.Int64Histogram("buffered_read/read_latency",
-=======
 	bufferedReadReadLatency, err1 := meter.Int64Histogram("buffered_read/read_latency",
->>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
 		metric.WithDescription("The cumulative distribution of latencies for ReadAt calls served by the buffered reader."),
 		metric.WithUnit("us"),
 		metric.WithExplicitBucketBoundaries(1, 2, 3, 4, 5, 6, 8, 10, 13, 16, 20, 25, 30, 40, 50, 65, 80, 100, 130, 160, 200, 250, 300, 400, 500, 650, 800, 1000, 2000, 5000, 10000, 20000, 50000, 100000))
 
-<<<<<<< HEAD
-	_, err3 := meter.Int64ObservableCounter("file_cache/read_bytes_count",
-=======
 	_, err2 := meter.Int64ObservableCounter("file_cache/read_bytes_count",
->>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
 		metric.WithDescription("The cumulative number of bytes read from file cache along with read type - Sequential/Random"),
 		metric.WithUnit("By"),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3036,11 +2937,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-<<<<<<< HEAD
-	_, err4 := meter.Int64ObservableCounter("file_cache/read_count",
-=======
 	_, err3 := meter.Int64ObservableCounter("file_cache/read_count",
->>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
 		metric.WithDescription("Specifies the number of read requests made via file cache along with type - Sequential/Random and cache hit - true/false"),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3055,20 +2952,12 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-<<<<<<< HEAD
-	fileCacheReadLatencies, err5 := meter.Int64Histogram("file_cache/read_latencies",
-=======
 	fileCacheReadLatencies, err4 := meter.Int64Histogram("file_cache/read_latencies",
->>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
 		metric.WithDescription("The cumulative distribution of the file cache read latencies along with cache hit - true/false."),
 		metric.WithUnit("us"),
 		metric.WithExplicitBucketBoundaries(1, 2, 3, 4, 5, 6, 8, 10, 13, 16, 20, 25, 30, 40, 50, 65, 80, 100, 130, 160, 200, 250, 300, 400, 500, 650, 800, 1000, 2000, 5000, 10000, 20000, 50000, 100000))
 
-<<<<<<< HEAD
-	_, err6 := meter.Int64ObservableCounter("fs/ops_count",
-=======
 	_, err5 := meter.Int64ObservableCounter("fs/ops_count",
->>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
 		metric.WithDescription("The cumulative number of ops processed by the file system."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3100,11 +2989,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-<<<<<<< HEAD
-	_, err7 := meter.Int64ObservableCounter("fs/ops_error_count",
-=======
 	_, err6 := meter.Int64ObservableCounter("fs/ops_error_count",
->>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
 		metric.WithDescription("The cumulative number of errors generated by file system operations."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3511,20 +3396,12 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-<<<<<<< HEAD
-	fsOpsLatency, err8 := meter.Int64Histogram("fs/ops_latency",
-=======
 	fsOpsLatency, err7 := meter.Int64Histogram("fs/ops_latency",
->>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
 		metric.WithDescription("The cumulative distribution of file system operation latencies"),
 		metric.WithUnit("us"),
 		metric.WithExplicitBucketBoundaries(1, 2, 3, 4, 5, 6, 8, 10, 13, 16, 20, 25, 30, 40, 50, 65, 80, 100, 130, 160, 200, 250, 300, 400, 500, 650, 800, 1000, 2000, 5000, 10000, 20000, 50000, 100000))
 
-<<<<<<< HEAD
-	_, err9 := meter.Int64ObservableCounter("gcs/download_bytes_count",
-=======
 	_, err8 := meter.Int64ObservableCounter("gcs/download_bytes_count",
->>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
 		metric.WithDescription("The cumulative number of bytes downloaded from GCS along with type - Sequential/Random"),
 		metric.WithUnit("By"),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3535,29 +3412,16 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-<<<<<<< HEAD
-	_, err10 := meter.Int64ObservableCounter("gcs/read_bytes_count",
-=======
 	_, err9 := meter.Int64ObservableCounter("gcs/read_bytes_count",
->>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
 		metric.WithDescription("The cumulative number of bytes read from GCS objects."),
 		metric.WithUnit("By"),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
 			conditionallyObserve(obsrv, &gcsReadBytesCountReaderBufferedAtomic, gcsReadBytesCountReaderBufferedAttrSet)
-<<<<<<< HEAD
 			conditionallyObserve(obsrv, &gcsReadBytesCountReaderOthersAtomic, gcsReadBytesCountReaderOthersAttrSet)
 			return nil
 		}))
 
-	_, err11 := meter.Int64ObservableCounter("gcs/read_count",
-=======
-			conditionallyObserve(obsrv, &gcsReadBytesCountReaderDefaultAtomic, gcsReadBytesCountReaderDefaultAttrSet)
-			return nil
-		}))
-
-
 	_, err10 := meter.Int64ObservableCounter("gcs/read_count",
->>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
 		metric.WithDescription("Specifies the number of gcs reads made along with type - Sequential/Random"),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3568,11 +3432,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-<<<<<<< HEAD
-	_, err12 := meter.Int64ObservableCounter("gcs/reader_count",
-=======
 	_, err11 := meter.Int64ObservableCounter("gcs/reader_count",
->>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
 		metric.WithDescription("The cumulative number of GCS object readers opened or closed."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3582,11 +3442,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-<<<<<<< HEAD
-	_, err13 := meter.Int64ObservableCounter("gcs/request_count",
-=======
 	_, err12 := meter.Int64ObservableCounter("gcs/request_count",
->>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
 		metric.WithDescription("The cumulative number of GCS requests processed along with the GCS method."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3612,20 +3468,12 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-<<<<<<< HEAD
-	gcsRequestLatencies, err14 := meter.Int64Histogram("gcs/request_latencies",
-=======
 	gcsRequestLatencies, err13 := meter.Int64Histogram("gcs/request_latencies",
->>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
 		metric.WithDescription("The cumulative distribution of the GCS request latencies."),
 		metric.WithUnit("ms"),
 		metric.WithExplicitBucketBoundaries(1, 2, 3, 4, 5, 6, 8, 10, 13, 16, 20, 25, 30, 40, 50, 65, 80, 100, 130, 160, 200, 250, 300, 400, 500, 650, 800, 1000, 2000, 5000, 10000, 20000, 50000, 100000))
 
-<<<<<<< HEAD
-	_, err15 := meter.Int64ObservableCounter("gcs/retry_count",
-=======
 	_, err14 := meter.Int64ObservableCounter("gcs/retry_count",
->>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
 		metric.WithDescription("The cumulative number of retry requests made to GCS."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3634,8 +3482,6 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-<<<<<<< HEAD
-=======
 	_, err15 := meter.Int64ObservableUpDownCounter("test/updown_counter",
 		metric.WithDescription("Test metric for updown counters."),
 		metric.WithUnit(""),
@@ -3643,7 +3489,6 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			observeUpDownCounter(obsrv, &testUpdownCounterAtomic)
 			return nil
 		}))
-
 
 	_, err16 := meter.Int64ObservableUpDownCounter("test/updown_counter_with_attrs",
 		metric.WithDescription("Test metric for updown counters with attributes."),
@@ -3654,24 +3499,16 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
->>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
 	errs := []error{err0, err1, err2, err3, err4, err5, err6, err7, err8, err9, err10, err11, err12, err13, err14, err15, err16}
 	if err := errors.Join(errs...); err != nil {
 		return nil, err
 	}
 
 	return &otelMetrics{
-		ch : ch,
+		ch: ch,
 		wg: &wg,
-<<<<<<< HEAD
-		bufferedReadBytesCountOperationTypeDownloadedAtomic:                                &bufferedReadBytesCountOperationTypeDownloadedAtomic,
-		bufferedReadBytesCountOperationTypeReadAtomic:                                      &bufferedReadBytesCountOperationTypeReadAtomic,
-		bufferedReadFallbackTriggerCountReasonInsufficientMemoryAtomic:                     &bufferedReadFallbackTriggerCountReasonInsufficientMemoryAtomic,
-		bufferedReadFallbackTriggerCountReasonRandomReadDetectedAtomic:                     &bufferedReadFallbackTriggerCountReasonRandomReadDetectedAtomic,
-=======
 		bufferedReadFallbackTriggerCountReasonInsufficientMemoryAtomic: &bufferedReadFallbackTriggerCountReasonInsufficientMemoryAtomic,
 		bufferedReadFallbackTriggerCountReasonRandomReadDetectedAtomic: &bufferedReadFallbackTriggerCountReasonRandomReadDetectedAtomic,
->>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
 		bufferedReadReadLatency:                                                            bufferedReadReadLatency,
 		fileCacheReadBytesCountReadTypeParallelAtomic:                                      &fileCacheReadBytesCountReadTypeParallelAtomic,
 		fileCacheReadBytesCountReadTypeRandomAtomic:                                        &fileCacheReadBytesCountReadTypeRandomAtomic,
@@ -4116,14 +3953,8 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		gcsDownloadBytesCountReadTypeParallelAtomic:                &gcsDownloadBytesCountReadTypeParallelAtomic,
 		gcsDownloadBytesCountReadTypeRandomAtomic:                  &gcsDownloadBytesCountReadTypeRandomAtomic,
 		gcsDownloadBytesCountReadTypeSequentialAtomic:              &gcsDownloadBytesCountReadTypeSequentialAtomic,
-<<<<<<< HEAD
 		gcsReadBytesCountReaderBufferedAtomic:                      &gcsReadBytesCountReaderBufferedAtomic,
 		gcsReadBytesCountReaderOthersAtomic:                        &gcsReadBytesCountReaderOthersAtomic,
-=======
-		gcsDownloadBytesCountReadTypeBufferedAtomic:                &gcsDownloadBytesCountReadTypeBufferedAtomic,
-		gcsReadBytesCountReaderBufferedAtomic:                      &gcsReadBytesCountReaderBufferedAtomic,
-		gcsReadBytesCountReaderDefaultAtomic:                       &gcsReadBytesCountReaderDefaultAtomic,
->>>>>>> ea6c7dabd (Use gcs metric for read and download bytes)
 		gcsReadCountReadTypeParallelAtomic:                         &gcsReadCountReadTypeParallelAtomic,
 		gcsReadCountReadTypeRandomAtomic:                           &gcsReadCountReadTypeRandomAtomic,
 		gcsReadCountReadTypeSequentialAtomic:                       &gcsReadCountReadTypeSequentialAtomic,

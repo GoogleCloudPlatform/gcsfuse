@@ -158,10 +158,10 @@
   - attribute-name: read_type
     attribute-type: string
     values:
+    - "Buffered"
     - "Parallel"
     - "Random"
     - "Sequential"
-    - "buffered"
 
 - metric-name: "gcs/read_bytes_count"
   description: "The cumulative number of bytes read from GCS objects."
@@ -171,8 +171,8 @@
   - attribute-name: reader
     attribute-type: string
     values: &reader_types_list
-    - "default"
-    - "buffered"
+    - "Buffered"
+    - "Others"
 
 - metric-name: "gcs/read_count"
   description: "Specifies the number of gcs reads made along with type - Sequential/Random"
