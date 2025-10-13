@@ -138,12 +138,12 @@ func setupMountInstanceID() {
 		if mountInstanceID, ok = os.LookupEnv(GCSFuseMountInstanceIDEnvKey); !ok || mountInstanceID == "" {
 			Fatal("Could not retrieve %s env variable or it's empty.", GCSFuseMountInstanceIDEnvKey)
 		}
-	} else {
-		// If GCSFuse is not running in the background mode then generate a random UUID.
-		var err error
-		if mountInstanceID, err = generateMountInstanceID(mountInstanceIDLength); err != nil {
-			Fatal("Could not generate MountInstanceID of length %d, err: %v", mountInstanceIDLength, err)
-		}
+		return
+	}
+	// If GCSFuse is not running in the background mode then generate a random UUID.
+	var err error
+	if mountInstanceID, err = generateMountInstanceID(mountInstanceIDLength); err != nil {
+		Fatal("Could not generate MountInstanceID of length %d, err: %v", mountInstanceIDLength, err)
 	}
 }
 
