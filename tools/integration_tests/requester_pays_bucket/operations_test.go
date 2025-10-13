@@ -70,8 +70,9 @@ func (t *operationTests) TestDirOperations() {
 	require.NoError(t.T(), err)
 
 	// Check that the directory now exists.
-	_, err = os.Stat(mountedDirPath)
+	fi, err = os.Stat(mountedDirPath)
 	require.NoError(t.T(), err)
+	require.True(t.T(), fi.IsDir(), "%q should be a directory", mountedDirPath)
 
 	// Rename the directory.
 	renamedDirName := "dir" + setup.GenerateRandomString(5)
