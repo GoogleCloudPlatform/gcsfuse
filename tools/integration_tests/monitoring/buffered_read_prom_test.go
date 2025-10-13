@@ -77,7 +77,6 @@ func (testSuite *PromBufferedReadTest) TestRandomReadFallback() {
 	require.NoError(testSuite.T(), err)
 	defer operations.CloseFileShouldNotThrowError(testSuite.T(), f)
 	buf := make([]byte, 10)
-
 	// With random-seek-threshold: 2, the 3rd random read should trigger a fallback.
 	// First random read.
 	_, err = f.ReadAt(buf, 3*blockSize+100)
@@ -85,10 +84,11 @@ func (testSuite *PromBufferedReadTest) TestRandomReadFallback() {
 	// Second random read.
 	_, err = f.ReadAt(buf, 2*blockSize+100)
 	require.NoError(testSuite.T(), err, "ReadAt in block 2 failed")
+
 	// Third random read, which exceeds the threshold and triggers fallback.
 	_, err = f.ReadAt(buf, 1*blockSize+100)
-	require.NoError(testSuite.T(), err, "ReadAt in block 1 failed")
 
+	require.NoError(testSuite.T(), err, "ReadAt in block 1 failed")
 	assertNonZeroCountMetric(testSuite.T(), "buffered_read_fallback_trigger_count", "reason", "random_read_detected")
 }
 

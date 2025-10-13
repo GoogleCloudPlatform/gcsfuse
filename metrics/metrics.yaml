@@ -1,7 +1,7 @@
 - metric-name: "buffered_read/fallback_trigger_count"
   description: "The cumulative number of times the BufferedReader falls back to a different reader, along with the reason: random_read_detected or insufficient_memory."
   type: "int_counter"
-  attributes: &buffered_read_fallback_attributes
+  attributes:
   - attribute-name: reason
     attribute-type: string
     values:
