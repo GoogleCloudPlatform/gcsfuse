@@ -344,7 +344,7 @@ func TestReadTypeClassifier_RecordRead(t *testing.T) {
 	}
 }
 
-func TestReadTypeClassifier_SeqReadIO(t *testing.T) {
+func TestReadTypeClassifier_ComputeSeqReadIOAndAdjustType(t *testing.T) {
 	testCases := []struct {
 		name                  string
 		initialNumSeeks       uint64
@@ -357,35 +357,35 @@ func TestReadTypeClassifier_SeqReadIO(t *testing.T) {
 			initialNumSeeks:       0,
 			initialTotalReadBytes: 0,
 			sequentialReadSizeMb:  22,
-			expectedSeqIO:         22 * MiB,
+			expectedSeqIO:         22 * MB,
 		},
 		{
 			name:                  "Sequential Read, Few seeks but high average read size",
 			initialNumSeeks:       minSeeksForRandom - 1,
-			initialTotalReadBytes: 100 * MiB,
+			initialTotalReadBytes: 100 * MB,
 			sequentialReadSizeMb:  22,
-			expectedSeqIO:         22 * MiB,
+			expectedSeqIO:         22 * MB,
 		},
 		{
 			name:                  "Sequential Read, Exactly minSeeksForRandom but high average read size",
 			initialNumSeeks:       minSeeksForRandom,
-			initialTotalReadBytes: 100 * MiB,
+			initialTotalReadBytes: 100 * MB,
 			sequentialReadSizeMb:  22,
-			expectedSeqIO:         22 * MiB,
+			expectedSeqIO:         22 * MB,
 		},
 		{
 			name:                  "Sequential Read, more than minSeeksForRandom but low average read size",
 			initialNumSeeks:       3,
-			initialTotalReadBytes: 10 * MiB,
+			initialTotalReadBytes: 10 * MB,
 			sequentialReadSizeMb:  22,
-			expectedSeqIO:         4 * MiB, // Avg is 3.3MB, rounded up to 4MB.
+			expectedSeqIO:         4 * MB, // Avg is 3.3MB, rounded up to 4MB.
 		},
 		{
 			name:                  "Random Read, more than minSeeksForRandom and low average read size",
 			initialNumSeeks:       3,
-			initialTotalReadBytes: 5 * MiB,
+			initialTotalReadBytes: 5 * MB,
 			sequentialReadSizeMb:  22,
-			expectedSeqIO:         2 * MiB, // Avg is 1.66MB, rounded up to 2MB.
+			expectedSeqIO:         2 * MB, // Avg is 1.66MB, rounded up to 2MB.
 		},
 		{
 			name:                  "Random Read, more than minSeeksForRandom and very low average read size",
@@ -397,30 +397,30 @@ func TestReadTypeClassifier_SeqReadIO(t *testing.T) {
 		{
 			name:                  "Random Read, more than minSeeksForRandom and moderate average read size",
 			initialNumSeeks:       3,
-			initialTotalReadBytes: 3 * MiB,
+			initialTotalReadBytes: 3 * MB,
 			sequentialReadSizeMb:  22,
-			expectedSeqIO:         2 * MiB,
+			expectedSeqIO:         2 * MB,
 		},
 		{
 			name:                  "Random Read, more than minSeeksForRandom and high average read size",
 			initialNumSeeks:       3,
-			initialTotalReadBytes: 100 * MiB,
+			initialTotalReadBytes: 100 * MB,
 			sequentialReadSizeMb:  22,
-			expectedSeqIO:         22 * MiB, // Avg is ~33MB, more than maxReadSize so capped to 22MB.
+			expectedSeqIO:         22 * MB, // Avg is ~33MB, more than maxReadSize so capped to 22MB.
 		},
 		{
 			name:                  "Sequential read, Different sequential read size configured",
 			initialNumSeeks:       0,
 			initialTotalReadBytes: 0,
 			sequentialReadSizeMb:  10,
-			expectedSeqIO:         10 * MiB,
+			expectedSeqIO:         10 * MB,
 		},
 		{
 			name:                  "Random Read, more than minSeeksForRandom and high average read size, 10MB sequential read size",
 			initialNumSeeks:       3,
-			initialTotalReadBytes: 100 * MiB,
+			initialTotalReadBytes: 100 * MB,
 			sequentialReadSizeMb:  10,
-			expectedSeqIO:         10 * MiB,
+			expectedSeqIO:         10 * MB,
 		},
 	}
 
@@ -430,7 +430,7 @@ func TestReadTypeClassifier_SeqReadIO(t *testing.T) {
 			classifier.seeks.Store(tc.initialNumSeeks)
 			classifier.totalReadBytes.Store(tc.initialTotalReadBytes)
 
-			seqReadIO := classifier.SeqReadIO()
+			seqReadIO := classifier.ComputeSeqReadIOAndAdjustType()
 
 			assert.Equal(t, tc.expectedSeqIO, seqReadIO, "SeqIO size mismatch")
 		})

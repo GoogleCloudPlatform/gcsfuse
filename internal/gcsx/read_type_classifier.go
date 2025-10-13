@@ -74,17 +74,17 @@ func NewReadTypeClassifier(sequentialReadSizeMb int64) *ReadTypeClassifier {
 	return state
 }
 
-// RecordSeek should be called before any read operation.
-// It records a seek operation at the given offset.
-func (rpt *ReadTypeClassifier) RecordSeek(offset int64) {
-	rpt.GetReadInfo(offset, false)
+// RecordSeek checks if the read at the given offset is a seek and updates the internal state accordingly.
+// Call it before starting the read operation.
+func (rtc *ReadTypeClassifier) RecordSeek(offset int64) {
+	rtc.GetReadInfo(offset, false)
 }
 
 // RecordRead records a read operation of the given size at the given offset.
-// Call it after the read is done.
-func (rpt *ReadTypeClassifier) RecordRead(offset int64, sizeRead int64) {
-	rpt.totalReadBytes.Add(uint64(sizeRead))
-	rpt.expectedOffset.Store(offset + sizeRead)
+// This must be called before the read operation.
+func (rtc *ReadTypeClassifier) RecordRead(offset int64, sizeRead int64) {
+	rtc.totalReadBytes.Add(uint64(sizeRead))
+	rtc.expectedOffset.Store(offset + sizeRead)
 }
 
 // isSeekNeeded determines if the current read at `offset` should be considered a
@@ -116,8 +116,8 @@ func (rtc *ReadTypeClassifier) isSeekNeeded(offset int64) bool {
 // reader's internal state based on the read pattern.
 // seekRecorded parameter describes whether a seek has already been recorded for this request.
 func (rtc *ReadTypeClassifier) GetReadInfo(offset int64, seekRecorded bool) ReadInfo {
-	prreadType := rtc.readType.Load()
-	readType := prreadType
+	previousReadType := rtc.readType.Load()
+	readType := previousReadType
 
 	expOffset := rtc.expectedOffset.Load()
 	numSeeks := rtc.seeks.Load()
@@ -137,7 +137,7 @@ func (rtc *ReadTypeClassifier) GetReadInfo(offset int64, seekRecorded bool) Read
 		readType = metrics.ReadTypeSequential
 	}
 
-	if readType != prreadType {
+	if readType != previousReadType {
 		rtc.readType.Store(readType)
 	}
 
@@ -148,14 +148,14 @@ func (rtc *ReadTypeClassifier) GetReadInfo(offset int64, seekRecorded bool) Read
 	}
 }
 
-// SeqReadIO returns the read size to be used for the next read operation based on
+// ComputeSeqReadIOAndAdjustType computes the sequential IO size heuristically based on
 // the current read pattern. It also updates the readType if needed.
 // If the read pattern is classified as random, it calculates an appropriate
 // read size based on the average read size per seek, bounded by min and max read sizes.
 // If the read pattern is sequential, it returns the configured sequential read size.
-func (rpt *ReadTypeClassifier) SeqReadIO() int64 {
-	if seeks := rpt.seeks.Load(); seeks >= minSeeksForRandom {
-		averageReadBytes := avgReadBytes(rpt.totalReadBytes.Load(), seeks)
+func (rtc *ReadTypeClassifier) ComputeSeqReadIOAndAdjustType() int64 {
+	if seeks := rtc.seeks.Load(); seeks >= minSeeksForRandom {
+		averageReadBytes := avgReadBytes(rtc.totalReadBytes.Load(), seeks)
 		if averageReadBytes < maxReadSize {
 			randomReadSize := int64(((averageReadBytes / MB) + 1) * MB)
 			if randomReadSize < minReadSize {
@@ -164,17 +164,17 @@ func (rpt *ReadTypeClassifier) SeqReadIO() int64 {
 			if randomReadSize > maxReadSize {
 				randomReadSize = maxReadSize
 			}
-			rpt.readType.Store(metrics.ReadTypeRandom)
+			rtc.readType.Store(metrics.ReadTypeRandom)
 			return randomReadSize
 		}
 	}
-	rpt.readType.Store(metrics.ReadTypeSequential)
-	return rpt.sequentialReadSizeMb * MB
+	rtc.readType.Store(metrics.ReadTypeSequential)
+	return rtc.sequentialReadSizeMb * MB
 }
 
 // IsReadSequential returns true if the current read pattern is sequential
-func (rpt *ReadTypeClassifier) IsReadSequential() bool {
-	return rpt.readType.Load() == metrics.ReadTypeSequential
+func (rtc *ReadTypeClassifier) IsReadSequential() bool {
+	return rtc.readType.Load() == metrics.ReadTypeSequential
 }
 
 // avgReadBytes calculates the average read bytes per seek.
