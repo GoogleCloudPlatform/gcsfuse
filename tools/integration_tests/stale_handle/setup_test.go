@@ -49,7 +49,7 @@ func TestMain(m *testing.M) {
 		// Populate the config manually.
 		cfg.StaleHandle = make([]test_suite.TestConfig, 1)
 		cfg.StaleHandle[0].TestBucket = setup.TestBucket()
-		cfg.StaleHandle[0].MountedDirectory = setup.MountedDirectory()
+		cfg.StaleHandle[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.StaleHandle[0].Configs = make([]test_suite.ConfigItem, 1)
 		cfg.StaleHandle[0].Configs[0].Flags = []string{
 			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false --client-protocol=grpc",
@@ -58,17 +58,9 @@ func TestMain(m *testing.M) {
 		cfg.StaleHandle[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
 
-	setup.SetBucketFromConfigFile(cfg.StaleHandle[0].TestBucket)
-	ctx = context.Background()
-	bucketType, err := setup.BucketType(ctx, cfg.StaleHandle[0].TestBucket)
-	if err != nil {
-		log.Fatalf("BucketType failed: %v", err)
-	}
-	if bucketType == setup.ZonalBucket {
-		setup.SetIsZonalBucketRun(true)
-	}
-
 	// 2. Create storage client before running tests.
+	ctx = context.Background()
+	bucketType := setup.TestEnvironment(ctx, &cfg.StaleHandle[0])
 	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
 	defer func() {
 		err := closeStorageClient()
@@ -77,22 +69,19 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	// Run tests for testBucket
-	// 3. Build the flag sets dynamically from the config.
-	flags := setup.BuildFlagSets(cfg.StaleHandle[0], bucketType)
-	flagsSet = flags
-
-	// 4. To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as StaleHandle tests validates content from the bucket.
-	// Note: These tests by default can only be run for non streaming mounts.
-	if cfg.StaleHandle[0].MountedDirectory != "" && cfg.StaleHandle[0].TestBucket != "" {
-		rootDir = setup.MountedDirectory()
-		os.Exit(setup.RunTestsForMountedDirectory(cfg.StaleHandle[0].MountedDirectory, m))
+	if cfg.StaleHandle[0].GKEMountedDirectory != "" && cfg.StaleHandle[0].TestBucket != "" {
+		os.Exit(setup.RunTestsForMountedDirectory(cfg.StaleHandle[0].GKEMountedDirectory, m))
 	}
 
-	setup.SetUpTestDirForTestBucket(cfg.StaleHandle[0].TestBucket)
-	rootDir = setup.MntDir()
+	// Run tests for testBucket
+	// 4. Build the flag sets dynamically from the config.
+	flags := setup.BuildFlagSets(cfg.StaleHandle[0], bucketType)
 
+	setup.SetUpTestDirForTestBucket(&cfg.StaleHandle[0])
+
+	rootDir = setup.MntDir()
 	successCode := static_mounting.RunTestsWithConfigFile(&cfg.StaleHandle[0], flags, m)
 
 	os.Exit(successCode)
