@@ -211,13 +211,13 @@ func setRequesterPays(storageClient *storage.Client, ctx context.Context, bucket
 // MustEnableRequesterPays enables requester-pays for the given bucket and panics if it fails.
 func MustEnableRequesterPays(storageClient *storage.Client, ctx context.Context, bucketName string) {
 	if err := setRequesterPays(storageClient, ctx, bucketName, true); err != nil {
-		panic(fmt.Sprintf("failed to enable requester-pays for bucket %s: %v", bucketName, err))
+		panic(fmt.Sprintf("MustEnableRequesterPays: failed to enable requester-pays for bucket %s: %v", bucketName, err))
 	}
 }
 
 // MustDisableRequesterPays disables requester-pays for the given bucket and panics if it fails.
 func MustDisableRequesterPays(storageClient *storage.Client, ctx context.Context, bucketName string) {
 	if err := setRequesterPays(storageClient, ctx, bucketName, false); err != nil {
-		panic(fmt.Sprintf("failed to disable requester-pays for bucket %s: %v", bucketName, err))
+		panic(fmt.Sprintf("MustDisableRequesterPays: failed to disable requester-pays for bucket %s: %v", bucketName, err))
 	}
 }
