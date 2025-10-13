@@ -87,12 +87,6 @@ func initializeCacheHandlerTestArgs(t *testing.T, fileCacheConfig *cfg.FileCache
 	jobManager := downloader.NewJobManager(cache, util.DefaultFilePerm,
 		util.DefaultDirPerm, cacheDir, DefaultSequentialReadSizeMb, fileCacheConfig, metrics.NewNoopMetrics())
 
-	// Only added for code coverage (not used in real tests) Mocked cached handler object (invalid include regex).
-	NewCacheHandler(cache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, fileCacheConfig.ExcludeRegex, fileCacheConfig.IncludeRegex+"[")
-
-	// Only added for code coverage (not used in real tests) Mocked cached handler object (invalid exclude regex).
-	NewCacheHandler(cache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, fileCacheConfig.ExcludeRegex+"[", fileCacheConfig.IncludeRegex)
-
 	// Mocked cached handler object.
 	cacheHandler := NewCacheHandler(cache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, fileCacheConfig.ExcludeRegex, fileCacheConfig.IncludeRegex)
 
@@ -598,6 +592,20 @@ func Test_GetCacheHandle_IncludeAndExclude(t *testing.T) {
 	// Check cache handle is not created for excluded file even if it matches include pattern.
 	chTestArgs.object.Name = "some_file_internal.txt"
 	cacheHandle, err = chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
+	assert.True(t, errors.Is(err, util.ErrFileExcludedFromCacheByRegex))
+	assert.Nil(t, cacheHandle)
+}
+
+func Test_GetCacheHandle_SameIncludeAndExcludeRegex(t *testing.T) {
+	regex := ".*\\.txt"
+	cacheDir := path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir")
+	chTestArgs := initializeCacheHandlerTestArgs(t, &cfg.FileCacheConfig{EnableCrc: true, IncludeRegex: regex, ExcludeRegex: regex}, cacheDir)
+
+	// Check cache handle is not created for a file that matches both include and
+	// exclude regex, as exclude takes precedence.
+	chTestArgs.object.Name = "some_file.txt"
+	cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
+
 	assert.True(t, errors.Is(err, util.ErrFileExcludedFromCacheByRegex))
 	assert.Nil(t, cacheHandle)
 }

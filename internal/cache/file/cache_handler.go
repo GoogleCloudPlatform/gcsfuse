@@ -82,7 +82,6 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 
 func compileRegex(regexString string) *regexp.Regexp {
 	var compiledRegex *regexp.Regexp
-	compiledRegex = nil
 
 	if regexString != "" {
 		var err error
