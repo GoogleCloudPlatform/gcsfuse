@@ -108,3 +108,5 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20250818200422-3122310a409c // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250818200422-3122310a409c // indirect
 )
+
+replace cloud.google.com/go/storage v1.56.2 => github.com/tritone/google-cloud-go/storage v1.9.1-0.20251013062443-89d16c915db2
