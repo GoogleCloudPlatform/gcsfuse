@@ -639,7 +639,7 @@ func TestOpenFile_Metrics(t *testing.T) {
 	err = server.OpenFile(ctx, op)
 	waitForMetricsProcessing()
 
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "OpenFile"))
 	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
 	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
