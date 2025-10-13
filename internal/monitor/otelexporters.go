@@ -44,16 +44,15 @@ var allowedMetricPrefixes = []string{"fs/", "gcs/", "file_cache/", "buffered_rea
 
 // SetupOTelMetricExporters sets up the metrics exporters
 func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config) (shutdownFn common.ShutdownFn) {
-	shutdownFns := make([]common.ShutdownFn, 0)
+	var shutdownFns []common.ShutdownFn
 	options := make([]metric.Option, 0)
 
-	opts, shutdownFn := setupPrometheus(c.Metrics.PrometheusPort)
+	opts, promShutdownFn := setupPrometheus(c.Metrics.PrometheusPort)
 	options = append(options, opts...)
-	shutdownFns = append(shutdownFns, shutdownFn)
+	shutdownFns = append(shutdownFns, promShutdownFn)
 
-	opts, shutdownFn = setupCloudMonitoring(c.Metrics.CloudMetricsExportIntervalSecs)
+	opts, cmShutdownFn := setupCloudMonitoring(c.Metrics.CloudMetricsExportIntervalSecs)
 	options = append(options, opts...)
-	shutdownFns = append(shutdownFns, shutdownFn)
 
 	res, err := getResource(ctx)
 	if err != nil {
@@ -65,9 +64,10 @@ func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config) (shutdownFn co
 	options = append(options, metric.WithView(dropDisallowedMetricsView), metric.WithExemplarFilter(exemplar.AlwaysOffFilter))
 
 	meterProvider := metric.NewMeterProvider(options...)
-	shutdownFns = append(shutdownFns, meterProvider.Shutdown)
 
 	otel.SetMeterProvider(meterProvider)
+
+	shutdownFns = append(shutdownFns, meterProvider.Shutdown, cmShutdownFn)
 
 	return common.JoinShutdownFunc(shutdownFns...)
 }
@@ -103,7 +103,7 @@ func setupCloudMonitoring(secs int64) ([]metric.Option, common.ShutdownFn) {
 	}
 
 	r := metric.NewPeriodicReader(exporter, metric.WithInterval(time.Duration(secs)*time.Second))
-	return []metric.Option{metric.WithReader(r)}, r.Shutdown
+	return []metric.Option{metric.WithReader(r)}, nil
 }
 
 func metricFormatter(m metricdata.Metrics) string {
