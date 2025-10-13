@@ -306,6 +306,8 @@ TEST_DIR_PARALLEL=(
   "readdirplus"
   "dentry_cache"
   "buffered_read"
+  # Disabled because of b/451462914.
+  #"requester_pays_bucket"
 )
 
 # These tests never become parallel as they are changing bucket permissions.
