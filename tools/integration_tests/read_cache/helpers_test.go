@@ -263,6 +263,13 @@ func setupFileInTestDir(ctx context.Context, storageClient *storage.Client, file
 	return testFileName
 }
 
+func setupExcludeFileInTestDir(ctx context.Context, storageClient *storage.Client, fileSize int64, t *testing.T) (fileName string) {
+	testFileName := testExcludeFileName + setup.GenerateRandomString(testFileNameSuffixLength)
+	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, testFileName, fileSize, t)
+
+	return testFileName
+}
+
 func runTestsOnlyForDynamicMount(t *testing.T) {
 	if !strings.Contains(setup.MntDir(), setup.TestBucket()) {
 		log.Println("This test will run only for dynamic mounting...")

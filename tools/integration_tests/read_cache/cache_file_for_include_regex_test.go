@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log"
 	"path"
+	"strings"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -26,7 +27,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/stretchr/testify/suite"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -36,130 +36,153 @@ import (
 type cacheFileForIncludeRegexTest struct {
 	flags         []string
 	storageClient *storage.Client
-	//cacheEnable=true indicates test rely on file is included in cache
-	//cacheEnable=false indicates test rely on file is NOT included in cache
-	cacheEnable bool
-	ctx         context.Context
-	suite.Suite
-}
-
-func (s *cacheFileForIncludeRegexTest) SetupTest() {
-	setupForMountedDirectoryTests()
-	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
-	operations.RemoveDir(cacheDirPath)
-	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
-}
-
-func (s *cacheFileForIncludeRegexTest) TearDownTest() {
-	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
-	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
+	ctx           context.Context
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *cacheFileForIncludeRegexTest) TestReadsForIncludedFile() {
-	if !s.cacheEnable {
-		return
-	}
-
-	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSizeForRangeRead, s.T())
+func TestCacheFileForIncludeRegex_ForIncludedFile(t *testing.T) {
+	s := setupTest(t, setup.TestBucket(), "")
+	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSizeForRangeRead, t)
 
 	// Read the file and validate that it is cached.
-	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, s.T())
-	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset1000, s.T())
+	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
+	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset1000, t)
 
-	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), s.T())
-	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, s.T())
-	validate(expectedOutcome2, structuredReadLogs[1], false, true, 1, s.T())
-	validateFileIsCached(testFileName, s.T())
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
+	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, t)
+	validate(expectedOutcome2, structuredReadLogs[1], false, true, 1, t)
+	validateFileIsCached(testFileName, t)
 }
 
-func (s *cacheFileForIncludeRegexTest) TestReadsForNonIncludedFile() {
-	if s.cacheEnable {
-		return
-	}
-	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSizeForRangeRead, s.T())
+func TestCacheFileForIncludeRegex_ForNonIncludedFile(t *testing.T) {
+	s := setupTest(t, "non-matching-regex", "")
+	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSizeForRangeRead, t)
 
 	// Read the file and validate that it is not cached.
-	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, s.T())
-	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset1000, s.T())
+	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
+	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset1000, t)
 
-	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), s.T())
-	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, s.T())
-	validate(expectedOutcome2, structuredReadLogs[1], false, false, 1, s.T())
-	validateFileIsNotCached(testFileName, s.T())
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
+	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, t)
+	validate(expectedOutcome2, structuredReadLogs[1], false, false, 1, t)
+	validateFileIsNotCached(testFileName, t)
 }
 
-////////////////////////////////////////////////////////////////////////
-// Test Function (Runs once before all tests)
-////////////////////////////////////////////////////////////////////////
+func TestCacheFileForIncludeRegex_ForIncludedAndExcludeOverlap(t *testing.T) {
+	//Prioirty is given to exclude and then include when both is defined
+	s := setupTest(t, setup.TestBucket(), setup.TestBucket())
+	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSizeForRangeRead, t)
+	testFileNameExclude := setupFileInTestDir(s.ctx, s.storageClient, fileSizeForRangeRead, t)
 
-func TestCacheFileForIncludeRegexTest(t *testing.T) {
-	ts := &cacheFileForIncludeRegexTest{ctx: context.Background()}
+	// Read the file and validate that it is cached.
+	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
+	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset1000, t)
+
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
+	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, t)
+	//Include will not hit in cache due to overlapping regex matching with exclude
+	validate(expectedOutcome2, structuredReadLogs[1], false, false, 1, t)
+	validateFileIsNotCached(testFileName, t)
+
+	expectedOutcome1Exclude := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileNameExclude, zeroOffset, t)
+	expectedOutcome2Exclude := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileNameExclude, offset1000, t)
+
+	structuredReadLogsExclude := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
+	validate(expectedOutcome1Exclude, structuredReadLogsExclude[2], true, false, 1, t)
+	validate(expectedOutcome2Exclude, structuredReadLogsExclude[3], false, false, 1, t)
+	validateFileIsNotCached(testFileNameExclude, t)
+
+}
+
+func TestCacheFileForIncludeRegex_ForIncludedAndExcludeNoOverlap(t *testing.T) {
+
+	s := setupTest(t, setup.TestBucket(), setup.TestBucket()+"/.*/"+testExcludeFileName+".*")
+	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSizeForRangeRead, t)
+	testFileNameExclude := setupExcludeFileInTestDir(s.ctx, s.storageClient, fileSizeForRangeRead, t)
+
+	// Read the file and validate that it is cached.
+	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
+	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset1000, t)
+
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
+	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, t)
+	validate(expectedOutcome2, structuredReadLogs[1], false, true, 1, t)
+	validateFileIsCached(testFileName, t)
+
+	expectedOutcome1Exclude := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileNameExclude, zeroOffset, t)
+	expectedOutcome2Exclude := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileNameExclude, offset1000, t)
+
+	structuredReadLogsExclude := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
+	validate(expectedOutcome1Exclude, structuredReadLogsExclude[2], true, false, 1, t)
+	validate(expectedOutcome2Exclude, structuredReadLogsExclude[3], false, false, 1, t)
+	validateFileIsNotCached(testFileNameExclude, t)
+
+}
+
+func setupTest(t *testing.T, includeRegex string, excludeRegex string) *cacheFileForIncludeRegexTest {
+
+	ramCacheDir := path.Join("/dev/shm", cacheDirName)
+
+	flagTest := gcsfuseTestFlags{
+		cliFlags:              []string{},
+		cacheSize:             cacheCapacityForRangeReadTestInMiB,
+		cacheFileForRangeRead: true,
+		fileName:              configFileName,
+		cacheDirPath:          ramCacheDir,
+	}
+	if includeRegex != "" {
+		if strings.ContainsRune(includeRegex, '/') {
+			flagTest.cliFlags = append(flagTest.cliFlags, fmt.Sprintf("--file-cache-include-regex=^%s", includeRegex))
+		} else {
+			flagTest.cliFlags = append(flagTest.cliFlags, fmt.Sprintf("--file-cache-include-regex=^%s/", includeRegex))
+		}
+	}
+	if excludeRegex != "" {
+		if strings.ContainsRune(excludeRegex, '/') {
+			flagTest.cliFlags = append(flagTest.cliFlags, fmt.Sprintf("--file-cache-exclude-regex=^%s", excludeRegex))
+		} else {
+			flagTest.cliFlags = append(flagTest.cliFlags, fmt.Sprintf("--file-cache-exclude-regex=^%s/", excludeRegex))
+		}
+	}
+
+	ts := &cacheFileForIncludeRegexTest{
+		ctx:   context.Background(),
+		flags: flagTest.cliFlags,
+	}
+
 	// Create storage client before running tests.
 	closeStorageClient := client.CreateStorageClientWithCancel(&ts.ctx, &ts.storageClient)
-	defer func() {
+
+	//Add flag to mount
+	flagTest = appendClientProtocolConfigToFlagSet([]gcsfuseTestFlags{flagTest})[0]
+	configFilePath := createConfigFile(&flagTest)
+	ts.flags = []string{"--config-file=" + configFilePath}
+	if flagTest.cliFlags != nil {
+		ts.flags = append(ts.flags, flagTest.cliFlags...)
+	}
+
+	t.Cleanup(func() {
+		t.Logf("Tearing down %s", t.Name())
 		err := closeStorageClient()
 		if err != nil {
 			t.Errorf("closeStorageClient failed: %v", err)
 		}
-	}()
 
-	// Run tests for mounted directory if the flag is set.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		ts.cacheEnable = true
-		suite.Run(t, ts)
-		return
-	}
+		setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+		setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
+	})
 
-	// Run with cache directory pointing to RAM based dir
-	ramCacheDir := path.Join("/dev/shm", cacheDirName)
+	//Setup for mounted directory tests
+	setupForMountedDirectoryTests()
+	//Clean up the cache directory path as gcsfuse don't clean up on mounting.
+	operations.RemoveDir(cacheDirPath)
+	//Run with cache directory pointing to RAM based dir
+	mountGCSFuseAndSetupTestDir(ts.flags, ts.ctx, ts.storageClient)
 
-	//cacheEnable=true - Test included file is cached
-	//cacheEnable=false - Test non-included file is not cached
-	tests := []struct {
-		name        string
-		flags       gcsfuseTestFlags
-		cacheEnable bool
-	}{
-		{
-			name: "Test included file is cached",
-			flags: gcsfuseTestFlags{
-				cliFlags:              []string{fmt.Sprintf("--file-cache-include-regex=^%s/", setup.TestBucket())},
-				cacheSize:             cacheCapacityForRangeReadTestInMiB,
-				cacheFileForRangeRead: true,
-				fileName:              configFileName,
-				cacheDirPath:          ramCacheDir,
-			},
-			cacheEnable: true,
-		},
-		{
-			name: "Test non-included file is not cached",
-			flags: gcsfuseTestFlags{
-				cliFlags:              []string{"--file-cache-include-regex=non-matching-regex"},
-				cacheSize:             cacheCapacityForRangeReadTestInMiB,
-				cacheFileForRangeRead: true,
-				fileName:              configFileName,
-				cacheDirPath:          ramCacheDir,
-			},
-			cacheEnable: false,
-		},
-	}
-	for _, test := range tests {
-		ts.cacheEnable = test.cacheEnable
-		t.Run(test.name, func(t *testing.T) {
-			test.flags = appendClientProtocolConfigToFlagSet([]gcsfuseTestFlags{test.flags})[0]
-			configFilePath := createConfigFile(&test.flags)
-			ts.flags = []string{"--config-file=" + configFilePath}
-			if test.flags.cliFlags != nil {
-				ts.flags = append(ts.flags, test.flags.cliFlags...)
-			}
-			log.Printf("Running tests with flags: %s", ts.flags)
-			suite.Run(t, ts)
-		})
+	log.Printf("Running %s with flags: %+v", t.Name(), ts.flags)
 
-	}
-
+	return ts
 }
