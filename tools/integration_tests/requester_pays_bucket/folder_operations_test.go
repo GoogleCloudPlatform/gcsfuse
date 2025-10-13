@@ -15,6 +15,7 @@
 package requester_pays_bucket
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -52,6 +53,7 @@ func (t *folderOperationTests) TearDownSuite() {
 
 // Test all the folder operations in the mount.
 func (t *folderOperationTests) TestDirOperations() {
+	var fi fs.FileInfo
 	dirName := "dir" + setup.GenerateRandomString(5)
 	mountedDirPath := filepath.Join(testEnv.testDirPath, dirName)
 
@@ -78,8 +80,9 @@ func (t *folderOperationTests) TestDirOperations() {
 	_, err = os.Stat(mountedDirPath)
 	assert.Error(t.T(), err)
 	assert.True(t.T(), os.IsNotExist(err), "Old directory path should not exist after rename")
-	_, err = os.Stat(mountedRenamedDirPath)
+	fi, err = os.Stat(mountedRenamedDirPath)
 	assert.NoError(t.T(), err, "New directory path should exist after rename")
+	assert.True(t.T(), fi.IsDir(), "%q should be a directory", mountedRenamedDirPath)
 
 	// Remove the directory.
 	err = os.RemoveAll(mountedRenamedDirPath)
