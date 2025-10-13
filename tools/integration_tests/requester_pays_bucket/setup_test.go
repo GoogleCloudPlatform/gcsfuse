@@ -91,7 +91,7 @@ func TestMain(m *testing.M) {
 	}()
 
 	// Temporarily enable --requester-pays metadata flag for the test bucket.
-	testEnv.bucketName = strings.Split(setup.TestBucket(), "/")[0]
+	testEnv.bucketName = strings.Split(cfg.RequesterPaysBucket[0].TestBucket, "/")[0]
 	client.MustEnableRequesterPays(testEnv.storageClient, testEnv.ctx, testEnv.bucketName)
 	defer client.MustDisableRequesterPays(testEnv.storageClient, testEnv.ctx, testEnv.bucketName)
 
