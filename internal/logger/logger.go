@@ -22,24 +22,32 @@ import (
 	"log/syslog"
 	"os"
 	"runtime/debug"
+	"strings"
+	"sync"
 
+	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-// Syslog file contains logs from all different programmes running on the VM.
-// ProgrammeName is prefixed to all the logs written to syslog. This constant is
+// Syslog file contains logs from all different programs running on the VM.
+// ProgramName is prefixed to all the logs written to syslog. This constant is
 // used to filter the logs from syslog and write it to respective log files -
 // gcsfuse.log in case of GCSFuse.
 const (
-	ProgrammeName           string = "gcsfuse"
-	GCSFuseInBackgroundMode string = "GCSFUSE_IN_BACKGROUND_MODE"
-	textFormat              string = "text"
+	ProgramName                  = "gcsfuse"
+	GCSFuseInBackgroundMode      = "GCSFUSE_IN_BACKGROUND_MODE"
+	GCSFuseMountInstanceIDEnvKey = "GCSFUSE_MOUNT_INSTANCE_ID"
+	textFormat                   = "text"
+	// Max possible length can be 32 as UUID has 32 characters excluding 4 hyphens.
+	mountInstanceIDLength = 8
 )
 
 var (
-	defaultLoggerFactory *loggerFactory
-	defaultLogger        *slog.Logger
+	defaultLoggerFactory     *loggerFactory
+	defaultLogger            *slog.Logger
+	mountInstanceID          string
+	setupMountInstanceIDOnce sync.Once
 )
 
 // InitLogFile initializes the logger factory to create loggers that print to
@@ -80,7 +88,7 @@ func InitLogFile(newLogConfig cfg.LoggingConfig) error {
 			// Suppressing the error while creating the syslog, although logger will
 			// be initialised with stdout/err, log will be printed anywhere. Because,
 			// in this case gcsfuse will be running as daemon.
-			sysWriter, _ = syslog.New(syslog.LOG_LOCAL7|syslog.LOG_DEBUG, ProgrammeName)
+			sysWriter, _ = syslog.New(syslog.LOG_LOCAL7|syslog.LOG_DEBUG, ProgramName)
 		}
 	}
 
@@ -107,6 +115,46 @@ func init() {
 		logRotate: logConfig.LogRotate,
 	}
 	defaultLogger = defaultLoggerFactory.newLogger(cfg.INFO)
+}
+
+// generateMountInstanceID generates a random string of size from UUID.
+func generateMountInstanceID(size int) (string, error) {
+	if size <= 0 {
+		return "", fmt.Errorf("requested size for MountInstanceID must be positive, but got %d", size)
+	}
+	uuid := uuid.New()
+	uuidStr := strings.ReplaceAll(uuid.String(), "-", "")
+	if size > len(uuidStr) {
+		return "", fmt.Errorf("UUID is smaller than requested size %d for MountInstanceID, UUID: %s", size, uuidStr)
+	}
+	return uuidStr[:size], nil
+}
+
+// setupMountInstanceID handles the retrieval of mountInstanceId if GCSFuse is in
+// background mode or generates one if running in foreground mode.
+func setupMountInstanceID() {
+	if _, ok := os.LookupEnv(GCSFuseInBackgroundMode); ok {
+		// If GCSFuse is in background mode then look for the MountInstanceId in env which was set by the caller of demonize run.
+		if mountInstanceID, ok = os.LookupEnv(GCSFuseMountInstanceIDEnvKey); !ok || mountInstanceID == "" {
+			Fatal("Could not retrieve %s env variable or it's empty.", GCSFuseMountInstanceIDEnvKey)
+		}
+		return
+	}
+	// If GCSFuse is not running in the background mode then generate a random UUID.
+	var err error
+	if mountInstanceID, err = generateMountInstanceID(mountInstanceIDLength); err != nil {
+		Fatal("Could not generate MountInstanceID of length %d, err: %v", mountInstanceIDLength, err)
+	}
+}
+
+// MountInstanceID returns a unique ID for the current GCSFuse mount instance,
+// ensuring the ID is initialized only once. On the first call, it either
+// generates a random ID (foreground mode) or retrieves it from the
+// GCSFUSE_MOUNT_INSTANCE_ID environment variable (background mode).
+// Subsequent calls return the same cached ID.
+func MountInstanceID() string {
+	setupMountInstanceIDOnce.Do(setupMountInstanceID)
+	return mountInstanceID
 }
 
 // SetLogFormat updates the log format of default logger.
