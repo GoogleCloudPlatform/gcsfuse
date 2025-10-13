@@ -207,12 +207,6 @@ requester_pays_bucket:
     run_on_gke: false
     configs:
       - flags:
-          - ""
-        compatible:
-          flat: true
-          hns: true
-          zonal: false
-      - flags:
           - "--billing-project=gcs-fuse-test-ml"
         compatible:
           flat: true

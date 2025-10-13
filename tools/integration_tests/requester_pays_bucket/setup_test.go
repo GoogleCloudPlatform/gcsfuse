@@ -71,13 +71,11 @@ func TestMain(m *testing.M) {
 		cfg.RequesterPaysBucket = make([]test_suite.TestConfig, 1)
 		cfg.RequesterPaysBucket[0].TestBucket = setup.TestBucket()
 		cfg.RequesterPaysBucket[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.RequesterPaysBucket[0].Configs = make([]test_suite.ConfigItem, 2)
-		cfg.RequesterPaysBucket[0].Configs[0].Flags = []string{""}
-		cfg.RequesterPaysBucket[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": false}
-		cfg.RequesterPaysBucket[0].Configs[1].Flags = []string{
+		cfg.RequesterPaysBucket[0].Configs = make([]test_suite.ConfigItem, 1)
+		cfg.RequesterPaysBucket[0].Configs[0].Flags = []string{
 			"--billing-project=gcs-fuse-test-ml",
 		}
-		cfg.RequesterPaysBucket[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": false}
+		cfg.RequesterPaysBucket[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": false}
 	}
 
 	testEnv.ctx = context.Background()

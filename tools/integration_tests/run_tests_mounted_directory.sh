@@ -748,7 +748,6 @@ rm -rf $log_dir
 
 # Package flag_optimizations
 declare -A requester_pays_bucket_scenarios
-requester_pays_bucket_scenarios[" "]=""
 requester_pays_bucket_scenarios["--billing-project=gcs-fuse-test-ml"]=""
 for flags in "${!requester_pays_bucket_scenarios[@]}"; do
   printf "\n=============================================================\n"
