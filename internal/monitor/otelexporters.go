@@ -51,7 +51,7 @@ func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config) (shutdownFn co
 	options = append(options, opts...)
 	shutdownFns = append(shutdownFns, promShutdownFn)
 
-	opts, cmShutdownFn := setupCloudMonitoring(c.Metrics.CloudMetricsExportIntervalSecs)
+	opts = setupCloudMonitoring(c.Metrics.CloudMetricsExportIntervalSecs)
 	options = append(options, opts...)
 
 	res, err := getResource(ctx)
@@ -67,7 +67,7 @@ func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config) (shutdownFn co
 
 	otel.SetMeterProvider(meterProvider)
 
-	shutdownFns = append(shutdownFns, meterProvider.Shutdown, cmShutdownFn)
+	shutdownFns = append(shutdownFns, meterProvider.Shutdown)
 
 	return common.JoinShutdownFunc(shutdownFns...)
 }
@@ -84,9 +84,9 @@ func dropDisallowedMetricsView(i metric.Instrument) (metric.Stream, bool) {
 	return s, true
 }
 
-func setupCloudMonitoring(secs int64) ([]metric.Option, common.ShutdownFn) {
+func setupCloudMonitoring(secs int64) []metric.Option {
 	if secs <= 0 {
-		return nil, nil
+		return nil
 	}
 	options := []cloudmetric.Option{
 		cloudmetric.WithMetricDescriptorTypeFormatter(metricFormatter),
@@ -99,11 +99,11 @@ func setupCloudMonitoring(secs int64) ([]metric.Option, common.ShutdownFn) {
 	exporter, err := cloudmetric.New(options...)
 	if err != nil {
 		logger.Errorf("Error while creating Google Cloud exporter:%v", err)
-		return nil, nil
+		return nil
 	}
 
 	r := metric.NewPeriodicReader(exporter, metric.WithInterval(time.Duration(secs)*time.Second))
-	return []metric.Option{metric.WithReader(r)}, nil
+	return []metric.Option{metric.WithReader(r)}
 }
 
 func metricFormatter(m metricdata.Metrics) string {
