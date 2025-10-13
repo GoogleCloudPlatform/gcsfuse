@@ -293,7 +293,7 @@ func TestListXattr_Metrics(t *testing.T) {
 		Name:   fileName,
 	}
 	err := server.LookUpInode(ctx, lookUpOp)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	op := &fuseops.ListXattrOp{
 		Inode: lookUpOp.Entry.Child,
 	}
@@ -319,7 +319,7 @@ func TestSetXattr_Metrics(t *testing.T) {
 		Name:   fileName,
 	}
 	err := server.LookUpInode(ctx, lookUpOp)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	op := &fuseops.SetXattrOp{
 		Inode: lookUpOp.Entry.Child,
 		Name:  "user.test",
@@ -374,12 +374,12 @@ func TestFallocate_Metrics(t *testing.T) {
 		Name:   fileName,
 	}
 	err := server.LookUpInode(ctx, lookUpOp)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	openOp := &fuseops.OpenFileOp{
 		Inode: lookUpOp.Entry.Child,
 	}
 	err = server.OpenFile(ctx, openOp)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	op := &fuseops.FallocateOp{
 		Inode:  lookUpOp.Entry.Child,
 		Handle: openOp.Handle,
@@ -409,7 +409,7 @@ func TestCreateLink_Metrics(t *testing.T) {
 		Name:   fileName,
 	}
 	err := server.LookUpInode(ctx, lookUpOp)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	op := &fuseops.CreateLinkOp{
 		Parent: fuseops.RootInodeID,
 		Name:   "link",
@@ -747,7 +747,7 @@ func TestForgetInode_Metrics(t *testing.T) {
 		Name:   fileName,
 	}
 	err := server.LookUpInode(ctx, lookUpOp)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	op := &fuseops.ForgetInodeOp{
 		Inode: lookUpOp.Entry.Child,
 		N:     1,
@@ -815,7 +815,7 @@ func TestRmDir_Metrics(t *testing.T) {
 		Name:   dirName,
 	}
 	err := server.MkDir(ctx, mkDirOp)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	op := &fuseops.RmDirOp{
 		Parent: fuseops.RootInodeID,
 		Name:   dirName,
