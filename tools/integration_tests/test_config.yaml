@@ -246,13 +246,41 @@ read_cache:
           hns: true
           zonal: true
         run: TestRangeReadWithParallelDownloadsTest
-#      - flags:
-#          - "--implicit-dirs --file-cache-max-size-mb=9 --file-cache-cache-file-for-range-read=false --file-cache-enable-parallel-downloads=false --file-cache-enable-o-direct=false --cache-dir=/gcsfuse-tmp/TestLocalModificationTest --log-file=/gcsfuse-tmp/TestLocalModificationTest.log --log-severity=TRACE"
-#          - "--file-cache-max-size-mb=15 --file-cache-cache-file-for-range-read=false --file-cache-enable-parallel-downloads=true --file-cache-enable-o-direct=false --cache-dir=/gcsfuse-tmp/TestLocalModificationTest --log-file=/gcsfuse-tmp/TestLocalModificationTest.log --log-severity=TRACE"
-#          - "--implicit-dirs --file-cache-max-size-mb=9 --file-cache-cache-file-for-range-read=false --file-cache-enable-parallel-downloads=false --file-cache-enable-o-direct=false --cache-dir=/gcsfuse-tmp/TestLocalModificationTest --log-file=/gcsfuse-tmp/TestLocalModificationTest.log --log-severity=TRACE --client-protocol=grpc"
-#          - "--file-cache-max-size-mb=15 --file-cache-cache-file-for-range-read=false --file-cache-enable-parallel-downloads=true --file-cache-enable-o-direct=false --cache-dir=/gcsfuse-tmp/TestLocalModificationTest --log-file=/gcsfuse-tmp/TestLocalModificationTest.log --log-severity=TRACE --client-protocol=grpc"
-#        compatible:
-#          flat: true
-#          hns: true
-#          zonal: true
-#        run: TestLocalModificationTest
+      - flags:
+          - "--implicit-dirs --file-cache-max-size-mb=9 --file-cache-cache-file-for-range-read=false --file-cache-enable-parallel-downloads=false --file-cache-enable-o-direct=false --cache-dir=/gcsfuse-tmp/TestLocalModificationTest --log-file=/gcsfuse-tmp/TestLocalModificationTest.log --log-severity=TRACE"
+          - "--file-cache-max-size-mb=15 --file-cache-cache-file-for-range-read=false --file-cache-enable-parallel-downloads=true --file-cache-enable-o-direct=false --cache-dir=/gcsfuse-tmp/TestLocalModificationTest --log-file=/gcsfuse-tmp/TestLocalModificationTest.log --log-severity=TRACE"
+          - "--implicit-dirs --file-cache-max-size-mb=9 --file-cache-cache-file-for-range-read=false --file-cache-enable-parallel-downloads=false --file-cache-enable-o-direct=false --cache-dir=/gcsfuse-tmp/TestLocalModificationTest --log-file=/gcsfuse-tmp/TestLocalModificationTest.log --log-severity=TRACE --client-protocol=grpc"
+          - "--file-cache-max-size-mb=15 --file-cache-cache-file-for-range-read=false --file-cache-enable-parallel-downloads=true --file-cache-enable-o-direct=false --cache-dir=/gcsfuse-tmp/TestLocalModificationTest --log-file=/gcsfuse-tmp/TestLocalModificationTest.log --log-severity=TRACE --client-protocol=grpc"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: TestLocalModificationTest
+      - flags:
+          - "--implicit-dirs --stat-cache-ttl=0s --file-cache-max-size-mb=9 --file-cache-cache-file-for-range-read=false --file-cache-enable-parallel-downloads=false --file-cache-enable-o-direct=false --cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest --log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log --log-severity=TRACE"
+          - "--stat-cache-ttl=0s --file-cache-max-size-mb=15 --file-cache-cache-file-for-range-read=false --file-cache-enable-parallel-downloads=true --file-cache-enable-o-direct=false --cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest --log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log --log-severity=TRACE"
+          - "--implicit-dirs --stat-cache-ttl=0s --file-cache-max-size-mb=9 --file-cache-cache-file-for-range-read=false --file-cache-enable-parallel-downloads=false --file-cache-enable-o-direct=false --cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest --log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log --log-severity=TRACE --client-protocol=grpc"
+          - "--stat-cache-ttl=0s --file-cache-max-size-mb=15 --file-cache-cache-file-for-range-read=false --file-cache-enable-parallel-downloads=true --file-cache-enable-o-direct=false --cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest --log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log --log-severity=TRACE --client-protocol=grpc"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: TestDisabledCacheTTLTest
+      - flags:
+          - "--implicit-dirs --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --file-cache-enable-o-direct=false --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE"
+          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --file-cache-enable-o-direct=false --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE"
+          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --file-cache-enable-o-direct=false --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE"
+          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --file-cache-enable-o-direct=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE"
+          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --file-cache-enable-o-direct=true --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE"
+          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --file-cache-enable-o-direct=false --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueTest --log-file=/dev/shm/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE"
+          - "--implicit-dirs --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --file-cache-enable-o-direct=false --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE --client-protocol=grpc"
+          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --file-cache-enable-o-direct=false --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE --client-protocol=grpc"
+          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --file-cache-enable-o-direct=false --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE --client-protocol=grpc"
+          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --file-cache-enable-o-direct=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE --client-protocol=grpc"
+          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --file-cache-enable-o-direct=true --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE --client-protocol=grpc"
+          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --file-cache-enable-o-direct=false --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueTest --log-file=/dev/shm/TestCacheFileForRangeReadTrueTest.log --log-severity=TRACE --client-protocol=grpc"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: TestCacheFileForRangeReadTrueTest
