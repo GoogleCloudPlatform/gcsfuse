@@ -117,6 +117,7 @@ func TestReadTypeClassifier_IsSeekNeeded(t *testing.T) {
 	}
 }
 
+// This test also covers RecordSeek functionality.
 func TestReadTypeClassifier_GetReadInfo(t *testing.T) {
 	testCases := []struct {
 		name                  string
@@ -290,6 +291,59 @@ func TestReadTypeClassifier_GetReadInfo(t *testing.T) {
 	}
 }
 
+func TestReadTypeClassifier_RecordRead(t *testing.T) {
+	testCases := []struct {
+		name                  string
+		initialExpectedOffset int64
+		initialTotalReadBytes uint64
+		offset                int64
+		sizeRead              int64
+		expectedOffset        int64
+		expectedTotalBytes    uint64
+	}{
+		{
+			name:                  "First read",
+			initialExpectedOffset: 0,
+			initialTotalReadBytes: 0,
+			offset:                0,
+			sizeRead:              10 * MB,
+			expectedOffset:        10 * MB,
+			expectedTotalBytes:    10 * MB,
+		},
+		{
+			name:                  "Subsequent read",
+			initialExpectedOffset: 10 * MB,
+			initialTotalReadBytes: 10 * MB,
+			offset:                10 * MB,
+			sizeRead:              5 * MB,
+			expectedOffset:        15 * MB,
+			expectedTotalBytes:    15 * MB,
+		},
+		{
+			name:                  "Any random read",
+			initialExpectedOffset: 15 * MB,
+			initialTotalReadBytes: 15 * MB,
+			offset:                15 * MB,
+			sizeRead:              20 * MB,
+			expectedOffset:        35 * MB,
+			expectedTotalBytes:    35 * MB,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			classifier := NewReadTypeClassifier(sequentialReadSizeInMb)
+			classifier.expectedOffset.Store(tc.initialExpectedOffset)
+			classifier.totalReadBytes.Store(tc.initialTotalReadBytes)
+
+			classifier.RecordRead(tc.offset, tc.sizeRead)
+
+			assert.Equal(t, tc.expectedOffset, classifier.expectedOffset.Load(), "Expected offset mismatch")
+			assert.Equal(t, tc.expectedTotalBytes, classifier.totalReadBytes.Load(), "Total read bytes mismatch")
+		})
+	}
+}
+
 func TestReadTypeClassifier_SeqReadIO(t *testing.T) {
 	testCases := []struct {
 		name                  string
@@ -376,9 +430,9 @@ func TestReadTypeClassifier_SeqReadIO(t *testing.T) {
 			classifier.seeks.Store(tc.initialNumSeeks)
 			classifier.totalReadBytes.Store(tc.initialTotalReadBytes)
 
-			SeqReadIO := classifier.SeqReadIO()
+			seqReadIO := classifier.SeqReadIO()
 
-			assert.Equal(t, tc.expectedSeqIO, SeqReadIO, "SeqIO size mismatch")
+			assert.Equal(t, tc.expectedSeqIO, seqReadIO, "SeqIO size mismatch")
 		})
 	}
 }

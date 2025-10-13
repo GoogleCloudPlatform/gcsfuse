@@ -26,14 +26,16 @@ const (
 	MB = 1 << 20
 )
 
-// readInfo Stores information for this read request.
+// ReadInfo Stores information for this read request.
 type ReadInfo struct {
-	// readType stores the read type evaluated for this request.
+	// ReadType stores the read type evaluated for this request.
 	ReadType int64
-	// expectedOffset stores the expected offset for this request. Will be
-	// used to determine if re-evaluation of readType is required or not with range reader.
+
+	// ExpectedOffset stores the expected offset for this request. Will be
+	// used to determine if re-evaluation of ReadType is required or not with range reader.
 	ExpectedOffset int64
-	// seekRecorded tells whether a seek has been performed for this read request.
+
+	// SeekRecorded tells whether a seek has been performed for this read request.
 	SeekRecorded bool
 }
 
@@ -88,19 +90,22 @@ func (rpt *ReadTypeClassifier) RecordRead(offset int64, sizeRead int64) {
 // isSeekNeeded determines if the current read at `offset` should be considered a
 // seek, given the previous read pattern & the expected offset.
 func (rtc *ReadTypeClassifier) isSeekNeeded(offset int64) bool {
-	if rtc.expectedOffset.Load() == 0 {
+	expectedOffset := rtc.expectedOffset.Load()
+	readType := rtc.readType.Load()
+
+	if expectedOffset == 0 {
 		return false
 	}
 
 	// Read from unexpected offset in random read is considered a seek.
-	if rtc.readType.Load() == metrics.ReadTypeRandom {
-		return rtc.expectedOffset.Load() != offset
+	if readType == metrics.ReadTypeRandom {
+		return expectedOffset != offset
 	}
 
 	// In sequential read, read backward or too far (> maxReadSize) forward is considered a seek.
 	// This allows for some level of kernel readahead in sequential reads.
-	if rtc.readType.Load() == metrics.ReadTypeSequential {
-		return offset < rtc.expectedOffset.Load() || offset > rtc.expectedOffset.Load()+maxReadSize
+	if readType == metrics.ReadTypeSequential {
+		return offset < expectedOffset || offset > expectedOffset+maxReadSize
 	}
 
 	return false
@@ -134,8 +139,8 @@ func (rtc *ReadTypeClassifier) GetReadInfo(offset int64, seekRecorded bool) Read
 
 	if readType != prreadType {
 		rtc.readType.Store(readType)
-		logger.Tracef("Read pattern changed to %d. Average read size: %d bytes over %d seeks", readType, averageReadBytes, numSeeks)
 	}
+
 	return ReadInfo{
 		ReadType:       readType,
 		ExpectedOffset: expOffset,
@@ -153,14 +158,12 @@ func (rpt *ReadTypeClassifier) SeqReadIO() int64 {
 		averageReadBytes := avgReadBytes(rpt.totalReadBytes.Load(), seeks)
 		if averageReadBytes < maxReadSize {
 			randomReadSize := int64(((averageReadBytes / MB) + 1) * MB)
-			logger.Infof("Random read detected. Average read size: %d bytes over %d seeks. Using read size: %d bytes", averageReadBytes, seeks, randomReadSize)
 			if randomReadSize < minReadSize {
 				randomReadSize = minReadSize
 			}
 			if randomReadSize > maxReadSize {
 				randomReadSize = maxReadSize
 			}
-			logger.Infof("Random read detected. Average read size: %d bytes over %d seeks. Using read size: %d bytes", averageReadBytes, seeks, randomReadSize)
 			rpt.readType.Store(metrics.ReadTypeRandom)
 			return randomReadSize
 		}
