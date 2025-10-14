@@ -178,9 +178,17 @@ func (t *clientTest) TestCreateHttpClientWithHttpTracing() {
 	})
 }
 
-func TestGetDialerContext_nilWhenDNSCacheDisabled(t *testing.T) {
-	assert.Nil(t, getDialerContext(false))
-}
-func TestGetDialerContext_notNilWhenDNSCacheEnabled(t *testing.T) {
-	assert.NotNil(t, getDialerContext(true))
+func (t *clientTest) TestCreateHttpClientWithSocketAddress() {
+	sc := GetDefaultStorageClientConfig(keyFile)
+	sc.SocketAddress = "127.0.0.1"
+
+	httpClient, err := CreateHttpClient(&sc, nil)
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), httpClient)
+	transport, ok := httpClient.Transport.(*oauth2.Transport)
+	assert.True(t.T(), ok)
+	base, ok := transport.Base.(*http.Transport)
+	assert.True(t.T(), ok)
+	assert.NotNil(t.T(), base.DialContext)
 }

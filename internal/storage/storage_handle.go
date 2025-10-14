@@ -15,7 +15,9 @@
 package storage
 
 import (
+	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -32,7 +34,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	option "google.golang.org/api/option"
 	"google.golang.org/grpc"
@@ -120,6 +121,20 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 	// Additional client options.
 	if enableBidiConfig {
 		clientOpts = append(clientOpts, experimental.WithGRPCBidiReads())
+	}
+
+	if clientConfig.SocketAddress != "" {
+		dialer := &net.Dialer{}
+		// The port can be 0, in which case the OS will choose a local port.
+		// The format of SocketAddress is expected to be IP address.
+		localAddr, err := net.ResolveTCPAddr("tcp", clientConfig.SocketAddress+":0")
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve socket address %q: %w", clientConfig.SocketAddress, err)
+		}
+		dialer.LocalAddr = localAddr
+		clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
+			return dialer.DialContext(ctx, "tcp", addr)
+		})))
 	}
 
 	if clientConfig.TracingEnabled {

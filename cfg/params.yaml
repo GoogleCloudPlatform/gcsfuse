@@ -476,6 +476,13 @@ params:
     deprecated: true
     deprecation-warning: "Experimental flag: could be dropped even in a minor release."
 
+  - config-path: "gcs-connection.experimental-socket-address"
+    flag-name: "experimental-socket-address"
+    type: "string"
+    usage: "The socket address to bind to. This is useful in multi-NIC scenarios. This is an experimental flag."
+    default: ""
+    hide-flag: true
+
   - config-path: "gcs-connection.grpc-conn-pool-size"
     flag-name: "experimental-grpc-conn-pool-size"
     type: "int"

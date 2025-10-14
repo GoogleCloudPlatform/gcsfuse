@@ -48,6 +48,7 @@ type StorageClientConfig struct {
 	ReuseTokenFromUrl bool
 	MaxRetrySleep     time.Duration
 	RetryMultiplier   float64
+	SocketAddress     string
 
 	/** HTTP client parameters. */
 	MaxConnsPerHost            int
@@ -74,22 +75,26 @@ type StorageClientConfig struct {
 	EnableHTTPDNSCache bool
 }
 
-func getDialerContext(enableHTTPDNSCache bool) func(ctx context.Context, network, address string) (net.Conn, error) {
-	if !enableHTTPDNSCache {
-		return nil
-	}
-	dialer := net.Dialer{
-		Resolver: dns.NewCachingResolver(nil, dns.MinCacheTTL(1*time.Minute)),
-	}
-	return dialer.DialContext
-}
-
 func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.TokenSource) (httpClient *http.Client, err error) {
+	dialer := net.Dialer{}
+	if storageClientConfig.SocketAddress != "" {
+		// The port can be 0, in which case the OS will choose a local port.
+		// The format of SocketAddress is expected to be IP address.
+		localAddr, err := net.ResolveTCPAddr("tcp", storageClientConfig.SocketAddress+":0")
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve socket address %q: %w", storageClientConfig.SocketAddress, err)
+		}
+		dialer.LocalAddr = localAddr
+	}
+	if storageClientConfig.EnableHTTPDNSCache {
+		dialer.Resolver = dns.NewCachingResolver(nil, dns.MinCacheTTL(1*time.Minute))
+	}
+
 	var transport *http.Transport
 	// Using http1 makes the client more performant.
 	if storageClientConfig.ClientProtocol == cfg.HTTP1 {
 		transport = &http.Transport{
-			DialContext:         getDialerContext(storageClientConfig.EnableHTTPDNSCache),
+			DialContext:         dialer.DialContext,
 			Proxy:               http.ProxyFromEnvironment,
 			MaxConnsPerHost:     storageClientConfig.MaxConnsPerHost,
 			MaxIdleConnsPerHost: storageClientConfig.MaxIdleConnsPerHost,
@@ -101,6 +106,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 	} else {
 		// For http2, change in MaxConnsPerHost doesn't affect the performance.
 		transport = &http.Transport{
+			DialContext:       dialer.DialContext,
 			Proxy:             http.ProxyFromEnvironment,
 			DisableKeepAlives: true,
 			MaxConnsPerHost:   storageClientConfig.MaxConnsPerHost,
