@@ -71,6 +71,7 @@ func createTestFileSystemWithMetrics(ctx context.Context, t *testing.T, enableBu
 				bucketName: bucket,
 			},
 		},
+		SequentialReadSizeMb: 200,
 	}
 	server, err := fs.NewFileSystem(ctx, serverCfg)
 	require.NoError(t, err, "NewFileSystem")
@@ -617,6 +618,8 @@ func TestReadFile_Metrics(t *testing.T) {
 	assert.NoError(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "ReadFile"))
 	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	verifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", "Sequential")), int64(len(content)))
+	verifyCounterMetric(t, ctx, reader, "gcs/read_count", attribute.NewSet(attribute.String("read_type", "Sequential")), 1)
 	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
