@@ -34,7 +34,6 @@ type TestConfig struct {
 	GCSFuseMountedDirectory string
 	TestBucket              string       `yaml:"test_bucket"`
 	LogFile                 string       `yaml:"log_file,omitempty"`
-	RunOnGKE                bool         `yaml:"run_on_gke"`
 	Configs                 []ConfigItem `yaml:"configs"`
 }
 
@@ -43,6 +42,7 @@ type ConfigItem struct {
 	Flags      []string        `yaml:"flags"`
 	Compatible map[string]bool `yaml:"compatible"`
 	Run        string          `yaml:"run,omitempty"`
+	RunOnGKE   bool            `yaml:"run_on_gke"`
 }
 
 // Config holds all test configurations parsed from the YAML file.
