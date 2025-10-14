@@ -52,6 +52,7 @@ import (
 const (
 	SuccessfulMountMessage         = "File system has been successfully mounted."
 	UnsuccessfulMountMessagePrefix = "Error while mounting gcsfuse"
+	DynamicMountFSName             = "gcsfuse"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -257,6 +258,13 @@ func callListRecursive(mountPoint string) (err error) {
 
 func isDynamicMount(bucketName string) bool {
 	return bucketName == "" || bucketName == "_"
+}
+
+func fsName(bucketName string) string {
+	if isDynamicMount(bucketName) {
+		return DynamicMountFSName
+	}
+	return bucketName
 }
 
 // forwardedEnvVars collects and returns all the environment
