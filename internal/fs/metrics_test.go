@@ -38,7 +38,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
-func createTestFileSystemWithMetrics(ctx context.Context, t *testing.T) (gcs.Bucket, fuseutil.FileSystem, metrics.MetricHandle, *metric.ManualReader) {
+func createTestFileSystemWithMetrics(ctx context.Context, t *testing.T, enableBufferedRead bool) (gcs.Bucket, fuseutil.FileSystem, metrics.MetricHandle, *metric.ManualReader) {
 	t.Helper()
 	origProvider := otel.GetMeterProvider()
 	t.Cleanup(func() { otel.SetMeterProvider(origProvider) })
@@ -56,8 +56,12 @@ func createTestFileSystemWithMetrics(ctx context.Context, t *testing.T) (gcs.Buc
 				GlobalMaxBlocks: 1,
 			},
 			Read: cfg.ReadConfig{
-				GlobalMaxBlocks: 1,
+				EnableBufferedRead: enableBufferedRead,
+				GlobalMaxBlocks:    1,
+				BlockSizeMb:        1,
+				MaxBlocksPerHandle: 10,
 			},
+			EnableNewReader: enableBufferedRead,
 		},
 		MetricHandle: mh,
 		CacheClock:   &timeutil.SimulatedClock{},
@@ -178,7 +182,7 @@ func TestLookUpInode_Metrics(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t)
+			bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, false)
 			content := "test"
 			if tc.createFile {
 				createWithContents(ctx, t, bucket, tc.fileName, content)
@@ -198,4 +202,38 @@ func TestLookUpInode_Metrics(t *testing.T) {
 			verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 		})
 	}
+}
+
+func TestReadFile_BufferedReadMetrics(t *testing.T) {
+	ctx := context.Background()
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, true)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test.txt"
+	content := "test content"
+	createWithContents(ctx, t, bucket, fileName, content)
+	lookupOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookupOp)
+	require.NoError(t, err, "LookUpInode")
+	openOp := &fuseops.OpenFileOp{
+		Inode: lookupOp.Entry.Child,
+	}
+	err = server.OpenFile(ctx, openOp)
+	require.NoError(t, err, "OpenFile")
+	readOp := &fuseops.ReadFileOp{
+		Inode:  lookupOp.Entry.Child,
+		Handle: openOp.Handle,
+		Offset: 0,
+		Dst:    make([]byte, len(content)),
+	}
+
+	err = server.ReadFile(ctx, readOp)
+	waitForMetricsProcessing()
+
+	require.NoError(t, err, "ReadFile")
+	verifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeBufferedAttr))), int64(len(content)))
+	verifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count", attribute.NewSet(attribute.String("reader", string(metrics.ReaderBufferedAttr))), int64(len(content)))
+	verifyHistogramMetric(t, ctx, reader, "buffered_read/read_latency", attribute.NewSet(), uint64(1))
 }

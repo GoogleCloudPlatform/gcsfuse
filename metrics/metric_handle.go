@@ -111,10 +111,19 @@ const (
 type ReadType string
 
 const (
+	ReadTypeBufferedAttr   ReadType = "Buffered"
 	ReadTypeParallelAttr   ReadType = "Parallel"
 	ReadTypeRandomAttr     ReadType = "Random"
 	ReadTypeSequentialAttr ReadType = "Sequential"
 	ReadTypeUnknownAttr    ReadType = "Unknown"
+)
+
+// Reader is a custom type for the reader attribute.
+type Reader string
+
+const (
+	ReaderBufferedAttr Reader = "Buffered"
+	ReaderOthersAttr   Reader = "Others"
 )
 
 // Reason is a custom type for the reason attribute.
@@ -141,30 +150,15 @@ const (
 	RetryErrorCategorySTALLEDREADREQUESTAttr RetryErrorCategory = "STALLED_READ_REQUEST"
 )
 
-// Status is a custom type for the status attribute.
-type Status string
-
-const (
-	StatusCancelledAttr  Status = "cancelled"
-	StatusFailedAttr     Status = "failed"
-	StatusSuccessfulAttr Status = "successful"
-)
-
 // MetricHandle provides an interface for recording metrics.
 // The methods of this interface are auto-generated from metrics.yaml.
 // Each method corresponds to a metric defined in metrics.yaml.
 type MetricHandle interface {
-	// BufferedReadDownloadBlockLatency - The cumulative distribution of block download latencies, along with status: successful, cancelled, or failed.
-	BufferedReadDownloadBlockLatency(ctx context.Context, latency time.Duration, status Status)
-
 	// BufferedReadFallbackTriggerCount - The cumulative number of times the BufferedReader falls back to a different reader, along with the reason: random_read_detected or insufficient_memory.
 	BufferedReadFallbackTriggerCount(inc int64, reason Reason)
 
 	// BufferedReadReadLatency - The cumulative distribution of latencies for ReadAt calls served by the buffered reader.
 	BufferedReadReadLatency(ctx context.Context, latency time.Duration)
-
-	// BufferedReadScheduledBlockCount - The cumulative number of scheduled download blocks, along with their final status: successful, cancelled, or failed.
-	BufferedReadScheduledBlockCount(inc int64, status Status)
 
 	// FileCacheReadBytesCount - The cumulative number of bytes read from file cache along with read type - Sequential/Random
 	FileCacheReadBytesCount(inc int64, readType ReadType)
@@ -188,7 +182,7 @@ type MetricHandle interface {
 	GcsDownloadBytesCount(inc int64, readType ReadType)
 
 	// GcsReadBytesCount - The cumulative number of bytes read from GCS objects.
-	GcsReadBytesCount(inc int64)
+	GcsReadBytesCount(inc int64, reader Reader)
 
 	// GcsReadCount - Specifies the number of gcs reads made along with type - Sequential/Random
 	GcsReadCount(inc int64, readType ReadType)
