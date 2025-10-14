@@ -38,11 +38,15 @@ type cacheFileForRangeReadTrueTest struct {
 	storageClient *storage.Client
 	ctx           context.Context
 	baseTestName  string
+	isCacheOnRAM  bool
 	suite.Suite
 }
 
 func (s *cacheFileForRangeReadTrueTest) SetupSuite() {
 	setupLogFileAndCacheDir(s.baseTestName)
+	if s.isCacheOnRAM {
+		testEnv.cacheDirPath = "/dev/shm/" + s.baseTestName
+	}
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
 }
 
@@ -90,19 +94,28 @@ func (s *cacheFileForRangeReadTrueTest) TestRangeReadsWithCacheHit() {
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestCacheFileForRangeReadTrueTest(t *testing.T) {
-	ts := &cacheFileForRangeReadTrueTest{ctx: context.Background(), storageClient: testEnv.storageClient, baseTestName: t.Name()}
-
+func (s *cacheFileForRangeReadTrueTest) runTests(t *testing.T) {
+	t.Helper()
 	// Run tests for mounted directory if the flag is set. This assumes that run flag is properly passed by GKE team as per the config.
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
-		suite.Run(t, ts)
+		suite.Run(t, s)
 		return
 	}
 
 	// Run tests for GCE environment otherwise.
 	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
-	for _, ts.flags = range flagsSet {
-		log.Printf("Running tests with flags: %s", ts.flags)
-		suite.Run(t, ts)
+	for _, s.flags = range flagsSet {
+		log.Printf("Running tests with flags: %s", s.flags)
+		suite.Run(t, s)
 	}
+}
+
+func TestCacheFileForRangeReadTrueTest(t *testing.T) {
+	ts := &cacheFileForRangeReadTrueTest{ctx: context.Background(), storageClient: testEnv.storageClient, baseTestName: t.Name()}
+	ts.runTests(t)
+}
+
+func TestCacheFileForRangeReadTrueWithRamCache(t *testing.T) {
+	ts := &cacheFileForRangeReadTrueTest{ctx: context.Background(), storageClient: testEnv.storageClient, baseTestName: t.Name(), isCacheOnRAM: true}
+	ts.runTests(t)
 }
