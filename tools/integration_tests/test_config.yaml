@@ -381,12 +381,15 @@ read_cache:
         run: TestJobChunkTestWithParallelDownloads
         run_on_gke: true
       - flags:
-          - "--file-cache-experimental-exclude-regex=. --file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE"
-          - "--file-cache-experimental-exclude-regex=. --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE"
-          - "--file-cache-experimental-exclude-regex=^${BUCKET_NAME}/ --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE"
-          - "--file-cache-experimental-exclude-regex=. --file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE --client-protocol=grpc"
-          - "--file-cache-experimental-exclude-regex=. --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE --client-protocol=grpc"
-          - "--file-cache-experimental-exclude-regex=^${BUCKET_NAME}/ --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE --client-protocol=grpc"
+          - "--file-cache-exclude-regex=. --file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE"
+          - "--file-cache-exclude-regex=. --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE"
+          - "--file-cache-exclude-regex=^${BUCKET_NAME}/ --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE"
+          - "--file-cache-exclude-regex=. --file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE --client-protocol=grpc"
+          - "--file-cache-exclude-regex=. --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE --client-protocol=grpc"
+          - "--file-cache-exclude-regex=^${BUCKET_NAME}/ --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE --client-protocol=grpc"
+          # Exclude regex flag takes precedence over include regex flag so files won't be cached.
+          - "--file-cache-include-regex=^${BUCKET_NAME}/ --file-cache-exclude-regex=^${BUCKET_NAME}/ --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE"
+          - "--file-cache-include-regex=^${BUCKET_NAME}/ --file-cache-exclude-regex=^${BUCKET_NAME}/ --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE --client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -404,3 +407,14 @@ read_cache:
           zonal: true
         run: TestRemountTest
         run_on_gke: false
+      - flags:
+          - "--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest/foo* --file-cache-exclude-regex= --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE"
+          - "--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest/foo* --file-cache-exclude-regex= --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE --client-protocol=grpc"
+          - "--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest/foo* --file-cache-exclude-regex=invalid --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE"
+          - "--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest/foo* --file-cache-exclude-regex=invalid --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE --client-protocol=grpc"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: TestCacheFileForIncludeRegexTest
+        run_on_gke: true
