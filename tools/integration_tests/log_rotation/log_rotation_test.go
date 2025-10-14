@@ -27,12 +27,12 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 const (
 	testDirName        = "LogRotationTest"
 	logFileName        = "log.txt"
-	logDirName         = "gcsfuse_integration_test_logs"
 	maxFileSizeMB      = 2
 	activeLogFileCount = 1
 	stderrLogFileCount = 1
@@ -41,78 +41,67 @@ const (
 )
 
 var (
-	logDirPath  string
-	logFilePath string
+	logDirPath    string
+	logFilePath   string
+	storageClient *storage.Client
+	ctx           context.Context
 )
-
-func getMountConfigForLogRotation(maxFileSizeMB, backupFileCount int, compress bool, logFilePath string) map[string]interface{} {
-	yamlContent := map[string]interface{}{
-		"logging": map[string]interface{}{
-			"severity":  "TRACE",
-			"file-path": logFilePath,
-			"log-rotate": map[string]interface{}{
-				"max-file-size-mb":  maxFileSizeMB,
-				"backup-file-count": backupFileCount,
-				"compress":          compress,
-			},
-		},
-	}
-	return yamlContent
-}
-
-////////////////////////////////////////////////////////////////////////
-// TestMain
-////////////////////////////////////////////////////////////////////////
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	var storageClient *storage.Client
-	ctx := context.Background()
-	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
-	defer func() {
-		err := closeStorageClient()
-		if err != nil {
-			log.Fatalf("closeStorageClient failed: %v", err)
-		}
-	}()
-
-	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
-
-	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
-
-	logDirPath = setup.ValidateLogDirForMountedDirTests(logDirName)
-	logFilePath = path.Join(logDirPath, logFileName)
-	setup.RunTestsForMountedDirectoryFlag(m)
-
-	// Else run tests for testBucket.
-	// Set up test directory.
-	setup.SetUpTestDirForTestBucketFlag()
-
-	// Set up directory for logs.
-	logDirPath = setup.SetUpLogDirForTestDirTests(logDirName)
+	// Set up log file path.
+	logDirPath = path.Join(setup.TestDir(), testDirName)
 	logFilePath = path.Join(logDirPath, logFileName)
 	setup.SetLogFile(logFilePath)
 
-	// Set up config files.
-	// TODO: add tests for backupLogFileCount = 0.
-	configFile1 := setup.YAMLConfigFile(
-		getMountConfigForLogRotation(maxFileSizeMB, backupLogFileCount, true, logFilePath),
-		"config1.yaml")
-	configFile2 := setup.YAMLConfigFile(
-		getMountConfigForLogRotation(maxFileSizeMB, backupLogFileCount, false, logFilePath),
-		"config2.yaml")
-
-	// Set up flags to run tests on.
-	// Not setting config file explicitly with 'create-empty-file: false' as it is default.
-	flags := [][]string{
-		{"--config-file=" + configFile1},
-		{"--config-file=" + configFile2},
+	// 1. Load and parse the common configuration.
+	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
+	if len(cfg.LogRotation) == 0 {
+		log.Println("No configuration found for log rotation tests in config. Using flags instead.")
+		// Populate the config manually.
+		cfg.LogRotation = make([]test_suite.TestConfig, 1)
+		cfg.LogRotation[0].TestBucket = setup.TestBucket()
+		cfg.LogRotation[0].GKEMountedDirectory = setup.MountedDirectory()
+		cfg.LogRotation[0].LogFile = setup.LogFile()
+		cfg.LogRotation[0].Configs = make([]test_suite.ConfigItem, 1)
+		cfg.LogRotation[0].Configs[0].Flags = []string{
+			"---log-severity=TRACE --log-file=/gcsfuse-tmp/LogRotationTest/log.txt --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=false",
+			"---log-severity=TRACE --log-file=/gcsfuse-tmp/LogRotationTest/log.txt --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=true",
+		}
+		cfg.LogRotation[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
 
-	successCode := static_mounting.RunTests(flags, m)
+	ctx = context.Background()
+	bucketType := setup.TestEnvironment(ctx, &cfg.LogRotation[0])
+
+	// 2. Create storage client before running tests.
+	var err error
+	storageClient, err = client.CreateStorageClient(ctx)
+	if err != nil {
+		log.Printf("Error creating storage client: %v\n", err)
+		os.Exit(1)
+	}
+	defer storageClient.Close()
+
+	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	if cfg.LogRotation[0].GKEMountedDirectory != "" && cfg.LogRotation[0].TestBucket != "" {
+		os.Exit(setup.RunTestsForMountedDirectory(cfg.LogRotation[0].GKEMountedDirectory, m))
+	}
+
+	// Set up log file path.
+	logDirPath = path.Join(setup.TestDir(), testDirName)
+	logFilePath = path.Join(logDirPath, logFileName)
+	setup.SetLogFile(logFilePath)
+
+	// Run tests for testBucket
+	// 4. Build the flag sets dynamically from the config.
+	flags := setup.BuildFlagSets(cfg.LogRotation[0], bucketType, "")
+	setup.SetUpTestDirForTestBucket(&cfg.LogRotation[0])
+
+	successCode := static_mounting.RunTestsWithConfigFile(&cfg.LogRotation[0], flags, m)
 
 	// Clean up test directory created.
-	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
+	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), "/gcsfuse-tmp/LogRotationTest"))
 	os.Exit(successCode)
 }

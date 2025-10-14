@@ -42,6 +42,7 @@ type TestConfig struct {
 type ConfigItem struct {
 	Flags      []string        `yaml:"flags"`
 	Compatible map[string]bool `yaml:"compatible"`
+	Run        string          `yaml:"run,omitempty"`
 }
 
 // Config holds all test configurations parsed from the YAML file.

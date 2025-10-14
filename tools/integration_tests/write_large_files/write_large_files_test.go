@@ -77,7 +77,7 @@ func TestMain(m *testing.M) {
 
 	// Run tests for testBucket
 	// 4. Build the flag sets dynamically from the config.
-	flags := setup.BuildFlagSets(cfg.WriteLargeFiles[0], bucketType)
+	flags := setup.BuildFlagSets(cfg.WriteLargeFiles[0], bucketType, "")
 
 	setup.SetUpTestDirForTestBucket(&cfg.WriteLargeFiles[0])
 
