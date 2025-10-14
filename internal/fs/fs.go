@@ -2183,7 +2183,8 @@ func (fs *fileSystem) RmDir(
 	var tok string
 	for {
 		var entries []fuseutil.Dirent
-		entries, tok, err = childDir.ReadEntries(ctx, tok)
+		var unsupportedObjects []string
+		entries, tok, unsupportedObjects, err = childDir.ReadEntries(ctx, tok)
 		if err != nil {
 			err = fmt.Errorf("ReadEntries: %w", err)
 			return err
@@ -2196,7 +2197,7 @@ func (fs *fileSystem) RmDir(
 		}
 
 		// Are there any entries?
-		if len(entries) != 0 {
+		if len(entries) != 0 || len(unsupportedObjects) > 0 {
 			err = fuse.ENOTEMPTY
 			return
 		}
