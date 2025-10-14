@@ -363,3 +363,25 @@ read_cache:
           hns: true
           zonal: true
         run: TestJobChunkTestWithParallelDownloads
+      - flags:
+          - "--implicit-dirs --file-cache-experimental-exclude-regex=. --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=false --file-cache-enable-parallel-downloads=false --file-cache-enable-o-direct=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE"
+          - "--file-cache-experimental-exclude-regex=. --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --file-cache-enable-o-direct=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE"
+          - "--file-cache-experimental-exclude-regex=^${BUCKET_NAME}/ --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --file-cache-enable-o-direct=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE"
+          - "--implicit-dirs --file-cache-experimental-exclude-regex=. --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=false --file-cache-enable-parallel-downloads=false --file-cache-enable-o-direct=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE --client-protocol=grpc"
+          - "--file-cache-experimental-exclude-regex=. --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --file-cache-enable-o-direct=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE --client-protocol=grpc"
+          - "--file-cache-experimental-exclude-regex=^${BUCKET_NAME}/ --file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --file-cache-enable-o-direct=false --cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log --log-severity=TRACE --client-protocol=grpc"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: TestCacheFileForExcludeRegexTest
+      - flags:
+          - "--implicit-dirs --file-cache-max-size-mb=9 --file-cache-cache-file-for-range-read=false --file-cache-enable-parallel-downloads=false --file-cache-enable-o-direct=false --cache-dir=/gcsfuse-tmp/TestRemountTest --log-file=/gcsfuse-tmp/TestRemountTest.log --log-severity=TRACE"
+          - "--implicit-dirs --file-cache-max-size-mb=9 --file-cache-cache-file-for-range-read=false --file-cache-enable-parallel-downloads=true --file-cache-enable-o-direct=false --cache-dir=/gcsfuse-tmp/TestRemountTest --log-file=/gcsfuse-tmp/TestRemountTest.log --log-severity=TRACE"
+          - "--implicit-dirs --file-cache-max-size-mb=9 --file-cache-cache-file-for-range-read=false --file-cache-enable-parallel-downloads=false --file-cache-enable-o-direct=false --cache-dir=/gcsfuse-tmp/TestRemountTest --log-file=/gcsfuse-tmp/TestRemountTest.log --log-severity=TRACE --client-protocol=grpc"
+          - "--implicit-dirs --file-cache-max-size-mb=9 --file-cache-cache-file-for-range-read=false --file-cache-enable-parallel-downloads=true --file-cache-enable-o-direct=false --cache-dir=/gcsfuse-tmp/TestRemountTest --log-file=/gcsfuse-tmp/TestRemountTest.log --log-severity=TRACE --client-protocol=grpc"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: TestRemountTest
