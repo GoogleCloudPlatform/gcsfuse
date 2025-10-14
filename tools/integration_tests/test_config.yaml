@@ -419,3 +419,24 @@ read_cache:
           zonal: true
         run: TestCacheFileForIncludeRegexTest
         run_on_gke: true
+
+readdirplus:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    log_file: # Not Required by readdirplus tests
+    run_on_gke: false
+    configs:
+      - flags:
+          - "--implicit-dirs --experimental-enable-readdirplus --experimental-enable-dentry-cache"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: TestReaddirplusWithDentryCacheTest
+      - flags:
+          - "--implicit-dirs --experimental-enable-readdirplus"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: TestReaddirplusWithoutDentryCacheTest
