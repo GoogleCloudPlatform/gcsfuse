@@ -408,10 +408,10 @@ func (t *MainTest) TestForwardedEnvVars_Precedence() {
 
 			assert.Subset(t, forwardedEnvVars, tc.expectedForwardedEnvVars)
 			// Verify that none of the unexpected variables were forwarded.
-			for _, varName := range tc.unexpectedForwardedEnvVarNames {
-				for _, forwardedVar := range forwardedEnvVars {
-					assert.False(t, strings.HasPrefix(forwardedVar, varName+"="))
-				}
+			for _, forwardedVar := range forwardedEnvVars {
+				name, _, ok := strings.Cut(forwardedVar, "=")
+				require.True(t, ok, "Invalid env var format: %s", forwardedVar)
+				assert.NotContains(t, tc.unexpectedForwardedEnvVarNames, name, "unexpected env var %q was forwarded", name)
 			}
 		})
 	}
@@ -446,14 +446,14 @@ func (t *MainTest) TestForwardedEnvVars_PassedWhenSet() {
 			for k, v := range tc.inputEnvVars {
 				t.Setenv(k, v)
 			}
-			var expectedForwarededEnvVars []string
+			var expectedForwardedEnvVars []string
 			for k, v := range tc.inputEnvVars {
-				expectedForwarededEnvVars = append(expectedForwarededEnvVars, fmt.Sprintf("%s=%s", k, v))
+				expectedForwardedEnvVars = append(expectedForwardedEnvVars, fmt.Sprintf("%s=%s", k, v))
 			}
 
 			forwardedEnvVars := forwardedEnvVars()
 
-			assert.Subset(t, forwardedEnvVars, expectedForwarededEnvVars)
+			assert.Subset(t, forwardedEnvVars, expectedForwardedEnvVars)
 		})
 	}
 }
@@ -472,10 +472,10 @@ func (t *MainTest) TestForwardedEnvVars_NotPassedWhenUnset() {
 
 	forwardedEnvVars := forwardedEnvVars()
 
-	// Verify that none of the unexpcted/unset variables were forwarded.
-	for _, unexpectedForwardedEnvVar := range unexpectedForwardedEnvVars {
-		for _, forwardedEnvVar := range forwardedEnvVars {
-			assert.False(t.T(), strings.HasPrefix(forwardedEnvVar, unexpectedForwardedEnvVar+"="))
-		}
+	// Verify that none of the unexpected/unset variables were forwarded.
+	for _, forwardedVar := range forwardedEnvVars {
+		name, _, ok := strings.Cut(forwardedVar, "=")
+		require.True(t.T(), ok, "Invalid env var format: %s", forwardedVar)
+		assert.NotContains(t.T(), unexpectedForwardedEnvVars, name, "unexpected env var %q was forwarded", name)
 	}
 }
