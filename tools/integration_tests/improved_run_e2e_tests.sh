@@ -224,6 +224,7 @@ TEST_PACKAGES_COMMON=(
   "readdirplus"
   "dentry_cache"
   "buffered_read"
+  "flag_optimizations"
 )
 
 # Test packages for regional buckets.
