@@ -407,7 +407,7 @@ func (t *MainTest) TestForwardedEnvVars_Precedence() {
 			forwardedEnvVars := forwardedEnvVars()
 
 			assert.Subset(t, forwardedEnvVars, tc.expectedForwardedEnvVars)
-			// Verify that none of the unset variables were forwarded.
+			// Verify that none of the unexpected variables were forwarded.
 			for _, varName := range tc.unexpectedForwardedEnvVarNames {
 				for _, forwardedVar := range forwardedEnvVars {
 					assert.False(t, strings.HasPrefix(forwardedVar, varName+"="))
@@ -472,7 +472,7 @@ func (t *MainTest) TestForwardedEnvVars_NotPassedWhenUnset() {
 
 	forwardedEnvVars := forwardedEnvVars()
 
-	// Verify that none of the unset variables were forwarded.
+	// Verify that none of the unexpcted/unset variables were forwarded.
 	for _, unexpectedForwardedEnvVar := range unexpectedForwardedEnvVars {
 		for _, forwardedEnvVar := range forwardedEnvVars {
 			assert.False(t.T(), strings.HasPrefix(forwardedEnvVar, unexpectedForwardedEnvVar+"="))
