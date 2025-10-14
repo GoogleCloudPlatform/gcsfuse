@@ -420,24 +420,29 @@ func (t *MainTest) TestForwardedEnvVars_Precedence() {
 func (t *MainTest) TestForwardedEnvVars_PassedWhenSet() {
 	// These variables are only forwarded if they are set in the environment.
 	testCases := []struct {
-		name         string
-		inputEnvVars map[string]string
+		name                     string
+		inputEnvVars             map[string]string
+		expectedForwardedEnvVars []string
 	}{
 		{
-			name:         "GCE metadata env vars",
-			inputEnvVars: map[string]string{"GCE_METADATA_HOST": "www.metadata-host.com", "GCE_METADATA_ROOT": "metadata-root", "GCE_METADATA_IP": "99.100.101.102"},
+			name:                     "GCE metadata env vars",
+			inputEnvVars:             map[string]string{"GCE_METADATA_HOST": "www.metadata-host.com", "GCE_METADATA_ROOT": "metadata-root", "GCE_METADATA_IP": "99.100.101.102"},
+			expectedForwardedEnvVars: []string{"GCE_METADATA_HOST=www.metadata-host.com", "GCE_METADATA_ROOT=metadata-root", "GCE_METADATA_IP=99.100.101.102"},
 		},
 		{
-			name:         "GOOGLE_APPLICATION_CREDENTIALS",
-			inputEnvVars: map[string]string{"GOOGLE_APPLICATION_CREDENTIALS": "goog-app-cred"},
+			name:                     "GOOGLE_APPLICATION_CREDENTIALS",
+			inputEnvVars:             map[string]string{"GOOGLE_APPLICATION_CREDENTIALS": "goog-app-cred"},
+			expectedForwardedEnvVars: []string{"GOOGLE_APPLICATION_CREDENTIALS=goog-app-cred"},
 		},
 		{
-			name:         "GRPC debug env vars",
-			inputEnvVars: map[string]string{"GRPC_GO_LOG_VERBOSITY_LEVEL": "99", "GRPC_GO_LOG_SEVERITY_LEVEL": "INFO"},
+			name:                     "GRPC debug env vars",
+			inputEnvVars:             map[string]string{"GRPC_GO_LOG_VERBOSITY_LEVEL": "99", "GRPC_GO_LOG_SEVERITY_LEVEL": "INFO"},
+			expectedForwardedEnvVars: []string{"GRPC_GO_LOG_VERBOSITY_LEVEL=99", "GRPC_GO_LOG_SEVERITY_LEVEL=INFO"},
 		},
 		{
-			name:         "no_proxy",
-			inputEnvVars: map[string]string{"no_proxy": "no-proxy-123"},
+			name:                     "no_proxy",
+			inputEnvVars:             map[string]string{"no_proxy": "no-proxy-123"},
+			expectedForwardedEnvVars: []string{"no_proxy=no-proxy-123"},
 		},
 	}
 
@@ -446,14 +451,10 @@ func (t *MainTest) TestForwardedEnvVars_PassedWhenSet() {
 			for k, v := range tc.inputEnvVars {
 				t.Setenv(k, v)
 			}
-			var expectedForwardedEnvVars []string
-			for k, v := range tc.inputEnvVars {
-				expectedForwardedEnvVars = append(expectedForwardedEnvVars, fmt.Sprintf("%s=%s", k, v))
-			}
 
 			forwardedEnvVars := forwardedEnvVars()
 
-			assert.Subset(t, forwardedEnvVars, expectedForwardedEnvVars)
+			assert.Subset(t, forwardedEnvVars, tc.expectedForwardedEnvVars)
 		})
 	}
 }
