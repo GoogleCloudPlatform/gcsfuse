@@ -476,7 +476,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 
 	if shutdownFn != nil {
 		if shutdownErr := shutdownFn(ctx); shutdownErr != nil {
-			logger.Errorf("Error while shutting down trace exporter: %v", shutdownErr)
+			logger.Errorf("Error while shutting down dependencies: %v", shutdownErr)
 		}
 	}
 
