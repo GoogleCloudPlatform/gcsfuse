@@ -166,6 +166,15 @@ func validateFileIsNotCached(fileName string, t *testing.T) {
 	}
 }
 
+func validateFileIsCached(fileName string, t *testing.T) {
+	// Validate that the file is present in cache location.
+	expectedPathOfCachedFile := getCachedFilePath(fileName)
+	_, err := operations.StatFile(expectedPathOfCachedFile)
+	if err != nil {
+		t.Errorf("File %s not found in cache directory", expectedPathOfCachedFile)
+	}
+}
+
 func remountGCSFuse(flags []string) {
 	setup.SetMntDir(rootDir)
 	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
@@ -249,6 +258,13 @@ func validateCacheSizeWithinLimit(cacheCapacity int64, t *testing.T) {
 
 func setupFileInTestDir(ctx context.Context, storageClient *storage.Client, fileSize int64, t *testing.T) (fileName string) {
 	testFileName := testFileName + setup.GenerateRandomString(testFileNameSuffixLength)
+	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, testFileName, fileSize, t)
+
+	return testFileName
+}
+
+func setupExcludeFileInTestDir(ctx context.Context, storageClient *storage.Client, fileSize int64, t *testing.T) (fileName string) {
+	testFileName := testExcludeFileName + setup.GenerateRandomString(testFileNameSuffixLength)
 	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, testFileName, fileSize, t)
 
 	return testFileName

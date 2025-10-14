@@ -42,6 +42,7 @@ const (
 	fileSizeForRangeRead                   = 8 * util.MiB
 	chunksRead                             = fileSize / chunkSizeToRead
 	testFileName                           = "foo"
+	testExcludeFileName                    = "bar"
 	cacheCapacityInMB                      = 9
 	NumberOfFilesWithinCacheLimit          = (cacheCapacityInMB * util.MiB) / fileSize
 	NumberOfFilesMoreThanCacheLimit        = (cacheCapacityInMB*util.MiB)/fileSize + 1

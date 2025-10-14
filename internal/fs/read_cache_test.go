@@ -69,10 +69,10 @@ func (t *FileCacheTest) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.NewConfig = &cfg.Config{
 		FileCache: cfg.FileCacheConfig{
-			MaxSizeMb:                FileCacheSizeInMb,
-			CacheFileForRangeRead:    false,
-			EnableCrc:                true,
-			ExperimentalExcludeRegex: CacheExcludeName,
+			MaxSizeMb:             FileCacheSizeInMb,
+			CacheFileForRangeRead: false,
+			EnableCrc:             true,
+			ExcludeRegex:          CacheExcludeName,
 		},
 		CacheDir: cfg.ResolvedPath(CacheDir),
 	}

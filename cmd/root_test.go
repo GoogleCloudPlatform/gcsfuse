@@ -547,7 +547,7 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 	}{
 		{
 			name: "Test file cache flags.",
-			args: []string{"gcsfuse", "--file-cache-cache-file-for-range-read", "--file-cache-download-chunk-size-mb=20", "--file-cache-enable-crc", "--cache-dir=/some/valid/dir", "--file-cache-experimental-exclude-regex=.*", "--file-cache-enable-parallel-downloads", "--file-cache-max-parallel-downloads=40", "--file-cache-max-size-mb=100", "--file-cache-parallel-downloads-per-file=2", "--file-cache-enable-o-direct=false", "abc", "pqr"},
+			args: []string{"gcsfuse", "--file-cache-cache-file-for-range-read", "--file-cache-download-chunk-size-mb=20", "--file-cache-enable-crc", "--cache-dir=/some/valid/dir", "--file-cache-exclude-regex=.*", "--file-cache-include-regex=.*", "--file-cache-enable-parallel-downloads", "--file-cache-max-parallel-downloads=40", "--file-cache-max-size-mb=100", "--file-cache-parallel-downloads-per-file=2", "--file-cache-enable-o-direct=false", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				CacheDir: "/some/valid/dir",
 				FileCache: cfg.FileCacheConfig{
@@ -555,7 +555,8 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 					DownloadChunkSizeMb:                    20,
 					EnableCrc:                              true,
 					EnableParallelDownloads:                true,
-					ExperimentalExcludeRegex:               ".*",
+					ExcludeRegex:                           ".*",
+					IncludeRegex:                           ".*",
 					ExperimentalParallelDownloadsDefaultOn: true,
 					MaxParallelDownloads:                   40,
 					MaxSizeMb:                              100,
@@ -574,7 +575,8 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 					DownloadChunkSizeMb:                    200,
 					EnableCrc:                              false,
 					EnableParallelDownloads:                false,
-					ExperimentalExcludeRegex:               "",
+					ExcludeRegex:                           "",
+					IncludeRegex:                           "",
 					ExperimentalParallelDownloadsDefaultOn: true,
 					MaxParallelDownloads:                   int64(max(16, 2*runtime.NumCPU())),
 					MaxSizeMb:                              -1,

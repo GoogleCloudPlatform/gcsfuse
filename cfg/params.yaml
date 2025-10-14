@@ -217,8 +217,8 @@ params:
     usage: "Enable parallel downloads."
     default: false
 
-  - config-path: "file-cache.experimental-exclude-regex"
-    flag-name: "file-cache-experimental-exclude-regex"
+  - config-path: "file-cache.exclude-regex"
+    flag-name: "file-cache-exclude-regex"
     type: "string"
     usage: "Exclude file paths (in the format bucket_name/object_key) specified by this regex from file caching."
     default: ""
@@ -231,6 +231,13 @@ params:
     default: true
     hide-flag: true
 
+  - config-path: "file-cache.include-regex"
+    flag-name: "file-cache-include-regex"
+    type: "string"
+    usage: "Include file paths (in the format bucket_name/object_key) specified by this regex for file caching."
+    default: ""
+    hide-flag: true
+ 
   - config-path: "file-cache.max-parallel-downloads"
     flag-name: "file-cache-max-parallel-downloads"
     type: "int"

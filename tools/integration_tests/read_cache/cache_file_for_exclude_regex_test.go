@@ -98,7 +98,7 @@ func TestCacheFileForExcludeRegexTest(t *testing.T) {
 	}{
 		{
 			flags: gcsfuseTestFlags{
-				cliFlags:                []string{"--implicit-dirs", "--file-cache-experimental-exclude-regex=."},
+				cliFlags:                []string{"--implicit-dirs", "--file-cache-exclude-regex=."},
 				cacheSize:               cacheCapacityForRangeReadTestInMiB,
 				cacheFileForRangeRead:   false,
 				fileName:                configFileName,
@@ -109,7 +109,7 @@ func TestCacheFileForExcludeRegexTest(t *testing.T) {
 		},
 		{
 			flags: gcsfuseTestFlags{
-				cliFlags:                []string{"--file-cache-experimental-exclude-regex=."},
+				cliFlags:                []string{"--file-cache-exclude-regex=."},
 				cacheSize:               cacheCapacityForRangeReadTestInMiB,
 				cacheFileForRangeRead:   false,
 				fileName:                configFileName,
@@ -120,7 +120,7 @@ func TestCacheFileForExcludeRegexTest(t *testing.T) {
 		},
 		{
 			flags: gcsfuseTestFlags{
-				cliFlags:                []string{"--file-cache-experimental-exclude-regex=."},
+				cliFlags:                []string{"--file-cache-exclude-regex=."},
 				cacheSize:               cacheCapacityForRangeReadTestInMiB,
 				cacheFileForRangeRead:   true,
 				fileName:                configFileName,
@@ -132,7 +132,7 @@ func TestCacheFileForExcludeRegexTest(t *testing.T) {
 		{
 			flags: gcsfuseTestFlags{
 				// Exclude regex is set to bucket name as the prefix of the string, so should exclude all objects.
-				cliFlags:                []string{fmt.Sprintf("--file-cache-experimental-exclude-regex=^%s/", setup.TestBucket())},
+				cliFlags:                []string{fmt.Sprintf("--file-cache-exclude-regex=^%s/", setup.TestBucket())},
 				cacheSize:               cacheCapacityForRangeReadTestInMiB,
 				cacheFileForRangeRead:   true,
 				fileName:                configFileName,
@@ -144,7 +144,7 @@ func TestCacheFileForExcludeRegexTest(t *testing.T) {
 		{
 			flags: gcsfuseTestFlags{
 				// Exclude regex is set to the only-dir value which is not present in local paths, but should be present in all cloud paths.
-				cliFlags:                []string{fmt.Sprintf("--file-cache-experimental-exclude-regex=^%s/%s/", setup.TestBucket(), onlyDirMounted)},
+				cliFlags:                []string{fmt.Sprintf("--file-cache-exclude-regex=^%s/%s/", setup.TestBucket(), onlyDirMounted)},
 				cacheSize:               cacheCapacityForRangeReadTestInMiB,
 				cacheFileForRangeRead:   true,
 				fileName:                configFileName,
