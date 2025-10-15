@@ -284,8 +284,6 @@ func (rr *RangeReader) startRead(start int64, end int64, readType int64) error {
 	rr.limit = end
 
 	requestedDataSize := end - start
-	logger.Info("Opened reader with type: %s for object %q at range [%d, %d) with requested size %d bytes",
-		metrics.ReadTypeNames[readType], rr.object.Name, start, end, requestedDataSize)
 	metrics.CaptureGCSReadMetrics(rr.metricHandle, metrics.ReadTypeNames[readType], requestedDataSize)
 
 	return nil

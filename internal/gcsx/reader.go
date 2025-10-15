@@ -38,7 +38,7 @@ type GCSReaderRequest struct {
 	EndOffset int64
 
 	// ReadType indicates the type of read operation (e.g., sequential, random).
-	// Pass the information to range_reader.go to record the metrics.
+	// Pass the information to RangeReader to record the metrics.
 	ReadType int64
 
 	// This parameter specifies whether the reader needs to be discarded for a new reader.
