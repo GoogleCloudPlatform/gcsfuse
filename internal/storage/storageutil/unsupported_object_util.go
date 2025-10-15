@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	unsupportedObjectNameSubstrings = []string{"//"}
+	unsupportedObjectNameSubstrings = []string{"//", ".", ".."}
 	unsupportedObjectNamePrefixes   = []string{"/"}
 	unsupportedObjectNames          = []string{""}
 )
@@ -38,6 +38,7 @@ func IsUnsupportedObjectName(name string) bool {
 			return true
 		}
 	}
+
 	for _, unsupportedObjectName := range unsupportedObjectNames {
 		if name == unsupportedObjectName {
 			return true

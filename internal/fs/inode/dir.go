@@ -89,7 +89,7 @@ type DirInode interface {
 	// undefined.
 	ReadEntries(
 		ctx context.Context,
-		tok string) (entries []fuseutil.Dirent, newTok string, err error)
+		tok string) (entries []fuseutil.Dirent, unsupportedObjects []string, newTok string, err error)
 
 	// ReadEntryCores reads a batch of directory entries and returns them as a
 	// map of `inode.Core` objects along with a continuation token that can be
@@ -101,6 +101,10 @@ type DirInode interface {
 	// number of entries returned; it may be zero even with a non-empty
 	// continuation token.
 	ReadEntryCores(ctx context.Context, tok string) (cores map[Name]*Core, newTok string, err error)
+
+	// DeleteUnsupportedObjects recursively deletes the given unsupported objects
+	// and prefixes.
+	DeleteUnsupportedObjects(ctx context.Context, objectNames []string) error
 
 	// Create an empty child file with the supplied (relative) name, failing with
 	// *gcs.PreconditionError if a backing object already exists in GCS.
@@ -673,7 +677,7 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 // LOCKS_REQUIRED(d)
 func (d *dirInode) readObjects(
 	ctx context.Context,
-	tok string) (cores map[Name]*Core, newTok string, err error) {
+	tok string) (cores map[Name]*Core, unsupportedObjects []string, newTok string, err error) {
 	if d.isBucketHierarchical() {
 		d.includeFoldersAsPrefixes = true
 	}
@@ -692,7 +696,7 @@ func (d *dirInode) readObjects(
 
 	listing, err := d.bucket.ListObjects(ctx, req)
 	if err != nil {
-		err = fmt.Errorf("ListObjects: %w", err)
+		err = fmt.Errorf("readObjects: ListObjects: %w", err)
 		return
 	}
 
@@ -747,12 +751,14 @@ func (d *dirInode) readObjects(
 	}
 
 	// Add implicit directories into the result.
-	unsupportedPrefixes := []string{}
 	for _, p := range listing.CollapsedRuns {
 		pathBase := path.Base(p)
 		if storageutil.IsUnsupportedObjectName(p) {
-			unsupportedPrefixes = append(unsupportedPrefixes, p)
+			fmt.Println("Unsupported Path: ", p)
+			unsupportedObjects = append(unsupportedObjects, p)
+			continue
 		}
+
 		dirName := NewDirName(d.Name(), pathBase)
 		if d.isBucketHierarchical() {
 			folder := gcs.Folder{Name: dirName.objectName}
@@ -776,18 +782,19 @@ func (d *dirInode) readObjects(
 			cores[dirName] = implicitDir
 		}
 	}
-	if len(unsupportedPrefixes) > 0 {
-		logger.Errorf("Encountered unsupported prefixes during listing: %v", unsupportedPrefixes)
+	if len(unsupportedObjects) > 0 {
+		logger.Errorf("Encountered unsupported prefixes during listing: %v", unsupportedObjects)
 	}
+
 	return
 }
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) ReadEntries(
 	ctx context.Context,
-	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
+	tok string) (entries []fuseutil.Dirent, unsupportedObjects []string, newTok string, err error) {
 	var cores map[Name]*Core
-	cores, newTok, err = d.ReadEntryCores(ctx, tok)
+	cores, unsupportedObjects, newTok, err = d.readObjects(ctx, tok)
 	if err != nil {
 		return
 	}
@@ -813,14 +820,95 @@ func (d *dirInode) ReadEntries(
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) ReadEntryCores(ctx context.Context, tok string) (cores map[Name]*Core, newTok string, err error) {
-	cores, newTok, err = d.readObjects(ctx, tok)
+	cores, _, newTok, err = d.readObjects(ctx, tok)
 	if err != nil {
-		err = fmt.Errorf("read objects: %w", err)
+		err = fmt.Errorf("ReadEntryCores: read objects: %w", err)
 		return
 	}
 
 	d.prevDirListingTimeStamp = d.cacheClock.Now()
 	return
+}
+
+// LOCKS_REQUIRED(d)
+func (d *dirInode) DeleteUnsupportedObjects(ctx context.Context, objectNames []string) error {
+	for _, objectName := range objectNames {
+		if strings.HasSuffix(objectName, "/") {
+			// Initiate deletion for a prefix (directory). This logic handles pagination internally.
+			if err := d.deletePrefixRecursively(ctx, objectName); err != nil {
+				return fmt.Errorf("recursively deleting prefix %q: %w", objectName, err)
+			}
+		} else {
+			// Handle single file-like object deletion.
+			if err := d.deleteSingleObject(ctx, objectName); err != nil {
+				return fmt.Errorf("deleting unsupported object %q: %w", objectName, err)
+			}
+		}
+	}
+	return nil
+}
+
+// Helper to delete a single object, handling 'Not Found' errors gracefully.
+func (d *dirInode) deleteSingleObject(ctx context.Context, objectName string) error {
+	if d.isBucketHierarchical() && strings.HasSuffix(objectName, "/") {
+		if err := d.bucket.DeleteFolder(ctx, objectName); err != nil {
+			var notFoundErr *gcs.NotFoundError
+			if !errors.As(err, &notFoundErr) {
+				return err
+			}
+		}
+	} else {
+		if err := d.bucket.DeleteObject(ctx, &gcs.DeleteObjectRequest{Name: objectName}); err != nil {
+			var notFoundErr *gcs.NotFoundError
+			if !errors.As(err, &notFoundErr) {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// Core recursive function to list, delete, and handle pagination for a prefix.
+func (d *dirInode) deletePrefixRecursively(ctx context.Context, prefix string) error {
+	// Use a loop to handle pagination until all objects are listed/deleted.
+	objects, err := d.bucket.ListObjects(ctx, &gcs.ListObjectsRequest{
+		Prefix:     prefix,
+		MaxResults: MaxResultsForListObjectsCall,
+		Delimiter:  "/", // Use Delimiter to separate nested folders (CollapsedRuns)
+	})
+
+	if err != nil {
+		return fmt.Errorf("listing objects under prefix %q: %w", prefix, err)
+	}
+
+	// 1. Delete all file-like objects in the current batch
+	for _, obj := range objects.MinObjects {
+		// obj.Name is guaranteed to start with 'prefix'
+		if !strings.HasSuffix(obj.Name, "/") {
+			// It's a file, delete it.
+			if err := d.deleteSingleObject(ctx, obj.Name); err != nil {
+				return err // Propagate deletion error
+			}
+		}
+	}
+
+	// 2. Recursively call self for nested 'directories' (CollapsedRuns)
+	var nestedPrefixes []string
+	for _, nestedPrefix := range objects.CollapsedRuns {
+		// CollapsedRuns contains prefixes (directories) immediately under the current prefix.
+		// These need to be deleted recursively before we move to the next page of files.
+		nestedPrefixes = append(nestedPrefixes, nestedPrefix)
+	}
+
+	// Handle all nested prefixes before continuing to the next page of the current prefix.
+	for _, nestedPrefix := range nestedPrefixes {
+		if err := d.deletePrefixRecursively(ctx, nestedPrefix); err != nil {
+			return err // Propagate nested deletion error
+		}
+	}
+
+	return d.deleteSingleObject(ctx, prefix)
 }
 
 // LOCKS_REQUIRED(d)

@@ -182,13 +182,13 @@ func (d *baseDirInode) ReadDescendants(ctx context.Context, limit int) (map[Name
 // LOCKS_REQUIRED(d)
 func (d *baseDirInode) ReadEntries(
 	ctx context.Context,
-	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
+	tok string) (entries []fuseutil.Dirent, unsupportedObjects []string, newTok string, err error) {
 
 	// The subdirectories of the base directory should be all the accessible
 	// buckets. Although the user is allowed to visit each individual
 	// subdirectory, listing all the subdirectories (i.e. the buckets) can be
 	// very expensive and currently not supported.
-	return nil, "", syscall.ENOTSUP
+	return nil, nil, "", syscall.ENOTSUP
 }
 
 // LOCKS_REQUIRED(d)
@@ -232,6 +232,10 @@ func (d *baseDirInode) CreateChildSymlink(ctx context.Context, name string, targ
 
 func (d *baseDirInode) CreateChildDir(ctx context.Context, name string) (*Core, error) {
 	return nil, fuse.ENOSYS
+}
+
+func (d *baseDirInode) DeleteUnsupportedObjects(ctx context.Context, objectNames []string) error {
+	return fuse.ENOSYS
 }
 
 func (d *baseDirInode) DeleteChildFile(
