@@ -94,6 +94,11 @@ func setupLogFileAndCacheDir(testName string) {
 		testEnv.cacheDirPath = path.Join(GKETempDir, testName)
 		mountDir = testEnv.cfg.GKEMountedDirectory
 		logFilePath = path.Join(GKETempDir, testName) + ".log"
+		if setup.ConfigFile() == "" {
+			// TODO: clean this up when GKE test migration completes.
+			logFilePath = "/tmp/gcsfuse_read_cache_test_logs/log.json"
+			testEnv.cacheDirPath = "/tmp/cache-dir-read-cache-hns-false"
+		}
 	}
 	testEnv.cfg.LogFile = logFilePath
 	setup.SetLogFile(logFilePath)

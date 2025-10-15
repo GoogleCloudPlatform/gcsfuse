@@ -122,7 +122,7 @@ func GetStructuredLogsSortedByTimestamp(logFilePath string, t *testing.T) []*Str
 	// Open and parse log file.
 	file, err := os.Open(logFilePath)
 	if err != nil {
-		t.Errorf("Failed to open log file")
+		t.Errorf("Failed to open log file: %v", err)
 	}
 	logsMap, err := ParseReadLogsFromLogFile(file)
 	if err != nil {

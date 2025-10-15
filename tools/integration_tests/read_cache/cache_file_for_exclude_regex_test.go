@@ -73,7 +73,7 @@ func (s *cacheFileForExcludeRegexTest) TestReadsForExcludedFile() {
 	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, s.T())
 	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset1000, s.T())
 
-	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), s.T())
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
 	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, s.T())
 	validate(expectedOutcome2, structuredReadLogs[1], false, false, 1, s.T())
 	validateFileIsNotCached(testFileName, s.T())

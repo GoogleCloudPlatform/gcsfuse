@@ -102,7 +102,7 @@ func (s *cacheFileForRangeReadFalseTest) TestRangeReadsWithCacheMiss() {
 	// Read file again from offset 1000 and validate from gcs.
 	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset1000, s.T())
 
-	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), s.T())
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
 	validate(expectedOutcome1, structuredReadLogs[0], false, false, 1, s.T())
 	validate(expectedOutcome2, structuredReadLogs[1], false, false, 1, s.T())
 	validateFileIsNotCached(testFileName, s.T())
@@ -138,7 +138,7 @@ func (s *cacheFileForRangeReadFalseTest) TestReadIsTreatedNonSequentialAfterFile
 	expectedOutcome[1].EndTimeStampSeconds = expectedOutcome[3].EndTimeStampSeconds
 	expectedOutcome[1].content = expectedOutcome[1].content + expectedOutcome[3].content
 	// Parse the logs and validate with expected outcome.
-	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), s.T())
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
 	require.Equal(s.T(), 2, len(structuredReadLogs))
 	validate(expectedOutcome[0], structuredReadLogs[0], true, false, randomReadChunkCount, s.T())
 	validate(expectedOutcome[1], structuredReadLogs[1], true, false, randomReadChunkCount, s.T())

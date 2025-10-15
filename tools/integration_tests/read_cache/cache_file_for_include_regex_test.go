@@ -73,7 +73,7 @@ func (s *cacheFileForIncludeRegexTest) TestCacheFileForIncludeRegexForIncludedFi
 	expectedOutcome1 := readFileAndGetExpectedOutcome(testEnv.testDirPath, testFileName, true, 0, s.T())
 	expectedOutcome2 := readFileAndGetExpectedOutcome(testEnv.testDirPath, testFileName, true, 0, s.T())
 
-	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), s.T())
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
 	validate(expectedOutcome1, structuredReadLogs[0], true, false, chunksRead, s.T())
 	validate(expectedOutcome2, structuredReadLogs[1], true, true, chunksRead, s.T())
 	validateFileIsCached(testFileName, s.T())
@@ -87,7 +87,7 @@ func (s *cacheFileForIncludeRegexTest) TestCacheFileForIncludeRegexForNonInclude
 	expectedOutcome1 := readFileAndGetExpectedOutcome(testEnv.testDirPath, testFileName, true, 0, s.T())
 	expectedOutcome2 := readFileAndGetExpectedOutcome(testEnv.testDirPath, testFileName, true, 0, s.T())
 
-	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), s.T())
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
 	validate(expectedOutcome1, structuredReadLogs[0], true, false, chunksRead, s.T())
 	validate(expectedOutcome2, structuredReadLogs[1], true, false, chunksRead, s.T())
 	validateFileIsNotCached(testFileName, s.T())
@@ -105,7 +105,7 @@ func (s *cacheFileForIncludeRegexTest) TestCacheFileForIncludeRegexForIncludedAn
 	expectedOutcome3 := readFileAndGetExpectedOutcome(testEnv.testDirPath, excludedFileName, true, 0, s.T())
 	expectedOutcome4 := readFileAndGetExpectedOutcome(testEnv.testDirPath, excludedFileName, true, 0, s.T())
 
-	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), s.T())
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
 	validate(expectedOutcome1, structuredReadLogs[0], true, false, chunksRead, s.T())
 	validate(expectedOutcome2, structuredReadLogs[1], true, true, chunksRead, s.T())
 	validateFileIsCached(includedFileName, s.T())

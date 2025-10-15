@@ -81,7 +81,7 @@ func (s *cacheFileForRangeReadTrueTest) TestRangeReadsWithCacheHit() {
 	// Read file again from zeroOffset 1000 and validate from gcs.
 	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset1000, s.T())
 
-	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), s.T())
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
 	validate(expectedOutcome1, structuredReadLogs[0], false, false, 1, s.T())
 	validate(expectedOutcome2, structuredReadLogs[1], false, true, 1, s.T())
 	// Validate cached content with gcs.

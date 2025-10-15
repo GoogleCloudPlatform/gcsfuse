@@ -86,13 +86,13 @@ func (s *remountTest) TestCacheIsNotReusedOnRemount() {
 	// Run read operations on GCSFuse mount.
 	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, s.T())
 	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, s.T())
-	structuredReadLogsMount1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), s.T())
+	structuredReadLogsMount1 := read_logs.GetStructuredLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
 	// Re-mount GCSFuse.
 	remountGCSFuse(s.flags)
 	// Run read operations again on GCSFuse mount.
 	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, false, s.T())
 	expectedOutcome4 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, false, s.T())
-	structuredReadLogsMount2 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), s.T())
+	structuredReadLogsMount2 := read_logs.GetStructuredLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
 
 	validate(expectedOutcome1, structuredReadLogsMount1[0], true, false, chunksRead, s.T())
 	validate(expectedOutcome2, structuredReadLogsMount1[1], true, true, chunksRead, s.T())
@@ -107,14 +107,14 @@ func (s *remountTest) TestCacheIsNotReusedOnDynamicRemount() {
 
 	// 1. First read: This should result in a cache miss, and the file content will be cached.
 	expectedOutcome1 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket1, s.ctx, s.storageClient, testFileName1, true, s.T())
-	structuredReadLogs1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), s.T())
+	structuredReadLogs1 := read_logs.GetStructuredLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
 	// Remount GCSFuse. This should clear any in-memory cache.
 	remountGCSFuse(s.flags)
 	// 2. Second read (after remount): This should also result in a cache miss as the cache should be empty.
 	expectedOutcome2 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket1, s.ctx, s.storageClient, testFileName1, false, s.T())
 	// 3. Third read (without remount): This should result in a cache hit.
 	expectedOutcome3 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket1, s.ctx, s.storageClient, testFileName1, false, s.T())
-	structuredReadLogs2 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), s.T())
+	structuredReadLogs2 := read_logs.GetStructuredLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
 
 	// log1: First read -> cache miss
 	validate(expectedOutcome1, structuredReadLogs1[0], true, false, chunksRead, s.T())

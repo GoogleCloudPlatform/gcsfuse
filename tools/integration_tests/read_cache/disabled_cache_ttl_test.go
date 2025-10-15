@@ -80,7 +80,7 @@ func (s *disabledCacheTTLTest) TestReadAfterObjectUpdateIsCacheMiss() {
 	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, smallContentSize, true, s.T())
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
-	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), s.T())
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
 	validate(expectedOutcome1, structuredReadLogs[0], true, false, chunksRead, s.T())
 	validate(expectedOutcome2, structuredReadLogs[1], true, false, chunksReadAfterUpdate, s.T())
 	validate(expectedOutcome3, structuredReadLogs[2], true, true, chunksReadAfterUpdate, s.T())
