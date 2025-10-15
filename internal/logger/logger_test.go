@@ -24,6 +24,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -329,7 +330,7 @@ func TestInitLogFile(t *testing.T) {
 		defaultLoggerFactory.file.Close() // Close file handle to release resources.
 	})
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, filePath, defaultLoggerFactory.file.Name())
 	assert.Nil(t, defaultLoggerFactory.sysWriter)
 	assert.Equal(t, format, defaultLoggerFactory.format)
@@ -404,7 +405,7 @@ func TestGenerateMountInstanceID_Success(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			mountInstanceID, err := generateMountInstanceID(tc.size)
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Regexp(t, tc.expectedMountInstanceIDRegex, mountInstanceID)
 		})
 	}
@@ -413,7 +414,7 @@ func TestGenerateMountInstanceID_Success(t *testing.T) {
 func TestGenerateMountInstanceID_FailureDueToUUIDSize(t *testing.T) {
 	mountInstanceID, err := generateMountInstanceID(999)
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "UUID is smaller than requested size")
 	assert.Equal(t, "", mountInstanceID)
 }
@@ -421,7 +422,7 @@ func TestGenerateMountInstanceID_FailureDueToUUIDSize(t *testing.T) {
 func TestGenerateMountInstanceID_FailureDueToNegativeSize(t *testing.T) {
 	mountInstanceID, err := generateMountInstanceID(0)
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "MountInstanceID must be positive")
 	assert.Equal(t, "", mountInstanceID)
 }
