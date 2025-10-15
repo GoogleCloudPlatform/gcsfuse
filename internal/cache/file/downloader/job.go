@@ -274,6 +274,7 @@ func (job *Job) updateStatusOffset(downloadedOffset int64) (err error) {
 
 	updatedFileInfo := data.FileInfo{
 		Key: fileInfoKey, ObjectGeneration: job.object.Generation,
+		FilePtr:  job.fileSpec.FilePtr,
 		FileSize: job.object.Size, Offset: uint64(downloadedOffset),
 	}
 
@@ -418,13 +419,14 @@ func (job *Job) downloadObjectAsync() {
 		job.handleError(err)
 		return
 	}
-	defer func() {
-		err = cacheFile.Close()
-		if err != nil {
-			err = fmt.Errorf("downloadObjectAsync: error while closing cache file: %w", err)
-			job.handleError(err)
-		}
-	}()
+	job.fileSpec.FilePtr = cacheFile
+	//defer func() {
+	//	err = cacheFile.Close()
+	//	if err != nil {
+	//		err = fmt.Errorf("downloadObjectAsync: error while closing cache file: %w", err)
+	//		job.handleError(err)
+	//	}
+	//}()
 
 	// Both parallel and non-parallel download functions support cancellation in
 	// case of job's cancellation.
