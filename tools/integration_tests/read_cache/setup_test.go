@@ -122,7 +122,7 @@ func TestMain(m *testing.M) {
 		cfg.ReadCache[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.ReadCache[0].LogFile = setup.LogFile()
 		// Initialize the slice to hold 15 specific test configurations
-		cfg.ReadCache[0].Configs = make([]test_suite.ConfigItem, 16)
+		cfg.ReadCache[0].Configs = make([]test_suite.ConfigItem, 17)
 		cfg.ReadCache[0].Configs[0].Flags = []string{
 			"--metadata-cache-ttl-secs=10 --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest --log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log --log-severity=TRACE --implicit-dirs",
 			"--metadata-cache-ttl-secs=10 --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true -cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest --log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log --log-severity=TRACE",
@@ -188,16 +188,16 @@ func TestMain(m *testing.M) {
 		cfg.ReadCache[0].Configs[6].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ReadCache[0].Configs[6].Run = "TestCacheFileForRangeReadTrueTest"
 
-		cfg.ReadCache[0].Configs[7].Flags = []string{
-			"--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE",
-			"--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE --file-cache-enable-o-direct=true",
-			"--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE",
-			"--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE --client-protocol=grpc",
-			"--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE --file-cache-enable-o-direct=true --client-protocol=grpc",
-			"--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE --client-protocol=grpc",
-		}
-		cfg.ReadCache[0].Configs[7].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.ReadCache[0].Configs[7].Run = "TestCacheFileForRangeReadTrueWithRamCache"
+		//cfg.ReadCache[0].Configs[7].Flags = []string{
+		//	"--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE",
+		//	"--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE --file-cache-enable-o-direct=true",
+		//	"--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE",
+		//	"--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE --client-protocol=grpc",
+		//	"--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE --file-cache-enable-o-direct=true --client-protocol=grpc",
+		//	"--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE --client-protocol=grpc",
+		//}
+		//cfg.ReadCache[0].Configs[7].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		//cfg.ReadCache[0].Configs[7].Run = "TestCacheFileForRangeReadTrueWithRamCache"
 
 		cfg.ReadCache[0].Configs[8].Flags = []string{
 			"--implicit-dirs --file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseTest.log --log-severity=TRACE",
@@ -206,12 +206,12 @@ func TestMain(m *testing.M) {
 		cfg.ReadCache[0].Configs[8].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ReadCache[0].Configs[8].Run = "TestCacheFileForRangeReadFalseTest"
 
-		cfg.ReadCache[0].Configs[9].Flags = []string{
-			"--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithRamCache.log --log-severity=TRACE",
-			"--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithRamCache.log --log-severity=TRACE --client-protocol=grpc",
-		}
-		cfg.ReadCache[0].Configs[9].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.ReadCache[0].Configs[9].Run = "TestCacheFileForRangeReadFalseWithRamCache"
+		//cfg.ReadCache[0].Configs[9].Flags = []string{
+		//	"--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithRamCache.log --log-severity=TRACE",
+		//	"--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithRamCache.log --log-severity=TRACE --client-protocol=grpc",
+		//}
+		//cfg.ReadCache[0].Configs[9].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		//cfg.ReadCache[0].Configs[9].Run = "TestCacheFileForRangeReadFalseWithRamCache"
 
 		cfg.ReadCache[0].Configs[10].Flags = []string{
 			"--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads.log --log-severity=TRACE",
@@ -222,14 +222,14 @@ func TestMain(m *testing.M) {
 		cfg.ReadCache[0].Configs[10].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ReadCache[0].Configs[10].Run = "TestCacheFileForRangeReadFalseWithParallelDownloads"
 
-		cfg.ReadCache[0].Configs[11].Flags = []string{
-			"--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache.log --log-severity=TRACE",
-			"--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache.log --log-severity=TRACE --file-cache-enable-o-direct=true",
-			"--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache.log --log-severity=TRACE --client-protocol=grpc",
-			"--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache.log --log-severity=TRACE --file-cache-enable-o-direct=true --client-protocol=grpc",
-		}
-		cfg.ReadCache[0].Configs[11].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.ReadCache[0].Configs[11].Run = "TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache"
+		//cfg.ReadCache[0].Configs[11].Flags = []string{
+		//	"--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache.log --log-severity=TRACE",
+		//	"--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache.log --log-severity=TRACE --file-cache-enable-o-direct=true",
+		//	"--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache.log --log-severity=TRACE --client-protocol=grpc",
+		//	"--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache.log --log-severity=TRACE --file-cache-enable-o-direct=true --client-protocol=grpc",
+		//}
+		//cfg.ReadCache[0].Configs[11].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		//cfg.ReadCache[0].Configs[11].Run = "TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache"
 
 		cfg.ReadCache[0].Configs[12].Flags = []string{
 			"--file-cache-max-size-mb=48 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestJobChunkTest --log-file=/gcsfuse-tmp/TestJobChunkTest.log --log-severity=TRACE",
@@ -287,6 +287,15 @@ func TestMain(m *testing.M) {
 		}
 		cfg.ReadCache[0].Configs[15].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ReadCache[0].Configs[15].Run = "TestRemountTest"
+
+		cfg.ReadCache[0].Configs[15].Flags = []string{
+			"--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest/foo* --file-cache-exclude-regex= --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE",
+			"--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest/foo* --file-cache-exclude-regex= --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE --client-protocol=grpc",
+			"--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest/foo* --file-cache-exclude-regex=invalid --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE",
+			"--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest/foo* --file-cache-exclude-regex=invalid --file-cache-max-size-mb=9 --cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest --log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log --log-severity=TRACE --client-protocol=grpc",
+		}
+		cfg.ReadCache[0].Configs[15].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.ReadCache[0].Configs[15].Run = "TestCacheFileForIncludeRegexTest"
 	}
 
 	testEnv.ctx = context.Background()

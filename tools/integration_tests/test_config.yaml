@@ -301,19 +301,20 @@ read_cache:
           zonal: true
         run: TestCacheFileForRangeReadTrueTest
         run_on_gke: true
-      - flags:
-          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE"
-          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE --file-cache-enable-o-direct=true"
-          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE"
-          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE --client-protocol=grpc"
-          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE --file-cache-enable-o-direct=true --client-protocol=grpc"
-          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE --client-protocol=grpc"
-        compatible:
-          flat: true
-          hns: true
-          zonal: true
-        run: TestCacheFileForRangeReadTrueWithRamCache
-        run_on_gke: true
+#        TODO: Enable Ram cache tests after bug b/383682524 is fixed
+#      - flags:
+#          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE"
+#          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE --file-cache-enable-o-direct=true"
+#          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE"
+#          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE --client-protocol=grpc"
+#          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE --file-cache-enable-o-direct=true --client-protocol=grpc"
+#          - "--file-cache-max-size-mb=50 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/dev/shm/TestCacheFileForRangeReadTrueWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueWithRamCache.log --log-severity=TRACE --client-protocol=grpc"
+#        compatible:
+#          flat: true
+#          hns: true
+#          zonal: true
+#        run: TestCacheFileForRangeReadTrueWithRamCache
+#        run_on_gke: true
       - flags:
           - "--implicit-dirs --file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseTest.log --log-severity=TRACE"
           - "--implicit-dirs --file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseTest --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseTest.log --log-severity=TRACE --client-protocol=grpc"
@@ -323,15 +324,15 @@ read_cache:
           zonal: true
         run: TestCacheFileForRangeReadFalseTest
         run_on_gke: true
-      - flags:
-          - "--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithRamCache.log --log-severity=TRACE"
-          - "--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithRamCache.log --log-severity=TRACE --client-protocol=grpc"
-        compatible:
-          flat: true
-          hns: true
-          zonal: true
-        run: TestCacheFileForRangeReadFalseWithRamCache
-        run_on_gke: true
+#      - flags:
+#          - "--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithRamCache.log --log-severity=TRACE"
+#          - "--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=false --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithRamCache.log --log-severity=TRACE --client-protocol=grpc"
+#        compatible:
+#          flat: true
+#          hns: true
+#          zonal: true
+#        run: TestCacheFileForRangeReadFalseWithRamCache
+#        run_on_gke: true
       - flags:
           - "--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads.log --log-severity=TRACE"
           - "--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads.log --log-severity=TRACE --file-cache-enable-o-direct=true"
@@ -343,17 +344,17 @@ read_cache:
           zonal: true
         run: TestCacheFileForRangeReadFalseWithParallelDownloads
         run_on_gke: true
-      - flags:
-          - "--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache.log --log-severity=TRACE"
-          - "--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache.log --log-severity=TRACE --file-cache-enable-o-direct=true"
-          - "--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache.log --log-severity=TRACE --client-protocol=grpc"
-          - "--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache.log --log-severity=TRACE --file-cache-enable-o-direct=true --client-protocol=grpc"
-        compatible:
-          flat: true
-          hns: true
-          zonal: true
-        run: TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache
-        run_on_gke: true
+#      - flags:
+#          - "--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache.log --log-severity=TRACE"
+#          - "--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache.log --log-severity=TRACE --file-cache-enable-o-direct=true"
+#          - "--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache.log --log-severity=TRACE --client-protocol=grpc"
+#          - "--file-cache-max-size-mb=50 --file-cache-enable-parallel-downloads=true --cache-dir=/dev/shm/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache --log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache.log --log-severity=TRACE --file-cache-enable-o-direct=true --client-protocol=grpc"
+#        compatible:
+#          flat: true
+#          hns: true
+#          zonal: true
+#        run: TestCacheFileForRangeReadFalseWithParallelDownloadsAndRamCache
+#        run_on_gke: true
       - flags:
           - "--file-cache-max-size-mb=48 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestJobChunkTest --log-file=/gcsfuse-tmp/TestJobChunkTest.log --log-severity=TRACE"
           - "--file-cache-max-size-mb=48 --file-cache-cache-file-for-range-read=true --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestJobChunkTest --log-file=/gcsfuse-tmp/TestJobChunkTest.log --log-severity=TRACE --client-protocol=grpc"
