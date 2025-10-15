@@ -1089,7 +1089,7 @@ func (t *RandomReaderTest) TestNewReader_FileClobbered() {
 	ExpectCall(t.bucket, "NewReaderWithReadHandle")(Any(), Any()).
 		WillOnce(Return(nil, notFoundError))
 
-	err := t.rr.wrapped.startRead(0, 1)
+	err := t.rr.wrapped.startRead(0, 1, 0)
 
 	AssertNe(nil, err)
 	var clobberedErr *gcsfuse_errors.FileClobberedError
