@@ -34,6 +34,17 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// GetLocalAddr resolves the provided socket address and returns a net.TCPAddr.
+// The port can be 0, in which case the OS will choose a local port.
+// The format of SocketAddress is expected to be IP address.
+func GetLocalAddr(socketAddress string) (*net.TCPAddr, error) {
+	localAddr, err := net.ResolveTCPAddr("tcp", socketAddress+":0")
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve socket address %q: %w", socketAddress, err)
+	}
+	return localAddr, nil
+}
+
 const urlSchemeSeparator = "://"
 
 type StorageClientConfig struct {
@@ -80,9 +91,9 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 	if storageClientConfig.SocketAddress != "" {
 		// The port can be 0, in which case the OS will choose a local port.
 		// The format of SocketAddress is expected to be IP address.
-		localAddr, err := net.ResolveTCPAddr("tcp", storageClientConfig.SocketAddress+":0")
+		localAddr, err := GetLocalAddr(storageClientConfig.SocketAddress)
 		if err != nil {
-			return nil, fmt.Errorf("failed to resolve socket address %q: %w", storageClientConfig.SocketAddress, err)
+			return nil, err
 		}
 		dialer.LocalAddr = localAddr
 	}

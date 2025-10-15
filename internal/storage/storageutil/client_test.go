@@ -186,9 +186,11 @@ func (t *clientTest) TestCreateHttpClientWithSocketAddress() {
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), httpClient)
-	transport, ok := httpClient.Transport.(*oauth2.Transport)
+	userAgentRoundTripper, ok := httpClient.Transport.(*userAgentRoundTripper)
 	assert.True(t.T(), ok)
-	base, ok := transport.Base.(*http.Transport)
+	oauthTransport, ok := userAgentRoundTripper.wrapped.(*oauth2.Transport)
+	assert.True(t.T(), ok)
+	base, ok := oauthTransport.Base.(*http.Transport)
 	assert.True(t.T(), ok)
 	assert.NotNil(t.T(), base.DialContext)
 }
