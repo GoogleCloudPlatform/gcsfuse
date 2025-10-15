@@ -197,6 +197,7 @@ func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest) (
 			// Calculate the end offset based on previous read requests.
 			// It will be used if a new range reader needs to be created.
 			readReq.EndOffset = gr.getEndOffset(readReq.Offset)
+			readReq.ReadType = readInfo.readType
 			readerResp, err = gr.rangeReader.ReadAt(ctx, readReq)
 			return readerResp.Size, err
 		}
