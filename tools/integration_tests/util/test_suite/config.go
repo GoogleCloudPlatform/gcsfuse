@@ -17,6 +17,7 @@ package test_suite
 import (
 	"log"
 	"os"
+	"path"
 
 	"gopkg.in/yaml.v3"
 )
@@ -35,6 +36,7 @@ type TestConfig struct {
 	TestBucket              string       `yaml:"test_bucket"`
 	LogFile                 string       `yaml:"log_file,omitempty"`
 	Configs                 []ConfigItem `yaml:"configs"`
+	OnlyDir                 string       `yaml:"only_dir,omitempty"`
 }
 
 // ConfigItem defines the variable parts of each test run.
@@ -72,6 +74,40 @@ type Config struct {
 	RequesterPaysBucket   []TestConfig `yaml:"requester_pays_bucket"`
 }
 
+func processTestConfigs(configs []TestConfig) {
+	for i := range configs {
+		if configs[i].OnlyDir != "" && configs[i].GKEMountedDirectory != "" {
+			// Add onlyDir infront of bucket_name incase of mounted dir
+			configs[i].TestBucket = path.Join(configs[i].TestBucket, configs[i].OnlyDir)
+		}
+	}
+}
+
+func (c *Config) postProcessConfig() {
+	processTestConfigs(c.ImplicitDir)
+	processTestConfigs(c.ExplicitDir)
+	processTestConfigs(c.ListLargeDir)
+	processTestConfigs(c.WriteLargeFiles)
+	processTestConfigs(c.Operations)
+	processTestConfigs(c.ReadLargeFiles)
+	processTestConfigs(c.ReadOnly)
+	processTestConfigs(c.ReadCache)
+	processTestConfigs(c.RenameDirLimit)
+	processTestConfigs(c.Gzip)
+	processTestConfigs(c.LocalFile)
+	processTestConfigs(c.LogRotation)
+	processTestConfigs(c.ManagedFolders)
+	processTestConfigs(c.ConcurrentOperations)
+	processTestConfigs(c.Benchmarking)
+	processTestConfigs(c.StaleHandles)
+	processTestConfigs(c.StreamingWrites)
+	processTestConfigs(c.InactiveStreamTimeout)
+	processTestConfigs(c.CloudProfiler)
+	processTestConfigs(c.KernelListCache)
+	processTestConfigs(c.ReadDirPlus)
+	processTestConfigs(c.DentryCache)
+}
+
 // ReadConfigFile returns a Config struct from the YAML file.
 func ReadConfigFile(configFilePath string) Config {
 	var cfg Config
@@ -85,5 +121,7 @@ func ReadConfigFile(configFilePath string) Config {
 			log.Fatalf("Failed to parse config YAML: %v", err)
 		}
 	}
+
+	cfg.postProcessConfig()
 	return cfg
 }
