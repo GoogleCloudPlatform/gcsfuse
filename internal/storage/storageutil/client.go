@@ -91,7 +91,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 	dialer := net.Dialer{}
 	if storageClientConfig.SocketAddress != "" {
 		if err := ConfigureDialerWithLocalAddr(&dialer, storageClientConfig.SocketAddress); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to configure dialer with socket address %q: %w", storageClientConfig.SocketAddress, err)
 		}
 	}
 	if storageClientConfig.EnableHTTPDNSCache {
