@@ -612,6 +612,9 @@ func AddCacheDirToFlags(flagSets [][]string, testname string) [][]string {
 
 // BuildFlagSets dynamically builds a list of flag sets based on bucket compatibility.
 // bucketType should be "flat", "hns", or "zonal".
+// The run parameter filters flag sets based on the 'Run' field in the test
+// configuration, which typically corresponds to a specific test name. If run is
+// an empty string, all flag sets for the package are returned.
 func BuildFlagSets(cfg test_suite.TestConfig, bucketType string, run string) [][]string {
 	var dynamicFlags [][]string
 
