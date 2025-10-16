@@ -145,9 +145,12 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 	// The retiredBlocks cache holds blocks that have been consumed but are kept
 	// to handle potential out-of-order reads. Its size is set to be the same as
 	// the maximum number of prefetch blocks to provide a reasonable buffer for
-	// such reads. The capacity is configured by `read.retired-blocks-per-handle`
-	// multiplied by `read.block-size-mb`.
-	reader.retiredBlocks = NewLruRetiredBlockCache(uint64(opts.Config.RetiredBlocksPerHandle * opts.Config.PrefetchBlockSizeBytes))
+	// such reads. If `read.retired-blocks-per-handle` is 0, this feature is disabled.
+	if opts.Config.RetiredBlocksPerHandle > 0 {
+		reader.retiredBlocks = NewLruRetiredBlockCache(uint64(opts.Config.RetiredBlocksPerHandle * opts.Config.PrefetchBlockSizeBytes))
+	} else {
+		reader.retiredBlocks = &NoOpRetiredBlockCache{}
+	}
 
 	prefetcherOpts := &prefetcherOptions{
 		Object:       opts.Object,
@@ -171,18 +174,31 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 // block and releases it back to the pool.
 // LOCKS_REQUIRED(p.mu)
 func (p *BufferedReader) retireBlock(entry *blockQueueEntry) {
+	// If the retired blocks feature is disabled (using the no-op cache),
+	// we treat the block as if it were immediately evicted.
+	if _, ok := p.retiredBlocks.(*NoOpRetiredBlockCache); ok {
+		if entry.block.RefCount() == 0 {
+			p.releaseBlock(entry)
+		} else {
+			entry.block.SetWasEvicted(true)
+		}
+		return
+	}
+
 	blockIndex := entry.block.AbsStartOff() / p.config.PrefetchBlockSizeBytes
 	evicted, err := p.retiredBlocks.Insert(blockIndex, entry)
 	if err != nil {
-		// This block is not being retired, so we cancel and release it.
-		entry.cancel()
-		if _, waitErr := entry.block.AwaitReady(context.Background()); waitErr != nil {
-			logger.Warnf("BufferedReader.retireBlock: AwaitReady for failed insert: %v", waitErr)
-		}
+		// An error occurred (e.g., entry is too large for the cache). The block
+		// was not inserted, so we treat it as if it were immediately evicted.
 		logger.Warnf("BufferedReader.retireBlock: failed to insert block %d into retired cache: %v", blockIndex, err)
-		p.blockPool.Release(entry.block)
-		return
+		if entry.block.RefCount() == 0 {
+			p.releaseBlock(entry)
+		} else {
+			entry.block.SetWasEvicted(true)
+		}
+		// There should be no evictions if insertion failed, but we proceed just in case.
 	}
+
 	for _, evictedEntry := range evicted {
 		// This block is being evicted from the retired cache. If it's not in use,
 		// we can release it. Otherwise, we set a callback to release it later.
@@ -432,8 +448,10 @@ func (p *BufferedReader) Destroy() {
 	defer p.mu.Unlock()
 
 	for !p.blockQueue.IsEmpty() {
-		bqe := p.blockQueue.Pop()
-		p.releaseBlock(bqe)
+		entry := p.blockQueue.Pop()
+		if entry.block.RefCount() == 0 {
+			p.releaseBlock(entry)
+		}
 	}
 
 	// Clear the retired blocks cache and release all blocks.

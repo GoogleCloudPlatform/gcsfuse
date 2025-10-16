@@ -96,3 +96,30 @@ func (l *lruRetiredBlockCache) Clear() []*blockQueueEntry {
 	}
 	return evictedEntries
 }
+
+// NoOpRetiredBlockCache implements RetiredBlockCache but performs no operations.
+// It is used when the retired blocks feature is disabled.
+type NoOpRetiredBlockCache struct{}
+
+// Insert is a no-op and returns no evicted entries.
+func (n *NoOpRetiredBlockCache) Insert(blockIndex int64, entry *blockQueueEntry) ([]*blockQueueEntry, error) {
+	return nil, nil
+}
+
+// LookUp always returns nil as it never stores any blocks.
+func (n *NoOpRetiredBlockCache) LookUp(blockIndex int64) *blockQueueEntry {
+	return nil
+}
+
+// Erase is a no-op.
+func (n *NoOpRetiredBlockCache) Erase(blockIndex int64) {}
+
+// Clear is a no-op and returns no entries.
+func (n *NoOpRetiredBlockCache) Clear() []*blockQueueEntry {
+	return nil
+}
+
+// Len returns the number of items in the cache, which is always 0.
+func (n *NoOpRetiredBlockCache) Len() int {
+	return 0
+}
