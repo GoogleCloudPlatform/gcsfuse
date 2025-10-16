@@ -34,15 +34,16 @@ import (
 	"golang.org/x/oauth2"
 )
 
-// GetLocalAddr resolves the provided socket address and returns a net.TCPAddr.
+// ConfigureDialerWithLocalAddr resolves the provided socket address and returns a net.TCPAddr.
 // The port can be 0, in which case the OS will choose a local port.
 // The format of SocketAddress is expected to be IP address.
-func GetLocalAddr(socketAddress string) (*net.TCPAddr, error) {
+func ConfigureDialerWithLocalAddr(dialer *net.Dialer, socketAddress string) error {
 	localAddr, err := net.ResolveTCPAddr("tcp", socketAddress+":0")
 	if err != nil {
-		return nil, fmt.Errorf("failed to resolve socket address %q: %w", socketAddress, err)
+		return fmt.Errorf("failed to resolve socket address %q: %w", socketAddress, err)
 	}
-	return localAddr, nil
+	dialer.LocalAddr = localAddr
+	return nil
 }
 
 const urlSchemeSeparator = "://"
@@ -89,13 +90,9 @@ type StorageClientConfig struct {
 func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.TokenSource) (httpClient *http.Client, err error) {
 	dialer := net.Dialer{}
 	if storageClientConfig.SocketAddress != "" {
-		// The port can be 0, in which case the OS will choose a local port.
-		// The format of SocketAddress is expected to be IP address.
-		localAddr, err := GetLocalAddr(storageClientConfig.SocketAddress)
-		if err != nil {
+		if err := ConfigureDialerWithLocalAddr(&dialer, storageClientConfig.SocketAddress); err != nil {
 			return nil, err
 		}
-		dialer.LocalAddr = localAddr
 	}
 	if storageClientConfig.EnableHTTPDNSCache {
 		dialer.Resolver = dns.NewCachingResolver(nil, dns.MinCacheTTL(1*time.Minute))
