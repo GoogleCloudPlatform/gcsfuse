@@ -17,6 +17,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/url"
 	"testing"
 	"time"
@@ -30,6 +31,8 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/peer"
 )
 
 const invalidBucketName string = "will-not-be-present-in-fake-server"
@@ -37,11 +40,28 @@ const projectID string = "valid-project-id"
 
 var keyFile = "storageutil/testdata/key.json"
 
+// A fake implementation of control.StorageControlServer for testing.
+type fakeStorageControlServer struct {
+	controlpb.UnimplementedStorageControlServer
+	// Last received request's peer address.
+	remoteAddr net.Addr
+}
+
+func (s *fakeStorageControlServer) CreateFolder(ctx context.Context, in *controlpb.CreateFolderRequest) (*controlpb.Folder, error) {
+	p, ok := peer.FromContext(ctx)
+	if !ok {
+		return nil, fmt.Errorf("peer not found")
+	}
+	s.remoteAddr = p.Addr
+	return &controlpb.Folder{}, nil
+}
+
 type StorageHandleTest struct {
 	suite.Suite
-	fakeStorage FakeStorage
-	mockClient  *MockStorageControlClient
-	ctx         context.Context
+	fakeStorage  FakeStorage
+	mockClient   *MockStorageControlClient
+	clientConfig *storageutil.StorageClientConfig
+	ctx          context.Context
 }
 
 func TestStorageHandleTestSuite(t *testing.T) {
@@ -50,6 +70,8 @@ func TestStorageHandleTestSuite(t *testing.T) {
 
 func (testSuite *StorageHandleTest) SetupTest() {
 	testSuite.mockClient = new(MockStorageControlClient)
+	sc := storageutil.GetDefaultStorageClientConfig("")
+	testSuite.clientConfig = &sc
 	testSuite.fakeStorage = NewFakeStorageWithMockClient(testSuite.mockClient, cfg.HTTP2)
 	testSuite.ctx = context.Background()
 }
@@ -379,6 +401,37 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle() {
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), storageClient)
+}
+
+func (testSuite *StorageHandleTest) TestCreateGRPCClientWithSocketAddress() {
+	// Start a local server to inspect incoming connections.
+	server := &fakeStorageControlServer{}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(testSuite.T(), err)
+	grpcServer := grpc.NewServer()
+	controlpb.RegisterStorageControlServer(grpcServer, server)
+	go grpcServer.Serve(listener)
+	defer grpcServer.Stop()
+	// Configure the client to use a specific local IP address.
+	testSuite.clientConfig.CustomEndpoint = listener.Addr().String()
+	testSuite.clientConfig.SocketAddress = "127.0.0.1"
+	testSuite.clientConfig.AnonymousAccess = true
+	ctx := context.Background()
+	clientOpts, err := createClientOptionForGRPCClient(ctx, testSuite.clientConfig, false)
+	require.NoError(testSuite.T(), err)
+	controlClient, err := storageutil.CreateGRPCControlClient(ctx, clientOpts, false)
+	require.NoError(testSuite.T(), err)
+	require.NotNil(testSuite.T(), controlClient)
+
+	// Have the client connect to the test server.
+	// This will not fail, as we have implemented the "CreateFolder" method.
+	_, err = controlClient.CreateFolder(ctx, &controlpb.CreateFolderRequest{})
+	assert.NoError(testSuite.T(), err)
+
+	// Verify on the server side that the client's connection originates from the specified IP address.
+	host, _, err := net.SplitHostPort(server.remoteAddr.String())
+	require.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), testSuite.clientConfig.SocketAddress, host)
 }
 
 func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientProtocol() {

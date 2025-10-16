@@ -17,9 +17,10 @@ package storageutil
 import (
 	"context"
 	"testing"
+	"time"
 
+	control "cloud.google.com/go/storage/control/apiv2"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/api/option"
 )
@@ -32,39 +33,37 @@ func TestControlClientTestSuite(t *testing.T) {
 	suite.Run(t, new(ControlClientTest))
 }
 
-func (testSuite *ControlClientTest) SetupTest() {
-}
-
-func (testSuite *ControlClientTest) TearDownTest() {
-}
-
 func (testSuite *ControlClientTest) TestStorageControlClientWithGaxRetries() {
+	// In this test, we are not actually creating a storageControlClient, but just checking if the
+	// gax retries are set correctly in the CallOptions.
+	// The test is not creating a real GRPC client because it requires authentication.
+	// The test is not using a fake GRPC client because it is not possible to check the
+	// CallOptions from the fake client.
+	// The test is not using a mock GRPC client because it is not possible to check the
+	// CallOptions from the mock client.
+	clientConfig := &StorageClientConfig{MaxRetrySleep: 100 * time.Microsecond, MaxRetryAttempts: 5}
+	gaxRetryOptions := storageControlClientGaxRetryOptions(clientConfig)
 	var clientOpts []option.ClientOption
-	clientOpts = append(clientOpts, option.WithoutAuthentication())
+	clientOpts = append(clientOpts, option.WithGRPCDialOption(nil)) // a dummy GRPC dial option to avoid authentication.
 
-	controlClient, err := CreateGRPCControlClient(context.Background(), clientOpts, false)
+	scc, err := CreateGRPCControlClient(context.Background(), clientOpts, false)
 
-	require.Nil(testSuite.T(), err)
-	require.NotNil(testSuite.T(), controlClient)
-	require.NotNil(testSuite.T(), controlClient.CallOptions)
-	assert.Greater(testSuite.T(), len(controlClient.CallOptions.CreateFolder), 0)
-	assert.Greater(testSuite.T(), len(controlClient.CallOptions.GetFolder), 0)
-	assert.Greater(testSuite.T(), len(controlClient.CallOptions.DeleteFolder), 0)
-	assert.Greater(testSuite.T(), len(controlClient.CallOptions.RenameFolder), 0)
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), scc)
+	assert.Equal(testSuite.T(), gaxRetryOptions, scc.CallOptions.CreateFolder)
+	assert.Equal(testSuite.T(), gaxRetryOptions, scc.CallOptions.DeleteFolder)
+	assert.Equal(testSuite.T(), gaxRetryOptions, scc.CallOptions.GetFolder)
+	assert.Equal(testSuite.T(), gaxRetryOptions, scc.CallOptions.ListFolders)
+	assert.Equal(testSuite.T(), gaxRetryOptions, scc.CallOptions.RenameFolder)
+	assert.Equal(testSuite.T(), gaxRetryOptions, scc.CallOptions.GetStorageLayout)
 }
 
 func (testSuite *ControlClientTest) TestStorageControlClientWithoutGaxRetries() {
 	var clientOpts []option.ClientOption
-	clientOpts = append(clientOpts, option.WithoutAuthentication())
+	clientOpts = append(clientOpts, option.WithGRPCDialOption(nil)) // a dummy GRPC dial option to avoid authentication.
+	scc, err := CreateGRPCControlClient(context.Background(), clientOpts, true)
 
-	controlClient, err := CreateGRPCControlClient(context.Background(), clientOpts, true)
-
-	require.Nil(testSuite.T(), err)
-	require.NotNil(testSuite.T(), controlClient)
-	if controlClient.CallOptions != nil {
-		assert.Empty(testSuite.T(), controlClient.CallOptions.CreateFolder)
-		assert.Empty(testSuite.T(), controlClient.CallOptions.GetFolder)
-		assert.Empty(testSuite.T(), controlClient.CallOptions.DeleteFolder)
-		assert.Empty(testSuite.T(), controlClient.CallOptions.RenameFolder)
-	}
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), scc)
+	assert.Equal(testSuite.T(), new(control.StorageControlCallOptions), scc.CallOptions)
 }

@@ -139,6 +139,18 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 		clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithStatsHandler(otelgrpc.NewClientHandler())))
 	}
 
+	if clientConfig.SocketAddress != "" {
+		dialer := &net.Dialer{}
+		if err := storageutil.ConfigureDialerWithLocalAddr(dialer, clientConfig.SocketAddress); err != nil {
+			return nil, err
+		}
+		contextDialer := func(ctx context.Context, addr string) (net.Conn, error) {
+			return dialer.DialContext(ctx, "tcp", addr)
+		}
+		dialOption := grpc.WithContextDialer(contextDialer)
+		clientOpts = append(clientOpts, option.WithGRPCDialOption(dialOption))
+	}
+
 	clientOpts = append(clientOpts, option.WithGRPCConnectionPool(clientConfig.GrpcConnPoolSize))
 	clientOpts = append(clientOpts, option.WithUserAgent(clientConfig.UserAgent))
 	// Turning off the go-sdk metrics exporter to prevent any problems.
