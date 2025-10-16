@@ -69,7 +69,7 @@ func TestMain(m *testing.M) {
 	}()
 
 	// 3. Build the flag sets dynamically from the config.
-	flags := setup.BuildFlagSets(cfg.ExplicitDir[0], bucketType)
+	flags := setup.BuildFlagSets(cfg.ExplicitDir[0], bucketType, "")
 
 	// 4. Run tests with the dynamically generated flags.
 	successCode := implicit_and_explicit_dir_setup.RunTestsForExplicitAndImplicitDir(&cfg.ExplicitDir[0], flags, m)
