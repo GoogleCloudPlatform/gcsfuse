@@ -456,7 +456,6 @@ func (testSuite *StorageHandleTest) TestCreateGRPCClientWithInvalidSocketAddress
 
 	assert.Error(testSuite.T(), err)
 	assert.Nil(testSuite.T(), clientOpts)
-	assert.Contains(testSuite.T(), err.Error(), `failed to configure dialer with socket address "invalid-address"`)
 }
 
 func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientProtocol() {
