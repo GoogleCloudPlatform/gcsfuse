@@ -103,7 +103,7 @@ func TestMain(m *testing.M) {
 
 	// Run tests for testBucket
 	// Build the flag sets dynamically from the config.
-	flags := setup.BuildFlagSets(cfg.RequesterPaysBucket[0], bucketType)
+	flags := setup.BuildFlagSets(cfg.RequesterPaysBucket[0], bucketType, "")
 
 	setup.SetUpTestDirForTestBucket(&cfg.RequesterPaysBucket[0])
 

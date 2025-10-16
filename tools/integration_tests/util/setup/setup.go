@@ -612,14 +612,15 @@ func AddCacheDirToFlags(flagSets [][]string, testname string) [][]string {
 
 // BuildFlagSets dynamically builds a list of flag sets based on bucket compatibility.
 // bucketType should be "flat", "hns", or "zonal".
-func BuildFlagSets(cfg test_suite.TestConfig, bucketType string) [][]string {
+func BuildFlagSets(cfg test_suite.TestConfig, bucketType string, run string) [][]string {
 	var dynamicFlags [][]string
 
 	// 1. Iterate through each defined test configuration (e.g., HTTP, gRPC).
 	for _, testCase := range cfg.Configs {
 		// 2. Check if the current test case is compatible with the bucket type.
 		// This is a safe and concise way to check the map.
-		if isCompatible, ok := testCase.Compatible[bucketType]; ok && isCompatible {
+		isCompatible, ok := testCase.Compatible[bucketType]
+		if ok && isCompatible && (run == "" || run == testCase.Run) {
 			// 3. If compatible, process its flags and add them to the result.
 			for _, flagString := range testCase.Flags {
 				dynamicFlags = append(dynamicFlags, strings.Fields(flagString))
@@ -681,6 +682,15 @@ func MountGCSFuseWithGivenMountFunc(flags []string, mountFunc func([]string) err
 	if *mountedDirectory == "" {
 		// Mount GCSFuse only when tests are not running on mounted directory.
 		if err := mountFunc(flags); err != nil {
+			LogAndExit(fmt.Sprintf("Failed to mount GCSFuse: %v", err))
+		}
+	}
+}
+
+func MountGCSFuseWithGivenMountWithConfigFunc(config *test_suite.TestConfig, flags []string, mountFunc func(*test_suite.TestConfig, []string) error) {
+	if config.GKEMountedDirectory == "" {
+		// Mount GCSFuse only when tests are not running on mounted directory.
+		if err := mountFunc(config, flags); err != nil {
 			LogAndExit(fmt.Sprintf("Failed to mount GCSFuse: %v", err))
 		}
 	}

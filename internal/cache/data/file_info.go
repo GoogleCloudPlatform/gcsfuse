@@ -48,6 +48,7 @@ type FileInfo struct {
 	ObjectGeneration int64
 	Offset           uint64
 	FileSize         uint64
+	FilePtr          *os.File
 }
 
 func (fi FileInfo) Size() uint64 {
@@ -55,6 +56,7 @@ func (fi FileInfo) Size() uint64 {
 }
 
 type FileSpec struct {
+	FilePtr  *os.File
 	Path     string
 	FilePerm os.FileMode
 	DirPerm  os.FileMode

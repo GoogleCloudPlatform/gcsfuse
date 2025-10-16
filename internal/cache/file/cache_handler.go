@@ -108,12 +108,19 @@ func (chr *CacheHandler) createLocalFileReadHandle(objectName string, bucketName
 // and deletes the file in cache.
 func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
 	key := fileInfo.Key
-	_, err := key.Key()
+	keyString, err := key.Key()
 	if err != nil {
 		return fmt.Errorf("cleanUpEvictedFile: while creating key: %w", err)
 	}
 
 	chr.jobManager.InvalidateAndRemoveJob(key.ObjectName, key.BucketName)
+	fileInfoCacheEntry := chr.fileInfoCache.LookUpWithoutChangingOrder(keyString)
+	if fileInfoCacheEntry != nil {
+		err := fileInfo.FilePtr.Close()
+		if err != nil {
+			return fmt.Errorf("error while closing cached file: %v", err)
+		}
+	}
 
 	localFilePath := util.GetDownloadPath(chr.cacheDir, util.GetObjectPath(key.BucketName, key.ObjectName))
 	err = util.TruncateAndRemoveFile(localFilePath)

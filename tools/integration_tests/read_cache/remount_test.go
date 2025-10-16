@@ -4,19 +4,19 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 package read_cache
 
 import (
 	"context"
 	"log"
+	"os"
 	"path"
 	"testing"
 
@@ -25,6 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -36,17 +37,30 @@ type remountTest struct {
 	flags         []string
 	storageClient *storage.Client
 	ctx           context.Context
+	baseTestName  string
 	suite.Suite
 }
 
-func (s *remountTest) SetupTest() {
-	operations.RemoveDir(cacheDirPath)
+func (s *remountTest) SetupSuite() {
+	setupLogFileAndCacheDir(s.baseTestName)
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
+}
+
+func (s *remountTest) SetupTest() {
+	//Truncate log file created.
+	err := os.Truncate(testEnv.cfg.LogFile, 0)
+	require.NoError(s.T(), err)
+	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
+	operations.RemoveDir(testEnv.cacheDirPath)
+	testEnv.testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
 }
 
 func (s *remountTest) TearDownTest() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
-	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
+}
+
+func (s *remountTest) TearDownSuite() {
+	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -56,7 +70,7 @@ func (s *remountTest) TearDownTest() {
 func readFileAndValidateCacheWithGCSForDynamicMount(bucketName string, ctx context.Context, storageClient *storage.Client, fileName string, checkCacheSize bool, t *testing.T) (expectedOutcome *Expected) {
 	setup.SetDynamicBucketMounted(bucketName)
 	defer setup.SetDynamicBucketMounted("")
-	testDirPath = path.Join(rootDir, bucketName, testDirName)
+	testEnv.testDirPath = path.Join(rootDir, bucketName, testDirName)
 	expectedOutcome = readFileAndValidateCacheWithGCS(ctx, storageClient, fileName, fileSize, checkCacheSize, t)
 
 	return expectedOutcome
@@ -115,49 +129,20 @@ func (s *remountTest) TestCacheIsNotReusedOnDynamicRemount() {
 ////////////////////////////////////////////////////////////////////////
 
 func TestRemountTest(t *testing.T) {
-	if setup.MountedDirectory() != "" {
-		t.Log("Not running remount tests for GKE environment...")
-		t.SkipNow()
+	ts := &remountTest{
+		ctx:           context.Background(),
+		storageClient: testEnv.storageClient,
+		baseTestName:  t.Name(),
 	}
-	// Define flag set to run the tests.
-	flagsSet := []gcsfuseTestFlags{
-		{
-			cliFlags:                []string{"--implicit-dirs"},
-			cacheSize:               cacheCapacityInMB,
-			cacheFileForRangeRead:   false,
-			fileName:                configFileName,
-			enableParallelDownloads: false,
-			enableODirect:           false,
-			cacheDirPath:            getDefaultCacheDirPathForTests(),
-		},
-		{
-			cliFlags:                nil,
-			cacheSize:               cacheCapacityInMB,
-			cacheFileForRangeRead:   false,
-			fileName:                configFileNameForParallelDownloadTests,
-			enableParallelDownloads: true,
-			enableODirect:           false,
-			cacheDirPath:            getDefaultCacheDirPathForTests(),
-		},
+	// Run tests for mounted directory if the flag is set. This assumes that run flag is properly passed by GKE team as per the config.
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		suite.Run(t, ts)
+		return
 	}
-	flagsSet = appendClientProtocolConfigToFlagSet(flagsSet)
-	// Create storage client before running tests.
-	ts := &remountTest{ctx: context.Background()}
-	closeStorageClient := client.CreateStorageClientWithCancel(&ts.ctx, &ts.storageClient)
-	defer func() {
-		err := closeStorageClient()
-		if err != nil {
-			t.Errorf("closeStorageClient failed: %v", err)
-		}
-	}()
 
-	// Run tests.
-	for _, flags := range flagsSet {
-		configFilePath := createConfigFile(&flags)
-		ts.flags = []string{"--config-file=" + configFilePath}
-		if flags.cliFlags != nil {
-			ts.flags = append(ts.flags, flags.cliFlags...)
-		}
+	// Run tests for GCE environment otherwise.
+	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
+	for _, ts.flags = range flagsSet {
 		log.Printf("Running tests with flags: %s", ts.flags)
 		suite.Run(t, ts)
 	}
