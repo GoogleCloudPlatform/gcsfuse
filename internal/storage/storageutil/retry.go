@@ -70,6 +70,11 @@ func (b *exponentialBackoff) nextDuration() time.Duration {
 // The jitter adds randomness to the backoff duration to prevent the thundering herd problem.
 // This is similar to how gax-retries backoff after each failed retry.
 func (b *exponentialBackoff) waitWithJitter(ctx context.Context) error {
+	// If the context is already cancelled, return immediately.
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	nextDuration := b.nextDuration()
 	jitteryBackoffDuration := time.Duration(1 + rand.Int63n(int64(nextDuration)))
 	select {
