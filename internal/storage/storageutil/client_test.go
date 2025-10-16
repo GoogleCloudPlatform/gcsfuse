@@ -206,3 +206,17 @@ func (t *clientTest) TestCreateHttpClientWithSocketAddress() {
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), sc.SocketAddress, host)
 }
+
+func (t *clientTest) TestCreateHttpClientWithInvalidSocketAddress() {
+	// Configure the client to use an invalid local IP address.
+	sc := GetDefaultStorageClientConfig(keyFile)
+	sc.SocketAddress = "invalid-address"
+	// Use a static token to avoid network calls for token acquisition.
+	var tokenSrc = oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "test-token"})
+
+	httpClient, err := CreateHttpClient(&sc, tokenSrc)
+
+	assert.Error(t.T(), err)
+	assert.Nil(t.T(), httpClient)
+	assert.Contains(t.T(), err.Error(), `failed to configure dialer with socket address "invalid-address"`)
+}

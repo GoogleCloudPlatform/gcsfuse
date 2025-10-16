@@ -445,6 +445,20 @@ func (testSuite *StorageHandleTest) TestCreateGRPCClientWithSocketAddress() {
 	assert.Equal(testSuite.T(), testSuite.clientConfig.SocketAddress, host)
 }
 
+func (testSuite *StorageHandleTest) TestCreateGRPCClientWithInvalidSocketAddress() {
+	// Configure the client to use an invalid local IP address.
+	testSuite.clientConfig.SocketAddress = "invalid-address"
+	testSuite.clientConfig.AnonymousAccess = true
+	ctx := context.Background()
+
+	// Attempt to create client options, which should fail.
+	clientOpts, err := createClientOptionForGRPCClient(ctx, testSuite.clientConfig, false)
+
+	assert.Error(testSuite.T(), err)
+	assert.Nil(testSuite.T(), clientOpts)
+	assert.Contains(testSuite.T(), err.Error(), `failed to configure dialer with socket address "invalid-address"`)
+}
+
 func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientProtocol() {
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
 	sc.ClientProtocol = cfg.GRPC
