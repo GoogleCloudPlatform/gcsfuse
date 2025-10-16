@@ -76,14 +76,6 @@ func getTestLoggingFunctions() []func() {
 	}
 }
 
-func validateOutput(t *testing.T, expectedLogLineRegexes, actualLogLines []string) {
-	t.Helper()
-	require.Equal(t, len(expectedLogLineRegexes), len(actualLogLines))
-	for i := range actualLogLines {
-		assert.Regexp(t, expectedLogLineRegexes[i], actualLogLines[i])
-	}
-}
-
 // fetchAllLogLevelOutputsForSpecifiedSeverityLevel sets the log format and severity,
 // executes standard logging functions, and returns their output.
 func fetchAllLogLevelOutputsForSpecifiedSeverityLevel(t *testing.T, format string, level string) []string {
@@ -108,7 +100,10 @@ func fetchAllLogLevelOutputsForSpecifiedSeverityLevel(t *testing.T, format strin
 // validateLogOutputs compares the captured log line output with the expected log regex patterns.
 func validateLogOutputs(t *testing.T, expectedLogLineRegexes, actualLogLines []string) {
 	t.Helper()
-	validateOutput(t, expectedLogLineRegexes, actualLogLines)
+	require.Equal(t, len(expectedLogLineRegexes), len(actualLogLines))
+	for i := range actualLogLines {
+		assert.Regexp(t, expectedLogLineRegexes[i], actualLogLines[i])
+	}
 }
 
 // //////////////////////////////////////////////////////////////////////
