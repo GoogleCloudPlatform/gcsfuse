@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"sync"
 	"time"
 
@@ -104,6 +103,29 @@ type BufferedReader struct {
 	retiredBlocks RetiredBlockCache
 }
 
+// NoOpRetiredBlockCache implements RetiredBlockCache but does nothing.
+type NoOpRetiredBlockCache struct{}
+
+func (n *NoOpRetiredBlockCache) Insert(blockIndex int64, entry *blockQueueEntry) ([]*blockQueueEntry, error) {
+	return nil, nil
+}
+
+func (n *NoOpRetiredBlockCache) LookUp(blockIndex int64) *blockQueueEntry {
+	return nil
+}
+
+func (n *NoOpRetiredBlockCache) Erase(blockIndex int64) {
+}
+
+func (n *NoOpRetiredBlockCache) Clear() []*blockQueueEntry {
+	return nil
+}
+
+// Len returns the number of items in the cache, which is always 0 for the no-op implementation.
+func (n *NoOpRetiredBlockCache) Len() int {
+	return 0
+}
+
 // BufferedReaderOptions holds the dependencies for a BufferedReader.
 type BufferedReaderOptions struct {
 	Object             *gcs.MinObject
@@ -146,10 +168,8 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 	// The retiredBlocks cache holds blocks that have been consumed but are kept
 	// to handle potential out-of-order reads. Its size is set to be the same as
 	// the maximum number of prefetch blocks to provide a reasonable buffer for
-	// such reads. The capacity is configured by `read.retired-blocks-per-handle`
-	// multiplied by `read.block-size-mb`.
-	reader.retiredBlocks = NewLruRetiredBlockCache(uint64(opts.Config.RetiredBlocksPerHandle * opts.Config.PrefetchBlockSizeBytes))
-	log.Println("opts.Config.RetiredBlocksPerHandle", opts.Config.RetiredBlocksPerHandle)
+	// such reads. For example, setting it to half of MaxPrefetchBlockCnt.
+	reader.retiredBlocks = NewLruRetiredBlockCache(uint64(2 * opts.Config.PrefetchBlockSizeBytes))
 
 	prefetcherOpts := &prefetcherOptions{
 		Object:       opts.Object,

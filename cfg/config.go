@@ -691,10 +691,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("read-retired-blocks-per-handle", "", 2, "Specifies the number of retired blocks to be kept for a single file handle for buffered reads.")
 
-	if err := flagSet.MarkHidden("read-retired-blocks-per-handle"); err != nil {
-		return err
-	}
-
 	flagSet.DurationP("read-stall-initial-req-timeout", "", 20000000000*time.Nanosecond, "Initial value of the read-request dynamic timeout.")
 
 	if err := flagSet.MarkHidden("read-stall-initial-req-timeout"); err != nil {
