@@ -43,6 +43,9 @@ then
   exit 0
 fi
 
+# Set the timezone for all date commands in the script.
+export TZ='America/Los_Angeles'
+
 set -e
 sudo apt-get update
 echo Installing git

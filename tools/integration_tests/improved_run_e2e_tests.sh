@@ -32,6 +32,8 @@ usage() {
   exit "$1"
 }
 
+
+
 # Logging Helpers
 log_info() {
   echo "[$(date +"%H:%M:%S %Z")] INFO: $1"
