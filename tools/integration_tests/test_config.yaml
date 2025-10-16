@@ -213,3 +213,21 @@ requester_pays_bucket:
           hns: true
           zonal: false
 
+log_rotation:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "pranjal-bucket-1"
+    log_file: /gcsfuse-tmp/LogRotationTest/log.txt
+    run_on_gke: false
+    configs:
+      - flags:
+          - "--log-file=${LOG_FILE_PATH} --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=false --log-severity=trace"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+      - flags:
+          - "--log-file=${LOG_FILE_PATH} --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=true --log-severity=trace"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
