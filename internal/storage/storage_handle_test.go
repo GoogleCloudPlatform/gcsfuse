@@ -408,9 +408,13 @@ func (testSuite *StorageHandleTest) TestCreateGRPCClientWithSocketAddress() {
 	server := &fakeStorageControlServer{}
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(testSuite.T(), err)
+	serveErr := make(chan error, 1)
 	grpcServer := grpc.NewServer()
 	controlpb.RegisterStorageControlServer(grpcServer, server)
-	go grpcServer.Serve(listener)
+	go func() {
+		serveErr <- grpcServer.Serve(listener)
+	}()
+
 	defer grpcServer.Stop()
 	// Configure the client to use a specific local IP address.
 	testSuite.clientConfig.CustomEndpoint = listener.Addr().String()
@@ -427,6 +431,13 @@ func (testSuite *StorageHandleTest) TestCreateGRPCClientWithSocketAddress() {
 	// This will not fail, as we have implemented the "CreateFolder" method.
 	_, err = controlClient.CreateFolder(ctx, &controlpb.CreateFolderRequest{})
 	assert.NoError(testSuite.T(), err)
+	// Stop the server and check for any serving errors.
+	grpcServer.Stop()
+	err = <-serveErr
+	if err != nil && err != grpc.ErrServerStopped {
+		testSuite.T().Fatalf("grpcServer.Serve failed: %v", err)
+	}
+	// The defer call will also try to stop, which is fine.
 
 	// Verify on the server side that the client's connection originates from the specified IP address.
 	host, _, err := net.SplitHostPort(server.remoteAddr.String())
