@@ -671,7 +671,6 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 			return descendants, nil
 		}
 	}
-
 }
 
 // LOCKS_REQUIRED(d)
@@ -871,40 +870,40 @@ func (d *dirInode) deleteSingleObject(ctx context.Context, objectName string) er
 
 // Core recursive function to list, delete, and handle pagination for a prefix.
 func (d *dirInode) deletePrefixRecursively(ctx context.Context, prefix string) error {
-	// Use a loop to handle pagination until all objects are listed/deleted.
-	objects, err := d.bucket.ListObjects(ctx, &gcs.ListObjectsRequest{
-		Prefix:     prefix,
-		MaxResults: MaxResultsForListObjectsCall,
-		Delimiter:  "/", // Use Delimiter to separate nested folders (CollapsedRuns)
-	})
+	var tok string
+	for {
+		objects, err := d.bucket.ListObjects(ctx, &gcs.ListObjectsRequest{
+			Prefix:            prefix,
+			MaxResults:        MaxResultsForListObjectsCall,
+			Delimiter:         "/", // Use Delimiter to separate nested folders (CollapsedRuns)
+			ContinuationToken: tok,
+		})
+		if err != nil {
+			return fmt.Errorf("listing objects under prefix %q: %w", prefix, err)
+		}
 
-	if err != nil {
-		return fmt.Errorf("listing objects under prefix %q: %w", prefix, err)
-	}
-
-	// 1. Delete all file-like objects in the current batch
-	for _, obj := range objects.MinObjects {
-		// obj.Name is guaranteed to start with 'prefix'
-		if !strings.HasSuffix(obj.Name, "/") {
-			// It's a file, delete it.
-			if err := d.deleteSingleObject(ctx, obj.Name); err != nil {
-				return err // Propagate deletion error
+		// 1. Delete all file-like objects in the current batch.
+		for _, obj := range objects.MinObjects {
+			// obj.Name is guaranteed to start with 'prefix'.
+			if !strings.HasSuffix(obj.Name, "/") {
+				// It's a file, delete it.
+				if err := d.deleteSingleObject(ctx, obj.Name); err != nil {
+					return err // Propagate deletion error.
+				}
 			}
 		}
-	}
 
-	// 2. Recursively call self for nested 'directories' (CollapsedRuns)
-	var nestedPrefixes []string
-	for _, nestedPrefix := range objects.CollapsedRuns {
-		// CollapsedRuns contains prefixes (directories) immediately under the current prefix.
-		// These need to be deleted recursively before we move to the next page of files.
-		nestedPrefixes = append(nestedPrefixes, nestedPrefix)
-	}
+		// 2. Recursively call self for nested 'directories' (CollapsedRuns).
+		for _, nestedPrefix := range objects.CollapsedRuns {
+			if err := d.deletePrefixRecursively(ctx, nestedPrefix); err != nil {
+				return err // Propagate nested deletion error.
+			}
+		}
 
-	// Handle all nested prefixes before continuing to the next page of the current prefix.
-	for _, nestedPrefix := range nestedPrefixes {
-		if err := d.deletePrefixRecursively(ctx, nestedPrefix); err != nil {
-			return err // Propagate nested deletion error
+		// If there are no more pages, we are done with this prefix's contents.
+		tok = objects.ContinuationToken
+		if tok == "" {
+			break
 		}
 	}
 
