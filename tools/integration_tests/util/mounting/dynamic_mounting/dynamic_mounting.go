@@ -32,9 +32,7 @@ func MountGcsfuseWithDynamicMountingWithConfig(cfg *test_suite.TestConfig, flags
 		"--log-file=" + cfg.LogFile,
 		cfg.GCSFuseMountedDirectory}
 
-	for i := range defaultArg {
-		flags = append(flags, defaultArg[i])
-	}
+	flags = append(flags, defaultArg...)
 
 	err = mounting.MountGcsfuse(setup.BinFile(), flags)
 
