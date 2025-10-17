@@ -34,7 +34,7 @@ func main() {
 	sequential.SetScaleUnit(1024) // 1KB scale
 
 	// Simulate sequential reads
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		start := int64(i * 4096) // 4KB blocks
 		end := int64((i + 1) * 4096)
 		sequential.AcceptRange(start, end)

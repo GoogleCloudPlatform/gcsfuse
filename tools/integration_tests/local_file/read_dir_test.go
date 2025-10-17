@@ -38,7 +38,7 @@ import (
 func creatingNLocalFilesShouldNotThrowError(n int, wg *sync.WaitGroup, t *testing.T) {
 	defer wg.Done()
 	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		filePath := path.Join(testDirPath, ExplicitDirName, FileName1+strconv.FormatInt(int64(i), 10))
 		operations.CreateFile(filePath, FilePerms, t)
 	}
@@ -46,7 +46,7 @@ func creatingNLocalFilesShouldNotThrowError(n int, wg *sync.WaitGroup, t *testin
 
 func readingDirNTimesShouldNotThrowError(n int, wg *sync.WaitGroup, t *testing.T) {
 	defer wg.Done()
-	for i := 0; i < n; i++ {
+	for i := range n {
 		_, err := os.ReadDir(setup.MntDir())
 		if err != nil {
 			t.Errorf("Error while reading directory %dth time: %v", i, err)

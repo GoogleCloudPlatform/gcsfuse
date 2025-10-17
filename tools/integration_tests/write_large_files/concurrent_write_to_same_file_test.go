@@ -39,7 +39,7 @@ func TestWriteToSameFileConcurrently(t *testing.T) {
 	concurrentWriterCount := 5
 	chunkSize := 50 * OneMiB / concurrentWriterCount
 
-	for i := 0; i < concurrentWriterCount; i++ {
+	for i := range concurrentWriterCount {
 		offset := i * chunkSize
 		eG.Go(func() error {
 			writeToFileSequentially(t, []string{localFilePath, mountedDirFilePath}, offset, offset+chunkSize)

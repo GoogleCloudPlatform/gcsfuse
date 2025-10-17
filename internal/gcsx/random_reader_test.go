@@ -102,7 +102,7 @@ func (br *blockingReader) Read(p []byte) (n int, err error) {
 ////////////////////////////////////////////////////////////////////////
 
 func rangeStartIs(expected uint64) (m Matcher) {
-	pred := func(c interface{}) (err error) {
+	pred := func(c any) (err error) {
 		req := c.(*gcs.ReadObjectRequest)
 		if req.Range == nil {
 			err = errors.New("which has a nil range")
@@ -122,7 +122,7 @@ func rangeStartIs(expected uint64) (m Matcher) {
 }
 
 func rangeLimitIs(expected uint64) (m Matcher) {
-	pred := func(c interface{}) (err error) {
+	pred := func(c any) (err error) {
 		req := c.(*gcs.ReadObjectRequest)
 		if req.Range == nil {
 			err = errors.New("which has a nil range")

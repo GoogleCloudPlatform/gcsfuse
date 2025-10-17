@@ -274,7 +274,7 @@ func (testSuite *PrefetchMemoryBlockTest) TestSingleNotifyAndMultipleAwaitReady(
 
 	// Multiple goroutines waiting for the same block to be ready.
 	// They should all receive the same status once the block is notified.
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		go func() {
 			defer wg.Done()
 

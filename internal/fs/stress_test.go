@@ -49,7 +49,7 @@ func forEachName(names []string, f func(string) error) (err error) {
 	firstErr := make(chan error, 1)
 
 	var wg sync.WaitGroup
-	for i := 0; i < parallelism; i++ {
+	for range parallelism {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -96,7 +96,7 @@ func (t *StressTest) CreateAndReadManyFilesInParallel() {
 	const numFiles = 32
 
 	var names []string
-	for i := 0; i < numFiles; i++ {
+	for i := range numFiles {
 		names = append(names, fmt.Sprintf("%d", i))
 	}
 
@@ -148,7 +148,7 @@ func (t *StressTest) TruncateFileManyTimesInParallel() {
 		var size int64
 		startTime := time.Now()
 		for time.Since(startTime) < desiredDuration {
-			for i := 0; i < 10; i++ {
+			for range 10 {
 				size = rand.Int63n(1 << 14)
 				err = f.Truncate(size)
 				if err != nil {
@@ -167,7 +167,7 @@ func (t *StressTest) TruncateFileManyTimesInParallel() {
 	const numWorkers = 16
 	finalSizes := make(chan int64, numWorkers)
 
-	for i := 0; i < numWorkers; i++ {
+	for range numWorkers {
 		group.Go(func() (err error) {
 			err = worker(finalSizes)
 			return

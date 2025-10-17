@@ -106,7 +106,7 @@ func (s *jobChunkTest) TestJobChunkSizeForMultipleFileReads() {
 
 	// Read 2 files in parallel.
 	var wg sync.WaitGroup
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		wg.Add(1)
 		i := i
 		go func() {
@@ -127,7 +127,7 @@ func (s *jobChunkTest) TestJobChunkSizeForMultipleFileReads() {
 		testFileNames[0], testFileNames[1] = testFileNames[1], testFileNames[0]
 	}
 
-	for fileIndex := 0; fileIndex < 2; fileIndex++ {
+	for fileIndex := range 2 {
 		assert.Equal(s.T(), expectedOutcome[fileIndex].BucketName, structuredJobLogs[fileIndex].BucketName)
 		assert.Equal(s.T(), expectedOutcome[fileIndex].ObjectName, structuredJobLogs[fileIndex].ObjectName)
 

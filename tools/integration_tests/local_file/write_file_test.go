@@ -27,7 +27,7 @@ func (t *LocalFileTestSuite) TestMultipleWritesToLocalFile() {
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
 
 	// Write some contents to file sequentially.
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		operations.WriteWithoutClose(fh, FileContents, t.T())
 	}
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
@@ -57,7 +57,7 @@ func (t *LocalFileTestSuite) TestOutOfOrderWritesToNewFile() {
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
 
 	// Write some contents to file sequentially.
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		operations.WriteWithoutClose(fh, FileContents, t.T())
 	}
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())
@@ -77,7 +77,7 @@ func (t *LocalFileTestSuite) TestMultipleOutOfOrderWritesToNewFile() {
 	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t.T())
 
 	// Write some contents to file sequentially.
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		operations.WriteWithoutClose(fh, FileContents, t.T())
 	}
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t.T())

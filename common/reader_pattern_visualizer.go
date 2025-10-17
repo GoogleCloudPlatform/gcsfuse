@@ -147,15 +147,9 @@ func (rpv *ReadPatternVisualizer) canMergeRanges(lastRange, newRange ReadRange) 
 
 // mergeRanges combines two ranges into a single range.
 func (rpv *ReadPatternVisualizer) mergeRanges(range1, range2 ReadRange) ReadRange {
-	start := range1.Start
-	if range2.Start < start {
-		start = range2.Start
-	}
+	start := min(range2.Start, range1.Start)
 
-	end := range1.End
-	if range2.End > end {
-		end = range2.End
-	}
+	end := max(range2.End, range1.End)
 
 	return ReadRange{Start: start, End: end}
 }

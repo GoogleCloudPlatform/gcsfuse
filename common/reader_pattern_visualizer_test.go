@@ -419,8 +419,7 @@ func ExampleReadPatternVisualizer() {
 func BenchmarkAcceptRange(b *testing.B) {
 	rpv := NewReadPatternVisualizer()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		rpv.AcceptRange(int64(i*1024), int64((i+1)*1024))
 	}
 }
@@ -429,12 +428,11 @@ func BenchmarkDumpGraph(b *testing.B) {
 	rpv := NewReadPatternVisualizer()
 
 	// Setup with 1000 ranges
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		rpv.AcceptRange(int64(i*1024), int64((i+1)*1024))
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = rpv.DumpGraph()
 	}
 }

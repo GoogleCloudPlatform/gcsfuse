@@ -82,7 +82,7 @@ func runParallelOperationsInMountedDirectoryTillLogRotation(t *testing.T) {
 	// Parallelly performs operations on 5 files in-order to generate logs.
 	var wg sync.WaitGroup
 	wg.Add(5)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		go runOperationsOnFileTillLogRotation(t, &wg, fmt.Sprintf(testFileName+"-%d", i))
 	}
 	wg.Wait()
@@ -106,7 +106,7 @@ func TestLogRotation(t *testing.T) {
 	setup.SetupTestDirectory(testDirName)
 
 	// Perform log rotation 4 times.
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		runParallelOperationsInMountedDirectoryTillLogRotation(t)
 	}
 	// Adding 1-second sleep here because there is slight delay in compression
@@ -122,7 +122,7 @@ func TestLogRotation(t *testing.T) {
 	rotatedCompressedFileCtr := 0
 	logFileCtr := 0
 	rotatedUncompressedFileCtr := 0
-	for i := 0; i < logFileCount; i++ {
+	for i := range logFileCount {
 		if dirEntries[i].Name() == logFileName {
 			logFileCtr++
 			validateLogFileSize(t, dirEntries[i])

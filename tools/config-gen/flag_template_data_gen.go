@@ -49,7 +49,7 @@ func computeFlagTemplateData(paramsConfig []Param) ([]flagTemplateData, error) {
 
 func capitalize(name string) string {
 	var buf strings.Builder
-	for _, w := range strings.Split(name, "-") {
+	for w := range strings.SplitSeq(name, "-") {
 		buf.WriteString(cases.Title(language.English).String(w))
 	}
 	return buf.String()
@@ -111,7 +111,7 @@ func computeFlagTemplateDataForParam(p Param) (flagTemplateData, error) {
 	p.Usage = fmt.Sprintf("%q", p.Usage)
 	// Compute the Go field path, e.g., "metadata-cache.ttl-secs" -> "MetadataCache.TtlSecs"
 	var goPathParts []string
-	for _, part := range strings.Split(p.ConfigPath, ".") {
+	for part := range strings.SplitSeq(p.ConfigPath, ".") {
 		goPathParts = append(goPathParts, capitalize(part))
 	}
 	goPath := strings.Join(goPathParts, ".")

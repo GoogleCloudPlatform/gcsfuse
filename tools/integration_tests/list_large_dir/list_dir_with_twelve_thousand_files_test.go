@@ -183,7 +183,7 @@ func listDirTime(t *testing.T, dirPath string, expectExplicitDirs bool, expectIm
 	firstListTime := endTime.Sub(startTime)
 
 	minSecondListTime := time.Duration(math.MaxInt64)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		startTime = time.Now()
 		objs, err = os.ReadDir(dirPath)
 		if err != nil {

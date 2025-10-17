@@ -336,10 +336,7 @@ func (tf *tempFile) ensure(limit int64) error {
 		if size >= limit {
 			return nil
 		}
-		n := limit - size
-		if n < minCopyLength {
-			n = minCopyLength
-		}
+		n := max(limit-size, minCopyLength)
 		n, err = io.CopyN(tf.f, tf.source, n)
 		if err == io.EOF {
 			tf.source.Close()
