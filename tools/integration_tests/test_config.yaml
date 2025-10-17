@@ -419,3 +419,31 @@ read_cache:
           zonal: true
         run: TestCacheFileForIncludeRegexTest
         run_on_gke: true
+
+dentry_cache:
+ - mounted_directory: "${MOUNTED_DIR}"
+   test_bucket: "pranjal-bucket-1"
+   log_file: # Not Required by dentry_cache tests
+   run_on_gke: true
+   configs:
+     - flags:
+       - "--implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=2"
+       compatible:
+         flat: true
+         hns: true
+         zonal: true
+       run: TestStatWithDentryCacheEnabledTest
+     - flags:
+       - "--implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=1000"
+       compatible:
+         flat: true
+         hns: true
+         zonal: true
+       run: TestDeleteOperationTest
+     - flags:
+       - "--implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=1000"
+       compatible:
+         flat: true
+         hns: true
+         zonal: true
+       run: TestNotifierTest
