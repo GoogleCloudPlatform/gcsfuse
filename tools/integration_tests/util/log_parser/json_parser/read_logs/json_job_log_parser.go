@@ -50,14 +50,14 @@ func parseJobLogsFromLogFile(reader io.Reader) (map[string]*Job, error) {
 
 func filterAndParseJobLogLine(logLine string, structuredLogs map[string]*Job) error {
 
-	jsonLog := make(map[string]interface{})
+	jsonLog := make(map[string]any)
 	if err := json.Unmarshal([]byte(logLine), &jsonLog); err != nil {
 		return nil // Silently ignore the structuredLogs which are not in JSON format.
 	}
 
 	// Get timestamp from the jsonLog
-	timestampSeconds := int64(jsonLog["timestamp"].(map[string]interface{})["seconds"].(float64))
-	timestampNanos := int64(jsonLog["timestamp"].(map[string]interface{})["nanos"].(float64))
+	timestampSeconds := int64(jsonLog["timestamp"].(map[string]any)["seconds"].(float64))
+	timestampNanos := int64(jsonLog["timestamp"].(map[string]any)["nanos"].(float64))
 	// Normalize whitespace in the log message.
 	logMessage := strings.TrimSpace(regexp.MustCompile(`\s+`).ReplaceAllString(jsonLog["message"].(string), " "))
 	// Parse the logs based on type.

@@ -94,7 +94,7 @@ func (s *concurrentListingTest) Test_OpenDirAndLookUp() {
 	// Goroutine 1: Repeatedly calls OpenDir.
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsForLightOperations; i++ {
+		for range iterationsForLightOperations {
 			f, err := os.Open(targetDir)
 			require.Nil(s.T(), err)
 
@@ -106,7 +106,7 @@ func (s *concurrentListingTest) Test_OpenDirAndLookUp() {
 	// Goroutine 1: Repeatedly calls Stat.
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsForLightOperations; i++ {
+		for range iterationsForLightOperations {
 			_, err := os.Stat(targetDir)
 			require.Nil(s.T(), err)
 		}
@@ -140,7 +140,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndLookUp() {
 	// Goroutine 1: Repeatedly calls Readdir
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsForMediumOperations; i++ {
+		for range iterationsForMediumOperations {
 			f, err := os.Open(targetDir)
 			require.Nil(s.T(), err)
 
@@ -155,7 +155,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndLookUp() {
 	// Goroutine 2: Repeatedly stats
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsForLightOperations; i++ {
+		for range iterationsForLightOperations {
 			_, err := os.Stat(targetDir)
 			require.Nil(s.T(), err)
 		}
@@ -189,11 +189,11 @@ func (s *concurrentListingTest) Test_MultipleConcurrentReadDir() {
 	timeout := 600 * time.Second // More timeout to accommodate the high listing time without kernel-list-cache.
 
 	// Create multiple go routines to listing concurrently.
-	for i := 0; i < goroutineCount; i++ {
+	for range goroutineCount {
 		go func() {
 			defer wg.Done()
 
-			for j := 0; j < iterationsForMediumOperations; j++ {
+			for range iterationsForMediumOperations {
 				f, err := os.Open(targetDir)
 				require.Nil(s.T(), err)
 
@@ -235,7 +235,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileOperations() {
 	// Goroutine 1: Repeatedly calls Readdir
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsForMediumOperations; i++ { // Adjust iteration count if needed
+		for range iterationsForMediumOperations { // Adjust iteration count if needed
 			f, err := os.Open(targetDir)
 			require.Nil(s.T(), err)
 
@@ -250,7 +250,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileOperations() {
 	// Goroutine 2: Creates and deletes files
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsForHeavyOperations; i++ { // Adjust iteration count if needed
+		for range iterationsForHeavyOperations { // Adjust iteration count if needed
 			filePath := path.Join(targetDir, "tmp_file.txt")
 			renamedFilePath := path.Join(targetDir, "renamed_tmp_file.txt")
 
@@ -300,7 +300,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndDirOperations() {
 	// Goroutine 1: Repeatedly calls Readdir
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsForMediumOperations; i++ {
+		for range iterationsForMediumOperations {
 			f, err := os.Open(targetDir)
 			require.Nil(s.T(), err)
 
@@ -315,7 +315,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndDirOperations() {
 	// Goroutine 2: Creates and deletes directories
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsForHeavyOperations; i++ {
+		for range iterationsForHeavyOperations {
 			dirPath := path.Join(targetDir, "test_dir")
 			renamedDirPath := path.Join(targetDir, "renamed_test_dir")
 
@@ -362,7 +362,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileEdit() {
 	// Goroutine 1: Repeatedly calls Readdir
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsForMediumOperations; i++ {
+		for range iterationsForMediumOperations {
 			f, err := os.Open(targetDir)
 			require.Nil(s.T(), err)
 
@@ -377,7 +377,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileEdit() {
 	// Goroutine 2: Create and edit files
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsForHeavyOperations; i++ {
+		for i := range iterationsForHeavyOperations {
 			filePath := path.Join(targetDir, fmt.Sprintf("test_file_%d.txt", i))
 
 			// Create file
@@ -424,7 +424,7 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations() {
 	// Goroutine 1: Repeatedly calls Readdir
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsForMediumOperations; i++ { // Adjust iteration count if needed
+		for range iterationsForMediumOperations { // Adjust iteration count if needed
 			f, err := os.Open(targetDir)
 			require.Nil(s.T(), err)
 
@@ -439,7 +439,7 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations() {
 	// Goroutine 2: Create and edit files
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsForHeavyOperations; i++ {
+		for i := range iterationsForHeavyOperations {
 			filePath := path.Join(targetDir, fmt.Sprintf("test_file_%d.txt", i))
 
 			// Create file
@@ -460,7 +460,7 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations() {
 	// Goroutine 3: Creates and deletes directories
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsForHeavyOperations; i++ {
+		for range iterationsForHeavyOperations {
 			dirPath := path.Join(targetDir, "test_dir")
 			renamedDirPath := path.Join(targetDir, "renamed_test_dir")
 
@@ -481,7 +481,7 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations() {
 	// Goroutine 4: Repeatedly stats
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsForLightOperations; i++ {
+		for range iterationsForLightOperations {
 			_, err := os.Stat(targetDir)
 			require.Nil(s.T(), err)
 		}
@@ -490,7 +490,7 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations() {
 	// Goroutine 5: Repeatedly calls OpenDir.
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsForLightOperations; i++ {
+		for range iterationsForLightOperations {
 			f, err := os.Open(targetDir)
 			require.Nil(s.T(), err)
 
@@ -528,7 +528,7 @@ func (s *concurrentListingTest) Test_ListWithMoveFile() {
 	// Goroutine 1: Repeatedly calls Readdir
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsForMediumOperations; i++ { // Adjust iteration count if needed
+		for range iterationsForMediumOperations { // Adjust iteration count if needed
 			f, err := os.Open(targetDir)
 			require.NoError(s.T(), err)
 
@@ -546,7 +546,7 @@ func (s *concurrentListingTest) Test_ListWithMoveFile() {
 	// Goroutine 2: Move file
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsForHeavyOperations; i++ { // Adjust iteration count if needed
+		for range iterationsForHeavyOperations { // Adjust iteration count if needed
 			// Move File in the target directory
 			err = operations.Move(path.Join(testDirPath, "move_file.txt"), path.Join(targetDir, "move_file.txt"))
 			require.NoError(s.T(), err)
@@ -585,7 +585,7 @@ func (s *concurrentListingTest) Test_ListWithMoveDir() {
 	// Goroutine 1: Repeatedly calls Readdir
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsForMediumOperations; i++ { // Adjust iteration count if needed
+		for range iterationsForMediumOperations { // Adjust iteration count if needed
 			f, err := os.Open(targetDir)
 			require.NoError(s.T(), err)
 
@@ -602,7 +602,7 @@ func (s *concurrentListingTest) Test_ListWithMoveDir() {
 	// Goroutine 2: Move Dir
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsForHeavyOperations; i++ { // Adjust iteration count if needed
+		for range iterationsForHeavyOperations { // Adjust iteration count if needed
 			// Move Dir in the target dir
 			err = operations.Move(path.Join(testDirPath, "move_dir"), path.Join(targetDir, "move_dir"))
 			require.NoError(s.T(), err)
@@ -641,7 +641,7 @@ func (s *concurrentListingTest) Test_StatWithNewFileWrite() {
 	// Goroutine 1: Repeatedly calls Stat
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsForMediumOperations; i++ {
+		for range iterationsForMediumOperations {
 			_, err := os.Stat(targetDir)
 
 			require.NoError(s.T(), err)
@@ -651,7 +651,7 @@ func (s *concurrentListingTest) Test_StatWithNewFileWrite() {
 	// Goroutine 2: Repeatedly create a file.
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsForMediumOperations; i++ {
+		for i := range iterationsForMediumOperations {
 			// Create file
 			filePath := path.Join(targetDir, fmt.Sprintf("tmp_file_%d.txt", i))
 			err := os.WriteFile(filePath, []byte("Hello, world!"), setup.FilePermission_0600)

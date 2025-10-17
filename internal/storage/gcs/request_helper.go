@@ -15,6 +15,7 @@
 package gcs
 
 import (
+	"maps"
 	"time"
 )
 
@@ -35,9 +36,7 @@ func NewCreateObjectRequest(srcObject *Object, objectName string, mtime *time.Ti
 			ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
 		}
 	} else {
-		for key, value := range srcObject.Metadata {
-			metadataMap[key] = value
-		}
+		maps.Copy(metadataMap, srcObject.Metadata)
 
 		req = &CreateObjectRequest{
 			Name:                       srcObject.Name,

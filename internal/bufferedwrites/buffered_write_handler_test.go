@@ -267,7 +267,7 @@ func (testSuite *BufferedWriteTest) TestFlushWithMultiBlockWritesAndSignalUpload
 	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
 	bwhImpl.uploadHandler.uploadError.Store(&errUploadFailure)
 	// Write 5 more blocks.
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		err := testSuite.bwh.Write(buffer, int64(blockSize*(i+5)))
 		require.Error(testSuite.T(), err)
 		assert.Equal(testSuite.T(), errUploadFailure, err)
@@ -284,7 +284,7 @@ func (testSuite *BufferedWriteTest) TestSync5InProgressBlocks() {
 	buffer, err := operations.GenerateRandomData(blockSize)
 	assert.NoError(testSuite.T(), err)
 	// Write 5 blocks.
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		err = testSuite.bwh.Write(buffer, int64(blockSize*i))
 		require.Nil(testSuite.T(), err)
 	}
@@ -367,7 +367,7 @@ func (testSuite *BufferedWriteTest) TestSyncBlocksWithError() {
 	buffer, err := operations.GenerateRandomData(blockSize)
 	assert.NoError(testSuite.T(), err)
 	// Write 5 blocks.
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		err = testSuite.bwh.Write(buffer, int64(blockSize*i))
 		require.Nil(testSuite.T(), err)
 	}
@@ -474,7 +474,7 @@ func (testSuite *BufferedWriteTest) TestUnlinkAfterWrite() {
 	buffer, err := operations.GenerateRandomData(blockSize)
 	assert.NoError(testSuite.T(), err)
 	// Write 5 blocks.
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		err = testSuite.bwh.Write(buffer, int64(blockSize*i))
 		require.Nil(testSuite.T(), err)
 	}

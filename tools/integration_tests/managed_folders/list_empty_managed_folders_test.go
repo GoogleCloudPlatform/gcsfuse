@@ -144,9 +144,9 @@ func (s *enableEmptyManagedFoldersTrue) TestListDirectoryForEmptyManagedFolders(
 	}
 }
 
-func getMountConfigForEmptyManagedFolders() map[string]interface{} {
-	mountConfig := map[string]interface{}{
-		"list": map[string]interface{}{
+func getMountConfigForEmptyManagedFolders() map[string]any {
+	mountConfig := map[string]any{
+		"list": map[string]any{
 			"enable-empty-managed-folders": true,
 		},
 	}

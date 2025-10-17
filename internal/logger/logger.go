@@ -167,17 +167,17 @@ func SetLogFormat(format string) {
 }
 
 // Tracef prints the message with TRACE severity in the specified format.
-func Tracef(format string, v ...interface{}) {
+func Tracef(format string, v ...any) {
 	defaultLogger.Log(context.Background(), LevelTrace, fmt.Sprintf(format, v...))
 }
 
 // Debugf prints the message with DEBUG severity in the specified format.
-func Debugf(format string, v ...interface{}) {
+func Debugf(format string, v ...any) {
 	defaultLogger.Debug(fmt.Sprintf(format, v...))
 }
 
 // Infof prints the message with INFO severity in the specified format.
-func Infof(format string, v ...interface{}) {
+func Infof(format string, v ...any) {
 	defaultLogger.Info(fmt.Sprintf(format, v...))
 }
 
@@ -187,12 +187,12 @@ func Info(message string, args ...any) {
 }
 
 // Warnf prints the message with WARNING severity in the specified format.
-func Warnf(format string, v ...interface{}) {
+func Warnf(format string, v ...any) {
 	defaultLogger.Warn(fmt.Sprintf(format, v...))
 }
 
 // Errorf prints the message with ERROR severity in the specified format.
-func Errorf(format string, v ...interface{}) {
+func Errorf(format string, v ...any) {
 	defaultLogger.Error(fmt.Sprintf(format, v...))
 }
 
@@ -202,7 +202,7 @@ func Error(error string) {
 }
 
 // Fatal prints an error log and exits with non-zero exit code.
-func Fatal(format string, v ...interface{}) {
+func Fatal(format string, v ...any) {
 	Errorf(format, v...)
 	Error(string(debug.Stack()))
 	os.Exit(1)

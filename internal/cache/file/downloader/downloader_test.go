@@ -206,7 +206,7 @@ func (dt *downloaderTest) Test_GetJob_Concurrent() {
 	}
 
 	// make concurrent requests
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		wg.Add(1)
 		go getFunc(i)
 	}
@@ -214,7 +214,7 @@ func (dt *downloaderTest) Test_GetJob_Concurrent() {
 
 	dt.verifyJob(dt.job, &dt.object, dt.bucket, dt.jm.sequentialReadSizeMb)
 	// Verify all jobs
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		ExpectEq(dt.job, jobs[i])
 	}
 }
@@ -261,7 +261,7 @@ func (dt *downloaderTest) Test_InvalidateAndRemoveJob_Concurrent() {
 	wg := sync.WaitGroup{}
 
 	// Make concurrent requests
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		wg.Add(1)
 		invalidateFunc := func() {
 			dt.jm.InvalidateAndRemoveJob(dt.object.Name, dt.bucket.Name())
@@ -324,7 +324,7 @@ func (dt *downloaderTest) Test_CreateJobIfNotExists_InvalidateAndRemoveJob_Concu
 		wg.Done()
 	}
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		wg.Add(2)
 		go createNewJob()
 		go invalidateJob()

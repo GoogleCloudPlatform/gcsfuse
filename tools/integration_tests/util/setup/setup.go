@@ -646,7 +646,7 @@ func AddHNSFlagForHierarchicalBucket(ctx context.Context, storageClient *storage
 	}
 
 	var flags []string
-	mountConfig4 := map[string]interface{}{
+	mountConfig4 := map[string]any{
 		"enable-hns": true,
 	}
 	filePath4 := YAMLConfigFile(mountConfig4, "config_hns.yaml")

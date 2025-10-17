@@ -32,7 +32,7 @@ func MountGcsfuseWithDynamicMountingWithConfig(cfg *test_suite.TestConfig, flags
 		"--log-file=" + cfg.LogFile,
 		cfg.GCSFuseMountedDirectory}
 
-	for i := 0; i < len(defaultArg); i++ {
+	for i := range defaultArg {
 		flags = append(flags, defaultArg[i])
 	}
 
@@ -53,7 +53,7 @@ func MountGcsfuseWithDynamicMounting(flags []string) (err error) {
 }
 
 func runTestsOnGivenMountedTestBucket(cfg *test_suite.TestConfig, flags [][]string, rootMntDir string, m *testing.M) (successCode int) {
-	for i := 0; i < len(flags); i++ {
+	for i := range flags {
 		if err := MountGcsfuseWithDynamicMountingWithConfig(cfg, flags[i]); err != nil {
 			setup.LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
 		}
