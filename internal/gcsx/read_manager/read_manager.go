@@ -40,6 +40,9 @@ type ReadManager struct {
 	// readers holds a list of data readers, prioritized for reading.
 	// e.g., File cache reader, GCS reader.
 	readers []gcsx.Reader
+
+	// patternTracker holds shared state across all readers for this file handle
+	patternTracker *gcsx.ReadPatternTracker
 }
 
 // ReadManagerConfig holds the configuration parameters for creating a new ReadManager.
@@ -52,6 +55,8 @@ type ReadManagerConfig struct {
 	Config                *cfg.Config
 	GlobalMaxBlocksSem    *semaphore.Weighted
 	WorkerPool            workerpool.WorkerPool
+	// PatternTracker is optional - if nil, a new one will be created
+	PatternTracker *gcsx.ReadPatternTracker
 }
 
 // NewReadManager creates a new ReadManager for the given GCS object,
@@ -60,6 +65,12 @@ type ReadManagerConfig struct {
 func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManagerConfig) *ReadManager {
 	// Create a slice to hold all readers. The file cache reader will be added first if it exists.
 	var readers []gcsx.Reader
+
+	// Create or use provided pattern tracker - this is now managed at read manager level
+	patternTracker := config.PatternTracker
+	if patternTracker == nil {
+		patternTracker = gcsx.NewReadPatternTracker(int64(config.SequentialReadSizeMB))
+	}
 
 	// If a file cache handler is provided, initialize the file cache reader and add it to the readers slice first.
 	if config.FileCacheHandler != nil {
@@ -82,6 +93,7 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 			InitialPrefetchBlockCnt: readConfig.StartBlocksPerHandle,
 			MinBlocksPerHandle:      readConfig.MinBlocksPerHandle,
 			RandomSeekThreshold:     readConfig.RandomSeekThreshold,
+			ReadPatternTracker:      patternTracker,
 		}
 		bufferedReader, err := bufferedread.NewBufferedReader(
 			object,
@@ -107,14 +119,16 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 			MrdWrapper:           config.MrdWrapper,
 			SequentialReadSizeMb: config.SequentialReadSizeMB,
 			Config:               config.Config,
+			ReadPatternTracker:    patternTracker,
 		},
 	)
 	// Add the GCS reader as a fallback.
 	readers = append(readers, gcsReader)
 
 	return &ReadManager{
-		object:  object,
-		readers: readers, // Readers are prioritized: file cache first, then GCS.
+		object:          object,
+		readers:         readers, // Readers are prioritized: file cache first, then GCS.
+		patternTracker:  patternTracker,
 	}
 }
 
@@ -141,11 +155,17 @@ func (rr *ReadManager) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx
 		return gcsx.ReaderResponse{}, nil
 	}
 
+	rr.patternTracker.RecordSeek(offset, int64(len(p)))
+
 	var readerResponse gcsx.ReaderResponse
 	var err error
 	for _, r := range rr.readers {
 		readerResponse, err = r.ReadAt(ctx, p, offset)
 		if err == nil {
+			// Record the successful read operation in shared state
+			if rr.patternTracker != nil && readerResponse.Size > 0 {
+				rr.patternTracker.RecordRead(offset, int64(readerResponse.Size))
+			}
 			return readerResponse, nil
 		}
 		if !errors.Is(err, gcsx.FallbackToAnotherReader) {
