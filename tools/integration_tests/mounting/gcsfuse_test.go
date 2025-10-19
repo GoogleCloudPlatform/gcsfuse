@@ -26,8 +26,8 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/canned"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fusetesting"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )

@@ -18,6 +18,7 @@ import (
 	"sync"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
+	"github.com/jacobsa/fuse/fuseops"
 	"golang.org/x/net/context"
 )
 

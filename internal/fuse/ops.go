@@ -14,22 +14,25 @@
 
 package fuse
 
-import "os"
+import (
+	"os"
+	"time"
+)
 
 type InodeID uint64
 type HandleID uint64
 type DirOffset uint64
 
 type InodeAttributes struct {
-	Size  uint64
-	Nlink uint32
-	Mode  os.FileMode
-	Atime time.Time
-	Mtime time.Time
-	Ctime time.Time
+	Size   uint64
+	Nlink  uint32
+	Mode   os.FileMode
+	Atime  time.Time
+	Mtime  time.Time
+	Ctime  time.Time
 	Crtime time.Time
-	Uid   uint32
-	Gid   uint32
+	Uid    uint32
+	Gid    uint32
 }
 
 type ReadFileOp struct {

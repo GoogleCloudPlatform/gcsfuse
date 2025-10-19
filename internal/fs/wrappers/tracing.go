@@ -17,7 +17,8 @@ package wrappers
 import (
 	"context"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs"
+	"github.com/jacobsa/fuse/fuseops"
+	"github.com/jacobsa/fuse/fuseutil"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"

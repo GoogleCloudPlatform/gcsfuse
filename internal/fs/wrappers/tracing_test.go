@@ -18,7 +18,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/fuse"
+	"github.com/jacobsa/fuse/fuseops"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"

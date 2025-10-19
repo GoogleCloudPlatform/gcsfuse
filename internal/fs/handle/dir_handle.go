@@ -22,6 +22,9 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
+	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/fuseops"
+	"github.com/jacobsa/fuse/fuseutil"
 	"golang.org/x/net/context"
 )
 

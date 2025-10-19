@@ -16,6 +16,8 @@ package inode
 
 import (
 	"fmt"
+
+	"github.com/jacobsa/fuse/fuseops"
 )
 
 // A helper struct for implementing lookup counts. The only value added is some

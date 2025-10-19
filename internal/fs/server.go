@@ -19,6 +19,8 @@ import (
 
 	newcfg "github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/wrappers"
+	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/fuseutil"
 	"golang.org/x/net/context"
 )
 
