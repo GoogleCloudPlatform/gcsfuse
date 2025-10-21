@@ -84,7 +84,8 @@ func (t *DirHandleTest) resetDirHandle() {
 		&t.clock,
 		&t.clock,
 		0,
-		false)
+		false,
+		true)
 
 	t.dh = NewDirHandle(
 		dirInode,

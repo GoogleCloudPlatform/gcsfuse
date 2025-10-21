@@ -96,6 +96,7 @@ func createDirInode(
 		clock,
 		4,
 		false,
+		true,
 	)
 }
 

@@ -236,6 +236,8 @@ type dirInode struct {
 	prevDirListingTimeStamp time.Time
 	isHNSEnabled            bool
 
+	isUnsupportedObjectSupportEnabled bool
+
 	// Represents if folder has been unlinked in hierarchical bucket. This is not getting used in
 	// non-hierarchical bucket.
 	unlinked bool
@@ -275,6 +277,7 @@ func NewDirInode(
 	cacheClock timeutil.Clock,
 	typeCacheMaxSizeMB int64,
 	isHNSEnabled bool,
+	isUnsupportedObjectSupportEnabled bool,
 ) (d DirInode) {
 
 	if !name.IsDir() {
@@ -282,18 +285,19 @@ func NewDirInode(
 	}
 
 	typed := &dirInode{
-		bucket:                     bucket,
-		mtimeClock:                 mtimeClock,
-		cacheClock:                 cacheClock,
-		id:                         id,
-		implicitDirs:               implicitDirs,
-		includeFoldersAsPrefixes:   includeFoldersAsPrefixes,
-		enableNonexistentTypeCache: enableNonexistentTypeCache,
-		name:                       name,
-		attrs:                      attrs,
-		cache:                      metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL),
-		isHNSEnabled:               isHNSEnabled,
-		unlinked:                   false,
+		bucket:                            bucket,
+		mtimeClock:                        mtimeClock,
+		cacheClock:                        cacheClock,
+		id:                                id,
+		implicitDirs:                      implicitDirs,
+		includeFoldersAsPrefixes:          includeFoldersAsPrefixes,
+		enableNonexistentTypeCache:        enableNonexistentTypeCache,
+		name:                              name,
+		attrs:                             attrs,
+		cache:                             metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL),
+		isHNSEnabled:                      isHNSEnabled,
+		unlinked:                          false,
+		isUnsupportedObjectSupportEnabled: isUnsupportedObjectSupportEnabled,
 	}
 
 	typed.lc.Init(id)
@@ -752,6 +756,9 @@ func (d *dirInode) readObjects(
 		pathBase := path.Base(p)
 		if storageutil.IsUnsupportedObjectName(p) {
 			unsupportedPrefixes = append(unsupportedPrefixes, p)
+			if d.isUnsupportedObjectSupportEnabled {
+				continue
+			}
 		}
 		dirName := NewDirName(d.Name(), pathBase)
 		if d.isBucketHierarchical() {
