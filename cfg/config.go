@@ -353,6 +353,8 @@ type Config struct {
 
 	EnableNewReader bool `yaml:"enable-new-reader"`
 
+	EnableUnsupportedDirSupport bool `yaml:"enable-unsupported-dir-support"`
+
 	FileCache FileCacheConfig `yaml:"file-cache"`
 
 	FileSystem FileSystemConfig `yaml:"file-system"`
@@ -777,6 +779,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.BoolP("enable-streaming-writes", "", true, "Enables streaming uploads during write file operation.")
+
+	flagSet.BoolP("enable-unsupported-dir-support", "", true, "Enables support for un-supported directory fix implementation.")
+
+	if err := flagSet.MarkHidden("enable-unsupported-dir-support"); err != nil {
+		return err
+	}
 
 	flagSet.BoolP("experimental-enable-dentry-cache", "", false, "When enabled, it sets the Dentry cache entry timeout same as metadata-cache-ttl. This enables kernel to use cached entry to map the file paths to inodes, instead of making LookUpInode calls to GCSFuse.")
 
@@ -1224,6 +1232,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("write.enable-streaming-writes", flagSet.Lookup("enable-streaming-writes")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("enable-unsupported-dir-support", flagSet.Lookup("enable-unsupported-dir-support")); err != nil {
 		return err
 	}
 

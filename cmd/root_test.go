@@ -1244,6 +1244,43 @@ func TestArgsParsing_EnableHNSFlags(t *testing.T) {
 	}
 }
 
+func TestArgsParsing_EnableUnsupportedDirSupport(t *testing.T) {
+	tests := []struct {
+		name                          string
+		args                          []string
+		expectedUnsupportedDirSupport bool
+	}{
+		{
+			name:                          "normal",
+			args:                          []string{"gcsfuse", "--enable-unsupported-dir-support=false", "abc", "pqr"},
+			expectedUnsupportedDirSupport: false,
+		},
+		{
+			name:                          "default",
+			args:                          []string{"gcsfuse", "abc", "pqr"},
+			expectedUnsupportedDirSupport: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotUnsupportedDirSupport bool
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				gotUnsupportedDirSupport = cfg.EnableUnsupportedDirSupport
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedUnsupportedDirSupport, gotUnsupportedDirSupport)
+			}
+		})
+	}
+}
+
 func TestArgsParsing_EnableGoogleLibAuthFlag(t *testing.T) {
 	tests := []struct {
 		name                        string
