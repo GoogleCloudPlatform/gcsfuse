@@ -16,6 +16,7 @@ package workloadinsight
 
 import (
 	"fmt"
+	"math"
 	"strings"
 )
 
@@ -87,8 +88,11 @@ func NewRendererWithSettings(plotWidth, labelWidth, pad int) (*Renderer, error) 
 // and returns the ASCII representation as a string.
 func (r *Renderer) Render(name string, size uint64, ranges []Range) (string, error) {
 	var sb strings.Builder
-
-	sb.WriteString(r.buildHeader(name, size))
+	header, err := r.buildHeader(name, size)
+	if err != nil {
+		return "", err
+	}
+	sb.WriteString(header)
 
 	for i := range ranges {
 		line, err := r.buildRow(size, ranges[i])
@@ -112,7 +116,7 @@ func (r *Renderer) Render(name string, size uint64, ranges []Range) (string, err
 //	0B        250B         500B        750B      1000B
 //
 // [offset,len)          |-----------|------------|-----------|-----------|
-func (r *Renderer) buildHeader(name string, size uint64) string {
+func (r *Renderer) buildHeader(name string, size uint64) (string, error) {
 	var sb strings.Builder
 
 	// Helper to build a runes slice filled with the provided fill rune.
@@ -128,8 +132,7 @@ func (r *Renderer) buildHeader(name string, size uint64) string {
 	tickChars := makeRunes(r.PlotWidth, '-')
 	ticks := []uint64{0, size / 4, size / 2, (size * 3) / 4, size}
 	for _, off := range ticks {
-		p := mapCoord(off, size, r.PlotWidth)
-		if p >= 0 && p < r.PlotWidth {
+		if p, err := mapCoord(off, size, r.PlotWidth); err == nil {
 			tickChars[p] = '|'
 		}
 	}
@@ -137,7 +140,11 @@ func (r *Renderer) buildHeader(name string, size uint64) string {
 	// Numeric label line (place labels under ticks)
 	labelLine := makeRunes(r.PlotWidth, ' ')
 	for _, off := range ticks {
-		p := mapCoord(off, size, r.PlotWidth)
+		p, err := mapCoord(off, size, r.PlotWidth)
+		if err != nil {
+			return "", err
+		}
+
 		lab := humanReadable(off)
 		// center label around the tick position
 		start := p - len(lab)/2
@@ -175,7 +182,7 @@ func (r *Renderer) buildHeader(name string, size uint64) string {
 	sb.WriteString(string(tickChars))
 	sb.WriteByte('\n')
 
-	return sb.String()
+	return sb.String(), nil
 }
 
 // buildRow composes a single plotted row (label + plot cells) for the given range.
@@ -201,31 +208,26 @@ func (r *Renderer) buildRow(size uint64, rg Range) (string, error) {
 
 	// Map start/end to columns. Reserve column 0 as a separator when possible by
 	// mapping into [1, PlotWidth-1] when PlotWidth > 1.
-	var cs, ce int
-	if r.PlotWidth > 1 {
-		cs = mapCoord(s, size, r.PlotWidth-1) + 1
-		ce = mapCoord(e, size, r.PlotWidth-1) + 1
-	} else {
-		cs = mapCoord(s, size, r.PlotWidth)
-		ce = mapCoord(e, size, r.PlotWidth)
+	cs, err := mapCoord(s, size, r.PlotWidth-1)
+	if err != nil {
+		return "", err
 	}
+	ce, err := mapCoord(e, size, r.PlotWidth-1)
+	if err != nil {
+		return "", err
+	}
+	cs = cs + 1
+	ce = ce + 1
 
 	// Ensure at least one visible column is set for very small ranges.
 	if cs == ce {
-		if cs < r.PlotWidth-1 {
+		if ce < r.PlotWidth-1 {
 			ce = cs + 1
 		} else if cs > 0 {
 			cs = cs - 1
 		}
 	}
 
-	// Clamp column indices to valid range and fill cells.
-	if cs < 0 {
-		cs = 0
-	}
-	if ce >= r.PlotWidth {
-		ce = r.PlotWidth - 1
-	}
 	for c := cs; c <= ce; c++ {
 		cells[c] = blockChar
 	}
@@ -254,19 +256,19 @@ func (r *Renderer) buildRow(size uint64, rg Range) (string, error) {
 	return sb.String(), nil
 }
 
-// mapCoord maps an offset in [0,size] to a column in [0,plotWidth-1].
+// mapCoord maps an offset in [0, size) to a column in [0, plotWidth).
 // If size == 0 returns 0. plotWidth must be >0.
-func mapCoord(offset, size uint64, plotWidth int) int {
+func mapCoord(offset, size uint64, plotWidth int) (int, error) {
 	if plotWidth <= 0 || size == 0 {
-		return 0
+		return 0, fmt.Errorf("invalid arguments to mapCoord")
 	}
 	frac := float64(offset) / float64(size)
-	col := int(frac*float64(plotWidth-1) + 0.5)
+	col := int(math.Round(frac * float64(plotWidth)))
 	if col < 0 {
-		return 0
+		return 0, nil
 	}
 	if col >= plotWidth {
-		return plotWidth - 1
+		return plotWidth - 1, nil
 	}
-	return col
+	return col, nil
 }

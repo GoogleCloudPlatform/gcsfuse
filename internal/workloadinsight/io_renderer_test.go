@@ -90,6 +90,52 @@ func TestHumanReadable(t *testing.T) {
 	}
 }
 
+func TestMapCoord_Valid(t *testing.T) {
+	tc := []struct {
+		name      string
+		plotWidth int
+		fileSize  uint64
+		offset    uint64
+		expected  int
+	}{
+		{name: "start of file", plotWidth: 80, fileSize: 1000, offset: 0, expected: 0},
+		{name: "end of file", plotWidth: 80, fileSize: 1000, offset: 1000, expected: 79},
+		{name: "middle of file upper half decimal", plotWidth: 17, fileSize: 335, offset: 43, expected: 2},
+		{name: "middle of file lower half decimal", plotWidth: 17, fileSize: 335, offset: 73, expected: 4},
+		{name: "three quarters of file", plotWidth: 80, fileSize: 1000, offset: 750, expected: 60},
+	}
+
+	for _, test := range tc {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := mapCoord(test.offset, test.fileSize, test.plotWidth)
+
+			assert.NoError(t, err, "mapCoord should not return an error")
+			assert.Equal(t, test.expected, result, "mapCoord(%d, %d, %d) should return %d",
+				test.offset, test.fileSize, test.plotWidth, test.expected)
+		})
+	}
+}
+
+func TestMapCoord_Invalid(t *testing.T) {
+	tc := []struct {
+		name      string
+		plotWidth int
+		fileSize  uint64
+		offset    uint64
+	}{
+		{name: "zero plotWidth", plotWidth: 0, fileSize: 1000, offset: 500},
+		{name: "zero file size", plotWidth: 80, fileSize: 0, offset: 500},
+	}
+
+	for _, test := range tc {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := mapCoord(test.offset, test.fileSize, test.plotWidth)
+
+			assert.Error(t, err, "expected error for invalid input to mapCoord")
+		})
+	}
+}
+
 func TestIORenderer_Render(t *testing.T) {
 	tc := []struct {
 		name               string
