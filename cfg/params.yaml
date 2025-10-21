@@ -41,7 +41,11 @@ machine-type-groups:
     - "a3-highgpu-8g"
     - "a3-megagpu-8g"
     - "a3-ultragpu-8g"
+    - "a4-highgpu-8g"
     - "a4-highgpu-8g-lowmem"
+    - "a4-highgpu-8g-nolssd"
+    - "a4x-highgpu-4g"
+    - "a4x-highgpu-4g-nolssd"
     - "ct5l-hightpu-8t"
     - "ct5lp-hightpu-8t"
     - "ct5p-hightpu-4t"
@@ -50,6 +54,10 @@ machine-type-groups:
     - "ct6e-standard-4t-tpu"
     - "ct6e-standard-8t"
     - "ct6e-standard-8t-tpu"
+    - "tpu7x-standard-4t"
+    - "tpu7x-standard-4t-tpu"
+    - "tpu7x-ultranet-4t"
+    - "tpu7x-ultranet-4t-tpu"
     # Add other machine types here as needed.
   # Add other groups here as needed
 
