@@ -17,6 +17,7 @@ package fs_test
 
 import (
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"testing"
@@ -39,7 +40,7 @@ func TestUnsupportedObjectNameTestSuite(t *testing.T) {
 	suite.Run(t, new(UnsupportedObjectNameTest))
 }
 
-func (t *UnsupportedObjectNameTest) SetupSuite() {
+func (t *UnsupportedObjectNameTest) SetupTest() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.NewConfig = &cfg.Config{
 		EnableUnsupportedDirSupport: true,
@@ -49,9 +50,6 @@ func (t *UnsupportedObjectNameTest) SetupSuite() {
 
 func (t *UnsupportedObjectNameTest) TearDownTest() {
 	t.fsTest.TearDown()
-}
-
-func (t *UnsupportedObjectNameTest) TearDownSuite() {
 	t.fsTest.TearDownTestSuite()
 }
 
@@ -62,14 +60,17 @@ func (t *UnsupportedObjectNameTest) TearDownSuite() {
 func (t *UnsupportedObjectNameTest) TestReadDir_UnsupportedObjectName() {
 	// Set up contents.
 	err := t.createObjects(map[string]string{
-		"foo//bar": "",
+		"//foo": "",
+		"./bar": "",
+		"file1": "content",
 	})
 	t.Require().NoError(err)
 
 	// ReadDir should not show the unsupported object.
 	entries, err := fusetesting.ReadDirPicky(mntDir)
 	t.Require().NoError(err)
-	t.Assert().Empty(entries)
+	t.Require().Len(entries, 1)
+	t.Assert().Equal("file1", entries[0].Name())
 }
 
 func (t *UnsupportedObjectNameTest) TestReadDir_UnsupportedObjectName_WithSupportedObjects() {
@@ -149,4 +150,33 @@ func (t *UnsupportedObjectNameTest) TestRecursiveList_WithUnsupportedNames() {
 	t.Require().NoError(err)
 	t.Assert().ElementsMatch([]string{"dir1", "dir2", "dir3", "sub_dir1"}, dirs)
 	t.Assert().ElementsMatch([]string{"file2", "file4", "file6"}, files)
+}
+
+func (t *UnsupportedObjectNameTest) TestCopyDirectory_WithUnsupportedNames() {
+	err := t.createObjects(map[string]string{
+		"src/file1":    "content1",
+		"src//file2":   "content2",
+		"src/./file3":  "content3",
+		"src/ok":       "content4",
+		"src/../file5": "content5",
+		"src///file5":  "content6",
+	})
+	t.Require().NoError(err)
+
+	srcPath := path.Join(mntDir, "src")
+	destPath := path.Join(mntDir, "dest")
+
+	// Execute copy command.
+	cmd := exec.Command("cp", "-r", srcPath, destPath)
+	err = cmd.Run()
+	t.Require().NoError(err)
+
+	// Verify the contents of the destination directory.
+	entries, err := os.ReadDir(destPath)
+	t.Require().NoError(err)
+
+	// Only supported files and directories should be copied.
+	t.Require().Len(entries, 2)
+	t.Assert().Equal("file1", entries[0].Name())
+	t.Assert().Equal("ok", entries[1].Name())
 }
