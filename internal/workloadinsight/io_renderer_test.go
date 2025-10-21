@@ -182,7 +182,7 @@ func TestIORenderer_Render_DifferentFileSizesAndRanges(t *testing.T) {
 			r, err := NewRenderer()
 			require.NoError(t, err, "NewRenderer should not return an error")
 
-			out, err := r.Render("demo.txt", test.size, test.ranges)
+			out, err := r.Render(test.filename, test.size, test.ranges)
 			// os.WriteFile(test.expectedOutputFile, []byte(out), 0644) // Uncomment to create a new test output file.
 
 			assert.NoError(t, err, "Render should not return an error for valid input")

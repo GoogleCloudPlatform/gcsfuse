@@ -68,8 +68,12 @@ func NewRendererWithSettings(plotWidth, labelWidth, pad int) (*Renderer, error) 
 		return nil, fmt.Errorf("labelWidth must be at least %d", len(labelHeader))
 	}
 
-	if plotWidth < 0 || pad < 0 {
+	if pad < 0 {
 		return nil, fmt.Errorf("plotWidth and pad must be non-negative")
+	}
+
+	if plotWidth < 1 {
+		return nil, fmt.Errorf("plotWidth must be positive")
 	}
 
 	return &Renderer{
@@ -146,26 +150,7 @@ func (r *Renderer) buildHeader(name string, size uint64) string {
 				start = 0
 			}
 		}
-		for i, ch := range lab {
-			labelLine[start+i] = ch
-		}
-	}
-
-	// Print filename on its own line, centered across the plot area (move filename to very top)
-	plotLine := makeRunes(r.PlotWidth, ' ')
-	if name != "" && r.PlotWidth > 0 {
-		fl := len(name)
-		if fl >= r.PlotWidth {
-			// truncate to fit
-			for i, ch := range name[:r.PlotWidth] {
-				plotLine[i] = ch
-			}
-		} else {
-			start := (r.PlotWidth - fl) / 2
-			for i, ch := range name {
-				plotLine[start+i] = ch
-			}
-		}
+		copy(labelLine[start:], []rune(lab))
 	}
 
 	// Filename line
@@ -225,10 +210,6 @@ func (r *Renderer) buildRow(size uint64, rg Range) (string, error) {
 		ce = mapCoord(e, size, r.PlotWidth)
 	}
 
-	if ce < cs {
-		cs, ce = ce, cs
-	}
-
 	// Ensure at least one visible column is set for very small ranges.
 	if cs == ce {
 		if cs < r.PlotWidth-1 {
@@ -246,9 +227,7 @@ func (r *Renderer) buildRow(size uint64, rg Range) (string, error) {
 		ce = r.PlotWidth - 1
 	}
 	for c := cs; c <= ce; c++ {
-		if c >= 0 && c < r.PlotWidth {
-			cells[c] = blockChar
-		}
+		cells[c] = blockChar
 	}
 
 	// Place a vertical separator glyph in column 0.
@@ -257,13 +236,7 @@ func (r *Renderer) buildRow(size uint64, rg Range) (string, error) {
 	}
 
 	// Compose label and write.
-	var length uint64
-	if e > s {
-		length = e - s
-	} else {
-		length = s - e
-	}
-	label := fmt.Sprintf("[%d,%d)", s, length)
+	label := fmt.Sprintf("[%d,%d)", s, e-s)
 	if len(label) > r.LabelWidth {
 		label = label[:r.LabelWidth]
 	}
@@ -276,9 +249,7 @@ func (r *Renderer) buildRow(size uint64, rg Range) (string, error) {
 	}
 
 	// Write chart.
-	for _, ch := range cells {
-		sb.WriteString(ch)
-	}
+	sb.WriteString(strings.Join(cells, ""))
 
 	return sb.String(), nil
 }
