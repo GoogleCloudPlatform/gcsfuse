@@ -192,6 +192,10 @@ var machineTypeToGroupMap = map[string]string{
 	"ct6e-standard-4t-tpu":  "high-performance",
 	"ct6e-standard-8t":      "high-performance",
 	"ct6e-standard-8t-tpu":  "high-performance",
+	"tpu7x-standard-4t":     "high-performance",
+	"tpu7x-standard-4t-tpu": "high-performance",
+	"tpu7x-ultranet-4t":     "high-performance",
+	"tpu7x-ultranet-4t-tpu": "high-performance",
 }
 
 // ApplyOptimizations modifies the config in-place with optimized values.

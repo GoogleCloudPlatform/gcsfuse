@@ -54,6 +54,10 @@ machine-type-groups:
     - "ct6e-standard-4t-tpu"
     - "ct6e-standard-8t"
     - "ct6e-standard-8t-tpu"
+    - "tpu7x-standard-4t"
+    - "tpu7x-standard-4t-tpu"
+    - "tpu7x-ultranet-4t"
+    - "tpu7x-ultranet-4t-tpu"
     # Add other machine types here as needed.
   # Add other groups here as needed
 
