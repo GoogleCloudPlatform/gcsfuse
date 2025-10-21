@@ -1,4 +1,4 @@
-// Copyright 2015 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -81,26 +81,31 @@ func NewRendererWithSettings(plotWidth, labelWidth, pad int) (*Renderer, error) 
 
 // Render renders the given ranges for a single file of the specified size
 // and returns the ASCII representation as a string.
-func (r *Renderer) Render(name string, size uint64, ranges []Range) string {
+func (r *Renderer) Render(name string, size uint64, ranges []Range) (string, error) {
 	var sb strings.Builder
 
 	sb.WriteString(r.buildHeader(name, size))
 
 	for i := range ranges {
-		sb.WriteString(r.buildRow(size, ranges[i]))
+		line, err := r.buildRow(size, ranges[i])
+		if err != nil {
+			return "", err
+		}
+		sb.WriteString(line)
 		if i < len(ranges)-1 {
 			sb.WriteByte('\n')
 		}
 	}
-	return sb.String()
+	return sb.String(), nil
 }
 
 // buildHeader composes the header (filename, tick marks, numeric labels)
 // and returns it as a string to be prepended to the chart rows.
 // E.g.:
 //
-//	                     	 				demo.txt
-//						 0B        250B         500B        750B      1000B
+// Name: demo.txt
+//
+//	0B        250B         500B        750B      1000B
 //
 // [offset,len)          |-----------|------------|-----------|-----------|
 func (r *Renderer) buildHeader(name string, size uint64) string {
@@ -189,26 +194,21 @@ func (r *Renderer) buildHeader(name string, size uint64) string {
 }
 
 // buildRow composes a single plotted row (label + plot cells) for the given range.
-func (r *Renderer) buildRow(size uint64, rg Range) string {
+func (r *Renderer) buildRow(size uint64, rg Range) (string, error) {
 	var sb strings.Builder
 
-	// clamp and normalize range
-	s := rg.Start
-	e := rg.End
-	// clamp to [0,size]
-	clamp := func(v uint64) uint64 {
-		if v > size {
-			return size
-		}
-		return v
+	// Validate range: do not normalize or clamp; return an error on unexpected values.
+	if rg.Start > rg.End {
+		return "", fmt.Errorf("invalid range: start > end: [%d,%d)", rg.Start, rg.End)
 	}
-	s = clamp(s)
-	e = clamp(e)
-	if s > e {
-		s, e = e, s
+	if rg.End > size {
+		return "", fmt.Errorf("range extends beyond file size: [%d,%d) size=%d", rg.Start, rg.End, size)
 	}
 
-	// build plotting row
+	s := rg.Start
+	e := rg.End
+
+	// Build plotting row
 	cells := make([]string, r.PlotWidth)
 	for j := range cells {
 		cells[j] = emptyChar
@@ -251,14 +251,12 @@ func (r *Renderer) buildRow(size uint64, rg Range) string {
 		}
 	}
 
-	// place a vertical separator glyph in column 0 (use second glyph '|')
-	if r.PlotWidth > 0 {
-		if cells[0] == emptyChar {
-			cells[0] = "|"
-		}
+	// Place a vertical separator glyph in column 0.
+	if r.PlotWidth > 0 && cells[0] == emptyChar {
+		cells[0] = "|"
 	}
 
-	// label: "[start,len)" (omit full filename)
+	// Compose label and write.
 	var length uint64
 	if e > s {
 		length = e - s
@@ -269,21 +267,20 @@ func (r *Renderer) buildRow(size uint64, rg Range) string {
 	if len(label) > r.LabelWidth {
 		label = label[:r.LabelWidth]
 	}
-	// pad label
 	if len(label) < r.LabelWidth {
 		label = label + strings.Repeat(" ", r.LabelWidth-len(label))
 	}
-
-	// compose line
 	sb.WriteString(label)
 	if r.Pad > 0 {
 		sb.WriteString(strings.Repeat(" ", r.Pad))
 	}
+
+	// Write chart.
 	for _, ch := range cells {
 		sb.WriteString(ch)
 	}
 
-	return sb.String()
+	return sb.String(), nil
 }
 
 // mapCoord maps an offset in [0,size] to a column in [0,plotWidth-1].

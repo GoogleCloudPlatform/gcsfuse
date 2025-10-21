@@ -1,4 +1,4 @@
-// Copyright 2015 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -127,13 +128,67 @@ func TestIORenderer_Render(t *testing.T) {
 				{Start: 800, End: 1000},
 			}
 
-			out := r.Render(name, size, ranges)
-			os.WriteFile(test.expectedOutputFile, []byte(out), 0644) // Uncomment to create a new test output file.
+			out, err := r.Render(name, size, ranges)
+			// os.WriteFile(test.expectedOutputFile, []byte(out), 0644) // Uncomment to create a new test output file.
 
-			goldenBytes, err := os.ReadFile(test.expectedOutputFile)
-			require.NoError(t, err, "should be able to read golden file: %s", test.expectedOutputFile)
-			golden := string(goldenBytes)
-			require.Equal(t, golden, out, "visual output should exactly match the golden ASCII representation for %s", test.name)
+			assert.NoError(t, err, "Render should not return an error for valid input")
+			expectedOutput, err := os.ReadFile(test.expectedOutputFile)
+			assert.NoError(t, err, "should be able to read golden file: %s", test.expectedOutputFile)
+			assert.Equal(t, string(expectedOutput), out, "visual output should exactly match the golden ASCII representation for %s", test.name)
+		})
+	}
+}
+
+func TestIORenderer_Render_DifferentFileSizesAndRanges(t *testing.T) {
+	tc := []struct {
+		name               string
+		filename           string
+		size               uint64
+		ranges             []Range
+		expectedOutputFile string
+	}{
+		{
+			name:               "small file",
+			filename:           "small.txt",
+			size:               500,
+			ranges:             []Range{{Start: 0, End: 100}, {Start: 200, End: 300}},
+			expectedOutputFile: "testdata/io_renderer/different_file_sizes_small.txt",
+		},
+		{
+			name:               "medium file",
+			filename:           "medium.txt",
+			size:               10 * 1024 * 1024, // 10 MB
+			ranges:             []Range{{Start: 5000000, End: 7000000}, {Start: 2000000, End: 8000000}},
+			expectedOutputFile: "testdata/io_renderer/different_file_sizes_medium.txt",
+		},
+		{
+			name:               "very large file",
+			filename:           "very_large.txt",
+			size:               2 * 1024 * 1024 * 1024, // 2 GB
+			ranges:             []Range{{Start: 0, End: 1000000}, {Start: 1500000000, End: 1501000000}},
+			expectedOutputFile: "testdata/io_renderer/different_file_sizes_very_large.txt",
+		},
+		{
+			name:               "empty ranges",
+			filename:           "empty_ranges.txt",
+			size:               1000,
+			ranges:             []Range{}, // No ranges
+			expectedOutputFile: "testdata/io_renderer/different_file_sizes_empty_ranges.txt",
+		},
+	}
+
+	for _, test := range tc {
+		t.Run(test.name, func(t *testing.T) {
+			r, err := NewRenderer()
+			require.NoError(t, err, "NewRenderer should not return an error")
+
+			out, err := r.Render("demo.txt", test.size, test.ranges)
+			// os.WriteFile(test.expectedOutputFile, []byte(out), 0644) // Uncomment to create a new test output file.
+
+			assert.NoError(t, err, "Render should not return an error for valid input")
+			expectedOutput, err := os.ReadFile(test.expectedOutputFile)
+			assert.NoError(t, err, "should be able to read golden file: %s", test.expectedOutputFile)
+			assert.Equal(t, string(expectedOutput), out, "visual output should exactly match the golden ASCII representation for %s", test.name)
 		})
 	}
 }
