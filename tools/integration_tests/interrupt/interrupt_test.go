@@ -55,12 +55,12 @@ func TestMain(m *testing.M) {
 	setup.SetUpTestDirForTestBucketFlag()
 
 	// Set up flags to run tests on.
-	yamlContent1 := map[string]interface{}{
-		"file-system": map[string]interface{}{
+	yamlContent1 := map[string]any{
+		"file-system": map[string]any{
 			"ignore-interrupts": true,
 		},
 	}
-	yamlContent2 := map[string]interface{}{} // test default
+	yamlContent2 := map[string]any{} // test default
 	flags := [][]string{
 		{"--implicit-dirs=true", "--enable-streaming-writes=false"},
 		{"--config-file=" + setup.YAMLConfigFile(yamlContent1, "ignore_interrupts.yaml"), "--enable-streaming-writes=false"},

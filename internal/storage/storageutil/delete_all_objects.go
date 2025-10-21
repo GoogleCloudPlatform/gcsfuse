@@ -53,7 +53,7 @@ func DeleteAllObjects(
 
 	// Delete the objects in parallel.
 	const parallelism = 64
-	for i := 0; i < parallelism; i++ {
+	for range parallelism {
 		group.Go(func() error {
 			for objectName := range objectNames {
 				err := bucket.DeleteObject(

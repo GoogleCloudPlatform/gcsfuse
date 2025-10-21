@@ -206,7 +206,7 @@ func (ut *utilTest) Test_getObjectPath() {
 	expectedOutPuts := [5]string{"", "a/b", "a/b/c/d", "a", "a"}
 
 	results := [5]string{}
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		results[i] = GetDownloadPath(inputs[i][0], inputs[i][1])
 	}
 
@@ -220,7 +220,7 @@ func (ut *utilTest) Test_getDownloadPath() {
 		cacheDir + "/a/b/c/d", cacheDir + "/a", cacheDir + "/a"}
 
 	results := [5]string{}
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		results[i] = GetDownloadPath(cacheDir, inputs[i])
 	}
 

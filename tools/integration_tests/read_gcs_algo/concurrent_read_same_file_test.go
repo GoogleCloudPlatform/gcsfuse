@@ -33,7 +33,7 @@ func TestReadSameFileConcurrently(t *testing.T) {
 	concurrentReaderCount := 3
 
 	// We will x numbers of concurrent threads trying to read from the same file.
-	for i := 0; i < concurrentReaderCount; i++ {
+	for range concurrentReaderCount {
 		randomOffset := rand.Int64N(int64(fileSize))
 
 		eG.Go(func() error {
@@ -56,7 +56,7 @@ func readAndCompare(t *testing.T, filePathInMntDir string, filePathInLocalDisk s
 
 	// Perform 5 reads on each file.
 	numberOfReads := 5
-	for i := 0; i < numberOfReads; i++ {
+	for range numberOfReads {
 		mountContents := make([]byte, chunkSize)
 		// Reading chunk size randomly from the file.
 		_, err = mountedFile.ReadAt(mountContents, offset)

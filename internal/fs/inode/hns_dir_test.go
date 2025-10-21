@@ -602,7 +602,7 @@ func (t *HNSDirTest) TestReadEntriesInHierarchicalBucket() {
 	t.mockBucket.AssertExpectations(t.T())
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), 6, len(entries))
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		switch entries[i].Name {
 		case folder1:
 			assert.Equal(t.T(), folder1, entries[i].Name)

@@ -46,9 +46,7 @@ func MountGcsfuseWithOnlyDirWithConfigFile(config *test_suite.TestConfig, flags 
 		config.TestBucket,
 		config.GCSFuseMountedDirectory}
 
-	for i := 0; i < len(defaultArg); i++ {
-		flags = append(flags, defaultArg[i])
-	}
+	flags = append(flags, defaultArg...)
 
 	err = mounting.MountGcsfuse(setup.BinFile(), flags)
 
@@ -56,7 +54,7 @@ func MountGcsfuseWithOnlyDirWithConfigFile(config *test_suite.TestConfig, flags 
 }
 
 func mountGcsFuseForFlagsAndExecuteTests(config *test_suite.TestConfig, flags [][]string, m *testing.M) (successCode int) {
-	for i := 0; i < len(flags); i++ {
+	for i := range flags {
 		if err := MountGcsfuseWithOnlyDirWithConfigFile(config, flags[i]); err != nil {
 			setup.LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
 		}

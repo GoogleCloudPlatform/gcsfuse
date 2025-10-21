@@ -51,7 +51,7 @@ func mountGcsfuseWithPersistentMountingWithConfigFile(config *test_suite.TestCon
 
 	persistentMountingArgs := makePersistentMountingArgs(flags)
 
-	for i := 0; i < len(persistentMountingArgs); i++ {
+	for i := range persistentMountingArgs {
 		// e.g. -o flag1, -o flag2, ...
 		defaultArg = append(defaultArg, "-o", persistentMountingArgs[i])
 	}
@@ -64,7 +64,7 @@ func mountGcsfuseWithPersistentMountingWithConfigFile(config *test_suite.TestCon
 func executeTestsForPersistentMountingWithConfigFile(config *test_suite.TestConfig, flagsSet [][]string, m *testing.M) (successCode int) {
 	var err error
 
-	for i := 0; i < len(flagsSet); i++ {
+	for i := range flagsSet {
 		if err = mountGcsfuseWithPersistentMountingWithConfigFile(config, flagsSet[i]); err != nil {
 			setup.LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
 		}

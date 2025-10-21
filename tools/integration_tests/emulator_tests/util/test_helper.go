@@ -166,8 +166,8 @@ func ReadFirstByte(t *testing.T, filePath string) (time.Duration, error) {
 func GetChunkTransferTimeoutFromFlags(flags []string) (int, error) {
 	timeout := 10 // Default value
 	for _, flag := range flags {
-		if strings.HasPrefix(flag, "--chunk-transfer-timeout-secs=") {
-			valueStr := strings.TrimPrefix(flag, "--chunk-transfer-timeout-secs=")
+		if after, ok := strings.CutPrefix(flag, "--chunk-transfer-timeout-secs="); ok {
+			valueStr := after
 			var err error
 			timeout, err = strconv.Atoi(valueStr)
 			if err != nil {

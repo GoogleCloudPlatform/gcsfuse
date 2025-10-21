@@ -68,7 +68,7 @@ func (t *mrdWrapperTest) SetupTest() {
 func (t *mrdWrapperTest) Test_IncrementRefCount_ParallelUpdates() {
 	const finalRefCount int = 1
 	wg := sync.WaitGroup{}
-	for i := 0; i < finalRefCount; i++ {
+	for range finalRefCount {
 		wg.Add(1)
 		go func() {
 			t.mrdWrapper.IncrementRefCount()
@@ -99,7 +99,7 @@ func (t *mrdWrapperTest) Test_DecrementRefCount_ParallelUpdates() {
 	maxRefCount := 10
 	wg := sync.WaitGroup{}
 	// Incrementing refcount in parallel.
-	for i := 0; i < maxRefCount; i++ {
+	for range maxRefCount {
 		wg.Add(1)
 		go func() {
 			t.mrdWrapper.IncrementRefCount()
@@ -108,7 +108,7 @@ func (t *mrdWrapperTest) Test_DecrementRefCount_ParallelUpdates() {
 	}
 	wg.Wait()
 	// Decrementing refcount in parallel.
-	for i := 0; i < maxRefCount; i++ {
+	for range maxRefCount {
 		wg.Add(1)
 		go func() {
 			err := t.mrdWrapper.DecrementRefCount()

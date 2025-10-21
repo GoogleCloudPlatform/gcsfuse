@@ -25,7 +25,7 @@ func TestReadLargeFileRandomly(t *testing.T) {
 	// Create and copy the local file in mountedDirectory.
 	fileInLocalDisk, fileInMntDir := operations.CreateFileAndCopyToMntDir(t, FiveHundredMB, DirForReadLargeFilesTests)
 
-	for i := 0; i < NumberOfRandomReadCalls; i++ {
+	for range NumberOfRandomReadCalls {
 		offset := rand.Int63n(MaxReadableByteFromFile - MinReadableByteFromFile)
 		// Randomly read the data from file in mountedDirectory.
 		operations.ReadAndCompare(t, fileInMntDir, fileInLocalDisk, offset, ChunkSize)
