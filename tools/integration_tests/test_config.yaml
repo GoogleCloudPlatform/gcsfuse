@@ -157,7 +157,6 @@ rename_dir_limit:
 local_file:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
-    only_dir: "${ONLY_DIR}"
     log_file: # Optional
     configs:
       - flags:
