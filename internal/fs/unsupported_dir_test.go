@@ -68,6 +68,7 @@ func (t *UnsupportedObjectNameTest) TestReadDir_UnsupportedObjectName() {
 
 	// ReadDir should not show the unsupported object.
 	entries, err := fusetesting.ReadDirPicky(mntDir)
+
 	t.Require().NoError(err)
 	t.Require().Len(entries, 1)
 	t.Assert().Equal("file1", entries[0].Name())
@@ -87,6 +88,7 @@ func (t *UnsupportedObjectNameTest) TestReadDir_UnsupportedObjectName_WithSuppor
 
 	// ReadDir should only show the supported object.
 	entries, err := fusetesting.ReadDirPicky(mntDir)
+
 	t.Require().NoError(err)
 	t.Require().Len(entries, 2)
 	t.Assert().Equal("foo", entries[0].Name())
@@ -103,11 +105,11 @@ func (t *UnsupportedObjectNameTest) TestListSubDirectory_WithUnsupportedNames() 
 
 	// Listing the parent directory 'dir' should show 'sub_dir'.
 	entries, err := fusetesting.ReadDirPicky(path.Join(mntDir, "dir"))
+
 	t.Require().NoError(err)
 	t.Require().Len(entries, 1)
 	t.Assert().Equal("sub_dir", entries[0].Name())
 	t.Assert().True(entries[0].IsDir())
-
 	// Listing 'sub_dir' should only show the supported file.
 	subDirEntries, err := fusetesting.ReadDirPicky(path.Join(mntDir, "dir/sub_dir"))
 	t.Require().NoError(err)
@@ -127,7 +129,6 @@ func (t *UnsupportedObjectNameTest) TestRecursiveList_WithUnsupportedNames() {
 		"file6":                "content",
 	})
 	t.Require().NoError(err)
-
 	var files []string
 	var dirs []string
 
@@ -162,19 +163,17 @@ func (t *UnsupportedObjectNameTest) TestCopyDirectory_WithUnsupportedNames() {
 		"src///file5":  "content6",
 	})
 	t.Require().NoError(err)
-
 	srcPath := path.Join(mntDir, "src")
 	destPath := path.Join(mntDir, "dest")
 
 	// Execute copy command.
 	cmd := exec.Command("cp", "-r", srcPath, destPath)
 	err = cmd.Run()
-	t.Require().NoError(err)
 
+	t.Require().NoError(err)
 	// Verify the contents of the destination directory.
 	entries, err := os.ReadDir(destPath)
 	t.Require().NoError(err)
-
 	// Only supported files and directories should be copied.
 	t.Require().Len(entries, 2)
 	t.Assert().Equal("file1", entries[0].Name())
