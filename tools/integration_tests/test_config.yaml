@@ -220,7 +220,7 @@ requester_pays_bucket:
 read_cache:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
-    log_file: # Not Required by read_cache tests
+    log_file: # Not Required by read_cache tests 
     configs:
       - flags:
           - "--metadata-cache-ttl-secs=10 --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest --log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log --log-severity=TRACE --implicit-dirs"
