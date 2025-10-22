@@ -187,6 +187,13 @@ params:
     default: true
     hide-flag: true
 
+  - config-path: "enable-unsupported-dir-support"
+    flag-name: "enable-unsupported-dir-support"
+    type: "bool"
+    usage: "Enables support for un-supported directory fix implementation."
+    default: true
+    hide-flag: true
+
   - config-path: "file-cache.cache-file-for-range-read"
     flag-name: "file-cache-cache-file-for-range-read"
     type: "bool"
