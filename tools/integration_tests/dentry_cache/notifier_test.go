@@ -39,7 +39,6 @@ type notifierTest struct {
 }
 
 func (s *notifierTest) SetupTest() {
-	//Truncate log file created.
 	testEnv.testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
 }
 
