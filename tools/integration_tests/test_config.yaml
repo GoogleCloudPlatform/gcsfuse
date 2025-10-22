@@ -422,7 +422,7 @@ read_cache:
 
 dentry_cache:
  - mounted_directory: "${MOUNTED_DIR}"
-   test_bucket: "pranjal-bucket-1"
+   test_bucket: "${BUCKET_NAME}"
    log_file: # Not Required by dentry_cache tests
    run_on_gke: true
    configs:
