@@ -21,7 +21,6 @@ import (
 	"path"
 	"testing"
 	"time"
-	"fmt"
 
 	"cloud.google.com/go/storage"
 	"github.com/stretchr/testify/assert"
@@ -41,7 +40,6 @@ type statWithDentryCacheEnabledTest struct {
 }
 
 func (s *statWithDentryCacheEnabledTest) SetupTest() {
-	//Truncate log file created.
 	testEnv.testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
 }
 
@@ -58,12 +56,11 @@ func (s *statWithDentryCacheEnabledTest) SetupSuite() {
 }
 
 func (s *statWithDentryCacheEnabledTest) TestStatWithDentryCacheEnabled() {
+	testFileName := s.T().Name()
 	// Create a file with initial content directly in GCS.
 	filePath := path.Join(testEnv.testDirPath, testFileName)
-	fmt.Println("withenabledtest" + filePath)
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, initialContentSize, s.T())
-	// Add a small delay to allow dentry cache to get updated.
-	time.Sleep(5 * time.Second)
+
 	// Stat file to cache the entry
 	_, err := os.Stat(filePath)
 	require.Nil(s.T(), err)
@@ -87,9 +84,9 @@ func (s *statWithDentryCacheEnabledTest) TestStatWithDentryCacheEnabled() {
 }
 
 func (s *statWithDentryCacheEnabledTest) TestStatWhenFileIsDeletedDirectlyFromGCS() {
+	testFileName := s.T().Name()
 	// Create a file with initial content directly in GCS.
 	filePath := path.Join(testEnv.testDirPath, testFileName)
-	fmt.Println("filedeletefromGCS" + filePath)
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, initialContentSize, s.T())
 	// Stat file to cache the entry
 	_, err := os.Stat(filePath)
