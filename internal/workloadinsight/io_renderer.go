@@ -53,9 +53,9 @@ type Range struct {
 
 // Renderer renders I/O byte ranges as ASCII plots to visualize the access patterns.
 type Renderer struct {
-	PlotWidth  int // number of columns used for plotting area
-	LabelWidth int // width of left label column (0 = auto)
-	Pad        int // spaces between label and plot
+	plotWidth  int // number of columns used for plotting area
+	labelWidth int // width of left label column (0 = auto)
+	pad        int // spaces between label and plot
 }
 
 func NewRenderer() (*Renderer, error) {
@@ -78,9 +78,9 @@ func NewRendererWithSettings(plotWidth, labelWidth, pad int) (*Renderer, error) 
 	}
 
 	return &Renderer{
-		PlotWidth:  plotWidth,
-		LabelWidth: labelWidth,
-		Pad:        pad,
+		plotWidth:  plotWidth,
+		labelWidth: labelWidth,
+		pad:        pad,
 	}, nil
 }
 
@@ -128,58 +128,52 @@ func (r *Renderer) buildHeader(name string, size uint64) (string, error) {
 		return s
 	}
 
-	// Compose size separator with marker at 0%, 25%, 50%, 75%, 100% of size.
-	tickChars := makeRunes(r.PlotWidth, '-')
-	ticks := []uint64{0, size / 4, size / 2, (size * 3) / 4, size}
-	for _, off := range ticks {
-		if p, err := mapCoord(off, size, r.PlotWidth); err == nil {
-			tickChars[p] = '|'
+	// Compose fileOffsetAxis with marker at 0%, 25%, 50%, 75%, 100% of size.
+	fileOffsetAxisChars := makeRunes(r.plotWidth, '-')
+	fileOffsetMarkers := []uint64{0, size / 4, size / 2, (size * 3) / 4, size}
+	for _, off := range fileOffsetMarkers {
+		if p, err := mapCoord(off, size, r.plotWidth); err == nil {
+			fileOffsetAxisChars[p] = '|'
 		}
 	}
 
-	// Numeric label line (place labels under ticks)
-	labelLine := makeRunes(r.PlotWidth, ' ')
-	for _, off := range ticks {
-		p, err := mapCoord(off, size, r.PlotWidth)
+	// File offset labels, placed above the fileOffsetAxis at the size markers.
+	fileOffsetLabels := makeRunes(r.plotWidth, ' ')
+	for _, off := range fileOffsetMarkers {
+		p, err := mapCoord(off, size, r.plotWidth)
 		if err != nil {
 			return "", err
 		}
 
-		lab := humanReadable(off)
-		// center label around the tick position
-		start := p - len(lab)/2
-		if start < 0 {
-			start = 0
+		offsetLabel := humanReadable(off)
+		// Center fileOffsetLabel around the fileOffsetMarker.
+		start := max(p-len(offsetLabel)/2, 0)
+		if start+len(offsetLabel) > r.plotWidth {
+			start = max(r.plotWidth-len(offsetLabel), 0)
 		}
-		if start+len(lab) > r.PlotWidth {
-			start = r.PlotWidth - len(lab)
-			if start < 0 {
-				start = 0
-			}
-		}
-		copy(labelLine[start:], []rune(lab))
+		copy(fileOffsetLabels[start:], []rune(offsetLabel))
 	}
 
-	// Filename line
+	// Filename line.
 	sb.WriteString(fmt.Sprintf("Name: %s\n", name))
 
-	// Numeric labels below filename
-	sb.WriteString(strings.Repeat(" ", r.LabelWidth))
-	if r.Pad > 0 {
-		sb.WriteString(strings.Repeat(" ", r.Pad))
+	// Fileoffset labels just above the fileOffsetAxis.
+	sb.WriteString(strings.Repeat(" ", r.labelWidth))
+	if r.pad > 0 {
+		sb.WriteString(strings.Repeat(" ", r.pad))
 	}
-	sb.WriteString(string(labelLine))
+	sb.WriteString(string(fileOffsetLabels))
 	sb.WriteByte('\n')
 
 	// labelHeader ("[offset,len)") and horizontal tick line.
 	sb.WriteString(labelHeader)
-	if r.LabelWidth > len(labelHeader) {
-		sb.WriteString(strings.Repeat(" ", r.LabelWidth-len(labelHeader)))
+	if r.labelWidth > len(labelHeader) {
+		sb.WriteString(strings.Repeat(" ", r.labelWidth-len(labelHeader)))
 	}
-	if r.Pad > 0 {
-		sb.WriteString(strings.Repeat(" ", r.Pad))
+	if r.pad > 0 {
+		sb.WriteString(strings.Repeat(" ", r.pad))
 	}
-	sb.WriteString(string(tickChars))
+	sb.WriteString(string(fileOffsetAxisChars))
 	sb.WriteByte('\n')
 
 	return sb.String(), nil
@@ -201,18 +195,18 @@ func (r *Renderer) buildRow(size uint64, rg Range) (string, error) {
 	e := rg.End
 
 	// Build plotting row
-	cells := make([]string, r.PlotWidth)
+	cells := make([]string, r.plotWidth)
 	for j := range cells {
 		cells[j] = emptyChar
 	}
 
 	// Map start/end to columns. Reserve column 0 as a separator when possible by
-	// mapping into [1, PlotWidth-1] when PlotWidth > 1.
-	cs, err := mapCoord(s, size, r.PlotWidth-1)
+	// mapping into [1, plotWidth-1] when plotWidth > 1.
+	cs, err := mapCoord(s, size, r.plotWidth-1)
 	if err != nil {
 		return "", err
 	}
-	ce, err := mapCoord(e, size, r.PlotWidth-1)
+	ce, err := mapCoord(e, size, r.plotWidth-1)
 	if err != nil {
 		return "", err
 	}
@@ -221,7 +215,7 @@ func (r *Renderer) buildRow(size uint64, rg Range) (string, error) {
 
 	// Ensure at least one visible column is set for very small ranges.
 	if cs == ce {
-		if ce < r.PlotWidth-1 {
+		if ce < r.plotWidth-1 {
 			ce = cs + 1
 		} else if cs > 0 {
 			cs = cs - 1
@@ -233,21 +227,21 @@ func (r *Renderer) buildRow(size uint64, rg Range) (string, error) {
 	}
 
 	// Place a vertical separator glyph in column 0.
-	if r.PlotWidth > 0 && cells[0] == emptyChar {
+	if r.plotWidth > 0 && cells[0] == emptyChar {
 		cells[0] = "|"
 	}
 
 	// Compose label and write.
 	label := fmt.Sprintf("[%d,%d)", s, e-s)
-	if len(label) > r.LabelWidth {
-		label = label[:r.LabelWidth]
+	if len(label) > r.labelWidth {
+		label = label[:r.labelWidth]
 	}
-	if len(label) < r.LabelWidth {
-		label = label + strings.Repeat(" ", r.LabelWidth-len(label))
+	if len(label) < r.labelWidth {
+		label = label + strings.Repeat(" ", r.labelWidth-len(label))
 	}
 	sb.WriteString(label)
-	if r.Pad > 0 {
-		sb.WriteString(strings.Repeat(" ", r.Pad))
+	if r.pad > 0 {
+		sb.WriteString(strings.Repeat(" ", r.pad))
 	}
 
 	// Write chart.

@@ -24,7 +24,8 @@ import (
 
 func TestIORenderer_NewRenderer(t *testing.T) {
 	_, err := NewRenderer()
-	require.NoError(t, err, "NewRenderer should not return an error")
+
+	assert.NoError(t, err, "NewRenderer should not return an error")
 }
 
 func TestIORenderer_NewRendererWithSettings_InvalidSettings(t *testing.T) {
@@ -42,7 +43,8 @@ func TestIORenderer_NewRendererWithSettings_InvalidSettings(t *testing.T) {
 	for _, test := range tc {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := NewRendererWithSettings(test.plotWidth, test.labelWidth, test.pad)
-			require.Error(t, err, "expected error for invalid settings")
+
+			assert.Error(t, err, "expected error for invalid settings")
 		})
 	}
 }
@@ -62,7 +64,8 @@ func TestIORenderer_NewRendererWithSettings_ValidSettings(t *testing.T) {
 	for _, test := range tc {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := NewRendererWithSettings(test.plotWidth, test.labelWidth, test.pad)
-			require.NoError(t, err, "NewRendererWithSettings should not return an error for valid settings")
+
+			assert.NoError(t, err, "NewRendererWithSettings should not return an error for valid settings")
 		})
 	}
 }
@@ -85,7 +88,8 @@ func TestHumanReadable(t *testing.T) {
 	for _, test := range tc {
 		t.Run(test.name, func(t *testing.T) {
 			result := humanReadable(test.size)
-			require.Equal(t, test.expected, result, "humanReadable(%d) should be %s", test.size, test.expected)
+
+			assert.Equal(t, test.expected, result, "humanReadable(%d) should be %s", test.size, test.expected)
 		})
 	}
 }
