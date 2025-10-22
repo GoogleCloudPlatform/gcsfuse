@@ -359,7 +359,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	svc.Refresh()
 
 	if newConfig.Foreground || newConfig.Logging.FilePath == "" {
-		logger.Info("GCSFuse enviornment", "data", svc.PrettyString())
+		logger.Info("GCSFuse enviornment", "data", svc.GetConfig())
 	} else {
 		logger.Infof("GCSFuse enviornment mount point: %s %s", mountPoint, svc.String())
 	}

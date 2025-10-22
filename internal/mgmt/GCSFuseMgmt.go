@@ -146,6 +146,11 @@ func (mgmt *GCSFuseMgmtService) String() string {
 	return string(jsonData)
 }
 
+func (mgmt *GCSFuseMgmtService) GetConfig() GCSFuseMgmt {
+	safeCopy := mgmt.getMgmt().svc
+	return safeCopy
+}
+
 func (mgmt *GCSFuseMgmtService) Refresh() {
 
 	mgmt.mgmtLock.Lock()
