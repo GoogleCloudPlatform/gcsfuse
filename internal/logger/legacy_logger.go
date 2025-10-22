@@ -17,7 +17,6 @@
 package logger
 
 import (
-	"fmt"
 	"log"
 	"log/slog"
 )
@@ -30,11 +29,7 @@ import (
 // after slog support is added.
 func NewLegacyLogger(level slog.Level, prefix, fsName string) *log.Logger {
 	var programLevel = new(slog.LevelVar)
-	mountIDAttr := slog.String(
-		GCSFuseMountInstanceIDKey,
-		fmt.Sprintf("%s-%s", fsName, MountInstanceID()),
-	)
-	handler := defaultLoggerFactory.handler(programLevel, prefix).WithAttrs([]slog.Attr{mountIDAttr})
+	handler := defaultLoggerFactory.handler(programLevel, prefix).WithAttrs(loggerAttr(fsName))
 	logger := slog.NewLogLogger(handler, level)
 	setLoggingLevel(defaultLoggerFactory.level, programLevel)
 	return logger

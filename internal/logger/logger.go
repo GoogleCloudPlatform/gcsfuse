@@ -225,11 +225,14 @@ func (f *loggerFactory) newLogger(level string) *slog.Logger {
 	return logger
 }
 
+func loggerAttr(fsName string) []slog.Attr {
+	return []slog.Attr{slog.String(GCSFuseMountInstanceIDKey, fmt.Sprintf("%s-%s", fsName, MountInstanceID()))}
+}
+
 // create a new logger with mountInstanceID set as custom attribute on logger.
 func (f *loggerFactory) newLoggerWithMountInstanceID(level, fsName string) *slog.Logger {
 	var programLevel = new(slog.LevelVar)
-	logger := slog.New(f.handler(programLevel, "").WithAttrs([]slog.Attr{slog.String(GCSFuseMountInstanceIDKey,
-		fmt.Sprintf("%s-%s", fsName, MountInstanceID()))}))
+	logger := slog.New(f.handler(programLevel, "").WithAttrs(loggerAttr(fsName)))
 	slog.SetDefault(logger)
 	setLoggingLevel(level, programLevel)
 	return logger

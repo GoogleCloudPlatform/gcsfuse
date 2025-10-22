@@ -52,8 +52,7 @@ func expectedLogRegex(t *testing.T, format, severity, message string) string {
 func redirectLogsToGivenBuffer(buf *bytes.Buffer, level string) {
 	var programLevel = new(slog.LevelVar)
 	handler := defaultLoggerFactory.createJsonOrTextHandler(buf, programLevel, "TestLogs: ")
-	handler = handler.WithAttrs([]slog.Attr{slog.String(GCSFuseMountInstanceIDKey,
-		fmt.Sprintf("%s-%s", testFsName, MountInstanceID()))})
+	handler = handler.WithAttrs(loggerAttr(testFsName))
 	defaultLogger = slog.New(handler)
 	setLoggingLevel(level, programLevel)
 }
