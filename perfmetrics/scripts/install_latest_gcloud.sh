@@ -31,6 +31,9 @@ install_latest_gcloud() {
     temp_dir=$(mktemp -d /tmp/gcloud_install_src.XXXXXX)
     pushd "$temp_dir"
 
+    # Upgrading Python
+    ./upgrade_python3.sh
+    
     wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
     sudo rm -rf "${INSTALL_DIR}/google-cloud-sdk" # Remove existing gcloud installation
     sudo tar -C "$INSTALL_DIR" -xzf gcloud.tar.gz
