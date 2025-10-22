@@ -31,7 +31,6 @@ import (
 
 const (
 	testDirName        = "testDirForDentryCache"
-	testFileName       = "testFile"
 	initialContentSize = 5
 	updatedContentSize = 10
 )

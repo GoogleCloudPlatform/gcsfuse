@@ -39,9 +39,6 @@ type deleteOperationTest struct {
 }
 
 func (s *deleteOperationTest) SetupTest() {
-	//Truncate log file created.
-	err := os.Truncate(testEnv.cfg.LogFile, 0)
-	require.NoError(s.T(), err)
 	testEnv.testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
 }
 
@@ -58,6 +55,7 @@ func (s *deleteOperationTest) SetupSuite() {
 }
 
 func (s *deleteOperationTest) TestDeleteFileWhenFileIsClobbered() {
+	testFileName := s.T().Name()
 	// Create a file with initial content directly in GCS.
 	filePath := path.Join(testEnv.testDirPath, testFileName)
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, initialContentSize, s.T())
@@ -65,7 +63,7 @@ func (s *deleteOperationTest) TestDeleteFileWhenFileIsClobbered() {
 	_, err := os.Stat(filePath)
 	require.Nil(s.T(), err)
 	// Modify the object on GCS.
-	objectName := path.Join(testDirName, testFileName)
+	objectName := path.Join(testDirName, testFileName) // This is correct, objectName is relative to bucket.
 	smallContent, err := operations.GenerateRandomData(updatedContentSize)
 	require.Nil(s.T(), err)
 	require.Nil(s.T(), client.WriteToObject(s.ctx, s.storageClient, objectName, string(smallContent), storage.Conditions{}))
