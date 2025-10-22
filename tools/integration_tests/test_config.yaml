@@ -419,3 +419,33 @@ read_cache:
           zonal: true
         run: TestCacheFileForIncludeRegexTest
         run_on_gke: true
+
+benchmarking:
+  - test_bucket: "pranjal-bucket-1" # This would be populated by setup.TestBucket()
+    mounted_directory: "${MOUNTED_DIR}" # This would be populated by setup.MountedDirectory()
+    log_file: # Not required
+    configs:
+      - flags:
+          - "--stat-cache-ttl=0"
+        compatible:
+              flat: true
+              hns: true
+              zonal: true
+        run: "Benchmark_Stat"
+      - flags:
+          - "--stat-cache-ttl=0"
+          - "--enable-atomic-rename-object=true"
+        compatible:
+              flat: true
+              hns: true
+              zonal: true
+        run: "Benchmark_Rename"
+        run_on_gke: true
+      - flags:
+          - "--stat-cache-ttl=0"
+        compatible:
+              flat: true
+              hns: true
+              zonal: true
+        run: "Benchmark_Delete"
+        run_on_gke: true

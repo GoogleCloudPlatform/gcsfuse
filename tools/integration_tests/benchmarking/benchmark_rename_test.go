@@ -40,6 +40,7 @@ func (s *benchmarkRenameTest) SetupB(b *testing.B) {
 
 func (s *benchmarkRenameTest) TeardownB(b *testing.B) {
 	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
+	setup.SaveGCSFuseLogFileInCaseOfFailure(b)
 }
 
 ////////////////////////////////////////////////////////////////////////

@@ -43,6 +43,7 @@ func (s *benchmarkStatTest) SetupB(b *testing.B) {
 
 func (s *benchmarkStatTest) TeardownB(b *testing.B) {
 	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
+	setup.SaveGCSFuseLogFileInCaseOfFailure(b)
 }
 
 // createFilesToStat creates the below object in the bucket.

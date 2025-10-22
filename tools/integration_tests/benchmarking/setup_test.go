@@ -123,7 +123,6 @@ func TestMain(m *testing.M) {
 	mountFunc = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile
 	successCode := m.Run()
 
-	// setup.SaveLogFileInCaseOfFailure(successCode, testEnv.cfg.LogFile)
 	// Clean up test directory created.
 	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(testEnv.cfg.TestBucket, testDirName))
 	os.Exit(successCode)
