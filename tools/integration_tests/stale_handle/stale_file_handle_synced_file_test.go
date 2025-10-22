@@ -31,7 +31,7 @@ import (
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
 
-type staleFileHandleEmptyGcsFile struct {
+type staleFileHandleEmptyGcsFileTest struct {
 	staleFileHandleCommon
 }
 
@@ -39,19 +39,21 @@ type staleFileHandleEmptyGcsFile struct {
 // Helpers
 // //////////////////////////////////////////////////////////////////////
 
-func (s *staleFileHandleEmptyGcsFile) SetupTest() {
+func (s *staleFileHandleEmptyGcsFileTest) SetupTest() {
+	s.staleFileHandleCommon.SetupTest()
 	// Create an empty object on GCS.
 	s.fileName = path.Base(s.T().Name()) + setup.GenerateRandomString(5)
-	err := CreateObjectOnGCS(ctx, storageClient, path.Join(testDirName, s.fileName), "")
+	err := CreateObjectOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, s.fileName), "")
 	assert.NoError(s.T(), err)
-	s.f1 = operations.OpenFileWithODirect(s.T(), path.Join(s.testDirPath, s.fileName))
+	s.f1 = operations.OpenFileWithODirect(s.T(), path.Join(testEnv.testDirPath, s.fileName))
+	s.isStreamingWritesEnabled = !slices.Contains(s.flags[0], "--enable-streaming-writes=false")
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (s *staleFileHandleEmptyGcsFile) TestClobberedFileReadThrowsStaleFileHandleError() {
+func (s *staleFileHandleEmptyGcsFileTest) TestClobberedFileReadThrowsStaleFileHandleError() {
 	// TODO(b/410698332): Remove skip condition once takeover support is available.
 	if s.isStreamingWritesEnabled && setup.IsZonalBucketRun() {
 		s.T().Skip("Skip test due to takeover support not available.")
@@ -62,7 +64,7 @@ func (s *staleFileHandleEmptyGcsFile) TestClobberedFileReadThrowsStaleFileHandle
 	operations.SyncFile(s.f1, s.T())
 
 	// Replace the underlying object with a new generation.
-	err = WriteToObject(ctx, storageClient, path.Join(testDirName, s.fileName), FileContents, storage.Conditions{})
+	err = WriteToObject(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, s.fileName), FileContents, storage.Conditions{})
 
 	assert.NoError(s.T(), err)
 	buffer := make([]byte, len(s.data))
@@ -70,13 +72,13 @@ func (s *staleFileHandleEmptyGcsFile) TestClobberedFileReadThrowsStaleFileHandle
 	operations.ValidateESTALEError(s.T(), err)
 }
 
-func (s *staleFileHandleEmptyGcsFile) TestClobberedFileFirstWriteThrowsStaleFileHandleError() {
+func (s *staleFileHandleEmptyGcsFileTest) TestClobberedFileFirstWriteThrowsStaleFileHandleError() {
 	// TODO(b/410698332): Remove skip condition once takeover support is available.
 	if s.isStreamingWritesEnabled && setup.IsZonalBucketRun() {
 		s.T().Skip("Skip test due to takeover support not available.")
 	}
 	// Clobber file by replacing the underlying object with a new generation.
-	err := WriteToObject(ctx, storageClient, path.Join(testDirName, s.fileName), FileContents, storage.Conditions{})
+	err := WriteToObject(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, s.fileName), FileContents, storage.Conditions{})
 	assert.NoError(s.T(), err)
 
 	// Attempt first write to the file should give stale NFS file handle error.
@@ -86,10 +88,10 @@ func (s *staleFileHandleEmptyGcsFile) TestClobberedFileFirstWriteThrowsStaleFile
 	operations.ValidateSyncGivenThatFileIsClobbered(s.T(), s.f1, s.isStreamingWritesEnabled)
 	err = s.f1.Close()
 	operations.ValidateESTALEError(s.T(), err)
-	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, s.fileName, FileContents, s.T())
+	ValidateObjectContentsFromGCS(testEnv.ctx, testEnv.storageClient, testDirName, s.fileName, FileContents, s.T())
 }
 
-func (s *staleFileHandleEmptyGcsFile) TestFileDeletedRemotelySyncAndCloseThrowsStaleFileHandleError() {
+func (s *staleFileHandleEmptyGcsFileTest) TestFileDeletedRemotelySyncAndCloseThrowsStaleFileHandleError() {
 	// TODO(mohitkyadav): Enable test once fix in b/415713332 is released
 	if s.isStreamingWritesEnabled && setup.IsZonalBucketRun() {
 		s.T().Skip("Skip test due to bug (b/415713332) in client.")
@@ -97,10 +99,10 @@ func (s *staleFileHandleEmptyGcsFile) TestFileDeletedRemotelySyncAndCloseThrowsS
 	// Dirty the file by giving it some contents.
 	operations.WriteWithoutClose(s.f1, s.data, s.T())
 	// Delete the file remotely.
-	err := DeleteObjectOnGCS(ctx, storageClient, path.Join(testDirName, s.fileName))
+	err := DeleteObjectOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, s.fileName))
 	assert.NoError(s.T(), err)
 	// Verify unlink operation succeeds.
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, s.fileName, s.T())
+	ValidateObjectNotFoundErrOnGCS(testEnv.ctx, testEnv.storageClient, testDirName, s.fileName, s.T())
 	// Attempt to write to file should not give any error.
 	operations.WriteWithoutClose(s.f1, s.data, s.T())
 
@@ -108,7 +110,7 @@ func (s *staleFileHandleEmptyGcsFile) TestFileDeletedRemotelySyncAndCloseThrowsS
 
 	err = s.f1.Close()
 	operations.ValidateESTALEError(s.T(), err)
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, s.fileName, s.T())
+	ValidateObjectNotFoundErrOnGCS(testEnv.ctx, testEnv.storageClient, testDirName, s.fileName, s.T())
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -116,15 +118,5 @@ func (s *staleFileHandleEmptyGcsFile) TestFileDeletedRemotelySyncAndCloseThrowsS
 ////////////////////////////////////////////////////////////////////////
 
 func TestStaleFileHandleEmptyGcsFileTest(t *testing.T) {
-	// Run tests for mounted directory if the flag is set and return.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		suite.Run(t, new(staleFileHandleEmptyGcsFile))
-		return
-	}
-	for _, flags := range flagsSet {
-		s := new(staleFileHandleEmptyGcsFile)
-		s.flags = flags
-		s.isStreamingWritesEnabled = !slices.Contains(s.flags, "--enable-streaming-writes=false")
-		suite.Run(t, s)
-	}
+	suite.Run(t, new(staleFileHandleEmptyGcsFileTest))
 }

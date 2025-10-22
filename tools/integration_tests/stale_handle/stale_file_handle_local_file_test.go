@@ -29,7 +29,7 @@ import (
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
 
-type staleFileHandleLocalFile struct {
+type staleFileHandleLocalFileTest struct {
 	staleFileHandleCommon
 }
 
@@ -37,11 +37,13 @@ type staleFileHandleLocalFile struct {
 // Helpers
 // //////////////////////////////////////////////////////////////////////
 
-func (s *staleFileHandleLocalFile) SetupTest() {
+func (s *staleFileHandleLocalFileTest) SetupTest() {
+	s.staleFileHandleCommon.SetupTest()
 	// Create a local file.
 	s.fileName = path.Base(s.T().Name()) + setup.GenerateRandomString(5)
-	s.f1 = operations.OpenFileWithODirect(s.T(), path.Join(s.testDirPath, s.fileName))
+	s.f1 = operations.OpenFileWithODirect(s.T(), path.Join(testEnv.testDirPath, s.fileName))
 	s.isLocal = true
+	s.isStreamingWritesEnabled = !slices.Contains(s.flags[0], "--enable-streaming-writes=false")
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -49,15 +51,5 @@ func (s *staleFileHandleLocalFile) SetupTest() {
 ////////////////////////////////////////////////////////////////////////
 
 func TestStaleFileHandleLocalFileTest(t *testing.T) {
-	// Run tests for mounted directory if the flag is set and return.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		suite.Run(t, new(staleFileHandleLocalFile))
-		return
-	}
-	for _, flags := range flagsSet {
-		s := new(staleFileHandleLocalFile)
-		s.flags = flags
-		s.isStreamingWritesEnabled = !slices.Contains(s.flags, "--enable-streaming-writes=false")
-		suite.Run(t, s)
-	}
+	suite.Run(t, new(staleFileHandleLocalFileTest))
 }
