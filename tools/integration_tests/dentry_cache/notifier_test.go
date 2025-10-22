@@ -101,7 +101,7 @@ func (s *notifierTest) TestReadFileWithDentryCacheEnabled() {
 	// Second Read File attempt.
 	_, err = operations.ReadFile(filePath)
 	// The notifier is triggered after the first read failure, invalidating the kernel cache entry.
-	// Therefore, the second read succeeds even before the metadata cache TTL expires. 
+	// Therefore, the second read succeeds even before the metadata cache TTL expires.
 	assert.Nil(s.T(), err)
 }
 
