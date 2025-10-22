@@ -166,9 +166,17 @@ func (t *fsTest) SetUpTestSuite() {
 				TypeCacheMaxSizeMb: 4,
 			},
 			FileSystem: cfg.FileSystemConfig{
-				PreconditionErrors: false,
+				KernelListCacheTtlSecs: -1,
+				PreconditionErrors:     false,
 			},
 			EnableNewReader: true,
+			Write: cfg.WriteConfig{
+				CreateEmptyFile: false,
+			},
+			List: cfg.ListConfig{
+				EnableEmptyManagedFolders: false,
+			},
+			EnableHns: false,
 		}
 	}
 	t.serverCfg.MetricHandle = metrics.NewNoopMetrics()

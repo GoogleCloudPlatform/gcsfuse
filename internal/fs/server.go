@@ -1,4 +1,4 @@
-// Copyright 2015 Google LLC
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,32 +12,41 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:build libfuse
+// +build libfuse
+
 package fs
 
 import (
 	"fmt"
+	"strings"
 
-	newcfg "github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/wrappers"
-	"github.com/jacobsa/fuse"
-	"github.com/jacobsa/fuse/fuseutil"
-	"golang.org/x/net/context"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 )
 
-// NewServer creates a fuse file system server according to the supplied configuration.
-func NewServer(ctx context.Context, cfg *ServerConfig) (fuse.Server, error) {
-	fs, err := NewFileSystem(ctx, cfg)
-	if err != nil {
-		return nil, fmt.Errorf("create file system: %w", err)
+func getFuseMountConfig(
+	fsName string,
+	newConfig *cfg.Config) (mountCfg *fuse.MountConfig) {
+	// Create a mounting config.
+	mountCfg = &fuse.MountConfig{
+		FSName:   fsName,
+		Subtype:  "gcsfuse",
+		VolumeName: "gcsfuse",
+		Options:  make(map[string]string),
 	}
-
-	fs = wrappers.WithErrorMapping(fs, cfg.NewConfig.FileSystem.PreconditionErrors)
-	if newcfg.IsTracingEnabled(cfg.NewConfig) {
-		fs = wrappers.WithTracing(fs)
+	if newConfig.Write.Debug {
+		mountCfg.DebugLogger = logger.NewDebug("fuse: ")
 	}
-	fs = wrappers.WithMonitoring(fs, cfg.MetricHandle)
-	if cfg.Notifier != nil {
-		return fuse.NewServerWithNotifier(cfg.Notifier, fuseutil.NewFileSystemServer(fs)), nil
+	if newConfig.Foreground {
+		mountCfg.ErrorLogger = logger.NewError("fuse: ")
 	}
-	return fuseutil.NewFileSystemServer(fs), nil
+	for k, v := range newConfig.MountOptions {
+		mountCfg.Options[k] = v
+	}
+	// Let the user override the file system name.
+	fsName, ok := mountCfg.Options["fsname"]
+	if ok {
+		mountCfg.FSName = fsName
+	}
+	return
 }

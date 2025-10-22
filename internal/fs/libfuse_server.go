@@ -30,9 +30,9 @@ import (
 )
 
 /*
+#cgo pkg-config: fuse
 #include <fuse_lowlevel.h>
 #include <stdlib.h>
-
 extern void go_init(void* userdata, struct fuse_conn_info* conn);
 extern void go_lookup(fuse_req_t req, fuse_ino_t parent, const char *name);
 extern void go_getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi);
@@ -182,15 +182,14 @@ func go_read(req C.fuse_req_t, ino C.fuse_ino_t, size C.size_t, off C.off_t, fi 
 		Inode:  fuseops.InodeID(ino),
 		Handle: fuseops.HandleID(fi.fh),
 		Offset: int64(off),
-		Size:   int(size),
+		Dst:    make([]byte, int(size)),
 	}
-	buf := make([]byte, op.Size)
-	n, err := server.fs.ReadFile(context.Background(), op)
+	err := server.fs.ReadFile(context.Background(), op)
 	if err != nil {
 		C.fuse_reply_err_cgo(req, C.int(err.(fuse.FuseError).ErrorCode()))
 		return
 	}
-	C.fuse_reply_buf_cgo(req, (*C.char)(unsafe.Pointer(&buf[0])), C.size_t(n))
+	C.fuse_reply_buf_cgo(req, (*C.char)(unsafe.Pointer(&op.Dst[0])), C.size_t(op.BytesRead))
 }
 
 //export go_write
