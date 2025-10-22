@@ -23,7 +23,6 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -67,7 +66,7 @@ func (t *UnsupportedObjectNameTest) TestReadDir_UnsupportedObjectName() {
 	t.Require().NoError(err)
 
 	// ReadDir should not show the unsupported object.
-	entries, err := fusetesting.ReadDirPicky(mntDir)
+	entries, err := os.ReadDir(mntDir)
 
 	t.Require().NoError(err)
 	t.Require().Len(entries, 1)
@@ -87,7 +86,7 @@ func (t *UnsupportedObjectNameTest) TestReadDir_UnsupportedObjectName_WithSuppor
 	t.Require().NoError(err)
 
 	// ReadDir should only show the supported object.
-	entries, err := fusetesting.ReadDirPicky(mntDir)
+	entries, err := os.ReadDir(mntDir)
 
 	t.Require().NoError(err)
 	t.Require().Len(entries, 2)
@@ -104,14 +103,16 @@ func (t *UnsupportedObjectNameTest) TestListSubDirectory_WithUnsupportedNames() 
 	t.Require().NoError(err)
 
 	// Listing the parent directory 'dir' should show 'sub_dir'.
-	entries, err := fusetesting.ReadDirPicky(path.Join(mntDir, "dir"))
+	entries, err := os.ReadDir(path.Join(mntDir, "dir"))
 
 	t.Require().NoError(err)
 	t.Require().Len(entries, 1)
 	t.Assert().Equal("sub_dir", entries[0].Name())
 	t.Assert().True(entries[0].IsDir())
+
 	// Listing 'sub_dir' should only show the supported file.
-	subDirEntries, err := fusetesting.ReadDirPicky(path.Join(mntDir, "dir/sub_dir"))
+	subDirEntries, err := os.ReadDir(path.Join(mntDir, "dir/sub_dir"))
+
 	t.Require().NoError(err)
 	t.Require().Len(subDirEntries, 1)
 	t.Assert().Equal("file2", subDirEntries[0].Name())

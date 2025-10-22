@@ -236,7 +236,7 @@ type dirInode struct {
 	prevDirListingTimeStamp time.Time
 	isHNSEnabled            bool
 
-	isUnsupportedObjectSupportEnabled bool
+	isUnsupportedDirSupportEnabled bool
 
 	// Represents if folder has been unlinked in hierarchical bucket. This is not getting used in
 	// non-hierarchical bucket.
@@ -277,7 +277,7 @@ func NewDirInode(
 	cacheClock timeutil.Clock,
 	typeCacheMaxSizeMB int64,
 	isHNSEnabled bool,
-	isUnsupportedObjectSupportEnabled bool,
+	isUnsupportedDirSupportEnabled bool,
 ) (d DirInode) {
 
 	if !name.IsDir() {
@@ -285,19 +285,19 @@ func NewDirInode(
 	}
 
 	typed := &dirInode{
-		bucket:                            bucket,
-		mtimeClock:                        mtimeClock,
-		cacheClock:                        cacheClock,
-		id:                                id,
-		implicitDirs:                      implicitDirs,
-		includeFoldersAsPrefixes:          includeFoldersAsPrefixes,
-		enableNonexistentTypeCache:        enableNonexistentTypeCache,
-		name:                              name,
-		attrs:                             attrs,
-		cache:                             metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL),
-		isHNSEnabled:                      isHNSEnabled,
-		unlinked:                          false,
-		isUnsupportedObjectSupportEnabled: isUnsupportedObjectSupportEnabled,
+		bucket:                         bucket,
+		mtimeClock:                     mtimeClock,
+		cacheClock:                     cacheClock,
+		id:                             id,
+		implicitDirs:                   implicitDirs,
+		includeFoldersAsPrefixes:       includeFoldersAsPrefixes,
+		enableNonexistentTypeCache:     enableNonexistentTypeCache,
+		name:                           name,
+		attrs:                          attrs,
+		cache:                          metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL),
+		isHNSEnabled:                   isHNSEnabled,
+		isUnsupportedDirSupportEnabled: isUnsupportedDirSupportEnabled,
+		unlinked:                       false,
 	}
 
 	typed.lc.Init(id)
@@ -757,7 +757,7 @@ func (d *dirInode) readObjects(
 		if storageutil.IsUnsupportedObjectName(p) {
 			unsupportedPrefixes = append(unsupportedPrefixes, p)
 			// TODO: Remove this check once we gain confidence that it is not causing any issues.
-			if d.isUnsupportedObjectSupportEnabled {
+			if d.isUnsupportedDirSupportEnabled {
 				continue
 			}
 		}
