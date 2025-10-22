@@ -2563,6 +2563,7 @@ func (fs *fileSystem) renameNonHierarchicalDir(
 		// Otherwise, for files with atomic rename enabled, use move.
 		isDirOrUnknown := descendant.Type() == metadata.ExplicitDirType || descendant.Type() == metadata.UnknownType
 		if !fs.enableAtomicRenameObject || isDirOrUnknown {
+			fmt.Println("Dir name: ", newDir.Name().GcsObjectName()+nameDiff)
 			if _, err = newDir.CloneToChildFile(ctx, nameDiff, o); err != nil {
 				return fmt.Errorf("copy file %q: %w", o.Name, err)
 			}
@@ -2570,8 +2571,9 @@ func (fs *fileSystem) renameNonHierarchicalDir(
 				return fmt.Errorf("delete file %q: %w", o.Name, err)
 			}
 		} else {
+			fmt.Println("Dir name: ", newDir.Name().GcsObjectName()+nameDiff)
 			// For regular files, perform an in-place rename to the new directory.
-			if _, err = oldDir.RenameFile(ctx, o, path.Join(newDir.Name().GcsObjectName(), nameDiff)); err != nil {
+			if _, err = oldDir.RenameFile(ctx, o, newDir.Name().GcsObjectName()+nameDiff); err != nil {
 				return fmt.Errorf("renameFile: while renaming file: %w", err)
 			}
 		}
