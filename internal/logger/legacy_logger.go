@@ -17,6 +17,7 @@
 package logger
 
 import (
+	"fmt"
 	"log"
 	"log/slog"
 )
@@ -27,9 +28,14 @@ import (
 // individual log messages.
 // This method is created to support jacobsa/fuse loggers and will be removed
 // after slog support is added.
-func NewLegacyLogger(level slog.Level, prefix string) *log.Logger {
+func NewLegacyLogger(level slog.Level, prefix, fsName string) *log.Logger {
 	var programLevel = new(slog.LevelVar)
-	logger := slog.NewLogLogger(defaultLoggerFactory.handler(programLevel, prefix), level)
+	mountIDAttr := slog.String(
+		GCSFuseMountInstanceIDKey,
+		fmt.Sprintf("%s-%s", fsName, MountInstanceID()),
+	)
+	handler := defaultLoggerFactory.handler(programLevel, prefix).WithAttrs([]slog.Attr{mountIDAttr})
+	logger := slog.NewLogLogger(handler, level)
 	setLoggingLevel(defaultLoggerFactory.level, programLevel)
 	return logger
 }

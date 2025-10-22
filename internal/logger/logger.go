@@ -38,6 +38,7 @@ const (
 	ProgramName                  = "gcsfuse"
 	GCSFuseInBackgroundMode      = "GCSFUSE_IN_BACKGROUND_MODE"
 	GCSFuseMountInstanceIDEnvKey = "GCSFUSE_MOUNT_INSTANCE_ID"
+	GCSFuseMountInstanceIDKey    = "gcsfuse-mount-instance-id" // Combination of fsName and GCSFUSE_MOUNT_INSTANCE_ID
 	textFormat                   = "text"
 	// Max possible length can be 32 as UUID has 32 characters excluding 4 hyphens.
 	mountInstanceIDLength = 8
@@ -157,13 +158,10 @@ func MountInstanceID() string {
 	return mountInstanceID
 }
 
-// SetLogFormat updates the log format of default logger.
-func SetLogFormat(format string) {
-	if format == defaultLoggerFactory.format {
-		return
-	}
+// UpdateDefaultLogger updates the log format and creates a new logger with MountInstanceID set as custom attribute.
+func UpdateDefaultLogger(format, fsName string) {
 	defaultLoggerFactory.format = format
-	defaultLogger = defaultLoggerFactory.newLogger(defaultLoggerFactory.level)
+	defaultLogger = defaultLoggerFactory.newLoggerWithMountInstanceID(defaultLoggerFactory.level, fsName)
 }
 
 // Tracef prints the message with TRACE severity in the specified format.
@@ -222,6 +220,16 @@ func (f *loggerFactory) newLogger(level string) *slog.Logger {
 	// create a new logger
 	var programLevel = new(slog.LevelVar)
 	logger := slog.New(f.handler(programLevel, ""))
+	slog.SetDefault(logger)
+	setLoggingLevel(level, programLevel)
+	return logger
+}
+
+// create a new logger with mountInstanceID set as custom attribute on logger.
+func (f *loggerFactory) newLoggerWithMountInstanceID(level, fsName string) *slog.Logger {
+	var programLevel = new(slog.LevelVar)
+	logger := slog.New(f.handler(programLevel, "").WithAttrs([]slog.Attr{slog.String(GCSFuseMountInstanceIDKey,
+		fmt.Sprintf("%s-%s", fsName, MountInstanceID()))}))
 	slog.SetDefault(logger)
 	setLoggingLevel(level, programLevel)
 	return logger

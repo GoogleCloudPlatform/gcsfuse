@@ -28,8 +28,9 @@ import (
 )
 
 const (
-	textLogPattern = `^time="[a-zA-Z0-9/:. ]{26}" severity=%s message="TestLogs: %s"\s*$`
-	jsonLogPattern = `^{"timestamp":{"seconds":\d{10},"nanos":\d{0,9}},"severity":"%s","message":"TestLogs: %s"}\s*$`
+	testFsName     = "testFS" // This is used in redirectLogsToGivenBuffer to construct the mount instance ID.
+	textLogPattern = `^time="[a-zA-Z0-9/:. ]{26}" severity=%s message="TestLogs: %s" gcsfuse-mount-instance-id=testFS-[0-9a-f]{8}\s*$`
+	jsonLogPattern = `^{"timestamp":{"seconds":\d{10},"nanos":\d{0,9}},"severity":"%s","message":"TestLogs: %s","gcsfuse-mount-instance-id":"testFS-[0-9a-f]{8}"}\s*$`
 )
 
 // //////////////////////////////////////////////////////////////////////
@@ -50,9 +51,10 @@ func expectedLogRegex(t *testing.T, format, severity, message string) string {
 
 func redirectLogsToGivenBuffer(buf *bytes.Buffer, level string) {
 	var programLevel = new(slog.LevelVar)
-	defaultLogger = slog.New(
-		defaultLoggerFactory.createJsonOrTextHandler(buf, programLevel, "TestLogs: "),
-	)
+	handler := defaultLoggerFactory.createJsonOrTextHandler(buf, programLevel, "TestLogs: ")
+	handler = handler.WithAttrs([]slog.Attr{slog.String(GCSFuseMountInstanceIDKey,
+		fmt.Sprintf("%s-%s", testFsName, MountInstanceID()))})
+	defaultLogger = slog.New(handler)
 	setLoggingLevel(level, programLevel)
 }
 
@@ -78,7 +80,7 @@ func getTestLoggingFunctions() []func() {
 
 // fetchAllLogLevelOutputsForSpecifiedSeverityLevel sets the log format and severity,
 // executes standard logging functions, and returns their output.
-func fetchAllLogLevelOutputsForSpecifiedSeverityLevel(t *testing.T, format string, level string) []string {
+func fetchAllLogLevelOutputsForSpecifiedSeverityLevel(t *testing.T, format, level string) []string {
 	t.Helper()
 	// set log format
 	defaultLoggerFactory.format = format
@@ -127,7 +129,7 @@ func TestTextFormatLogs_LogLevelERROR(t *testing.T) {
 	var expectedLogLineRegexes = []string{
 		"", // TRACE
 		"", // DEBUG
-		"", // INFO,
+		"", // INFO
 		"", // WARNING
 		expectedLogRegex(t, "text", "ERROR", "www.errorExample.com"),
 	}
@@ -141,7 +143,7 @@ func TestTextFormatLogs_LogLevelWARNING(t *testing.T) {
 	expectedLogLineRegexes := []string{
 		"", // TRACE
 		"", // DEBUG
-		"", // INFO,
+		"", // INFO
 		expectedLogRegex(t, "text", "WARNING", "www.warningExample.com"),
 		expectedLogRegex(t, "text", "ERROR", "www.errorExample.com"),
 	}
@@ -353,7 +355,7 @@ func TestInitLogFile(t *testing.T) {
 	assert.True(t, defaultLoggerFactory.logRotate.Compress)
 }
 
-func TestSetLogFormat(t *testing.T) {
+func TestUpdateDefaultLogger(t *testing.T) {
 	testCases := []struct {
 		name          string
 		format        string
@@ -386,7 +388,7 @@ func TestSetLogFormat(t *testing.T) {
 				logRotate: logConfig.LogRotate,
 			}
 
-			SetLogFormat(tc.format)
+			UpdateDefaultLogger(tc.format, testFsName)
 			var buf bytes.Buffer
 			redirectLogsToGivenBuffer(&buf, defaultLoggerFactory.level)
 			Infof("www.infoExample.com")
