@@ -1,0 +1,51 @@
+# Binary names.
+/build_gcsfuse
+/gcsfuse
+/mount_gcsfuse
+/package_gcsfuse
+/read_full_file
+/read_within_file
+/stat_files
+/write_locally
+/write_to_gcs
+
+# Vim detritus
+.*.swp
+
+# Compiled Object files, Static and Dynamic libs (Shared Objects)
+*.o
+*.a
+*.so
+
+# Folders
+_obj
+_test
+.git
+perfmetrics
+docs
+benchmarks
+samples
+
+# Architecture specific extensions/prefixes
+*.[568vq]
+[568vq].out
+
+*.cgo1.go
+*.cgo2.c
+_cgo_defun.c
+_cgo_gotypes.go
+_cgo_export.*
+
+_testmain.go
+
+*.exe
+*.test
+*.prof
+
+# Editors
+.idea/
+.vscode
+
+# External folders
+vendor/
+
