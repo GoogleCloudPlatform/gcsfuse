@@ -26,6 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -40,11 +41,6 @@ type ReaddirplusWithoutDentryCacheTest struct {
 }
 
 func (s *ReaddirplusWithoutDentryCacheTest) SetupTest() {
-	//Truncate log file created.
-	err := os.Truncate(testEnv.cfg.LogFile, 0)
-	require.NoError(s.T(), err)
-	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
-	// operations.RemoveDir(testEnv.cacheDirPath)
 	testEnv.testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
 }
 
@@ -70,17 +66,19 @@ func (s *ReaddirplusWithoutDentryCacheTest) TestReaddirplusWithoutDentryCache() 
 	// testBucket/dirForReaddirplusTest/target_dir/subDirectory/file1
 	targetDir := path.Join(testEnv.testDirPath, targetDirName)
 	operations.CreateDirectory(targetDir, s.T())
-	operations.CreateFile(path.Join(targetDir, "file"), setup.FilePermission_0600, s.T())
+	// Create a file in the target directory.
+	f1 := operations.CreateFile(path.Join(targetDir, "file"), setup.FilePermission_0600, s.T())
+	operations.CloseFileShouldNotThrowError(s.T(), f1)
+	// Create an empty subdirectory
 	operations.CreateDirectory(path.Join(targetDir, "emptySubDirectory"), s.T())
-	operations.CreateDirectory(path.Join(targetDir, "subDirectory"), s.T())
-	operations.CreateFile(path.Join(targetDir, "subDirectory", "file1"), setup.FilePermission_0600, s.T())
+	// Create a subdirectory with file
+	operations.CreateDirectoryWithNFiles(1, path.Join(targetDir, "subDirectory"), "file", s.T())
 
 	startTime := time.Now()
-	// ls the directory. This should call ReadDirPlus.
-	entries, err := os.ReadDir(targetDir)
-	s.Require().NoError(err)
+	entries, err := fusetesting.ReadDirPlusPicky(targetDir)
 	endTime := time.Now()
 
+	require.NoError(s.T(), err, "ReadDirPlusPicky failed")
 	// Verify the entries.
 	expectedEntries := []struct {
 		name  string
@@ -95,10 +93,8 @@ func (s *ReaddirplusWithoutDentryCacheTest) TestReaddirplusWithoutDentryCache() 
 	for i, expected := range expectedEntries {
 		entry := entries[i]
 		assert.Equal(s.T(), expected.name, entry.Name(), "Name mismatch for entry %d", i)
-		fileInfo, err := entry.Info()
-		s.Require().NoError(err)
 		assert.Equal(s.T(), expected.isDir, entry.IsDir(), "IsDir mismatch for entry %s", entry.Name())
-		assert.Equal(s.T(), expected.mode, fileInfo.Mode(), "Mode mismatch for entry %s", entry.Name())
+		assert.Equal(s.T(), expected.mode, entry.Mode(), "Mode mismatch for entry %s", entry.Name())
 	}
 
 	// Validate logs to check that ReadDirPlus was called and ReadDir was not.

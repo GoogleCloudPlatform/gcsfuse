@@ -20,6 +20,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path"
 	"strings"
 	"testing"
 	"time"
@@ -139,6 +140,7 @@ func TestMain(m *testing.M) {
 		}
 		cfg.ReadDirPlus[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ReadDirPlus[0].Configs[0].Run = "TestReaddirplusWithDentryCacheTest"
+
 		cfg.ReadDirPlus[0].Configs[1].Flags = []string{
 			"--implicit-dirs --experimental-enable-readdirplus",
 		}
@@ -174,6 +176,9 @@ func TestMain(m *testing.M) {
 	log.Println("Running static mounting tests...")
 	mountFunc = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile
 	successCode := m.Run()
+
+	// Clean up test directory created.
+	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(cfg.ReadDirPlus[0].TestBucket, testDirName))
 
 	os.Exit(successCode)
 }
