@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//http://www.apache.org/licenses/LICENSE-2.0
+//      http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,16 +20,15 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
-	"github.com/stretchr/testify/suite"
-
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/suite"
 )
 
 // //////////////////////////////////////////////////////////////////////
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
 
-type staleFileHandleLocalFile struct {
+type staleFileHandleLocalFileTest struct {
 	staleFileHandleCommon
 }
 
@@ -37,10 +36,10 @@ type staleFileHandleLocalFile struct {
 // Helpers
 // //////////////////////////////////////////////////////////////////////
 
-func (s *staleFileHandleLocalFile) SetupTest() {
+func (s *staleFileHandleLocalFileTest) SetupTest() {
 	// Create a local file.
 	s.fileName = path.Base(s.T().Name()) + setup.GenerateRandomString(5)
-	s.f1 = operations.OpenFileWithODirect(s.T(), path.Join(s.testDirPath, s.fileName))
+	s.f1 = operations.OpenFileWithODirect(s.T(), path.Join(testEnv.testDirPath, s.fileName))
 	s.isLocal = true
 }
 
@@ -51,11 +50,13 @@ func (s *staleFileHandleLocalFile) SetupTest() {
 func TestStaleFileHandleLocalFileTest(t *testing.T) {
 	// Run tests for mounted directory if the flag is set and return.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		suite.Run(t, new(staleFileHandleLocalFile))
+		suite.Run(t, new(staleFileHandleLocalFileTest))
 		return
 	}
+
+	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, flags := range flagsSet {
-		s := new(staleFileHandleLocalFile)
+		s := new(staleFileHandleLocalFileTest)
 		s.flags = flags
 		s.isStreamingWritesEnabled = !slices.Contains(s.flags, "--enable-streaming-writes=false")
 		suite.Run(t, s)
