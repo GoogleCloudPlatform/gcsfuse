@@ -402,7 +402,7 @@ async def main():
                 sys.exit(-1)
 
             successful_iterations = sum(1 for t in throughputs if t >= args.performance_threshold_gbps)
-            if successful_iterations <= len(throughputs) / 2: # At least half iterations must meet the threshold.
+            if successful_iterations < len(throughputs) / 2: # At least half iterations must meet the threshold.
                 print(f"Benchmark failed: Only {successful_iterations}/{len(throughputs)} iterations were >= {args.performance_threshold_gbps} gbytes/sec.", file=sys.stderr)
                 if not args.no_cleanup:
                     await cleanup(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name)
