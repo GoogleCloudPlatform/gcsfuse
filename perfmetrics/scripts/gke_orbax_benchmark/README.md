@@ -6,11 +6,25 @@ This script automates the process of running the Orbax benchmark on a GKE cluste
 
 Before running the script, ensure you have the following tools installed and configured:
 
--   `gcloud`: The Google Cloud CLI, authenticated with a project.
+-   `gcloud`: The Google Cloud CLI, authenticated with a project. Ensure the following APIs are enabled in your project:
+    -   Kubernetes Engine API (`container.googleapis.com`)
+    -   Cloud Storage API (`storage.googleapis.com`)
 -   `kubectl`: The Kubernetes command-line tool.
 -   `git`: The version control system.
 -   `make`: The build automation tool.
 -   `python3` with the `asyncio` library (standard in Python 3.7+).
+
+## Workflow
+
+The script performs the following steps:
+
+1.  **VPC Network and Subnet Setup**: Creates a VPC network and subnet if they don't already exist.
+2.  **GKE Cluster Setup**: Creates a new GKE cluster with a dedicated node pool.
+3.  **Build GCSFuse CSI Driver**: Clones the specified GCSFuse repository branch and builds the GCSFuse CSI driver container image.
+4.  **Deploy Driver**: Pushes the driver image to Google Container Registry (GCR) and deploys it to the GKE cluster.
+5.  **Run Benchmark**: Deploys the Orbax benchmark workload as a Kubernetes Job.
+6.  **Gather Results**: Fetches the logs from the completed benchmark pod, which contain the performance metrics.
+7.  **Cleanup**: Deletes the GKE cluster and, if `--no_cleanup` is not specified, other created resources like the VPC network and subnet.
 
 ## Usage
 
@@ -26,8 +40,7 @@ options:
   -h, --help            show this help message and exit
   --project_id PROJECT_ID
                         Google Cloud project ID.
-  --bucket_name BUCKET_NAME
-                        GCS bucket name for the workload.
+  --bucket_name BUCKET_NAME GCS bucket name for the workload. The bucket must exist before running the script.
   --zone ZONE           GCP zone.
   --cluster_name CLUSTER_NAME
                         GKE cluster name.
