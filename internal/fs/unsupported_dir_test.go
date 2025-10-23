@@ -56,70 +56,7 @@ func (t *UnsupportedObjectNameTest) TearDownTest() {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *UnsupportedObjectNameTest) TestReadDir_UnsupportedObjectName() {
-	// Set up contents.
-	err := t.createObjects(map[string]string{
-		"//foo": "",
-		"./bar": "",
-		"file1": "content",
-	})
-	t.Require().NoError(err)
-
-	// ReadDir should not show the unsupported object.
-	entries, err := os.ReadDir(mntDir)
-
-	t.Require().NoError(err)
-	t.Require().Len(entries, 1)
-	t.Assert().Equal("file1", entries[0].Name())
-}
-
-func (t *UnsupportedObjectNameTest) TestReadDir_UnsupportedObjectName_WithSupportedObjects() {
-	// Set up contents.
-	err := t.createObjects(map[string]string{
-		"//a.txt":     "",
-		"foo//bar":    "",
-		"foo/../bar1": "",
-		"foo/./bar2":  "",
-		"foo//./bar3": "",
-		"qux":         "taco",
-	})
-	t.Require().NoError(err)
-
-	// ReadDir should only show the supported object.
-	entries, err := os.ReadDir(mntDir)
-
-	t.Require().NoError(err)
-	t.Require().Len(entries, 2)
-	t.Assert().Equal("foo", entries[0].Name())
-	t.Assert().Equal("qux", entries[1].Name())
-}
-
-func (t *UnsupportedObjectNameTest) TestListSubDirectory_WithUnsupportedNames() {
-	// Set up contents.
-	err := t.createObjects(map[string]string{
-		"dir/sub_dir//file1": "",
-		"dir/sub_dir/file2":  "content",
-	})
-	t.Require().NoError(err)
-
-	// Listing the parent directory 'dir' should show 'sub_dir'.
-	entries, err := os.ReadDir(path.Join(mntDir, "dir"))
-
-	t.Require().NoError(err)
-	t.Require().Len(entries, 1)
-	t.Assert().Equal("sub_dir", entries[0].Name())
-	t.Assert().True(entries[0].IsDir())
-
-	// Listing 'sub_dir' should only show the supported file.
-	subDirEntries, err := os.ReadDir(path.Join(mntDir, "dir/sub_dir"))
-
-	t.Require().NoError(err)
-	t.Require().Len(subDirEntries, 1)
-	t.Assert().Equal("file2", subDirEntries[0].Name())
-	t.Assert().False(subDirEntries[0].IsDir())
-}
-
-func (t *UnsupportedObjectNameTest) TestRecursiveList_WithUnsupportedNames() {
+func (t *UnsupportedObjectNameTest) Test_ReadDir_Recursive() {
 	// Set up contents.
 	err := t.createObjects(map[string]string{
 		"dir1/sub_dir1//file1": "",
@@ -128,6 +65,8 @@ func (t *UnsupportedObjectNameTest) TestRecursiveList_WithUnsupportedNames() {
 		"dir2/file4":           "content",
 		"dir3/./file5":         "content",
 		"file6":                "content",
+		"//a.txt":              "",
+		"./b.txt":              "",
 	})
 	t.Require().NoError(err)
 	var files []string
@@ -149,6 +88,7 @@ func (t *UnsupportedObjectNameTest) TestRecursiveList_WithUnsupportedNames() {
 		return nil
 	})
 
+	// ReadDir should only show the supported object.
 	t.Require().NoError(err)
 	t.Assert().ElementsMatch([]string{"dir1", "dir2", "dir3", "sub_dir1"}, dirs)
 	t.Assert().ElementsMatch([]string{"file2", "file4", "file6"}, files)
