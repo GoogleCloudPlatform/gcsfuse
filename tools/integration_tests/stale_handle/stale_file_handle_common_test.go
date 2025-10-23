@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//http://www.apache.org/licenses/LICENSE-2.0
+//      http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,7 +21,6 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	. "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
@@ -34,30 +33,23 @@ import (
 // //////////////////////////////////////////////////////////////////////
 
 type staleFileHandleCommon struct {
-	flags                    [][]string
+	suite.Suite
+	flags                    []string
 	f1                       *os.File
 	fileName                 string
 	data                     string
 	isStreamingWritesEnabled bool
 	isLocal                  bool
-	suite.Suite
 }
 
-// //////////////////////////////////////////////////////////////////////
-// Helpers
-// //////////////////////////////////////////////////////////////////////
 func (s *staleFileHandleCommon) SetupSuite() {
-	s.flags = setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, "TestStaleFileHandleLocalFileTest")
-}
-
-func (s *staleFileHandleCommon) SetupTest() {
-	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, s.flags[0], static_mounting.MountGcsfuseWithStaticMountingWithConfigFile)
+	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, s.flags, mountFunc)
 	testEnv.testDirPath = SetupTestDirectory(testEnv.ctx, testEnv.storageClient, testDirName)
 	s.data = setup.GenerateRandomString(5 * util.MiB)
 }
 
-func (s *staleFileHandleCommon) TearDownTest() {
-	setup.UnmountGCSFuseAndDeleteLogFile(setup.MntDir())
+func (s *staleFileHandleCommon) TearDownSuite() {
+	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -75,7 +67,13 @@ func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHand
 	err := WriteToObject(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, s.fileName), FileContents, storage.Conditions{})
 	assert.NoError(s.T(), err)
 
-	operations.ValidateSyncGivenThatFileIsClobbered(s.T(), s.f1, s.isStreamingWritesEnabled)
+	if s.isStreamingWritesEnabled && !s.isLocal {
+		err = s.f1.Sync()
+		operations.ValidateESTALEError(s.T(), err)
+	} else {
+		operations.ValidateSyncGivenThatFileIsClobbered(s.T(), s.f1, s.isStreamingWritesEnabled)
+	}
+
 	err = s.f1.Close()
 	operations.ValidateESTALEError(s.T(), err)
 	ValidateObjectContentsFromGCS(testEnv.ctx, testEnv.storageClient, testDirName, s.fileName, FileContents, s.T())

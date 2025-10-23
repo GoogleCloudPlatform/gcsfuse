@@ -4,14 +4,13 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-// http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 package stale_handle
 
 import (
@@ -22,6 +21,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
@@ -31,7 +31,8 @@ const (
 )
 
 var (
-	testEnv env
+	testEnv   env
+	mountFunc func(*test_suite.TestConfig, []string) error
 )
 
 type env struct {
@@ -41,6 +42,10 @@ type env struct {
 	cfg           *test_suite.TestConfig
 	bucketType    string
 }
+
+////////////////////////////////////////////////////////////////////////
+// TestMain
+////////////////////////////////////////////////////////////////////////
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
@@ -53,7 +58,8 @@ func TestMain(m *testing.M) {
 		cfg.StaleHandle = make([]test_suite.TestConfig, 1)
 		cfg.StaleHandle[0].TestBucket = setup.TestBucket()
 		cfg.StaleHandle[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.StaleHandle[0].Configs = make([]test_suite.ConfigItem, 2)
+		cfg.StaleHandle[0].LogFile = setup.LogFile()
+		cfg.StaleHandle[0].Configs = make([]test_suite.ConfigItem, 4)
 		cfg.StaleHandle[0].Configs[0].Flags = []string{
 			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false",
 		}
@@ -64,18 +70,20 @@ func TestMain(m *testing.M) {
 		}
 		cfg.StaleHandle[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.StaleHandle[0].Configs[1].Run = "TestStaleFileHandleLocalFileTest"
+		cfg.StaleHandle[0].Configs[2].Flags = []string{
+			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false",
+		}
+		cfg.StaleHandle[0].Configs[2].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.StaleHandle[0].Configs[2].Run = "TestStaleFileHandleSyncedFileTest"
+		cfg.StaleHandle[0].Configs[3].Flags = []string{
+			"--metadata-cache-ttl-secs=0 --write-block-size-mb=1 --write-max-blocks-per-file=1",
+		}
+		cfg.StaleHandle[0].Configs[3].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.StaleHandle[0].Configs[3].Run = "TestStaleFileHandleSyncedFileTest"
 	}
 
-	// Run all tests with GRPC.
-	for i := range cfg.StaleHandle[0].Configs {
-		// Create a temporary slice of slices to satisfy the function signature.
-		tempFlags := [][]string{cfg.StaleHandle[0].Configs[i].Flags}
-		setup.AppendFlagsToAllFlagsInTheFlagsSet(&tempFlags, "--client-protocol=grpc", "")
-		cfg.StaleHandle[0].Configs[i].Flags = tempFlags[0]
-	}
-
-	testEnv.cfg = &cfg.StaleHandle[0]
 	testEnv.ctx = context.Background()
+	testEnv.cfg = &cfg.StaleHandle[0]
 	testEnv.bucketType = setup.TestEnvironment(testEnv.ctx, testEnv.cfg)
 
 	// 2. Create storage client before running tests.
@@ -88,18 +96,18 @@ func TestMain(m *testing.M) {
 	defer testEnv.storageClient.Close()
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	// flags to be set, as stale handle tests validates content from the bucket.
+	// Note: These tests by default can only be run for non streaming mounts.
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
 		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
 	}
 
 	// Run tests for testBucket
-	// Set up test directory.
 	setup.SetUpTestDirForTestBucket(testEnv.cfg)
 
 	log.Println("Running static mounting tests...")
+	mountFunc = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile
 	successCode := m.Run()
 
-	// Clean up test directory created.
-	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, testDirName)
 	os.Exit(successCode)
 }
