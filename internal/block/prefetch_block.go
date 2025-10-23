@@ -79,12 +79,6 @@ type PrefetchBlock interface {
 
 	// RefCount returns the current reference count of the block.
 	RefCount() int32
-
-	// WasEvicted returns true if the block was evicted from the retired cache.
-	WasEvicted() bool
-
-	// SetWasEvicted sets the wasEvicted flag.
-	SetWasEvicted(val bool)
 }
 
 type prefetchMemoryBlock struct {
@@ -101,9 +95,6 @@ type prefetchMemoryBlock struct {
 
 	// refCount tracks the number of active references to the block.
 	refCount atomic.Int32
-
-	// wasEvicted is true if the block was evicted from the retired cache.
-	wasEvicted atomic.Bool
 }
 
 func (pmb *prefetchMemoryBlock) Reuse() {
@@ -113,7 +104,6 @@ func (pmb *prefetchMemoryBlock) Reuse() {
 	pmb.status = BlockStatus{State: BlockStateInProgress}
 	pmb.absStartOff = -1
 	pmb.refCount.Store(0)
-	pmb.wasEvicted.Store(false)
 }
 
 // createPrefetchBlock creates a new PrefetchBlock.
@@ -188,7 +178,7 @@ func (pmb *prefetchMemoryBlock) SetAbsStartOff(startOff int64) error {
 
 	// If absStartOff is already set, then return an error.
 	if pmb.absStartOff >= 0 {
-		return fmt.Errorf("SetAbsStartOff: absStartOff is already set, re-setting is not allowed.")
+		return fmt.Errorf("SetAbsStartOff: absStartOff is already set, re-setting is not allowed")
 	}
 
 	pmb.absStartOff = startOff
@@ -237,12 +227,4 @@ func (pmb *prefetchMemoryBlock) DecrementRef() int32 {
 
 func (pmb *prefetchMemoryBlock) RefCount() int32 {
 	return pmb.refCount.Load()
-}
-
-func (pmb *prefetchMemoryBlock) WasEvicted() bool {
-	return pmb.wasEvicted.Load()
-}
-
-func (pmb *prefetchMemoryBlock) SetWasEvicted(val bool) {
-	pmb.wasEvicted.Store(val)
 }

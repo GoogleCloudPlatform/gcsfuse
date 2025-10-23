@@ -101,6 +101,10 @@ type BufferedReader struct {
 	// out-of-order or concurrent reads without treating them as random seeks.
 	// GUARDED by (mu)
 	retiredBlocks RetiredBlockCache
+
+	// releaseManager centralizes the logic for retiring and releasing blocks.
+	// GUARDED by (mu)
+	releaseManager *blockReleaseManager
 }
 
 // BufferedReaderOptions holds the dependencies for a BufferedReader.
@@ -152,6 +156,8 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 		reader.retiredBlocks = &NoOpRetiredBlockCache{}
 	}
 
+	reader.releaseManager = newBlockReleaseManager(opts.Config, blockpool, reader.retiredBlocks)
+
 	prefetcherOpts := &prefetcherOptions{
 		Object:       opts.Object,
 		Bucket:       opts.Bucket,
@@ -169,45 +175,120 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 	return reader, nil
 }
 
-// retireBlock moves a block from the active prefetch queue to the retired
-// blocks LRU cache. If the cache is full, it evicts the least recently used
-// block and releases it back to the pool.
-// LOCKS_REQUIRED(p.mu)
-func (p *BufferedReader) retireBlock(entry *blockQueueEntry) {
-	// If the retired blocks feature is disabled (using the no-op cache),
-	// we treat the block as if it were immediately evicted.
-	if _, ok := p.retiredBlocks.(*NoOpRetiredBlockCache); ok {
-		if entry.block.RefCount() == 0 {
-			p.releaseBlock(entry)
-		} else {
-			entry.block.SetWasEvicted(true)
-		}
+// blockReleaseManager centralizes the logic for retiring, evicting, and releasing blocks.
+type blockReleaseManager struct {
+	config        *BufferedReadConfig
+	pool          *block.GenBlockPool[block.PrefetchBlock]
+	retiredBlocks RetiredBlockCache
+
+	// mu protects the pendingRelease map.
+	mu sync.Mutex
+
+	// pendingRelease holds blocks that have been evicted from caches but are
+	// still in use (ref count > 0). The key is the block's absolute start offset.
+	pendingRelease map[int64]*blockQueueEntry
+	// releaseSignal is a channel used to signal when a zero-copy block's
+	// reference count has dropped to zero and it might be ready for release.
+	releaseSignal chan *blockQueueEntry
+
+	// activeZeroCopy is a wait group to track active zero-copy operations.
+	// It ensures that Destroy waits for all zero-copy buffers to be released by the kernel.
+	activeZeroCopy sync.WaitGroup
+
+	// stopOnce ensures that the release manager's background goroutine is stopped only once.
+	stopOnce sync.Once
+}
+
+// newBlockReleaseManager creates a new manager for handling block releases.
+func newBlockReleaseManager(config *BufferedReadConfig, pool *block.GenBlockPool[block.PrefetchBlock], retired RetiredBlockCache) *blockReleaseManager {
+	m := &blockReleaseManager{
+		config:         config,
+		pool:           pool,
+		retiredBlocks:  retired,
+		pendingRelease: make(map[int64]*blockQueueEntry),
+		releaseSignal:  make(chan *blockQueueEntry, config.MaxPrefetchBlockCnt),
+	}
+	go m.processReleaseSignals()
+	return m
+}
+
+// stop safely terminates the background goroutine that processes release signals.
+func (m *blockReleaseManager) stop() {
+	if m == nil {
+		return
+	}
+	m.stopOnce.Do(func() {
+		close(m.releaseSignal)
+	})
+}
+
+// waitForZeroCopyOps blocks until all active zero-copy operations have completed.
+func (m *blockReleaseManager) waitForZeroCopyOps() {
+	if m == nil {
+		return
+	}
+	m.activeZeroCopy.Wait()
+}
+
+// retire moves a block from the active prefetch queue to the retired cache.
+// If the cache is full, it evicts the least recently used block.
+func (m *blockReleaseManager) retire(entry *blockQueueEntry) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if _, ok := m.retiredBlocks.(*NoOpRetiredBlockCache); ok {
+		m.tryReleaseOrMarkEvicted(entry)
 		return
 	}
 
-	blockIndex := entry.block.AbsStartOff() / p.config.PrefetchBlockSizeBytes
-	evicted, err := p.retiredBlocks.Insert(blockIndex, entry)
+	blockIndex := entry.block.AbsStartOff() / m.config.PrefetchBlockSizeBytes
+	evicted, err := m.retiredBlocks.Insert(blockIndex, entry)
 	if err != nil {
-		// An error occurred (e.g., entry is too large for the cache). The block
-		// was not inserted, so we treat it as if it were immediately evicted.
-		logger.Warnf("BufferedReader.retireBlock: failed to insert block %d into retired cache: %v", blockIndex, err)
-		if entry.block.RefCount() == 0 {
-			p.releaseBlock(entry)
-		} else {
-			entry.block.SetWasEvicted(true)
-		}
-		// There should be no evictions if insertion failed, but we proceed just in case.
+		logger.Warnf("blockReleaseManager.retire: failed to insert block %d into retired cache, releasing immediately: %v", blockIndex, err)
+		m.tryReleaseOrMarkEvicted(entry)
 	}
 
 	for _, evictedEntry := range evicted {
-		// This block is being evicted from the retired cache. If it's not in use,
-		// we can release it. Otherwise, we set a callback to release it later.
-		if evictedEntry.block.RefCount() == 0 {
-			p.releaseBlock(evictedEntry)
-		} else {
-			evictedEntry.block.SetWasEvicted(true)
-		}
+		m.tryReleaseOrMarkEvicted(evictedEntry)
 	}
+}
+
+// handleZeroCopyDone is called when the kernel is finished with a zero-copy buffer.
+// It decrements the block's reference count and releases it if necessary.
+func (m *blockReleaseManager) signalRelease(entry *blockQueueEntry) {
+	if entry.block.DecrementRef() == 0 {
+		m.releaseSignal <- entry
+		m.activeZeroCopy.Done()
+	}
+}
+
+// processReleaseSignals runs in a dedicated goroutine, listening for blocks
+// whose reference counts have dropped to zero.
+func (m *blockReleaseManager) processReleaseSignals() {
+	for entry := range m.releaseSignal {
+		m.mu.Lock()
+		if _, ok := m.pendingRelease[entry.block.AbsStartOff()]; ok {
+			delete(m.pendingRelease, entry.block.AbsStartOff())
+			m.release(entry)
+		}
+		m.mu.Unlock()
+	}
+}
+
+// tryReleaseOrMarkEvicted attempts to release a block. If the block is in use
+// (ref count > 0), it adds it to the pendingRelease map. Otherwise, it releases
+// it immediately. This is an internal helper that assumes the caller holds m.mu.
+func (m *blockReleaseManager) tryReleaseOrMarkEvicted(entry *blockQueueEntry) {
+	if entry.block.RefCount() == 0 {
+		m.release(entry)
+	} else {
+		m.pendingRelease[entry.block.AbsStartOff()] = entry
+	}
+}
+
+// release returns a block to the pool.
+func (m *blockReleaseManager) release(entry *blockQueueEntry) {
+	m.pool.Release(entry.block)
 }
 
 // tryZeroCopyRead attempts to perform a zero-copy read from the given block.
@@ -222,60 +303,23 @@ func (p *BufferedReader) tryZeroCopyRead(entry *blockQueueEntry, off int64, inpu
 	// Check if the entire read can be satisfied by this single block.
 	if relOff >= 0 && relOff+int64(len(inputBuf)) <= int64(blk.Size()) {
 		slice, sliceErr := blk.ReadAtSlice(len(inputBuf), relOff)
-		if sliceErr == nil {
+		if sliceErr == nil && p.releaseManager != nil {
 			// For zero-copy reads, we must ensure the block is not released until the
-			// kernel is done with the buffer. We increment its reference count here,
+			// kernel is done with the buffer. We increment its reference count here
 			// and the Done function will decrement it later.
-			blk.IncrementRef()
+			blk.IncrementRef() // Note: race condition without fs lock.
 			resp.DataBuf = slice
 			resp.Size = len(slice)
 			resp.Done = func() {
-				p.handleZeroCopyDone(entry)
+				p.releaseManager.signalRelease(entry)
 			}
+			p.releaseManager.activeZeroCopy.Add(1)
 			// log.Printf("Zero Copy succeeded <-(%d, %d, ref_count: %d)", off, len(slice), blk.RefCount())
 			return resp, true
 		}
 		logger.Warnf("BufferedReader.ReadAt: ReadAtSlice failed, falling back to copy: %v", sliceErr)
 	}
 	return resp, false
-}
-
-// handleZeroCopyDone is called when the kernel is finished with a zero-copy buffer.
-// It decrements the block's reference count and releases it back to the pool if
-// the count drops to zero and it was previously marked for eviction.
-func (p *BufferedReader) handleZeroCopyDone(entry *blockQueueEntry) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	blk := entry.block
-	blk.DecrementRef()
-	if blk.RefCount() == 0 && blk.WasEvicted() {
-		p.releaseBlock(entry)
-	}
-}
-
-// prepareQueueForOffset discards blocks from the head of the prefetch queue
-// that are no longer needed because the current read offset has moved past them.
-// Discarded blocks are moved to the retiredBlocks cache, allowing them to be
-// reused by other concurrent or slightly out-of-order reads without being
-// re-downloaded.
-// LOCKS_REQUIRED(p.mu)
-func (p *BufferedReader) prepareQueueForOffset(offset int64) {
-	for !p.blockQueue.IsEmpty() {
-		entry := p.blockQueue.Peek()
-		block := entry.block
-		blockStart := block.AbsStartOff()
-		blockEnd := blockStart + block.Cap()
-
-		if offset < blockStart || offset >= blockEnd {
-			// Offset is either before or beyond this block – discard.
-			// The block is moved to the retired cache.
-			p.blockQueue.Pop()
-			p.retireBlock(entry)
-		} else {
-			break
-		}
-	}
 }
 
 // ReadAt reads data from the GCS object into the provided buffer starting at
@@ -346,9 +390,9 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 	if isRandom {
 		// On a random read, clear the prefetch queue by retiring all blocks.
-		for !p.blockQueue.IsEmpty() {
-			entry := p.blockQueue.Pop()
-			p.retireBlock(entry)
+		for !p.blockQueue.IsEmpty() && p.releaseManager != nil {
+			entryToRetire := p.blockQueue.Pop()
+			p.releaseManager.retire(entryToRetire)
 		}
 	}
 
@@ -365,7 +409,9 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 			}
 			if status.State != block.BlockStateDownloaded {
 				p.retiredBlocks.Erase(blockIndex)
-				p.blockPool.Release(blk)
+				if p.releaseManager != nil {
+					p.releaseManager.release(entry)
+				}
 				err = fmt.Errorf("BufferedReader.ReadAt: retired block not downloaded, state: %d", status.State)
 				break
 			}
@@ -384,7 +430,18 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 			}
 			continue
 		}
-		p.prepareQueueForOffset(off)
+		for !p.blockQueue.IsEmpty() {
+			entry := p.blockQueue.Peek()
+			block := entry.block
+			blockStart := block.AbsStartOff()
+			blockEnd := blockStart + block.Cap()
+
+			if off < blockStart || off >= blockEnd {
+				p.releaseManager.retire(p.blockQueue.Pop())
+			} else {
+				break
+			}
+		}
 
 		if p.blockQueue.IsEmpty() {
 			if err = p.prefetcher.freshStart(off); err != nil {
@@ -414,7 +471,9 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 		if status.State != block.BlockStateDownloaded {
 			p.blockQueue.Pop() // The block is invalid, remove it.
-			p.releaseBlock(entry)
+			if p.releaseManager != nil {
+				p.releaseManager.release(entry)
+			}
 
 			switch status.State {
 			case block.BlockStateDownloadFailed:
@@ -451,8 +510,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		}
 
 		if off >= blk.AbsStartOff()+blk.Size() {
-			entry := p.blockQueue.Pop()
-			p.retireBlock(entry)
+			p.releaseManager.retire(p.blockQueue.Pop()) // Retire the fully consumed block.
 		}
 	}
 
@@ -465,23 +523,43 @@ func (p *BufferedReader) Destroy() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	for !p.blockQueue.IsEmpty() {
-		entry := p.blockQueue.Pop()
-		if entry.block.RefCount() == 0 {
-			p.releaseBlock(entry)
+	if p.releaseManager != nil {
+		// Wait for any in-flight zero-copy reads to complete before proceeding with destruction.
+		p.releaseManager.waitForZeroCopyOps()
+	}
+
+	if p.releaseManager != nil {
+		// Stop the release manager's background goroutine.
+		p.releaseManager.stop()
+	}
+
+	if p.releaseManager != nil {
+		for !p.blockQueue.IsEmpty() {
+			p.releaseManager.retire(p.blockQueue.Pop())
 		}
 	}
 
 	// Clear the retired blocks cache and release all blocks.
-	if p.retiredBlocks != nil {
-		evictedEntries := p.retiredBlocks.Clear()
-		for _, evictedEntry := range evictedEntries {
-			// If the block is not in use, we can release it.
-			if evictedEntry.block.RefCount() == 0 {
-				p.releaseBlock(evictedEntry)
-			}
+	if p.releaseManager != nil {
+		// First, cancel any pending downloads for blocks that are in the release manager.
+		p.releaseManager.mu.Lock()
+		for _, entry := range p.releaseManager.pendingRelease {
+			entry.cancel()
 		}
-		p.retiredBlocks = nil
+		p.releaseManager.mu.Unlock()
+
+		// Now, clear the retired blocks cache and add them to the list of evicted entries.
+		// We must hold the releaseManager's lock while accessing its internal maps.
+		evictedEntries := p.retiredBlocks.Clear()
+		p.releaseManager.mu.Lock()
+		for _, pendingEntry := range p.releaseManager.pendingRelease {
+			evictedEntries = append(evictedEntries, pendingEntry)
+		}
+
+		for _, evictedEntry := range evictedEntries {
+			p.releaseManager.tryReleaseOrMarkEvicted(evictedEntry)
+		}
+		p.releaseManager.mu.Unlock()
 	}
 
 	if p.cancelFunc != nil {
@@ -493,23 +571,9 @@ func (p *BufferedReader) Destroy() {
 	if err != nil {
 		logger.Warnf("Destroy: clearing free block channel: %v", err)
 	}
+	p.releaseManager = nil
+	p.retiredBlocks = nil
 	p.blockPool = nil
-}
-
-// releaseBlock cancels the download if in progress, waits for it to complete,
-// and releases the block back to the pool.
-// LOCKS_REQUIRED(p.mu)
-func (p *BufferedReader) releaseBlock(entry *blockQueueEntry) {
-	entry.cancel()
-	// We wait for the block's worker goroutine to finish. We expect its
-	// status to contain a context.Canceled error because we just called cancel.
-	status, err := entry.block.AwaitReady(context.Background())
-	if err != nil {
-		logger.Warnf("releaseBlock: AwaitReady for block failed: %v", err)
-	} else if status.Err != nil && !errors.Is(status.Err, context.Canceled) {
-		logger.Warnf("releaseBlock: waiting for block on destroy: %v", status.Err)
-	}
-	p.blockPool.Release(entry.block)
 }
 
 // CheckInvariants checks for internal consistency of the reader.
