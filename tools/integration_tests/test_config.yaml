@@ -450,3 +450,16 @@ dentry_cache:
          hns: true
          zonal: true
        run: TestNotifierTest
+
+read_gcs_algo:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    log_file: # Not required by readonly tests.
+    configs:
+      - flags:
+          - "--implicit-dirs=true"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run_on_gke: true
