@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # test_load.py
+"""A script for benchmarking Orbax checkpoint loading and resaving."""
 
 import os
 import re
@@ -27,6 +28,14 @@ import orbax.checkpoint as ocp
 
 
 def set_no_of_jax_cpu(num_cpu_devices):
+  """Configures JAX to use a specific number of CPU devices.
+
+  This must be called before any JAX operations. It sets the `XLA_FLAGS`
+  environment variable to force JAX to recognize the specified number of CPUs.
+
+  Args:
+    num_cpu_devices: The number of CPU devices to configure for JAX.
+  """
   # This session needs to be run before any JAX code.
   jax.config.update('jax_platforms', 'cpu')
   xla_flags = os.getenv('XLA_FLAGS', '')
@@ -39,8 +48,23 @@ def set_no_of_jax_cpu(num_cpu_devices):
 
 
 def load_ckpt(path, backend):
+  """Loads an Orbax checkpoint from the given path.
+
+  This function measures the time it takes to restore a checkpoint. It also
+  handles updating the sharding information in the checkpoint metadata to match
+  the target backend devices.
+
+  Args:
+    path: The path to the checkpoint to load.
+    backend: The JAX backend to use ('cpu', 'tpu', or 'numpy').
+
+  Returns:
+    A tuple containing:
+      - elapsed (float): The time taken to load the checkpoint in seconds.
+      - restored: The restored checkpoint data.
+  """
   def update_devices(x):
-    # update the sharding of the metadata to load into CPU devices
+    """Updates sharding metadata to match the target backend devices."""
     if isinstance(x, ocp.metadata.ArrayMetadata):
       if isinstance(x.sharding, ocp.metadata.NamedShardingMetadata):
         if backend in ('cpu', 'tpu'):
@@ -97,6 +121,12 @@ def load_ckpt(path, backend):
 
 
 def save_ckpt(item, path):
+  """Saves a checkpoint using Orbax.
+
+  Args:
+    item: The data (e.g., a PyTree of arrays) to save as a checkpoint.
+    path: The path where the checkpoint will be saved.
+  """
   with ocp.StandardCheckpointer() as ckptr:
     ckptr.save(path, state=item)
   saved_sizes = []
@@ -108,6 +138,7 @@ def save_ckpt(item, path):
 
 @click.group()
 def cli():
+  """Command-line interface for Orbax benchmark tests."""
   pass
 
 

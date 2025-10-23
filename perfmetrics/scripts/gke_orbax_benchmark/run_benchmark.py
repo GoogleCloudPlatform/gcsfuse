@@ -1,5 +1,18 @@
 #!/usr/bin/env python3
 
+"""Run GKE Orbax benchmark.
+
+This script automates the process of running the Orbax benchmark on a GKE cluster.
+It performs the following steps:
+1.  Checks for prerequisite tools (gcloud, git, make, kubectl).
+2.  Sets up a GKE cluster with a specific node pool if it doesn't exist.
+3.  Builds a GCSFuse CSI driver image from a specified git branch.
+4.  Deploys a Kubernetes pod that runs the benchmark workload.
+5.  Parses the benchmark results (throughput) from the pod logs.
+6.  Determines if the benchmark passed based on a performance threshold.
+7.  Cleans up all created cloud resources (GKE cluster, network, etc.).
+"""
+
 # Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,7 +45,20 @@ STAGING_VERSION = "orbax-benchmark"
 
 # Helper functions for running commands
 async def run_command_async(command_list, check=True, cwd=None):
-    """Runs a command asynchronously, preventing command injection."""
+    """Runs a command asynchronously, preventing command injection.
+
+    Args:
+        command_list: A list of strings representing the command and its arguments.
+        check: If True, raises CalledProcessError if the command returns a non-zero
+          exit code.
+        cwd: The working directory to run the command in.
+
+    Returns:
+        A tuple containing (stdout, stderr, returncode).
+
+    Raises:
+        subprocess.CalledProcessError: If the command fails and check is True.
+    """
     command_str = " ".join(map(shlex.quote, command_list))
     print(f"Executing command: {command_str}")
     process = await asyncio.create_subprocess_exec(
@@ -54,7 +80,12 @@ async def run_command_async(command_list, check=True, cwd=None):
 
 # Prerequisite Checks
 async def check_prerequisites():
-    """Checks for and installs required command-line tools."""
+    """Checks for required command-line tools.
+
+    Verifies that gcloud, git, make, and kubectl are installed. If kubectl is
+    missing, it attempts to install it using 'gcloud components install'.
+    Exits the script if any other required tool is not found.
+    """
     print("Checking for required tools...")
     tools = {
         "gcloud": ["gcloud", "--version"],
@@ -81,40 +112,107 @@ async def check_prerequisites():
 
 # GKE Cluster and Node Pool Management
 async def get_cluster_async(project_id, zone, cluster_name):
-    """Checks if a GKE cluster exists."""
+    """Checks if a GKE cluster exists.
+
+    Args:
+        project_id: The Google Cloud project ID.
+        zone: The GCP zone where the cluster is located.
+        cluster_name: The name of the GKE cluster.
+
+    Returns:
+        True if the cluster exists, False otherwise.
+    """
     cmd = ["gcloud", "container", "clusters", "describe", cluster_name, f"--project={project_id}", f"--zone={zone}", "--format=value(name)"]
     _, _, returncode = await run_command_async(cmd, check=False)
     return returncode == 0
 
 async def get_node_pool_async(project_id, zone, cluster_name, node_pool_name):
-    """Checks if a node pool exists in a GKE cluster."""
+    """Checks if a node pool exists in a GKE cluster.
+
+    Args:
+        project_id: The Google Cloud project ID.
+        zone: The GCP zone where the cluster is located.
+        cluster_name: The name of the GKE cluster.
+        node_pool_name: The name of the node pool.
+
+    Returns:
+        True if the node pool exists, False otherwise.
+    """
     cmd = ["gcloud", "container", "node-pools", "describe", node_pool_name, f"--project={project_id}", f"--zone={zone}", f"--cluster={cluster_name}", "--format=value(name)"]
     _, _, returncode = await run_command_async(cmd, check=False)
     return returncode == 0
 
 async def is_node_pool_healthy_async(project_id, zone, cluster_name, node_pool_name):
-    """Checks if a node pool's status is RUNNING."""
+    """Checks if a node pool's status is RUNNING.
+
+    Args:
+        project_id: The Google Cloud project ID.
+        zone: The GCP zone where the cluster is located.
+        cluster_name: The name of the GKE cluster.
+        node_pool_name: The name of the node pool.
+
+    Returns:
+        True if the node pool status is 'RUNNING', False otherwise.
+    """
     cmd = ["gcloud", "container", "node-pools", "describe", node_pool_name, f"--project={project_id}", f"--zone={zone}", f"--cluster={cluster_name}", "--format=value(status)"]
     status, _, returncode = await run_command_async(cmd, check=False)
     return returncode == 0 and status == "RUNNING"
 
 async def create_node_pool_async(project_id, zone, cluster_name, node_pool_name, machine_type):
-    """Creates a new node pool."""
+    """Creates a new node pool.
+
+    Args:
+        project_id: The Google Cloud project ID.
+        zone: The GCP zone for the node pool.
+        cluster_name: The name of the GKE cluster.
+        node_pool_name: The name for the new node pool.
+        machine_type: The machine type for the nodes in the pool.
+    """
     cmd = ["gcloud", "container", "node-pools", "create", node_pool_name, f"--project={project_id}", f"--cluster={cluster_name}", f"--zone={zone}", f"--machine-type={machine_type}", "--num-nodes=1"]
     await run_command_async(cmd)
 
 async def delete_node_pool_async(project_id, zone, cluster_name, node_pool_name):
-    """Deletes an existing node pool."""
+    """Deletes an existing node pool.
+
+    Args:
+        project_id: The Google Cloud project ID.
+        zone: The GCP zone where the node pool is located.
+        cluster_name: The name of the GKE cluster.
+        node_pool_name: The name of the node pool to delete.
+    """
     cmd = ["gcloud", "container", "node-pools", "delete", node_pool_name, f"--project={project_id}", f"--cluster={cluster_name}", f"--zone={zone}", "--quiet"]
     await run_command_async(cmd, check=False)
 
 async def create_network(project_id, network_name, subnet_name, region, mtu):
-    """Creates a new network and subnet if they don't exist."""
+    """Creates a new network and subnet if they don't exist.
+
+    Args:
+        project_id: The Google Cloud project ID.
+        network_name: The name for the new VPC network.
+        subnet_name: The name for the new subnet.
+        region: The GCP region for the subnet.
+        mtu: The Maximum Transmission Unit (MTU) for the network.
+    """
     await run_command_async(["gcloud", "compute", "networks", "create", network_name, f"--project={project_id}", "--subnet-mode=custom", f"--mtu={mtu}"], check=False)
     await run_command_async(["gcloud", "compute", "networks", "subnets", "create", subnet_name, f"--project={project_id}", f"--network={network_name}", "--range=10.0.0.0/24", f"--region={region}"], check=False)
 
 async def setup_gke_cluster(project_id, zone, cluster_name, network_name, subnet_name, region, machine_type, node_pool_name):
-    """Sets up the GKE cluster and required node pool."""
+    """Sets up the GKE cluster and required node pool.
+
+    This function ensures a GKE cluster and a specific node pool are ready for
+    the benchmark. It will create the cluster, network, and node pool if they
+    don't exist. If the node pool exists but is unhealthy, it will be recreated.
+
+    Args:
+        project_id: The Google Cloud project ID.
+        zone: The GCP zone for the cluster and node pool.
+        cluster_name: The name of the GKE cluster.
+        network_name: The name of the VPC network.
+        subnet_name: The name of the VPC subnet.
+        region: The GCP region for the network.
+        machine_type: The machine type for the node pool.
+        node_pool_name: The name of the node pool.
+    """
     if await get_cluster_async(project_id, zone, cluster_name):
         if await get_node_pool_async(project_id, zone, cluster_name, node_pool_name):
             if not await is_node_pool_healthy_async(project_id, zone, cluster_name, node_pool_name):
@@ -131,7 +229,13 @@ async def setup_gke_cluster(project_id, zone, cluster_name, network_name, subnet
 
 # GCSFuse Build and Deploy
 async def build_gcsfuse_image(project_id, branch, temp_dir):
-    """Clones GCSFuse and builds the CSI driver image."""
+    """Clones GCSFuse and builds the CSI driver image.
+
+    Args:
+        project_id: The Google Cloud project ID (unused, but kept for consistency).
+        branch: The git branch or tag of the GCSFuse repository to use.
+        temp_dir: A temporary directory to clone the repository into.
+    """
     gcsfuse_dir = os.path.join(temp_dir, "gcsfuse")
     await run_command_async(["git", "clone", "--depth=1", "-b", branch, "https://github.com/GoogleCloudPlatform/gcsfuse.git", gcsfuse_dir])
     build_cmd = ["make", "build-csi", f"STAGINGVERSION={STAGING_VERSION}"]
@@ -139,7 +243,14 @@ async def build_gcsfuse_image(project_id, branch, temp_dir):
     shutil.rmtree(gcsfuse_dir)
 
 def parse_all_gbytes_per_sec(logs):
-    """Parses logs to find and extract all gbytes_per_sec values."""
+    """Parses logs to find and extract all gbytes_per_sec values.
+
+    Args:
+        logs: A string containing the log output from the benchmark pod.
+
+    Returns:
+        A list of float values representing the 'gbytes_per_sec' found in the logs.
+    """
     values = []
     for line in logs.splitlines():
         match = re.search(r"gbytes_per_sec: ([\d.]+) Bytes/s", line)
@@ -153,7 +264,24 @@ def parse_all_gbytes_per_sec(logs):
 
 # Workload Execution and Result Gathering
 async def execute_workload_and_gather_results(project_id, zone, cluster_name, bucket_name, timestamp, iterations, staging_version):
-    """Executes the workload pod, gathers results, and cleans up workload resources."""
+    """Executes the workload pod, gathers results, and cleans up workload resources.
+
+    This function creates a Kubernetes ConfigMap and a Pod to run the benchmark.
+    It waits for the pod to complete, collects its logs, parses the throughput
+    results, and then deletes the created Kubernetes resources.
+
+    Args:
+        project_id: The Google Cloud project ID.
+        zone: The GCP zone of the cluster.
+        cluster_name: The name of the GKE cluster.
+        bucket_name: The GCS bucket to use for the benchmark.
+        timestamp: A unique timestamp string for manifest naming.
+        iterations: The number of benchmark iterations to run inside the pod.
+        staging_version: The version tag for the GCSFuse CSI driver image.
+
+    Returns:
+        A list of throughput values (float) parsed from the pod logs.
+    """
     await run_command_async(["kubectl", "create", "configmap", "orbax-benchmark", "--from-file=test_load.py"])
 
     template_path = os.path.join(SCRIPT_DIR, "pod.yaml.template")
@@ -194,7 +322,15 @@ async def execute_workload_and_gather_results(project_id, zone, cluster_name, bu
 
 # Cleanup
 async def cleanup(project_id, zone, cluster_name, network_name, subnet_name):
-    """Cleans up the created GKE, network, and firewall resources."""
+    """Cleans up the created GKE, network, and firewall resources.
+
+    Args:
+        project_id: The Google Cloud project ID.
+        zone: The GCP zone where the resources are located.
+        cluster_name: The name of the GKE cluster to delete.
+        network_name: The name of the VPC network to delete.
+        subnet_name: The name of the subnet to delete.
+    """
     print("Cleaning up GKE and network resources...")
     # First, delete the cluster, which is the primary user of the firewall rules.
     await run_command_async(["gcloud", "container", "clusters", "delete", cluster_name, f"--project={project_id}", f"--zone={zone}", "--quiet"], check=False)
@@ -224,7 +360,10 @@ async def cleanup(project_id, zone, cluster_name, network_name, subnet_name):
 
 # Main function
 async def main():
-    """Main function."""
+    """Parses arguments, orchestrates the benchmark execution, and handles cleanup.
+
+    This is the main entry point of the script.
+    """
     parser = argparse.ArgumentParser(description="Run GKE Orbax benchmark.")
     parser.add_argument("--project_id", required=True, help="Google Cloud project ID.")
     parser.add_argument("--bucket_name", required=True, help="GCS bucket name for the workload.")
