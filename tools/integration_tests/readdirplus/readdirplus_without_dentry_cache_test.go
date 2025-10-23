@@ -41,7 +41,7 @@ type ReaddirplusWithoutDentryCacheTest struct {
 }
 
 func (s *ReaddirplusWithoutDentryCacheTest) SetupTest() {
-	testEnv.testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
+	testEnv.testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, path.Join(testDirName, s.T().Name()))
 }
 
 func (s *ReaddirplusWithoutDentryCacheTest) TearDownTest() {

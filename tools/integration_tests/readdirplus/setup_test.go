@@ -35,9 +35,9 @@ import (
 )
 
 const (
-	testDirName                         = "dirForReaddirplusTest"
-	targetDirName                       = "target_dir"
-	GKETempDir                          = "/gcsfuse-tmp"
+	testDirName   = "dirForReaddirplusTest"
+	targetDirName = "target_dir"
+	GKETempDir    = "/gcsfuse-tmp"
 )
 
 var (

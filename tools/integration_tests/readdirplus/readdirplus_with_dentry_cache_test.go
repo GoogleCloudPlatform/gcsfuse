@@ -41,12 +41,7 @@ type ReaddirplusWithDentryCacheTest struct {
 }
 
 func (s *ReaddirplusWithDentryCacheTest) SetupTest() {
-	//Truncate log file created.
-	err := os.Truncate(testEnv.cfg.LogFile, 0)
-	require.NoError(s.T(), err)
-	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
-	// operations.RemoveDir(testEnv.cacheDirPath)
-	testEnv.testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
+	testEnv.testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, path.Join(testDirName, s.T().Name()))
 }
 
 func (s *ReaddirplusWithDentryCacheTest) TearDownTest() {
