@@ -134,6 +134,7 @@ readonly:
 rename_dir_limit:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
+    only_dir: "${ONLY_DIR}"
     log_file: # Optional
     configs:
       - flags:
@@ -156,6 +157,7 @@ rename_dir_limit:
 local_file:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
+    only_dir: "${ONLY_DIR}"
     log_file: # Optional
     configs:
       - flags:
@@ -220,6 +222,7 @@ requester_pays_bucket:
 read_cache:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
+    only_dir: "${ONLY_DIR}"
     log_file: # Not Required by read_cache tests
     configs:
       - flags:
