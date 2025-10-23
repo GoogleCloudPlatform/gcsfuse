@@ -35,12 +35,12 @@ import subprocess
 import sys
 import tempfile
 import re
-import yaml
 from datetime import datetime
 from string import Template
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 STAGING_VERSION = "orbax-benchmark"
+DEFAULT_MTU = 8896
 
 # Helper functions for running commands
 async def run_command_async(command_list, check=True, cwd=None):
@@ -220,18 +220,17 @@ async def setup_gke_cluster(project_id, zone, cluster_name, network_name, subnet
         else:
             await create_node_pool_async(project_id, zone, cluster_name, node_pool_name, machine_type)
     else:
-        await create_network(project_id, network_name, subnet_name, region, 8896)
+        await create_network(project_id, network_name, subnet_name, region, DEFAULT_MTU)
         cmd = ["gcloud", "container", "clusters", "create", cluster_name, f"--project={project_id}", f"--zone={zone}", f"--network={network_name}", f"--subnetwork={subnet_name}", f"--workload-pool={project_id}.svc.id.goog", "--addons=GcsFuseCsiDriver", "--num-nodes=1"]
         await run_command_async(cmd)
         await create_node_pool_async(project_id, zone, cluster_name, node_pool_name, machine_type)
     print("GKE cluster setup complete.")
 
 # GCSFuse Build and Deploy
-async def build_gcsfuse_image(project_id, branch, temp_dir):
+async def build_gcsfuse_image(branch, temp_dir):
     """Clones GCSFuse and builds the CSI driver image.
 
     Args:
-        project_id: The Google Cloud project ID (unused, but kept for consistency).
         branch: The git branch or tag of the GCSFuse repository to use.
         temp_dir: A temporary directory to clone the repository into.
     """
@@ -318,7 +317,6 @@ async def execute_workload_and_gather_results(project_id, zone, cluster_name, bu
         await run_command_async(["kubectl", "delete", "-f", manifest_filename], check=False)
         if os.path.exists(manifest_filename):
             os.remove(manifest_filename)
-    return []
 
 # Cleanup
 async def cleanup(project_id, zone, cluster_name, network_name, subnet_name):
@@ -392,7 +390,7 @@ async def main():
     with tempfile.TemporaryDirectory() as temp_dir:
         try:
             setup_task = asyncio.create_task(setup_gke_cluster(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name, args.zone.rsplit('-', 1)[0], args.machine_type, args.node_pool_name))
-            build_task = asyncio.create_task(build_gcsfuse_image(args.project_id, args.gcsfuse_branch, temp_dir))
+            build_task = asyncio.create_task(build_gcsfuse_image(args.gcsfuse_branch, temp_dir))
             await asyncio.gather(setup_task, build_task)
 
             throughputs = await execute_workload_and_gather_results(args.project_id, args.zone, args.cluster_name, args.bucket_name, timestamp, args.iterations, STAGING_VERSION, args.pod_timeout_seconds)
