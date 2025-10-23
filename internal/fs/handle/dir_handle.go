@@ -277,7 +277,7 @@ func readAllEntries(
 		// Read a batch.
 		var batch []fuseutil.Dirent
 
-		batch, tok, err = in.ReadEntries(ctx, tok)
+		batch, _, tok, err = in.ReadEntries(ctx, tok)
 		if err != nil {
 			err = fmt.Errorf("ReadEntries: %w", err)
 			return
@@ -329,7 +329,7 @@ func readAllEntryCores(ctx context.Context, in inode.DirInode) (cores map[inode.
 	for {
 		// Read a batch from GCS
 		var batch map[inode.Name]*inode.Core
-		batch, tok, err = in.ReadEntryCores(ctx, tok)
+		batch, _, tok, err = in.ReadEntryCores(ctx, tok)
 		if err != nil {
 			return
 		}
