@@ -134,6 +134,7 @@ readonly:
 rename_dir_limit:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
+    only_dir: "${ONLY_DIR}"
     log_file: # Optional
     configs:
       - flags:
@@ -156,6 +157,7 @@ rename_dir_limit:
 local_file:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
+    only_dir: "${ONLY_DIR}"
     log_file: # Optional
     configs:
       - flags:
@@ -220,6 +222,7 @@ requester_pays_bucket:
 read_cache:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
+    only_dir: "${ONLY_DIR}"
     log_file: # Not Required by read_cache tests
     configs:
       - flags:
@@ -440,6 +443,39 @@ readdirplus:
           hns: true
           zonal: true
         run: TestReaddirplusWithoutDentryCacheTest
+
+benchmarking:
+  - test_bucket: "${BUCKET_NAME}"
+    mounted_directory: "${MOUNTED_DIR}"
+    log_file: # Not required
+    configs:
+      - flags:
+          - "--stat-cache-ttl=0"
+          - "--stat-cache-ttl=0 --client-protocol=grpc"
+        compatible:
+              flat: true
+              hns: true
+              zonal: true
+        run: "Benchmark_Stat"
+      - flags:
+          - "--stat-cache-ttl=0 --enable-atomic-rename-object=true"
+          - "--stat-cache-ttl=0 --enable-atomic-rename-object=true --client-protocol=grpc"
+        compatible:
+              flat: true
+              hns: true
+              zonal: true
+        run: "Benchmark_Rename"
+        run_on_gke: true
+      - flags:
+          - "--stat-cache-ttl=0"
+          - "--client-protocol=grpc --stat-cache-ttl=0"
+        compatible:
+              flat: true
+              hns: true
+              zonal: true
+        run: "Benchmark_Delete"
+        run_on_gke: true
+
 dentry_cache:
  - mounted_directory: "${MOUNTED_DIR}"
    test_bucket: "${BUCKET_NAME}"

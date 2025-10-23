@@ -38,17 +38,18 @@ type benchmarkStatTest struct {
 }
 
 func (s *benchmarkStatTest) SetupB(b *testing.B) {
-	mountGCSFuseAndSetupTestDir(s.flags, testDirName)
+	mountGCSFuseAndSetupTestDir(s.flags, testEnv.ctx, testEnv.storageClient)
 }
 
 func (s *benchmarkStatTest) TeardownB(b *testing.B) {
-	setup.UnmountGCSFuse(rootDir)
+	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
+	setup.SaveGCSFuseLogFileInCaseOfFailure(b)
 }
 
 // createFilesToStat creates the below object in the bucket.
 // benchmarking/a.txt
 func createFilesToStat(b *testing.B) {
-	operations.CreateFileOfSize(1, path.Join(testDirPath, "a.txt"), b)
+	operations.CreateFileOfSize(1, path.Join(testEnv.testDirPath, "a.txt"), b)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -63,7 +64,7 @@ func (s *benchmarkStatTest) Benchmark_Stat(b *testing.B) {
 	// Don't start the timer yet.
 	b.StopTimer()
 
-	filePath := path.Join(testDirPath, "a.txt")
+	filePath := path.Join(testEnv.testDirPath, "a.txt")
 
 	for i := range b.N {
 		// Manually time the operation to find the maximum latency with highest accuracy.
@@ -106,9 +107,7 @@ func Benchmark_Stat(b *testing.B) {
 	setup.IgnoreTestIfPresubmitFlagIsSet(b)
 
 	ts := &benchmarkStatTest{}
-	flagsSet := [][]string{
-		{"--stat-cache-ttl=0"}, {"--client-protocol=grpc", "--stat-cache-ttl=0"},
-	}
+	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, b.Name())
 
 	// Run tests.
 	for _, flags := range flagsSet {

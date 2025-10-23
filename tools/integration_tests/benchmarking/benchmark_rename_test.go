@@ -35,11 +35,12 @@ const (
 )
 
 func (s *benchmarkRenameTest) SetupB(b *testing.B) {
-	mountGCSFuseAndSetupTestDir(s.flags, testDirName)
+	mountGCSFuseAndSetupTestDir(s.flags, testEnv.ctx, testEnv.storageClient)
 }
 
 func (s *benchmarkRenameTest) TeardownB(b *testing.B) {
-	setup.UnmountGCSFuse(rootDir)
+	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
+	setup.SaveGCSFuseLogFileInCaseOfFailure(b)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -55,8 +56,8 @@ func (s *benchmarkRenameTest) Benchmark_Rename(b *testing.B) {
 	b.StopTimer()
 
 	for i := range b.N {
-		sourceFilePath := path.Join(testDirPath, fmt.Sprintf("a%d.txt", i))
-		dstFilePath := path.Join(testDirPath, fmt.Sprintf("b%d.txt", i))
+		sourceFilePath := path.Join(testEnv.testDirPath, fmt.Sprintf("a%d.txt", i))
+		dstFilePath := path.Join(testEnv.testDirPath, fmt.Sprintf("b%d.txt", i))
 
 		// Manually time the operation to find the maximum latency with  highest accuracy.
 		// This happens while the benchmark's timer is paused and will not affect the average.
@@ -98,9 +99,7 @@ func Benchmark_Rename(b *testing.B) {
 	setup.IgnoreTestIfPresubmitFlagIsSet(b)
 
 	ts := &benchmarkRenameTest{}
-	flagsSet := [][]string{
-		{"--stat-cache-ttl=0", "--enable-atomic-rename-object=true"}, {"--client-protocol=grpc", "--stat-cache-ttl=0", "--enable-atomic-rename-object=true"},
-	}
+	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, b.Name())
 
 	// Run tests.
 	for _, flags := range flagsSet {

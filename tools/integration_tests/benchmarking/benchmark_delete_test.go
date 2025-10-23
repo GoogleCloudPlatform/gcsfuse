@@ -35,11 +35,12 @@ type benchmarkDeleteTest struct {
 }
 
 func (s *benchmarkDeleteTest) SetupB(b *testing.B) {
-	mountGCSFuseAndSetupTestDir(s.flags, testDirName)
+	mountGCSFuseAndSetupTestDir(s.flags, testEnv.ctx, testEnv.storageClient)
 }
 
 func (s *benchmarkDeleteTest) TeardownB(b *testing.B) {
-	setup.UnmountGCSFuse(rootDir)
+	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
+	setup.SaveGCSFuseLogFileInCaseOfFailure(b)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -55,7 +56,7 @@ func (s *benchmarkDeleteTest) Benchmark_Delete(b *testing.B) {
 	b.StopTimer()
 
 	for i := range b.N {
-		filePath := path.Join(testDirPath, fmt.Sprintf("a%d.txt", i))
+		filePath := path.Join(testEnv.testDirPath, fmt.Sprintf("a%d.txt", i))
 
 		// Manually time the operation to find the maximum latency with  highest accuracy.
 		// This happens while the benchmark's timer is paused and will not affect the average.
@@ -98,9 +99,7 @@ func Benchmark_Delete(b *testing.B) {
 
 	ts := &benchmarkDeleteTest{}
 
-	flagsSet := [][]string{
-		{"--stat-cache-ttl=0"}, {"--client-protocol=grpc", "--stat-cache-ttl=0"},
-	}
+	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, b.Name())
 
 	// Run tests.
 	for _, flags := range flagsSet {
