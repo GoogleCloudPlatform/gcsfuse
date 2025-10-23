@@ -38,7 +38,6 @@ const (
 	testDirName                         = "dirForReaddirplusTest"
 	targetDirName                       = "target_dir"
 	GKETempDir                          = "/gcsfuse-tmp"
-	logFileNameForMountedDirectoryTests = "/gcsfuse-tmp/readdirplus_logs/log.json"
 )
 
 var (
