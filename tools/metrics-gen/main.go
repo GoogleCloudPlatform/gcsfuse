@@ -81,9 +81,11 @@ var funcMap = template.FuncMap{
 	"isCounter":                   func(m Metric) bool { return m.Type == "int_counter" },
 	"isUpDownCounter":             func(m Metric) bool { return m.Type == "int_up_down_counter" },
 	"isHistogram":                 func(m Metric) bool { return m.Type == "int_histogram" },
+	"isGauge":                     func(m Metric) bool { return m.Type == "int_gauge" },
 	"buildSwitches":               buildSwitches,
 	"getTestName":                 getTestName,
 	"getTestFuncArgs":             getTestFuncArgs,
+	"getTestGaugeFuncArgs":        getTestGaugeFuncArgs,
 	"getExpectedAttrs":            getExpectedAttrs,
 	"getLatencyUnit":              getLatencyUnit,
 	"getLatencyMethod":            getLatencyMethod,
@@ -193,6 +195,19 @@ func getTestFuncArgs(combo AttrCombination) string {
 	return strings.Join(parts, ", ")
 }
 
+// getTestGaugeFuncArgs generates arguments for the metric function call in tests.
+func getTestGaugeFuncArgs(combo AttrCombination) string {
+	var parts []string
+	for _, pair := range combo {
+		if pair.Type != "bool" {
+			parts = append(parts, fmt.Sprintf(`"%s"`, pair.Value))
+		} else {
+			parts = append(parts, pair.Value)
+		}
+	}
+	return strings.Join(parts, ", ")
+}
+
 // getExpectedAttrs generates attribute set for test expectations.
 func getExpectedAttrs(combo AttrCombination) string {
 	var parts []string
@@ -275,8 +290,8 @@ func validateMetric(m Metric) error {
 	if m.Description == "" {
 		return fmt.Errorf("description is required for metric %q", m.Name)
 	}
-	if m.Type != "int_counter" && m.Type != "int_histogram" && m.Type != "int_up_down_counter" {
-		return fmt.Errorf("type for metric %q must be 'int_counter', 'int_histogram', or 'int_up_down_counter', got %q", m.Name, m.Type)
+	if m.Type != "int_counter" && m.Type != "int_histogram" && m.Type != "int_up_down_counter" && m.Type != "int_gauge" {
+		return fmt.Errorf("type for metric %q must be 'int_counter', 'int_histogram', 'int_gauge', or 'int_up_down_counter', got %q", m.Name, m.Type)
 	}
 
 	if m.Type == "int_histogram" {

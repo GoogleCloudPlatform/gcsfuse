@@ -22,6 +22,7 @@ import (
 
 type noopMetrics struct {}
 {{- range .Metrics}}
+{{- if not (isGauge .)}}
 	func (*noopMetrics) {{toPascal .Name}}(
 		{{- if or (isCounter .) (isUpDownCounter .) -}}
 			inc int64
@@ -32,6 +33,7 @@ type noopMetrics struct {}
 		{{- range $i, $attr := .Attributes -}}
 			{{if $i}}, {{end}}{{toCamel $attr.Name}} {{getGoType $attr.Type}}
 		{{- end }}){}
+{{end}}
 {{end}}
 
 func NewNoopMetrics() MetricHandle {

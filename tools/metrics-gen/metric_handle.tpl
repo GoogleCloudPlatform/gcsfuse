@@ -36,6 +36,7 @@ const (
 // Each method corresponds to a metric defined in metrics.yaml.
 type MetricHandle interface {
 {{- range .Metrics}}
+{{- if not (isGauge .)}}
 	// {{toPascal .Name}} - {{.Description}}
 	{{toPascal .Name}}(
 		{{- if or (isCounter .) (isUpDownCounter .) -}}
@@ -47,6 +48,7 @@ type MetricHandle interface {
 		{{- range $i, $attr := .Attributes -}}
 			{{if $i}}, {{end}}{{toCamel $attr.Name}} {{getGoType $attr.Type}}
 		{{- end }})
+{{end}}
 
 {{end}}
 }

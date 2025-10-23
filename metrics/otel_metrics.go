@@ -552,6 +552,8 @@ var (
 	gcsRequestLatenciesGcsMethodUpdateObjectAttrSet                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "UpdateObject")))
 	gcsRetryCountRetryErrorCategoryOTHERERRORSAttrSet                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("retry_error_category", "OTHER_ERRORS")))
 	gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAttrSet                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("retry_error_category", "STALLED_READ_REQUEST")))
+	testGaugeWithAttrsRequestTypeAttr1AttrSet                                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("request_type", "attr1")))
+	testGaugeWithAttrsRequestTypeAttr2AttrSet                                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("request_type", "attr2")))
 	testUpdownCounterWithAttrsRequestTypeAttr1AttrSet                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("request_type", "attr1")))
 	testUpdownCounterWithAttrsRequestTypeAttr2AttrSet                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("request_type", "attr2")))
 )
@@ -1039,6 +1041,9 @@ type otelMetrics struct {
 	gcsRequestCountGcsMethodUpdateObjectAtomic                                         *atomic.Int64
 	gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic                                   *atomic.Int64
 	gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic                            *atomic.Int64
+	testGaugeAtomic                                                                    *atomic.Int64
+	testGaugeWithAttrsRequestTypeAttr1Atomic                                           *atomic.Int64
+	testGaugeWithAttrsRequestTypeAttr2Atomic                                           *atomic.Int64
 	testUpdownCounterAtomic                                                            *atomic.Int64
 	testUpdownCounterWithAttrsRequestTypeAttr1Atomic                                   *atomic.Int64
 	testUpdownCounterWithAttrsRequestTypeAttr2Atomic                                   *atomic.Int64
@@ -1064,7 +1069,6 @@ func (o *otelMetrics) BufferedReadFallbackTriggerCount(
 		return
 	}
 }
-
 func (o *otelMetrics) BufferedReadReadLatency(
 	ctx context.Context, latency time.Duration) {
 	var record histogramRecord
@@ -1075,7 +1079,6 @@ func (o *otelMetrics) BufferedReadReadLatency(
 	default: // Unblock writes to channel if it's full.
 	}
 }
-
 func (o *otelMetrics) FileCacheReadBytesCount(
 	inc int64, readType ReadType) {
 	if inc < 0 {
@@ -1096,7 +1099,6 @@ func (o *otelMetrics) FileCacheReadBytesCount(
 		return
 	}
 }
-
 func (o *otelMetrics) FileCacheReadCount(
 	inc int64, cacheHit bool, readType ReadType) {
 	if inc < 0 {
@@ -1134,7 +1136,6 @@ func (o *otelMetrics) FileCacheReadCount(
 		}
 	}
 }
-
 func (o *otelMetrics) FileCacheReadLatencies(
 	ctx context.Context, latency time.Duration, cacheHit bool) {
 	var record histogramRecord
@@ -1150,7 +1151,6 @@ func (o *otelMetrics) FileCacheReadLatencies(
 	default: // Unblock writes to channel if it's full.
 	}
 }
-
 func (o *otelMetrics) FsOpsCount(
 	inc int64, fsOp FsOp) {
 	if inc < 0 {
@@ -1213,7 +1213,6 @@ func (o *otelMetrics) FsOpsCount(
 		return
 	}
 }
-
 func (o *otelMetrics) FsOpsErrorCount(
 	inc int64, fsErrorCategory FsErrorCategory, fsOp FsOp) {
 	if inc < 0 {
@@ -2122,7 +2121,6 @@ func (o *otelMetrics) FsOpsErrorCount(
 		return
 	}
 }
-
 func (o *otelMetrics) FsOpsLatency(
 	ctx context.Context, latency time.Duration, fsOp FsOp) {
 	var record histogramRecord
@@ -2187,7 +2185,6 @@ func (o *otelMetrics) FsOpsLatency(
 	default: // Unblock writes to channel if it's full.
 	}
 }
-
 func (o *otelMetrics) GcsDownloadBytesCount(
 	inc int64, readType ReadType) {
 	if inc < 0 {
@@ -2208,7 +2205,6 @@ func (o *otelMetrics) GcsDownloadBytesCount(
 		return
 	}
 }
-
 func (o *otelMetrics) GcsReadBytesCount(
 	inc int64, reader Reader) {
 	if inc < 0 {
@@ -2225,7 +2221,6 @@ func (o *otelMetrics) GcsReadBytesCount(
 		return
 	}
 }
-
 func (o *otelMetrics) GcsReadCount(
 	inc int64, readType ReadType) {
 	if inc < 0 {
@@ -2246,7 +2241,6 @@ func (o *otelMetrics) GcsReadCount(
 		return
 	}
 }
-
 func (o *otelMetrics) GcsReaderCount(
 	inc int64, ioMethod IoMethod) {
 	if inc < 0 {
@@ -2265,7 +2259,6 @@ func (o *otelMetrics) GcsReaderCount(
 		return
 	}
 }
-
 func (o *otelMetrics) GcsRequestCount(
 	inc int64, gcsMethod GcsMethod) {
 	if inc < 0 {
@@ -2316,7 +2309,6 @@ func (o *otelMetrics) GcsRequestCount(
 		return
 	}
 }
-
 func (o *otelMetrics) GcsRequestLatencies(
 	ctx context.Context, latency time.Duration, gcsMethod GcsMethod) {
 	var record histogramRecord
@@ -2369,7 +2361,6 @@ func (o *otelMetrics) GcsRequestLatencies(
 	default: // Unblock writes to channel if it's full.
 	}
 }
-
 func (o *otelMetrics) GcsRetryCount(
 	inc int64, retryErrorCategory RetryErrorCategory) {
 	if inc < 0 {
@@ -2386,12 +2377,10 @@ func (o *otelMetrics) GcsRetryCount(
 		return
 	}
 }
-
 func (o *otelMetrics) TestUpdownCounter(
 	inc int64) {
 	o.testUpdownCounterAtomic.Add(inc)
 }
-
 func (o *otelMetrics) TestUpdownCounterWithAttrs(
 	inc int64, requestType RequestType) {
 	switch requestType {
@@ -2906,6 +2895,11 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 
 	var gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic,
 		gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic atomic.Int64
+
+	var testGaugeAtomic atomic.Int64
+
+	var testGaugeWithAttrsRequestTypeAttr1Atomic,
+		testGaugeWithAttrsRequestTypeAttr2Atomic atomic.Int64
 
 	var testUpdownCounterAtomic atomic.Int64
 
@@ -3482,7 +3476,24 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err15 := meter.Int64ObservableUpDownCounter("test/updown_counter",
+	_, err15 := meter.Int64ObservableGauge("test/gauge",
+		metric.WithDescription("Test metric for gauge."),
+		metric.WithUnit(""),
+		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
+			observeGauge(obsrv, &testGaugeAtomic)
+			return nil
+		}))
+
+	_, err16 := meter.Int64ObservableGauge("test/gauge_with_attrs",
+		metric.WithDescription("Test metric for gauge with attributes."),
+		metric.WithUnit(""),
+		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
+			observeGauge(obsrv, &testGaugeWithAttrsRequestTypeAttr1Atomic, testGaugeWithAttrsRequestTypeAttr1AttrSet)
+			observeGauge(obsrv, &testGaugeWithAttrsRequestTypeAttr2Atomic, testGaugeWithAttrsRequestTypeAttr2AttrSet)
+			return nil
+		}))
+
+	_, err17 := meter.Int64ObservableUpDownCounter("test/updown_counter",
 		metric.WithDescription("Test metric for updown counters."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3490,7 +3501,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err16 := meter.Int64ObservableUpDownCounter("test/updown_counter_with_attrs",
+	_, err18 := meter.Int64ObservableUpDownCounter("test/updown_counter_with_attrs",
 		metric.WithDescription("Test metric for updown counters with attributes."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3499,7 +3510,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	errs := []error{err0, err1, err2, err3, err4, err5, err6, err7, err8, err9, err10, err11, err12, err13, err14, err15, err16}
+	errs := []error{err0, err1, err2, err3, err4, err5, err6, err7, err8, err9, err10, err11, err12, err13, err14, err15, err16, err17, err18}
 	if err := errors.Join(errs...); err != nil {
 		return nil, err
 	}
@@ -3984,9 +3995,12 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		gcsRequestLatencies:                                        gcsRequestLatencies,
 		gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic:           &gcsRetryCountRetryErrorCategoryOTHERERRORSAtomic,
 		gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic:    &gcsRetryCountRetryErrorCategorySTALLEDREADREQUESTAtomic,
-		testUpdownCounterAtomic:                                    &testUpdownCounterAtomic,
-		testUpdownCounterWithAttrsRequestTypeAttr1Atomic:           &testUpdownCounterWithAttrsRequestTypeAttr1Atomic,
-		testUpdownCounterWithAttrsRequestTypeAttr2Atomic:           &testUpdownCounterWithAttrsRequestTypeAttr2Atomic,
+		testGaugeAtomic:                                  &testGaugeAtomic,
+		testGaugeWithAttrsRequestTypeAttr1Atomic:         &testGaugeWithAttrsRequestTypeAttr1Atomic,
+		testGaugeWithAttrsRequestTypeAttr2Atomic:         &testGaugeWithAttrsRequestTypeAttr2Atomic,
+		testUpdownCounterAtomic:                          &testUpdownCounterAtomic,
+		testUpdownCounterWithAttrsRequestTypeAttr1Atomic: &testUpdownCounterWithAttrsRequestTypeAttr1Atomic,
+		testUpdownCounterWithAttrsRequestTypeAttr2Atomic: &testUpdownCounterWithAttrsRequestTypeAttr2Atomic,
 	}, nil
 }
 
@@ -4003,6 +4017,10 @@ func conditionallyObserve(obsrv metric.Int64Observer, counter *atomic.Int64, obs
 
 func observeUpDownCounter(obsrv metric.Int64Observer, counter *atomic.Int64, obsrvOptions ...metric.ObserveOption) {
 	obsrv.Observe(counter.Load(), obsrvOptions...)
+}
+
+func observeGauge(obsrv metric.Int64Observer, gauge *atomic.Int64, obsrvOptions ...metric.ObserveOption) {
+	obsrv.Observe(gauge.Load(), obsrvOptions...)
 }
 
 func updateUnrecognizedAttribute(newValue string) {

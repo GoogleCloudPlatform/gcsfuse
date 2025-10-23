@@ -240,6 +240,20 @@
     - "OTHER_ERRORS"
     - "STALLED_READ_REQUEST"
 
+- metric-name: "test/gauge"
+  description: "Test metric for gauge."
+  type: "int_gauge"
+
+- metric-name: "test/gauge_with_attrs"
+  description: "Test metric for gauge with attributes."
+  type: "int_gauge"
+  attributes:
+  - attribute-name: "request_type"
+    attribute-type: "string"
+    values:
+    - "attr1"
+    - "attr2"
+
 - metric-name: "test/updown_counter"
   description: "Test metric for updown counters."
   type: "int_up_down_counter"

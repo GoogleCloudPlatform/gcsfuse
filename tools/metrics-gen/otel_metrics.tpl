@@ -57,7 +57,7 @@ type otelMetrics struct {
     ch chan histogramRecord
 	wg *sync.WaitGroup
 	{{- range $metric := .Metrics}}
-		{{- if or (isCounter $metric) (isUpDownCounter $metric)}}
+		{{- if or (isCounter $metric) (isUpDownCounter $metric) (isGauge $metric)}}
 			{{- range $combination := (index $.AttrCombinations $metric.Name)}}
 	{{getAtomicName $metric.Name $combination}} *atomic.Int64
 			{{- end}}
@@ -71,6 +71,7 @@ type otelMetrics struct {
 }
 
 {{range .Metrics}}
+{{- if not (isGauge .)}}
 func (o *otelMetrics) {{toPascal .Name}}(
 	{{- if or (isCounter .) (isUpDownCounter .)}}
 		inc int64
@@ -98,6 +99,7 @@ func (o *otelMetrics) {{toPascal .Name}}(
 	}
 	{{- end -}}
 }
+{{- end -}}
 {{end}}
 
 func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetrics, error) {
@@ -119,7 +121,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
   }
   meter := otel.Meter("gcsfuse")
 {{- range $metric := .Metrics}}
-	{{- if or (isCounter $metric) (isUpDownCounter $metric) }}
+	{{- if or (isCounter $metric) (isUpDownCounter $metric) (isGauge $metric)}}
 	var {{range $i, $combination := (index $.AttrCombinations $metric.Name)}}{{if $i}},
 	{{end}}{{getAtomicName $metric.Name $combination}}{{end}} atomic.Int64
 	{{- end}}
@@ -127,15 +129,18 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 {{end}}
 
 {{- range $i, $metric := .Metrics}}
-	{{- if or (isCounter $metric) (isUpDownCounter $metric)}}
+	{{- if or (isCounter $metric) (isUpDownCounter $metric) (isGauge $metric)}}
 		{{- $instrumentCreationFunc := "" -}}
 		{{- $observationFunc := "" -}}
 		{{- if isCounter $metric -}}
 			{{- $instrumentCreationFunc = "meter.Int64ObservableCounter" -}}
 			{{- $observationFunc = "conditionallyObserve" -}}
-		{{- else -}}
+		{{- else if isUpDownCounter $metric -}}
 			{{- $instrumentCreationFunc = "meter.Int64ObservableUpDownCounter" -}}
 			{{- $observationFunc = "observeUpDownCounter" -}}
+		{{- else -}}
+			{{- $instrumentCreationFunc = "meter.Int64ObservableGauge" -}}
+			{{- $observationFunc = "observeGauge" -}}
 		{{- end}}
 
 	_, err{{$i}} := {{$instrumentCreationFunc}}("{{$metric.Name}}",
@@ -173,11 +178,11 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		ch : ch,
 		wg: &wg,
 		{{- range $metric := .Metrics}}
-			{{- if or (isCounter $metric) (isUpDownCounter $metric)}}
+			{{- if or (isCounter $metric) (isUpDownCounter $metric) (isGauge $metric)}}
 				{{- range $combination := (index $.AttrCombinations $metric.Name)}}
 			{{getAtomicName $metric.Name $combination}}: &{{getAtomicName $metric.Name $combination}},
 				{{- end}}
-			{{- else}}
+			{{- else if isHistogram $metric}}
 			{{toCamel $metric.Name}}: {{toCamel $metric.Name}},
 			{{- end}}
 		{{- end}}
@@ -197,6 +202,10 @@ func conditionallyObserve(obsrv metric.Int64Observer, counter *atomic.Int64, obs
 
 func observeUpDownCounter(obsrv metric.Int64Observer, counter *atomic.Int64, obsrvOptions ...metric.ObserveOption) {
 	obsrv.Observe(counter.Load(), obsrvOptions...)
+}
+
+func observeGauge(obsrv metric.Int64Observer, gauge *atomic.Int64, obsrvOptions ...metric.ObserveOption) {
+	obsrv.Observe(gauge.Load(), obsrvOptions...)
 }
 
 func updateUnrecognizedAttribute(newValue string) {
