@@ -756,6 +756,7 @@ func (d *dirInode) readObjects(
 		pathBase := path.Base(p)
 		if storageutil.IsUnsupportedObjectName(p) {
 			unsupportedPrefixes = append(unsupportedPrefixes, p)
+			// Skip unsupported objects in the listing, as the kernel cannot process these file system elements.
 			// TODO: Remove this check once we gain confidence that it is not causing any issues.
 			if d.isUnsupportedDirSupportEnabled {
 				continue

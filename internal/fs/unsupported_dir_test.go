@@ -56,7 +56,7 @@ func (t *UnsupportedObjectNameTest) TearDownTest() {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *UnsupportedObjectNameTest) Test_ReadDir_Recursive() {
+func (t *UnsupportedObjectNameTest) TestReadDirectory_WithUnsupportedNames() {
 	// Set up contents.
 	err := t.createObjects(map[string]string{
 		"dir1/sub_dir1//file1": "",
