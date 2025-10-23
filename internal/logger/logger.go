@@ -38,7 +38,7 @@ const (
 	ProgramName                  = "gcsfuse"
 	GCSFuseInBackgroundMode      = "GCSFUSE_IN_BACKGROUND_MODE"
 	GCSFuseMountInstanceIDEnvKey = "GCSFUSE_MOUNT_INSTANCE_ID"
-	GCSFuseMountInstanceIDKey    = "gcsfuse-mount-instance-id" // Combination of fsName and GCSFUSE_MOUNT_INSTANCE_ID
+	GCSFuseMountInstanceIDKey    = "mount-id" // Combination of fsName and GCSFUSE_MOUNT_INSTANCE_ID
 	textFormat                   = "text"
 	// Max possible length can be 32 as UUID has 32 characters excluding 4 hyphens.
 	mountInstanceIDLength = 8

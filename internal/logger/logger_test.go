@@ -29,8 +29,8 @@ import (
 
 const (
 	testFsName     = "testFS" // This is used in redirectLogsToGivenBuffer to construct the mount instance ID.
-	textLogPattern = `^time="[a-zA-Z0-9/:. ]{26}" severity=%s message="TestLogs: %s" gcsfuse-mount-instance-id=testFS-[0-9a-f]{8}\s*$`
-	jsonLogPattern = `^{"timestamp":{"seconds":\d{10},"nanos":\d{0,9}},"severity":"%s","message":"TestLogs: %s","gcsfuse-mount-instance-id":"testFS-[0-9a-f]{8}"}\s*$`
+	textLogPattern = `^time="[a-zA-Z0-9/:. ]{26}" severity=%s message="TestLogs: %s" mount-id=testFS-[0-9a-f]{8}\s*$`
+	jsonLogPattern = `^{"timestamp":{"seconds":\d{10},"nanos":\d{0,9}},"severity":"%s","message":"TestLogs: %s","mount-id":"testFS-[0-9a-f]{8}"}\s*$`
 )
 
 // //////////////////////////////////////////////////////////////////////
