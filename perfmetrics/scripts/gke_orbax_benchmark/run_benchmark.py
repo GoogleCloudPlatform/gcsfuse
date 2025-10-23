@@ -262,7 +262,7 @@ def parse_all_gbytes_per_sec(logs):
     return values
 
 # Workload Execution and Result Gathering
-async def execute_workload_and_gather_results(project_id, zone, cluster_name, bucket_name, timestamp, iterations, staging_version):
+async def execute_workload_and_gather_results(project_id, zone, cluster_name, bucket_name, timestamp, iterations, staging_version, pod_timeout_seconds):
     """Executes the workload pod, gathers results, and cleans up workload resources.
 
     This function creates a Kubernetes ConfigMap and a Pod to run the benchmark.
@@ -277,6 +277,7 @@ async def execute_workload_and_gather_results(project_id, zone, cluster_name, bu
         timestamp: A unique timestamp string for manifest naming.
         iterations: The number of benchmark iterations to run inside the pod.
         staging_version: The version tag for the GCSFuse CSI driver image.
+        pod_timeout_seconds: The timeout in seconds for the pod to complete.
 
     Returns:
         A list of throughput values (float) parsed from the pod logs.
@@ -298,7 +299,7 @@ async def execute_workload_and_gather_results(project_id, zone, cluster_name, bu
 
         start_time = datetime.now()
         pod_finished = False
-        while (datetime.now() - start_time).total_seconds() < 30 * 60:
+        while (datetime.now() - start_time).total_seconds() < pod_timeout_seconds:
             status, stderr, _ = await run_command_async(["kubectl", "get", "pod", pod_name, "-o", "jsonpath='{.status.phase}'"], check=False)
             if "Succeeded" in status or "Failed" in status:
                 pod_finished = True
@@ -306,7 +307,7 @@ async def execute_workload_and_gather_results(project_id, zone, cluster_name, bu
             await asyncio.sleep(10)
 
         if not pod_finished:
-            raise TimeoutError("Pod did not complete within 30 minutes.")
+            raise TimeoutError(f"Pod did not complete within {pod_timeout_seconds / 60} minutes.")
 
         logs, _, _ = await run_command_async(["kubectl", "logs", pod_name], check=False)
         if logs:
@@ -376,6 +377,7 @@ async def main():
     parser.add_argument("--no_cleanup", action="store_true", help="Don't clean up resources after.")
     parser.add_argument("--iterations", type=int, default=10, help="Number of iterations for the benchmark.")
     parser.add_argument("--performance_threshold_gbps", type=float, default=13.0, help="Minimum throughput in GB/s for a successful iteration.")
+    parser.add_argument("--pod_timeout_seconds", type=int, default=1800, help="Timeout in seconds for the benchmark pod to complete.")
     args = parser.parse_args()
 
     # Append zone to default network and subnet names to avoid collisions
@@ -393,7 +395,7 @@ async def main():
             build_task = asyncio.create_task(build_gcsfuse_image(args.project_id, args.gcsfuse_branch, temp_dir))
             await asyncio.gather(setup_task, build_task)
 
-            throughputs = await execute_workload_and_gather_results(args.project_id, args.zone, args.cluster_name, args.bucket_name, timestamp, args.iterations, STAGING_VERSION)
+            throughputs = await execute_workload_and_gather_results(args.project_id, args.zone, args.cluster_name, args.bucket_name, timestamp, args.iterations, STAGING_VERSION, args.pod_timeout_seconds)
 
             if not throughputs:
                 print("No throughput data was collected.", file=sys.stderr)
