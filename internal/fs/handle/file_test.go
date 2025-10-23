@@ -334,7 +334,7 @@ func (t *fileTest) Test_ReadWithReadManager_Concurrent() {
 	wg.Add(numReaders)
 
 	// Run concurrent reads
-	for i := 0; i < numReaders; i++ {
+	for range numReaders {
 		go func() {
 			defer wg.Done()
 
@@ -390,7 +390,7 @@ func (t *fileTest) Test_Read_Concurrent() {
 	wg.Add(numReaders)
 
 	// Run concurrent reads
-	for i := 0; i < numReaders; i++ {
+	for range numReaders {
 		go func() {
 			defer wg.Done()
 
@@ -736,7 +736,7 @@ func (t *fileTest) Test_LockHandleAndRelockInode_Lock_NoDeadlockWithContention()
 	done := make(chan struct{})
 
 	// Simulate the flow that uses lockHandleAndRelockInode
-	for i := 0; i < numContenders; i++ {
+	for range numContenders {
 		go func() {
 			defer wg.Done()
 			fh.inode.Lock()
@@ -747,7 +747,7 @@ func (t *fileTest) Test_LockHandleAndRelockInode_Lock_NoDeadlockWithContention()
 	}
 
 	// Simulate conflicting lock acquisition order
-	for i := 0; i < numContenders; i++ {
+	for range numContenders {
 		go func() {
 			defer wg.Done()
 			fh.mu.Lock()
@@ -782,7 +782,7 @@ func (t *fileTest) Test_LockHandleAndRelockInode_RLock_NoDeadlockWithContention(
 	done := make(chan struct{})
 
 	// Simulate the flow that uses lockHandleAndRelockInode
-	for i := 0; i < numContenders; i++ {
+	for range numContenders {
 		go func() {
 			defer wg.Done()
 			fh.inode.Lock()
@@ -793,7 +793,7 @@ func (t *fileTest) Test_LockHandleAndRelockInode_RLock_NoDeadlockWithContention(
 	}
 
 	// Simulate conflicting lock acquisition order
-	for i := 0; i < numContenders; i++ {
+	for range numContenders {
 		go func() {
 			defer wg.Done()
 			fh.mu.Lock()
@@ -829,7 +829,7 @@ func (t *fileTest) Test_LockHandleAndRelockInode_Mixed_NoDeadlockWithContention(
 	done := make(chan struct{})
 
 	// Simulate the flow that uses lockHandleAndRelockInode(false)
-	for i := 0; i < numWContenders; i++ {
+	for range numWContenders {
 		go func() {
 			defer wg.Done()
 			fh.inode.Lock()
@@ -840,7 +840,7 @@ func (t *fileTest) Test_LockHandleAndRelockInode_Mixed_NoDeadlockWithContention(
 	}
 
 	// Simulate the flow that uses lockHandleAndRelockInode(true)
-	for i := 0; i < numRContenders; i++ {
+	for range numRContenders {
 		go func() {
 			defer wg.Done()
 			fh.inode.Lock()
@@ -874,7 +874,7 @@ func (t *fileTest) Test_UnlockHandleAndInode() {
 	wg.Add(3 * numContenders)
 	done := make(chan struct{})
 
-	for i := 0; i < numContenders; i++ {
+	for range numContenders {
 		go func() {
 			defer wg.Done()
 			fh.mu.Lock()
@@ -883,7 +883,7 @@ func (t *fileTest) Test_UnlockHandleAndInode() {
 		}()
 	}
 
-	for i := 0; i < numContenders; i++ {
+	for range numContenders {
 		go func() {
 			defer wg.Done()
 			fh.mu.RLock()
@@ -892,7 +892,7 @@ func (t *fileTest) Test_UnlockHandleAndInode() {
 		}()
 	}
 
-	for i := 0; i < numContenders; i++ {
+	for range numContenders {
 		go func() {
 			defer wg.Done()
 			fh.mu.Lock()
@@ -920,7 +920,7 @@ func (t *fileTest) Test_ReadWithReadManager_FullReadSuccessWithBufferedRead() {
 		fileSize = 1 * 1024 * 1024 // 1 MiB
 	)
 	expectedData := make([]byte, fileSize)
-	for i := 0; i < fileSize; i++ {
+	for i := range fileSize {
 		expectedData[i] = byte(i % 256)
 	}
 	// Setup for Buffered Read test case
@@ -957,7 +957,7 @@ func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() 
 	)
 	// Create expected data for the file.
 	expectedData := make([]byte, fileSize)
-	for i := 0; i < fileSize; i++ {
+	for i := range fileSize {
 		expectedData[i] = byte(i % 256)
 	}
 	// Setup configuration for buffered read.
@@ -982,7 +982,7 @@ func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() 
 	wg.Add(numGoroutines)
 	readSize := fileSize / numGoroutines
 	results := make([][]byte, numGoroutines)
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		go func(index int) {
 			defer wg.Done()
 			offset := int64(index * readSize)

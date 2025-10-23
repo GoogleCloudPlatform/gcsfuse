@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,6 +15,7 @@
 package dentry_cache
 
 import (
+	"context"
 	"log"
 	"os"
 	"path"
@@ -22,35 +23,44 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 type statWithDentryCacheEnabledTest struct {
-	flags []string
+	flags         []string
+	storageClient *storage.Client
+	ctx           context.Context
 	suite.Suite
 }
 
 func (s *statWithDentryCacheEnabledTest) SetupTest() {
-	mountGCSFuseAndSetupTestDir(s.flags, testDirName)
+	testEnv.testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
 }
 
 func (s *statWithDentryCacheEnabledTest) TearDownTest() {
-	if setup.MountedDirectory() == "" { // Only unmount if not using a pre-mounted directory
-		setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
-		setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
-	}
+	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
+}
+
+func (s *statWithDentryCacheEnabledTest) TearDownSuite() {
+	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
+}
+
+func (s *statWithDentryCacheEnabledTest) SetupSuite() {
+	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
 }
 
 func (s *statWithDentryCacheEnabledTest) TestStatWithDentryCacheEnabled() {
+	testFileName := s.T().Name()
 	// Create a file with initial content directly in GCS.
-	filePath := path.Join(setup.MntDir(), testDirName, testFileName)
-	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, testFileName, initialContentSize, s.T())
+	filePath := path.Join(testEnv.testDirPath, testFileName)
+	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, initialContentSize, s.T())
+
 	// Stat file to cache the entry
 	_, err := os.Stat(filePath)
 	require.Nil(s.T(), err)
@@ -58,7 +68,7 @@ func (s *statWithDentryCacheEnabledTest) TestStatWithDentryCacheEnabled() {
 	objectName := path.Join(testDirName, testFileName)
 	smallContent, err := operations.GenerateRandomData(updatedContentSize)
 	require.Nil(s.T(), err)
-	require.Nil(s.T(), client.WriteToObject(ctx, storageClient, objectName, string(smallContent), storage.Conditions{}))
+	require.Nil(s.T(), client.WriteToObject(s.ctx, s.storageClient, objectName, string(smallContent), storage.Conditions{}))
 
 	// Stat again, it should give old cached attributes.
 	fileInfo, err := os.Stat(filePath)
@@ -74,15 +84,16 @@ func (s *statWithDentryCacheEnabledTest) TestStatWithDentryCacheEnabled() {
 }
 
 func (s *statWithDentryCacheEnabledTest) TestStatWhenFileIsDeletedDirectlyFromGCS() {
+	testFileName := s.T().Name()
 	// Create a file with initial content directly in GCS.
-	filePath := path.Join(setup.MntDir(), testDirName, testFileName)
-	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, testFileName, initialContentSize, s.T())
+	filePath := path.Join(testEnv.testDirPath, testFileName)
+	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, initialContentSize, s.T())
 	// Stat file to cache the entry
 	_, err := os.Stat(filePath)
 	require.Nil(s.T(), err)
 	// Delete the object directly from GCS.
 	objectName := path.Join(testDirName, testFileName)
-	require.Nil(s.T(), client.DeleteObjectOnGCS(ctx, storageClient, objectName))
+	require.Nil(s.T(), client.DeleteObjectOnGCS(s.ctx, s.storageClient, objectName))
 
 	// Stat again, it should give old cached attributes rather than giving not found error.
 	fileInfo, err := os.Stat(filePath)
@@ -97,16 +108,18 @@ func (s *statWithDentryCacheEnabledTest) TestStatWhenFileIsDeletedDirectlyFromGC
 }
 
 func TestStatWithDentryCacheEnabledTest(t *testing.T) {
-	ts := &statWithDentryCacheEnabledTest{}
+	ts := &statWithDentryCacheEnabledTest{ctx: context.Background(), storageClient: testEnv.storageClient}
 
 	// Run tests for mounted directory if the flag is set.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
 		suite.Run(t, ts)
 		return
 	}
 
-	// Setup flags and run tests.
-	ts.flags = []string{"--implicit-dirs", "--experimental-enable-dentry-cache", "--metadata-cache-ttl-secs=2"}
-	log.Printf("Running tests with flags: %s", ts.flags)
-	suite.Run(t, ts)
+	// Run tests for GCE environment otherwise.
+	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
+	for _, ts.flags = range flagsSet {
+		log.Printf("Running tests with flags: %s", ts.flags)
+		suite.Run(t, ts)
+	}
 }

@@ -191,11 +191,11 @@ func (t *BlockPoolTest) TestClearFreeBlockChannelWithReleaseReservedBlocksTrue()
 			bp, err := NewGenBlockPool(1024, 4, tt.reservedBlocks, semaphore.NewWeighted(4), createBlock)
 			require.Nil(t.T(), err)
 			blocks := make([]Block, 4)
-			for i := 0; i < 4; i++ {
+			for i := range 4 {
 				blocks[i] = t.validateGetBlockIsNotBlocked(bp)
 			}
 			// Adding all blocks to freeBlocksCh
-			for i := 0; i < 4; i++ {
+			for i := range 4 {
 				bp.freeBlocksCh <- blocks[i]
 			}
 			require.Equal(t.T(), int64(4), bp.totalBlocks)
@@ -204,7 +204,7 @@ func (t *BlockPoolTest) TestClearFreeBlockChannelWithReleaseReservedBlocksTrue()
 
 			require.Nil(t.T(), err)
 			require.EqualValues(t.T(), 0, bp.totalBlocks)
-			for i := 0; i < 4; i++ {
+			for i := range 4 {
 				require.Nil(t.T(), blocks[i].(*memoryBlock).buffer)
 			}
 			// All 4 semaphore slots should be available to acquire.
@@ -248,11 +248,11 @@ func (t *BlockPoolTest) TestClearFreeBlockChannelWithReleaseReservedBlocksFalse(
 			bp, err := NewGenBlockPool(1024, 4, tt.reservedBlocks, semaphore.NewWeighted(4), createBlock)
 			require.Nil(t.T(), err)
 			blocks := make([]Block, 4)
-			for i := 0; i < 4; i++ {
+			for i := range 4 {
 				blocks[i] = t.validateGetBlockIsNotBlocked(bp)
 			}
 			// Adding all blocks to freeBlocksCh
-			for i := 0; i < 4; i++ {
+			for i := range 4 {
 				bp.freeBlocksCh <- blocks[i]
 			}
 			require.Equal(t.T(), int64(4), bp.totalBlocks)
@@ -261,7 +261,7 @@ func (t *BlockPoolTest) TestClearFreeBlockChannelWithReleaseReservedBlocksFalse(
 
 			require.Nil(t.T(), err)
 			require.EqualValues(t.T(), 0, bp.totalBlocks)
-			for i := 0; i < 4; i++ {
+			for i := range 4 {
 				require.Nil(t.T(), blocks[i].(*memoryBlock).buffer)
 			}
 			// Only reserved blocks semaphore slots should be available to acquire.
@@ -388,7 +388,7 @@ func (t *BlockPoolTest) TestGetWhenLimitedByGlobalBlocks() {
 	require.Nil(t.T(), err)
 
 	// 2 blocks can be created.
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		_ = t.validateGetBlockIsNotBlocked(bp)
 	}
 	require.Equal(t.T(), int64(2), bp.totalBlocks)

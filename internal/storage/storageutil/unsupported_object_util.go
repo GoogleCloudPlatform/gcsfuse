@@ -15,6 +15,7 @@
 package storageutil
 
 import (
+	"slices"
 	"strings"
 )
 
@@ -38,10 +39,5 @@ func IsUnsupportedObjectName(name string) bool {
 			return true
 		}
 	}
-	for _, unsupportedObjectName := range unsupportedObjectNames {
-		if name == unsupportedObjectName {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(unsupportedObjectNames, name)
 }

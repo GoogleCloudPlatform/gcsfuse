@@ -45,12 +45,12 @@ var (
 	logFilePath string
 )
 
-func getMountConfigForLogRotation(maxFileSizeMB, backupFileCount int, compress bool, logFilePath string) map[string]interface{} {
-	yamlContent := map[string]interface{}{
-		"logging": map[string]interface{}{
+func getMountConfigForLogRotation(maxFileSizeMB, backupFileCount int, compress bool, logFilePath string) map[string]any {
+	yamlContent := map[string]any{
+		"logging": map[string]any{
 			"severity":  "TRACE",
 			"file-path": logFilePath,
-			"log-rotate": map[string]interface{}{
+			"log-rotate": map[string]any{
 				"max-file-size-mb":  maxFileSizeMB,
 				"backup-file-count": backupFileCount,
 				"compress":          compress,

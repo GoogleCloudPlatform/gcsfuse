@@ -54,7 +54,7 @@ func (m *mockBucket) ComposeObjects(p0 context.Context, p1 *gcs.ComposeObjectsRe
 		"ComposeObjects",
 		file,
 		line,
-		[]interface{}{p0, p1})
+		[]any{p0, p1})
 
 	if len(retVals) != 2 {
 		panic(fmt.Sprintf("mockBucket.ComposeObjects: invalid return values: %v", retVals))
@@ -83,7 +83,7 @@ func (m *mockBucket) CopyObject(p0 context.Context, p1 *gcs.CopyObjectRequest) (
 		"CopyObject",
 		file,
 		line,
-		[]interface{}{p0, p1})
+		[]any{p0, p1})
 
 	if len(retVals) != 2 {
 		panic(fmt.Sprintf("mockBucket.CopyObject: invalid return values: %v", retVals))
@@ -112,7 +112,7 @@ func (m *mockBucket) CreateObject(p0 context.Context, p1 *gcs.CreateObjectReques
 		"CreateObject",
 		file,
 		line,
-		[]interface{}{p0, p1})
+		[]any{p0, p1})
 
 	if len(retVals) != 2 {
 		panic(fmt.Sprintf("mockBucket.CreateObject: invalid return values: %v", retVals))
@@ -141,7 +141,7 @@ func (m *mockBucket) CreateObjectChunkWriter(p0 context.Context, p1 *gcs.CreateO
 		"CreateObjectChunkWriter",
 		file,
 		line,
-		[]interface{}{p0, p1, p2, p3})
+		[]any{p0, p1, p2, p3})
 
 	if len(retVals) != 2 {
 		panic(fmt.Sprintf("mockBucket.CreateObjectChunkWriter: invalid return values: %v", retVals))
@@ -170,7 +170,7 @@ func (m *mockBucket) CreateAppendableObjectWriter(p0 context.Context, p1 *gcs.Cr
 		"CreateAppendableObjectWriter",
 		file,
 		line,
-		[]interface{}{p0, p1})
+		[]any{p0, p1})
 
 	if len(retVals) != 2 {
 		panic(fmt.Sprintf("mockBucket.CreateAppendableObjectWriter: invalid return values: %v", retVals))
@@ -199,7 +199,7 @@ func (m *mockBucket) FinalizeUpload(p0 context.Context, p1 gcs.Writer) (o0 *gcs.
 		"FinalizeUpload",
 		file,
 		line,
-		[]interface{}{p0, p1})
+		[]any{p0, p1})
 
 	if len(retVals) != 2 {
 		panic(fmt.Sprintf("mockBucket.FinalizeUpload: invalid return values: %v", retVals))
@@ -227,7 +227,7 @@ func (m *mockBucket) FlushPendingWrites(p0 context.Context, p1 gcs.Writer) (o0 *
 		"FlushPendingWrites",
 		file,
 		line,
-		[]interface{}{p0, p1})
+		[]any{p0, p1})
 
 	if len(retVals) != 2 {
 		panic(fmt.Sprintf("mockBucket.FlushPendingWrites: invalid return values: %v", retVals))
@@ -255,7 +255,7 @@ func (m *mockBucket) DeleteObject(p0 context.Context, p1 *gcs.DeleteObjectReques
 		"DeleteObject",
 		file,
 		line,
-		[]interface{}{p0, p1})
+		[]any{p0, p1})
 
 	if len(retVals) != 1 {
 		panic(fmt.Sprintf("mockBucket.DeleteObject: invalid return values: %v", retVals))
@@ -281,7 +281,7 @@ func (m *mockBucket) MoveObject(p0 context.Context, p1 *gcs.MoveObjectRequest) (
 		"MoveObject",
 		file,
 		line,
-		[]interface{}{p0, p1})
+		[]any{p0, p1})
 
 	if len(retVals) != 2 {
 		panic(fmt.Sprintf("mockBucket.MoveObject: invalid return values: %v", retVals))
@@ -310,7 +310,7 @@ func (m *mockBucket) DeleteFolder(ctx context.Context, folderName string) (o0 er
 		"DeleteFolder",
 		file,
 		line,
-		[]interface{}{ctx, folderName})
+		[]any{ctx, folderName})
 	if len(retVals) != 1 {
 		panic(fmt.Sprintf("mockBucket.DeleteFolder: invalid return values: %v", retVals))
 	}
@@ -331,7 +331,7 @@ func (m *mockBucket) ListObjects(p0 context.Context, p1 *gcs.ListObjectsRequest)
 		"ListObjects",
 		file,
 		line,
-		[]interface{}{p0, p1})
+		[]any{p0, p1})
 
 	if len(retVals) != 2 {
 		panic(fmt.Sprintf("mockBucket.ListObjects: invalid return values: %v", retVals))
@@ -360,7 +360,7 @@ func (m *mockBucket) Name() (o0 string) {
 		"Name",
 		file,
 		line,
-		[]interface{}{})
+		[]any{})
 
 	if len(retVals) != 1 {
 		panic(fmt.Sprintf("mockBucket.Name: invalid return values: %v", retVals))
@@ -384,7 +384,7 @@ func (m *mockBucket) BucketType() (o0 gcs.BucketType) {
 		"BucketType",
 		file,
 		line,
-		[]interface{}{})
+		[]any{})
 
 	if len(retVals) != 1 {
 		panic(fmt.Sprintf("mockBucket.BucketType: invalid return values: %v", retVals))
@@ -408,7 +408,7 @@ func (m *mockBucket) NewReaderWithReadHandle(p0 context.Context, p1 *gcs.ReadObj
 		"NewReaderWithReadHandle",
 		file,
 		line,
-		[]interface{}{p0, p1})
+		[]any{p0, p1})
 
 	if len(retVals) != 2 {
 		panic(fmt.Sprintf("mockBucket.NewReaderWithReadHandle: invalid return values: %v", retVals))
@@ -438,7 +438,7 @@ func (m *mockBucket) StatObject(p0 context.Context,
 		"StatObject",
 		file,
 		line,
-		[]interface{}{p0, p1})
+		[]any{p0, p1})
 
 	if len(retVals) != 3 {
 		panic(fmt.Sprintf("mockBucket.StatObject: invalid return values: %v", retVals))
@@ -472,7 +472,7 @@ func (m *mockBucket) UpdateObject(p0 context.Context, p1 *gcs.UpdateObjectReques
 		"UpdateObject",
 		file,
 		line,
-		[]interface{}{p0, p1})
+		[]any{p0, p1})
 
 	if len(retVals) != 2 {
 		panic(fmt.Sprintf("mockBucket.UpdateObject: invalid return values: %v", retVals))
@@ -503,7 +503,7 @@ func (m *mockBucket) GetFolder(
 		"GetFolder",
 		file,
 		line,
-		[]interface{}{ctx, prefix})
+		[]any{ctx, prefix})
 
 	if len(retVals) != 2 {
 		panic(fmt.Sprintf("mockBucket.GetFolder: invalid return values: %v", retVals))
@@ -530,7 +530,7 @@ func (m *mockBucket) CreateFolder(ctx context.Context, prefix string) (o0 *gcs.F
 		"CreateFolder",
 		file,
 		line,
-		[]interface{}{ctx, prefix})
+		[]any{ctx, prefix})
 
 	if len(retVals) != 2 {
 		panic(fmt.Sprintf("mockBucket.GetFolder: invalid return values: %v", retVals))
@@ -557,7 +557,7 @@ func (m *mockBucket) RenameFolder(ctx context.Context, folderName string, destin
 		"RenameFolder",
 		file,
 		line,
-		[]interface{}{ctx, folderName, destinationFolderId})
+		[]any{ctx, folderName, destinationFolderId})
 
 	if len(retVals) != 2 {
 		panic(fmt.Sprintf("mockBucket.RenameFolder: invalid return values: %v", retVals))
@@ -589,7 +589,7 @@ func (m *mockBucket) NewMultiRangeDownloader(
 		"NewMultiRangeDownloader",
 		file,
 		line,
-		[]interface{}{p0, p1})
+		[]any{p0, p1})
 
 	if len(retVals) != 2 {
 		panic(fmt.Sprintf("mockBucket.NewMultiRangeDownloader: invalid return values: %v", retVals))

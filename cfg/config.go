@@ -173,21 +173,29 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-cache.c
 
 // machineTypeToGroupMap is the generated map from machine type to the group it belongs to.
 var machineTypeToGroupMap = map[string]string{
-	"a2-megagpu-16g":       "high-performance",
-	"a2-ultragpu-8g":       "high-performance",
-	"a3-edgegpu-8g":        "high-performance",
-	"a3-highgpu-8g":        "high-performance",
-	"a3-megagpu-8g":        "high-performance",
-	"a3-ultragpu-8g":       "high-performance",
-	"a4-highgpu-8g-lowmem": "high-performance",
-	"ct5l-hightpu-8t":      "high-performance",
-	"ct5lp-hightpu-8t":     "high-performance",
-	"ct5p-hightpu-4t":      "high-performance",
-	"ct5p-hightpu-4t-tpu":  "high-performance",
-	"ct6e-standard-4t":     "high-performance",
-	"ct6e-standard-4t-tpu": "high-performance",
-	"ct6e-standard-8t":     "high-performance",
-	"ct6e-standard-8t-tpu": "high-performance",
+	"a2-megagpu-16g":        "high-performance",
+	"a2-ultragpu-8g":        "high-performance",
+	"a3-edgegpu-8g":         "high-performance",
+	"a3-highgpu-8g":         "high-performance",
+	"a3-megagpu-8g":         "high-performance",
+	"a3-ultragpu-8g":        "high-performance",
+	"a4-highgpu-8g":         "high-performance",
+	"a4-highgpu-8g-lowmem":  "high-performance",
+	"a4-highgpu-8g-nolssd":  "high-performance",
+	"a4x-highgpu-4g":        "high-performance",
+	"a4x-highgpu-4g-nolssd": "high-performance",
+	"ct5l-hightpu-8t":       "high-performance",
+	"ct5lp-hightpu-8t":      "high-performance",
+	"ct5p-hightpu-4t":       "high-performance",
+	"ct5p-hightpu-4t-tpu":   "high-performance",
+	"ct6e-standard-4t":      "high-performance",
+	"ct6e-standard-4t-tpu":  "high-performance",
+	"ct6e-standard-8t":      "high-performance",
+	"ct6e-standard-8t-tpu":  "high-performance",
+	"tpu7x-standard-4t":     "high-performance",
+	"tpu7x-standard-4t-tpu": "high-performance",
+	"tpu7x-ultranet-4t":     "high-performance",
+	"tpu7x-ultranet-4t-tpu": "high-performance",
 }
 
 // ApplyOptimizations modifies the config in-place with optimized values.
@@ -352,6 +360,8 @@ type Config struct {
 	EnableHns bool `yaml:"enable-hns"`
 
 	EnableNewReader bool `yaml:"enable-new-reader"`
+
+	EnableUnsupportedDirSupport bool `yaml:"enable-unsupported-dir-support"`
 
 	FileCache FileCacheConfig `yaml:"file-cache"`
 
@@ -754,7 +764,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("enable-http-dns-cache", "", false, "Enables DNS cache for HTTP/1 connections")
+	flagSet.BoolP("enable-http-dns-cache", "", true, "Enables DNS cache for HTTP/1 connections")
 
 	if err := flagSet.MarkHidden("enable-http-dns-cache"); err != nil {
 		return err
@@ -777,6 +787,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.BoolP("enable-streaming-writes", "", true, "Enables streaming uploads during write file operation.")
+
+	flagSet.BoolP("enable-unsupported-dir-support", "", true, "Enables support for un-supported directory fix implementation.")
+
+	if err := flagSet.MarkHidden("enable-unsupported-dir-support"); err != nil {
+		return err
+	}
 
 	flagSet.BoolP("experimental-enable-dentry-cache", "", false, "When enabled, it sets the Dentry cache entry timeout same as metadata-cache-ttl. This enables kernel to use cached entry to map the file paths to inodes, instead of making LookUpInode calls to GCSFuse.")
 
@@ -1224,6 +1240,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("write.enable-streaming-writes", flagSet.Lookup("enable-streaming-writes")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("enable-unsupported-dir-support", flagSet.Lookup("enable-unsupported-dir-support")); err != nil {
 		return err
 	}
 

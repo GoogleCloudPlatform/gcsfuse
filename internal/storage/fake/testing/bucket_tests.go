@@ -294,7 +294,7 @@ func readMultiple(
 
 	// Run several workers.
 	const parallelism = 32
-	for i := 0; i < parallelism; i++ {
+	for range parallelism {
 		group.Go(func() (err error) {
 			for i := range indices {
 				handleRequest(ctx, i)
@@ -364,7 +364,7 @@ func readMultipleUsingMultiRangeDownloader(
 
 	// Run several workers.
 	const parallelism = 32
-	for i := 0; i < parallelism; i++ {
+	for range parallelism {
 		group.Go(func() (err error) {
 			for i := range indices {
 				handleRequest(i)
@@ -395,7 +395,7 @@ func forEachString(
 
 	// Consume the strings.
 	const parallelism = 128
-	for i := 0; i < parallelism; i++ {
+	for range parallelism {
 		group.Go(func() (err error) {
 			for s := range c {
 				err = f(ctx, s)
@@ -1764,7 +1764,7 @@ func (t *composeTest) createSources(
 	group, ctx := errgroup.WithContext(t.ctx)
 
 	const parallelism = 128
-	for i := 0; i < parallelism; i++ {
+	for range parallelism {
 		group.Go(func() (err error) {
 			for i := range indices {
 				// Create an object. Include some metadata; it should be ignored by
@@ -2596,7 +2596,7 @@ func (t *composeTest) TooManySources() {
 		DstName: "foo",
 	}
 
-	for i := 0; i < gcs.MaxSourcesPerComposeRequest+1; i++ {
+	for range gcs.MaxSourcesPerComposeRequest + 1 {
 		req.Sources = append(req.Sources, gcs.ComposeSource{Name: src.Name})
 	}
 
@@ -2627,7 +2627,7 @@ func (t *composeTest) ComponentCountLimits() {
 		DstName: "medium",
 	}
 
-	for i := 0; i < gcs.MaxSourcesPerComposeRequest; i++ {
+	for range gcs.MaxSourcesPerComposeRequest {
 		req.Sources = append(req.Sources, gcs.ComposeSource{Name: small.Name})
 	}
 
@@ -2643,7 +2643,7 @@ func (t *composeTest) ComponentCountLimits() {
 		DstName: "large",
 	}
 
-	for i := 0; i < gcs.MaxSourcesPerComposeRequest; i++ {
+	for range gcs.MaxSourcesPerComposeRequest {
 		req.Sources = append(req.Sources, gcs.ComposeSource{Name: medium.Name})
 	}
 

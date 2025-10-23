@@ -284,10 +284,7 @@ func (gr *GCSReader) determineEnd(start int64) int64 {
 		gr.readType.Store(metrics.ReadTypeRandom)
 		averageReadBytes := gr.totalReadBytes.Load() / seeks
 		if averageReadBytes < maxReadSize {
-			randomReadSize := int64(((averageReadBytes / MB) + 1) * MB)
-			if randomReadSize < minReadSize {
-				randomReadSize = minReadSize
-			}
+			randomReadSize := max(int64(((averageReadBytes/MB)+1)*MB), minReadSize)
 			if randomReadSize > maxReadSize {
 				randomReadSize = maxReadSize
 			}

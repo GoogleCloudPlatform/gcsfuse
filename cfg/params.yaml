@@ -41,7 +41,11 @@ machine-type-groups:
     - "a3-highgpu-8g"
     - "a3-megagpu-8g"
     - "a3-ultragpu-8g"
+    - "a4-highgpu-8g"
     - "a4-highgpu-8g-lowmem"
+    - "a4-highgpu-8g-nolssd"
+    - "a4x-highgpu-4g"
+    - "a4x-highgpu-4g-nolssd"
     - "ct5l-hightpu-8t"
     - "ct5lp-hightpu-8t"
     - "ct5p-hightpu-4t"
@@ -50,6 +54,10 @@ machine-type-groups:
     - "ct6e-standard-4t-tpu"
     - "ct6e-standard-8t"
     - "ct6e-standard-8t-tpu"
+    - "tpu7x-standard-4t"
+    - "tpu7x-standard-4t-tpu"
+    - "tpu7x-ultranet-4t"
+    - "tpu7x-ultranet-4t-tpu"
     # Add other machine types here as needed.
   # Add other groups here as needed
 
@@ -176,6 +184,13 @@ params:
     flag-name: "enable-new-reader"
     type: "bool"
     usage: "Enables support for new reader implementation."
+    default: true
+    hide-flag: true
+
+  - config-path: "enable-unsupported-dir-support"
+    flag-name: "enable-unsupported-dir-support"
+    type: "bool"
+    usage: "Enables support for un-supported directory fix implementation."
     default: true
     hide-flag: true
 
@@ -428,7 +443,7 @@ params:
     flag-name: "enable-http-dns-cache"
     type: "bool"
     usage: "Enables DNS cache for HTTP/1 connections"
-    default: false
+    default: true
     hide-flag: true
 
   - config-path: "gcs-connection.experimental-enable-json-read"

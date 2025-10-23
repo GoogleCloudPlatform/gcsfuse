@@ -38,7 +38,7 @@ func TestComposeObjectCreator(t *testing.T) { RunTests(t) }
 
 func deleteReqName(expected string) (m Matcher) {
 	m = NewMatcher(
-		func(c interface{}) (err error) {
+		func(c any) (err error) {
 			req, ok := c.(*gcs.DeleteObjectRequest)
 			if !ok {
 				err = fmt.Errorf("which has type %T", c)

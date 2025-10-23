@@ -248,24 +248,27 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_RetryableThenNonRetryab
 
 func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_Timeout() {
 	// Arrange
-	stallDuration := t.retryConfig.RetryDeadline + 1000*time.Microsecond
+	stallDuration := t.retryConfig.RetryDeadline + 10*time.Millisecond
 	var callCount int
 	apiCall := func(ctx context.Context) (string, error) {
 		callCount++
 		// Simulate a call that always takes longer than the per-attempt deadline.
 		select {
 		case <-time.After(stallDuration):
+			// This case should not be hit, as the context deadline
+			// is shorter by 10ms than stallDuration.
+			return "", errors.New("simulated apiCall finished before context timeout")
 		case <-ctx.Done():
 			return "", ctx.Err()
 		}
-		return "", ctx.Err()
 	}
 
 	// Act
 	_, err := ExecuteWithRetry(context.Background(), t.retryConfig, "testOp", "testReq", apiCall)
 
 	// Assert
-	assert.ErrorIs(t.T(), err, context.DeadlineExceeded, "The error should be from the per-attempt timeout")
+	assert.ErrorIs(t.T(), err, context.DeadlineExceeded, "Expected context.DeadlineExceeded because each attempt is designed to "+
+		"take longer than the per-attempt deadline.")
 }
 
 func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_TotalRetryBudgetExceeded() {

@@ -797,6 +797,7 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 					MaxConnsPerHost:            1000,
 					MaxIdleConnsPerHost:        20,
 					SequentialReadSizeMb:       70,
+					EnableHttpDnsCache:         true,
 				},
 			},
 		},
@@ -816,12 +817,13 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 					MaxConnsPerHost:            0,
 					MaxIdleConnsPerHost:        100,
 					SequentialReadSizeMb:       200,
+					EnableHttpDnsCache:         true,
 				},
 			},
 		},
 		{
-			name: "test_dns_cache",
-			args: []string{"gcsfuse", "--enable-http-dns-cache", "abc", "pqr"},
+			name: "test_dns_cache_disabled",
+			args: []string{"gcsfuse", "--enable-http-dns-cache=false", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				GcsConnection: cfg.GcsConnectionConfig{
 					BillingProject:             "",
@@ -835,7 +837,7 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 					MaxConnsPerHost:            0,
 					MaxIdleConnsPerHost:        100,
 					SequentialReadSizeMb:       200,
-					EnableHttpDnsCache:         true,
+					EnableHttpDnsCache:         false,
 				},
 			},
 		},
@@ -1239,6 +1241,43 @@ func TestArgsParsing_EnableHNSFlags(t *testing.T) {
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedEnableHNS, gotEnableHNS)
+			}
+		})
+	}
+}
+
+func TestArgsParsing_EnableUnsupportedDirSupport(t *testing.T) {
+	tests := []struct {
+		name                          string
+		args                          []string
+		expectedUnsupportedDirSupport bool
+	}{
+		{
+			name:                          "normal",
+			args:                          []string{"gcsfuse", "--enable-unsupported-dir-support=false", "abc", "pqr"},
+			expectedUnsupportedDirSupport: false,
+		},
+		{
+			name:                          "default",
+			args:                          []string{"gcsfuse", "abc", "pqr"},
+			expectedUnsupportedDirSupport: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotUnsupportedDirSupport bool
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				gotUnsupportedDirSupport = cfg.EnableUnsupportedDirSupport
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedUnsupportedDirSupport, gotUnsupportedDirSupport)
 			}
 		})
 	}

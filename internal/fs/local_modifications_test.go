@@ -114,7 +114,7 @@ func interestingLegalNames() (names []string) {
 	}
 
 	// Most single-byte UTF-8 strings.
-	for b := byte(0); b < utf8.RuneSelf; b++ {
+	for b := range byte(utf8.RuneSelf) {
 		switch b {
 		// NULL and '/' are not legal in file names.
 		case 0, '/':
@@ -2503,7 +2503,7 @@ func (t *RenameTest) DirectoryContainingFiles() {
 	err = os.Mkdir(oldPath, 0700)
 	AssertEq(nil, err)
 
-	for i := 0; i < int(RenameDirLimit); i++ {
+	for i := range int(RenameDirLimit) {
 		file := fmt.Sprintf("%s/%d.txt", oldPath, i)
 		err = os.WriteFile(file, []byte("taco"), 0400)
 		AssertEq(nil, err)

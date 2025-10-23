@@ -94,7 +94,7 @@ func filterAndParseLogLineForBufferedRead(
 	bufferedReadLogsMap map[int64]*BufferedReadLogEntry,
 	opReverseMap map[string]*handleAndChunkIndex) error {
 
-	jsonLog := make(map[string]interface{})
+	jsonLog := make(map[string]any)
 	if err := json.Unmarshal([]byte(logLine), &jsonLog); err != nil {
 		return nil // Silently ignore the logs which are not in JSON format.
 	}
@@ -102,8 +102,8 @@ func filterAndParseLogLineForBufferedRead(
 	if _, ok := jsonLog["timestamp"]; !ok {
 		return fmt.Errorf("filterAndParseLogLineForBufferedRead: log line does not contain timestamp: %s", logLine)
 	}
-	timestampSeconds := int64(jsonLog["timestamp"].(map[string]interface{})["seconds"].(float64))
-	timestampNanos := int64(jsonLog["timestamp"].(map[string]interface{})["nanos"].(float64))
+	timestampSeconds := int64(jsonLog["timestamp"].(map[string]any)["seconds"].(float64))
+	timestampNanos := int64(jsonLog["timestamp"].(map[string]any)["nanos"].(float64))
 
 	// Log message is expected to be in the "message" field.
 	if _, ok := jsonLog["message"]; !ok {

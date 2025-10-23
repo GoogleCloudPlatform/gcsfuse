@@ -199,7 +199,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		implicitDirInodes:          make(map[inode.Name]inode.DirInode),
 		folderInodes:               make(map[inode.Name]inode.DirInode),
 		localFileInodes:            make(map[inode.Name]inode.Inode),
-		handles:                    make(map[fuseops.HandleID]interface{}),
+		handles:                    make(map[fuseops.HandleID]any),
 		newConfig:                  serverCfg.NewConfig,
 		fileCacheHandler:           fileCacheHandler,
 		cacheFileForRangeRead:      serverCfg.NewConfig.FileCache.CacheFileForRangeRead,
@@ -486,7 +486,7 @@ type fileSystem struct {
 	// INVARIANT: All values are of type *dirHandle or *handle.FileHandle
 	//
 	// GUARDED_BY(mu)
-	handles map[fuseops.HandleID]interface{}
+	handles map[fuseops.HandleID]any
 
 	// The next handle ID to hand out. We assume that this will never overflow.
 	//
@@ -870,7 +870,7 @@ func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.
 
 	var maxTriesToCreateInode = 3
 
-	for n := 0; n < maxTriesToCreateInode; n++ {
+	for range maxTriesToCreateInode {
 		in, ok := (inodes)[ic.FullName]
 		// Create a new inode when a folder is created first time, or when a folder is deleted and then recreated with the same name.
 		if !ok || in.IsUnlinked() {
@@ -1044,7 +1044,7 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 
 	// Run a retry loop around lookUpOrCreateInodeIfNotStale.
 	const maxTries = 3
-	for n := 0; n < maxTries; n++ {
+	for range maxTries {
 		// Create a record.
 		var core *inode.Core
 		core, err = getLookupResult()
@@ -1094,7 +1094,7 @@ func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName stri
 	}()
 
 	var maxTriesToLookupInode = 3
-	for n := 0; n < maxTriesToLookupInode; n++ {
+	for range maxTriesToLookupInode {
 		child = fs.localFileInodes[fileName]
 
 		if child == nil {

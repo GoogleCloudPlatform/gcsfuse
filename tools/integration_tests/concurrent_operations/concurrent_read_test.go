@@ -79,7 +79,7 @@ func (s *concurrentReadTest) Test_ConcurrentSequentialAndRandomReads() {
 	timeout := 300 * time.Second // 5 minutes timeout for 500MiB operations
 
 	// Launch 5 sequential readers
-	for i := 0; i < sequentialReads; i++ {
+	for i := range sequentialReads {
 		wg.Add(1)
 		go func(readerID int) {
 			defer wg.Done()
@@ -96,13 +96,13 @@ func (s *concurrentReadTest) Test_ConcurrentSequentialAndRandomReads() {
 		}(i)
 	}
 	// Launch 5 random readers
-	for i := 0; i < randomReads; i++ {
+	for i := range randomReads {
 		wg.Add(1)
 		go func(readerID int) {
 			defer wg.Done()
 			numRandomReads := 200 // Number of random read operations per goroutine
 			rand.New(rand.NewSource(time.Now().UnixNano() + int64(readerID)))
-			for j := 0; j < numRandomReads; j++ {
+			for range numRandomReads {
 				// Generate random offset within bound.
 				randomOffset := int64(rand.Intn(fileSize/chunkSize)) * chunkSize
 				// Use operations.ReadChunkFromFile for reading chunks
@@ -153,7 +153,7 @@ func (s *concurrentReadTest) Test_ConcurrentSegmentReadsSharedHandle() {
 	timeout := 300 * time.Second // 5 minutes timeout
 
 	// Launch 5 readers, each reading a different segment using the shared file handle
-	for i := 0; i < numReaders; i++ {
+	for i := range numReaders {
 		wg.Add(1)
 		go func(readerID int) {
 			defer wg.Done()
@@ -215,7 +215,7 @@ func (s *concurrentReadTest) Test_ConcurrentReadPlusWrite() {
 	wg.Add(numGoRoutines)
 	timeout := 300 * time.Second
 
-	for i := 0; i < numGoRoutines; i++ {
+	for i := range numGoRoutines {
 		go func(workerId int) {
 			defer wg.Done()
 

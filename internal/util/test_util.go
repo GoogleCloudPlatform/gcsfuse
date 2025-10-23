@@ -21,7 +21,7 @@ import "math/rand"
 
 func GenerateRandomBytes(length int) []byte {
 	randBytes := make([]byte, length)
-	for i := 0; i < length; i++ {
+	for i := range length {
 		randBytes[i] = byte(rand.Intn(26) + 65)
 	}
 	return randBytes

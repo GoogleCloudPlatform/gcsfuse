@@ -1,0 +1,10 @@
+.gcloudignore
+.git
+.gitignore
+#!include:.gitignore
+
+perfmetrics/
+.github/
+benchmarks/
+docs/
+samples/

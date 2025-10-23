@@ -19,6 +19,7 @@ substitutions:
   _BUILD_ARM: 'false'
   _USER: 'cloudbuild'
   _IMAGE_PREFIX: 'build'
+  _STAGINGVERSION: ''
 
 steps:
 # --- Build GCSFuse ---
@@ -102,8 +103,12 @@ steps:
 
     # --- Download gcsfuse binaries ---
     GCSFUSE_PATH=$$(cat /workspace/bucket_name)
-    STAGINGVERSION=${BUILD_ID}
-    STAGINGVERSION=${_IMAGE_PREFIX}-$${STAGINGVERSION:0:8}
+    if [[ -n "${_STAGINGVERSION}" ]]; then
+      STAGINGVERSION="${_STAGINGVERSION}"
+    else
+      STAGINGVERSION=${BUILD_ID}
+      STAGINGVERSION=${_IMAGE_PREFIX}-$${STAGINGVERSION:0:8}
+    fi
     REGISTRY="gcr.io/${PROJECT_ID}/${_USER}-gcsfuse-csi"
 
     make build-image-and-push-multi-arch REGISTRY=$${REGISTRY} GCSFUSE_PATH=$${GCSFUSE_PATH} STAGINGVERSION=$${STAGINGVERSION} BUILD_ARM=${_BUILD_ARM}
