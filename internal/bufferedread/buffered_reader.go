@@ -212,22 +212,18 @@ func newBlockReleaseManager(config *BufferedReadConfig, pool *block.GenBlockPool
 	return m
 }
 
-// stop safely terminates the background goroutine that processes release signals.
-func (m *blockReleaseManager) stop() {
+// Destroy waits for all zero-copy operations to complete and stops the
+// background goroutine that processes release signals.
+func (m *blockReleaseManager) Destroy() {
 	if m == nil {
 		return
 	}
+	// Wait for any in-flight zero-copy reads to complete before proceeding.
+	m.activeZeroCopy.Wait()
+	// Safely terminate the background goroutine.
 	m.stopOnce.Do(func() {
 		close(m.releaseSignal)
 	})
-}
-
-// waitForZeroCopyOps blocks until all active zero-copy operations have completed.
-func (m *blockReleaseManager) waitForZeroCopyOps() {
-	if m == nil {
-		return
-	}
-	m.activeZeroCopy.Wait()
 }
 
 // retire moves a block from the active prefetch queue to the retired cache.
@@ -237,7 +233,7 @@ func (m *blockReleaseManager) retire(entry *blockQueueEntry) {
 	defer m.mu.Unlock()
 
 	if _, ok := m.retiredBlocks.(*NoOpRetiredBlockCache); ok {
-		m.tryReleaseOrMarkEvicted(entry)
+		m.tryRelease(entry)
 		return
 	}
 
@@ -245,11 +241,11 @@ func (m *blockReleaseManager) retire(entry *blockQueueEntry) {
 	evicted, err := m.retiredBlocks.Insert(blockIndex, entry)
 	if err != nil {
 		logger.Warnf("blockReleaseManager.retire: failed to insert block %d into retired cache, releasing immediately: %v", blockIndex, err)
-		m.tryReleaseOrMarkEvicted(entry)
+		m.tryRelease(entry)
 	}
 
 	for _, evictedEntry := range evicted {
-		m.tryReleaseOrMarkEvicted(evictedEntry)
+		m.tryRelease(evictedEntry)
 	}
 }
 
@@ -275,10 +271,10 @@ func (m *blockReleaseManager) processReleaseSignals() {
 	}
 }
 
-// tryReleaseOrMarkEvicted attempts to release a block. If the block is in use
+// tryRelease attempts to release a block. If the block is in use
 // (ref count > 0), it adds it to the pendingRelease map. Otherwise, it releases
 // it immediately. This is an internal helper that assumes the caller holds m.mu.
-func (m *blockReleaseManager) tryReleaseOrMarkEvicted(entry *blockQueueEntry) {
+func (m *blockReleaseManager) tryRelease(entry *blockQueueEntry) {
 	if entry.block.RefCount() == 0 {
 		m.release(entry)
 	} else {
@@ -524,40 +520,26 @@ func (p *BufferedReader) Destroy() {
 	defer p.mu.Unlock()
 
 	if p.releaseManager != nil {
-		// Wait for any in-flight zero-copy reads to complete before proceeding with destruction.
-		p.releaseManager.waitForZeroCopyOps()
-	}
+		p.releaseManager.Destroy()
 
-	if p.releaseManager != nil {
-		// Stop the release manager's background goroutine.
-		p.releaseManager.stop()
-	}
-
-	if p.releaseManager != nil {
+		// Collect all blocks from the active queue, retired cache, and pending release map.
+		var allEntries []*blockQueueEntry
 		for !p.blockQueue.IsEmpty() {
-			p.releaseManager.retire(p.blockQueue.Pop())
+			allEntries = append(allEntries, p.blockQueue.Pop())
 		}
-	}
+		allEntries = append(allEntries, p.retiredBlocks.Clear()...)
 
-	// Clear the retired blocks cache and release all blocks.
-	if p.releaseManager != nil {
-		// First, cancel any pending downloads for blocks that are in the release manager.
 		p.releaseManager.mu.Lock()
 		for _, entry := range p.releaseManager.pendingRelease {
-			entry.cancel()
-		}
-		p.releaseManager.mu.Unlock()
-
-		// Now, clear the retired blocks cache and add them to the list of evicted entries.
-		// We must hold the releaseManager's lock while accessing its internal maps.
-		evictedEntries := p.retiredBlocks.Clear()
-		p.releaseManager.mu.Lock()
-		for _, pendingEntry := range p.releaseManager.pendingRelease {
-			evictedEntries = append(evictedEntries, pendingEntry)
+			allEntries = append(allEntries, entry)
 		}
 
-		for _, evictedEntry := range evictedEntries {
-			p.releaseManager.tryReleaseOrMarkEvicted(evictedEntry)
+		// Attempt to release all collected blocks.
+		for _, entry := range allEntries {
+			if entry.cancel != nil {
+				entry.cancel() // Cancel any in-flight download.
+			}
+			p.releaseManager.tryRelease(entry)
 		}
 		p.releaseManager.mu.Unlock()
 	}
