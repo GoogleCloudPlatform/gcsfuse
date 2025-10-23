@@ -414,7 +414,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 			metricHandle = metrics.NewNoopMetrics()
 		}
 	}
-	shutdownTracingFn := monitor.SetupTracing(ctx, newConfig)
+	shutdownTracingFn := monitor.SetupTracing(ctx, newConfig, logger.MountInstanceID())
 	shutdownFn := common.JoinShutdownFunc(metricExporterShutdownFn, shutdownTracingFn)
 
 	// No-op if profiler is disabled.
