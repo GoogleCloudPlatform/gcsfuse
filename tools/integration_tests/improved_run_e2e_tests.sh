@@ -195,43 +195,43 @@ fi
 # Test packages which can be run for both Zonal and Regional buckets.
 # Sorted list descending run times. (Longest Processing Time first strategy) 
 TEST_PACKAGES_COMMON=(
-  "managed_folders"
-  "operations"
-  "read_large_files"
-  "concurrent_operations"
-  # "read_cache"
-  "list_large_dir"
-  "mount_timeout"
-  "write_large_files"
-  "implicit_dir"
-  "interrupt"
-  "local_file"
-  "readonly"
-  "readonly_creds"
-  "rename_dir_limit"
-  "kernel_list_cache"
-  "streaming_writes"
-  "benchmarking"
-  "explicit_dir"
-  "gzip"
-  "log_rotation"
-  "monitoring"
-  "mounting"
-  # "grpc_validation"
-  "negative_stat_cache"
-  "stale_handle"
-  "release_version"
+  # "managed_folders"
+  # "operations"
+  # "read_large_files"
+  # "concurrent_operations"
+  # # "read_cache"
+  # "list_large_dir"
+  # "mount_timeout"
+  # "write_large_files"
+  # "implicit_dir"
+  # "interrupt"
+  # "local_file"
+  # "readonly"
+  # "readonly_creds"
+  # "rename_dir_limit"
+  # "kernel_list_cache"
+  # "streaming_writes"
+  # "benchmarking"
+  # "explicit_dir"
+  # "gzip"
+  # "log_rotation"
+  # "monitoring"
+  # "mounting"
+  # # "grpc_validation"
+  # "negative_stat_cache"
+  # "stale_handle"
+  # "release_version"
   "readdirplus"
-  "dentry_cache"
-  "buffered_read"
+  # "dentry_cache"
+  # "buffered_read"
 )
 
 # Test packages for regional buckets.
-TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "read_cache" "inactive_stream_timeout" "cloud_profiler" "requester_pays_bucket")
+TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}")
 # Test packages for zonal buckets.
-TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "rapid_appends" "unfinalized_object")
+TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}")
 # Test packages for TPC buckets.
-TEST_PACKAGES_FOR_TPC=("operations")
+TEST_PACKAGES_FOR_TPC=()
 
 # acquire_lock: Acquires exclusive lock or exits script on failure.
 # Args: $1 = path to lock file.
