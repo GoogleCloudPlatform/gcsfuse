@@ -87,11 +87,11 @@ func TestMain(m *testing.M) {
 		cfg.Benchmarking[0].LogFile = setup.LogFile()
 		// Manually add configs for each benchmark test.
 		cfg.Benchmarking[0].Configs = make([]test_suite.ConfigItem, 3)
-		cfg.Benchmarking[0].Configs[0].Flags = []string{"--stat-cache-ttl=0"}
+		cfg.Benchmarking[0].Configs[0].Flags = []string{"--stat-cache-ttl=0", "--stat-cache-ttl=0 --client-protocol=grpc"}
 		cfg.Benchmarking[0].Configs[0].Run = "Benchmark_Stat"
-		cfg.Benchmarking[0].Configs[1].Flags = []string{"--stat-cache-ttl=0", "--enable-atomic-rename-object=true"}
+		cfg.Benchmarking[0].Configs[1].Flags = []string{"--stat-cache-ttl=0 --enable-atomic-rename-object=true", "--stat-cache-ttl=0 --enable-atomic-rename-object=true --client-protocol=grpc"}
 		cfg.Benchmarking[0].Configs[1].Run = "Benchmark_Rename"
-		cfg.Benchmarking[0].Configs[2].Flags = []string{"--stat-cache-ttl=0"}
+		cfg.Benchmarking[0].Configs[2].Flags = []string{"--stat-cache-ttl=0", "--client-protocol=grpc --stat-cache-ttl=0"}
 		cfg.Benchmarking[0].Configs[2].Run = "Benchmark_Delete"
 	}
 
