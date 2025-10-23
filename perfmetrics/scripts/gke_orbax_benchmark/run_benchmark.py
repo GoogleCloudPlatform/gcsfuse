@@ -282,7 +282,7 @@ async def execute_workload_and_gather_results(project_id, zone, cluster_name, bu
     Returns:
         A list of throughput values (float) parsed from the pod logs.
     """
-    await run_command_async(["kubectl", "create", "configmap", "orbax-benchmark", "--from-file=test_load.py"])
+    await run_command_async(["kubectl", "create", "configmap", "orbax-benchmark", f"--from-file={os.path.join(SCRIPT_DIR, 'test_load.py')}"])
 
     template_path = os.path.join(SCRIPT_DIR, "pod.yaml.template")
     with open(template_path, "r") as f:
