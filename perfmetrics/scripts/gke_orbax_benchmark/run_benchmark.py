@@ -1,18 +1,4 @@
 #!/usr/bin/env python3
-
-"""Run GKE Orbax benchmark.
-
-This script automates the process of running the Orbax benchmark on a GKE cluster.
-It performs the following steps:
-1.  Checks for prerequisite tools (gcloud, git, make, kubectl).
-2.  Sets up a GKE cluster with a specific node pool if it doesn't exist.
-3.  Builds a GCSFuse CSI driver image from a specified git branch.
-4.  Deploys a Kubernetes pod that runs the benchmark workload.
-5.  Parses the benchmark results (throughput) from the pod logs.
-6.  Determines if the benchmark passed based on a performance threshold.
-7.  Cleans up all created cloud resources (GKE cluster, network, etc.).
-"""
-
 # Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,6 +12,19 @@ It performs the following steps:
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+"""Run GKE Orbax benchmark.
+
+This script automates the process of running the Orbax benchmark on a GKE cluster.
+It performs the following steps:
+1.  Checks for prerequisite tools (gcloud, git, make, kubectl).
+2.  Sets up a GKE cluster with a specific node pool if it doesn't exist.
+3.  Builds a GCSFuse CSI driver image from a specified git branch.
+4.  Deploys a Kubernetes pod that runs the benchmark workload.
+5.  Parses the benchmark results (throughput) from the pod logs.
+6.  Determines if the benchmark passed based on a performance threshold.
+7.  Cleans up all created cloud resources (GKE cluster, network, etc.).
+"""
 
 import argparse
 import asyncio
