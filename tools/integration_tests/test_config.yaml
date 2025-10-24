@@ -454,6 +454,30 @@ readdirplus:
         run: TestReaddirplusWithoutDentryCacheTest
         run_on_gke: true
 
+inactive_stream_timeout:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    log_file: # 
+    configs:
+      - flags:
+        - "--read-inactive-stream-timeout=1s --client-protocol=http1 --log-format=json --log-file=/gcsfuse-tmp/TestTimeoutEnabledSuite.log"
+        - "--read-inactive-stream-timeout=1s --client-protocol=grpc --log-format=json --log-file=/gcsfuse-tmp/TestTimeoutEnabledSuite.log"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: TestTimeoutEnabledSuite
+        run_on_gke: true
+      - flags:
+        - "--read-inactive-stream-timeout=0s --client-protocol=http1 --log-format=json --log-file=/gcsfuse-tmp/TestTimeoutDisabledSuite.log"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: TestTimeoutDisabledSuite
+        run_on_gke: true
+
+
 benchmarking:
   - test_bucket: "${BUCKET_NAME}"
     mounted_directory: "${MOUNTED_DIR}"
