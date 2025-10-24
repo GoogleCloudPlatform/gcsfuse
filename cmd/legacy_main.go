@@ -331,6 +331,8 @@ func forwardedEnvVars() []string {
 
 	// This environment variable is used to enhance gcsfuse logging by using unique
 	// MountUUID to identify logs from different mounts.
+	// MountUUID is used here instead of the MountInstanceID for unified logic
+	// in callers of MountInstaceID in both background and foreground mode.
 	env = append(env, fmt.Sprintf("%s=%s", logger.MountUUIDEnvKey, logger.MountUUID()))
 	return env
 }
