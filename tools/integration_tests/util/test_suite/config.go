@@ -72,6 +72,12 @@ type Config struct {
 	ReadDirPlus           []TestConfig `yaml:"readdirplus"`
 	DentryCache           []TestConfig `yaml:"dentry_cache"`
 	RequesterPaysBucket   []TestConfig `yaml:"requester_pays_bucket"`
+	ReadGCSAlgo           []TestConfig `yaml:"read_gcs_algo"`
+	Interrupt             []TestConfig `yaml:"interrupt"`
+	UnfinalizedObject     []TestConfig `yaml:"unfinalized_object"`
+	RapidAppends          []TestConfig `yaml:"rapid_appends"`
+	MountTimeout          []TestConfig `yaml:"mount_timeout"`
+	Monitoring            []TestConfig `yaml:"monitoring"`
 }
 
 func processTestConfigs(configs []TestConfig) {
@@ -106,6 +112,12 @@ func (c *Config) postProcessConfig() {
 	processTestConfigs(c.KernelListCache)
 	processTestConfigs(c.ReadDirPlus)
 	processTestConfigs(c.DentryCache)
+	processTestConfigs(c.ReadGCSAlgo)
+	processTestConfigs(c.Interrupt)
+	processTestConfigs(c.UnfinalizedObject)
+	processTestConfigs(c.RapidAppends)
+	processTestConfigs(c.MountTimeout)
+	processTestConfigs(c.Monitoring)
 }
 
 // ReadConfigFile returns a Config struct from the YAML file.
