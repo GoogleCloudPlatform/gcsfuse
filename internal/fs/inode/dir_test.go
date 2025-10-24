@@ -166,7 +166,7 @@ func (t *DirTest) readAllEntries() (entries []fuseutil.Dirent, err error) {
 	tok := ""
 	for {
 		var tmp []fuseutil.Dirent
-		tmp, tok, err = t.in.ReadEntries(t.ctx, tok)
+		tmp, _, tok, err = t.in.ReadEntries(t.ctx, tok)
 		entries = append(entries, tmp...)
 		if err != nil {
 			return
@@ -182,16 +182,18 @@ func (t *DirTest) readAllEntries() (entries []fuseutil.Dirent, err error) {
 }
 
 // Read all of the entry cores
-func (t *DirTest) readAllEntryCores() (cores map[Name]*Core, err error) {
+func (t *DirTest) readAllEntryCores() (cores map[Name]*Core, unsupportedObjects []string, err error) {
 	cores = make(map[Name]*Core)
 	tok := ""
 	for {
 		var fetchedCores map[Name]*Core
-		fetchedCores, tok, err = t.in.ReadEntryCores(t.ctx, tok)
+		var fetchedUnsupportedObjects []string
+		fetchedCores, unsupportedObjects, tok, err = t.in.ReadEntryCores(t.ctx, tok)
 		if err != nil {
-			return
+			return nil, nil, err
 		}
 		maps.Copy(cores, fetchedCores)
+		copy(unsupportedObjects, fetchedUnsupportedObjects)
 
 		if tok == "" {
 			break
@@ -1014,10 +1016,11 @@ func (t *DirTest) ReadEntryCores_Empty() {
 	AssertNe(nil, d)
 	AssertTrue(d.prevDirListingTimeStamp.IsZero())
 
-	cores, err := t.readAllEntryCores()
+	cores, unsupportedObjects, err := t.readAllEntryCores()
 
 	AssertEq(nil, err)
 	ExpectEq(0, len(cores))
+	ExpectEq(0, len(unsupportedObjects))
 	// Make sure prevDirListingTimeStamp is initialized.
 	AssertFalse(d.prevDirListingTimeStamp.IsZero())
 }
@@ -1056,7 +1059,7 @@ func (t *DirTest) ReadEntryCores_NonEmpty_ImplicitDirsDisabled() {
 	AssertTrue(d.prevDirListingTimeStamp.IsZero())
 
 	// Read cores.
-	cores, err = t.readAllEntryCores()
+	cores, _, _, err = t.in.ReadEntryCores(t.ctx, "")
 
 	AssertEq(nil, err)
 	AssertEq(4, len(cores))
@@ -1071,6 +1074,7 @@ func (t *DirTest) ReadEntryCores_NonEmpty_ImplicitDirsDisabled() {
 func (t *DirTest) ReadEntryCores_NonEmpty_ImplicitDirsEnabled() {
 	var err error
 	var cores map[Name]*Core
+	var unsupportedObjects []string
 
 	// Enable implicit dirs.
 	t.resetInode(true, false)
@@ -1082,6 +1086,8 @@ func (t *DirTest) ReadEntryCores_NonEmpty_ImplicitDirsEnabled() {
 	testFileName := path.Join(dirInodeName, "file")
 	implicitDirObjName := path.Join(dirInodeName, "implicit_dir") + "/blah"
 	symlinkName := path.Join(dirInodeName, "symlink")
+	unsupportedObjectName1 := dirInodeName + "//" + "a.txt"
+	unsupportedObjectName2 := dirInodeName + "../" + "b.txt"
 
 	objs := []string{
 		backedDirEmptyName,
@@ -1090,6 +1096,8 @@ func (t *DirTest) ReadEntryCores_NonEmpty_ImplicitDirsEnabled() {
 		testFileName,
 		implicitDirObjName,
 		symlinkName,
+		unsupportedObjectName1,
+		unsupportedObjectName2,
 	}
 
 	err = storageutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
@@ -1105,15 +1113,17 @@ func (t *DirTest) ReadEntryCores_NonEmpty_ImplicitDirsEnabled() {
 	AssertTrue(d.prevDirListingTimeStamp.IsZero())
 
 	// Read cores.
-	cores, err = t.readAllEntryCores()
+	cores, unsupportedObjects, err = t.readAllEntryCores()
 
 	AssertEq(nil, err)
 	AssertEq(5, len(cores))
+	AssertEq(2, len(unsupportedObjects))
 	t.validateCore(cores, "backed_dir_empty", true, metadata.ExplicitDirType, backedDirEmptyName)
 	t.validateCore(cores, "backed_dir_nonempty", true, metadata.ExplicitDirType, backedDirNonEmptyName)
 	t.validateCore(cores, "file", false, metadata.RegularFileType, testFileName)
 	t.validateCore(cores, "implicit_dir", true, metadata.ImplicitDirType, path.Join(dirInodeName, "implicit_dir")+"/")
 	t.validateCore(cores, "symlink", false, metadata.SymlinkType, symlinkName)
+	ExpectThat(unsupportedObjects, ElementsAre(dirInodeName+"../", dirInodeName+"/"))
 	// Make sure prevDirListingTimeStamp is initialized.
 	AssertFalse(d.prevDirListingTimeStamp.IsZero())
 }
