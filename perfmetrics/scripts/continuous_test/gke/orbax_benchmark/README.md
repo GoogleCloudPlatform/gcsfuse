@@ -4,7 +4,7 @@ This script automates the process of running the Orbax benchmark on a GKE cluste
 
 ## Prerequisites
 
-Before running the script, ensure you have the following tools installed and configured:
+Before running the script, ensure you have the following tools installed and configured. The script will check for these and attempt to install `kubectl` if it's missing.
 
 -   `gcloud`: The Google Cloud CLI, authenticated with a project. Ensure the following APIs are enabled in your project:
     -   Kubernetes Engine API (`container.googleapis.com`)
@@ -18,13 +18,14 @@ Before running the script, ensure you have the following tools installed and con
 
 The script performs the following steps:
 
-1.  **VPC Network and Subnet Setup**: Creates a VPC network and subnet if they don't already exist.
-2.  **GKE Cluster Setup**: Creates a new GKE cluster with a dedicated node pool.
-3.  **Build GCSFuse CSI Driver**: Clones the specified GCSFuse repository branch and builds the GCSFuse CSI driver container image.
-4.  **Deploy Driver**: Pushes the driver image to Google Container Registry (GCR) and deploys it to the GKE cluster.
-5.  **Run Benchmark**: Deploys the Orbax benchmark workload as a Kubernetes Job.
-6.  **Gather Results**: Fetches the logs from the completed benchmark pod, which contain the performance metrics.
-7.  **Cleanup**: Deletes the GKE cluster and, if `--no_cleanup` is not specified, other created resources like the VPC network and subnet.
+1.  **Prerequisite Check**: Verifies that `gcloud`, `git`, `make`, and `kubectl` are installed.
+2.  **VPC Network and Subnet Setup**: Creates a VPC network and subnet if they don't already exist.
+3.  **GKE Cluster Setup**: Creates a new GKE cluster with a dedicated node pool if one doesn't already exist. If the node pool is unhealthy, it's recreated.
+4.  **Build GCSFuse CSI Driver**: Concurrently with cluster setup, it clones the specified GCSFuse repository branch and builds the GCSFuse CSI driver container image.
+5.  **Run Benchmark**: Deploys the Orbax benchmark workload as a Kubernetes Pod.
+6.  **Gather and Parse Results**: Fetches the logs from the completed benchmark pod and parses them to extract throughput metrics.
+7.  **Evaluate Performance**: Compares the results against a performance threshold to determine if the benchmark passed.
+8.  **Cleanup**: Deletes the GKE cluster and other created resources like the VPC network, subnet, and associated firewall rules, unless the `--no_cleanup` flag is specified.
 
 ## Usage
 
