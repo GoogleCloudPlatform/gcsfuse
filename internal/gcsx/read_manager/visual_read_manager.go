@@ -105,9 +105,7 @@ func (vrm *VisualReadManager) acceptRange(start, end uint64) {
 	}
 
 	// Clamp end to object size.
-	if end > vrm.Object().Size {
-		end = vrm.Object().Size
-	}
+	end = min(end, vrm.Object().Size)
 
 	newRange := workloadinsight.Range{
 		Start: start,
