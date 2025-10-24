@@ -395,6 +395,8 @@ type Config struct {
 
 	Read ReadConfig `yaml:"read"`
 
+	WorkloadInsight WorkloadInsightConfig `yaml:"workload-insight"`
+
 	Write WriteConfig `yaml:"write"`
 }
 
@@ -602,6 +604,12 @@ type ReadStallGcsRetriesConfig struct {
 	ReqIncreaseRate float64 `yaml:"req-increase-rate"`
 
 	ReqTargetPercentile float64 `yaml:"req-target-percentile"`
+}
+
+type WorkloadInsightConfig struct {
+	OutputFile string `yaml:"output-file"`
+
+	Visualize bool `yaml:"visualize"`
 }
 
 type WriteConfig struct {
@@ -1088,6 +1096,18 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("uid", "", -1, "UID owner of all inodes.")
 
+	flagSet.BoolP("visualize-workload-insight", "", false, "A flag to enable workload visualization. When enabled, workload insights will include visualizations to help understand access patterns. insights will be written to the file specified by --workload-insight-output-file.")
+
+	if err := flagSet.MarkHidden("visualize-workload-insight"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("workload-insight-output-file", "", "", "The file path where the workload insights will be written. If not specified, insights will be written to stdout")
+
+	if err := flagSet.MarkHidden("workload-insight-output-file"); err != nil {
+		return err
+	}
+
 	flagSet.IntP("write-block-size-mb", "", 32, "Specifies the block size for streaming writes. The value should be more than 0.")
 
 	if err := flagSet.MarkHidden("write-block-size-mb"); err != nil {
@@ -1548,6 +1568,14 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.uid", flagSet.Lookup("uid")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("workload-insight.visualize", flagSet.Lookup("visualize-workload-insight")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("workload-insight.output-file", flagSet.Lookup("workload-insight-output-file")); err != nil {
 		return err
 	}
 

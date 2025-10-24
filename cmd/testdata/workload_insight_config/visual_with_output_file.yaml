@@ -1,0 +1,3 @@
+workload-insight:
+  visualize: true
+  output-file: /tmp/insight.html
