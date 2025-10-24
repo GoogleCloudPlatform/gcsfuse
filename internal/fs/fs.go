@@ -2571,7 +2571,6 @@ func (fs *fileSystem) renameNonHierarchicalDir(
 				return fmt.Errorf("delete file %q: %w", o.Name, err)
 			}
 		} else {
-			fmt.Println("Dir name: ", newDir.Name().GcsObjectName()+nameDiff)
 			// For regular files, perform an in-place rename to the new directory.
 			if _, err = oldDir.RenameFile(ctx, o, newDir.Name().GcsObjectName()+nameDiff); err != nil {
 				return fmt.Errorf("renameFile: while renaming file: %w", err)
