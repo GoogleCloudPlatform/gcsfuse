@@ -25,10 +25,16 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 const (
 	testDirName = "InterruptTest"
+)
+
+var (
+	storageClient *storage.Client
+	ctx           context.Context
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -38,8 +44,30 @@ const (
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	var storageClient *storage.Client
-	ctx := context.Background()
+	// 1. Load and parse the common configuration.
+	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
+	if len(cfg.Interrupt) == 0 {
+		log.Println("No configuration found for interrupt tests in config. Using flags instead.")
+		// Populate the config manually.
+		cfg.Interrupt = make([]test_suite.TestConfig, 1)
+		cfg.Interrupt[0].TestBucket = setup.TestBucket()
+		cfg.Interrupt[0].GKEMountedDirectory = setup.MountedDirectory()
+		cfg.Interrupt[0].Configs = make([]test_suite.ConfigItem, 2)
+		cfg.Interrupt[0].Configs[0].Flags = []string{
+			"--implicit-dirs=true --enable-streaming-writes=false",
+			"--ignore-interrupts=true --enable-streaming-writes=false",
+			"--ignore-interrupts=false --enable-streaming-writes=false",
+		}
+		cfg.Interrupt[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.Interrupt[0].Configs[1].Flags = []string{
+			"--enable-streaming-writes=true",
+		}
+		cfg.Interrupt[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": false}
+	}
+
+	// 2. Create storage client before running tests.
+	ctx = context.Background()
+	bucketType := setup.TestEnvironment(ctx, &cfg.Interrupt[0])
 	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
 	defer func() {
 		err := closeStorageClient()
@@ -48,30 +76,21 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	setup.RunTestsForMountedDirectoryFlag(m)
-
-	// Else run tests for testBucket.
-	// Set up test directory.
-	setup.SetUpTestDirForTestBucketFlag()
-
-	// Set up flags to run tests on.
-	yamlContent1 := map[string]any{
-		"file-system": map[string]any{
-			"ignore-interrupts": true,
-		},
+	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	// flags to be set, as Interrupt tests validates content from the bucket.
+	if cfg.Interrupt[0].GKEMountedDirectory != "" && cfg.Interrupt[0].TestBucket != "" {
+		os.Exit(setup.RunTestsForMountedDirectory(cfg.Interrupt[0].GKEMountedDirectory, m))
 	}
-	yamlContent2 := map[string]any{} // test default
-	flags := [][]string{
-		{"--implicit-dirs=true", "--enable-streaming-writes=false"},
-		{"--config-file=" + setup.YAMLConfigFile(yamlContent1, "ignore_interrupts.yaml"), "--enable-streaming-writes=false"},
-		{"--config-file=" + setup.YAMLConfigFile(yamlContent2, "default_ignore_interrupts.yaml"), "--enable-streaming-writes=false"}}
-	// TODO(b/417136852): Enable this test for Zonal Bucket also once read start working.
-	if !setup.IsZonalBucketRun() {
-		flags = append(flags, []string{"--enable-streaming-writes=true"})
-	}
-	successCode := static_mounting.RunTests(flags, m)
 
-	// Clean up test directory created.
+	// Run tests for testBucket
+	// 4. Build the flag sets dynamically from the config.
+	flags := setup.BuildFlagSets(cfg.Interrupt[0], bucketType, "")
+
+	setup.SetUpTestDirForTestBucket(&cfg.Interrupt[0])
+
+	successCode := static_mounting.RunTestsWithConfigFile(&cfg.Interrupt[0], flags, m)
+
 	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
+
 }
