@@ -495,3 +495,25 @@ read_gcs_algo:
           hns: true
           zonal: true
         run_on_gke: true
+
+interrupt:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    log_file: # Optional
+    configs:
+      - flags:
+          - "--enable-streaming-writes=true"
+        compatible:
+          flat: true
+          hns: true
+          zonal: false
+        run_on_gke: true
+      - flags:
+          - "--implicit-dirs=true --enable-streaming-writes=false"
+          - "--ignore-interrupts=true --enable-streaming-writes=false"
+          - "--ignore-interrupts=false --enable-streaming-writes=false"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run_on_gke: true
