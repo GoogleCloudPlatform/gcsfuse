@@ -576,6 +576,13 @@ func TestCLIFlagPassing(t *testing.T) {
 				assert.Equal(t, cfg.ProfileAIMLTraining, c.Profile)
 			},
 		},
+		{
+			name: "socketaddress1",
+			args: []string{"--experimental-socket-address", "127.0.0.1"},
+			testFn: func(t *testing.T, c *cfg.Config) {
+				assert.Equal(t, "127.0.0.1", c.GcsConnection.ExperimentalSocketAddress)
+			},
+		},
 	}
 
 	for _, tc := range testCases {
