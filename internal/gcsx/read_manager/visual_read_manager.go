@@ -16,20 +16,14 @@ package read_manager
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"sync"
 
-	"fmt"
-
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workloadinsight"
-)
-
-const (
-	// mergeThreshold defines the gap tolerance for merging adjacent ranges
-	// Currently set to 0 meaning ranges must be exactly adjacent to merge
-	mergeThreshold = 0
 )
 
 type VisualReadManager struct {
@@ -78,25 +72,35 @@ func (vrm *VisualReadManager) ReadAt(ctx context.Context, p []byte, offset int64
 func (vrm *VisualReadManager) Destroy() {
 	defer vrm.wrapped.Destroy()
 
-	output, err := vrm.ioRenderer.Render(vrm.wrapped.Object().Name, vrm.wrapped.Object().Size, vrm.readIOs)
+	output, err := vrm.ioRenderer.Render(vrm.Object().Name, vrm.Object().Size, vrm.readIOs)
 	if err != nil {
 		logger.Warnf("Failed to render read pattern: %v", err)
 		return
 	}
 	if vrm.outputFilePath != "" {
-		f, err := os.OpenFile(vrm.outputFilePath, os.O_APPEND|os.O_WRONLY, 0600)
-		if err == nil {
+		f, err := os.OpenFile(vrm.outputFilePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+		if err != nil {
+			logger.Warnf("Failed to open output file: %v", err)
+		} else {
 			defer f.Close()
 			_, err = f.Write([]byte(output))
 			if err == nil {
 				return
 			}
-			logger.Warnf("Failed to create output file: %v", err)
+			logger.Warnf("Failed to write to output file: %v", err)
 		}
 	}
 
 	// Fallback to logging output
 	fmt.Println(output)
+}
+
+func (vrm *VisualReadManager) Object() *gcs.MinObject {
+	return vrm.wrapped.Object()
+}
+
+func (vrm *VisualReadManager) CheckInvariants() {
+	vrm.wrapped.CheckInvariants()
 }
 
 // acceptRange records a read I/O range and merges it with existing ranges if possible.
@@ -106,8 +110,8 @@ func (vrm *VisualReadManager) acceptRange(start, end uint64) {
 	}
 
 	// Clamp end to object size.
-	if end > vrm.wrapped.Object().Size {
-		end = vrm.wrapped.Object().Size
+	if end > vrm.Object().Size {
+		end = vrm.Object().Size
 	}
 
 	newRange := workloadinsight.Range{
@@ -134,9 +138,8 @@ func (vrm *VisualReadManager) acceptRange(start, end uint64) {
 }
 
 // mergeRanges combines two readIOs into a single range.
-// Merge happens when second range is ahead of first range.End and within the merge threshold.
 func (vrm *VisualReadManager) mergeRanges(first, second workloadinsight.Range) (workloadinsight.Range, bool) {
-	if first.End > second.Start || first.End+mergeThreshold < second.Start {
+	if first.End != second.Start {
 		return workloadinsight.Range{}, false
 	}
 

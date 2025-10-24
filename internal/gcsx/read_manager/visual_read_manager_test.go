@@ -16,14 +16,15 @@ package read_manager
 
 import (
 	"context"
+	"os"
+	"testing"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workloadinsight"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"os"
-	"testing"
 )
 
 func TestNewVisualReadManager(t *testing.T) {
