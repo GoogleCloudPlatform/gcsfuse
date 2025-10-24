@@ -38,7 +38,7 @@ const (
 	ProgramName                  = "gcsfuse"
 	GCSFuseInBackgroundMode      = "GCSFUSE_IN_BACKGROUND_MODE"
 	GCSFuseMountInstanceIDEnvKey = "GCSFUSE_MOUNT_INSTANCE_ID"
-	GCSFuseMountInstanceIDKey    = "mount-id" // Combination of fsName and GCSFUSE_MOUNT_INSTANCE_ID
+	GCSFuseMountIDKey            = "mount-id" // Combination of fsName and GCSFUSE_MOUNT_INSTANCE_ID
 	textFormat                   = "text"
 	// Max possible length can be 32 as UUID has 32 characters excluding 4 hyphens.
 	mountInstanceIDLength = 8
@@ -226,7 +226,7 @@ func (f *loggerFactory) newLogger(level string) *slog.Logger {
 }
 
 func loggerAttr(fsName string) []slog.Attr {
-	return []slog.Attr{slog.String(GCSFuseMountInstanceIDKey, fmt.Sprintf("%s-%s", fsName, MountInstanceID()))}
+	return []slog.Attr{slog.String(GCSFuseMountIDKey, fmt.Sprintf("%s-%s", fsName, MountInstanceID()))}
 }
 
 // create a new logger with mountInstanceID set as custom attribute on logger.
