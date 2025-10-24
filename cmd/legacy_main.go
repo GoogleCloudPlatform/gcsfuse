@@ -330,8 +330,8 @@ func forwardedEnvVars() []string {
 	env = append(env, fmt.Sprintf("%s=true", logger.GCSFuseInBackgroundMode))
 
 	// This environment variable is used to enhance gcsfuse logging by using unique
-	// MountInstanceID to identify logs from different mounts.
-	env = append(env, fmt.Sprintf("%s=%s", logger.GCSFuseMountInstanceIDEnvKey, logger.MountInstanceID()))
+	// MountUUID to identify logs from different mounts.
+	env = append(env, fmt.Sprintf("%s=%s", logger.MountUUIDEnvKey, logger.MountUUID()))
 	return env
 }
 
@@ -410,12 +410,12 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	var metricExporterShutdownFn common.ShutdownFn
 	metricHandle := metrics.NewNoopMetrics()
 	if cfg.IsMetricsEnabled(&newConfig.Metrics) {
-		metricExporterShutdownFn = monitor.SetupOTelMetricExporters(ctx, newConfig, logger.MountInstanceID())
+		metricExporterShutdownFn = monitor.SetupOTelMetricExporters(ctx, newConfig, logger.MountInstanceID(fsName(bucketName)))
 		if metricHandle, err = metrics.NewOTelMetrics(ctx, int(newConfig.Metrics.Workers), int(newConfig.Metrics.BufferSize)); err != nil {
 			metricHandle = metrics.NewNoopMetrics()
 		}
 	}
-	shutdownTracingFn := monitor.SetupTracing(ctx, newConfig, logger.MountInstanceID())
+	shutdownTracingFn := monitor.SetupTracing(ctx, newConfig, logger.MountInstanceID(fsName(bucketName)))
 	shutdownFn := common.JoinShutdownFunc(metricExporterShutdownFn, shutdownTracingFn)
 
 	// No-op if profiler is disabled.
