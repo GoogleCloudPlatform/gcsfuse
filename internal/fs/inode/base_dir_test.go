@@ -231,10 +231,11 @@ func (t *BaseDirTest) Test_ShouldInvalidateKernelListCache_TtlExpired() {
 }
 
 func (t *BaseDirTest) TestReadEntryCores() {
-	cores, newTok, err := t.in.ReadEntryCores(t.ctx, "")
+	cores, unsupportedObjects, newTok, err := t.in.ReadEntryCores(t.ctx, "")
 
 	// Should return ENOTSUP because listing is unsupported.
 	ExpectEq(nil, cores)
+	ExpectEq(nil, unsupportedObjects)
 	ExpectEq("", newTok)
 	ExpectEq(syscall.ENOTSUP, err)
 }
