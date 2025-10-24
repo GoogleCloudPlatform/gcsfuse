@@ -338,7 +338,7 @@ func TestInitLogFile(t *testing.T) {
 		},
 	}
 
-	err := InitLogFile(newLogConfig)
+	err := InitLogFile(newLogConfig, testFsName)
 
 	require.NoError(t, err)
 	require.NotNil(t, defaultLoggerFactory.file)

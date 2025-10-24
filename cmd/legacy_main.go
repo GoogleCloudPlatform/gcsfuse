@@ -344,7 +344,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	logger.UpdateDefaultLogger(newConfig.Logging.Format, fsName(bucketName))
 
 	if newConfig.Foreground {
-		err = logger.InitLogFile(newConfig.Logging)
+		err = logger.InitLogFile(newConfig.Logging, fsName(bucketName))
 		if err != nil {
 			return fmt.Errorf("init log file: %w", err)
 		}

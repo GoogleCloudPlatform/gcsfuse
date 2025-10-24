@@ -52,13 +52,13 @@ var (
 )
 
 // InitLogFile initializes the logger factory to create loggers that print to
-// a log file.
+// a log file, with MountInstanceID set as a custom attribute.
 // In case of empty file, it starts writing the log to syslog file, which
 // is eventually filtered and redirected to a fixed location using syslog
 // config.
 // Here, background true means, this InitLogFile has been called for the
 // background daemon.
-func InitLogFile(newLogConfig cfg.LoggingConfig) error {
+func InitLogFile(newLogConfig cfg.LoggingConfig, fsName string) error {
 	var f *os.File
 	var sysWriter *syslog.Writer
 	var fileWriter *lumberjack.Logger
@@ -101,7 +101,7 @@ func InitLogFile(newLogConfig cfg.LoggingConfig) error {
 		level:      string(newLogConfig.Severity),
 		logRotate:  newLogConfig.LogRotate,
 	}
-	defaultLogger = defaultLoggerFactory.newLogger(string(newLogConfig.Severity))
+	defaultLogger = defaultLoggerFactory.newLoggerWithMountInstanceID(string(newLogConfig.Severity), fsName)
 
 	return nil
 }
