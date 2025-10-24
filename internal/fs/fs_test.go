@@ -124,6 +124,7 @@ func defaultFileCacheConfig() cfg.FileCacheConfig {
 func (t *fsTest) SetUpTestSuite() {
 	var err error
 	ctx = context.Background()
+	fmt.Println("Setting up FSTest")
 
 	// Set up the clocks.
 	mtimeClock = timeutil.RealClock()
@@ -209,6 +210,8 @@ func (t *fsTest) SetUpTestSuite() {
 
 func (t *fsTest) TearDownTestSuite() {
 	var err error
+
+	fmt.Println("Tearing down FSTest")
 	// Unmount the file system. Try again on "resource busy" errors.
 	delay := 10 * time.Millisecond
 	for {
