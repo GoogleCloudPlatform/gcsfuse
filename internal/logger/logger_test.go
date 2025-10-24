@@ -397,68 +397,68 @@ func TestUpdateDefaultLogger(t *testing.T) {
 	}
 }
 
-func TestGenerateMountInstanceID_Success(t *testing.T) {
+func TestGenerateMountUUID_Success(t *testing.T) {
 	testCases := []struct {
-		name                         string
-		size                         int
-		expectedMountInstanceIDRegex string
+		name                   string
+		size                   int
+		expectedMountUUIDRegex string
 	}{
 		{
-			name:                         "TenChars",
-			size:                         10,
-			expectedMountInstanceIDRegex: "^[0-9a-f]{10}$",
+			name:                   "TenChars",
+			size:                   10,
+			expectedMountUUIDRegex: "^[0-9a-f]{10}$",
 		},
 		{
-			name:                         "ThirtyTwoChars",
-			size:                         32,
-			expectedMountInstanceIDRegex: "^[0-9a-f]{32}$",
+			name:                   "ThirtyTwoChars",
+			size:                   32,
+			expectedMountUUIDRegex: "^[0-9a-f]{32}$",
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mountInstanceID, err := generateMountInstanceID(tc.size)
+			mountUUID, err := generateMountUUID(tc.size)
 
 			require.NoError(t, err)
-			assert.Regexp(t, tc.expectedMountInstanceIDRegex, mountInstanceID)
+			assert.Regexp(t, tc.expectedMountUUIDRegex, mountUUID)
 		})
 	}
 }
 
-func TestGenerateMountInstanceID_FailureDueToUUIDSize(t *testing.T) {
-	mountInstanceID, err := generateMountInstanceID(999)
+func TestGenerateMountUUID_FailureDueToUUIDSize(t *testing.T) {
+	mountUUID, err := generateMountUUID(999)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "UUID is smaller than requested size")
-	assert.Equal(t, "", mountInstanceID)
+	assert.Equal(t, "", mountUUID)
 }
 
-func TestGenerateMountInstanceID_FailureDueToNegativeSize(t *testing.T) {
-	mountInstanceID, err := generateMountInstanceID(0)
+func TestGenerateMountUUID_FailureDueToNegativeSize(t *testing.T) {
+	mountUUID, err := generateMountUUID(0)
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "MountInstanceID must be positive")
-	assert.Equal(t, "", mountInstanceID)
+	assert.Contains(t, err.Error(), "MountUUID must be positive")
+	assert.Equal(t, "", mountUUID)
 }
 
-func TestSetupMountInstanceID_Success(t *testing.T) {
+func TestSetupMountUUID_Success(t *testing.T) {
 	testCases := []struct {
-		name                         string
-		inBackgroundMode             bool
-		mountInstanceIDEnv           string
-		expectedID                   string
-		expectedMountInstanceIDRegex string
+		name                   string
+		inBackgroundMode       bool
+		mountUUIDEnv           string
+		expectedID             string
+		expectedMountUUIDRegex string
 	}{
 		{
-			name:                         "ForegroundMode",
-			inBackgroundMode:             false,
-			expectedID:                   "",
-			expectedMountInstanceIDRegex: "^[0-9a-f]{8}$", // default size for MountInstanceID is 8.
+			name:                   "ForegroundMode",
+			inBackgroundMode:       false,
+			expectedID:             "",
+			expectedMountUUIDRegex: "^[0-9a-f]{8}$", // default size for MountUUID is 8.
 		},
 		{
-			name:               "BackgroundModeWithInstanceID",
-			inBackgroundMode:   true,
-			mountInstanceIDEnv: "12345678",
-			expectedID:         "12345678",
+			name:             "BackgroundModeWithInstanceID",
+			inBackgroundMode: true,
+			mountUUIDEnv:     "12345678",
+			expectedID:       "12345678",
 		},
 	}
 
@@ -466,21 +466,21 @@ func TestSetupMountInstanceID_Success(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Cleanup(func() {
 				// Initialize package level variables for each subtest to ensure isolation.
-				mountInstanceID = ""
-				setupMountInstanceIDOnce = sync.Once{}
+				mountUUID = ""
+				setupMountUUIDOnce = sync.Once{}
 			})
 			if tc.inBackgroundMode {
 				t.Setenv(GCSFuseInBackgroundMode, "true")
-				t.Setenv(GCSFuseMountInstanceIDEnvKey, tc.mountInstanceIDEnv)
+				t.Setenv(MountUUIDEnvKey, tc.mountUUIDEnv)
 			}
 
-			setupMountInstanceID()
+			setupMountUUID()
 
 			if tc.inBackgroundMode {
-				assert.Equal(t, tc.expectedID, mountInstanceID)
+				assert.Equal(t, tc.expectedID, mountUUID)
 			} else {
-				assert.Len(t, mountInstanceID, mountInstanceIDLength)
-				assert.Regexp(t, tc.expectedMountInstanceIDRegex, mountInstanceID)
+				assert.Len(t, mountUUID, mountUUIDLength)
+				assert.Regexp(t, tc.expectedMountUUIDRegex, mountUUID)
 			}
 		})
 	}

@@ -365,7 +365,7 @@ func (t *MainTest) TestForwardedEnvVars_AlwaysPresent() {
 	require.NoError(t.T(), err)
 	expectedForwardedEnvVars := []string{
 		"GCSFUSE_IN_BACKGROUND_MODE=true",
-		"GCSFUSE_MOUNT_INSTANCE_ID=" + logger.MountInstanceID(),
+		"GCSFUSE_MOUNT_UUID=" + logger.MountUUID(),
 		"PATH=" + os.Getenv("PATH"),
 		"HOME=" + homeDir,
 		util.GCSFUSE_PARENT_PROCESS_DIR + "=" + parentDir,
