@@ -14,7 +14,7 @@
 
 CSI_VERSION ?= main
 GCSFUSE_VERSION ?= $(shell HASH=$$(git rev-parse --short=6 HEAD 2>/dev/null); if [ -z "$$HASH" ]; then echo "unknown"; else if [ -n "$$(git status --porcelain)" ]; then echo "$$HASH-dirty"; else echo "$$HASH"; fi; fi)
-BUILD_ARM=false
+BUILD_ARM ?= true
 STAGINGVERSION ?=
 .DEFAULT_GOAL := build
 
