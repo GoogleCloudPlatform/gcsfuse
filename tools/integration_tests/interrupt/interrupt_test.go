@@ -60,7 +60,6 @@ func TestMain(m *testing.M) {
 		}
 		cfg.Interrupt[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.Interrupt[0].Configs[1].Flags = []string{
-			// TODO(b/417136852): Enable this test for Zonal Bucket also once read start working.
 			"--enable-streaming-writes=true",
 		}
 		cfg.Interrupt[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": false}

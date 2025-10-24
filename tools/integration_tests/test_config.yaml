@@ -489,6 +489,7 @@ read_gcs_algo:
     log_file: # Not required by readonly tests.
     configs:
       - flags:
+        # Do not enable fileCache as we want to test gcs read flow.
           - "--implicit-dirs=true"
         compatible:
           flat: true
@@ -502,6 +503,7 @@ interrupt:
     log_file: # Optional
     configs:
       - flags:
+        #TODO(b/417136852): Enable this test for Zonal Bucket also once read start working.
           - "--enable-streaming-writes=true"
         compatible:
           flat: true
