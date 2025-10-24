@@ -160,6 +160,8 @@ func MountUUID() string {
 
 // MountInstaceID returns the InstaceID of current gcsfuse mount.
 // This is combination of `fsName` + MountUUID.
+// Note: fsName is passed here explictly, as logger package doesn't know about fsName
+// when MountInstaceID method is invoked.
 func MountInstanceID(fsName string) string {
 	return fmt.Sprintf("%s-%s", fsName, MountUUID())
 }
