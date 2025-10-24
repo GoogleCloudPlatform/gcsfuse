@@ -107,6 +107,7 @@ func (t *hnsDirTest) resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonex
 		&t.fixedTime,
 		typeCacheMaxSizeMB,
 		true,
+		true,
 	)
 
 	d := t.in.(*dirInode)
@@ -136,6 +137,7 @@ func (t *hnsDirTest) createDirInode(dirInodeName string) DirInode {
 		&t.fixedTime,
 		4,
 		false,
+		true,
 	)
 }
 
