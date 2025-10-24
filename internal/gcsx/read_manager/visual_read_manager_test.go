@@ -211,9 +211,40 @@ func TestVisualReadManager_Destroy_WithOutputFile(t *testing.T) {
 
 	// Verify that the output file was created and contains data.
 	data, err := os.ReadFile(outputFilePath)
-	require.NoError(t, err, "Should be able to read the output file")
+	assert.NoError(t, err, "Should be able to read the output file")
 	assert.NotEmpty(t, data, "Output file should not be empty")
 	err = os.Remove(outputFilePath)
-	require.NoError(t, err, "Should be able to delete the output file")
+	assert.NoError(t, err, "Should be able to delete the output file")
 	mockReadManager.AssertExpectations(t)
+}
+
+func TestAppendToFile_EmptyFile(t *testing.T) {
+	outputFilePath := "test_append_output.txt"
+	text1 := "First line of text.\n"
+
+	err := appendToFile(outputFilePath, text1)
+
+	assert.NoError(t, err, "First appendToFile should not return an error")
+	data, err := os.ReadFile(outputFilePath)
+	assert.NoError(t, err, "Should be able to read the output file")
+	assert.Equal(t, text1, string(data), "Output file content should match expected")
+	err = os.Remove(outputFilePath)
+	assert.NoError(t, err, "Should be able to delete the output file")
+}
+
+func TestAppendToFile_NonEmptyFile(t *testing.T) {
+	outputFilePath := "test_append_output.txt"
+	text1 := "First line of text.\n"
+	err := appendToFile(outputFilePath, text1)
+	require.NoError(t, err, "First appendToFile should not return an error")
+
+	text2 := "Second line of text.\n"
+	err = appendToFile(outputFilePath, text2)
+	require.NoError(t, err, "Second appendToFile should not return an error")
+
+	data, err := os.ReadFile(outputFilePath)
+	assert.NoError(t, err, "Should be able to read the output file")
+	assert.Equal(t, text1+text2, string(data), "Output file content should match expected")
+	err = os.Remove(outputFilePath)
+	assert.NoError(t, err, "Should be able to delete the output file")
 }

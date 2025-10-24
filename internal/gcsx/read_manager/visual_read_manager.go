@@ -16,6 +16,7 @@ package read_manager
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -77,22 +78,16 @@ func (vrm *VisualReadManager) Destroy() {
 		logger.Warnf("Failed to render read pattern: %v", err)
 		return
 	}
-	if vrm.outputFilePath != "" {
-		f, err := os.OpenFile(vrm.outputFilePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
-		if err != nil {
-			logger.Warnf("Failed to open output file: %v", err)
-		} else {
-			defer f.Close()
-			_, err = f.Write([]byte(output))
-			if err == nil {
-				return
-			}
-			logger.Warnf("Failed to write to output file: %v", err)
-		}
+	if vrm.outputFilePath == "" {
+		fmt.Println(output)
+		return
 	}
 
-	// Fallback to logging output
-	fmt.Println(output)
+	if err := appendToFile(vrm.outputFilePath, output); err != nil {
+		fmt.Println(output)
+		logger.Warnf("Failed to append to output file: %v", err)
+		return
+	}
 }
 
 func (vrm *VisualReadManager) Object() *gcs.MinObject {
@@ -144,4 +139,23 @@ func (vrm *VisualReadManager) mergeRanges(first, second workloadinsight.Range) (
 	}
 
 	return workloadinsight.Range{Start: first.Start, End: second.End}, true
+}
+
+// appendToFile appends the given text to the specified output file.
+// If the file does not exist, it is created.
+func appendToFile(outputFilePath, text string) error {
+	if outputFilePath == "" {
+		return errors.New("output file path is empty")
+	}
+
+	f, err := os.OpenFile(outputFilePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	if err != nil {
+		return fmt.Errorf("failed to open output file: %w", err)
+	}
+	defer f.Close()
+
+	if _, err := f.Write([]byte(text)); err != nil {
+		return fmt.Errorf("failed to write to output file: %w", err)
+	}
+	return nil
 }
