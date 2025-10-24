@@ -107,6 +107,7 @@ func (t *hnsDirTest) resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonex
 		&t.fixedTime,
 		typeCacheMaxSizeMB,
 		true,
+		true,
 	)
 
 	d := t.in.(*dirInode)
@@ -136,6 +137,7 @@ func (t *hnsDirTest) createDirInode(dirInodeName string) DirInode {
 		&t.fixedTime,
 		4,
 		false,
+		true,
 	)
 }
 
@@ -597,7 +599,7 @@ func (t *HNSDirTest) TestReadEntriesInHierarchicalBucket() {
 	}
 	t.mockBucket.On("ListObjects", t.ctx, &listObjectReq).Return(&listing, nil)
 
-	entries, _, err := t.in.ReadEntries(t.ctx, tok)
+	entries, _, _, err := t.in.ReadEntries(t.ctx, tok)
 
 	t.mockBucket.AssertExpectations(t.T())
 	assert.NoError(t.T(), err)
