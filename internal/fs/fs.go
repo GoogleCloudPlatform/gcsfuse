@@ -2186,10 +2186,21 @@ func (fs *fileSystem) RmDir(
 	var tok string
 	for {
 		var entries []fuseutil.Dirent
-		entries, _, tok, err = childDir.ReadEntries(ctx, tok)
+		var unsupportedObjects []string
+		entries, unsupportedObjects, tok, err = childDir.ReadEntries(ctx, tok)
 		if err != nil {
 			err = fmt.Errorf("ReadEntries: %w", err)
 			return err
+		}
+
+		// If there are unsupported objects, delete them recursively.
+		if len(unsupportedObjects) > 0 {
+			err = childDir.DeleteObjects(ctx, unsupportedObjects)
+			if err != nil {
+				return fmt.Errorf("RmDir: failed to delete unsupported objects: %w", err)
+			}
+			// After deleting, we need to re-check for emptiness.
+			continue
 		}
 
 		if fs.kernelListCacheTTL > 0 {
