@@ -2791,7 +2791,6 @@ func (fs *fileSystem) OpenFile(
 	op *fuseops.OpenFileOp) (err error) {
 	// Bypass the kernel's page cache for file reads and writes
 	if fs.newConfig.FileSystem.ODirect {
-		logger.Infof("O_DIRECT enabled for file: %d", op.Inode)
 		op.UseDirectIO = true
 	}
 
