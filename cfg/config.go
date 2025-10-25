@@ -455,6 +455,8 @@ type FileSystemConfig struct {
 
 	PreconditionErrors bool `yaml:"precondition-errors"`
 
+	ODirect bool `yaml:"o-direct"`
+
 	RenameDirLimit int64 `yaml:"rename-dir-limit"`
 
 	TempDir ResolvedPath `yaml:"temp-dir"`
@@ -966,6 +968,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringSliceP("o", "", []string{}, "Additional system-specific mount options. Multiple options can be passed as comma separated. For readonly, use --o ro")
 
+	flagSet.BoolP("o-direct", "", false, "By-passes page cache for file reads and writes, so every request is served via GCSFuse.")
+
 	flagSet.StringP("only-dir", "", "", "Mount only a specific directory within the bucket. See docs/mounting for more information")
 
 	flagSet.BoolP("precondition-errors", "", true, "Throw Stale NFS file handle error in case the object being synced or read from is modified by some other concurrent process. This helps prevent silent data loss or data corruption.")
@@ -1432,6 +1436,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.fuse-options", flagSet.Lookup("o")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.o-direct", flagSet.Lookup("o-direct")); err != nil {
 		return err
 	}
 

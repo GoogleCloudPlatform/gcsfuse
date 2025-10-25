@@ -360,6 +360,14 @@ params:
     hide-flag: true
     default: true
 
+  - config-path: "file-system.o-direct"
+    flag-name: "o-direct"
+    type: "bool"
+    usage: >-
+      By-passes page cache for file reads and writes, so every request is served
+      via GCSFuse.
+    default: "false"
+
   - config-path: "file-system.rename-dir-limit"
     flag-name: "rename-dir-limit"
     type: "int"
