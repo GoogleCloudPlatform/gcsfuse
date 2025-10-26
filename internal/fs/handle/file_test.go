@@ -1053,5 +1053,5 @@ func (t *fileTest) Test_ReadWithReadManager_WorkloadInsightVisual() {
 
 	// Validate the output file creation for workload insight.
 	assert.FileExists(t.T(), "test.txt")
-	defer os.Remove("test.txt") // Clean up after test
+	require.NoError(t.T(), os.Remove("test.txt")) // Clean up the file after test.
 }
