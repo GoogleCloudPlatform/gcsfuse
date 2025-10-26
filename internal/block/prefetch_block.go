@@ -26,7 +26,9 @@ import (
 // that may have occurred during the block's operation.
 type BlockStatus struct {
 	State BlockState
-	Err   error
+	// Used for Inprogress state to indicate the download so far.
+	Offset int64
+	Err    error
 }
 
 // BlockState represents the state of the block.
@@ -57,7 +59,7 @@ type PrefetchBlock interface {
 
 	// AwaitReady waits for the block to be ready to consume.
 	// It returns the status of the block and an error if any.
-	AwaitReady(ctx context.Context) (BlockStatus, error)
+	AwaitReady(ctx context.Context, offset int64) (BlockStatus, error)
 
 	// NotifyReady is used by producer to mark the block as ready to consume.
 	// The value indicates the status of the block:
@@ -82,8 +84,8 @@ type prefetchMemoryBlock struct {
 func (pmb *prefetchMemoryBlock) Reuse() {
 	pmb.memoryBlock.Reuse()
 
-	pmb.notification = make(chan BlockStatus, 1)
-	pmb.status = BlockStatus{State: BlockStateInProgress}
+	pmb.notification = make(chan BlockStatus, pmb.Size()/(1024*1024))
+	pmb.status = BlockStatus{State: BlockStateInProgress, Offset: 0}
 	pmb.absStartOff = -1
 }
 
@@ -102,8 +104,8 @@ func createPrefetchBlock(blockSize int64) (PrefetchBlock, error) {
 
 	pmb := prefetchMemoryBlock{
 		memoryBlock:  mb,
-		status:       BlockStatus{State: BlockStateInProgress},
-		notification: make(chan BlockStatus, 1),
+		status:       BlockStatus{State: BlockStateInProgress, Offset: 0},
+		notification: make(chan BlockStatus, blockSize/(1024*1024)),
 		absStartOff:  -1,
 	}
 
@@ -149,21 +151,27 @@ func (pmb *prefetchMemoryBlock) SetAbsStartOff(startOff int64) error {
 
 // AwaitReady waits for the block to be ready to consume.
 // It returns the status of the block and an error if any.
-func (pmb *prefetchMemoryBlock) AwaitReady(ctx context.Context) (BlockStatus, error) {
-	select {
-	case val, ok := <-pmb.notification:
-		if !ok {
-			return pmb.status, nil
+func (pmb *prefetchMemoryBlock) AwaitReady(ctx context.Context, offset int64) (BlockStatus, error) {
+	for {
+		select {
+		case val, ok := <-pmb.notification:
+			if !ok {
+				return pmb.status, nil
+			}
+
+			pmb.status = val
+
+			if val.State == BlockStateInProgress && val.Offset >= offset {
+				// Close the notification channel to prevent further notifications.
+				return pmb.status, nil
+			} else if val.State != BlockStateInProgress {
+				// Close the notification channel to prevent further notifications.
+				close(pmb.notification)
+				return pmb.status, nil
+			}
+		case <-ctx.Done():
+			return BlockStatus{State: BlockStateInProgress}, ctx.Err()
 		}
-
-		// Close the notification channel to prevent further notifications.
-		close(pmb.notification)
-		// Save the last status for subsequent AwaitReady calls.
-		pmb.status = val
-
-		return pmb.status, nil
-	case <-ctx.Done():
-		return BlockStatus{State: BlockStateInProgress}, ctx.Err()
 	}
 }
 
@@ -172,9 +180,13 @@ func (pmb *prefetchMemoryBlock) AwaitReady(ctx context.Context) (BlockStatus, er
 // If called multiple times, it will panic - either because of writing to the
 // closed channel or blocking due to writing over full notification channel.
 func (pmb *prefetchMemoryBlock) NotifyReady(val BlockStatus) {
-	select {
-	case pmb.notification <- val:
-	default:
-		panic("Expected to notify only once, but got multiple notifications.")
+	if pmb.status.State != BlockStateInProgress {
+		select {
+		case pmb.notification <- val:
+		default:
+			panic("Expected to notify only once, but got multiple notifications.")
+		}
+	} else {
+		pmb.notification <- val
 	}
 }

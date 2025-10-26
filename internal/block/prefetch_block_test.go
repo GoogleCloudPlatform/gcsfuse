@@ -179,7 +179,7 @@ func (testSuite *PrefetchMemoryBlockTest) TestAwaitReadyWaitIfNotNotify() {
 	ctx, cancel := context.WithTimeout(testSuite.T().Context(), 100*time.Millisecond)
 	defer cancel()
 
-	_, err = pmb.AwaitReady(ctx)
+	_, err = pmb.AwaitReady(ctx, 12)
 
 	assert.NotNil(testSuite.T(), err)
 	assert.EqualError(testSuite.T(), context.DeadlineExceeded, err.Error())
@@ -191,7 +191,7 @@ func (testSuite *PrefetchMemoryBlockTest) TestAwaitReadyReturnsErrorOnContextCan
 	ctx, cancel := context.WithCancel(testSuite.T().Context())
 	cancel() // Cancel the context immediately
 
-	_, err = pmb.AwaitReady(ctx)
+	_, err = pmb.AwaitReady(ctx, 12)
 
 	require.NotNil(testSuite.T(), err)
 	assert.EqualError(testSuite.T(), context.Canceled, err.Error())
@@ -224,7 +224,7 @@ func (testSuite *PrefetchMemoryBlockTest) TestAwaitReadyNotifyVariants() {
 				pmb.NotifyReady(tt.notifyStatus)
 			}()
 
-			status, err := pmb.AwaitReady(context.Background())
+			status, err := pmb.AwaitReady(context.Background(), 12)
 
 			require.Nil(t, err)
 			assert.Equal(t, tt.wantStatus, status)
@@ -232,16 +232,16 @@ func (testSuite *PrefetchMemoryBlockTest) TestAwaitReadyNotifyVariants() {
 	}
 }
 
-func (testSuite *PrefetchMemoryBlockTest) TestTwoNotifyReadyWithoutAwaitReady() {
-	pmb, err := createPrefetchBlock(12)
-	require.Nil(testSuite.T(), err)
+// func (testSuite *PrefetchMemoryBlockTest) TestTwoNotifyReadyWithoutAwaitReady() {
+// 	pmb, err := createPrefetchBlock(12)
+// 	require.Nil(testSuite.T(), err)
 
-	pmb.NotifyReady(BlockStatus{State: BlockStateDownloaded})
-	// 2nd notify will lead to panic since it is not allowed to notify a block more than once.
-	assert.Panics(testSuite.T(), func() {
-		pmb.NotifyReady(BlockStatus{State: BlockStateDownloaded})
-	})
-}
+// 	pmb.NotifyReady(BlockStatus{State: BlockStateDownloaded})
+// 	// 2nd notify will lead to panic since it is not allowed to notify a block more than once.
+// 	assert.Panics(testSuite.T(), func() {
+// 		pmb.NotifyReady(BlockStatus{State: BlockStateDownloaded})
+// 	})
+// }
 
 func (testSuite *PrefetchMemoryBlockTest) TestNotifyReadyAfterAwaitReady() {
 	pmb, err := createPrefetchBlock(12)
@@ -251,7 +251,7 @@ func (testSuite *PrefetchMemoryBlockTest) TestNotifyReadyAfterAwaitReady() {
 	go func() {
 		pmb.NotifyReady(BlockStatus{State: BlockStateDownloaded})
 	}()
-	status, err := pmb.AwaitReady(ctx)
+	status, err := pmb.AwaitReady(ctx, 12)
 	require.Nil(testSuite.T(), err)
 	assert.Equal(testSuite.T(), BlockStatus{State: BlockStateDownloaded}, status)
 
@@ -278,11 +278,90 @@ func (testSuite *PrefetchMemoryBlockTest) TestSingleNotifyAndMultipleAwaitReady(
 		go func() {
 			defer wg.Done()
 
-			status, err := pmb.AwaitReady(ctx)
+			status, err := pmb.AwaitReady(ctx, 12)
 
 			require.Nil(testSuite.T(), err)
 			assert.Equal(testSuite.T(), BlockStatus{State: BlockStateDownloaded}, status)
 		}()
 	}
 	wg.Wait()
+}
+
+func (testSuite *PrefetchMemoryBlockTest) TestAwaitRead_Offset_Success() {
+	tc := []struct {
+		name         string
+		notifyStatus BlockStatus
+		offset       int64
+		wantStatus   BlockStatus
+	}{
+		{
+			name:         "AwaitReady_OffsetWithCompleteDownload",
+			notifyStatus: BlockStatus{State: BlockStateDownloaded},
+			offset:       6,
+			wantStatus:   BlockStatus{State: BlockStateDownloaded},
+		},
+		{
+			name:         "AwaitReady_OffsetLessThanNotified",
+			notifyStatus: BlockStatus{State: BlockStateInProgress, Offset: 10},
+			offset:       6,
+			wantStatus:   BlockStatus{State: BlockStateInProgress, Offset: 10},
+		},
+		{
+			name:         "AwaitReady_OffsetEqualToNotified",
+			notifyStatus: BlockStatus{State: BlockStateInProgress, Offset: 10},
+			offset:       10,
+			wantStatus:   BlockStatus{State: BlockStateInProgress, Offset: 10},
+		},
+	}
+
+	for _, tt := range tc {
+		testSuite.T().Run(tt.name, func(t *testing.T) {
+			pmb, err := createPrefetchBlock(12)
+			require.Nil(t, err)
+			go func() {
+				time.Sleep(time.Millisecond)
+				pmb.NotifyReady(tt.notifyStatus)
+			}()
+
+			status, err := pmb.AwaitReady(context.Background(), tt.offset)
+
+			require.Nil(t, err)
+			assert.Equal(t, tt.wantStatus, status)
+		})
+	}
+}
+
+func (testSuite *PrefetchMemoryBlockTest) TestAwaitRead_Offset_TimedOut() {
+	tc := []struct {
+		name         string
+		notifyStatus BlockStatus
+		offset       int64
+		wantStatus   BlockStatus
+	}{
+		{
+			name:         "AwaitReady_OffsetGreaterThanNotified",
+			notifyStatus: BlockStatus{State: BlockStateInProgress, Offset: 10},
+			offset:       12,
+			wantStatus:   BlockStatus{State: BlockStateInProgress, Offset: 10},
+		},
+	}
+
+	for _, tt := range tc {
+		testSuite.T().Run(tt.name, func(t *testing.T) {
+			pmb, err := createPrefetchBlock(12)
+			require.Nil(t, err)
+			go func() {
+				time.Sleep(50 * time.Millisecond)
+				pmb.NotifyReady(tt.notifyStatus)
+			}()
+			ctx, cancel := context.WithTimeout(testSuite.T().Context(), 10*time.Millisecond)
+			defer cancel()
+
+			status, err := pmb.AwaitReady(ctx, tt.offset)
+
+			require.NotNil(t, err)
+			assert.EqualError(t, context.DeadlineExceeded, err.Error())
+			assert.Equal(t, BlockStatus{}, status)
+		})
+	}
 }

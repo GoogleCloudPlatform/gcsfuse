@@ -173,7 +173,7 @@ func (p *BufferedReader) handleRandomRead(offset int64, handleID int64) error {
 	for !p.blockQueue.IsEmpty() {
 		entry := p.blockQueue.Pop()
 		entry.cancel()
-		if _, waitErr := entry.block.AwaitReady(context.Background()); waitErr != nil {
+		if _, waitErr := entry.block.AwaitReady(context.Background(), p.config.PrefetchBlockSizeBytes); waitErr != nil {
 			logger.Warnf("handleRandomRead: AwaitReady during discard (offset=%d): %v", offset, waitErr)
 		}
 		p.blockPool.Release(entry.block)
@@ -222,7 +222,7 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 			p.blockQueue.Pop()
 			entry.cancel()
 
-			if _, waitErr := block.AwaitReady(context.Background()); waitErr != nil {
+			if _, waitErr := block.AwaitReady(context.Background(), p.config.PrefetchBlockSizeBytes); waitErr != nil {
 				logger.Warnf("prepareQueueForOffset: AwaitReady during discard (offset=%d): %v", offset, waitErr)
 			}
 
@@ -313,13 +313,19 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		entry := p.blockQueue.Peek()
 		blk := entry.block
 
-		status, waitErr := blk.AwaitReady(ctx)
+		endRelOff := off + int64(len(inputBuf)-bytesRead)
+		if endRelOff > int64(p.object.Size) {
+			endRelOff = int64(p.object.Size)
+		}
+		endRelOff -= blk.AbsStartOff()
+
+		status, waitErr := blk.AwaitReady(ctx, min(endRelOff, p.config.PrefetchBlockSizeBytes))
 		if waitErr != nil {
 			err = fmt.Errorf("BufferedReader.ReadAt: AwaitReady: %w", waitErr)
 			break
 		}
 
-		if status.State != block.BlockStateDownloaded {
+		if !(status.State == block.BlockStateDownloaded || status.State == block.BlockStateInProgress) {
 			p.blockQueue.Pop()
 			p.blockPool.Release(blk)
 			entry.cancel()
@@ -487,7 +493,7 @@ func (p *BufferedReader) Destroy() {
 
 		// We wait for the block's worker goroutine to finish. We expect its
 		// status to contain a context.Canceled error because we just called cancel.
-		status, err := bqe.block.AwaitReady(context.Background())
+		status, err := bqe.block.AwaitReady(context.Background(), p.config.PrefetchBlockSizeBytes)
 		if err != nil {
 			logger.Warnf("Destroy: AwaitReady for block failed: %v", err)
 		} else if status.Err != nil && !errors.Is(status.Err, context.Canceled) {
