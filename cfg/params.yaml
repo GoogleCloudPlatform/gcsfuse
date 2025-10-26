@@ -947,6 +947,25 @@ params:
     default: 1
     hide-flag: true
 
+  - config-path: "workload-insight.output-file"
+    flag-name: "workload-insight-output-file"
+    type: "string"
+    usage: >-
+      The file path where the workload insights will be written.
+      If not specified, insights will be written to stdout
+    default: ""
+    hide-flag: true
+
+  - config-path: "workload-insight.visualize"
+    flag-name: "visualize-workload-insight"
+    type: "bool"
+    usage: >-
+      A flag to enable workload visualization. When enabled, workload insights
+      will include visualizations to help understand access patterns. Insights
+      will be written to the file specified by --workload-insight-output-file.
+    default: false
+    hide-flag: true
+
   - config-path: "write.block-size-mb"
     flag-name: "write-block-size-mb"
     type: "int"

@@ -1815,3 +1815,104 @@ func TestArgsParsing_ReadInactiveTimeoutConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestArgsParsing_WorkloadInsightFlags(t *testing.T) {
+	tests := []struct {
+		name           string
+		args           []string
+		expectedConfig *cfg.Config
+	}{
+		{
+			name: "default",
+			args: []string{"gcsfuse", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				WorkloadInsight: cfg.WorkloadInsightConfig{
+					Visualize:  false,
+					OutputFile: "",
+				},
+			},
+		},
+		{
+			name: "visual with output file",
+			args: []string{"gcsfuse", "--visualize-workload-insight=true", "--workload-insight-output-file=/tmp/insight.html", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				WorkloadInsight: cfg.WorkloadInsightConfig{
+					Visualize:  true,
+					OutputFile: "/tmp/insight.html",
+				},
+			},
+		},
+		{
+			name: "visual without output file",
+			args: []string{"gcsfuse", "--visualize-workload-insight=true", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				WorkloadInsight: cfg.WorkloadInsightConfig{
+					Visualize:  true,
+					OutputFile: "",
+				},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotConfig *cfg.Config
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				gotConfig = cfg
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedConfig.WorkloadInsight, gotConfig.WorkloadInsight)
+		})
+	}
+}
+
+func TestArgsParsing_WorkloadInsightConfigFile(t *testing.T) {
+	tests := []struct {
+		name               string
+		cfgFile            string
+		expectedVisualize  bool
+		expectedOutputFile string
+	}{
+		{
+			name:               "default",
+			cfgFile:            "empty.yaml",
+			expectedVisualize:  false,
+			expectedOutputFile: "",
+		},
+		{
+			name:               "visual with output file",
+			cfgFile:            "visual_with_output_file.yaml",
+			expectedVisualize:  true,
+			expectedOutputFile: "/tmp/insight.html",
+		},
+		{
+			name:               "visual without output file",
+			cfgFile:            "visual_without_output_file.yaml",
+			expectedVisualize:  true,
+			expectedOutputFile: "",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotConfig *cfg.Config
+			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+				gotConfig = cfg
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs([]string{"gcsfuse", fmt.Sprintf("--config-file=testdata/workload_insight_config/%s", tc.cfgFile), "abc", "pqr"}, cmd))
+
+			err = cmd.Execute()
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedVisualize, gotConfig.WorkloadInsight.Visualize)
+			assert.Equal(t, tc.expectedOutputFile, gotConfig.WorkloadInsight.OutputFile)
+		})
+	}
+}
