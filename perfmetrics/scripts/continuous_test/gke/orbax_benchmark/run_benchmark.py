@@ -363,19 +363,19 @@ async def main():
     This is the main entry point of the script.
     """
     parser = argparse.ArgumentParser(description="Run GKE Orbax benchmark.")
-    parser.add_argument("--project_id", required=True, help="Google Cloud project ID.")
-    parser.add_argument("--bucket_name", required=True, help="GCS bucket name for the workload.")
-    parser.add_argument("--zone", default="us-east5-b", help="GCP zone.")
-    parser.add_argument("--cluster_name", default="gke-orbax-benchmark-cluster", help="GKE cluster name.")
-    parser.add_argument("--network_name", default="gke-orbax-benchmark-network", help="VPC network name.")
-    parser.add_argument("--subnet_name", default="gke-orbax-benchmark-subnet", help="VPC subnet name.")
-    parser.add_argument("--machine_type", default="ct6e-standard-4t", help="Machine type.")
-    parser.add_argument("--node_pool_name", default="ct6e-pool", help="Node pool name.")
-    parser.add_argument("--gcsfuse_branch", default="master", help="GCSFuse branch or tag to build.")
-    parser.add_argument("--no_cleanup", action="store_true", help="Don't clean up resources after.")
-    parser.add_argument("--iterations", type=int, default=10, help="Number of iterations for the benchmark.")
-    parser.add_argument("--performance_threshold_gbps", type=float, default=13.0, help="Minimum throughput in GB/s for a successful iteration.")
-    parser.add_argument("--pod_timeout_seconds", type=int, default=1800, help="Timeout in seconds for the benchmark pod to complete.")
+    parser.add_argument("--project_id", default=os.environ.get("PROJECT_ID", "gcs-fuse-test"), help="Google Cloud project ID. Can also be set with PROJECT_ID env var.")
+    parser.add_argument("--bucket_name", default=os.environ.get("BUCKET_NAME", "llama_downloads_us_east5"), help="GCS bucket name for the workload. Can also be set with BUCKET_NAME env var.")
+    parser.add_argument("--zone", default=os.environ.get("ZONE", "us-east5-b"), help="GCP zone. Can also be set with ZONE env var.")
+    parser.add_argument("--cluster_name", default=os.environ.get("CLUSTER_NAME", "gke-orbax-benchmark-cluster"), help="GKE cluster name. Can also be set with CLUSTER_NAME env var.")
+    parser.add_argument("--network_name", default=os.environ.get("NETWORK_NAME", "gke-orbax-benchmark-network"), help="VPC network name. Can also be set with NETWORK_NAME env var.")
+    parser.add_argument("--subnet_name", default=os.environ.get("SUBNET_NAME", "gke-orbax-benchmark-subnet"), help="VPC subnet name. Can also be set with SUBNET_NAME env var.")
+    parser.add_argument("--machine_type", default=os.environ.get("MACHINE_TYPE", "ct6e-standard-4t"), help="Machine type. Can also be set with MACHINE_TYPE env var.")
+    parser.add_argument("--node_pool_name", default=os.environ.get("NODE_POOL_NAME", "ct6e-pool"), help="Node pool name. Can also be set with NODE_POOL_NAME env var.")
+    parser.add_argument("--gcsfuse_branch", default=os.environ.get("GCSFUSE_BRANCH", "master"), help="GCSFuse branch or tag to build. Can also be set with GCSFUSE_BRANCH env var.")
+    parser.add_argument("--no_cleanup", action="store_true", default=os.environ.get("NO_CLEANUP", "False").lower() in ("true", "1"), help="Don't clean up resources after. Can also be set with NO_CLEANUP=true env var.")
+    parser.add_argument("--iterations", type=int, default=int(os.environ.get("ITERATIONS", 10)), help="Number of iterations for the benchmark. Can also be set with ITERATIONS env var.")
+    parser.add_argument("--performance_threshold_gbps", type=float, default=float(os.environ.get("PERFORMANCE_THRESHOLD_GBPS", 13.0)), help="Minimum throughput in GB/s for a successful iteration. Can also be set with PERFORMANCE_THRESHOLD_GBPS env var.")
+    parser.add_argument("--pod_timeout_seconds", type=int, default=int(os.environ.get("POD_TIMEOUT_SECONDS", 1800)), help="Timeout in seconds for the benchmark pod to complete. Can also be set with POD_TIMEOUT_SECONDS env var.")
     args = parser.parse_args()
 
     # Append zone to default network and subnet names to avoid collisions
@@ -383,6 +383,11 @@ async def main():
         args.network_name = f"{args.network_name}-{args.zone}"
     if args.subnet_name == "gke-orbax-benchmark-subnet":
         args.subnet_name = f"{args.subnet_name}-{args.zone}"
+
+    if not args.project_id:
+        sys.exit("Error: --project_id or PROJECT_ID environment variable must be set.")
+    if not args.bucket_name:
+        sys.exit("Error: --bucket_name or BUCKET_NAME environment variable must be set.")
 
     await check_prerequisites()
 
@@ -402,7 +407,7 @@ async def main():
                 sys.exit(-1)
 
             successful_iterations = sum(1 for t in throughputs if t >= args.performance_threshold_gbps)
-            if successful_iterations < len(throughputs) / 2: # At least half iterations must meet the threshold.
+            if successful_iterations < (len(throughputs) * 3)/4: # At least 3/4th of the iterations must meet the threshold.
                 print(f"Benchmark failed: Only {successful_iterations}/{len(throughputs)} iterations were >= {args.performance_threshold_gbps} gbytes/sec.", file=sys.stderr)
                 if not args.no_cleanup:
                     await cleanup(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name)
