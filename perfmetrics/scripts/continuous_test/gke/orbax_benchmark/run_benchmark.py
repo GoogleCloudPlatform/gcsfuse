@@ -363,9 +363,9 @@ async def main():
     This is the main entry point of the script.
     """
     parser = argparse.ArgumentParser(description="Run GKE Orbax benchmark.")
-    parser.add_argument("--project_id", default=os.environ.get("PROJECT_ID", "gcs-fuse-test"), help="Google Cloud project ID. Can also be set with PROJECT_ID env var.")
-    parser.add_argument("--bucket_name", default=os.environ.get("BUCKET_NAME", "llama_downloads_us_east5"), help="GCS bucket name for the workload. Can also be set with BUCKET_NAME env var.")
-    parser.add_argument("--zone", default=os.environ.get("ZONE", "us-east5-b"), help="GCP zone. Can also be set with ZONE env var.")
+    parser.add_argument("--project_id", required=os.environ.get("PROJECT_ID") is None, default=os.environ.get("PROJECT_ID"), help="Google Cloud project ID. Can also be set with PROJECT_ID env var.")
+    parser.add_argument("--bucket_name", required=os.environ.get("BUCKET_NAME") is None, default=os.environ.get("BUCKET_NAME"), help="GCS bucket name for the workload. Can also be set with BUCKET_NAME env var.")
+    parser.add_argument("--zone", required=os.environ.get("ZONE") is None, default=os.environ.get("ZONE"), help="GCP zone. Can also be set with ZONE env var.")
     parser.add_argument("--cluster_name", default=os.environ.get("CLUSTER_NAME", "gke-orbax-benchmark-cluster"), help="GKE cluster name. Can also be set with CLUSTER_NAME env var.")
     parser.add_argument("--network_name", default=os.environ.get("NETWORK_NAME", "gke-orbax-benchmark-network"), help="VPC network name. Can also be set with NETWORK_NAME env var.")
     parser.add_argument("--subnet_name", default=os.environ.get("SUBNET_NAME", "gke-orbax-benchmark-subnet"), help="VPC subnet name. Can also be set with SUBNET_NAME env var.")
@@ -383,11 +383,6 @@ async def main():
         args.network_name = f"{args.network_name}-{args.zone}"
     if args.subnet_name == "gke-orbax-benchmark-subnet":
         args.subnet_name = f"{args.subnet_name}-{args.zone}"
-
-    if not args.project_id:
-        sys.exit("Error: --project_id or PROJECT_ID environment variable must be set.")
-    if not args.bucket_name:
-        sys.exit("Error: --bucket_name or BUCKET_NAME environment variable must be set.")
 
     await check_prerequisites()
 
