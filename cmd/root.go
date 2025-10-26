@@ -96,6 +96,7 @@ func getConfigFileFlags(v *viper.Viper) map[string]any {
 	// same config file into it without setting any defaults.
 	cleanViper := viper.New()
 	cleanViper.SetConfigFile(v.ConfigFileUsed())
+	cleanViper.SetConfigType("yaml")
 	// We can ignore the error here, as the original viper instance would have already failed.
 	_ = cleanViper.ReadInConfig()
 	return cleanViper.AllSettings()
