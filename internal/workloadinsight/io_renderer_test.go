@@ -105,7 +105,7 @@ func TestMapCoord_Valid(t *testing.T) {
 		{name: "start of file", plotWidth: 80, fileSize: 1000, offset: 0, expected: 0},
 		{name: "end of file", plotWidth: 80, fileSize: 1000, offset: 1000, expected: 79},
 		{name: "middle of file upper half decimal", plotWidth: 17, fileSize: 335, offset: 43, expected: 2},
-		{name: "middle of file lower half decimal", plotWidth: 17, fileSize: 335, offset: 73, expected: 4},
+		{name: "middle of file lower half decimal", plotWidth: 17, fileSize: 335, offset: 73, expected: 3},
 		{name: "three quarters of file", plotWidth: 80, fileSize: 1000, offset: 750, expected: 60},
 	}
 

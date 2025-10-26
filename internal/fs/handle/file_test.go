@@ -22,8 +22,10 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"os"
 	"sync"
 	"testing"
+
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -1009,4 +1011,47 @@ func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() 
 	assert.Equal(t.T(), expectedData, combinedResult, "Combined result should match expected data.")
 	// Clean up the original file handle.
 	fh.Destroy()
+}
+
+// Test_ReadWithReadManager_WorkloadInsightVisual validates that when
+// Workload Insight visualization is enabled, the output file is created
+// after performing reads with ReadWithReadManager.
+func (t *fileTest) Test_ReadWithReadManager_WorkloadInsightVisual() {
+	config := &cfg.Config{
+		WorkloadInsight: cfg.WorkloadInsightConfig{
+			Visualize:  true,
+			OutputFile: "test.txt",
+		},
+	}
+	const (
+		fileSize = 9 * 1024 * 1024 // 9 MiB
+		MiB      = 1024 * 1024
+	)
+	// Create expected data for the file.
+	expectedData := make([]byte, fileSize)
+	for i := range fileSize {
+		expectedData[i] = byte(i % 256)
+	}
+	// Create a new file handle with the updated config.
+	parent := createDirInode(&t.bucket, &t.clock)
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_visual", expectedData, false)
+	in.Lock()
+	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, config, nil, nil)
+	in.Unlock()
+
+	// Perform multiple reads and destroy the file-handle.
+	fh.inode.Lock()
+	_, _, err := fh.ReadWithReadManager(t.ctx, make([]byte, MiB), MiB, 200)
+	require.NoError(t.T(), err)
+	fh.inode.Lock()
+	_, _, err = fh.ReadWithReadManager(t.ctx, make([]byte, MiB), 0, 200)
+	require.NoError(t.T(), err)
+	fh.inode.Lock()
+	_, _, err = fh.ReadWithReadManager(t.ctx, make([]byte, MiB), 2*MiB, 200)
+	require.NoError(t.T(), err)
+	fh.Destroy()
+
+	// Validate the output file creation for workload insight.
+	assert.FileExists(t.T(), "test.txt")
+	defer os.Remove("test.txt") // Clean up after test
 }

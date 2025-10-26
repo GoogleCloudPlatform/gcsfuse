@@ -59,7 +59,7 @@ type Renderer struct {
 }
 
 func NewRenderer() (*Renderer, error) {
-	return NewRendererWithSettings(80, len(labelHeader), 2)
+	return NewRendererWithSettings(100, 20, 2)
 }
 
 // NewRendererWithSettings returns a Renderer with the specified settings.
@@ -191,14 +191,14 @@ func (r *Renderer) buildRow(size uint64, rg Range) (string, error) {
 		return "", fmt.Errorf("range extends beyond file size: [%d,%d) size=%d", rg.Start, rg.End, size)
 	}
 
-	s := rg.Start
-	e := rg.End
-
 	// Build plotting row
 	cells := make([]string, r.plotWidth)
 	for j := range cells {
 		cells[j] = emptyChar
 	}
+
+	s := rg.Start
+	e := rg.End - 1 // make end inclusive for plotting
 
 	// Map start/end to columns. Reserve column 0 as a separator when possible by
 	// mapping into [1, plotWidth-1] when plotWidth > 1.
@@ -212,15 +212,6 @@ func (r *Renderer) buildRow(size uint64, rg Range) (string, error) {
 	}
 	cs = cs + 1
 	ce = ce + 1
-
-	// Ensure at least one visible column is set for very small ranges.
-	if cs == ce {
-		if ce < r.plotWidth-1 {
-			ce = cs + 1
-		} else if cs > 0 {
-			cs = cs - 1
-		}
-	}
 
 	for c := cs; c <= ce; c++ {
 		cells[c] = blockChar
@@ -257,7 +248,7 @@ func mapCoord(offset, size uint64, plotWidth int) (int, error) {
 		return 0, fmt.Errorf("invalid arguments to mapCoord")
 	}
 	frac := float64(offset) / float64(size)
-	col := int(math.Round(frac * float64(plotWidth)))
+	col := int(math.Floor(frac * float64(plotWidth)))
 	if col < 0 {
 		return 0, nil
 	}
