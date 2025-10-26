@@ -30,8 +30,8 @@ import (
 func getConfigObject(t *testing.T, args []string) (*cfg.Config, error) {
 	t.Helper()
 	var c *cfg.Config
-	cmd, err := newRootCmd(func(config *cfg.Config, _, _ string) error {
-		c = config
+	cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
+		c = mountInfo.GCSFuseResolvedConfig
 		return nil
 	})
 	require.Nil(t, err)
