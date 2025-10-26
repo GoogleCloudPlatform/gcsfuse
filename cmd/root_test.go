@@ -2038,8 +2038,8 @@ func TestArgsParsing_WorkloadInsightFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotConfig = cfg
+			cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
+				gotConfig = mountInfo.GCSFuseResolvedConfig
 				return nil
 			})
 			require.Nil(t, err)
@@ -2082,8 +2082,8 @@ func TestArgsParsing_WorkloadInsightConfigFile(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotConfig = cfg
+			cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
+				gotConfig = mountInfo.GCSFuseResolvedConfig
 				return nil
 			})
 			require.Nil(t, err)
