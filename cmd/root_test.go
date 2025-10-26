@@ -310,22 +310,22 @@ logging:
 func TestGetCliFlags(t *testing.T) {
 	testCases := []struct {
 		name              string
-		setupFlags        func(fs *pflag.FlagSet)
+		setupFlags        func(t *testing.T, fs *pflag.FlagSet)
 		backgroundMode    bool
 		expectedCliFlags  map[string]string
 		unexpectedCliFlag string
 	}{
 		{
 			name:             "No flags set",
-			setupFlags:       func(fs *pflag.FlagSet) {},
+			setupFlags:       func(t *testing.T, fs *pflag.FlagSet) {},
 			backgroundMode:   false,
 			expectedCliFlags: map[string]string{},
 		},
 		{
 			name: "Some flags set",
-			setupFlags: func(fs *pflag.FlagSet) {
+			setupFlags: func(t *testing.T, fs *pflag.FlagSet) {
 				fs.String("app-name", "", "")
-				fs.Set("app-name", "test-app")
+				require.NoError(t, fs.Set("app-name", "test-app"))
 			},
 			backgroundMode: false,
 			expectedCliFlags: map[string]string{
@@ -334,18 +334,18 @@ func TestGetCliFlags(t *testing.T) {
 		},
 		{
 			name: "Foreground flag set in foreground mode",
-			setupFlags: func(fs *pflag.FlagSet) {
+			setupFlags: func(t *testing.T, fs *pflag.FlagSet) {
 				fs.Bool("foreground", false, "")
-				fs.Set("foreground", "true")
+				require.NoError(t, fs.Set("foreground", "true"))
 			},
 			backgroundMode:   false,
 			expectedCliFlags: map[string]string{"foreground": "true"},
 		},
 		{
 			name: "Foreground flag set in background mode",
-			setupFlags: func(fs *pflag.FlagSet) {
+			setupFlags: func(t *testing.T, fs *pflag.FlagSet) {
 				fs.Bool("foreground", false, "")
-				fs.Set("foreground", "true")
+				require.NoError(t, fs.Set("foreground", "true"))
 			},
 			backgroundMode:    true,
 			expectedCliFlags:  map[string]string{},
@@ -359,7 +359,7 @@ func TestGetCliFlags(t *testing.T) {
 				t.Setenv(logger.GCSFuseInBackgroundMode, "true")
 			}
 			flagSet := pflag.NewFlagSet("test", pflag.ContinueOnError)
-			tc.setupFlags(flagSet)
+			tc.setupFlags(t, flagSet)
 
 			cliFlags := getCliFlags(flagSet)
 
