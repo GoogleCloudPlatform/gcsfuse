@@ -174,8 +174,8 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 		return dst, n, err
 	}
 
-	fh.lockHandleAndRelockInode(true)
-	defer fh.mu.RUnlock()
+	fh.lockHandleAndRelockInode(false)
+	defer fh.mu.Unlock()
 
 	// If the inode is dirty, there's nothing we can do. Throw away our readManager if
 	// we have one & create a new readManager
@@ -187,8 +187,9 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 		mrdWrapper := &fh.inode.MRDWrapper
 
 		// Acquire a RWLock on file handle as we will update readManager
-		fh.unlockHandleAndInode(true)
-		fh.mu.Lock()
+		fh.inode.Unlock()
+		// fh.unlockHandleAndInode(true)
+		// fh.mu.Lock()
 
 		fh.destroyReadManager()
 		// Create a new read manager for the current inode state.
@@ -204,8 +205,8 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 		})
 
 		// Release RWLock and take RLock on file handle again. Inode lock is not needed now.
-		fh.mu.Unlock()
-		fh.mu.RLock()
+		// fh.mu.Unlock()
+		// fh.mu.RLock()
 	}
 
 	// Use the readManager to read data.
