@@ -1091,22 +1091,28 @@ func (d *dirInode) deletePrefixRecursively(ctx context.Context, prefix string) e
 			return fmt.Errorf("listing objects under prefix %q: %w", prefix, err)
 		}
 
-		// 1. Delete all file-like objects in the current batch.
+		// 1. Delete all file-like objects and recurse into subdirectories in parallel.
+		g, gCtx := errgroup.WithContext(ctx)
 		for _, obj := range objects.MinObjects {
 			// obj.Name is guaranteed to start with 'prefix'.
 			if !strings.HasSuffix(obj.Name, "/") {
 				// It's a file, delete it.
-				if err := d.deleteSingleObject(ctx, obj.Name); err != nil {
-					return err // Propagate deletion error.
-				}
+				objName := obj.Name // Capture loop variable.
+				g.Go(func() error {
+					return d.deleteSingleObject(gCtx, objName)
+				})
 			}
 		}
 
-		// 2. Recursively call self for nested 'directories' (CollapsedRuns).
 		for _, nestedPrefix := range objects.CollapsedRuns {
-			if err := d.deletePrefixRecursively(ctx, nestedPrefix); err != nil {
-				return err // Propagate nested deletion error.
-			}
+			nestedPrefix := nestedPrefix // Capture loop variable.
+			g.Go(func() error {
+				return d.deletePrefixRecursively(gCtx, nestedPrefix)
+			})
+		}
+
+		if err := g.Wait(); err != nil {
+			return err // Propagate the first error encountered.
 		}
 
 		// If there are no more pages, we are done with this prefix's contents.
