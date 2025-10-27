@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	unsupportedObjectNameSubstrings = []string{"//", ".."}
+	unsupportedObjectNameSubstrings = []string{"//", "..", "."}
 	unsupportedObjectNamePrefixes   = []string{"/"}
 	unsupportedObjectNames          = []string{""}
 )
