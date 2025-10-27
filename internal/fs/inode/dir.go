@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"path"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
@@ -40,6 +41,12 @@ import (
 // By default 1000 results are returned if maxResults is not set.
 // Defining a constant to set maxResults param.
 const MaxResultsForListObjectsCall = 5000
+
+// Constants for the prefetch state
+const (
+	prefetchReady      uint32 = 0
+	prefetchInProgress uint32 = 1
+)
 
 // An inode representing a directory, with facilities for listing entries,
 // looking up children, and creating and deleting children. Must be locked for
@@ -241,6 +248,18 @@ type dirInode struct {
 	// Represents if folder has been unlinked in hierarchical bucket. This is not getting used in
 	// non-hierarchical bucket.
 	unlinked bool
+
+	/////////////////////////
+	// Prefetching POC state
+	/////////////////////////
+	metadataCacheTTL time.Duration
+	prefetchTrigger  chan struct{}
+	prefetchStop     chan struct{}
+	prefetchState    atomic.Uint32 // 0=Ready, 1=InProgress
+
+	// lastPrefetchTime is managed *only* by the runPrefetcher goroutine,
+	// so it doesn't need its own lock.
+	lastPrefetchTime time.Time
 }
 
 var _ DirInode = &dirInode{}
@@ -298,6 +317,13 @@ func NewDirInode(
 		isHNSEnabled:                   isHNSEnabled,
 		isUnsupportedDirSupportEnabled: isUnsupportedDirSupportEnabled,
 		unlinked:                       false,
+
+		// POC: Initialize prefetch channels
+		metadataCacheTTL: typeCacheTTL,
+		prefetchTrigger:  make(chan struct{}, 1), // Buffer of 1
+		prefetchStop:     make(chan struct{}),
+		// prefetchState is 0 (prefetchReady) by default
+		// lastPrefetchTime is time.Time{} (zero) by default
 	}
 
 	typed.lc.Init(id)
@@ -306,12 +332,73 @@ func NewDirInode(
 	typed.mu = locker.NewRW(name.GcsObjectName(), typed.checkInvariants)
 
 	d = typed
+
+	// POC: Start the prefetch worker goroutine for this directory
+	go typed.runPrefetcher()
+
 	return
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
+
+// runPrefetcher runs in a background goroutine, listening for triggers
+// from LookUpChild.
+// runPrefetcher runs in a background goroutine, listening for triggers.
+func (d *dirInode) runPrefetcher() {
+	ctx := context.Background()
+
+	for {
+		select {
+		case <-d.prefetchStop:
+			// Inode is being destroyed, stop.
+			return
+
+		case <-d.prefetchTrigger:
+			// A trigger came in.
+			// Spawn a new goroutine to do the work so this
+			// loop is not blocked and can respond to prefetchStop.
+			go d.doFullPrefetch(ctx)
+		}
+	}
+}
+
+// doFullPrefetch performs the full directory listing if the TTL has expired.
+func (d *dirInode) doFullPrefetch(ctx context.Context) {
+	// 1. Check State and TTL
+	// Atomically swap state from Ready (0) to InProgress (1).
+	if !d.prefetchState.CompareAndSwap(prefetchReady, prefetchInProgress) {
+		// Another prefetch is already in progress. Abort.
+		return
+	}
+
+	// We are now in the InProgress state. We must reset to Ready before returning.
+	defer d.prefetchState.Store(prefetchReady)
+
+	now := d.cacheClock.Now()
+	if now.Sub(d.lastPrefetchTime) < d.metadataCacheTTL {
+		logger.Info("prefetch not expired yet")
+		return
+	}
+
+	// 2. Run the Prefetch
+	var tok string
+	for {
+		// Perform slow network I/O *without* holding the inode lock.
+		_, _, newTok, err := d.readObjectsWithLockOnlyWhileInsertingToTypeCache(ctx, tok)
+		if err != nil {
+			logger.Warnf("Prefetch failed for %s: %v", d.Name().GcsObjectName(), err)
+			return // Abort. Will retry on next TTL-expired cache miss.
+		}
+		if newTok == "" {
+			break // Entire directory has been listed.
+		}
+		tok = newTok
+	}
+	// 3. Update Timestamp on Success
+	d.lastPrefetchTime = now
+}
 
 func (d *dirInode) checkInvariants() {
 	// INVARIANT: d.name.IsDir()
@@ -521,7 +608,8 @@ func (d *dirInode) DecrementLookupCount(n uint64) (destroy bool) {
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) Destroy() (err error) {
-	// Nothing interesting to do.
+	// POC: Signal the prefetcher goroutine to stop if any.
+	close(d.prefetchStop)
 	return
 }
 
@@ -594,6 +682,15 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	case metadata.NonexistentType:
 		return nil, nil
 	case metadata.UnknownType:
+		// Trigger a prefetch if one is not already in progress as entry was not present in type cache.
+		if d.prefetchState.Load() == prefetchReady {
+			select {
+			case d.prefetchTrigger <- struct{}{}:
+				logger.Info("triggering prefetch")
+			default: // Non-blocking, drop if worker is busy.
+			}
+		}
+
 		group.Go(lookUpFile)
 		if d.isBucketHierarchical() {
 			group.Go(lookUpHNSDir)
@@ -619,6 +716,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	}
 
 	if result != nil {
+		// Now, continue with the original logic to cache this single result.
 		d.cache.Insert(d.cacheClock.Now(), name, result.Type())
 	} else if d.enableNonexistentTypeCache && cachedType == metadata.UnknownType {
 		d.cache.Insert(d.cacheClock.Now(), name, metadata.NonexistentType)
@@ -706,6 +804,124 @@ func (d *dirInode) readObjects(
 		for fullName, c := range cores {
 			d.cache.Insert(now, path.Base(fullName.LocalName()), c.Type())
 		}
+	}()
+
+	for _, o := range listing.MinObjects {
+		// Skip empty results or the directory object backing this inode.
+		if o.Name == d.Name().GcsObjectName() || o.Name == "" {
+			continue
+		}
+
+		nameBase := path.Base(o.Name) // ie. "bar" from "foo/bar/" or "foo/bar"
+
+		// Given the alphabetical order of the objects, if a file "foo" and
+		// directory "foo/" coexist, the directory would eventually occupy
+		// the value of records["foo"].
+		if strings.HasSuffix(o.Name, "/") {
+			// In a hierarchical bucket, create a folder entry instead of a minObject for each prefix.
+			// This is because in a hierarchical bucket, every directory is considered a folder.
+			// Adding folder entries while looping to through CollapsedRuns instead of here to avoid duplicate entries.
+			if !d.isBucketHierarchical() {
+				dirName := NewDirName(d.Name(), nameBase)
+				explicitDir := &Core{
+					Bucket:    d.Bucket(),
+					FullName:  dirName,
+					MinObject: o,
+				}
+				cores[dirName] = explicitDir
+			}
+		} else {
+			fileName := NewFileName(d.Name(), nameBase)
+			file := &Core{
+				Bucket:    d.Bucket(),
+				FullName:  fileName,
+				MinObject: o,
+			}
+			cores[fileName] = file
+		}
+	}
+
+	// Return an appropriate continuation token, if any.
+	newTok = listing.ContinuationToken
+
+	if !d.implicitDirs && !d.isBucketHierarchical() {
+		return
+	}
+
+	// Add implicit directories into the result.
+	for _, p := range listing.CollapsedRuns {
+		pathBase := path.Base(p)
+		if storageutil.IsUnsupportedObjectName(p) {
+			unsupportedDirs = append(unsupportedDirs, p)
+			// Skip unsupported objects in the listing, as the kernel cannot process these file system elements.
+			// TODO: Remove this check once we gain confidence that it is not causing any issues.
+			if d.isUnsupportedDirSupportEnabled {
+				continue
+			}
+		}
+		dirName := NewDirName(d.Name(), pathBase)
+		if d.isBucketHierarchical() {
+			folder := gcs.Folder{Name: dirName.objectName}
+
+			folderCore := &Core{
+				Bucket:   d.Bucket(),
+				FullName: dirName,
+				Folder:   &folder,
+			}
+			cores[dirName] = folderCore
+		} else {
+			if c, ok := cores[dirName]; ok && c.Type() == metadata.ExplicitDirType {
+				continue
+			}
+
+			implicitDir := &Core{
+				Bucket:    d.Bucket(),
+				FullName:  dirName,
+				MinObject: nil,
+			}
+			cores[dirName] = implicitDir
+		}
+	}
+	if len(unsupportedDirs) > 0 {
+		logger.Errorf("Encountered unsupported prefixes during listing: %v", unsupportedDirs)
+	}
+	return
+}
+
+// LOCK_EXCLUDED(d)
+func (d *dirInode) readObjectsWithLockOnlyWhileInsertingToTypeCache(
+	ctx context.Context,
+	tok string) (cores map[Name]*Core, unsupportedDirs []string, newTok string, err error) {
+	if d.isBucketHierarchical() {
+		d.includeFoldersAsPrefixes = true
+	}
+	// Ask the bucket to list some objects.
+	req := &gcs.ListObjectsRequest{
+		Delimiter:                "/",
+		IncludeTrailingDelimiter: true,
+		Prefix:                   d.Name().GcsObjectName(),
+		ContinuationToken:        tok,
+		MaxResults:               MaxResultsForListObjectsCall,
+		// Setting Projection param to noAcl since fetching owner and acls are not
+		// required.
+		ProjectionVal:            gcs.NoAcl,
+		IncludeFoldersAsPrefixes: d.includeFoldersAsPrefixes,
+	}
+
+	listing, err := d.bucket.ListObjects(ctx, req)
+	if err != nil {
+		err = fmt.Errorf("ListObjects: %w", err)
+		return
+	}
+
+	cores = make(map[Name]*Core)
+	defer func() {
+		d.mu.Lock()
+		now := d.cacheClock.Now()
+		for fullName, c := range cores {
+			d.cache.Insert(now, path.Base(fullName.LocalName()), c.Type())
+		}
+		d.mu.Unlock()
 	}()
 
 	for _, o := range listing.MinObjects {
