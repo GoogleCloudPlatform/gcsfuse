@@ -1640,6 +1640,44 @@ func (t *DirTest) EraseFromTypeCache() {
 	AssertEq(0, tp)
 }
 
+func (t *DirTest) TestDeleteObjects() {
+	// Arrange
+	parentDirGcsName := t.in.Name().GcsObjectName() // e.g., "foo/bar/"
+	d := t.in.(*dirInode)
+	// Define supported objects to create.
+	objectsToCreate := map[string]string{
+		parentDirGcsName + "dir_to_delete/":                           "", // Explicit dir
+		parentDirGcsName + "dir_to_delete/file1.txt":                  "content1",
+		parentDirGcsName + "dir_to_delete/nested_dir/":                "",
+		parentDirGcsName + "dir_to_delete/nested_dir/nested_file.txt": "content_nested",
+		parentDirGcsName + "file_to_delete.txt":                       "content_file",
+	}
+	for objName, content := range objectsToCreate {
+		_, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte(content))
+		AssertEq(nil, err, "Failed to create object: %s", objName)
+	}
+	// Verify initial state: all created objects exist.
+	for objName := range objectsToCreate {
+		_, err := storageutil.ReadObject(t.ctx, t.bucket, objName)
+		AssertEq(nil, err, "Pre-condition: Object %s should exist initially", objName)
+	}
+	// Act: Call DeleteObjects with the list of supported objects.
+	objectsToDelete := []string{
+		parentDirGcsName + "dir_to_delete/",
+		parentDirGcsName + "file_to_delete.txt",
+	}
+
+	err := d.DeleteObjects(t.ctx, objectsToDelete)
+
+	AssertEq(nil, err)
+	// Assert: All specified objects and their contents should be deleted.
+	for _, objName := range objectsToDelete {
+		_, err = storageutil.ReadObject(t.ctx, t.bucket, objName)
+		var notFoundErr *gcs.NotFoundError
+		ExpectTrue(errors.As(err, &notFoundErr), "Object %s should be deleted. Error: %v", objName, err)
+	}
+}
+
 func (t *DirTest) LocalFileEntriesEmpty() {
 	localFileInodes := map[Name]Inode{}
 
