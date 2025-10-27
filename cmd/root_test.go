@@ -194,170 +194,6 @@ func TestArgsParsing_MountOptions(t *testing.T) {
 	}
 }
 
-func TestMountInfoPopulation(t *testing.T) {
-	testCases := []struct {
-		name                    string
-		cliArgs                 []string
-		configFilePath          string
-		validateMountInfo       func(t *testing.T, mi *mountInfo)
-		expectedResolvedGid     int64
-		expectedResolvedAppName string
-	}{
-		{
-			name:    "CLI flags only",
-			cliArgs: []string{"--app-name=cli-app", "--foreground", "--gid=1001"},
-			validateMountInfo: func(t *testing.T, mi *mountInfo) {
-				assert.Contains(t, mi.cliFlags, "app-name")
-				assert.Equal(t, "cli-app", mi.cliFlags["app-name"])
-				assert.Contains(t, mi.cliFlags, "foreground")
-				assert.Equal(t, "true", mi.cliFlags["foreground"])
-				assert.Contains(t, mi.cliFlags, "gid")
-				assert.Equal(t, "1001", mi.cliFlags["gid"])
-				assert.Empty(t, mi.configFileFlags)
-			},
-			expectedResolvedGid:     1001,
-			expectedResolvedAppName: "cli-app",
-		},
-		{
-			name:           "Config file only",
-			configFilePath: "testdata/mount_info_population/config_file_only.yaml",
-			validateMountInfo: func(t *testing.T, mi *mountInfo) {
-				assert.NotContains(t, mi.cliFlags, "app-name")
-				assert.NotContains(t, mi.cliFlags, "gid")
-				assert.Contains(t, mi.configFileFlags, "app-name")
-				assert.Equal(t, "config-app", mi.configFileFlags["app-name"])
-				fsFlags, ok := mi.configFileFlags["file-system"].(map[string]interface{})
-				require.True(t, ok)
-				assert.Equal(t, 1002, fsFlags["gid"])
-			},
-			expectedResolvedGid:     1002,
-			expectedResolvedAppName: "config-app",
-		},
-		{
-			name:           "CLI flags override config file",
-			cliArgs:        []string{"--app-name=cli-app-override", "--gid=1003"},
-			configFilePath: "testdata/mount_info_population/cli_override_config.yaml",
-			validateMountInfo: func(t *testing.T, mi *mountInfo) {
-				// Check CLI flags
-				assert.Equal(t, "cli-app-override", mi.cliFlags["app-name"])
-				assert.Equal(t, "1003", mi.cliFlags["gid"])
-
-				// Check config file flags
-				assert.Equal(t, "config-app", mi.configFileFlags["app-name"])
-				fsFlags, ok := mi.configFileFlags["file-system"].(map[string]interface{})
-				require.True(t, ok)
-				assert.Equal(t, 1002, fsFlags["gid"])
-				logFlags, ok := mi.configFileFlags["logging"].(map[string]interface{})
-				require.True(t, ok)
-				assert.Equal(t, "error", logFlags["severity"])
-			},
-			expectedResolvedGid:     1003,               // CLI overrides config
-			expectedResolvedAppName: "cli-app-override", // CLI overrides config
-		},
-		{
-			name: "Defaults when no flags or config",
-			validateMountInfo: func(t *testing.T, mi *mountInfo) {
-				assert.Empty(t, mi.cliFlags)
-				assert.Empty(t, mi.configFileFlags)
-			},
-			expectedResolvedGid:     -1, // Default value
-			expectedResolvedAppName: "", // Default value
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			var capturedMountInfo *mountInfo
-			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
-				capturedMountInfo = mountInfo
-				return nil
-			})
-			require.NoError(t, err)
-
-			args := []string{"gcsfuse"}
-			if tc.configFilePath != "" {
-				// Use the provided config file path from testdata.
-				args = append(args, "--config-file", tc.configFilePath)
-			}
-			args = append(args, tc.cliArgs...)
-			args = append(args, "my-bucket", "/mnt/gcs")
-			cmd.SetArgs(convertToPosixArgs(args, cmd))
-
-			require.NoError(t, cmd.Execute())
-
-			require.NotNil(t, capturedMountInfo)
-			tc.validateMountInfo(t, capturedMountInfo)
-			assert.Equal(t, tc.expectedResolvedGid, capturedMountInfo.config.FileSystem.Gid)
-			assert.Equal(t, tc.expectedResolvedAppName, capturedMountInfo.config.AppName)
-		})
-	}
-}
-
-func TestGetCliFlags(t *testing.T) {
-	testCases := []struct {
-		name              string
-		setupFlags        func(t *testing.T, fs *pflag.FlagSet)
-		backgroundMode    bool
-		expectedCliFlags  map[string]string
-		unexpectedCliFlag string
-	}{
-		{
-			name:             "No flags set",
-			setupFlags:       func(t *testing.T, fs *pflag.FlagSet) {},
-			backgroundMode:   false,
-			expectedCliFlags: map[string]string{},
-		},
-		{
-			name: "Some flags set",
-			setupFlags: func(t *testing.T, fs *pflag.FlagSet) {
-				fs.String("app-name", "", "")
-				require.NoError(t, fs.Set("app-name", "test-app"))
-			},
-			backgroundMode: false,
-			expectedCliFlags: map[string]string{
-				"app-name": "test-app",
-			},
-		},
-		{
-			name: "Foreground flag set in foreground mode",
-			setupFlags: func(t *testing.T, fs *pflag.FlagSet) {
-				fs.Bool("foreground", false, "")
-				require.NoError(t, fs.Set("foreground", "true"))
-			},
-			backgroundMode:   false,
-			expectedCliFlags: map[string]string{"foreground": "true"},
-		},
-		{
-			name: "Foreground flag set in background mode",
-			setupFlags: func(t *testing.T, fs *pflag.FlagSet) {
-				fs.Bool("foreground", false, "")
-				require.NoError(t, fs.Set("foreground", "true"))
-			},
-			backgroundMode:    true,
-			expectedCliFlags:  map[string]string{},
-			unexpectedCliFlag: "foreground",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			if tc.backgroundMode {
-				t.Setenv(logger.GCSFuseInBackgroundMode, "true")
-			}
-			flagSet := pflag.NewFlagSet("test", pflag.ContinueOnError)
-			tc.setupFlags(t, flagSet)
-
-			cliFlags := getCliFlags(flagSet)
-
-			assert.Equal(t, tc.expectedCliFlags, cliFlags)
-			if tc.unexpectedCliFlag != "" {
-				_, ok := cliFlags[tc.unexpectedCliFlag]
-				assert.False(t, ok, "unexpected flag %q found", tc.unexpectedCliFlag)
-			}
-		})
-	}
-}
-
 // Lets test for ImplicitDirs which is goverened by implicit-dirs flags
 func TestArgsParsing_ImplicitDirsFlag(t *testing.T) {
 	tests := []struct {
@@ -2080,6 +1916,170 @@ func TestArgsParsing_WorkloadInsightConfigFile(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedVisualize, gotConfig.WorkloadInsight.Visualize)
 			assert.Equal(t, tc.expectedOutputFile, gotConfig.WorkloadInsight.OutputFile)
+		})
+	}
+}
+
+func TestMountInfoPopulation(t *testing.T) {
+	testCases := []struct {
+		name                    string
+		cliArgs                 []string
+		configFilePath          string
+		validateMountInfo       func(t *testing.T, mi *mountInfo)
+		expectedResolvedGid     int64
+		expectedResolvedAppName string
+	}{
+		{
+			name:    "CLI flags only",
+			cliArgs: []string{"--app-name=cli-app", "--foreground", "--gid=1001"},
+			validateMountInfo: func(t *testing.T, mi *mountInfo) {
+				assert.Contains(t, mi.cliFlags, "app-name")
+				assert.Equal(t, "cli-app", mi.cliFlags["app-name"])
+				assert.Contains(t, mi.cliFlags, "foreground")
+				assert.Equal(t, "true", mi.cliFlags["foreground"])
+				assert.Contains(t, mi.cliFlags, "gid")
+				assert.Equal(t, "1001", mi.cliFlags["gid"])
+				assert.Empty(t, mi.configFileFlags)
+			},
+			expectedResolvedGid:     1001,
+			expectedResolvedAppName: "cli-app",
+		},
+		{
+			name:           "Config file only",
+			configFilePath: "testdata/mount_info_population/config_file_only.yaml",
+			validateMountInfo: func(t *testing.T, mi *mountInfo) {
+				assert.NotContains(t, mi.cliFlags, "app-name")
+				assert.NotContains(t, mi.cliFlags, "gid")
+				assert.Contains(t, mi.configFileFlags, "app-name")
+				assert.Equal(t, "config-app", mi.configFileFlags["app-name"])
+				fsFlags, ok := mi.configFileFlags["file-system"].(map[string]interface{})
+				require.True(t, ok)
+				assert.Equal(t, 1002, fsFlags["gid"])
+			},
+			expectedResolvedGid:     1002,
+			expectedResolvedAppName: "config-app",
+		},
+		{
+			name:           "CLI flags override config file",
+			cliArgs:        []string{"--app-name=cli-app-override", "--gid=1003"},
+			configFilePath: "testdata/mount_info_population/cli_override_config.yaml",
+			validateMountInfo: func(t *testing.T, mi *mountInfo) {
+				// Check CLI flags
+				assert.Equal(t, "cli-app-override", mi.cliFlags["app-name"])
+				assert.Equal(t, "1003", mi.cliFlags["gid"])
+
+				// Check config file flags
+				assert.Equal(t, "config-app", mi.configFileFlags["app-name"])
+				fsFlags, ok := mi.configFileFlags["file-system"].(map[string]interface{})
+				require.True(t, ok)
+				assert.Equal(t, 1002, fsFlags["gid"])
+				logFlags, ok := mi.configFileFlags["logging"].(map[string]interface{})
+				require.True(t, ok)
+				assert.Equal(t, "error", logFlags["severity"])
+			},
+			expectedResolvedGid:     1003,               // CLI overrides config
+			expectedResolvedAppName: "cli-app-override", // CLI overrides config
+		},
+		{
+			name: "Defaults when no flags or config",
+			validateMountInfo: func(t *testing.T, mi *mountInfo) {
+				assert.Empty(t, mi.cliFlags)
+				assert.Empty(t, mi.configFileFlags)
+			},
+			expectedResolvedGid:     -1, // Default value
+			expectedResolvedAppName: "", // Default value
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var capturedMountInfo *mountInfo
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				capturedMountInfo = mountInfo
+				return nil
+			})
+			require.NoError(t, err)
+
+			args := []string{"gcsfuse"}
+			if tc.configFilePath != "" {
+				// Use the provided config file path from testdata.
+				args = append(args, "--config-file", tc.configFilePath)
+			}
+			args = append(args, tc.cliArgs...)
+			args = append(args, "my-bucket", "/mnt/gcs")
+			cmd.SetArgs(convertToPosixArgs(args, cmd))
+
+			require.NoError(t, cmd.Execute())
+
+			require.NotNil(t, capturedMountInfo)
+			tc.validateMountInfo(t, capturedMountInfo)
+			assert.Equal(t, tc.expectedResolvedGid, capturedMountInfo.config.FileSystem.Gid)
+			assert.Equal(t, tc.expectedResolvedAppName, capturedMountInfo.config.AppName)
+		})
+	}
+}
+
+func TestGetCliFlags(t *testing.T) {
+	testCases := []struct {
+		name              string
+		setupFlags        func(t *testing.T, fs *pflag.FlagSet)
+		backgroundMode    bool
+		expectedCliFlags  map[string]string
+		unexpectedCliFlag string
+	}{
+		{
+			name:             "No flags set",
+			setupFlags:       func(t *testing.T, fs *pflag.FlagSet) {},
+			backgroundMode:   false,
+			expectedCliFlags: map[string]string{},
+		},
+		{
+			name: "Some flags set",
+			setupFlags: func(t *testing.T, fs *pflag.FlagSet) {
+				fs.String("app-name", "", "")
+				require.NoError(t, fs.Set("app-name", "test-app"))
+			},
+			backgroundMode: false,
+			expectedCliFlags: map[string]string{
+				"app-name": "test-app",
+			},
+		},
+		{
+			name: "Foreground flag set in foreground mode",
+			setupFlags: func(t *testing.T, fs *pflag.FlagSet) {
+				fs.Bool("foreground", false, "")
+				require.NoError(t, fs.Set("foreground", "true"))
+			},
+			backgroundMode:   false,
+			expectedCliFlags: map[string]string{"foreground": "true"},
+		},
+		{
+			name: "Foreground flag set in background mode",
+			setupFlags: func(t *testing.T, fs *pflag.FlagSet) {
+				fs.Bool("foreground", false, "")
+				require.NoError(t, fs.Set("foreground", "true"))
+			},
+			backgroundMode:    true,
+			expectedCliFlags:  map[string]string{},
+			unexpectedCliFlag: "foreground",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.backgroundMode {
+				t.Setenv(logger.GCSFuseInBackgroundMode, "true")
+			}
+			flagSet := pflag.NewFlagSet("test", pflag.ContinueOnError)
+			tc.setupFlags(t, flagSet)
+
+			cliFlags := getCliFlags(flagSet)
+
+			assert.Equal(t, tc.expectedCliFlags, cliFlags)
+			if tc.unexpectedCliFlag != "" {
+				_, ok := cliFlags[tc.unexpectedCliFlag]
+				assert.False(t, ok, "unexpected flag %q found", tc.unexpectedCliFlag)
+			}
 		})
 	}
 }
