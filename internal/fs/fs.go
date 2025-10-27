@@ -30,6 +30,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 
@@ -1681,7 +1682,7 @@ func (fs *fileSystem) LookUpInode(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		ctx = context.Background()
+		ctx = monitor.GetTraceContext(ctx, fs.newConfig)
 	}
 	// Find the parent directory in question.
 	fs.mu.Lock()
@@ -1718,7 +1719,7 @@ func (fs *fileSystem) GetInodeAttributes(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		ctx = context.Background()
+		ctx = monitor.GetTraceContext(ctx, fs.newConfig)
 	}
 	// Find the inode.
 	fs.mu.Lock()
@@ -1744,7 +1745,7 @@ func (fs *fileSystem) SetInodeAttributes(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		ctx = context.Background()
+		ctx = monitor.GetTraceContext(ctx, fs.newConfig)
 	}
 	// Find the inode.
 	fs.mu.Lock()
@@ -1818,7 +1819,7 @@ func (fs *fileSystem) MkDir(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		ctx = context.Background()
+		ctx = monitor.GetTraceContext(ctx, fs.newConfig)
 	}
 	// Find the parent.
 	fs.mu.Lock()
@@ -1875,7 +1876,7 @@ func (fs *fileSystem) MkNode(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		ctx = context.Background()
+		ctx = monitor.GetTraceContext(ctx, fs.newConfig)
 	}
 	if (op.Mode & (iofs.ModeNamedPipe | iofs.ModeSocket)) != 0 {
 		return syscall.ENOTSUP
@@ -2013,7 +2014,7 @@ func (fs *fileSystem) CreateFile(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		ctx = context.Background()
+		ctx = monitor.GetTraceContext(ctx, fs.newConfig)
 	}
 	// Create the child.
 	var child inode.Inode
@@ -2062,7 +2063,7 @@ func (fs *fileSystem) CreateSymlink(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		ctx = context.Background()
+		ctx = monitor.GetTraceContext(ctx, fs.newConfig)
 	}
 	// Find the parent.
 	fs.mu.Lock()
@@ -2130,7 +2131,7 @@ func (fs *fileSystem) RmDir(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		ctx = context.Background()
+		ctx = monitor.GetTraceContext(ctx, fs.newConfig)
 	}
 	// Find the parent.
 	fs.mu.Lock()
@@ -2236,7 +2237,7 @@ func (fs *fileSystem) Rename(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		ctx = context.Background()
+		ctx = monitor.GetTraceContext(ctx, fs.newConfig)
 	}
 	// Find the old and new parents.
 	fs.mu.Lock()
@@ -2604,7 +2605,7 @@ func (fs *fileSystem) Unlink(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		ctx = context.Background()
+		ctx = monitor.GetTraceContext(ctx, fs.newConfig)
 	}
 
 	fs.mu.Lock()
@@ -2699,7 +2700,7 @@ func (fs *fileSystem) ReadDir(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		ctx = context.Background()
+		ctx = monitor.GetTraceContext(ctx, fs.newConfig)
 	}
 	// Find the handle.
 	fs.mu.Lock()
@@ -2725,7 +2726,7 @@ func (fs *fileSystem) ReadDirPlus(ctx context.Context, op *fuseops.ReadDirPlusOp
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		ctx = context.Background()
+		ctx = monitor.GetTraceContext(ctx, fs.newConfig)
 	}
 	// Find the handle.
 	fs.mu.Lock()
@@ -2833,7 +2834,7 @@ func (fs *fileSystem) ReadFile(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		ctx = context.Background()
+		ctx = monitor.GetTraceContext(ctx, fs.newConfig)
 	}
 	// Save readOp in context for access in logs.
 	ctx = context.WithValue(ctx, gcsx.ReadOp, op)
@@ -2918,7 +2919,7 @@ func (fs *fileSystem) WriteFile(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		ctx = context.Background()
+		ctx = monitor.GetTraceContext(ctx, fs.newConfig)
 	}
 
 	// Find the inode( and file handle in case of appends).
@@ -2970,7 +2971,7 @@ func (fs *fileSystem) SyncFile(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		ctx = context.Background()
+		ctx = monitor.GetTraceContext(ctx, fs.newConfig)
 	}
 	// Find the inode.
 	fs.mu.Lock()
@@ -3001,7 +3002,7 @@ func (fs *fileSystem) FlushFile(
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
-		ctx = context.Background()
+		ctx = monitor.GetTraceContext(ctx, fs.newConfig)
 	}
 	// Find the inode.
 	fs.mu.Lock()
