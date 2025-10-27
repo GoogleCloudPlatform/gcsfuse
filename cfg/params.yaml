@@ -350,6 +350,15 @@ params:
         - name: "aiml-serving"
           value: -1
 
+  - config-path: "file-system.o-direct"
+    flag-name: "o-direct"
+    type: "bool"
+    usage: >-
+      Bypasses the kernel's page cache for file reads and writes. When enabled,
+      all I/O operations are sent directly to the GCSFuse daemon. 
+    default: false
+    hide-flag: true
+
   - config-path: "file-system.precondition-errors"
     flag-name: "precondition-errors"
     type: "bool"
