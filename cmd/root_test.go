@@ -1276,13 +1276,13 @@ func TestArgsParsing_EnableUnsupportedDirSupport(t *testing.T) {
 	}{
 		{
 			name:                          "normal",
-			args:                          []string{"gcsfuse", "--enable-unsupported-dir-support=false", "abc", "pqr"},
-			expectedUnsupportedDirSupport: false,
+			args:                          []string{"gcsfuse", "--enable-unsupported-dir-support=true", "abc", "pqr"},
+			expectedUnsupportedDirSupport: true,
 		},
 		{
 			name:                          "default",
 			args:                          []string{"gcsfuse", "abc", "pqr"},
-			expectedUnsupportedDirSupport: true,
+			expectedUnsupportedDirSupport: false,
 		},
 	}
 
