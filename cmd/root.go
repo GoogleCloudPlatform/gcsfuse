@@ -31,9 +31,15 @@ import (
 )
 
 type mountInfo struct {
-	cliFlags        map[string]string
+	// cliFlags are the flags passed through the command line to GCSFuse Program.
+	// This field is used only for logging purpose.
+	cliFlags map[string]string
+	// configFileFlags are the flags passed through the config file to GCSFuse Program.
+	// This field is used only for logging purpose.
 	configFileFlags map[string]any
-	config          *cfg.Config
+	// config is the final config object after merging cli and config file flags applying
+	// all optimisation based on machineType, Profile etc. This is the final config used for mounting GCSFuse.
+	config *cfg.Config
 }
 
 type mountFn func(mountInfo *mountInfo, bucketName, mountPoint string) error
