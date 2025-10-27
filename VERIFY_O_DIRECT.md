@@ -10,6 +10,32 @@ The page cache is a mechanism used by the Linux kernel to cache file data in mem
 
 The `O_DIRECT` flag is a flag that can be passed to the `open()` system call. When this flag is used, file I_O is performed directly to and from the user-space buffer, bypassing the page cache. This can improve performance in some cases, but it can also have a negative impact if not used carefully.
 
+## Installing `fincore`
+
+The `fincore` utility is not a standard command and needs to be installed. It is part of the `linux-ftools` package.
+
+1. **Install Git and build tools:**
+   ```bash
+   sudo apt-get update
+   sudo apt-get install git build-essential
+   ```
+
+2. **Clone the `linux-ftools` repository:**
+   ```bash
+   git clone https://github.com/mptre/linux-ftools.git
+   ```
+
+3. **Compile `fincore`:**
+   ```bash
+   cd linux-ftools
+   make
+   ```
+
+4. **Install `fincore`:**
+   ```bash
+   sudo make install
+   ```
+
 ## Verifying Cached Data (O_DIRECT unset)
 
 When a file is read without the `O_DIRECT` flag, its data should be present in the page cache. Here's how to verify this:
