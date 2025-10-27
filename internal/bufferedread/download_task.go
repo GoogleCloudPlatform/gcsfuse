@@ -109,9 +109,25 @@ func (p *DownloadTask) Execute() {
 	}
 	defer newReader.Close()
 
-	n, err = io.CopyN(p.block, newReader, int64(end-start))
-	if err != nil {
-		err = fmt.Errorf("DownloadTask.Execute: while data-copy: %w", err)
-		return
+	const chunkSize = 1 << 20 // 1 MB
+
+	remaining := int64(end - start)
+	for remaining > 0 {
+		toCopy := int64(chunkSize)
+		if remaining < toCopy {
+			toCopy = remaining
+		}
+
+		copied, copyErr := io.CopyN(p.block, newReader, toCopy)
+		n += copied
+		if copyErr != nil {
+			err = fmt.Errorf("DownloadTask.Execute: while data-copy: %w", copyErr)
+			return
+		}
+
+		// Notify after each 1MB (or final smaller) chunk.
+		p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloaded, Offset: n})
+
+		remaining -= copied
 	}
 }

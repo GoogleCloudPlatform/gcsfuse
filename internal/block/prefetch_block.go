@@ -152,6 +152,11 @@ func (pmb *prefetchMemoryBlock) SetAbsStartOff(startOff int64) error {
 // AwaitReady waits for the block to be ready to consume.
 // It returns the status of the block and an error if any.
 func (pmb *prefetchMemoryBlock) AwaitReady(ctx context.Context, offset int64) (BlockStatus, error) {
+
+	if offset < pmb.memoryBlock.offset.end {
+		return BlockStatus{State: BlockStateInProgress, Offset: pmb.memoryBlock.offset.end}, nil
+	}
+
 	for {
 		select {
 		case val, ok := <-pmb.notification:
