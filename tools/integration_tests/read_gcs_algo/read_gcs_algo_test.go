@@ -47,7 +47,6 @@ func TestMain(m *testing.M) {
 		cfg.ReadGCSAlgo[0].TestBucket = setup.TestBucket()
 		cfg.ReadGCSAlgo[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.ReadGCSAlgo[0].Configs = make([]test_suite.ConfigItem, 2)
-		// Do not enable fileCache as we want to test gcs read flow.
 		cfg.ReadGCSAlgo[0].Configs[0].Flags = []string{"--implicit-dirs=true"}
 		cfg.ReadGCSAlgo[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
