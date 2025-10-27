@@ -33,7 +33,7 @@ spec:
       limits:
         # Make sure you run on a node with these configurations (ct6e-standard-8t)
         google.com/tpu: 4
-    image: gcr.io/gcs-fuse-test/kislayk_orbax_workload:latest
+    image: gcr.io/$project_id/kislayk_orbax_workload:latest
     imagePullPolicy: Always
     command: ["bash", "-c"]
     args:
