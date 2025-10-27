@@ -338,16 +338,16 @@ func forwardedEnvVars() []string {
 }
 
 // logGCSFuseMountInformation logs the CLI flags, config file flags and the resolved config.
-func logGCSFuseMountInformation(mountInfo *MountInfo) {
-	logger.Info("GCSFuse mount", "CLI Flags", mountInfo.CLIFlags)
-	if mountInfo.ConfigFileFlags != nil {
-		logger.Info("GCSFuse mount", "ConfigFile Flags", mountInfo.ConfigFileFlags)
+func logGCSFuseMountInformation(mountInfo *mountInfo) {
+	logger.Info("GCSFuse Config", "CLI Flags", mountInfo.cliFlags)
+	if mountInfo.configFileFlags != nil {
+		logger.Info("GCSFuse Config", "ConfigFile Flags", mountInfo.configFileFlags)
 	}
-	logger.Info("GCSFuse mount", "Resolved Config", mountInfo.GCSFuseResolvedConfig)
+	logger.Info("GCSFuse Config", "Full Config", mountInfo.config)
 }
 
-func Mount(mountInfo *MountInfo, bucketName, mountPoint string) (err error) {
-	newConfig := mountInfo.GCSFuseResolvedConfig
+func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
+	newConfig := mountInfo.config
 	// Ideally this call to UpdateDefaultLogger (which internally creates a
 	// new defaultLogger with user provided log-format and custom attribute 'fsName-MountInstanceID')
 	// should be set as an else to the 'if flags.Foreground' check below, but currently

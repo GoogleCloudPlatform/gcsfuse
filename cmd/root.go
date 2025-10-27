@@ -30,13 +30,13 @@ import (
 	"github.com/spf13/viper"
 )
 
-type MountInfo struct {
-	CLIFlags              map[string]string
-	ConfigFileFlags       map[string]any
-	GCSFuseResolvedConfig *cfg.Config
+type mountInfo struct {
+	cliFlags        map[string]string
+	configFileFlags map[string]any
+	config          *cfg.Config
 }
 
-type mountFn func(mountInfo *MountInfo, bucketName, mountPoint string) error
+type mountFn func(mountInfo *mountInfo, bucketName, mountPoint string) error
 
 // pflagAsIsValueSet is an adapter that makes a pflag.FlagSet satisfy the
 // cfg.isValueSet interface, allowing us to check for user-set flags reliably.
@@ -90,22 +90,22 @@ func getConfigFileFlags(v *viper.Viper) map[string]any {
 		return nil
 	}
 
-	// Viper's AllSettings() includes defaults, which we don't want.
+	// v.AllSettings() includes defaults, which we don't want.
 	// We only want what's explicitly in the config file.
 	// We can achieve this by creating a new Viper instance and reading the
 	// same config file into it without setting any defaults.
-	cleanViper := viper.New()
-	cleanViper.SetConfigFile(v.ConfigFileUsed())
-	cleanViper.SetConfigType("yaml")
+	configOnlyViper := viper.New()
+	configOnlyViper.SetConfigFile(v.ConfigFileUsed())
+	configOnlyViper.SetConfigType("yaml")
 	// We can ignore the error here, as the original viper instance would have already failed.
-	_ = cleanViper.ReadInConfig()
-	return cleanViper.AllSettings()
+	_ = configOnlyViper.ReadInConfig()
+	return configOnlyViper.AllSettings()
 }
 
 // newRootCmd accepts the mountFn that it executes with the parsed configuration
 func newRootCmd(m mountFn) (*cobra.Command, error) {
 	var (
-		mountInfo MountInfo
+		mountInfo mountInfo
 		configObj cfg.Config
 		cfgFile   string
 		cfgErr    error
@@ -164,9 +164,9 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 		if cfgErr = cfg.Rationalize(v, &configObj, optimizedFlags); cfgErr != nil {
 			return
 		}
-		mountInfo.CLIFlags = getCliFlags(rootCmd.PersistentFlags())
-		mountInfo.ConfigFileFlags = getConfigFileFlags(v)
-		mountInfo.GCSFuseResolvedConfig = &configObj
+		mountInfo.cliFlags = getCliFlags(rootCmd.PersistentFlags())
+		mountInfo.configFileFlags = getConfigFileFlags(v)
+		mountInfo.config = &configObj
 	}
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringVar(&cfgFile, cfg.ConfigFileFlagName, "", "The path to the config file where all gcsfuse related config needs to be specified. "+

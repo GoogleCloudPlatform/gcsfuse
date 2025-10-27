@@ -25,14 +25,15 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestDefaultMaxParallelDownloads(t *testing.T) {
 	var actual *cfg.Config
-	cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
-		actual = mountInfo.GCSFuseResolvedConfig
+	cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+		actual = mountInfo.config
 		return nil
 	})
 	require.Nil(t, err)
@@ -73,7 +74,7 @@ func TestCobraArgsNumInRange(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd, err := newRootCmd(func(*MountInfo, string, string) error { return nil })
+			cmd, err := newRootCmd(func(*mountInfo, string, string) error { return nil })
 			require.Nil(t, err)
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
@@ -128,7 +129,7 @@ func TestArgsParsing_MountPoint(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var bucketName, mountPoint string
-			cmd, err := newRootCmd(func(_ *MountInfo, b string, m string) error {
+			cmd, err := newRootCmd(func(_ *mountInfo, b string, m string) error {
 				bucketName = b
 				mountPoint = m
 				return nil
@@ -177,8 +178,8 @@ func TestArgsParsing_MountOptions(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var mountOptions []string
-			cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
-				mountOptions = mountInfo.GCSFuseResolvedConfig.FileSystem.FuseOptions
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				mountOptions = mountInfo.config.FileSystem.FuseOptions
 				return nil
 			})
 			require.Nil(t, err)
@@ -197,39 +198,35 @@ func TestMountInfoPopulation(t *testing.T) {
 	testCases := []struct {
 		name                    string
 		cliArgs                 []string
-		configFileContent       string
-		validateMountInfo       func(t *testing.T, mi *MountInfo)
+		configFilePath          string
+		validateMountInfo       func(t *testing.T, mi *mountInfo)
 		expectedResolvedGid     int64
 		expectedResolvedAppName string
 	}{
 		{
 			name:    "CLI flags only",
 			cliArgs: []string{"--app-name=cli-app", "--foreground", "--gid=1001"},
-			validateMountInfo: func(t *testing.T, mi *MountInfo) {
-				assert.Contains(t, mi.CLIFlags, "app-name")
-				assert.Equal(t, "cli-app", mi.CLIFlags["app-name"])
-				assert.Contains(t, mi.CLIFlags, "foreground")
-				assert.Equal(t, "true", mi.CLIFlags["foreground"])
-				assert.Contains(t, mi.CLIFlags, "gid")
-				assert.Equal(t, "1001", mi.CLIFlags["gid"])
-				assert.Empty(t, mi.ConfigFileFlags)
+			validateMountInfo: func(t *testing.T, mi *mountInfo) {
+				assert.Contains(t, mi.cliFlags, "app-name")
+				assert.Equal(t, "cli-app", mi.cliFlags["app-name"])
+				assert.Contains(t, mi.cliFlags, "foreground")
+				assert.Equal(t, "true", mi.cliFlags["foreground"])
+				assert.Contains(t, mi.cliFlags, "gid")
+				assert.Equal(t, "1001", mi.cliFlags["gid"])
+				assert.Empty(t, mi.configFileFlags)
 			},
 			expectedResolvedGid:     1001,
 			expectedResolvedAppName: "cli-app",
 		},
 		{
-			name: "Config file only",
-			configFileContent: `
-app-name: config-app
-file-system:
-  gid: 1002
-`,
-			validateMountInfo: func(t *testing.T, mi *MountInfo) {
-				assert.NotContains(t, mi.CLIFlags, "app-name")
-				assert.NotContains(t, mi.CLIFlags, "gid")
-				assert.Contains(t, mi.ConfigFileFlags, "app-name")
-				assert.Equal(t, "config-app", mi.ConfigFileFlags["app-name"])
-				fsFlags, ok := mi.ConfigFileFlags["file-system"].(map[string]interface{})
+			name:           "Config file only",
+			configFilePath: "testdata/mount_info_population/config_file_only.yaml",
+			validateMountInfo: func(t *testing.T, mi *mountInfo) {
+				assert.NotContains(t, mi.cliFlags, "app-name")
+				assert.NotContains(t, mi.cliFlags, "gid")
+				assert.Contains(t, mi.configFileFlags, "app-name")
+				assert.Equal(t, "config-app", mi.configFileFlags["app-name"])
+				fsFlags, ok := mi.configFileFlags["file-system"].(map[string]interface{})
 				require.True(t, ok)
 				assert.Equal(t, 1002, fsFlags["gid"])
 			},
@@ -237,26 +234,20 @@ file-system:
 			expectedResolvedAppName: "config-app",
 		},
 		{
-			name:    "CLI flags override config file",
-			cliArgs: []string{"--app-name=cli-app-override", "--gid=1003"},
-			configFileContent: `
-app-name: config-app
-file-system:
-  gid: 1002
-logging:
-  severity: error
-`,
-			validateMountInfo: func(t *testing.T, mi *MountInfo) {
+			name:           "CLI flags override config file",
+			cliArgs:        []string{"--app-name=cli-app-override", "--gid=1003"},
+			configFilePath: "testdata/mount_info_population/cli_override_config.yaml",
+			validateMountInfo: func(t *testing.T, mi *mountInfo) {
 				// Check CLI flags
-				assert.Equal(t, "cli-app-override", mi.CLIFlags["app-name"])
-				assert.Equal(t, "1003", mi.CLIFlags["gid"])
+				assert.Equal(t, "cli-app-override", mi.cliFlags["app-name"])
+				assert.Equal(t, "1003", mi.cliFlags["gid"])
 
 				// Check config file flags
-				assert.Equal(t, "config-app", mi.ConfigFileFlags["app-name"])
-				fsFlags, ok := mi.ConfigFileFlags["file-system"].(map[string]interface{})
+				assert.Equal(t, "config-app", mi.configFileFlags["app-name"])
+				fsFlags, ok := mi.configFileFlags["file-system"].(map[string]interface{})
 				require.True(t, ok)
 				assert.Equal(t, 1002, fsFlags["gid"])
-				logFlags, ok := mi.ConfigFileFlags["logging"].(map[string]interface{})
+				logFlags, ok := mi.configFileFlags["logging"].(map[string]interface{})
 				require.True(t, ok)
 				assert.Equal(t, "error", logFlags["severity"])
 			},
@@ -265,9 +256,9 @@ logging:
 		},
 		{
 			name: "Defaults when no flags or config",
-			validateMountInfo: func(t *testing.T, mi *MountInfo) {
-				assert.Empty(t, mi.CLIFlags)
-				assert.Empty(t, mi.ConfigFileFlags)
+			validateMountInfo: func(t *testing.T, mi *mountInfo) {
+				assert.Empty(t, mi.cliFlags)
+				assert.Empty(t, mi.configFileFlags)
 			},
 			expectedResolvedGid:     -1, // Default value
 			expectedResolvedAppName: "", // Default value
@@ -276,22 +267,17 @@ logging:
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			var capturedMountInfo *MountInfo
-			cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
+			var capturedMountInfo *mountInfo
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				capturedMountInfo = mountInfo
 				return nil
 			})
 			require.NoError(t, err)
 
 			args := []string{"gcsfuse"}
-			if tc.configFileContent != "" {
-				configFile, err := os.CreateTemp(t.TempDir(), "config.yaml")
-				require.NoError(t, err)
-				defer os.Remove(configFile.Name())
-				_, err = configFile.WriteString(tc.configFileContent)
-				require.NoError(t, err)
-				require.NoError(t, configFile.Close())
-				args = append(args, "--config-file", configFile.Name())
+			if tc.configFilePath != "" {
+				// Use the provided config file path from testdata.
+				args = append(args, "--config-file", tc.configFilePath)
 			}
 			args = append(args, tc.cliArgs...)
 			args = append(args, "my-bucket", "/mnt/gcs")
@@ -301,8 +287,8 @@ logging:
 
 			require.NotNil(t, capturedMountInfo)
 			tc.validateMountInfo(t, capturedMountInfo)
-			assert.Equal(t, tc.expectedResolvedGid, capturedMountInfo.GCSFuseResolvedConfig.FileSystem.Gid)
-			assert.Equal(t, tc.expectedResolvedAppName, capturedMountInfo.GCSFuseResolvedConfig.AppName)
+			assert.Equal(t, tc.expectedResolvedGid, capturedMountInfo.config.FileSystem.Gid)
+			assert.Equal(t, tc.expectedResolvedAppName, capturedMountInfo.config.AppName)
 		})
 	}
 }
@@ -414,8 +400,8 @@ func TestArgsParsing_ImplicitDirsFlag(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotImplicit bool
-			cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
-				gotImplicit = mountInfo.GCSFuseResolvedConfig.ImplicitDirs
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotImplicit = mountInfo.config.ImplicitDirs
 				return nil
 			})
 			require.Nil(t, err)
@@ -593,8 +579,8 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var wc cfg.WriteConfig
-			cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
-				wc = mountInfo.GCSFuseResolvedConfig.Write
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				wc = mountInfo.config.Write
 				return nil
 			})
 			require.Nil(t, err)
@@ -700,8 +686,8 @@ func TestArgsParsing_ReadConfigFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var rc cfg.ReadConfig
-			cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
-				rc = mountInfo.GCSFuseResolvedConfig.Read
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				rc = mountInfo.config.Read
 				return nil
 			})
 			require.Nil(t, err)
@@ -772,8 +758,8 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
-				gotConfig = mountInfo.GCSFuseResolvedConfig
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
 				return nil
 			})
 			require.Nil(t, err)
@@ -824,8 +810,8 @@ func TestArgParsing_ExperimentalMetadataPrefetchFlag(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var experimentalMetadataPrefetch string
-			cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
-				experimentalMetadataPrefetch = mountInfo.GCSFuseResolvedConfig.MetadataCache.ExperimentalMetadataPrefetchOnMount
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				experimentalMetadataPrefetch = mountInfo.config.MetadataCache.ExperimentalMetadataPrefetchOnMount
 				return nil
 			})
 			require.Nil(t, err)
@@ -857,7 +843,7 @@ func TestArgParsing_ExperimentalMetadataPrefetchFlag_Failed(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				return nil
 			})
 			require.Nil(t, err)
@@ -907,8 +893,8 @@ func TestArgsParsing_GCSAuthFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
-				gotConfig = mountInfo.GCSFuseResolvedConfig
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
 				return nil
 			})
 			require.Nil(t, err)
@@ -945,7 +931,7 @@ func TestArgsParsing_GCSAuthFlagsThrowsError(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd, err := newRootCmd(func(_ *MountInfo, _, _ string) error {
+			cmd, err := newRootCmd(func(_ *mountInfo, _, _ string) error {
 				return nil
 			})
 			require.Nil(t, err)
@@ -1027,8 +1013,8 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
-				gotConfig = mountInfo.GCSFuseResolvedConfig
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
 				return nil
 			})
 			require.Nil(t, err)
@@ -1071,7 +1057,7 @@ func TestArgsParsing_GCSConnectionFlagsThrowsError(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd, err := newRootCmd(func(_ *MountInfo, _, _ string) error {
+			cmd, err := newRootCmd(func(_ *mountInfo, _, _ string) error {
 				return nil
 			})
 			require.Nil(t, err)
@@ -1281,8 +1267,8 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
-				gotConfig = mountInfo.GCSFuseResolvedConfig
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
 				return nil
 			})
 			require.Nil(t, err)
@@ -1338,7 +1324,7 @@ func TestArgsParsing_FileSystemFlagsThrowsError(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd, err := newRootCmd(func(_ *MountInfo, _, _ string) error {
+			cmd, err := newRootCmd(func(_ *mountInfo, _, _ string) error {
 				return nil
 			})
 			require.Nil(t, err)
@@ -1374,8 +1360,8 @@ func TestArgsParsing_ListFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
-				gotConfig = mountInfo.GCSFuseResolvedConfig
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
 				return nil
 			})
 			require.Nil(t, err)
@@ -1411,8 +1397,8 @@ func TestArgsParsing_EnableHNSFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotEnableHNS bool
-			cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
-				gotEnableHNS = mountInfo.GCSFuseResolvedConfig.EnableHns
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotEnableHNS = mountInfo.config.EnableHns
 				return nil
 			})
 			require.Nil(t, err)
@@ -1448,8 +1434,8 @@ func TestArgsParsing_EnableUnsupportedDirSupport(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotUnsupportedDirSupport bool
-			cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
-				gotUnsupportedDirSupport = mountInfo.GCSFuseResolvedConfig.EnableUnsupportedDirSupport
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotUnsupportedDirSupport = mountInfo.config.EnableUnsupportedDirSupport
 				return nil
 			})
 			require.Nil(t, err)
@@ -1485,8 +1471,8 @@ func TestArgsParsing_EnableGoogleLibAuthFlag(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotEnableGoogleLibAuth bool
-			cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
-				gotEnableGoogleLibAuth = mountInfo.GCSFuseResolvedConfig.EnableGoogleLibAuth
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotEnableGoogleLibAuth = mountInfo.config.EnableGoogleLibAuth
 				return nil
 			})
 			require.Nil(t, err)
@@ -1522,8 +1508,8 @@ func TestArgsParsing_EnableAtomicRenameObjectFlag(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotEnableAtomicRenameObject bool
-			cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
-				gotEnableAtomicRenameObject = mountInfo.GCSFuseResolvedConfig.EnableAtomicRenameObject
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotEnableAtomicRenameObject = mountInfo.config.EnableAtomicRenameObject
 				return nil
 			})
 			require.Nil(t, err)
@@ -1559,8 +1545,8 @@ func TestArgsParsing_EnableNewReaderFlag(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotEnableNewReader bool
-			cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
-				gotEnableNewReader = mountInfo.GCSFuseResolvedConfig.EnableNewReader
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotEnableNewReader = mountInfo.config.EnableNewReader
 				return nil
 			})
 			require.Nil(t, err)
@@ -1628,8 +1614,8 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
-				gotConfig = mountInfo.GCSFuseResolvedConfig
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
 				return nil
 			})
 			require.Nil(t, err)
@@ -1674,8 +1660,8 @@ func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
-				gotConfig = mountInfo.GCSFuseResolvedConfig
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
 				return nil
 			})
 			require.Nil(t, err)
@@ -1803,8 +1789,8 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
-				gotConfig = mountInfo.GCSFuseResolvedConfig
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
 				return nil
 			})
 			require.Nil(t, err)
@@ -1849,8 +1835,8 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
-				gotConfig = mountInfo.GCSFuseResolvedConfig
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
 				return nil
 			})
 			require.Nil(t, err)
@@ -1941,8 +1927,8 @@ func TestArgsParsing_ProfilerFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotProfilerConfig cfg.CloudProfilerConfig
-			cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
-				gotProfilerConfig = mountInfo.GCSFuseResolvedConfig.CloudProfiler
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotProfilerConfig = mountInfo.config.CloudProfiler
 				return nil
 			})
 			require.Nil(t, err)
@@ -1982,8 +1968,8 @@ func TestArgsParsing_ReadInactiveTimeoutConfig(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
-				gotConfig = mountInfo.GCSFuseResolvedConfig
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
 				return nil
 			})
 			require.Nil(t, err)
@@ -2038,8 +2024,8 @@ func TestArgsParsing_WorkloadInsightFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
-				gotConfig = mountInfo.GCSFuseResolvedConfig
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
 				return nil
 			})
 			require.Nil(t, err)
@@ -2082,8 +2068,8 @@ func TestArgsParsing_WorkloadInsightConfigFile(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(mountInfo *MountInfo, _, _ string) error {
-				gotConfig = mountInfo.GCSFuseResolvedConfig
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
 				return nil
 			})
 			require.Nil(t, err)
@@ -2094,6 +2080,71 @@ func TestArgsParsing_WorkloadInsightConfigFile(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedVisualize, gotConfig.WorkloadInsight.Visualize)
 			assert.Equal(t, tc.expectedOutputFile, gotConfig.WorkloadInsight.OutputFile)
+		})
+	}
+}
+
+func TestGetConfigFileFlags(t *testing.T) {
+	testCases := []struct {
+		name      string
+		defaults  map[string]any
+		filePath  string
+		noFile    bool
+		expected  map[string]any
+		expectNil bool
+	}{
+		{
+			name:      "No config file",
+			noFile:    true,
+			expectNil: true,
+		},
+		{
+			name:     "Empty config file",
+			defaults: map[string]any{"key1": "default"},
+			filePath: "testdata/get_config_file_flags/empty.yaml",
+			expected: map[string]any{},
+		},
+		{
+			name:     "Default values are ignored",
+			defaults: map[string]any{"default_key": "default_value"},
+			filePath: "testdata/get_config_file_flags/simple_values.yaml",
+			expected: map[string]any{"key1": "value1", "key2": 123},
+		},
+		{
+			name:     "Config file with nested values",
+			filePath: "testdata/get_config_file_flags/nested_values.yaml",
+			expected: map[string]any{
+				"logging": map[string]any{
+					"file-path": "/var/log/gcsfuse.log",
+					"format":    "json",
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			inputViper := viper.New()
+
+			if !tc.noFile {
+				// Set defaults on the input viper to simulate the real scenario
+				for key, value := range tc.defaults {
+					inputViper.SetDefault(key, value)
+				}
+
+				// Configure viper to use the testdata file and read it
+				inputViper.SetConfigFile(tc.filePath)
+				inputViper.SetConfigType("yaml") // Ensure inputViper also knows the config type
+				require.NoError(t, inputViper.ReadInConfig())
+			}
+
+			got := getConfigFileFlags(inputViper)
+
+			if tc.expectNil {
+				assert.Nil(t, got)
+			} else {
+				assert.Equal(t, tc.expected, got)
+			}
 		})
 	}
 }
