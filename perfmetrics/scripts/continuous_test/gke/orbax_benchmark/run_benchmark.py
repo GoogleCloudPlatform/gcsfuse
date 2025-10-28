@@ -377,7 +377,7 @@ async def main():
     parser.add_argument("--iterations", type=int, default=int(os.environ.get("ITERATIONS", 10)), help="Number of iterations for the benchmark. Can also be set with ITERATIONS env var.")
     parser.add_argument("--performance_threshold_gbps", type=float, default=float(os.environ.get("PERFORMANCE_THRESHOLD_GBPS", 13.0)), help="Minimum throughput in GB/s for a successful iteration. Can also be set with PERFORMANCE_THRESHOLD_GBPS env var.")
     parser.add_argument("--pod_timeout_seconds", type=int, default=int(os.environ.get("POD_TIMEOUT_SECONDS", 1800)), help="Timeout in seconds for the benchmark pod to complete. Can also be set with POD_TIMEOUT_SECONDS env var.")
-    arser.add_argument("--skip_csi_driver_build", action="store_true", default=os.environ.get("SKIP_CSI_DRIVER_BUILD", "False").lower() in ("true", "1"), help="Skip building the CSI driver. Can also be set with SKIP_CSI_DRIVER_BUILD=true env var.")
+    parser.add_argument("--skip_csi_driver_build", action="store_true", default=os.environ.get("SKIP_CSI_DRIVER_BUILD", "False").lower() in ("true", "1"), help="Skip building the CSI driver. Can also be set with SKIP_CSI_DRIVER_BUILD=true env var.")
     args = parser.parse_args()
 
     # Append zone to default network and subnet names to avoid collisions
