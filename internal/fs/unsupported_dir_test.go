@@ -43,6 +43,7 @@ func (t *UnsupportedObjectNameTest) SetupTest() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.NewConfig = &cfg.Config{
 		EnableUnsupportedDirSupport: true,
+		EnableAtomicRenameObject:    true,
 	}
 	t.fsTest.SetUpTestSuite()
 }
@@ -116,6 +117,34 @@ func (t *UnsupportedObjectNameTest) TestCopyDirectory_WithUnsupportedNames() {
 	entries, err := os.ReadDir(destPath)
 	t.Require().NoError(err)
 	// Only supported files and directories should be copied.
+	t.Require().Len(entries, 2)
+	t.Assert().Equal("file1", entries[0].Name())
+	t.Assert().Equal("ok", entries[1].Name())
+}
+
+func (t *UnsupportedObjectNameTest) TestRenameDirectory_WithUnsupportedNames() {
+	// Set up contents.
+	err := t.createObjects(map[string]string{
+		"src/file1":    "content1",
+		"src//file2":   "content2",
+		"src/./file3":  "content3",
+		"src/ok/file4": "content4",
+	})
+	t.Require().NoError(err)
+	srcPath := path.Join(mntDir, "src")
+	destPath := path.Join(mntDir, "dest")
+
+	// Attempt to rename the directory.
+	err = os.Rename(srcPath, destPath)
+	t.Require().NoError(err)
+
+	// The old path should not exist.
+	_, err = os.Stat(srcPath)
+	t.Assert().True(os.IsNotExist(err))
+	// Verify the contents of the destination directory.
+	entries, err := os.ReadDir(destPath)
+	t.Require().NoError(err)
+	// Only supported files and directories are visible during list.
 	t.Require().Len(entries, 2)
 	t.Assert().Equal("file1", entries[0].Name())
 	t.Assert().Equal("ok", entries[1].Name())

@@ -89,7 +89,7 @@ type DirInode interface {
 	// undefined.
 	ReadEntries(
 		ctx context.Context,
-		tok string) (entries []fuseutil.Dirent, newTok string, err error)
+		tok string) (entries []fuseutil.Dirent, unsupportedDirs []string, newTok string, err error)
 
 	// ReadEntryCores reads a batch of directory entries and returns them as a
 	// map of `inode.Core` objects along with a continuation token that can be
@@ -100,7 +100,7 @@ type DirInode interface {
 	// empty. Otherwise it will be non-empty. There is no guarantee about the
 	// number of entries returned; it may be zero even with a non-empty
 	// continuation token.
-	ReadEntryCores(ctx context.Context, tok string) (cores map[Name]*Core, newTok string, err error)
+	ReadEntryCores(ctx context.Context, tok string) (cores map[Name]*Core, unsupportedDirs []string, newTok string, err error)
 
 	// Create an empty child file with the supplied (relative) name, failing with
 	// *gcs.PreconditionError if a backing object already exists in GCS.
@@ -677,7 +677,7 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 // LOCKS_REQUIRED(d)
 func (d *dirInode) readObjects(
 	ctx context.Context,
-	tok string) (cores map[Name]*Core, newTok string, err error) {
+	tok string) (cores map[Name]*Core, unsupportedDirs []string, newTok string, err error) {
 	if d.isBucketHierarchical() {
 		d.includeFoldersAsPrefixes = true
 	}
@@ -751,11 +751,10 @@ func (d *dirInode) readObjects(
 	}
 
 	// Add implicit directories into the result.
-	unsupportedPrefixes := []string{}
 	for _, p := range listing.CollapsedRuns {
 		pathBase := path.Base(p)
 		if storageutil.IsUnsupportedObjectName(p) {
-			unsupportedPrefixes = append(unsupportedPrefixes, p)
+			unsupportedDirs = append(unsupportedDirs, p)
 			// Skip unsupported objects in the listing, as the kernel cannot process these file system elements.
 			// TODO: Remove this check once we gain confidence that it is not causing any issues.
 			if d.isUnsupportedDirSupportEnabled {
@@ -785,8 +784,8 @@ func (d *dirInode) readObjects(
 			cores[dirName] = implicitDir
 		}
 	}
-	if len(unsupportedPrefixes) > 0 {
-		logger.Errorf("Encountered unsupported prefixes during listing: %v", unsupportedPrefixes)
+	if len(unsupportedDirs) > 0 {
+		logger.Errorf("Encountered unsupported prefixes during listing: %v", unsupportedDirs)
 	}
 	return
 }
@@ -794,9 +793,9 @@ func (d *dirInode) readObjects(
 // LOCKS_REQUIRED(d)
 func (d *dirInode) ReadEntries(
 	ctx context.Context,
-	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
+	tok string) (entries []fuseutil.Dirent, unsupportedDirs []string, newTok string, err error) {
 	var cores map[Name]*Core
-	cores, newTok, err = d.ReadEntryCores(ctx, tok)
+	cores, unsupportedDirs, newTok, err = d.ReadEntryCores(ctx, tok)
 	if err != nil {
 		return
 	}
@@ -821,8 +820,8 @@ func (d *dirInode) ReadEntries(
 }
 
 // LOCKS_REQUIRED(d)
-func (d *dirInode) ReadEntryCores(ctx context.Context, tok string) (cores map[Name]*Core, newTok string, err error) {
-	cores, newTok, err = d.readObjects(ctx, tok)
+func (d *dirInode) ReadEntryCores(ctx context.Context, tok string) (cores map[Name]*Core, unsupportedDirs []string, newTok string, err error) {
+	cores, unsupportedDirs, newTok, err = d.readObjects(ctx, tok)
 	if err != nil {
 		err = fmt.Errorf("read objects: %w", err)
 		return

@@ -2195,7 +2195,7 @@ func (fs *fileSystem) RmDir(
 	var tok string
 	for {
 		var entries []fuseutil.Dirent
-		entries, tok, err = childDir.ReadEntries(ctx, tok)
+		entries, _, tok, err = childDir.ReadEntries(ctx, tok)
 		if err != nil {
 			err = fmt.Errorf("ReadEntries: %w", err)
 			return err
@@ -2580,8 +2580,13 @@ func (fs *fileSystem) renameNonHierarchicalDir(
 				return fmt.Errorf("delete file %q: %w", o.Name, err)
 			}
 		} else {
-			// For regular files, perform an in-place rename to the new directory.
-			if _, err = oldDir.RenameFile(ctx, o, path.Join(newDir.Name().GcsObjectName(), nameDiff)); err != nil {
+			// For regular files, perform an in-place rename by constructing the new GCS object name.
+			// Standard path.Join is avoided here because object names in GCS are distinct from
+			// directory prefixes; the "/" character is *always* treated as a separate directory
+			// element, not part of the object's base name. This manual approach correctly
+			// handles those GCS naming edge cases (like objects with unsupported characters).
+			newObject := newDir.Name().GcsObjectName() + nameDiff
+			if _, err = oldDir.RenameFile(ctx, o, newObject); err != nil {
 				return fmt.Errorf("renameFile: while renaming file: %w", err)
 			}
 		}

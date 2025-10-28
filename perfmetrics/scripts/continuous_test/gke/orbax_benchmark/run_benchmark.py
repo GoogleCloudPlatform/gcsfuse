@@ -227,7 +227,7 @@ async def setup_gke_cluster(project_id, zone, cluster_name, network_name, subnet
     print("GKE cluster setup complete.")
 
 # GCSFuse Build and Deploy
-async def build_gcsfuse_image(branch, temp_dir):
+async def build_gcsfuse_image(project_id, branch, temp_dir):
     """Clones GCSFuse and builds the CSI driver image.
 
     Args:
@@ -236,7 +236,7 @@ async def build_gcsfuse_image(branch, temp_dir):
     """
     gcsfuse_dir = os.path.join(temp_dir, "gcsfuse")
     await run_command_async(["git", "clone", "--depth=1", "-b", branch, "https://github.com/GoogleCloudPlatform/gcsfuse.git", gcsfuse_dir])
-    build_cmd = ["make", "build-csi", f"STAGINGVERSION={STAGING_VERSION}"]
+    build_cmd = ["make", "build-csi", f"PROJECT={project_id}", f"STAGINGVERSION={STAGING_VERSION}"]
     await run_command_async(build_cmd, cwd=gcsfuse_dir)
     shutil.rmtree(gcsfuse_dir)
 
@@ -390,7 +390,7 @@ async def main():
     with tempfile.TemporaryDirectory() as temp_dir:
         try:
             setup_task = asyncio.create_task(setup_gke_cluster(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name, args.zone.rsplit('-', 1)[0], args.machine_type, args.node_pool_name))
-            build_task = asyncio.create_task(build_gcsfuse_image(args.gcsfuse_branch, temp_dir))
+            build_task = asyncio.create_task(build_gcsfuse_image(args.project_id,args.gcsfuse_branch, temp_dir))
             await asyncio.gather(setup_task, build_task)
 
             throughputs = await execute_workload_and_gather_results(args.project_id, args.zone, args.cluster_name, args.bucket_name, timestamp, args.iterations, STAGING_VERSION, args.pod_timeout_seconds)
