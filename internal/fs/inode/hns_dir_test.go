@@ -584,8 +584,8 @@ func (t *HNSDirTest) TestDeleteObjects() {
 		},
 		CollapsedRuns: []string{"dir2/subdir/"},
 	}
-	t.mockBucket.On("ListObjects", t.ctx, listReq).Return(listResp, nil)
-	t.mockBucket.On("DeleteObject", t.ctx, &gcs.DeleteObjectRequest{Name: "dir2/file2.txt"}).Return(nil)
+	t.mockBucket.On("ListObjects", mock.Anything, listReq).Return(listResp, nil)
+	t.mockBucket.On("DeleteObject", mock.Anything, &gcs.DeleteObjectRequest{Name: "dir2/file2.txt"}).Return(nil)
 	// Mock for recursive call on subdir/
 	listReqSubdir := &gcs.ListObjectsRequest{
 		Prefix:            "dir2/subdir/",
@@ -594,9 +594,9 @@ func (t *HNSDirTest) TestDeleteObjects() {
 		ContinuationToken: "",
 	}
 	listRespSubdir := &gcs.Listing{}
-	t.mockBucket.On("ListObjects", t.ctx, listReqSubdir).Return(listRespSubdir, nil)
-	t.mockBucket.On("DeleteFolder", t.ctx, "dir2/subdir/").Return(nil)
-	t.mockBucket.On("DeleteFolder", t.ctx, "dir2/").Return(nil)
+	t.mockBucket.On("ListObjects", mock.Anything, listReqSubdir).Return(listRespSubdir, nil)
+	t.mockBucket.On("DeleteFolder", mock.Anything, "dir2/subdir/").Return(nil)
+	t.mockBucket.On("DeleteFolder", mock.Anything, "dir2/").Return(nil)
 
 	// Act
 	err := t.in.DeleteObjects(t.ctx, objectNames)
