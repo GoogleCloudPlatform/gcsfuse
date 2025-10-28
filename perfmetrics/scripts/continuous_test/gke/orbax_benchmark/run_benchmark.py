@@ -238,7 +238,7 @@ async def build_gcsfuse_image(project_id, branch, temp_dir):
     await run_command_async(["git", "clone", "--depth=1", "-b", branch, "https://github.com/GoogleCloudPlatform/gcsfuse.git", gcsfuse_dir])
     build_cmd = ["make", "build-csi", f"PROJECT={project_id}", f"STAGINGVERSION={STAGING_VERSION}"]
     await run_command_async(build_cmd, cwd=gcsfuse_dir)
-    shutil.rmtree(gcsfuse_dir)
+    #shutil.rmtree(gcsfuse_dir)
 
 def parse_all_gbytes_per_sec(logs):
     """Parses logs to find and extract all gbytes_per_sec values.
