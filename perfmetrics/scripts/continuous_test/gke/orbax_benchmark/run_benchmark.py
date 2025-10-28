@@ -100,7 +100,7 @@ async def check_prerequisites():
             if tool == "kubectl":
                 print("kubectl not found. Attempting to install via gcloud components...")
                 try:
-                    await run_command_async(["snap", "install", "kubectl", "--classic"])                    
+                    await run_command_async(["sudo", "snap", "install", "kubectl", "--classic"])                    
                 except (FileNotFoundError, subprocess.CalledProcessError) as e:
                     print(f"Error: Failed to install kubectl: {e}", file=sys.stderr)
                     sys.exit(1)
