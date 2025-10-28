@@ -439,7 +439,7 @@ async def main():
     await check_prerequisites()
 
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    with tempfile.TemporaryDirectory(delete=False) as temp_dir:
+    with tempfile.TemporaryDirectory() as temp_dir:
         try:
             if args.skip_csi_driver_build:
                 await setup_gke_cluster(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name, args.zone.rsplit('-', 1)[0], args.machine_type, args.node_pool_name)
