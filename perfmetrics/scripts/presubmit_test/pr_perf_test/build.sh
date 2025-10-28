@@ -47,8 +47,6 @@ sudo apt-get update
 echo Installing git
 sudo apt-get install git
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
-# Install required go version.
-./perfmetrics/scripts/install_go.sh "$GO_VERSION"
 export CGO_ENABLED=0
 export PATH="/usr/local/go/bin:$PATH"
 
@@ -71,17 +69,6 @@ function execute_perf_test() {
 
 function install_requirements() {
   # Installing requirements
-  echo installing requirements
-  echo Installing python3-pip
-  sudo apt-get -y install python3-pip
-  echo Installing Bigquery module requirements...
-  pip install --require-hashes -r ./perfmetrics/scripts/bigquery/requirements.txt --user
-  echo Installing libraries to run python script
-  pip install google-cloud
-  pip install google-cloud-vision
-  pip install google-api-python-client
-  pip install prettytable
-  "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/perfmetrics/scripts/fio/install_fio.sh" "${KOKORO_ARTIFACTS_DIR}/github"
   cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 }
 
