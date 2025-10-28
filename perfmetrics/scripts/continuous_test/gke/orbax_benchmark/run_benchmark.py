@@ -84,6 +84,7 @@ async def check_prerequisites():
     missing, it attempts to install it using 'gcloud components install'.
     Exits the script if any other required tool is not found.
     """
+    await run_command_async(["sudo", "apt", "update", "-y"])
     print("Checking for required tools...")
     tools = {
         "gcloud": ["gcloud", "--version"],
@@ -107,7 +108,7 @@ async def check_prerequisites():
             elif tool == "gke-gcloud-auth-plugin":
                 print("gke-gcloud-auth-plugin not found. Attempting to install...")
                 try:
-                    await run_command_async(["gcloud", "components", "install", "gke-gcloud-auth-plugin"])
+                    await run_command_async(["sudo", "apt", "install", "-y", "google-cloud-sdk-gke-gcloud-auth-plugin"])
                 except (FileNotFoundError, subprocess.CalledProcessError) as e:
                     print(f"Error: Failed to install gke-gcloud-auth-plugin: {e}", file=sys.stderr)
                     sys.exit(1)
