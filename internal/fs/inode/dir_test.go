@@ -1654,12 +1654,12 @@ func (t *DirTest) TestDeleteObjects() {
 	}
 	for objName, content := range objectsToCreate {
 		_, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte(content))
-		AssertEq(nil, err, "Failed to create object: %s", objName)
+		AssertEq(nil, err)
 	}
 	// Verify initial state: all created objects exist.
 	for objName := range objectsToCreate {
 		_, err := storageutil.ReadObject(t.ctx, t.bucket, objName)
-		AssertEq(nil, err, "Pre-condition: Object %s should exist initially", objName)
+		AssertEq(nil, err)
 	}
 	// Act: Call DeleteObjects with the list of supported objects.
 	objectsToDelete := []string{
