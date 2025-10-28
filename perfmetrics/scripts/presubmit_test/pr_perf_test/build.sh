@@ -130,7 +130,7 @@ then
 
   echo "Running e2e tests on non-zonal bucket(s) ..."
   # $1 argument is refering to value of testInstalledPackage.
-  /usr/local/bin/bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --track-resource-usage
+  ./perfmetrics/scripts/continuous_test/gke/orbax_benchmark/run_benchmark.py --project_id gcs-fuse-test --bucket_name kislayk_llama_downloads_us_east5 --zone=us-east5-b --no_cleanup --gcsfuse_branch=fix-orbax --skip_csi_driver_build
 fi
 
 # Execute package build tests.
