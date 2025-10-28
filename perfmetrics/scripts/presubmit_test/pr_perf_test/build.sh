@@ -109,7 +109,7 @@ then
 fi
 
 # Install required bash version for e2e script as kokoro has outdated bash versions.
-./perfmetrics/scripts/install_bash.sh "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT"
+#./perfmetrics/scripts/install_bash.sh "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT"
 
 # Execute integration tests on zonal bucket(s).
 if test -n "${integrationTestsOnZBStr}" ;
