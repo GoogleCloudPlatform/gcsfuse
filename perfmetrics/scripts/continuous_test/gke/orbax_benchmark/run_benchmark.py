@@ -85,8 +85,25 @@ async def check_prerequisites():
     Exits the script if any other required tool is not found.
     """
     await run_command_async(["sudo", "apt", "install", "-y", "apt-transport-https", "ca-certificates", "gnupg", "curl"])
-    await run_command_async(["curl", "https://packages.cloud.google.com/apt/doc/apt-key.gpg", "|", "sudo", "gpg", "--dearmor", "-o", "/usr/share/keyrings/cloud.google.gpg"])
-    await run_command_async(["echo", "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main", "|", "sudo", "tee", "/etc/apt/sources.list.d/google-cloud-sdk.list"])
+
+    # Pipe curl output to gpg
+    curl_process = await asyncio.create_subprocess_exec(
+        "curl", "https://packages.cloud.google.com/apt/doc/apt-key.gpg",
+        stdout=asyncio.subprocess.PIPE)
+    gpg_process = await asyncio.create_subprocess_exec(
+        "sudo", "gpg", "--dearmor", "-o", "/usr/share/keyrings/cloud.google.gpg",
+        stdin=curl_process.stdout)
+    await gpg_process.wait()
+
+    # Pipe echo output to tee
+    echo_process = await asyncio.create_subprocess_exec(
+        "echo", "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main",
+        stdout=asyncio.subprocess.PIPE)
+    tee_process = await asyncio.create_subprocess_exec(
+        "sudo", "tee", "/etc/apt/sources.list.d/google-cloud-sdk.list",
+        stdin=echo_process.stdout)
+    await tee_process.wait()
+
     await run_command_async(["sudo", "apt", "update", "-y"])
     print("Checking for required tools...")
     tools = {
