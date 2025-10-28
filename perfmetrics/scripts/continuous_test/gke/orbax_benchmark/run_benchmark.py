@@ -223,6 +223,9 @@ async def setup_gke_cluster(project_id, zone, cluster_name, network_name, subnet
         cmd = ["gcloud", "container", "clusters", "create", cluster_name, f"--project={project_id}", f"--zone={zone}", f"--network={network_name}", f"--subnetwork={subnet_name}", f"--workload-pool={project_id}.svc.id.goog", "--addons=GcsFuseCsiDriver", "--num-nodes=1"]
         await run_command_async(cmd)
         await create_node_pool_async(project_id, zone, cluster_name, node_pool_name, machine_type)
+
+    # Get credentials for the cluster to allow kubectl to connect.
+    await run_command_async(["gcloud", "container", "clusters", "get-credentials", cluster_name, f"--project={project_id}", f"--zone={zone}"])
     print("GKE cluster setup complete.")
 
 # GCSFuse Build and Deploy
@@ -375,7 +378,6 @@ async def main():
     parser.add_argument("--performance_threshold_gbps", type=float, default=float(os.environ.get("PERFORMANCE_THRESHOLD_GBPS", 13.0)), help="Minimum throughput in GB/s for a successful iteration. Can also be set with PERFORMANCE_THRESHOLD_GBPS env var.")
     parser.add_argument("--pod_timeout_seconds", type=int, default=int(os.environ.get("POD_TIMEOUT_SECONDS", 1800)), help="Timeout in seconds for the benchmark pod to complete. Can also be set with POD_TIMEOUT_SECONDS env var.")
     args = parser.parse_args()
-    parser.add_argument("--skip_csi_driver_build", action="store_true", default=os.environ.get("SKIP_CSI_DRIVER_BUILD", "False").lower() in ("true", "1"), help="Skip building the CSI driver. Can also be set with SKIP_CSI_DRIVER_BUILD=true env var.")
 
     # Append zone to default network and subnet names to avoid collisions
     if args.network_name == "gke-orbax-benchmark-network":
@@ -388,12 +390,9 @@ async def main():
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     with tempfile.TemporaryDirectory(delete=False) as temp_dir:
         try:
-            if args.skip_csi_driver_build:
-                await setup_gke_cluster(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name, args.zone.rsplit('-', 1)[0], args.machine_type, args.node_pool_name)
-            else:
-                setup_task = asyncio.create_task(setup_gke_cluster(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name, args.zone.rsplit('-', 1)[0], args.machine_type, args.node_pool_name))
-                build_task = asyncio.create_task(build_gcsfuse_image(args.project_id,args.gcsfuse_branch, temp_dir))
-                await asyncio.gather(setup_task, build_task)
+            setup_task = asyncio.create_task(setup_gke_cluster(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name, args.zone.rsplit('-', 1)[0], args.machine_type, args.node_pool_name))
+            build_task = asyncio.create_task(build_gcsfuse_image(args.project_id,args.gcsfuse_branch, temp_dir))
+            await asyncio.gather(setup_task, build_task)
 
             throughputs = await execute_workload_and_gather_results(args.project_id, args.zone, args.cluster_name, args.bucket_name, timestamp, args.iterations, STAGING_VERSION, args.pod_timeout_seconds)
 
