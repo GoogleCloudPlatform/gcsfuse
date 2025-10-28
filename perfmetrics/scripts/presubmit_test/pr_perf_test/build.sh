@@ -130,7 +130,7 @@ then
 
   echo "Running e2e tests on non-zonal bucket(s) ..."
   # $1 argument is refering to value of testInstalledPackage.
-  ./perfmetrics/scripts/continuous_test/gke/orbax_benchmark/run_benchmark.py--project_id gcs-fuse-test-ml --zone europe-west4-a --bucket llama_europe_west4  --no_cleanup --iterations=5 --gcsfuse_branch=fix-orbax --skip_csi_driver_build
+  ./perfmetrics/scripts/continuous_test/gke/orbax_benchmark/run_benchmark.py --project_id gcs-fuse-test-ml --zone europe-west4-a --bucket llama_europe_west4  --no_cleanup --iterations=5 --gcsfuse_branch=fix-orbax --skip_csi_driver_build
 fi
 
 # Execute package build tests.
