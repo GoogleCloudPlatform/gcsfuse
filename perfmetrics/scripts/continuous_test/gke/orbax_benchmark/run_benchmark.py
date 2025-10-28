@@ -121,7 +121,7 @@ async def check_prerequisites():
     for tool, version_cmd in tools.items():
         try:
             await run_command_async(version_cmd)
-        except (FileNotFoundError, subprocess.CalledProcessError) as e:
+        except (FileNotFoundError, subprocess.CalledProcessError):
             if tool == "gcloud":
                 print("gcloud not found. Attempting to install...")
                 try:
@@ -130,6 +130,14 @@ async def check_prerequisites():
                     await run_command_async(version_cmd)
                 except (FileNotFoundError, subprocess.CalledProcessError) as install_e:
                     print(f"Error: Failed to install gcloud: {install_e}", file=sys.stderr)
+                    sys.exit(1)
+            if tool == "make":
+                print("make not found. Attempting to install...")
+                try:
+                    await run_command_async(["sudo", "apt", "install", "-y", "make"])
+                    await run_command_async(version_cmd)
+                except (FileNotFoundError, subprocess.CalledProcessError) as install_e:
+                    print(f"Error: Failed to install make: {install_e}", file=sys.stderr)
                     sys.exit(1)
             if tool == "kubectl":
                 print("kubectl not found. Attempting to install...")
