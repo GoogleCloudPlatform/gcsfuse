@@ -89,20 +89,24 @@ async def check_prerequisites():
     # Pipe curl output to gpg
     curl_process = await asyncio.create_subprocess_exec(
         "curl", "https://packages.cloud.google.com/apt/doc/apt-key.gpg",
-        stdout=asyncio.subprocess.PIPE)
+        stdout=asyncio.subprocess.PIPE
+    )
     gpg_process = await asyncio.create_subprocess_exec(
         "sudo", "gpg", "--dearmor", "-o", "/usr/share/keyrings/cloud.google.gpg",
-        stdin=curl_process.stdout)
-    await gpg_process.wait()
+        stdin=asyncio.subprocess.PIPE
+    )
+    await gpg_process.communicate(input=await curl_process.stdout.read())
 
     # Pipe echo output to tee
     echo_process = await asyncio.create_subprocess_exec(
         "echo", "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main",
-        stdout=asyncio.subprocess.PIPE)
+        stdout=asyncio.subprocess.PIPE
+    )
     tee_process = await asyncio.create_subprocess_exec(
         "sudo", "tee", "/etc/apt/sources.list.d/google-cloud-sdk.list",
-        stdin=echo_process.stdout)
-    await tee_process.wait()
+        stdin=asyncio.subprocess.PIPE
+    )
+    await tee_process.communicate(input=await echo_process.stdout.read())
 
     await run_command_async(["sudo", "apt", "update", "-y"])
     print("Checking for required tools...")
