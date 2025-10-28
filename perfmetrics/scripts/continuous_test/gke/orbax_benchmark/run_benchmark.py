@@ -387,7 +387,7 @@ async def main():
     await check_prerequisites()
 
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    with tempfile.TemporaryDirectory() as temp_dir:
+    with tempfile.TemporaryDirectory(delete=False) as temp_dir:
         try:
             setup_task = asyncio.create_task(setup_gke_cluster(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name, args.zone.rsplit('-', 1)[0], args.machine_type, args.node_pool_name))
             build_task = asyncio.create_task(build_gcsfuse_image(args.project_id,args.gcsfuse_branch, temp_dir))
