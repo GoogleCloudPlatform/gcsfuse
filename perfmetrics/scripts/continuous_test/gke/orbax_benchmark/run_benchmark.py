@@ -98,7 +98,7 @@ async def check_prerequisites():
             await run_command_async(version_cmd)
         except (FileNotFoundError, subprocess.CalledProcessError):
             if tool == "kubectl":
-                print("kubectl not found. Attempting to install via gcloud components...")
+                print("kubectl not found. Attempting to install...")
                 try:
                     await run_command_async(["sudo", "snap", "install", "kubectl", "--classic"])                    
                 except (FileNotFoundError, subprocess.CalledProcessError) as e:
@@ -236,6 +236,8 @@ async def build_gcsfuse_image(project_id, branch, temp_dir):
     """
     gcsfuse_dir = os.path.join(temp_dir, "gcsfuse")
     await run_command_async(["git", "clone", "--depth=1", "-b", branch, "https://github.com/GoogleCloudPlatform/gcsfuse.git", gcsfuse_dir])
+    print("Sleeping")
+    time.sleep(10)
     build_cmd = ["make", "build-csi", f"PROJECT={project_id}", f"STAGINGVERSION={STAGING_VERSION}"]
     await run_command_async(build_cmd, cwd=gcsfuse_dir)
     shutil.rmtree(gcsfuse_dir)
