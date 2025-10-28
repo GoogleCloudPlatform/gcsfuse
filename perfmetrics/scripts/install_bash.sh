@@ -19,10 +19,19 @@
 # Exit on error, treat unset variables as errors, and propagate pipeline errors.
 set -euo pipefail
 
+# Logging Helpers
+log_info() {
+    echo "[$(date +"%H:%M:%S %Z")] INFO: $1"
+}
+
+log_error() {
+    echo "[$(date +"%H:%M:%S %Z")] ERROR: $1"
+}
+
 if [[ $# -ne 1 ]]; then
-    echo "This script requires exactly one argument."
-    echo "Usage: $0 <bash-version>"
-    echo "Example: $0 5.3"
+    log_error "This script requires exactly one argument."
+    log_info "Usage: $0 <bash-version>"
+    log_info "Example: $0 5.3"
     exit 1
 fi
 
@@ -32,7 +41,7 @@ INSTALL_DIR="/usr/local/" # Installation directory
 # Function to install dependencies like gcc and make if not present
 install_dependencies() {
     if ! command -v gcc &>/dev/null || ! command -v make &>/dev/null; then
-        echo "GCC or make not found. Attempting to install build tools..."
+        log_info "GCC or make not found. Attempting to install build tools..."
         if command -v apt-get &>/dev/null; then
             sudo apt-get update && sudo apt-get install -y build-essential
         elif command -v dnf &>/dev/null; then
@@ -40,11 +49,11 @@ install_dependencies() {
         elif command -v yum &>/dev/null; then
             sudo yum install -y gcc make
         else
-            echo "Error: Could not find a known package manager (apt, dnf, yum)."
-            echo "Please install gcc and make manually before running this script."
+            log_error "Error: Could not find a known package manager (apt, dnf, yum)."
+            log_error "Please install gcc and make manually before running this script."
             exit 1
         fi
-        echo "Build tools installed successfully."
+        log_info "Build tools installed successfully."
     fi
 }
 
@@ -68,7 +77,7 @@ install_bash() {
     )
 }
 
-echo "Installing bash version ${BASH_VERSION} to ${INSTALL_DIR}bin/bash"
+log_info "Installing bash version ${BASH_VERSION} to ${INSTALL_DIR}bin/bash"
 INSTALLATION_LOG=$(mktemp /tmp/bash_install_log.XXXXXX)
 
 # Installing dependencies before installing Bash
@@ -78,13 +87,13 @@ install_bash >"$INSTALLATION_LOG" 2>&1
 installation_status=$?
 set -e
 if [[ $installation_status -ne 0 ]]; then
-    echo "Error: Bash version ${BASH_VERSION} installation failed."
+    log_error "Bash version ${BASH_VERSION} installation failed."
     cat "$INSTALLATION_LOG"
     rm -f "$INSTALLATION_LOG"
     exit 1
 else
-    echo "Bash ${BASH_VERSION} installed successfully."
-    echo "Checking bash version at ${INSTALL_DIR}bin/bash:"
+    log_info "Bash ${BASH_VERSION} installed successfully."
+    log_info "Checking bash version at ${INSTALL_DIR}bin/bash:"
     "${INSTALL_DIR}bin/bash" --version
     rm -f "$INSTALLATION_LOG"
 fi

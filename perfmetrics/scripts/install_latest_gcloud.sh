@@ -18,9 +18,18 @@
 # Exit on error, treat unset variables as errors, and propagate pipeline errors.
 set -euo pipefail
 
+# Logging Helpers
+log_info() {
+    echo "[$(date +"%H:%M:%S %Z")] INFO: $1"
+}
+
+log_error() {
+    echo "[$(date +"%H:%M:%S %Z")] ERROR: $1"
+}
+
 if [[ $# -ne 0 ]]; then
-    echo "This script requires no argument."
-    echo "Usage: $0"
+    log_error "This script requires no argument."
+    log_info "Usage: $0"
     exit 1
 fi
 
@@ -48,21 +57,21 @@ install_latest_gcloud() {
     sudo rm -rf "$temp_dir"
 }
 
-echo "Installing latest gcloud version to ${INSTALL_DIR}"
+log_info "Installing latest gcloud version to ${INSTALL_DIR}"
 INSTALLATION_LOG=$(mktemp /tmp/gcloud_install_log.XXXXXX)
 if ! install_latest_gcloud >"$INSTALLATION_LOG" 2>&1; then
-    echo "latest gcloud installation failed."
+    log_error "latest gcloud installation failed."
     cat "$INSTALLATION_LOG"
     rm -f "$INSTALLATION_LOG"
     exit 1
 else
-    echo "latest gcloud installed successfully."
+    log_info "latest gcloud installed successfully."
     # If this script is run in background or different shell then
     # export PATH needs to be called from the shell or use absolute gcloud path
     # or permanently add this path to path variable in bashrc.
     export PATH="${INSTALL_DIR}/google-cloud-sdk/bin:$PATH"
-    echo "gcloud Version is:"
+    log_info "gcloud Version is:"
     gcloud version
-    echo "Gcloud is present at: $( (which gcloud) )"
+    log_info "Gcloud is present at: $( (which gcloud) )"
     rm -f "$INSTALLATION_LOG"
 fi

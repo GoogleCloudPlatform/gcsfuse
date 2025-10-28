@@ -32,13 +32,15 @@ usage() {
   exit "$1"
 }
 
+
+
 # Logging Helpers
 log_info() {
-  echo "[INFO] $(date +"%Y-%m-%d %H:%M:%S"): $1"
+  echo "[$(date +"%H:%M:%S %Z")] INFO: $1"
 }
 
 log_error() {
-  echo "[ERROR] $(date +"%Y-%m-%d %H:%M:%S"): $1"
+  echo "[$(date +"%H:%M:%S %Z")] ERROR: $1"
 }
 
 # Confirm bash version before continuing script.

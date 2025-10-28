@@ -19,10 +19,19 @@
 # Exit on error, treat unset variables as errors, and propagate pipeline errors.
 set -euo pipefail
 
+# Logging Helpers
+log_info() {
+    echo "[$(date +"%H:%M:%S %Z")] INFO: $1"
+}
+
+log_error() {
+    echo "[$(date +"%H:%M:%S %Z")] ERROR: $1"
+}
+
 if [[ $# -ne 1 ]]; then
-    echo "This script requires exactly one argument."
-    echo "Usage: $0 <go-version>"
-    echo "Example: $0 1.24.5"
+    log_error "This script requires exactly one argument."
+    log_info "Usage: $0 <go-version>"
+    log_info "Example: $0 1.24.5"
     exit 1
 fi
 
@@ -44,21 +53,21 @@ install_go() {
     sudo rm -rf "$temp_dir"
 }
 
-echo "Installing Go version ${GO_VERSION} to ${INSTALL_DIR}"
+log_info "Installing Go version ${GO_VERSION} to ${INSTALL_DIR}"
 INSTALLATION_LOG=$(mktemp /tmp/go_install_log.XXXXXX)
 if ! install_go > "$INSTALLATION_LOG" 2>&1; then
-    echo "Go version ${GO_VERSION} installation failed."
+    log_error "Go version ${GO_VERSION} installation failed."
     cat "$INSTALLATION_LOG"
     rm -f "$INSTALLATION_LOG"
     exit 1
 else
-    echo "Go version ${GO_VERSION} installed successfully."
+    log_info "Go version ${GO_VERSION} installed successfully."
     # If this script is run in background or different shell then
     # export PATH needs to be called from the shell or use absolute go path
     # or permanently add this to path variable in bashrc.
     export PATH="${INSTALL_DIR}/go/bin:$PATH"
-    echo "Go version is: "
+    log_info "Go version is: "
     go version
-    echo "Go is present at: $( (which go) )"
+    log_info "Go is present at: $( (which go) )"
     rm -f "$INSTALLATION_LOG"
 fi
