@@ -84,6 +84,9 @@ async def check_prerequisites():
     missing, it attempts to install it using 'gcloud components install'.
     Exits the script if any other required tool is not found.
     """
+    await run_command_async(["sudo", "apt", "install", "-y", "apt-transport-https", "ca-certificates", "gnupg", "curl"])
+    await run_command_async(["curl", "https://packages.cloud.google.com/apt/doc/apt-key.gpg", "|", "sudo", "gpg", "--dearmor", "-o", "/usr/share/keyrings/cloud.google.gpg"])
+    await run_command_async(["echo", "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main", "|", "sudo", "tee", "/etc/apt/sources.list.d/google-cloud-sdk.list"])
     await run_command_async(["sudo", "apt", "update", "-y"])
     print("Checking for required tools...")
     tools = {
@@ -97,7 +100,16 @@ async def check_prerequisites():
     for tool, version_cmd in tools.items():
         try:
             await run_command_async(version_cmd)
-        except (FileNotFoundError, subprocess.CalledProcessError):
+        except (FileNotFoundError, subprocess.CalledProcessError) as e:
+            if tool == "gcloud":
+                print("gcloud not found. Attempting to install...")
+                try:
+                    await run_command_async(["sudo", "apt", "install", "-y", "google-cloud-sdk"])
+                    # Re-check after installation
+                    await run_command_async(version_cmd)
+                except (FileNotFoundError, subprocess.CalledProcessError) as install_e:
+                    print(f"Error: Failed to install gcloud: {install_e}", file=sys.stderr)
+                    sys.exit(1)
             if tool == "kubectl":
                 print("kubectl not found. Attempting to install...")
                 try:
