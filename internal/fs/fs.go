@@ -30,6 +30,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 
@@ -1672,6 +1673,19 @@ func (fs *fileSystem) StatFS(
 	op.IoSize = 1 << 20
 
 	return
+}
+
+// getInterruptlessContext returns a new context that is not cancellable by the
+// parent context if the ignore-interrupts flag is set. Otherwise, it returns
+// the original context.
+func (fs *fileSystem) getInterruptlessContext(ctx context.Context) context.Context {
+	if fs.newConfig.FileSystem.IgnoreInterrupts {
+		// When ignore interrupts config is set, we are creating a new context not
+		// cancellable by parent context.
+		newCtx := context.Background()
+		return monitor.AugmentTraceContext(newCtx, ctx, fs.newConfig)
+	}
+	return ctx
 }
 
 // LOCKS_EXCLUDED(fs.mu)
