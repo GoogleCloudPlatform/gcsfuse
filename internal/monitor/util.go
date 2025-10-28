@@ -21,13 +21,10 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// When tracing is enabled ensure a lightweight context is copied with only traces/span context available
-// if not enable simply return new empty context
-func GetTraceContext(ctx context.Context, cfg *newcfg.Config) context.Context {
-	newCtx := context.Background()
-
+// When tracing is enabled ensure span & trace context from oldCtx is passed on to newCtx
+func AugmentTraceContext(newCtx context.Context, oldCtx context.Context, cfg *newcfg.Config) context.Context {
 	if newcfg.IsTracingEnabled(cfg) {
-		span := trace.SpanFromContext(ctx)
+		span := trace.SpanFromContext(oldCtx)
 		newCtx = trace.ContextWithSpan(newCtx, span)
 	}
 

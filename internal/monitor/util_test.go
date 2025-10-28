@@ -19,10 +19,11 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/sdk/trace"
-	oteltrace "go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 )
 
 type MonitorUtilTest struct {
@@ -30,89 +31,52 @@ type MonitorUtilTest struct {
 }
 
 func TestMonitorUtilSuite(t *testing.T) {
+	// The tracer provider needs to be set for the test suite.
+	otel.SetTracerProvider(noop.NewTracerProvider())
 	suite.Run(t, new(MonitorUtilTest))
 }
 
-func (s *MonitorUtilTest) TestGetTraceContext() {
-	// Setup a test tracer provider for OpenTelemetry. This allows us to create
-	// and manage test spans.
-	tp := trace.NewTracerProvider()
-	otel.SetTracerProvider(tp)
+func (s *MonitorUtilTest) TestAugmentTraceContext() {
 	tracer := otel.Tracer("test-tracer")
+	parentCtx, parentSpan := tracer.Start(context.Background(), "parent")
+	defer parentSpan.End()
 
 	testCases := []struct {
-		name                string
-		isTracingEnabled    bool
-		inputContextHasSpan bool
+		name                  string
+		tracingEnabled        bool
+		expectSpanPropagation bool
 	}{
 		{
-			name:                "TracingEnabled_WithSpanInInputContext",
-			isTracingEnabled:    true,
-			inputContextHasSpan: true,
+			name:                  "TracingEnabled_ShouldPropagateSpan",
+			tracingEnabled:        true,
+			expectSpanPropagation: true,
 		},
 		{
-			name:                "TracingEnabled_NoSpanInInputContext",
-			isTracingEnabled:    true,
-			inputContextHasSpan: false,
-		},
-		{
-			name:                "TracingDisabled_WithSpanInInputContext",
-			isTracingEnabled:    false,
-			inputContextHasSpan: true,
-		},
-		{
-			name:                "TracingDisabled_NoSpanInInputContext",
-			isTracingEnabled:    false,
-			inputContextHasSpan: false,
+			name:                  "TracingDisabled_ShouldNotPropagateSpan",
+			tracingEnabled:        false,
+			expectSpanPropagation: false,
 		},
 	}
 
 	for _, tc := range testCases {
-		s.Run(tc.name, func() {
+		s.T().Run(tc.name, func(t *testing.T) {
 			// Arrange
-			var inputCtx context.Context
-			var originalSpan oteltrace.Span
-			var originalSpanContext oteltrace.SpanContext
-
-			if tc.inputContextHasSpan {
-				// Create an input context with an active span.
-				inputCtx, originalSpan = tracer.Start(context.Background(), "original-span")
-				originalSpanContext = originalSpan.SpanContext()
-			} else {
-				// Create a plain background context without a span.
-				inputCtx = context.Background()
-				originalSpanContext = oteltrace.SpanContext{} // Represents an invalid/no-op span context.
+			config := &cfg.Config{}
+			if tc.tracingEnabled {
+				config.Monitoring.ExperimentalTracingMode = "stdout"
 			}
-
-			// Configure the mock `cfg.Config` based on the test case.
-			testConfig := &cfg.Config{
-				Monitoring: cfg.MonitoringConfig{
-					ExperimentalTracingMode: "", // Default to disabled.
-				},
-			}
-			if tc.isTracingEnabled {
-				testConfig.Monitoring.ExperimentalTracingMode = "stdout" // Any non-empty value enables tracing.
-			}
+			newCtx := context.Background()
 
 			// Act
-			resultCtx := GetTraceContext(inputCtx, testConfig)
+			augmentedCtx := AugmentTraceContext(newCtx, parentCtx, config)
 
 			// Assert
-			resultSpan := oteltrace.SpanFromContext(resultCtx)
-			resultSpanContext := resultSpan.SpanContext()
-
-			if tc.isTracingEnabled && tc.inputContextHasSpan {
-				s.Assert().True(resultSpanContext.IsValid(), "Result span should be valid when tracing is enabled and input had a span")
-				s.Assert().Equal(originalSpanContext.TraceID(), resultSpanContext.TraceID(), "TraceID should match original when tracing is enabled and input had a span")
-				s.Assert().Equal(originalSpanContext.SpanID(), resultSpanContext.SpanID(), "SpanID should match original when tracing is enabled and input had a span")
+			spanFromAugmentedCtx := trace.SpanFromContext(augmentedCtx)
+			if tc.expectSpanPropagation {
+				assert.Equal(t, parentSpan, spanFromAugmentedCtx, "Span should be propagated to the new context.")
 			} else {
-				// In all other cases (tracing disabled, or tracing enabled but no span in input),
-				// the resulting context should either not have a valid span or have a no-op span.
-				s.Assert().False(resultSpanContext.IsValid(), "Result span should be invalid when tracing is disabled or no span in input context")
-				// If tracing is disabled but input had a span, ensure a *new* background context is returned, not the original.
-				if !tc.isTracingEnabled && tc.inputContextHasSpan {
-					s.Assert().NotSame(inputCtx, resultCtx, "Contexts should be different when tracing is disabled but input had span")
-				}
+				assert.NotEqual(t, parentSpan, spanFromAugmentedCtx, "Span should not be propagated to the new context.")
+				assert.False(t, spanFromAugmentedCtx.SpanContext().IsValid(), "New context should not have a valid span.")
 			}
 		})
 	}
