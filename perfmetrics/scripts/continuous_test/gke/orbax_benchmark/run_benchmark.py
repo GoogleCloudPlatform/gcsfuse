@@ -89,7 +89,8 @@ async def check_prerequisites():
         "gcloud": ["gcloud", "--version"],
         "git": ["git", "--version"],
         "make": ["make", "--version"],
-        "kubectl": ["kubectl", "version", "--client=true"]
+        "kubectl": ["kubectl", "version", "--client=true"],
+        "gke-gcloud-auth-plugin": ["gke-gcloud-auth-plugin", "--version"]
     }
 
     for tool, version_cmd in tools.items():
@@ -102,6 +103,13 @@ async def check_prerequisites():
                     await run_command_async(["sudo", "snap", "install", "kubectl", "--classic"])                    
                 except (FileNotFoundError, subprocess.CalledProcessError) as e:
                     print(f"Error: Failed to install kubectl: {e}", file=sys.stderr)
+                    sys.exit(1)
+            elif tool == "gke-gcloud-auth-plugin":
+                print("gke-gcloud-auth-plugin not found. Attempting to install...")
+                try:
+                    await run_command_async(["gcloud", "components", "install", "gke-gcloud-auth-plugin"])
+                except (FileNotFoundError, subprocess.CalledProcessError) as e:
+                    print(f"Error: Failed to install gke-gcloud-auth-plugin: {e}", file=sys.stderr)
                     sys.exit(1)
             else:
                 print(f"Error: Required tool '{tool}' is not installed. Please install it before running.", file=sys.stderr)
