@@ -153,8 +153,7 @@ type DirInode interface {
 		isImplicitDir bool,
 		dirInode DirInode) (err error)
 
-	// DeleteObjects recursively deletes the given unsupported objects
-	// and prefixes.
+	// DeleteObjects recursively deletes the given objects and prefixes.
 	DeleteObjects(ctx context.Context, objectNames []string) error
 
 	// LocalFileEntries lists the local files present in the directory.
