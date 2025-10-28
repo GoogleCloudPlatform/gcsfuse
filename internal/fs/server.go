@@ -32,6 +32,10 @@ func NewServer(ctx context.Context, cfg *ServerConfig) (fuse.Server, error) {
 	}
 
 	fs = wrappers.WithErrorMapping(fs, cfg.NewConfig.FileSystem.PreconditionErrors)
+	// Note: the order here matters, we cannot decorate tracing or any other wrapper that needs context before IgnoreInterrupt
+	if cfg.NewConfig.FileSystem.IgnoreInterrupts {
+		fs = wrappers.WithIgnoreInterrupt(fs)
+	}
 	if newcfg.IsTracingEnabled(cfg.NewConfig) {
 		fs = wrappers.WithTracing(fs)
 	}
