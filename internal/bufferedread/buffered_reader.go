@@ -66,18 +66,6 @@ type BufferedReader struct {
 	bucket gcs.Bucket
 	config *BufferedReadConfig
 
-	// nextBlockIndexToPrefetch is the index of the next block to be
-	// prefetched.
-	nextBlockIndexToPrefetch int64
-
-	// randomSeekCount is the number of random seeks performed. This is used to
-	// detect if the read pattern is random and fall back to another reader.
-	randomSeekCount int64
-
-	// numPrefetchBlocks is the number of blocks to prefetch in the next
-	// prefetching operation.
-	numPrefetchBlocks int64
-
 	metricHandle metrics.MetricHandle
 
 	readHandle []byte // For zonal bucket.
@@ -85,7 +73,11 @@ type BufferedReader struct {
 	ctx        context.Context
 	cancelFunc context.CancelFunc
 
-	prefetchMultiplier int64 // Multiplier for number of blocks to prefetch.
+	// randomSeekCount is the number of random seeks performed. This is used to
+	// detect if the read pattern is random and fall back to another reader.
+	randomSeekCount int64
+
+	prefetcher *prefetcher
 
 	randomReadsThreshold int64 // Number of random reads after which the reader falls back to another reader.
 
@@ -129,21 +121,28 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 	}
 
 	reader := &BufferedReader{
-		object:                   object,
-		bucket:                   bucket,
-		config:                   config,
-		nextBlockIndexToPrefetch: 0,
-		randomSeekCount:          0,
-		numPrefetchBlocks:        config.InitialPrefetchBlockCnt,
-		blockQueue:               common.NewLinkedListQueue[*blockQueueEntry](),
-		blockPool:                blockpool,
-		workerPool:               workerPool,
-		metricHandle:             metricHandle,
-		prefetchMultiplier:       defaultPrefetchMultiplier,
-		randomReadsThreshold:     config.RandomSeekThreshold,
+		object:               object,
+		bucket:               bucket,
+		config:               config,
+		randomSeekCount:      0,
+		blockQueue:           common.NewLinkedListQueue[*blockQueueEntry](),
+		blockPool:            blockpool,
+		workerPool:           workerPool,
+		metricHandle:         metricHandle,
+		randomReadsThreshold: config.RandomSeekThreshold,
 	}
-
 	reader.ctx, reader.cancelFunc = context.WithCancel(context.Background())
+	reader.prefetcher = newPrefetcher(&prefetcherOptions{
+		object:       object,
+		bucket:       bucket,
+		config:       config,
+		pool:         blockpool,
+		workerPool:   workerPool,
+		queue:        reader.blockQueue,
+		metricHandle: metricHandle,
+		readerCtx:    reader.ctx,
+	})
+
 	return reader, nil
 }
 
@@ -302,7 +301,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		p.prepareQueueForOffset(off)
 
 		if p.blockQueue.IsEmpty() {
-			if err = p.freshStart(off); err != nil {
+			if err = p.prefetcher.freshStart(off); err != nil {
 				logger.Warnf("Fallback to another reader for object %q, handle %d, due to freshStart failure: %v", p.object.Name, handleID, err)
 				p.metricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
 				return resp, gcsx.FallbackToAnotherReader
@@ -353,7 +352,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 			if !prefetchTriggered {
 				prefetchTriggered = true
-				if pfErr := p.prefetch(); pfErr != nil {
+				if pfErr := p.prefetcher.prefetch(); pfErr != nil {
 					logger.Warnf("BufferedReader.ReadAt: while prefetching: %v", pfErr)
 				}
 			}
@@ -362,118 +361,6 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 	resp.Size = bytesRead
 	return resp, err
-}
-
-// prefetch schedules the next set of blocks for prefetching starting from
-// the nextBlockIndexToPrefetch.
-// LOCKS_REQUIRED(p.mu)
-func (p *BufferedReader) prefetch() error {
-	// Determine the number of blocks to prefetch in this cycle, respecting the
-	// MaxPrefetchBlockCnt and the number of blocks remaining in the file.
-	availableSlots := p.config.MaxPrefetchBlockCnt - int64(p.blockQueue.Len())
-	if availableSlots <= 0 {
-		return nil
-	}
-	totalBlockCount := (int64(p.object.Size) + p.config.PrefetchBlockSizeBytes - 1) / p.config.PrefetchBlockSizeBytes
-	remainingBlocksInFile := totalBlockCount - p.nextBlockIndexToPrefetch
-	blockCountToPrefetch := min(min(p.numPrefetchBlocks, availableSlots), remainingBlocksInFile)
-	if blockCountToPrefetch <= 0 {
-		return nil
-	}
-
-	allBlocksScheduledSuccessfully := true
-	for range blockCountToPrefetch {
-		if err := p.scheduleNextBlock(false); err != nil {
-			if errors.Is(err, ErrPrefetchBlockNotAvailable) {
-				// This is not a critical error for a background prefetch. We just stop
-				// trying to prefetch more in this cycle. The specific reason has
-				// already been logged by scheduleNextBlock.
-				allBlocksScheduledSuccessfully = false
-				break // Stop prefetching more blocks.
-			}
-			return fmt.Errorf("prefetch: scheduling block index %d: %w", p.nextBlockIndexToPrefetch, err)
-		}
-	}
-
-	// Only increase the prefetch window size if we successfully scheduled all the
-	// intended blocks. This is a more conservative approach that prevents the
-	// window from growing aggressively if block pool is consistently under pressure.
-	if allBlocksScheduledSuccessfully {
-		// Set the size for the next multiplicative prefetch.
-		p.numPrefetchBlocks *= p.prefetchMultiplier
-
-		// Cap the prefetch window size for the next cycle at the configured
-		// maximum to prevent unbounded growth.
-		if p.numPrefetchBlocks > p.config.MaxPrefetchBlockCnt {
-			p.numPrefetchBlocks = p.config.MaxPrefetchBlockCnt
-		}
-	}
-	return nil
-}
-
-// freshStart resets the prefetching state and schedules the initial set of
-// blocks starting from the given offset.
-// LOCKS_REQUIRED(p.mu)
-func (p *BufferedReader) freshStart(currentOffset int64) error {
-	blockIndex := currentOffset / p.config.PrefetchBlockSizeBytes
-	p.nextBlockIndexToPrefetch = blockIndex
-
-	// Determine the number of blocks for the initial prefetch.
-	p.numPrefetchBlocks = min(p.config.InitialPrefetchBlockCnt, p.config.MaxPrefetchBlockCnt)
-
-	// Schedule the first block as urgent.
-	if err := p.scheduleNextBlock(true); err != nil {
-		return fmt.Errorf("freshStart: scheduling first block: %w", err)
-	}
-
-	// Prefetch the initial blocks.
-	if err := p.prefetch(); err != nil {
-		// A failure during the initial prefetch is not fatal, as the first block
-		// has already been scheduled. Log the error and continue.
-		logger.Warnf("freshStart: initial prefetch: %v", err)
-	}
-	return nil
-}
-
-// scheduleNextBlock schedules the next block for prefetch.
-// LOCKS_REQUIRED(p.mu)
-func (p *BufferedReader) scheduleNextBlock(urgent bool) error {
-	b, err := p.blockPool.TryGet()
-	if err != nil {
-		// Any error from TryGet (e.g., pool exhausted, mmap failure) means we
-		// can't get a block. For the buffered reader, this is a recoverable
-		// condition that should either trigger a fallback to another reader (for
-		// urgent reads) or be ignored (for background prefetches).
-		logger.Tracef("scheduleNextBlock: could not get block from pool (urgent=%t): %v", urgent, err)
-		return ErrPrefetchBlockNotAvailable
-	}
-
-	if err := p.scheduleBlockWithIndex(b, p.nextBlockIndexToPrefetch, urgent); err != nil {
-		p.blockPool.Release(b)
-		return fmt.Errorf("scheduleNextBlock: %w", err)
-	}
-	p.nextBlockIndexToPrefetch++
-	return nil
-}
-
-// scheduleBlockWithIndex schedules a block with a specific index.
-// LOCKS_REQUIRED(p.mu)
-func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockIndex int64, urgent bool) error {
-	startOffset := blockIndex * p.config.PrefetchBlockSizeBytes
-	if err := b.SetAbsStartOff(startOffset); err != nil {
-		return fmt.Errorf("scheduleBlockWithIndex: setting start offset: %w", err)
-	}
-
-	ctx, cancel := context.WithCancel(p.ctx)
-	task := NewDownloadTask(ctx, p.object, p.bucket, b, p.readHandle, p.metricHandle)
-
-	logger.Tracef("Scheduling block: (%s, %d, %t).", p.object.Name, blockIndex, urgent)
-	p.blockQueue.Push(&blockQueueEntry{
-		block:  b,
-		cancel: cancel,
-	})
-	p.workerPool.Schedule(urgent, task)
-	return nil
 }
 
 // LOCKS_EXCLUDED(p.mu)
