@@ -520,8 +520,6 @@ func (p *BufferedReader) Destroy() {
 	defer p.mu.Unlock()
 
 	if p.releaseManager != nil {
-		p.releaseManager.Destroy()
-
 		// Collect all blocks from the active queue, retired cache, and pending release map.
 		var allEntries []*blockQueueEntry
 		for !p.blockQueue.IsEmpty() {
@@ -530,10 +528,6 @@ func (p *BufferedReader) Destroy() {
 		allEntries = append(allEntries, p.retiredBlocks.Clear()...)
 
 		p.releaseManager.mu.Lock()
-		for _, entry := range p.releaseManager.pendingRelease {
-			allEntries = append(allEntries, entry)
-		}
-
 		// Attempt to release all collected blocks.
 		for _, entry := range allEntries {
 			if entry.cancel != nil {
@@ -542,6 +536,9 @@ func (p *BufferedReader) Destroy() {
 			p.releaseManager.tryRelease(entry)
 		}
 		p.releaseManager.mu.Unlock()
+
+		// Now, wait for any remaining zero-copy reads and stop the manager.
+		p.releaseManager.Destroy()
 	}
 
 	if p.cancelFunc != nil {
