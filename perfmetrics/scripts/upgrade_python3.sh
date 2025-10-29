@@ -35,7 +35,7 @@ elif command -v yum &> /dev/null; then
     # The '-devel' packages provide the necessary header files for compilation.
     sudo yum -y groupinstall "Development Tools" > /dev/null
     sudo yum -y install \
-          zlib-devel ncurses-devel gdbm-devel nss-devel openssl-devel \
+          zlib-devel ncurses-devel nss-devel openssl-devel \
           readline-devel libffi-devel curl sqlite-devel bzip2-devel \
           xz-devel tk-devel libuuid-devel wget > /dev/null
 else
