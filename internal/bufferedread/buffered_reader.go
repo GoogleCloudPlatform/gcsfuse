@@ -73,11 +73,12 @@ type BufferedReader struct {
 	ctx        context.Context
 	cancelFunc context.CancelFunc
 
+	// prefetcher manages the logic for prefetching blocks from GCS.
+	prefetcher *prefetcher
+
 	// randomSeekCount is the number of random seeks performed. This is used to
 	// detect if the read pattern is random and fall back to another reader.
 	randomSeekCount int64
-
-	prefetcher *prefetcher
 
 	randomReadsThreshold int64 // Number of random reads after which the reader falls back to another reader.
 
