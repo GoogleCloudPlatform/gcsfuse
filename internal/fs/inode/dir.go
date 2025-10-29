@@ -349,6 +349,11 @@ func (d *dirInode) runOnDemandPrefetch(ctx context.Context) {
 	// We are now in the InProgress state. We must reset to Ready before returning.
 	defer d.prefetchState.Store(prefetchReady)
 
+	now := d.cacheClock.Now()
+	if now.Sub(d.lastPrefetchTime) < d.metadataCacheTTL {
+		return
+	}
+
 	// 2. Run the Prefetch
 	var tok string
 	for {
