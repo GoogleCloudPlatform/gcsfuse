@@ -253,13 +253,10 @@ type dirInode struct {
 	// Prefetching POC state
 	/////////////////////////
 	metadataCacheTTL time.Duration
-	prefetchTrigger  chan struct{}
-	prefetchStop     chan struct{}
 	prefetchState    atomic.Uint32 // 0=Ready, 1=InProgress
-
-	// lastPrefetchTime is managed *only* by the runPrefetcher goroutine,
-	// so it doesn't need its own lock.
 	lastPrefetchTime time.Time
+	prefetchCtx      context.Context
+	prefetchCancel   context.CancelFunc
 }
 
 var _ DirInode = &dirInode{}
@@ -303,6 +300,7 @@ func NewDirInode(
 		panic(fmt.Sprintf("Unexpected name: %s", name))
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
 	typed := &dirInode{
 		bucket:                         bucket,
 		mtimeClock:                     mtimeClock,
@@ -320,8 +318,8 @@ func NewDirInode(
 
 		// POC: Initialize prefetch channels
 		metadataCacheTTL: typeCacheTTL,
-		prefetchTrigger:  make(chan struct{}, 1), // Buffer of 1
-		prefetchStop:     make(chan struct{}),
+		prefetchCtx:      ctx,
+		prefetchCancel:   cancel,
 		// prefetchState is 0 (prefetchReady) by default
 		// lastPrefetchTime is time.Time{} (zero) by default
 	}
@@ -333,9 +331,6 @@ func NewDirInode(
 
 	d = typed
 
-	// POC: Start the prefetch worker goroutine for this directory
-	go typed.runPrefetcher()
-
 	return
 }
 
@@ -343,29 +338,7 @@ func NewDirInode(
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-// runPrefetcher runs in a background goroutine, listening for triggers
-// from LookUpChild.
-// runPrefetcher runs in a background goroutine, listening for triggers.
-func (d *dirInode) runPrefetcher() {
-	ctx := context.Background()
-
-	for {
-		select {
-		case <-d.prefetchStop:
-			// Inode is being destroyed, stop.
-			return
-
-		case <-d.prefetchTrigger:
-			// A trigger came in.
-			// Spawn a new goroutine to do the work so this
-			// loop is not blocked and can respond to prefetchStop.
-			go d.doFullPrefetch(ctx)
-		}
-	}
-}
-
-// doFullPrefetch performs the full directory listing if the TTL has expired.
-func (d *dirInode) doFullPrefetch(ctx context.Context) {
+func (d *dirInode) runOnDemandPrefetch(ctx context.Context) {
 	// 1. Check State and TTL
 	// Atomically swap state from Ready (0) to InProgress (1).
 	if !d.prefetchState.CompareAndSwap(prefetchReady, prefetchInProgress) {
@@ -376,20 +349,22 @@ func (d *dirInode) doFullPrefetch(ctx context.Context) {
 	// We are now in the InProgress state. We must reset to Ready before returning.
 	defer d.prefetchState.Store(prefetchReady)
 
-	now := d.cacheClock.Now()
-	if now.Sub(d.lastPrefetchTime) < d.metadataCacheTTL {
-		logger.Info("prefetch not expired yet")
-		return
-	}
-
 	// 2. Run the Prefetch
 	var tok string
 	for {
+		// Crucial: Check for shutdown signal (if propagating context from fuse operations)
+		select {
+		case <-ctx.Done():
+			logger.Info("on-demand prefetch aborted due to context cancellation.")
+			return
+		default:
+		}
+
 		// Perform slow network I/O *without* holding the inode lock.
 		_, _, newTok, err := d.readObjectsWithLockOnlyWhileInsertingToTypeCache(ctx, tok)
 		if err != nil {
 			logger.Warnf("Prefetch failed for %s: %v", d.Name().GcsObjectName(), err)
-			return // Abort. Will retry on next TTL-expired cache miss.
+			return // Abort.
 		}
 		if newTok == "" {
 			break // Entire directory has been listed.
@@ -608,8 +583,10 @@ func (d *dirInode) DecrementLookupCount(n uint64) (destroy bool) {
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) Destroy() (err error) {
-	// POC: Signal the prefetcher goroutine to stop if any.
-	close(d.prefetchStop)
+	if d.prefetchCancel != nil {
+		// cancel any in progress prefetch.
+		d.prefetchCancel()
+	}
 	return
 }
 
@@ -682,13 +659,14 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	case metadata.NonexistentType:
 		return nil, nil
 	case metadata.UnknownType:
-		// Trigger a prefetch if one is not already in progress as entry was not present in type cache.
-		if d.prefetchState.Load() == prefetchReady {
-			select {
-			case d.prefetchTrigger <- struct{}{}:
-				logger.Info("triggering prefetch")
-			default: // Non-blocking, drop if worker is busy.
-			}
+		// Check if a prefetch is due - prefetch not in progress and TTL expired.
+		if d.prefetchState.Load() == prefetchReady && d.cacheClock.Now().Sub(d.lastPrefetchTime) >= d.metadataCacheTTL {
+			// Launch the transient worker immediately. It uses the atomic prefetchState
+			// internally to ensure idempotency and prevent concurrent execution.
+			// Use prefetch context since this long-running network task should
+			// generally not be tied to the short-lived `LookUpChild` RPC context.
+			logger.Info("triggering prefetch")
+			go d.runOnDemandPrefetch(d.prefetchCtx)
 		}
 
 		group.Go(lookUpFile)
