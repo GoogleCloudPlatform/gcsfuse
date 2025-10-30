@@ -872,6 +872,13 @@ params:
     default: 0
     hide-flag: true
 
+  - config-path: "monitoring.experimental-tracing-project-id"
+    flag-name: "experimental-tracing-project-id"
+    type: "string"
+    usage: "Experimental: Trace project id"
+    default: ""
+    hide-flag: true
+
   - config-path: "only-dir"
     flag-name: "only-dir"
     type: "string"
