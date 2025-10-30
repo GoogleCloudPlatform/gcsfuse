@@ -83,7 +83,7 @@ func getCliFlags(flagSet *pflag.FlagSet) map[string]string {
 		}
 	})
 	// Do not display --foreground flag to the user in logs if user
-	// hasn't passed this flag and was added by gcsufse during demonized run.
+	// hasn't passed this flag and was added by GCSFuse during demonized run.
 	if _, ok := os.LookupEnv(logger.GCSFuseInBackgroundMode); ok {
 		delete(cliFlags, "foreground")
 	}
