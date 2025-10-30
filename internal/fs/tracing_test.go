@@ -81,34 +81,31 @@ func newInMemoryExporter(t *testing.T) *tracetest.InMemoryExporter {
 func TestTraceLookupInode(t *testing.T) {
 	ctx := context.Background()
 	var ignoreInterruptTestCases = []struct {
-		caseName string
-		value    bool
+		name             string
+		ignoreInterrupts bool
 	}{
 		{"enabled", true},
 		{"disabled", false},
 	}
 	for _, tt := range ignoreInterruptTestCases {
-		t.Run(tt.caseName, func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
 				ex.Reset()
 			})
-			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.value)
-
+			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			ctx := context.Background()
 			fileName := "test.txt"
 			content := "test content"
 			createWithContents(ctx, t, bucket, fileName, content)
-
 			lookupOp := &fuseops.LookUpInodeOp{
 				Parent: fuseops.RootInodeID,
 				Name:   fileName,
 			}
-
 			m := wrappers.WithTracing(server)
+
 			err := m.LookUpInode(context.Background(), lookupOp)
 			require.NoError(t, err)
-
 			ss := ex.GetSpans()
 			require.Len(t, ss, 1)
 			assert.Equal(t, "LookUpInode", ss[0].Name)

@@ -1680,15 +1680,13 @@ func (fs *fileSystem) StatFS(
 }
 
 // When tracing is enabled ensure span & trace context from oldCtx is passed on to newCtx
-func augmentTraceContext(newCtx context.Context, oldCtx context.Context, isTracingEnabled bool) context.Context {
+func maybePropagateTraceContext(newCtx context.Context, oldCtx context.Context, isTracingEnabled bool) context.Context {
 	if !isTracingEnabled {
 		return newCtx
 	}
 
 	span := trace.SpanFromContext(oldCtx)
-	newCtx = trace.ContextWithSpan(newCtx, span)
-
-	return newCtx
+	return trace.ContextWithSpan(newCtx, span)
 }
 
 // getInterruptlessContext returns a new context that is not cancellable by the
@@ -1699,7 +1697,7 @@ func (fs *fileSystem) getInterruptlessContext(ctx context.Context) context.Conte
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		newCtx := context.Background()
-		return augmentTraceContext(newCtx, ctx, fs.isTracingEnabled)
+		return maybePropagateTraceContext(newCtx, ctx, fs.isTracingEnabled)
 	}
 
 	return ctx
