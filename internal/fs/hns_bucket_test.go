@@ -169,7 +169,6 @@ func (t *HNSCachedBucketMountTest) SetupSuite() {
 		negativeCacheTTL)
 
 	// Enable directory type caching.
-	t.serverCfg.DirTypeCacheTTL = ttl
 	t.serverCfg.ImplicitDirectories = false
 	t.serverCfg.NewConfig = &cfg.Config{
 		EnableHns: true,
