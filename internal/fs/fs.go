@@ -1687,7 +1687,6 @@ func augmentTraceContext(newCtx context.Context, oldCtx context.Context, isTraci
 
 	span := trace.SpanFromContext(oldCtx)
 	newCtx = trace.ContextWithSpan(newCtx, span)
-	logger.Info("Logging new context:", newCtx)
 
 	return newCtx
 }
