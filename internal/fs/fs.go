@@ -2002,7 +2002,6 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 
 	parent.Lock()
 	defer parent.Unlock()
-	parent.InsertFileIntoTypeCache(name)
 	return child, nil
 }
 
@@ -2340,9 +2339,6 @@ func (fs *fileSystem) atomicRename(ctx context.Context, oldParent inode.DirInode
 	if err := fs.invalidateChildFileCacheIfExist(oldParent, oldName); err != nil {
 		return fmt.Errorf("atomicRename: while invalidating cache for renamed file: %w", err)
 	}
-
-	// Insert new file in type cache.
-	newParent.InsertFileIntoTypeCache(newName)
 
 	return nil
 }
