@@ -17,7 +17,6 @@ package gcsx
 import (
 	"sync/atomic"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
 
@@ -81,7 +80,7 @@ func (rtc *ReadTypeClassifier) RecordSeek(offset int64) {
 }
 
 // RecordRead records a read operation of the given size at the given offset.
-// This must be called before the read operation.
+// This must be called after the read operation.
 func (rtc *ReadTypeClassifier) RecordRead(offset int64, sizeRead int64) {
 	rtc.totalReadBytes.Add(uint64(sizeRead))
 	rtc.expectedOffset.Store(offset + sizeRead)
@@ -113,7 +112,7 @@ func (rtc *ReadTypeClassifier) isSeekNeeded(offset int64) bool {
 
 // GetReadInfo determines the read strategy (sequential or random) for a read
 // request at a given offset and returns read metadata. It also updates the
-// reader's internal state based on the read pattern.
+// internal state `readType` based on the read pattern.
 // seekRecorded parameter describes whether a seek has already been recorded for this request.
 func (rtc *ReadTypeClassifier) GetReadInfo(offset int64, seekRecorded bool) ReadInfo {
 	previousReadType := rtc.readType.Load()
@@ -124,7 +123,6 @@ func (rtc *ReadTypeClassifier) GetReadInfo(offset int64, seekRecorded bool) Read
 
 	if !seekRecorded && rtc.isSeekNeeded(offset) {
 		numSeeks = rtc.seeks.Add(1)
-		logger.Infof("Seek detected. Total seeks: %d", numSeeks)
 		seekRecorded = true
 	}
 
@@ -148,24 +146,20 @@ func (rtc *ReadTypeClassifier) GetReadInfo(offset int64, seekRecorded bool) Read
 	}
 }
 
-// ComputeSeqReadIOAndAdjustType computes the sequential IO size heuristically based on
+// ComputeSeqPrefetchWindowAndAdjustType computes the sequential IO size heuristically based on
 // the current read pattern. It also updates the readType if needed.
 // If the read pattern is classified as random, it calculates an appropriate
 // read size based on the average read size per seek, bounded by min and max read sizes.
 // If the read pattern is sequential, it returns the configured sequential read size.
-func (rtc *ReadTypeClassifier) ComputeSeqReadIOAndAdjustType() int64 {
+func (rtc *ReadTypeClassifier) ComputeSeqPrefetchWindowAndAdjustType() int64 {
 	if seeks := rtc.seeks.Load(); seeks >= minSeeksForRandom {
 		averageReadBytes := avgReadBytes(rtc.totalReadBytes.Load(), seeks)
 		if averageReadBytes < maxReadSize {
-			randomReadSize := int64(((averageReadBytes / MB) + 1) * MB)
-			if randomReadSize < minReadSize {
-				randomReadSize = minReadSize
-			}
-			if randomReadSize > maxReadSize {
-				randomReadSize = maxReadSize
-			}
+			randomReadSize := ((averageReadBytes + MB - 1) / MB) * MB
+			// Clamp to [minReadSize, maxReadSize]
+			randomReadSize = min(max(randomReadSize, minReadSize), maxReadSize)
 			rtc.readType.Store(metrics.ReadTypeRandom)
-			return randomReadSize
+			return int64(randomReadSize)
 		}
 	}
 	rtc.readType.Store(metrics.ReadTypeSequential)
