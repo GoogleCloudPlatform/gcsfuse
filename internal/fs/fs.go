@@ -85,15 +85,6 @@ type ServerConfig struct {
 	// See docs/semantics.md for more info.
 	ImplicitDirectories bool
 
-	// By default, if a file/directory does not exist in GCS, this nonexistent state is
-	// not cached in type cache. So the inode lookup request will hit GCS every
-	// time.
-	//
-	// Setting this bool to true enables the nonexistent type cache so if the
-	// inode state is NonexistentType in type cache, the lookup request will
-	// return nil immediately.
-	EnableNonexistentTypeCache bool
-
 	// How long to allow the kernel to cache inode attributes.
 	//
 	// Any given object generation in GCS is immutable, and a new generation
@@ -105,14 +96,6 @@ type ServerConfig struct {
 	// which case stat::st_nlink changes. So choosing this value comes down to
 	// whether you care about that field being up to date.
 	InodeAttributeCacheTTL time.Duration
-
-	// If non-zero, each directory will maintain a cache from child name to
-	// information about whether that name exists as a file and/or directory.
-	// This may speed up calls to look up and stat inodes, especially when
-	// combined with a stat-caching GCS bucket, but comes at the cost of
-	// consistency: if the child is removed and recreated with a different type
-	// before the expiration, we may fail to find it.
-	DirTypeCacheTTL time.Duration
 
 	// The UID and GID that owns all inodes in the file system.
 	Uid uint32
@@ -177,36 +160,34 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 
 	// Set up the basic struct.
 	fs := &fileSystem{
-		mtimeClock:                 mtimeClock,
-		cacheClock:                 serverCfg.CacheClock,
-		bucketManager:              serverCfg.BucketManager,
-		localFileCache:             serverCfg.LocalFileCache,
-		contentCache:               contentCache,
-		implicitDirs:               serverCfg.ImplicitDirectories,
-		enableNonexistentTypeCache: serverCfg.EnableNonexistentTypeCache,
-		inodeAttributeCacheTTL:     serverCfg.InodeAttributeCacheTTL,
-		dirTypeCacheTTL:            serverCfg.DirTypeCacheTTL,
-		kernelListCacheTTL:         cfg.ListCacheTTLSecsToDuration(serverCfg.NewConfig.FileSystem.KernelListCacheTtlSecs),
-		renameDirLimit:             serverCfg.RenameDirLimit,
-		sequentialReadSizeMb:       serverCfg.SequentialReadSizeMb,
-		uid:                        serverCfg.Uid,
-		gid:                        serverCfg.Gid,
-		fileMode:                   serverCfg.FilePerms,
-		dirMode:                    serverCfg.DirPerms | os.ModeDir,
-		inodes:                     make(map[fuseops.InodeID]inode.Inode),
-		nextInodeID:                fuseops.RootInodeID + 1,
-		generationBackedInodes:     make(map[inode.Name]inode.GenerationBackedInode),
-		implicitDirInodes:          make(map[inode.Name]inode.DirInode),
-		folderInodes:               make(map[inode.Name]inode.DirInode),
-		localFileInodes:            make(map[inode.Name]inode.Inode),
-		handles:                    make(map[fuseops.HandleID]any),
-		newConfig:                  serverCfg.NewConfig,
-		fileCacheHandler:           fileCacheHandler,
-		cacheFileForRangeRead:      serverCfg.NewConfig.FileCache.CacheFileForRangeRead,
-		metricHandle:               serverCfg.MetricHandle,
-		enableAtomicRenameObject:   serverCfg.NewConfig.EnableAtomicRenameObject,
-		globalMaxWriteBlocksSem:    semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
-		globalMaxReadBlocksSem:     semaphore.NewWeighted(serverCfg.NewConfig.Read.GlobalMaxBlocks),
+		mtimeClock:               mtimeClock,
+		cacheClock:               serverCfg.CacheClock,
+		bucketManager:            serverCfg.BucketManager,
+		localFileCache:           serverCfg.LocalFileCache,
+		contentCache:             contentCache,
+		implicitDirs:             serverCfg.ImplicitDirectories,
+		inodeAttributeCacheTTL:   serverCfg.InodeAttributeCacheTTL,
+		kernelListCacheTTL:       cfg.ListCacheTTLSecsToDuration(serverCfg.NewConfig.FileSystem.KernelListCacheTtlSecs),
+		renameDirLimit:           serverCfg.RenameDirLimit,
+		sequentialReadSizeMb:     serverCfg.SequentialReadSizeMb,
+		uid:                      serverCfg.Uid,
+		gid:                      serverCfg.Gid,
+		fileMode:                 serverCfg.FilePerms,
+		dirMode:                  serverCfg.DirPerms | os.ModeDir,
+		inodes:                   make(map[fuseops.InodeID]inode.Inode),
+		nextInodeID:              fuseops.RootInodeID + 1,
+		generationBackedInodes:   make(map[inode.Name]inode.GenerationBackedInode),
+		implicitDirInodes:        make(map[inode.Name]inode.DirInode),
+		folderInodes:             make(map[inode.Name]inode.DirInode),
+		localFileInodes:          make(map[inode.Name]inode.Inode),
+		handles:                  make(map[fuseops.HandleID]any),
+		newConfig:                serverCfg.NewConfig,
+		fileCacheHandler:         fileCacheHandler,
+		cacheFileForRangeRead:    serverCfg.NewConfig.FileCache.CacheFileForRangeRead,
+		metricHandle:             serverCfg.MetricHandle,
+		enableAtomicRenameObject: serverCfg.NewConfig.EnableAtomicRenameObject,
+		globalMaxWriteBlocksSem:  semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
+		globalMaxReadBlocksSem:   semaphore.NewWeighted(serverCfg.NewConfig.Read.GlobalMaxBlocks),
 	}
 	if serverCfg.Notifier != nil {
 		fs.notifier = serverCfg.Notifier
@@ -293,12 +274,9 @@ func makeRootForBucket(
 		},
 		fs.implicitDirs,
 		fs.newConfig.List.EnableEmptyManagedFolders,
-		fs.enableNonexistentTypeCache,
-		fs.dirTypeCacheTTL,
 		&syncerBucket,
 		fs.mtimeClock,
 		fs.cacheClock,
-		fs.newConfig.MetadataCache.TypeCacheMaxSizeMb,
 		fs.newConfig.EnableHns,
 		fs.newConfig.EnableUnsupportedDirSupport,
 	)
@@ -364,12 +342,10 @@ type fileSystem struct {
 	// Constant data
 	/////////////////////////
 
-	localFileCache             bool
-	contentCache               *contentcache.ContentCache
-	implicitDirs               bool
-	enableNonexistentTypeCache bool
-	inodeAttributeCacheTTL     time.Duration
-	dirTypeCacheTTL            time.Duration
+	localFileCache         bool
+	contentCache           *contentcache.ContentCache
+	implicitDirs           bool
+	inodeAttributeCacheTTL time.Duration
 
 	// kernelListCacheTTL specifies the duration to keep the readdir response cached
 	// in kernel. After ttl, gcsfuse, (filesystem) on next opendir call (just before as part
@@ -770,12 +746,9 @@ func (fs *fileSystem) createExplicitDirInode(inodeID fuseops.InodeID, ic inode.C
 		},
 		fs.implicitDirs,
 		fs.newConfig.List.EnableEmptyManagedFolders,
-		fs.enableNonexistentTypeCache,
-		fs.dirTypeCacheTTL,
 		ic.Bucket,
 		fs.mtimeClock,
 		fs.cacheClock,
-		fs.newConfig.MetadataCache.TypeCacheMaxSizeMb,
 		fs.newConfig.EnableHns,
 		fs.newConfig.EnableUnsupportedDirSupport)
 
@@ -814,12 +787,9 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			},
 			fs.implicitDirs,
 			fs.newConfig.List.EnableEmptyManagedFolders,
-			fs.enableNonexistentTypeCache,
-			fs.dirTypeCacheTTL,
 			ic.Bucket,
 			fs.mtimeClock,
 			fs.cacheClock,
-			fs.newConfig.MetadataCache.TypeCacheMaxSizeMb,
 			fs.newConfig.EnableHns,
 			fs.newConfig.EnableUnsupportedDirSupport,
 		)
@@ -2002,7 +1972,6 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 
 	parent.Lock()
 	defer parent.Unlock()
-	parent.InsertFileIntoTypeCache(name)
 	return child, nil
 }
 
@@ -2340,9 +2309,6 @@ func (fs *fileSystem) atomicRename(ctx context.Context, oldParent inode.DirInode
 	if err := fs.invalidateChildFileCacheIfExist(oldParent, oldName); err != nil {
 		return fmt.Errorf("atomicRename: while invalidating cache for renamed file: %w", err)
 	}
-
-	// Insert new file in type cache.
-	newParent.InsertFileIntoTypeCache(newName)
 
 	return nil
 }
