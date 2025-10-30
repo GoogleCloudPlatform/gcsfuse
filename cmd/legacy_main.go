@@ -337,7 +337,17 @@ func forwardedEnvVars() []string {
 	return env
 }
 
-func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
+// logGCSFuseMountInformation logs the CLI flags, config file flags and the resolved config.
+func logGCSFuseMountInformation(mountInfo *mountInfo) {
+	logger.Info("GCSFuse Config", "CLI Flags", mountInfo.cliFlags)
+	if mountInfo.configFileFlags != nil {
+		logger.Info("GCSFuse Config", "ConfigFile Flags", mountInfo.configFileFlags)
+	}
+	logger.Info("GCSFuse Config", "Full Config", mountInfo.config)
+}
+
+func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
+	newConfig := mountInfo.config
 	// Ideally this call to UpdateDefaultLogger (which internally creates a
 	// new defaultLogger with user provided log-format and custom attribute 'fsName-MountInstanceID')
 	// should be set as an else to the 'if flags.Foreground' check below, but currently
@@ -360,7 +370,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	// if these are already being logged into a log-file, otherwise
 	// there will be duplicate logs for these in both places (stdout and log-file).
 	if newConfig.Foreground || newConfig.Logging.FilePath == "" {
-		logger.Info("GCSFuse config", "config", newConfig)
+		logGCSFuseMountInformation(mountInfo)
 	}
 
 	// The following will not warn if the user explicitly passed the default value for StatCacheCapacity.
