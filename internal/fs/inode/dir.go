@@ -200,8 +200,6 @@ type dirInode struct {
 	implicitDirs             bool
 	includeFoldersAsPrefixes bool
 
-	enableNonexistentTypeCache bool
-
 	// INVARIANT: name.IsDir()
 	name Name
 
@@ -259,12 +257,9 @@ func NewDirInode(
 	attrs fuseops.InodeAttributes,
 	implicitDirs bool,
 	includeFoldersAsPrefixes bool,
-	enableNonexistentTypeCache bool,
-	typeCacheTTL time.Duration,
 	bucket *gcsx.SyncerBucket,
 	mtimeClock timeutil.Clock,
 	cacheClock timeutil.Clock,
-	typeCacheMaxSizeMB int64,
 	isHNSEnabled bool,
 	isUnsupportedDirSupportEnabled bool,
 ) (d DirInode) {
@@ -280,7 +275,6 @@ func NewDirInode(
 		id:                             id,
 		implicitDirs:                   implicitDirs,
 		includeFoldersAsPrefixes:       includeFoldersAsPrefixes,
-		enableNonexistentTypeCache:     enableNonexistentTypeCache,
 		name:                           name,
 		attrs:                          attrs,
 		isHNSEnabled:                   isHNSEnabled,
