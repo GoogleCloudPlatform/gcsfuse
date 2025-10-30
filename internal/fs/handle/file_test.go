@@ -22,8 +22,10 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"os"
 	"sync"
 	"testing"
+
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -920,10 +922,7 @@ func (t *fileTest) Test_ReadWithReadManager_FullReadSuccessWithBufferedRead() {
 	const (
 		fileSize = 1 * 1024 * 1024 // 1 MiB
 	)
-	expectedData := make([]byte, fileSize)
-	for i := range fileSize {
-		expectedData[i] = byte(i % 256)
-	}
+	expectedData := util.GenerateRandomBytes(fileSize)
 	// Setup for Buffered Read test case
 	config := &cfg.Config{
 		Read: cfg.ReadConfig{
@@ -957,10 +956,7 @@ func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() 
 		numGoroutines = 3
 	)
 	// Create expected data for the file.
-	expectedData := make([]byte, fileSize)
-	for i := range fileSize {
-		expectedData[i] = byte(i % 256)
-	}
+	expectedData := util.GenerateRandomBytes(fileSize)
 	// Setup configuration for buffered read.
 	config := &cfg.Config{
 		Read: cfg.ReadConfig{
@@ -1009,4 +1005,49 @@ func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() 
 	assert.Equal(t.T(), expectedData, combinedResult, "Combined result should match expected data.")
 	// Clean up the original file handle.
 	fh.Destroy()
+}
+
+// Test_ReadWithReadManager_WorkloadInsightVisual validates that when
+// Workload Insight visualization is enabled, the output file is created
+// after performing reads with ReadWithReadManager.
+func (t *fileTest) Test_ReadWithReadManager_WorkloadInsightVisual() {
+	config := &cfg.Config{
+		WorkloadInsight: cfg.WorkloadInsightConfig{
+			Visualize:  true,
+			OutputFile: "test.txt",
+		},
+	}
+	const (
+		fileSize = 9 * 1024 * 1024 // 9 MiB
+		MiB      = 1024 * 1024
+	)
+	content := util.GenerateRandomBytes(fileSize)
+	// Create a new file handle with the updated config.
+	parent := createDirInode(&t.bucket, &t.clock)
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_visual", content, false)
+	in.Lock()
+	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, config, nil, nil)
+	in.Unlock()
+
+	// Perform multiple reads and destroy the file-handle.
+	fh.inode.Lock()
+	data1, n1, err := fh.ReadWithReadManager(t.ctx, make([]byte, MiB), MiB, 200)
+	require.NoError(t.T(), err)
+	require.Equal(t.T(), MiB, n1)
+	require.Equal(t.T(), content[MiB:2*MiB], data1)
+	fh.inode.Lock()
+	data2, n2, err := fh.ReadWithReadManager(t.ctx, make([]byte, MiB), 0, 200)
+	require.NoError(t.T(), err)
+	require.Equal(t.T(), MiB, n2)
+	require.Equal(t.T(), content[0:MiB], data2)
+	fh.inode.Lock()
+	data3, n3, err := fh.ReadWithReadManager(t.ctx, make([]byte, MiB), 2*MiB, 200)
+	require.NoError(t.T(), err)
+	require.Equal(t.T(), MiB, n3)
+	require.Equal(t.T(), content[2*MiB:3*MiB], data3)
+	fh.Destroy()
+
+	// Validate the output file creation for workload insight.
+	assert.FileExists(t.T(), "test.txt")
+	require.NoError(t.T(), os.Remove("test.txt")) // Clean up the file after test.
 }
