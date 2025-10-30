@@ -10,6 +10,15 @@ on:
 permissions:
   contents: read
 
+# Ensure only the latest run per branch is active (cancel older in-progress runs),
+# but allow every master commit to run (don't cancel or group master runs together).
+concurrency:
+  # For master we use a unique group per run (github.run_id) so runs don't cancel each other.
+  # For other refs we use the ref as the group so a new run cancels any previous in-progress run on that ref.
+  group: ${{ github.ref == 'refs/heads/master' && github.run_id || github.ref }}
+  # Cancel in-progress runs for non-master refs; do not cancel on master.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
 jobs:
   filter:
     runs-on: ubuntu-latest
