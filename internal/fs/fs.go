@@ -30,11 +30,12 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 
 	"golang.org/x/sync/semaphore"
+
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
@@ -206,6 +207,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		cacheFileForRangeRead:      serverCfg.NewConfig.FileCache.CacheFileForRangeRead,
 		metricHandle:               serverCfg.MetricHandle,
 		enableAtomicRenameObject:   serverCfg.NewConfig.EnableAtomicRenameObject,
+		isTracingEnabled:           cfg.IsTracingEnabled(serverCfg.NewConfig),
 		globalMaxWriteBlocksSem:    semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
 		globalMaxReadBlocksSem:     semaphore.NewWeighted(serverCfg.NewConfig.Read.GlobalMaxBlocks),
 	}
@@ -511,6 +513,8 @@ type fileSystem struct {
 	metricHandle metrics.MetricHandle
 
 	enableAtomicRenameObject bool
+
+	isTracingEnabled bool
 
 	// Limits the max number of blocks that can be created across file system when
 	// streaming writes are enabled.
@@ -1675,6 +1679,19 @@ func (fs *fileSystem) StatFS(
 	return
 }
 
+// When tracing is enabled ensure span & trace context from oldCtx is passed on to newCtx
+func augmentTraceContext(newCtx context.Context, oldCtx context.Context, isTracingEnabled bool) context.Context {
+	if !isTracingEnabled {
+		return newCtx
+	}
+
+	span := trace.SpanFromContext(oldCtx)
+	newCtx = trace.ContextWithSpan(newCtx, span)
+	logger.Info("Logging new context:", newCtx)
+
+	return newCtx
+}
+
 // getInterruptlessContext returns a new context that is not cancellable by the
 // parent context if the ignore-interrupts flag is set. Otherwise, it returns
 // the original context.
@@ -1683,8 +1700,9 @@ func (fs *fileSystem) getInterruptlessContext(ctx context.Context) context.Conte
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		newCtx := context.Background()
-		return monitor.AugmentTraceContext(newCtx, ctx, fs.newConfig)
+		return augmentTraceContext(newCtx, ctx, fs.isTracingEnabled)
 	}
+
 	return ctx
 }
 
