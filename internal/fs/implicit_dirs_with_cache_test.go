@@ -22,7 +22,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	. "github.com/jacobsa/oglematchers"
@@ -43,7 +42,6 @@ func init() {
 
 func (t *ImplicitDirsWithCacheTest) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
-	t.serverCfg.DirTypeCacheTTL = time.Minute * 3
 	t.serverCfg.MetricHandle = metrics.NewNoopMetrics()
 	t.fsTest.SetUpTestSuite()
 }
