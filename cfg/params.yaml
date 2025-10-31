@@ -829,13 +829,6 @@ params:
     default: 3
     hide-flag: true
 
-  - config-path: "read.retired-blocks-per-handle"
-    flag-name: "read-retired-blocks-per-handle"
-    type: "int"
-    usage: >-
-      Specifies the number of retired blocks to be kept for a single file handle for buffered reads.
-    default: 2
-
   - config-path: "read.start-blocks-per-handle"
     flag-name: "read-start-blocks-per-handle"
     type: "int"

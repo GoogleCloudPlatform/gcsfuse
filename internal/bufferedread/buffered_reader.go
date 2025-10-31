@@ -45,8 +45,7 @@ type BufferedReadConfig struct {
 	PrefetchBlockSizeBytes  int64 // Size of each block to be prefetched.
 	InitialPrefetchBlockCnt int64 // Number of blocks to prefetch initially.
 	MinBlocksPerHandle      int64 // Minimum number of blocks available in block-pool to start buffered-read.
-	RandomSeekThreshold     int64 // Seek count threshold to switch another reader
-	RetiredBlocksPerHandle  int64 // Number of retired blocks to keep for a file handle.
+	RandomSeekThreshold     int64 // Seek count threshold to switch another reader.
 }
 
 const (
@@ -70,6 +69,9 @@ type BufferedReader struct {
 	// `mu` synchronizes access to the buffered reader's shared state.
 	// All shared variables, such as the block pool and queue, require this lock before any operation.
 	mu sync.Mutex
+
+	// A waitgroup to track all in-flight zero-copy read operations.
+	zeroCopyWg sync.WaitGroup
 
 	// GUARDED by (mu)
 	workerPool workerpool.WorkerPool
@@ -95,12 +97,6 @@ type BufferedReader struct {
 	// of blocks that can be allocated across all BufferedReader instances.
 	// GUARDED by (mu)
 	blockPool *block.GenBlockPool[block.PrefetchBlock]
-
-	// retiredBlocks is an LRU cache that stores blocks that have been consumed
-	// from the prefetch queue but are kept for a short period to handle
-	// out-of-order or concurrent reads without treating them as random seeks.
-	// GUARDED by (mu)
-	retiredBlocks RetiredBlockCache
 }
 
 // BufferedReaderOptions holds the dependencies for a BufferedReader.
@@ -142,16 +138,6 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 	}
 	reader.ctx, reader.cancelFunc = context.WithCancel(context.Background())
 
-	// The retiredBlocks cache holds blocks that have been consumed but are kept
-	// to handle potential out-of-order reads. Its size is set to be the same as
-	// the maximum number of prefetch blocks to provide a reasonable buffer for
-	// such reads. If `read.retired-blocks-per-handle` is 0, this feature is disabled.
-	if opts.Config.RetiredBlocksPerHandle > 0 {
-		reader.retiredBlocks = NewLruRetiredBlockCache(uint64(opts.Config.RetiredBlocksPerHandle * opts.Config.PrefetchBlockSizeBytes))
-	} else {
-		reader.retiredBlocks = &NoOpRetiredBlockCache{}
-	}
-
 	prefetcherOpts := &prefetcherOptions{
 		Object:       opts.Object,
 		Bucket:       opts.Bucket,
@@ -159,7 +145,6 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 		Pool:         blockpool,
 		WorkerPool:   opts.WorkerPool,
 		Queue:        reader.blockQueue,
-		Retired:      reader.retiredBlocks,
 		MetricHandle: opts.MetricHandle,
 		ReaderCtx:    reader.ctx,
 		ReadHandle:   reader.readHandle,
@@ -167,47 +152,6 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 	reader.prefetcher = newPrefetcher(prefetcherOpts)
 
 	return reader, nil
-}
-
-// retireBlock moves a block from the active prefetch queue to the retired
-// blocks LRU cache. If the cache is full, it evicts the least recently used
-// block and releases it back to the pool.
-// LOCKS_REQUIRED(p.mu)
-func (p *BufferedReader) retireBlock(entry *blockQueueEntry) {
-	// If the retired blocks feature is disabled (using the no-op cache),
-	// we treat the block as if it were immediately evicted.
-	if _, ok := p.retiredBlocks.(*NoOpRetiredBlockCache); ok {
-		if entry.block.RefCount() == 0 {
-			p.releaseBlock(entry)
-		} else {
-			entry.block.SetWasEvicted(true)
-		}
-		return
-	}
-
-	blockIndex := entry.block.AbsStartOff() / p.config.PrefetchBlockSizeBytes
-	evicted, err := p.retiredBlocks.Insert(blockIndex, entry)
-	if err != nil {
-		// An error occurred (e.g., entry is too large for the cache). The block
-		// was not inserted, so we treat it as if it were immediately evicted.
-		logger.Warnf("BufferedReader.retireBlock: failed to insert block %d into retired cache: %v", blockIndex, err)
-		if entry.block.RefCount() == 0 {
-			p.releaseBlock(entry)
-		} else {
-			entry.block.SetWasEvicted(true)
-		}
-		// There should be no evictions if insertion failed, but we proceed just in case.
-	}
-
-	for _, evictedEntry := range evicted {
-		// This block is being evicted from the retired cache. If it's not in use,
-		// we can release it. Otherwise, we set a callback to release it later.
-		if evictedEntry.block.RefCount() == 0 {
-			p.releaseBlock(evictedEntry)
-		} else {
-			evictedEntry.block.SetWasEvicted(true)
-		}
-	}
 }
 
 // tryZeroCopyRead attempts to perform a zero-copy read from the given block.
@@ -226,13 +170,11 @@ func (p *BufferedReader) tryZeroCopyRead(entry *blockQueueEntry, off int64, inpu
 			// For zero-copy reads, we must ensure the block is not released until the
 			// kernel is done with the buffer. We increment its reference count here,
 			// and the Done function will decrement it later.
+			p.zeroCopyWg.Add(1)
 			blk.IncrementRef()
 			resp.DataBuf = slice
 			resp.Size = len(slice)
-			resp.Done = func() {
-				p.handleZeroCopyDone(entry)
-			}
-			// log.Printf("Zero Copy succeeded <-(%d, %d, ref_count: %d)", off, len(slice), blk.RefCount())
+			resp.Done = func() { p.handleZeroCopyDone(entry) }
 			return resp, true
 		}
 		logger.Warnf("BufferedReader.ReadAt: ReadAtSlice failed, falling back to copy: %v", sliceErr)
@@ -244,12 +186,12 @@ func (p *BufferedReader) tryZeroCopyRead(entry *blockQueueEntry, off int64, inpu
 // It decrements the block's reference count and releases it back to the pool if
 // the count drops to zero and it was previously marked for eviction.
 func (p *BufferedReader) handleZeroCopyDone(entry *blockQueueEntry) {
+	defer p.zeroCopyWg.Done()
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	blk := entry.block
-	blk.DecrementRef()
-	if blk.RefCount() == 0 && blk.WasEvicted() {
+	if blk.DecrementRef() == 0 && blk.WasEvicted() {
 		p.releaseBlock(entry)
 	}
 }
@@ -267,14 +209,13 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 		blockStart := block.AbsStartOff()
 		blockEnd := blockStart + block.Cap()
 
-		if offset < blockStart || offset >= blockEnd {
-			// Offset is either before or beyond this block – discard.
-			// The block is moved to the retired cache.
-			p.blockQueue.Pop()
-			p.retireBlock(entry)
-		} else {
+		if offset >= blockStart && offset < blockEnd {
+			// The read offset is within the bounds of the current block.
 			break
 		}
+		// Offset is before or beyond this block – discard.
+		p.blockQueue.Pop()
+		p.releaseBlock(entry)
 	}
 }
 
@@ -334,9 +275,8 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 	}()
 
 	isRandom, shouldFallback := p.patternDetector.check(&patternDetectorCheck{
-		Offset:        off,
-		Queue:         p.blockQueue,
-		RetiredBlocks: p.retiredBlocks,
+		Offset: off,
+		Queue:  p.blockQueue,
 	})
 	if shouldFallback {
 		logger.Warnf("Fallback to another reader for object %q, handle %d, at offset %d. Random seek count exceeded threshold %d.", p.object.Name, handleID, off, p.patternDetector.threshold())
@@ -346,44 +286,10 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 	if isRandom {
 		// On a random read, clear the prefetch queue by retiring all blocks.
-		for !p.blockQueue.IsEmpty() {
-			entry := p.blockQueue.Pop()
-			p.retireBlock(entry)
-		}
+		p.prepareQueueForOffset(-1) // Discard all blocks.
 	}
 
 	for bytesRead < len(inputBuf) {
-		// Check if the required block is in the retired cache.
-		blockIndex := off / p.config.PrefetchBlockSizeBytes
-		if entry := p.retiredBlocks.LookUp(blockIndex); entry != nil {
-			blk := entry.block
-
-			status, waitErr := blk.AwaitReady(ctx)
-			if waitErr != nil {
-				err = fmt.Errorf("BufferedReader.ReadAt: AwaitReady from retired: %w", waitErr)
-				break
-			}
-			if status.State != block.BlockStateDownloaded {
-				p.retiredBlocks.Erase(blockIndex)
-				p.blockPool.Release(blk)
-				err = fmt.Errorf("BufferedReader.ReadAt: retired block not downloaded, state: %d", status.State)
-				break
-			}
-
-			relOff := off - blk.AbsStartOff()
-			n, readErr := blk.ReadAt(inputBuf[bytesRead:], relOff)
-			bytesRead += n
-			off += int64(n)
-
-			if readErr != nil && !errors.Is(readErr, io.EOF) {
-				err = fmt.Errorf("BufferedReader.ReadAt: block.ReadAt from retired: %w", readErr)
-				break
-			}
-			if off >= int64(p.object.Size) {
-				break
-			}
-			continue
-		}
 		p.prepareQueueForOffset(off)
 
 		if p.blockQueue.IsEmpty() {
@@ -452,7 +358,8 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 		if off >= blk.AbsStartOff()+blk.Size() {
 			entry := p.blockQueue.Pop()
-			p.retireBlock(entry)
+			// The block is fully consumed, release it.
+			p.releaseBlock(entry)
 		}
 	}
 
@@ -463,34 +370,26 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 // LOCKS_EXCLUDED(p.mu)
 func (p *BufferedReader) Destroy() {
 	p.mu.Lock()
-	defer p.mu.Unlock()
-
 	for !p.blockQueue.IsEmpty() {
 		entry := p.blockQueue.Pop()
 		if entry.block.RefCount() == 0 {
 			p.releaseBlock(entry)
+		} else {
+			entry.block.SetWasEvicted(true)
 		}
 	}
+	p.mu.Unlock()
 
-	// Clear the retired blocks cache and release all blocks.
-	if p.retiredBlocks != nil {
-		evictedEntries := p.retiredBlocks.Clear()
-		for _, evictedEntry := range evictedEntries {
-			// If the block is not in use, we can release it.
-			if evictedEntry.block.RefCount() == 0 {
-				p.releaseBlock(evictedEntry)
-			}
-		}
-		p.retiredBlocks = nil
-	}
+	// Wait for any remaining in-flight zero-copy operations to complete. Their
+	// Done callbacks will handle the final release of those blocks.
+	p.zeroCopyWg.Wait()
 
 	if p.cancelFunc != nil {
 		p.cancelFunc()
 		p.cancelFunc = nil
 	}
 
-	err := p.blockPool.ClearFreeBlockChannel(true)
-	if err != nil {
+	if err := p.blockPool.ClearFreeBlockChannel(true); err != nil {
 		logger.Warnf("Destroy: clearing free block channel: %v", err)
 	}
 	p.blockPool = nil
@@ -509,7 +408,14 @@ func (p *BufferedReader) releaseBlock(entry *blockQueueEntry) {
 	} else if status.Err != nil && !errors.Is(status.Err, context.Canceled) {
 		logger.Warnf("releaseBlock: waiting for block on destroy: %v", status.Err)
 	}
-	p.blockPool.Release(entry.block)
+
+	// If the block is still referenced (e.g., by a zero-copy read), do not
+	// release it to the pool. Mark it as evicted so the Done callback can clean it up.
+	if entry.block.RefCount() > 0 {
+		entry.block.SetWasEvicted(true)
+	} else {
+		p.blockPool.Release(entry.block)
+	}
 }
 
 // CheckInvariants checks for internal consistency of the reader.
@@ -536,9 +442,5 @@ func (p *BufferedReader) CheckInvariants() {
 	// The random seek count should never exceed randomReadsThreshold.
 	if p.patternDetector.isAboveThreshold() {
 		panic(fmt.Sprintf("BufferedReader: random seek count has exceeded threshold %d", p.patternDetector.threshold()))
-	}
-
-	if p.retiredBlocks == nil {
-		panic("BufferedReader: retiredBlocks is nil")
 	}
 }

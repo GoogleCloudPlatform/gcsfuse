@@ -35,7 +35,6 @@ type prefetcher struct {
 	pool         *block.GenBlockPool[block.PrefetchBlock]
 	workerPool   workerpool.WorkerPool
 	queue        common.Queue[*blockQueueEntry]
-	retired      RetiredBlockCache
 	metricHandle metrics.MetricHandle
 	config       *BufferedReadConfig
 	readerCtx    context.Context
@@ -55,7 +54,6 @@ type prefetcherOptions struct {
 	Pool         *block.GenBlockPool[block.PrefetchBlock]
 	WorkerPool   workerpool.WorkerPool
 	Queue        common.Queue[*blockQueueEntry]
-	Retired      RetiredBlockCache
 	MetricHandle metrics.MetricHandle
 	ReaderCtx    context.Context
 	ReadHandle   []byte
@@ -70,7 +68,6 @@ func newPrefetcher(opts *prefetcherOptions) *prefetcher {
 		pool:                     opts.Pool,
 		workerPool:               opts.WorkerPool,
 		queue:                    opts.Queue,
-		retired:                  opts.Retired,
 		metricHandle:             opts.MetricHandle,
 		readerCtx:                opts.ReaderCtx,
 		readHandle:               opts.ReadHandle,
@@ -82,7 +79,7 @@ func newPrefetcher(opts *prefetcherOptions) *prefetcher {
 
 // prefetch schedules the next set of blocks for prefetching.
 func (p *prefetcher) prefetch() error {
-	availableSlots := p.config.MaxPrefetchBlockCnt - (int64(p.queue.Len()) + int64(p.retired.Len()))
+	availableSlots := p.config.MaxPrefetchBlockCnt - int64(p.queue.Len())
 	if availableSlots <= 0 {
 		return nil
 	}

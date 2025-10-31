@@ -117,7 +117,6 @@ func (t *BufferedReaderTest) SetupTest() {
 		PrefetchBlockSizeBytes:  testPrefetchBlockSizeBytes,
 		InitialPrefetchBlockCnt: testInitialPrefetchBlockCnt,
 		MinBlocksPerHandle:      testMinBlocksPerHandle,
-		RandomSeekThreshold:     testRandomSeekThreshold,
 	}
 	var err error
 	t.workerPool, err = workerpool.NewStaticWorkerPool(5, 10, 15)
@@ -335,23 +334,6 @@ func (t *BufferedReaderTest) TestCheckInvariantsBlockQueueExceedsLimit() {
 	reader.blockQueue.Push(&blockQueueEntry{block: b, cancel: func() {}})
 	reader.blockQueue.Push(&blockQueueEntry{block: b, cancel: func() {}})
 	reader.blockQueue.Push(&blockQueueEntry{block: b, cancel: func() {}})
-
-	assert.Panics(t.T(), func() { reader.CheckInvariants() })
-}
-
-func (t *BufferedReaderTest) TestCheckInvariantsRandomSeekCountExceedsThreshold() {
-	opts := &BufferedReaderOptions{
-		Object:             t.object,
-		Bucket:             t.bucket,
-		Config:             t.config,
-		GlobalMaxBlocksSem: t.globalMaxBlocksSem,
-		WorkerPool:         t.workerPool,
-		MetricHandle:       t.metricHandle,
-	}
-	reader, err := NewBufferedReader(opts)
-	require.NoError(t.T(), err, "NewBufferedReader should not return error")
-
-	reader.patternDetector.randomSeekCount = reader.patternDetector.threshold() + 1
 
 	assert.Panics(t.T(), func() { reader.CheckInvariants() })
 }
@@ -821,51 +803,6 @@ func (t *BufferedReaderTest) TestReadAtBackwardSeekIsRandomRead() {
 	assert.Equal(t.T(), int64(2), reader.patternDetector.randomSeekCount, "Second read should be counted as random.")
 	assert.Equal(t.T(), 2, reader.blockQueue.Len(), "Queue should contain newly prefetched blocks.")
 	assertBufferContent(t.T(), buf, 0)
-	t.bucket.AssertExpectations(t.T())
-}
-
-func (t *BufferedReaderTest) TestReadAtForwardSeekDiscardsPreviousBlocks() {
-	reader, err := NewBufferedReader(&BufferedReaderOptions{Object: t.object, Bucket: t.bucket, Config: t.config, GlobalMaxBlocksSem: t.globalMaxBlocksSem, WorkerPool: t.workerPool, MetricHandle: t.metricHandle})
-	require.NoError(t.T(), err)
-	var cancelCount int
-	addBlockToQueue := func(offset int64) {
-		b, poolErr := reader.blockPool.Get()
-		require.NoError(t.T(), poolErr)
-		require.NoError(t.T(), b.SetAbsStartOff(offset))
-		_, writeErr := b.Write(make([]byte, testPrefetchBlockSizeBytes))
-		require.NoError(t.T(), writeErr)
-		b.NotifyReady(block.BlockStatus{State: block.BlockStateDownloaded})
-		reader.blockQueue.Push(&blockQueueEntry{
-			block:  b,
-			cancel: func() { cancelCount++ },
-		})
-	}
-	addBlockToQueue(0)    // block 0
-	addBlockToQueue(1024) // block 1
-	addBlockToQueue(2048) // block 2
-	// Manually update the reader's state to reflect the manually added blocks.
-	reader.prefetcher.nextBlockIndexToPrefetch = 3
-	require.Equal(t.T(), 3, reader.blockQueue.Len())
-	// Reading block 2 should trigger a prefetch for blocks 3 and 4.
-	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 3*uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), 3*testPrefetchBlockSizeBytes), nil).Once()
-	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 4*uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), 4*testPrefetchBlockSizeBytes), nil).Once()
-	readOffset := int64(2048)
-	t.bucket.On("Name").Return("test-bucket").Maybe() // Bucket name used for logging.
-
-	// Read the entire block at offset 2048 to trigger the prefetch logic.
-	_, err = reader.ReadAt(t.ctx, make([]byte, 1024), readOffset)
-
-	require.NoError(t.T(), err)
-	assert.Equal(t.T(), 2, cancelCount, "Expected 2 blocks to be discarded")
-	// The queue should now contain the two newly prefetched blocks.
-	require.Equal(t.T(), 2, reader.blockQueue.Len(), "Queue should contain the 2 newly prefetched blocks")
-	// Wait for the async prefetch tasks to complete to verify the mock calls.
-	bqe3 := reader.blockQueue.Pop()
-	bqe4 := reader.blockQueue.Pop()
-	_, err = bqe3.block.AwaitReady(t.ctx)
-	require.NoError(t.T(), err, "AwaitReady for block 3 failed")
-	_, err = bqe4.block.AwaitReady(t.ctx)
-	require.NoError(t.T(), err, "AwaitReady for block 4 failed")
 	t.bucket.AssertExpectations(t.T())
 }
 

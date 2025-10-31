@@ -33,9 +33,8 @@ func newReadPatternDetector(threshold, blockSize int64) *readPatternDetector {
 
 // patternDetectorCheck holds the inputs for a pattern detection check.
 type patternDetectorCheck struct {
-	Offset        int64
-	Queue         common.Queue[*blockQueueEntry]
-	RetiredBlocks RetiredBlockCache
+	Offset int64
+	Queue  common.Queue[*blockQueueEntry]
 }
 
 // isRandomSeek checks if a read at a given offset constitutes a random seek
@@ -51,8 +50,7 @@ func (d *readPatternDetector) isRandomSeek(check *patternDetectorCheck) bool {
 			return false
 		}
 	}
-	blockIndex := check.Offset / d.blockSize
-	return check.RetiredBlocks.LookUp(blockIndex) == nil
+	return true
 }
 
 // check determines if a read is random, updates the internal seek count, and
