@@ -39,7 +39,7 @@ func MountGcsfuseWithStaticMountingWithConfigFile(config *test_suite.TestConfig,
 	var defaultArg []string
 	if setup.TestOnTPCEndPoint() {
 		defaultArg = append(defaultArg,
-			"--key-file=/tmp/sa.key.json")
+			"--key-file=/tmp/sa.key.json", "--custom-endpoint=storage.apis-tpczero.goog:443")
 	}
 
 	defaultArg = append(defaultArg, "--log-severity=trace",
