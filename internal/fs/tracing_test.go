@@ -82,7 +82,7 @@ func newInMemoryExporter(t *testing.T) *tracetest.InMemoryExporter {
 
 func TestTraceLookupInode(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -90,7 +90,7 @@ func TestTraceLookupInode(t *testing.T) {
 		{"enabled", true, []string{"LookUpInode"}},
 		{"disabled", false, []string{"LookUpInode"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -121,7 +121,7 @@ func TestTraceLookupInode(t *testing.T) {
 
 func TestTraceStatFS(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -129,7 +129,7 @@ func TestTraceStatFS(t *testing.T) {
 		{"enabled", true, []string{"StatFS"}},
 		{"disabled", false, []string{"StatFS"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -157,7 +157,7 @@ func TestTraceStatFS(t *testing.T) {
 
 func TestTraceGetInodeAttributes(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -165,7 +165,7 @@ func TestTraceGetInodeAttributes(t *testing.T) {
 		{"enabled", true, []string{"GetInodeAttributes"}},
 		{"disabled", false, []string{"GetInodeAttributes"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -195,7 +195,7 @@ func TestTraceGetInodeAttributes(t *testing.T) {
 
 func TestTraceSetInodeAttributes(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -203,7 +203,7 @@ func TestTraceSetInodeAttributes(t *testing.T) {
 		{"enabled", true, []string{"LookUpInode", "SetInodeAttributes"}},
 		{"disabled", false, []string{"LookUpInode", "SetInodeAttributes"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -240,7 +240,7 @@ func TestTraceSetInodeAttributes(t *testing.T) {
 
 func TestTraceForgetInode(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -248,7 +248,7 @@ func TestTraceForgetInode(t *testing.T) {
 		{"enabled", true, []string{"LookUpInode", "ForgetInode"}},
 		{"disabled", false, []string{"LookUpInode", "ForgetInode"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -285,7 +285,7 @@ func TestTraceForgetInode(t *testing.T) {
 
 func TestTraceMkDir(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -293,7 +293,7 @@ func TestTraceMkDir(t *testing.T) {
 		{"enabled", true, []string{"MkDir"}},
 		{"disabled", false, []string{"MkDir"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -324,7 +324,7 @@ func TestTraceMkDir(t *testing.T) {
 
 func TestTraceMkNode(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -332,7 +332,7 @@ func TestTraceMkNode(t *testing.T) {
 		{"enabled", true, []string{"MkNode"}},
 		{"disabled", false, []string{"MkNode"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -363,7 +363,7 @@ func TestTraceMkNode(t *testing.T) {
 
 func TestTraceCreateFile(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -371,7 +371,7 @@ func TestTraceCreateFile(t *testing.T) {
 		{"enabled", true, []string{"CreateFile"}},
 		{"disabled", false, []string{"CreateFile"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -402,7 +402,7 @@ func TestTraceCreateFile(t *testing.T) {
 
 func TestTraceCreateLink(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -410,7 +410,7 @@ func TestTraceCreateLink(t *testing.T) {
 		{"enabled", true, []string{"LookUpInode", "CreateLink"}},
 		{"disabled", false, []string{"LookUpInode", "CreateLink"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -448,7 +448,7 @@ func TestTraceCreateLink(t *testing.T) {
 
 func TestTraceCreateSymlink(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -456,7 +456,7 @@ func TestTraceCreateSymlink(t *testing.T) {
 		{"enabled", true, []string{"CreateSymlink"}},
 		{"disabled", false, []string{"CreateSymlink"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -489,7 +489,7 @@ func TestTraceCreateSymlink(t *testing.T) {
 
 func TestTraceRename(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -497,7 +497,7 @@ func TestTraceRename(t *testing.T) {
 		{"enabled", true, []string{"Rename"}},
 		{"disabled", false, []string{"Rename"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -532,7 +532,7 @@ func TestTraceRename(t *testing.T) {
 
 func TestTraceRmDir(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -540,7 +540,7 @@ func TestTraceRmDir(t *testing.T) {
 		{"enabled", true, []string{"MkDir", "RmDir"}},
 		{"disabled", false, []string{"MkDir", "RmDir"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -578,7 +578,7 @@ func TestTraceRmDir(t *testing.T) {
 
 func TestTraceUnlink(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -586,7 +586,7 @@ func TestTraceUnlink(t *testing.T) {
 		{"enabled", true, []string{"Unlink"}},
 		{"disabled", false, []string{"Unlink"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -617,7 +617,7 @@ func TestTraceUnlink(t *testing.T) {
 
 func TestTraceOpenDir(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -625,7 +625,7 @@ func TestTraceOpenDir(t *testing.T) {
 		{"enabled", true, []string{"OpenDir"}},
 		{"disabled", false, []string{"OpenDir"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -655,7 +655,7 @@ func TestTraceOpenDir(t *testing.T) {
 
 func TestTraceReadDir(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -663,7 +663,7 @@ func TestTraceReadDir(t *testing.T) {
 		{"enabled", true, []string{"OpenDir", "ReadDir"}},
 		{"disabled", false, []string{"OpenDir", "ReadDir"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -701,7 +701,7 @@ func TestTraceReadDir(t *testing.T) {
 
 func TestTraceReadDirPlus(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -709,7 +709,7 @@ func TestTraceReadDirPlus(t *testing.T) {
 		{"enabled", true, []string{"OpenDir", "ReadDirPlus"}},
 		{"disabled", false, []string{"OpenDir", "ReadDirPlus"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -750,7 +750,7 @@ func TestTraceReadDirPlus(t *testing.T) {
 
 func TestTraceReleaseDirHandle(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -758,7 +758,7 @@ func TestTraceReleaseDirHandle(t *testing.T) {
 		{"enabled", true, []string{"OpenDir", "ReleaseDirHandle"}},
 		{"disabled", false, []string{"OpenDir", "ReleaseDirHandle"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -793,7 +793,7 @@ func TestTraceReleaseDirHandle(t *testing.T) {
 
 func TestTraceOpenFile(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -801,7 +801,7 @@ func TestTraceOpenFile(t *testing.T) {
 		{"enabled", true, []string{"LookUpInode", "OpenFile"}},
 		{"disabled", false, []string{"LookUpInode", "OpenFile"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -837,7 +837,7 @@ func TestTraceOpenFile(t *testing.T) {
 
 func TestTraceReadFile(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -845,7 +845,7 @@ func TestTraceReadFile(t *testing.T) {
 		{"enabled", true, []string{"LookUpInode", "OpenFile", "ReadFile"}},
 		{"disabled", false, []string{"LookUpInode", "OpenFile", "ReadFile"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -888,7 +888,7 @@ func TestTraceReadFile(t *testing.T) {
 
 func TestTraceWriteFile(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -896,7 +896,7 @@ func TestTraceWriteFile(t *testing.T) {
 		{"enabled", true, []string{"LookUpInode", "OpenFile", "WriteFile"}},
 		{"disabled", false, []string{"LookUpInode", "OpenFile", "WriteFile"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -941,7 +941,7 @@ func TestTraceWriteFile(t *testing.T) {
 
 func TestTraceSyncFile(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -949,7 +949,7 @@ func TestTraceSyncFile(t *testing.T) {
 		{"enabled", true, []string{"LookUpInode", "SyncFile"}},
 		{"disabled", false, []string{"LookUpInode", "SyncFile"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -986,7 +986,7 @@ func TestTraceSyncFile(t *testing.T) {
 
 func TestTraceFlushFile(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -994,7 +994,7 @@ func TestTraceFlushFile(t *testing.T) {
 		{"enabled", true, []string{"LookUpInode", "OpenFile", "FlushFile"}},
 		{"disabled", false, []string{"LookUpInode", "OpenFile", "FlushFile"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -1037,7 +1037,7 @@ func TestTraceFlushFile(t *testing.T) {
 
 func TestTraceReleaseFileHandle(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -1045,7 +1045,7 @@ func TestTraceReleaseFileHandle(t *testing.T) {
 		{"enabled", true, []string{"LookUpInode", "OpenFile", "ReleaseFileHandle"}},
 		{"disabled", false, []string{"LookUpInode", "OpenFile", "ReleaseFileHandle"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -1086,7 +1086,7 @@ func TestTraceReleaseFileHandle(t *testing.T) {
 
 func TestTraceReadSymlink(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -1094,7 +1094,7 @@ func TestTraceReadSymlink(t *testing.T) {
 		{"enabled", true, []string{"CreateSymlink", "ReadSymlink"}},
 		{"disabled", false, []string{"CreateSymlink", "ReadSymlink"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -1130,7 +1130,7 @@ func TestTraceReadSymlink(t *testing.T) {
 
 func TestTraceRemoveXattr(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -1138,7 +1138,7 @@ func TestTraceRemoveXattr(t *testing.T) {
 		{"enabled", true, []string{"LookUpInode", "RemoveXattr"}},
 		{"disabled", false, []string{"LookUpInode", "RemoveXattr"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -1175,7 +1175,7 @@ func TestTraceRemoveXattr(t *testing.T) {
 
 func TestTraceGetXattr(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -1183,7 +1183,7 @@ func TestTraceGetXattr(t *testing.T) {
 		{"enabled", true, []string{"LookUpInode", "GetXattr"}},
 		{"disabled", false, []string{"LookUpInode", "GetXattr"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -1220,7 +1220,7 @@ func TestTraceGetXattr(t *testing.T) {
 
 func TestTraceListXattr(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -1228,7 +1228,7 @@ func TestTraceListXattr(t *testing.T) {
 		{"enabled", true, []string{"LookUpInode", "ListXattr"}},
 		{"disabled", false, []string{"LookUpInode", "ListXattr"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -1264,7 +1264,7 @@ func TestTraceListXattr(t *testing.T) {
 
 func TestTraceSetXattr(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -1272,7 +1272,7 @@ func TestTraceSetXattr(t *testing.T) {
 		{"enabled", true, []string{"LookUpInode", "SetXattr"}},
 		{"disabled", false, []string{"LookUpInode", "SetXattr"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -1310,7 +1310,7 @@ func TestTraceSetXattr(t *testing.T) {
 
 func TestTraceFallocate(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -1318,7 +1318,7 @@ func TestTraceFallocate(t *testing.T) {
 		{"enabled", true, []string{"LookUpInode", "OpenFile", "Fallocate"}},
 		{"disabled", false, []string{"LookUpInode", "OpenFile", "Fallocate"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
@@ -1363,7 +1363,7 @@ func TestTraceFallocate(t *testing.T) {
 
 func TestTraceSyncFS(t *testing.T) {
 	ctx := context.Background()
-	ignoreInterruptTestCases := []struct {
+	testCases := []struct {
 		name             string
 		ignoreInterrupts bool
 		spans            []string
@@ -1371,7 +1371,7 @@ func TestTraceSyncFS(t *testing.T) {
 		{"enabled", true, []string{"LookUpInode", "SyncFS"}},
 		{"disabled", false, []string{"LookUpInode", "SyncFS"}},
 	}
-	for _, tt := range ignoreInterruptTestCases {
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
 			t.Cleanup(func() {
