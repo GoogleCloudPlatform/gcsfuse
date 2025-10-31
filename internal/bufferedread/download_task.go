@@ -36,7 +36,7 @@ type DownloadTask struct {
 	metricHandle metrics.MetricHandle
 
 	// block is the block to which the data will be downloaded.
-	block block.PrefetchBlock
+	blocks []block.PrefetchBlock
 
 	// ctx is the context for the download task. It is used to cancel the download.
 	ctx context.Context
@@ -46,11 +46,23 @@ type DownloadTask struct {
 }
 
 func NewDownloadTask(ctx context.Context, object *gcs.MinObject, bucket gcs.Bucket, block block.PrefetchBlock, readHandle []byte, metricHandle metrics.MetricHandle) *DownloadTask {
+	dt := &DownloadTask{
+		ctx:          ctx,
+		object:       object,
+		bucket:       bucket,
+		readHandle:   readHandle,
+		metricHandle: metricHandle,
+	}
+	dt.blocks = append(dt.blocks, block)
+	return dt
+}
+
+func NewDownloadTaskWithMultipleBlocks(ctx context.Context, object *gcs.MinObject, bucket gcs.Bucket, blocks []block.PrefetchBlock, readHandle []byte, metricHandle metrics.MetricHandle) *DownloadTask {
 	return &DownloadTask{
 		ctx:          ctx,
 		object:       object,
 		bucket:       bucket,
-		block:        block,
+		blocks:       blocks,
 		readHandle:   readHandle,
 		metricHandle: metricHandle,
 	}
@@ -63,29 +75,12 @@ func NewDownloadTask(ctx context.Context, object *gcs.MinObject, bucket gcs.Buck
 // - BlockStatusDownloaded: The download was successful.
 // - BlockStatusDownloadFailed: The download failed due to an error.
 func (p *DownloadTask) Execute() {
-	startOff := p.block.AbsStartOff()
-	blockId := startOff / p.block.Cap()
-	logger.Tracef("Download: <- block (%s, %v).", p.object.Name, blockId)
-	stime := time.Now()
-	var err error
-	var n int64
-	defer func() {
-		dur := time.Since(stime)
-		if err == nil {
-			logger.Tracef("Download: -> block (%s, %v) Ok(%v).", p.object.Name, blockId, dur)
-			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloaded})
-		} else if errors.Is(err, context.Canceled) && p.ctx.Err() == context.Canceled {
-			logger.Tracef("Download: -> block (%s, %v) cancelled: %v.", p.object.Name, blockId, err)
-			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})
-		} else {
-			logger.Errorf("Download: -> block (%s, %v) failed: %v.", p.object.Name, blockId, err)
-			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})
-		}
-		p.metricHandle.GcsDownloadBytesCount(n, metrics.ReadTypeBufferedAttr)
-	}()
-
-	start := uint64(startOff)
-	end := min(start+uint64(p.block.Cap()), p.object.Size)
+	if len(p.blocks) == 0 {
+		return
+	}
+	startOffset := p.blocks[0].AbsStartOff()
+	start := uint64(startOffset)
+	end := min(start+uint64(p.blocks[0].Cap())*uint64(len(p.blocks)), p.object.Size)
 	newReader, err := p.bucket.NewReaderWithReadHandle(
 		p.ctx,
 		&gcs.ReadObjectRequest{
@@ -109,9 +104,39 @@ func (p *DownloadTask) Execute() {
 	}
 	defer newReader.Close()
 
-	n, err = io.CopyN(p.block, newReader, int64(end-start))
+	for _, b := range p.blocks {
+		_, err := p.downloadSingleBlock(b, newReader)
+		if err != nil {
+			return
+		}
+	}
+}
+
+func (p *DownloadTask) downloadSingleBlock(b block.PrefetchBlock, reader gcs.StorageReader) (n int64, err error) {
+	startOff := b.AbsStartOff()
+	blockId := startOff / b.Cap()
+	logger.Tracef("Download: <- block (%s, %v).", p.object.Name, startOff/b.Cap())
+	start := uint64(b.AbsStartOff())
+	end := min(start+uint64(b.Cap()), p.object.Size)
+	stime := time.Now()
+	defer func() {
+		dur := time.Since(stime)
+		if err == nil {
+			logger.Tracef("Download: -> block (%s, %v) Ok(%v).", p.object.Name, blockId, dur)
+			b.NotifyReady(block.BlockStatus{State: block.BlockStateDownloaded})
+		} else if errors.Is(err, context.Canceled) && p.ctx.Err() == context.Canceled {
+			logger.Tracef("Download: -> block (%s, %v) cancelled: %v.", p.object.Name, blockId, err)
+			b.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})
+		} else {
+			logger.Errorf("Download: -> block (%s, %v) failed: %v.", p.object.Name, blockId, err)
+			b.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})
+		}
+		p.metricHandle.GcsDownloadBytesCount(n, metrics.ReadTypeBufferedAttr)
+	}()
+	n, err = io.CopyN(b, reader, int64(end-start))
 	if err != nil {
 		err = fmt.Errorf("DownloadTask.Execute: while data-copy: %w", err)
 		return
 	}
+	return
 }

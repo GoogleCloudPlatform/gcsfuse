@@ -266,3 +266,42 @@ func (dts *DownloadTaskTestSuite) TestExecuteClobbered() {
 	var fileClobberedError *gcsfuse_errors.FileClobberedError
 	assert.True(dts.T(), errors.As(status.Err, &fileClobberedError))
 }
+
+func (dts *DownloadTaskTestSuite) TestExecuteSuccessWithMultipleBlocks() {
+	downloadBlock1, err := dts.blockPool.Get()
+	require.Nil(dts.T(), err)
+	err = downloadBlock1.SetAbsStartOff(0)
+	require.Nil(dts.T(), err)
+	downloadBlock2, err := dts.blockPool.Get()
+	require.Nil(dts.T(), err)
+	err = downloadBlock2.SetAbsStartOff(testBlockSize)
+	require.Nil(dts.T(), err)
+	task := NewDownloadTaskWithMultipleBlocks(context.Background(), dts.object, dts.mockBucket, []block.PrefetchBlock{downloadBlock1, downloadBlock2}, nil, dts.metricHandle)
+	testContent := testutil.GenerateRandomBytes(testBlockSize * 2)
+	rc := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
+	readObjectRequest := &gcs.ReadObjectRequest{
+		Name:       dts.object.Name,
+		Generation: dts.object.Generation,
+		Range: &gcs.ByteRange{
+			Start: uint64(0),
+			Limit: uint64(testBlockSize * 2),
+		},
+	}
+	dts.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(rc, nil).Times(1)
+
+	task.Execute()
+
+	assert.Equal(dts.T(), int64(len(testContent)), downloadBlock1.Size()+downloadBlock2.Size())
+	assert.Equal(dts.T(), int64(testBlockSize), downloadBlock1.Cap())
+	assert.Equal(dts.T(), int64(testBlockSize), downloadBlock2.Cap())
+	assert.NoError(dts.T(), err)
+	dts.mockBucket.AssertExpectations(dts.T())
+	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
+	defer cancelFunc()
+	status1, err := downloadBlock1.AwaitReady(ctx)
+	assert.Equal(dts.T(), block.BlockStatus{State: block.BlockStateDownloaded}, status1)
+	assert.NoError(dts.T(), err)
+	status2, err := downloadBlock2.AwaitReady(ctx)
+	assert.Equal(dts.T(), block.BlockStatus{State: block.BlockStateDownloaded}, status2)
+	assert.NoError(dts.T(), err)
+}
