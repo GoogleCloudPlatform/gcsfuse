@@ -85,9 +85,10 @@ func TestTraceLookupInode(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"LookUpInode"}},
+		{"disabled", false, []string{"LookUpInode"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -109,9 +110,11 @@ func TestTraceLookupInode(t *testing.T) {
 			require.NoError(t, err)
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 1)
-			assert.Equal(t, "LookUpInode", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -121,9 +124,10 @@ func TestTraceStatFS(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"StatFS"}},
+		{"disabled", false, []string{"StatFS"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -142,9 +146,11 @@ func TestTraceStatFS(t *testing.T) {
 			require.NoError(t, err)
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 1)
-			assert.Equal(t, "StatFS", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -154,9 +160,10 @@ func TestTraceGetInodeAttributes(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"GetInodeAttributes"}},
+		{"disabled", false, []string{"GetInodeAttributes"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -177,9 +184,11 @@ func TestTraceGetInodeAttributes(t *testing.T) {
 			require.NoError(t, err)
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 1)
-			assert.Equal(t, "GetInodeAttributes", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -189,9 +198,10 @@ func TestTraceSetInodeAttributes(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"LookUpInode", "SetInodeAttributes"}},
+		{"disabled", false, []string{"LookUpInode", "SetInodeAttributes"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -219,11 +229,11 @@ func TestTraceSetInodeAttributes(t *testing.T) {
 			require.NoError(t, err)
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 2)
-			assert.Equal(t, "LookUpInode", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
-			assert.Equal(t, "SetInodeAttributes", ss[1].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[1].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -233,9 +243,10 @@ func TestTraceForgetInode(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"LookUpInode", "ForgetInode"}},
+		{"disabled", false, []string{"LookUpInode", "ForgetInode"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -263,11 +274,11 @@ func TestTraceForgetInode(t *testing.T) {
 			require.NoError(t, err)
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 2)
-			assert.Equal(t, "LookUpInode", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
-			assert.Equal(t, "ForgetInode", ss[1].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[1].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -277,9 +288,10 @@ func TestTraceMkDir(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"MkDir"}},
+		{"disabled", false, []string{"MkDir"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -301,9 +313,11 @@ func TestTraceMkDir(t *testing.T) {
 			require.NoError(t, err)
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 1)
-			assert.Equal(t, "MkDir", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -313,9 +327,10 @@ func TestTraceMkNode(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"MkNode"}},
+		{"disabled", false, []string{"MkNode"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -337,9 +352,11 @@ func TestTraceMkNode(t *testing.T) {
 			require.NoError(t, err)
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 1)
-			assert.Equal(t, "MkNode", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -349,9 +366,10 @@ func TestTraceCreateFile(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"CreateFile"}},
+		{"disabled", false, []string{"CreateFile"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -373,9 +391,11 @@ func TestTraceCreateFile(t *testing.T) {
 			require.NoError(t, err)
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 1)
-			assert.Equal(t, "CreateFile", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -385,9 +405,10 @@ func TestTraceCreateLink(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"LookUpInode", "CreateLink"}},
+		{"disabled", false, []string{"LookUpInode", "CreateLink"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -413,14 +434,14 @@ func TestTraceCreateLink(t *testing.T) {
 				Target: lookUpOp.Entry.Child,
 			}
 			err = m.CreateLink(ctx, op)
-			assert.Error(t, err)
+			assert.Error(t, err) // The operation is not implemented, so we expect an error.
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 2)
-			assert.Equal(t, "LookUpInode", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
-			assert.Equal(t, "CreateLink", ss[1].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[1].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -430,9 +451,10 @@ func TestTraceCreateSymlink(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"CreateSymlink"}},
+		{"disabled", false, []string{"CreateSymlink"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -456,9 +478,11 @@ func TestTraceCreateSymlink(t *testing.T) {
 			require.NoError(t, err)
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 1)
-			assert.Equal(t, "CreateSymlink", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -468,9 +492,10 @@ func TestTraceRename(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"Rename"}},
+		{"disabled", false, []string{"Rename"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -496,9 +521,11 @@ func TestTraceRename(t *testing.T) {
 			require.NoError(t, err)
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 1)
-			assert.Equal(t, "Rename", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -508,9 +535,10 @@ func TestTraceRmDir(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"MkDir", "RmDir"}},
+		{"disabled", false, []string{"MkDir", "RmDir"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -539,11 +567,11 @@ func TestTraceRmDir(t *testing.T) {
 			require.NoError(t, err)
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 2)
-			assert.Equal(t, "MkDir", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
-			assert.Equal(t, "RmDir", ss[1].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[1].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -553,9 +581,10 @@ func TestTraceUnlink(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"Unlink"}},
+		{"disabled", false, []string{"Unlink"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -577,9 +606,11 @@ func TestTraceUnlink(t *testing.T) {
 			require.NoError(t, err)
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 1)
-			assert.Equal(t, "Unlink", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -589,9 +620,10 @@ func TestTraceOpenDir(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"OpenDir"}},
+		{"disabled", false, []string{"OpenDir"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -612,9 +644,11 @@ func TestTraceOpenDir(t *testing.T) {
 			require.NoError(t, err)
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 1)
-			assert.Equal(t, "OpenDir", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -624,9 +658,10 @@ func TestTraceReadDir(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"OpenDir", "ReadDir"}},
+		{"disabled", false, []string{"OpenDir", "ReadDir"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -655,11 +690,11 @@ func TestTraceReadDir(t *testing.T) {
 			require.NoError(t, err)
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 2)
-			assert.Equal(t, "OpenDir", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
-			assert.Equal(t, "ReadDir", ss[1].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[1].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -669,9 +704,10 @@ func TestTraceReadDirPlus(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"OpenDir", "ReadDirPlus"}},
+		{"disabled", false, []string{"OpenDir", "ReadDirPlus"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -703,11 +739,11 @@ func TestTraceReadDirPlus(t *testing.T) {
 			require.NoError(t, err)
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 2)
-			assert.Equal(t, "OpenDir", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
-			assert.Equal(t, "ReadDirPlus", ss[1].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[1].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -717,9 +753,10 @@ func TestTraceReleaseDirHandle(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"OpenDir", "ReleaseDirHandle"}},
+		{"disabled", false, []string{"OpenDir", "ReleaseDirHandle"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -745,11 +782,11 @@ func TestTraceReleaseDirHandle(t *testing.T) {
 			require.NoError(t, err)
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 2)
-			assert.Equal(t, "OpenDir", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
-			assert.Equal(t, "ReleaseDirHandle", ss[1].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[1].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -759,9 +796,10 @@ func TestTraceOpenFile(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"LookUpInode", "OpenFile"}},
+		{"disabled", false, []string{"LookUpInode", "OpenFile"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -788,11 +826,11 @@ func TestTraceOpenFile(t *testing.T) {
 			require.NoError(t, err)
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 2)
-			assert.Equal(t, "LookUpInode", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
-			assert.Equal(t, "OpenFile", ss[1].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[1].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -802,9 +840,10 @@ func TestTraceReadFile(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"LookUpInode", "OpenFile", "ReadFile"}},
+		{"disabled", false, []string{"LookUpInode", "OpenFile", "ReadFile"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -838,13 +877,11 @@ func TestTraceReadFile(t *testing.T) {
 			require.NoError(t, err)
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 3)
-			assert.Equal(t, "LookUpInode", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
-			assert.Equal(t, "OpenFile", ss[1].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[1].SpanKind)
-			assert.Equal(t, "ReadFile", ss[2].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[2].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -854,9 +891,10 @@ func TestTraceWriteFile(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"LookUpInode", "OpenFile", "WriteFile"}},
+		{"disabled", false, []string{"LookUpInode", "OpenFile", "WriteFile"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -892,13 +930,11 @@ func TestTraceWriteFile(t *testing.T) {
 			require.NoError(t, err)
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 3)
-			assert.Equal(t, "LookUpInode", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
-			assert.Equal(t, "OpenFile", ss[1].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[1].SpanKind)
-			assert.Equal(t, "WriteFile", ss[2].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[2].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -908,9 +944,10 @@ func TestTraceSyncFile(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"LookUpInode", "SyncFile"}},
+		{"disabled", false, []string{"LookUpInode", "SyncFile"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -938,11 +975,11 @@ func TestTraceSyncFile(t *testing.T) {
 			require.NoError(t, err)
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 2)
-			assert.Equal(t, "LookUpInode", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
-			assert.Equal(t, "SyncFile", ss[1].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[1].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -952,9 +989,10 @@ func TestTraceFlushFile(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"LookUpInode", "OpenFile", "FlushFile"}},
+		{"disabled", false, []string{"LookUpInode", "OpenFile", "FlushFile"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -988,13 +1026,11 @@ func TestTraceFlushFile(t *testing.T) {
 			require.NoError(t, err)
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 3)
-			assert.Equal(t, "LookUpInode", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
-			assert.Equal(t, "OpenFile", ss[1].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[1].SpanKind)
-			assert.Equal(t, "FlushFile", ss[2].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[2].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -1004,9 +1040,10 @@ func TestTraceReleaseFileHandle(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"LookUpInode", "OpenFile", "ReleaseFileHandle"}},
+		{"disabled", false, []string{"LookUpInode", "OpenFile", "ReleaseFileHandle"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1038,13 +1075,11 @@ func TestTraceReleaseFileHandle(t *testing.T) {
 			require.NoError(t, err)
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 3)
-			assert.Equal(t, "LookUpInode", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
-			assert.Equal(t, "OpenFile", ss[1].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[1].SpanKind)
-			assert.Equal(t, "ReleaseFileHandle", ss[2].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[2].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -1054,9 +1089,10 @@ func TestTraceReadSymlink(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"CreateSymlink", "ReadSymlink"}},
+		{"disabled", false, []string{"CreateSymlink", "ReadSymlink"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1083,11 +1119,11 @@ func TestTraceReadSymlink(t *testing.T) {
 			require.NoError(t, err)
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 2)
-			assert.Equal(t, "CreateSymlink", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
-			assert.Equal(t, "ReadSymlink", ss[1].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[1].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -1097,9 +1133,10 @@ func TestTraceRemoveXattr(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"LookUpInode", "RemoveXattr"}},
+		{"disabled", false, []string{"LookUpInode", "RemoveXattr"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1124,14 +1161,14 @@ func TestTraceRemoveXattr(t *testing.T) {
 				Name:  "user.test",
 			}
 			err = m.RemoveXattr(ctx, op)
-			assert.Error(t, err)
+			assert.Error(t, err) // The operation is not implemented, so we expect an error.
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 2)
-			assert.Equal(t, "LookUpInode", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
-			assert.Equal(t, "RemoveXattr", ss[1].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[1].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -1141,9 +1178,10 @@ func TestTraceGetXattr(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"LookUpInode", "GetXattr"}},
+		{"disabled", false, []string{"LookUpInode", "GetXattr"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1171,11 +1209,11 @@ func TestTraceGetXattr(t *testing.T) {
 			assert.NotNil(t, err)
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 2)
-			assert.Equal(t, "LookUpInode", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
-			assert.Equal(t, "GetXattr", ss[1].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[1].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -1185,9 +1223,10 @@ func TestTraceListXattr(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"LookUpInode", "ListXattr"}},
+		{"disabled", false, []string{"LookUpInode", "ListXattr"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1214,11 +1253,11 @@ func TestTraceListXattr(t *testing.T) {
 			assert.NotNil(t, err)
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 2)
-			assert.Equal(t, "LookUpInode", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
-			assert.Equal(t, "ListXattr", ss[1].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[1].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -1228,9 +1267,10 @@ func TestTraceSetXattr(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"LookUpInode", "SetXattr"}},
+		{"disabled", false, []string{"LookUpInode", "SetXattr"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1259,11 +1299,11 @@ func TestTraceSetXattr(t *testing.T) {
 			assert.NotNil(t, err)
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 2)
-			assert.Equal(t, "LookUpInode", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
-			assert.Equal(t, "SetXattr", ss[1].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[1].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -1273,9 +1313,10 @@ func TestTraceFallocate(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"LookUpInode", "OpenFile", "Fallocate"}},
+		{"disabled", false, []string{"LookUpInode", "OpenFile", "Fallocate"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1311,13 +1352,11 @@ func TestTraceFallocate(t *testing.T) {
 			assert.Error(t, err) // The operation is not implemented, so we expect an error.
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 3)
-			assert.Equal(t, "LookUpInode", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
-			assert.Equal(t, "OpenFile", ss[1].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[1].SpanKind)
-			assert.Equal(t, "Fallocate", ss[2].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[2].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
@@ -1327,9 +1366,10 @@ func TestTraceSyncFS(t *testing.T) {
 	ignoreInterruptTestCases := []struct {
 		name             string
 		ignoreInterrupts bool
+		spans            []string
 	}{
-		{"enabled", true},
-		{"disabled", false},
+		{"enabled", true, []string{"LookUpInode", "SyncFS"}},
+		{"disabled", false, []string{"LookUpInode", "SyncFS"}},
 	}
 	for _, tt := range ignoreInterruptTestCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1356,11 +1396,11 @@ func TestTraceSyncFS(t *testing.T) {
 			assert.Error(t, err) // The operation is not implemented, so we expect an error.
 
 			ss := ex.GetSpans()
-			require.Len(t, ss, 2)
-			assert.Equal(t, "LookUpInode", ss[0].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[0].SpanKind)
-			assert.Equal(t, "SyncFS", ss[1].Name)
-			assert.Equal(t, trace.SpanKindServer, ss[1].SpanKind)
+			require.Len(t, ss, len(tt.spans))
+			for i, spanName := range tt.spans {
+				assert.Equal(t, spanName, ss[i].Name)
+				assert.Equal(t, trace.SpanKindServer, ss[i].SpanKind)
+			}
 		})
 	}
 }
