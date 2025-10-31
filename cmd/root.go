@@ -23,13 +23,26 @@ import (
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
-type mountFn func(c *cfg.Config, bucketName, mountPoint string) error
+type mountInfo struct {
+	// cliFlags are the flags passed through the command line to GCSFuse Program.
+	// This field is used only for logging purpose.
+	cliFlags map[string]string
+	// configFileFlags are the flags passed through the config file to GCSFuse Program.
+	// This field is used only for logging purpose.
+	configFileFlags map[string]any
+	// config is the final config object after merging cli and config file flags applying
+	// all optimisation based on machineType, Profile etc. This is the final config used for mounting GCSFuse.
+	config *cfg.Config
+}
+
+type mountFn func(mountInfo *mountInfo, bucketName, mountPoint string) error
 
 // pflagAsIsValueSet is an adapter that makes a pflag.FlagSet satisfy the
 // cfg.isValueSet interface, allowing us to check for user-set flags reliably.
@@ -61,9 +74,44 @@ func (p *pflagAsIsValueSet) GetBool(name string) bool {
 	return val
 }
 
+// getCliFlags returns the cli flags set by the user in map[string]string format.
+func getCliFlags(flagSet *pflag.FlagSet) map[string]string {
+	cliFlags := make(map[string]string)
+	flagSet.VisitAll(func(f *pflag.Flag) {
+		if f.Changed {
+			cliFlags[f.Name] = f.Value.String()
+		}
+	})
+	// Do not display --foreground flag to the user in logs if user
+	// hasn't passed this flag and was added by GCSFuse during demonized run.
+	if _, ok := os.LookupEnv(logger.GCSFuseInBackgroundMode); ok {
+		delete(cliFlags, "foreground")
+	}
+	return cliFlags
+}
+
+// getConfigFileFlags returns the flags set by the user in the config file.
+func getConfigFileFlags(v *viper.Viper) map[string]any {
+	if v.ConfigFileUsed() == "" {
+		return nil
+	}
+
+	// v.AllSettings() includes defaults, which we don't want.
+	// We only want what's explicitly in the config file.
+	// We can achieve this by creating a new Viper instance and reading the
+	// same config file into it without setting any defaults.
+	configOnlyViper := viper.New()
+	configOnlyViper.SetConfigFile(v.ConfigFileUsed())
+	configOnlyViper.SetConfigType("yaml")
+	// We can ignore the error here, as the original viper instance would have already failed.
+	_ = configOnlyViper.ReadInConfig()
+	return configOnlyViper.AllSettings()
+}
+
 // newRootCmd accepts the mountFn that it executes with the parsed configuration
 func newRootCmd(m mountFn) (*cobra.Command, error) {
 	var (
+		mountInfo mountInfo
 		configObj cfg.Config
 		cfgFile   string
 		cfgErr    error
@@ -86,7 +134,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 			if err != nil {
 				return fmt.Errorf("error occurred while extracting the bucket and mountPoint: %w", err)
 			}
-			return m(&configObj, bucket, mountPoint)
+			return m(&mountInfo, bucket, mountPoint)
 		},
 	}
 	initConfig := func() {
@@ -122,6 +170,9 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 		if cfgErr = cfg.Rationalize(v, &configObj, optimizedFlags); cfgErr != nil {
 			return
 		}
+		mountInfo.cliFlags = getCliFlags(rootCmd.PersistentFlags())
+		mountInfo.configFileFlags = getConfigFileFlags(v)
+		mountInfo.config = &configObj
 	}
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringVar(&cfgFile, cfg.ConfigFileFlagName, "", "The path to the config file where all gcsfuse related config needs to be specified. "+
