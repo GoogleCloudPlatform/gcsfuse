@@ -567,6 +567,45 @@ func (t *NonHNSDirTest) TestCreateChildDirWhenBucketTypeIsNonHNSWithSuccess() {
 	assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.fixedTime.Now(), name))
 }
 
+func (t *HNSDirTest) TestDeleteObjects() {
+	// Arrange
+	objectNames := []string{"dir1/file1.txt", "dir2/"}
+	t.mockBucket.On("DeleteObject", t.ctx, &gcs.DeleteObjectRequest{Name: "dir1/file1.txt"}).Return(nil)
+	// Mock for recursive deletion of dir2/
+	listReq := &gcs.ListObjectsRequest{
+		Prefix:            "dir2/",
+		MaxResults:        MaxResultsForListObjectsCall,
+		Delimiter:         "/",
+		ContinuationToken: "",
+	}
+	listResp := &gcs.Listing{
+		MinObjects: []*gcs.MinObject{
+			{Name: "dir2/file2.txt"},
+		},
+		CollapsedRuns: []string{"dir2/subdir/"},
+	}
+	t.mockBucket.On("ListObjects", mock.Anything, listReq).Return(listResp, nil)
+	t.mockBucket.On("DeleteObject", mock.Anything, &gcs.DeleteObjectRequest{Name: "dir2/file2.txt"}).Return(nil)
+	// Mock for recursive call on subdir/
+	listReqSubdir := &gcs.ListObjectsRequest{
+		Prefix:            "dir2/subdir/",
+		MaxResults:        MaxResultsForListObjectsCall,
+		Delimiter:         "/",
+		ContinuationToken: "",
+	}
+	listRespSubdir := &gcs.Listing{}
+	t.mockBucket.On("ListObjects", mock.Anything, listReqSubdir).Return(listRespSubdir, nil)
+	t.mockBucket.On("DeleteFolder", mock.Anything, "dir2/subdir/").Return(nil)
+	t.mockBucket.On("DeleteFolder", mock.Anything, "dir2/").Return(nil)
+
+	// Act
+	err := t.in.DeleteObjects(t.ctx, objectNames)
+
+	// Assert
+	assert.NoError(t.T(), err)
+	t.mockBucket.AssertExpectations(t.T())
+}
+
 func (t *HNSDirTest) TestReadEntriesInHierarchicalBucket() {
 	t.resetDirInode(false, false, true)
 	const (
