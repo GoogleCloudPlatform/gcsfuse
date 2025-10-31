@@ -51,7 +51,7 @@ such as checkpoints. Streaming writes can be enabled using `--enable-streaming-w
 `write:enable-streaming-writes:true` in the config file (Default starting GCSFuse v3.0.0).
 
 **Memory Usage:** Each file opened for streaming writes will consume
-approximately 64MiB of RAM during the upload process. This memory is released
+approximately 96MiB of RAM during the upload process. This memory is released
 when the file handle is closed. This should be considered when planning resource
 allocation for applications using streaming writes.
 
