@@ -93,15 +93,17 @@ func registerTerminatingSignalHandler(mountPoint string) {
 }
 
 func getUserAgent(appName, config, mountInstanceID string) string {
+	var userAgent string
 	gcsfuseMetadataImageType := os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE")
 	if len(gcsfuseMetadataImageType) > 0 {
-		userAgent := fmt.Sprintf("gcsfuse/%s %s (GPN:gcsfuse-%s) (Cfg:%s) (mount-id:%s)", common.GetVersion(), appName, gcsfuseMetadataImageType, config, mountInstanceID)
-		return strings.Join(strings.Fields(userAgent), " ")
+		userAgent = fmt.Sprintf("gcsfuse/%s %s (GPN:gcsfuse-%s) (Cfg:%s)", common.GetVersion(), appName, gcsfuseMetadataImageType, config)
+		userAgent = strings.Join(strings.Fields(userAgent), " ")
 	} else if len(appName) > 0 {
-		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-%s) (Cfg:%s) (mount-id:%s)", common.GetVersion(), appName, config, mountInstanceID)
+		userAgent = fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-%s) (Cfg:%s)", common.GetVersion(), appName, config)
 	} else {
-		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse) (Cfg:%s) (mount-id:%s)", common.GetVersion(), config, mountInstanceID)
+		userAgent = fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse) (Cfg:%s)", common.GetVersion(), config)
 	}
+	return fmt.Sprintf("%s (mount-id:%s)", userAgent, mountInstanceID)
 }
 
 func boolToBin(b bool) string {
