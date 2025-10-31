@@ -54,6 +54,7 @@ const (
 	SuccessfulMountMessage         = "File system has been successfully mounted."
 	UnsuccessfulMountMessagePrefix = "Error while mounting gcsfuse"
 	DynamicMountFSName             = "gcsfuse"
+	WaitTimeOnSignalReceive        = 30 * time.Second
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -81,8 +82,9 @@ func registerTerminatingSignalHandler(mountPoint string) {
 			// and then exit, so application is closed
 			go func() {
 				logger.Warnf("Received %s, waiting for 30s to kill goroutines", sigName)
-				time.Sleep(30 * time.Second)
+				time.Sleep(WaitTimeOnSignalReceive)
 				logger.Warnf("killing goroutines and exit")
+				//forcefully exit to 0 so that caller
 				os.Exit(0)
 			}()
 
