@@ -203,6 +203,7 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 			GlobalMaxBlocksSem:    fh.globalMaxReadBlocksSem,
 			WorkerPool:            fh.bufferedReadWorkerPool,
 		})
+		fh.readManager = read_manager.NewVisualizingReadManager(fh.readManager)
 
 		// Override the read-manager with visual-read-manager (a wrapper over read_manager with visualizer) if configured.
 		if fh.config.WorkloadInsight.Visualize {
