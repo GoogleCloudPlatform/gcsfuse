@@ -64,7 +64,14 @@ func newStdoutTraceProvider() (trace.TracerProvider, common.ShutdownFn, error) {
 }
 
 func newGCPCloudTraceExporter(ctx context.Context, c *cfg.Config, mountID string) (*sdktrace.TracerProvider, common.ShutdownFn, error) {
-	exporter, err := cloudtrace.New()
+	var traceOptions []cloudtrace.Option
+
+	if c.Monitoring.ExperimentalTracingProjectId != "" {
+		traceOptions = append(traceOptions, cloudtrace.WithProjectID(c.Monitoring.ExperimentalTracingProjectId))
+	}
+
+	exporter, err := cloudtrace.New(traceOptions...)
+
 	if err != nil {
 		return nil, nil, err
 	}

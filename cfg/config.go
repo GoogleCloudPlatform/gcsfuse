@@ -574,6 +574,8 @@ type MonitoringConfig struct {
 	ExperimentalTracingMode string `yaml:"experimental-tracing-mode"`
 
 	ExperimentalTracingSamplingRatio float64 `yaml:"experimental-tracing-sampling-ratio"`
+
+	ExperimentalTracingProjectId string `yaml:"experimental-tracing-project-id"`
 }
 
 type ReadConfig struct {
@@ -843,6 +845,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.Float64P("experimental-tracing-sampling-ratio", "", 0, "Experimental: Trace sampling ratio")
 
 	if err := flagSet.MarkHidden("experimental-tracing-sampling-ratio"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("experimental-tracing-project-id", "", "", "Experimental: Trace project ID")
+
+	if err := flagSet.MarkHidden("experimental-tracing-project-id"); err != nil {
 		return err
 	}
 
@@ -1300,6 +1308,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("monitoring.experimental-tracing-sampling-ratio", flagSet.Lookup("experimental-tracing-sampling-ratio")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("monitoring.experimental-tracing-project-id", flagSet.Lookup("experimental-tracing-mode")); err != nil {
 		return err
 	}
 
