@@ -27,6 +27,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/workloadinsight"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
@@ -202,6 +203,15 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 			GlobalMaxBlocksSem:    fh.globalMaxReadBlocksSem,
 			WorkerPool:            fh.bufferedReadWorkerPool,
 		})
+
+		// Override the read-manager with visual-read-manager (a wrapper over read_manager with visualizer) if configured.
+		if fh.config.WorkloadInsight.Visualize {
+			if renderer, err := workloadinsight.NewRenderer(); err == nil {
+				fh.readManager = read_manager.NewVisualReadManager(fh.readManager, renderer, fh.config.WorkloadInsight.OutputFile)
+			} else {
+				logger.Warnf("Failed to construct workload insight visualizer: %v", err)
+			}
+		}
 
 		// Release RWLock and take RLock on file handle again. Inode lock is not needed now.
 		fh.mu.Unlock()
