@@ -82,6 +82,7 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 			InitialPrefetchBlockCnt: readConfig.StartBlocksPerHandle,
 			MinBlocksPerHandle:      readConfig.MinBlocksPerHandle,
 			RandomSeekThreshold:     readConfig.RandomSeekThreshold,
+			OptimizeRandomRead:      readConfig.OptimizeRandomRead,
 		}
 		bufferedReader, err := bufferedread.NewBufferedReader(
 			object,

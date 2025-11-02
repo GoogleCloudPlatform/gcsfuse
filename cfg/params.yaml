@@ -940,6 +940,16 @@ params:
     default: 4
     hide-flag: true
 
+  - config-path: "read.optimize-random-read"
+    flag-name: "read-optimize-random-read"
+    type: "bool"
+    usage: >-
+      Enables optimization for random read patterns. When enabled, the reader
+      will use a different strategy for fetching data blocks to improve
+      performance for random access patterns.
+    default: false
+    hide-flag: true
+
   - config-path: "read.random-seek-threshold"
     flag-name: "read-random-seek-threshold"
     type: "int"

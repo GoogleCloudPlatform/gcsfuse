@@ -828,23 +828,23 @@ func (t *BufferedReaderTest) TestReadAtBackwardSeekIsRandomRead() {
 	// Perform a read that populates the prefetch queue.
 	// This is a random read since offset != 0 and queue is empty.
 	startOffset := int64(3072) // block 3
-	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == uint64(startOffset) })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), startOffset), nil).Once()
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == uint64(startOffset) })).Return(createFakeReaderWithOffset(t.T(), int(3*testPrefetchBlockSizeBytes), startOffset), nil).Once()
 	t.bucket.On("Name").Return("test-bucket").Maybe() // Bucket name used for logging.
-	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool {
-		return r.Range.Start == uint64(startOffset+testPrefetchBlockSizeBytes)
-	})).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), startOffset+testPrefetchBlockSizeBytes), nil).Once()
-	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool {
-		return r.Range.Start == uint64(startOffset+2*testPrefetchBlockSizeBytes)
-	})).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), startOffset+2*testPrefetchBlockSizeBytes), nil).Once()
+	// t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool {
+	// 	return r.Range.Start == uint64(startOffset+testPrefetchBlockSizeBytes)
+	// })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), startOffset+testPrefetchBlockSizeBytes), nil).Once()
+	// t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool {
+	// 	return r.Range.Start == uint64(startOffset+2*testPrefetchBlockSizeBytes)
+	// })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), startOffset+2*testPrefetchBlockSizeBytes), nil).Once()
 	_, err = reader.ReadAt(t.ctx, make([]byte, 10), startOffset)
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), int64(1), reader.randomSeekCount, "First read should be counted as random.")
 	require.Equal(t.T(), 3, reader.blockQueue.Len(), "Queue should be populated after first read.")
 	// Perform a backward seek, which is another random read.
 	// This should clear the existing queue and start a new prefetch.
-	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 0 })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), 0), nil).Once()
-	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), testPrefetchBlockSizeBytes), nil).Once()
-	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 2*uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), 2*testPrefetchBlockSizeBytes), nil).Once()
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 0 })).Return(createFakeReaderWithOffset(t.T(), int(3*testPrefetchBlockSizeBytes), 0), nil).Once()
+	// t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), testPrefetchBlockSizeBytes), nil).Once()
+	// t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 2*uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), 2*testPrefetchBlockSizeBytes), nil).Once()
 	buf := make([]byte, 1024)
 
 	resp, err := reader.ReadAt(t.ctx, buf, 0)
