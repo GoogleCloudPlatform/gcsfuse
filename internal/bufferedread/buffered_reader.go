@@ -444,6 +444,8 @@ func (p *BufferedReader) prefetchForRandomRead() error {
 		return nil
 	}
 
+	logger.Tracef("blockcount to prefetch: %d, totalBlockCount: %d remainingBlocksInFile: %d availableSlots: %d", blockCountToPrefetch, totalBlockCount, remainingBlocksInFile, availableSlots)
+
 	allBlocksScheduledSuccessfully := true
 	var blocks []block.PrefetchBlock
 	var blockIndices []int64
@@ -521,6 +523,16 @@ func (p *BufferedReader) freshStartForRandomRead(currentOffset int64) error {
 		}
 		return fmt.Errorf("freshStart: scheduling initial blocks: %w", err)
 	}
+
+	// Set the size for the next multiplicative prefetch.
+	p.numPrefetchBlocks *= p.prefetchMultiplier
+
+	// Cap the prefetch window size for the next cycle at the configured
+	// maximum to prevent unbounded growth.
+	if p.numPrefetchBlocks > p.config.MaxPrefetchBlockCnt {
+		p.numPrefetchBlocks = p.config.MaxPrefetchBlockCnt
+	}
+
 	return nil
 }
 

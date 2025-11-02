@@ -100,22 +100,30 @@ func (p *DownloadTask) Execute() {
 			return
 		}
 		err = fmt.Errorf("DownloadTask.Execute: while reader-creations: %w", err)
-		return
 	}
-	defer newReader.Close()
 
 	for _, b := range p.blocks {
-		_, err := p.downloadSingleBlock(b, newReader)
-		if err != nil {
-			return
-		}
+		_, _ = p.downloadSingleBlock(b, newReader)
 	}
+
+	if err == nil {
+		newReader.Close()
+	}
+
+	// newReader.Close()
 }
 
 func (p *DownloadTask) downloadSingleBlock(b block.PrefetchBlock, reader gcs.StorageReader) (n int64, err error) {
+
 	startOff := b.AbsStartOff()
 	blockId := startOff / b.Cap()
 	logger.Tracef("Download: <- block (%s, %v).", p.object.Name, startOff/b.Cap())
+	if p.ctx.Err() != nil {
+		err = p.ctx.Err()
+		logger.Tracef("Download: -> block (%s, %v) cancelled: %v.", p.object.Name, blockId, err)
+		b.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})
+		return
+	}
 	start := uint64(b.AbsStartOff())
 	end := min(start+uint64(b.Cap()), p.object.Size)
 	stime := time.Now()
