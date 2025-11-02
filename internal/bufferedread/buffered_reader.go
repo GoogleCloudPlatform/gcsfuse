@@ -380,9 +380,21 @@ func (p *BufferedReader) Destroy() {
 	}
 	p.mu.Unlock()
 
-	// Wait for any remaining in-flight zero-copy operations to complete. Their
-	// Done callbacks will handle the final release of those blocks.
-	p.zeroCopyWg.Wait()
+	// Wait for any remaining in-flight zero-copy operations to complete, with a
+	// timeout to prevent indefinite blocking. Their Done callbacks will handle
+	// the final release of those blocks.
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		p.zeroCopyWg.Wait()
+	}()
+
+	select {
+	case <-done:
+		// Wait completed successfully.
+	case <-time.After(10 * time.Second):
+		logger.Warnf("BufferedReader.Destroy: timed out waiting for zero-copy operations to complete.")
+	}
 
 	if p.cancelFunc != nil {
 		p.cancelFunc()
