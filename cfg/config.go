@@ -573,9 +573,9 @@ type MetricsConfig struct {
 type MonitoringConfig struct {
 	ExperimentalTracingMode string `yaml:"experimental-tracing-mode"`
 
-	ExperimentalTracingSamplingRatio float64 `yaml:"experimental-tracing-sampling-ratio"`
-
 	ExperimentalTracingProjectId string `yaml:"experimental-tracing-project-id"`
+
+	ExperimentalTracingSamplingRatio float64 `yaml:"experimental-tracing-sampling-ratio"`
 }
 
 type ReadConfig struct {
