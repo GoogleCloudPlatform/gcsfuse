@@ -192,7 +192,10 @@ func (p *BufferedReader) handleZeroCopyDone(entry *blockQueueEntry) {
 
 	blk := entry.block
 	if blk.DecrementRef() == 0 && blk.WasEvicted() {
-		p.releaseBlock(entry)
+		// The block is no longer referenced by the kernel and has already been
+		// marked for eviction from the active queue. It is now safe to release
+		// it back to the pool.
+		p.blockPool.Release(entry.block)
 	}
 }
 
@@ -415,9 +418,7 @@ func (p *BufferedReader) releaseBlock(entry *blockQueueEntry) {
 	// We wait for the block's worker goroutine to finish. We expect its
 	// status to contain a context.Canceled error because we just called cancel.
 	status, err := entry.block.AwaitReady(context.Background())
-	if err != nil {
-		logger.Warnf("releaseBlock: AwaitReady for block failed: %v", err)
-	} else if status.Err != nil && !errors.Is(status.Err, context.Canceled) {
+	if err != nil || (status.Err != nil && !errors.Is(status.Err, context.Canceled)) {
 		logger.Warnf("releaseBlock: waiting for block on destroy: %v", status.Err)
 	}
 
