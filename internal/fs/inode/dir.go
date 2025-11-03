@@ -425,8 +425,9 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*C
 	}
 
 	req := &gcs.ListObjectsRequest{
-		Prefix:     name.GcsObjectName(),
-		MaxResults: 1,
+		Prefix:              name.GcsObjectName(),
+		MaxResults:          1,
+		ForceFetchFromCache: true,
 	}
 	listing, err := bucket.ListObjects(ctx, req)
 	if err != nil {

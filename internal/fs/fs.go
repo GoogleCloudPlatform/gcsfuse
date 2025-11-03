@@ -938,7 +938,8 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 	}
 
 	// Handle implicit directories.
-	if ic.MinObject == nil {
+	if ic.MinObject.ImplicitDir {
+		logger.Infof("In Implicit Dir")
 		return fs.createDirInode(ic, fs.implicitDirInodes)
 	}
 
@@ -2224,6 +2225,7 @@ func (fs *fileSystem) RmDir(
 	// Delete the backing object.
 	fs.mu.Lock()
 	_, isImplicitDir := fs.implicitDirInodes[child.Name()]
+	logger.Infof("Is it Implicit Dir: ", isImplicitDir)
 	fs.mu.Unlock()
 	parent.Lock()
 	err = parent.DeleteChildDir(ctx, op.Name, isImplicitDir, childDir)

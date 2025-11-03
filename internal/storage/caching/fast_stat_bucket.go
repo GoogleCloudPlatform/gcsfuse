@@ -92,14 +92,38 @@ func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *fastStatBucket) insertMultipleMinObjects(minObjs []*gcs.MinObject) {
+func (b *fastStatBucket) insertMultipleMinObjects(listing *gcs.Listing) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
+	minObjectNames := make(map[string]struct{})
 	expiration := b.clock.Now().Add(b.primaryCacheTTL)
-	for _, o := range minObjs {
+
+	for _, o := range listing.MinObjects {
 		b.cache.Insert(o, expiration)
+		minObjectNames[o.Name] = struct{}{}
 	}
+
+	for _, p := range listing.CollapsedRuns {
+		// If a MinObject with the same name as the CollapsedRun already exists,
+		// we don't need to insert it again as a Folder.
+		if _, ok := minObjectNames[p]; ok {
+			fmt.Println("MinObjects")
+			continue
+		}
+		if !strings.HasSuffix(p, "/") {
+			// log the error for incorrect prefix but don't fail the operation
+			logger.Errorf("error in prefix name: %s", p)
+		} else {
+			f := &gcs.MinObject{
+				Name:        p,
+				ImplicitDir: true,
+			}
+			fmt.Println("Cache implicit dir: ", f)
+			b.cache.Insert(f, expiration)
+		}
+	}
+
 }
 
 // LOCKS_EXCLUDED(b.mu)
@@ -117,15 +141,20 @@ func (b *fastStatBucket) insertHierarchicalListing(listing *gcs.Listing) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
+	minObjectNames := make(map[string]struct{})
 	expiration := b.clock.Now().Add(b.primaryCacheTTL)
 
 	for _, o := range listing.MinObjects {
-		if !strings.HasSuffix(o.Name, "/") {
-			b.cache.Insert(o, expiration)
-		}
+		b.cache.Insert(o, expiration)
+		minObjectNames[o.Name] = struct{}{}
 	}
 
 	for _, p := range listing.CollapsedRuns {
+		// If a MinObject with the same name as the CollapsedRun already exists,
+		// we don't need to insert it again as a Folder.
+		if _, ok := minObjectNames[p]; ok {
+			continue
+		}
 		if !strings.HasSuffix(p, "/") {
 			// log the error for incorrect prefix but don't fail the operation
 			logger.Errorf("error in prefix name: %s", p)
@@ -145,7 +174,11 @@ func (b *fastStatBucket) insert(o *gcs.Object) {
 }
 
 func (b *fastStatBucket) insertMinObject(o *gcs.MinObject) {
-	b.insertMultipleMinObjects([]*gcs.MinObject{o})
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	expiration := b.clock.Now().Add(b.primaryCacheTTL)
+	b.cache.Insert(o, expiration)
 }
 
 // LOCKS_EXCLUDED(b.mu)
@@ -357,6 +390,18 @@ func (b *fastStatBucket) StatObject(
 func (b *fastStatBucket) ListObjects(
 	ctx context.Context,
 	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
+	// If ForceFetchFromCache is true, we will try to serve listing from cache.
+	if req.ForceFetchFromCache {
+		fmt.Println("In force fetch", req.Prefix)
+		if hit, entry := b.lookUp(req.Prefix); hit {
+			// Otherwise, return MinObject and nil ExtendedObjectAttributes.
+			listing = &gcs.Listing{
+				MinObjects: []*gcs.MinObject{entry},
+			}
+			return
+		}
+	}
+
 	// Fetch the listing.
 	listing, err = b.wrapped.ListObjects(ctx, req)
 	if err != nil {
@@ -369,7 +414,7 @@ func (b *fastStatBucket) ListObjects(
 	}
 
 	// note anything we found.
-	b.insertMultipleMinObjects(listing.MinObjects)
+	b.insertMultipleMinObjects(listing)
 	return
 }
 
