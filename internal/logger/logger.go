@@ -240,7 +240,7 @@ func loggerAttr(fsName string) []slog.Attr {
 // create a new logger with mountInstanceID set as custom attribute on logger.
 func (f *loggerFactory) newLoggerWithMountInstanceID(level, fsName string) *slog.Logger {
 	var programLevel = new(slog.LevelVar)
-	logger := slog.New(f.handler(programLevel, "").WithAttrs(loggerAttr(fsName)))
+	logger := slog.New(f.handler(programLevel, ""))
 	slog.SetDefault(logger)
 	setLoggingLevel(level, programLevel)
 	return logger

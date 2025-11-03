@@ -46,11 +46,13 @@ type BufferedReadConfig struct {
 	InitialPrefetchBlockCnt int64 // Number of blocks to prefetch initially.
 	MinBlocksPerHandle      int64 // Minimum number of blocks available in block-pool to start buffered-read.
 	RandomSeekThreshold     int64 // Seek count threshold to switch another reader
+	OptimizeRandomRead      bool  // Whether to optimize for random reads
 }
 
 const (
 	defaultPrefetchMultiplier = 2
 	ReadOp                    = "readOp"
+	prefetchBatchSize         = 32
 )
 
 // blockQueueEntry holds a data block with a function
@@ -302,10 +304,18 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		p.prepareQueueForOffset(off)
 
 		if p.blockQueue.IsEmpty() {
-			if err = p.freshStart(off); err != nil {
-				logger.Warnf("Fallback to another reader for object %q, handle %d, due to freshStart failure: %v", p.object.Name, handleID, err)
-				p.metricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
-				return resp, gcsx.FallbackToAnotherReader
+			if p.config.OptimizeRandomRead {
+				if err = p.freshStartForRandomRead(off); err != nil {
+					logger.Warnf("Fallback to another reader for object %q, handle %d, due to freshStart failure: %v", p.object.Name, handleID, err)
+					p.metricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
+					return resp, gcsx.FallbackToAnotherReader
+				}
+			} else {
+				if err = p.freshStart(off); err != nil {
+					logger.Warnf("Fallback to another reader for object %q, handle %d, due to freshStart failure: %v", p.object.Name, handleID, err)
+					p.metricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
+					return resp, gcsx.FallbackToAnotherReader
+				}
 			}
 			prefetchTriggered = true
 		}
@@ -353,8 +363,14 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 			if !prefetchTriggered {
 				prefetchTriggered = true
-				if pfErr := p.prefetch(); pfErr != nil {
-					logger.Warnf("BufferedReader.ReadAt: while prefetching: %v", pfErr)
+				if p.config.OptimizeRandomRead {
+					if pfErr := p.prefetchForRandomRead(); pfErr != nil {
+						logger.Warnf("BufferedReader.ReadAt: while prefetching: %v", pfErr)
+					}
+				} else {
+					if pfErr := p.prefetch(); pfErr != nil {
+						logger.Warnf("BufferedReader.ReadAt: while prefetching: %v", pfErr)
+					}
 				}
 			}
 		}
@@ -408,6 +424,126 @@ func (p *BufferedReader) prefetch() error {
 			p.numPrefetchBlocks = p.config.MaxPrefetchBlockCnt
 		}
 	}
+	return nil
+}
+
+// prefetch schedules the next set of blocks for prefetching starting from
+// the nextBlockIndexToPrefetch.
+// LOCKS_REQUIRED(p.mu)
+func (p *BufferedReader) prefetchForRandomRead() error {
+	// Determine the number of blocks to prefetch in this cycle, respecting the
+	// MaxPrefetchBlockCnt and the number of blocks remaining in the file.
+	availableSlots := p.config.MaxPrefetchBlockCnt - int64(p.blockQueue.Len())
+	if availableSlots <= 0 {
+		return nil
+	}
+	if availableSlots < min(prefetchBatchSize, p.numPrefetchBlocks/4) {
+		return nil
+	}
+	totalBlockCount := (int64(p.object.Size) + p.config.PrefetchBlockSizeBytes - 1) / p.config.PrefetchBlockSizeBytes
+	remainingBlocksInFile := totalBlockCount - p.nextBlockIndexToPrefetch
+	blockCountToPrefetch := min(min(p.numPrefetchBlocks, availableSlots), remainingBlocksInFile)
+	if blockCountToPrefetch <= 0 {
+		return nil
+	}
+
+	logger.Tracef("blockcount to prefetch: %d, totalBlockCount: %d remainingBlocksInFile: %d availableSlots: %d", blockCountToPrefetch, totalBlockCount, remainingBlocksInFile, availableSlots)
+
+	allBlocksScheduledSuccessfully := true
+	var blocks []block.PrefetchBlock
+	var blockIndices []int64
+
+	for range blockCountToPrefetch {
+		b, err := p.blockPool.TryGet()
+		if err != nil {
+			// Any error from TryGet (e.g., pool exhausted, mmap failure) means we
+			// can't get a block. For the buffered reader, this is a recoverable
+			// condition that should either trigger a fallback to another reader (for
+			// urgent reads) or be ignored (for background prefetches).
+			logger.Tracef("prefetchForRandomRead: could not get block from pool: %v", err)
+			allBlocksScheduledSuccessfully = false
+			break
+		}
+		blocks = append(blocks, b)
+		blockIndices = append(blockIndices, p.nextBlockIndexToPrefetch)
+		p.nextBlockIndexToPrefetch++
+	}
+
+	for bs := 0; bs < len(blocks); bs += prefetchBatchSize {
+		end := bs + prefetchBatchSize
+		if end > len(blocks) {
+			end = len(blocks)
+		}
+		batchBlocks := blocks[bs:end]
+		batchBlockIndices := blockIndices[bs:end]
+		if err := p.scheduleBlocksWithIndex(batchBlocks, batchBlockIndices, false); err != nil {
+			for _, b := range batchBlocks {
+				p.blockPool.Release(b)
+			}
+			return fmt.Errorf("prefetchForRandomRead: scheduling blocks: %w", err)
+		}
+	}
+
+	// Only increase the prefetch window size if we successfully scheduled all the
+	// intended blocks. This is a more conservative approach that prevents the
+	// window from growing aggressively if block pool is consistently under pressure.
+	if allBlocksScheduledSuccessfully {
+		// Set the size for the next multiplicative prefetch.
+		p.numPrefetchBlocks *= p.prefetchMultiplier
+
+		// Cap the prefetch window size for the next cycle at the configured
+		// maximum to prevent unbounded growth.
+		if p.numPrefetchBlocks > p.config.MaxPrefetchBlockCnt {
+			p.numPrefetchBlocks = p.config.MaxPrefetchBlockCnt
+		}
+	}
+	return nil
+}
+
+// freshStartForRandomRead resets the prefetching state and schedules the initial set of
+// blocks starting from the given offset.
+// LOCKS_REQUIRED(p.mu)
+func (p *BufferedReader) freshStartForRandomRead(currentOffset int64) error {
+	blockIndex := currentOffset / p.config.PrefetchBlockSizeBytes
+	p.nextBlockIndexToPrefetch = blockIndex
+
+	// Determine the number of blocks for the initial prefetch.
+	p.numPrefetchBlocks = min(p.config.InitialPrefetchBlockCnt, p.config.MaxPrefetchBlockCnt)
+
+	var blocks []block.PrefetchBlock
+	var blockIndices []int64
+
+	for i := int64(0); i < p.numPrefetchBlocks+1; i++ {
+		b, err := p.blockPool.TryGet()
+		if err != nil {
+			// Any error from TryGet (e.g., pool exhausted, mmap failure) means we
+			// can't get a block. For the buffered reader, this is a recoverable
+			// condition that should either trigger a fallback to another reader (for
+			// urgent reads) or be ignored (for background prefetches).
+			logger.Tracef("freshStart: could not get block from pool: %v", err)
+			return ErrPrefetchBlockNotAvailable
+		}
+		blocks = append(blocks, b)
+		blockIndices = append(blockIndices, p.nextBlockIndexToPrefetch)
+		p.nextBlockIndexToPrefetch++
+	}
+
+	if err := p.scheduleBlocksWithIndex(blocks, blockIndices, true); err != nil {
+		for _, b := range blocks {
+			p.blockPool.Release(b)
+		}
+		return fmt.Errorf("freshStart: scheduling initial blocks: %w", err)
+	}
+
+	// Set the size for the next multiplicative prefetch.
+	p.numPrefetchBlocks *= p.prefetchMultiplier
+
+	// Cap the prefetch window size for the next cycle at the configured
+	// maximum to prevent unbounded growth.
+	if p.numPrefetchBlocks > p.config.MaxPrefetchBlockCnt {
+		p.numPrefetchBlocks = p.config.MaxPrefetchBlockCnt
+	}
+
 	return nil
 }
 
@@ -472,6 +608,31 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockInde
 		block:  b,
 		cancel: cancel,
 	})
+	p.workerPool.Schedule(urgent, task)
+	return nil
+}
+
+// scheduleBlockWithIndex schedules a block with a specific index.
+// LOCKS_REQUIRED(p.mu)
+func (p *BufferedReader) scheduleBlocksWithIndex(b []block.PrefetchBlock, blockIndex []int64, urgent bool) error {
+	for i := 0; i < len(b); i++ {
+		startOffset := blockIndex[i] * p.config.PrefetchBlockSizeBytes
+		if err := b[i].SetAbsStartOff(startOffset); err != nil {
+			return fmt.Errorf("scheduleBlockWithIndex: setting start offset: %w", err)
+		}
+	}
+
+	ctx, cancelFunc := context.WithCancel(p.ctx)
+	task := NewDownloadTaskWithMultipleBlocks(ctx, p.object, p.bucket, b, p.readHandle, p.metricHandle)
+
+	logger.Tracef("Scheduling blocks: (%s, %v, %t).", p.object.Name, blockIndex, urgent)
+	for i := 0; i < len(b); i++ {
+		p.blockQueue.Push(&blockQueueEntry{
+			block:  b[i],
+			cancel: cancelFunc,
+		})
+	}
+
 	p.workerPool.Schedule(urgent, task)
 	return nil
 }

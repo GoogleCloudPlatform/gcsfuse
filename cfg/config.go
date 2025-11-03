@@ -591,6 +591,8 @@ type ReadConfig struct {
 
 	MinBlocksPerHandle int64 `yaml:"min-blocks-per-handle"`
 
+	OptimizeRandomRead bool `yaml:"optimize-random-read"`
+
 	RandomSeekThreshold int64 `yaml:"random-seek-threshold"`
 
 	StartBlocksPerHandle int64 `yaml:"start-blocks-per-handle"`
@@ -1025,6 +1027,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.IntP("read-min-blocks-per-handle", "", 4, "Specifies the minimum number of blocks required by a file-handle to start reading via buffered reads. The value should be >= 1 or \"read-max-blocks-per-handle\".")
 
 	if err := flagSet.MarkHidden("read-min-blocks-per-handle"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("read-optimize-random-read", "", false, "Enables optimization for random read patterns. When enabled, the reader will use a different strategy for fetching data blocks to improve performance for random access patterns.")
+
+	if err := flagSet.MarkHidden("read-optimize-random-read"); err != nil {
 		return err
 	}
 
@@ -1512,6 +1520,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("read.min-blocks-per-handle", flagSet.Lookup("read-min-blocks-per-handle")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.optimize-random-read", flagSet.Lookup("read-optimize-random-read")); err != nil {
 		return err
 	}
 
