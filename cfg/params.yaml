@@ -865,6 +865,13 @@ params:
     default: ""
     hide-flag: true
 
+  - config-path: "monitoring.experimental-tracing-project-id"
+    flag-name: "experimental-tracing-project-id"
+    type: "string"
+    usage: "Experimental: specify the GCP project-id to which traces will be exported. When unset, a project-id will be inferred as per the default credential detection process"
+    default: ""
+    hide-flag: true
+
   - config-path: "monitoring.experimental-tracing-sampling-ratio"
     flag-name: "experimental-tracing-sampling-ratio"
     type: "float64"
