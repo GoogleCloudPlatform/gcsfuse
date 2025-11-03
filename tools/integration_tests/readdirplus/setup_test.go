@@ -117,7 +117,7 @@ func validateLogsForReaddirplus(t *testing.T, logFile string, dentryCacheEnabled
 
 func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) {
 	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, flags, mountFunc)
-	setup.SetMntDir(testEnv.cfg.GCSFuseMountedDirectory)
+	setup.SetMntDir(mountDir)
 	testEnv.testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
 }
 

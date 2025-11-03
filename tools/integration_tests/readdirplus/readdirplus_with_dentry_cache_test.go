@@ -53,7 +53,6 @@ func (s *ReaddirplusWithDentryCacheTest) TearDownSuite() {
 }
 
 func (s *ReaddirplusWithDentryCacheTest) SetupSuite() {
-	// setupLogFileAndCacheDir(s.baseTestName)
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
 }
 

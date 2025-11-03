@@ -204,13 +204,12 @@ cloud_profiler:
           flat: true
           hns: true
           zonal: true
-        run_on_gke: false
+        run_on_gke: true
 
 requester_pays_bucket:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
     log_file: # Optional flag required by some tests where log parsing is done to validate end behavior
-    run_on_gke: false
     configs:
       - flags:
           - "--billing-project=gcs-fuse-test-ml"
@@ -218,6 +217,7 @@ requester_pays_bucket:
           flat: true
           hns: true
           zonal: false
+        run_on_gke: true
 
 read_cache:
   - mounted_directory: "${MOUNTED_DIR}"
@@ -427,7 +427,6 @@ readdirplus:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
     log_file: # Not Required by readdirplus tests
-    run_on_gke: false
     configs:
       - flags:
           - "--implicit-dirs --experimental-enable-readdirplus --experimental-enable-dentry-cache"
@@ -436,6 +435,7 @@ readdirplus:
           hns: true
           zonal: true
         run: TestReaddirplusWithDentryCacheTest
+        run_on_gke: true
       - flags:
           - "--implicit-dirs --experimental-enable-readdirplus"
         compatible:
@@ -443,6 +443,7 @@ readdirplus:
           hns: true
           zonal: true
         run: TestReaddirplusWithoutDentryCacheTest
+        run_on_gke: true
 
 benchmarking:
   - test_bucket: "${BUCKET_NAME}"
@@ -457,6 +458,7 @@ benchmarking:
               hns: true
               zonal: true
         run: "Benchmark_Stat"
+        run_on_gke: true
       - flags:
           - "--stat-cache-ttl=0 --enable-atomic-rename-object=true"
           - "--stat-cache-ttl=0 --enable-atomic-rename-object=true --client-protocol=grpc"
@@ -480,7 +482,6 @@ dentry_cache:
  - mounted_directory: "${MOUNTED_DIR}"
    test_bucket: "${BUCKET_NAME}"
    log_file: # Not Required by dentry_cache tests
-   run_on_gke: true
    configs:
      - flags:
        - "--implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=2"
@@ -489,6 +490,7 @@ dentry_cache:
          hns: true
          zonal: true
        run: TestStatWithDentryCacheEnabledTest
+       run_on_gke: true
      - flags:
        - "--implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=1000"
        compatible:
@@ -496,6 +498,7 @@ dentry_cache:
          hns: true
          zonal: true
        run: TestDeleteOperationTest
+       run_on_gke: true
      - flags:
        - "--implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=1000"
        compatible:
@@ -503,3 +506,4 @@ dentry_cache:
          hns: true
          zonal: true
        run: TestNotifierTest
+       run_on_gke: true
