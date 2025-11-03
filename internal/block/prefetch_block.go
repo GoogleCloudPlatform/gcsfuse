@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync/atomic"
 	"syscall"
 )
 
@@ -45,6 +46,11 @@ type PrefetchBlock interface {
 	// Here, off is relative to the start of the block.
 	ReadAt(p []byte, off int64) (n int, err error)
 
+	// ReadAtSlice returns a slice of the block's buffer if the read can be
+	// satisfied. It avoids a copy. The returned slice should not be modified.
+	// Here, off is relative to the start of the block.
+	ReadAtSlice(off int64, size int) (p []byte, err error)
+
 	// AbsStartOff returns the absolute start offset of the block.
 	// Panics if the absolute start offset is not set.
 	AbsStartOff() int64
@@ -64,6 +70,21 @@ type PrefetchBlock interface {
 	// - BlockStatusDownloaded: Download of this block is complete.
 	// - BlockStatusDownloadFailed: Download of this block has failed.
 	NotifyReady(val BlockStatus)
+
+	// IncrementRef increments the reference count of the block.
+	IncrementRef()
+
+	// DecrementRef decrements the reference count of the block.
+	DecrementRef() int32
+
+	// RefCount returns the current reference count of the block.
+	RefCount() int32
+
+	// WasEvicted returns true if the block was evicted from the retired cache.
+	WasEvicted() bool
+
+	// SetWasEvicted sets the wasEvicted flag.
+	SetWasEvicted(val bool)
 }
 
 type prefetchMemoryBlock struct {
@@ -77,6 +98,12 @@ type prefetchMemoryBlock struct {
 
 	// Stores the absolute start offset of the block-segment in the file.
 	absStartOff int64
+
+	// refCount tracks the number of active references to the block.
+	refCount atomic.Int32
+
+	// wasEvicted is true if the block was evicted from the retired cache.
+	wasEvicted atomic.Bool
 }
 
 func (pmb *prefetchMemoryBlock) Reuse() {
@@ -85,6 +112,8 @@ func (pmb *prefetchMemoryBlock) Reuse() {
 	pmb.notification = make(chan BlockStatus, 1)
 	pmb.status = BlockStatus{State: BlockStateInProgress}
 	pmb.absStartOff = -1
+	pmb.refCount.Store(0)
+	pmb.wasEvicted.Store(false)
 }
 
 // createPrefetchBlock creates a new PrefetchBlock.
@@ -124,6 +153,25 @@ func (pmb *prefetchMemoryBlock) ReadAt(p []byte, off int64) (n int, err error) {
 		return n, io.EOF
 	}
 	return n, nil
+}
+
+// ReadAtSlice returns a slice of the underlying buffer.
+// The offset is relative to the start of the block.
+// It returns the slice and an error if any.
+func (pmb *prefetchMemoryBlock) ReadAtSlice(off int64, size int) (p []byte, err error) {
+	if off < 0 || off >= pmb.Size() {
+		return nil, fmt.Errorf("prefetchMemoryBlock.ReadAtSlice: offset %d is out of bounds for block size %d", off, pmb.Size())
+	}
+
+	remData := pmb.Size() - off
+	if int64(size) > remData {
+		return nil, fmt.Errorf("prefetchMemoryBlock.ReadAtSlice: requested size %d is larger than remaining block size %d", size, remData)
+	}
+
+	dataStart := pmb.offset.start + off
+	dataEnd := dataStart + int64(size)
+
+	return pmb.buffer[dataStart:dataEnd], nil
 }
 
 func (pmb *prefetchMemoryBlock) AbsStartOff() int64 {
@@ -177,4 +225,24 @@ func (pmb *prefetchMemoryBlock) NotifyReady(val BlockStatus) {
 	default:
 		panic("Expected to notify only once, but got multiple notifications.")
 	}
+}
+
+func (pmb *prefetchMemoryBlock) IncrementRef() {
+	pmb.refCount.Add(1)
+}
+
+func (pmb *prefetchMemoryBlock) DecrementRef() int32 {
+	return pmb.refCount.Add(-1)
+}
+
+func (pmb *prefetchMemoryBlock) RefCount() int32 {
+	return pmb.refCount.Load()
+}
+
+func (pmb *prefetchMemoryBlock) WasEvicted() bool {
+	return pmb.wasEvicted.Load()
+}
+
+func (pmb *prefetchMemoryBlock) SetWasEvicted(val bool) {
+	pmb.wasEvicted.Store(val)
 }

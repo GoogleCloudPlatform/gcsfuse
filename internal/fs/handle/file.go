@@ -161,18 +161,18 @@ func (fh *FileHandle) unlockHandleAndInode(rLock bool) {
 //
 // LOCKS_REQUIRED(fh.inode.mu)
 // UNLOCK_FUNCTION(fh.inode.mu)
-func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offset int64, sequentialReadSizeMb int32) ([]byte, int, error) {
+func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offset int64, sequentialReadSizeMb int32) (*gcsx.ReaderResponse, error) {
 	// If content cache enabled, CacheEnsureContent forces the file handler to fall through to the inode
 	// and fh.inode.SourceGenerationIsAuthoritative() will return false
 	if err := fh.inode.CacheEnsureContent(ctx); err != nil {
-		return nil, 0, fmt.Errorf("failed to ensure inode content: %w", err)
+		return &gcsx.ReaderResponse{}, fmt.Errorf("failed to ensure inode content: %w", err)
 	}
 
 	if !fh.inode.SourceGenerationIsAuthoritative() {
 		// Read from inode if source generation is not authoratative
 		defer fh.inode.Unlock()
-		n, err := fh.inode.Read(ctx, dst, offset)
-		return dst, n, err
+		_, err := fh.inode.Read(ctx, dst, offset)
+		return &gcsx.ReaderResponse{DataBufs: [][]byte{dst}}, err
 	}
 
 	fh.lockHandleAndRelockInode(true)
@@ -218,6 +218,7 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 		fh.mu.RLock()
 	}
 
+	logger.Tracef("FileHandle.ReadWithReadManager: Using readManager to read %d bytes at offset %d", len(dst), offset)
 	// Use the readManager to read data.
 	var readerResponse gcsx.ReaderResponse
 	var err error
@@ -227,13 +228,13 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 		if err != io.EOF {
 			logger.Warnf("Unexpected EOF error encountered while reading, err: %v type: %T ", err, err)
 		}
-		return nil, 0, io.EOF
+		return nil, io.EOF
 
 	case err != nil:
-		return nil, 0, fmt.Errorf("fh.readManager.ReadAt: %w", err)
+		return nil, fmt.Errorf("fh.readManager.ReadAt: %w", err)
 	}
 
-	return readerResponse.DataBuf, readerResponse.Size, nil
+	return &readerResponse, nil
 }
 
 // Equivalent to locking fh.Inode() and calling fh.Inode().Read, but may be

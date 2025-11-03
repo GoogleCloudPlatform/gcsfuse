@@ -2831,6 +2831,11 @@ func (fs *fileSystem) OpenFile(
 	return
 }
 
+var oneMBBuffer []byte
+func init() {
+	oneMBBuffer = make([]byte, 1024*1024 + 100)
+}
+
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReadFile(
 	ctx context.Context,
@@ -2870,10 +2875,28 @@ func (fs *fileSystem) ReadFile(
 			return err
 		}
 	}
+
+	op.Dst = oneMBBuffer[:op.Size]
+
 	// Serve the read.
 
 	if fs.newConfig.EnableNewReader {
-		op.Dst, op.BytesRead, err = fh.ReadWithReadManager(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
+		var readerResponse *gcsx.ReaderResponse
+		readerResponse, err = fh.ReadWithReadManager(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
+		if readerResponse == nil || err != nil {
+			err = fmt.Errorf("ReadWithReadManager: %w", err)
+			return
+		}
+
+		logger.Info("Data len: %v, Vectored: %v, BytesRead: %v", len(readerResponse.DataBufs), readerResponse.VectoredRead, readerResponse.Size)
+
+		if readerResponse.VectoredRead {
+			op.Data = readerResponse.DataBufs
+			op.BytesRead = readerResponse.Size
+		} else {
+			op.Dst = readerResponse.DataBufs[0]
+			op.BytesRead = readerResponse.Size
+		}
 	} else {
 		op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
 	}

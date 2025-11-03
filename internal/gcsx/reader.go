@@ -51,8 +51,16 @@ type ReaderResponse struct {
 	// DataBuf contains the bytes read from the object.
 	DataBuf []byte
 
+	DataBufs [][]byte
+
+	// Take 0th index of DataBuf if not VectoredRead.
+	VectoredRead bool
+
 	// Size indicates how many bytes were read into DataBuf.
 	Size int
+
+	// Called by jacobsa/fuse once read is complete.
+	ReadCB func()
 }
 
 type Reader interface {
