@@ -33,19 +33,7 @@ func TestMountSucceeds(t *testing.T) {
 		return
 	}
 
-	flagsSet := [][]string{}
-	for _, profile := range supportedAIMLProfiles {
-		flagsSet = append(flagsSet, []string{"--profile=" + profile})
-	}
-	if len(highEndMachines) > 0 {
-		for _, machineType := range highEndMachines {
-			flagsSet = append(flagsSet, []string{"--machine-type=" + machineType})
-		}
-		highEndMachine := "a3-highgpuu-8g"
-		for _, profile := range supportedAIMLProfiles {
-			flagsSet = append(flagsSet, []string{"--profile=" + profile, "--machine-type=" + highEndMachine})
-		}
-	}
+	flagsSet := setup.BuildFlagSets(testEnv.cfg, testEnv.bucketType, t.Name())
 
 	for _, flags := range flagsSet {
 		tcName := strings.ReplaceAll(strings.Join(flags, ","), "--", "")
@@ -67,7 +55,7 @@ func TestMountFails(t *testing.T) {
 		return
 	}
 
-	flagsSet := [][]string{{"--profile=unknown-profile"}}
+	flagsSet := setup.BuildFlagSets(testEnv.cfg, testEnv.bucketType, t.Name())
 
 	for _, flags := range flagsSet {
 		tcName := strings.ReplaceAll(strings.Join(flags, ","), "--", "")

@@ -71,6 +71,33 @@ type aimlCheckpointingProfileTests struct {
 	aimlProfileTests
 }
 
+// //////////////////////////////////////////////////////////////////////
+// Helpers
+// //////////////////////////////////////////////////////////////////////
+func hasAimlProfile(flags []string) bool {
+	for _, flag := range flags {
+		if strings.HasPrefix(flag, "--profile=") {
+			profile := strings.Split(flag, "=")[1]
+			if slices.Contains(supportedAIMLProfiles, profile) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func isHighEndMachine(flags []string) bool {
+	for _, flag := range flags {
+		if strings.HasPrefix(flag, "--machine-type=") {
+			machineType := strings.Split(flag, "=")[1]
+			if slices.Contains(highEndMachines, machineType) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
@@ -155,85 +182,79 @@ func (t *aimlCheckpointingProfileTests) TestRenameDirLimitSet() {
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Test Function (Runs once before all tests)
+// Test Functions (Runs before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestOptimization(t *testing.T) {
-	// Currently all the tests in this suite are applicable only for non-HNS buckets,
-	// so skipping for HNS buckets (and zonal by extension).
-	// Remove this check when tests are added which work on HNS buckets.
-	if setup.ResolveIsHierarchicalBucket(testEnv.ctx, setup.TestBucket(), testEnv.storageClient) {
-		t.Skipf("test not applicable for HNS buckets")
+func TestImplicitDirsNotEnabled(t *testing.T) {
+	flagsSet := setup.BuildFlagSets(testEnv.cfg, testEnv.bucketType, t.Name())
+	for _, flags := range flagsSet {
+		t.Run(strings.Join(flags, "_"), func(t *testing.T) {
+			ts := &noOptimizationTests{}
+			ts.SetT(t)
+			ts.flags = flags
+			ts.SetupTest()
+			ts.TestImplicitDirsNotEnabled()
+			ts.TearDownTest()
+		})
 	}
+}
 
-	// Helper functions to create flags, test case names etc.
-	flags := func(profile string, machineType string) []string {
-		flags := []string{}
-		if profile != "" {
-			flags = append(flags, "--profile="+profile)
-		}
-		if machineType != "" {
-			flags = append(flags, "--machine-type="+machineType)
-		}
-		return flags
+func TestRenameDirLimitNotSet(t *testing.T) {
+	flagsSet := setup.BuildFlagSets(testEnv.cfg, testEnv.bucketType, t.Name())
+	for _, flags := range flagsSet {
+		t.Run(strings.Join(flags, "_"), func(t *testing.T) {
+			ts := &noOptimizationTests{}
+			ts.SetT(t)
+			ts.flags = flags
+			ts.SetupTest()
+			ts.TestRenameDirLimitNotSet()
+			ts.TearDownTest()
+		})
 	}
-	tcNameFromFlags := func(flags []string) string {
-		if len(flags) > 0 {
-			return strings.ReplaceAll(strings.Join(flags, ","), "--", "")
-		} else {
-			return "noflags"
-		}
-	}
+}
 
-	// Define test cases to be run.
-	highEndMachineType := "a3-highgpu-8g"
-	testCases := []struct {
-		profile     string
-		machineType string
-		name        string
-	}{
-		{profile: "aiml-training", name: "training_on_low_end_machine"},
-		{profile: "aiml-serving", name: "serving_on_low_end_machine"},
-		{profile: "aiml-checkpointing", name: "checkpointing_on_low_end_machine"},
-		{name: "no_profile_on_low_end_machine"},
-		{machineType: highEndMachineType, name: "no_profile_on_high_end_machine"},
-		{machineType: highEndMachineType, profile: "aiml-checkpointing", name: "checkpointing_on_high_end_machine"},
-		{machineType: highEndMachineType, profile: "aiml-serving", name: "serving_on_high_end_machine"},
-		{machineType: highEndMachineType, profile: "aiml-training", name: "training_on_high_end_machine"},
-	}
-
-	// Run test cases.
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			var ts suite.TestingSuite
-			var pTests *optimizationTests
-
-			switch tc.profile {
-			case "aiml-training":
-				s := &aimlTrainingProfileTests{}
-				ts, pTests = s, &s.optimizationTests
-			case "aiml-serving":
-				s := &aimlServingProfileTests{}
-				ts, pTests = s, &s.optimizationTests
-			case "aiml-checkpointing":
-				s := &aimlCheckpointingProfileTests{}
-				ts, pTests = s, &s.optimizationTests
-			case "":
-				if slices.Contains(highEndMachines, tc.machineType) {
-					s := &highEndMachineOptimizationTests{}
-					ts, pTests = s, &s.optimizationTests
-				} else {
-					s := &noOptimizationTests{}
-					ts, pTests = s, &s.optimizationTests
-				}
-			default:
-				t.Errorf("Unexpected profile: %v", tc.profile)
+func TestImplicitDirsEnabled(t *testing.T) {
+	flagsSet := setup.BuildFlagSets(testEnv.cfg, testEnv.bucketType, t.Name())
+	for _, flags := range flagsSet {
+		t.Run(strings.Join(flags, "_"), func(t *testing.T) {
+			if hasAimlProfile(flags) {
+				ts := &aimlProfileTests{}
+				ts.SetT(t)
+				ts.flags = flags
+				ts.SetupTest()
+				ts.TestImplicitDirsEnabled()
+				ts.TearDownTest()
+			} else if isHighEndMachine(flags) {
+				ts := &highEndMachineOptimizationTests{}
+				ts.SetT(t)
+				ts.flags = flags
+				ts.SetupTest()
+				ts.TestImplicitDirsEnabled()
+				ts.TearDownTest()
 			}
+		})
+	}
+}
 
-			pTests.flags = flags(tc.profile, tc.machineType)
-			t.Run(tcNameFromFlags(pTests.flags), func(t *testing.T) {
-				suite.Run(t, ts)
-			})
+func TestRenameDirLimitSet(t *testing.T) {
+	flagsSet := setup.BuildFlagSets(testEnv.cfg, testEnv.bucketType, t.Name())
+	for _, flags := range flagsSet {
+		t.Run(strings.Join(flags, "_"), func(t *testing.T) {
+			if hasAimlProfile(flags) {
+				ts := &aimlCheckpointingProfileTests{}
+				ts.SetT(t)
+				ts.flags = flags
+				ts.SetupTest()
+				ts.TestRenameDirLimitSet()
+				ts.TearDownTest()
+			} else if isHighEndMachine(flags) {
+				ts := &highEndMachineOptimizationTests{}
+				ts.SetT(t)
+				ts.flags = flags
+				ts.SetupTest()
+				ts.TestRenameDirLimitSet()
+				ts.TearDownTest()
+			}
 		})
 	}
 }

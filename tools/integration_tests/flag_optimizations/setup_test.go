@@ -49,6 +49,8 @@ type env struct {
 	rootDir       string
 	storageClient *storage.Client
 	ctx           context.Context
+	bucketType    string
+	cfg           test_suite.TestConfig
 }
 
 var (
@@ -123,7 +125,80 @@ func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageCli
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
+	// Load and parse the common configuration.
+	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
+	if len(cfg.FlagOptimizations) == 0 {
+		log.Println("No configuration found for flag_optimizations tests in config. Using flags instead.")
+		// Populate the config manually.
+		cfg.FlagOptimizations = make([]test_suite.TestConfig, 1)
+		cfg.FlagOptimizations[0].TestBucket = setup.TestBucket()
+		cfg.FlagOptimizations[0].GKEMountedDirectory = setup.MountedDirectory()
+		cfg.FlagOptimizations[0].LogFile = setup.LogFile()
+		// Initialize the slice to hold 6 specific test configurations
+		cfg.FlagOptimizations[0].Configs = make([]test_suite.ConfigItem, 6)
+		cfg.FlagOptimizations[0].Configs[0].Run = "TestMountSucceeds"
+		cfg.FlagOptimizations[0].Configs[0].Flags = []string{
+			"--profile=aiml-training",
+			"--profile=aiml-checkpointing",
+			"--profile=aiml-serving",
+			"--machine-type=a2-megagpu-16g",
+			"--machine-type=a2-ultragpu-8g",
+			"--machine-type=a3-edgegpu-8g",
+			"--machine-type=a3-highgpu-8g",
+			"--machine-type=a3-megagpu-8g",
+			"--machine-type=a3-ultragpu-8g",
+			"--machine-type=a4-highgpu-8g-lowmem",
+			"--machine-type=ct5l-hightpu-8t",
+			"--machine-type=ct5lp-hightpu-8t",
+			"--machine-type=ct5p-hightpu-4t",
+			"--machine-type=ct5p-hightpu-4t-tpu",
+			"--machine-type=ct6e-standard-4t",
+			"--machine-type=ct6e-standard-4t-tpu",
+			"--machine-type=ct6e-standard-8t",
+			"--machine-type=ct6e-standard-8t-tpu",
+			"--profile=aiml-training --machine-type=a3-highgpu-8g",
+			"--profile=aiml-checkpointing --machine-type=a3-highgpu-8g",
+			"--profile=aiml-serving --machine-type=a3-highgpu-8g",
+		}
+		cfg.FlagOptimizations[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.FlagOptimizations[0].Configs[0].RunOnGKE = true
+		cfg.FlagOptimizations[0].Configs[1].Run = "TestMountFails"
+		cfg.FlagOptimizations[0].Configs[1].Flags = []string{"--profile=unknown-profile"}
+		cfg.FlagOptimizations[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.FlagOptimizations[0].Configs[1].RunOnGKE = false
+		cfg.FlagOptimizations[0].Configs[2].Run = "TestImplicitDirsNotEnabled"
+		cfg.FlagOptimizations[0].Configs[2].Flags = []string{""}
+		cfg.FlagOptimizations[0].Configs[2].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
+		cfg.FlagOptimizations[0].Configs[2].RunOnGKE = true
+		cfg.FlagOptimizations[0].Configs[3].Run = "TestRenameDirLimitNotSet"
+		cfg.FlagOptimizations[0].Configs[3].Flags = []string{""}
+		cfg.FlagOptimizations[0].Configs[3].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
+		cfg.FlagOptimizations[0].Configs[3].RunOnGKE = true
+		cfg.FlagOptimizations[0].Configs[4].Run = "TestImplicitDirsEnabled"
+		cfg.FlagOptimizations[0].Configs[4].Flags = []string{
+			"--machine-type=a3-highgpu-8g",
+			"--profile=aiml-training",
+			"--profile=aiml-serving",
+			"--profile=aiml-checkpointing",
+			"--machine-type=a3-highgpu-8g --profile=aiml-training",
+			"--machine-type=a3-highgpu-8g --profile=aiml-serving",
+			"--machine-type=a3-highgpu-8g --profile=aiml-checkpointing",
+		}
+		cfg.FlagOptimizations[0].Configs[4].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
+		cfg.FlagOptimizations[0].Configs[4].RunOnGKE = true
+		cfg.FlagOptimizations[0].Configs[5].Run = "TestRenameDirLimitSet"
+		cfg.FlagOptimizations[0].Configs[5].Flags = []string{
+			"--machine-type=a3-highgpu-8g",
+			"--profile=aiml-checkpointing",
+			"--machine-type=a3-highgpu-8g --profile=aiml-checkpointing",
+		}
+		cfg.FlagOptimizations[0].Configs[5].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
+		cfg.FlagOptimizations[0].Configs[5].RunOnGKE = true
+	}
+
 	testEnv.ctx = context.Background()
+	testEnv.bucketType = setup.TestEnvironment(testEnv.ctx, &cfg.FlagOptimizations[0])
+	testEnv.cfg = cfg.FlagOptimizations[0]
 	closeStorageClient := client.CreateStorageClientWithCancel(&testEnv.ctx, &testEnv.storageClient)
 	defer func() {
 		err := closeStorageClient()
