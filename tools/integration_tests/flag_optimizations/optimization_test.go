@@ -59,14 +59,6 @@ type aimlProfileTests struct {
 	optimizationTests
 }
 
-type aimlTrainingProfileTests struct {
-	aimlProfileTests
-}
-
-type aimlServingProfileTests struct {
-	aimlProfileTests
-}
-
 type aimlCheckpointingProfileTests struct {
 	aimlProfileTests
 }
