@@ -437,6 +437,9 @@ func (p *BufferedReader) prefetchForRandomRead() error {
 	if availableSlots <= 0 {
 		return nil
 	}
+	if availableSlots < min(prefetchBatchSize, p.numPrefetchBlocks/4) {
+		return nil
+	}
 	totalBlockCount := (int64(p.object.Size) + p.config.PrefetchBlockSizeBytes - 1) / p.config.PrefetchBlockSizeBytes
 	remainingBlocksInFile := totalBlockCount - p.nextBlockIndexToPrefetch
 	blockCountToPrefetch := min(min(p.numPrefetchBlocks, availableSlots), remainingBlocksInFile)
@@ -466,11 +469,19 @@ func (p *BufferedReader) prefetchForRandomRead() error {
 		p.nextBlockIndexToPrefetch++
 	}
 
-	if err := p.scheduleBlocksWithIndex(blocks, blockIndices, false); err != nil {
-		for _, b := range blocks {
-			p.blockPool.Release(b)
+	for bs := 0; bs < len(blocks); bs += prefetchBatchSize {
+		end := bs + prefetchBatchSize
+		if end > len(blocks) {
+			end = len(blocks)
 		}
-		return fmt.Errorf("prefetchForRandomRead: scheduling blocks: %w", err)
+		batchBlocks := blocks[bs:end]
+		batchBlockIndices := blockIndices[bs:end]
+		if err := p.scheduleBlocksWithIndex(batchBlocks, batchBlockIndices, false); err != nil {
+			for _, b := range batchBlocks {
+				p.blockPool.Release(b)
+			}
+			return fmt.Errorf("prefetchForRandomRead: scheduling blocks: %w", err)
+		}
 	}
 
 	// Only increase the prefetch window size if we successfully scheduled all the
