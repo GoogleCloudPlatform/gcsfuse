@@ -1047,7 +1047,7 @@ func (d *dirInode) DeleteObjects(ctx context.Context, objectNames []string) erro
 			}
 		} else {
 			// Handle single file-like object deletion.
-			if err := d.deleteSingleObject(ctx, objectName); err != nil {
+			if err := d.deleteObject(ctx, objectName); err != nil {
 				return fmt.Errorf("deleting unsupported object %q: %w", objectName, err)
 			}
 		}
@@ -1056,7 +1056,7 @@ func (d *dirInode) DeleteObjects(ctx context.Context, objectNames []string) erro
 }
 
 // Helper to delete a single object, handling 'Not Found' errors gracefully.
-func (d *dirInode) deleteSingleObject(ctx context.Context, objectName string) error {
+func (d *dirInode) deleteObject(ctx context.Context, objectName string) error {
 	if d.isBucketHierarchical() && strings.HasSuffix(objectName, "/") {
 		if err := d.bucket.DeleteFolder(ctx, objectName); err != nil {
 			var notFoundErr *gcs.NotFoundError
@@ -1064,12 +1064,12 @@ func (d *dirInode) deleteSingleObject(ctx context.Context, objectName string) er
 				return err
 			}
 		}
-	} else {
-		if err := d.bucket.DeleteObject(ctx, &gcs.DeleteObjectRequest{Name: objectName}); err != nil {
-			var notFoundErr *gcs.NotFoundError
-			if !errors.As(err, &notFoundErr) {
-				return err
-			}
+		return nil
+	}
+	if err := d.bucket.DeleteObject(ctx, &gcs.DeleteObjectRequest{Name: objectName}); err != nil {
+		var notFoundErr *gcs.NotFoundError
+		if !errors.As(err, &notFoundErr) {
+			return err
 		}
 	}
 
@@ -1098,13 +1098,12 @@ func (d *dirInode) deletePrefixRecursively(ctx context.Context, prefix string) e
 				// It's a file, delete it.
 				objName := obj.Name // Capture loop variable.
 				g.Go(func() error {
-					return d.deleteSingleObject(gCtx, objName)
+					return d.deleteObject(gCtx, objName)
 				})
 			}
 		}
 
 		for _, nestedPrefix := range objects.CollapsedRuns {
-			nestedPrefix := nestedPrefix // Capture loop variable.
 			g.Go(func() error {
 				return d.deletePrefixRecursively(gCtx, nestedPrefix)
 			})
@@ -1121,7 +1120,7 @@ func (d *dirInode) deletePrefixRecursively(ctx context.Context, prefix string) e
 		}
 	}
 
-	return d.deleteSingleObject(ctx, prefix)
+	return d.deleteObject(ctx, prefix)
 }
 
 // LOCKS_REQUIRED(fs)
