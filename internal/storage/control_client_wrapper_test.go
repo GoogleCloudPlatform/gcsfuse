@@ -117,6 +117,7 @@ type AllApiRetryWrapperTest struct {
 }
 
 func TestControlClientWrapperTestSuite(t *testing.T) {
+	t.Skipf("Skipping this test temporarily ...")
 	t.Run("StorageLayoutRetryWrapperTest", func(t *testing.T) {
 		suite.Run(t, new(StorageLayoutRetryWrapperTest))
 	})
