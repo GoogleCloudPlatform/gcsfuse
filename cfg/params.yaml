@@ -868,7 +868,7 @@ params:
   - config-path: "monitoring.experimental-tracing-project-id"
     flag-name: "experimental-tracing-project-id"
     type: "string"
-    usage: "Experimental: Trace project id"
+    usage: "Experimental: specify explicitly the project id in google cloud to which traces will be exported"
     default: ""
     hide-flag: true
 
