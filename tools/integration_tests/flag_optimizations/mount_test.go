@@ -41,7 +41,9 @@ func TestMountSucceeds(t *testing.T) {
 			err := testEnv.mountFunc(flags)
 			defer func() {
 				setup.SaveGCSFuseLogFileInCaseOfFailure(t)
-				setup.UnmountGCSFuseAndDeleteLogFile(testEnv.rootDir)
+				if err == nil {
+					setup.UnmountGCSFuseAndDeleteLogFile(testEnv.rootDir)
+				}
 			}()
 
 			assert.NoError(t, err)

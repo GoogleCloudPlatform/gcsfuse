@@ -753,8 +753,8 @@ for flags in "${!requester_pays_bucket_scenarios[@]}"; do
   printf "\n=============================================================\n"
   echo "Running requester_pays_bucket test with \"${flags}\" ... "
   printf "\n=============================================================\n"
-  gcsuse_mount_args=" --log-severity=trace ${flags} $TEST_BUCKET_NAME $MOUNT_DIR"
-  gcsfuse ${gcsuse_mount_args}
+  gcsfuse_mount_args=" --log-severity=trace ${flags} $TEST_BUCKET_NAME $MOUNT_DIR"
+  gcsfuse ${gcsfuse_mount_args}
   testfilter="${requester_pays_bucket_scenarios[${flags}]}"
   GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/requester_pays_bucket/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG} -test.run ${testfilter}
   sudo umount $MOUNT_DIR
@@ -774,8 +774,8 @@ for flags in "${!flag_optimizations_scenarios[@]}"; do
   printf "\n=============================================================\n"
   echo "Running flag_optimizations test with \"${flags}\" ... "
   printf "\n=============================================================\n"
-  gcsuse_mount_args=" --log-severity=trace ${flags} $TEST_BUCKET_NAME $MOUNT_DIR"
-  gcsfuse ${gcsuse_mount_args}
+  gcsfuse_mount_args=" --log-severity=trace ${flags} $TEST_BUCKET_NAME $MOUNT_DIR"
+  gcsfuse ${gcsfuse_mount_args}
   testfilter="${flag_optimizations_scenarios[${flags}]}"
   GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/flag_optimizations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG} -test.run ${testfilter}
   sudo umount $MOUNT_DIR

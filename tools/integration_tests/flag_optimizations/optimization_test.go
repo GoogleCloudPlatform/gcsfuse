@@ -95,7 +95,7 @@ func isHighEndMachine(flags []string) bool {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *optimizationTests) testImplicitDirsNotEnabled() {
-	implicitDirPath := filepath.Join(testDirName, "implicitDir", setup.GenerateRandomString(5))
+	implicitDirPath := filepath.Join(testDirName, "implicitDir"+setup.GenerateRandomString(5))
 	mountedImplicitDirPath := filepath.Join(setup.MntDir(), implicitDirPath)
 	client.CreateImplicitDir(testEnv.ctx, testEnv.storageClient, implicitDirPath, t.T())
 	defer client.MustDeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, implicitDirPath)
@@ -106,13 +106,16 @@ func (t *optimizationTests) testImplicitDirsNotEnabled() {
 }
 
 func (t *optimizationTests) testRenameDirLimitNotSet() {
-	srcDirPath := filepath.Join(testDirName, "srcDirContainingFiles", setup.GenerateRandomString(5))
+	srcDirPath := filepath.Join(testDirName, "srcDirContainingFiles"+setup.GenerateRandomString(5))
 	mountedSrcDirPath := filepath.Join(setup.MntDir(), srcDirPath)
-	dstDirPath := filepath.Join(testDirName, "dstDirContainingFiles", setup.GenerateRandomString(5))
+	dstDirPath := filepath.Join(testDirName, "dstDirContainingFiles"+setup.GenerateRandomString(5))
 	mountedDstDirPath := filepath.Join(setup.MntDir(), dstDirPath)
 	require.NoError(t.T(), client.CreateGcsDir(testEnv.ctx, testEnv.storageClient, srcDirPath, setup.TestBucket(), ""))
 	client.CreateNFilesInDir(testEnv.ctx, testEnv.storageClient, 1, "file", 1024, srcDirPath, t.T())
-	defer client.MustDeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, srcDirPath)
+	defer func() {
+		client.MustDeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, srcDirPath)
+		client.MustDeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, dstDirPath)
+	}()
 
 	err := os.Rename(mountedSrcDirPath, mountedDstDirPath)
 
@@ -120,7 +123,7 @@ func (t *optimizationTests) testRenameDirLimitNotSet() {
 }
 
 func (t *optimizationTests) testImplicitDirsEnabled() {
-	implicitDirPath := filepath.Join(testDirName, "implicitDir", setup.GenerateRandomString(5))
+	implicitDirPath := filepath.Join(testDirName, "implicitDir"+setup.GenerateRandomString(5))
 	mountedImplicitDirPath := filepath.Join(setup.MntDir(), implicitDirPath)
 	client.CreateImplicitDir(testEnv.ctx, testEnv.storageClient, implicitDirPath, t.T())
 	defer client.MustDeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, implicitDirPath)
