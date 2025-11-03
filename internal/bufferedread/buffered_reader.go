@@ -111,6 +111,8 @@ type BufferedReader struct {
 	// of blocks that can be allocated across all BufferedReader instances.
 	// GUARDED by (mu)
 	blockPool *block.GenBlockPool[block.PrefetchBlock]
+
+	inflightCallbackWg sync.WaitGroup
 }
 
 // NewBufferedReader returns a new bufferedReader instance.
@@ -143,6 +145,8 @@ func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *Buffere
 		metricHandle:             metricHandle,
 		prefetchMultiplier:       defaultPrefetchMultiplier,
 		randomReadsThreshold:     config.RandomSeekThreshold,
+		readHandle:               nil,
+		inflightCallbackWg:       sync.WaitGroup{},
 	}
 
 	reader.ctx, reader.cancelFunc = context.WithCancel(context.Background())
@@ -299,6 +303,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 	}
 
 	prefetchTriggered := false
+	var callBackList []block.PrefetchBlock
 
 	for bytesRead < len(inputBuf) {
 		p.prepareQueueForOffset(off)
@@ -344,12 +349,21 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		}
 
 		relOff := off - blk.AbsStartOff()
-		n, readErr := blk.ReadAt(inputBuf[bytesRead:], relOff)
-		bytesRead += n
-		off += int64(n)
+		blkSlice, sliceErr := blk.ReadAtSlice(relOff, min(len(inputBuf), int(blk.Size()-relOff)))
+		if sliceErr != nil {
+			err = fmt.Errorf("BufferedReader.ReadAt: block.ReadAtSlice: %w", sliceErr)
+			break
+		}
+		blk.IncrementRef()
+		resp.DataBufs = append(resp.DataBufs, blkSlice)
+		resp.VectoredRead = true
+		callBackList = append(callBackList, blk)
 
-		if readErr != nil && !errors.Is(readErr, io.EOF) {
-			err = fmt.Errorf("BufferedReader.ReadAt: block.ReadAt: %w", readErr)
+		bytesRead += len(blkSlice)
+		off += int64(len(blkSlice))
+
+		if sliceErr != nil && !errors.Is(sliceErr, io.EOF) {
+			err = fmt.Errorf("BufferedReader.ReadAt: block.ReadAt: %w", sliceErr)
 			break
 		}
 
@@ -358,6 +372,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		}
 
 		if off >= blk.AbsStartOff()+blk.Size() {
+			blk.SetWasEvicted(true)
 			p.blockQueue.Pop()
 			p.blockPool.Release(blk)
 
@@ -376,8 +391,23 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		}
 	}
 
+	resp.VectoredRead = true
+	resp.ReadCB = func() {
+		p.CallbackHelper(callBackList)
+	}
 	resp.Size = bytesRead
 	return resp, err
+}
+
+func (p *BufferedReader) CallbackHelper(blocks []block.PrefetchBlock) {
+	p.inflightCallbackWg.Add(1)
+	defer p.inflightCallbackWg.Done()
+	for _, b := range blocks {
+		b.DecrementRef()
+		if b.RefCount() == 0 && b.WasEvicted() {
+			p.blockPool.Release(b)
+		}
+	}
 }
 
 // prefetch schedules the next set of blocks for prefetching starting from
