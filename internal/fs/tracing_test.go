@@ -76,6 +76,9 @@ func createTestFileSystemWithTraces(ctx context.Context, t *testing.T, ignoreInt
 func newInMemoryExporter(t *testing.T) *tracetest.InMemoryExporter {
 	t.Helper()
 	ex := tracetest.NewInMemoryExporter()
+	t.Cleanup(func() {
+		ex.Reset()
+	})
 	otel.SetTracerProvider(sdktrace.NewTracerProvider(sdktrace.WithSyncer(ex)))
 	return ex
 }
@@ -93,9 +96,6 @@ func TestTraceLookupInode(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -106,6 +106,7 @@ func TestTraceLookupInode(t *testing.T) {
 				Parent: fuseops.RootInodeID,
 				Name:   fileName,
 			}
+
 			err := m.LookUpInode(context.Background(), lookupOp)
 			require.NoError(t, err)
 
@@ -132,9 +133,6 @@ func TestTraceStatFS(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -142,6 +140,7 @@ func TestTraceStatFS(t *testing.T) {
 			content := "test content"
 			createWithContents(ctx, t, bucket, fileName, content)
 			statFsOp := &fuseops.StatFSOp{}
+
 			err := m.StatFS(context.Background(), statFsOp)
 			require.NoError(t, err)
 
@@ -168,9 +167,6 @@ func TestTraceGetInodeAttributes(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -180,6 +176,7 @@ func TestTraceGetInodeAttributes(t *testing.T) {
 			op := &fuseops.GetInodeAttributesOp{
 				Inode: fuseops.RootInodeID,
 			}
+
 			err := m.GetInodeAttributes(context.Background(), op)
 			require.NoError(t, err)
 
@@ -206,9 +203,6 @@ func TestTraceSetInodeAttributes(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -225,6 +219,7 @@ func TestTraceSetInodeAttributes(t *testing.T) {
 			op := &fuseops.SetInodeAttributesOp{
 				Inode: lookUpOp.Entry.Child,
 			}
+
 			err = m.SetInodeAttributes(context.Background(), op)
 			require.NoError(t, err)
 
@@ -251,9 +246,6 @@ func TestTraceForgetInode(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			ctx := context.Background()
 			fileName := "test.txt"
@@ -270,6 +262,7 @@ func TestTraceForgetInode(t *testing.T) {
 				Inode: lookUpOp.Entry.Child,
 				N:     1,
 			}
+
 			err = m.ForgetInode(ctx, op)
 			require.NoError(t, err)
 
@@ -296,9 +289,6 @@ func TestTraceMkDir(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -309,6 +299,7 @@ func TestTraceMkDir(t *testing.T) {
 				Parent: fuseops.RootInodeID,
 				Name:   "test",
 			}
+
 			err := m.MkDir(ctx, op)
 			require.NoError(t, err)
 
@@ -335,9 +326,6 @@ func TestTraceMkNode(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -348,6 +336,7 @@ func TestTraceMkNode(t *testing.T) {
 				Parent: fuseops.RootInodeID,
 				Name:   "test",
 			}
+
 			err := m.MkNode(ctx, op)
 			require.NoError(t, err)
 
@@ -374,9 +363,6 @@ func TestTraceCreateFile(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -387,6 +373,7 @@ func TestTraceCreateFile(t *testing.T) {
 				Parent: fuseops.RootInodeID,
 				Name:   "test",
 			}
+
 			err := m.CreateFile(ctx, op)
 			require.NoError(t, err)
 
@@ -413,9 +400,6 @@ func TestTraceCreateLink(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -433,6 +417,7 @@ func TestTraceCreateLink(t *testing.T) {
 				Name:   "link",
 				Target: lookUpOp.Entry.Child,
 			}
+
 			err = m.CreateLink(ctx, op)
 			assert.Error(t, err) // The operation is not implemented, so we expect an error.
 
@@ -459,9 +444,6 @@ func TestTraceCreateSymlink(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -500,9 +482,6 @@ func TestTraceRename(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -543,9 +522,6 @@ func TestTraceRmDir(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -563,6 +539,7 @@ func TestTraceRmDir(t *testing.T) {
 				Parent: fuseops.RootInodeID,
 				Name:   dirName,
 			}
+
 			err = m.RmDir(ctx, op)
 			require.NoError(t, err)
 
@@ -589,9 +566,6 @@ func TestTraceUnlink(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -602,6 +576,7 @@ func TestTraceUnlink(t *testing.T) {
 				Parent: fuseops.RootInodeID,
 				Name:   fileName,
 			}
+
 			err := m.Unlink(ctx, op)
 			require.NoError(t, err)
 
@@ -628,9 +603,6 @@ func TestTraceOpenDir(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -640,6 +612,7 @@ func TestTraceOpenDir(t *testing.T) {
 			op := &fuseops.OpenDirOp{
 				Inode: fuseops.RootInodeID,
 			}
+
 			err := m.OpenDir(ctx, op)
 			require.NoError(t, err)
 
@@ -666,9 +639,6 @@ func TestTraceReadDir(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -686,6 +656,7 @@ func TestTraceReadDir(t *testing.T) {
 				Offset: 0,
 				Dst:    make([]byte, 1024),
 			}
+
 			err = m.ReadDir(ctx, op)
 			require.NoError(t, err)
 
@@ -712,9 +683,6 @@ func TestTraceReadDirPlus(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -761,9 +729,6 @@ func TestTraceReleaseDirHandle(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -778,6 +743,7 @@ func TestTraceReleaseDirHandle(t *testing.T) {
 			op := &fuseops.ReleaseDirHandleOp{
 				Handle: openOp.Handle,
 			}
+
 			err = m.ReleaseDirHandle(ctx, op)
 			require.NoError(t, err)
 
@@ -804,9 +770,6 @@ func TestTraceOpenFile(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -822,6 +785,7 @@ func TestTraceOpenFile(t *testing.T) {
 			op := &fuseops.OpenFileOp{
 				Inode: lookUpOp.Entry.Child,
 			}
+
 			err = m.OpenFile(ctx, op)
 			require.NoError(t, err)
 
@@ -848,9 +812,6 @@ func TestTraceReadFile(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -873,6 +834,7 @@ func TestTraceReadFile(t *testing.T) {
 				Handle: openOp.Handle,
 				Offset: 0,
 			}
+
 			err = m.ReadFile(ctx, op)
 			require.NoError(t, err)
 
@@ -899,9 +861,6 @@ func TestTraceWriteFile(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -952,9 +911,6 @@ func TestTraceSyncFile(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -997,9 +953,6 @@ func TestTraceFlushFile(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -1048,9 +1001,6 @@ func TestTraceReleaseFileHandle(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -1071,6 +1021,7 @@ func TestTraceReleaseFileHandle(t *testing.T) {
 			op := &fuseops.ReleaseFileHandleOp{
 				Handle: openOp.Handle,
 			}
+
 			err = m.ReleaseFileHandle(ctx, op)
 			require.NoError(t, err)
 
@@ -1097,9 +1048,6 @@ func TestTraceReadSymlink(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			_, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -1115,6 +1063,7 @@ func TestTraceReadSymlink(t *testing.T) {
 			op := &fuseops.ReadSymlinkOp{
 				Inode: createSymlinkOp.Entry.Child,
 			}
+
 			err = m.ReadSymlink(ctx, op)
 			require.NoError(t, err)
 
@@ -1141,9 +1090,6 @@ func TestTraceRemoveXattr(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -1160,6 +1106,7 @@ func TestTraceRemoveXattr(t *testing.T) {
 				Inode: lookUpOp.Entry.Child,
 				Name:  "user.test",
 			}
+
 			err = m.RemoveXattr(ctx, op)
 			assert.Error(t, err) // The operation is not implemented, so we expect an error.
 
@@ -1186,9 +1133,6 @@ func TestTraceGetXattr(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -1205,6 +1149,7 @@ func TestTraceGetXattr(t *testing.T) {
 				Inode: lookUpOp.Entry.Child,
 				Name:  "user.test",
 			}
+
 			err = m.GetXattr(ctx, op)
 			assert.NotNil(t, err)
 
@@ -1231,9 +1176,6 @@ func TestTraceListXattr(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -1249,6 +1191,7 @@ func TestTraceListXattr(t *testing.T) {
 			op := &fuseops.ListXattrOp{
 				Inode: lookUpOp.Entry.Child,
 			}
+
 			err = m.ListXattr(ctx, op)
 			assert.NotNil(t, err)
 
@@ -1275,9 +1218,6 @@ func TestTraceSetXattr(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -1295,6 +1235,7 @@ func TestTraceSetXattr(t *testing.T) {
 				Name:  "user.test",
 				Value: []byte("test"),
 			}
+
 			err = m.SetXattr(ctx, op)
 			assert.NotNil(t, err)
 
@@ -1321,9 +1262,6 @@ func TestTraceFallocate(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -1348,6 +1286,7 @@ func TestTraceFallocate(t *testing.T) {
 				Length: 10,
 				Mode:   0,
 			}
+
 			err = m.Fallocate(ctx, op)
 			assert.Error(t, err) // The operation is not implemented, so we expect an error.
 
@@ -1374,9 +1313,6 @@ func TestTraceSyncFS(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ex := newInMemoryExporter(t)
-			t.Cleanup(func() {
-				ex.Reset()
-			})
 			bucket, server := createTestFileSystemWithTraces(ctx, t, tt.ignoreInterrupts)
 			m := wrappers.WithTracing(server)
 			ctx := context.Background()
@@ -1392,6 +1328,7 @@ func TestTraceSyncFS(t *testing.T) {
 			op := &fuseops.SyncFSOp{
 				Inode: lookUpOp.Entry.Child,
 			}
+
 			err = m.SyncFS(ctx, op)
 			assert.Error(t, err) // The operation is not implemented, so we expect an error.
 
