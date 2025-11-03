@@ -842,7 +842,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.StringP("experimental-tracing-project-id", "", "", "Experimental: Trace project id")
+	flagSet.StringP("experimental-tracing-project-id", "", "", "Experimental: specify explicitly the project id in google cloud to which traces will be exported")
 
 	if err := flagSet.MarkHidden("experimental-tracing-project-id"); err != nil {
 		return err
