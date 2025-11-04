@@ -17,7 +17,9 @@ package cmd
 import (
 	"fmt"
 	"log"
+	"maps"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/go-viper/mapstructure/v2"
@@ -156,7 +158,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 
 			isSet := &pflagAsIsValueSet{fs: cmd.PersistentFlags()}
 			optimizedFlags := mountInfo.config.ApplyOptimizations(isSet)
-			optimizedFlagNames := make([]string, 0, len(optimizedFlags))
+			optimizedFlagNames := slices.Collect(maps.Keys(optimizedFlags))
 			for k := range optimizedFlags {
 				optimizedFlagNames = append(optimizedFlagNames, k)
 			}
