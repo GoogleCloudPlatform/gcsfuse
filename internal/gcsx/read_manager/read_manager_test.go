@@ -220,10 +220,10 @@ func (t *readManagerTest) Test_NewReadManager_BufferedReaderCreationFails() {
 
 func (t *readManagerTest) Test_ReadAt_EmptyRead() {
 	// Nothing should happen.
-	readerResponse, err := t.readAt(0, 0)
+	readResponse, err := t.readAt(0, 0)
 
 	assert.NoError(t.T(), err)
-	assert.Zero(t.T(), readerResponse.Size)
+	assert.Zero(t.T(), readResponse.Size)
 }
 
 func (t *readManagerTest) Test_ReadAt_InvalidOffset() {
@@ -243,9 +243,9 @@ func (t *readManagerTest) Test_ReadAt_InvalidOffset() {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func() {
-			readerResponse, err := t.readAt(tc.offset, 1)
+			readResponse, err := t.readAt(tc.offset, 1)
 
-			assert.Zero(t.T(), readerResponse.Size)
+			assert.Zero(t.T(), readResponse.Size)
 			assert.True(t.T(), errors.Is(err, io.EOF), "expected %v error got %v", io.EOF, err)
 		})
 	}

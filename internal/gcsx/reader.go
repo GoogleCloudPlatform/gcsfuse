@@ -86,6 +86,6 @@ type ReadManager interface {
 // This interface is intended for lower-level interactions with GCS readers.
 type GCSReader interface {
 	// ReadAt reads data into the provided request buffer, starting from the specified offset and ending at the specified end offset.
-	// It returns an ReadResponse response containing the data read and any error encountered.
+	// It returns a ReadResponse response containing the data read and any error encountered.
 	ReadAt(ctx context.Context, req *GCSReaderRequest) (ReadResponse, error)
 }
