@@ -40,6 +40,8 @@ type mountInfo struct {
 	// config is the final config object after merging cli and config file flags applying
 	// all optimisation based on machineType, Profile etc. This is the final config used for mounting GCSFuse.
 	config *cfg.Config
+	// flagOptimizationsApplied contains the flags that were optimized.
+	flagOptimizationsApplied map[string]cfg.OptimizationResult
 }
 
 type mountFn func(mountInfo *mountInfo, bucketName, mountPoint string) error
@@ -152,12 +154,17 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 			}
 
 			isSet := &pflagAsIsValueSet{fs: cmd.PersistentFlags()}
-			optimizedFlags := mountInfo.config.ApplyOptimizations(isSet)
+			optimizedResults := mountInfo.config.ApplyOptimizations(isSet)
+			optimizedFlags := []string{}
+			for k := range optimizedResults {
+				optimizedFlags = append(optimizedFlags, k)
+			}
 			if err := cfg.Rationalize(v, mountInfo.config, optimizedFlags); err != nil {
 				return fmt.Errorf("error rationalizing config: %w", err)
 			}
 			mountInfo.cliFlags = getCliFlags(cmd.PersistentFlags())
 			mountInfo.configFileFlags = getConfigFileFlags(v)
+			mountInfo.flagOptimizationsApplied = optimizedResults
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {

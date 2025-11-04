@@ -82,6 +82,14 @@ func resetMetadataEndpoints(t *testing.T) {
 	}
 }
 
+// Helper function to detect if a given flag is present in the map of optimized flags.
+func isFlagPresentInOptimizationResults(optimizationResults map[string]OptimizationResult, flag string) bool {
+	if _, ok := optimizationResults[flag]; ok {
+		return true
+	}
+	return false
+}
+
 func TestGetMachineType_Success(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a machine type.
@@ -339,9 +347,9 @@ func TestApplyOptimizations_Success(t *testing.T) {
 
 	optimizedFlags := cfg.ApplyOptimizations(isSet)
 
-	assert.True(t, isFlagPresent(optimizedFlags, "write.global-max-blocks"))
+	assert.True(t, isFlagPresentInOptimizationResults(optimizedFlags, "write.global-max-blocks"))
 	assert.EqualValues(t, 1600, cfg.Write.GlobalMaxBlocks)
-	assert.True(t, isFlagPresent(optimizedFlags, "metadata-cache.negative-ttl-secs"))
+	assert.True(t, isFlagPresentInOptimizationResults(optimizedFlags, "metadata-cache.negative-ttl-secs"))
 	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
 	assert.EqualValues(t, -1, cfg.MetadataCache.TtlSecs)
 	assert.EqualValues(t, 1024, cfg.MetadataCache.StatCacheMaxSizeMb)

@@ -159,12 +159,12 @@ func TestApplyOptimizations(t *testing.T) {
 					c.{{$flag.GoPath}} = {{$flag.DefaultValue}}
 				}
 
-				optimizedFlags := c.ApplyOptimizations(tc.isSet)
+				optimizationResults := c.ApplyOptimizations(tc.isSet)
 
 				if tc.expectOptimized {
-					assert.Contains(t, optimizedFlags, "{{$flag.ConfigPath}}")
+					assert.Contains(t, optimizationResults, "{{$flag.ConfigPath}}")
 				} else {
-					assert.NotContains(t, optimizedFlags, "{{$flag.ConfigPath}}")
+					assert.NotContains(t, optimizationResults, "{{$flag.ConfigPath}}")
 				}
 				// Use EqualValues to handle the int vs int64 type mismatch for default values.
 				assert.EqualValues(t, tc.expectedValue, c.{{$flag.GoPath}})
