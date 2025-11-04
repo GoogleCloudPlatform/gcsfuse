@@ -184,7 +184,7 @@ func TestMain(m *testing.M) {
 			"--machine-type=a3-highgpu-8g --profile=aiml-serving",
 			"--machine-type=a3-highgpu-8g --profile=aiml-checkpointing",
 		}
-		cfg.FlagOptimizations[0].Configs[4].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
+		cfg.FlagOptimizations[0].Configs[4].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.FlagOptimizations[0].Configs[4].RunOnGKE = true
 		cfg.FlagOptimizations[0].Configs[5].Run = "TestRenameDirLimitSet"
 		cfg.FlagOptimizations[0].Configs[5].Flags = []string{
@@ -192,7 +192,7 @@ func TestMain(m *testing.M) {
 			"--profile=aiml-checkpointing",
 			"--machine-type=a3-highgpu-8g --profile=aiml-checkpointing",
 		}
-		cfg.FlagOptimizations[0].Configs[5].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
+		cfg.FlagOptimizations[0].Configs[5].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.FlagOptimizations[0].Configs[5].RunOnGKE = true
 	}
 
