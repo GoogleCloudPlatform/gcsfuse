@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -125,6 +126,38 @@ func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_NoContextCancelled() {
 	// Keeping a somewhat loose limit to avoid failing because of go itself taking around 10ms sometimes
 	// to return.
 	assert.LessOrEqual(t.T(), elapsed, initial*3, "waitWithJitter should not wait excessively long")
+}
+
+func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_BackoffGrowth() {
+	initial := 2 * time.Millisecond
+	maxValue := 50 * time.Millisecond
+	multiplier := 2.0
+	b := newExponentialBackoff(&exponentialBackoffConfig{
+		initial:    initial,
+		max:        maxValue,
+		multiplier: multiplier,
+	})
+	ctx := context.Background()
+
+	// First call to establish the initial backoff.
+	err := b.waitWithJitter(ctx)
+	assert.NoError(t.T(), err)
+
+	// Subsequent calls should demonstrate exponential growth.
+	for range 3 {
+		err := b.waitWithJitter(ctx)
+		require.NoError(t.T(), err)
+
+		// The new backoff should be at least the last backoff times the multiplier.
+		// Due to jitter, it can be larger, so we check for >=
+		expectedMinBackoff := time.Duration(float64(b.prev) * multiplier)
+		require.GreaterOrEqual(t.T(), b.prev, expectedMinBackoff)
+
+		// The backoff should also be capped by the max value.
+		if b.prev > maxValue {
+			require.Equal(t.T(), b.prev, maxValue)
+		}
+	}
 }
 
 type RetryConfigTestSuite struct {
