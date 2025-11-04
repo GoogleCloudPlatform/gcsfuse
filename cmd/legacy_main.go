@@ -396,7 +396,7 @@ func logGCSFuseMountInformation(mountInfo *mountInfo) {
 	if mountInfo.configFileFlags != nil {
 		logger.Info("GCSFuse Config", "ConfigFile Flags", mountInfo.configFileFlags)
 	}
-	if mountInfo.optimizedFlags != nil {
+	if len(mountInfo.optimizedFlags) > 0 {
 		logger.Info("GCSFuse Config", "Flags optimized", mountInfo.optimizedFlags)
 	}
 	logger.Info("GCSFuse Config", "Full Config", mountInfo.config)
