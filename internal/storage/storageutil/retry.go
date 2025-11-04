@@ -27,7 +27,7 @@ const (
 	// Default retry parameters.
 	DefaultRetryDeadline    = 30 * time.Second
 	DefaultTotalRetryBudget = 5 * time.Minute
-	DefaultInitialBackoff   = 1 * time.Millisecond
+	DefaultInitialBackoff   = 1 * time.Second
 )
 
 // exponentialBackoffConfig is config parameters
@@ -75,9 +75,8 @@ func (b *exponentialBackoff) waitWithJitter(ctx context.Context) error {
 		return err
 	}
 
-	minBackOffDuration := 30 * time.Second
 	nextDuration := b.nextDuration()
-	jitteryBackoffDuration := minBackOffDuration + time.Duration(rand.Int63n(int64(nextDuration)))
+	jitteryBackoffDuration := max(b.config.initial, time.Duration(rand.Int63n(int64(nextDuration))))
 	select {
 	case <-time.After(jitteryBackoffDuration):
 		return nil

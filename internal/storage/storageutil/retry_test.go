@@ -123,8 +123,10 @@ func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_NoContextCancelled() {
 	elapsed := time.Since(start)
 
 	assert.NoError(t.T(), err)
-	// The function should wait for a duration close to initial.
-	assert.LessOrEqual(t.T(), elapsed, initial*2, "waitWithJitter should not wait excessively long")
+	// The function should wait for a duration higher than initial, but not too high.
+	// Keeping a somewhat loose limit to avoid failing because of go itself taking around 10ms sometimes
+	// to return.
+	assert.LessOrEqual(t.T(), elapsed, initial*3, "waitWithJitter should not wait excessively long")
 }
 
 type RetryConfigTestSuite struct {
