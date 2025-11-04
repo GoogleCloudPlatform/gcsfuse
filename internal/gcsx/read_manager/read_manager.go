@@ -104,10 +104,9 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 		object,
 		bucket,
 		&clientReaders.GCSReaderConfig{
-			MetricHandle:         config.MetricHandle,
-			MrdWrapper:           config.MrdWrapper,
-			SequentialReadSizeMb: config.SequentialReadSizeMB,
-			Config:               config.Config,
+			MetricHandle: config.MetricHandle,
+			MrdWrapper:   config.MrdWrapper,
+			Config:       config.Config,
 		},
 	)
 	// Add the GCS reader as a fallback.

@@ -74,10 +74,9 @@ func (t *gcsReaderTest) SetupTest() {
 	}
 	t.mockBucket = new(storage.TestifyMockBucket)
 	t.gcsReader = NewGCSReader(t.object, t.mockBucket, &GCSReaderConfig{
-		MetricHandle:         metrics.NewNoopMetrics(),
-		MrdWrapper:           nil,
-		SequentialReadSizeMb: sequentialReadSizeInMb,
-		Config:               nil,
+		MetricHandle: metrics.NewNoopMetrics(),
+		MrdWrapper:   nil,
+		Config:       nil,
 	})
 	t.ctx = context.Background()
 }
@@ -98,10 +97,9 @@ func (t *gcsReaderTest) Test_NewGCSReader() {
 	}
 
 	gcsReader := NewGCSReader(object, t.mockBucket, &GCSReaderConfig{
-		MetricHandle:         metrics.NewNoopMetrics(),
-		MrdWrapper:           nil,
-		SequentialReadSizeMb: 200,
-		Config:               nil,
+		MetricHandle: metrics.NewNoopMetrics(),
+		MrdWrapper:   nil,
+		Config:       nil,
 	})
 
 	assert.Equal(t.T(), object, gcsReader.object)
@@ -350,10 +348,9 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateReadType() {
 
 func (t *gcsReaderTest) Test_ReadAt_PropagatesCancellation() {
 	t.gcsReader = NewGCSReader(t.object, t.mockBucket, &GCSReaderConfig{
-		MetricHandle:         metrics.NewNoopMetrics(),
-		MrdWrapper:           nil,
-		SequentialReadSizeMb: sequentialReadSizeInMb,
-		Config:               &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: false}},
+		MetricHandle: metrics.NewNoopMetrics(),
+		MrdWrapper:   nil,
+		Config:       &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: false}},
 	})
 	// Set up a blocking reader
 	finishRead := make(chan struct{})

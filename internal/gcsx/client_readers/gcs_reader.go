@@ -93,19 +93,17 @@ type GCSReader struct {
 }
 
 type GCSReaderConfig struct {
-	MetricHandle         metrics.MetricHandle
-	MrdWrapper           *gcsx.MultiRangeDownloaderWrapper
-	SequentialReadSizeMb int32
-	Config               *cfg.Config
+	MetricHandle metrics.MetricHandle
+	MrdWrapper   *gcsx.MultiRangeDownloaderWrapper
+	Config       *cfg.Config
 }
 
 func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, config *GCSReaderConfig) *GCSReader {
 	return &GCSReader{
-		object:               obj,
-		bucket:               bucket,
-		sequentialReadSizeMb: config.SequentialReadSizeMb,
-		rangeReader:          NewRangeReader(obj, bucket, config.Config, config.MetricHandle),
-		mrr:                  NewMultiRangeReader(obj, config.MetricHandle, config.MrdWrapper),
+		object:      obj,
+		bucket:      bucket,
+		rangeReader: NewRangeReader(obj, bucket, config.Config, config.MetricHandle),
+		mrr:         NewMultiRangeReader(obj, config.MetricHandle, config.MrdWrapper),
 	}
 }
 

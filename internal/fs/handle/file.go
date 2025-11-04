@@ -194,7 +194,6 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 		fh.destroyReadManager()
 		// Create a new read manager for the current inode state.
 		fh.readManager = read_manager.NewReadManager(minObj, bucket, &read_manager.ReadManagerConfig{
-			SequentialReadSizeMB:  int32(fh.config.GcsConnection.SequentialReadSizeMb),
 			FileCacheHandler:      fh.fileCacheHandler,
 			CacheFileForRangeRead: fh.cacheFileForRangeRead,
 			MetricHandle:          fh.metricHandle,
