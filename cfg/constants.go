@@ -79,12 +79,12 @@ const (
 	// due to overheads like fragmentation and alignment.
 	// Thus, incase an attribute of size x has been added to stat cache entry, update
 	// the average size here by 2x.
-	AverageSizeOfPositiveStatCacheEntry uint64 = 1448
+	AverageSizeOfPositiveStatCacheEntry uint64 = 1456
 	// AverageSizeOfNegativeStatCacheEntry is the assumed size of each negative stat-cache-entry,
 	// meant for two purposes.
 	// 1. for conversion from stat-cache-capacity to stat-cache-max-size-mb.
 	// 2. internal testing.
-	AverageSizeOfNegativeStatCacheEntry uint64 = 240
+	AverageSizeOfNegativeStatCacheEntry uint64 = 248
 	// MetadataCacheTTLConfigKey is the Viper configuration key for the metadata
 	//cache's time-to-live (TTL) in seconds.
 	MetadataCacheTTLConfigKey               = "metadata-cache.ttl-secs"
