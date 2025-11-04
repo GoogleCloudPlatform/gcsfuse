@@ -24,9 +24,9 @@ type MockReader struct {
 	mock.Mock
 }
 
-func (m *MockReader) ReadAt(ctx context.Context, p []byte, offset int64) (ReaderResponse, error) {
+func (m *MockReader) ReadAt(ctx context.Context, p []byte, offset int64) (ReadResponse, error) {
 	args := m.Called(ctx, p, offset)
-	return args.Get(0).(ReaderResponse), args.Error(1)
+	return args.Get(0).(ReadResponse), args.Error(1)
 }
 
 func (m *MockReader) Destroy() {

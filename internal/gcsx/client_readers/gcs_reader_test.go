@@ -44,7 +44,7 @@ const (
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func (t *gcsReaderTest) readAt(offset int64, size int64) (gcsx.ReaderResponse, error) {
+func (t *gcsReaderTest) readAt(offset int64, size int64) (gcsx.ReadResponse, error) {
 	t.gcsReader.CheckInvariants()
 	defer t.gcsReader.CheckInvariants()
 	return t.gcsReader.ReadAt(t.ctx, make([]byte, size), offset)

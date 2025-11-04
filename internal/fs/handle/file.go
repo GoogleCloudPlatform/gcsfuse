@@ -161,18 +161,18 @@ func (fh *FileHandle) unlockHandleAndInode(rLock bool) {
 //
 // LOCKS_REQUIRED(fh.inode.mu)
 // UNLOCK_FUNCTION(fh.inode.mu)
-func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offset int64, sequentialReadSizeMb int32) ([]byte, int, error) {
+func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offset int64, sequentialReadSizeMb int32) (gcsx.ReadResponse, error) {
 	// If content cache enabled, CacheEnsureContent forces the file handler to fall through to the inode
 	// and fh.inode.SourceGenerationIsAuthoritative() will return false
 	if err := fh.inode.CacheEnsureContent(ctx); err != nil {
-		return nil, 0, fmt.Errorf("failed to ensure inode content: %w", err)
+		return gcsx.ReadResponse{}, fmt.Errorf("failed to ensure inode content: %w", err)
 	}
 
 	if !fh.inode.SourceGenerationIsAuthoritative() {
 		// Read from inode if source generation is not authoratative
 		defer fh.inode.Unlock()
 		n, err := fh.inode.Read(ctx, dst, offset)
-		return dst, n, err
+		return gcsx.ReadResponse{DataBuf: dst, Size: n}, err
 	}
 
 	fh.lockHandleAndRelockInode(true)
@@ -219,21 +219,21 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 	}
 
 	// Use the readManager to read data.
-	var readerResponse gcsx.ReaderResponse
+	var readResponse gcsx.ReadResponse
 	var err error
-	readerResponse, err = fh.readManager.ReadAt(ctx, dst, offset)
+	readResponse, err = fh.readManager.ReadAt(ctx, dst, offset)
 	switch {
 	case errors.Is(err, io.EOF):
 		if err != io.EOF {
 			logger.Warnf("Unexpected EOF error encountered while reading, err: %v type: %T ", err, err)
 		}
-		return nil, 0, io.EOF
+		return gcsx.ReadResponse{}, io.EOF
 
 	case err != nil:
-		return nil, 0, fmt.Errorf("fh.readManager.ReadAt: %w", err)
+		return gcsx.ReadResponse{}, fmt.Errorf("fh.readManager.ReadAt: %w", err)
 	}
 
-	return readerResponse.DataBuf, readerResponse.Size, nil
+	return readResponse, nil
 }
 
 // Equivalent to locking fh.Inode() and calling fh.Inode().Read, but may be

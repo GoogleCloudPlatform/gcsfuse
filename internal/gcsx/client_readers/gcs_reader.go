@@ -132,7 +132,7 @@ func shouldRetryForShortRead(err error, bytesRead int, p []byte, offset int64, o
 	return true
 }
 
-func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (readerResponse gcsx.ReaderResponse, err error) {
+func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (readerResponse gcsx.ReadResponse, err error) {
 
 	if offset >= int64(gr.object.Size) {
 		return readerResponse, io.EOF
@@ -176,7 +176,7 @@ func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest) (
 	// Not taking any lock for getting reader type to ensure random read requests do not wait.
 	readInfo := gr.getReadInfo(readReq.Offset, false)
 	reqReaderType := gr.readerType(readInfo.readType, gr.bucket.BucketType())
-	var readerResp gcsx.ReaderResponse
+	var readerResp gcsx.ReadResponse
 
 	if reqReaderType == RangeReaderType {
 		gr.mu.Lock()

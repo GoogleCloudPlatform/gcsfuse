@@ -47,7 +47,7 @@ type multiRangeReaderTest struct {
 	multiRangeReader *MultiRangeReader
 }
 
-func (t *multiRangeReaderTest) readAt(offset int64, size int64) (gcsx.ReaderResponse, error) {
+func (t *multiRangeReaderTest) readAt(offset int64, size int64) (gcsx.ReadResponse, error) {
 	req := &gcsx.GCSReaderRequest{
 		Offset:    offset,
 		EndOffset: offset + size,
