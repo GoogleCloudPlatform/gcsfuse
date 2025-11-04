@@ -35,7 +35,7 @@ func TestExponentialBackoffTestSuite(t *testing.T) {
 }
 
 func TestExecuteWithRetryTestSuite(t *testing.T) {
-	t.Skipf("Skipping this test temporarily ...")
+	//t.Skipf("Skipping this test temporarily ...")
 	suite.Run(t, new(ExecuteWithRetryTestSuite))
 }
 
@@ -106,7 +106,7 @@ func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_ContextCancelled() {
 }
 
 func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_NoContextCancelled() {
-	t.T().Skipf("Skipping this test temporarily ...")
+	//t.T().Skipf("Skipping this test temporarily ...")
 	initial := 5 * time.Millisecond // A short duration to ensure it waits. Making it any shorter can cause random failures
 	// because context cancel itself takes about a millisecond.
 	maxValue := 5 * initial
