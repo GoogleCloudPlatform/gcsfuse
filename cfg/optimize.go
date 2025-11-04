@@ -250,7 +250,7 @@ func getOptimizedValue(
 		if p.Name == profileName {
 			return OptimizationResult{
 				FinalValue:         p.Value,
-				OptimizationReason: fmt.Sprintf("profile %q setting", profileName),
+				OptimizationReason: fmt.Sprintf("profile %q", profileName),
 				Optimized:          true,
 			}
 		}
