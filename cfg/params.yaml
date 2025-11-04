@@ -350,6 +350,16 @@ params:
         - name: "aiml-serving"
           value: -1
 
+  - config-path: "file-system.max-read-ahead-kb"
+    flag-name: "max-read-ahead-kb"
+    type: "int"
+    usage: >-
+      Sets max kernel-read-ahead for the mount in KiB. 0 means system default.
+      Requires sudo permission to set this value, otherwise the value will be ignored
+      and system default will be used.
+    default: "0"
+    hide-flag: true
+  
   - config-path: "file-system.o-direct"
     flag-name: "o-direct"
     type: "bool"
@@ -358,6 +368,7 @@ params:
       all I/O operations are sent directly to the GCSFuse daemon. 
     default: false
     hide-flag: true
+
 
   - config-path: "file-system.precondition-errors"
     flag-name: "precondition-errors"

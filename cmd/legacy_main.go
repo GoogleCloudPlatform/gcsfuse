@@ -24,10 +24,13 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"syscall"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"golang.org/x/sys/unix"
@@ -199,6 +202,53 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, 
 	}
 
 	return
+}
+
+// getDeviceMajorMinor returns the major and minor device numbers
+// for the filesystem mounted at the given mountPath.
+func getDeviceMajorMinor(mountPoint string) (major uint32, minor uint32, err error) {
+	if runtime.GOOS != "linux" {
+		return 0, 0, fmt.Errorf("unsupported OS: %s, device major/minor lookup is linux-specific", runtime.GOOS)
+	}
+
+	fileInfo, err := os.Stat(mountPoint)
+	if err != nil {
+		err = fmt.Errorf("os.Stat: %w", err)
+		return
+	}
+
+	stat, ok := fileInfo.Sys().(*syscall.Stat_t)
+	if !ok {
+		err = fmt.Errorf("fileInfo.Sys() is not of type *syscall.Stat_t")
+		return
+	}
+
+	devID := stat.Dev
+	major = unix.Major(uint64(devID))
+	minor = unix.Minor(uint64(devID))
+	return
+}
+
+// setMaxReadAhead sets the kernel-read-ahead for the filesystem mounted at
+// the given mountPoint to readAheadKb.
+func setMaxReadAhead(mountPoint string, readAheadKb int) error {
+	major, minor, err := getDeviceMajorMinor(mountPoint)
+	if err != nil {
+		return fmt.Errorf("getting device major/minor for mount point %s: %v", mountPoint, err)
+	}
+
+	sysPath := filepath.Join("/sys/class/bdi", fmt.Sprintf("%d:%d", major, minor), "read_ahead_kb")
+	cmd := exec.Command("sudo", "-n", "tee", sysPath)
+	cmd.Stdin = strings.NewReader(fmt.Sprintf("%d\n", readAheadKb))
+
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+	err = cmd.Run()
+	if err != nil {
+		err = fmt.Errorf("setting the read ahead on mount-path %s: %v, stderr: %s", mountPoint, err, stderr.String())
+		return err
+	}
+	return nil
 }
 
 func populateArgs(args []string) (
@@ -487,6 +537,16 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 			}
 		}
 		markSuccessfulMount()
+
+		if newConfig.FileSystem.MaxReadAheadKb != 0 {
+			err = setMaxReadAhead(mountPoint, int(newConfig.FileSystem.MaxReadAheadKb))
+			if err != nil {
+				logger.Infof("Failed to set the max read ahead: %v", err)
+			} else {
+				logger.Infof("Max read-ahead set to %d KB successfully.", newConfig.FileSystem.MaxReadAheadKb)
+			}
+		}
+
 	}
 
 	// Let the user unmount with Ctrl-C (SIGINT).
