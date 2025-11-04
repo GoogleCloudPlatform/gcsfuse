@@ -415,6 +415,8 @@ type DeleteObjectRequest struct {
 	// with the given name (and optionally generation), and its meta-generation
 	// is not equal to this value.
 	MetaGenerationPrecondition *int64
+
+	IsImplicitDir bool
 }
 
 // MoveObjectRequest represents a request to move or rename an object.

@@ -108,7 +108,6 @@ func (b *fastStatBucket) insertMultipleMinObjects(listing *gcs.Listing) {
 		// If a MinObject with the same name as the CollapsedRun already exists,
 		// we don't need to insert it again as a Folder.
 		if _, ok := minObjectNames[p]; ok {
-			fmt.Println("MinObjects")
 			continue
 		}
 		if !strings.HasSuffix(p, "/") {
@@ -392,13 +391,23 @@ func (b *fastStatBucket) ListObjects(
 	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
 	// If ForceFetchFromCache is true, we will try to serve listing from cache.
 	if req.ForceFetchFromCache {
-		fmt.Println("In force fetch", req.Prefix)
 		if hit, entry := b.lookUp(req.Prefix); hit {
+
+			// Negative entries result in NotFoundError.
+			if entry == nil {
+				err = &gcs.NotFoundError{
+					Err: fmt.Errorf("negative cache entry for %v", req.Prefix),
+				}
+
+				return nil, err
+			}
+
+			fmt.Println("In force fetch", req.Prefix, entry, hit)
 			// Otherwise, return MinObject and nil ExtendedObjectAttributes.
 			listing = &gcs.Listing{
 				MinObjects: []*gcs.MinObject{entry},
 			}
-			return
+			return listing, nil
 		}
 	}
 
@@ -441,6 +450,11 @@ func (b *fastStatBucket) UpdateObject(
 func (b *fastStatBucket) DeleteObject(
 	ctx context.Context,
 	req *gcs.DeleteObjectRequest) (err error) {
+	if req.IsImplicitDir {
+		fmt.Println("In DeleteObject")
+		b.invalidate(req.Name)
+		return nil
+	}
 	err = b.wrapped.DeleteObject(ctx, req)
 	if err != nil {
 		b.invalidate(req.Name)

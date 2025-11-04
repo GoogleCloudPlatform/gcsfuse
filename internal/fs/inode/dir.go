@@ -88,8 +88,8 @@ type DirInode interface {
 	// The contents of the Offset and Inode fields for returned entries is
 	// undefined.
 	ReadEntries(
-		ctx context.Context,
-		tok string) (entries []fuseutil.Dirent, unsupportedDirs []string, newTok string, err error)
+			ctx context.Context,
+			tok string) (entries []fuseutil.Dirent, unsupportedDirs []string, newTok string, err error)
 
 	// ReadEntryCores reads a batch of directory entries and returns them as a
 	// map of `inode.Core` objects along with a continuation token that can be
@@ -134,18 +134,18 @@ type DirInode interface {
 	// metaGeneration may be set to a non-nil pointer giving a meta-generation
 	// precondition, but need not be.
 	DeleteChildFile(
-		ctx context.Context,
-		name string,
-		generation int64,
-		metaGeneration *int64) (err error)
+			ctx context.Context,
+			name string,
+			generation int64,
+			metaGeneration *int64) (err error)
 
 	// Delete the backing object for the child directory with the given
 	// (relative) name if it is not an Implicit Directory.
 	DeleteChildDir(
-		ctx context.Context,
-		name string,
-		isImplicitDir bool,
-		dirInode DirInode) (err error)
+			ctx context.Context,
+			name string,
+			isImplicitDir bool,
+			dirInode DirInode) (err error)
 
 	// LocalFileEntries lists the local files present in the directory.
 	// Local means that the file is not yet present on GCS.
@@ -252,16 +252,16 @@ var _ DirInode = &dirInode{}
 //
 // REQUIRES: name.IsDir()
 func NewDirInode(
-	id fuseops.InodeID,
-	name Name,
-	attrs fuseops.InodeAttributes,
-	implicitDirs bool,
-	includeFoldersAsPrefixes bool,
-	bucket *gcsx.SyncerBucket,
-	mtimeClock timeutil.Clock,
-	cacheClock timeutil.Clock,
-	isHNSEnabled bool,
-	isUnsupportedDirSupportEnabled bool,
+		id fuseops.InodeID,
+		name Name,
+		attrs fuseops.InodeAttributes,
+		implicitDirs bool,
+		includeFoldersAsPrefixes bool,
+		bucket *gcsx.SyncerBucket,
+		mtimeClock timeutil.Clock,
+		cacheClock timeutil.Clock,
+		isHNSEnabled bool,
+		isUnsupportedDirSupportEnabled bool,
 ) (d DirInode) {
 
 	if !name.IsDir() {
@@ -409,6 +409,12 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*C
 		ForceFetchFromCache: true,
 	}
 	listing, err := bucket.ListObjects(ctx, req)
+	// Suppress "not found" errors.
+	var gcsErr *gcs.NotFoundError
+	if errors.As(err, &gcsErr) {
+		return nil, nil
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("list objects: %w", err)
 	}
@@ -421,6 +427,8 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*C
 		Bucket:   bucket,
 		FullName: name,
 	}
+
+	fmt.Println("Min Objects: ", &listing.MinObjects)
 	if o := listing.MinObjects[0]; o.Name == name.GcsObjectName() {
 		result.MinObject = o
 	}
@@ -429,9 +437,9 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*C
 
 // Fail if the name already exists. Pass on errors directly.
 func (d *dirInode) createNewObject(
-	ctx context.Context,
-	name Name,
-	metadata map[string]string) (o *gcs.Object, err error) {
+		ctx context.Context,
+		name Name,
+		metadata map[string]string) (o *gcs.Object, err error) {
 	// Create an empty backing object for the child, failing if it already
 	// exists.
 	var precond int64
@@ -510,7 +518,7 @@ func (d *dirInode) Destroy() (err error) {
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) Attributes(
-	ctx context.Context, clobberedCheck bool) (attrs fuseops.InodeAttributes, err error) {
+		ctx context.Context, clobberedCheck bool) (attrs fuseops.InodeAttributes, err error) {
 	// Set up basic attributes.
 	attrs = d.attrs
 	attrs.Nlink = 1
@@ -632,8 +640,8 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) readObjects(
-	ctx context.Context,
-	tok string) (cores map[Name]*Core, unsupportedDirs []string, newTok string, err error) {
+		ctx context.Context,
+		tok string) (cores map[Name]*Core, unsupportedDirs []string, newTok string, err error) {
 	if d.isBucketHierarchical() {
 		d.includeFoldersAsPrefixes = true
 	}
@@ -742,8 +750,8 @@ func (d *dirInode) readObjects(
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) ReadEntries(
-	ctx context.Context,
-	tok string) (entries []fuseutil.Dirent, unsupportedDirs []string, newTok string, err error) {
+		ctx context.Context,
+		tok string) (entries []fuseutil.Dirent, unsupportedDirs []string, newTok string, err error) {
 	var cores map[Name]*Core
 	cores, unsupportedDirs, newTok, err = d.ReadEntryCores(ctx, tok)
 	if err != nil {
@@ -892,10 +900,10 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) DeleteChildFile(
-	ctx context.Context,
-	name string,
-	generation int64,
-	metaGeneration *int64) (err error) {
+		ctx context.Context,
+		name string,
+		generation int64,
+		metaGeneration *int64) (err error) {
 	childName := NewFileName(d.Name(), name)
 
 	err = d.bucket.DeleteObject(
@@ -916,17 +924,10 @@ func (d *dirInode) DeleteChildFile(
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) DeleteChildDir(
-	ctx context.Context,
-	name string,
-	isImplicitDir bool,
-	dirInode DirInode) error {
-
-	// If the directory is an implicit directory, then no backing object
-	// exists in the gcs bucket, so returning from here.
-	// Hierarchical buckets don't have implicit dirs so this will be always false in hierarchical bucket case.
-	if isImplicitDir {
-		return nil
-	}
+		ctx context.Context,
+		name string,
+		isImplicitDir bool,
+		dirInode DirInode) error {
 
 	childName := NewDirName(d.Name(), name)
 
@@ -935,8 +936,9 @@ func (d *dirInode) DeleteChildDir(
 	err := d.bucket.DeleteObject(
 		ctx,
 		&gcs.DeleteObjectRequest{
-			Name:       childName.GcsObjectName(),
-			Generation: 0, // Delete the latest version of object named after dir.
+			Name:          childName.GcsObjectName(),
+			Generation:    0, // Delete the latest version of object named after dir.
+			IsImplicitDir: isImplicitDir,
 		})
 
 	if !d.isBucketHierarchical() {
