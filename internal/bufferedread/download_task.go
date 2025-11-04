@@ -29,7 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
 
-type DownloadTask struct {
+type downloadTask struct {
 	workerpool.Task
 	object       *gcs.MinObject
 	bucket       gcs.Bucket
@@ -45,24 +45,13 @@ type DownloadTask struct {
 	readHandle []byte
 }
 
-func NewDownloadTask(ctx context.Context, object *gcs.MinObject, bucket gcs.Bucket, block block.PrefetchBlock, readHandle []byte, metricHandle metrics.MetricHandle) *DownloadTask {
-	return &DownloadTask{
-		ctx:          ctx,
-		object:       object,
-		bucket:       bucket,
-		block:        block,
-		readHandle:   readHandle,
-		metricHandle: metricHandle,
-	}
-}
-
 // Execute implements the workerpool.Task interface. It downloads the data from
 // the GCS object to the block.
 // After completion, it notifies the block consumer about the status of the
 // download task. The status can be one of the following:
 // - BlockStatusDownloaded: The download was successful.
 // - BlockStatusDownloadFailed: The download failed due to an error.
-func (p *DownloadTask) Execute() {
+func (p *downloadTask) Execute() {
 	startOff := p.block.AbsStartOff()
 	blockId := startOff / p.block.Cap()
 	logger.Tracef("Download: <- block (%s, %v).", p.object.Name, blockId)
