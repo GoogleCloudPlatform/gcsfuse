@@ -1,6 +1,6 @@
 module github.com/googlecloudplatform/gcsfuse/v3
 
-go 1.24.6
+go 1.24.9
 
 require (
 	cloud.google.com/go/auth v0.16.5
