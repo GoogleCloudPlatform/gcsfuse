@@ -1045,10 +1045,11 @@ func (d *dirInode) DeleteObjects(ctx context.Context, objectNames []string) erro
 			if err := d.deletePrefixRecursively(ctx, objectName); err != nil {
 				return fmt.Errorf("recursively deleting prefix %q: %w", objectName, err)
 			}
-		}
-		// Handle single file-like object deletion.
-		if err := d.deleteObject(ctx, objectName); err != nil {
-			return fmt.Errorf("deleting unsupported object %q: %w", objectName, err)
+		} else {
+			// Handle single file-like object deletion.
+			if err := d.deleteObject(ctx, objectName); err != nil {
+				return fmt.Errorf("deleting unsupported object %q: %w", objectName, err)
+			}
 		}
 	}
 	return nil
