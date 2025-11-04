@@ -17,7 +17,6 @@ package flag_optimizations
 import (
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 
@@ -45,49 +44,6 @@ func (s *optimizationTests) SetupTest() {
 func (s *optimizationTests) TearDownTest() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 	setup.UnmountGCSFuseAndDeleteLogFile(testEnv.rootDir)
-}
-
-type noOptimizationTests struct {
-	optimizationTests
-}
-
-type highEndMachineOptimizationTests struct {
-	optimizationTests
-}
-
-type aimlProfileTests struct {
-	optimizationTests
-}
-
-type aimlCheckpointingProfileTests struct {
-	aimlProfileTests
-}
-
-// //////////////////////////////////////////////////////////////////////
-// Helpers
-// //////////////////////////////////////////////////////////////////////
-func hasAimlProfile(flags []string) bool {
-	for _, flag := range flags {
-		if strings.HasPrefix(flag, "--profile=") {
-			profile := strings.Split(flag, "=")[1]
-			if slices.Contains(supportedAIMLProfiles, profile) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func isHighEndMachine(flags []string) bool {
-	for _, flag := range flags {
-		if strings.HasPrefix(flag, "--machine-type=") {
-			machineType := strings.Split(flag, "=")[1]
-			if slices.Contains(highEndMachines, machineType) {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -152,30 +108,6 @@ func (t *optimizationTests) testRenameDirLimitSet() {
 	require.NoError(t.T(), err, "Failed to rename directory %q to %q: %v", mountedSrcDirPath, mountedDstDirPath, err)
 }
 
-func (t *noOptimizationTests) TestImplicitDirsNotEnabled() {
-	t.optimizationTests.testImplicitDirsNotEnabled()
-}
-
-func (t *noOptimizationTests) TestRenameDirLimitNotSet() {
-	t.optimizationTests.testRenameDirLimitNotSet()
-}
-
-func (t *highEndMachineOptimizationTests) TestImplicitDirsEnabled() {
-	t.optimizationTests.testImplicitDirsEnabled()
-}
-
-func (t *highEndMachineOptimizationTests) TestRenameDirLimitSet() {
-	t.optimizationTests.testRenameDirLimitSet()
-}
-
-func (t *aimlProfileTests) TestImplicitDirsEnabled() {
-	t.optimizationTests.testImplicitDirsEnabled()
-}
-
-func (t *aimlCheckpointingProfileTests) TestRenameDirLimitSet() {
-	t.optimizationTests.testRenameDirLimitSet()
-}
-
 ////////////////////////////////////////////////////////////////////////
 // Test Functions (Runs before all tests)
 ////////////////////////////////////////////////////////////////////////
@@ -184,11 +116,11 @@ func TestImplicitDirsNotEnabled(t *testing.T) {
 	flagsSet := setup.BuildFlagSets(testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, flags := range flagsSet {
 		t.Run(strings.Join(flags, "_"), func(t *testing.T) {
-			ts := &noOptimizationTests{}
+			ts := &optimizationTests{}
 			ts.SetT(t)
 			ts.flags = flags
 			ts.SetupTest()
-			ts.TestImplicitDirsNotEnabled()
+			ts.testImplicitDirsNotEnabled()
 			ts.TearDownTest()
 		})
 	}
@@ -198,11 +130,11 @@ func TestRenameDirLimitNotSet(t *testing.T) {
 	flagsSet := setup.BuildFlagSets(testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, flags := range flagsSet {
 		t.Run(strings.Join(flags, "_"), func(t *testing.T) {
-			ts := &noOptimizationTests{}
+			ts := &optimizationTests{}
 			ts.SetT(t)
 			ts.flags = flags
 			ts.SetupTest()
-			ts.TestRenameDirLimitNotSet()
+			ts.testRenameDirLimitNotSet()
 			ts.TearDownTest()
 		})
 	}
@@ -212,21 +144,12 @@ func TestImplicitDirsEnabled(t *testing.T) {
 	flagsSet := setup.BuildFlagSets(testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, flags := range flagsSet {
 		t.Run(strings.Join(flags, "_"), func(t *testing.T) {
-			if hasAimlProfile(flags) {
-				ts := &aimlProfileTests{}
-				ts.SetT(t)
-				ts.flags = flags
-				ts.SetupTest()
-				ts.TestImplicitDirsEnabled()
-				ts.TearDownTest()
-			} else if isHighEndMachine(flags) {
-				ts := &highEndMachineOptimizationTests{}
-				ts.SetT(t)
-				ts.flags = flags
-				ts.SetupTest()
-				ts.TestImplicitDirsEnabled()
-				ts.TearDownTest()
-			}
+			ts := &optimizationTests{}
+			ts.SetT(t)
+			ts.flags = flags
+			ts.SetupTest()
+			ts.testImplicitDirsEnabled()
+			ts.TearDownTest()
 		})
 	}
 }
@@ -235,21 +158,12 @@ func TestRenameDirLimitSet(t *testing.T) {
 	flagsSet := setup.BuildFlagSets(testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, flags := range flagsSet {
 		t.Run(strings.Join(flags, "_"), func(t *testing.T) {
-			if hasAimlProfile(flags) {
-				ts := &aimlCheckpointingProfileTests{}
-				ts.SetT(t)
-				ts.flags = flags
-				ts.SetupTest()
-				ts.TestRenameDirLimitSet()
-				ts.TearDownTest()
-			} else if isHighEndMachine(flags) {
-				ts := &highEndMachineOptimizationTests{}
-				ts.SetT(t)
-				ts.flags = flags
-				ts.SetupTest()
-				ts.TestRenameDirLimitSet()
-				ts.TearDownTest()
-			}
+			ts := &optimizationTests{}
+			ts.SetT(t)
+			ts.flags = flags
+			ts.SetupTest()
+			ts.testRenameDirLimitSet()
+			ts.TearDownTest()
 		})
 	}
 }
