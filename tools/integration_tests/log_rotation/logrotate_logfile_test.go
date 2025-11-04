@@ -47,31 +47,27 @@ func runOperationsOnFileTillLogRotation(t *testing.T, wg *sync.WaitGroup, fileNa
 	}
 	// Setup file with 5 MiB content in test directory.
 	testDirPath := path.Join(setup.MntDir(), testDirName)
-	t.Logf("[Debug] Test Directory Path: %s", testDirPath)
+	setupLogFileDir(testDirName)
 	filePath := path.Join(testDirPath, fileName)
-	t.Logf("[Debug] File Path for I/O: %s", filePath)
 	operations.CreateFileWithContent(filePath, filePerms, string(randomData), t)
 	currentLogFile := setup.LogFile()
-	t.Logf("[Debug] Expected Log File Path: %s", currentLogFile)
 	// Keep performing operations in mounted directory until log file is rotated.
 	var lastLogFileSize int64 = 0
 	var retryStatLogFile = true
-
 	for {
 		// 1. Perform Read operation to generate logs
 		_, err = operations.ReadFile(filePath)
 		if err != nil {
 			t.Errorf("ReadFile failed: %v", err)
 		}
-		// Break the loop when log file is rotated.
+		
 		fi, err := operations.StatFile(currentLogFile)
-
 		if err != nil {
 			// --- StatFile Error Handling with Retry Limit ---
 			t.Logf("Stat operation on file %s failed: %v.",
 				currentLogFile, err)
 			if !retryStatLogFile {
-				t.Errorf("Stat retry exhausted on log file: %s", logFilePath)
+				t.Errorf("Stat retry exhausted on log file")
 			}
 			retryStatLogFile = false
 			continue
@@ -108,25 +104,10 @@ func validateLogFileSize(t *testing.T, dirEntry os.DirEntry) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-// printDirectoryContentsRecursive is a helper function to recursively print directory contents.
-func printDirectoryContentsRecursive(t *testing.T, dirPath string, indent string) {
-	entries, err := os.ReadDir(dirPath)
-	if err != nil {
-		t.Logf("%sError reading directory %s: %v", indent, dirPath, err)
-		return
-	}
-
-	for _, entry := range entries {
-		t.Logf("%s- %s", indent, entry.Name())
-		if entry.IsDir() {
-			printDirectoryContentsRecursive(t, path.Join(dirPath, entry.Name()), indent+"  ")
-		}
-	}
-}
 
 func TestLogRotation(t *testing.T) {
 	setup.SetupTestDirectory(testDirName)
-
+	fmt.Println("Log file setup path112:", setup.LogFile())
 	// Perform log rotation 4 times.
 	for range 4 {
 		runParallelOperationsInMountedDirectoryTillLogRotation(t)
@@ -137,11 +118,9 @@ func TestLogRotation(t *testing.T) {
 
 	// Validate log files generated.
 	// Get the directory of the log file from the setup configuration.
-	logDir := path.Dir(setup.LogFile())
-	t.Logf("Validating log files in directory: %s", logDir)
-	t.Logf("Contents of log directory %s:", logDir)
-	printDirectoryContentsRecursive(t, logDir, "  ") // Start with 2 spaces indentation
-	dirEntries := operations.ReadDirectory(logDir, t)
+	logFilesDirectory := path.Dir(setup.LogFile())
+	dirEntries := operations.ReadDirectory(logFilesDirectory, t)
+
 	t.Logf("Found %d files:", len(dirEntries))
 
 	if len(dirEntries) != logFileCount {
@@ -164,7 +143,7 @@ func TestLogRotation(t *testing.T) {
 			validateLogFileSize(t, entry)
 		} else if strings.HasSuffix(entry.Name(), ".gz") {
 			rotatedCompressedFileCtr++
-		} else if strings.HasPrefix(entry.Name(), path.Base(activeLogFileName)) && !strings.HasSuffix(entry.Name(), ".stderr") {
+		} else if strings.HasPrefix(entry.Name(), activeLogFileName) && !strings.HasSuffix(entry.Name(), ".stderr") {
 			rotatedUncompressedFileCtr++
 		}
 	}

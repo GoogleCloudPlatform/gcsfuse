@@ -18,9 +18,11 @@ package log_rotation
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -32,71 +34,107 @@ import (
 
 const (
 	testDirName        = "LogRotationTest"
-	logFileName        = "log.txt"
 	maxFileSizeMB      = 2
 	activeLogFileCount = 1
 	stderrLogFileCount = 1
 	backupLogFileCount = 2
 	logFileCount       = activeLogFileCount + backupLogFileCount + stderrLogFileCount // Adding 1 for stderr logs file
+	GKETempDir         = "/gcsfuse-tmp"
 )
 
 var (
-	logDirPath    string
-	logFilePath   string
 	storageClient *storage.Client
 	ctx           context.Context
+	cfg           *test_suite.TestConfig
+	mountDir      string
 )
+
+func setupLogFileDir(testName string) {
+	var logFilePath string
+	logFilePath = path.Join(setup.TestDir(), GKETempDir, testName) + ".log"
+	//fmt.Println(cfg.GKEMountedDirectory)
+	if cfg.GKEMountedDirectory != "" { // GKE path
+		mountDir = cfg.GKEMountedDirectory
+		logFilePath = path.Join(GKETempDir, testName) + ".log"
+		// fmt.Println("Log file setup path in function0:", logFilePath)
+		if setup.ConfigFile() == "" {
+			// TODO: clean this up when GKE test migration completes.
+			logFilePath = "/tmp/gcsfuse_log_rotation_test/log.json"
+		}
+	}
+	cfg.LogFile = logFilePath
+	setup.SetLogFile(logFilePath)
+}
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	// 1. Load and parse the common configuration.
-	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
-	if len(cfg.LogRotation) == 0 {
+	config := test_suite.ReadConfigFile(setup.ConfigFile())
+	if len(config.LogRotation) == 0 {
 		log.Println("No configuration found for log rotation tests in config. Using flags instead.")
 		// Populate the config manually.
-		cfg.LogRotation = make([]test_suite.TestConfig, 1)
-		cfg.LogRotation[0].TestBucket = setup.TestBucket()
-		cfg.LogRotation[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.LogRotation[0].LogFile = setup.LogFile()
-		cfg.LogRotation[0].Configs = make([]test_suite.ConfigItem, 1)
-		cfg.LogRotation[0].Configs[0].Flags = []string{
-			"--log-severity=TRACE --log-file=/gcsfuse-tmp/LogRotationTest/log.txt --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=false",
-			"--log-severity=TRACE --log-file=/gcsfuse-tmp/LogRotationTest/log.txt --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=true",
+		config.LogRotation = make([]test_suite.TestConfig, 1)
+		config.LogRotation[0].TestBucket = setup.TestBucket()
+		config.LogRotation[0].GKEMountedDirectory = setup.MountedDirectory()
+		config.LogRotation[0].LogFile = setup.LogFile()
+		config.LogRotation[0].Configs = make([]test_suite.ConfigItem, 1)
+		config.LogRotation[0].Configs[0].Flags = []string{
+			"--log-severity=TRACE --log-file=/gcsfuse-tmp/LogRotationTest.log --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=false",
+			"--log-severity=TRACE --log-file=/gcsfuse-tmp/LogRotationTest.log --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=true",
 		}
-		cfg.LogRotation[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		config.LogRotation[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
 
-	// Set up log file path.
-	logDirPath = path.Join(setup.TestDir(), testDirName)
-	logFilePath = path.Join(logDirPath, logFileName)
-	cfg.LogRotation[0].LogFile = logFilePath // This should be set for the test suite.
-
+	cfg = &config.LogRotation[0]
 	ctx = context.Background()
-	bucketType := setup.TestEnvironment(ctx, &cfg.LogRotation[0])
+	bucketType := setup.TestEnvironment(ctx, cfg)
 
 	// 2. Create storage client before running tests.
-	var err error
-	storageClient, err = client.CreateStorageClient(ctx)
-	if err != nil {
-		log.Printf("Error creating storage client: %v\n", err)
-		os.Exit(1)
-	}
-	defer storageClient.Close()
+	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
+	defer func() {
+		err := closeStorageClient()
+		if err != nil {
+			log.Fatalf("closeStorageClient failed: %v", err)
+		}
+	}()
+
+	setupLogFileDir(testDirName)
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
-	if cfg.LogRotation[0].GKEMountedDirectory != "" && cfg.LogRotation[0].TestBucket != "" {
-		os.Exit(setup.RunTestsForMountedDirectory(cfg.LogRotation[0].GKEMountedDirectory, m))
+	if cfg.GKEMountedDirectory != "" && cfg.TestBucket != "" {
+		os.Exit(setup.RunTestsForMountedDirectory(cfg.GKEMountedDirectory, m))
 	}
 
-	// Run tests for testBucket
 	// 4. Build the flag sets dynamically from the config.
-	flags := setup.BuildFlagSets(cfg.LogRotation[0], bucketType)
-	setup.SetUpTestDirForTestBucket(&cfg.LogRotation[0])
+	setup.SetUpTestDirForTestBucket(cfg)
+	// Override GKE specific paths with GCSFuse paths if running in GCE environment.
+	// Create the temporary directory for log rotation logs.
+	if err := os.MkdirAll(path.Join(setup.TestDir(), GKETempDir), 0755); err != nil {
+		log.Fatalf("Failed to create log directory: %v", err)
+	}
+	fmt.Println("Log DIRECTORY CREATED: ", path.Join(setup.TestDir(), GKETempDir))
+	overrideFilePathsInFlagSet(cfg, setup.TestDir())
 
-	successCode := static_mounting.RunTestsWithConfigFile(&cfg.LogRotation[0], flags, m)
+	flags := setup.BuildFlagSets(*cfg, bucketType)
+
+	setupLogFileDir(testDirName)
+
+	fmt.Println("Logfile path!!!", setup.LogFile())
+	successCode := static_mounting.RunTestsWithConfigFile(cfg, flags, m)
 
 	// Clean up test directory created.
 	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), "/gcsfuse-tmp/LogRotationTest"))
 	os.Exit(successCode)
+}
+
+func overrideFilePathsInFlagSet(t *test_suite.TestConfig, GCSFuseTempDirPath string) {
+	for _, flags := range t.Configs {
+		for i := range flags.Flags {
+			// Iterate over the indices of the flags slice
+			fmt.Println(flags.Flags[i])
+			flags.Flags[i] = strings.ReplaceAll(flags.Flags[i], "/gcsfuse-tmp", path.Join(GCSFuseTempDirPath, "gcsfuse-tmp"))
+			fmt.Println(flags.Flags[i])
+		}
+	}
 }
