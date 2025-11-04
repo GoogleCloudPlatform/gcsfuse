@@ -296,12 +296,9 @@ func makeRootForBucket(
 		},
 		fs.implicitDirs,
 		fs.newConfig.List.EnableEmptyManagedFolders,
-		fs.enableNonexistentTypeCache,
-		fs.dirTypeCacheTTL,
 		&syncerBucket,
 		fs.mtimeClock,
 		fs.cacheClock,
-		fs.newConfig.MetadataCache.TypeCacheMaxSizeMb,
 		fs.newConfig.EnableHns,
 		fs.newConfig.EnableUnsupportedPathSupport,
 	)
@@ -775,12 +772,9 @@ func (fs *fileSystem) createExplicitDirInode(inodeID fuseops.InodeID, ic inode.C
 		},
 		fs.implicitDirs,
 		fs.newConfig.List.EnableEmptyManagedFolders,
-		fs.enableNonexistentTypeCache,
-		fs.dirTypeCacheTTL,
 		ic.Bucket,
 		fs.mtimeClock,
 		fs.cacheClock,
-		fs.newConfig.MetadataCache.TypeCacheMaxSizeMb,
 		fs.newConfig.EnableHns,
 		fs.newConfig.EnableUnsupportedPathSupport)
 
@@ -819,12 +813,9 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			},
 			fs.implicitDirs,
 			fs.newConfig.List.EnableEmptyManagedFolders,
-			fs.enableNonexistentTypeCache,
-			fs.dirTypeCacheTTL,
 			ic.Bucket,
 			fs.mtimeClock,
 			fs.cacheClock,
-			fs.newConfig.MetadataCache.TypeCacheMaxSizeMb,
 			fs.newConfig.EnableHns,
 			fs.newConfig.EnableUnsupportedPathSupport,
 		)
