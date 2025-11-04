@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -47,20 +48,33 @@ func runOperationsOnFileTillLogRotation(t *testing.T, wg *sync.WaitGroup, fileNa
 	}
 	// Setup file with 5 MiB content in test directory.
 	testDirPath := path.Join(setup.MntDir(), testDirName)
+	t.Logf("[Debug] Test Directory Path: %s", testDirPath)
 	setupLogFileDir(testDirName)
 	filePath := path.Join(testDirPath, fileName)
+	t.Logf("[Debug] File Path for I/O: %s", filePath)
 	operations.CreateFileWithContent(filePath, filePerms, string(randomData), t)
 	currentLogFile := setup.LogFile()
+	t.Logf("[Debug] Expected Log File Path: %s", currentLogFile)
 	// Keep performing operations in mounted directory until log file is rotated.
 	var lastLogFileSize int64 = 0
 	var retryStatLogFile = true
+	// var c int64 = 0
 	for {
 		// 1. Perform Read operation to generate logs
+		// t.Logf("Performing ReadFile operation on: %s", filePath)
 		_, err = operations.ReadFile(filePath)
 		if err != nil {
 			t.Errorf("ReadFile failed: %v", err)
 		}
-		
+		// t.Logf("Checking log file size for rotation: %s", currentLogFile)
+		// Break the loop when log file is rotated.
+		// c++
+		// if c > 5 {
+		// 	break
+		// }
+		// fmt.Println("__")
+		// printDirContents("/tmp/gcsfuse_readwrite_test_766858317/", "")
+		// fmt.Println("_++_")
 		fi, err := operations.StatFile(currentLogFile)
 		if err != nil {
 			// --- StatFile Error Handling with Retry Limit ---
@@ -72,6 +86,8 @@ func runOperationsOnFileTillLogRotation(t *testing.T, wg *sync.WaitGroup, fileNa
 			retryStatLogFile = false
 			continue
 		}
+		// currentSize := (*fi).Size()
+		// t.Logf("Current log file size: %d bytes. Last recorded size: %d bytes.", currentSize, lastLogFileSize)
 		if (*fi).Size() < lastLogFileSize {
 			// Log file got rotated as current log file size < last log file size.
 			break
@@ -104,6 +120,32 @@ func validateLogFileSize(t *testing.T, dirEntry os.DirEntry) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
+// The recursive function
+func printDirContents(dirPath string, indent string) {
+	// 1. Read the contents of the directory
+	entries, err := os.ReadDir(dirPath)
+	if err != nil {
+		fmt.Printf("%s[Error reading %s: %v]\n", indent, dirPath, err)
+		return
+	}
+
+	// 2. Iterate over the entries
+	for _, entry := range entries {
+		// Construct the full path
+		fullPath := filepath.Join(dirPath, entry.Name())
+
+		// Print the current entry
+		if entry.IsDir() {
+			fmt.Printf("%s📁 %s/\n", indent, entry.Name())
+
+			// 3. RECUSION: If it's a directory, call the function again with the new path
+			// Increase the indentation level for the nested content
+			printDirContents(fullPath, indent+"  ")
+		} else {
+			fmt.Printf("%s📄 %s\n", indent, entry.Name())
+		}
+	}
+}
 
 func TestLogRotation(t *testing.T) {
 	setup.SetupTestDirectory(testDirName)
@@ -119,6 +161,9 @@ func TestLogRotation(t *testing.T) {
 	// Validate log files generated.
 	// Get the directory of the log file from the setup configuration.
 	logFilesDirectory := path.Dir(setup.LogFile())
+	fmt.Println("-------")
+	fmt.Println(setup.LogFile())
+	t.Logf("Contents of log directory parent dir %s:", logFilesDirectory)
 	dirEntries := operations.ReadDirectory(logFilesDirectory, t)
 
 	t.Logf("Found %d files:", len(dirEntries))
@@ -129,7 +174,8 @@ func TestLogRotation(t *testing.T) {
 	}
 
 	// Get the base name of the log file from the setup.
-	activeLogFileName := path.Base(setup.LogFile())
+	activeLogFileName := "LogRotationTest"
+	t.Logf("Active log file name: %s", activeLogFileName)
 	rotatedCompressedFileCtr := 0
 	logFileCtr := 0
 	rotatedUncompressedFileCtr := 0

@@ -86,6 +86,7 @@ func RunTests(flagsSet [][]string, m *testing.M) (successCode int) {
 
 func RunTestsWithConfigFile(config *test_suite.TestConfig, flagsSet [][]string, m *testing.M) (successCode int) {
 	log.Println("Running static mounting tests...")
+	fmt.Println("in static mounting", config.LogFile)
 	successCode = executeTestsForStaticMounting(config, flagsSet, m)
 	log.Printf("Test log: %s\n", config.LogFile)
 	return successCode
