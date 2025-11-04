@@ -142,6 +142,7 @@ func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_BackoffGrowth() {
 	// First call to establish the initial backoff.
 	err := b.waitWithJitter(ctx)
 	assert.NoError(t.T(), err)
+	var lastBackoff time.Duration
 
 	// Subsequent calls should demonstrate exponential growth.
 	for range 3 {
@@ -150,13 +151,15 @@ func (t *ExponentialBackoffTestSuite) TestWaitWithJitter_BackoffGrowth() {
 
 		// The new backoff should be at least the last backoff times the multiplier.
 		// Due to jitter, it can be larger, so we check for >=
-		expectedMinBackoff := time.Duration(float64(b.prev) * multiplier)
+		expectedMinBackoff := time.Duration(float64(lastBackoff) * multiplier)
 		require.GreaterOrEqual(t.T(), b.prev, expectedMinBackoff)
 
 		// The backoff should also be capped by the max value.
 		if b.prev > maxValue {
 			require.Equal(t.T(), b.prev, maxValue)
 		}
+
+		lastBackoff = b.prev
 	}
 }
 
