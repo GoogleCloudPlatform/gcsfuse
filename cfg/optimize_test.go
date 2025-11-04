@@ -84,10 +84,8 @@ func resetMetadataEndpoints(t *testing.T) {
 
 // Helper function to detect if a given flag is present in the map of optimized flags.
 func isFlagPresentInOptimizationResults(optimizationResults map[string]OptimizationResult, flag string) bool {
-	if _, ok := optimizationResults[flag]; ok {
-		return true
-	}
-	return false
+	_, ok := optimizationResults[flag]
+	return ok
 }
 
 func TestGetMachineType_Success(t *testing.T) {

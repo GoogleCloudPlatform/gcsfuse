@@ -156,7 +156,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 
 			isSet := &pflagAsIsValueSet{fs: cmd.PersistentFlags()}
 			optimizedFlags := mountInfo.config.ApplyOptimizations(isSet)
-			optimizedFlagNames := []string{}
+			optimizedFlagNames := make([]string, 0, len(optimizedFlags))
 			for k := range optimizedFlags {
 				optimizedFlagNames = append(optimizedFlagNames, k)
 			}
@@ -165,7 +165,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 			}
 			mountInfo.cliFlags = getCliFlags(cmd.PersistentFlags())
 			mountInfo.configFileFlags = getConfigFileFlags(v)
-			mountInfo.flagOptimizationsApplied = optimizedFlags
+			mountInfo.optimizedFlags = optimizedFlags
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
