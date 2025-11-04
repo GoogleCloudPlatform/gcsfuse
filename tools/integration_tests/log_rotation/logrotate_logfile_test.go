@@ -108,6 +108,22 @@ func validateLogFileSize(t *testing.T, dirEntry os.DirEntry) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
+// printDirectoryContentsRecursive is a helper function to recursively print directory contents.
+func printDirectoryContentsRecursive(t *testing.T, dirPath string, indent string) {
+	entries, err := os.ReadDir(dirPath)
+	if err != nil {
+		t.Logf("%sError reading directory %s: %v", indent, dirPath, err)
+		return
+	}
+
+	for _, entry := range entries {
+		t.Logf("%s- %s", indent, entry.Name())
+		if entry.IsDir() {
+			printDirectoryContentsRecursive(t, path.Join(dirPath, entry.Name()), indent+"  ")
+		}
+	}
+}
+
 func TestLogRotation(t *testing.T) {
 	setup.SetupTestDirectory(testDirName)
 
@@ -120,16 +136,13 @@ func TestLogRotation(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// Validate log files generated.
-	fmt.Println("hi")
 	// Get the directory of the log file from the setup configuration.
 	logDir := path.Dir(setup.LogFile())
 	t.Logf("Validating log files in directory: %s", logDir)
+	t.Logf("Contents of log directory %s:", logDir)
+	printDirectoryContentsRecursive(t, logDir, "  ") // Start with 2 spaces indentation
 	dirEntries := operations.ReadDirectory(logDir, t)
-	fmt.Println("hi0")
 	t.Logf("Found %d files:", len(dirEntries))
-	for _, entry := range dirEntries {
-		t.Logf("  - %s", entry.Name())
-	}
 
 	if len(dirEntries) != logFileCount {
 		t.Errorf("Expected log files in dirEntries folder: %d, got: %d",

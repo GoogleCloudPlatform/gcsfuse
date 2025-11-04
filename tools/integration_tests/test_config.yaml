@@ -523,8 +523,8 @@ log_rotation:
     run_on_gke: false
     configs:
       - flags:
-          - "--log-file=${LOG_FILE_PATH} --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=false --log-severity=trace"
-          - "--log-file=${LOG_FILE_PATH} --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=true --log-severity=trace"
+          - "--log-file=/gcsfuse-tmp/LogRotationTest/log.txt --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=false --log-severity=trace"
+          - "--log-file=/gcsfuse-tmp/LogRotationTest/log.txt --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=true --log-severity=trace"
         compatible:
           flat: true
           hns: true

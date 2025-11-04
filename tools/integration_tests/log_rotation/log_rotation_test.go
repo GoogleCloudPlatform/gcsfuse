@@ -61,8 +61,8 @@ func TestMain(m *testing.M) {
 		cfg.LogRotation[0].LogFile = setup.LogFile()
 		cfg.LogRotation[0].Configs = make([]test_suite.ConfigItem, 1)
 		cfg.LogRotation[0].Configs[0].Flags = []string{
-			"---log-severity=TRACE --log-file=/gcsfuse-tmp/LogRotationTest/log.txt --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=false",
-			"---log-severity=TRACE --log-file=/gcsfuse-tmp/LogRotationTest/log.txt --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=true",
+			"--log-severity=TRACE --log-file=/gcsfuse-tmp/LogRotationTest/log.txt --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=false",
+			"--log-severity=TRACE --log-file=/gcsfuse-tmp/LogRotationTest/log.txt --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=true",
 		}
 		cfg.LogRotation[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
