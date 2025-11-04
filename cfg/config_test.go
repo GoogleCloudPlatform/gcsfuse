@@ -83,12 +83,12 @@ func TestApplyOptimizations(t *testing.T) {
 					c.FileCache.CacheFileForRangeRead = false
 				}
 
-				optimizationResults := c.ApplyOptimizations(tc.isSet)
+				optimizedFlags := c.ApplyOptimizations(tc.isSet)
 
 				if tc.expectOptimized {
-					assert.Contains(t, optimizationResults, "file-cache.cache-file-for-range-read")
+					assert.Contains(t, optimizedFlags, "file-cache.cache-file-for-range-read")
 				} else {
-					assert.NotContains(t, optimizationResults, "file-cache.cache-file-for-range-read")
+					assert.NotContains(t, optimizedFlags, "file-cache.cache-file-for-range-read")
 				}
 				// Use EqualValues to handle the int vs int64 type mismatch for default values.
 				assert.EqualValues(t, tc.expectedValue, c.FileCache.CacheFileForRangeRead)
@@ -194,12 +194,12 @@ func TestApplyOptimizations(t *testing.T) {
 					c.ImplicitDirs = false
 				}
 
-				optimizationResults := c.ApplyOptimizations(tc.isSet)
+				optimizedFlags := c.ApplyOptimizations(tc.isSet)
 
 				if tc.expectOptimized {
-					assert.Contains(t, optimizationResults, "implicit-dirs")
+					assert.Contains(t, optimizedFlags, "implicit-dirs")
 				} else {
-					assert.NotContains(t, optimizationResults, "implicit-dirs")
+					assert.NotContains(t, optimizedFlags, "implicit-dirs")
 				}
 				// Use EqualValues to handle the int vs int64 type mismatch for default values.
 				assert.EqualValues(t, tc.expectedValue, c.ImplicitDirs)
@@ -259,12 +259,12 @@ func TestApplyOptimizations(t *testing.T) {
 					c.FileSystem.KernelListCacheTtlSecs = 0
 				}
 
-				optimizationResults := c.ApplyOptimizations(tc.isSet)
+				optimizedFlags := c.ApplyOptimizations(tc.isSet)
 
 				if tc.expectOptimized {
-					assert.Contains(t, optimizationResults, "file-system.kernel-list-cache-ttl-secs")
+					assert.Contains(t, optimizedFlags, "file-system.kernel-list-cache-ttl-secs")
 				} else {
-					assert.NotContains(t, optimizationResults, "file-system.kernel-list-cache-ttl-secs")
+					assert.NotContains(t, optimizedFlags, "file-system.kernel-list-cache-ttl-secs")
 				}
 				// Use EqualValues to handle the int vs int64 type mismatch for default values.
 				assert.EqualValues(t, tc.expectedValue, c.FileSystem.KernelListCacheTtlSecs)
@@ -370,12 +370,12 @@ func TestApplyOptimizations(t *testing.T) {
 					c.MetadataCache.NegativeTtlSecs = 5
 				}
 
-				optimizationResults := c.ApplyOptimizations(tc.isSet)
+				optimizedFlags := c.ApplyOptimizations(tc.isSet)
 
 				if tc.expectOptimized {
-					assert.Contains(t, optimizationResults, "metadata-cache.negative-ttl-secs")
+					assert.Contains(t, optimizedFlags, "metadata-cache.negative-ttl-secs")
 				} else {
-					assert.NotContains(t, optimizationResults, "metadata-cache.negative-ttl-secs")
+					assert.NotContains(t, optimizedFlags, "metadata-cache.negative-ttl-secs")
 				}
 				// Use EqualValues to handle the int vs int64 type mismatch for default values.
 				assert.EqualValues(t, tc.expectedValue, c.MetadataCache.NegativeTtlSecs)
@@ -481,12 +481,12 @@ func TestApplyOptimizations(t *testing.T) {
 					c.MetadataCache.TtlSecs = 60
 				}
 
-				optimizationResults := c.ApplyOptimizations(tc.isSet)
+				optimizedFlags := c.ApplyOptimizations(tc.isSet)
 
 				if tc.expectOptimized {
-					assert.Contains(t, optimizationResults, "metadata-cache.ttl-secs")
+					assert.Contains(t, optimizedFlags, "metadata-cache.ttl-secs")
 				} else {
-					assert.NotContains(t, optimizationResults, "metadata-cache.ttl-secs")
+					assert.NotContains(t, optimizedFlags, "metadata-cache.ttl-secs")
 				}
 				// Use EqualValues to handle the int vs int64 type mismatch for default values.
 				assert.EqualValues(t, tc.expectedValue, c.MetadataCache.TtlSecs)
@@ -587,12 +587,12 @@ func TestApplyOptimizations(t *testing.T) {
 					c.FileSystem.RenameDirLimit = 0
 				}
 
-				optimizationResults := c.ApplyOptimizations(tc.isSet)
+				optimizedFlags := c.ApplyOptimizations(tc.isSet)
 
 				if tc.expectOptimized {
-					assert.Contains(t, optimizationResults, "file-system.rename-dir-limit")
+					assert.Contains(t, optimizedFlags, "file-system.rename-dir-limit")
 				} else {
-					assert.NotContains(t, optimizationResults, "file-system.rename-dir-limit")
+					assert.NotContains(t, optimizedFlags, "file-system.rename-dir-limit")
 				}
 				// Use EqualValues to handle the int vs int64 type mismatch for default values.
 				assert.EqualValues(t, tc.expectedValue, c.FileSystem.RenameDirLimit)
@@ -698,12 +698,12 @@ func TestApplyOptimizations(t *testing.T) {
 					c.MetadataCache.StatCacheMaxSizeMb = 33
 				}
 
-				optimizationResults := c.ApplyOptimizations(tc.isSet)
+				optimizedFlags := c.ApplyOptimizations(tc.isSet)
 
 				if tc.expectOptimized {
-					assert.Contains(t, optimizationResults, "metadata-cache.stat-cache-max-size-mb")
+					assert.Contains(t, optimizedFlags, "metadata-cache.stat-cache-max-size-mb")
 				} else {
-					assert.NotContains(t, optimizationResults, "metadata-cache.stat-cache-max-size-mb")
+					assert.NotContains(t, optimizedFlags, "metadata-cache.stat-cache-max-size-mb")
 				}
 				// Use EqualValues to handle the int vs int64 type mismatch for default values.
 				assert.EqualValues(t, tc.expectedValue, c.MetadataCache.StatCacheMaxSizeMb)
@@ -809,12 +809,12 @@ func TestApplyOptimizations(t *testing.T) {
 					c.MetadataCache.TypeCacheMaxSizeMb = 4
 				}
 
-				optimizationResults := c.ApplyOptimizations(tc.isSet)
+				optimizedFlags := c.ApplyOptimizations(tc.isSet)
 
 				if tc.expectOptimized {
-					assert.Contains(t, optimizationResults, "metadata-cache.type-cache-max-size-mb")
+					assert.Contains(t, optimizedFlags, "metadata-cache.type-cache-max-size-mb")
 				} else {
-					assert.NotContains(t, optimizationResults, "metadata-cache.type-cache-max-size-mb")
+					assert.NotContains(t, optimizedFlags, "metadata-cache.type-cache-max-size-mb")
 				}
 				// Use EqualValues to handle the int vs int64 type mismatch for default values.
 				assert.EqualValues(t, tc.expectedValue, c.MetadataCache.TypeCacheMaxSizeMb)
@@ -896,12 +896,12 @@ func TestApplyOptimizations(t *testing.T) {
 					c.Write.GlobalMaxBlocks = 4
 				}
 
-				optimizationResults := c.ApplyOptimizations(tc.isSet)
+				optimizedFlags := c.ApplyOptimizations(tc.isSet)
 
 				if tc.expectOptimized {
-					assert.Contains(t, optimizationResults, "write.global-max-blocks")
+					assert.Contains(t, optimizedFlags, "write.global-max-blocks")
 				} else {
-					assert.NotContains(t, optimizationResults, "write.global-max-blocks")
+					assert.NotContains(t, optimizedFlags, "write.global-max-blocks")
 				}
 				// Use EqualValues to handle the int vs int64 type mismatch for default values.
 				assert.EqualValues(t, tc.expectedValue, c.Write.GlobalMaxBlocks)
