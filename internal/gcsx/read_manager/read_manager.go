@@ -83,14 +83,15 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 			MinBlocksPerHandle:      readConfig.MinBlocksPerHandle,
 			RandomSeekThreshold:     readConfig.RandomSeekThreshold,
 		}
-		bufferedReader, err := bufferedread.NewBufferedReader(
-			object,
-			bucket,
-			bufferedReadConfig,
-			config.GlobalMaxBlocksSem,
-			config.WorkerPool,
-			config.MetricHandle,
-		)
+		opts := &bufferedread.BufferedReaderOptions{
+			Object:             object,
+			Bucket:             bucket,
+			Config:             bufferedReadConfig,
+			GlobalMaxBlocksSem: config.GlobalMaxBlocksSem,
+			WorkerPool:         config.WorkerPool,
+			MetricHandle:       config.MetricHandle,
+		}
+		bufferedReader, err := bufferedread.NewBufferedReader(opts)
 		if err != nil {
 			logger.Warnf("Failed to create bufferedReader: %v. Buffered reading will be disabled for this file handle.", err)
 		} else {

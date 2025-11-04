@@ -111,36 +111,46 @@ type BufferedReader struct {
 	blockPool *block.GenBlockPool[block.PrefetchBlock]
 }
 
+// BufferedReaderOptions holds the dependencies for a BufferedReader.
+type BufferedReaderOptions struct {
+	Object             *gcs.MinObject
+	Bucket             gcs.Bucket
+	Config             *BufferedReadConfig
+	GlobalMaxBlocksSem *semaphore.Weighted
+	WorkerPool         workerpool.WorkerPool
+	MetricHandle       metrics.MetricHandle
+}
+
 // NewBufferedReader returns a new bufferedReader instance.
-func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *BufferedReadConfig, globalMaxBlocksSem *semaphore.Weighted, workerPool workerpool.WorkerPool, metricHandle metrics.MetricHandle) (*BufferedReader, error) {
-	if config.PrefetchBlockSizeBytes <= 0 {
-		return nil, fmt.Errorf("NewBufferedReader: PrefetchBlockSizeBytes must be positive, but is %d", config.PrefetchBlockSizeBytes)
+func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
+	if opts.Config.PrefetchBlockSizeBytes <= 0 {
+		return nil, fmt.Errorf("NewBufferedReader: PrefetchBlockSizeBytes must be positive, but is %d", opts.Config.PrefetchBlockSizeBytes)
 	}
 	// To optimize resource usage, reserve only the number of blocks required for
 	// the file, capped by the configured minimum.
-	blocksInFile := (int64(object.Size) + config.PrefetchBlockSizeBytes - 1) / config.PrefetchBlockSizeBytes
-	numBlocksToReserve := min(blocksInFile, config.MinBlocksPerHandle)
-	blockpool, err := block.NewPrefetchBlockPool(config.PrefetchBlockSizeBytes, config.MaxPrefetchBlockCnt, numBlocksToReserve, globalMaxBlocksSem)
+	blocksInFile := (int64(opts.Object.Size) + opts.Config.PrefetchBlockSizeBytes - 1) / opts.Config.PrefetchBlockSizeBytes
+	numBlocksToReserve := min(blocksInFile, opts.Config.MinBlocksPerHandle)
+	blockpool, err := block.NewPrefetchBlockPool(opts.Config.PrefetchBlockSizeBytes, opts.Config.MaxPrefetchBlockCnt, numBlocksToReserve, opts.GlobalMaxBlocksSem)
 	if err != nil {
 		if errors.Is(err, block.CantAllocateAnyBlockError) {
-			metricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
+			opts.MetricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
 		}
 		return nil, fmt.Errorf("NewBufferedReader: creating block-pool: %w", err)
 	}
 
 	reader := &BufferedReader{
-		object:                   object,
-		bucket:                   bucket,
-		config:                   config,
+		object:                   opts.Object,
+		bucket:                   opts.Bucket,
+		config:                   opts.Config,
 		nextBlockIndexToPrefetch: 0,
 		randomSeekCount:          0,
-		numPrefetchBlocks:        config.InitialPrefetchBlockCnt,
+		numPrefetchBlocks:        opts.Config.InitialPrefetchBlockCnt,
 		blockQueue:               common.NewLinkedListQueue[*blockQueueEntry](),
 		blockPool:                blockpool,
-		workerPool:               workerPool,
-		metricHandle:             metricHandle,
+		workerPool:               opts.WorkerPool,
+		metricHandle:             opts.MetricHandle,
 		prefetchMultiplier:       defaultPrefetchMultiplier,
-		randomReadsThreshold:     config.RandomSeekThreshold,
+		randomReadsThreshold:     opts.Config.RandomSeekThreshold,
 	}
 
 	reader.ctx, reader.cancelFunc = context.WithCancel(context.Background())
