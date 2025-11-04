@@ -128,9 +128,6 @@ type ServerConfig struct {
 	// Allow renaming a directory containing fewer descendants than this limit.
 	RenameDirLimit int64
 
-	// File chunk size to read from GCS in one call. Specified in MB.
-	SequentialReadSizeMb int32
-
 	// NewConfig has all the config specified by the user using config-file or CLI flags.
 	NewConfig *cfg.Config
 
@@ -190,7 +187,6 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		dirTypeCacheTTL:            serverCfg.DirTypeCacheTTL,
 		kernelListCacheTTL:         cfg.ListCacheTTLSecsToDuration(serverCfg.NewConfig.FileSystem.KernelListCacheTtlSecs),
 		renameDirLimit:             serverCfg.RenameDirLimit,
-		sequentialReadSizeMb:       serverCfg.SequentialReadSizeMb,
 		uid:                        serverCfg.Uid,
 		gid:                        serverCfg.Gid,
 		fileMode:                   serverCfg.FilePerms,
@@ -273,7 +269,7 @@ func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.Cac
 		return nil, fmt.Errorf("createFileCacheHandler: while creating file cache directory: %w", cacheDirErr)
 	}
 
-	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir, serverCfg.SequentialReadSizeMb, &serverCfg.NewConfig.FileCache, serverCfg.MetricHandle)
+	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir, int32(serverCfg.NewConfig.GcsConnection.SequentialReadSizeMb), &serverCfg.NewConfig.FileCache, serverCfg.MetricHandle)
 	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager, cacheDir, filePerm, dirPerm, serverCfg.NewConfig.FileCache.ExcludeRegex, serverCfg.NewConfig.FileCache.IncludeRegex)
 	return
 }
@@ -379,8 +375,7 @@ type fileSystem struct {
 	// of next list call) from user, asks the kernel to evict the old cache entries.
 	kernelListCacheTTL time.Duration
 
-	renameDirLimit       int64
-	sequentialReadSizeMb int32
+	renameDirLimit int64
 
 	// The user and group owning everything in the file system.
 	uid uint32
@@ -2859,9 +2854,9 @@ func (fs *fileSystem) ReadFile(
 	// Serve the read.
 
 	if fs.newConfig.EnableNewReader {
-		op.Dst, op.BytesRead, err = fh.ReadWithReadManager(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
+		op.Dst, op.BytesRead, err = fh.ReadWithReadManager(ctx, op.Dst, op.Offset)
 	} else {
-		op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
+		op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset)
 	}
 
 	// A FileClobberedError indicates the underlying GCS object has changed,

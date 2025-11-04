@@ -118,7 +118,6 @@ be interacting with the file system.`)
 		FilePerms:                  os.FileMode(newConfig.FileSystem.FileMode),
 		DirPerms:                   os.FileMode(newConfig.FileSystem.DirMode),
 		RenameDirLimit:             newConfig.FileSystem.RenameDirLimit,
-		SequentialReadSizeMb:       int32(newConfig.GcsConnection.SequentialReadSizeMb),
 		EnableNonexistentTypeCache: newConfig.MetadataCache.EnableNonexistentTypeCache,
 		NewConfig:                  newConfig,
 		MetricHandle:               metricHandle,

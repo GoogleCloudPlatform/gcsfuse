@@ -73,6 +73,9 @@ func createTestFileSystemWithMetrics(ctx context.Context, t *testing.T, params *
 				BlockSizeMb:        1,
 				MaxBlocksPerHandle: 10,
 			},
+			GcsConnection: cfg.GcsConnectionConfig{
+				SequentialReadSizeMb: 200,
+			},
 			EnableNewReader: params.enableNewReader,
 		},
 		MetricHandle: mh,
@@ -83,7 +86,6 @@ func createTestFileSystemWithMetrics(ctx context.Context, t *testing.T, params *
 				bucketName: bucket,
 			},
 		},
-		SequentialReadSizeMb: 200,
 	}
 	server, err := fs.NewFileSystem(ctx, serverCfg)
 	require.NoError(t, err, "NewFileSystem")

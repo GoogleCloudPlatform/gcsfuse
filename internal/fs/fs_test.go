@@ -159,7 +159,6 @@ func (t *fsTest) SetUpTestSuite() {
 	if t.serverCfg.RenameDirLimit == 0 {
 		t.serverCfg.RenameDirLimit = RenameDirLimit
 	}
-	t.serverCfg.SequentialReadSizeMb = SequentialReadSizeMb
 
 	if t.serverCfg.NewConfig == nil {
 		t.serverCfg.NewConfig = &cfg.Config{
@@ -169,6 +168,9 @@ func (t *fsTest) SetUpTestSuite() {
 				StatCacheMaxSizeMb: 33,
 				TtlSecs:            60,
 				TypeCacheMaxSizeMb: 4,
+			},
+			GcsConnection: cfg.GcsConnectionConfig{
+				SequentialReadSizeMb: SequentialReadSizeMb,
 			},
 			FileSystem: cfg.FileSystemConfig{
 				PreconditionErrors: false,

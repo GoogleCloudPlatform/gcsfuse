@@ -161,7 +161,7 @@ func (fh *FileHandle) unlockHandleAndInode(rLock bool) {
 //
 // LOCKS_REQUIRED(fh.inode.mu)
 // UNLOCK_FUNCTION(fh.inode.mu)
-func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offset int64, sequentialReadSizeMb int32) ([]byte, int, error) {
+func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offset int64) ([]byte, int, error) {
 	// If content cache enabled, CacheEnsureContent forces the file handler to fall through to the inode
 	// and fh.inode.SourceGenerationIsAuthoritative() will return false
 	if err := fh.inode.CacheEnsureContent(ctx); err != nil {
@@ -194,7 +194,7 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 		fh.destroyReadManager()
 		// Create a new read manager for the current inode state.
 		fh.readManager = read_manager.NewReadManager(minObj, bucket, &read_manager.ReadManagerConfig{
-			SequentialReadSizeMB:  sequentialReadSizeMb,
+			SequentialReadSizeMB:  int32(fh.config.GcsConnection.SequentialReadSizeMb),
 			FileCacheHandler:      fh.fileCacheHandler,
 			CacheFileForRangeRead: fh.cacheFileForRangeRead,
 			MetricHandle:          fh.metricHandle,
@@ -241,7 +241,7 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 //
 // LOCKS_REQUIRED(fh.inode.mu)
 // UNLOCK_FUNCTION(fh.inode.mu)
-func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequentialReadSizeMb int32) (output []byte, n int, err error) {
+func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64) (output []byte, n int, err error) {
 	// If content cache enabled, CacheEnsureContent forces the file handler to fall through to the inode
 	// and fh.inode.SourceGenerationIsAuthoritative() will return false
 	err = fh.inode.CacheEnsureContent(ctx)
@@ -273,7 +273,7 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 
 		fh.destroyReader()
 		// Attempt to create an appropriate reader.
-		fh.reader = gcsx.NewRandomReader(minObj, bucket, sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, mrdWrapper, fh.config)
+		fh.reader = gcsx.NewRandomReader(minObj, bucket, int32(fh.config.GcsConnection.SequentialReadSizeMb), fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, mrdWrapper, fh.config)
 
 		// Release RWLock and take RLock on file handle again
 		fh.mu.Unlock()

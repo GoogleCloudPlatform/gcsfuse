@@ -293,7 +293,7 @@ func (t *fileTest) Test_Read_Success() {
 	buf := make([]byte, len(expectedData))
 	fh.inode.Lock()
 
-	output, n, err := fh.Read(t.ctx, buf, 0, 200)
+	output, n, err := fh.Read(t.ctx, buf, 0)
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), len(expectedData), n)
@@ -309,7 +309,7 @@ func (t *fileTest) Test_ReadWithReadManager_Success() {
 	buf := make([]byte, len(expectedData))
 	fh.inode.Lock()
 
-	output, n, err := fh.ReadWithReadManager(t.ctx, buf, 0, 200)
+	output, n, err := fh.ReadWithReadManager(t.ctx, buf, 0)
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), len(expectedData), n)
@@ -348,7 +348,7 @@ func (t *fileTest) Test_ReadWithReadManager_Concurrent() {
 
 			fh.inode.Lock() // Lock required by ReadWithReadManager
 			// The method is responsible for unlocking.
-			_, n, err := fh.ReadWithReadManager(t.ctx, dst, int64(offset), 200)
+			_, n, err := fh.ReadWithReadManager(t.ctx, dst, int64(offset))
 
 			// Assertions
 			assert.NoError(t.T(), err)
@@ -404,7 +404,7 @@ func (t *fileTest) Test_Read_Concurrent() {
 
 			fh.inode.Lock() // Lock required by ReadWithReadManager
 			// The method is responsible for unlocking.
-			_, n, err := fh.Read(t.ctx, dst, int64(offset), 200)
+			_, n, err := fh.Read(t.ctx, dst, int64(offset))
 
 			// Assertions
 			assert.NoError(t.T(), err)
@@ -456,7 +456,7 @@ func (t *fileTest) Test_ReadWithReadManager_ErrorScenarios() {
 			mockRM.On("Object").Return(&object)
 			fh.readManager = mockRM
 
-			output, n, err := fh.ReadWithReadManager(t.ctx, dst, 0, 200)
+			output, n, err := fh.ReadWithReadManager(t.ctx, dst, 0)
 
 			assert.Zero(t.T(), n, "expected 0 bytes read")
 			assert.Nil(t.T(), output, "expected output to be nil")
@@ -494,7 +494,7 @@ func (t *fileTest) Test_Read_ErrorScenarios() {
 			mockReader.On("Object").Return(&object)
 			fh.reader = mockReader
 
-			output, n, err := fh.Read(t.ctx, dst, 0, 200)
+			output, n, err := fh.Read(t.ctx, dst, 0)
 
 			assert.Zero(t.T(), n, "expected 0 bytes read")
 			assert.Nil(t.T(), output, "expected output to be nil")
@@ -517,7 +517,7 @@ func (t *fileTest) Test_ReadWithReadManager_FallbackToInode() {
 	mockRM := new(read_manager.MockReadManager)
 	fh.readManager = mockRM
 
-	output, n, err := fh.ReadWithReadManager(t.ctx, dst, 0, 200)
+	output, n, err := fh.ReadWithReadManager(t.ctx, dst, 0)
 
 	assert.Equal(t.T(), io.EOF, err)
 	assert.Equal(t.T(), len(objectData), n)
@@ -538,7 +538,7 @@ func (t *fileTest) Test_Read_FallbackToInode() {
 	mockR := new(gcsx.MockRandomReader)
 	fh.reader = mockR
 
-	output, n, err := fh.Read(t.ctx, dst, 0, 200)
+	output, n, err := fh.Read(t.ctx, dst, 0)
 
 	assert.Equal(t.T(), io.EOF, err)
 	assert.Equal(t.T(), len(objectData), n)
@@ -558,7 +558,7 @@ func (t *fileTest) Test_ReadWithReadManager_ReadManagerInvalidatedByGenerationCh
 
 	// First read, to create a readManager.
 	fh.inode.Lock()
-	_, _, err := fh.ReadWithReadManager(t.ctx, make([]byte, len(content1)), 0, 200)
+	_, _, err := fh.ReadWithReadManager(t.ctx, make([]byte, len(content1)), 0)
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), fh.readManager)
 	oldReadManager := fh.readManager
@@ -577,7 +577,7 @@ func (t *fileTest) Test_ReadWithReadManager_ReadManagerInvalidatedByGenerationCh
 	// The next ReadWithReadManager call should detect this, destroy the old one,
 	// create a new one, and read the new content.
 	fh.inode.Lock()
-	output, n, err := fh.ReadWithReadManager(t.ctx, dst, 0, 200)
+	output, n, err := fh.ReadWithReadManager(t.ctx, dst, 0)
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), fh.readManager)
@@ -598,7 +598,7 @@ func (t *fileTest) Test_Read_ReaderInvalidatedByGenerationChange() {
 
 	// First read, to create a reader.
 	fh.inode.Lock()
-	_, _, err := fh.Read(t.ctx, make([]byte, len(content1)), 0, 200)
+	_, _, err := fh.Read(t.ctx, make([]byte, len(content1)), 0)
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), fh.reader)
 	oldReader := fh.reader
@@ -617,7 +617,7 @@ func (t *fileTest) Test_Read_ReaderInvalidatedByGenerationChange() {
 	// The next Read call should detect this, destroy the old one,
 	// create a new one, and read the new content.
 	fh.inode.Lock()
-	output, n, err := fh.Read(t.ctx, dst, 0, 200)
+	output, n, err := fh.Read(t.ctx, dst, 0)
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), fh.reader)
@@ -943,7 +943,7 @@ func (t *fileTest) Test_ReadWithReadManager_FullReadSuccessWithBufferedRead() {
 	buf := make([]byte, fileSize)
 
 	// ReadWithReadManager will unlock the inode.
-	output, n, err := fh.ReadWithReadManager(context.Background(), buf, 0, 200)
+	output, n, err := fh.ReadWithReadManager(context.Background(), buf, 0)
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), fileSize, n)
@@ -987,7 +987,7 @@ func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() 
 			fh.inode.Lock()
 
 			// Each goroutine use same file handle.
-			output, n, err := fh.ReadWithReadManager(context.Background(), readBuf, offset, int32(readSize))
+			output, n, err := fh.ReadWithReadManager(context.Background(), readBuf, offset)
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), readSize, n)
@@ -1031,17 +1031,17 @@ func (t *fileTest) Test_ReadWithReadManager_WorkloadInsightVisual() {
 
 	// Perform multiple reads and destroy the file-handle.
 	fh.inode.Lock()
-	data1, n1, err := fh.ReadWithReadManager(t.ctx, make([]byte, MiB), MiB, 200)
+	data1, n1, err := fh.ReadWithReadManager(t.ctx, make([]byte, MiB), MiB)
 	require.NoError(t.T(), err)
 	require.Equal(t.T(), MiB, n1)
 	require.Equal(t.T(), content[MiB:2*MiB], data1)
 	fh.inode.Lock()
-	data2, n2, err := fh.ReadWithReadManager(t.ctx, make([]byte, MiB), 0, 200)
+	data2, n2, err := fh.ReadWithReadManager(t.ctx, make([]byte, MiB), 0)
 	require.NoError(t.T(), err)
 	require.Equal(t.T(), MiB, n2)
 	require.Equal(t.T(), content[0:MiB], data2)
 	fh.inode.Lock()
-	data3, n3, err := fh.ReadWithReadManager(t.ctx, make([]byte, MiB), 2*MiB, 200)
+	data3, n3, err := fh.ReadWithReadManager(t.ctx, make([]byte, MiB), 2*MiB)
 	require.NoError(t.T(), err)
 	require.Equal(t.T(), MiB, n3)
 	require.Equal(t.T(), content[2*MiB:3*MiB], data3)
