@@ -2196,8 +2196,6 @@ func (fs *fileSystem) RmDir(
 			if err != nil {
 				return fmt.Errorf("RmDir: failed to delete unsupported objects: %w", err)
 			}
-			// After deleting, we need to re-check for emptiness.
-			continue
 		}
 
 		if fs.kernelListCacheTTL > 0 {

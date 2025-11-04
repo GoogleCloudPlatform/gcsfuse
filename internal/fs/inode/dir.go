@@ -1045,17 +1045,20 @@ func (d *dirInode) DeleteObjects(ctx context.Context, objectNames []string) erro
 			if err := d.deletePrefixRecursively(ctx, objectName); err != nil {
 				return fmt.Errorf("recursively deleting prefix %q: %w", objectName, err)
 			}
-		} else {
-			// Handle single file-like object deletion.
-			if err := d.deleteObject(ctx, objectName); err != nil {
-				return fmt.Errorf("deleting unsupported object %q: %w", objectName, err)
-			}
+		}
+		// Handle single file-like object deletion.
+		if err := d.deleteObject(ctx, objectName); err != nil {
+			return fmt.Errorf("deleting unsupported object %q: %w", objectName, err)
 		}
 	}
 	return nil
 }
 
 // Helper to delete a single object, handling 'Not Found' errors gracefully.
+// This is important for idempotency. For example, in a recursive delete, we
+// list objects and then delete them. If an object is deleted by another process
+// between our List and Delete calls, we'd get a 'Not Found' error. By ignoring
+// it, we ensure the delete operation succeeds if the object is already gone.
 func (d *dirInode) deleteObject(ctx context.Context, objectName string) error {
 	if d.isBucketHierarchical() && strings.HasSuffix(objectName, "/") {
 		if err := d.bucket.DeleteFolder(ctx, objectName); err != nil {
