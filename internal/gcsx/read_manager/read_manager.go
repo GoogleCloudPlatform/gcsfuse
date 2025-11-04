@@ -40,6 +40,9 @@ type ReadManager struct {
 	// readers holds a list of data readers, prioritized for reading.
 	// e.g., File cache reader, GCS reader.
 	readers []gcsx.Reader
+
+	// sharedReadState holds shared state across all readers for this file handle
+	sharedReadState *gcsx.SharedReadState
 }
 
 // ReadManagerConfig holds the configuration parameters for creating a new ReadManager.
@@ -52,6 +55,8 @@ type ReadManagerConfig struct {
 	Config                *cfg.Config
 	GlobalMaxBlocksSem    *semaphore.Weighted
 	WorkerPool            workerpool.WorkerPool
+	// SharedReadState is optional - if nil, a new one will be created
+	SharedReadState *gcsx.SharedReadState
 }
 
 // NewReadManager creates a new ReadManager for the given GCS object,
@@ -60,6 +65,12 @@ type ReadManagerConfig struct {
 func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManagerConfig) *ReadManager {
 	// Create a slice to hold all readers. The file cache reader will be added first if it exists.
 	var readers []gcsx.Reader
+
+	// Create or use provided shared read state - this is now managed at read manager level
+	sharedReadState := config.SharedReadState
+	if sharedReadState == nil {
+		sharedReadState = gcsx.NewSharedReadState()
+	}
 
 	// If a file cache handler is provided, initialize the file cache reader and add it to the readers slice first.
 	if config.FileCacheHandler != nil {
@@ -82,6 +93,7 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 			InitialPrefetchBlockCnt: readConfig.StartBlocksPerHandle,
 			MinBlocksPerHandle:      readConfig.MinBlocksPerHandle,
 			RandomSeekThreshold:     readConfig.RandomSeekThreshold,
+			SharedReadState:         sharedReadState,
 		}
 		bufferedReader, err := bufferedread.NewBufferedReader(
 			object,
@@ -113,8 +125,9 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 	readers = append(readers, gcsReader)
 
 	return &ReadManager{
-		object:  object,
-		readers: readers, // Readers are prioritized: file cache first, then GCS.
+		object:          object,
+		readers:         readers, // Readers are prioritized: file cache first, then GCS.
+		sharedReadState: sharedReadState,
 	}
 }
 
@@ -146,6 +159,10 @@ func (rr *ReadManager) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx
 	for _, r := range rr.readers {
 		readerResponse, err = r.ReadAt(ctx, p, offset)
 		if err == nil {
+			// Record the successful read operation in shared state
+			if rr.sharedReadState != nil && readerResponse.Size > 0 {
+				rr.sharedReadState.RecordRead(offset, int64(readerResponse.Size))
+			}
 			return readerResponse, nil
 		}
 		if !errors.Is(err, gcsx.FallbackToAnotherReader) {
@@ -164,4 +181,9 @@ func (rr *ReadManager) Destroy() {
 	for _, r := range rr.readers {
 		r.Destroy()
 	}
+}
+
+// GetSharedReadState returns the shared read state for this read manager
+func (rr *ReadManager) GetSharedReadState() *gcsx.SharedReadState {
+	return rr.sharedReadState
 }
