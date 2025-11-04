@@ -79,12 +79,12 @@ func (vrm *VisualReadManager) Destroy() {
 		return
 	}
 	if vrm.outputFilePath == "" {
-		fmt.Println(output)
+		fmt.Print(output)
 		return
 	}
 
 	if err := appendToFile(vrm.outputFilePath, output); err != nil {
-		fmt.Println(output)
+		fmt.Print(output)
 		logger.Warnf("Failed to append to output file: %v", err)
 		return
 	}

@@ -104,6 +104,7 @@ func (r *Renderer) Render(name string, size uint64, ranges []Range) (string, err
 			sb.WriteByte('\n')
 		}
 	}
+	sb.WriteByte('\n')
 	return sb.String(), nil
 }
 
