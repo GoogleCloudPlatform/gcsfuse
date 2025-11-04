@@ -2,7 +2,7 @@
 
 CONFIG_FILE="test_config.yaml"
 # UPDATED: Using 'interrupt' to match the package in the latest execution trace.
-PACKAGE_NAME="read_cache"
+PACKAGE_NAME="log_rotation"
 GO_TEST_DIR="./${PACKAGE_NAME}/..."
 
 # --- 1. Robustness Checks ---

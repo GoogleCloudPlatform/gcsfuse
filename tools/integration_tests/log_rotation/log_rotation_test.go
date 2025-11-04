@@ -52,14 +52,12 @@ var (
 func setupLogFileDir(testName string) {
 	var logFilePath string
 	logFilePath = path.Join(setup.TestDir(), GKETempDir, testName) + ".log"
-	//fmt.Println(cfg.GKEMountedDirectory)
 	if cfg.GKEMountedDirectory != "" { // GKE path
 		mountDir = cfg.GKEMountedDirectory
 		logFilePath = path.Join(GKETempDir, testName) + ".log"
-		// fmt.Println("Log file setup path in function0:", logFilePath)
 		if setup.ConfigFile() == "" {
 			// TODO: clean this up when GKE test migration completes.
-			logFilePath = "/tmp/gcsfuse_log_rotation_test/log.json"
+			logFilePath = "/gcsfuse-tmp/LogRotationTest.log"
 		}
 	}
 	cfg.LogFile = logFilePath
@@ -100,7 +98,7 @@ func TestMain(m *testing.M) {
 	}()
 
 	setupLogFileDir(testDirName)
-
+	fmt.Println("Logfile path!!!@@@", setup.LogFile())
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	if cfg.GKEMountedDirectory != "" && cfg.TestBucket != "" {
 		os.Exit(setup.RunTestsForMountedDirectory(cfg.GKEMountedDirectory, m))
@@ -108,19 +106,18 @@ func TestMain(m *testing.M) {
 
 	// 4. Build the flag sets dynamically from the config.
 	setup.SetUpTestDirForTestBucket(cfg)
-	// Override GKE specific paths with GCSFuse paths if running in GCE environment.
-	// Create the temporary directory for log rotation logs.
+
+	// 5. Create the temporary directory for log rotation logs for GCE environment.
 	if err := os.MkdirAll(path.Join(setup.TestDir(), GKETempDir), 0755); err != nil {
 		log.Fatalf("Failed to create log directory: %v", err)
 	}
-	fmt.Println("Log DIRECTORY CREATED: ", path.Join(setup.TestDir(), GKETempDir))
+
+	// 6. Override GKE specific paths with GCSFuse paths if running in GCE environment.
 	overrideFilePathsInFlagSet(cfg, setup.TestDir())
 
 	flags := setup.BuildFlagSets(*cfg, bucketType)
-
 	setupLogFileDir(testDirName)
 
-	fmt.Println("Logfile path!!!", setup.LogFile())
 	successCode := static_mounting.RunTestsWithConfigFile(cfg, flags, m)
 
 	// Clean up test directory created.
@@ -132,9 +129,7 @@ func overrideFilePathsInFlagSet(t *test_suite.TestConfig, GCSFuseTempDirPath str
 	for _, flags := range t.Configs {
 		for i := range flags.Flags {
 			// Iterate over the indices of the flags slice
-			fmt.Println(flags.Flags[i])
 			flags.Flags[i] = strings.ReplaceAll(flags.Flags[i], "/gcsfuse-tmp", path.Join(GCSFuseTempDirPath, "gcsfuse-tmp"))
-			fmt.Println(flags.Flags[i])
 		}
 	}
 }
