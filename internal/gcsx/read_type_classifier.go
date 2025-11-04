@@ -151,6 +151,8 @@ func (rtc *ReadTypeClassifier) GetReadInfo(offset int64, seekRecorded bool) Read
 // If the read pattern is classified as random, it calculates an appropriate
 // read size based on the average read size per seek, bounded by min and max read sizes.
 // If the read pattern is sequential, it returns the configured sequential read size.
+// Note: The returned prefetch window size is not limited by the object size, caller should
+// handle that separately.
 func (rtc *ReadTypeClassifier) ComputeSeqPrefetchWindowAndAdjustType() int64 {
 	if seeks := rtc.seeks.Load(); seeks >= minSeeksForRandom {
 		averageReadBytes := avgReadBytes(rtc.totalReadBytes.Load(), seeks)
