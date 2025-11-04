@@ -50,11 +50,6 @@ var (
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	// Set up log file path.
-	logDirPath = path.Join(setup.TestDir(), testDirName)
-	logFilePath = path.Join(logDirPath, logFileName)
-	setup.SetLogFile(logFilePath)
-
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.LogRotation) == 0 {
@@ -71,6 +66,11 @@ func TestMain(m *testing.M) {
 		}
 		cfg.LogRotation[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
+
+	// Set up log file path.
+	logDirPath = path.Join(setup.TestDir(), testDirName)
+	logFilePath = path.Join(logDirPath, logFileName)
+	cfg.LogRotation[0].LogFile = logFilePath // This should be set for the test suite.
 
 	ctx = context.Background()
 	bucketType := setup.TestEnvironment(ctx, &cfg.LogRotation[0])
@@ -89,14 +89,9 @@ func TestMain(m *testing.M) {
 		os.Exit(setup.RunTestsForMountedDirectory(cfg.LogRotation[0].GKEMountedDirectory, m))
 	}
 
-	// Set up log file path.
-	logDirPath = path.Join(setup.TestDir(), testDirName)
-	logFilePath = path.Join(logDirPath, logFileName)
-	setup.SetLogFile(logFilePath)
-
 	// Run tests for testBucket
 	// 4. Build the flag sets dynamically from the config.
-	flags := setup.BuildFlagSets(cfg.LogRotation[0], bucketType, "")
+	flags := setup.BuildFlagSets(cfg.LogRotation[0], bucketType)
 	setup.SetUpTestDirForTestBucket(&cfg.LogRotation[0])
 
 	successCode := static_mounting.RunTestsWithConfigFile(&cfg.LogRotation[0], flags, m)
