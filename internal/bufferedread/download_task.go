@@ -45,27 +45,6 @@ type downloadTask struct {
 	readHandle []byte
 }
 
-// downloadTaskOptions holds the dependencies for a DownloadTask.
-type downloadTaskOptions struct {
-	ctx          context.Context
-	object       *gcs.MinObject
-	bucket       gcs.Bucket
-	block        block.PrefetchBlock
-	readHandle   []byte
-	metricHandle metrics.MetricHandle
-}
-
-func newDownloadTask(opts *downloadTaskOptions) *downloadTask {
-	return &downloadTask{
-		ctx:          opts.ctx,
-		object:       opts.object,
-		bucket:       opts.bucket,
-		block:        opts.block,
-		readHandle:   opts.readHandle,
-		metricHandle: opts.metricHandle,
-	}
-}
-
 // Execute implements the workerpool.Task interface. It downloads the data from
 // the GCS object to the block.
 // After completion, it notifies the block consumer about the status of the

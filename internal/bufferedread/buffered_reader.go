@@ -465,14 +465,14 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockInde
 	}
 
 	ctx, cancel := context.WithCancel(p.ctx)
-	task := newDownloadTask(&downloadTaskOptions{
+	task := &downloadTask{
 		ctx:          ctx,
 		object:       p.object,
 		bucket:       p.bucket,
 		block:        b,
 		readHandle:   p.readHandle,
 		metricHandle: p.metricHandle,
-	})
+	}
 
 	logger.Tracef("Scheduling block: (%s, %d, %t).", p.object.Name, blockIndex, urgent)
 	p.blockQueue.Push(&blockQueueEntry{
