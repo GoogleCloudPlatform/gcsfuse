@@ -2854,11 +2854,9 @@ func (fs *fileSystem) ReadFile(
 	} else {
 		readerResponse, err = fh.Read(ctx, op.Dst, op.Offset)
 	}
-	if readerResponse.DataBuf != nil {
-		op.BytesRead = readerResponse.Size
-		op.Dst = readerResponse.DataBuf
-		op.Callback = readerResponse.Done
-	}
+	op.BytesRead = readerResponse.Size
+	op.Data = readerResponse.Data
+	op.Callback = readerResponse.Done
 
 	// A FileClobberedError indicates the underlying GCS object has changed,
 	// making the kernel's dentry for this file stale. We use the notifier to

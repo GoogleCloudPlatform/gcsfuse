@@ -57,6 +57,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
+replace github.com/jacobsa/fuse => /home/vipinydv_google_com/fuse
+
 require (
 	cel.dev/expr v0.24.0 // indirect
 	cloud.google.com/go v0.121.6 // indirect

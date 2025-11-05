@@ -38,7 +38,7 @@ type patternDetectorCheck struct {
 }
 
 // isRandomSeek checks if a read at a given offset constitutes a random seek
-// based on the state of the prefetch queue and retired blocks cache.
+// based on the state of the prefetch queue.
 func (d *readPatternDetector) isRandomSeek(check *patternDetectorCheck) bool {
 	if check.Offset == 0 {
 		return false

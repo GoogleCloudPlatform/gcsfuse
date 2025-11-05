@@ -154,34 +154,6 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 	return reader, nil
 }
 
-// tryZeroCopyRead attempts to perform a zero-copy read from the given block.
-// It returns the reader response and a boolean indicating success. A successful
-// zero-copy read means the entire requested data was returned as a slice of the
-// block's buffer, which is returned as part of a ReaderResponse struct.
-func (p *BufferedReader) tryZeroCopyRead(entry *blockQueueEntry, off int64, inputBuf []byte) (gcsx.ReaderResponse, bool) {
-	resp := gcsx.ReaderResponse{}
-	blk := entry.block
-	relOff := off - blk.AbsStartOff()
-
-	// Check if the entire read can be satisfied by this single block.
-	if relOff >= 0 && relOff+int64(len(inputBuf)) <= int64(blk.Size()) {
-		slice, sliceErr := blk.ReadAtSlice(len(inputBuf), relOff)
-		if sliceErr == nil {
-			// For zero-copy reads, we must ensure the block is not released until the
-			// kernel is done with the buffer. We increment its reference count here,
-			// and the Done function will decrement it later.
-			p.zeroCopyWg.Add(1)
-			blk.IncrementRef()
-			resp.DataBuf = slice
-			resp.Size = len(slice)
-			resp.Done = func() { p.handleZeroCopyDone(entry) }
-			return resp, true
-		}
-		logger.Warnf("BufferedReader.ReadAt: ReadAtSlice failed, falling back to copy: %v", sliceErr)
-	}
-	return resp, false
-}
-
 // handleZeroCopyDone is called when the kernel is finished with a zero-copy buffer.
 // It decrements the block's reference count and releases it back to the pool if
 // the count drops to zero and it was previously marked for eviction.
@@ -201,8 +173,8 @@ func (p *BufferedReader) handleZeroCopyDone(entry *blockQueueEntry) {
 
 // prepareQueueForOffset discards blocks from the head of the prefetch queue
 // that are no longer needed because the current read offset has moved past them.
-// Discarded blocks are moved to the retiredBlocks cache, allowing them to be
-// reused by other concurrent or slightly out-of-order reads without being
+// Discarded blocks are released, allowing them to be
+// reused by other reads without being
 // re-downloaded.
 // LOCKS_REQUIRED(p.mu)
 func (p *BufferedReader) prepareQueueForOffset(offset int64) {
@@ -292,6 +264,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		p.prepareQueueForOffset(-1) // Discard all blocks.
 	}
 
+	var data [][]byte
 	for bytesRead < len(inputBuf) {
 		p.prepareQueueForOffset(off)
 
@@ -334,19 +307,9 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 			break
 		}
 
-		// On the first iteration, check if the read can be satisfied from a single
-		// block without copying.
-		// A zero-copy read is only possible if the entire request can be fulfilled
-		// by the current block's buffer.
-		if bytesRead == 0 && len(inputBuf) <= int(blk.Size()) {
-			zeroCopyResp, zeroCopySuccess := p.tryZeroCopyRead(entry, off, inputBuf)
-			if zeroCopySuccess {
-				return zeroCopyResp, nil
-			}
-		}
-
 		relOff := off - blk.AbsStartOff()
-		n, readErr := blk.ReadAt(inputBuf[bytesRead:], relOff)
+		bytesToRead := len(inputBuf) - bytesRead
+		slice, n, readErr := blk.ReadAtSlice(bytesToRead, relOff)
 		bytesRead += n
 		off += int64(n)
 
@@ -355,7 +318,15 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 			break
 		}
 
-		if off >= int64(p.object.Size) {
+		if n > 0 {
+			data = append(data, slice)
+			p.zeroCopyWg.Add(1)
+			blk.IncrementRef()
+			resp.Done = func() { p.handleZeroCopyDone(entry) }
+		}
+
+		// The read is complete if the buffer is full or we have reached the end of the object.
+		if bytesRead >= len(inputBuf) || off >= int64(p.object.Size) {
 			break
 		}
 
@@ -367,6 +338,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 	}
 
 	resp.Size = bytesRead
+	resp.Data = data
 	return resp, err
 }
 

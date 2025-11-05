@@ -280,8 +280,6 @@ type ReadConfig struct {
 
 	RandomSeekThreshold int64 `yaml:"random-seek-threshold"`
 
-	RetiredBlocksPerHandle int64 `yaml:"retired-blocks-per-handle"`
-
 	StartBlocksPerHandle int64 `yaml:"start-blocks-per-handle"`
 }
 
@@ -686,12 +684,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.IntP("read-random-seek-threshold", "", 3, "Specifies the random seek threshold to switch to another reader when random reads are detected.")
 
 	if err := flagSet.MarkHidden("read-random-seek-threshold"); err != nil {
-		return err
-	}
-
-	flagSet.IntP("read-retired-blocks-per-handle", "", 2, "Specifies the number of retired blocks to be kept for a single file handle for buffered reads.")
-
-	if err := flagSet.MarkHidden("read-retired-blocks-per-handle"); err != nil {
 		return err
 	}
 
@@ -1145,10 +1137,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("read.random-seek-threshold", flagSet.Lookup("read-random-seek-threshold")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("read.retired-blocks-per-handle", flagSet.Lookup("read-retired-blocks-per-handle")); err != nil {
 		return err
 	}
 

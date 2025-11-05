@@ -47,6 +47,9 @@ type ReaderResponse struct {
 	// DataBuf contains the bytes read from the object.
 	DataBuf []byte
 
+	// Data contains the slices of bytes read from the object for zero-copy reads.
+	Data [][]byte
+
 	// Size indicates how many bytes were read into DataBuf.
 	Size int
 

@@ -49,7 +49,7 @@ type PrefetchBlock interface {
 	// ReadAtSlice returns a slice of the block's buffer if the read can be
 	// satisfied. It avoids a copy. The returned slice should not be modified.
 	// Here, off is relative to the start of the block.
-	ReadAtSlice(size int, off int64) (p []byte, err error)
+	ReadAtSlice(size int, off int64) (p []byte, n int, err error)
 
 	// AbsStartOff returns the absolute start offset of the block.
 	// Panics if the absolute start offset is not set.
@@ -80,7 +80,7 @@ type PrefetchBlock interface {
 	// RefCount returns the current reference count of the block.
 	RefCount() int32
 
-	// WasEvicted returns true if the block was evicted from the retired cache.
+	// WasEvicted returns true if the block was marked for eviction.
 	WasEvicted() bool
 
 	// SetWasEvicted sets the wasEvicted flag.
@@ -102,7 +102,7 @@ type prefetchMemoryBlock struct {
 	// refCount tracks the number of active references to the block.
 	refCount atomic.Int32
 
-	// wasEvicted is true if the block was evicted from the retired cache.
+	// wasEvicted is true if the block was marked for eviction.
 	wasEvicted atomic.Bool
 }
 
@@ -158,20 +158,21 @@ func (pmb *prefetchMemoryBlock) ReadAt(p []byte, off int64) (n int, err error) {
 // ReadAtSlice returns a slice of the underlying buffer.
 // The offset is relative to the start of the block.
 // It returns the slice and an error if any.
-func (pmb *prefetchMemoryBlock) ReadAtSlice(size int, off int64) (p []byte, err error) {
-	if off < 0 || off >= pmb.Size() {
-		return nil, fmt.Errorf("prefetchMemoryBlock.ReadAtSlice: offset %d is out of bounds for block size %d", off, pmb.Size())
+func (pmb *prefetchMemoryBlock) ReadAtSlice(size int, off int64) ([]byte, int, error) {
+	if off < 0 || (off > 0 && off >= pmb.Size()) {
+		return nil, 0, fmt.Errorf("prefetchMemoryBlock.ReadAtSlice: offset %d is out of bounds for block size %d", off, pmb.Size())
 	}
 
+	var err error
 	remData := pmb.Size() - off
 	if int64(size) > remData {
-		return nil, fmt.Errorf("prefetchMemoryBlock.ReadAtSlice: requested size %d is larger than remaining block size %d", size, remData)
+		size = int(remData)
+		err = io.EOF
 	}
 
 	dataStart := pmb.offset.start + off
 	dataEnd := dataStart + int64(size)
-
-	return pmb.buffer[dataStart:dataEnd], nil
+	return pmb.buffer[dataStart:dataEnd], size, err
 }
 
 func (pmb *prefetchMemoryBlock) AbsStartOff() int64 {

@@ -130,13 +130,6 @@ params:
     default: false
     hide-flag: true
 
-  - config-path: "enable-async-reads"
-    flag-name: "enable-async-reads"
-    type: "bool"
-    usage: "Enables fuse async reads."
-    default: false
-    hide-flag: true
-
   - config-path: "enable-atomic-rename-object"
     flag-name: "enable-atomic-rename-object"
     type: "bool"
