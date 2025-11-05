@@ -59,8 +59,8 @@ func (t *UnsupportedObjectsTest) createTestObjects() {
 	for _, obj := range unsupportedObjects {
 		client.CreateObjectOnGCS(ctx, storageClient, obj, "unsupported")
 	}
-	client.CreateObjectOnGCS(ctx, storageClient, path.Join(DirForUnsupportedObjectsTests, "dirWithUnsupportedObjects", "supported_file.txt"), "content")
-	client.CreateObjectOnGCS(ctx, storageClient, path.Join(DirForUnsupportedObjectsTests, "dirWithUnsupportedObjects", "supported_dir")+"/", "")
+	client.CreateObjectOnGCS(ctx, storageClient,  path.Join(DirForUnsupportedObjectsTests, "dirWithUnsupportedObjects", "supported_file.txt"), "content")
+	client.CreateObjectOnGCS(ctx, storageClient, path.Join(DirForUnsupportedObjectsTests, "dirWithUnsupportedObjects", "supported_dir") + "/", "")
 }
 
 func (t *UnsupportedObjectsTest) TestListDirWithUnsupportedObjects() {
@@ -74,38 +74,51 @@ func (t *UnsupportedObjectsTest) TestListDirWithUnsupportedObjects() {
 	assert.Equal(t.T(), "supported_file.txt", entries[1].Name())
 }
 
-func (t *UnsupportedObjectsTest) TestCopDirWithUnsupportedObjects() {
+func (t *UnsupportedObjectsTest) TestCopyDirWithUnsupportedObjects() {
+	var expectedObjectNames = []string{
+		"dirForUnsupportedObjectsTests/copiedDir/",
+		"dirForUnsupportedObjectsTests/copiedDir/supported_file.txt",
+		"dirForUnsupportedObjectsTests/copiedDir/supported_dir/",
+	}
 	// Copy the directory containing both supported and unsupported objects.
 	err := operations.CopyDir(path.Join(t.testDir, "dirWithUnsupportedObjects"), path.Join(t.testDir, "copiedDir"))
 
 	// Verify that listing succeeds and only returns supported objects.
 	require.NoError(t.T(), err)
 	// List the destination directory.
-	entries, err := os.ReadDir(path.Join(t.testDir, "copiedDir"))
+	entries, err := client.ListDirectory(ctx, storageClient, setup.TestBucket(), path.Join(DirForUnsupportedObjectsTests, "copiedDir"))
 	// Verify that only supported objects are copied.
 	require.NoError(t.T(), err)
-	assert.Len(t.T(), entries, 2)
-	assert.Equal(t.T(), "supported_dir", entries[0].Name())
-	assert.Equal(t.T(), "supported_file.txt", entries[1].Name())
+	assert.Len(t.T(), entries, 3)
+	t.Assert().ElementsMatch(expectedObjectNames, entries)
 }
 
 func (t *UnsupportedObjectsTest) TestRenameDirWithUnsupportedObjects() {
-	// Copy the directory containing both supported and unsupported objects.
+	var expectedObjectNames = []string{
+		"dirForUnsupportedObjectsTests/renamedDir/",
+		"dirForUnsupportedObjectsTests/renamedDir/.",
+		"dirForUnsupportedObjectsTests/renamedDir/..",
+		"dirForUnsupportedObjectsTests/renamedDir/supported_file.txt",
+		"dirForUnsupportedObjectsTests/renamedDir/../",
+		"dirForUnsupportedObjectsTests/renamedDir/./",
+		"dirForUnsupportedObjectsTests/renamedDir//",
+		"dirForUnsupportedObjectsTests/renamedDir/supported_dir/",
+	}
+	// Rename the directory containing both supported and unsupported objects.
 	err := operations.RenameDir(path.Join(t.testDir, "dirWithUnsupportedObjects"), path.Join(t.testDir, "renamedDir"))
 
 	// Verify that listing succeeds and only returns supported objects.
 	require.NoError(t.T(), err)
 	// List the destination directory.
-	entries, err := os.ReadDir(path.Join(t.testDir, "renamedDir"))
+	entries, err := client.ListDirectory(ctx, storageClient, setup.TestBucket(), path.Join(DirForUnsupportedObjectsTests, "renamedDir"))
 	// Verify that only supported objects are copied.
 	require.NoError(t.T(), err)
-	assert.Len(t.T(), entries, 2)
-	assert.Equal(t.T(), "supported_dir", entries[0].Name())
-	assert.Equal(t.T(), "supported_file.txt", entries[1].Name())
+	assert.Len(t.T(), entries, 8)
+	t.Assert().ElementsMatch(expectedObjectNames, entries)
 }
 
 func (t *UnsupportedObjectsTest) TestDeleteDirWithUnsupportedObjects() {
-	// Copy the directory containing both supported and unsupported objects.
+	// Remove the directory containing both supported and unsupported objects.
 	err := os.RemoveAll(path.Join(t.testDir, "dirWithUnsupportedObjects"))
 
 	// Verify that listing succeeds and only returns supported objects.

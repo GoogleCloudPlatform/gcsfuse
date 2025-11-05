@@ -615,3 +615,50 @@ func BatchUploadFilesWithoutIntermediateDelays(ctx context.Context, storageClien
 	time.Sleep(time.Second)
 	return nil
 }
+
+// ListDirectory lists objects in the specified GCS bucket under the given prefix.
+// It returns a slice of object names.
+func ListDirectory(ctx context.Context, client *storage.Client, bucketName, prefix string) ([]string, error) {
+	// objectNames to store the names of the objects and subdirectory prefixes.
+	var entries []string
+
+	// Ensure the prefix ends with a '/' for consistent directory listing behavior.
+	if prefix != "" && !strings.HasSuffix(prefix, "/") {
+		prefix += "/"
+	}
+
+	// Query to list objects under the specified prefix.
+	query := &storage.Query{
+		Prefix: prefix,
+		// Delimiter to prevent listing objects recursively and to return subdirectories as prefixes.
+		Delimiter: "/",
+	}
+
+	// Get BucketHandle to operate on the specified bucket.
+	bucket := client.Bucket(bucketName)
+
+	// Get ObjectIterator to iterate through the listed objects.
+	it := bucket.Objects(ctx, query)
+	for {
+		// Next retrieves the next object or prefix in the sequence.
+		attrs, err := it.Next()
+		if err == iterator.Done {
+			// Reached the end of the listing.
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("error iterating GCS objects: %w", err)
+		}
+
+		// Check if it's an object (file) or a common prefix (directory).
+		if attrs.Prefix != "" {
+			// This is a subdirectory prefix (e.g., "my-dir/subdir/").
+			entries = append(entries, attrs.Prefix)
+		} else {
+			// This is an object (file) (e.g., "my-dir/file.txt").
+			entries = append(entries, attrs.Name)
+		}
+	}
+	// Returns the object names and nil error on successful listing.
+	return entries, nil
+}
