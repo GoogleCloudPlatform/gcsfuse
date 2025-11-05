@@ -1,0 +1,87 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Provides integration tests when --rename-dir-limit flag is set.
+package unsupported_objects
+
+import (
+	"context"
+	"log"
+	"os"
+	"testing"
+
+	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
+)
+
+const DirForUnsupportedObjectsTests = "dirForUnsupportedObjectsTests"
+const onlyDirMounted = "OnlyDirMountUnsupportedObjects"
+
+var (
+	storageClient *storage.Client
+	ctx           context.Context
+)
+
+func TestMain(m *testing.M) {
+	setup.ParseSetUpFlags()
+
+	// 1. Load and parse the common configuration.
+	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
+	if len(cfg.UnsupportedObjects) == 0 {
+		log.Println("No configuration found for rename dir limit tests in config. Using flags instead.")
+		// Populate the config manually.
+		cfg.UnsupportedObjects = make([]test_suite.TestConfig, 1)
+		cfg.UnsupportedObjects[0].TestBucket = setup.TestBucket()
+		cfg.UnsupportedObjects[0].GKEMountedDirectory = setup.MountedDirectory()
+		cfg.UnsupportedObjects[0].Configs = make([]test_suite.ConfigItem, 2)
+		cfg.UnsupportedObjects[0].Configs[0].Flags = []string{
+			"--implicit-dirs --client-protocol=grpc --enable-unsupported-dir-support=true ",
+			"--implicit-dirs --enable-unsupported-dir-support=true",
+		}
+		cfg.UnsupportedObjects[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
+		cfg.UnsupportedObjects[0].Configs[1].Flags = []string{
+			"",
+		}
+		cfg.UnsupportedObjects[0].Configs[1].Compatible = map[string]bool{"flat": false, "hns": true, "zonal": true}
+	}
+
+	ctx = context.Background()
+	bucketType := setup.TestEnvironment(ctx, &cfg.UnsupportedObjects[0])
+
+	// 2. Create storage client before running tests.
+	var err error
+	storageClient, err = client.CreateStorageClient(ctx)
+	if err != nil {
+		log.Printf("Error creating storage client: %v\n", err)
+		os.Exit(1)
+	}
+	defer storageClient.Close()
+
+	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	if cfg.UnsupportedObjects[0].GKEMountedDirectory != "" && cfg.UnsupportedObjects[0].TestBucket != "" {
+		os.Exit(setup.RunTestsForMountedDirectory(cfg.UnsupportedObjects[0].GKEMountedDirectory, m))
+	}
+
+	// Run tests for testBucket
+	// 4. Build the flag sets dynamically from the config.
+	flags := setup.BuildFlagSets(cfg.UnsupportedObjects[0], bucketType, "")
+	setup.SetUpTestDirForTestBucket(&cfg.UnsupportedObjects[0])
+
+	successCode := static_mounting.RunTestsWithConfigFile(&cfg.UnsupportedObjects[0], flags, m)
+
+	os.Exit(successCode)
+}

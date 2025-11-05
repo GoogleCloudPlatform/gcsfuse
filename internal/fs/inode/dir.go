@@ -725,6 +725,14 @@ func (d *dirInode) readObjects(
 		if o.Name == d.Name().GcsObjectName() || o.Name == "" {
 			continue
 		}
+		if storageutil.IsUnsupportedObjectName(o.Name) {
+			unsupportedDirs = append(unsupportedDirs, o.Name)
+			// Skip unsupported objects in the listing, as the kernel cannot process these file system elements.
+			// TODO: Remove this check once we gain confidence that it is not causing any issues.
+			if d.isUnsupportedDirSupportEnabled {
+				continue
+			}
+		}
 
 		nameBase := path.Base(o.Name) // ie. "bar" from "foo/bar/" or "foo/bar"
 
