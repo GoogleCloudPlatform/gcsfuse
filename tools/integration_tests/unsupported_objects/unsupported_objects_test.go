@@ -12,76 +12,107 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Provides integration tests when --rename-dir-limit flag is set.
 package unsupported_objects
 
 import (
-	"context"
-	"log"
 	"os"
+	"path"
+	"strings"
 	"testing"
 
-	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
-const DirForUnsupportedObjectsTests = "dirForUnsupportedObjectsTests"
-const onlyDirMounted = "OnlyDirMountUnsupportedObjects"
+type UnsupportedObjectsTest struct {
+	suite.Suite
+	testDir string
+}
 
-var (
-	storageClient *storage.Client
-	ctx           context.Context
-)
+func TestUnsupportedObjectsTestSuite(t *testing.T) {
+	suite.Run(t, new(UnsupportedObjectsTest))
+}
 
-func TestMain(m *testing.M) {
-	setup.ParseSetUpFlags()
+func (t *UnsupportedObjectsTest) SetupTest() {
+	t.testDir = setup.SetupTestDirectory(DirForUnsupportedObjectsTests)
+	t.createTestObjects()
+}
 
-	// 1. Load and parse the common configuration.
-	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
-	if len(cfg.UnsupportedObjects) == 0 {
-		log.Println("No configuration found for rename dir limit tests in config. Using flags instead.")
-		// Populate the config manually.
-		cfg.UnsupportedObjects = make([]test_suite.TestConfig, 1)
-		cfg.UnsupportedObjects[0].TestBucket = setup.TestBucket()
-		cfg.UnsupportedObjects[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.UnsupportedObjects[0].Configs = make([]test_suite.ConfigItem, 2)
-		cfg.UnsupportedObjects[0].Configs[0].Flags = []string{
-			"--implicit-dirs --client-protocol=grpc --enable-unsupported-dir-support=true ",
-			"--implicit-dirs --enable-unsupported-dir-support=true",
-		}
-		cfg.UnsupportedObjects[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
-		cfg.UnsupportedObjects[0].Configs[1].Flags = []string{
-			"",
-		}
-		cfg.UnsupportedObjects[0].Configs[1].Compatible = map[string]bool{"flat": false, "hns": true, "zonal": true}
+func (t *UnsupportedObjectsTest) TearDownTest() {
+	setup.CleanUpDir(t.testDir)
+}
+
+func (t *UnsupportedObjectsTest) createTestObjects() {
+	// Create objects with supported and unsupported names.
+	unsupportedObjects := []string{
+		DirForUnsupportedObjectsTests + "/dirWithUnsupportedObjects//unsupported_file1.txt",   // Contains "//"
+		DirForUnsupportedObjectsTests + "/dirWithUnsupportedObjects/./unsupported_file2.txt",  // Contains "/./"
+		DirForUnsupportedObjectsTests + "/dirWithUnsupportedObjects/../unsupported_file3.txt", // Contains ".."
+		DirForUnsupportedObjectsTests + "/dirWithUnsupportedObjects/.",                        // Is "."
+		DirForUnsupportedObjectsTests + "/dirWithUnsupportedObjects/..",                       // Is ".."
+		DirForUnsupportedObjectsTests + "//leading_slash.txt",                                 // Starts with "/"
 	}
-
-	ctx = context.Background()
-	bucketType := setup.TestEnvironment(ctx, &cfg.UnsupportedObjects[0])
-
-	// 2. Create storage client before running tests.
-	var err error
-	storageClient, err = client.CreateStorageClient(ctx)
-	if err != nil {
-		log.Printf("Error creating storage client: %v\n", err)
-		os.Exit(1)
+	for _, obj := range unsupportedObjects {
+		client.CreateObjectOnGCS(ctx, storageClient, obj, "unsupported")
 	}
-	defer storageClient.Close()
+	client.CreateObjectOnGCS(ctx, storageClient, path.Join(DirForUnsupportedObjectsTests, "dirWithUnsupportedObjects", "supported_file.txt"), "content")
+	client.CreateObjectOnGCS(ctx, storageClient, path.Join(DirForUnsupportedObjectsTests, "dirWithUnsupportedObjects", "supported_dir")+"/", "")
+}
 
-	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
-	if cfg.UnsupportedObjects[0].GKEMountedDirectory != "" && cfg.UnsupportedObjects[0].TestBucket != "" {
-		os.Exit(setup.RunTestsForMountedDirectory(cfg.UnsupportedObjects[0].GKEMountedDirectory, m))
-	}
+func (t *UnsupportedObjectsTest) TestListDirWithUnsupportedObjects() {
+	// List the directory containing both supported and unsupported objects.
+	entries, err := os.ReadDir(path.Join(t.testDir, "dirWithUnsupportedObjects"))
 
-	// Run tests for testBucket
-	// 4. Build the flag sets dynamically from the config.
-	flags := setup.BuildFlagSets(cfg.UnsupportedObjects[0], bucketType, "")
-	setup.SetUpTestDirForTestBucket(&cfg.UnsupportedObjects[0])
+	// Verify that listing succeeds and only returns supported objects.
+	require.NoError(t.T(), err)
+	assert.Len(t.T(), entries, 2)
+	assert.Equal(t.T(), "supported_dir", entries[0].Name())
+	assert.Equal(t.T(), "supported_file.txt", entries[1].Name())
+}
 
-	successCode := static_mounting.RunTestsWithConfigFile(&cfg.UnsupportedObjects[0], flags, m)
+func (t *UnsupportedObjectsTest) TestCopDirWithUnsupportedObjects() {
+	// Copy the directory containing both supported and unsupported objects.
+	err := operations.CopyDir(path.Join(t.testDir, "dirWithUnsupportedObjects"), path.Join(t.testDir, "copiedDir"))
 
-	os.Exit(successCode)
+	// Verify that listing succeeds and only returns supported objects.
+	require.NoError(t.T(), err)
+	// List the destination directory.
+	entries, err := os.ReadDir(path.Join(t.testDir, "copiedDir"))
+	// Verify that only supported objects are copied.
+	require.NoError(t.T(), err)
+	assert.Len(t.T(), entries, 2)
+	assert.Equal(t.T(), "supported_dir", entries[0].Name())
+	assert.Equal(t.T(), "supported_file.txt", entries[1].Name())
+}
+
+func (t *UnsupportedObjectsTest) TestRenameDirWithUnsupportedObjects() {
+	// Copy the directory containing both supported and unsupported objects.
+	err := operations.RenameDir(path.Join(t.testDir, "dirWithUnsupportedObjects"), path.Join(t.testDir, "renamedDir"))
+
+	// Verify that listing succeeds and only returns supported objects.
+	require.NoError(t.T(), err)
+	// List the destination directory.
+	entries, err := os.ReadDir(path.Join(t.testDir, "renamedDir"))
+	// Verify that only supported objects are copied.
+	require.NoError(t.T(), err)
+	assert.Len(t.T(), entries, 2)
+	assert.Equal(t.T(), "supported_dir", entries[0].Name())
+	assert.Equal(t.T(), "supported_file.txt", entries[1].Name())
+}
+
+func (t *UnsupportedObjectsTest) TestDeleteDirWithUnsupportedObjects() {
+	// Copy the directory containing both supported and unsupported objects.
+	err := os.RemoveAll(path.Join(t.testDir, "dirWithUnsupportedObjects"))
+
+	// Verify that listing succeeds and only returns supported objects.
+	require.NoError(t.T(), err)
+	// List the destination directory.
+	_, err = os.Stat(path.Join(t.testDir, "dirWithUnsupportedObjects"))
+	// Verify that only supported objects are copied.
+	require.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
 }
