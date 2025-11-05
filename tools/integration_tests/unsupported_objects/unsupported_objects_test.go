@@ -57,10 +57,10 @@ func (t *UnsupportedObjectsTest) createTestObjects() {
 		DirForUnsupportedObjectsTests + "//leading_slash.txt",                                 // Starts with "/"
 	}
 	for _, obj := range unsupportedObjects {
-		client.CreateObjectOnGCS(ctx, storageClient, obj, "unsupported")
+		require.NoError(t.T(), client.CreateObjectOnGCS(ctx, storageClient, obj, "unsupported"))
 	}
-	client.CreateObjectOnGCS(ctx, storageClient,  path.Join(DirForUnsupportedObjectsTests, "dirWithUnsupportedObjects", "supported_file.txt"), "content")
-	client.CreateObjectOnGCS(ctx, storageClient, path.Join(DirForUnsupportedObjectsTests, "dirWithUnsupportedObjects", "supported_dir") + "/", "")
+	require.NoError(t.T(), client.CreateObjectOnGCS(ctx, storageClient, path.Join(DirForUnsupportedObjectsTests, "dirWithUnsupportedObjects", "supported_file.txt"), "content"))
+	require.NoError(t.T(), client.CreateObjectOnGCS(ctx, storageClient, path.Join(DirForUnsupportedObjectsTests, "dirWithUnsupportedObjects", "supported_dir")+"/", ""))
 }
 
 func (t *UnsupportedObjectsTest) TestListDirWithUnsupportedObjects() {
