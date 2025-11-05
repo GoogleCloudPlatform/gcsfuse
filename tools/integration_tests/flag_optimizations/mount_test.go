@@ -29,7 +29,7 @@ import (
 func TestMountSucceeds(t *testing.T) {
 	// Nothing to test for mounted directory, as the mount itself must have succeeded
 	// to reach this stage.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
 		return
 	}
 
@@ -49,8 +49,8 @@ func TestMountSucceeds(t *testing.T) {
 
 func TestMountFails(t *testing.T) {
 	// This test is not applicable for mounted directory testing.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		return
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		t.Fatalf("This test is not valid for mounted-directory tests.")
 	}
 
 	flagsSet := setup.BuildFlagSets(testEnv.cfg, testEnv.bucketType, t.Name())
