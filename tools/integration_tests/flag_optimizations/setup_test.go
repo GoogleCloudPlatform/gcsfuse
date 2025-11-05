@@ -172,16 +172,17 @@ func TestMain(m *testing.M) {
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
+	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		testEnv.mountDir, testEnv.rootDir = setup.MntDir(), setup.MntDir()
+		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
+	}
+
 	// Run tests for testBucket
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucket(&testEnv.cfg)
 	// Override GKE specific paths with GCSFuse paths if running in GCE environment.
 	overrideFilePathsInFlagSet(&testEnv.cfg, setup.TestDir())
-
-	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
-	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
-		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
-	}
 
 	// Save mount and root directory variables.
 	testEnv.mountDir, testEnv.rootDir = setup.MntDir(), setup.MntDir()
