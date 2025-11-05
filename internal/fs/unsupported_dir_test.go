@@ -72,6 +72,7 @@ func (t *UnsupportedObjectNameTest) TestReadDirectory_WithUnsupportedNames() {
 		"file6":                "content",
 		"//a.txt":              "",
 		"./b.txt":              "",
+		"dir6/.config":         "content",
 	})
 	t.Require().NoError(err)
 	var files []string
@@ -95,8 +96,8 @@ func (t *UnsupportedObjectNameTest) TestReadDirectory_WithUnsupportedNames() {
 
 	// ReadDir should only show the supported object.
 	t.Require().NoError(err)
-	t.Assert().ElementsMatch([]string{"dir1", "dir2", "dir3", "dir4", "dir5", "sub_dir1"}, dirs)
-	t.Assert().ElementsMatch([]string{"file2", "file4", "file6"}, files)
+	t.Assert().ElementsMatch([]string{"dir1", "dir2", "dir3", "dir4", "dir5", "dir6", "sub_dir1"}, dirs)
+	t.Assert().ElementsMatch([]string{"file2", "file4", "file6", ".config"}, files)
 }
 
 func (t *UnsupportedObjectNameTest) TestCopyDirectory_WithUnsupportedNames() {
