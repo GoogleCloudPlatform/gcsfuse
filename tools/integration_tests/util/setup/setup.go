@@ -699,6 +699,16 @@ func MountGCSFuseWithGivenMountWithConfigFunc(config *test_suite.TestConfig, fla
 	}
 }
 
+func MayMountGCSFuseWithGivenMountWithConfigFunc(config *test_suite.TestConfig, flags []string, mountFunc func(*test_suite.TestConfig, []string) error) error {
+	if config.GKEMountedDirectory == "" {
+		// Mount GCSFuse only when tests are not running on mounted directory.
+		if err := mountFunc(config, flags); err != nil {
+			return fmt.Errorf("Failed to mount GCSFuse: %w", err)
+		}
+	}
+	return nil
+}
+
 func UnmountGCSFuseAndDeleteLogFile(rootDir string) {
 	UnmountGCSFuse(rootDir)
 	// delete log file created

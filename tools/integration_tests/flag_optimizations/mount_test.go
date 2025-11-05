@@ -38,15 +38,11 @@ func TestMountSucceeds(t *testing.T) {
 	for _, flags := range flagsSet {
 		tcName := strings.ReplaceAll(strings.Join(flags, ","), "--", "")
 		t.Run(tcName, func(t *testing.T) {
-			err := testEnv.mountFunc(flags)
+			mountGCSFuseAndSetupTestDir(flags, testEnv.ctx, testEnv.storageClient)
 			defer func() {
 				setup.SaveGCSFuseLogFileInCaseOfFailure(t)
-				if err == nil {
-					setup.UnmountGCSFuseAndDeleteLogFile(testEnv.rootDir)
-				}
+				setup.UnmountGCSFuseWithConfig(&testEnv.cfg)
 			}()
-
-			assert.NoError(t, err)
 		})
 	}
 }
@@ -62,11 +58,11 @@ func TestMountFails(t *testing.T) {
 	for _, flags := range flagsSet {
 		tcName := strings.ReplaceAll(strings.Join(flags, ","), "--", "")
 		t.Run(tcName, func(t *testing.T) {
-			err := testEnv.mountFunc(flags)
+			err := mayMountGCSFuseAndSetupTestDir(flags, testEnv.ctx, testEnv.storageClient)
 			defer func() {
 				setup.SaveGCSFuseLogFileInCaseOfFailure(t)
 				if err == nil {
-					setup.UnmountGCSFuseAndDeleteLogFile(testEnv.rootDir)
+					setup.UnmountGCSFuseWithConfig(&testEnv.cfg)
 				}
 			}()
 
