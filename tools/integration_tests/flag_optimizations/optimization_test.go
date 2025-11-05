@@ -30,7 +30,7 @@ import (
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-func tearDownTest(t *testing.T) {
+func tearDownOptimizationTest(t *testing.T) {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(t)
 	setup.UnmountGCSFuseAndDeleteLogFile(testEnv.rootDir)
 }
@@ -44,17 +44,19 @@ func TestImplicitDirsNotEnabled(t *testing.T) {
 	for _, flags := range flagsSet {
 		t.Run(strings.Join(flags, "_"), func(t *testing.T) {
 			mustMountGCSFuseAndSetupTestDir(flags, testEnv.ctx, testEnv.storageClient)
-			defer tearDownTest(t)
+			defer tearDownOptimizationTest(t)
 
+			// Arrange
 			implicitDirPath := filepath.Join(testDirName, "implicitDir"+setup.GenerateRandomString(5))
 			mountedImplicitDirPath := filepath.Join(setup.MntDir(), implicitDirPath)
 			client.CreateImplicitDir(testEnv.ctx, testEnv.storageClient, implicitDirPath, t)
 			defer client.MustDeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, implicitDirPath)
 
+			// Act
 			_, err := os.Stat(mountedImplicitDirPath)
 
+			// Assert
 			require.Error(t, err, "Found unexpected implicit directory %q", mountedImplicitDirPath)
-
 		})
 	}
 }
@@ -64,8 +66,9 @@ func TestRenameDirLimitNotSet(t *testing.T) {
 	for _, flags := range flagsSet {
 		t.Run(strings.Join(flags, "_"), func(t *testing.T) {
 			mustMountGCSFuseAndSetupTestDir(flags, testEnv.ctx, testEnv.storageClient)
-			defer tearDownTest(t)
+			defer tearDownOptimizationTest(t)
 
+			// Arrange
 			srcDirPath := filepath.Join(testDirName, "srcDirContainingFiles"+setup.GenerateRandomString(5))
 			mountedSrcDirPath := filepath.Join(setup.MntDir(), srcDirPath)
 			dstDirPath := filepath.Join(testDirName, "dstDirContainingFiles"+setup.GenerateRandomString(5))
@@ -77,8 +80,10 @@ func TestRenameDirLimitNotSet(t *testing.T) {
 				client.MustDeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, dstDirPath)
 			}()
 
+			// Act
 			err := os.Rename(mountedSrcDirPath, mountedDstDirPath)
 
+			// Assert
 			require.Error(t, err, "Unexpectedly succeeded in renaming directory %q to %q", mountedSrcDirPath, mountedDstDirPath)
 		})
 	}
@@ -89,15 +94,18 @@ func TestImplicitDirsEnabled(t *testing.T) {
 	for _, flags := range flagsSet {
 		t.Run(strings.Join(flags, "_"), func(t *testing.T) {
 			mustMountGCSFuseAndSetupTestDir(flags, testEnv.ctx, testEnv.storageClient)
-			defer tearDownTest(t)
+			defer tearDownOptimizationTest(t)
 
+			// Arrange
 			implicitDirPath := filepath.Join(testDirName, "implicitDir"+setup.GenerateRandomString(5))
 			mountedImplicitDirPath := filepath.Join(setup.MntDir(), implicitDirPath)
 			client.CreateImplicitDir(testEnv.ctx, testEnv.storageClient, implicitDirPath, t)
 			defer client.MustDeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, implicitDirPath)
 
+			// Act
 			fi, err := os.Stat(mountedImplicitDirPath)
 
+			// Assert
 			require.NoError(t, err, "Got error statting %q: %v", mountedImplicitDirPath, err)
 			require.NotNil(t, fi, "Expected directory %q", mountedImplicitDirPath)
 			assert.True(t, fi.IsDir(), "Expected %q to be a directory, but got not-dir", mountedImplicitDirPath)
@@ -110,8 +118,9 @@ func TestRenameDirLimitSet(t *testing.T) {
 	for _, flags := range flagsSet {
 		t.Run(strings.Join(flags, "_"), func(t *testing.T) {
 			mustMountGCSFuseAndSetupTestDir(flags, testEnv.ctx, testEnv.storageClient)
-			defer tearDownTest(t)
+			defer tearDownOptimizationTest(t)
 
+			// Arrange
 			srcDirPath := filepath.Join(testDirName, "srcDirContainingFiles"+setup.GenerateRandomString(5))
 			mountedSrcDirPath := filepath.Join(setup.MntDir(), srcDirPath)
 			dstDirPath := filepath.Join(testDirName, "dstDirContainingFiles"+setup.GenerateRandomString(5))
@@ -123,8 +132,10 @@ func TestRenameDirLimitSet(t *testing.T) {
 				client.MustDeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, dstDirPath)
 			}()
 
+			// Act
 			err := os.Rename(mountedSrcDirPath, mountedDstDirPath)
 
+			// Assert
 			require.NoError(t, err, "Failed to rename directory %q to %q: %v", mountedSrcDirPath, mountedDstDirPath, err)
 		})
 	}
