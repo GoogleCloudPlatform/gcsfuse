@@ -527,6 +527,7 @@ flag_optimizations:
     configs:
       - run: TestMountSucceeds
         flags:
+          # Do not add any cases here which can be tested through other tests e.g. through TestImplicitDirEnabbled.
           - "--machine-type=a2-megagpu-16g"
           - "--machine-type=a2-ultragpu-8g"
           - "--machine-type=a3-edgegpu-8g"
@@ -556,7 +557,7 @@ flag_optimizations:
         run_on_gke: false
       - run: TestImplicitDirsNotEnabled
         flags:
-          - ""
+          - "--machine-type=low-end-machine"
         compatible:
           flat: true
           hns: false
@@ -564,7 +565,9 @@ flag_optimizations:
         run_on_gke: true
       - run: TestRenameDirLimitNotSet
         flags:
-          - ""
+          - "--machine-type=low-end-machine"
+          - "--profile=aiml-training"
+          - "--profile=aiml-serving"
         compatible:
           flat: true
           hns: false

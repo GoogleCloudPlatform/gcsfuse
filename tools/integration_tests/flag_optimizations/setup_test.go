@@ -130,11 +130,11 @@ func TestMain(m *testing.M) {
 		cfg.FlagOptimizations[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.FlagOptimizations[0].Configs[1].RunOnGKE = false
 		cfg.FlagOptimizations[0].Configs[2].Run = "TestImplicitDirsNotEnabled"
-		cfg.FlagOptimizations[0].Configs[2].Flags = []string{""}
+		cfg.FlagOptimizations[0].Configs[2].Flags = []string{"--machine-type=low-end-machine"}
 		cfg.FlagOptimizations[0].Configs[2].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
 		cfg.FlagOptimizations[0].Configs[2].RunOnGKE = true
 		cfg.FlagOptimizations[0].Configs[3].Run = "TestRenameDirLimitNotSet"
-		cfg.FlagOptimizations[0].Configs[3].Flags = []string{""}
+		cfg.FlagOptimizations[0].Configs[3].Flags = []string{"--machine-type=low-end-machine", "--profile=aiml-training", "--profile=aiml-serving"}
 		cfg.FlagOptimizations[0].Configs[3].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
 		cfg.FlagOptimizations[0].Configs[3].RunOnGKE = true
 		cfg.FlagOptimizations[0].Configs[4].Run = "TestImplicitDirsEnabled"
