@@ -43,11 +43,11 @@ const (
 // new value and the reason for the change.
 type OptimizationResult struct {
 	// FinalValue is the value after applying all the optimizations. This will be the same as the original value if optimizations didn't change anything.
-	FinalValue any
+	FinalValue any `yaml:"final_value"`
 	// If value is optimized, then this will contain the description of what optimization caused the change, e.g. "profile aiml-training", or "machine-type a3-highgpu-8g" etc.
-	OptimizationReason string
+	OptimizationReason string `yaml:"optimization_reason"`
 	// Optimized true indicates that the value was changed by optimization (either machine-type based, or profile-based).
-	Optimized bool
+	Optimized bool `yaml:"-" json:"-"` // Field hidden from YAML and JSON.
 }
 
 type isValueSet interface {
