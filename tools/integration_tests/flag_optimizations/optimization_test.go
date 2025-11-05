@@ -37,7 +37,7 @@ type optimizationTests struct {
 }
 
 func (s *optimizationTests) SetupTest() {
-	mountGCSFuseAndSetupTestDir(s.flags, testEnv.ctx, testEnv.storageClient)
+	mustMountGCSFuseAndSetupTestDir(s.flags, testEnv.ctx, testEnv.storageClient)
 }
 
 func (s *optimizationTests) TearDownTest() {

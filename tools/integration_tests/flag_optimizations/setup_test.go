@@ -63,7 +63,7 @@ var (
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) {
+func mustMountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) {
 	setup.MountGCSFuseWithGivenMountWithConfigFunc(&testEnv.cfg, flags, testEnv.mountFunc)
 	setup.SetMntDir(testEnv.mountDir)
 	testEnv.testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)

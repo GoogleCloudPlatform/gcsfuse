@@ -38,7 +38,7 @@ func TestMountSucceeds(t *testing.T) {
 	for _, flags := range flagsSet {
 		tcName := strings.ReplaceAll(strings.Join(flags, ","), "--", "")
 		t.Run(tcName, func(t *testing.T) {
-			mountGCSFuseAndSetupTestDir(flags, testEnv.ctx, testEnv.storageClient)
+			mustMountGCSFuseAndSetupTestDir(flags, testEnv.ctx, testEnv.storageClient)
 			defer func() {
 				setup.SaveGCSFuseLogFileInCaseOfFailure(t)
 				setup.UnmountGCSFuseWithConfig(&testEnv.cfg)
