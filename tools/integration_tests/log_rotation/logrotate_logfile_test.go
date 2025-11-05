@@ -47,10 +47,10 @@ func runOperationsOnFileTillLogRotation(t *testing.T, wg *sync.WaitGroup, fileNa
 	}
 	// Setup file with 5 MiB content in test directory.
 	testDirPath := path.Join(setup.MntDir(), testDirName)
-	setupLogFileDir(testDirName)
 	filePath := path.Join(testDirPath, fileName)
 	operations.CreateFileWithContent(filePath, filePerms, string(randomData), t)
-	currentLogFile := setup.LogFile()
+	currentLogFile := cfg.LogFile
+
 	// Keep performing operations in mounted directory until log file is rotated.
 	var lastLogFileSize int64 = 0
 	var retryStatLogFile = true
@@ -116,7 +116,7 @@ func TestLogRotation(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// Validate log files generated.
-	logFilesDirectory := path.Dir(setup.LogFile())
+	logFilesDirectory := path.Dir(cfg.LogFile)
 	dirEntries := operations.ReadDirectory(logFilesDirectory, t)
 
 	if len(dirEntries) != logFileCount {
@@ -125,7 +125,7 @@ func TestLogRotation(t *testing.T) {
 	}
 
 	// Get the base name of the log file from the setup.
-	activeLogFileName := "LogRotationTest.log"
+	activeLogFileName := t.Name() + ".log"
 	rotatedCompressedFileCtr := 0
 	logFileCtr := 0
 	rotatedUncompressedFileCtr := 0

@@ -523,13 +523,13 @@ interrupt:
 log_rotation:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
-    log_file: /tmp/gcsfuse-tmp/LogRotationTest.log
-    run_on_gke: true
+    log_file: # To be removed
     configs:
       - flags:
-          - "--log-file=/gcsfuse-tmp/LogRotationTest.log --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=false --log-severity=trace"
-          - "--log-file=/gcsfuse-tmp/LogRotationTest.log --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=true --log-severity=trace"
+          - "--log-file=/gcsfuse-tmp/TestLogRotation.log --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=false --log-severity=trace"
+          - "--log-file=/gcsfuse-tmp/TestLogRotation.log --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=true --log-severity=trace"
         compatible:
           flat: true
           hns: true
           zonal: true
+        run_on_gke: true

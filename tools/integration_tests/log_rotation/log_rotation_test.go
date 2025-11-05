@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	testDirName        = "LogRotationTest"
+	testDirName        = "TestLogRotation"
 	maxFileSizeMB      = 2
 	activeLogFileCount = 1
 	stderrLogFileCount = 1
@@ -48,7 +48,7 @@ var (
 	mountDir      string
 )
 
-func setupLogFileDir(testName string) {
+func setupLogFilePath(testName string) {
 	var logFilePath string
 	logFilePath = path.Join(setup.TestDir(), GKETempDir, testName) + ".log"
 	if cfg.GKEMountedDirectory != "" { // GKE path
@@ -56,11 +56,10 @@ func setupLogFileDir(testName string) {
 		logFilePath = path.Join(GKETempDir, testName) + ".log"
 		if setup.ConfigFile() == "" {
 			// TODO: clean this up when GKE test migration completes.
-			logFilePath = "/gcsfuse-tmp/LogRotationTest.log"
+			logFilePath = path.Join(GKETempDir, testName) + ".log"
 		}
 	}
 	cfg.LogFile = logFilePath
-	setup.SetLogFile(logFilePath)
 }
 
 func TestMain(m *testing.M) {
@@ -77,8 +76,8 @@ func TestMain(m *testing.M) {
 		config.LogRotation[0].LogFile = setup.LogFile()
 		config.LogRotation[0].Configs = make([]test_suite.ConfigItem, 1)
 		config.LogRotation[0].Configs[0].Flags = []string{
-			"--log-severity=TRACE --log-file=/gcsfuse-tmp/LogRotationTest.log --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=false",
-			"--log-severity=TRACE --log-file=/gcsfuse-tmp/LogRotationTest.log --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=true",
+			"--log-file=/gcsfuse-tmp/TestLogRotation.log --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=false --log-severity=trace",
+			"--log-file=/gcsfuse-tmp/TestLogRotation.log --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=true --log-severity=trace",
 		}
 		config.LogRotation[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
@@ -96,7 +95,6 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	setupLogFileDir(testDirName)
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	if cfg.GKEMountedDirectory != "" && cfg.TestBucket != "" {
 		os.Exit(setup.RunTestsForMountedDirectory(cfg.GKEMountedDirectory, m))
@@ -114,7 +112,7 @@ func TestMain(m *testing.M) {
 	overrideFilePathsInFlagSet(cfg, setup.TestDir())
 
 	flags := setup.BuildFlagSets(*cfg, bucketType, "")
-	setupLogFileDir(testDirName)
+	setupLogFilePath(testDirName)
 
 	successCode := static_mounting.RunTestsWithConfigFile(cfg, flags, m)
 
