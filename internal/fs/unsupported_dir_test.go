@@ -42,6 +42,7 @@ func TestUnsupportedObjectNameTestSuite(t *testing.T) {
 
 func (t *UnsupportedObjectNameTest) SetupTest() {
 	t.serverCfg.ImplicitDirectories = true
+	t.serverCfg.RenameDirLimit = 10
 	t.serverCfg.NewConfig = &cfg.Config{
 		EnableUnsupportedDirSupport: true,
 		EnableAtomicRenameObject:    true,
@@ -66,6 +67,8 @@ func (t *UnsupportedObjectNameTest) TestReadDirectory_WithUnsupportedNames() {
 		"dir2//file3":          "",
 		"dir2/file4":           "content",
 		"dir3/./file5":         "content",
+		"dir4/.":               "content",
+		"dir5/..":              "content",
 		"file6":                "content",
 		"//a.txt":              "",
 		"./b.txt":              "",
@@ -92,7 +95,7 @@ func (t *UnsupportedObjectNameTest) TestReadDirectory_WithUnsupportedNames() {
 
 	// ReadDir should only show the supported object.
 	t.Require().NoError(err)
-	t.Assert().ElementsMatch([]string{"dir1", "dir2", "dir3", "sub_dir1"}, dirs)
+	t.Assert().ElementsMatch([]string{"dir1", "dir2", "dir3", "dir4", "dir5", "sub_dir1"}, dirs)
 	t.Assert().ElementsMatch([]string{"file2", "file4", "file6"}, files)
 }
 
@@ -104,6 +107,8 @@ func (t *UnsupportedObjectNameTest) TestCopyDirectory_WithUnsupportedNames() {
 		"src/ok":       "content4",
 		"src/../file5": "content5",
 		"src///file5":  "content6",
+		"src/.":        "content",
+		"src/..":       "content",
 	})
 	t.Require().NoError(err)
 	srcPath := path.Join(mntDir, "src")
@@ -130,6 +135,8 @@ func (t *UnsupportedObjectNameTest) TestRenameDirectory_WithUnsupportedNames() {
 		"src//file2":   "content2",
 		"src/./file3":  "content3",
 		"src/ok/file4": "content4",
+		"src/.":        "content",
+		"src/..":       "content",
 	})
 	t.Require().NoError(err)
 	srcPath := path.Join(mntDir, "src")
