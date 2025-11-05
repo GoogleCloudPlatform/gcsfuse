@@ -53,6 +53,7 @@ func (s *ReaddirplusWithoutDentryCacheTest) TearDownSuite() {
 }
 
 func (s *ReaddirplusWithoutDentryCacheTest) SetupSuite() {
+	setupLogFilePath(s.baseTestName)
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
 }
 
@@ -73,6 +74,7 @@ func (s *ReaddirplusWithoutDentryCacheTest) TestReaddirplusWithoutDentryCache() 
 	// Create a subdirectory with file
 	operations.CreateDirectoryWithNFiles(1, path.Join(targetDir, "subDirectory"), "file", s.T())
 
+	// Call Readdirplus to list the directory.
 	startTime := time.Now()
 	entries, err := fusetesting.ReadDirPlusPicky(targetDir)
 	endTime := time.Now()

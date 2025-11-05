@@ -425,11 +425,11 @@ read_cache:
 
 readdirplus:
   - mounted_directory: "${MOUNTED_DIR}"
-    test_bucket: "${BUCKET_NAME}"
-    log_file: # Not Required by readdirplus tests
+    test_bucket: "pranjal-bucket-1"
+    log_file: # added
     configs:
       - flags:
-          - "--implicit-dirs --experimental-enable-readdirplus --experimental-enable-dentry-cache"
+          - "--implicit-dirs --experimental-enable-readdirplus --experimental-enable-dentry-cache --log-file=/gcsfuse-tmp/TestReaddirplusWithDentryCacheTest.log --log-severity=TRACE"
         compatible:
           flat: true
           hns: true
@@ -437,7 +437,7 @@ readdirplus:
         run: TestReaddirplusWithDentryCacheTest
         run_on_gke: true
       - flags:
-          - "--implicit-dirs --experimental-enable-readdirplus"
+          - "--implicit-dirs --experimental-enable-readdirplus --log-file=/gcsfuse-tmp/TestReaddirplusWithoutDentryCacheTest.log --log-severity=TRACE"
         compatible:
           flat: true
           hns: true

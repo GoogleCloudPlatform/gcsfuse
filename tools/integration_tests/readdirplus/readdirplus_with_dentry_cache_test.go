@@ -53,6 +53,7 @@ func (s *ReaddirplusWithDentryCacheTest) TearDownSuite() {
 }
 
 func (s *ReaddirplusWithDentryCacheTest) SetupSuite() {
+	setupLogFilePath(s.baseTestName)
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
 }
 
@@ -79,7 +80,6 @@ func (s *ReaddirplusWithDentryCacheTest) TestReaddirplusWithDentryCache() {
 	endTime := time.Now()
 
 	require.NoError(s.T(), err, "ReadDirPlusPicky failed")
-
 	// Verify the entries.
 	expectedEntries := []struct {
 		name  string

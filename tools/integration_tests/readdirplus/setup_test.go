@@ -57,6 +57,23 @@ type env struct {
 	bucketType    string
 }
 
+func setupLogFilePath(testName string) {
+	var logFilePath string
+	logFilePath = path.Join(setup.TestDir(), GKETempDir, testName) + ".log"
+	if testEnv.cfg.GKEMountedDirectory != "" { // GKE path
+		mountDir = testEnv.cfg.GKEMountedDirectory
+		logFilePath = path.Join(GKETempDir, testName) + ".log"
+		if setup.ConfigFile() == "" {
+			// TODO: clean this up when GKE test migration completes.
+			logFilePath = path.Join(GKETempDir, testName) + ".log"
+		}
+	} else {
+		logFilePath = path.Join(setup.TestDir(), "gcsfuse-tmp", testName) + ".log"
+	}
+	testEnv.cfg.LogFile = logFilePath
+	setup.SetLogFile(logFilePath)
+}
+
 func loadLogLines(reader io.Reader) ([]string, error) {
 	content, err := io.ReadAll(reader)
 	if err != nil {
@@ -135,13 +152,13 @@ func TestMain(m *testing.M) {
 		cfg.ReadDirPlus[0].LogFile = setup.LogFile()
 		cfg.ReadDirPlus[0].Configs = make([]test_suite.ConfigItem, 2)
 		cfg.ReadDirPlus[0].Configs[0].Flags = []string{
-			"--implicit-dirs --experimental-enable-readdirplus --experimental-enable-dentry-cache",
+			"--implicit-dirs --experimental-enable-readdirplus --experimental-enable-dentry-cache --log-file=/gcsfuse-tmp/TestReaddirplusWithDentryCacheTest.log --log-severity=TRACE",
 		}
 		cfg.ReadDirPlus[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ReadDirPlus[0].Configs[0].Run = "TestReaddirplusWithDentryCacheTest"
 
 		cfg.ReadDirPlus[0].Configs[1].Flags = []string{
-			"--implicit-dirs --experimental-enable-readdirplus",
+			"--implicit-dirs --experimental-enable-readdirplus --log-file=/gcsfuse-tmp/TestReaddirplusWithoutDentryCacheTest.log --log-severity=TRACE",
 		}
 		cfg.ReadDirPlus[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ReadDirPlus[0].Configs[1].Run = "TestReaddirplusWithoutDentryCacheTest"
@@ -168,6 +185,8 @@ func TestMain(m *testing.M) {
 	// Run tests for testBucket
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucket(testEnv.cfg)
+	// Override GKE specific paths with GCSFuse paths if running in GCE environment.
+	overrideFilePathsInFlagSet(testEnv.cfg, setup.TestDir())
 
 	// Save mount and root directory variables.
 	mountDir, rootDir = setup.MntDir(), setup.MntDir()
@@ -178,6 +197,14 @@ func TestMain(m *testing.M) {
 
 	// Clean up test directory created.
 	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(cfg.ReadDirPlus[0].TestBucket, testDirName))
-
 	os.Exit(successCode)
+}
+
+func overrideFilePathsInFlagSet(t *test_suite.TestConfig, GCSFuseTempDirPath string) {
+	for _, flags := range t.Configs {
+		for i := range flags.Flags {
+			// Iterate over the indices of the flags slice
+			flags.Flags[i] = strings.ReplaceAll(flags.Flags[i], "/gcsfuse-tmp", path.Join(GCSFuseTempDirPath, "gcsfuse-tmp"))
+		}
+	}
 }
