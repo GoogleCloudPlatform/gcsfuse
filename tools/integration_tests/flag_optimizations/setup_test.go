@@ -69,7 +69,7 @@ func mustMountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storag
 	testEnv.testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
 }
 
-func mayMountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) error {
+func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) error {
 	err := setup.MayMountGCSFuseWithGivenMountWithConfigFunc(&testEnv.cfg, flags, testEnv.mountFunc)
 	if err != nil {
 		return err

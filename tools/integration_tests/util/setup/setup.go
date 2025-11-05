@@ -699,6 +699,8 @@ func MountGCSFuseWithGivenMountWithConfigFunc(config *test_suite.TestConfig, fla
 	}
 }
 
+// MayMountGCSFuseWithGivenMountWithConfigFunc is similar to MountGCSFuseWithGivenMountWithConfigFunc,
+// except that it returns error on failure, instead of panic'ing.
 func MayMountGCSFuseWithGivenMountWithConfigFunc(config *test_suite.TestConfig, flags []string, mountFunc func(*test_suite.TestConfig, []string) error) error {
 	if config.GKEMountedDirectory == "" {
 		// Mount GCSFuse only when tests are not running on mounted directory.

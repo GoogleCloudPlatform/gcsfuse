@@ -23,6 +23,17 @@ import (
 )
 
 ////////////////////////////////////////////////////////////////////////
+// Boilerplate
+////////////////////////////////////////////////////////////////////////
+
+func tearDownMountTest(t *testing.T, err error) {
+	setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+	if err == nil {
+		setup.UnmountGCSFuseWithConfig(&testEnv.cfg)
+	}
+}
+
+////////////////////////////////////////////////////////////////////////
 // Test Functions
 ////////////////////////////////////////////////////////////////////////
 
@@ -38,17 +49,17 @@ func TestMountSucceeds(t *testing.T) {
 	for _, flags := range flagsSet {
 		tcName := strings.ReplaceAll(strings.Join(flags, ","), "--", "")
 		t.Run(tcName, func(t *testing.T) {
-			mustMountGCSFuseAndSetupTestDir(flags, testEnv.ctx, testEnv.storageClient)
-			defer func() {
-				setup.SaveGCSFuseLogFileInCaseOfFailure(t)
-				setup.UnmountGCSFuseWithConfig(&testEnv.cfg)
-			}()
+			// Arrange and Act
+			err := mountGCSFuseAndSetupTestDir(flags, testEnv.ctx, testEnv.storageClient)
+			defer tearDownMountTest(t, err)
+
+			// Assert
+			assert.NoError(t, err)
 		})
 	}
 }
 
 func TestMountFails(t *testing.T) {
-	// This test is not applicable for mounted directory testing.
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
 		t.Fatalf("This test is not valid for mounted-directory tests.")
 	}
@@ -58,14 +69,11 @@ func TestMountFails(t *testing.T) {
 	for _, flags := range flagsSet {
 		tcName := strings.ReplaceAll(strings.Join(flags, ","), "--", "")
 		t.Run(tcName, func(t *testing.T) {
-			err := mayMountGCSFuseAndSetupTestDir(flags, testEnv.ctx, testEnv.storageClient)
-			defer func() {
-				setup.SaveGCSFuseLogFileInCaseOfFailure(t)
-				if err == nil {
-					setup.UnmountGCSFuseWithConfig(&testEnv.cfg)
-				}
-			}()
+			// Arrange and Act
+			err := mountGCSFuseAndSetupTestDir(flags, testEnv.ctx, testEnv.storageClient)
+			defer tearDownMountTest(t, err)
 
+			// Assert
 			assert.Error(t, err)
 		})
 	}
