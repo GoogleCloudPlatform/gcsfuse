@@ -434,11 +434,11 @@ func TestCreateHierarchicalOptimizedFlags_Positive(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := createHierarchicalOptimizedFlags(tc.inputMap)
+			got, err := CreateHierarchicalOptimizedFlags(tc.inputMap)
 
 			assert.NoError(t, err)
 			if !reflect.DeepEqual(tc.expected, got) {
-				t.Errorf("createHierarchicalOptimizedFlags() = %v, want %v", got, tc.expected)
+				t.Errorf("CreateHierarchicalOptimizedFlags() = %v, want %v", got, tc.expected)
 			}
 		})
 	}
@@ -474,7 +474,7 @@ func TestCreateHierarchicalOptimizedFlags_Negative(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := createHierarchicalOptimizedFlags(tc.inputMap)
+			got, err := CreateHierarchicalOptimizedFlags(tc.inputMap)
 
 			assert.Error(t, err)
 			assert.Nil(t, got)

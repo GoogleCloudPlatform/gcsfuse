@@ -258,10 +258,10 @@ func getOptimizedValue(
 	}
 }
 
-// createHierarchicalOptimizedFlags converts a flat map with dot-separated keys
+// CreateHierarchicalOptimizedFlags converts a flat map with dot-separated keys
 // into a nested map structure.
 // It returns an error if a key prefix conflict is detected.
-func createHierarchicalOptimizedFlags(flatMap map[string]OptimizationResult) (map[string]any, error) {
+func CreateHierarchicalOptimizedFlags(flatMap map[string]OptimizationResult) (map[string]any, error) {
 	nestedMap := make(map[string]any)
 
 	for key, value := range flatMap {

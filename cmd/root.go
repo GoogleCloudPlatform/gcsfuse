@@ -167,7 +167,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 			}
 			mountInfo.cliFlags = getCliFlags(cmd.PersistentFlags())
 			mountInfo.configFileFlags = getConfigFileFlags(v)
-			optimizedFlagsAsHierarchicalMap, err := createHierarchicalOptimizedFlags(optimizedFlags)
+			optimizedFlagsAsHierarchicalMap, err := cfg.CreateHierarchicalOptimizedFlags(optimizedFlags)
 			if err != nil {
 				logger.Errorf("GCSFuse Config: error creating hierarchical map for optimized flags: %v", err)
 				// Log the raw map as a fallback

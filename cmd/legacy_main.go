@@ -390,43 +390,6 @@ func forwardedEnvVars() []string {
 	return env
 }
 
-// createHierarchicalOptimizedFlags converts a flat map with dot-separated keys
-// into a nested map structure.
-// It returns an error if a key prefix conflict is detected.
-func createHierarchicalOptimizedFlags(flatMap map[string]cfg.OptimizationResult) (map[string]any, error) {
-	nestedMap := make(map[string]any)
-
-	for key, value := range flatMap {
-		parts := strings.Split(key, ".")
-		currentLevel := nestedMap
-
-		for i, part := range parts {
-			if i == len(parts)-1 {
-				// Last part, try to assign the value
-				if existingVal, exists := currentLevel[part]; exists {
-					if _, isMap := existingVal.(map[string]any); isMap {
-						return nil, fmt.Errorf("key conflict: %q is both a path and a terminal key", strings.Join(parts[0:i+1], "."))
-					}
-				}
-				currentLevel[part] = value
-			} else {
-				// Intermediate part, ensure the next level map exists
-				if existingVal, exists := currentLevel[part]; exists {
-					if _, isMap := existingVal.(map[string]any); !isMap {
-						return nil, fmt.Errorf("key conflict: %q is both a path and a terminal key", strings.Join(parts[0:i+1], "."))
-					}
-					currentLevel = existingVal.(map[string]any)
-				} else {
-					newLevel := make(map[string]any)
-					currentLevel[part] = newLevel
-					currentLevel = newLevel
-				}
-			}
-		}
-	}
-	return nestedMap, nil
-}
-
 // logGCSFuseMountInformation logs the CLI flags, config file flags and the resolved config.
 func logGCSFuseMountInformation(mountInfo *mountInfo) {
 	logger.Info("GCSFuse Config", "CLI Flags", mountInfo.cliFlags)
