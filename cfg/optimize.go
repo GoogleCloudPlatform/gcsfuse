@@ -61,24 +61,6 @@ type flagOverride struct {
 	newValue any
 }
 
-// flagOverrideSet represents a named set of flag overrides.
-type flagOverrideSet struct {
-	name      string
-	overrides map[string]flagOverride
-}
-
-// machineType represents a specific machine type with associated flag overrides.
-type machineType struct {
-	names               []string
-	flagOverrideSetName string
-}
-
-// optimizationConfig holds the configuration for machine-specific optimizations.
-type optimizationConfig struct {
-	flagOverrideSets []flagOverrideSet
-	machineTypes     []machineType
-}
-
 ////////////////////////////////////////////////////////////////////////
 // Variables
 ////////////////////////////////////////////////////////////////////////
