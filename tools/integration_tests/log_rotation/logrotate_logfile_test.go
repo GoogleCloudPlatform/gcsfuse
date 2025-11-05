@@ -141,6 +141,7 @@ func TestLogRotation(t *testing.T) {
 			rotatedCompressedFileCtr++
 		} else if !strings.HasSuffix(entry.Name(), ".stderr") {
 			rotatedUncompressedFileCtr++
+			validateLogFileSize(t, entry)
 		}
 	}
 

@@ -1,6 +1,20 @@
 #!/bin/bash
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 CONFIG_FILE="test_config.yaml"
+GCSFUSE_BINARY="../../gcsfuse"
 # UPDATED: Using 'interrupt' to match the package in the latest execution trace.
 PACKAGE_NAME="log_rotation"
 GO_TEST_DIR="./${PACKAGE_NAME}/..."
@@ -77,8 +91,9 @@ for (( i=0; i<$NUM_CONFIGS; i++ )); do
         echo "--- ${DISPLAY_NAME} (using flags: ${FLAGS}) ---"
 
         # MOCK MOUNT (This line correctly uses GCSFuse FLAGS)
-        echo "  Mount: gcsfuse $TEST_BUCKET $MOUNTED_DIR $FLAGS"
-        mkdir -p "$MOUNTED_DIR" 
+        echo "  Mount: $GCSFUSE_BINARY $FLAGS $TEST_BUCKET $MOUNTED_DIR"
+        mkdir -p "$MOUNTED_DIR"
+        "$GCSFUSE_BINARY" $FLAGS "$TEST_BUCKET" "$MOUNTED_DIR"
         
         # RUN TEST
         # Command now correctly includes RUN_FLAG only when defined
@@ -86,8 +101,8 @@ for (( i=0; i<$NUM_CONFIGS; i++ )); do
         echo "  Test: $COMMAND"
         eval $COMMAND # This line executes the command
         
-        # MOCK UNMOUNT
+        # UNMOUNT
         echo "  Unmount: fusermount -u $MOUNTED_DIR"
-        rmdir "$MOUNTED_DIR" 2>/dev/null
+        fusermount -u "$MOUNTED_DIR"
     done
 done

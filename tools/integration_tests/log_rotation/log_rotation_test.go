@@ -113,7 +113,7 @@ func TestMain(m *testing.M) {
 	// 6. Override GKE specific paths with GCSFuse paths if running in GCE environment.
 	overrideFilePathsInFlagSet(cfg, setup.TestDir())
 
-	flags := setup.BuildFlagSets(*cfg, bucketType)
+	flags := setup.BuildFlagSets(*cfg, bucketType, "")
 	setupLogFileDir(testDirName)
 
 	successCode := static_mounting.RunTestsWithConfigFile(cfg, flags, m)

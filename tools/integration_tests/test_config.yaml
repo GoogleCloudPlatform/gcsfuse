@@ -230,6 +230,10 @@ read_cache:
           - "--metadata-cache-ttl-secs=10 --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true -cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest --log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log --log-severity=TRACE"
           - "--metadata-cache-ttl-secs=10 --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest --log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log --log-severity=TRACE --client-protocol=grpc"
           - "--metadata-cache-ttl-secs=10 --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true -cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest --log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log --log-severity=TRACE -client-protocol=grpc --implicit-dirs"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
         run: TestSmallCacheTTLTest
         run_on_gke: true
       - flags:
@@ -518,7 +522,7 @@ interrupt:
 
 log_rotation:
   - mounted_directory: "${MOUNTED_DIR}"
-    test_bucket: ${BUCKET_NAME}"
+    test_bucket: "${BUCKET_NAME}"
     log_file: /tmp/gcsfuse-tmp/LogRotationTest.log
     run_on_gke: true
     configs:
