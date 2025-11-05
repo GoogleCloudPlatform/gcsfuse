@@ -1109,9 +1109,8 @@ func (d *dirInode) deletePrefixRecursively(ctx context.Context, prefix string) e
 			// obj.Name is guaranteed to start with 'prefix'.
 			if !strings.HasSuffix(obj.Name, "/") {
 				// It's a file, delete it.
-				objName := obj.Name // Capture loop variable.
 				g.Go(func() error {
-					return d.deleteObject(gCtx, objName)
+					return d.deleteObject(gCtx, obj.Name)
 				})
 			}
 		}
@@ -1122,7 +1121,7 @@ func (d *dirInode) deletePrefixRecursively(ctx context.Context, prefix string) e
 			})
 		}
 
-		if err := g.Wait(); err != nil {
+		if err = g.Wait(); err != nil {
 			return err // Propagate the first error encountered.
 		}
 
