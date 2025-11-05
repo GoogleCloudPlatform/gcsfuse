@@ -107,7 +107,6 @@ func validateLogFileSize(t *testing.T, dirEntry os.DirEntry) {
 
 func TestLogRotation(t *testing.T) {
 	setup.SetupTestDirectory(testDirName)
-	fmt.Println("Log file setup path112:", setup.LogFile())
 	// Perform log rotation 4 times.
 	for range 4 {
 		runParallelOperationsInMountedDirectoryTillLogRotation(t)
@@ -127,7 +126,6 @@ func TestLogRotation(t *testing.T) {
 
 	// Get the base name of the log file from the setup.
 	activeLogFileName := "LogRotationTest.log"
-	t.Logf("Active log file name: %s", activeLogFileName)
 	rotatedCompressedFileCtr := 0
 	logFileCtr := 0
 	rotatedUncompressedFileCtr := 0

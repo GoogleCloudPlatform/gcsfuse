@@ -18,7 +18,6 @@ package log_rotation
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"path"
@@ -98,7 +97,6 @@ func TestMain(m *testing.M) {
 	}()
 
 	setupLogFileDir(testDirName)
-	fmt.Println("Logfile path!!!@@@", setup.LogFile())
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	if cfg.GKEMountedDirectory != "" && cfg.TestBucket != "" {
 		os.Exit(setup.RunTestsForMountedDirectory(cfg.GKEMountedDirectory, m))
