@@ -44,7 +44,7 @@ type mountInfo struct {
 	config *cfg.Config
 	// optimizedFlags contains the flags that were optimized
 	// based on either machine-type or profile.
-	optimizedFlags map[string]cfg.OptimizationResult
+	optimizedFlags map[string]any
 }
 
 type mountFn func(mountInfo *mountInfo, bucketName, mountPoint string) error
@@ -167,7 +167,16 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 			}
 			mountInfo.cliFlags = getCliFlags(cmd.PersistentFlags())
 			mountInfo.configFileFlags = getConfigFileFlags(v)
-			mountInfo.optimizedFlags = optimizedFlags
+			optimizedFlagsAsHierarchicalMap, err := createHierarchicalOptimizedFlags(optimizedFlags)
+			if err != nil {
+				logger.Errorf("GCSFuse Config: error creating hierarchical map for optimized flags: %v", err)
+				// Log the raw map as a fallback
+				optimizedFlagsAsHierarchicalMap = make(map[string]any, len(optimizedFlags))
+				for flag, value := range optimizedFlags {
+					optimizedFlagsAsHierarchicalMap[flag] = value
+				}
+			}
+			mountInfo.optimizedFlags = optimizedFlagsAsHierarchicalMap
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {

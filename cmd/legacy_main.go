@@ -390,10 +390,10 @@ func forwardedEnvVars() []string {
 	return env
 }
 
-// createHierarchicalMap converts a flat map with dot-separated keys
+// createHierarchicalOptimizedFlags converts a flat map with dot-separated keys
 // into a nested map structure.
 // It returns an error if a key prefix conflict is detected.
-func createHierarchicalMap(flatMap map[string]cfg.OptimizationResult) (map[string]any, error) {
+func createHierarchicalOptimizedFlags(flatMap map[string]cfg.OptimizationResult) (map[string]any, error) {
 	nestedMap := make(map[string]any)
 
 	for key, value := range flatMap {
@@ -434,14 +434,7 @@ func logGCSFuseMountInformation(mountInfo *mountInfo) {
 		logger.Info("GCSFuse Config", "ConfigFile Flags", mountInfo.configFileFlags)
 	}
 	if len(mountInfo.optimizedFlags) > 0 {
-		hierarchicalOptimizations, err := createHierarchicalMap(mountInfo.optimizedFlags)
-		if err != nil {
-			logger.Errorf("GCSFuse Config: error creating hierarchical map for optimized flags: %v", err)
-			// Log the raw map as a fallback
-			logger.Info("GCSFuse Config", "Flags optimized (raw)", mountInfo.optimizedFlags)
-		} else {
-			logger.Info("GCSFuse Config", "Flags optimized", hierarchicalOptimizations)
-		}
+		logger.Info("GCSFuse Config", "Optimized Flags", mountInfo.optimizedFlags)
 	}
 	logger.Info("GCSFuse Config", "Full Config", mountInfo.config)
 }
