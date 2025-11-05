@@ -13,9 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This script will run e2e tests for tpc.
-# This will stop execution when any command will have non-zero status.
-set -e
+# Script to run e2e tests for tpc universe.
+# Exit on error, treat unset variables as errors, and propagate pipeline errors.
+set -euo pipefail
+
+if [[ $# -gt 0 ]]; then
+    echo "This script requires no argument" 
+    exit 1
+fi
 
 # TPC project id
 readonly PROJECT_ID="tpczero-system:gcsfuse-test-project"
