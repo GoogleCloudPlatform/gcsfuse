@@ -17,6 +17,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -508,6 +509,132 @@ func (t *MainTest) TestGetDeviceMajorMinor() {
 			} else {
 				assert.NoError(t, err)
 			}
+		})
+	}
+}
+
+func (t *MainTest) TestCreateHierarchicalMap_Positive() {
+	testCases := []struct {
+		name     string
+		inputMap map[string]cfg.OptimizationResult
+		expected map[string]any
+	}{
+		{
+			name:     "Empty map",
+			inputMap: map[string]cfg.OptimizationResult{},
+			expected: map[string]any{},
+		},
+		{
+			name: "Flat keys",
+			inputMap: map[string]cfg.OptimizationResult{
+				"key1": {FinalValue: "value1", OptimizationReason: "reason1"},
+				"key2": {FinalValue: 123, OptimizationReason: "reason2"},
+			},
+			expected: map[string]any{
+				"key1": cfg.OptimizationResult{FinalValue: "value1", OptimizationReason: "reason1"},
+				"key2": cfg.OptimizationResult{FinalValue: 123, OptimizationReason: "reason2"},
+			},
+		},
+		{
+			name: "Single level nesting",
+			inputMap: map[string]cfg.OptimizationResult{
+				"a.b": {FinalValue: "valueAB", OptimizationReason: "reasonAB"},
+				"a.c": {FinalValue: "valueAC", OptimizationReason: "reasonAC"},
+			},
+			expected: map[string]any{
+				"a": map[string]any{
+					"b": cfg.OptimizationResult{FinalValue: "valueAB", OptimizationReason: "reasonAB"},
+					"c": cfg.OptimizationResult{FinalValue: "valueAC", OptimizationReason: "reasonAC"},
+				},
+			},
+		},
+		{
+			name: "Multi-level nesting",
+			inputMap: map[string]cfg.OptimizationResult{
+				"a.b.c": {FinalValue: "valueABC", OptimizationReason: "reasonABC"},
+				"a.b.d": {FinalValue: "valueABD", OptimizationReason: "reasonABD"},
+				"x.y.z": {FinalValue: true, OptimizationReason: "reasonXYZ"},
+			},
+			expected: map[string]any{
+				"a": map[string]any{
+					"b": map[string]any{
+						"c": cfg.OptimizationResult{FinalValue: "valueABC", OptimizationReason: "reasonABC"},
+						"d": cfg.OptimizationResult{FinalValue: "valueABD", OptimizationReason: "reasonABD"},
+					},
+				},
+				"x": map[string]any{
+					"y": map[string]any{
+						"z": cfg.OptimizationResult{FinalValue: true, OptimizationReason: "reasonXYZ"},
+					},
+				},
+			},
+		},
+		{
+			name: "No conflict complex keys",
+			inputMap: map[string]cfg.OptimizationResult{
+				"metadata-cache.ttl-secs":               {FinalValue: int64(-1), OptimizationReason: "reasonTTL"},
+				"metadata-cache.stat-cache-max-size-mb": {FinalValue: int64(1024), OptimizationReason: "reasonStat"},
+				"file-cache.cache-file-for-range-read":  {FinalValue: true, OptimizationReason: "reasonFileCache"},
+			},
+			expected: map[string]any{
+				"metadata-cache": map[string]any{
+					"ttl-secs":               cfg.OptimizationResult{FinalValue: int64(-1), OptimizationReason: "reasonTTL"},
+					"stat-cache-max-size-mb": cfg.OptimizationResult{FinalValue: int64(1024), OptimizationReason: "reasonStat"},
+				},
+				"file-cache": map[string]any{
+					"cache-file-for-range-read": cfg.OptimizationResult{FinalValue: true, OptimizationReason: "reasonFileCache"},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.T().Run(tc.name, func(t *testing.T) {
+			got, err := createHierarchicalMap(tc.inputMap)
+
+			assert.NoError(t, err)
+			if !reflect.DeepEqual(tc.expected, got) {
+				t.Errorf("createHierarchicalMap() = %v, want %v", got, tc.expected)
+			}
+		})
+	}
+}
+
+func (t *MainTest) TestCreateHierarchicalMap_Negative() {
+	testCases := []struct {
+		name     string
+		inputMap map[string]cfg.OptimizationResult
+	}{
+		{
+			name: "Conflict: Prefix as terminal key first",
+			inputMap: map[string]cfg.OptimizationResult{
+				"a.b":   {FinalValue: "valAB", OptimizationReason: "rAB"},
+				"a.b.d": {FinalValue: "valABD", OptimizationReason: "rABD"},
+			},
+		},
+		{
+			name: "Conflict: Path key first",
+			inputMap: map[string]cfg.OptimizationResult{
+				"a.b.d": {FinalValue: "valABD", OptimizationReason: "rABD"},
+				"a.b":   {FinalValue: "valAB", OptimizationReason: "rAB"},
+			},
+		},
+		{
+			name: "Conflict: Deeper nesting",
+			inputMap: map[string]cfg.OptimizationResult{
+				"a.b.c":   {FinalValue: "valABC", OptimizationReason: "rABC"},
+				"a.b.c.d": {FinalValue: "valABCD", OptimizationReason: "rABCD"},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.T().Run(tc.name, func(t *testing.T) {
+			got, err := createHierarchicalMap(tc.inputMap)
+
+			assert.Error(t, err)
+			assert.Nil(t, got)
+			assert.Contains(t, err.Error(), "key conflict")
 		})
 	}
 }
