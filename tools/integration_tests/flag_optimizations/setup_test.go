@@ -54,8 +54,7 @@ type env struct {
 }
 
 var (
-	logFileNameForMountedDirectoryTests = path.Join(os.TempDir(), "gcsfuse_flag_optimizations_logs", "log.json")
-	testEnv                             env
+	testEnv env
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -65,7 +64,6 @@ var (
 func setupForMountedDirectoryTests() {
 	if setup.MountedDirectory() != "" {
 		testEnv.mountDir = setup.MountedDirectory()
-		setup.SetLogFile(logFileNameForMountedDirectoryTests)
 	}
 }
 
@@ -115,13 +113,9 @@ func TestMain(m *testing.M) {
 		cfg.FlagOptimizations[0].Configs = make([]test_suite.ConfigItem, 6)
 		cfg.FlagOptimizations[0].Configs[0].Run = "TestMountSucceeds"
 		cfg.FlagOptimizations[0].Configs[0].Flags = []string{
-			"--profile=aiml-training",
-			"--profile=aiml-checkpointing",
-			"--profile=aiml-serving",
 			"--machine-type=a2-megagpu-16g",
 			"--machine-type=a2-ultragpu-8g",
 			"--machine-type=a3-edgegpu-8g",
-			"--machine-type=a3-highgpu-8g",
 			"--machine-type=a3-megagpu-8g",
 			"--machine-type=a3-ultragpu-8g",
 			"--machine-type=a4-highgpu-8g-lowmem",
@@ -133,9 +127,6 @@ func TestMain(m *testing.M) {
 			"--machine-type=ct6e-standard-4t-tpu",
 			"--machine-type=ct6e-standard-8t",
 			"--machine-type=ct6e-standard-8t-tpu",
-			"--profile=aiml-training --machine-type=a3-highgpu-8g",
-			"--profile=aiml-checkpointing --machine-type=a3-highgpu-8g",
-			"--profile=aiml-serving --machine-type=a3-highgpu-8g",
 		}
 		cfg.FlagOptimizations[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.FlagOptimizations[0].Configs[0].RunOnGKE = true
@@ -186,8 +177,9 @@ func TestMain(m *testing.M) {
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
-	if setup.MountedDirectory() != "" {
-		os.Exit(setup.RunTestsForMountedDirectory(setup.MountedDirectory(), m))
+	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
 	}
 
 	// Else run tests for testBucket.

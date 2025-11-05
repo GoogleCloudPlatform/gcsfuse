@@ -527,13 +527,9 @@ flag_optimizations:
     configs:
       - run: TestMountSucceeds
         flags:
-          - "--profile=aiml-training"
-          - "--profile=aiml-checkpointing"
-          - "--profile=aiml-serving"
           - "--machine-type=a2-megagpu-16g"
           - "--machine-type=a2-ultragpu-8g"
           - "--machine-type=a3-edgegpu-8g"
-          - "--machine-type=a3-highgpu-8g"
           - "--machine-type=a3-megagpu-8g"
           - "--machine-type=a3-ultragpu-8g"
           - "--machine-type=a4-highgpu-8g-lowmem"
@@ -545,9 +541,6 @@ flag_optimizations:
           - "--machine-type=ct6e-standard-4t-tpu"
           - "--machine-type=ct6e-standard-8t"
           - "--machine-type=ct6e-standard-8t-tpu"
-          - "--profile=aiml-training --machine-type=a3-highgpu-8g"
-          - "--profile=aiml-checkpointing --machine-type=a3-highgpu-8g"
-          - "--profile=aiml-serving --machine-type=a3-highgpu-8g"
         compatible:
           flat: true
           hns: true
