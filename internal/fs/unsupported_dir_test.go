@@ -20,6 +20,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -148,4 +149,33 @@ func (t *UnsupportedObjectNameTest) TestRenameDirectory_WithUnsupportedNames() {
 	t.Require().Len(entries, 2)
 	t.Assert().Equal("file1", entries[0].Name())
 	t.Assert().Equal("ok", entries[1].Name())
+}
+
+func (t *UnsupportedObjectNameTest) TestDeleteDirectory_WithUnsupportedNames() {
+	// Set up contents.
+	err := t.createObjects(map[string]string{
+		"dir_to_delete/file1":    "content1",
+		"dir_to_delete//file2":   "content2",
+		"dir_to_delete/./file3":  "content3",
+		"dir_to_delete/ok":       "content4",
+		"dir_to_delete/../file5": "content5",
+		"dir_to_delete///file6":  "content6",
+	})
+	t.Require().NoError(err)
+	dirPath := path.Join(mntDir, "dir_to_delete")
+	// Verify that listing only shows supported files.
+	entries, err := os.ReadDir(dirPath)
+	t.Require().NoError(err)
+	t.Require().Len(entries, 2)
+	t.Assert().Equal("file1", entries[0].Name())
+	t.Assert().Equal("ok", entries[1].Name())
+
+	// Execute rm -rf command.
+	cmd := exec.Command("rm", "-rf", dirPath)
+	err = cmd.Run()
+
+	t.Require().NoError(err)
+	_, err = os.Stat(dirPath)
+	t.Assert().Error(err)
+	t.Assert().True(strings.Contains(err.Error(), "no such file or directory"))
 }

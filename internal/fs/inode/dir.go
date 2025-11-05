@@ -153,6 +153,9 @@ type DirInode interface {
 		isImplicitDir bool,
 		dirInode DirInode) (err error)
 
+	// DeleteObjects recursively deletes the given objects and prefixes.
+	DeleteObjects(ctx context.Context, objectNames []string) error
+
 	// LocalFileEntries lists the local files present in the directory.
 	// Local means that the file is not yet present on GCS.
 	LocalFileEntries(localFileInodes map[Name]Inode) (localEntries map[string]fuseutil.Dirent)
@@ -1032,6 +1035,96 @@ func (d *dirInode) DeleteChildDir(
 
 	d.cache.Erase(name)
 	return nil
+}
+
+// LOCKS_REQUIRED(d)
+func (d *dirInode) DeleteObjects(ctx context.Context, objectNames []string) error {
+	for _, objectName := range objectNames {
+		if strings.HasSuffix(objectName, "/") {
+			// Initiate deletion for a prefix (directory). This logic handles pagination internally.
+			if err := d.deletePrefixRecursively(ctx, objectName); err != nil {
+				return fmt.Errorf("recursively deleting prefix %q: %w", objectName, err)
+			}
+		} else {
+			// Handle single file-like object deletion.
+			if err := d.deleteObject(ctx, objectName); err != nil {
+				return fmt.Errorf("deleting unsupported object %q: %w", objectName, err)
+			}
+		}
+	}
+	return nil
+}
+
+// Helper to delete a single object, handling 'Not Found' errors gracefully.
+// This is important for idempotency. For example, in a recursive delete, we
+// list objects and then delete them. If an object is deleted by another process
+// between our List and Delete calls, we'd get a 'Not Found' error. By ignoring
+// it, we ensure the delete operation succeeds if the object is already gone.
+func (d *dirInode) deleteObject(ctx context.Context, objectName string) error {
+	if d.isBucketHierarchical() && strings.HasSuffix(objectName, "/") {
+		if err := d.bucket.DeleteFolder(ctx, objectName); err != nil {
+			var notFoundErr *gcs.NotFoundError
+			if !errors.As(err, &notFoundErr) {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := d.bucket.DeleteObject(ctx, &gcs.DeleteObjectRequest{Name: objectName}); err != nil {
+		var notFoundErr *gcs.NotFoundError
+		if !errors.As(err, &notFoundErr) {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Core recursive function to list, delete, and handle pagination for a prefix.
+func (d *dirInode) deletePrefixRecursively(ctx context.Context, prefix string) error {
+	var tok string
+	for {
+		objects, err := d.bucket.ListObjects(ctx, &gcs.ListObjectsRequest{
+			Prefix:            prefix,
+			MaxResults:        MaxResultsForListObjectsCall,
+			Delimiter:         "/", // Use Delimiter to separate nested folders (CollapsedRuns)
+			ContinuationToken: tok,
+		})
+		if err != nil {
+			return fmt.Errorf("listing objects under prefix %q: %w", prefix, err)
+		}
+
+		// 1. Delete all file-like objects and recurse into subdirectories in parallel.
+		g, gCtx := errgroup.WithContext(ctx)
+		for _, obj := range objects.MinObjects {
+			// obj.Name is guaranteed to start with 'prefix'.
+			if !strings.HasSuffix(obj.Name, "/") {
+				// It's a file, delete it.
+				objName := obj.Name // Capture loop variable.
+				g.Go(func() error {
+					return d.deleteObject(gCtx, objName)
+				})
+			}
+		}
+
+		for _, nestedPrefix := range objects.CollapsedRuns {
+			g.Go(func() error {
+				return d.deletePrefixRecursively(gCtx, nestedPrefix)
+			})
+		}
+
+		if err := g.Wait(); err != nil {
+			return err // Propagate the first error encountered.
+		}
+
+		// If there are no more pages, we are done with this prefix's contents.
+		tok = objects.ContinuationToken
+		if tok == "" {
+			break
+		}
+	}
+
+	return d.deleteObject(ctx, prefix)
 }
 
 // LOCKS_REQUIRED(fs)

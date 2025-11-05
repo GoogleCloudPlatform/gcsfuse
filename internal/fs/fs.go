@@ -2183,10 +2183,19 @@ func (fs *fileSystem) RmDir(
 	var tok string
 	for {
 		var entries []fuseutil.Dirent
-		entries, _, tok, err = childDir.ReadEntries(ctx, tok)
+		var unsupportedDirs []string
+		entries, unsupportedDirs, tok, err = childDir.ReadEntries(ctx, tok)
 		if err != nil {
 			err = fmt.Errorf("ReadEntries: %w", err)
 			return err
+		}
+
+		// If there are unsupported objects, delete them recursively.
+		if len(unsupportedDirs) > 0 {
+			err = childDir.DeleteObjects(ctx, unsupportedDirs)
+			if err != nil {
+				return fmt.Errorf("RmDir: failed to delete unsupported objects: %w", err)
+			}
 		}
 
 		if fs.kernelListCacheTTL > 0 {

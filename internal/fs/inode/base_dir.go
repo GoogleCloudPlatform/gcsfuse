@@ -252,6 +252,10 @@ func (d *baseDirInode) DeleteChildDir(
 	return
 }
 
+func (d *baseDirInode) DeleteObjects(ctx context.Context, objectNames []string) error {
+	return fuse.ENOSYS
+}
+
 func (d *baseDirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntries map[string]fuseutil.Dirent) {
 	// Base directory can not contain local files.
 	return nil
