@@ -324,6 +324,34 @@ params:
     usage: "Number of concurrent download requests per file."
     default: "16"
 
+  - config-path: "file-cache.size-scan-delete-empty-dirs"
+    flag-name: "file-cache-size-scan-delete-empty-dirs"
+    type: "bool"
+    usage: "Whether or not to delete empty directories inside cache-dir during periodic disk-size scan of file-cache cache-dir. It should be set only when file-cache-size-scan-enable is true."
+    default: false
+    hide-flag: false
+
+  - config-path: "file-cache.size-scan-enable"
+    flag-name: "file-cache-size-scan-enable"
+    type: "bool"
+    usage: "Whether or not to scan disk sizes of file-cache cache-dir."
+    default: false
+    hide-flag: false
+
+  - config-path: "file-cache.size-scan-files"
+    flag-name: "file-cache-size-scan-files"
+    type: "bool"
+    usage: "Whether or not to scan files' disk sizes also during periodic disk-size scan of file-cache cache-dir. It should be set only when file-cache-size-scan-enable is true."
+    default: false
+    hide-flag: false
+
+  - config-path: "file-cache.size-scan-frequency-seconds"
+    flag-name: "file-cache-size-scan-frequency-seconds"
+    type: "int"
+    usage: "The duration in seconds after the size of the file-cache cache-dir is calculated again. It should be set only when file-cache-size-scan-enable is true."
+    default: "10" # 10 seconds
+    hide-flag: false
+
   - config-path: "file-cache.write-buffer-size"
     flag-name: "file-cache-write-buffer-size"
     type: "int"

@@ -302,16 +302,6 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 }
 
 func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.CacheHandler, err error) {
-	var sizeInBytes uint64
-	// -1 means unlimited size for cache, the underlying LRU cache doesn't handle
-	// -1 explicitly, hence we pass MaxUint64 as capacity in that case.
-	if serverCfg.NewConfig.FileCache.MaxSizeMb == -1 {
-		sizeInBytes = math.MaxUint64
-	} else {
-		sizeInBytes = uint64(serverCfg.NewConfig.FileCache.MaxSizeMb) * cacheutil.MiB
-	}
-	fileInfoCache := lru.NewCache(sizeInBytes)
-
 	cacheDir := string(serverCfg.NewConfig.CacheDir)
 	// Adding a new directory inside cacheDir to keep file-cache separate from
 	// metadata cache if and when we support storing metadata cache on disk in
@@ -326,8 +316,31 @@ func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.Cac
 		return nil, fmt.Errorf("createFileCacheHandler: while creating file cache directory: %w", cacheDirErr)
 	}
 
+	var sizeInBytes uint64
+	// -1 means unlimited size for cache, the underlying LRU cache doesn't handle
+	// -1 explicitly, hence we pass MaxUint64 as capacity in that case.
+	if serverCfg.NewConfig.FileCache.MaxSizeMb == -1 {
+		sizeInBytes = math.MaxUint64
+	} else {
+		sizeInBytes = uint64(serverCfg.NewConfig.FileCache.MaxSizeMb) * cacheutil.MiB
+	}
+
+	var diskSizeCalculator *file.FileCacheDiskUtilizationCalculator
+	var fileInfoCache *lru.Cache
+
+	if serverCfg.NewConfig.FileCache.SizeScanEnable {
+		cacheDirVolumeBlockSize, err := util.GetVolumeBlockSize(cacheDir)
+		if err != nil {
+			return nil, fmt.Errorf("createFileCacheHandler: failed to get the block-size for volume containing cache-dir %q: %v", cacheDir, err)
+		}
+		diskSizeCalculator = file.NewFileCacheDiskUtilizationCalculator(cacheDir, time.Duration(serverCfg.NewConfig.FileCache.SizeScanFrequencySeconds)*time.Second, serverCfg.NewConfig.FileCache.SizeScanFiles, serverCfg.NewConfig.FileCache.SizeScanDeleteEmptyDirs, cacheDirVolumeBlockSize)
+		fileInfoCache = lru.NewCacheWithCustomSizeCalculator(sizeInBytes, diskSizeCalculator)
+	} else {
+		fileInfoCache = lru.NewCache(sizeInBytes)
+	}
+
 	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir, serverCfg.SequentialReadSizeMb, &serverCfg.NewConfig.FileCache, serverCfg.MetricHandle, serverCfg.TraceHandle)
-	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager, cacheDir, filePerm, dirPerm, serverCfg.NewConfig.FileCache.ExcludeRegex, serverCfg.NewConfig.FileCache.IncludeRegex, serverCfg.NewConfig.FileCache.ExperimentalEnableChunkCache)
+	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager, cacheDir, filePerm, dirPerm, serverCfg.NewConfig.FileCache.ExcludeRegex, serverCfg.NewConfig.FileCache.IncludeRegex, serverCfg.NewConfig.FileCache.ExperimentalEnableChunkCache, diskSizeCalculator)
 	return
 }
 
