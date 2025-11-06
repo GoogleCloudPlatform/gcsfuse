@@ -207,7 +207,7 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 		// Override the read-manager with visual-read-manager (a wrapper over read_manager with visualizer) if configured.
 		if fh.config.WorkloadInsight.Visualize {
 			if renderer, err := workloadinsight.NewRenderer(); err == nil {
-				fh.readManager = read_manager.NewVisualReadManager(fh.readManager, renderer, fh.config.WorkloadInsight.OutputFile)
+				fh.readManager = read_manager.NewVisualReadManager(fh.readManager, renderer, fh.config.WorkloadInsight)
 			} else {
 				logger.Warnf("Failed to construct workload insight visualizer: %v", err)
 			}
