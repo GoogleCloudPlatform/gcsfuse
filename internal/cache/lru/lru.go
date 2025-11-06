@@ -32,6 +32,19 @@ var (
 	ErrEntryNotExist          = errors.New("entry with given key does not exist")
 )
 
+type SizeCalculator interface {
+	GetCurrentSize() uint64
+}
+
+type defaultSizeCalculator struct {
+	// Sum of entry.Value.Size() of all the entries in the cache.
+	currentSize uint64
+}
+
+func (dsc *defaultSizeCalculator) GetCurrentSize() uint64 {
+	return dsc.currentSize
+}
+
 // Cache is a LRU cache for any lru.ValueType indexed by string keys.
 // That means entry's value should be a lru.ValueType.
 type Cache struct {
@@ -46,8 +59,8 @@ type Cache struct {
 	// Mutable state
 	/////////////////////////
 
-	// Sum of entry.Value.Size() of all the entries in the cache.
-	currentSize uint64
+	// Handler for calculating current size, increased size for this cache after insertion/deletion.
+	sizeCalculator SizeCalculator
 
 	// List of cache entries, with least recently used at the tail.
 	//
@@ -79,8 +92,24 @@ type entry struct {
 // the supplied maxSize, which must be greater than zero.
 func NewCache(maxSize uint64) *Cache {
 	c := &Cache{
-		maxSize: maxSize,
-		index:   make(map[string]*list.Element),
+		maxSize:        maxSize,
+		index:          make(map[string]*list.Element),
+		sizeCalculator: &defaultSizeCalculator{},
+	}
+
+	// Set up invariant checking.
+	c.mu = locker.NewRW("LRUCache", c.checkInvariants)
+	return c
+}
+
+// NewCache returns the reference of cache object by initialising the cache with
+// (a) the supplied maxSize, which must be greater than zero
+// (b) the size-calculator.
+func NewCacheWithCustomSizeCalculator(maxSize uint64, sizeCalculator SizeCalculator) *Cache {
+	c := &Cache{
+		maxSize:        maxSize,
+		index:          make(map[string]*list.Element),
+		sizeCalculator: sizeCalculator,
 	}
 
 	// Set up invariant checking.
@@ -96,8 +125,9 @@ func (c *Cache) checkInvariants() {
 	}
 
 	// INVARIANT: currentSize <= maxSize
-	if !(c.currentSize <= c.maxSize) {
-		panic(fmt.Sprintf("CurrentSize %v over maxSize %v", c.currentSize, c.maxSize))
+	currentSize := c.sizeCalculator.GetCurrentSize()
+	if !(currentSize <= c.maxSize) {
+		panic(fmt.Sprintf("CurrentSize %v over maxSize %v", currentSize, c.maxSize))
 	}
 
 	// INVARIANT: Each element is of type entry
@@ -130,7 +160,7 @@ func (c *Cache) evictOne() ValueType {
 	key := e.Value.(entry).Key
 
 	evictedEntry := e.Value.(entry).Value
-	c.currentSize -= evictedEntry.Size()
+	//c.currentSize -= evictedEntry.Size()
 
 	c.entries.Remove(e)
 	delete(c.index, key)
@@ -163,20 +193,20 @@ func (c *Cache) Insert(
 	e, ok := c.index[key]
 	if ok {
 		// Update an entry if already exist.
-		c.currentSize -= e.Value.(entry).Value.Size()
-		c.currentSize += valueSize
+		//c.currentSize -= e.Value.(entry).Value.Size()
+		//c.currentSize += valueSize
 		e.Value = entry{key, value}
 		c.entries.MoveToFront(e)
 	} else {
 		// Add the entry if already doesn't exist.
 		e := c.entries.PushFront(entry{key, value})
 		c.index[key] = e
-		c.currentSize += valueSize
+		//c.currentSize += valueSize
 	}
 
 	var evictedValues []ValueType
 	// Evict until we're at or below maxSize.
-	for c.currentSize > c.maxSize {
+	for c.sizeCalculator.GetCurrentSize() > c.maxSize {
 		evictedValues = append(evictedValues, c.evictOne())
 	}
 
@@ -194,7 +224,7 @@ func (c *Cache) Erase(key string) (value ValueType) {
 	}
 
 	deletedEntry := e.Value.(entry).Value
-	c.currentSize -= deletedEntry.Size()
+	//c.currentSize -= deletedEntry.Size()
 
 	delete(c.index, key)
 	c.entries.Remove(e)
