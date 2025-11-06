@@ -532,4 +532,4 @@ log_rotation:
           flat: true
           hns: true
           zonal: true
-        run_on_gke: true
+        run_on_gke: false

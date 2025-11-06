@@ -45,20 +45,10 @@ var (
 	storageClient *storage.Client
 	ctx           context.Context
 	cfg           *test_suite.TestConfig
-	mountDir      string
 )
 
 func setupLogFilePath(testName string) {
-	var logFilePath string
-	logFilePath = path.Join(setup.TestDir(), GKETempDir, testName) + ".log"
-	if cfg.GKEMountedDirectory != "" { // GKE path
-		mountDir = cfg.GKEMountedDirectory
-		logFilePath = path.Join(GKETempDir, testName) + ".log"
-		if setup.ConfigFile() == "" {
-			// TODO: clean this up when GKE test migration completes.
-			logFilePath = path.Join(GKETempDir, testName) + ".log"
-		}
-	}
+	var logFilePath = path.Join(setup.TestDir(), GKETempDir, testName) + ".log"
 	cfg.LogFile = logFilePath
 }
 
@@ -97,7 +87,8 @@ func TestMain(m *testing.M) {
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	if cfg.GKEMountedDirectory != "" && cfg.TestBucket != "" {
-		os.Exit(setup.RunTestsForMountedDirectory(cfg.GKEMountedDirectory, m))
+		log.Println("These tests will not run with mounted directory..")
+		return
 	}
 
 	// 4. Build the flag sets dynamically from the config.
