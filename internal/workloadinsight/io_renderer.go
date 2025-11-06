@@ -111,10 +111,10 @@ func (r *Renderer) Render(name string, size uint64, ranges []Range) (string, err
 
 // buildStats builds statistics about the given ranges for a single file
 // and returns them as a string.
-func (r *Renderer) buildStats(ranges []Range) (string, error) {
+func (r *Renderer) buildStats(ranges []Range) string {
 	length := len(ranges)
 	if length <= 0 {
-		return "", nil
+		return ""
 	}
 
 	sizes := make([]uint64, length)
@@ -128,7 +128,7 @@ func (r *Renderer) buildStats(ranges []Range) (string, error) {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("Total IOs: %d\n", length))
 	sb.WriteString(fmt.Sprintf("IO Size Distributions: (Min: %s, Median: %s, Max: %s, Avg: %s)\n", humanReadable(sizes[0]), humanReadable(sizes[length/2]), humanReadable(sizes[length-1]), humanReadable(sum/uint64(length))))
-	return sb.String(), nil
+	return sb.String()
 }
 
 // buildHeader composes the header (filename, tick marks, numeric labels)
@@ -182,11 +182,7 @@ func (r *Renderer) buildHeader(name string, size uint64, ranges []Range) (string
 	sb.WriteString(fmt.Sprintf("Name: %s\n", name))
 
 	// IO stats.
-	stats, err := r.buildStats(ranges)
-	if err != nil {
-		return "", err
-	}
-	sb.WriteString(stats)
+	sb.WriteString(r.buildStats(ranges))
 
 	// Fileoffset labels just above the fileOffsetAxis.
 	sb.WriteString(strings.Repeat(" ", r.labelWidth))
