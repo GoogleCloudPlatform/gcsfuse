@@ -68,7 +68,9 @@ func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageCli
 	if err != nil {
 		return err
 	}
-	setup.SetMntDir(testEnv.mountDir)
+	if testEnv.cfg.GKEMountedDirectory == "" {
+		setup.SetMntDir(testEnv.mountDir)
+	}
 	testEnv.testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
 	return nil
 }
@@ -174,7 +176,6 @@ func TestMain(m *testing.M) {
 
 	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
-		testEnv.mountDir, testEnv.rootDir = setup.MntDir(), setup.MntDir()
 		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
 	}
 
