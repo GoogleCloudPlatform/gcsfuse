@@ -250,7 +250,7 @@ func (r *Renderer) buildRow(size uint64, rg Range) (string, error) {
 	}
 
 	// Compose label and write.
-	label := fmt.Sprintf("[%d,%d)", s, e-s+1)
+	label := fmt.Sprintf("[%d,%s)", s, humanReadable(e-s+1))
 	if len(label) > r.labelWidth {
 		label = label[:r.labelWidth]
 	}
