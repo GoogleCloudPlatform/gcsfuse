@@ -127,7 +127,7 @@ func (r *Renderer) buildStats(ranges []Range) (string, error) {
 
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("Total IOs: %d\n", length))
-	sb.WriteString(fmt.Sprintf("IO Size Distributions: (Min: %s, Median: %s, Max: %s, Avg: %s)\n",humanReadable(sizes[0]), humanReadable(sizes[length/2]), humanReadable(sizes[length-1]), humanReadable(sum/uint64(length))))
+	sb.WriteString(fmt.Sprintf("IO Size Distributions: (Min: %s, Median: %s, Max: %s, Avg: %s)\n", humanReadable(sizes[0]), humanReadable(sizes[length/2]), humanReadable(sizes[length-1]), humanReadable(sum/uint64(length))))
 	return sb.String(), nil
 }
 
