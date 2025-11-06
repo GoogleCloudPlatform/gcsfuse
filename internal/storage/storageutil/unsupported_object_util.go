@@ -20,8 +20,9 @@ import (
 )
 
 var (
-	unsupportedObjectNameSubstrings = []string{"//", "..", "/./"}
+	unsupportedObjectNameSubstrings = []string{"//", "/../", "/./"}
 	unsupportedObjectNamePrefixes   = []string{"/"}
+	unsupportedObjectNameSuffix     = []string{"/.", "/.."}
 	unsupportedObjectNames          = []string{"", ".", ".."}
 )
 
@@ -36,6 +37,11 @@ func IsUnsupportedObjectName(name string) bool {
 	}
 	for _, prefix := range unsupportedObjectNamePrefixes {
 		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	for _, suffix := range unsupportedObjectNameSuffix {
+		if strings.HasSuffix(name, suffix) {
 			return true
 		}
 	}

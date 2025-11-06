@@ -712,6 +712,15 @@ func (d *dirInode) readObjects(
 	}()
 
 	for _, o := range listing.MinObjects {
+		if storageutil.IsUnsupportedObjectName(o.Name) {
+			unsupportedDirs = append(unsupportedDirs, o.Name)
+			// Skip unsupported objects in the listing, as the kernel cannot process these file system elements.
+			// TODO: Remove this check once we gain confidence that it is not causing any issues.
+			if d.isUnsupportedDirSupportEnabled {
+				continue
+			}
+		}
+
 		// Skip empty results or the directory object backing this inode.
 		if o.Name == d.Name().GcsObjectName() || o.Name == "" {
 			continue
@@ -1100,9 +1109,8 @@ func (d *dirInode) deletePrefixRecursively(ctx context.Context, prefix string) e
 			// obj.Name is guaranteed to start with 'prefix'.
 			if !strings.HasSuffix(obj.Name, "/") {
 				// It's a file, delete it.
-				objName := obj.Name // Capture loop variable.
 				g.Go(func() error {
-					return d.deleteObject(gCtx, objName)
+					return d.deleteObject(gCtx, obj.Name)
 				})
 			}
 		}
@@ -1113,7 +1121,7 @@ func (d *dirInode) deletePrefixRecursively(ctx context.Context, prefix string) e
 			})
 		}
 
-		if err := g.Wait(); err != nil {
+		if err = g.Wait(); err != nil {
 			return err // Propagate the first error encountered.
 		}
 
