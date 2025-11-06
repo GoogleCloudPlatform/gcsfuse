@@ -1086,8 +1086,8 @@ func (t *DirTest) ReadEntryCores_NonEmpty_ImplicitDirsEnabled() {
 	testFileName := path.Join(dirInodeName, "file")
 	implicitDirObjName := path.Join(dirInodeName, "implicit_dir") + "/blah"
 	symlinkName := path.Join(dirInodeName, "symlink")
-	unsupportedObjectName1 := dirInodeName + "//" + "a.txt"
-	unsupportedObjectName2 := dirInodeName + "../" + "b.txt"
+	unsupportedPathName1 := dirInodeName + "//" + "a.txt"
+	unsupportedPathName2 := dirInodeName + "../" + "b.txt"
 
 	objs := []string{
 		backedDirEmptyName,
@@ -1096,8 +1096,8 @@ func (t *DirTest) ReadEntryCores_NonEmpty_ImplicitDirsEnabled() {
 		testFileName,
 		implicitDirObjName,
 		symlinkName,
-		unsupportedObjectName1,
-		unsupportedObjectName2,
+		unsupportedPathName1,
+		unsupportedPathName2,
 	}
 
 	err = storageutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
