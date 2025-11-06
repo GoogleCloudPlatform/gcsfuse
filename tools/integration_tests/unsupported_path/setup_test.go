@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Provides integration tests when --rename-dir-limit flag is set.
-package unsupported_objects
+package unsupported_path
 
 import (
 	"context"
@@ -28,7 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
-const DirForUnsupportedObjectsTests = "dirForUnsupportedObjectsTests"
+const DirForUnsupportedPathTests = "dirForUnsupportedPathTests"
 
 var (
 	storageClient *storage.Client

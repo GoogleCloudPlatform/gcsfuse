@@ -650,6 +650,9 @@ func ListDirectory(ctx context.Context, client *storage.Client, bucketName, pref
 			return nil, fmt.Errorf("error iterating GCS objects: %w", err)
 		}
 
+		if attrs.Name == prefix {
+			continue // Skip the object if its name exactly matches the prefix
+		}
 		// Check if it's an object (file) or a common prefix (directory).
 		if attrs.Prefix != "" {
 			// This is a subdirectory prefix (e.g., "my-dir/subdir/").
