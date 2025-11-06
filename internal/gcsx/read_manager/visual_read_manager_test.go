@@ -19,6 +19,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workloadinsight"
@@ -32,7 +33,7 @@ func TestNewVisualReadManager(t *testing.T) {
 	ioRenderer, err := workloadinsight.NewRenderer()
 	require.NoError(t, err, "Failed to create IORenderer")
 
-	vrm := NewVisualReadManager(mockReadManager, ioRenderer, "")
+	vrm := NewVisualReadManager(mockReadManager, ioRenderer, cfg.WorkloadInsightConfig{})
 
 	assert.NotNil(t, vrm, "VisualReadManager should not be nil")
 	assert.Equal(t, mockReadManager, vrm.wrapped, "Wrapped ReadManager should match the input")
@@ -107,7 +108,7 @@ func TestVisualReadManager_AcceptRange(t *testing.T) {
 			mockReadManager.On("Object").Return(&gcs.MinObject{Name: "test-object", Size: 100}).Maybe()
 			ioRenderer, err := workloadinsight.NewRenderer()
 			require.NoError(t, err, "Failed to create IORenderer")
-			vrm := NewVisualReadManager(mockReadManager, ioRenderer, "")
+			vrm := NewVisualReadManager(mockReadManager, ioRenderer, cfg.WorkloadInsightConfig{})
 
 			for _, r := range tc.inputRanges {
 				vrm.acceptRange(r[0], r[1])
@@ -120,32 +121,52 @@ func TestVisualReadManager_AcceptRange(t *testing.T) {
 
 func TestVisualReadManager_MergeRanges(t *testing.T) {
 	testCases := []struct {
-		name     string
-		first    workloadinsight.Range
-		second   workloadinsight.Range
-		expected workloadinsight.Range
-		merge    bool
+		name                    string
+		forwardMergeThresholdMb uint64
+		first                   workloadinsight.Range
+		second                  workloadinsight.Range
+		expected                workloadinsight.Range
+		merge                   bool
 	}{
 		{
-			name:     "Overlapping ranges",
-			first:    workloadinsight.Range{Start: 0, End: 10},
-			second:   workloadinsight.Range{Start: 5, End: 15},
-			expected: workloadinsight.Range{},
-			merge:    false,
+			name:                    "Overlapping ranges",
+			forwardMergeThresholdMb: 0,
+			first:                   workloadinsight.Range{Start: 0, End: 10},
+			second:                  workloadinsight.Range{Start: 5, End: 15},
+			expected:                workloadinsight.Range{},
+			merge:                   false,
 		},
 		{
-			name:     "Adjacent ranges",
-			first:    workloadinsight.Range{Start: 10, End: 20},
-			second:   workloadinsight.Range{Start: 20, End: 30},
-			expected: workloadinsight.Range{Start: 10, End: 30},
-			merge:    true,
+			name:                    "Adjacent ranges",
+			forwardMergeThresholdMb: 0,
+			first:                   workloadinsight.Range{Start: 10, End: 20},
+			second:                  workloadinsight.Range{Start: 20, End: 30},
+			expected:                workloadinsight.Range{Start: 10, End: 30},
+			merge:                   true,
 		},
 		{
-			name:     "Non-overlapping ranges",
-			first:    workloadinsight.Range{Start: 0, End: 10},
-			second:   workloadinsight.Range{Start: 15, End: 25},
-			expected: workloadinsight.Range{},
-			merge:    false,
+			name:                    "Non-overlapping ranges",
+			forwardMergeThresholdMb: 0,
+			first:                   workloadinsight.Range{Start: 0, End: 10},
+			second:                  workloadinsight.Range{Start: 15, End: 25},
+			expected:                workloadinsight.Range{},
+			merge:                   false,
+		},
+		{
+			name:                    "Within forward merge threshold",
+			forwardMergeThresholdMb: 1, // 1 MB
+			first:                   workloadinsight.Range{Start: 0, End: 10},
+			second:                  workloadinsight.Range{Start: 1 * MiB, End: 2 * MiB},
+			expected:                workloadinsight.Range{Start: 0, End: 2 * MiB},
+			merge:                   true,
+		},
+		{
+			name:                    "Exceeding forward merge threshold",
+			forwardMergeThresholdMb: 1, // 1 MB
+			first:                   workloadinsight.Range{Start: 0, End: 10},
+			second:                  workloadinsight.Range{Start: 2 * MiB, End: 3 * MiB},
+			expected:                workloadinsight.Range{},
+			merge:                   false,
 		},
 	}
 
@@ -154,7 +175,7 @@ func TestVisualReadManager_MergeRanges(t *testing.T) {
 			mockReadManager := &MockReadManager{}
 			ioRenderer, err := workloadinsight.NewRenderer()
 			require.NoError(t, err, "Failed to create IORenderer")
-			vrm := NewVisualReadManager(mockReadManager, ioRenderer, "")
+			vrm := NewVisualReadManager(mockReadManager, ioRenderer, cfg.WorkloadInsightConfig{ForwardMergeThresholdMb: int64(tc.forwardMergeThresholdMb)})
 
 			mergedRange, ok := vrm.mergeRanges(tc.first, tc.second)
 
@@ -170,7 +191,7 @@ func TestVisualReadManager_ReadAt(t *testing.T) {
 	mockReadManager.On("ReadAt", mock.Anything, mock.Anything, mock.Anything).Return(gcsx.ReaderResponse{}, nil).Once()
 	ioRenderer, err := workloadinsight.NewRenderer()
 	require.NoError(t, err, "Failed to create IORenderer")
-	vrm := NewVisualReadManager(mockReadManager, ioRenderer, "")
+	vrm := NewVisualReadManager(mockReadManager, ioRenderer, cfg.WorkloadInsightConfig{})
 
 	_, err = vrm.ReadAt(context.Background(), make([]byte, 20), 10)
 	require.NoError(t, err, "ReadAt should not return an error")
@@ -187,7 +208,7 @@ func TestVisualReadManager_Destroy(t *testing.T) {
 	mockReadManager.On("Destroy").Return().Once()
 	ioRenderer, err := workloadinsight.NewRenderer()
 	require.NoError(t, err, "Failed to create IORenderer")
-	vrm := NewVisualReadManager(mockReadManager, ioRenderer, "")
+	vrm := NewVisualReadManager(mockReadManager, ioRenderer, cfg.WorkloadInsightConfig{})
 	vrm.acceptRange(0, 10)
 	vrm.acceptRange(20, 30)
 
@@ -203,7 +224,7 @@ func TestVisualReadManager_Destroy_WithOutputFile(t *testing.T) {
 	ioRenderer, err := workloadinsight.NewRenderer()
 	require.NoError(t, err, "Failed to create IORenderer")
 	outputFilePath := "test_output.txt"
-	vrm := NewVisualReadManager(mockReadManager, ioRenderer, outputFilePath)
+	vrm := NewVisualReadManager(mockReadManager, ioRenderer, cfg.WorkloadInsightConfig{OutputFile: outputFilePath})
 	vrm.acceptRange(0, 10)
 	vrm.acceptRange(20, 40)
 
