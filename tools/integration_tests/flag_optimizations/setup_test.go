@@ -63,12 +63,6 @@ var (
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func mustMountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) {
-	setup.MountGCSFuseWithGivenMountWithConfigFunc(&testEnv.cfg, flags, testEnv.mountFunc)
-	setup.SetMntDir(testEnv.mountDir)
-	testEnv.testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
-}
-
 func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) error {
 	err := setup.MayMountGCSFuseWithGivenMountWithConfigFunc(&testEnv.cfg, flags, testEnv.mountFunc)
 	if err != nil {
@@ -77,6 +71,12 @@ func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageCli
 	setup.SetMntDir(testEnv.mountDir)
 	testEnv.testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
 	return nil
+}
+
+func mustMountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) {
+	if err := mountGCSFuseAndSetupTestDir(flags, ctx, storageClient); err != nil {
+		panic(err)
+	}
 }
 
 func overrideFilePathsInFlagSet(t *test_suite.TestConfig, GCSFuseTempDirPath string) {

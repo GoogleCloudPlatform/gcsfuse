@@ -32,7 +32,7 @@ import (
 
 func tearDownOptimizationTest(t *testing.T) {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(t)
-	setup.UnmountGCSFuseAndDeleteLogFile(testEnv.rootDir)
+	setup.UnmountGCSFuseWithConfig(&testEnv.cfg)
 }
 
 ////////////////////////////////////////////////////////////////////////
