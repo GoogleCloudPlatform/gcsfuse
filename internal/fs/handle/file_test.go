@@ -90,13 +90,10 @@ func createDirInode(
 			Mode: 0712,
 		},
 		false,
-		false,
 		true,
-		0,
 		bucket,
 		clock,
 		clock,
-		4,
 		false,
 		true,
 	)

@@ -105,23 +105,21 @@ be interacting with the file system.`)
 
 	// Create a file system server.
 	serverCfg := &fs.ServerConfig{
-		CacheClock:                 timeutil.RealClock(),
-		BucketManager:              bm,
-		BucketName:                 bucketName,
-		LocalFileCache:             false,
-		TempDir:                    string(newConfig.FileSystem.TempDir),
-		ImplicitDirectories:        newConfig.ImplicitDirs,
-		InodeAttributeCacheTTL:     time.Duration(newConfig.MetadataCache.TtlSecs) * time.Second,
-		DirTypeCacheTTL:            time.Duration(newConfig.MetadataCache.TtlSecs) * time.Second,
-		Uid:                        uid,
-		Gid:                        gid,
-		FilePerms:                  os.FileMode(newConfig.FileSystem.FileMode),
-		DirPerms:                   os.FileMode(newConfig.FileSystem.DirMode),
-		RenameDirLimit:             newConfig.FileSystem.RenameDirLimit,
-		SequentialReadSizeMb:       int32(newConfig.GcsConnection.SequentialReadSizeMb),
-		EnableNonexistentTypeCache: newConfig.MetadataCache.EnableNonexistentTypeCache,
-		NewConfig:                  newConfig,
-		MetricHandle:               metricHandle,
+		CacheClock:             timeutil.RealClock(),
+		BucketManager:          bm,
+		BucketName:             bucketName,
+		LocalFileCache:         false,
+		TempDir:                string(newConfig.FileSystem.TempDir),
+		ImplicitDirectories:    newConfig.ImplicitDirs,
+		InodeAttributeCacheTTL: time.Duration(newConfig.MetadataCache.TtlSecs) * time.Second,
+		Uid:                    uid,
+		Gid:                    gid,
+		FilePerms:              os.FileMode(newConfig.FileSystem.FileMode),
+		DirPerms:               os.FileMode(newConfig.FileSystem.DirMode),
+		RenameDirLimit:         newConfig.FileSystem.RenameDirLimit,
+		SequentialReadSizeMb:   int32(newConfig.GcsConnection.SequentialReadSizeMb),
+		NewConfig:              newConfig,
+		MetricHandle:           metricHandle,
 	}
 	if serverCfg.NewConfig.FileSystem.ExperimentalEnableDentryCache {
 		serverCfg.Notifier = fuse.NewNotifier()
