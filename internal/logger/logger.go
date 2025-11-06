@@ -35,29 +35,30 @@ import (
 // used to filter the logs from syslog and write it to respective log files -
 // gcsfuse.log in case of GCSFuse.
 const (
-	ProgramName                  = "gcsfuse"
-	GCSFuseInBackgroundMode      = "GCSFUSE_IN_BACKGROUND_MODE"
-	GCSFuseMountInstanceIDEnvKey = "GCSFUSE_MOUNT_INSTANCE_ID"
-	textFormat                   = "text"
+	ProgramName             = "gcsfuse"
+	GCSFuseInBackgroundMode = "GCSFUSE_IN_BACKGROUND_MODE"
+	MountUUIDEnvKey         = "GCSFUSE_MOUNT_UUID"
+	MountIDKey              = "mount-id" // Combination of fsName and GCSFUSE_MOUNT_UUID
+	textFormat              = "text"
 	// Max possible length can be 32 as UUID has 32 characters excluding 4 hyphens.
-	mountInstanceIDLength = 8
+	mountUUIDLength = 8
 )
 
 var (
-	defaultLoggerFactory     *loggerFactory
-	defaultLogger            *slog.Logger
-	mountInstanceID          string
-	setupMountInstanceIDOnce sync.Once
+	defaultLoggerFactory *loggerFactory
+	defaultLogger        *slog.Logger
+	mountUUID            string
+	setupMountUUIDOnce   sync.Once
 )
 
 // InitLogFile initializes the logger factory to create loggers that print to
-// a log file.
+// a log file, with MountInstanceID set as a custom attribute.
 // In case of empty file, it starts writing the log to syslog file, which
 // is eventually filtered and redirected to a fixed location using syslog
 // config.
 // Here, background true means, this InitLogFile has been called for the
 // background daemon.
-func InitLogFile(newLogConfig cfg.LoggingConfig) error {
+func InitLogFile(newLogConfig cfg.LoggingConfig, fsName string) error {
 	var f *os.File
 	var sysWriter *syslog.Writer
 	var fileWriter *lumberjack.Logger
@@ -100,7 +101,7 @@ func InitLogFile(newLogConfig cfg.LoggingConfig) error {
 		level:      string(newLogConfig.Severity),
 		logRotate:  newLogConfig.LogRotate,
 	}
-	defaultLogger = defaultLoggerFactory.newLogger(string(newLogConfig.Severity))
+	defaultLogger = defaultLoggerFactory.newLoggerWithMountInstanceID(string(newLogConfig.Severity), fsName)
 
 	return nil
 }
@@ -117,53 +118,58 @@ func init() {
 	defaultLogger = defaultLoggerFactory.newLogger(cfg.INFO)
 }
 
-// generateMountInstanceID generates a random string of size from UUID.
-func generateMountInstanceID(size int) (string, error) {
+// generateMountUUID generates a random string of size from UUID.
+func generateMountUUID(size int) (string, error) {
 	if size <= 0 {
-		return "", fmt.Errorf("requested size for MountInstanceID must be positive, but got %d", size)
+		return "", fmt.Errorf("requested size for MountUUID must be positive, but got %d", size)
 	}
 	uuid := uuid.New()
 	uuidStr := strings.ReplaceAll(uuid.String(), "-", "")
 	if size > len(uuidStr) {
-		return "", fmt.Errorf("UUID is smaller than requested size %d for MountInstanceID, UUID: %s", size, uuidStr)
+		return "", fmt.Errorf("UUID is smaller than requested size %d for MountUUID, UUID: %s", size, uuidStr)
 	}
 	return uuidStr[:size], nil
 }
 
-// setupMountInstanceID handles the retrieval of mountInstanceId if GCSFuse is in
+// setupMountUUID handles the retrieval of mountUUID if GCSFuse is in
 // background mode or generates one if running in foreground mode.
-func setupMountInstanceID() {
+func setupMountUUID() {
 	if _, ok := os.LookupEnv(GCSFuseInBackgroundMode); ok {
-		// If GCSFuse is in background mode then look for the MountInstanceId in env which was set by the caller of demonize run.
-		if mountInstanceID, ok = os.LookupEnv(GCSFuseMountInstanceIDEnvKey); !ok || mountInstanceID == "" {
-			Fatal("Could not retrieve %s env variable or it's empty.", GCSFuseMountInstanceIDEnvKey)
+		// If GCSFuse is in background mode then look for the GCSFUSE_MOUNT_UUID in env which was set by the caller of demonize run.
+		if mountUUID, ok = os.LookupEnv(MountUUIDEnvKey); !ok || mountUUID == "" {
+			Fatal("Could not retrieve %s env variable or it's empty.", MountUUIDEnvKey)
 		}
 		return
 	}
 	// If GCSFuse is not running in the background mode then generate a random UUID.
 	var err error
-	if mountInstanceID, err = generateMountInstanceID(mountInstanceIDLength); err != nil {
-		Fatal("Could not generate MountInstanceID of length %d, err: %v", mountInstanceIDLength, err)
+	if mountUUID, err = generateMountUUID(mountUUIDLength); err != nil {
+		Fatal("Could not generate MountUUID of length %d, err: %v", mountUUIDLength, err)
 	}
 }
 
-// MountInstanceID returns a unique ID for the current GCSFuse mount instance,
+// MountUUID returns a unique ID for the current GCSFuse mount,
 // ensuring the ID is initialized only once. On the first call, it either
 // generates a random ID (foreground mode) or retrieves it from the
-// GCSFUSE_MOUNT_INSTANCE_ID environment variable (background mode).
+// GCSFUSE_MOUNT_UUID environment variable (background mode).
 // Subsequent calls return the same cached ID.
-func MountInstanceID() string {
-	setupMountInstanceIDOnce.Do(setupMountInstanceID)
-	return mountInstanceID
+func MountUUID() string {
+	setupMountUUIDOnce.Do(setupMountUUID)
+	return mountUUID
 }
 
-// SetLogFormat updates the log format of default logger.
-func SetLogFormat(format string) {
-	if format == defaultLoggerFactory.format {
-		return
-	}
+// MountInstanceID returns the InstanceID of current gcsfuse mount.
+// This is combination of `fsName` + MountUUID.
+// Note: fsName is passed here explicitly, as logger package doesn't know about fsName
+// when MountInstanceID method is invoked.
+func MountInstanceID(fsName string) string {
+	return fmt.Sprintf("%s-%s", fsName, MountUUID())
+}
+
+// UpdateDefaultLogger updates the log format and creates a new logger with MountInstanceID set as custom attribute.
+func UpdateDefaultLogger(format, fsName string) {
 	defaultLoggerFactory.format = format
-	defaultLogger = defaultLoggerFactory.newLogger(defaultLoggerFactory.level)
+	defaultLogger = defaultLoggerFactory.newLoggerWithMountInstanceID(defaultLoggerFactory.level, fsName)
 }
 
 // Tracef prints the message with TRACE severity in the specified format.
@@ -222,6 +228,19 @@ func (f *loggerFactory) newLogger(level string) *slog.Logger {
 	// create a new logger
 	var programLevel = new(slog.LevelVar)
 	logger := slog.New(f.handler(programLevel, ""))
+	slog.SetDefault(logger)
+	setLoggingLevel(level, programLevel)
+	return logger
+}
+
+func loggerAttr(fsName string) []slog.Attr {
+	return []slog.Attr{slog.String(MountIDKey, MountInstanceID(fsName))}
+}
+
+// create a new logger with mountInstanceID set as custom attribute on logger.
+func (f *loggerFactory) newLoggerWithMountInstanceID(level, fsName string) *slog.Logger {
+	var programLevel = new(slog.LevelVar)
+	logger := slog.New(f.handler(programLevel, "").WithAttrs(loggerAttr(fsName)))
 	slog.SetDefault(logger)
 	setLoggingLevel(level, programLevel)
 	return logger

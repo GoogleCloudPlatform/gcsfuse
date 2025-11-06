@@ -28,8 +28,9 @@ import (
 )
 
 const (
-	textLogPattern = `^time="[a-zA-Z0-9/:. ]{26}" severity=%s message="TestLogs: %s"\s*$`
-	jsonLogPattern = `^{"timestamp":{"seconds":\d{10},"nanos":\d{0,9}},"severity":"%s","message":"TestLogs: %s"}\s*$`
+	testFsName     = "testFS" // This is used in redirectLogsToGivenBuffer to construct the mount instance ID.
+	textLogPattern = `^time="[a-zA-Z0-9/:. ]{26}" severity=%s message="TestLogs: %s" mount-id=testFS-[0-9a-f]{8}\s*$`
+	jsonLogPattern = `^{"timestamp":{"seconds":\d{10},"nanos":\d{0,9}},"severity":"%s","message":"TestLogs: %s","mount-id":"testFS-[0-9a-f]{8}"}\s*$`
 )
 
 // //////////////////////////////////////////////////////////////////////
@@ -50,9 +51,9 @@ func expectedLogRegex(t *testing.T, format, severity, message string) string {
 
 func redirectLogsToGivenBuffer(buf *bytes.Buffer, level string) {
 	var programLevel = new(slog.LevelVar)
-	defaultLogger = slog.New(
-		defaultLoggerFactory.createJsonOrTextHandler(buf, programLevel, "TestLogs: "),
-	)
+	handler := defaultLoggerFactory.createJsonOrTextHandler(buf, programLevel, "TestLogs: ")
+	handler = handler.WithAttrs(loggerAttr(testFsName))
+	defaultLogger = slog.New(handler)
 	setLoggingLevel(level, programLevel)
 }
 
@@ -78,7 +79,7 @@ func getTestLoggingFunctions() []func() {
 
 // fetchAllLogLevelOutputsForSpecifiedSeverityLevel sets the log format and severity,
 // executes standard logging functions, and returns their output.
-func fetchAllLogLevelOutputsForSpecifiedSeverityLevel(t *testing.T, format string, level string) []string {
+func fetchAllLogLevelOutputsForSpecifiedSeverityLevel(t *testing.T, format, level string) []string {
 	t.Helper()
 	// set log format
 	defaultLoggerFactory.format = format
@@ -127,7 +128,7 @@ func TestTextFormatLogs_LogLevelERROR(t *testing.T) {
 	var expectedLogLineRegexes = []string{
 		"", // TRACE
 		"", // DEBUG
-		"", // INFO,
+		"", // INFO
 		"", // WARNING
 		expectedLogRegex(t, "text", "ERROR", "www.errorExample.com"),
 	}
@@ -141,7 +142,7 @@ func TestTextFormatLogs_LogLevelWARNING(t *testing.T) {
 	expectedLogLineRegexes := []string{
 		"", // TRACE
 		"", // DEBUG
-		"", // INFO,
+		"", // INFO
 		expectedLogRegex(t, "text", "WARNING", "www.warningExample.com"),
 		expectedLogRegex(t, "text", "ERROR", "www.errorExample.com"),
 	}
@@ -337,7 +338,7 @@ func TestInitLogFile(t *testing.T) {
 		},
 	}
 
-	err := InitLogFile(newLogConfig)
+	err := InitLogFile(newLogConfig, testFsName)
 
 	require.NoError(t, err)
 	require.NotNil(t, defaultLoggerFactory.file)
@@ -353,7 +354,7 @@ func TestInitLogFile(t *testing.T) {
 	assert.True(t, defaultLoggerFactory.logRotate.Compress)
 }
 
-func TestSetLogFormat(t *testing.T) {
+func TestUpdateDefaultLogger(t *testing.T) {
 	testCases := []struct {
 		name          string
 		format        string
@@ -386,7 +387,7 @@ func TestSetLogFormat(t *testing.T) {
 				logRotate: logConfig.LogRotate,
 			}
 
-			SetLogFormat(tc.format)
+			UpdateDefaultLogger(tc.format, testFsName)
 			var buf bytes.Buffer
 			redirectLogsToGivenBuffer(&buf, defaultLoggerFactory.level)
 			Infof("www.infoExample.com")
@@ -396,68 +397,68 @@ func TestSetLogFormat(t *testing.T) {
 	}
 }
 
-func TestGenerateMountInstanceID_Success(t *testing.T) {
+func TestGenerateMountUUID_Success(t *testing.T) {
 	testCases := []struct {
-		name                         string
-		size                         int
-		expectedMountInstanceIDRegex string
+		name                   string
+		size                   int
+		expectedMountUUIDRegex string
 	}{
 		{
-			name:                         "TenChars",
-			size:                         10,
-			expectedMountInstanceIDRegex: "^[0-9a-f]{10}$",
+			name:                   "TenChars",
+			size:                   10,
+			expectedMountUUIDRegex: "^[0-9a-f]{10}$",
 		},
 		{
-			name:                         "ThirtyTwoChars",
-			size:                         32,
-			expectedMountInstanceIDRegex: "^[0-9a-f]{32}$",
+			name:                   "ThirtyTwoChars",
+			size:                   32,
+			expectedMountUUIDRegex: "^[0-9a-f]{32}$",
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mountInstanceID, err := generateMountInstanceID(tc.size)
+			mountUUID, err := generateMountUUID(tc.size)
 
 			require.NoError(t, err)
-			assert.Regexp(t, tc.expectedMountInstanceIDRegex, mountInstanceID)
+			assert.Regexp(t, tc.expectedMountUUIDRegex, mountUUID)
 		})
 	}
 }
 
-func TestGenerateMountInstanceID_FailureDueToUUIDSize(t *testing.T) {
-	mountInstanceID, err := generateMountInstanceID(999)
+func TestGenerateMountUUID_FailureDueToUUIDSize(t *testing.T) {
+	mountUUID, err := generateMountUUID(999)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "UUID is smaller than requested size")
-	assert.Equal(t, "", mountInstanceID)
+	assert.Equal(t, "", mountUUID)
 }
 
-func TestGenerateMountInstanceID_FailureDueToNegativeSize(t *testing.T) {
-	mountInstanceID, err := generateMountInstanceID(0)
+func TestGenerateMountUUID_FailureDueToNegativeSize(t *testing.T) {
+	mountUUID, err := generateMountUUID(0)
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "MountInstanceID must be positive")
-	assert.Equal(t, "", mountInstanceID)
+	assert.Contains(t, err.Error(), "MountUUID must be positive")
+	assert.Equal(t, "", mountUUID)
 }
 
-func TestSetupMountInstanceID_Success(t *testing.T) {
+func TestSetupMountUUID_Success(t *testing.T) {
 	testCases := []struct {
-		name                         string
-		inBackgroundMode             bool
-		mountInstanceIDEnv           string
-		expectedID                   string
-		expectedMountInstanceIDRegex string
+		name                   string
+		inBackgroundMode       bool
+		mountUUIDEnv           string
+		expectedID             string
+		expectedMountUUIDRegex string
 	}{
 		{
-			name:                         "ForegroundMode",
-			inBackgroundMode:             false,
-			expectedID:                   "",
-			expectedMountInstanceIDRegex: "^[0-9a-f]{8}$", // default size for MountInstanceID is 8.
+			name:                   "ForegroundMode",
+			inBackgroundMode:       false,
+			expectedID:             "",
+			expectedMountUUIDRegex: "^[0-9a-f]{8}$", // default size for MountUUID is 8.
 		},
 		{
-			name:               "BackgroundModeWithInstanceID",
-			inBackgroundMode:   true,
-			mountInstanceIDEnv: "12345678",
-			expectedID:         "12345678",
+			name:             "BackgroundModeWithInstanceID",
+			inBackgroundMode: true,
+			mountUUIDEnv:     "12345678",
+			expectedID:       "12345678",
 		},
 	}
 
@@ -465,21 +466,21 @@ func TestSetupMountInstanceID_Success(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Cleanup(func() {
 				// Initialize package level variables for each subtest to ensure isolation.
-				mountInstanceID = ""
-				setupMountInstanceIDOnce = sync.Once{}
+				mountUUID = ""
+				setupMountUUIDOnce = sync.Once{}
 			})
 			if tc.inBackgroundMode {
 				t.Setenv(GCSFuseInBackgroundMode, "true")
-				t.Setenv(GCSFuseMountInstanceIDEnvKey, tc.mountInstanceIDEnv)
+				t.Setenv(MountUUIDEnvKey, tc.mountUUIDEnv)
 			}
 
-			setupMountInstanceID()
+			setupMountUUID()
 
 			if tc.inBackgroundMode {
-				assert.Equal(t, tc.expectedID, mountInstanceID)
+				assert.Equal(t, tc.expectedID, mountUUID)
 			} else {
-				assert.Len(t, mountInstanceID, mountInstanceIDLength)
-				assert.Regexp(t, tc.expectedMountInstanceIDRegex, mountInstanceID)
+				assert.Len(t, mountUUID, mountUUIDLength)
+				assert.Regexp(t, tc.expectedMountUUIDRegex, mountUUID)
 			}
 		})
 	}

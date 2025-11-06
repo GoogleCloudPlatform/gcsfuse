@@ -395,6 +395,8 @@ type Config struct {
 
 	Read ReadConfig `yaml:"read"`
 
+	WorkloadInsight WorkloadInsightConfig `yaml:"workload-insight"`
+
 	Write WriteConfig `yaml:"write"`
 }
 
@@ -452,6 +454,10 @@ type FileSystemConfig struct {
 	IgnoreInterrupts bool `yaml:"ignore-interrupts"`
 
 	KernelListCacheTtlSecs int64 `yaml:"kernel-list-cache-ttl-secs"`
+
+	MaxReadAheadKb int64 `yaml:"max-read-ahead-kb"`
+
+	ODirect bool `yaml:"o-direct"`
 
 	PreconditionErrors bool `yaml:"precondition-errors"`
 
@@ -569,6 +575,8 @@ type MetricsConfig struct {
 type MonitoringConfig struct {
 	ExperimentalTracingMode string `yaml:"experimental-tracing-mode"`
 
+	ExperimentalTracingProjectId string `yaml:"experimental-tracing-project-id"`
+
 	ExperimentalTracingSamplingRatio float64 `yaml:"experimental-tracing-sampling-ratio"`
 }
 
@@ -602,6 +610,12 @@ type ReadStallGcsRetriesConfig struct {
 	ReqIncreaseRate float64 `yaml:"req-increase-rate"`
 
 	ReqTargetPercentile float64 `yaml:"req-target-percentile"`
+}
+
+type WorkloadInsightConfig struct {
+	OutputFile string `yaml:"output-file"`
+
+	Visualize bool `yaml:"visualize"`
 }
 
 type WriteConfig struct {
@@ -788,7 +802,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-streaming-writes", "", true, "Enables streaming uploads during write file operation.")
 
-	flagSet.BoolP("enable-unsupported-dir-support", "", true, "Enables support for un-supported directory fix implementation.")
+	flagSet.BoolP("enable-unsupported-dir-support", "", false, "Enables support for un-supported directory fix implementation.")
 
 	if err := flagSet.MarkHidden("enable-unsupported-dir-support"); err != nil {
 		return err
@@ -827,6 +841,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.StringP("experimental-tracing-mode", "", "", "Experimental: specify tracing mode")
 
 	if err := flagSet.MarkHidden("experimental-tracing-mode"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("experimental-tracing-project-id", "", "", "Experimental: specify the GCP project-id to which traces will be exported. When unset, a project-id will be inferred as per the default credential detection process")
+
+	if err := flagSet.MarkHidden("experimental-tracing-project-id"); err != nil {
 		return err
 	}
 
@@ -932,6 +952,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("max-idle-conns-per-host", "", 100, "The number of maximum idle connections allowed per server.")
 
+	flagSet.IntP("max-read-ahead-kb", "", 0, "Sets max kernel-read-ahead for the mount in KiB. 0 means system default. Requires sudo permission to set this value, otherwise the value will be ignored and system default will be used.")
+
+	if err := flagSet.MarkHidden("max-read-ahead-kb"); err != nil {
+		return err
+	}
+
 	flagSet.IntP("max-retry-attempts", "", 0, "It sets a limit on the number of times an operation will be retried if it fails, preventing endless retry loops. A value of 0 indicates no limit.")
 
 	flagSet.DurationP("max-retry-duration", "", 0*time.Nanosecond, "This is currently unused.")
@@ -965,6 +991,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.StringSliceP("o", "", []string{}, "Additional system-specific mount options. Multiple options can be passed as comma separated. For readonly, use --o ro")
+
+	flagSet.BoolP("o-direct", "", false, "Bypasses the kernel's page cache for file reads and writes. When enabled, all I/O operations are sent directly to the GCSFuse daemon. ")
+
+	if err := flagSet.MarkHidden("o-direct"); err != nil {
+		return err
+	}
 
 	flagSet.StringP("only-dir", "", "", "Mount only a specific directory within the bucket. See docs/mounting for more information")
 
@@ -1087,6 +1119,18 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.IntP("uid", "", -1, "UID owner of all inodes.")
+
+	flagSet.BoolP("visualize-workload-insight", "", false, "A flag to enable workload visualization. When enabled, workload insights will include visualizations to help understand access patterns. Insights will be written to the file specified by --workload-insight-output-file.")
+
+	if err := flagSet.MarkHidden("visualize-workload-insight"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("workload-insight-output-file", "", "", "The file path where the workload insights will be written. If not specified, insights will be written to stdout")
+
+	if err := flagSet.MarkHidden("workload-insight-output-file"); err != nil {
+		return err
+	}
 
 	flagSet.IntP("write-block-size-mb", "", 32, "Specifies the block size for streaming writes. The value should be more than 0.")
 
@@ -1271,6 +1315,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("monitoring.experimental-tracing-project-id", flagSet.Lookup("experimental-tracing-project-id")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("monitoring.experimental-tracing-sampling-ratio", flagSet.Lookup("experimental-tracing-sampling-ratio")); err != nil {
 		return err
 	}
@@ -1403,6 +1451,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("file-system.max-read-ahead-kb", flagSet.Lookup("max-read-ahead-kb")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("gcs-retries.max-retry-attempts", flagSet.Lookup("max-retry-attempts")); err != nil {
 		return err
 	}
@@ -1432,6 +1484,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.fuse-options", flagSet.Lookup("o")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.o-direct", flagSet.Lookup("o-direct")); err != nil {
 		return err
 	}
 
@@ -1548,6 +1604,14 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.uid", flagSet.Lookup("uid")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("workload-insight.visualize", flagSet.Lookup("visualize-workload-insight")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("workload-insight.output-file", flagSet.Lookup("workload-insight-output-file")); err != nil {
 		return err
 	}
 

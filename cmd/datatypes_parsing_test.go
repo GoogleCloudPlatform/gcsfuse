@@ -581,8 +581,8 @@ func TestCLIFlagPassing(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			var c *cfg.Config
-			command, err := newRootCmd(func(config *cfg.Config, _, _ string) error {
-				c = config
+			command, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				c = mountInfo.config
 				return nil
 			})
 			require.NoError(t, err)
@@ -754,8 +754,8 @@ func TestConfigPassing(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			var c *cfg.Config
-			command, err := newRootCmd(func(config *cfg.Config, _, _ string) error {
-				c = config
+			command, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				c = mountInfo.config
 				return nil
 			})
 			require.NoError(t, err)
@@ -809,7 +809,7 @@ func TestPredefinedFlagThrowNoError(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			command, err := newRootCmd(func(config *cfg.Config, _, _ string) error {
+			command, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				return nil
 			})
 			require.NoError(t, err)

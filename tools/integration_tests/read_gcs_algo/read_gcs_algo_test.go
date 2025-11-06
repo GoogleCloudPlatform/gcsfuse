@@ -15,28 +15,66 @@
 package read_gcs_algo
 
 import (
+	"context"
+	"log"
 	"os"
 	"testing"
 
+	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 const OneMB = 1024 * 1024
 const DirForReadAlgoTests = "dirForReadAlgoTests"
 
+var (
+	storageClient *storage.Client
+	ctx           context.Context
+)
+
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
+	// 1. Load and parse the common configuration.
+	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
+	if len(cfg.ReadGCSAlgo) == 0 {
+		log.Println("No configuration found for list large dir tests in config. Using flags instead.")
+		// Populate the config manually.
+		cfg.ReadGCSAlgo = make([]test_suite.TestConfig, 1)
+		cfg.ReadGCSAlgo[0].TestBucket = setup.TestBucket()
+		cfg.ReadGCSAlgo[0].GKEMountedDirectory = setup.MountedDirectory()
+		cfg.ReadGCSAlgo[0].Configs = make([]test_suite.ConfigItem, 2)
+		cfg.ReadGCSAlgo[0].Configs[0].Flags = []string{"--implicit-dirs=true"}
+		cfg.ReadGCSAlgo[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+	}
 
-	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
-	setup.RunTestsForMountedDirectoryFlag(m)
+	// 2. Create storage client before running tests.
+	ctx = context.Background()
+	bucketType := setup.TestEnvironment(ctx, &cfg.ReadGCSAlgo[0])
+	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
+	defer func() {
+		err := closeStorageClient()
+		if err != nil {
+			log.Fatalf("closeStorageClient failed: %v", err)
+		}
+	}()
+
+	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	// flags to be set, as ReadGCSAlgo tests validates content from the bucket.
+	if cfg.ReadGCSAlgo[0].GKEMountedDirectory != "" && cfg.ReadGCSAlgo[0].TestBucket != "" {
+		os.Exit(setup.RunTestsForMountedDirectory(cfg.ReadGCSAlgo[0].GKEMountedDirectory, m))
+	}
 
 	// Run tests for testBucket
-	setup.SetUpTestDirForTestBucketFlag()
-	// Do not enable fileCache as we want to test gcs read flow.
-	mountConfigFlags := [][]string{{"--implicit-dirs=true"}}
-	successCode := static_mounting.RunTests(mountConfigFlags, m)
+	// 4. Build the flag sets dynamically from the config.
+	flags := setup.BuildFlagSets(cfg.ReadGCSAlgo[0], bucketType, "")
+
+	setup.SetUpTestDirForTestBucket(&cfg.ReadGCSAlgo[0])
+
+	successCode := static_mounting.RunTestsWithConfigFile(&cfg.ReadGCSAlgo[0], flags, m)
+
 	os.Exit(successCode)
 }
