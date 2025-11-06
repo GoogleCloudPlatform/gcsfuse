@@ -295,7 +295,7 @@ func (t *fileTest) Test_Read_Success() {
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), len(expectedData), resp.Size)
-	assert.Equal(t.T(), expectedData, resp.DataBuf)
+	assert.Equal(t.T(), expectedData, buf)
 }
 
 // Test_ReadWithReadManager_Success validates successful read behavior using the readManager.
@@ -312,7 +312,7 @@ func (t *fileTest) Test_ReadWithReadManager_Success() {
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), len(expectedData), resp.Size)
-	assert.Equal(t.T(), expectedData, resp.DataBuf)
+	assert.Equal(t.T(), expectedData, buf)
 }
 
 // Test_ReadWithReadManager_Concurrent validates concurrent read behavior using the readManager.
@@ -513,12 +513,12 @@ func (t *fileTest) Test_ReadWithReadManager_FallbackToInode() {
 	fh.inode.Lock()
 	mockRM := new(read_manager.MockReadManager)
 	fh.readManager = mockRM
-
+	// ReadWithReadManager will unlock the inode.
 	resp, err := fh.ReadWithReadManager(t.ctx, dst, 0)
 
 	assert.Equal(t.T(), io.EOF, err)
 	assert.Equal(t.T(), len(objectData), resp.Size)
-	assert.Equal(t.T(), objectData, resp.DataBuf[:resp.Size])
+	assert.Equal(t.T(), objectData, dst[:resp.Size])
 	mockRM.AssertExpectations(t.T())
 }
 
@@ -534,12 +534,12 @@ func (t *fileTest) Test_Read_FallbackToInode() {
 	fh.inode.Lock()
 	mockR := new(gcsx.MockRandomReader)
 	fh.reader = mockR
-
+	// Read will unlock the inode.
 	resp, err := fh.Read(t.ctx, dst, 0)
 
 	assert.Equal(t.T(), io.EOF, err)
 	assert.Equal(t.T(), len(objectData), resp.Size)
-	assert.Equal(t.T(), objectData, resp.DataBuf[:resp.Size])
+	assert.Equal(t.T(), objectData, dst[:resp.Size])
 	mockR.AssertExpectations(t.T())
 }
 
@@ -580,7 +580,7 @@ func (t *fileTest) Test_ReadWithReadManager_ReadManagerInvalidatedByGenerationCh
 	assert.NotNil(t.T(), fh.readManager)
 	assert.NotEqual(t.T(), oldReadManager, fh.readManager)
 	assert.Equal(t.T(), len(content2), resp.Size)
-	assert.Equal(t.T(), content2, resp.DataBuf)
+	assert.Equal(t.T(), content2, dst)
 }
 
 func (t *fileTest) Test_Read_ReaderInvalidatedByGenerationChange() {
@@ -620,7 +620,7 @@ func (t *fileTest) Test_Read_ReaderInvalidatedByGenerationChange() {
 	assert.NotNil(t.T(), fh.reader)
 	assert.NotEqual(t.T(), oldReader, fh.reader)
 	assert.Equal(t.T(), len(content2), resp.Size)
-	assert.Equal(t.T(), content2, resp.DataBuf)
+	assert.Equal(t.T(), content2, dst)
 }
 
 func (t *fileTest) TestOpenMode() {
@@ -947,7 +947,7 @@ func (t *fileTest) Test_ReadWithReadManager_FullReadSuccessWithBufferedRead() {
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), fileSize, resp.Size)
-	assert.Equal(t.T(), expectedData, resp.DataBuf)
+	assert.Equal(t.T(), expectedData, buf)
 }
 
 func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() {
@@ -994,7 +994,7 @@ func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() 
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), readSize, resp.Size)
-			results[index] = resp.DataBuf
+			results[index] = readBuf
 		}(i)
 	}
 	// Wait for all goroutines to finish.

@@ -178,21 +178,6 @@ func (bp *GenBlockPool[T]) BlockSize() int64 {
 	return bp.blockSize
 }
 
-// DecrementTotalBlocks decrements the total number of blocks in the pool.
-func (bp *GenBlockPool[T]) DecrementTotalBlocks() {
-	bp.totalBlocks--
-}
-
-// TotalBlocks returns the total number of blocks in the pool.
-func (bp *GenBlockPool[T]) TotalBlocks() int64 {
-	return bp.totalBlocks
-}
-
-// ReservedBlocks returns the number of reserved blocks in the pool.
-func (bp *GenBlockPool[T]) ReservedBlocks() int64 {
-	return bp.reservedBlocks
-}
-
 func (bp *GenBlockPool[T]) ClearFreeBlockChannel(releaseReservedBlocks bool) error {
 	for {
 		select {
@@ -202,11 +187,11 @@ func (bp *GenBlockPool[T]) ClearFreeBlockChannel(releaseReservedBlocks bool) err
 				// if we get here, there is likely memory corruption.
 				return fmt.Errorf("munmap error: %v", err)
 			}
-			// Decrement total blocks count and release semaphore if it's not a reserved block.
-			if bp.TotalBlocks() > bp.ReservedBlocks() {
+			// Release semaphore for all but the reserved blocks.
+			if bp.totalBlocks > bp.reservedBlocks {
 				bp.globalMaxBlocksSem.Release(1)
 			}
-			bp.DecrementTotalBlocks()
+			bp.totalBlocks--
 		default:
 			// We are here, it means there are no more blocks in the free blocks channel.
 			// Release semaphore for the released blocks iff releaseReservedBlocks is true.
@@ -216,11 +201,6 @@ func (bp *GenBlockPool[T]) ClearFreeBlockChannel(releaseReservedBlocks bool) err
 			return nil
 		}
 	}
-}
-
-// GlobalSem returns the global semaphore used by the block pool.
-func (bp *GenBlockPool[T]) GlobalSem() *semaphore.Weighted {
-	return bp.globalMaxBlocksSem
 }
 
 // TotalFreeBlocks returns the total number of free blocks available in the pool.

@@ -44,9 +44,6 @@ type GCSReaderRequest struct {
 // ReaderResponse represents the response returned as part of a ReadAt call.
 // It includes the actual data read and its size.
 type ReaderResponse struct {
-	// DataBuf contains the bytes read from the object.
-	DataBuf []byte
-
 	// Data contains the slices of bytes read from the object for zero-copy reads.
 	Data [][]byte
 
@@ -54,7 +51,7 @@ type ReaderResponse struct {
 	Size int
 
 	// Done is an optional callback to be invoked when the consumer is finished
-	// with DataBuf. This is crucial for asynchronous reads to manage buffer
+	// with Data. This is crucial for asynchronous reads to manage buffer
 	// lifecycles and resource cleanup (e.g., reference counting).
 	Done func()
 }
@@ -66,7 +63,8 @@ type Reader interface {
 	// ReadAt reads data into the provided byte slice starting from the specified offset.
 	// It returns an ReaderResponse containing the data read and the number of bytes read.
 	// To indicate that the operation should be handled by an alternative reader, return
-	// the error FallbackToAnotherReader. If an error occurs, the size in ReaderResponse will be zero.
+	// the error FallbackToAnotherReader.
+	// If an error occurs, the size in ReaderResponse will be zero.
 	ReadAt(ctx context.Context, p []byte, offset int64) (ReaderResponse, error)
 
 	// Destroy is called to release any resources held by the reader.

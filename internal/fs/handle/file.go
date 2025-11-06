@@ -172,8 +172,7 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 		defer fh.inode.Unlock()
 		n, err := fh.inode.Read(ctx, dst, offset)
 		return gcsx.ReaderResponse{
-			DataBuf: dst,
-			Size:    n,
+			Size: n,
 		}, err
 	}
 
@@ -246,7 +245,7 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64) (gcsx.
 	if !fh.inode.SourceGenerationIsAuthoritative() {
 		defer fh.inode.Unlock()
 		n, err := fh.inode.Read(ctx, dst, offset)
-		return gcsx.ReaderResponse{DataBuf: dst, Size: n}, err
+		return gcsx.ReaderResponse{Size: n}, err
 	}
 
 	fh.lockHandleAndRelockInode(true)
@@ -280,15 +279,14 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64) (gcsx.
 			logger.Warnf("Unexpected EOF error encountered while reading, err: %v type: %T", err, err)
 			err = io.EOF
 		}
-		return gcsx.ReaderResponse{DataBuf: objectData.DataBuf, Size: objectData.Size}, err
+		return gcsx.ReaderResponse{Size: objectData.Size}, err
 
 	case err != nil:
 		return gcsx.ReaderResponse{}, fmt.Errorf("fh.reader.ReadAt: %w", err)
 	}
 
 	return gcsx.ReaderResponse{
-		DataBuf: objectData.DataBuf,
-		Size:    objectData.Size,
+		Size: objectData.Size,
 	}, nil
 }
 

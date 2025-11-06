@@ -114,8 +114,7 @@ func (rr *RangeReader) closeReader() {
 
 func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (gcsx.ReaderResponse, error) {
 	readerResponse := gcsx.ReaderResponse{
-		DataBuf: req.Buffer,
-		Size:    0,
+		Size: 0,
 	}
 	var err error
 

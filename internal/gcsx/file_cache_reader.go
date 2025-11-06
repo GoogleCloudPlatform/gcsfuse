@@ -178,8 +178,7 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (ReaderResponse, error) {
 	var err error
 	readerResponse := ReaderResponse{
-		DataBuf: p,
-		Size:    0,
+		Size: 0,
 	}
 
 	if offset >= int64(fc.object.Size) {

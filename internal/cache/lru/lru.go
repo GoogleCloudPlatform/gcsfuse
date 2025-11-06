@@ -220,43 +220,6 @@ func (c *Cache) LookUp(key string) (value ValueType) {
 	return e.Value.(entry).Value
 }
 
-// Keys returns a slice of the keys in the cache. The order is not guaranteed.
-func (c *Cache) Keys() []string {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	keys := make([]string, 0, len(c.index))
-	for k := range c.index {
-		keys = append(keys, k)
-	}
-
-	return keys
-}
-
-// Len returns the number of items in the cache.
-func (c *Cache) Len() int {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.entries.Len()
-}
-
-// Clear removes all items from the cache and returns the cleared values.
-func (c *Cache) Clear() (clearedValues []ValueType) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	clearedValues = make([]ValueType, 0, c.entries.Len())
-	for e := c.entries.Front(); e != nil; e = e.Next() {
-		clearedValues = append(clearedValues, e.Value.(entry).Value)
-	}
-
-	c.entries.Init()
-	c.index = make(map[string]*list.Element)
-	c.currentSize = 0
-
-	return clearedValues
-}
-
 // LookUpWithoutChangingOrder looks up previously-inserted value for a given key
 // without changing the order of entries in the cache. Return nil if no value
 // is present.

@@ -50,8 +50,6 @@ type Config struct {
 
 	DisableAutoconfig bool `yaml:"disable-autoconfig"`
 
-	EnableAsyncReads bool `yaml:"enable-async-reads"`
-
 	EnableAtomicRenameObject bool `yaml:"enable-atomic-rename-object"`
 
 	EnableGoogleLibAuth bool `yaml:"enable-google-lib-auth"`
@@ -420,12 +418,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("disable-parallel-dirops", "", false, "Specifies whether to allow parallel dir operations (lookups and readers)")
 
 	if err := flagSet.MarkHidden("disable-parallel-dirops"); err != nil {
-		return err
-	}
-
-	flagSet.BoolP("enable-async-reads", "", false, "Enables fuse async reads.")
-
-	if err := flagSet.MarkHidden("enable-async-reads"); err != nil {
 		return err
 	}
 
@@ -869,10 +861,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.disable-parallel-dirops", flagSet.Lookup("disable-parallel-dirops")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("enable-async-reads", flagSet.Lookup("enable-async-reads")); err != nil {
 		return err
 	}
 

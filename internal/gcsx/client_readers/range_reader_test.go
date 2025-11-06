@@ -286,7 +286,6 @@ func (t *rangeReaderTest) Test_ReadAt_SuccessfulRead() {
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), int(size), resp.Size)
-	assert.Equal(t.T(), content[:size], resp.DataBuf)
 	t.mockBucket.AssertExpectations(t.T())
 }
 
@@ -495,7 +494,6 @@ func (t *rangeReaderTest) Test_ReadAt_DoesntPropagateCancellationAfterReturning(
 
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), bufSize, readerResponse.Size)
-	assert.Equal(t.T(), content[:bufSize], string(readerResponse.DataBuf[:readerResponse.Size]))
 	// If we cancel the calling context now, it should not cause the underlying
 	// read context to be cancelled.
 	cancel()
@@ -608,10 +606,9 @@ func (t *rangeReaderTest) Test_ReadAt_ReaderNotExhausted() {
 	var bufSize int64 = 2
 
 	// Read two bytes.
-	resp, err := t.readAt(offset, bufSize)
+	_, err := t.readAt(offset, bufSize)
 
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), content[:bufSize], string(resp.DataBuf[:resp.Size]))
 	assert.Zero(t.T(), cc.closeCount)
 	assert.Equal(t.T(), rc, t.rangeReader.reader)
 	assert.Equal(t.T(), offset+bufSize, t.rangeReader.start)
@@ -656,7 +653,7 @@ func (t *rangeReaderTest) Test_ReadAt_ForceCreateReader() {
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), int(readSize), resp1.Size)
-	assert.Equal(t.T(), content1[:readSize], resp1.DataBuf)
+	assert.Equal(t.T(), content1[:readSize], req1.Buffer)
 	assert.NotNil(t.T(), t.rangeReader.reader) // Reader should be active
 	firstReader := t.rangeReader.reader
 
@@ -677,7 +674,7 @@ func (t *rangeReaderTest) Test_ReadAt_ForceCreateReader() {
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), int(readsize2), resp2.Size)
-	assert.Equal(t.T(), content2[:readsize2], resp2.DataBuf)
+	assert.Equal(t.T(), content2[:readsize2], req2.Buffer)
 	assert.NotNil(t.T(), t.rangeReader.reader) // New reader should not be nil
 	secondReader := t.rangeReader.reader
 	assert.NotEqual(t.T(), firstReader, secondReader)

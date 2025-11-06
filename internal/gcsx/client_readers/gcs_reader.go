@@ -150,7 +150,6 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (reader
 		EndOffset:         offset + int64(len(p)),
 		ForceCreateReader: false,
 	}
-	readerResponse.DataBuf = p
 	defer func() {
 		gr.updateExpectedOffset(offset + int64(readerResponse.Size))
 		gr.totalReadBytes.Add(uint64(readerResponse.Size))

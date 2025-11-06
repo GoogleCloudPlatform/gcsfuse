@@ -77,8 +77,7 @@ func (mrd *MultiRangeReader) readFromMultiRangeReader(ctx context.Context, p []b
 
 func (mrd *MultiRangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (gcsx.ReaderResponse, error) {
 	readerResponse := gcsx.ReaderResponse{
-		DataBuf: req.Buffer,
-		Size:    0,
+		Size: 0,
 	}
 	var err error
 

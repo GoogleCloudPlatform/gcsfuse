@@ -84,8 +84,6 @@ type RandomReader interface {
 
 // ObjectData specifies the response returned as part of ReadAt call.
 type ObjectData struct {
-	// Byte array populated with the requested data.
-	DataBuf []byte
 	// Size of the data returned.
 	Size int
 	// Specified whether data is served from cache or not.
@@ -315,7 +313,6 @@ func (rr *randomReader) ReadAt(
 	p []byte,
 	offset int64) (objectData ObjectData, err error) {
 	objectData = ObjectData{
-		DataBuf:  p,
 		CacheHit: false,
 		Size:     0,
 	}

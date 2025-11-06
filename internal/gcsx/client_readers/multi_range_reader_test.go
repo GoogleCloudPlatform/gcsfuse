@@ -194,7 +194,6 @@ func (t *multiRangeReaderTest) Test_ReadAt_MRDRead() {
 			t.mockBucket.AssertNotCalled(t.T(), "NewReaderWithReadHandle", mock.Anything)
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), tc.bytesToRead, readerResponse.Size)
-			assert.Equal(t.T(), testContent[tc.offset:tc.offset+tc.bytesToRead], readerResponse.DataBuf[:readerResponse.Size])
 		})
 	}
 }

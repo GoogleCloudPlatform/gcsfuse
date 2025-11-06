@@ -165,11 +165,10 @@ func (t *gcsReaderTest) Test_ReadAt_ExistingReaderLimitIsLessThanRequestedDataSi
 	requestSize := 6
 
 	readerResponse, err := t.readAt(2, int64(requestSize))
-
+	// The reader should be the same as the one returned by NewReaderWithReadHandle.
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), rc, t.gcsReader.rangeReader.reader)
 	assert.Equal(t.T(), requestSize, readerResponse.Size)
-	assert.Equal(t.T(), content, string(readerResponse.DataBuf[:readerResponse.Size]))
 	assert.Equal(t.T(), uint64(requestSize), t.gcsReader.totalReadBytes.Load())
 	assert.Equal(t.T(), int64(2+requestSize), t.gcsReader.expectedOffset.Load())
 	assert.Equal(t.T(), expectedHandleInRequest, t.gcsReader.rangeReader.readHandle)
@@ -200,11 +199,10 @@ func (t *gcsReaderTest) Test_ReadAt_ExistingReaderLimitIsLessThanRequestedObject
 	requestSize := 6
 
 	readerResponse, err := t.readAt(0, int64(requestSize))
-
+	// The reader should be nil as it was closed and a new one was not created.
 	assert.NoError(t.T(), err)
 	assert.Nil(t.T(), t.gcsReader.rangeReader.reader)
 	assert.Equal(t.T(), int(t.object.Size), readerResponse.Size)
-	assert.Equal(t.T(), content, string(readerResponse.DataBuf[:readerResponse.Size]))
 	assert.Equal(t.T(), int64(t.object.Size), t.gcsReader.expectedOffset.Load())
 	assert.Equal(t.T(), []byte(nil), t.gcsReader.rangeReader.readHandle)
 }
@@ -225,7 +223,6 @@ func (t *gcsReaderTest) Test_ReadAt_ExistingReaderIsFine() {
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), 3, readerResponse.Size)
-	assert.Equal(t.T(), content, string(readerResponse.DataBuf[:readerResponse.Size]))
 	assert.Equal(t.T(), uint64(5), t.gcsReader.totalReadBytes.Load())
 	assert.Equal(t.T(), int64(5), t.gcsReader.expectedOffset.Load())
 	assert.Equal(t.T(), []byte("fake"), t.gcsReader.rangeReader.readHandle)
@@ -270,7 +267,6 @@ func (t *gcsReaderTest) Test_ExistingReader_WrongOffset() {
 			assert.NoError(t.T(), err)
 			assert.Nil(t.T(), t.gcsReader.rangeReader.reader)
 			assert.Equal(t.T(), int(t.object.Size), readerResponse.Size)
-			assert.Equal(t.T(), content, string(readerResponse.DataBuf[:readerResponse.Size]))
 			assert.Equal(t.T(), []byte(nil), t.gcsReader.rangeReader.readHandle)
 		})
 	}
@@ -806,11 +802,10 @@ func (t *gcsReaderTest) Test_ReadAt_WithAndWithoutReadConfig() {
 			t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: false}).Times(3)
 
 			objectData, err := t.readAt(readOffset, int64(readLength))
-
+			// The reader should be active as partial data read from the requested range.
 			t.mockBucket.AssertExpectations(t.T())
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), readLength, objectData.Size)
-			assert.Equal(t.T(), fakeReaderContent[:readLength], objectData.DataBuf[:objectData.Size]) // Ensure buffer is populated correctly
 			assert.NotNil(t.T(), t.gcsReader.rangeReader.reader, "Reader should be active as partial data read from the requested range.")
 			assert.NotNil(t.T(), t.gcsReader.rangeReader.cancel)
 			assert.Equal(t.T(), int64(readLength), t.gcsReader.rangeReader.start)

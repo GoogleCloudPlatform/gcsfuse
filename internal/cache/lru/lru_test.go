@@ -362,33 +362,3 @@ func (t *CacheTest) TestRaceCondition() {
 
 	wg.Wait()
 }
-
-func (t *CacheTest) TestClear() {
-	t.insertAndAssert("burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
-	t.insertAndAssert("taco", testData{Value: 26, DataSize: 20}, []int64{}, nil)
-
-	cleared := t.cache.Clear()
-
-	AssertEq(2, len(cleared))
-	// Order is from front to back of list, which is most recent to least recent.
-	// taco was inserted last, so it's at the front.
-	ExpectEq(26, cleared[0].(testData).Value)
-	ExpectEq(23, cleared[1].(testData).Value)
-
-	ExpectEq(nil, t.cache.LookUp("burrito"))
-	ExpectEq(nil, t.cache.LookUp("taco"))
-
-	// Check if cache is usable after clear.
-	t.insertAndAssert("enchilada", testData{Value: 28, DataSize: 20}, []int64{}, nil)
-	ExpectEq(28, t.cache.LookUp("enchilada").(testData).Value)
-}
-
-func (t *CacheTest) TestLen() {
-	AssertEq(0, t.cache.Len())
-
-	t.insertAndAssert("burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
-	AssertEq(1, t.cache.Len())
-
-	t.insertAndAssert("taco", testData{Value: 26, DataSize: 20}, []int64{}, nil)
-	AssertEq(2, t.cache.Len())
-}

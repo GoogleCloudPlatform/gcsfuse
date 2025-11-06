@@ -143,7 +143,6 @@ be interacting with the file system.`)
 	logger.Infof("Mounting file system %q...", fsName)
 
 	mountCfg := getFuseMountConfig(fsName, newConfig)
-	mountCfg.EnableAsyncReads = newConfig.EnableAsyncReads
 	mfs, err = fuse.Mount(mountPoint, server, mountCfg)
 	if err != nil {
 		err = fmt.Errorf("mount: %w", err)
