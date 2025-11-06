@@ -41,8 +41,11 @@ type VisualReadManager struct {
 	// Guards access to readIOs slice.
 	mu sync.Mutex
 
-	// Config for workload insight visualization.
+	// Configuration for workload insight visualization.
 	cfg cfg.WorkloadInsightConfig
+
+	// forwardMergeThreshold is the threshold in bytes for merging adjacent readIOs.
+	forwardMergeThreshold uint64
 }
 
 // NewVisualReadManager creates a new VisualReadManager that wraps
@@ -52,11 +55,12 @@ type VisualReadManager struct {
 // In case outputFilePath is empty, output is printed to stdout.
 func NewVisualReadManager(wrapped gcsx.ReadManager, ioRenderer *workloadinsight.Renderer, cfg cfg.WorkloadInsightConfig) *VisualReadManager {
 	return &VisualReadManager{
-		wrapped:    wrapped,
-		ioRenderer: ioRenderer,
-		readIOs:    []workloadinsight.Range{},
-		mu:         sync.Mutex{},
-		cfg:        cfg,
+		wrapped:               wrapped,
+		ioRenderer:            ioRenderer,
+		readIOs:               []workloadinsight.Range{},
+		mu:                    sync.Mutex{},
+		cfg:                   cfg,
+		forwardMergeThreshold: uint64(cfg.ForwardMergeThresholdMb * gcsx.MiB),
 	}
 }
 
@@ -133,8 +137,7 @@ func (vrm *VisualReadManager) acceptRange(start, end uint64) {
 
 // mergeRanges combines two readIOs into a single range.
 func (vrm *VisualReadManager) mergeRanges(first, second workloadinsight.Range) (workloadinsight.Range, bool) {
-	forwardMergeThreshold := uint64(vrm.cfg.ForwardMergeThresholdMb * gcsx.MiB)
-	if first.End+forwardMergeThreshold < second.Start {
+	if first.End+vrm.forwardMergeThreshold < second.Start {
 		return workloadinsight.Range{}, false
 	}
 
