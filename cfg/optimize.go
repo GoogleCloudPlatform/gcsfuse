@@ -268,29 +268,29 @@ func CreateHierarchicalOptimizedFlags(flatMap map[string]OptimizationResult) (ma
 		parts := strings.Split(key, ".")
 		currentLevel := nestedMap
 
-		for i, part := range parts {
-			if i == len(parts)-1 {
-				// Last part, try to assign the value
-				if existingVal, exists := currentLevel[part]; exists {
-					if _, isMap := existingVal.(map[string]any); isMap {
-						return nil, fmt.Errorf("key conflict: %q is both a path and a terminal key", strings.Join(parts[0:i+1], "."))
-					}
+		// Traverse the path and create intermediate maps.
+		for i, part := range parts[:len(parts)-1] {
+			// Intermediate part, ensure the next level map exists
+			if existingVal, exists := currentLevel[part]; exists {
+				if _, isMap := existingVal.(map[string]any); !isMap {
+					return nil, fmt.Errorf("key conflict: %q is both a path and a terminal key", strings.Join(parts[0:i+1], "."))
 				}
-				currentLevel[part] = value
+				currentLevel = existingVal.(map[string]any)
 			} else {
-				// Intermediate part, ensure the next level map exists
-				if existingVal, exists := currentLevel[part]; exists {
-					if _, isMap := existingVal.(map[string]any); !isMap {
-						return nil, fmt.Errorf("key conflict: %q is both a path and a terminal key", strings.Join(parts[0:i+1], "."))
-					}
-					currentLevel = existingVal.(map[string]any)
-				} else {
-					newLevel := make(map[string]any)
-					currentLevel[part] = newLevel
-					currentLevel = newLevel
-				}
+				newLevel := make(map[string]any)
+				currentLevel[part] = newLevel
+				currentLevel = newLevel
 			}
 		}
+
+		// Set the value at the final key.
+		lastKey := parts[len(parts)-1]
+		if existingVal, exists := currentLevel[lastKey]; exists {
+			if _, isMap := existingVal.(map[string]any); isMap {
+				return nil, fmt.Errorf("key conflict: %q is both a path and a terminal key", key)
+			}
+		}
+		currentLevel[lastKey] = value
 	}
 	return nestedMap, nil
 }
