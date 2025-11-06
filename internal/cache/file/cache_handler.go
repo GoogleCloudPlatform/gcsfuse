@@ -27,6 +27,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	baseutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
 
 // CacheHandler is responsible for creating CacheHandle and invalidating file cache
@@ -199,6 +200,7 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 			FileSize:         object.Size,
 			SparseMode:       chr.isSparse,
 			DownloadedRanges: nil,
+			SizeOnDisk:       baseutil.GetSpeculativeFileSizeOnDisk(object.Size),
 		}
 		// For sparse files, set Offset to MaxUint64 as a sentinel to indicate
 		// sparse mode, so Offset < requiredOffset checks always fail
