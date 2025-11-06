@@ -110,20 +110,7 @@ func TestMain(m *testing.M) {
 		cfg.FlagOptimizations[0].Configs = make([]test_suite.ConfigItem, 6)
 		cfg.FlagOptimizations[0].Configs[0].Run = "TestMountSucceeds"
 		cfg.FlagOptimizations[0].Configs[0].Flags = []string{
-			"--machine-type=a2-megagpu-16g",
-			"--machine-type=a2-ultragpu-8g",
-			"--machine-type=a3-edgegpu-8g",
-			"--machine-type=a3-megagpu-8g",
-			"--machine-type=a3-ultragpu-8g",
-			"--machine-type=a4-highgpu-8g-lowmem",
-			"--machine-type=ct5l-hightpu-8t",
-			"--machine-type=ct5lp-hightpu-8t",
-			"--machine-type=ct5p-hightpu-4t",
-			"--machine-type=ct5p-hightpu-4t-tpu",
-			"--machine-type=ct6e-standard-4t",
-			"--machine-type=ct6e-standard-4t-tpu",
-			"--machine-type=ct6e-standard-8t",
-			"--machine-type=ct6e-standard-8t-tpu",
+			"--machine-type=any-machine-type",
 		}
 		cfg.FlagOptimizations[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.FlagOptimizations[0].Configs[0].RunOnGKE = true
