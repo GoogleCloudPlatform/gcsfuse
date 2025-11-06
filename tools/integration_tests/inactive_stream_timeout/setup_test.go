@@ -44,6 +44,7 @@ const (
 	kTestFileName                        = "foo"
 	kDefaultInactiveReadTimeoutInSeconds = 1 // A short timeout for testing
 	GKETempDir                           = "/gcsfuse-tmp"
+	OldGKElogFilePath                    = "/tmp/inactive_stream_timeout_logs/log.json"
 )
 
 type env struct {
@@ -63,32 +64,19 @@ var (
 	rootDir string
 )
 
-func setupLogFilePath(testName string) {
-	var logFilePath string
-	logFilePath = path.Join(setup.TestDir(), GKETempDir, testName) + ".log"
-	if testEnv.cfg.GKEMountedDirectory != "" { // GKE path
-		mountDir = testEnv.cfg.GKEMountedDirectory
-		logFilePath = path.Join(GKETempDir, testName) + ".log"
-		if setup.ConfigFile() == "" {
-			// TODO: clean this up when GKE test migration completes.
-			logFilePath = path.Join(GKETempDir, testName) + ".log"
-		}
-	} else {
-		logFilePath = path.Join(setup.TestDir(), "gcsfuse-tmp", testName) + ".log"
-	}
-	// Create the directory for the log file if it doesn't exist.
-	if err := os.MkdirAll(path.Dir(logFilePath), 0755); err != nil {
-		log.Fatalf("Failed to create log directory: %v", err)
-	}
-	testEnv.cfg.LogFile = logFilePath
+func SetupNestedTestDir(path string, permission os.FileMode, t *testing.T) {
+	err := os.MkdirAll(path, permission)
+	require.NoError(t, err)
 }
 
 func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) {
 	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, flags, mountFunc)
-	setup.SetMntDir(mountDir)
-	testEnv.testDirPath = client.SetupTestDirectory(ctx, storageClient, kTestDirName)
-	// testEnv.testDirPath = path.Join(mountDir, kTestDirName)
-	// client.SetupTestDirectory(testEnv.ctx, testEnv.storageClient, kTestDirName)
+	// In case of GKE, the test directory is not created by the test.
+	if setup.MountedDirectory() != "" {
+		testEnv.testDirPath = path.Join(setup.MntDir(), kTestDirName)
+	} else {
+		testEnv.testDirPath = client.SetupTestDirectory(ctx, storageClient, kTestDirName)
+	}
 }
 
 func validateInactiveReaderClosedLog(t *testing.T, logFile, objectName string, shouldBePresent bool, startTime, endTime time.Time) {
@@ -169,6 +157,7 @@ func TestMain(m *testing.M) {
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		mountDir = testEnv.cfg.GKEMountedDirectory
 		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
 	}
 
@@ -176,11 +165,9 @@ func TestMain(m *testing.M) {
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucket(testEnv.cfg)
 	// Override GKE specific paths with GCSFuse paths if running in GCE environment.
-	overrideFilePathsInFlagSet(testEnv.cfg, setup.TestDir())
-
+	setup.OverrideFilePathsInFlagSet(testEnv.cfg, setup.TestDir())
 	// Save mount and root directory variables.
 	mountDir, rootDir = setup.MntDir(), setup.MntDir()
-
 	log.Println("Running static mounting tests...")
 	mountFunc = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile
 	successCode := m.Run()
@@ -205,13 +192,4 @@ func TestMain(m *testing.M) {
 
 	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), kTestDirName))
 	os.Exit(successCode)
-}
-
-func overrideFilePathsInFlagSet(t *test_suite.TestConfig, GCSFuseTempDirPath string) {
-	for _, flags := range t.Configs {
-		for i := range flags.Flags {
-			// Iterate over the indices of the flags slice
-			flags.Flags[i] = strings.ReplaceAll(flags.Flags[i], "/gcsfuse-tmp", path.Join(GCSFuseTempDirPath, "gcsfuse-tmp"))
-		}
-	}
 }
