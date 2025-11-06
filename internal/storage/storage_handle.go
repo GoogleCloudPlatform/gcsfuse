@@ -20,6 +20,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -48,6 +49,7 @@ const (
 	// Ref: https://github.com/googleapis/google-cloud-go/blob/main/storage/option.go#L30
 	dynamicReadReqIncreaseRateEnv   = "DYNAMIC_READ_REQ_INCREASE_RATE"
 	dynamicReadReqInitialTimeoutEnv = "DYNAMIC_READ_REQ_INITIAL_TIMEOUT"
+	NumStorageClients               = 64
 
 	zonalLocationType = "zone"
 )
@@ -62,9 +64,12 @@ type StorageHandle interface {
 }
 
 type storageClient struct {
-	httpClient               *storage.Client
-	grpcClient               *storage.Client
-	grpcClientWithBidiConfig *storage.Client
+	httpInstanceCounter      atomic.Uint64
+	grpcInstanceCounter      atomic.Uint64
+	grpcBidiInstanceCounter  atomic.Uint64
+	httpClient               []*storage.Client
+	grpcClient               []*storage.Client
+	grpcClientWithBidiConfig []*storage.Client
 	clientConfig             storageutil.StorageClientConfig
 	// rawStorageControlClientWithoutGaxRetries is without any retries.
 	rawStorageControlClientWithoutGaxRetries *control.StorageControlClient
@@ -349,23 +354,44 @@ func (sh *storageClient) getClient(ctx context.Context, isbucketZonal bool) (*st
 	var err error
 	if isbucketZonal {
 		if sh.grpcClientWithBidiConfig == nil {
-			sh.grpcClientWithBidiConfig, err = createGRPCClientHandle(ctx, &sh.clientConfig, true)
+			sh.grpcClientWithBidiConfig = make([]*storage.Client, NumStorageClients)
+			for i := 0; i < NumStorageClients; i++ {
+				sh.grpcClientWithBidiConfig[i], err = createGRPCClientHandle(ctx, &sh.clientConfig, true)
+				if err != nil {
+					return nil, err
+				}
+			}
 		}
-		return sh.grpcClientWithBidiConfig, err
+		clientIndex := sh.grpcBidiInstanceCounter.Add(1) % NumStorageClients
+		return sh.grpcClientWithBidiConfig[clientIndex], err
 	}
 
 	if sh.clientConfig.ClientProtocol == cfg.GRPC {
 		if sh.grpcClient == nil {
-			sh.grpcClient, err = createGRPCClientHandle(ctx, &sh.clientConfig, false)
+			sh.grpcClient = make([]*storage.Client, NumStorageClients)
+			for i := 0; i < NumStorageClients; i++ {
+				sh.grpcClient[i], err = createGRPCClientHandle(ctx, &sh.clientConfig, false)
+				if err != nil {
+					return nil, err
+				}
+			}
 		}
-		return sh.grpcClient, err
+		clientIndex := sh.grpcInstanceCounter.Add(1) % NumStorageClients
+		return sh.grpcClient[clientIndex], err
 	}
 
 	if sh.clientConfig.ClientProtocol == cfg.HTTP1 || sh.clientConfig.ClientProtocol == cfg.HTTP2 {
 		if sh.httpClient == nil {
-			sh.httpClient, err = createHTTPClientHandle(ctx, &sh.clientConfig)
+			sh.httpClient = make([]*storage.Client, NumStorageClients)
+			for i := 0; i < NumStorageClients; i++ {
+				sh.httpClient[i], err = createHTTPClientHandle(ctx, &sh.clientConfig)
+				if err != nil {
+					return nil, err
+				}
+			}
 		}
-		return sh.httpClient, err
+		clientIndex := sh.httpInstanceCounter.Add(1) % NumStorageClients
+		return sh.httpClient[clientIndex], err
 	}
 
 	return nil, fmt.Errorf("invalid client-protocol requested: %s", sh.clientConfig.ClientProtocol)

@@ -15,6 +15,7 @@
 package storage
 
 import (
+	"cloud.google.com/go/storage"
 	"github.com/fsouza/fake-gcs-server/fakestorage"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
@@ -63,10 +64,14 @@ func (f *fakeStorage) CreateStorageHandle() (sh StorageHandle) {
 	if f.mockClient == nil {
 		f.mockClient = new(MockStorageControlClient)
 	}
+	clients := make([]*storage.Client, NumStorageClients)
+	for i := 0; i < NumStorageClients; i++ {
+		clients[i] = f.fakeStorageServer.Client()
+	}
 	sh = &storageClient{
-		httpClient:               f.fakeStorageServer.Client(),
-		grpcClient:               f.fakeStorageServer.Client(),
-		grpcClientWithBidiConfig: f.fakeStorageServer.Client(),
+		httpClient:               clients,
+		grpcClient:               clients,
+		grpcClientWithBidiConfig: clients,
 		storageControlClient:     f.mockClient,
 		clientConfig:             storageutil.StorageClientConfig{ClientProtocol: f.protocol},
 	}
