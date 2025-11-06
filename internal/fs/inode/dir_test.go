@@ -188,12 +188,12 @@ func (t *DirTest) readAllEntryCores() (cores map[Name]*Core, unsupportedPaths []
 	for {
 		var fetchedCores map[Name]*Core
 		var fetchedUnsupportedPaths []string
-		fetchedCores, unsupportedPaths, tok, err = t.in.ReadEntryCores(t.ctx, tok)
+		fetchedCores, fetchedUnsupportedPaths, tok, err = t.in.ReadEntryCores(t.ctx, tok)
 		if err != nil {
 			return nil, nil, err
 		}
 		maps.Copy(cores, fetchedCores)
-		copy(unsupportedPaths, fetchedUnsupportedPaths)
+		unsupportedPaths = append(unsupportedPaths, fetchedUnsupportedPaths...)
 
 		if tok == "" {
 			break

@@ -190,7 +190,7 @@ params:
   - config-path: "enable-unsupported-path-support"
     flag-name: "enable-unsupported-path-support"
     type: "bool"
-    usage: "Enables support for un-supported files/directory fix implementation."
+    usage: "Enables support for unsupported files/directory fix implementation."
     default: false
     hide-flag: true
 

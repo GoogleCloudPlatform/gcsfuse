@@ -802,7 +802,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-streaming-writes", "", true, "Enables streaming uploads during write file operation.")
 
-	flagSet.BoolP("enable-unsupported-path-support", "", false, "Enables support for un-supported files/directory fix implementation.")
+	flagSet.BoolP("enable-unsupported-path-support", "", false, "Enables support for unsupported files/directory fix implementation.")
 
 	if err := flagSet.MarkHidden("enable-unsupported-path-support"); err != nil {
 		return err
