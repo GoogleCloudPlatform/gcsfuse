@@ -616,6 +616,14 @@ func AddCacheDirToFlags(flagSets [][]string, testname string) [][]string {
 // configuration, which typically corresponds to a specific test name. If run is
 // an empty string, all flag sets for the package are returned.
 func BuildFlagSets(cfg test_suite.TestConfig, bucketType string, run string) [][]string {
+	// In case of mounted-directory, no need to
+	// parse flags. Just return a single
+	// set of empty flags to run only one test case
+	// for a single `go test` command.
+	if cfg.GKEMountedDirectory != "" {
+		return [][]string{{""}}
+	}
+
 	var dynamicFlags [][]string
 
 	// 1. Iterate through each defined test configuration (e.g., HTTP, gRPC).
