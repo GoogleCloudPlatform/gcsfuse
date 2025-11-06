@@ -41,10 +41,7 @@ type VisualReadManager struct {
 	// Guards access to readIOs slice.
 	mu sync.Mutex
 
-	// Optional output file for writing the visualization.
-	outputFilePath string
-
-	// Configuration for workload insight.
+	// Config for workload insight visualization.
 	cfg cfg.WorkloadInsightConfig
 }
 
