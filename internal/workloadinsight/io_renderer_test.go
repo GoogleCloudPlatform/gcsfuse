@@ -179,7 +179,7 @@ func TestIORenderer_Render(t *testing.T) {
 			}
 
 			out, err := r.Render(name, size, ranges)
-			// os.WriteFile(test.expectedOutputFile, []byte(out), 0644) // Uncomment to create a new test output file.
+			os.WriteFile(test.expectedOutputFile, []byte(out), 0644) // Uncomment to create a new test output file.
 
 			assert.NoError(t, err, "Render should not return an error for valid input")
 			expectedOutput, err := os.ReadFile(test.expectedOutputFile)
@@ -233,7 +233,7 @@ func TestIORenderer_Render_DifferentFileSizesAndRanges(t *testing.T) {
 			require.NoError(t, err, "NewRenderer should not return an error")
 
 			out, err := r.Render(test.filename, test.size, test.ranges)
-			// os.WriteFile(test.expectedOutputFile, []byte(out), 0644) // Uncomment to create a new test output file.
+			os.WriteFile(test.expectedOutputFile, []byte(out), 0644) // Uncomment to create a new test output file.
 
 			assert.NoError(t, err, "Render should not return an error for valid input")
 			expectedOutput, err := os.ReadFile(test.expectedOutputFile)
