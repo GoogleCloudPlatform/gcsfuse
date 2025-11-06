@@ -38,12 +38,16 @@ type timeoutEnabledSuite struct {
 }
 
 func (s *timeoutEnabledSuite) SetupSuite() {
-	setupLogFilePath(s.baseTestName)
+	setup.SetUpLogFilePath(s.baseTestName, GKETempDir, OldGKElogFilePath, testEnv.cfg)
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
 }
 
 func (s *timeoutEnabledSuite) SetupTest() {
-	testEnv.testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, path.Join(kTestDirName, s.T().Name()))
+	gcsDir := path.Join(kTestDirName, s.T().Name())
+	testEnv.testDirPath = path.Join(mountDir, gcsDir)
+	SetupNestedTestDir(testEnv.testDirPath, 0755, s.T())
+	setup.CleanupDirectoryOnGCS(s.ctx, s.storageClient, gcsDir)
+	client.SetupFileInTestDirectory(s.ctx, s.storageClient, gcsDir, kTestFileName, kFileSize, s.T())
 }
 
 func (s *timeoutEnabledSuite) TearDownSuite() {
@@ -51,6 +55,7 @@ func (s *timeoutEnabledSuite) TearDownSuite() {
 }
 
 func (s *timeoutEnabledSuite) TearDownTest() {
+	setup.CleanupDirectoryOnGCS(s.ctx, s.storageClient, path.Join(kTestDirName, s.T().Name()))
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 }
 
@@ -60,7 +65,6 @@ func (s *timeoutEnabledSuite) TearDownTest() {
 
 func (s *timeoutEnabledSuite) TestReaderCloses() {
 	timeoutDuration := kDefaultInactiveReadTimeoutInSeconds * time.Second
-	gcsFileName := path.Join(kTestDirName, kTestFileName)
 	mountFilePath := path.Join(testEnv.testDirPath, kTestFileName)
 
 	// 1. Open file.
@@ -74,12 +78,12 @@ func (s *timeoutEnabledSuite) TestReaderCloses() {
 	require.NoError(s.T(), err)
 	endTimeRead := time.Now()
 
-	// 3. Wait for timeout.
+	// 3. Wait for timeout
 	time.Sleep(2*timeoutDuration + 1*time.Second) // Add buffer
 	endTimeWait := time.Now()
 
 	// 4. "Closing reader" log should be present.
-	validateInactiveReaderClosedLog(s.T(), testEnv.cfg.LogFile, gcsFileName, true, endTimeRead, endTimeWait)
+	validateInactiveReaderClosedLog(s.T(), testEnv.cfg.LogFile, path.Join(kTestDirName, s.T().Name(), kTestFileName), true, endTimeRead, endTimeWait)
 
 	// 5. Further reads should work as it is, yeah it will create a new reader.
 	_, err = fileHandle.ReadAt(buff, 8)
@@ -88,10 +92,9 @@ func (s *timeoutEnabledSuite) TestReaderCloses() {
 
 func (s *timeoutEnabledSuite) TestReaderStaysOpenWithinTimeout() {
 	timeoutDuration := kDefaultInactiveReadTimeoutInSeconds * time.Second
-	gcsFileName := path.Join(kTestDirName, kTestFileName)
-	localFilePath := path.Join(testEnv.testDirPath, kTestFileName)
+	mountFilePath := path.Join(testEnv.testDirPath, kTestFileName)
 
-	fileHandle, err := operations.OpenFileAsReadonly(localFilePath)
+	fileHandle, err := operations.OpenFileAsReadonly(mountFilePath)
 	require.NoError(s.T(), err)
 	defer fileHandle.Close()
 
@@ -111,7 +114,7 @@ func (s *timeoutEnabledSuite) TestReaderStaysOpenWithinTimeout() {
 
 	// 4. Check log: "Closing reader for object..." should NOT be present for this object
 	// between the first read's end and the second read's start.
-	validateInactiveReaderClosedLog(s.T(), testEnv.cfg.LogFile, gcsFileName, false, endTimeRead1, startTimeRead2)
+	validateInactiveReaderClosedLog(s.T(), testEnv.cfg.LogFile, path.Join(kTestDirName, s.T().Name(), kTestFileName), false, endTimeRead1, startTimeRead2)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -119,7 +122,11 @@ func (s *timeoutEnabledSuite) TestReaderStaysOpenWithinTimeout() {
 ////////////////////////////////////////////////////////////////////////
 
 func TestTimeoutEnabledSuite(t *testing.T) {
-	ts := &timeoutEnabledSuite{ctx: context.Background(), storageClient: testEnv.storageClient, baseTestName: t.Name()}
+	ts := &timeoutEnabledSuite{
+		ctx:           context.Background(),
+		storageClient: testEnv.storageClient,
+		baseTestName:  t.Name(),
+	}
 	//setupLogFile(t.Name())
 	// Run tests for mounted directory if the flag is set.
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {

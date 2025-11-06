@@ -38,12 +38,16 @@ type timeoutDisabledSuite struct {
 }
 
 func (s *timeoutDisabledSuite) SetupSuite() {
-	setupLogFilePath(s.baseTestName)
+	setup.SetUpLogFilePath(s.baseTestName, GKETempDir, OldGKElogFilePath, testEnv.cfg)
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
 }
 
 func (s *timeoutDisabledSuite) SetupTest() {
-	testEnv.testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, path.Join(kTestDirName, s.T().Name()))
+	gcsDir := path.Join(kTestDirName, s.T().Name())
+	testEnv.testDirPath = path.Join(mountDir, gcsDir)
+	SetupNestedTestDir(testEnv.testDirPath, 0755, s.T())
+	setup.CleanupDirectoryOnGCS(s.ctx, s.storageClient, gcsDir)
+	client.SetupFileInTestDirectory(s.ctx, s.storageClient, gcsDir, kTestFileName, kFileSize, s.T())
 }
 
 func (s *timeoutDisabledSuite) TearDownSuite() {
@@ -51,6 +55,7 @@ func (s *timeoutDisabledSuite) TearDownSuite() {
 }
 
 func (s *timeoutDisabledSuite) TearDownTest() {
+	setup.CleanupDirectoryOnGCS(s.ctx, s.storageClient, path.Join(kTestDirName, s.T().Name()))
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 }
 
@@ -60,10 +65,8 @@ func (s *timeoutDisabledSuite) TearDownTest() {
 
 func (s *timeoutDisabledSuite) TestNoReaderCloser() {
 	timeoutDuration := kDefaultInactiveReadTimeoutInSeconds * time.Second
-	gcsFileName := path.Join(kTestDirName, kTestFileName)
-	mountFilePath := path.Join(testEnv.testDirPath, kTestFileName) // testEnv.testDirPath is /tmp/.../mnt/inactiveReadTimeout
+	mountFilePath := path.Join(testEnv.testDirPath, kTestFileName)
 
-	log.Printf("Attempting to open file for reading: %s", mountFilePath)
 	// 1. Open file.
 	fileHandle, err := operations.OpenFileAsReadonly(mountFilePath)
 	require.NoError(s.T(), err)
@@ -80,7 +83,7 @@ func (s *timeoutDisabledSuite) TestNoReaderCloser() {
 	endTimeWait := time.Now()
 
 	// 4. Shouldn't be any `Close reader logs...`.
-	validateInactiveReaderClosedLog(s.T(), testEnv.cfg.LogFile, gcsFileName, false, endTimeRead, endTimeWait)
+	validateInactiveReaderClosedLog(s.T(), testEnv.cfg.LogFile, path.Join(kTestDirName, s.T().Name(), kTestFileName), false, endTimeRead, endTimeWait)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -88,19 +91,19 @@ func (s *timeoutDisabledSuite) TestNoReaderCloser() {
 ////////////////////////////////////////////////////////////////////////
 
 func TestTimeoutDisabledSuite(t *testing.T) {
-	ts := &timeoutDisabledSuite{}
-	//setupLogFile(t.Name())
+	ts := &timeoutDisabledSuite{
+		ctx:           context.Background(),
+		storageClient: testEnv.storageClient,
+		baseTestName:  t.Name(),
+	}
 	// Run tests for mounted directory if the flag is set.
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
-		// flags := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())[0]
-		// ts.flags = flags
 		suite.Run(t, ts)
 		return
 	}
 
 	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, ts.flags = range flagsSet {
-		// ts.flags = flags
 		log.Printf("Running inactive_read_timeout tests with flags: %s", ts.flags)
 		suite.Run(t, ts)
 	}
