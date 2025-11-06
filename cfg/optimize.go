@@ -285,10 +285,8 @@ func CreateHierarchicalOptimizedFlags(flatMap map[string]OptimizationResult) (ma
 
 		// Set the value at the final key.
 		lastKey := parts[len(parts)-1]
-		if existingVal, exists := currentLevel[lastKey]; exists {
-			if _, isMap := existingVal.(map[string]any); isMap {
-				return nil, fmt.Errorf("key conflict: %q is both a path and a terminal key", key)
-			}
+		if _, exists := currentLevel[lastKey]; exists {
+			return nil, fmt.Errorf("key conflict: %q is both a path and a terminal key", key)
 		}
 		currentLevel[lastKey] = value
 	}
