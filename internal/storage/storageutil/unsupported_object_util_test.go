@@ -91,6 +91,10 @@ func (ts *GcsUtilTest) TestIsUnsupportedObjectName() {
 			name:          "foo/../",
 			isUnsupported: true,
 		},
+		{
+			name:          "foo/.config",
+			isUnsupported: false,
+		},
 	}
 
 	for _, tc := range cases {
