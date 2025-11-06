@@ -59,16 +59,15 @@ type env struct {
 
 func setupLogFilePath(testName string) {
 	var logFilePath string
-	logFilePath = path.Join(setup.TestDir(), GKETempDir, testName) + ".log"
 	if testEnv.cfg.GKEMountedDirectory != "" { // GKE path
 		mountDir = testEnv.cfg.GKEMountedDirectory
 		logFilePath = path.Join(GKETempDir, testName) + ".log"
 		if setup.ConfigFile() == "" {
 			// TODO: clean this up when GKE test migration completes.
-			logFilePath = path.Join(GKETempDir, testName) + ".log"
+			logFilePath = "/tmp/readdirplus_logs/log.json"
 		}
 	} else {
-		logFilePath = path.Join(setup.TestDir(), "gcsfuse-tmp", testName) + ".log"
+		logFilePath = path.Join(setup.TestDir(), GKETempDir, testName) + ".log"
 	}
 	testEnv.cfg.LogFile = logFilePath
 	setup.SetLogFile(logFilePath)
