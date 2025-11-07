@@ -84,7 +84,7 @@ func registerTerminatingSignalHandler(mountPoint string) {
 				logger.Warnf("Received %s, waiting for 30s to kill goroutines", sigName)
 				time.Sleep(WaitTimeOnSignalReceive)
 				logger.Warnf("killing goroutines and exit")
-				//forcefully exit to 0 so that caller
+				//forcefully exit to 0 so that caller get success on forcefull exit also
 				os.Exit(0)
 			}()
 
