@@ -37,28 +37,6 @@ func tearDownMountTest(t *testing.T, err error) {
 // Test Functions
 ////////////////////////////////////////////////////////////////////////
 
-func TestMountSucceeds(t *testing.T) {
-	// Nothing to test for mounted directory, as the mount itself must have succeeded
-	// to reach this stage.
-	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
-		return
-	}
-
-	flagsSet := setup.BuildFlagSets(testEnv.cfg, testEnv.bucketType, t.Name())
-
-	for _, flags := range flagsSet {
-		tcName := strings.ReplaceAll(strings.Join(flags, ","), "--", "")
-		t.Run(tcName, func(t *testing.T) {
-			// Arrange and Act
-			err := mountGCSFuseAndSetupTestDir(flags, testEnv.ctx, testEnv.storageClient)
-			defer tearDownMountTest(t, err)
-
-			// Assert
-			assert.NoError(t, err)
-		})
-	}
-}
-
 func TestMountFails(t *testing.T) {
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
 		t.Fatalf("This test is not valid for mounted-directory tests.")

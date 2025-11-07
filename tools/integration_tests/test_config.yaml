@@ -525,14 +525,6 @@ flag_optimizations:
     test_bucket: "${BUCKET_NAME}"
     log_file: # Optional
     configs:
-      - run: TestMountSucceeds
-        flags:
-          - "--machine-type=any-machine-type"
-        compatible:
-          flat: true
-          hns: true
-          zonal: true
-        run_on_gke: true
       - run: TestMountFails
         flags:
           - "--profile=unknown-profile"

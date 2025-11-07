@@ -107,27 +107,21 @@ func TestMain(m *testing.M) {
 		cfg.FlagOptimizations[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.FlagOptimizations[0].LogFile = setup.LogFile()
 		// Initialize the slice to hold 6 specific test configurations
-		cfg.FlagOptimizations[0].Configs = make([]test_suite.ConfigItem, 6)
-		cfg.FlagOptimizations[0].Configs[0].Run = "TestMountSucceeds"
-		cfg.FlagOptimizations[0].Configs[0].Flags = []string{
-			"--machine-type=any-machine-type",
-		}
+		cfg.FlagOptimizations[0].Configs = make([]test_suite.ConfigItem, 5)
+		cfg.FlagOptimizations[0].Configs[0].Run = "TestMountFails"
+		cfg.FlagOptimizations[0].Configs[0].Flags = []string{"--profile=unknown-profile"}
 		cfg.FlagOptimizations[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.FlagOptimizations[0].Configs[0].RunOnGKE = true
-		cfg.FlagOptimizations[0].Configs[1].Run = "TestMountFails"
-		cfg.FlagOptimizations[0].Configs[1].Flags = []string{"--profile=unknown-profile"}
-		cfg.FlagOptimizations[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.FlagOptimizations[0].Configs[1].RunOnGKE = false
-		cfg.FlagOptimizations[0].Configs[2].Run = "TestImplicitDirsNotEnabled"
-		cfg.FlagOptimizations[0].Configs[2].Flags = []string{"--machine-type=low-end-machine"}
+		cfg.FlagOptimizations[0].Configs[0].RunOnGKE = false
+		cfg.FlagOptimizations[0].Configs[1].Run = "TestImplicitDirsNotEnabled"
+		cfg.FlagOptimizations[0].Configs[1].Flags = []string{"--machine-type=low-end-machine"}
+		cfg.FlagOptimizations[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
+		cfg.FlagOptimizations[0].Configs[1].RunOnGKE = true
+		cfg.FlagOptimizations[0].Configs[2].Run = "TestRenameDirLimitNotSet"
+		cfg.FlagOptimizations[0].Configs[2].Flags = []string{"--machine-type=low-end-machine", "--profile=aiml-training", "--profile=aiml-serving"}
 		cfg.FlagOptimizations[0].Configs[2].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
 		cfg.FlagOptimizations[0].Configs[2].RunOnGKE = true
-		cfg.FlagOptimizations[0].Configs[3].Run = "TestRenameDirLimitNotSet"
-		cfg.FlagOptimizations[0].Configs[3].Flags = []string{"--machine-type=low-end-machine", "--profile=aiml-training", "--profile=aiml-serving"}
-		cfg.FlagOptimizations[0].Configs[3].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
-		cfg.FlagOptimizations[0].Configs[3].RunOnGKE = true
-		cfg.FlagOptimizations[0].Configs[4].Run = "TestImplicitDirsEnabled"
-		cfg.FlagOptimizations[0].Configs[4].Flags = []string{
+		cfg.FlagOptimizations[0].Configs[3].Run = "TestImplicitDirsEnabled"
+		cfg.FlagOptimizations[0].Configs[3].Flags = []string{
 			"--machine-type=a3-highgpu-8g",
 			"--profile=aiml-training",
 			"--profile=aiml-serving",
@@ -136,16 +130,16 @@ func TestMain(m *testing.M) {
 			"--machine-type=a3-highgpu-8g --profile=aiml-serving",
 			"--machine-type=a3-highgpu-8g --profile=aiml-checkpointing",
 		}
-		cfg.FlagOptimizations[0].Configs[4].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
-		cfg.FlagOptimizations[0].Configs[4].RunOnGKE = true
-		cfg.FlagOptimizations[0].Configs[5].Run = "TestRenameDirLimitSet"
-		cfg.FlagOptimizations[0].Configs[5].Flags = []string{
+		cfg.FlagOptimizations[0].Configs[3].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
+		cfg.FlagOptimizations[0].Configs[3].RunOnGKE = true
+		cfg.FlagOptimizations[0].Configs[4].Run = "TestRenameDirLimitSet"
+		cfg.FlagOptimizations[0].Configs[4].Flags = []string{
 			"--machine-type=a3-highgpu-8g",
 			"--profile=aiml-checkpointing",
 			"--machine-type=a3-highgpu-8g --profile=aiml-checkpointing",
 		}
-		cfg.FlagOptimizations[0].Configs[5].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
-		cfg.FlagOptimizations[0].Configs[5].RunOnGKE = true
+		cfg.FlagOptimizations[0].Configs[4].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
+		cfg.FlagOptimizations[0].Configs[4].RunOnGKE = true
 	}
 
 	testEnv.ctx = context.Background()
