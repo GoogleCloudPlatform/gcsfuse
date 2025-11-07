@@ -103,7 +103,7 @@ func (ts *GcsUtilTest) TestIsUnsupportedPathName() {
 
 	for _, tc := range cases {
 		ts.Run(fmt.Sprintf("name=%s", tc.name), func() {
-			assert.Equal(ts.T(), tc.isUnsupported, IsUnsupportedPathName(tc.name))
+			assert.Equal(ts.T(), tc.isUnsupported, IsUnsupportedPath(tc.name))
 		})
 	}
 }

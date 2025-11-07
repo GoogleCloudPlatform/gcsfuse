@@ -712,7 +712,7 @@ func (d *dirInode) readObjects(
 	}()
 
 	for _, o := range listing.MinObjects {
-		if storageutil.IsUnsupportedPathName(o.Name) {
+		if storageutil.IsUnsupportedPath(o.Name) {
 			unsupportedPaths = append(unsupportedPaths, o.Name)
 			// Skip unsupported objects in the listing, as the kernel cannot process these file system elements.
 			// TODO: Remove this check once we gain confidence that it is not causing any issues.
@@ -765,7 +765,7 @@ func (d *dirInode) readObjects(
 	// Add implicit directories into the result.
 	for _, p := range listing.CollapsedRuns {
 		pathBase := path.Base(p)
-		if storageutil.IsUnsupportedPathName(p) {
+		if storageutil.IsUnsupportedPath(p) {
 			unsupportedPaths = append(unsupportedPaths, p)
 			// Skip unsupported objects in the listing, as the kernel cannot process these file system elements.
 			// TODO: Remove this check once we gain confidence that it is not causing any issues.

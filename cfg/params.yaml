@@ -190,7 +190,10 @@ params:
   - config-path: "enable-unsupported-path-support"
     flag-name: "enable-unsupported-path-support"
     type: "bool"
-    usage: "Enables support for unsupported files/directory fix implementation."
+    usage: >-
+      Enables support for file system paths with unsupported GCS names (e.g., names containing '//' or starting with /). 
+      When set, GCSFuse will ignore these objects during listing and copying operations. 
+      For rename and delete operations, the flag allows the action to proceed for all specified objects, including those with unsupported names.
     default: false
     hide-flag: true
 

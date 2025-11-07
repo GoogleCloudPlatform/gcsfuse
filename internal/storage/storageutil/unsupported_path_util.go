@@ -26,10 +26,10 @@ var (
 	unsupportedPathNames          = []string{"", ".", ".."}
 )
 
-// IsUnsupportedPathName returns true if the passed
+// IsUnsupportedPath returns true if the passed
 // string is a valid GCS object name or prefix,
 // which is unsupported in GCSFuse.
-func IsUnsupportedPathName(name string) bool {
+func IsUnsupportedPath(name string) bool {
 	for _, substring := range unsupportedPathNameSubstrings {
 		if strings.Contains(name, substring) {
 			return true
