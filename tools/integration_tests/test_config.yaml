@@ -600,3 +600,24 @@ flag_optimizations:
           zonal: false
         run_on_gke: true
 
+unsupported_path:
+- mounted_directory: "${MOUNTED_DIR}"
+  test_bucket: "${BUCKET_NAME}"
+  only_dir: "${ONLY_DIR}"
+  log_file: # Optional
+  configs:
+  - flags:
+    - "--implicit-dirs --client-protocol=grpc --enable-unsupported-path-support=true --rename-dir-limit=200 --metadata-cache-negative-ttl-secs=0"
+    - "--implicit-dirs --enable-unsupported-path-support=true --rename-dir-limit=200 --metadata-cache-negative-ttl-secs=0"
+    compatible:
+      flat: true
+      hns: true
+      zonal: false
+    run_on_gke: true
+  - flags:
+    - "--implicit-dirs --enable-unsupported-path-support=true --rename-dir-limit=200 --metadata-cache-negative-ttl-secs=0"
+    compatible:
+      flat: false
+      hns: false
+      zonal: true
+    run_on_gke: true

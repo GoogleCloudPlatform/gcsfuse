@@ -124,6 +124,7 @@ TEST_DIR_PARALLEL=(
   "buffered_read"
   "requester_pays_bucket"
   "flag_optimizations"
+  "unsupported_path"
 )
 
 # These tests never become parallel as it is changing bucket permissions.
@@ -162,6 +163,7 @@ TEST_DIR_PARALLEL_FOR_ZB=(
   "readdirplus"
   "dentry_cache"
   "flag_optimizations"
+  "unsupported_path"
 )
 
 # Subset of TEST_DIR_NON_PARALLEL,
