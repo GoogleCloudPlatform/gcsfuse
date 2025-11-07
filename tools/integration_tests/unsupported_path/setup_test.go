@@ -46,12 +46,12 @@ func TestMain(m *testing.M) {
 		cfg.UnsupportedPath[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.UnsupportedPath[0].Configs = make([]test_suite.ConfigItem, 2)
 		cfg.UnsupportedPath[0].Configs[0].Flags = []string{
-			"--implicit-dirs --client-protocol=grpc --enable-unsupported-dir-support=true --rename-dir-limit=200",
-			"--implicit-dirs --enable-unsupported-dir-support=true --rename-dir-limit=200",
+			"--implicit-dirs --client-protocol=grpc --enable-unsupported-path-support=true --rename-dir-limit=200",
+			"--implicit-dirs --enable-unsupported-path-support=true --rename-dir-limit=200",
 		}
 		cfg.UnsupportedPath[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
 		cfg.UnsupportedPath[0].Configs[1].Flags = []string{
-			"",
+			"--implicit-dirs --enable-unsupported-path-support=true --rename-dir-limit=200",
 		}
 		cfg.UnsupportedPath[0].Configs[1].Compatible = map[string]bool{"flat": false, "hns": true, "zonal": true}
 	}

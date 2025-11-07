@@ -1098,7 +1098,7 @@ func (d *dirInode) deletePrefixRecursively(ctx context.Context, prefix string) e
 			MaxResults:               MaxResultsForListObjectsCall,
 			Delimiter:                "/", // Use Delimiter to separate nested folders (CollapsedRuns)
 			ContinuationToken:        tok,
-			IncludeFoldersAsPrefixes: true,
+			IncludeFoldersAsPrefixes: d.includeFoldersAsPrefixes,
 		})
 		if err != nil {
 			return fmt.Errorf("listing objects under prefix %q: %w", prefix, err)
