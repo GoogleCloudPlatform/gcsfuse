@@ -41,19 +41,27 @@ func TestMain(m *testing.M) {
 	if len(cfg.UnsupportedPath) == 0 {
 		log.Println("No configuration found for unsupported path tests in config. Using flags instead.")
 		// Populate the config manually.
-		cfg.UnsupportedPath = make([]test_suite.TestConfig, 1)
-		cfg.UnsupportedPath[0].TestBucket = setup.TestBucket()
-		cfg.UnsupportedPath[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.UnsupportedPath[0].Configs = make([]test_suite.ConfigItem, 2)
-		cfg.UnsupportedPath[0].Configs[0].Flags = []string{
-			"--implicit-dirs --client-protocol=grpc --enable-unsupported-path-support=true --rename-dir-limit=200",
-			"--implicit-dirs --enable-unsupported-path-support=true --rename-dir-limit=200",
+		cfg.UnsupportedPath = []test_suite.TestConfig{
+			{
+				TestBucket:          setup.TestBucket(),
+				GKEMountedDirectory: setup.MountedDirectory(),
+				Configs: []test_suite.ConfigItem{
+					{
+						Flags: []string{
+							"--implicit-dirs --client-protocol=grpc --enable-unsupported-path-support=true --rename-dir-limit=200",
+							"--implicit-dirs --enable-unsupported-path-support=true --rename-dir-limit=200",
+						},
+						Compatible: map[string]bool{"flat": true, "hns": true, "zonal": false},
+					},
+					{
+						Flags: []string{
+							"--implicit-dirs --enable-unsupported-path-support=true --rename-dir-limit=200",
+						},
+						Compatible: map[string]bool{"flat": false, "hns": false, "zonal": true},
+					},
+				},
+			},
 		}
-		cfg.UnsupportedPath[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
-		cfg.UnsupportedPath[0].Configs[1].Flags = []string{
-			"--implicit-dirs --enable-unsupported-path-support=true --rename-dir-limit=200",
-		}
-		cfg.UnsupportedPath[0].Configs[1].Compatible = map[string]bool{"flat": false, "hns": true, "zonal": true}
 	}
 
 	ctx = context.Background()
