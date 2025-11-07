@@ -194,9 +194,46 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 		requiredOffset = objSize
 	}
 
+	// Handle sparse file reads
+	if fileInfoData.SparseMode && fch.fileDownloadJob != nil {
+		// For sparse files, check if the requested range is downloaded
+		if fileInfoData.DownloadedRanges != nil {
+			if !fileInfoData.DownloadedRanges.ContainsRange(uint64(offset), uint64(requiredOffset)) {
+				// Calculate the chunk to download based on the configured chunk size
+				chunkSizeMb := int64(1) // Default to 1 MB
+				if fch.fileDownloadJob.fileCacheConfig != nil && fch.fileDownloadJob.fileCacheConfig.SparseFileChunkSizeMb > 0 {
+					chunkSizeMb = fch.fileDownloadJob.fileCacheConfig.SparseFileChunkSizeMb
+				}
+				chunkSize := uint64(chunkSizeMb) * 1024 * 1024
+
+				// Align chunk start to chunk boundaries for better cache efficiency
+				chunkStart := (uint64(offset) / chunkSize) * chunkSize
+				chunkEnd := chunkStart + chunkSize
+				if chunkEnd > object.Size {
+					chunkEnd = object.Size
+				}
+
+				// Download the chunk
+				err = fch.fileDownloadJob.DownloadRange(ctx, chunkStart, chunkEnd)
+				if err != nil {
+					// If sparse download fails, fall back to GCS
+					return 0, false, fmt.Errorf("%w: sparse download failed: %v", util.ErrFallbackToGCS, err)
+				}
+
+				// Refresh fileInfoData after download
+				fileInfoData, errFileInfo = fch.getFileInfoData(bucket, object, false)
+				if errFileInfo != nil {
+					return 0, false, fmt.Errorf("%w Error in getCachedFileInfo after sparse download: %v", util.ErrInvalidFileInfoCache, errFileInfo)
+				}
+			}
+		}
+		// For sparse files, always treat as cache hit if the range is downloaded
+		cacheHit = fileInfoData.DownloadedRanges != nil && fileInfoData.DownloadedRanges.ContainsRange(uint64(offset), uint64(requiredOffset))
+	}
+
 	// If fileDownloadJob is not nil, it's better to get status of cache file
 	// from the job itself than to use file info cache.
-	if fch.fileDownloadJob != nil {
+	if fch.fileDownloadJob != nil && !fileInfoData.SparseMode {
 		jobStatus := fch.fileDownloadJob.GetStatus()
 		// If cacheFileForRangeRead is false and readType is random, download will
 		// not be initiated.
@@ -231,11 +268,20 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 		// If fileDownloadJob is nil then it means either the job is successfully
 		// completed or failed. The offset must be equal to size of object for job
 		// to be completed.
-		err = fch.validateEntryInFileInfoCache(bucket, object, fileInfoData.FileSize, false)
-		if err != nil {
-			return 0, false, err
+		if fileInfoData.SparseMode {
+			// For sparse files without an active job, check if the requested range is downloaded
+			if fileInfoData.DownloadedRanges == nil || !fileInfoData.DownloadedRanges.ContainsRange(uint64(offset), uint64(requiredOffset)) {
+				// Range not downloaded and no job to download it - fall back to GCS
+				return 0, false, util.ErrFallbackToGCS
+			}
+			cacheHit = true
+		} else {
+			err = fch.validateEntryInFileInfoCache(bucket, object, fileInfoData.FileSize, false)
+			if err != nil {
+				return 0, false, err
+			}
+			cacheHit = true
 		}
-		cacheHit = true
 	}
 
 	// We are here means, we have the data downloaded which kernel has asked for.

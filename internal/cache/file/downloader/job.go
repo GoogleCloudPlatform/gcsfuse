@@ -403,6 +403,127 @@ func (job *Job) createCacheFile() (*os.File, error) {
 	return cacheFile, err
 }
 
+// DownloadRange downloads a specific byte range [start, end) from the GCS object
+// for sparse file support. It writes the data to the cache file at the appropriate
+// offset and updates the FileInfo's DownloadedRanges.
+//
+// Acquires and releases LOCK(job.mu)
+func (job *Job) DownloadRange(ctx context.Context, start, end uint64) error {
+	if start >= end {
+		return fmt.Errorf("DownloadRange: invalid range [%d, %d)", start, end)
+	}
+
+	if end > job.object.Size {
+		end = job.object.Size
+	}
+
+	// Check if this is a sparse file
+	fileInfoKey := data.FileInfoKey{
+		BucketName: job.bucket.Name(),
+		ObjectName: job.object.Name,
+	}
+	fileInfoKeyName, err := fileInfoKey.Key()
+	if err != nil {
+		return fmt.Errorf("DownloadRange: error creating fileInfoKeyName: %w", err)
+	}
+
+	// Get current FileInfo
+	job.mu.Lock()
+	fileInfoVal := job.fileInfoCache.LookUpWithoutChangingOrder(fileInfoKeyName)
+	if fileInfoVal == nil {
+		job.mu.Unlock()
+		return fmt.Errorf("DownloadRange: file info not found in cache")
+	}
+	fileInfo := fileInfoVal.(data.FileInfo)
+
+	if !fileInfo.SparseMode {
+		job.mu.Unlock()
+		return fmt.Errorf("DownloadRange: file is not in sparse mode")
+	}
+
+	// Check if range is already downloaded
+	if fileInfo.DownloadedRanges != nil && fileInfo.DownloadedRanges.ContainsRange(start, end) {
+		job.mu.Unlock()
+		return nil // Range already downloaded
+	}
+	job.mu.Unlock()
+
+	// Open cache file for writing
+	cacheFile, err := os.OpenFile(job.fileSpec.Path, os.O_WRONLY|os.O_CREATE, job.fileSpec.FilePerm)
+	if err != nil {
+		return fmt.Errorf("DownloadRange: error opening cache file: %w", err)
+	}
+	defer cacheFile.Close()
+
+	// Create GCS reader for the specific range
+	newReader, err := job.bucket.NewReaderWithReadHandle(
+		ctx,
+		&gcs.ReadObjectRequest{
+			Name:       job.object.Name,
+			Generation: job.object.Generation,
+			Range: &gcs.ByteRange{
+				Start: start,
+				Limit: end,
+			},
+			ReadCompressed: job.object.HasContentEncodingGzip(),
+			ReadHandle:     nil,
+		})
+	if err != nil {
+		return fmt.Errorf("DownloadRange: error creating reader for range [%d, %d): %w", start, end, err)
+	}
+	defer newReader.Close()
+
+	// Write to file at the correct offset
+	offsetWriter := io.NewOffsetWriter(cacheFile, int64(start))
+	bytesWritten, err := io.Copy(offsetWriter, newReader)
+	if err != nil {
+		return fmt.Errorf("DownloadRange: error writing range [%d, %d): %w", start, end, err)
+	}
+
+	// Update FileInfo with downloaded range
+	job.mu.Lock()
+	defer job.mu.Unlock()
+
+	// Re-fetch FileInfo in case it changed
+	fileInfoVal = job.fileInfoCache.LookUpWithoutChangingOrder(fileInfoKeyName)
+	if fileInfoVal == nil {
+		return fmt.Errorf("DownloadRange: file info not found in cache after download")
+	}
+	fileInfo = fileInfoVal.(data.FileInfo)
+
+	if fileInfo.DownloadedRanges == nil {
+		fileInfo.DownloadedRanges = data.NewByteRangeMap()
+	}
+
+	// Add the downloaded range
+	bytesAdded := fileInfo.DownloadedRanges.AddRange(start, start+uint64(bytesWritten))
+
+	// Update the Offset field for sparse files
+	// Offset represents the highest contiguous range from 0
+	if start == 0 && fileInfo.DownloadedRanges.ContainsRange(0, start+uint64(bytesWritten)) {
+		fileInfo.Offset = start + uint64(bytesWritten)
+	} else if fileInfo.DownloadedRanges.ContainsRange(0, fileInfo.Offset) {
+		// Find the new highest contiguous offset from 0
+		for offset := fileInfo.Offset; offset <= job.object.Size; offset += 1024 {
+			if !fileInfo.DownloadedRanges.ContainsRange(0, offset) {
+				fileInfo.Offset = offset - 1024
+				break
+			}
+		}
+	}
+
+	// Update the cache with new FileInfo (size accounting will be updated automatically via Size() method)
+	err = job.fileInfoCache.UpdateWithoutChangingOrder(fileInfoKeyName, fileInfo)
+	if err != nil {
+		return fmt.Errorf("DownloadRange: error updating fileInfoCache: %w", err)
+	}
+
+	logger.Tracef("Job:%p (%s:/%s) downloaded range [%d, %d), added %d bytes to sparse file",
+		job, job.bucket.Name(), job.object.Name, start, end, bytesAdded)
+
+	return nil
+}
+
 // downloadObjectAsync downloads the backing GCS object into a file as part of
 // file cache using NewReader method of gcs.Bucket.
 //
