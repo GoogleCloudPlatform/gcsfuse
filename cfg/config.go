@@ -489,7 +489,7 @@ type GcsConnectionConfig struct {
 
 	ExperimentalEnableJsonRead bool `yaml:"experimental-enable-json-read"`
 
-	ExperimentalSocketAddress string `yaml:"experimental-socket-address"`
+	ExperimentalLocalSocketAddress string `yaml:"experimental-local-socket-address"`
 
 	GrpcConnPoolSize int64 `yaml:"grpc-conn-pool-size"`
 
@@ -834,15 +834,15 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.StringP("experimental-metadata-prefetch-on-mount", "", "disabled", "Experimental: This indicates whether or not to prefetch the metadata (prefilling of metadata caches and creation of inodes) of the mounted bucket at the time of mounting the bucket. Supported values: \"disabled\", \"sync\" and \"async\". Any other values will return error on mounting. This is applicable only to static mounting, and not to dynamic mounting.")
+	flagSet.StringP("experimental-local-socket-address", "", "", "The local socket address to bind to. This is useful in multi-NIC scenarios. This is an experimental flag.")
 
-	if err := flagSet.MarkDeprecated("experimental-metadata-prefetch-on-mount", "Experimental flag: could be removed even in a minor release."); err != nil {
+	if err := flagSet.MarkHidden("experimental-local-socket-address"); err != nil {
 		return err
 	}
 
-	flagSet.StringP("experimental-socket-address", "", "", "The socket address to bind to. This is useful in multi-NIC scenarios. This is an experimental flag.")
+	flagSet.StringP("experimental-metadata-prefetch-on-mount", "", "disabled", "Experimental: This indicates whether or not to prefetch the metadata (prefilling of metadata caches and creation of inodes) of the mounted bucket at the time of mounting the bucket. Supported values: \"disabled\", \"sync\" and \"async\". Any other values will return error on mounting. This is applicable only to static mounting, and not to dynamic mounting.")
 
-	if err := flagSet.MarkHidden("experimental-socket-address"); err != nil {
+	if err := flagSet.MarkDeprecated("experimental-metadata-prefetch-on-mount", "Experimental flag: could be removed even in a minor release."); err != nil {
 		return err
 	}
 
@@ -1315,11 +1315,11 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("metadata-cache.experimental-metadata-prefetch-on-mount", flagSet.Lookup("experimental-metadata-prefetch-on-mount")); err != nil {
+	if err := v.BindPFlag("gcs-connection.experimental-local-socket-address", flagSet.Lookup("experimental-local-socket-address")); err != nil {
 		return err
 	}
 
-	if err := v.BindPFlag("gcs-connection.experimental-socket-address", flagSet.Lookup("experimental-socket-address")); err != nil {
+	if err := v.BindPFlag("metadata-cache.experimental-metadata-prefetch-on-mount", flagSet.Lookup("experimental-metadata-prefetch-on-mount")); err != nil {
 		return err
 	}
 

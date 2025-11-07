@@ -476,10 +476,10 @@ params:
     deprecated: true
     deprecation-warning: "Experimental flag: could be dropped even in a minor release."
 
-  - config-path: "gcs-connection.experimental-socket-address"
-    flag-name: "experimental-socket-address"
+  - config-path: "gcs-connection.experimental-local-socket-address"
+    flag-name: "experimental-local-socket-address"
     type: "string"
-    usage: "The socket address to bind to. This is useful in multi-NIC scenarios. This is an experimental flag."
+    usage: "The local socket address to bind to. This is useful in multi-NIC scenarios. This is an experimental flag."
     default: ""
     hide-flag: true
 

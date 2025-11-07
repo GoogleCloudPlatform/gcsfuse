@@ -418,7 +418,7 @@ func (testSuite *StorageHandleTest) TestCreateGRPCClientWithSocketAddress() {
 	defer grpcServer.Stop()
 	// Configure the client to use a specific local IP address.
 	testSuite.clientConfig.CustomEndpoint = listener.Addr().String()
-	testSuite.clientConfig.SocketAddress = "127.0.0.1"
+	testSuite.clientConfig.LocalSocketAddress = "127.0.0.1"
 	testSuite.clientConfig.AnonymousAccess = true
 	ctx := context.Background()
 	clientOpts, err := createClientOptionForGRPCClient(ctx, testSuite.clientConfig, false)
@@ -442,12 +442,12 @@ func (testSuite *StorageHandleTest) TestCreateGRPCClientWithSocketAddress() {
 	// Verify on the server side that the client's connection originates from the specified IP address.
 	host, _, err := net.SplitHostPort(server.remoteAddr.String())
 	require.NoError(testSuite.T(), err)
-	assert.Equal(testSuite.T(), testSuite.clientConfig.SocketAddress, host)
+	assert.Equal(testSuite.T(), testSuite.clientConfig.LocalSocketAddress, host)
 }
 
 func (testSuite *StorageHandleTest) TestCreateGRPCClientWithInvalidSocketAddress() {
 	// Configure the client to use an invalid local IP address.
-	testSuite.clientConfig.SocketAddress = "invalid-address"
+	testSuite.clientConfig.LocalSocketAddress = "invalid-address"
 	testSuite.clientConfig.AnonymousAccess = true
 	ctx := context.Background()
 

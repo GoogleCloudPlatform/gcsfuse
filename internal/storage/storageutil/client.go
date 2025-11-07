@@ -52,15 +52,15 @@ type StorageClientConfig struct {
 	/** Common client parameters. */
 
 	// ClientProtocol decides the go-sdk client to create.
-	ClientProtocol    cfg.Protocol
-	UserAgent         string
-	CustomEndpoint    string
-	KeyFile           string
-	TokenUrl          string
-	ReuseTokenFromUrl bool
-	MaxRetrySleep     time.Duration
-	RetryMultiplier   float64
-	SocketAddress     string
+	ClientProtocol     cfg.Protocol
+	UserAgent          string
+	CustomEndpoint     string
+	KeyFile            string
+	TokenUrl           string
+	ReuseTokenFromUrl  bool
+	MaxRetrySleep      time.Duration
+	RetryMultiplier    float64
+	LocalSocketAddress string
 
 	/** HTTP client parameters. */
 	MaxConnsPerHost            int
@@ -89,9 +89,9 @@ type StorageClientConfig struct {
 
 func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.TokenSource) (httpClient *http.Client, err error) {
 	dialer := net.Dialer{}
-	if storageClientConfig.SocketAddress != "" {
-		if err := ConfigureDialerWithLocalAddr(&dialer, storageClientConfig.SocketAddress); err != nil {
-			return nil, fmt.Errorf("failed to configure dialer with socket address %q: %w", storageClientConfig.SocketAddress, err)
+	if storageClientConfig.LocalSocketAddress != "" {
+		if err := ConfigureDialerWithLocalAddr(&dialer, storageClientConfig.LocalSocketAddress); err != nil {
+			return nil, fmt.Errorf("failed to configure dialer with local-socket-address %q: %w", storageClientConfig.LocalSocketAddress, err)
 		}
 	}
 	if storageClientConfig.EnableHTTPDNSCache {
