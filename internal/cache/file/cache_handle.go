@@ -20,6 +20,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
@@ -49,10 +50,22 @@ type CacheHandle struct {
 	// prevOffset stores the offset of previous cache handle read call. This is used
 	// to decide the type of read.
 	prevOffset int64
+
+	// jobManager is needed to recreate jobs for sparse file on-demand downloads
+	jobManager *downloader.JobManager
+
+	// bucket and object are needed to recreate jobs
+	bucket gcs.Bucket
+	object *gcs.MinObject
+
+	// fileCacheConfig is needed for chunk size configuration in sparse downloads
+	fileCacheConfig *cfg.FileCacheConfig
 }
 
 func NewCacheHandle(localFileHandle *os.File, fileDownloadJob *downloader.Job,
-	fileInfoCache *lru.Cache, cacheFileForRangeRead bool, initialOffset int64) *CacheHandle {
+	fileInfoCache *lru.Cache, cacheFileForRangeRead bool, initialOffset int64,
+	jobManager *downloader.JobManager, bucket gcs.Bucket, object *gcs.MinObject,
+	fileCacheConfig *cfg.FileCacheConfig) *CacheHandle {
 	return &CacheHandle{
 		fileHandle:            localFileHandle,
 		fileDownloadJob:       fileDownloadJob,
@@ -60,6 +73,10 @@ func NewCacheHandle(localFileHandle *os.File, fileDownloadJob *downloader.Job,
 		cacheFileForRangeRead: cacheFileForRangeRead,
 		isSequential:          initialOffset == 0,
 		prevOffset:            initialOffset,
+		jobManager:            jobManager,
+		bucket:                bucket,
+		object:                object,
+		fileCacheConfig:       fileCacheConfig,
 	}
 }
 
@@ -271,10 +288,48 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 		if fileInfoData.SparseMode {
 			// For sparse files without an active job, check if the requested range is downloaded
 			if fileInfoData.DownloadedRanges == nil || !fileInfoData.DownloadedRanges.ContainsRange(uint64(offset), uint64(requiredOffset)) {
-				// Range not downloaded and no job to download it - fall back to GCS
-				return 0, false, util.ErrFallbackToGCS
+				// Range not downloaded - recreate job and download the chunk on-demand
+				if fch.jobManager != nil && fch.bucket != nil && fch.object != nil {
+					fch.fileDownloadJob = fch.jobManager.CreateJobIfNotExists(fch.object, fch.bucket)
+					if fch.fileDownloadJob != nil {
+						// Calculate the chunk to download
+						chunkSizeMb := int64(1) // Default to 1 MB
+						if fch.fileCacheConfig != nil && fch.fileCacheConfig.SparseFileChunkSizeMb > 0 {
+							chunkSizeMb = fch.fileCacheConfig.SparseFileChunkSizeMb
+						}
+						chunkSize := uint64(chunkSizeMb) * 1024 * 1024
+
+						// Align chunk start to chunk boundaries
+						chunkStart := (uint64(offset) / chunkSize) * chunkSize
+						chunkEnd := chunkStart + chunkSize
+						if chunkEnd > object.Size {
+							chunkEnd = object.Size
+						}
+
+						// Download the chunk
+						err = fch.fileDownloadJob.DownloadRange(ctx, chunkStart, chunkEnd)
+						if err != nil {
+							// If download fails, fall back to GCS
+							return 0, false, fmt.Errorf("%w: sparse download failed (recreated job): %v", util.ErrFallbackToGCS, err)
+						}
+
+						// Refresh fileInfoData after download
+						fileInfoData, errFileInfo = fch.getFileInfoData(bucket, object, false)
+						if errFileInfo != nil {
+							return 0, false, fmt.Errorf("%w Error in getCachedFileInfo after sparse download (recreated job): %v", util.ErrInvalidFileInfoCache, errFileInfo)
+						}
+						cacheHit = true
+					} else {
+						// Couldn't recreate job - fall back to GCS
+						return 0, false, util.ErrFallbackToGCS
+					}
+				} else {
+					// Can't recreate job (missing jobManager/bucket/object) - fall back to GCS
+					return 0, false, util.ErrFallbackToGCS
+				}
+			} else {
+				cacheHit = true
 			}
-			cacheHit = true
 		} else {
 			err = fch.validateEntryInFileInfoCache(bucket, object, fileInfoData.FileSize, false)
 			if err != nil {
