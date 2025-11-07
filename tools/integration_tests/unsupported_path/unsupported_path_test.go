@@ -34,8 +34,8 @@ const testDirName = "dirWithUnsupportedPaths"
 // are unsupported by the GCSFuse file system (but can exist as objects in GCS).
 type UnsupportedPathSuite struct {
 	suite.Suite
-	// The local mount point path for the test bucket.
-	mountDir string
+	// The local test dir path for the test bucket.
+	testDir string
 	// The path in the GCS bucket for this test suite.
 	bucketPath string
 }
@@ -46,7 +46,7 @@ func TestUnsupportedPathSuite(t *testing.T) {
 }
 
 func (s *UnsupportedPathSuite) SetupSuite() {
-	s.mountDir = setup.SetupTestDirectory(DirForUnsupportedPathTests)
+	s.testDir = setup.SetupTestDirectory(DirForUnsupportedPathTests)
 	s.bucketPath = path.Join(DirForUnsupportedPathTests, testDirName)
 }
 
@@ -56,11 +56,11 @@ func (s *UnsupportedPathSuite) SetupTest() {
 
 func (s *UnsupportedPathSuite) TearDownTest() {
 	// Clean up all objects created in the GCS bucket for this test directory.
-	require.NoError(s.T(), os.RemoveAll(path.Join(s.mountDir, testDirName)))
+	require.NoError(s.T(), os.RemoveAll(path.Join(s.testDir, testDirName)))
 }
 
 func (s *UnsupportedPathSuite) TearDownSuite() {
-	require.NoError(s.T(), os.RemoveAll(s.mountDir))
+	require.NoError(s.T(), os.RemoveAll(s.testDir))
 }
 
 // createTestObjects populates the GCS bucket with objects having supported and unsupported names.
@@ -92,7 +92,7 @@ func (s *UnsupportedPathSuite) createTestObjects() {
 
 // TestListDirWithUnsupportedPaths verifies that os.ReadDir only returns supported objects.
 func (s *UnsupportedPathSuite) TestListDirWithUnsupportedPaths() {
-	localPath := path.Join(s.mountDir, testDirName)
+	localPath := path.Join(s.testDir, testDirName)
 
 	// List the directory containing both supported and unsupported objects.
 	entries, err := os.ReadDir(localPath)
@@ -116,8 +116,8 @@ func (s *UnsupportedPathSuite) TestListDirWithUnsupportedPaths() {
 // TestCopyDirWithUnsupportedPaths verifies that operations.CopyDir only copies supported objects.
 func (s *UnsupportedPathSuite) TestCopyDirWithUnsupportedPaths() {
 	destDirName := "copiedDir"
-	sourceLocalPath := path.Join(s.mountDir, testDirName)
-	destLocalPath := path.Join(s.mountDir, destDirName)
+	sourceLocalPath := path.Join(s.testDir, testDirName)
+	destLocalPath := path.Join(s.testDir, destDirName)
 	defer setup.CleanUpDir(destLocalPath)
 	destBucketPath := path.Join(DirForUnsupportedPathTests, destDirName)
 	// Define the expected object paths in the GCS bucket after the copy.
@@ -145,16 +145,13 @@ func (s *UnsupportedPathSuite) TestCopyDirWithUnsupportedPaths() {
 // (like . and ..) are retained/re-evaluated upon listing the new location in GCS.
 func (s *UnsupportedPathSuite) TestRenameDirWithUnsupportedPaths() {
 	destDirName := "renamedDir"
-	sourceLocalPath := path.Join(s.mountDir, testDirName)
-	destLocalPath := path.Join(s.mountDir, destDirName)
+	sourceLocalPath := path.Join(s.testDir, testDirName)
+	destLocalPath := path.Join(s.testDir, destDirName)
 	destBucketPath := path.Join(DirForUnsupportedPathTests, destDirName)
 	defer setup.CleanUpDir(destLocalPath)
 	// In a rename operation, the GCS objects (supported AND unsupported) are moved/renamed.
 	// The unsupported objects are expected to exist at the new location, though they will
 	// likely still be hidden from the fuse mount due to the unsupported path components.
-	// NOTE: The original test's expected names suggest that all objects are moved in GCS,
-	// but the path segments are relative to the new directory (e.g., /renamedDir/.).
-	// The original list had 7 elements, let's clean up/verify what those are:
 	expectedObjectNames := []string{
 		// Moved unsupported objects
 		destBucketPath + "//",
@@ -185,7 +182,7 @@ func (s *UnsupportedPathSuite) TestRenameDirWithUnsupportedPaths() {
 // TestDeleteDirWithUnsupportedPaths verifies that os.RemoveAll successfully deletes the mounted directory
 // and all corresponding GCS objects, including the unsupported ones.
 func (s *UnsupportedPathSuite) TestDeleteDirWithUnsupportedPaths() {
-	localPath := path.Join(s.mountDir, testDirName)
+	localPath := path.Join(s.testDir, testDirName)
 
 	// Remove the directory containing both supported and unsupported objects.
 	err := os.RemoveAll(localPath)
@@ -197,8 +194,7 @@ func (s *UnsupportedPathSuite) TestDeleteDirWithUnsupportedPaths() {
 	require.Error(s.T(), err, "os.Stat on the removed directory should fail.")
 	assert.True(s.T(), os.IsNotExist(err), "The error should indicate 'no such file or directory'.")
 	// EXTRA: Verify all objects are deleted in GCS as well.
-	bucketPath := path.Join(DirForUnsupportedPathTests, testDirName)
-	entries, err := client.ListDirectory(ctx, storageClient, setup.TestBucket(), bucketPath)
+	entries, err := client.ListDirectory(ctx, storageClient, setup.TestBucket(), s.bucketPath)
 	require.NoError(s.T(), err, "Listing the deleted directory prefix in GCS should succeed.")
 	assert.Empty(s.T(), entries, "The GCS directory prefix should be empty after RemoveAll.")
 }
