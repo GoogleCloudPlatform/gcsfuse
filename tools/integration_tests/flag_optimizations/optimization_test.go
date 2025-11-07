@@ -50,7 +50,10 @@ func TestImplicitDirsNotEnabled(t *testing.T) {
 			implicitDirPath := filepath.Join(testDirName, "implicitDir"+setup.GenerateRandomString(5))
 			mountedImplicitDirPath := filepath.Join(setup.MntDir(), implicitDirPath)
 			client.CreateImplicitDir(testEnv.ctx, testEnv.storageClient, implicitDirPath, t)
-			defer client.MustDeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, implicitDirPath)
+			defer func() {
+				err := client.DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, implicitDirPath)
+				require.NoError(t, err)
+			}()
 
 			// Act
 			_, err := os.Stat(mountedImplicitDirPath)
@@ -76,8 +79,10 @@ func TestRenameDirLimitNotSet(t *testing.T) {
 			require.NoError(t, client.CreateGcsDir(testEnv.ctx, testEnv.storageClient, srcDirPath, setup.TestBucket(), ""))
 			client.CreateNFilesInDir(testEnv.ctx, testEnv.storageClient, 1, "file", 1024, srcDirPath, t)
 			defer func() {
-				client.MustDeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, srcDirPath)
-				client.MustDeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, dstDirPath)
+				err := client.DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, srcDirPath)
+				require.NoError(t, err)
+				err = client.DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, dstDirPath)
+				require.NoError(t, err)
 			}()
 
 			// Act
@@ -100,7 +105,10 @@ func TestImplicitDirsEnabled(t *testing.T) {
 			implicitDirPath := filepath.Join(testDirName, "implicitDir"+setup.GenerateRandomString(5))
 			mountedImplicitDirPath := filepath.Join(setup.MntDir(), implicitDirPath)
 			client.CreateImplicitDir(testEnv.ctx, testEnv.storageClient, implicitDirPath, t)
-			defer client.MustDeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, implicitDirPath)
+			defer func() {
+				err := client.DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, implicitDirPath)
+				require.NoError(t, err)
+			}()
 
 			// Act
 			fi, err := os.Stat(mountedImplicitDirPath)
@@ -128,8 +136,10 @@ func TestRenameDirLimitSet(t *testing.T) {
 			require.NoError(t, client.CreateGcsDir(testEnv.ctx, testEnv.storageClient, srcDirPath, setup.TestBucket(), ""))
 			client.CreateNFilesInDir(testEnv.ctx, testEnv.storageClient, 1, "file", 1024, srcDirPath, t)
 			defer func() {
-				client.MustDeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, srcDirPath)
-				client.MustDeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, dstDirPath)
+				err := client.DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, srcDirPath)
+				require.NoError(t, err)
+				err = client.DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, dstDirPath)
+				require.NoError(t, err)
 			}()
 
 			// Act
