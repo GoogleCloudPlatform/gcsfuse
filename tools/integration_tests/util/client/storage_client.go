@@ -631,7 +631,8 @@ func ListDirectory(ctx context.Context, client *storage.Client, bucketName, pref
 	query := &storage.Query{
 		Prefix: prefix,
 		// Delimiter to prevent listing objects recursively and to return subdirectories as prefixes.
-		Delimiter: "/",
+		Delimiter:                "/",
+		IncludeFoldersAsPrefixes: true,
 	}
 
 	// Get BucketHandle to operate on the specified bucket.
