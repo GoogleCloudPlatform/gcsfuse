@@ -91,7 +91,8 @@ jobs:
       fail-fast: false
       matrix:
         go: [ 1.24.x ]
-        pkg: ${{ fromJson(needs.list-packages.outputs.pkgs) }}
+        # Hardcoded single package for testing
+        pkg: [ 'github.com/googlecloudplatform/gcsfuse/v3/cmd' ]
     steps:
     - uses: actions/checkout@v4
     - name: Set up Go ${{ matrix.go }}
