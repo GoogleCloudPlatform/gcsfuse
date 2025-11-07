@@ -31,6 +31,7 @@ const DirForUnsupportedPathTests = "dirForUnsupportedPathTests"
 var (
 	storageClient *storage.Client
 	ctx           context.Context
+	bucketType    string
 )
 
 func TestMain(m *testing.M) {
@@ -48,14 +49,14 @@ func TestMain(m *testing.M) {
 				Configs: []test_suite.ConfigItem{
 					{
 						Flags: []string{
-							"--implicit-dirs --client-protocol=grpc --enable-unsupported-path-support=true --rename-dir-limit=200",
-							"--implicit-dirs --enable-unsupported-path-support=true --rename-dir-limit=200",
+							"--implicit-dirs --client-protocol=grpc --enable-unsupported-path-support=true --rename-dir-limit=200 --metadata-cache-negative-ttl-secs=0",
+							"--implicit-dirs --enable-unsupported-path-support=true --rename-dir-limit=200 --metadata-cache-negative-ttl-secs=0",
 						},
 						Compatible: map[string]bool{"flat": true, "hns": true, "zonal": false},
 					},
 					{
 						Flags: []string{
-							"--implicit-dirs --enable-unsupported-path-support=true --rename-dir-limit=200",
+							"--implicit-dirs --enable-unsupported-path-support=true --rename-dir-limit=200 --metadata-cache-negative-ttl-secs=0",
 						},
 						Compatible: map[string]bool{"flat": false, "hns": false, "zonal": true},
 					},
@@ -65,7 +66,7 @@ func TestMain(m *testing.M) {
 	}
 
 	ctx = context.Background()
-	bucketType := setup.TestEnvironment(ctx, &cfg.UnsupportedPath[0])
+	bucketType = setup.TestEnvironment(ctx, &cfg.UnsupportedPath[0])
 
 	// 2. Create storage client before running tests.
 	var err error

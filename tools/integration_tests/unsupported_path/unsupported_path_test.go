@@ -75,15 +75,24 @@ func (s *UnsupportedPathSuite) createTestObjects() {
 	}
 
 	for _, obj := range unsupportedObjects {
-		require.NoError(s.T(), client.CreateFinalizedObjectOnGCS(ctx, storageClient, obj, "unsupported content"))
+		if bucketType == setup.ZonalBucket {
+			require.NoError(s.T(), client.CreateFinalizedObjectOnGCS(ctx, storageClient, obj, "unsupported content"))
+		} else {
+			require.NoError(s.T(), client.CreateObjectOnGCS(ctx, storageClient, obj, "unsupported content"))
+		}
 	}
 
 	// Create objects with names that are supported and should be visible.
 	supportedFile := path.Join(s.bucketPath, "supported_file.txt")
 	supportedDir := path.Join(s.bucketPath, "supported_dir") + "/"
 
-	require.NoError(s.T(), client.CreateFinalizedObjectOnGCS(ctx, storageClient, supportedFile, "content"))
-	require.NoError(s.T(), client.CreateFinalizedObjectOnGCS(ctx, storageClient, supportedDir, "")) // Trailing slash denotes a directory
+	if bucketType == setup.ZonalBucket {
+		require.NoError(s.T(), client.CreateFinalizedObjectOnGCS(ctx, storageClient, supportedFile, "content"))
+		require.NoError(s.T(), client.CreateFinalizedObjectOnGCS(ctx, storageClient, supportedDir, "")) // Trailing slash denotes a directory
+	} else {
+		require.NoError(s.T(), client.CreateObjectOnGCS(ctx, storageClient, supportedFile, "content"))
+		require.NoError(s.T(), client.CreateObjectOnGCS(ctx, storageClient, supportedDir, "")) // Trailing slash denotes a directory
+	}
 }
 
 // --- Test Cases ---
