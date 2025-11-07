@@ -127,6 +127,7 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 		dialer := &net.Dialer{}
 		// The port can be 0, in which case the OS will choose a local port.
 		// The format of SocketAddress is expected to be IP address.
+		// TODO: check if this approach works for CTK.
 		if err := storageutil.ConfigureDialerWithLocalAddr(dialer, clientConfig.LocalSocketAddress); err != nil {
 			return nil, fmt.Errorf("failed to configure dialer with local-socket-address %q: %w", clientConfig.LocalSocketAddress, err)
 		}
