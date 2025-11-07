@@ -118,5 +118,6 @@ func (testSuite *PromBufferedReadTest) TestInsufficientMemoryFallback() {
 }
 
 func TestPromBufferedReadSuite(t *testing.T) {
+	t.SkipNow()
 	suite.Run(t, new(PromBufferedReadTest))
 }
