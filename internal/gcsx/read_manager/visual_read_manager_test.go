@@ -188,7 +188,7 @@ func TestVisualReadManager_MergeRanges(t *testing.T) {
 func TestVisualReadManager_ReadAt(t *testing.T) {
 	mockReadManager := &MockReadManager{}
 	mockReadManager.On("Object").Return(&gcs.MinObject{Name: "test-object", Size: 100}).Maybe()
-	mockReadManager.On("ReadAt", mock.Anything, mock.Anything, mock.Anything).Return(gcsx.ReaderResponse{}, nil).Once()
+	mockReadManager.On("ReadAt", mock.Anything, mock.Anything, mock.Anything).Return(gcsx.ReadResponse{}, nil).Once()
 	ioRenderer, err := workloadinsight.NewRenderer()
 	require.NoError(t, err, "Failed to create IORenderer")
 	vrm := NewVisualReadManager(mockReadManager, ioRenderer, cfg.WorkloadInsightConfig{})

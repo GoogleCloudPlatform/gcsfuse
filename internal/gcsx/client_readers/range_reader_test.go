@@ -92,7 +92,7 @@ func getReader(size int) *fake.FakeReader {
 	}
 }
 
-func (t *rangeReaderTest) readAt(offset int64, size int64) (gcsx.ReaderResponse, error) {
+func (t *rangeReaderTest) readAt(offset int64, size int64) (gcsx.ReadResponse, error) {
 	req := &gcsx.GCSReaderRequest{
 		Offset:    offset,
 		EndOffset: offset + size,
@@ -267,11 +267,11 @@ func (t *rangeReaderTest) Test_ReadAt_ReadFailsWithTimeoutError() {
 	rc := &fake.FakeReader{ReadCloser: io.NopCloser(r)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, uint64(len(content)), rc)
 
-	readerResponse, err := t.readAt(0, int64(len(content)))
+	readResponse, err := t.readAt(0, int64(len(content)))
 
 	assert.Error(t.T(), err)
 	assert.Contains(t.T(), err.Error(), "timeout")
-	assert.Zero(t.T(), readerResponse.Size)
+	assert.Zero(t.T(), readResponse.Size)
 	t.mockBucket.AssertExpectations(t.T())
 }
 
@@ -487,15 +487,15 @@ func (t *rangeReaderTest) Test_ReadAt_DoesntPropagateCancellationAfterReturning(
 	bufSize := 2
 
 	// Successfully read two bytes using a context whose cancellation we control.
-	readerResponse, err := t.rangeReader.ReadAt(ctx, &gcsx.GCSReaderRequest{
+	readResponse, err := t.rangeReader.ReadAt(ctx, &gcsx.GCSReaderRequest{
 		Buffer:    make([]byte, bufSize),
 		Offset:    0,
 		EndOffset: 2,
 	})
 
 	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), bufSize, readerResponse.Size)
-	assert.Equal(t.T(), content[:bufSize], string(readerResponse.DataBuf[:readerResponse.Size]))
+	assert.Equal(t.T(), bufSize, readResponse.Size)
+	assert.Equal(t.T(), content[:bufSize], string(readResponse.DataBuf[:readResponse.Size]))
 	// If we cancel the calling context now, it should not cause the underlying
 	// read context to be cancelled.
 	cancel()
