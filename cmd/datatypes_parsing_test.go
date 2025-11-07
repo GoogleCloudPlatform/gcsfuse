@@ -588,6 +588,7 @@ func TestCLIFlagPassing(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var c *cfg.Config
 			command, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				c = mountInfo.config
@@ -762,6 +763,7 @@ func TestConfigPassing(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var c *cfg.Config
 			command, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				c = mountInfo.config

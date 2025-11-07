@@ -216,7 +216,6 @@ func TestParsingSuccess(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 			if tc.setupFn != nil {
 				tc.setupFn()
 			}
@@ -283,7 +282,6 @@ func TestParsingError(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 			fs := declareFlags()
 			v := bindFlags(fs)
 			c := TestConfig{}

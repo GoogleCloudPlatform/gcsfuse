@@ -22,7 +22,7 @@ import (
 )
 
 func TestGetFuseMountConfig_MountOptionsFormattedCorrectly(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	testCases := []struct {
 		name                string
 		inputFuseOptions    []string
@@ -69,7 +69,7 @@ func TestGetFuseMountConfig_MountOptionsFormattedCorrectly(t *testing.T) {
 }
 
 func TestGetFuseMountConfig_LoggerInitializationInFuse(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	testCases := []struct {
 		name                  string
 		gcsFuseLogLevel       string
@@ -118,7 +118,7 @@ func TestGetFuseMountConfig_LoggerInitializationInFuse(t *testing.T) {
 }
 
 func TestGetFuseMountConfig_EnableReaddirplus(t *testing.T) {
-	t.Parallel()
+	// t.Parallel()
 	testCases := []struct {
 		name              string
 		enableReaddirplus bool

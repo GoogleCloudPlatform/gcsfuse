@@ -160,7 +160,6 @@ func Test_ListCacheTtlSecsToDuration_InvalidCall(t *testing.T) {
 }
 
 func TestIsTracingEnabled(t *testing.T) {
-	t.Parallel()
 	var testCases = []struct {
 		testName  string
 		traceMode string
@@ -172,7 +171,6 @@ func TestIsTracingEnabled(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.testName, func(t *testing.T) {
-			t.Parallel()
 
 			assert.Equal(t, tc.expected, IsTracingEnabled(&Config{Monitoring: MonitoringConfig{
 				ExperimentalTracingMode: tc.traceMode,
@@ -182,7 +180,6 @@ func TestIsTracingEnabled(t *testing.T) {
 }
 
 func TestIsMetricsEnabled(t *testing.T) {
-	t.Parallel()
 	var testCases = []struct {
 		testName string
 		m        *MetricsConfig
@@ -195,7 +192,6 @@ func TestIsMetricsEnabled(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.testName, func(t *testing.T) {
-			t.Parallel()
 
 			assert.Equal(t, tc.enabled, IsMetricsEnabled(tc.m))
 		})

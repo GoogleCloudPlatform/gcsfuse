@@ -514,7 +514,6 @@ func TestRationalize_WriteConfig(t *testing.T) {
 }
 
 func TestRationalizeMetricsConfig(t *testing.T) {
-	t.Parallel()
 	testCases := []struct {
 		name     string
 		config   *Config
@@ -553,8 +552,7 @@ func TestRationalizeMetricsConfig(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+		t.Run(tc.name, func(t *testing.T) {		
 
 			if assert.NoError(t, Rationalize(&mockIsSet{}, tc.config, []string{})) {
 				assert.Equal(t, tc.expected, tc.config.Metrics.CloudMetricsExportIntervalSecs)
