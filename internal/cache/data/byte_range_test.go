@@ -20,93 +20,87 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const MB = 1024 * 1024
+
 func TestByteRangeMap_AddRange(t *testing.T) {
 	tests := []struct {
 		name           string
-		initialRanges  []ByteRange
+		initialRanges  [][2]uint64 // [start, end] pairs
 		addStart       uint64
 		addEnd         uint64
-		expectedRanges []ByteRange
-		expectedAdded  uint64
+		expectedRanges []ByteRange // chunk-aligned ranges
+		expectedAdded  uint64       // bytes added (chunk size multiples)
 	}{
 		{
-			name:           "add to empty map",
-			initialRanges:  []ByteRange{},
-			addStart:       10,
-			addEnd:         20,
-			expectedRanges: []ByteRange{{10, 20}},
-			expectedAdded:  10,
+			name:           "add to empty map - single chunk",
+			initialRanges:  [][2]uint64{},
+			addStart:       0,
+			addEnd:         MB,
+			expectedRanges: []ByteRange{{0, MB}},
+			expectedAdded:  MB,
 		},
 		{
-			name:           "add non-overlapping range before",
-			initialRanges:  []ByteRange{{20, 30}},
-			addStart:       10,
-			addEnd:         15,
-			expectedRanges: []ByteRange{{10, 15}, {20, 30}},
-			expectedAdded:  5,
+			name:           "add to empty map - partial chunk becomes full chunk",
+			initialRanges:  [][2]uint64{},
+			addStart:       100,
+			addEnd:         200,
+			expectedRanges: []ByteRange{{0, MB}},
+			expectedAdded:  MB, // tracks full chunk
 		},
 		{
-			name:           "add non-overlapping range after",
-			initialRanges:  []ByteRange{{10, 20}},
-			addStart:       30,
-			addEnd:         40,
-			expectedRanges: []ByteRange{{10, 20}, {30, 40}},
-			expectedAdded:  10,
+			name:           "add non-overlapping chunk",
+			initialRanges:  [][2]uint64{{0, MB}},
+			addStart:       2 * MB,
+			addEnd:         3 * MB,
+			expectedRanges: []ByteRange{{0, MB}, {2 * MB, 3 * MB}},
+			expectedAdded:  MB,
 		},
 		{
-			name:           "add adjacent range before (merge)",
-			initialRanges:  []ByteRange{{20, 30}},
-			addStart:       10,
-			addEnd:         20,
-			expectedRanges: []ByteRange{{10, 30}},
-			expectedAdded:  10,
+			name:           "add already downloaded chunk",
+			initialRanges:  [][2]uint64{{0, MB}},
+			addStart:       100,
+			addEnd:         200,
+			expectedRanges: []ByteRange{{0, MB}},
+			expectedAdded:  0, // chunk already tracked
 		},
 		{
-			name:           "add adjacent range after (merge)",
-			initialRanges:  []ByteRange{{10, 20}},
-			addStart:       20,
-			addEnd:         30,
-			expectedRanges: []ByteRange{{10, 30}},
-			expectedAdded:  10,
+			name:           "add range spanning two chunks",
+			initialRanges:  [][2]uint64{},
+			addStart:       0,
+			addEnd:         2 * MB,
+			expectedRanges: []ByteRange{{0, 2 * MB}},
+			expectedAdded:  2 * MB,
 		},
 		{
-			name:           "add overlapping range",
-			initialRanges:  []ByteRange{{10, 20}},
-			addStart:       15,
-			addEnd:         25,
-			expectedRanges: []ByteRange{{10, 25}},
-			expectedAdded:  5, // only 20-25 is new
+			name:           "add range spanning partial chunks",
+			initialRanges:  [][2]uint64{},
+			addStart:       MB / 2,
+			addEnd:         MB + MB/2,
+			expectedRanges: []ByteRange{{0, 2 * MB}}, // both chunks 0 and 1
+			expectedAdded:  2 * MB,
 		},
 		{
-			name:           "add range contained in existing",
-			initialRanges:  []ByteRange{{10, 30}},
-			addStart:       15,
-			addEnd:         25,
-			expectedRanges: []ByteRange{{10, 30}},
-			expectedAdded:  0, // already covered
+			name:           "add range that fills gap",
+			initialRanges:  [][2]uint64{{0, MB}, {2 * MB, 3 * MB}},
+			addStart:       MB,
+			addEnd:         2 * MB,
+			expectedRanges: []ByteRange{{0, 3 * MB}},
+			expectedAdded:  MB,
 		},
 		{
-			name:           "add range that contains existing",
-			initialRanges:  []ByteRange{{15, 25}},
-			addStart:       10,
-			addEnd:         30,
-			expectedRanges: []ByteRange{{10, 30}},
-			expectedAdded:  10, // 10-15 and 25-30 are new
-		},
-		{
-			name:           "merge multiple ranges",
-			initialRanges:  []ByteRange{{10, 20}, {30, 40}},
-			addStart:       15,
-			addEnd:         35,
-			expectedRanges: []ByteRange{{10, 40}},
-			expectedAdded:  10, // 20-30 is new
+			name:           "add overlapping chunks - some new",
+			initialRanges:  [][2]uint64{{0, MB}},
+			addStart:       0,
+			addEnd:         2 * MB,
+			expectedRanges: []ByteRange{{0, 2 * MB}},
+			expectedAdded:  MB, // only chunk 1 is new
 		},
 		{
 			name:           "add invalid range (start >= end)",
-			initialRanges:  []ByteRange{{10, 20}},
-			addStart:       30,
-			addEnd:         30,
-			expectedRanges: []ByteRange{{10, 20}},
+			initialRanges:  [][2]uint64{{0, MB}},
+			addStart:       2 * MB,
+			addEnd:         2 * MB,
+			expectedRanges: []ByteRange{{0, MB}},
 			expectedAdded:  0,
 		},
 	}
@@ -116,7 +110,7 @@ func TestByteRangeMap_AddRange(t *testing.T) {
 			brm := NewByteRangeMap()
 			// Add initial ranges
 			for _, r := range tt.initialRanges {
-				brm.AddRange(r.Start, r.End)
+				brm.AddRange(r[0], r[1])
 			}
 
 			// Add the test range
@@ -131,9 +125,9 @@ func TestByteRangeMap_AddRange(t *testing.T) {
 
 func TestByteRangeMap_ContainsRange(t *testing.T) {
 	brm := NewByteRangeMap()
-	brm.AddRange(10, 20)
-	brm.AddRange(30, 40)
-	brm.AddRange(50, 60)
+	brm.AddRange(0, MB)       // chunk 0
+	brm.AddRange(2*MB, 3*MB)  // chunk 2
+	brm.AddRange(5*MB, 6*MB)  // chunk 5
 
 	tests := []struct {
 		name     string
@@ -141,15 +135,14 @@ func TestByteRangeMap_ContainsRange(t *testing.T) {
 		end      uint64
 		expected bool
 	}{
-		{"fully contained in first range", 12, 18, true},
-		{"exact match first range", 10, 20, true},
-		{"fully contained in middle range", 32, 38, true},
-		{"spans two ranges", 15, 35, false},
-		{"starts before first range", 5, 15, false},
-		{"ends after last range", 55, 65, false},
-		{"completely outside ranges", 70, 80, false},
-		{"empty range", 25, 25, true}, // empty ranges are considered contained
-		{"starts in range, ends outside", 15, 25, false},
+		{"fully contained in first chunk", 100, 200, true},
+		{"exact match first chunk", 0, MB, true},
+		{"fully contained in middle chunk", 2*MB + 100, 2*MB + 200, true},
+		{"spans downloaded and missing chunk", MB / 2, MB + MB/2, false},
+		{"starts in downloaded, ends in missing", 100, MB + 100, false},
+		{"completely outside ranges", 7 * MB, 8 * MB, false},
+		{"empty range", MB + MB/2, MB + MB/2, true}, // empty ranges are considered contained
+		{"spans two downloaded chunks with gap", 0, 3 * MB, false},
 	}
 
 	for _, tt := range tests {
@@ -162,9 +155,9 @@ func TestByteRangeMap_ContainsRange(t *testing.T) {
 
 func TestByteRangeMap_GetMissingRanges(t *testing.T) {
 	brm := NewByteRangeMap()
-	brm.AddRange(10, 20)
-	brm.AddRange(30, 40)
-	brm.AddRange(50, 60)
+	brm.AddRange(0, MB)       // chunk 0
+	brm.AddRange(2*MB, 3*MB)  // chunk 2
+	brm.AddRange(5*MB, 6*MB)  // chunk 5
 
 	tests := []struct {
 		name     string
@@ -174,44 +167,48 @@ func TestByteRangeMap_GetMissingRanges(t *testing.T) {
 	}{
 		{
 			name:     "fully covered range",
-			start:    12,
-			end:      18,
+			start:    100,
+			end:      200,
 			expected: nil,
 		},
 		{
-			name:     "gap between two ranges",
-			start:    15,
-			end:      35,
-			expected: []ByteRange{{20, 30}},
+			name:     "single missing chunk",
+			start:    MB,
+			end:      2 * MB,
+			expected: []ByteRange{{MB, 2 * MB}},
 		},
 		{
-			name:     "multiple gaps",
-			start:    5,
-			end:      65,
-			expected: []ByteRange{{5, 10}, {20, 30}, {40, 50}, {60, 65}},
+			name:  "multiple missing chunks",
+			start: 0,
+			end:   6 * MB,
+			expected: []ByteRange{
+				{MB, 2 * MB},     // chunk 1
+				{3 * MB, 4 * MB}, // chunk 3
+				{4 * MB, 5 * MB}, // chunk 4
+			},
 		},
 		{
 			name:     "completely missing range",
-			start:    70,
-			end:      80,
-			expected: []ByteRange{{70, 80}},
+			start:    10 * MB,
+			end:      11 * MB,
+			expected: []ByteRange{{10 * MB, 11 * MB}},
 		},
 		{
-			name:     "starts in gap, ends in range",
-			start:    22,
-			end:      35,
-			expected: []ByteRange{{22, 30}},
+			name:     "partial chunk request - missing",
+			start:    MB + 100,
+			end:      MB + 200,
+			expected: []ByteRange{{MB, 2 * MB}}, // returns full chunk
 		},
 		{
-			name:     "starts in range, ends in gap",
-			start:    15,
-			end:      25,
-			expected: []ByteRange{{20, 25}},
+			name:     "partial chunk request - present",
+			start:    100,
+			end:      200,
+			expected: nil,
 		},
 		{
 			name:     "empty range",
-			start:    25,
-			end:      25,
+			start:    MB + MB/2,
+			end:      MB + MB/2,
 			expected: nil,
 		},
 	}
@@ -229,22 +226,22 @@ func TestByteRangeMap_TotalBytes(t *testing.T) {
 
 	assert.Equal(t, uint64(0), brm.TotalBytes(), "empty map should have 0 bytes")
 
-	brm.AddRange(10, 20) // 10 bytes
-	assert.Equal(t, uint64(10), brm.TotalBytes())
+	brm.AddRange(0, MB) // 1 chunk
+	assert.Equal(t, uint64(MB), brm.TotalBytes())
 
-	brm.AddRange(30, 50) // 20 bytes
-	assert.Equal(t, uint64(30), brm.TotalBytes())
+	brm.AddRange(2*MB, 4*MB) // 2 chunks
+	assert.Equal(t, uint64(3*MB), brm.TotalBytes())
 
-	brm.AddRange(15, 35) // merges ranges, adds 10 bytes (20-30)
-	assert.Equal(t, uint64(40), brm.TotalBytes()) // 10-50 = 40 bytes
+	brm.AddRange(MB, 2*MB) // 1 chunk, fills gap
+	assert.Equal(t, uint64(4*MB), brm.TotalBytes()) // 4 contiguous chunks
 }
 
 func TestByteRangeMap_Clear(t *testing.T) {
 	brm := NewByteRangeMap()
-	brm.AddRange(10, 20)
-	brm.AddRange(30, 40)
+	brm.AddRange(0, MB)
+	brm.AddRange(2*MB, 3*MB)
 
-	assert.Equal(t, uint64(20), brm.TotalBytes())
+	assert.Equal(t, uint64(2*MB), brm.TotalBytes())
 
 	brm.Clear()
 
@@ -261,17 +258,17 @@ func TestByteRangeMap_ConcurrentAccess(t *testing.T) {
 
 	// Writer goroutine
 	go func() {
-		for i := uint64(0); i < 100; i += 10 {
-			brm.AddRange(i, i+5)
+		for i := uint64(0); i < 10; i++ {
+			brm.AddRange(i*MB, (i+1)*MB)
 		}
 		done <- true
 	}()
 
 	// Reader goroutine
 	go func() {
-		for i := uint64(0); i < 100; i += 10 {
-			brm.ContainsRange(i, i+5)
-			brm.GetMissingRanges(i, i+10)
+		for i := uint64(0); i < 10; i++ {
+			brm.ContainsRange(i*MB, (i+1)*MB)
+			brm.GetMissingRanges(i*MB, (i+2)*MB)
 			brm.TotalBytes()
 		}
 		done <- true
@@ -279,4 +276,21 @@ func TestByteRangeMap_ConcurrentAccess(t *testing.T) {
 
 	<-done
 	<-done
+}
+
+func TestByteRangeMap_ChunkAlignment(t *testing.T) {
+	brm := NewByteRangeMap()
+
+	// Test that partial byte ranges get tracked as full chunks
+	brm.AddRange(100, 200)
+
+	// Should track chunk 0
+	assert.True(t, brm.ContainsRange(0, MB))
+	assert.True(t, brm.ContainsRange(100, 200))
+	assert.True(t, brm.ContainsRange(0, 1000))
+	assert.Equal(t, uint64(MB), brm.TotalBytes())
+
+	// Should not contain chunk 1
+	assert.False(t, brm.ContainsRange(MB, MB+1))
+	assert.False(t, brm.ContainsRange(100, MB+100))
 }
