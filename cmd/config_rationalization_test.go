@@ -23,6 +23,7 @@ import (
 )
 
 func TestRationalizeMetadataCache(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name                  string
 		args                  []string
@@ -85,6 +86,7 @@ func TestRationalizeMetadataCache(t *testing.T) {
 }
 
 func TestRationalizeCloudMetricsExportIntervalSecs(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name     string
 		args     []string

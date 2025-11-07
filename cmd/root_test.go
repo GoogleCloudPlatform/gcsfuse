@@ -1990,6 +1990,7 @@ func TestArgsParsing_WorkloadInsightConfigFile(t *testing.T) {
 }
 
 func TestMountInfoPopulation(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name                    string
 		cliArgs                 []string
@@ -2089,6 +2090,7 @@ func TestMountInfoPopulation(t *testing.T) {
 }
 
 func TestGetCliFlags(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name              string
 		setupFlags        func(t *testing.T, fs *pflag.FlagSet)
@@ -2154,6 +2156,7 @@ func TestGetCliFlags(t *testing.T) {
 }
 
 func TestGetConfigFileFlags(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name      string
 		defaults  map[string]any

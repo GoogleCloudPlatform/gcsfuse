@@ -25,6 +25,7 @@ import (
 )
 
 func TestCLIFlagPassing(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name   string
 		args   []string
@@ -605,6 +606,7 @@ func TestCLIFlagPassing(t *testing.T) {
 }
 
 func TestConfigPassing(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name   string
 		file   string
@@ -777,6 +779,7 @@ func TestConfigPassing(t *testing.T) {
 }
 
 func TestPredefinedFlagThrowNoError(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name string
 		args []string
