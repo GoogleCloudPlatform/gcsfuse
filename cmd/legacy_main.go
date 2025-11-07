@@ -151,6 +151,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		MetricHandle:               metricHandle,
 		TracingEnabled:             cfg.IsTracingEnabled(newConfig),
 		EnableHTTPDNSCache:         newConfig.GcsConnection.EnableHttpDnsCache,
+		LocalSocketAddress:         newConfig.GcsConnection.ExperimentalLocalSocketAddress,
 	}
 	logger.Infof("UserAgent = %s\n", storageClientConfig.UserAgent)
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig, newConfig.GcsConnection.BillingProject)

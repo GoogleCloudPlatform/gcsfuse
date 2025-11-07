@@ -489,6 +489,8 @@ type GcsConnectionConfig struct {
 
 	ExperimentalEnableJsonRead bool `yaml:"experimental-enable-json-read"`
 
+	ExperimentalLocalSocketAddress string `yaml:"experimental-local-socket-address"`
+
 	GrpcConnPoolSize int64 `yaml:"grpc-conn-pool-size"`
 
 	HttpClientTimeout time.Duration `yaml:"http-client-timeout"`
@@ -829,6 +831,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.IntP("experimental-grpc-conn-pool-size", "", 1, "The number of gRPC channel in grpc client.")
 
 	if err := flagSet.MarkDeprecated("experimental-grpc-conn-pool-size", "Experimental flag: can be removed in a minor release."); err != nil {
+		return err
+	}
+
+	flagSet.StringP("experimental-local-socket-address", "", "", "The local socket address to bind to. This is useful in multi-NIC scenarios. This is an experimental flag.")
+
+	if err := flagSet.MarkHidden("experimental-local-socket-address"); err != nil {
 		return err
 	}
 
@@ -1304,6 +1312,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-connection.grpc-conn-pool-size", flagSet.Lookup("experimental-grpc-conn-pool-size")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("gcs-connection.experimental-local-socket-address", flagSet.Lookup("experimental-local-socket-address")); err != nil {
 		return err
 	}
 
