@@ -361,7 +361,7 @@ type Config struct {
 
 	EnableNewReader bool `yaml:"enable-new-reader"`
 
-	EnableUnsupportedDirSupport bool `yaml:"enable-unsupported-dir-support"`
+	EnableUnsupportedPathSupport bool `yaml:"enable-unsupported-path-support"`
 
 	FileCache FileCacheConfig `yaml:"file-cache"`
 
@@ -802,9 +802,9 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-streaming-writes", "", true, "Enables streaming uploads during write file operation.")
 
-	flagSet.BoolP("enable-unsupported-dir-support", "", false, "Enables support for un-supported directory fix implementation.")
+	flagSet.BoolP("enable-unsupported-path-support", "", false, "Enables support for file system paths with unsupported GCS names (e.g., names containing '//' or starting with /).  When set, GCSFuse will ignore these objects during listing and copying operations.  For rename and delete operations, the flag allows the action to proceed for all specified objects, including those with unsupported names.")
 
-	if err := flagSet.MarkHidden("enable-unsupported-dir-support"); err != nil {
+	if err := flagSet.MarkHidden("enable-unsupported-path-support"); err != nil {
 		return err
 	}
 
@@ -1287,7 +1287,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("enable-unsupported-dir-support", flagSet.Lookup("enable-unsupported-dir-support")); err != nil {
+	if err := v.BindPFlag("enable-unsupported-path-support", flagSet.Lookup("enable-unsupported-path-support")); err != nil {
 		return err
 	}
 

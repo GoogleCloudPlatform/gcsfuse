@@ -31,26 +31,26 @@ import (
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type UnsupportedObjectNameTest struct {
+type UnsupportedPathNameTest struct {
 	suite.Suite
 	fsTest
 }
 
-func TestUnsupportedObjectNameTestSuite(t *testing.T) {
-	suite.Run(t, new(UnsupportedObjectNameTest))
+func TestUnsupportedPathNameTestSuite(t *testing.T) {
+	suite.Run(t, new(UnsupportedPathNameTest))
 }
 
-func (t *UnsupportedObjectNameTest) SetupTest() {
+func (t *UnsupportedPathNameTest) SetupTest() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.RenameDirLimit = 10
 	t.serverCfg.NewConfig = &cfg.Config{
-		EnableUnsupportedDirSupport: true,
-		EnableAtomicRenameObject:    true,
+		EnableUnsupportedPathSupport: true,
+		EnableAtomicRenameObject:     true,
 	}
 	t.fsTest.SetUpTestSuite()
 }
 
-func (t *UnsupportedObjectNameTest) TearDownTest() {
+func (t *UnsupportedPathNameTest) TearDownTest() {
 	t.fsTest.TearDown()
 	t.fsTest.TearDownTestSuite()
 }
@@ -59,7 +59,7 @@ func (t *UnsupportedObjectNameTest) TearDownTest() {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *UnsupportedObjectNameTest) TestReadDirectory_WithUnsupportedNames() {
+func (t *UnsupportedPathNameTest) TestReadDirectory_WithUnsupportedNames() {
 	// Set up contents.
 	err := t.createObjects(map[string]string{
 		"dir1/sub_dir1//file1": "",
@@ -100,7 +100,7 @@ func (t *UnsupportedObjectNameTest) TestReadDirectory_WithUnsupportedNames() {
 	t.Assert().ElementsMatch([]string{"file2", "file4", "file6", ".config"}, files)
 }
 
-func (t *UnsupportedObjectNameTest) TestCopyDirectory_WithUnsupportedNames() {
+func (t *UnsupportedPathNameTest) TestCopyDirectory_WithUnsupportedNames() {
 	err := t.createObjects(map[string]string{
 		"src/file1":    "content1",
 		"src//file2":   "content2",
@@ -129,7 +129,7 @@ func (t *UnsupportedObjectNameTest) TestCopyDirectory_WithUnsupportedNames() {
 	t.Assert().Equal("ok", entries[1].Name())
 }
 
-func (t *UnsupportedObjectNameTest) TestRenameDirectory_WithUnsupportedNames() {
+func (t *UnsupportedPathNameTest) TestRenameDirectory_WithUnsupportedNames() {
 	// Set up contents.
 	err := t.createObjects(map[string]string{
 		"src/file1":    "content1",
@@ -159,7 +159,7 @@ func (t *UnsupportedObjectNameTest) TestRenameDirectory_WithUnsupportedNames() {
 	t.Assert().Equal("ok", entries[1].Name())
 }
 
-func (t *UnsupportedObjectNameTest) TestDeleteDirectory_WithUnsupportedNames() {
+func (t *UnsupportedPathNameTest) TestDeleteDirectory_WithUnsupportedNames() {
 	// Set up contents.
 	err := t.createObjects(map[string]string{
 		"dir_to_delete/file1":    "content1",

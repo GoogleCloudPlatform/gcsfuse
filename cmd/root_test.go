@@ -1305,29 +1305,29 @@ func TestArgsParsing_EnableHNSFlags(t *testing.T) {
 	}
 }
 
-func TestArgsParsing_EnableUnsupportedDirSupport(t *testing.T) {
+func TestArgsParsing_EnableUnsupportedPathSupport(t *testing.T) {
 	tests := []struct {
-		name                          string
-		args                          []string
-		expectedUnsupportedDirSupport bool
+		name                           string
+		args                           []string
+		expectedUnsupportedPathSupport bool
 	}{
 		{
-			name:                          "normal",
-			args:                          []string{"gcsfuse", "--enable-unsupported-dir-support=true", "abc", "pqr"},
-			expectedUnsupportedDirSupport: true,
+			name:                           "normal",
+			args:                           []string{"gcsfuse", "--enable-unsupported-path-support=true", "abc", "pqr"},
+			expectedUnsupportedPathSupport: true,
 		},
 		{
-			name:                          "default",
-			args:                          []string{"gcsfuse", "abc", "pqr"},
-			expectedUnsupportedDirSupport: false,
+			name:                           "default",
+			args:                           []string{"gcsfuse", "abc", "pqr"},
+			expectedUnsupportedPathSupport: false,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var gotUnsupportedDirSupport bool
+			var gotUnsupportedPathSupport bool
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
-				gotUnsupportedDirSupport = mountInfo.config.EnableUnsupportedDirSupport
+				gotUnsupportedPathSupport = mountInfo.config.EnableUnsupportedPathSupport
 				return nil
 			})
 			require.Nil(t, err)
@@ -1336,7 +1336,7 @@ func TestArgsParsing_EnableUnsupportedDirSupport(t *testing.T) {
 			err = cmd.Execute()
 
 			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedUnsupportedDirSupport, gotUnsupportedDirSupport)
+				assert.Equal(t, tc.expectedUnsupportedPathSupport, gotUnsupportedPathSupport)
 			}
 		})
 	}

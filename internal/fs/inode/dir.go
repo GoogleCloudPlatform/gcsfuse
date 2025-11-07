@@ -89,7 +89,7 @@ type DirInode interface {
 	// undefined.
 	ReadEntries(
 		ctx context.Context,
-		tok string) (entries []fuseutil.Dirent, unsupportedDirs []string, newTok string, err error)
+		tok string) (entries []fuseutil.Dirent, unsupportedPaths []string, newTok string, err error)
 
 	// ReadEntryCores reads a batch of directory entries and returns them as a
 	// map of `inode.Core` objects along with a continuation token that can be
@@ -100,7 +100,7 @@ type DirInode interface {
 	// empty. Otherwise it will be non-empty. There is no guarantee about the
 	// number of entries returned; it may be zero even with a non-empty
 	// continuation token.
-	ReadEntryCores(ctx context.Context, tok string) (cores map[Name]*Core, unsupportedDirs []string, newTok string, err error)
+	ReadEntryCores(ctx context.Context, tok string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error)
 
 	// Create an empty child file with the supplied (relative) name, failing with
 	// *gcs.PreconditionError if a backing object already exists in GCS.
@@ -239,7 +239,7 @@ type dirInode struct {
 	prevDirListingTimeStamp time.Time
 	isHNSEnabled            bool
 
-	isUnsupportedDirSupportEnabled bool
+	isUnsupportedPathSupportEnabled bool
 
 	// Represents if folder has been unlinked in hierarchical bucket. This is not getting used in
 	// non-hierarchical bucket.
@@ -280,7 +280,7 @@ func NewDirInode(
 	cacheClock timeutil.Clock,
 	typeCacheMaxSizeMB int64,
 	isHNSEnabled bool,
-	isUnsupportedDirSupportEnabled bool,
+	isUnsupportedPathSupportEnabled bool,
 ) (d DirInode) {
 
 	if !name.IsDir() {
@@ -288,19 +288,19 @@ func NewDirInode(
 	}
 
 	typed := &dirInode{
-		bucket:                         bucket,
-		mtimeClock:                     mtimeClock,
-		cacheClock:                     cacheClock,
-		id:                             id,
-		implicitDirs:                   implicitDirs,
-		includeFoldersAsPrefixes:       includeFoldersAsPrefixes,
-		enableNonexistentTypeCache:     enableNonexistentTypeCache,
-		name:                           name,
-		attrs:                          attrs,
-		cache:                          metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL),
-		isHNSEnabled:                   isHNSEnabled,
-		isUnsupportedDirSupportEnabled: isUnsupportedDirSupportEnabled,
-		unlinked:                       false,
+		bucket:                          bucket,
+		mtimeClock:                      mtimeClock,
+		cacheClock:                      cacheClock,
+		id:                              id,
+		implicitDirs:                    implicitDirs,
+		includeFoldersAsPrefixes:        includeFoldersAsPrefixes,
+		enableNonexistentTypeCache:      enableNonexistentTypeCache,
+		name:                            name,
+		attrs:                           attrs,
+		cache:                           metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL),
+		isHNSEnabled:                    isHNSEnabled,
+		isUnsupportedPathSupportEnabled: isUnsupportedPathSupportEnabled,
+		unlinked:                        false,
 	}
 
 	typed.lc.Init(id)
@@ -680,7 +680,7 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 // LOCKS_REQUIRED(d)
 func (d *dirInode) readObjects(
 	ctx context.Context,
-	tok string) (cores map[Name]*Core, unsupportedDirs []string, newTok string, err error) {
+	tok string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
 	if d.isBucketHierarchical() {
 		d.includeFoldersAsPrefixes = true
 	}
@@ -712,11 +712,11 @@ func (d *dirInode) readObjects(
 	}()
 
 	for _, o := range listing.MinObjects {
-		if storageutil.IsUnsupportedObjectName(o.Name) {
-			unsupportedDirs = append(unsupportedDirs, o.Name)
+		if storageutil.IsUnsupportedPath(o.Name) {
+			unsupportedPaths = append(unsupportedPaths, o.Name)
 			// Skip unsupported objects in the listing, as the kernel cannot process these file system elements.
 			// TODO: Remove this check once we gain confidence that it is not causing any issues.
-			if d.isUnsupportedDirSupportEnabled {
+			if d.isUnsupportedPathSupportEnabled {
 				continue
 			}
 		}
@@ -765,11 +765,11 @@ func (d *dirInode) readObjects(
 	// Add implicit directories into the result.
 	for _, p := range listing.CollapsedRuns {
 		pathBase := path.Base(p)
-		if storageutil.IsUnsupportedObjectName(p) {
-			unsupportedDirs = append(unsupportedDirs, p)
+		if storageutil.IsUnsupportedPath(p) {
+			unsupportedPaths = append(unsupportedPaths, p)
 			// Skip unsupported objects in the listing, as the kernel cannot process these file system elements.
 			// TODO: Remove this check once we gain confidence that it is not causing any issues.
-			if d.isUnsupportedDirSupportEnabled {
+			if d.isUnsupportedPathSupportEnabled {
 				continue
 			}
 		}
@@ -796,8 +796,8 @@ func (d *dirInode) readObjects(
 			cores[dirName] = implicitDir
 		}
 	}
-	if len(unsupportedDirs) > 0 {
-		logger.Errorf("Encountered unsupported prefixes during listing: %v", unsupportedDirs)
+	if len(unsupportedPaths) > 0 {
+		logger.Errorf("Encountered unsupported prefixes during listing: %v", unsupportedPaths)
 	}
 	return
 }
@@ -805,9 +805,9 @@ func (d *dirInode) readObjects(
 // LOCKS_REQUIRED(d)
 func (d *dirInode) ReadEntries(
 	ctx context.Context,
-	tok string) (entries []fuseutil.Dirent, unsupportedDirs []string, newTok string, err error) {
+	tok string) (entries []fuseutil.Dirent, unsupportedPaths []string, newTok string, err error) {
 	var cores map[Name]*Core
-	cores, unsupportedDirs, newTok, err = d.ReadEntryCores(ctx, tok)
+	cores, unsupportedPaths, newTok, err = d.ReadEntryCores(ctx, tok)
 	if err != nil {
 		return
 	}
@@ -832,8 +832,8 @@ func (d *dirInode) ReadEntries(
 }
 
 // LOCKS_REQUIRED(d)
-func (d *dirInode) ReadEntryCores(ctx context.Context, tok string) (cores map[Name]*Core, unsupportedDirs []string, newTok string, err error) {
-	cores, unsupportedDirs, newTok, err = d.readObjects(ctx, tok)
+func (d *dirInode) ReadEntryCores(ctx context.Context, tok string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
+	cores, unsupportedPaths, newTok, err = d.readObjects(ctx, tok)
 	if err != nil {
 		err = fmt.Errorf("read objects: %w", err)
 		return
