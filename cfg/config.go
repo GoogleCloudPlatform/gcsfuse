@@ -615,6 +615,8 @@ type ReadStallGcsRetriesConfig struct {
 }
 
 type WorkloadInsightConfig struct {
+	ForwardMergeThresholdMb int64 `yaml:"forward-merge-threshold-mb"`
+
 	OutputFile string `yaml:"output-file"`
 
 	Visualize bool `yaml:"visualize"`
@@ -1134,6 +1136,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.IntP("workload-insight-forward-merge-threshold-mb", "", 0, "The threshold in MB for merging forward sequential reads for workload insights visualization.Reads within this threshold will be merged into a single read operation. Applicable only when --visualize-workload-insight is enabled.")
+
+	if err := flagSet.MarkHidden("workload-insight-forward-merge-threshold-mb"); err != nil {
+		return err
+	}
+
 	flagSet.StringP("workload-insight-output-file", "", "", "The file path where the workload insights will be written. If not specified, insights will be written to stdout")
 
 	if err := flagSet.MarkHidden("workload-insight-output-file"); err != nil {
@@ -1620,6 +1628,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("workload-insight.visualize", flagSet.Lookup("visualize-workload-insight")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("workload-insight.forward-merge-threshold-mb", flagSet.Lookup("workload-insight-forward-merge-threshold-mb")); err != nil {
 		return err
 	}
 

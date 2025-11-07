@@ -984,6 +984,17 @@ params:
     default: 1
     hide-flag: true
 
+  - config-path: "workload-insight.forward-merge-threshold-mb"
+    flag-name: "workload-insight-forward-merge-threshold-mb"
+    type: "int"
+    usage: >-
+      The threshold in MB for merging forward sequential reads for workload
+      insights visualization.Reads within this threshold will be merged into
+      a single read operation. Applicable only when --visualize-workload-insight
+      is enabled.
+    default: 0
+    hide-flag: true
+
   - config-path: "workload-insight.output-file"
     flag-name: "workload-insight-output-file"
     type: "string"

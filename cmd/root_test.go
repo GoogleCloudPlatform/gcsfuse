@@ -1886,8 +1886,9 @@ func TestArgsParsing_WorkloadInsightFlags(t *testing.T) {
 			args: []string{"gcsfuse", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				WorkloadInsight: cfg.WorkloadInsightConfig{
-					Visualize:  false,
-					OutputFile: "",
+					Visualize:               false,
+					OutputFile:              "",
+					ForwardMergeThresholdMb: 0,
 				},
 			},
 		},
@@ -1906,8 +1907,20 @@ func TestArgsParsing_WorkloadInsightFlags(t *testing.T) {
 			args: []string{"gcsfuse", "--visualize-workload-insight=true", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				WorkloadInsight: cfg.WorkloadInsightConfig{
-					Visualize:  true,
-					OutputFile: "",
+					Visualize:               true,
+					OutputFile:              "",
+					ForwardMergeThresholdMb: 0,
+				},
+			},
+		},
+		{
+			name: "visual with forward merge threshold",
+			args: []string{"gcsfuse", "--visualize-workload-insight=true", "--workload-insight-forward-merge-threshold-mb=50", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				WorkloadInsight: cfg.WorkloadInsightConfig{
+					Visualize:               true,
+					OutputFile:              "",
+					ForwardMergeThresholdMb: 50,
 				},
 			},
 		},

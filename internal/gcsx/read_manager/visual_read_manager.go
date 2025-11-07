@@ -21,6 +21,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
@@ -40,8 +41,11 @@ type VisualReadManager struct {
 	// Guards access to readIOs slice.
 	mu sync.Mutex
 
-	// Optional output file for writing the visualization.
-	outputFilePath string
+	// Configuration for workload insight visualization.
+	cfg cfg.WorkloadInsightConfig
+
+	// forwardMergeThreshold is the threshold in bytes for merging adjacent readIOs.
+	forwardMergeThreshold uint64
 }
 
 // NewVisualReadManager creates a new VisualReadManager that wraps
@@ -49,13 +53,14 @@ type VisualReadManager struct {
 // read I/O patterns.
 // The visualization is output to outputFilePath when Destroy() is called.
 // In case outputFilePath is empty, output is printed to stdout.
-func NewVisualReadManager(wrapped gcsx.ReadManager, ioRenderer *workloadinsight.Renderer, outputFilePath string) *VisualReadManager {
+func NewVisualReadManager(wrapped gcsx.ReadManager, ioRenderer *workloadinsight.Renderer, cfg cfg.WorkloadInsightConfig) *VisualReadManager {
 	return &VisualReadManager{
-		wrapped:        wrapped,
-		ioRenderer:     ioRenderer,
-		readIOs:        []workloadinsight.Range{},
-		mu:             sync.Mutex{},
-		outputFilePath: outputFilePath,
+		wrapped:               wrapped,
+		ioRenderer:            ioRenderer,
+		readIOs:               []workloadinsight.Range{},
+		mu:                    sync.Mutex{},
+		cfg:                   cfg,
+		forwardMergeThreshold: uint64(cfg.ForwardMergeThresholdMb * gcsx.MiB),
 	}
 }
 
@@ -78,13 +83,13 @@ func (vrm *VisualReadManager) Destroy() {
 		logger.Warnf("Failed to render read pattern: %v", err)
 		return
 	}
-	if vrm.outputFilePath == "" {
-		fmt.Print(output)
+	if vrm.cfg.OutputFile == "" {
+		fmt.Println(output)
 		return
 	}
 
-	if err := appendToFile(vrm.outputFilePath, output); err != nil {
-		fmt.Print(output)
+	if err := appendToFile(vrm.cfg.OutputFile, output); err != nil {
+		fmt.Println(output)
 		logger.Warnf("Failed to append to output file: %v", err)
 		return
 	}
@@ -132,7 +137,11 @@ func (vrm *VisualReadManager) acceptRange(start, end uint64) {
 
 // mergeRanges combines two readIOs into a single range.
 func (vrm *VisualReadManager) mergeRanges(first, second workloadinsight.Range) (workloadinsight.Range, bool) {
-	if first.End != second.Start {
+	if first.End+vrm.forwardMergeThreshold < second.Start {
+		return workloadinsight.Range{}, false
+	}
+
+	if first.End > second.Start {
 		return workloadinsight.Range{}, false
 	}
 
