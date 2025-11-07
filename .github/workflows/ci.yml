@@ -86,7 +86,7 @@ jobs:
     needs: [filter, list-packages]
     if: needs.filter.outputs.run_tests == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 9
     strategy:
       fail-fast: false
       matrix:
@@ -108,7 +108,7 @@ jobs:
       run: |
         go test -v -p 1 -count 1 -race -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` ${{ matrix.pkg }}
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4.3.1
+      uses: codecov/codecov-action@v4
       with:
         fail_ci_if_error: false
         token: ${{ secrets.CODECOV_TOKEN }}
@@ -126,7 +126,7 @@ jobs:
       with:
         go-version: "1.24"
     - name: checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
     - name: golangci-lint
       uses: golangci/golangci-lint-action@032fa5c5e48499f06cf9d32c02149bfac1284239
       with:
