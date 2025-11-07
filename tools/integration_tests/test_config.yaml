@@ -557,9 +557,9 @@ flag_optimizations:
           - "--profile=aiml-training"
           - "--profile=aiml-serving"
           - "--profile=aiml-checkpointing"
-          - "--machine-type=a3-highgpu-8g --profile=aiml-training"
-          - "--machine-type=a3-highgpu-8g --profile=aiml-serving"
-          - "--machine-type=a3-highgpu-8g --profile=aiml-checkpointing"
+          - "--machine-type=low-end-machine --profile=aiml-training"
+          - "--machine-type=low-end-machine --profile=aiml-serving"
+          - "--machine-type=low-end-machine --profile=aiml-checkpointing"
         compatible:
           flat: true
           hns: false
@@ -569,7 +569,7 @@ flag_optimizations:
         flags:
           - "--machine-type=a3-highgpu-8g"
           - "--profile=aiml-checkpointing"
-          - "--machine-type=a3-highgpu-8g --profile=aiml-checkpointing"
+          - "--machine-type=low-end-machine --profile=aiml-checkpointing"
         compatible:
           flat: true
           hns: false

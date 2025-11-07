@@ -126,9 +126,9 @@ func TestMain(m *testing.M) {
 			"--profile=aiml-training",
 			"--profile=aiml-serving",
 			"--profile=aiml-checkpointing",
-			"--machine-type=a3-highgpu-8g --profile=aiml-training",
-			"--machine-type=a3-highgpu-8g --profile=aiml-serving",
-			"--machine-type=a3-highgpu-8g --profile=aiml-checkpointing",
+			"--machine-type=low-end-machine --profile=aiml-training",
+			"--machine-type=low-end-machine --profile=aiml-serving",
+			"--machine-type=low-end-machine --profile=aiml-checkpointing",
 		}
 		cfg.FlagOptimizations[0].Configs[3].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
 		cfg.FlagOptimizations[0].Configs[3].RunOnGKE = true
@@ -136,7 +136,7 @@ func TestMain(m *testing.M) {
 		cfg.FlagOptimizations[0].Configs[4].Flags = []string{
 			"--machine-type=a3-highgpu-8g",
 			"--profile=aiml-checkpointing",
-			"--machine-type=a3-highgpu-8g --profile=aiml-checkpointing",
+			"--machine-type=low-end-machine --profile=aiml-checkpointing",
 		}
 		cfg.FlagOptimizations[0].Configs[4].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
 		cfg.FlagOptimizations[0].Configs[4].RunOnGKE = true

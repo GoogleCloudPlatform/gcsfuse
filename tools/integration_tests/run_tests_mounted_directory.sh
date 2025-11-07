@@ -767,9 +767,9 @@ flag_optimizations_scenarios["--machine-type=a3-highgpu-8g"]="TestImplicitDirsEn
 flag_optimizations_scenarios["--profile=aiml-training"]="TestImplicitDirsEnabled/--profile=aiml-training|TestRenameDirLimitNotSet/--profile=aiml-training"
 flag_optimizations_scenarios["--profile=aiml-checkpointing"]="TestImplicitDirsEnabled/--profile=aiml-checkpointing|TestRenameDirLimitSet/--profile=aiml-checkpointing"
 flag_optimizations_scenarios["--profile=aiml-serving"]="TestImplicitDirsEnabled/--profile=aiml-serving|TestRenameDirLimitNotSet/--profile=aiml-serving"
-flag_optimizations_scenarios["--machine-type=a3-highgpu-8g --profile=aiml-training"]="TestImplicitDirsEnabled/--machine-type=a3-highgpu-8g_--profile=aiml-training"
-flag_optimizations_scenarios["--machine-type=a3-highgpu-8g --profile=aiml-checkpointing"]="TestImplicitDirsEnabled/--machine-type=a3-highgpu-8g_--profile=aiml-checkpointing|TestRenameDirLimitSet/--machine-type=a3-highgpu-8g_--profile=aiml-checkpointing"
-flag_optimizations_scenarios["--machine-type=a3-highgpu-8g --profile=aiml-serving"]="TestImplicitDirsEnabled/--machine-type=a3-highgpu-8g_--profile=aiml-serving"
+flag_optimizations_scenarios["--machine-type=low-end-machine --profile=aiml-training"]="TestImplicitDirsEnabled/--machine-type=low-end-machine_--profile=aiml-training"
+flag_optimizations_scenarios["--machine-type=low-end-machine --profile=aiml-checkpointing"]="TestImplicitDirsEnabled/--machine-type=low-end-machine_--profile=aiml-checkpointing|TestRenameDirLimitSet/--machine-type=low-end-machine_--profile=aiml-checkpointing"
+flag_optimizations_scenarios["--machine-type=low-end-machine --profile=aiml-serving"]="TestImplicitDirsEnabled/--machine-type=low-end-machine_--profile=aiml-serving"
 for flags in "${!flag_optimizations_scenarios[@]}"; do
   printf "\n=============================================================\n"
   echo "Running flag_optimizations test with \"${flags}\" ... "
