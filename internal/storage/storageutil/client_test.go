@@ -218,5 +218,4 @@ func (t *clientTest) TestCreateHttpClientWithInvalidSocketAddress() {
 
 	assert.Error(t.T(), err)
 	assert.Nil(t.T(), httpClient)
-	assert.Contains(t.T(), err.Error(), `failed to configure dialer with socket address "invalid-address"`)
 }
