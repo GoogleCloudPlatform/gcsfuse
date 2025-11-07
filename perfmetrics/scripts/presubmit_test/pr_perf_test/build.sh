@@ -21,7 +21,7 @@ readonly EXECUTE_INTEGRATION_TEST_LABEL_ON_ZB="execute-integration-tests-on-zb"
 readonly EXECUTE_PACKAGE_BUILD_TEST_LABEL="execute-package-build-tests"
 readonly EXECUTE_CHECKPOINT_TEST_LABEL="execute-checkpoint-test"
 readonly BUCKET_LOCATION=us-west4
-readonly GO_VERSION="1.24.6"
+readonly GO_VERSION="1.24.10"
 readonly REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT="5.1"
 readonly INSTALL_BASH_VERSION="5.3" # Using 5.3 for installation as bash 5.1 has an installation bug.
 
