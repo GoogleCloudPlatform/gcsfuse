@@ -75,10 +75,10 @@ jobs:
         build_gcsfuse . /tmp ${GITHUB_SHA}
     - name: Test all
       if: ${{ needs.filter.outputs.run_tests == 'true' }}
-      run: CGO_ENABLED=0 go test -p 1 -count 1 -covermode=atomic -coverprofile=coverage.out -coverpkg=./... -v -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./...`
+      run: CGO_ENABLED=0 go test -p 1 -count 1 -covermode=atomic -coverprofile=coverage.out -coverpkg=./... -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./...`
     - name: RaceDetector Test
       if: ${{ needs.filter.outputs.run_tests == 'true' }}
-      run: go test -p 1 -count 1 -v -race -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` ./internal/cache/... ./internal/gcsx/...
+      run: go test -p 1 -count 1 -race -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` ./internal/cache/... ./internal/gcsx/...
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v4.3.1
       timeout-minutes: 5
@@ -103,4 +103,3 @@ jobs:
       with:
         args: -E=goimports,unused --timeout 3m0s
         only-new-issues: true
-
