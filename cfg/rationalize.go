@@ -133,6 +133,14 @@ func resolveFileCacheAndBufferedReadConflict(v isSet, c *Config) {
 	}
 }
 
+func resolveSparseFileConfig(fc *FileCacheConfig) {
+	// Set default chunk size for sparse file downloads if not specified
+	// Default to 1 MB chunks for random reads
+	if fc.SparseFileChunkSizeMb <= 0 {
+		fc.SparseFileChunkSizeMb = 1
+	}
+}
+
 func resolveReadConfig(r *ReadConfig) {
 	if r.GlobalMaxBlocks == -1 {
 		r.GlobalMaxBlocks = math.MaxInt32
@@ -170,6 +178,7 @@ func Rationalize(v isSet, c *Config, optimizedFlags []string) error {
 	resolveStatCacheMaxSizeMB(v, &c.MetadataCache, optimizedFlags)
 	resolveCloudMetricsUploadIntervalSecs(&c.Metrics)
 	resolveParallelDownloadsValue(v, &c.FileCache, c)
+	resolveSparseFileConfig(&c.FileCache)
 	resolveFileCacheAndBufferedReadConflict(v, c)
 
 	return nil

@@ -46,11 +46,17 @@ func GetFileInfoKeyName(objectName string, bucketCreationTime time.Time, bucketN
 type FileInfo struct {
 	Key              FileInfoKey
 	ObjectGeneration int64
-	Offset           uint64
+	Offset           uint64 // For non-sparse files: bytes downloaded so far. For sparse files: highest contiguous offset from 0
 	FileSize         uint64
+	SparseMode       bool           // Whether this file is using sparse file mode
+	DownloadedRanges *ByteRangeMap  // For sparse files: tracks which byte ranges have been downloaded
 }
 
 func (fi FileInfo) Size() uint64 {
+	// For sparse files, return actual downloaded bytes, not full file size
+	if fi.SparseMode && fi.DownloadedRanges != nil {
+		return fi.DownloadedRanges.TotalBytes()
+	}
 	return fi.FileSize
 }
 

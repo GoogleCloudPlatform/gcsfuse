@@ -20,6 +20,7 @@ import (
 	"path"
 	"regexp"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
@@ -59,9 +60,12 @@ type CacheHandler struct {
 
 	// includeRegex is the compiled regex for including files from cache
 	includeRegex *regexp.Regexp
+
+	// fileCacheConfig contains the file cache configuration
+	fileCacheConfig *cfg.FileCacheConfig
 }
 
-func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode, excludeRegex string, includeRegex string) *CacheHandler {
+func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode, excludeRegex string, includeRegex string, fileCacheConfig *cfg.FileCacheConfig) *CacheHandler {
 	var compiledExcludeRegex *regexp.Regexp
 	var compiledIncludeRegex *regexp.Regexp
 
@@ -69,14 +73,15 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 	compiledIncludeRegex = compileRegex(includeRegex)
 
 	return &CacheHandler{
-		fileInfoCache: fileInfoCache,
-		jobManager:    jobManager,
-		cacheDir:      cacheDir,
-		filePerm:      filePerm,
-		dirPerm:       dirPerm,
-		mu:            locker.New("FileCacheHandler", func() {}),
-		excludeRegex:  compiledExcludeRegex,
-		includeRegex:  compiledIncludeRegex,
+		fileInfoCache:   fileInfoCache,
+		jobManager:      jobManager,
+		cacheDir:        cacheDir,
+		filePerm:        filePerm,
+		dirPerm:         dirPerm,
+		mu:              locker.New("FileCacheHandler", func() {}),
+		excludeRegex:    compiledExcludeRegex,
+		includeRegex:    compiledIncludeRegex,
+		fileCacheConfig: fileCacheConfig,
 	}
 }
 
@@ -193,6 +198,12 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 			ObjectGeneration: object.Generation,
 			Offset:           0,
 			FileSize:         object.Size,
+			SparseMode:       chr.fileCacheConfig != nil && chr.fileCacheConfig.EnableSparseFile,
+			DownloadedRanges: nil,
+		}
+		// Initialize the DownloadedRanges map for sparse files
+		if fileInfo.SparseMode {
+			fileInfo.DownloadedRanges = data.NewByteRangeMap()
 		}
 
 		evictedValues, err := chr.fileInfoCache.Insert(fileInfoKeyName, fileInfo)

@@ -421,6 +421,8 @@ type FileCacheConfig struct {
 
 	EnableParallelDownloads bool `yaml:"enable-parallel-downloads"`
 
+	EnableSparseFile bool `yaml:"enable-sparse-file"`
+
 	ExcludeRegex string `yaml:"exclude-regex"`
 
 	ExperimentalParallelDownloadsDefaultOn bool `yaml:"experimental-parallel-downloads-default-on"`
@@ -432,6 +434,8 @@ type FileCacheConfig struct {
 	MaxSizeMb int64 `yaml:"max-size-mb"`
 
 	ParallelDownloadsPerFile int64 `yaml:"parallel-downloads-per-file"`
+
+	SparseFileChunkSizeMb int64 `yaml:"sparse-file-chunk-size-mb"`
 
 	WriteBufferSize int64 `yaml:"write-buffer-size"`
 }

@@ -90,8 +90,9 @@ func (t *fileCacheReaderTest) SetupTest() {
 	t.mockBucket = new(storage.TestifyMockBucket)
 	t.cacheDir = path.Join(os.Getenv("HOME"), "test_cache_dir")
 	lruCache := lru.NewCache(cacheMaxSize)
-	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, &cfg.FileCacheConfig{EnableCrc: false}, metrics.NewNoopMetrics())
-	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "")
+	fileCacheConfig := &cfg.FileCacheConfig{EnableCrc: false}
+	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, fileCacheConfig, metrics.NewNoopMetrics())
+	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "", fileCacheConfig)
 	t.reader = NewFileCacheReader(t.object, t.mockBucket, t.cacheHandler, true, metrics.NewNoopMetrics())
 	t.reader_unfinalized_object = NewFileCacheReader(t.unfinalized_object, t.mockBucket, t.cacheHandler, true, metrics.NewNoopMetrics())
 	t.ctx = context.Background()
