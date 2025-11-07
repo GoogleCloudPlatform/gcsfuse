@@ -10,19 +10,14 @@ on:
 permissions:
   contents: read
 
-# Ensure only the latest run per branch is active (cancel older in-progress runs),
-# but allow every master commit to run (don't cancel or group master runs together).
 concurrency:
-  # For master we use a unique group per run (github.run_id) so runs don't cancel each other.
-  # For other refs we use the ref as the group so a new run cancels any previous in-progress run on that ref.
   group: ${{ github.ref == 'refs/heads/master' && github.run_id || github.ref }}
-  # Cancel in-progress runs for non-master refs; do not cancel on master.
   cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 jobs:
   filter:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 6
     outputs:
       run_tests: ${{ steps.filter.outputs.run_tests }}
     steps:
@@ -37,9 +32,10 @@ jobs:
               - '!tools/**'
               - '!perfmetrics/**'
               - '!samples/**'
+
   format-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 6
     steps:
     - uses: actions/checkout@v4
     - name: Set up Go
@@ -51,49 +47,82 @@ jobs:
     - name: Formatting diff
       run: go fmt ./... && go mod tidy && git diff --exit-code --name-only
 
-  linux-tests:
+  list-packages:
     needs: filter
+    if: needs.filter.outputs.run_tests == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    outputs:
+      pkgs: ${{ steps.set-pkgs.outputs.pkgs }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - id: set-pkgs
+        run: |
+          PKGS=$(go list ./... | jq -R -s -c 'split("\n")[:-1]')
+          echo "pkgs=$PKGS" >> $GITHUB_OUTPUT
+
+  build-check:
+    needs: filter
+    if: needs.filter.outputs.run_tests == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - name: Install fuse
+        run: sudo apt-get update && sudo apt-get install -y fuse3 libfuse-dev
+      - name: Build Verification
+        run: |
+          CGO_ENABLED=0 go build ./...
+          go install ./tools/build_gcsfuse
+          build_gcsfuse . /tmp ${GITHUB_SHA}
+
+  linux-tests:
+    needs: [filter, list-packages]
+    if: needs.filter.outputs.run_tests == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
     strategy:
+      fail-fast: false
       matrix:
         go: [ 1.24.x ]
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-
+        pkg: ${{ fromJson(needs.list-packages.outputs.pkgs) }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Set up Go ${{ matrix.go }}
-      uses: actions/setup-go@v2.1.4
+      uses: actions/setup-go@v5
       with:
         go-version: ${{ matrix.go }}
     - name: Install fuse
       run: sudo apt-get update && sudo apt-get install -y fuse3 libfuse-dev
-    - name: Build
-      if: ${{ needs.filter.outputs.run_tests == 'true' }}
+    - name: Test ${{ matrix.pkg }}
       run: |
-        CGO_ENABLED=0 go build ./...
-        go install ./tools/build_gcsfuse
-        build_gcsfuse . /tmp ${GITHUB_SHA}
-    - name: Test all
-      if: ${{ needs.filter.outputs.run_tests == 'true' }}
-      run: CGO_ENABLED=0 go test -p 1 -count 1 -covermode=atomic -coverprofile=coverage.out -coverpkg=./... -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./...`
-    - name: RaceDetector Test
-      if: ${{ needs.filter.outputs.run_tests == 'true' }}
-      run: go test -p 1 -count 1 -race -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` ./internal/cache/... ./internal/gcsx/...
-    - name: Upload coverage reports to Codecov
+        CGO_ENABLED=0 go test -v -p 1 -count 1 -covermode=atomic -coverprofile=coverage.out -coverpkg=./... -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` ${{ matrix.pkg }}
+    - name: Race Detector (${{ matrix.pkg }})
+      if: contains(matrix.pkg, 'internal/cache') || contains(matrix.pkg, 'internal/gcsx')
+      run: |
+        go test -v -p 1 -count 1 -race -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` ${{ matrix.pkg }}
+    - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4.3.1
-      timeout-minutes: 5
       with:
         fail_ci_if_error: false
         token: ${{ secrets.CODECOV_TOKEN }}
         flags: unittests
+        name: coverage-${{ strategy.job-index }}
 
   lint:
     name: Lint
     if: github.ref != 'refs/heads/master'
     runs-on: ubuntu-latest
+    timeout-minutes: 6
     steps:
     - name: Setup Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: "1.24"
     - name: checkout code
