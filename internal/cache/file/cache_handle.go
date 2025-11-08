@@ -272,7 +272,7 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 			return 0, false, err
 		}
 	} else {
-		// If fileDownloadJob is nil then it means the job is successfully
+		// If fileDownloadJob is nil then it means either the job is successfully
 		// completed or failed. The offset must be equal to size of object for job
 		// to be completed.
 		err = fch.validateEntryInFileInfoCache(bucket, object, fileInfoData.FileSize, false)
