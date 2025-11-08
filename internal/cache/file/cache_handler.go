@@ -61,8 +61,8 @@ type CacheHandler struct {
 	// includeRegex is the compiled regex for including files from cache
 	includeRegex *regexp.Regexp
 
-	// fileCacheConfig contains the file cache configuration
-	fileCacheConfig *cfg.FileCacheConfig
+	// isSparse indicates whether sparse file mode is enabled
+	isSparse bool
 }
 
 func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode, excludeRegex string, includeRegex string, fileCacheConfig *cfg.FileCacheConfig) *CacheHandler {
@@ -72,16 +72,18 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 	compiledExcludeRegex = compileRegex(excludeRegex)
 	compiledIncludeRegex = compileRegex(includeRegex)
 
+	isSparse := fileCacheConfig != nil && fileCacheConfig.EnableSparseFile
+
 	return &CacheHandler{
-		fileInfoCache:   fileInfoCache,
-		jobManager:      jobManager,
-		cacheDir:        cacheDir,
-		filePerm:        filePerm,
-		dirPerm:         dirPerm,
-		mu:              locker.New("FileCacheHandler", func() {}),
-		excludeRegex:    compiledExcludeRegex,
-		includeRegex:    compiledIncludeRegex,
-		fileCacheConfig: fileCacheConfig,
+		fileInfoCache: fileInfoCache,
+		jobManager:    jobManager,
+		cacheDir:      cacheDir,
+		filePerm:      filePerm,
+		dirPerm:       dirPerm,
+		mu:            locker.New("FileCacheHandler", func() {}),
+		excludeRegex:  compiledExcludeRegex,
+		includeRegex:  compiledIncludeRegex,
+		isSparse:      isSparse,
 	}
 }
 
@@ -193,18 +195,17 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 	}
 
 	if addEntryToCache {
-		isSparse := chr.fileCacheConfig != nil && chr.fileCacheConfig.EnableSparseFile
 		newFileInfo := data.FileInfo{
 			Key:              fileInfoKey,
 			ObjectGeneration: object.Generation,
 			Offset:           0,
 			FileSize:         object.Size,
-			SparseMode:       isSparse,
+			SparseMode:       chr.isSparse,
 			DownloadedRanges: nil,
 		}
 		// For sparse files, set Offset to MaxUint64 as a sentinel to indicate
 		// sparse mode, so Offset < requiredOffset checks always fail
-		if isSparse {
+		if chr.isSparse {
 			newFileInfo.Offset = ^uint64(0) // math.MaxUint64
 			newFileInfo.DownloadedRanges = data.NewByteRangeMap()
 		}
