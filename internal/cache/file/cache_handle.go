@@ -58,12 +58,20 @@ type CacheHandle struct {
 	sparseChunkData  []byte
 	sparseChunkStart uint64
 
+	// jobManager is needed to recreate jobs for sparse file on-demand downloads
+	jobManager *downloader.JobManager
+
+	// bucket and object are needed to recreate jobs
+	bucket gcs.Bucket
+	object *gcs.MinObject
+
 	// fileCacheConfig is needed for chunk size configuration in sparse downloads
 	fileCacheConfig *cfg.FileCacheConfig
 }
 
 func NewCacheHandle(localFileHandle *os.File, fileDownloadJob *downloader.Job,
 	fileInfoCache *lru.Cache, cacheFileForRangeRead bool, initialOffset int64,
+	jobManager *downloader.JobManager, bucket gcs.Bucket, object *gcs.MinObject,
 	fileCacheConfig *cfg.FileCacheConfig) *CacheHandle {
 	return &CacheHandle{
 		fileHandle:            localFileHandle,
@@ -72,6 +80,9 @@ func NewCacheHandle(localFileHandle *os.File, fileDownloadJob *downloader.Job,
 		cacheFileForRangeRead: cacheFileForRangeRead,
 		isSequential:          initialOffset == 0,
 		prevOffset:            initialOffset,
+		jobManager:            jobManager,
+		bucket:                bucket,
+		object:                object,
 		fileCacheConfig:       fileCacheConfig,
 	}
 }
@@ -288,20 +299,66 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 			return 0, false, err
 		}
 	} else {
-		// If fileDownloadJob is nil then it means the job is successfully completed or failed.
-		// For sparse files, fileDownloadJob should never be nil (created eagerly), so this
-		// branch only applies to non-sparse files where the full file has been downloaded.
+		// If fileDownloadJob is nil then it means either the job is successfully
+		// completed or failed. The offset must be equal to size of object for job
+		// to be completed.
 		if fileInfoData.SparseMode {
-			// This should never happen - sparse files should always have a job
-			logger.Warnf("Sparse file missing download job - this is unexpected. Falling back to GCS.")
-			return 0, false, util.ErrFallbackToGCS
-		}
+			// For sparse files without an active job, check if the requested range is downloaded
+			if fileInfoData.DownloadedRanges == nil || !fileInfoData.DownloadedRanges.ContainsRange(uint64(offset), uint64(requiredOffset)) {
+				// Range not downloaded - recreate job and download the chunk on-demand
+				if fch.jobManager != nil && fch.bucket != nil && fch.object != nil {
+					fch.fileDownloadJob = fch.jobManager.CreateJobIfNotExists(fch.object, fch.bucket)
+					if fch.fileDownloadJob != nil {
+						// Calculate the chunk to download
+						chunkSizeMb := int64(1) // Default to 1 MB
+						if fch.fileCacheConfig != nil && fch.fileCacheConfig.SparseFileChunkSizeMb > 0 {
+							chunkSizeMb = fch.fileCacheConfig.SparseFileChunkSizeMb
+						}
+						chunkSize := uint64(chunkSizeMb) * 1024 * 1024
 
-		err = fch.validateEntryInFileInfoCache(bucket, object, fileInfoData.FileSize, false)
-		if err != nil {
-			return 0, false, err
+						// Align chunk start to chunk boundaries
+						chunkStart := (uint64(offset) / chunkSize) * chunkSize
+						chunkEnd := chunkStart + chunkSize
+						if chunkEnd > object.Size {
+							chunkEnd = object.Size
+						}
+
+						// Download the chunk (returns in-memory data to avoid double page cache)
+						fch.sparseChunkData, err = fch.fileDownloadJob.DownloadRange(ctx, chunkStart, chunkEnd)
+						if err != nil {
+							// Download failed - fallback to GCS but keep cache handle alive
+							logger.Infof("Sparse file download failed for range [%d, %d) with recreated job: %v. Falling back to GCS for this read.", chunkStart, chunkEnd, err)
+							fch.sparseChunkData = nil
+							return 0, false, util.ErrFallbackToGCS
+						}
+						fch.sparseChunkStart = chunkStart
+
+						// Refresh fileInfoData after successful download
+						fileInfoData, errFileInfo = fch.getFileInfoData(bucket, object, false)
+						if errFileInfo != nil {
+							// Couldn't refresh metadata - fallback to GCS but keep cache handle alive
+							logger.Infof("Error refreshing file info after sparse download (recreated job): %v. Falling back to GCS for this read.", errFileInfo)
+							return 0, false, util.ErrFallbackToGCS
+						}
+						cacheHit = true
+					} else {
+						// Couldn't recreate job - fall back to GCS
+						return 0, false, util.ErrFallbackToGCS
+					}
+				} else {
+					// Can't recreate job (missing jobManager/bucket/object) - fall back to GCS
+					return 0, false, util.ErrFallbackToGCS
+				}
+			} else {
+				cacheHit = true
+			}
+		} else {
+			err = fch.validateEntryInFileInfoCache(bucket, object, fileInfoData.FileSize, false)
+			if err != nil {
+				return 0, false, err
+			}
+			cacheHit = true
 		}
-		cacheHit = true
 	}
 
 	// We are here means, we have the data downloaded which kernel has asked for.
