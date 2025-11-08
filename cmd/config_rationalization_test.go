@@ -23,7 +23,7 @@ import (
 )
 
 func TestRationalizeMetadataCache(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	testCases := []struct {
 		name                  string
 		args                  []string
@@ -74,7 +74,9 @@ func TestRationalizeMetadataCache(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			c, err := getConfigObject(t, tc.args)
 
 			if assert.NoError(t, err) {
@@ -86,6 +88,7 @@ func TestRationalizeMetadataCache(t *testing.T) {
 }
 
 func TestRationalizeCloudMetricsExportIntervalSecs(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name     string
 		args     []string
@@ -103,7 +106,9 @@ func TestRationalizeCloudMetricsExportIntervalSecs(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			c, err := getConfigObject(t, tc.args)
 
 			if assert.NoError(t, err) {

@@ -21,6 +21,7 @@ import (
 	"runtime"
 	"testing"
 	"time"
+	_ "unsafe"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/stretchr/testify/assert"
@@ -30,6 +31,9 @@ import (
 func getConfigObject(t *testing.T, args []string) (*cfg.Config, error) {
 	t.Helper()
 	var c *cfg.Config
+	cobraMutex.Lock()
+	defer cobraMutex.Unlock()
+	resetCobra()
 	cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 		c = mountInfo.config
 		return nil
@@ -38,7 +42,8 @@ func getConfigObject(t *testing.T, args []string) (*cfg.Config, error) {
 	cmdArgs := append([]string{"gcsfuse"}, args...)
 	cmdArgs = append(cmdArgs, "a")
 	cmd.SetArgs(convertToPosixArgs(cmdArgs, cmd))
-	if err = cmd.Execute(); err != nil {
+	err = cmd.Execute()
+	if err != nil {
 		return nil, err
 	}
 
@@ -67,7 +72,7 @@ func defaultFileCacheConfig(t *testing.T) cfg.FileCacheConfig {
 }
 
 func TestValidateConfigFile(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	testCases := []struct {
 		name       string
 		configFile string
@@ -131,7 +136,9 @@ func TestValidateConfigFile(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			if tc.wantErr {
@@ -144,7 +151,7 @@ func TestValidateConfigFile(t *testing.T) {
 }
 
 func TestValidateCliFlag(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	testCases := []struct {
 		name    string
 		args    []string
@@ -188,7 +195,9 @@ func TestValidateCliFlag(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := getConfigObject(t, tc.args)
 
 			if tc.wantErr {
@@ -201,7 +210,7 @@ func TestValidateCliFlag(t *testing.T) {
 }
 
 func TestValidateConfigFile_WriteConfig(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	testCases := []struct {
 		name           string
 		configFile     string
@@ -237,7 +246,9 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			if assert.NoError(t, err) {
@@ -248,7 +259,7 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 }
 
 func TestValidateConfigFile_ReadConfig(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	testCases := []struct {
 		name           string
 		configFile     string
@@ -289,7 +300,9 @@ func TestValidateConfigFile_ReadConfig(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			if assert.NoError(t, err) {
@@ -300,7 +313,7 @@ func TestValidateConfigFile_ReadConfig(t *testing.T) {
 }
 
 func TestValidateConfigFile_InvalidConfigThrowsError(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	testCases := []struct {
 		name       string
 		configFile string
@@ -404,8 +417,9 @@ func TestValidateConfigFile_InvalidConfigThrowsError(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			// t.Parallel()
+			t.Parallel()
 			_, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			assert.Error(t, err)
@@ -414,7 +428,7 @@ func TestValidateConfigFile_InvalidConfigThrowsError(t *testing.T) {
 }
 
 func TestValidateConfigFile_FileCacheConfigSuccessful(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	testCases := []struct {
 		name           string
 		configFile     string
@@ -448,7 +462,9 @@ func TestValidateConfigFile_FileCacheConfigSuccessful(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			if assert.NoError(t, err) {
@@ -459,7 +475,7 @@ func TestValidateConfigFile_FileCacheConfigSuccessful(t *testing.T) {
 }
 
 func TestValidateConfigFile_GCSAuthConfigSuccessful(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	hd, err := os.UserHomeDir()
 	require.Nil(t, err)
 	testCases := []struct {
@@ -506,7 +522,9 @@ func TestValidateConfigFile_GCSAuthConfigSuccessful(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			if assert.NoError(t, err) {
@@ -517,7 +535,7 @@ func TestValidateConfigFile_GCSAuthConfigSuccessful(t *testing.T) {
 }
 
 func TestValidateConfigFile_GCSConnectionConfigSuccessful(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	testCases := []struct {
 		name           string
 		configFile     string
@@ -566,7 +584,9 @@ func TestValidateConfigFile_GCSConnectionConfigSuccessful(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			if assert.NoError(t, err) {
@@ -577,7 +597,7 @@ func TestValidateConfigFile_GCSConnectionConfigSuccessful(t *testing.T) {
 }
 
 func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	hd, err := os.UserHomeDir()
 	require.NoError(t, err)
 	testCases := []struct {
@@ -652,7 +672,9 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			if assert.NoError(t, err) {
@@ -663,7 +685,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 }
 
 func TestValidateConfigFile_ListConfigSuccessful(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	testCases := []struct {
 		name           string
 		configFile     string
@@ -687,7 +709,9 @@ func TestValidateConfigFile_ListConfigSuccessful(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			if assert.NoError(t, err) {
@@ -698,7 +722,7 @@ func TestValidateConfigFile_ListConfigSuccessful(t *testing.T) {
 }
 
 func TestValidateConfigFile_EnableHNSConfigSuccessful(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	testCases := []struct {
 		name           string
 		configFile     string
@@ -722,7 +746,9 @@ func TestValidateConfigFile_EnableHNSConfigSuccessful(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			if assert.NoError(t, err) {
@@ -733,7 +759,7 @@ func TestValidateConfigFile_EnableHNSConfigSuccessful(t *testing.T) {
 }
 
 func TestValidateConfigFile_MetadataCacheConfigSuccessful(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	testCases := []struct {
 		name           string
 		configFile     string
@@ -777,7 +803,9 @@ func TestValidateConfigFile_MetadataCacheConfigSuccessful(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			if assert.NoError(t, err) {
@@ -788,7 +816,7 @@ func TestValidateConfigFile_MetadataCacheConfigSuccessful(t *testing.T) {
 }
 
 func TestValidateConfigFile_GCSRetries(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	tests := []struct {
 		name           string
 		configFile     string
@@ -837,7 +865,9 @@ func TestValidateConfigFile_GCSRetries(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			if assert.NoError(t, err) {
@@ -848,7 +878,7 @@ func TestValidateConfigFile_GCSRetries(t *testing.T) {
 }
 
 func TestValidateCloudMetricsExportIntervalSecs(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	testCases := []struct {
 		name    string
 		args    []string
@@ -876,7 +906,9 @@ func TestValidateCloudMetricsExportIntervalSecs(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			if _, err := getConfigObject(t, tc.args); tc.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -887,7 +919,7 @@ func TestValidateCloudMetricsExportIntervalSecs(t *testing.T) {
 }
 
 func TestValidateConfigFile_MetricsConfigSuccessful(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	testCases := []struct {
 		name           string
 		configFile     string
@@ -917,7 +949,9 @@ func TestValidateConfigFile_MetricsConfigSuccessful(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			if assert.NoError(t, err) {
@@ -928,7 +962,7 @@ func TestValidateConfigFile_MetricsConfigSuccessful(t *testing.T) {
 }
 
 func TestValidateConfigFile_MetricsConfigInvalid(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	testCases := []struct {
 		name       string
 		configFile string
@@ -940,7 +974,9 @@ func TestValidateConfigFile_MetricsConfigInvalid(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			assert.Error(t, err)

@@ -118,7 +118,6 @@ func TestGetFuseMountConfig_LoggerInitializationInFuse(t *testing.T) {
 }
 
 func TestGetFuseMountConfig_EnableReaddirplus(t *testing.T) {
-	// t.Parallel()
 	testCases := []struct {
 		name              string
 		enableReaddirplus bool

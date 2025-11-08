@@ -19,8 +19,10 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"sync"
 	"testing"
 	"time"
+	_ "unsafe"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
@@ -30,8 +32,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+//go:linkname initializers github.com/spf13/cobra.initializers
+var initializers []func()
+
+var cobraMutex sync.Mutex
+
+func resetCobra() {
+	initializers = nil
+}
+
 func TestDefaultMaxParallelDownloads(t *testing.T) {
+	t.Parallel()
 	var actual *cfg.Config
+	cobraMutex.Lock()
+	resetCobra()
 	cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 		actual = mountInfo.config
 		return nil
@@ -39,12 +53,16 @@ func TestDefaultMaxParallelDownloads(t *testing.T) {
 	require.Nil(t, err)
 	cmd.SetArgs(convertToPosixArgs([]string{"abc", "pqr"}, cmd))
 
-	if assert.Nil(t, cmd.Execute()) {
+	err = cmd.Execute()
+	cobraMutex.Unlock()
+
+	if assert.Nil(t, err) {
 		assert.LessOrEqual(t, int64(16), actual.FileCache.MaxParallelDownloads)
 	}
 }
 
 func TestCobraArgsNumInRange(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		args        []string
@@ -73,12 +91,17 @@ func TestCobraArgsNumInRange(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cobraMutex.Lock()
+			resetCobra()
 			cmd, err := newRootCmd(func(*mountInfo, string, string) error { return nil })
 			require.Nil(t, err)
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
+			cobraMutex.Unlock()
 
 			if tc.expectError {
 				assert.NotNil(t, err)
@@ -90,6 +113,7 @@ func TestCobraArgsNumInRange(t *testing.T) {
 }
 
 func TestArgsParsing_MountPoint(t *testing.T) {
+	t.Parallel()
 	wd, err := os.Getwd()
 	require.Nil(t, err)
 	hd, err := os.UserHomeDir()
@@ -127,7 +151,11 @@ func TestArgsParsing_MountPoint(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cobraMutex.Lock()
+			resetCobra()
 			var bucketName, mountPoint string
 			cmd, err := newRootCmd(func(_ *mountInfo, b string, m string) error {
 				bucketName = b
@@ -138,6 +166,7 @@ func TestArgsParsing_MountPoint(t *testing.T) {
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
+			cobraMutex.Unlock()
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedBucket, bucketName)
@@ -148,6 +177,7 @@ func TestArgsParsing_MountPoint(t *testing.T) {
 }
 
 func TestArgsParsing_MountOptions(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name                 string
 		args                 []string
@@ -176,7 +206,11 @@ func TestArgsParsing_MountOptions(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cobraMutex.Lock()
+			resetCobra()
 			var mountOptions []string
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				mountOptions = mountInfo.config.FileSystem.FuseOptions
@@ -186,6 +220,7 @@ func TestArgsParsing_MountOptions(t *testing.T) {
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
+			cobraMutex.Unlock()
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedMountOptions, mountOptions)
@@ -196,6 +231,7 @@ func TestArgsParsing_MountOptions(t *testing.T) {
 
 // Lets test for ImplicitDirs which is goverened by implicit-dirs flags
 func TestArgsParsing_ImplicitDirsFlag(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name             string
 		args             []string
@@ -234,7 +270,11 @@ func TestArgsParsing_ImplicitDirsFlag(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cobraMutex.Lock()
+			resetCobra()
 			var gotImplicit bool
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotImplicit = mountInfo.config.ImplicitDirs
@@ -244,6 +284,7 @@ func TestArgsParsing_ImplicitDirsFlag(t *testing.T) {
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
+			cobraMutex.Unlock()
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedImplicit, gotImplicit)
@@ -252,6 +293,7 @@ func TestArgsParsing_ImplicitDirsFlag(t *testing.T) {
 	}
 }
 func TestArgsParsing_WriteConfigFlags(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name                          string
 		args                          []string
@@ -413,7 +455,11 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cobraMutex.Lock()
+			resetCobra()
 			var wc cfg.WriteConfig
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				wc = mountInfo.config.Write
@@ -423,6 +469,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
+			cobraMutex.Unlock()
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedCreateEmptyFile, wc.CreateEmptyFile)
@@ -436,6 +483,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 }
 
 func TestArgsParsing_ReadConfigFlags(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name                             string
 		args                             []string
@@ -520,7 +568,11 @@ func TestArgsParsing_ReadConfigFlags(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cobraMutex.Lock()
+			resetCobra()
 			var rc cfg.ReadConfig
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				rc = mountInfo.config.Read
@@ -530,6 +582,7 @@ func TestArgsParsing_ReadConfigFlags(t *testing.T) {
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
+			cobraMutex.Unlock()
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedReadBlockSizeMB, rc.BlockSizeMb)
@@ -543,6 +596,7 @@ func TestArgsParsing_ReadConfigFlags(t *testing.T) {
 }
 
 func TestArgsParsing_FileCacheFlags(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		args           []string
@@ -592,7 +646,11 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cobraMutex.Lock()
+			resetCobra()
 			var gotConfig *cfg.Config
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotConfig = mountInfo.config
@@ -602,6 +660,7 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
+			cobraMutex.Unlock()
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedConfig.FileCache, gotConfig.FileCache)
@@ -611,6 +670,7 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 }
 
 func TestArgParsing_ExperimentalMetadataPrefetchFlag(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		args          []string
@@ -644,7 +704,11 @@ func TestArgParsing_ExperimentalMetadataPrefetchFlag(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cobraMutex.Lock()
+			resetCobra()
 			var experimentalMetadataPrefetch string
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				experimentalMetadataPrefetch = mountInfo.config.MetadataCache.ExperimentalMetadataPrefetchOnMount
@@ -654,6 +718,7 @@ func TestArgParsing_ExperimentalMetadataPrefetchFlag(t *testing.T) {
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
+			cobraMutex.Unlock()
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedValue, experimentalMetadataPrefetch)
@@ -663,6 +728,7 @@ func TestArgParsing_ExperimentalMetadataPrefetchFlag(t *testing.T) {
 }
 
 func TestArgParsing_ExperimentalMetadataPrefetchFlag_Failed(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		args []string
@@ -678,7 +744,11 @@ func TestArgParsing_ExperimentalMetadataPrefetchFlag_Failed(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cobraMutex.Lock()
+			resetCobra()
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				return nil
 			})
@@ -686,6 +756,7 @@ func TestArgParsing_ExperimentalMetadataPrefetchFlag_Failed(t *testing.T) {
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
+			cobraMutex.Unlock()
 
 			assert.Error(t, err)
 		})
@@ -693,6 +764,7 @@ func TestArgParsing_ExperimentalMetadataPrefetchFlag_Failed(t *testing.T) {
 }
 
 func TestArgsParsing_GCSAuthFlags(t *testing.T) {
+	t.Parallel()
 	wd, err := os.Getwd()
 	require.Nil(t, err)
 	tests := []struct {
@@ -727,7 +799,11 @@ func TestArgsParsing_GCSAuthFlags(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cobraMutex.Lock()
+			resetCobra()
 			var gotConfig *cfg.Config
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotConfig = mountInfo.config
@@ -737,6 +813,7 @@ func TestArgsParsing_GCSAuthFlags(t *testing.T) {
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
+			cobraMutex.Unlock()
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedConfig.GcsAuth, gotConfig.GcsAuth)
@@ -746,6 +823,7 @@ func TestArgsParsing_GCSAuthFlags(t *testing.T) {
 }
 
 func TestArgsParsing_GCSAuthFlagsThrowsError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		args           []string
@@ -766,19 +844,26 @@ func TestArgsParsing_GCSAuthFlagsThrowsError(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cobraMutex.Lock()
+			resetCobra()
 			cmd, err := newRootCmd(func(_ *mountInfo, _, _ string) error {
 				return nil
 			})
 			require.Nil(t, err)
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
-			assert.Error(t, cmd.Execute())
+			err = cmd.Execute()
+			cobraMutex.Unlock()
+			assert.Error(t, err)
 		})
 	}
 }
 
 func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		args           []string
@@ -847,8 +932,12 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var gotConfig *cfg.Config
+			cobraMutex.Lock()
+			resetCobra()
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotConfig = mountInfo.config
 				return nil
@@ -857,6 +946,7 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
+			cobraMutex.Unlock()
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedConfig.GcsConnection, gotConfig.GcsConnection)
@@ -865,6 +955,7 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 	}
 }
 func TestArgsParsing_GCSConnectionFlagsThrowsError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		args []string
@@ -892,19 +983,26 @@ func TestArgsParsing_GCSConnectionFlagsThrowsError(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cobraMutex.Lock()
+			resetCobra()
 			cmd, err := newRootCmd(func(_ *mountInfo, _, _ string) error {
 				return nil
 			})
 			require.Nil(t, err)
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
-			assert.Error(t, cmd.Execute())
+			err = cmd.Execute()
+			cobraMutex.Unlock()
+			assert.Error(t, err)
 		})
 	}
 }
 
 func TestArgsParsing_FileSystemFlags(t *testing.T) {
+	t.Parallel()
 	expectedDefaultFileSystemConfig := cfg.FileSystemConfig{
 		DirMode:                       0755,
 		DisableParallelDirops:         false,
@@ -1157,7 +1255,11 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cobraMutex.Lock()
+			resetCobra()
 			var gotConfig *cfg.Config
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotConfig = mountInfo.config
@@ -1167,6 +1269,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
+			cobraMutex.Unlock()
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedConfig.FileSystem, gotConfig.FileSystem)
@@ -1180,6 +1283,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 }
 
 func TestArgsParsing_FileSystemFlagsThrowsError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		args []string
@@ -1215,19 +1319,26 @@ func TestArgsParsing_FileSystemFlagsThrowsError(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cobraMutex.Lock()
+			resetCobra()
 			cmd, err := newRootCmd(func(_ *mountInfo, _, _ string) error {
 				return nil
 			})
 			require.Nil(t, err)
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
-			assert.Error(t, cmd.Execute())
+			err = cmd.Execute()
+			cobraMutex.Unlock()
+			assert.Error(t, err)
 		})
 	}
 }
 
 func TestArgsParsing_ListFlags(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		args           []string
@@ -1250,7 +1361,11 @@ func TestArgsParsing_ListFlags(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cobraMutex.Lock()
+			resetCobra()
 			var gotConfig *cfg.Config
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotConfig = mountInfo.config
@@ -1260,6 +1375,7 @@ func TestArgsParsing_ListFlags(t *testing.T) {
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
+			cobraMutex.Unlock()
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedConfig.List, gotConfig.List)
@@ -1269,6 +1385,7 @@ func TestArgsParsing_ListFlags(t *testing.T) {
 }
 
 func TestArgsParsing_EnableHNSFlags(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name              string
 		args              []string
@@ -1287,7 +1404,11 @@ func TestArgsParsing_EnableHNSFlags(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cobraMutex.Lock()
+			resetCobra()
 			var gotEnableHNS bool
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotEnableHNS = mountInfo.config.EnableHns
@@ -1297,6 +1418,7 @@ func TestArgsParsing_EnableHNSFlags(t *testing.T) {
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
+			cobraMutex.Unlock()
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedEnableHNS, gotEnableHNS)
@@ -1306,6 +1428,7 @@ func TestArgsParsing_EnableHNSFlags(t *testing.T) {
 }
 
 func TestArgsParsing_EnableUnsupportedPathSupport(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name                           string
 		args                           []string
@@ -1324,7 +1447,11 @@ func TestArgsParsing_EnableUnsupportedPathSupport(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cobraMutex.Lock()
+			resetCobra()
 			var gotUnsupportedPathSupport bool
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotUnsupportedPathSupport = mountInfo.config.EnableUnsupportedPathSupport
@@ -1334,6 +1461,7 @@ func TestArgsParsing_EnableUnsupportedPathSupport(t *testing.T) {
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
+			cobraMutex.Unlock()
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedUnsupportedPathSupport, gotUnsupportedPathSupport)
@@ -1343,6 +1471,7 @@ func TestArgsParsing_EnableUnsupportedPathSupport(t *testing.T) {
 }
 
 func TestArgsParsing_EnableGoogleLibAuthFlag(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name                        string
 		args                        []string
@@ -1361,7 +1490,11 @@ func TestArgsParsing_EnableGoogleLibAuthFlag(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cobraMutex.Lock()
+			resetCobra()
 			var gotEnableGoogleLibAuth bool
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotEnableGoogleLibAuth = mountInfo.config.EnableGoogleLibAuth
@@ -1371,6 +1504,7 @@ func TestArgsParsing_EnableGoogleLibAuthFlag(t *testing.T) {
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
+			cobraMutex.Unlock()
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedEnableGoogleLibAuth, gotEnableGoogleLibAuth)
@@ -1380,6 +1514,7 @@ func TestArgsParsing_EnableGoogleLibAuthFlag(t *testing.T) {
 }
 
 func TestArgsParsing_EnableAtomicRenameObjectFlag(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name                             string
 		args                             []string
@@ -1398,7 +1533,11 @@ func TestArgsParsing_EnableAtomicRenameObjectFlag(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cobraMutex.Lock()
+			resetCobra()
 			var gotEnableAtomicRenameObject bool
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotEnableAtomicRenameObject = mountInfo.config.EnableAtomicRenameObject
@@ -1408,6 +1547,7 @@ func TestArgsParsing_EnableAtomicRenameObjectFlag(t *testing.T) {
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
+			cobraMutex.Unlock()
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedEnableAtomicRenameObject, gotEnableAtomicRenameObject)
@@ -1417,6 +1557,7 @@ func TestArgsParsing_EnableAtomicRenameObjectFlag(t *testing.T) {
 }
 
 func TestArgsParsing_EnableNewReaderFlag(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name                    string
 		args                    []string
@@ -1435,7 +1576,11 @@ func TestArgsParsing_EnableNewReaderFlag(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cobraMutex.Lock()
+			resetCobra()
 			var gotEnableNewReader bool
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotEnableNewReader = mountInfo.config.EnableNewReader
@@ -1445,6 +1590,7 @@ func TestArgsParsing_EnableNewReaderFlag(t *testing.T) {
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
+			cobraMutex.Unlock()
 
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedEnableNewReader, gotEnableNewReader)
@@ -1453,6 +1599,7 @@ func TestArgsParsing_EnableNewReaderFlag(t *testing.T) {
 }
 
 func TestArgsParsing_MetricsFlags(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		args     []string
@@ -1504,7 +1651,11 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cobraMutex.Lock()
+			resetCobra()
 			var gotConfig *cfg.Config
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotConfig = mountInfo.config
@@ -1514,6 +1665,7 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
+			cobraMutex.Unlock()
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expected, &gotConfig.Metrics)
@@ -1523,6 +1675,7 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 }
 
 func TestArgsParsing_MetricsViewConfig(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		cfgFile  string
@@ -1550,7 +1703,11 @@ func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cobraMutex.Lock()
+			resetCobra()
 			var gotConfig *cfg.Config
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotConfig = mountInfo.config
@@ -1560,6 +1717,7 @@ func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 			cmd.SetArgs(convertToPosixArgs([]string{"gcsfuse", fmt.Sprintf("--config-file=testdata/metrics_config/%s", tc.cfgFile), "abc", "pqr"}, cmd))
 
 			err = cmd.Execute()
+			cobraMutex.Unlock()
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expected, &gotConfig.Metrics)
@@ -1569,6 +1727,7 @@ func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 }
 
 func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		args           []string
@@ -1679,7 +1838,11 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cobraMutex.Lock()
+			resetCobra()
 			var gotConfig *cfg.Config
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotConfig = mountInfo.config
@@ -1689,6 +1852,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
+			cobraMutex.Unlock()
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedConfig.MetadataCache, gotConfig.MetadataCache)
@@ -1698,6 +1862,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 }
 
 func TestArgParsing_GCSRetries(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		args           []string
@@ -1725,7 +1890,11 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cobraMutex.Lock()
+			resetCobra()
 			var gotConfig *cfg.Config
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotConfig = mountInfo.config
@@ -1735,6 +1904,7 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
+			cobraMutex.Unlock()
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedConfig.GcsRetries, gotConfig.GcsRetries)
@@ -1744,6 +1914,7 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 }
 
 func TestArgsParsing_ProfilerFlags(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		args           []string
@@ -1817,7 +1988,11 @@ func TestArgsParsing_ProfilerFlags(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cobraMutex.Lock()
+			resetCobra()
 			var gotProfilerConfig cfg.CloudProfilerConfig
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotProfilerConfig = mountInfo.config.CloudProfiler
@@ -1827,6 +2002,7 @@ func TestArgsParsing_ProfilerFlags(t *testing.T) {
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
+			cobraMutex.Unlock()
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedConfig, gotProfilerConfig)
@@ -1836,6 +2012,7 @@ func TestArgsParsing_ProfilerFlags(t *testing.T) {
 }
 
 func TestArgsParsing_ReadInactiveTimeoutConfig(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name            string
 		cfgFile         string
@@ -1858,7 +2035,11 @@ func TestArgsParsing_ReadInactiveTimeoutConfig(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cobraMutex.Lock()
+			resetCobra()
 			var gotConfig *cfg.Config
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotConfig = mountInfo.config
@@ -1868,6 +2049,7 @@ func TestArgsParsing_ReadInactiveTimeoutConfig(t *testing.T) {
 			cmd.SetArgs(convertToPosixArgs([]string{"gcsfuse", fmt.Sprintf("--config-file=testdata/read_config/%s", tc.cfgFile), "abc", "pqr"}, cmd))
 
 			err = cmd.Execute()
+			cobraMutex.Unlock()
 
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedTimeout, gotConfig.Read.InactiveStreamTimeout)
@@ -1876,6 +2058,7 @@ func TestArgsParsing_ReadInactiveTimeoutConfig(t *testing.T) {
 }
 
 func TestArgsParsing_WorkloadInsightFlags(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		args           []string
@@ -1927,7 +2110,11 @@ func TestArgsParsing_WorkloadInsightFlags(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cobraMutex.Lock()
+			resetCobra()
 			var gotConfig *cfg.Config
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotConfig = mountInfo.config
@@ -1937,6 +2124,7 @@ func TestArgsParsing_WorkloadInsightFlags(t *testing.T) {
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
 			err = cmd.Execute()
+			cobraMutex.Unlock()
 
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedConfig.WorkloadInsight, gotConfig.WorkloadInsight)
@@ -1945,6 +2133,7 @@ func TestArgsParsing_WorkloadInsightFlags(t *testing.T) {
 }
 
 func TestArgsParsing_WorkloadInsightConfigFile(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name               string
 		cfgFile            string
@@ -1971,7 +2160,11 @@ func TestArgsParsing_WorkloadInsightConfigFile(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cobraMutex.Lock()
+			resetCobra()
 			var gotConfig *cfg.Config
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotConfig = mountInfo.config
@@ -1981,6 +2174,7 @@ func TestArgsParsing_WorkloadInsightConfigFile(t *testing.T) {
 			cmd.SetArgs(convertToPosixArgs([]string{"gcsfuse", fmt.Sprintf("--config-file=testdata/workload_insight_config/%s", tc.cfgFile), "abc", "pqr"}, cmd))
 
 			err = cmd.Execute()
+			cobraMutex.Unlock()
 
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedVisualize, gotConfig.WorkloadInsight.Visualize)
@@ -1990,7 +2184,7 @@ func TestArgsParsing_WorkloadInsightConfigFile(t *testing.T) {
 }
 
 func TestMountInfoPopulation(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	testCases := []struct {
 		name                    string
 		cliArgs                 []string
@@ -2062,8 +2256,12 @@ func TestMountInfoPopulation(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var capturedMountInfo *mountInfo
+			cobraMutex.Lock()
+			resetCobra()
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				capturedMountInfo = mountInfo
 				return nil
@@ -2079,7 +2277,9 @@ func TestMountInfoPopulation(t *testing.T) {
 			args = append(args, "my-bucket", "/mnt/gcs")
 			cmd.SetArgs(convertToPosixArgs(args, cmd))
 
-			require.NoError(t, cmd.Execute())
+			err = cmd.Execute()
+			cobraMutex.Unlock()
+			require.NoError(t, err)
 
 			require.NotNil(t, capturedMountInfo)
 			tc.validateMountInfo(t, capturedMountInfo)
@@ -2090,6 +2290,7 @@ func TestMountInfoPopulation(t *testing.T) {
 }
 
 func TestGetCliFlags(t *testing.T) {
+	// t.Parallel() // This test uses t.Setenv, so it cannot be run in parallel with other tests.
 	testCases := []struct {
 		name              string
 		setupFlags        func(t *testing.T, fs *pflag.FlagSet)
@@ -2136,7 +2337,9 @@ func TestGetCliFlags(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			// This subtest cannot be parallel because it may call t.Setenv.
 			if tc.backgroundMode {
 				t.Setenv(logger.GCSFuseInBackgroundMode, "true")
 			}
@@ -2155,7 +2358,7 @@ func TestGetCliFlags(t *testing.T) {
 }
 
 func TestGetConfigFileFlags(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 	testCases := []struct {
 		name      string
 		defaults  map[string]any
@@ -2194,7 +2397,9 @@ func TestGetConfigFileFlags(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			inputViper := viper.New()
 
 			if !tc.noFile {

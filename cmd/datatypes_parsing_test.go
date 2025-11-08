@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"testing"
 	"time"
+	_ "unsafe"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/stretchr/testify/assert"
@@ -25,7 +26,6 @@ import (
 )
 
 func TestCLIFlagPassing(t *testing.T) {
-	t.Parallel()
 	testCases := []struct {
 		name   string
 		args   []string
@@ -587,9 +587,12 @@ func TestCLIFlagPassing(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var c *cfg.Config
+			cobraMutex.Lock()
+			resetCobra()
 			command, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				c = mountInfo.config
 				return nil
@@ -599,7 +602,9 @@ func TestCLIFlagPassing(t *testing.T) {
 			cmdArgs = append(cmdArgs, "a")
 			command.SetArgs(convertToPosixArgs(cmdArgs, command))
 
-			require.NoError(t, command.Execute())
+			err = command.Execute()
+			cobraMutex.Unlock()
+			require.NoError(t, err)
 
 			tc.testFn(t, c)
 		})
@@ -607,7 +612,6 @@ func TestCLIFlagPassing(t *testing.T) {
 }
 
 func TestConfigPassing(t *testing.T) {
-	t.Parallel()
 	testCases := []struct {
 		name   string
 		file   string
@@ -762,9 +766,12 @@ func TestConfigPassing(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var c *cfg.Config
+			cobraMutex.Lock()
+			resetCobra()
 			command, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				c = mountInfo.config
 				return nil
@@ -773,7 +780,9 @@ func TestConfigPassing(t *testing.T) {
 			cmdArgs := append([]string{"gcsfuse", fmt.Sprintf("--config-file=testdata/%s", tc.file)}, "a")
 			command.SetArgs(convertToPosixArgs(cmdArgs, command))
 
-			require.NoError(t, command.Execute())
+			err = command.Execute()
+			cobraMutex.Unlock()
+			require.NoError(t, err)
 
 			tc.testFn(t, c)
 		})
@@ -781,7 +790,6 @@ func TestConfigPassing(t *testing.T) {
 }
 
 func TestPredefinedFlagThrowNoError(t *testing.T) {
-	t.Parallel()
 	testCases := []struct {
 		name string
 		args []string
