@@ -218,8 +218,8 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 			if !fileInfoData.DownloadedRanges.ContainsRange(uint64(offset), uint64(requiredOffset)) {
 				// Calculate the chunk to download based on the configured chunk size
 				chunkSizeMb := int64(1) // Default to 1 MB
-				if fch.fileDownloadJob.fileCacheConfig != nil && fch.fileDownloadJob.fileCacheConfig.SparseFileChunkSizeMb > 0 {
-					chunkSizeMb = fch.fileDownloadJob.fileCacheConfig.SparseFileChunkSizeMb
+				if fch.fileCacheConfig != nil && fch.fileCacheConfig.SparseFileChunkSizeMb > 0 {
+					chunkSizeMb = fch.fileCacheConfig.SparseFileChunkSizeMb
 				}
 				chunkSize := uint64(chunkSizeMb) * 1024 * 1024
 

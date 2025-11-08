@@ -193,7 +193,7 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 	}
 
 	if addEntryToCache {
-		fileInfo = data.FileInfo{
+		newFileInfo := data.FileInfo{
 			Key:              fileInfoKey,
 			ObjectGeneration: object.Generation,
 			Offset:           0,
@@ -202,11 +202,11 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 			DownloadedRanges: nil,
 		}
 		// Initialize the DownloadedRanges map for sparse files
-		if fileInfo.SparseMode {
-			fileInfo.DownloadedRanges = data.NewByteRangeMap()
+		if newFileInfo.SparseMode {
+			newFileInfo.DownloadedRanges = data.NewByteRangeMap()
 		}
 
-		evictedValues, err := chr.fileInfoCache.Insert(fileInfoKeyName, fileInfo)
+		evictedValues, err := chr.fileInfoCache.Insert(fileInfoKeyName, newFileInfo)
 		if err != nil {
 			return fmt.Errorf("addFileInfoEntryAndCreateDownloadJob: while inserting into the cache: %w", err)
 		}
