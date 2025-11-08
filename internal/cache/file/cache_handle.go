@@ -202,51 +202,45 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 	}
 
 	// Handle sparse file reads
-	if fileInfoData.SparseMode && fch.fileDownloadJob != nil {
+	if fileInfoData.SparseMode {
 		// For sparse files, check if the requested range is downloaded
-		if fileInfoData.DownloadedRanges != nil {
-			if !fileInfoData.DownloadedRanges.ContainsRange(uint64(offset), uint64(requiredOffset)) {
-				// Calculate the chunk to download based on the configured chunk size
-				chunkSizeMb := fch.fileDownloadJob.SequentialReadSizeMb()
-				chunkSize := uint64(chunkSizeMb) * 1024 * 1024
+		if !fileInfoData.DownloadedRanges.ContainsRange(uint64(offset), uint64(requiredOffset)) {
+			// Calculate the chunk to download based on the configured chunk size
+			chunkSizeMb := fch.fileDownloadJob.SequentialReadSizeMb()
+			chunkSize := uint64(chunkSizeMb) * 1024 * 1024
 
-				// Align chunk start to chunk boundaries for better cache efficiency
-				chunkStart := (uint64(offset) / chunkSize) * chunkSize
-				chunkEnd := chunkStart + chunkSize
-				if chunkEnd > object.Size {
-					chunkEnd = object.Size
-				}
+			// Align chunk start to chunk boundaries for better cache efficiency
+			chunkStart := (uint64(offset) / chunkSize) * chunkSize
+			chunkEnd := chunkStart + chunkSize
+			if chunkEnd > object.Size {
+				chunkEnd = object.Size
+			}
 
-				// Download the chunk (returns in-memory data to avoid double page cache)
-				fch.sparseChunkData, err = fch.fileDownloadJob.DownloadRange(ctx, chunkStart, chunkEnd)
-				if err != nil {
-					// Download failed - fallback to GCS but keep cache handle alive
-					logger.Infof("Sparse file download failed for range [%d, %d): %v. Falling back to GCS for this read.", chunkStart, chunkEnd, err)
-					fch.sparseChunkData = nil
-					return 0, false, util.ErrFallbackToGCS
-				}
-				fch.sparseChunkStart = chunkStart
+			// Download the chunk (returns in-memory data to avoid double page cache)
+			fch.sparseChunkData, err = fch.fileDownloadJob.DownloadRange(ctx, chunkStart, chunkEnd)
+			if err != nil {
+				// Download failed - fallback to GCS but keep cache handle alive
+				logger.Infof("Sparse file download failed for range [%d, %d): %v. Falling back to GCS for this read.", chunkStart, chunkEnd, err)
+				fch.sparseChunkData = nil
+				return 0, false, util.ErrFallbackToGCS
+			}
+			fch.sparseChunkStart = chunkStart
 
-				// Refresh fileInfoData after successful download
-				fileInfoData, errFileInfo = fch.getFileInfoData(bucket, object, false)
-				if errFileInfo != nil {
-					// Couldn't refresh metadata - fallback to GCS but keep cache handle alive
-					logger.Infof("Error refreshing file info after sparse download: %v. Falling back to GCS for this read.", errFileInfo)
-					return 0, false, util.ErrFallbackToGCS
-				}
+			// Refresh fileInfoData after successful download
+			fileInfoData, errFileInfo = fch.getFileInfoData(bucket, object, false)
+			if errFileInfo != nil {
+				// Couldn't refresh metadata - fallback to GCS but keep cache handle alive
+				logger.Infof("Error refreshing file info after sparse download: %v. Falling back to GCS for this read.", errFileInfo)
+				return 0, false, util.ErrFallbackToGCS
 			}
 		}
 		// For sparse files, always treat as cache hit if the range is downloaded
 		cacheHit = fileInfoData.DownloadedRanges != nil && fileInfoData.DownloadedRanges.ContainsRange(uint64(offset), uint64(requiredOffset))
-		if fileInfoData.SparseMode {
-			logger.Tracef("Sparse file cache hit check: offset=%d, requiredOffset=%d, DownloadedRanges=%v, cacheHit=%t",
-				offset, requiredOffset, fileInfoData.DownloadedRanges != nil, cacheHit)
-		}
-	}
-
-	// If fileDownloadJob is not nil, it's better to get status of cache file
-	// from the job itself than to use file info cache.
-	if fch.fileDownloadJob != nil && !fileInfoData.SparseMode {
+		logger.Tracef("Sparse file cache hit check: offset=%d, requiredOffset=%d, DownloadedRanges=%v, cacheHit=%t",
+			offset, requiredOffset, fileInfoData.DownloadedRanges != nil, cacheHit)
+	} else if fch.fileDownloadJob != nil {
+		// If fileDownloadJob is not nil, it's better to get status of cache file
+		// from the job itself than to use file info cache.
 		jobStatus := fch.fileDownloadJob.GetStatus()
 		// If cacheFileForRangeRead is false and readType is random, download will
 		// not be initiated.
@@ -281,49 +275,11 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 		// If fileDownloadJob is nil then it means the job is successfully
 		// completed or failed. The offset must be equal to size of object for job
 		// to be completed.
-		if fileInfoData.SparseMode {
-			// For sparse files, check if the requested range is downloaded
-			if fileInfoData.DownloadedRanges == nil || !fileInfoData.DownloadedRanges.ContainsRange(uint64(offset), uint64(requiredOffset)) {
-				// Range not downloaded - download the chunk on-demand using the eagerly initialized job
-				// Calculate the chunk to download
-				chunkSizeMb := fch.fileDownloadJob.SequentialReadSizeMb()
-				chunkSize := uint64(chunkSizeMb) * 1024 * 1024
-
-				// Align chunk start to chunk boundaries
-				chunkStart := (uint64(offset) / chunkSize) * chunkSize
-				chunkEnd := chunkStart + chunkSize
-				if chunkEnd > object.Size {
-					chunkEnd = object.Size
-				}
-
-				// Download the chunk (returns in-memory data to avoid double page cache)
-				fch.sparseChunkData, err = fch.fileDownloadJob.DownloadRange(ctx, chunkStart, chunkEnd)
-				if err != nil {
-					// Download failed - fallback to GCS but keep cache handle alive
-					logger.Infof("Sparse file download failed for range [%d, %d): %v. Falling back to GCS for this read.", chunkStart, chunkEnd, err)
-					fch.sparseChunkData = nil
-					return 0, false, util.ErrFallbackToGCS
-				}
-				fch.sparseChunkStart = chunkStart
-
-				// Refresh fileInfoData after successful download
-				fileInfoData, errFileInfo = fch.getFileInfoData(bucket, object, false)
-				if errFileInfo != nil {
-					// Couldn't refresh metadata - fallback to GCS but keep cache handle alive
-					logger.Infof("Error refreshing file info after sparse download: %v. Falling back to GCS for this read.", errFileInfo)
-					return 0, false, util.ErrFallbackToGCS
-				}
-				cacheHit = true
-			} else {
-				cacheHit = true
-			}
-		} else {
-			err = fch.validateEntryInFileInfoCache(bucket, object, fileInfoData.FileSize, false)
-			if err != nil {
-				return 0, false, err
-			}
-			cacheHit = true
+		err = fch.validateEntryInFileInfoCache(bucket, object, fileInfoData.FileSize, false)
+		if err != nil {
+			return 0, false, err
 		}
+		cacheHit = true
 	}
 
 	// We are here means, we have the data downloaded which kernel has asked for.
