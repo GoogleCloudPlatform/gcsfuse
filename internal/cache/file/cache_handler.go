@@ -279,7 +279,11 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 		return nil, fmt.Errorf("GetCacheHandle: while creating local-file read handle: %w", err)
 	}
 
-	return NewCacheHandle(localFileReadHandle, chr.jobManager.CreateJobIfNotExists(object, bucket), chr.fileInfoCache, cacheForRangeRead, initialOffset, chr.fileCacheConfig), nil
+	sparseFileChunkSizeMb := int64(1) // Default to 1 MB
+	if chr.fileCacheConfig != nil && chr.fileCacheConfig.SparseFileChunkSizeMb > 0 {
+		sparseFileChunkSizeMb = chr.fileCacheConfig.SparseFileChunkSizeMb
+	}
+	return NewCacheHandle(localFileReadHandle, chr.jobManager.CreateJobIfNotExists(object, bucket), chr.fileInfoCache, cacheForRangeRead, initialOffset, sparseFileChunkSizeMb), nil
 }
 
 // InvalidateCache removes the file entry from the fileInfoCache and performs clean

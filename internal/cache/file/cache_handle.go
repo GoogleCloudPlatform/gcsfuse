@@ -20,7 +20,6 @@ import (
 	"io"
 	"os"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
@@ -58,13 +57,13 @@ type CacheHandle struct {
 	sparseChunkData  []byte
 	sparseChunkStart uint64
 
-	// fileCacheConfig is needed for chunk size configuration in sparse downloads
-	fileCacheConfig *cfg.FileCacheConfig
+	// sparseFileChunkSizeMb is the chunk size in MB for sparse file downloads
+	sparseFileChunkSizeMb int64
 }
 
 func NewCacheHandle(localFileHandle *os.File, fileDownloadJob *downloader.Job,
 	fileInfoCache *lru.Cache, cacheFileForRangeRead bool, initialOffset int64,
-	fileCacheConfig *cfg.FileCacheConfig) *CacheHandle {
+	sparseFileChunkSizeMb int64) *CacheHandle {
 	return &CacheHandle{
 		fileHandle:            localFileHandle,
 		fileDownloadJob:       fileDownloadJob,
@@ -72,7 +71,7 @@ func NewCacheHandle(localFileHandle *os.File, fileDownloadJob *downloader.Job,
 		cacheFileForRangeRead: cacheFileForRangeRead,
 		isSequential:          initialOffset == 0,
 		prevOffset:            initialOffset,
-		fileCacheConfig:       fileCacheConfig,
+		sparseFileChunkSizeMb: sparseFileChunkSizeMb,
 	}
 }
 
@@ -214,8 +213,8 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 			if !fileInfoData.DownloadedRanges.ContainsRange(uint64(offset), uint64(requiredOffset)) {
 				// Calculate the chunk to download based on the configured chunk size
 				chunkSizeMb := int64(1) // Default to 1 MB
-				if fch.fileCacheConfig != nil && fch.fileCacheConfig.SparseFileChunkSizeMb > 0 {
-					chunkSizeMb = fch.fileCacheConfig.SparseFileChunkSizeMb
+				if fch.sparseFileChunkSizeMb > 0 {
+					chunkSizeMb = fch.sparseFileChunkSizeMb
 				}
 				chunkSize := uint64(chunkSizeMb) * 1024 * 1024
 
@@ -296,8 +295,8 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 				// Range not downloaded - download the chunk on-demand using the eagerly initialized job
 				// Calculate the chunk to download
 				chunkSizeMb := int64(1) // Default to 1 MB
-				if fch.fileCacheConfig != nil && fch.fileCacheConfig.SparseFileChunkSizeMb > 0 {
-					chunkSizeMb = fch.fileCacheConfig.SparseFileChunkSizeMb
+				if fch.sparseFileChunkSizeMb > 0 {
+					chunkSizeMb = fch.sparseFileChunkSizeMb
 				}
 				chunkSize := uint64(chunkSizeMb) * 1024 * 1024
 
