@@ -446,12 +446,6 @@ func (job *Job) DownloadRange(ctx context.Context, start, end uint64) ([]byte, e
 		job.mu.Unlock()
 		return nil, fmt.Errorf("DownloadRange: file is not in sparse mode")
 	}
-
-	// Check if range is already downloaded
-	if fileInfo.DownloadedRanges != nil && fileInfo.DownloadedRanges.ContainsRange(start, end) {
-		job.mu.Unlock()
-		return nil, nil // Range already downloaded, no data to return
-	}
 	job.mu.Unlock()
 
 	// Create GCS reader for the specific range
