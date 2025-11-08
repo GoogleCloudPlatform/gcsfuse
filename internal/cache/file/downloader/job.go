@@ -495,10 +495,6 @@ func (job *Job) DownloadRange(ctx context.Context, start, end uint64) ([]byte, e
 	}
 	fileInfo = fileInfoVal.(data.FileInfo)
 
-	if fileInfo.DownloadedRanges == nil {
-		fileInfo.DownloadedRanges = data.NewByteRangeMap()
-	}
-
 	// Remove the old entry first to ensure proper size accounting in LRU cache
 	// Otherwise, mutating the ByteRangeMap pointer causes both old and new entries
 	// to have the same size, preventing currentSize from being updated correctly
