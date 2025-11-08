@@ -193,16 +193,19 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 	}
 
 	if addEntryToCache {
+		isSparse := chr.fileCacheConfig != nil && chr.fileCacheConfig.EnableSparseFile
 		newFileInfo := data.FileInfo{
 			Key:              fileInfoKey,
 			ObjectGeneration: object.Generation,
 			Offset:           0,
 			FileSize:         object.Size,
-			SparseMode:       chr.fileCacheConfig != nil && chr.fileCacheConfig.EnableSparseFile,
+			SparseMode:       isSparse,
 			DownloadedRanges: nil,
 		}
-		// Initialize the DownloadedRanges map for sparse files
-		if newFileInfo.SparseMode {
+		// For sparse files, set Offset to MaxUint64 as a sentinel to indicate
+		// sparse mode, so Offset < requiredOffset checks always fail
+		if isSparse {
+			newFileInfo.Offset = ^uint64(0) // math.MaxUint64
 			newFileInfo.DownloadedRanges = data.NewByteRangeMap()
 		}
 

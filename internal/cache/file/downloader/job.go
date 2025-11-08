@@ -521,19 +521,8 @@ func (job *Job) DownloadRange(ctx context.Context, start, end uint64) ([]byte, e
 	// Add the downloaded range
 	bytesAdded := fileInfo.DownloadedRanges.AddRange(start, start+uint64(bytesWritten))
 
-	// Update the Offset field for sparse files
-	// Offset represents the highest contiguous range from 0
-	if start == 0 && fileInfo.DownloadedRanges.ContainsRange(0, start+uint64(bytesWritten)) {
-		fileInfo.Offset = start + uint64(bytesWritten)
-	} else if fileInfo.DownloadedRanges.ContainsRange(0, fileInfo.Offset) {
-		// Find the new highest contiguous offset from 0
-		for offset := fileInfo.Offset; offset <= job.object.Size; offset += 1024 {
-			if !fileInfo.DownloadedRanges.ContainsRange(0, offset) {
-				fileInfo.Offset = offset - 1024
-				break
-			}
-		}
-	}
+	// Note: For sparse files, Offset is kept at MaxUint64 as a sentinel value
+	// and is not updated during partial downloads
 
 	// Insert the updated FileInfo - LRU cache will calculate size correctly now
 	evictedValues, err := job.fileInfoCache.Insert(fileInfoKeyName, fileInfo)

@@ -149,9 +149,8 @@ func (fch *CacheHandle) validateEntryInFileInfoCache(bucket gcs.Bucket, object *
 	if fileInfoData.ObjectGeneration != object.Generation {
 		return fmt.Errorf("%w: generation of cached object: %v is different from required generation: %v", util.ErrInvalidFileInfoCache, fileInfoData.ObjectGeneration, object.Generation)
 	}
-	// For sparse files, Offset only tracks the highest contiguous range from 0, not individual downloaded chunks
-	// So we skip this check for sparse files - downloaded ranges are checked separately where needed
-	if !fileInfoData.SparseMode && fileInfoData.Offset < requiredOffset {
+	// For sparse files, Offset is set to MaxUint64 as a sentinel, so this check automatically passes
+	if fileInfoData.Offset < requiredOffset {
 		return fmt.Errorf("%w offset of cached object: %v is less than required offset %v", util.ErrInvalidFileInfoCache, fileInfoData.Offset, requiredOffset)
 	}
 
