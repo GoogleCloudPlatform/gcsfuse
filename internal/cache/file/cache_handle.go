@@ -25,6 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
 
@@ -153,7 +154,9 @@ func (fch *CacheHandle) validateEntryInFileInfoCache(bucket gcs.Bucket, object *
 	if fileInfoData.ObjectGeneration != object.Generation {
 		return fmt.Errorf("%w: generation of cached object: %v is different from required generation: %v", util.ErrInvalidFileInfoCache, fileInfoData.ObjectGeneration, object.Generation)
 	}
-	if fileInfoData.Offset < requiredOffset {
+	// For sparse files, Offset only tracks the highest contiguous range from 0, not individual downloaded chunks
+	// So we skip this check for sparse files - downloaded ranges are checked separately where needed
+	if !fileInfoData.SparseMode && fileInfoData.Offset < requiredOffset {
 		return fmt.Errorf("%w offset of cached object: %v is less than required offset %v", util.ErrInvalidFileInfoCache, fileInfoData.Offset, requiredOffset)
 	}
 
@@ -233,19 +236,26 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 				// Download the chunk
 				err = fch.fileDownloadJob.DownloadRange(ctx, chunkStart, chunkEnd)
 				if err != nil {
-					// If sparse download fails, fall back to GCS
-					return 0, false, fmt.Errorf("%w: sparse download failed: %v", util.ErrFallbackToGCS, err)
+					// Download failed - fallback to GCS but keep cache handle alive
+					logger.Infof("Sparse file download failed for range [%d, %d): %v. Falling back to GCS for this read.", chunkStart, chunkEnd, err)
+					return 0, false, util.ErrFallbackToGCS
 				}
 
-				// Refresh fileInfoData after download
+				// Refresh fileInfoData after successful download
 				fileInfoData, errFileInfo = fch.getFileInfoData(bucket, object, false)
 				if errFileInfo != nil {
-					return 0, false, fmt.Errorf("%w Error in getCachedFileInfo after sparse download: %v", util.ErrInvalidFileInfoCache, errFileInfo)
+					// Couldn't refresh metadata - fallback to GCS but keep cache handle alive
+					logger.Infof("Error refreshing file info after sparse download: %v. Falling back to GCS for this read.", errFileInfo)
+					return 0, false, util.ErrFallbackToGCS
 				}
 			}
 		}
 		// For sparse files, always treat as cache hit if the range is downloaded
 		cacheHit = fileInfoData.DownloadedRanges != nil && fileInfoData.DownloadedRanges.ContainsRange(uint64(offset), uint64(requiredOffset))
+		if fileInfoData.SparseMode {
+			logger.Tracef("Sparse file cache hit check: offset=%d, requiredOffset=%d, DownloadedRanges=%v, cacheHit=%t",
+				offset, requiredOffset, fileInfoData.DownloadedRanges != nil, cacheHit)
+		}
 	}
 
 	// If fileDownloadJob is not nil, it's better to get status of cache file
@@ -309,14 +319,17 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 						// Download the chunk
 						err = fch.fileDownloadJob.DownloadRange(ctx, chunkStart, chunkEnd)
 						if err != nil {
-							// If download fails, fall back to GCS
-							return 0, false, fmt.Errorf("%w: sparse download failed (recreated job): %v", util.ErrFallbackToGCS, err)
+							// Download failed - fallback to GCS but keep cache handle alive
+							logger.Infof("Sparse file download failed for range [%d, %d) with recreated job: %v. Falling back to GCS for this read.", chunkStart, chunkEnd, err)
+							return 0, false, util.ErrFallbackToGCS
 						}
 
-						// Refresh fileInfoData after download
+						// Refresh fileInfoData after successful download
 						fileInfoData, errFileInfo = fch.getFileInfoData(bucket, object, false)
 						if errFileInfo != nil {
-							return 0, false, fmt.Errorf("%w Error in getCachedFileInfo after sparse download (recreated job): %v", util.ErrInvalidFileInfoCache, errFileInfo)
+							// Couldn't refresh metadata - fallback to GCS but keep cache handle alive
+							logger.Infof("Error refreshing file info after sparse download (recreated job): %v. Falling back to GCS for this read.", errFileInfo)
+							return 0, false, util.ErrFallbackToGCS
 						}
 						cacheHit = true
 					} else {
