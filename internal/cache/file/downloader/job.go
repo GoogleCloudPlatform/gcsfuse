@@ -144,6 +144,11 @@ func NewJob(
 	return
 }
 
+// SequentialReadSizeMb returns the sequential read size in MB for this job.
+func (job *Job) SequentialReadSizeMb() int64 {
+	return int64(job.sequentialReadSizeMb)
+}
+
 // checkInvariants panic if any internal invariants have been violated.
 func (job *Job) checkInvariants() {
 	// INVARIANT: Each subscriber is of type jobSubscriber

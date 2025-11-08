@@ -56,14 +56,10 @@ type CacheHandle struct {
 	// [sparseChunkStart, sparseChunkStart + len(sparseChunkData)).
 	sparseChunkData  []byte
 	sparseChunkStart uint64
-
-	// sparseFileChunkSizeMb is the chunk size in MB for sparse file downloads
-	sparseFileChunkSizeMb int64
 }
 
 func NewCacheHandle(localFileHandle *os.File, fileDownloadJob *downloader.Job,
-	fileInfoCache *lru.Cache, cacheFileForRangeRead bool, initialOffset int64,
-	sparseFileChunkSizeMb int64) *CacheHandle {
+	fileInfoCache *lru.Cache, cacheFileForRangeRead bool, initialOffset int64) *CacheHandle {
 	return &CacheHandle{
 		fileHandle:            localFileHandle,
 		fileDownloadJob:       fileDownloadJob,
@@ -71,7 +67,6 @@ func NewCacheHandle(localFileHandle *os.File, fileDownloadJob *downloader.Job,
 		cacheFileForRangeRead: cacheFileForRangeRead,
 		isSequential:          initialOffset == 0,
 		prevOffset:            initialOffset,
-		sparseFileChunkSizeMb: sparseFileChunkSizeMb,
 	}
 }
 
@@ -212,10 +207,7 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 		if fileInfoData.DownloadedRanges != nil {
 			if !fileInfoData.DownloadedRanges.ContainsRange(uint64(offset), uint64(requiredOffset)) {
 				// Calculate the chunk to download based on the configured chunk size
-				chunkSizeMb := int64(1) // Default to 1 MB
-				if fch.sparseFileChunkSizeMb > 0 {
-					chunkSizeMb = fch.sparseFileChunkSizeMb
-				}
+				chunkSizeMb := fch.fileDownloadJob.SequentialReadSizeMb()
 				chunkSize := uint64(chunkSizeMb) * 1024 * 1024
 
 				// Align chunk start to chunk boundaries for better cache efficiency
@@ -294,10 +286,7 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 			if fileInfoData.DownloadedRanges == nil || !fileInfoData.DownloadedRanges.ContainsRange(uint64(offset), uint64(requiredOffset)) {
 				// Range not downloaded - download the chunk on-demand using the eagerly initialized job
 				// Calculate the chunk to download
-				chunkSizeMb := int64(1) // Default to 1 MB
-				if fch.sparseFileChunkSizeMb > 0 {
-					chunkSizeMb = fch.sparseFileChunkSizeMb
-				}
+				chunkSizeMb := fch.fileDownloadJob.SequentialReadSizeMb()
 				chunkSize := uint64(chunkSizeMb) * 1024 * 1024
 
 				// Align chunk start to chunk boundaries

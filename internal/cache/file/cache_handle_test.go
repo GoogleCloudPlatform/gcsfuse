@@ -158,7 +158,7 @@ func (cht *cacheHandleTest) SetupTest() {
 		metrics.NewNoopMetrics(),
 	)
 
-	cht.cacheHandle = NewCacheHandle(readLocalFileHandle, fileDownloadJob, cht.cache, false, 0, DefaultSequentialReadSizeMb)
+	cht.cacheHandle = NewCacheHandle(readLocalFileHandle, fileDownloadJob, cht.cache, false, 0)
 }
 
 func (cht *cacheHandleTest) TearDownTest() {
