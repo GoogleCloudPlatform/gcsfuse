@@ -278,13 +278,6 @@ params:
     usage: "Number of concurrent download requests per file."
     default: "16"
 
-  - config-path: "file-cache.sparse-file-chunk-size-mb"
-    flag-name: "file-cache-sparse-file-chunk-size-mb"
-    type: "int"
-    usage: "Size of chunks in MiB for sparse file downloads. Only effective when enable-sparse-file is true."
-    default: "1"
-    hide-flag: true
-
   - config-path: "file-cache.write-buffer-size"
     flag-name: "file-cache-write-buffer-size"
     type: "int"

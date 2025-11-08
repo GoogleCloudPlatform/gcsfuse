@@ -134,11 +134,6 @@ func resolveFileCacheAndBufferedReadConflict(v isSet, c *Config) {
 }
 
 func resolveSparseFileConfig(fc *FileCacheConfig) {
-	// Set default chunk size for sparse file downloads if not specified
-	// Default to 1 MB chunks for random reads
-	if fc.SparseFileChunkSizeMb <= 0 {
-		fc.SparseFileChunkSizeMb = 1
-	}
 }
 
 func resolveReadConfig(r *ReadConfig) {

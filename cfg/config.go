@@ -440,8 +440,6 @@ type FileCacheConfig struct {
 
   ParallelDownloadsPerFile int64 `yaml:"parallel-downloads-per-file"`
 
-  SparseFileChunkSizeMb int64 `yaml:"sparse-file-chunk-size-mb"`
-
   WriteBufferSize int64 `yaml:"write-buffer-size"`
 
 }

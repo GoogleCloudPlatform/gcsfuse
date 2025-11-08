@@ -158,11 +158,7 @@ func (cht *cacheHandleTest) SetupTest() {
 		metrics.NewNoopMetrics(),
 	)
 
-	sparseFileChunkSizeMb := int64(1) // Default to 1 MB
-	if fileCacheConfig != nil && fileCacheConfig.SparseFileChunkSizeMb > 0 {
-		sparseFileChunkSizeMb = fileCacheConfig.SparseFileChunkSizeMb
-	}
-	cht.cacheHandle = NewCacheHandle(readLocalFileHandle, fileDownloadJob, cht.cache, false, 0, sparseFileChunkSizeMb)
+	cht.cacheHandle = NewCacheHandle(readLocalFileHandle, fileDownloadJob, cht.cache, false, 0, DefaultSequentialReadSizeMb)
 }
 
 func (cht *cacheHandleTest) TearDownTest() {

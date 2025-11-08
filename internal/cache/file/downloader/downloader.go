@@ -135,6 +135,11 @@ func (jm *JobManager) GetJob(objectName string, bucketName string) *Job {
 	return job
 }
 
+// SequentialReadSizeMb returns the sequential read size in MB.
+func (jm *JobManager) SequentialReadSizeMb() int64 {
+	return int64(jm.sequentialReadSizeMb)
+}
+
 // InvalidateAndRemoveJob invalidates downloader.Job for given object and bucket.
 // If there is no existing job present then this method does nothing.
 // Note: Invalidating a job also removes job from jm.jobs map.
