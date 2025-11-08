@@ -91,6 +91,10 @@ type Job struct {
 	// is responsibility of JobManager to pass this function.
 	removeJobCallback func()
 
+	// evictFileCallback is called when LRU cache evicts entries during sparse file Insert.
+	// It's responsible for cleaning up evicted files from disk.
+	evictFileCallback func(*data.FileInfo) error
+
 	mu locker.Locker
 	// This semaphore is shared across all jobs spawned by the job manager and is
 	// used to limit the download concurrency.
@@ -532,7 +536,18 @@ func (job *Job) DownloadRange(ctx context.Context, start, end uint64) ([]byte, e
 	}
 
 	// Insert the updated FileInfo - LRU cache will calculate size correctly now
-	_, err = job.fileInfoCache.Insert(fileInfoKeyName, fileInfo)
+	evictedValues, err := job.fileInfoCache.Insert(fileInfoKeyName, fileInfo)
+
+	// Clean up any files that were evicted from the cache
+	if job.evictFileCallback != nil {
+		for _, val := range evictedValues {
+			evictedFileInfo := val.(data.FileInfo)
+			if cleanupErr := job.evictFileCallback(&evictedFileInfo); cleanupErr != nil {
+				logger.Warnf("Failed to cleanup evicted file %s: %v", evictedFileInfo.Key.ObjectName, cleanupErr)
+			}
+		}
+	}
+
 	if err != nil {
 		if errors.Is(err, lru.ErrInvalidEntrySize) {
 			// File has grown beyond cache size limit

@@ -146,7 +146,6 @@ func (cht *cacheHandleTest) SetupTest() {
 	assert.Nil(cht.T(), err)
 
 	fileCacheConfig := &cfg.FileCacheConfig{EnableCrc: true, EnableParallelDownloads: false}
-	jobManager := downloader.NewJobManager(cht.cache, util.DefaultFilePerm, util.DefaultDirPerm, cht.cacheDir, DefaultSequentialReadSizeMb, fileCacheConfig, metrics.NewNoopMetrics())
 	fileDownloadJob := downloader.NewJob(
 		cht.object,
 		cht.bucket,
@@ -159,7 +158,7 @@ func (cht *cacheHandleTest) SetupTest() {
 		metrics.NewNoopMetrics(),
 	)
 
-	cht.cacheHandle = NewCacheHandle(readLocalFileHandle, fileDownloadJob, cht.cache, false, 0, jobManager, cht.bucket, cht.object, fileCacheConfig)
+	cht.cacheHandle = NewCacheHandle(readLocalFileHandle, fileDownloadJob, cht.cache, false, 0, fileCacheConfig)
 }
 
 func (cht *cacheHandleTest) TearDownTest() {

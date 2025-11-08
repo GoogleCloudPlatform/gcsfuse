@@ -276,7 +276,13 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 		return nil, fmt.Errorf("GetCacheHandle: while creating local-file read handle: %w", err)
 	}
 
-	return NewCacheHandle(localFileReadHandle, chr.jobManager.GetJob(object.Name, bucket.Name()), chr.fileInfoCache, cacheForRangeRead, initialOffset, chr.jobManager, bucket, object, chr.fileCacheConfig), nil
+	// Get or create the download job. For sparse files, we always need a job for on-demand chunk downloads.
+	fileDownloadJob := chr.jobManager.GetJob(object.Name, bucket.Name())
+	if fileDownloadJob == nil {
+		fileDownloadJob = chr.jobManager.CreateJobIfNotExists(object, bucket)
+	}
+
+	return NewCacheHandle(localFileReadHandle, fileDownloadJob, chr.fileInfoCache, cacheForRangeRead, initialOffset, chr.fileCacheConfig), nil
 }
 
 // InvalidateCache removes the file entry from the fileInfoCache and performs clean
