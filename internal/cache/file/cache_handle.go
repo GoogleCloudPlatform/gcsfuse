@@ -52,6 +52,12 @@ type CacheHandle struct {
 	// to decide the type of read.
 	prevOffset int64
 
+	// sparseChunkData holds the most recently downloaded sparse file chunk in memory
+	// to avoid reading back from disk with O_DIRECT. This is the byte range
+	// [sparseChunkStart, sparseChunkStart + len(sparseChunkData)).
+	sparseChunkData  []byte
+	sparseChunkStart uint64
+
 	// jobManager is needed to recreate jobs for sparse file on-demand downloads
 	jobManager *downloader.JobManager
 
@@ -233,13 +239,15 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 					chunkEnd = object.Size
 				}
 
-				// Download the chunk
-				err = fch.fileDownloadJob.DownloadRange(ctx, chunkStart, chunkEnd)
+				// Download the chunk (returns in-memory data to avoid double page cache)
+				fch.sparseChunkData, err = fch.fileDownloadJob.DownloadRange(ctx, chunkStart, chunkEnd)
 				if err != nil {
 					// Download failed - fallback to GCS but keep cache handle alive
 					logger.Infof("Sparse file download failed for range [%d, %d): %v. Falling back to GCS for this read.", chunkStart, chunkEnd, err)
+					fch.sparseChunkData = nil
 					return 0, false, util.ErrFallbackToGCS
 				}
+				fch.sparseChunkStart = chunkStart
 
 				// Refresh fileInfoData after successful download
 				fileInfoData, errFileInfo = fch.getFileInfoData(bucket, object, false)
@@ -316,13 +324,15 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 							chunkEnd = object.Size
 						}
 
-						// Download the chunk
-						err = fch.fileDownloadJob.DownloadRange(ctx, chunkStart, chunkEnd)
+						// Download the chunk (returns in-memory data to avoid double page cache)
+						fch.sparseChunkData, err = fch.fileDownloadJob.DownloadRange(ctx, chunkStart, chunkEnd)
 						if err != nil {
 							// Download failed - fallback to GCS but keep cache handle alive
 							logger.Infof("Sparse file download failed for range [%d, %d) with recreated job: %v. Falling back to GCS for this read.", chunkStart, chunkEnd, err)
+							fch.sparseChunkData = nil
 							return 0, false, util.ErrFallbackToGCS
 						}
+						fch.sparseChunkStart = chunkStart
 
 						// Refresh fileInfoData after successful download
 						fileInfoData, errFileInfo = fch.getFileInfoData(bucket, object, false)
@@ -353,7 +363,24 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 	}
 
 	// We are here means, we have the data downloaded which kernel has asked for.
-	n, err = fch.fileHandle.ReadAt(dst, offset)
+	// For sparse files with in-memory chunk data, use that instead of reading from disk
+	if fileInfoData.SparseMode && fch.sparseChunkData != nil {
+		// Check if the requested range is within the in-memory chunk
+		chunkEnd := fch.sparseChunkStart + uint64(len(fch.sparseChunkData))
+		if uint64(offset) >= fch.sparseChunkStart && uint64(requiredOffset) <= chunkEnd {
+			// Copy from in-memory buffer
+			startInChunk := uint64(offset) - fch.sparseChunkStart
+			endInChunk := uint64(requiredOffset) - fch.sparseChunkStart
+			n = copy(dst, fch.sparseChunkData[startInChunk:endInChunk])
+			err = nil
+		} else {
+			// Requested range not in memory, read from disk
+			n, err = fch.fileHandle.ReadAt(dst, offset)
+		}
+	} else {
+		// Non-sparse file or no in-memory data, read from disk
+		n, err = fch.fileHandle.ReadAt(dst, offset)
+	}
 	requestedNumBytes := int(requiredOffset - offset)
 	// dst buffer has fixed size of 1 MiB even when the offset is such that
 	// offset + 1 MiB > object size. In that case, io.ErrUnexpectedEOF is thrown
