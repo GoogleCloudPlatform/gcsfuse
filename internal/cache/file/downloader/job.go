@@ -410,13 +410,12 @@ func (job *Job) createCacheFile() (*os.File, error) {
 
 // DownloadRange downloads a specific byte range [start, end) from the GCS object
 // for sparse file support. It writes the data to the cache file at the appropriate
-// offset using O_DIRECT and returns the downloaded data in memory to avoid double
-// page cache (one for cache file, one for FUSE mount).
+// offset using O_DIRECT.
 //
 // Acquires and releases LOCK(job.mu)
-func (job *Job) DownloadRange(ctx context.Context, start, end uint64) ([]byte, error) {
+func (job *Job) DownloadRange(ctx context.Context, start, end uint64) error {
 	if start >= end {
-		return nil, fmt.Errorf("DownloadRange: invalid range [%d, %d)", start, end)
+		return fmt.Errorf("DownloadRange: invalid range [%d, %d)", start, end)
 	}
 
 	if end > job.object.Size {
@@ -430,7 +429,7 @@ func (job *Job) DownloadRange(ctx context.Context, start, end uint64) ([]byte, e
 	}
 	fileInfoKeyName, err := fileInfoKey.Key()
 	if err != nil {
-		return nil, fmt.Errorf("DownloadRange: error creating fileInfoKeyName: %w", err)
+		return fmt.Errorf("DownloadRange: error creating fileInfoKeyName: %w", err)
 	}
 
 	// Get current FileInfo
@@ -438,7 +437,7 @@ func (job *Job) DownloadRange(ctx context.Context, start, end uint64) ([]byte, e
 	fileInfoVal := job.fileInfoCache.LookUpWithoutChangingOrder(fileInfoKeyName)
 	if fileInfoVal == nil {
 		job.mu.Unlock()
-		return nil, fmt.Errorf("DownloadRange: file info not found in cache")
+		return fmt.Errorf("DownloadRange: file info not found in cache")
 	}
 	fileInfo := fileInfoVal.(data.FileInfo)
 	job.mu.Unlock()
@@ -457,7 +456,7 @@ func (job *Job) DownloadRange(ctx context.Context, start, end uint64) ([]byte, e
 			ReadHandle:     nil,
 		})
 	if err != nil {
-		return nil, fmt.Errorf("DownloadRange: error creating reader for range [%d, %d): %w", start, end, err)
+		return fmt.Errorf("DownloadRange: error creating reader for range [%d, %d): %w", start, end, err)
 	}
 	defer newReader.Close()
 
@@ -467,21 +466,21 @@ func (job *Job) DownloadRange(ctx context.Context, start, end uint64) ([]byte, e
 	dataBuffer := make([]byte, bufSize)
 	bytesRead, err := io.ReadFull(newReader, dataBuffer)
 	if err != nil && err != io.ErrUnexpectedEOF {
-		return nil, fmt.Errorf("DownloadRange: error reading from GCS for range [%d, %d): %w", start, end, err)
+		return fmt.Errorf("DownloadRange: error reading from GCS for range [%d, %d): %w", start, end, err)
 	}
 	dataBuffer = dataBuffer[:bytesRead] // Trim to actual size
 
 	// Open cache file for writing with O_DIRECT
 	cacheFile, err := os.OpenFile(job.fileSpec.Path, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, job.fileSpec.FilePerm)
 	if err != nil {
-		return nil, fmt.Errorf("DownloadRange: error opening cache file: %w", err)
+		return fmt.Errorf("DownloadRange: error opening cache file: %w", err)
 	}
 	defer cacheFile.Close()
 
 	// Write to file at the correct offset using O_DIRECT (bypasses page cache)
 	bytesWritten, err := cacheFile.WriteAt(dataBuffer, int64(start))
 	if err != nil {
-		return nil, fmt.Errorf("DownloadRange: error writing range [%d, %d): %w", start, end, err)
+		return fmt.Errorf("DownloadRange: error writing range [%d, %d): %w", start, end, err)
 	}
 
 	// Update FileInfo with downloaded range
@@ -491,7 +490,7 @@ func (job *Job) DownloadRange(ctx context.Context, start, end uint64) ([]byte, e
 	// Re-fetch FileInfo in case it changed
 	fileInfoVal = job.fileInfoCache.LookUpWithoutChangingOrder(fileInfoKeyName)
 	if fileInfoVal == nil {
-		return nil, fmt.Errorf("DownloadRange: file info not found in cache after download")
+		return fmt.Errorf("DownloadRange: file info not found in cache after download")
 	}
 	fileInfo = fileInfoVal.(data.FileInfo)
 
@@ -502,9 +501,6 @@ func (job *Job) DownloadRange(ctx context.Context, start, end uint64) ([]byte, e
 
 	// Add the downloaded range
 	bytesAdded := fileInfo.DownloadedRanges.AddRange(start, start+uint64(bytesWritten))
-
-	// Note: For sparse files, Offset is kept at MaxUint64 as a sentinel value
-	// and is not updated during partial downloads
 
 	// Insert the updated FileInfo - LRU cache will calculate size correctly now
 	_, err = job.fileInfoCache.Insert(fileInfoKeyName, fileInfo)
@@ -525,7 +521,7 @@ func (job *Job) DownloadRange(ctx context.Context, start, end uint64) ([]byte, e
 			// Recreate the cache file with just the current chunk using O_DIRECT
 			newFile, createErr := os.OpenFile(job.fileSpec.Path, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, job.fileSpec.FilePerm)
 			if createErr != nil {
-				return nil, fmt.Errorf("DownloadRange: error recreating cache file after limit: %w", createErr)
+				return fmt.Errorf("DownloadRange: error recreating cache file after limit: %w", createErr)
 			}
 
 			// Write back the current chunk at the correct offset
@@ -552,21 +548,20 @@ func (job *Job) DownloadRange(ctx context.Context, start, end uint64) ([]byte, e
 			// Try inserting with just this chunk
 			_, err = job.fileInfoCache.Insert(fileInfoKeyName, newFileInfo)
 			if err != nil {
-				return nil, fmt.Errorf("DownloadRange: error inserting new FileInfo after cache limit: %w", err)
+				return fmt.Errorf("DownloadRange: error inserting new FileInfo after cache limit: %w", err)
 			}
 
 			logger.Infof("Restarted sparse file cache with %d bytes for chunk [%d, %d)",
 				bytesWritten, start, start+uint64(bytesWritten))
 		} else {
-			return nil, fmt.Errorf("DownloadRange: error updating fileInfoCache: %w", err)
+			return fmt.Errorf("DownloadRange: error updating fileInfoCache: %w", err)
 		}
 	}
 
 	logger.Tracef("Job:%p (%s:/%s) downloaded range [%d, %d), added %d bytes to sparse file",
 		job, job.bucket.Name(), job.object.Name, start, end, bytesAdded)
 
-	// Return the downloaded data in memory to avoid reading back from disk
-	return dataBuffer, nil
+	return nil
 }
 
 // downloadObjectAsync downloads the backing GCS object into a file as part of

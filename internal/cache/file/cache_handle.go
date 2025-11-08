@@ -50,12 +50,6 @@ type CacheHandle struct {
 	// prevOffset stores the offset of previous cache handle read call. This is used
 	// to decide the type of read.
 	prevOffset int64
-
-	// sparseChunkData holds the most recently downloaded sparse file chunk in memory
-	// to avoid reading back from disk with O_DIRECT. This is the byte range
-	// [sparseChunkStart, sparseChunkStart + len(sparseChunkData)).
-	sparseChunkData  []byte
-	sparseChunkStart uint64
 }
 
 func NewCacheHandle(localFileHandle *os.File, fileDownloadJob *downloader.Job,
@@ -216,15 +210,13 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 				chunkEnd = object.Size
 			}
 
-			// Download the chunk (returns in-memory data to avoid double page cache)
-			fch.sparseChunkData, err = fch.fileDownloadJob.DownloadRange(ctx, chunkStart, chunkEnd)
+			// Download the chunk
+			err = fch.fileDownloadJob.DownloadRange(ctx, chunkStart, chunkEnd)
 			if err != nil {
 				// Download failed - fallback to GCS but keep cache handle alive
 				logger.Infof("Sparse file download failed for range [%d, %d): %v. Falling back to GCS for this read.", chunkStart, chunkEnd, err)
-				fch.sparseChunkData = nil
 				return 0, false, util.ErrFallbackToGCS
 			}
-			fch.sparseChunkStart = chunkStart
 
 			// Refresh fileInfoData after successful download
 			fileInfoData, errFileInfo = fch.getFileInfoData(bucket, object, false)
