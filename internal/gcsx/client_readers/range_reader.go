@@ -112,11 +112,10 @@ func (rr *RangeReader) closeReader() {
 }
 
 func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (gcsx.ReadResponse, error) {
-	readResponse := gcsx.ReadResponse{
-		DataBuf: req.Buffer,
-		Size:    0,
-	}
-	var err error
+	var (
+		readResponse gcsx.ReadResponse
+		err          error
+	)
 
 	if req.ForceCreateReader && rr.reader != nil {
 		rr.closeReader()

@@ -572,8 +572,8 @@ func (t *RandomReaderTest) UpgradesSequentialReads_NoExistingReader() {
 
 	// Check the state now.
 	ExpectFalse(objectData.CacheHit)
-	ExpectEq(nil, err)
-	ExpectEq(data, string(objectData.DataBuf))
+	AssertEq(nil, err)
+	ExpectEq(data, string(buf))
 	ExpectEq(1+readSize, t.rr.wrapped.start)
 	ExpectEq(1+readSize, t.rr.wrapped.limit)
 }

@@ -2861,7 +2861,6 @@ func (fs *fileSystem) ReadFile(
 	if fs.newConfig.EnableNewReader {
 		var resp gcsx.ReadResponse
 		resp, err = fh.ReadWithReadManager(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
-		op.Dst = resp.DataBuf
 		op.BytesRead = resp.Size
 		op.Callback = resp.Callback
 	} else {

@@ -48,9 +48,6 @@ type GCSReaderRequest struct {
 // ReadResponse represents the response returned as part of a ReadAt call.
 // It includes the actual data read and its size.
 type ReadResponse struct {
-	// DataBuf contains the bytes read from the object.
-	DataBuf []byte
-
 	// Size indicates how many bytes were read into DataBuf.
 	Size int
 
