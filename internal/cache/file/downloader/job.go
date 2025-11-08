@@ -520,7 +520,67 @@ func (job *Job) DownloadRange(ctx context.Context, start, end uint64) error {
 	// Insert the updated FileInfo - LRU cache will calculate size correctly now
 	_, err = job.fileInfoCache.Insert(fileInfoKeyName, fileInfo)
 	if err != nil {
-		return fmt.Errorf("DownloadRange: error updating fileInfoCache: %w", err)
+		if errors.Is(err, lru.ErrInvalidEntrySize) {
+			// File has grown beyond cache size limit
+			// We need to keep only the current chunk and discard all old chunks
+			logger.Infof("Sparse file %s:/%s exceeded cache size limit (%d bytes), keeping only current chunk",
+				job.bucket.Name(), job.object.Name, fileInfo.DownloadedRanges.TotalBytes())
+
+			// Read the current chunk data from the file before we delete it
+			chunkData := make([]byte, bytesWritten)
+			readFile, readErr := os.OpenFile(job.fileSpec.Path, os.O_RDONLY, 0)
+			if readErr == nil {
+				_, readErr = readFile.ReadAt(chunkData, int64(start))
+				readFile.Close()
+			}
+			if readErr != nil && readErr != io.EOF {
+				logger.Warnf("Failed to read current chunk before reset: %v", readErr)
+			}
+
+			// Delete the physical sparse file to reclaim disk space
+			truncateErr := cacheutil.TruncateAndRemoveFile(job.fileSpec.Path)
+			if truncateErr != nil && !os.IsNotExist(truncateErr) {
+				logger.Warnf("Failed to delete sparse file during cache limit reset: %v", truncateErr)
+			}
+
+			// Recreate the cache file with just the current chunk
+			newFile, createErr := os.OpenFile(job.fileSpec.Path, os.O_WRONLY|os.O_CREATE, job.fileSpec.FilePerm)
+			if createErr != nil {
+				return fmt.Errorf("DownloadRange: error recreating cache file after limit: %w", createErr)
+			}
+
+			// Write back the current chunk at the correct offset
+			_, writeErr := newFile.WriteAt(chunkData, int64(start))
+			newFile.Close()
+			if writeErr != nil {
+				logger.Warnf("Failed to write chunk to new file: %v", writeErr)
+			}
+
+			// Create new FileInfo with only the current chunk
+			newFileInfo := data.FileInfo{
+				Key:              fileInfo.Key,
+				ObjectGeneration: fileInfo.ObjectGeneration,
+				FileSize:         fileInfo.FileSize,
+				SparseMode:       true,
+				DownloadedRanges: data.NewByteRangeMap(),
+			}
+			newFileInfo.DownloadedRanges.AddRange(start, start+uint64(bytesWritten))
+
+			if start == 0 {
+				newFileInfo.Offset = uint64(bytesWritten)
+			}
+
+			// Try inserting with just this chunk
+			_, err = job.fileInfoCache.Insert(fileInfoKeyName, newFileInfo)
+			if err != nil {
+				return fmt.Errorf("DownloadRange: error inserting new FileInfo after cache limit: %w", err)
+			}
+
+			logger.Infof("Restarted sparse file cache with %d bytes for chunk [%d, %d)",
+				bytesWritten, start, start+uint64(bytesWritten))
+		} else {
+			return fmt.Errorf("DownloadRange: error updating fileInfoCache: %w", err)
+		}
 	}
 
 	logger.Tracef("Job:%p (%s:/%s) downloaded range [%d, %d), added %d bytes to sparse file",
