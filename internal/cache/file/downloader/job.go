@@ -495,6 +495,11 @@ func (job *Job) DownloadRange(ctx context.Context, start, end uint64) error {
 		fileInfo.DownloadedRanges = data.NewByteRangeMap()
 	}
 
+	// Remove the old entry first to ensure proper size accounting in LRU cache
+	// Otherwise, mutating the ByteRangeMap pointer causes both old and new entries
+	// to have the same size, preventing currentSize from being updated correctly
+	job.fileInfoCache.Erase(fileInfoKeyName)
+
 	// Add the downloaded range
 	bytesAdded := fileInfo.DownloadedRanges.AddRange(start, start+uint64(bytesWritten))
 
@@ -512,8 +517,8 @@ func (job *Job) DownloadRange(ctx context.Context, start, end uint64) error {
 		}
 	}
 
-	// Update the cache with new FileInfo (size accounting will be updated automatically via Size() method)
-	err = job.fileInfoCache.UpdateWithoutChangingOrder(fileInfoKeyName, fileInfo)
+	// Insert the updated FileInfo - LRU cache will calculate size correctly now
+	_, err = job.fileInfoCache.Insert(fileInfoKeyName, fileInfo)
 	if err != nil {
 		return fmt.Errorf("DownloadRange: error updating fileInfoCache: %w", err)
 	}
