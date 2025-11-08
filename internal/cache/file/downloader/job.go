@@ -36,10 +36,6 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
-// O_DIRECT flag for direct I/O (bypasses page cache)
-// On Linux this is syscall.O_DIRECT, on other platforms use 0 for compilation
-const oDirectFlag = 0x4000 // O_DIRECT value on Linux
-
 type jobStatusName string
 
 const (
@@ -487,7 +483,7 @@ func (job *Job) DownloadRange(ctx context.Context, start, end uint64) ([]byte, e
 	dataBuffer = dataBuffer[:bytesRead] // Trim to actual size
 
 	// Open cache file for writing with O_DIRECT
-	cacheFile, err := os.OpenFile(job.fileSpec.Path, os.O_WRONLY|os.O_CREATE|oDirectFlag, job.fileSpec.FilePerm)
+	cacheFile, err := os.OpenFile(job.fileSpec.Path, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, job.fileSpec.FilePerm)
 	if err != nil {
 		return nil, fmt.Errorf("DownloadRange: error opening cache file: %w", err)
 	}
@@ -542,7 +538,7 @@ func (job *Job) DownloadRange(ctx context.Context, start, end uint64) ([]byte, e
 			}
 
 			// Recreate the cache file with just the current chunk using O_DIRECT
-			newFile, createErr := os.OpenFile(job.fileSpec.Path, os.O_WRONLY|os.O_CREATE|oDirectFlag, job.fileSpec.FilePerm)
+			newFile, createErr := os.OpenFile(job.fileSpec.Path, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, job.fileSpec.FilePerm)
 			if createErr != nil {
 				return nil, fmt.Errorf("DownloadRange: error recreating cache file after limit: %w", createErr)
 			}
