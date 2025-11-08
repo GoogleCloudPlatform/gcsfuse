@@ -20,7 +20,6 @@ import (
 	"path"
 	"regexp"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
@@ -65,14 +64,12 @@ type CacheHandler struct {
 	isSparse bool
 }
 
-func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode, excludeRegex string, includeRegex string, fileCacheConfig *cfg.FileCacheConfig) *CacheHandler {
+func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode, excludeRegex string, includeRegex string, isSparse bool) *CacheHandler {
 	var compiledExcludeRegex *regexp.Regexp
 	var compiledIncludeRegex *regexp.Regexp
 
 	compiledExcludeRegex = compileRegex(excludeRegex)
 	compiledIncludeRegex = compileRegex(includeRegex)
-
-	isSparse := fileCacheConfig != nil && fileCacheConfig.EnableSparseFile
 
 	return &CacheHandler{
 		fileInfoCache: fileInfoCache,
