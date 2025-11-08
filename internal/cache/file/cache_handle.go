@@ -283,24 +283,7 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 	}
 
 	// We are here means, we have the data downloaded which kernel has asked for.
-	// For sparse files with in-memory chunk data, use that instead of reading from disk
-	if fileInfoData.SparseMode && fch.sparseChunkData != nil {
-		// Check if the requested range is within the in-memory chunk
-		chunkEnd := fch.sparseChunkStart + uint64(len(fch.sparseChunkData))
-		if uint64(offset) >= fch.sparseChunkStart && uint64(requiredOffset) <= chunkEnd {
-			// Copy from in-memory buffer
-			startInChunk := uint64(offset) - fch.sparseChunkStart
-			endInChunk := uint64(requiredOffset) - fch.sparseChunkStart
-			n = copy(dst, fch.sparseChunkData[startInChunk:endInChunk])
-			err = nil
-		} else {
-			// Requested range not in memory, read from disk
-			n, err = fch.fileHandle.ReadAt(dst, offset)
-		}
-	} else {
-		// Non-sparse file or no in-memory data, read from disk
-		n, err = fch.fileHandle.ReadAt(dst, offset)
-	}
+	n, err = fch.fileHandle.ReadAt(dst, offset)
 	requestedNumBytes := int(requiredOffset - offset)
 	// dst buffer has fixed size of 1 MiB even when the offset is such that
 	// offset + 1 MiB > object size. In that case, io.ErrUnexpectedEOF is thrown
