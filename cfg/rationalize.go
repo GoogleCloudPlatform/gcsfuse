@@ -133,9 +133,6 @@ func resolveFileCacheAndBufferedReadConflict(v isSet, c *Config) {
 	}
 }
 
-func resolveSparseFileConfig(fc *FileCacheConfig) {
-}
-
 func resolveReadConfig(r *ReadConfig) {
 	if r.GlobalMaxBlocks == -1 {
 		r.GlobalMaxBlocks = math.MaxInt32
@@ -173,7 +170,6 @@ func Rationalize(v isSet, c *Config, optimizedFlags []string) error {
 	resolveStatCacheMaxSizeMB(v, &c.MetadataCache, optimizedFlags)
 	resolveCloudMetricsUploadIntervalSecs(&c.Metrics)
 	resolveParallelDownloadsValue(v, &c.FileCache, c)
-	resolveSparseFileConfig(&c.FileCache)
 	resolveFileCacheAndBufferedReadConflict(v, c)
 
 	return nil
