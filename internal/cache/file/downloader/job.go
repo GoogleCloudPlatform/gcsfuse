@@ -450,28 +450,16 @@ func (job *Job) DownloadRange(ctx context.Context, start, end uint64) error {
 	}
 	defer newReader.Close()
 
-	// Download to aligned memory buffer for O_DIRECT
-	// Allocate aligned buffer (4KB alignment for O_DIRECT)
-	bufSize := int(end - start)
-	dataBuffer := make([]byte, bufSize)
-	bytesRead, err := io.ReadFull(newReader, dataBuffer)
-	if err != nil && err != io.ErrUnexpectedEOF {
-		return fmt.Errorf("DownloadRange: error reading from GCS for range [%d, %d): %w", start, end, err)
-	}
-	dataBuffer = dataBuffer[:bytesRead] // Trim to actual size
-
-	// Open cache file for writing with O_DIRECT (file already created in NewJob)
-	cacheFile, err := os.OpenFile(job.fileSpec.Path, os.O_WRONLY|syscall.O_DIRECT, job.fileSpec.FilePerm)
+	// Open cache file for writing
+	cacheFile, err := os.OpenFile(job.fileSpec.Path, os.O_WRONLY, job.fileSpec.FilePerm)
 	if err != nil {
 		return fmt.Errorf("DownloadRange: error opening cache file: %w", err)
 	}
 	defer cacheFile.Close()
 
-	// Write to file at the correct offset using O_DIRECT (bypasses page cache)
-	bytesWritten, err := cacheFile.WriteAt(dataBuffer, int64(start))
-	if err != nil {
-		return fmt.Errorf("DownloadRange: error writing range [%d, %d): %w", start, end, err)
-	}
+	// Download from GCS and write to cache file
+	offsetWriter := io.NewOffsetWriter(cacheFile, int64(start))
+	bytesWritten, err := io.CopyN(offsetWriter, newReader, int64(end-start))
 
 	// Update FileInfo with downloaded range
 	job.mu.Lock()
