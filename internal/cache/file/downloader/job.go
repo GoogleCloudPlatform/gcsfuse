@@ -432,16 +432,6 @@ func (job *Job) DownloadRange(ctx context.Context, start, end uint64) error {
 		return fmt.Errorf("DownloadRange: error creating fileInfoKeyName: %w", err)
 	}
 
-	// Get current FileInfo
-	job.mu.Lock()
-	fileInfoVal := job.fileInfoCache.LookUpWithoutChangingOrder(fileInfoKeyName)
-	if fileInfoVal == nil {
-		job.mu.Unlock()
-		return fmt.Errorf("DownloadRange: file info not found in cache")
-	}
-	fileInfo := fileInfoVal.(data.FileInfo)
-	job.mu.Unlock()
-
 	// Create GCS reader for the specific range
 	newReader, err := job.bucket.NewReaderWithReadHandle(
 		ctx,
@@ -470,8 +460,8 @@ func (job *Job) DownloadRange(ctx context.Context, start, end uint64) error {
 	}
 	dataBuffer = dataBuffer[:bytesRead] // Trim to actual size
 
-	// Open cache file for writing with O_DIRECT
-	cacheFile, err := os.OpenFile(job.fileSpec.Path, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, job.fileSpec.FilePerm)
+	// Open cache file for writing with O_DIRECT (file already created in NewJob)
+	cacheFile, err := os.OpenFile(job.fileSpec.Path, os.O_WRONLY|syscall.O_DIRECT, job.fileSpec.FilePerm)
 	if err != nil {
 		return fmt.Errorf("DownloadRange: error opening cache file: %w", err)
 	}
@@ -488,11 +478,11 @@ func (job *Job) DownloadRange(ctx context.Context, start, end uint64) error {
 	defer job.mu.Unlock()
 
 	// Re-fetch FileInfo in case it changed
-	fileInfoVal = job.fileInfoCache.LookUpWithoutChangingOrder(fileInfoKeyName)
+	fileInfoVal := job.fileInfoCache.LookUpWithoutChangingOrder(fileInfoKeyName)
 	if fileInfoVal == nil {
 		return fmt.Errorf("DownloadRange: file info not found in cache after download")
 	}
-	fileInfo = fileInfoVal.(data.FileInfo)
+	fileInfo := fileInfoVal.(data.FileInfo)
 
 	// Add the downloaded range
 	bytesAdded := fileInfo.DownloadedRanges.AddRange(start, start+uint64(bytesWritten))
