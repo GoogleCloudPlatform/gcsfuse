@@ -475,6 +475,12 @@ func (job *Job) DownloadRange(ctx context.Context, start, end uint64) error {
 	// Add the downloaded range
 	bytesAdded := fileInfo.DownloadedRanges.AddRange(start, start+uint64(bytesWritten))
 
+	// Update LRU cache size accounting
+	err = job.fileInfoCache.UpdateSize(fileInfoKeyName, bytesAdded)
+	if err != nil {
+		return fmt.Errorf("DownloadRange: error updating cache size: %w", err)
+	}
+
 	logger.Tracef("Job:%p (%s:/%s) downloaded range [%d, %d), added %d bytes to sparse file",
 		job, job.bucket.Name(), job.object.Name, start, end, bytesAdded)
 

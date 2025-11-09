@@ -251,7 +251,7 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 	// If cacheForRangeRead is set to False, initialOffset is non-zero (i.e. random read)
 	// and entry for file doesn't already exist in fileInfoCache then no need to
 	// create file in cache.
-	if !cacheForRangeRead && initialOffset != 0 {
+	if !cacheForRangeRead && initialOffset != 0 && !chr.isSparse {
 		fileInfoKey := data.FileInfoKey{
 			BucketName: bucket.Name(),
 			ObjectName: object.Name,
