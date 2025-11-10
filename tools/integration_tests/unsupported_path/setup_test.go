@@ -50,7 +50,6 @@ func TestMain(m *testing.M) {
 					{
 						Flags: []string{
 							"--implicit-dirs --client-protocol=grpc --enable-unsupported-path-support=true --rename-dir-limit=200 --metadata-cache-negative-ttl-secs=0",
-							"--implicit-dirs --enable-unsupported-path-support=true --rename-dir-limit=200 --metadata-cache-negative-ttl-secs=0",
 						},
 						Compatible: map[string]bool{"flat": true, "hns": true, "zonal": false},
 					},
@@ -58,7 +57,7 @@ func TestMain(m *testing.M) {
 						Flags: []string{
 							"--implicit-dirs --enable-unsupported-path-support=true --rename-dir-limit=200 --metadata-cache-negative-ttl-secs=0",
 						},
-						Compatible: map[string]bool{"flat": false, "hns": false, "zonal": true},
+						Compatible: map[string]bool{"flat": true, "hns": true, "zonal": true},
 					},
 				},
 			},

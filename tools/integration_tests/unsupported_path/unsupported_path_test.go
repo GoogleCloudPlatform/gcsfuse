@@ -40,7 +40,6 @@ type UnsupportedPathSuite struct {
 	bucketPath string
 }
 
-// TestUnsupportedPathSuite runs the test suite.
 func TestUnsupportedPathSuite(t *testing.T) {
 	suite.Run(t, new(UnsupportedPathSuite))
 }
@@ -55,7 +54,6 @@ func (s *UnsupportedPathSuite) SetupTest() {
 }
 
 func (s *UnsupportedPathSuite) TearDownTest() {
-	// Clean up all objects created in the GCS bucket for this test directory.
 	require.NoError(s.T(), os.RemoveAll(path.Join(s.testDir, testDirName)))
 }
 
@@ -65,6 +63,7 @@ func (s *UnsupportedPathSuite) TearDownSuite() {
 
 // createTestObjects populates the GCS bucket with objects having supported and unsupported names.
 func (s *UnsupportedPathSuite) createTestObjects() {
+	s.T().Helper()
 	// Define objects with names that contain characters or sequences not supported by POSIX file systems.
 	unsupportedObjects := []string{
 		s.bucketPath + "//unsupported_file1.txt",   // Contains "//" (double slash)
@@ -88,10 +87,10 @@ func (s *UnsupportedPathSuite) createTestObjects() {
 
 	if bucketType == setup.ZonalBucket {
 		require.NoError(s.T(), client.CreateFinalizedObjectOnGCS(ctx, storageClient, supportedFile, "content"))
-		require.NoError(s.T(), client.CreateFinalizedObjectOnGCS(ctx, storageClient, supportedDir, "")) // Trailing slash denotes a directory
+		require.NoError(s.T(), client.CreateFinalizedObjectOnGCS(ctx, storageClient, supportedDir, ""))
 	} else {
 		require.NoError(s.T(), client.CreateObjectOnGCS(ctx, storageClient, supportedFile, "content"))
-		require.NoError(s.T(), client.CreateObjectOnGCS(ctx, storageClient, supportedDir, "")) // Trailing slash denotes a directory
+		require.NoError(s.T(), client.CreateObjectOnGCS(ctx, storageClient, supportedDir, ""))
 	}
 }
 
@@ -103,7 +102,6 @@ func (s *UnsupportedPathSuite) createTestObjects() {
 func (s *UnsupportedPathSuite) TestListDirWithUnsupportedPaths() {
 	localPath := path.Join(s.testDir, testDirName)
 
-	// List the directory containing both supported and unsupported objects.
 	entries, err := os.ReadDir(localPath)
 
 	// Verify that listing succeeds and only returns supported objects.
@@ -112,8 +110,6 @@ func (s *UnsupportedPathSuite) TestListDirWithUnsupportedPaths() {
 	expectedEntriesCount := 2
 	assert.Len(s.T(), entries, expectedEntriesCount, "The number of entries should only match supported objects.")
 	// Verify the names of the returned entries.
-	// Note: os.ReadDir is not guaranteed to return in a specific order, but for small sets it often does.
-	// Asserting on the names directly is better than relying on a specific index unless sorting is enforced.
 	entryNames := make([]string, len(entries))
 	for i, entry := range entries {
 		entryNames[i] = entry.Name()

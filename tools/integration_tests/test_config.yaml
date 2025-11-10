@@ -608,7 +608,6 @@ unsupported_path:
   configs:
   - flags:
     - "--implicit-dirs --client-protocol=grpc --enable-unsupported-path-support=true --rename-dir-limit=200 --metadata-cache-negative-ttl-secs=0"
-    - "--implicit-dirs --enable-unsupported-path-support=true --rename-dir-limit=200 --metadata-cache-negative-ttl-secs=0"
     compatible:
       flat: true
       hns: true
@@ -617,7 +616,7 @@ unsupported_path:
   - flags:
     - "--implicit-dirs --enable-unsupported-path-support=true --rename-dir-limit=200 --metadata-cache-negative-ttl-secs=0"
     compatible:
-      flat: false
-      hns: false
+      flat: true
+      hns: true
       zonal: true
     run_on_gke: true
