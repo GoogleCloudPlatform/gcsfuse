@@ -33,7 +33,7 @@ type BucketType struct {
 type TestConfig struct {
 	GKEMountedDirectory     string `yaml:"mounted_directory"`
 	GCSFuseMountedDirectory string
-	TestBucket              string       `yaml:"test_bucket"`
+	TestBucket              string `yaml:"test_bucket"`
 	LogFile                 string
 	Configs                 []ConfigItem `yaml:"configs"`
 	OnlyDir                 string       `yaml:"only_dir,omitempty"`

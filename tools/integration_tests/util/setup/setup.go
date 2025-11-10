@@ -849,3 +849,18 @@ func OverrideFilePathsInFlagSet(t *test_suite.TestConfig, GCSFuseTempDirPath str
 		}
 	}
 }
+
+func SetUpLogFilePath(testName string, GKETempDir string, OldGKElogFilePath string, cfg *test_suite.TestConfig) {
+	var logFilePath string
+	if cfg.GKEMountedDirectory != "" { // GKE path
+		logFilePath = path.Join(GKETempDir, testName) + ".log"
+		if ConfigFile() == "" {
+			// TODO: clean this up when GKE test migration completes.
+			logFilePath = OldGKElogFilePath
+		}
+	} else {
+		logFilePath = path.Join(TestDir(), GKETempDir, testName) + ".log"
+	}
+	cfg.LogFile = logFilePath
+	SetLogFile(logFilePath)
+}
