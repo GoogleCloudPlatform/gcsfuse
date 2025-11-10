@@ -150,8 +150,7 @@ func (s *UnsupportedPathSuite) TestCopyDirWithUnsupportedPaths() {
 }
 
 // TestRenameDirWithUnsupportedPaths verifies that operations.RenameDir successfully moves the directory
-// and its contents, including the unsupported objects which exist in GCS, but their path segments
-// (like . and ..) are retained/re-evaluated upon listing the new location in GCS.
+// and its contents, including the unsupported objects which exist in GCS.
 func (s *UnsupportedPathSuite) TestRenameDirWithUnsupportedPaths() {
 	destDirName := "renamedDir"
 	sourceLocalPath := path.Join(s.testDir, testDirName)
