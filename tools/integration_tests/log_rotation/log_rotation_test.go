@@ -108,7 +108,7 @@ func TestMain(m *testing.M) {
 	successCode := static_mounting.RunTestsWithConfigFile(cfg, flags, m)
 
 	// Clean up test directory created.
-	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), "/gcsfuse-tmp/LogRotationTest"))
+	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
 }
 
