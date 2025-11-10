@@ -265,8 +265,8 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 //     reached, or an error occurs.
 //
 // LOCKS_EXCLUDED(p.mu)
-func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64) (gcsx.ReaderResponse, error) {
-	resp := gcsx.ReaderResponse{DataBuf: inputBuf}
+func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64) (gcsx.ReadResponse, error) {
+	resp := gcsx.ReadResponse{DataBuf: inputBuf}
 	reqID := uuid.New()
 	start := time.Now()
 	initOff := off
@@ -302,8 +302,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 	}()
 
 	if err = p.handleRandomRead(off, handleID); err != nil {
-		err = fmt.Errorf("BufferedReader.ReadAt: handleRandomRead: %w", err)
-		return resp, err
+		return resp, fmt.Errorf("BufferedReader.ReadAt: handleRandomRead: %w", err)
 	}
 
 	prefetchTriggered := false

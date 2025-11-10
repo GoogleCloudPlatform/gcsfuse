@@ -303,7 +303,7 @@ func makeRootForBucket(
 		fs.cacheClock,
 		fs.newConfig.MetadataCache.TypeCacheMaxSizeMb,
 		fs.newConfig.EnableHns,
-		fs.newConfig.EnableUnsupportedDirSupport,
+		fs.newConfig.EnableUnsupportedPathSupport,
 	)
 }
 
@@ -782,7 +782,7 @@ func (fs *fileSystem) createExplicitDirInode(inodeID fuseops.InodeID, ic inode.C
 		fs.cacheClock,
 		fs.newConfig.MetadataCache.TypeCacheMaxSizeMb,
 		fs.newConfig.EnableHns,
-		fs.newConfig.EnableUnsupportedDirSupport)
+		fs.newConfig.EnableUnsupportedPathSupport)
 
 	return in
 }
@@ -826,7 +826,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			fs.cacheClock,
 			fs.newConfig.MetadataCache.TypeCacheMaxSizeMb,
 			fs.newConfig.EnableHns,
-			fs.newConfig.EnableUnsupportedDirSupport,
+			fs.newConfig.EnableUnsupportedPathSupport,
 		)
 
 	case inode.IsSymlink(ic.MinObject):
@@ -2183,10 +2183,19 @@ func (fs *fileSystem) RmDir(
 	var tok string
 	for {
 		var entries []fuseutil.Dirent
-		entries, _, tok, err = childDir.ReadEntries(ctx, tok)
+		var unsupportedPaths []string
+		entries, unsupportedPaths, tok, err = childDir.ReadEntries(ctx, tok)
 		if err != nil {
 			err = fmt.Errorf("ReadEntries: %w", err)
 			return err
+		}
+
+		// If there are unsupported objects, delete them recursively.
+		if len(unsupportedPaths) > 0 {
+			err = childDir.DeleteObjects(ctx, unsupportedPaths)
+			if err != nil {
+				return fmt.Errorf("RmDir: failed to delete unsupported objects: %w", err)
+			}
 		}
 
 		if fs.kernelListCacheTTL > 0 {
@@ -2850,7 +2859,11 @@ func (fs *fileSystem) ReadFile(
 	// Serve the read.
 
 	if fs.newConfig.EnableNewReader {
-		op.Dst, op.BytesRead, err = fh.ReadWithReadManager(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
+		var resp gcsx.ReadResponse
+		resp, err = fh.ReadWithReadManager(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
+		op.Dst = resp.DataBuf
+		op.BytesRead = resp.Size
+		op.Callback = resp.Callback
 	} else {
 		op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
 	}

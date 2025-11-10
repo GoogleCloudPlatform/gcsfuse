@@ -47,7 +47,7 @@ type multiRangeReaderTest struct {
 	multiRangeReader *MultiRangeReader
 }
 
-func (t *multiRangeReaderTest) readAt(offset int64, size int64) (gcsx.ReaderResponse, error) {
+func (t *multiRangeReaderTest) readAt(offset int64, size int64) (gcsx.ReadResponse, error) {
 	req := &gcsx.GCSReaderRequest{
 		Offset:    offset,
 		EndOffset: offset + size,
@@ -189,12 +189,12 @@ func (t *multiRangeReaderTest) Test_ReadAt_MRDRead() {
 			t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, testContent, time.Microsecond)).Times(1)
 			t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true}).Times(1)
 
-			readerResponse, err := t.readAt(int64(tc.offset), int64(tc.bytesToRead))
+			readResponse, err := t.readAt(int64(tc.offset), int64(tc.bytesToRead))
 
 			t.mockBucket.AssertNotCalled(t.T(), "NewReaderWithReadHandle", mock.Anything)
 			assert.NoError(t.T(), err)
-			assert.Equal(t.T(), tc.bytesToRead, readerResponse.Size)
-			assert.Equal(t.T(), testContent[tc.offset:tc.offset+tc.bytesToRead], readerResponse.DataBuf[:readerResponse.Size])
+			assert.Equal(t.T(), tc.bytesToRead, readResponse.Size)
+			assert.Equal(t.T(), testContent[tc.offset:tc.offset+tc.bytesToRead], readResponse.DataBuf[:readResponse.Size])
 		})
 	}
 }

@@ -17,6 +17,7 @@ package workloadinsight
 import (
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 )
 
@@ -88,7 +89,7 @@ func NewRendererWithSettings(plotWidth, labelWidth, pad int) (*Renderer, error) 
 // and returns the ASCII representation as a string.
 func (r *Renderer) Render(name string, size uint64, ranges []Range) (string, error) {
 	var sb strings.Builder
-	header, err := r.buildHeader(name, size)
+	header, err := r.buildHeader(name, size, ranges)
 	if err != nil {
 		return "", err
 	}
@@ -104,7 +105,30 @@ func (r *Renderer) Render(name string, size uint64, ranges []Range) (string, err
 			sb.WriteByte('\n')
 		}
 	}
+	sb.WriteByte('\n')
 	return sb.String(), nil
+}
+
+// buildStats builds statistics about the given ranges for a single file
+// and returns them as a string.
+func (r *Renderer) buildStats(ranges []Range) string {
+	length := len(ranges)
+	if length <= 0 {
+		return ""
+	}
+
+	sizes := make([]uint64, length)
+	sum := uint64(0)
+	for i, rg := range ranges {
+		sizes[i] = rg.End - rg.Start
+		sum += sizes[i]
+	}
+	sort.Slice(sizes, func(i, j int) bool { return sizes[i] < sizes[j] })
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Total IOs: %d\n", length))
+	sb.WriteString(fmt.Sprintf("IO Size Distributions: (Min: %s, Median: %s, Max: %s, Avg: %s)\n", humanReadable(sizes[0]), humanReadable(sizes[length/2]), humanReadable(sizes[length-1]), humanReadable(sum/uint64(length))))
+	return sb.String()
 }
 
 // buildHeader composes the header (filename, tick marks, numeric labels)
@@ -116,7 +140,7 @@ func (r *Renderer) Render(name string, size uint64, ranges []Range) (string, err
 //	0B        250B         500B        750B      1000B
 //
 // [offset,len)          |-----------|------------|-----------|-----------|
-func (r *Renderer) buildHeader(name string, size uint64) (string, error) {
+func (r *Renderer) buildHeader(name string, size uint64, ranges []Range) (string, error) {
 	var sb strings.Builder
 
 	// Helper to build a runes slice filled with the provided fill rune.
@@ -156,6 +180,9 @@ func (r *Renderer) buildHeader(name string, size uint64) (string, error) {
 
 	// Filename line.
 	sb.WriteString(fmt.Sprintf("Name: %s\n", name))
+
+	// IO stats.
+	sb.WriteString(r.buildStats(ranges))
 
 	// Fileoffset labels just above the fileOffsetAxis.
 	sb.WriteString(strings.Repeat(" ", r.labelWidth))
@@ -223,7 +250,7 @@ func (r *Renderer) buildRow(size uint64, rg Range) (string, error) {
 	}
 
 	// Compose label and write.
-	label := fmt.Sprintf("[%d,%d)", s, e-s)
+	label := fmt.Sprintf("[%d,%s)", s, humanReadable(e-s+1))
 	if len(label) > r.labelWidth {
 		label = label[:r.labelWidth]
 	}

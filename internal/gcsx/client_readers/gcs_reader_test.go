@@ -44,7 +44,7 @@ const (
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func (t *gcsReaderTest) readAt(offset int64, size int64) (gcsx.ReaderResponse, error) {
+func (t *gcsReaderTest) readAt(offset int64, size int64) (gcsx.ReadResponse, error) {
 	t.gcsReader.CheckInvariants()
 	defer t.gcsReader.CheckInvariants()
 	return t.gcsReader.ReadAt(t.ctx, make([]byte, size), offset)
@@ -164,12 +164,12 @@ func (t *gcsReaderTest) Test_ReadAt_ExistingReaderLimitIsLessThanRequestedDataSi
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(3)
 	requestSize := 6
 
-	readerResponse, err := t.readAt(2, int64(requestSize))
+	readResponse, err := t.readAt(2, int64(requestSize))
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), rc, t.gcsReader.rangeReader.reader)
-	assert.Equal(t.T(), requestSize, readerResponse.Size)
-	assert.Equal(t.T(), content, string(readerResponse.DataBuf[:readerResponse.Size]))
+	assert.Equal(t.T(), requestSize, readResponse.Size)
+	assert.Equal(t.T(), content, string(readResponse.DataBuf[:readResponse.Size]))
 	assert.Equal(t.T(), uint64(requestSize), t.gcsReader.totalReadBytes.Load())
 	assert.Equal(t.T(), int64(2+requestSize), t.gcsReader.expectedOffset.Load())
 	assert.Equal(t.T(), expectedHandleInRequest, t.gcsReader.rangeReader.readHandle)
@@ -199,12 +199,12 @@ func (t *gcsReaderTest) Test_ReadAt_ExistingReaderLimitIsLessThanRequestedObject
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(3)
 	requestSize := 6
 
-	readerResponse, err := t.readAt(0, int64(requestSize))
+	readResponse, err := t.readAt(0, int64(requestSize))
 
 	assert.NoError(t.T(), err)
 	assert.Nil(t.T(), t.gcsReader.rangeReader.reader)
-	assert.Equal(t.T(), int(t.object.Size), readerResponse.Size)
-	assert.Equal(t.T(), content, string(readerResponse.DataBuf[:readerResponse.Size]))
+	assert.Equal(t.T(), int(t.object.Size), readResponse.Size)
+	assert.Equal(t.T(), content, string(readResponse.DataBuf[:readResponse.Size]))
 	assert.Equal(t.T(), int64(t.object.Size), t.gcsReader.expectedOffset.Load())
 	assert.Equal(t.T(), []byte(nil), t.gcsReader.rangeReader.readHandle)
 }
@@ -221,11 +221,11 @@ func (t *gcsReaderTest) Test_ReadAt_ExistingReaderIsFine() {
 	requestSize := 3
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(3)
 
-	readerResponse, err := t.readAt(2, int64(requestSize))
+	readResponse, err := t.readAt(2, int64(requestSize))
 
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), 3, readerResponse.Size)
-	assert.Equal(t.T(), content, string(readerResponse.DataBuf[:readerResponse.Size]))
+	assert.Equal(t.T(), 3, readResponse.Size)
+	assert.Equal(t.T(), content, string(readResponse.DataBuf[:readResponse.Size]))
 	assert.Equal(t.T(), uint64(5), t.gcsReader.totalReadBytes.Load())
 	assert.Equal(t.T(), int64(5), t.gcsReader.expectedOffset.Load())
 	assert.Equal(t.T(), []byte("fake"), t.gcsReader.rangeReader.readHandle)
@@ -264,13 +264,13 @@ func (t *gcsReaderTest) Test_ExistingReader_WrongOffset() {
 			t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(3)
 			requestSize := 6
 
-			readerResponse, err := t.readAt(0, int64(requestSize))
+			readResponse, err := t.readAt(0, int64(requestSize))
 
 			t.mockBucket.AssertExpectations(t.T())
 			assert.NoError(t.T(), err)
 			assert.Nil(t.T(), t.gcsReader.rangeReader.reader)
-			assert.Equal(t.T(), int(t.object.Size), readerResponse.Size)
-			assert.Equal(t.T(), content, string(readerResponse.DataBuf[:readerResponse.Size]))
+			assert.Equal(t.T(), int(t.object.Size), readResponse.Size)
+			assert.Equal(t.T(), content, string(readResponse.DataBuf[:readResponse.Size]))
 			assert.Equal(t.T(), []byte(nil), t.gcsReader.rangeReader.readHandle)
 		})
 	}
@@ -876,11 +876,11 @@ func (t *gcsReaderTest) Test_ReadAt_MRDShortReadOnZonal() {
 	buf := make([]byte, t.object.Size)
 
 	// Act
-	readerResponse, err := t.gcsReader.ReadAt(t.ctx, buf, 0)
+	readResponse, err := t.gcsReader.ReadAt(t.ctx, buf, 0)
 
 	// Assert
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), int(t.object.Size), readerResponse.Size)
+	assert.Equal(t.T(), int(t.object.Size), readResponse.Size)
 	assert.Equal(t.T(), testContent, buf)
 	assert.Equal(t.T(), int64(t.object.Size), t.gcsReader.expectedOffset.Load())
 	t.mockBucket.AssertExpectations(t.T())
