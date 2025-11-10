@@ -425,8 +425,7 @@ read_cache:
 
 readdirplus:
   - mounted_directory: "${MOUNTED_DIR}"
-    test_bucket: "pranjal-bucket-1"
-    log_file: # added
+    test_bucket: "${BUCKET_NAME}"
     configs:
       - flags:
           - "--implicit-dirs --experimental-enable-readdirplus --experimental-enable-dentry-cache --log-file=/gcsfuse-tmp/TestReaddirplusWithDentryCacheTest.log --log-severity=TRACE"
