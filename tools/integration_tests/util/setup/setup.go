@@ -840,3 +840,12 @@ func ExtractServiceVersionFromFlags(flags []string) string {
 	log.Fatal("Profile label should have been provided for mounted directory test.")
 	return ""
 }
+
+func OverrideFilePathsInFlagSet(t *test_suite.TestConfig, GCSFuseTempDirPath string) {
+	for _, flags := range t.Configs {
+		for i := range flags.Flags {
+			// Iterate over the indices of the flags slice
+			flags.Flags[i] = strings.ReplaceAll(flags.Flags[i], "/gcsfuse-tmp", path.Join(GCSFuseTempDirPath, "gcsfuse-tmp"))
+		}
+	}
+}
