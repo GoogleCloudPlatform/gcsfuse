@@ -203,9 +203,11 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 			chunkSizeMb := fch.fileDownloadJob.SequentialReadSizeMb()
 			chunkSize := uint64(chunkSizeMb) * 1024 * 1024
 
-			// Align chunk start to chunk boundaries for better cache efficiency
+			// Align chunk start and end to chunk boundaries
+			// Start: round down to chunk boundary
 			chunkStart := (uint64(offset) / chunkSize) * chunkSize
-			chunkEnd := chunkStart + chunkSize
+			// End: round up requiredOffset to chunk boundary to ensure full coverage
+			chunkEnd := ((uint64(requiredOffset) + chunkSize - 1) / chunkSize) * chunkSize
 			if chunkEnd > object.Size {
 				chunkEnd = object.Size
 			}
@@ -230,6 +232,12 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 		cacheHit = fileInfoData.DownloadedRanges != nil && fileInfoData.DownloadedRanges.ContainsRange(uint64(offset), uint64(requiredOffset))
 		logger.Tracef("Sparse file cache hit check: offset=%d, requiredOffset=%d, DownloadedRanges=%v, cacheHit=%t",
 			offset, requiredOffset, fileInfoData.DownloadedRanges != nil, cacheHit)
+		if !cacheHit {
+			// We should never reach here
+			logger.Errorf("Sparse file cache misses even after a seemingly successful download: offset=%d, requiredOffset=%d, DownloadedRanges=%v, cacheHit=%t",
+				offset, requiredOffset, fileInfoData.DownloadedRanges != nil, cacheHit)
+			return 0, false, util.ErrFallbackToGCS
+		}
 	} else if fch.fileDownloadJob != nil {
 		// If fileDownloadJob is not nil, it's better to get status of cache file
 		// from the job itself than to use file info cache.
