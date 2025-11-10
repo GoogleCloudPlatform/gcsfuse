@@ -172,7 +172,7 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 		// Read from inode if source generation is not authoratative
 		defer fh.inode.Unlock()
 		n, err := fh.inode.Read(ctx, dst, offset)
-		return gcsx.ReadResponse{DataBuf: dst, Size: n}, err
+		return gcsx.ReadResponse{Size: n}, err
 	}
 
 	fh.lockHandleAndRelockInode(true)
