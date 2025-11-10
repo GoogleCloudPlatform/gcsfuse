@@ -148,13 +148,13 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 				return fmt.Errorf("error while unmarshalling config: %w", err)
 			}
 			if err := cfg.ValidateConfig(v, mountInfo.config); err != nil {
-				return err
+				return fmt.Errorf("invalid config: %w", err)
 			}
 
 			isSet := &pflagAsIsValueSet{fs: cmd.PersistentFlags()}
 			optimizedFlags := mountInfo.config.ApplyOptimizations(isSet)
 			if err := cfg.Rationalize(v, mountInfo.config, optimizedFlags); err != nil {
-				return err
+				return fmt.Errorf("error rationalizing config: %w", err)
 			}
 			mountInfo.cliFlags = getCliFlags(cmd.PersistentFlags())
 			mountInfo.configFileFlags = getConfigFileFlags(v)
