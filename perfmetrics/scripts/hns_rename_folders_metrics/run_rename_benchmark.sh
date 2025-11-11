@@ -21,10 +21,6 @@ echo Installing requirements..
 pip install --require-hashes -r requirements.txt --user
 echo Running script..
 
-echo "Installing the Cloud Monitoring agent on VM ...."
-curl -sSO https://dl.google.com/cloudagents/add-monitoring-agent-repo.sh
-sudo bash add-monitoring-agent-repo.sh --also-install
-
 echo "Installing Ops Agent on Vm"
 curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
 sudo bash add-google-cloud-ops-agent-repo.sh --also-install
