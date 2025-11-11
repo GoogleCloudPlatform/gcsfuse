@@ -53,6 +53,10 @@ cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 export CGO_ENABLED=0
 export PATH="/usr/local/go/bin:$PATH"
 
+# Install latest gcloud version for compatability with HNS bucket.
+./perfmetrics/scripts/install_latest_gcloud.sh
+export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
+
 #Running the rename benchmark script.
 cd "./perfmetrics/scripts/"
 cd "./hns_rename_folders_metrics"

@@ -21,6 +21,7 @@ echo Installing requirements..
 pip install --require-hashes -r requirements.txt --user
 echo Running script..
 
+
 echo "Installing stack driver..."
 sudo apt-get update
 sudo apt-get install -y apt-transport-https ca-certificates curl gnupg
