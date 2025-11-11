@@ -29,12 +29,12 @@ wget -O go_tar.tar.gz https://go.dev/dl/go1.24.10.linux-${architecture}.tar.gz -
 sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=$PATH:/usr/local/go/bin
 
+# Build gcsfuse.
+cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 # Install latest gcloud version for compatability with HNS bucket.
 ./perfmetrics/scripts/install_latest_gcloud.sh
 export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
 
-# Build gcsfuse.
-cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 CGO_ENABLED=0 go build .
 
 function mount_gcsfuse_and_run_test() {
