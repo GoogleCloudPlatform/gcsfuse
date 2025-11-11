@@ -616,6 +616,14 @@ func AddCacheDirToFlags(flagSets [][]string, testname string) [][]string {
 // configuration, which typically corresponds to a specific test name. If run is
 // an empty string, all flag sets for the package are returned.
 func BuildFlagSets(cfg test_suite.TestConfig, bucketType string, run string) [][]string {
+	// In case of mounted-directory, no need to
+	// parse flags. Just return a single
+	// set of empty flags to run only one test case
+	// for a single `go test` command.
+	if cfg.GKEMountedDirectory != "" {
+		return [][]string{{""}}
+	}
+
 	var dynamicFlags [][]string
 
 	// 1. Iterate through each defined test configuration (e.g., HTTP, gRPC).
@@ -697,6 +705,18 @@ func MountGCSFuseWithGivenMountWithConfigFunc(config *test_suite.TestConfig, fla
 			LogAndExit(fmt.Sprintf("Failed to mount GCSFuse: %v", err))
 		}
 	}
+}
+
+// MayMountGCSFuseWithGivenMountWithConfigFunc is similar to MountGCSFuseWithGivenMountWithConfigFunc,
+// except that it returns error on failure, instead of panic'ing.
+func MayMountGCSFuseWithGivenMountWithConfigFunc(config *test_suite.TestConfig, flags []string, mountFunc func(*test_suite.TestConfig, []string) error) error {
+	if config.GKEMountedDirectory == "" {
+		// Mount GCSFuse only when tests are not running on mounted directory.
+		if err := mountFunc(config, flags); err != nil {
+			return fmt.Errorf("Failed to mount GCSFuse: %w", err)
+		}
+	}
+	return nil
 }
 
 func UnmountGCSFuseAndDeleteLogFile(rootDir string) {

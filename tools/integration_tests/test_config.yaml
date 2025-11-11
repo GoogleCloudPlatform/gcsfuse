@@ -204,13 +204,12 @@ cloud_profiler:
           flat: true
           hns: true
           zonal: true
-        run_on_gke: false
+        run_on_gke: true
 
 requester_pays_bucket:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
     log_file: # Optional flag required by some tests where log parsing is done to validate end behavior
-    run_on_gke: false
     configs:
       - flags:
           - "--billing-project=gcs-fuse-test-ml"
@@ -218,6 +217,7 @@ requester_pays_bucket:
           flat: true
           hns: true
           zonal: false
+        run_on_gke: true
 
 read_cache:
   - mounted_directory: "${MOUNTED_DIR}"
@@ -423,6 +423,27 @@ read_cache:
         run: TestCacheFileForIncludeRegexTest
         run_on_gke: true
 
+readdirplus:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    configs:
+      - flags:
+          - "--implicit-dirs --experimental-enable-readdirplus --experimental-enable-dentry-cache --log-file=/gcsfuse-tmp/TestReaddirplusWithDentryCacheTest.log --log-severity=TRACE"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: TestReaddirplusWithDentryCacheTest
+        run_on_gke: true
+      - flags:
+          - "--implicit-dirs --experimental-enable-readdirplus --log-file=/gcsfuse-tmp/TestReaddirplusWithoutDentryCacheTest.log --log-severity=TRACE"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: TestReaddirplusWithoutDentryCacheTest
+        run_on_gke: true
+
 benchmarking:
   - test_bucket: "${BUCKET_NAME}"
     mounted_directory: "${MOUNTED_DIR}"
@@ -436,6 +457,7 @@ benchmarking:
               hns: true
               zonal: true
         run: "Benchmark_Stat"
+        run_on_gke: true
       - flags:
           - "--stat-cache-ttl=0 --enable-atomic-rename-object=true"
           - "--stat-cache-ttl=0 --enable-atomic-rename-object=true --client-protocol=grpc"
@@ -459,7 +481,6 @@ dentry_cache:
  - mounted_directory: "${MOUNTED_DIR}"
    test_bucket: "${BUCKET_NAME}"
    log_file: # Not Required by dentry_cache tests
-   run_on_gke: true
    configs:
      - flags:
        - "--implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=2"
@@ -468,6 +489,7 @@ dentry_cache:
          hns: true
          zonal: true
        run: TestStatWithDentryCacheEnabledTest
+       run_on_gke: true
      - flags:
        - "--implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=1000"
        compatible:
@@ -475,6 +497,7 @@ dentry_cache:
          hns: true
          zonal: true
        run: TestDeleteOperationTest
+       run_on_gke: true
      - flags:
        - "--implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=1000"
        compatible:
@@ -482,6 +505,7 @@ dentry_cache:
          hns: true
          zonal: true
        run: TestNotifierTest
+       run_on_gke: true
 
 read_gcs_algo:
   - mounted_directory: "${MOUNTED_DIR}"
@@ -519,3 +543,60 @@ interrupt:
           hns: true
           zonal: true
         run_on_gke: true
+
+flag_optimizations:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    log_file: # Optional
+    configs:
+      - run: TestMountFails
+        flags:
+          - "--profile=unknown-profile"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run_on_gke: false
+      - run: TestImplicitDirsNotEnabled
+        flags:
+          - "--machine-type=low-end-machine"
+        compatible:
+          flat: true
+          hns: false
+          zonal: false
+        run_on_gke: true
+      - run: TestRenameDirLimitNotSet
+        flags:
+          - "--machine-type=low-end-machine"
+          - "--profile=aiml-training"
+          - "--profile=aiml-serving"
+        compatible:
+          flat: true
+          hns: false
+          zonal: false
+        run_on_gke: true
+      - run: TestImplicitDirsEnabled
+        flags:
+          - "--machine-type=a3-highgpu-8g"
+          - "--profile=aiml-training"
+          - "--profile=aiml-serving"
+          - "--profile=aiml-checkpointing"
+          - "--machine-type=low-end-machine --profile=aiml-training"
+          - "--machine-type=low-end-machine --profile=aiml-serving"
+          - "--machine-type=low-end-machine --profile=aiml-checkpointing"
+        compatible:
+          flat: true
+          hns: false
+          zonal: false
+        run_on_gke: true
+      - run: TestRenameDirLimitSet
+        flags:
+          - "--machine-type=a3-highgpu-8g"
+          - "--profile=aiml-checkpointing"
+          - "--machine-type=low-end-machine --profile=aiml-checkpointing"
+        compatible:
+          flat: true
+          hns: false
+          zonal: false
+        run_on_gke: true
+

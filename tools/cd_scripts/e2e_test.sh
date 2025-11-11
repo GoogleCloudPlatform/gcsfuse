@@ -253,7 +253,7 @@ else
 fi
 
 # install go
-wget -O go_tar.tar.gz https://go.dev/dl/go1.24.6.linux-${architecture}.tar.gz
+wget -O go_tar.tar.gz https://go.dev/dl/go1.24.10.linux-${architecture}.tar.gz
 sudo tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=${PATH}:/usr/local/go/bin
 #Write gcsfuse and go version to log file
@@ -308,6 +308,7 @@ TEST_DIR_PARALLEL=(
   "buffered_read"
   # Disabled because of b/451462914.
   #"requester_pays_bucket"
+  "flag_optimizations"
 )
 
 # These tests never become parallel as they are changing bucket permissions.
@@ -324,6 +325,7 @@ TEST_DIR_PARALLEL_ZONAL=(
   concurrent_operations
   dentry_cache
   explicit_dir
+  flag_optimizations
   gzip
   implicit_dir
   interrupt

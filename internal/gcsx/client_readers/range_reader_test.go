@@ -92,11 +92,11 @@ func getReader(size int) *fake.FakeReader {
 	}
 }
 
-func (t *rangeReaderTest) readAt(offset int64, size int64) (gcsx.ReaderResponse, error) {
+func (t *rangeReaderTest) readAt(dst []byte, offset int64) (gcsx.ReadResponse, error) {
 	req := &gcsx.GCSReaderRequest{
 		Offset:    offset,
-		EndOffset: offset + size,
-		Buffer:    make([]byte, size),
+		EndOffset: offset + int64(len(dst)),
+		Buffer:    dst,
 	}
 	t.rangeReader.checkInvariants()
 	defer t.rangeReader.checkInvariants()
@@ -266,12 +266,13 @@ func (t *rangeReaderTest) Test_ReadAt_ReadFailsWithTimeoutError() {
 	r := iotest.OneByteReader(iotest.TimeoutReader(strings.NewReader(content)))
 	rc := &fake.FakeReader{ReadCloser: io.NopCloser(r)}
 	t.mockNewReaderWithHandleCallForTestBucket(0, uint64(len(content)), rc)
+	buf := make([]byte, len(content))
 
-	readerResponse, err := t.readAt(0, int64(len(content)))
+	readResponse, err := t.readAt(buf, 0)
 
 	assert.Error(t.T(), err)
 	assert.Contains(t.T(), err.Error(), "timeout")
-	assert.Zero(t.T(), readerResponse.Size)
+	assert.Zero(t.T(), readResponse.Size)
 	t.mockBucket.AssertExpectations(t.T())
 }
 
@@ -281,12 +282,13 @@ func (t *rangeReaderTest) Test_ReadAt_SuccessfulRead() {
 	content := []byte("hello world")
 	r := &fake.FakeReader{ReadCloser: getReadCloser(content)}
 	t.mockNewReaderWithHandleCallForTestBucket(uint64(offset), uint64(offset+size), r)
+	buf := make([]byte, size)
 
-	resp, err := t.readAt(offset, size)
+	resp, err := t.readAt(buf, offset)
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), int(size), resp.Size)
-	assert.Equal(t.T(), content[:size], resp.DataBuf)
+	assert.Equal(t.T(), content[:size], buf[:resp.Size])
 	t.mockBucket.AssertExpectations(t.T())
 }
 
@@ -296,8 +298,9 @@ func (t *rangeReaderTest) Test_ReadAt_PartialReadWithEOF() {
 	partialReader := io.NopCloser(iotest.ErrReader(io.EOF)) // Simulates early EOF
 	r := &fake.FakeReader{ReadCloser: partialReader}
 	t.mockNewReaderWithHandleCallForTestBucket(uint64(offset), uint64(offset+size), r)
+	buf := make([]byte, size)
 
-	resp, err := t.readAt(offset, size)
+	resp, err := t.readAt(buf, offset)
 
 	assert.Error(t.T(), err)
 	assert.Contains(t.T(), err.Error(), "reader returned early by skipping")
@@ -310,7 +313,7 @@ func (t *rangeReaderTest) Test_ReadAt_StartReadNotFound() {
 	size := int64(5)
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, &gcs.NotFoundError{}).Once()
 
-	resp, err := t.readAt(offset, size)
+	resp, err := t.readAt(make([]byte, size), offset)
 
 	var fcErr *gcsfuse_errors.FileClobberedError
 	assert.ErrorAs(t.T(), err, &fcErr)
@@ -323,7 +326,7 @@ func (t *rangeReaderTest) Test_ReadAt_StartReadUnexpectedError() {
 	size := int64(5)
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, errors.New("network error")).Once()
 
-	resp, err := t.readAt(offset, size)
+	resp, err := t.readAt(make([]byte, size), offset)
 
 	assert.Error(t.T(), err)
 	assert.Zero(t.T(), resp.Size)
@@ -485,17 +488,18 @@ func (t *rangeReaderTest) Test_ReadAt_DoesntPropagateCancellationAfterReturning(
 	t.rangeReader.cancel = func() { close(cancelCalled) }
 	ctx, cancel := context.WithCancel(context.Background())
 	bufSize := 2
+	buf := make([]byte, bufSize)
 
 	// Successfully read two bytes using a context whose cancellation we control.
-	readerResponse, err := t.rangeReader.ReadAt(ctx, &gcsx.GCSReaderRequest{
-		Buffer:    make([]byte, bufSize),
+	readResponse, err := t.rangeReader.ReadAt(ctx, &gcsx.GCSReaderRequest{
+		Buffer:    buf,
 		Offset:    0,
 		EndOffset: 2,
 	})
 
 	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), bufSize, readerResponse.Size)
-	assert.Equal(t.T(), content[:bufSize], string(readerResponse.DataBuf[:readerResponse.Size]))
+	assert.Equal(t.T(), bufSize, readResponse.Size)
+	assert.Equal(t.T(), content[:bufSize], string(buf[:readResponse.Size]))
 	// If we cancel the calling context now, it should not cause the underlying
 	// read context to be cancelled.
 	cancel()
@@ -606,12 +610,13 @@ func (t *rangeReaderTest) Test_ReadAt_ReaderNotExhausted() {
 	t.rangeReader.limit = 4
 	t.rangeReader.cancel = func() {}
 	var bufSize int64 = 2
+	buf := make([]byte, bufSize)
 
 	// Read two bytes.
-	resp, err := t.readAt(offset, bufSize)
+	resp, err := t.readAt(buf, offset)
 
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), content[:bufSize], string(resp.DataBuf[:resp.Size]))
+	assert.Equal(t.T(), content[:bufSize], string(buf[:resp.Size]))
 	assert.Zero(t.T(), cc.closeCount)
 	assert.Equal(t.T(), rc, t.rangeReader.reader)
 	assert.Equal(t.T(), offset+bufSize, t.rangeReader.start)
@@ -624,8 +629,9 @@ func (t *rangeReaderTest) Test_ReadAt_ShortRead() {
 	shortContent := []byte("hello")
 	r := &fake.FakeReader{ReadCloser: getReadCloser(shortContent)}
 	t.mockNewReaderWithHandleCallForTestBucket(uint64(offset), uint64(offset+size), r)
+	buf := make([]byte, size)
 
-	resp, err := t.readAt(offset, size)
+	resp, err := t.readAt(buf, offset)
 
 	assert.Error(t.T(), err)
 	assert.Contains(t.T(), err.Error(), "reader returned early by skipping 5 bytes: short read")
@@ -656,7 +662,7 @@ func (t *rangeReaderTest) Test_ReadAt_ForceCreateReader() {
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), int(readSize), resp1.Size)
-	assert.Equal(t.T(), content1[:readSize], resp1.DataBuf)
+	assert.Equal(t.T(), content1[:readSize], req1.Buffer)
 	assert.NotNil(t.T(), t.rangeReader.reader) // Reader should be active
 	firstReader := t.rangeReader.reader
 
@@ -677,7 +683,7 @@ func (t *rangeReaderTest) Test_ReadAt_ForceCreateReader() {
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), int(readsize2), resp2.Size)
-	assert.Equal(t.T(), content2[:readsize2], resp2.DataBuf)
+	assert.Equal(t.T(), content2[:readsize2], req2.Buffer)
 	assert.NotNil(t.T(), t.rangeReader.reader) // New reader should not be nil
 	secondReader := t.rangeReader.reader
 	assert.NotEqual(t.T(), firstReader, secondReader)

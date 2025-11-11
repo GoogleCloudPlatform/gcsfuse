@@ -206,7 +206,7 @@ async def is_node_pool_healthy_async(project_id, zone, cluster_name, node_pool_n
     status, _, returncode = await run_command_async(cmd, check=False)
     return returncode == 0 and status == "RUNNING"
 
-async def create_node_pool_async(project_id, zone, cluster_name, node_pool_name, machine_type):
+async def create_node_pool_async(project_id, zone, cluster_name, node_pool_name, machine_type, reservation_name=None):
     """Creates a new node pool.
 
     Args:
@@ -215,8 +215,11 @@ async def create_node_pool_async(project_id, zone, cluster_name, node_pool_name,
         cluster_name: The name of the GKE cluster.
         node_pool_name: The name for the new node pool.
         machine_type: The machine type for the nodes in the pool.
+        reservation_name: The specific reservation to use for the nodes.
     """
     cmd = ["gcloud", "container", "node-pools", "create", node_pool_name, f"--project={project_id}", f"--cluster={cluster_name}", f"--zone={zone}", f"--machine-type={machine_type}", "--num-nodes=1"]
+    if reservation_name:
+        cmd.extend([f"--reservation-affinity=specific", f"--reservation={reservation_name}"])
     await run_command_async(cmd)
 
 async def delete_node_pool_async(project_id, zone, cluster_name, node_pool_name):
@@ -244,7 +247,7 @@ async def create_network(project_id, network_name, subnet_name, region, mtu):
     await run_command_async(["gcloud", "compute", "networks", "create", network_name, f"--project={project_id}", "--subnet-mode=custom", f"--mtu={mtu}"], check=False)
     await run_command_async(["gcloud", "compute", "networks", "subnets", "create", subnet_name, f"--project={project_id}", f"--network={network_name}", "--range=10.0.0.0/24", f"--region={region}"], check=False)
 
-async def setup_gke_cluster(project_id, zone, cluster_name, network_name, subnet_name, region, machine_type, node_pool_name):
+async def setup_gke_cluster(project_id, zone, cluster_name, network_name, subnet_name, region, machine_type, node_pool_name, reservation_name=None):
     """Sets up the GKE cluster and required node pool.
 
     This function ensures a GKE cluster and a specific node pool are ready for
@@ -260,19 +263,20 @@ async def setup_gke_cluster(project_id, zone, cluster_name, network_name, subnet
         region: The GCP region for the network.
         machine_type: The machine type for the node pool.
         node_pool_name: The name of the node pool.
+        reservation_name: The specific reservation to use for the nodes.
     """
     if await get_cluster_async(project_id, zone, cluster_name):
         if await get_node_pool_async(project_id, zone, cluster_name, node_pool_name):
             if not await is_node_pool_healthy_async(project_id, zone, cluster_name, node_pool_name):
                 await delete_node_pool_async(project_id, zone, cluster_name, node_pool_name)
-                await create_node_pool_async(project_id, zone, cluster_name, node_pool_name, machine_type)
+                await create_node_pool_async(project_id, zone, cluster_name, node_pool_name, machine_type, reservation_name)
         else:
-            await create_node_pool_async(project_id, zone, cluster_name, node_pool_name, machine_type)
+            await create_node_pool_async(project_id, zone, cluster_name, node_pool_name, machine_type, reservation_name)
     else:
         await create_network(project_id, network_name, subnet_name, region, DEFAULT_MTU)
         cmd = ["gcloud", "container", "clusters", "create", cluster_name, f"--project={project_id}", f"--zone={zone}", f"--network={network_name}", f"--subnetwork={subnet_name}", f"--workload-pool={project_id}.svc.id.goog", "--addons=GcsFuseCsiDriver", "--num-nodes=1"]
         await run_command_async(cmd)
-        await create_node_pool_async(project_id, zone, cluster_name, node_pool_name, machine_type)
+        await create_node_pool_async(project_id, zone, cluster_name, node_pool_name, machine_type, reservation_name)
 
     # Get credentials for the cluster to allow kubectl to connect.
     await run_command_async(["gcloud", "container", "clusters", "get-credentials", cluster_name, f"--project={project_id}", f"--zone={zone}"])
@@ -423,6 +427,7 @@ async def main():
     parser.add_argument("--machine_type", default=os.environ.get("MACHINE_TYPE", "ct6e-standard-4t"), help="Machine type. Can also be set with MACHINE_TYPE env var.")
     parser.add_argument("--node_pool_name", default=os.environ.get("NODE_POOL_NAME", "ct6e-pool"), help="Node pool name. Can also be set with NODE_POOL_NAME env var.")
     parser.add_argument("--gcsfuse_branch", default=os.environ.get("GCSFUSE_BRANCH", "master"), help="GCSFuse branch or tag to build. Can also be set with GCSFUSE_BRANCH env var.")
+    parser.add_argument("--reservation_name", default=os.environ.get("RESERVATION_NAME"), help="The specific reservation to use for the nodes. Can also be set with RESERVATION_NAME env var.")
     parser.add_argument("--no_cleanup", action="store_true", default=os.environ.get("NO_CLEANUP", "False").lower() in ("true", "1"), help="Don't clean up resources after. Can also be set with NO_CLEANUP=true env var.")
     parser.add_argument("--iterations", type=int, default=int(os.environ.get("ITERATIONS", 20)), help="Number of iterations for the benchmark. Can also be set with ITERATIONS env var.")
     parser.add_argument("--performance_threshold_gbps", type=float, default=float(os.environ.get("PERFORMANCE_THRESHOLD_GBPS", 13.0)), help="Minimum throughput in GB/s for a successful iteration. Can also be set with PERFORMANCE_THRESHOLD_GBPS env var.")
@@ -442,9 +447,9 @@ async def main():
     with tempfile.TemporaryDirectory() as temp_dir:
         try:
             if args.skip_csi_driver_build:
-                await setup_gke_cluster(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name, args.zone.rsplit('-', 1)[0], args.machine_type, args.node_pool_name)
+                await setup_gke_cluster(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name, args.zone.rsplit('-', 1)[0], args.machine_type, args.node_pool_name, args.reservation_name)
             else:
-                setup_task = asyncio.create_task(setup_gke_cluster(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name, args.zone.rsplit('-', 1)[0], args.machine_type, args.node_pool_name))
+                setup_task = asyncio.create_task(setup_gke_cluster(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name, args.zone.rsplit('-', 1)[0], args.machine_type, args.node_pool_name, args.reservation_name))
                 build_task = asyncio.create_task(build_gcsfuse_image(args.project_id,args.gcsfuse_branch, temp_dir))
                 await asyncio.gather(setup_task, build_task)
 

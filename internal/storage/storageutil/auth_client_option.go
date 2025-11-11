@@ -21,6 +21,7 @@ import (
 	"cloud.google.com/go/auth"
 	"cloud.google.com/go/auth/oauth2adapt"
 	auth2 "github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 )
@@ -54,7 +55,9 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 
 	domain, err := ExecuteWithRetry(ctx, retryConfig, "cred.UniverseDomain", "credentials", apiCall)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get UniverseDomain: %w", err)
+		logger.Errorf("failed to get UniverseDomain: %v, setting default universe domain", err)
+		// Setting default universe domain to googleapis.com in case we are unable to fetch the domain.
+		domain = auth2.UniverseDomainDefault
 	}
 
 	// Temporary Workaround: We've created a small auth object here that omits the 'quota project ID'

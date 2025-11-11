@@ -20,6 +20,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -30,25 +31,26 @@ import (
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type UnsupportedObjectNameTest struct {
+type UnsupportedPathNameTest struct {
 	suite.Suite
 	fsTest
 }
 
-func TestUnsupportedObjectNameTestSuite(t *testing.T) {
-	suite.Run(t, new(UnsupportedObjectNameTest))
+func TestUnsupportedPathNameTestSuite(t *testing.T) {
+	suite.Run(t, new(UnsupportedPathNameTest))
 }
 
-func (t *UnsupportedObjectNameTest) SetupTest() {
+func (t *UnsupportedPathNameTest) SetupTest() {
 	t.serverCfg.ImplicitDirectories = true
+	t.serverCfg.RenameDirLimit = 10
 	t.serverCfg.NewConfig = &cfg.Config{
-		EnableUnsupportedDirSupport: true,
-		EnableAtomicRenameObject:    true,
+		EnableUnsupportedPathSupport: true,
+		EnableAtomicRenameObject:     true,
 	}
 	t.fsTest.SetUpTestSuite()
 }
 
-func (t *UnsupportedObjectNameTest) TearDownTest() {
+func (t *UnsupportedPathNameTest) TearDownTest() {
 	t.fsTest.TearDown()
 	t.fsTest.TearDownTestSuite()
 }
@@ -57,7 +59,7 @@ func (t *UnsupportedObjectNameTest) TearDownTest() {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *UnsupportedObjectNameTest) TestReadDirectory_WithUnsupportedNames() {
+func (t *UnsupportedPathNameTest) TestReadDirectory_WithUnsupportedNames() {
 	// Set up contents.
 	err := t.createObjects(map[string]string{
 		"dir1/sub_dir1//file1": "",
@@ -65,9 +67,12 @@ func (t *UnsupportedObjectNameTest) TestReadDirectory_WithUnsupportedNames() {
 		"dir2//file3":          "",
 		"dir2/file4":           "content",
 		"dir3/./file5":         "content",
+		"dir4/.":               "content",
+		"dir5/..":              "content",
 		"file6":                "content",
 		"//a.txt":              "",
 		"./b.txt":              "",
+		"dir6/.config":         "content",
 	})
 	t.Require().NoError(err)
 	var files []string
@@ -91,11 +96,11 @@ func (t *UnsupportedObjectNameTest) TestReadDirectory_WithUnsupportedNames() {
 
 	// ReadDir should only show the supported object.
 	t.Require().NoError(err)
-	t.Assert().ElementsMatch([]string{"dir1", "dir2", "dir3", "sub_dir1"}, dirs)
-	t.Assert().ElementsMatch([]string{"file2", "file4", "file6"}, files)
+	t.Assert().ElementsMatch([]string{"dir1", "dir2", "dir3", "dir4", "dir5", "dir6", "sub_dir1"}, dirs)
+	t.Assert().ElementsMatch([]string{"file2", "file4", "file6", ".config"}, files)
 }
 
-func (t *UnsupportedObjectNameTest) TestCopyDirectory_WithUnsupportedNames() {
+func (t *UnsupportedPathNameTest) TestCopyDirectory_WithUnsupportedNames() {
 	err := t.createObjects(map[string]string{
 		"src/file1":    "content1",
 		"src//file2":   "content2",
@@ -103,6 +108,8 @@ func (t *UnsupportedObjectNameTest) TestCopyDirectory_WithUnsupportedNames() {
 		"src/ok":       "content4",
 		"src/../file5": "content5",
 		"src///file5":  "content6",
+		"src/.":        "content",
+		"src/..":       "content",
 	})
 	t.Require().NoError(err)
 	srcPath := path.Join(mntDir, "src")
@@ -122,13 +129,15 @@ func (t *UnsupportedObjectNameTest) TestCopyDirectory_WithUnsupportedNames() {
 	t.Assert().Equal("ok", entries[1].Name())
 }
 
-func (t *UnsupportedObjectNameTest) TestRenameDirectory_WithUnsupportedNames() {
+func (t *UnsupportedPathNameTest) TestRenameDirectory_WithUnsupportedNames() {
 	// Set up contents.
 	err := t.createObjects(map[string]string{
 		"src/file1":    "content1",
 		"src//file2":   "content2",
 		"src/./file3":  "content3",
 		"src/ok/file4": "content4",
+		"src/.":        "content",
+		"src/..":       "content",
 	})
 	t.Require().NoError(err)
 	srcPath := path.Join(mntDir, "src")
@@ -148,4 +157,33 @@ func (t *UnsupportedObjectNameTest) TestRenameDirectory_WithUnsupportedNames() {
 	t.Require().Len(entries, 2)
 	t.Assert().Equal("file1", entries[0].Name())
 	t.Assert().Equal("ok", entries[1].Name())
+}
+
+func (t *UnsupportedPathNameTest) TestDeleteDirectory_WithUnsupportedNames() {
+	// Set up contents.
+	err := t.createObjects(map[string]string{
+		"dir_to_delete/file1":    "content1",
+		"dir_to_delete//file2":   "content2",
+		"dir_to_delete/./file3":  "content3",
+		"dir_to_delete/ok":       "content4",
+		"dir_to_delete/../file5": "content5",
+		"dir_to_delete///file6":  "content6",
+	})
+	t.Require().NoError(err)
+	dirPath := path.Join(mntDir, "dir_to_delete")
+	// Verify that listing only shows supported files.
+	entries, err := os.ReadDir(dirPath)
+	t.Require().NoError(err)
+	t.Require().Len(entries, 2)
+	t.Assert().Equal("file1", entries[0].Name())
+	t.Assert().Equal("ok", entries[1].Name())
+
+	// Execute rm -rf command.
+	cmd := exec.Command("rm", "-rf", dirPath)
+	err = cmd.Run()
+
+	t.Require().NoError(err)
+	_, err = os.Stat(dirPath)
+	t.Assert().Error(err)
+	t.Assert().True(strings.Contains(err.Error(), "no such file or directory"))
 }

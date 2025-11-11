@@ -182,18 +182,18 @@ func (t *DirTest) readAllEntries() (entries []fuseutil.Dirent, err error) {
 }
 
 // Read all of the entry cores
-func (t *DirTest) readAllEntryCores() (cores map[Name]*Core, unsupportedDirs []string, err error) {
+func (t *DirTest) readAllEntryCores() (cores map[Name]*Core, unsupportedPaths []string, err error) {
 	cores = make(map[Name]*Core)
 	tok := ""
 	for {
 		var fetchedCores map[Name]*Core
-		var fetchedUnsupportedDirs []string
-		fetchedCores, unsupportedDirs, tok, err = t.in.ReadEntryCores(t.ctx, tok)
+		var fetchedUnsupportedPaths []string
+		fetchedCores, fetchedUnsupportedPaths, tok, err = t.in.ReadEntryCores(t.ctx, tok)
 		if err != nil {
 			return nil, nil, err
 		}
 		maps.Copy(cores, fetchedCores)
-		copy(unsupportedDirs, fetchedUnsupportedDirs)
+		unsupportedPaths = append(unsupportedPaths, fetchedUnsupportedPaths...)
 
 		if tok == "" {
 			break
@@ -1016,11 +1016,11 @@ func (t *DirTest) ReadEntryCores_Empty() {
 	AssertNe(nil, d)
 	AssertTrue(d.prevDirListingTimeStamp.IsZero())
 
-	cores, unsupportedDirs, err := t.readAllEntryCores()
+	cores, unsupportedPaths, err := t.readAllEntryCores()
 
 	AssertEq(nil, err)
 	ExpectEq(0, len(cores))
-	ExpectEq(0, len(unsupportedDirs))
+	ExpectEq(0, len(unsupportedPaths))
 	// Make sure prevDirListingTimeStamp is initialized.
 	AssertFalse(d.prevDirListingTimeStamp.IsZero())
 }
@@ -1074,7 +1074,7 @@ func (t *DirTest) ReadEntryCores_NonEmpty_ImplicitDirsDisabled() {
 func (t *DirTest) ReadEntryCores_NonEmpty_ImplicitDirsEnabled() {
 	var err error
 	var cores map[Name]*Core
-	var unsupportedDirs []string
+	var unsupportedPaths []string
 
 	// Enable implicit dirs.
 	t.resetInode(true, false)
@@ -1086,8 +1086,8 @@ func (t *DirTest) ReadEntryCores_NonEmpty_ImplicitDirsEnabled() {
 	testFileName := path.Join(dirInodeName, "file")
 	implicitDirObjName := path.Join(dirInodeName, "implicit_dir") + "/blah"
 	symlinkName := path.Join(dirInodeName, "symlink")
-	unsupportedObjectName1 := dirInodeName + "//" + "a.txt"
-	unsupportedObjectName2 := dirInodeName + "../" + "b.txt"
+	unsupportedPathName1 := dirInodeName + "//" + "a.txt"
+	unsupportedPathName2 := dirInodeName + "../" + "b.txt"
 
 	objs := []string{
 		backedDirEmptyName,
@@ -1096,8 +1096,8 @@ func (t *DirTest) ReadEntryCores_NonEmpty_ImplicitDirsEnabled() {
 		testFileName,
 		implicitDirObjName,
 		symlinkName,
-		unsupportedObjectName1,
-		unsupportedObjectName2,
+		unsupportedPathName1,
+		unsupportedPathName2,
 	}
 
 	err = storageutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
@@ -1113,17 +1113,17 @@ func (t *DirTest) ReadEntryCores_NonEmpty_ImplicitDirsEnabled() {
 	AssertTrue(d.prevDirListingTimeStamp.IsZero())
 
 	// Read cores.
-	cores, unsupportedDirs, err = t.readAllEntryCores()
+	cores, unsupportedPaths, err = t.readAllEntryCores()
 
 	AssertEq(nil, err)
 	AssertEq(5, len(cores))
-	AssertEq(2, len(unsupportedDirs))
+	AssertEq(2, len(unsupportedPaths))
 	t.validateCore(cores, "backed_dir_empty", true, metadata.ExplicitDirType, backedDirEmptyName)
 	t.validateCore(cores, "backed_dir_nonempty", true, metadata.ExplicitDirType, backedDirNonEmptyName)
 	t.validateCore(cores, "file", false, metadata.RegularFileType, testFileName)
 	t.validateCore(cores, "implicit_dir", true, metadata.ImplicitDirType, path.Join(dirInodeName, "implicit_dir")+"/")
 	t.validateCore(cores, "symlink", false, metadata.SymlinkType, symlinkName)
-	ExpectThat(unsupportedDirs, ElementsAre(dirInodeName+"../", dirInodeName+"/"))
+	ExpectThat(unsupportedPaths, ElementsAre(dirInodeName+"../", dirInodeName+"/"))
 	// Make sure prevDirListingTimeStamp is initialized.
 	AssertFalse(d.prevDirListingTimeStamp.IsZero())
 }
@@ -1638,6 +1638,44 @@ func (t *DirTest) EraseFromTypeCache() {
 	d := t.in.(*dirInode)
 	tp := d.cache.Get(d.cacheClock.Now(), "abc")
 	AssertEq(0, tp)
+}
+
+func (t *DirTest) TestDeleteObjects() {
+	// Arrange
+	parentDirGcsName := t.in.Name().GcsObjectName() // e.g., "foo/bar/"
+	d := t.in.(*dirInode)
+	// Define supported objects to create.
+	objectsToCreate := map[string]string{
+		parentDirGcsName + "dir_to_delete/":                           "", // Explicit dir
+		parentDirGcsName + "dir_to_delete/file1.txt":                  "content1",
+		parentDirGcsName + "dir_to_delete/nested_dir/":                "",
+		parentDirGcsName + "dir_to_delete/nested_dir/nested_file.txt": "content_nested",
+		parentDirGcsName + "file_to_delete.txt":                       "content_file",
+	}
+	for objName, content := range objectsToCreate {
+		_, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte(content))
+		AssertEq(nil, err)
+	}
+	// Verify initial state: all created objects exist.
+	for objName := range objectsToCreate {
+		_, err := storageutil.ReadObject(t.ctx, t.bucket, objName)
+		AssertEq(nil, err)
+	}
+	// Act: Call DeleteObjects with the list of supported objects.
+	objectsToDelete := []string{
+		parentDirGcsName + "dir_to_delete/",
+		parentDirGcsName + "file_to_delete.txt",
+	}
+
+	err := d.DeleteObjects(t.ctx, objectsToDelete)
+
+	AssertEq(nil, err)
+	// Assert: All specified objects and their contents should be deleted.
+	for _, objName := range objectsToDelete {
+		_, err = storageutil.ReadObject(t.ctx, t.bucket, objName)
+		var notFoundErr *gcs.NotFoundError
+		ExpectTrue(errors.As(err, &notFoundErr), "Object %s should be deleted. Error: %v", objName, err)
+	}
 }
 
 func (t *DirTest) LocalFileEntriesEmpty() {
