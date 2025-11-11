@@ -21,19 +21,6 @@ echo Installing requirements..
 pip install --require-hashes -r requirements.txt --user
 echo Running script..
 
-
-echo "Installing stack driver..."
-sudo apt-get update
-sudo apt-get install -y apt-transport-https ca-certificates curl gnupg
-curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
-echo "deb https://packages.cloud.google.com/apt google-cloud-monitoring-bullseye main" | sudo tee /etc/apt/sources.list.d/google-cloud-monitoring.list
-sudo apt-get update
-sudo apt-get install stackdriver-agent
-
-echo "Installing the Cloud Monitoring agent on VM ...."
-curl -sSO https://dl.google.com/cloudagents/add-monitoring-agent-repo.sh
-sudo bash add-monitoring-agent-repo.sh --also-install
-
 echo "Installing Ops Agent on Vm"
 curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
 sudo bash add-google-cloud-ops-agent-repo.sh --also-install

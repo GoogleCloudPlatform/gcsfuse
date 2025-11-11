@@ -32,6 +32,10 @@ IS_ZONAL=${1:-false}
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 
+# Install latest gcloud version.
+./perfmetrics/scripts/install_latest_gcloud.sh
+export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
+
 echo "Building and installing gcsfuse..."
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
 commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)

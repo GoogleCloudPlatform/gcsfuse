@@ -48,7 +48,7 @@ install_latest_gcloud() {
     sudo rm -rf "$temp_dir"
 }
 
-echo "Installing latest gcloud version to ${INSTALL_DIR}"
+echo "f ${INSTALL_DIR}"
 INSTALLATION_LOG=$(mktemp /tmp/gcloud_install_log.XXXXXX)
 if ! install_latest_gcloud >"$INSTALLATION_LOG" 2>&1; then
     echo "latest gcloud installation failed."
