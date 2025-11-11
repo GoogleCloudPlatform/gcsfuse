@@ -38,6 +38,8 @@ const (
 	testDirName   = "dirForReaddirplusTest"
 	targetDirName = "target_dir"
 	GKETempDir    = "/gcsfuse-tmp"
+	// // TODO: clean this up when GKE test migration completes.
+	OldGKElogFilePath = "/tmp/readdirplus_logs/log.json"
 )
 
 var (
@@ -55,22 +57,6 @@ type env struct {
 	testDirPath   string
 	cfg           *test_suite.TestConfig
 	bucketType    string
-}
-
-func setupLogFilePath(testName string) {
-	var logFilePath string
-	if testEnv.cfg.GKEMountedDirectory != "" { // GKE path
-		mountDir = testEnv.cfg.GKEMountedDirectory
-		logFilePath = path.Join(GKETempDir, testName) + ".log"
-		if setup.ConfigFile() == "" {
-			// TODO: clean this up when GKE test migration completes.
-			logFilePath = "/tmp/readdirplus_logs/log.json"
-		}
-	} else {
-		logFilePath = path.Join(setup.TestDir(), GKETempDir, testName) + ".log"
-	}
-	testEnv.cfg.LogFile = logFilePath
-	setup.SetLogFile(logFilePath)
 }
 
 func loadLogLines(reader io.Reader) ([]string, error) {
@@ -178,14 +164,15 @@ func TestMain(m *testing.M) {
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
-		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
+		mountDir = testEnv.cfg.GKEMountedDirectory
+		os.Exit(setup.RunTestsForMountedDirectory(mountDir, m))
 	}
 
 	// Run tests for testBucket
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucket(testEnv.cfg)
 	// Override GKE specific paths with GCSFuse paths if running in GCE environment.
-	overrideFilePathsInFlagSet(testEnv.cfg, setup.TestDir())
+	setup.OverrideFilePathsInFlagSet(testEnv.cfg, setup.TestDir())
 
 	// Save mount and root directory variables.
 	mountDir, rootDir = setup.MntDir(), setup.MntDir()
@@ -197,13 +184,4 @@ func TestMain(m *testing.M) {
 	// Clean up test directory created.
 	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(cfg.ReadDirPlus[0].TestBucket, testDirName))
 	os.Exit(successCode)
-}
-
-func overrideFilePathsInFlagSet(t *test_suite.TestConfig, GCSFuseTempDirPath string) {
-	for _, flags := range t.Configs {
-		for i := range flags.Flags {
-			// Iterate over the indices of the flags slice
-			flags.Flags[i] = strings.ReplaceAll(flags.Flags[i], "/gcsfuse-tmp", path.Join(GCSFuseTempDirPath, "gcsfuse-tmp"))
-		}
-	}
 }

@@ -53,7 +53,7 @@ func (s *ReaddirplusWithoutDentryCacheTest) TearDownSuite() {
 }
 
 func (s *ReaddirplusWithoutDentryCacheTest) SetupSuite() {
-	setupLogFilePath(s.baseTestName)
+	setup.SetUpLogFilePath(s.baseTestName, GKETempDir, OldGKElogFilePath, testEnv.cfg)
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
 }
 
