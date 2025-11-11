@@ -28,20 +28,10 @@ architecture=$(dpkg --print-architecture)
 wget -O go_tar.tar.gz https://go.dev/dl/go1.24.10.linux-${architecture}.tar.gz -q
 sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=$PATH:/usr/local/go/bin
+
 # Install latest gcloud version for compatability with HNS bucket.
-function upgrade_gcloud_version() {
-  sudo apt-get update
-  gcloud version
-  wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
-  sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm -r google-cloud-sdk
-  sudo /usr/local/google-cloud-sdk/install.sh
-  export PATH=/usr/local/google-cloud-sdk/bin:$PATH
-  echo 'export PATH=/usr/local/google-cloud-sdk/bin:$PATH' >> ~/.bashrc
-  gcloud version && rm gcloud.tar.gz
-  sudo /usr/local/google-cloud-sdk/bin/gcloud components update
-  sudo /usr/local/google-cloud-sdk/bin/gcloud components install alpha
-}
-upgrade_gcloud_version
+./perfmetrics/scripts/install_latest_gcloud.sh
+export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
 
 # Build gcsfuse.
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
