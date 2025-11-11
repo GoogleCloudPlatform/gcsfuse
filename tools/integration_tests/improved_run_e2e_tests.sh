@@ -618,9 +618,10 @@ install_packages() {
   # Install required go version.
   bash ./perfmetrics/scripts/install_go.sh "$GO_VERSION"
   export PATH="/usr/local/go/bin:$PATH"
-  # Install latest gcloud version.
-  bash ./perfmetrics/scripts/install_latest_gcloud.sh
+  # Install latest gcloud version by sourcing the script to propagate environment variables like CLOUDSDK_PYTHON and PATH.
+  source ./perfmetrics/scripts/install_latest_gcloud.sh
   export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
+  echo "CLOUDSDK_PYTHON: " $CLOUDSDK_PYTHON
   if ${KOKORO_DIR_AVAILABLE} ; then
     # Install go-junit-report to generate XML test reports from go logs.
     go install github.com/jstemmer/go-junit-report/v2@latest
