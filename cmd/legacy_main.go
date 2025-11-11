@@ -30,8 +30,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"time"
 	"syscall"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"golang.org/x/sys/unix"
