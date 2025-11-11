@@ -517,7 +517,7 @@ test_package() {
   # Add the package stats to the file.
   echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
   # Generate Kokoro artifacts(log) files.
-  generate_test_log_artifacts "$log_file" "$package_name" "$bucket_type"
+  generate_test_log_artifacts "$test_package_log_file" "$package_name" "$bucket_type"
   return "$exit_code"
 }
 
@@ -544,8 +544,8 @@ generate_test_log_artifacts() {
 
   local output_dir="${KOKORO_ARTIFACTS_DIR}/${bucket_type}/${package_name}"
   mkdir -p "$output_dir"
-  local sponge_log_file="${output_dir}/${package_name}_sponge_log.log"
-  local sponge_xml_file="${output_dir}/${package_name}_sponge_log.xml"
+  local sponge_log_file="${output_dir}/sponge_log.log"
+  local sponge_xml_file="${output_dir}/sponge_log.xml"
 
   cp "$log_file" "$sponge_log_file"
   
