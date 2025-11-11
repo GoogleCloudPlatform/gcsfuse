@@ -32,6 +32,7 @@ install_latest_gcloud() {
     "$(dirname "$0")/upgrade_python3.sh"
     # Set CLOUDSDK_PYTHON to point to the newly installed Python executable.
     export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"
+    echo "cloud SDK python: " $CLOUDSDK_PYTHON
 
     local temp_dir
     temp_dir=$(mktemp -d /tmp/gcloud_install_src.XXXXXX)
