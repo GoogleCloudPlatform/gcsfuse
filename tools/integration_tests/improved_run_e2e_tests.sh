@@ -670,7 +670,7 @@ main() {
   log_info "------ Upgrading gcloud and installing packages ------"
   log_info ""
   set -e
-  # install_packages
+  install_packages
   set +e
   log_info "------ Upgrading gcloud and installing packages took $SECONDS seconds ------"
 
@@ -714,7 +714,7 @@ main() {
   else
     run_test_group "REGIONAL" "TEST_PACKAGES_FOR_RB" "$HNS" & pids+=($!)
     run_test_group "REGIONAL" "TEST_PACKAGES_FOR_RB" "$FLAT" & pids+=($!)
-    #run_e2e_tests_for_emulator & pids+=($!) # Emulator tests are a separate group
+    run_e2e_tests_for_emulator & pids+=($!) # Emulator tests are a separate group
   fi
   # Wait for all background processes to complete and aggregate their exit codes
   for pid in "${pids[@]}"; do
