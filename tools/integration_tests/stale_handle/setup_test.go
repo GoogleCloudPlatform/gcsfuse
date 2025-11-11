@@ -79,5 +79,5 @@ func TestMain(m *testing.M) {
 	log.Println("Running static mounting tests...")
 	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
 	successCode := m.Run()
-	os.Exit(successCode)
+	os.Exit(successCode + 1)
 }

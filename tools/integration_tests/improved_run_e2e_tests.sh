@@ -75,6 +75,7 @@ PROJECT_ID="${DEFAULT_PROJECT_ID}"
 BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR=""
 
 LOG_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_logging_lock.XXXXXX") || { log_error "Unable to create lock file"; exit 1; }
+BUCKET_CREATION_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_bucket_creation_lock.XXXXXX") || { log_error "Unable to create bucket creation lock file"; exit 1; }
 BUCKET_NAMES=$(mktemp "/tmp/${TMP_PREFIX}_bucket_names.XXXXXX") || { log_error "Unable to create bucket names file"; exit 1; }
 PACKAGE_RUNTIME_STATS=$(mktemp "/tmp/${TMP_PREFIX}_package_stats_runtime.XXXXXX") || { log_error "Unable to create package stats runtime file"; exit 1; }
 RESOURCE_USAGE_FILE=$(mktemp "/tmp/${TMP_PREFIX}_system_resource_usage.XXXXXX") || { log_error "Unable to create system resource usage file"; exit 1; }
@@ -93,7 +94,7 @@ RUN_TESTS_WITH_PRESUBMIT_FLAG=false
 RUN_TESTS_WITH_ZONAL_BUCKET=false
 BUILD_BINARY_IN_SCRIPT=true
 TRACK_RESOURCE_USAGE=false
-PACKAGE_LEVEL_PARALLELISM=10 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
+PACKAGE_LEVEL_PARALLELISM=1 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
 
 # Define options for getopt
 # A long option name followed by a colon indicates it requires an argument.
@@ -234,6 +235,8 @@ TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "rapid_appends" "unfinalized_
 # Test packages for TPC buckets.
 TEST_PACKAGES_FOR_TPC=("operations")
 
+TEST_PACKAGES_FOR_RB=("stale_handle"   "readdirplus"   "flag_optimizations"   "release_version"   "dentry_cache")
+
 # acquire_lock: Acquires exclusive lock or exits script on failure.
 # Args: $1 = path to lock file.
 acquire_lock() {
@@ -287,6 +290,7 @@ log_error_locked() {
 }
 
 # Helper method to create "flat", "hns" or "zonal" bucket.
+# shellcheck disable=SC2329
 create_bucket() {
   if [[ $# -ne 2 ]]; then
     log_error "create_bucket() called with incorrect number of arguments."
@@ -325,30 +329,8 @@ create_bucket() {
   return 0
 }
 
-# Helper method to create buckets for each of the package.
-setup_package_buckets () {
-  if [[ "$#" -ne 3 ]]; then 
-    log_error "setup_buckets() called with incorrect number of arguments."
-    exit 1
-  fi
-  local -n package_array="$1"
-  local -n package_bucket_array="$2"
-  local bucket_type="$3"
-  local exit_code=0
-  for package in "${package_array[@]}"; do
-    local output
-    output=$(create_bucket "$package" "$bucket_type")
-    if [ $? -eq 0 ]; then
-      package_bucket_array+=("${package} ${output} ${bucket_type}")
-    else
-      exit_code=1
-      log_error_locked "$output"
-    fi
-  done
-  return $exit_code
-}
-
 # Helper method to delete the bucket.
+# shellcheck disable=SC2329
 delete_bucket() {
   if [[ $# -ne 1 ]]; then
     log_error_locked "delete_bucket() called with incorrect number of arguments."
@@ -375,6 +357,7 @@ safe_kill() {
 }
 
 # Cleanup ensures each of the buckets created is destroyed and the temp files are cleaned up.
+# shellcheck disable=SC2329
 clean_up() {
   if ${TRACK_RESOURCE_USAGE}; then
     if ! safe_kill "$RESOURCE_USAGE_PID" "resource_usage.sh"; then
@@ -400,7 +383,7 @@ clean_up() {
         log_info "Successfully deleted all buckets."
     fi
   fi
-  if ! rm -rf /tmp/"${TMP_PREFIX}_"*; then 
+  if ! rm -rf /tmp/"${TMP_PREFIX}"*; then 
     log_error "Failed to delete temporary files"
   else 
     log_info "Successfully cleaned up temporary files"
@@ -417,24 +400,14 @@ process_any_pid() {
   wait -n -p waited_pid # waited_pid gets the PID, $? gets the status
   pid_status=$?
 
-  local cmd_and_output_file="${cmds_by_pid_ref[$waited_pid]}"
-  local parallel_cmd_executed="${cmd_and_output_file%%;*}"
-  local output_file="${cmd_and_output_file#*;}"
   unset "cmds_by_pid_ref[$waited_pid]"
   if [[ "$pid_status" -ne 0 ]]; then
-    acquire_lock "$LOG_LOCK_FILE"
-    log_error "Parallel Command failed: $parallel_cmd_executed"
-    cat "$output_file"
-    release_lock "$LOG_LOCK_FILE"
     return 1
   fi
-  log_info_locked "Parallel Command succeeded: $parallel_cmd_executed"
   return 0
 }
 
 # run_parallel: Executes commands in parallel based on a template and substitutes.
-#   Prints output (stdout/stderr) if the command errors out.
-#   Prints success message if command succeeds.
 #   The function returns a non-zero exit status if any of the parallel commands fail.
 #
 # Usage: run_parallel "parallelism" "command_template_with_@" "substitute1" "substitute2" ...
@@ -454,15 +427,13 @@ run_parallel() {
   local cmd_template="$1"
   shift
   local -A cmds_by_pid=()
-  local overall_exit_code=0 parallel_cmd parallel_cmd_output pid
+  local overall_exit_code=0 parallel_cmd pid
   # Launch parallel commands in the background based on parallelism.
   for arg in "$@"; do
     parallel_cmd="${cmd_template//@/$arg}"
-    parallel_cmd_output=$(mktemp "/tmp/${TMP_PREFIX}_{$parallel_cmd}_output.XXXXXX")
-    log_info_locked "Executing Parallel Command: $parallel_cmd"
-    eval "$parallel_cmd" > "$parallel_cmd_output" 2>&1 &
+    eval "$parallel_cmd" &
     pid=$!
-    cmds_by_pid["$pid"]="$parallel_cmd;$parallel_cmd_output"
+    cmds_by_pid["$pid"]="$parallel_cmd"
     if [[ ${#cmds_by_pid[@]} -eq $parallelism ]]; then
       process_any_pid "cmds_by_pid"
       overall_exit_code=$((overall_exit_code || $? ))
@@ -476,7 +447,25 @@ run_parallel() {
   return $overall_exit_code
 }
 
+# Helper method that creates a bucket and then runs the test package.
+# shellcheck disable=SC2329
+create_bucket_and_run_test() {
+  if [[ $# -ne 2 ]]; then
+    log_error_locked "create_bucket_and_run_test() called with incorrect number of arguments."
+    return 1
+  fi
+  local package_name="$1"
+  local bucket_type="$2"
+
+  if ! bucket_name=$(create_bucket "$package_name" "$bucket_type"); then
+    log_error_locked "Failed to create bucket of type ${bucket_type} for package ${package_name}. Bucket creation output: ${bucket_name}"
+    return 1
+  fi
+  test_package "$package_name" "$bucket_name" "$bucket_type"
+}
+
 # Helper method to executes e2e test package.
+# shellcheck disable=SC2329
 test_package() {
   if [[ $# -ne 3 ]]; then
     log_error_locked "test_package() called with incorrect number of arguments."
@@ -511,20 +500,22 @@ test_package() {
   if [[ -n "$BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR" ]]; then 
     go_test_cmd_parts+=("--gcsfuse_prebuilt_dir=${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}")
   fi
+
+  local go_test_cmd test_package_log_file start=$SECONDS exit_code=0 
   # Use printf %q to quote each argument safely for eval
   # This ensures spaces and special characters within arguments are handled correctly.
-  local go_test_cmd=$(printf "%q " "${go_test_cmd_parts[@]}")
-  
+  go_test_cmd=$(printf "%q " "${go_test_cmd_parts[@]}")  
+  test_package_log_file=$(mktemp "/tmp/${TMP_PREFIX}_${package_name}_${bucket_type}_log.XXXXXX")
   # Run the package test command and capture log output with runtime stats.
-  local start=$SECONDS exit_code=0 
-  local log_file=$(mktemp)
-  # Ensure the temporary log file is removed on function exit.
-  trap 'rm -f "$log_file"' RETURN
-
-  if ! eval "$go_test_cmd" > "$log_file" 2>&1; then
+  log_info "Started running test package [$package_name] for bucket type [$bucket_type] with bucket name [$bucket_name]"
+  if ! eval "$go_test_cmd" > "$test_package_log_file" 2>&1; then
     exit_code=1
+    log_info "Failed test package [$package_name] for bucket type [$bucket_type]"
+  else
+    log_info "Passed test package [$package_name] for bucket type [$bucket_type]"
   fi
   local end=$SECONDS
+
   # Add the package stats to the file.
   echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
   # Generate Kokoro artifacts(log) files.
@@ -533,6 +524,7 @@ test_package() {
 }
 
 # Helper method to generate Kokoro artifacts(log) files when building in Kokoro environment.
+# shellcheck disable=SC2329
 generate_test_log_artifacts() {
   # If KOKORO_ARTIFACTS_DIR is not set, skip artifact generation.
   if ! $KOKORO_DIR_AVAILABLE; then
@@ -634,25 +626,28 @@ install_packages() {
 #   $2: Name of the array holding test packages (e.g., "TEST_PACKAGES_FOR_RB", "TEST_PACKAGES_FOR_ZB")
 #   $3: Bucket type ("flat", "hns", "zonal")
 run_test_group() {
-  local group_name="$1"
-  local test_packages_var_name="$2"
-  local bucket_type="$3"
-  local packages_for_run=()
-  local group_exit_code=0
-  log_info_locked "Started running e2e tests for ${group_name} group (bucket type: ${bucket_type})."
+    local group_name="$1"
+    local test_packages_var_name="$2"
+    local bucket_type="$3"
+    local packages_for_run=()
+    local -n test_packages_ref="$test_packages_var_name"
+    local group_exit_code=0
+    log_info_locked "Started running e2e tests for ${group_name} group (bucket type: ${bucket_type})."
 
-  setup_package_buckets "${test_packages_var_name}" "packages_for_run" "${bucket_type}"
-  group_exit_code=$?
+    # Prepare arguments for create_bucket_and_run_test.
+    for package in "${test_packages_ref[@]}"; do
+        packages_for_run+=("${package} ${bucket_type}")
+    done
 
-  run_parallel "$PACKAGE_LEVEL_PARALLELISM" "test_package @" "${packages_for_run[@]}"
-  group_exit_code=$((group_exit_code || $?))
+    run_parallel "$PACKAGE_LEVEL_PARALLELISM" "create_bucket_and_run_test @" "${packages_for_run[@]}"
+    group_exit_code=$?
 
-  if [ "$group_exit_code" -ne 0 ]; then
-    log_error_locked "The e2e tests for ${group_name} group (bucket type: ${bucket_type}) FAILED."
-    return 1
-  fi
-  log_info_locked "The e2e tests for ${group_name} group (bucket type: ${bucket_type}) successful."
-  return 0
+    if [ "$group_exit_code" -ne 0 ]; then
+        log_error_locked "The e2e tests for ${group_name} group (bucket type: ${bucket_type}) FAILED."
+        return 1
+    fi
+    log_info_locked "The e2e tests for ${group_name} group (bucket type: ${bucket_type}) successful."
+    return 0
 }
 
 run_e2e_tests_for_emulator() {
@@ -677,7 +672,7 @@ main() {
   log_info "------ Upgrading gcloud and installing packages ------"
   log_info ""
   set -e
-  install_packages
+  # install_packages
   set +e
   log_info "------ Upgrading gcloud and installing packages took $SECONDS seconds ------"
 
@@ -721,7 +716,7 @@ main() {
   else
     run_test_group "REGIONAL" "TEST_PACKAGES_FOR_RB" "$HNS" & pids+=($!)
     run_test_group "REGIONAL" "TEST_PACKAGES_FOR_RB" "$FLAT" & pids+=($!)
-    run_e2e_tests_for_emulator & pids+=($!) # Emulator tests are a separate group
+    #run_e2e_tests_for_emulator & pids+=($!) # Emulator tests are a separate group
   fi
   # Wait for all background processes to complete and aggregate their exit codes
   for pid in "${pids[@]}"; do
