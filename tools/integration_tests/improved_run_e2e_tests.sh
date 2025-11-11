@@ -317,11 +317,14 @@ create_bucket() {
     fi
     acquire_lock "$BUCKET_CREATION_LOCK_FILE"
     eval "$bucket_cmd" > "$bucket_cmd_log" 2>&1
-    if [ $? -eq 0 ]; then
-      sleep "$DELAY_BETWEEN_BUCKET_CREATION" # have 6 seconds gap between creating buckets. 
-      break
+    local status=$?
+    if [ $status -eq 0 ]; then
+      sleep "$DELAY_BETWEEN_BUCKET_CREATION" # have 6 seconds gap between creating buckets.
     fi
     release_lock "$BUCKET_CREATION_LOCK_FILE"
+    if [ $status -eq 0 ]; then
+      break
+    fi
   done
   echo "$bucket_name" >> "$BUCKET_NAMES" # Add bucket names to file.
   echo "$bucket_name"
@@ -622,22 +625,22 @@ install_packages() {
 #   $2: Bucket type ("flat", "hns", "zonal")
 #   $@: A list of test package names to run.
 run_test_group() {
-    local group_name="$1"
-    local bucket_type="$2"
-    shift 2
-    local -a test_packages=("$@")
-    local group_exit_code=0
-    log_info_locked "Started running e2e tests for ${group_name} group (bucket type: ${bucket_type})."
+  local group_name="$1"
+  local bucket_type="$2"
+  shift 2
+  local -a test_packages=("$@")
+  local group_exit_code=0
+  log_info_locked "Started running e2e tests for ${group_name} group (bucket type: ${bucket_type})."
 
-    run_parallel "$PACKAGE_LEVEL_PARALLELISM" "create_bucket_and_run_test @ ${bucket_type}" "${test_packages[@]}"
-    group_exit_code=$?
+  run_parallel "$PACKAGE_LEVEL_PARALLELISM" "create_bucket_and_run_test @ ${bucket_type}" "${test_packages[@]}"
+  group_exit_code=$?
 
-    if [ "$group_exit_code" -ne 0 ]; then
-        log_error_locked "The e2e tests for ${group_name} group (bucket type: ${bucket_type}) FAILED."
-        return 1
-    fi
-    log_info_locked "The e2e tests for ${group_name} group (bucket type: ${bucket_type}) successful."
-    return 0
+  if [ "$group_exit_code" -ne 0 ]; then
+    log_error_locked "The e2e tests for ${group_name} group (bucket type: ${bucket_type}) FAILED."
+    return 1
+  fi
+  log_info_locked "The e2e tests for ${group_name} group (bucket type: ${bucket_type}) successful."
+  return 0
 }
 
 run_e2e_tests_for_emulator() {
