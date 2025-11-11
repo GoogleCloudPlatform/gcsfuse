@@ -94,7 +94,7 @@ RUN_TESTS_WITH_PRESUBMIT_FLAG=false
 RUN_TESTS_WITH_ZONAL_BUCKET=false
 BUILD_BINARY_IN_SCRIPT=true
 TRACK_RESOURCE_USAGE=false
-PACKAGE_LEVEL_PARALLELISM=5 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
+PACKAGE_LEVEL_PARALLELISM=10 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
 
 # Define options for getopt
 # A long option name followed by a colon indicates it requires an argument.
@@ -234,8 +234,6 @@ TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "read_cache" "inactive_stream
 TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "rapid_appends" "unfinalized_object")
 # Test packages for TPC buckets.
 TEST_PACKAGES_FOR_TPC=("operations")
-
-TEST_PACKAGES_FOR_RB=("stale_handle"   "readdirplus"   "flag_optimizations"   "release_version"   "dentry_cache")
 
 # acquire_lock: Acquires exclusive lock or exits script on failure.
 # Args: $1 = path to lock file.
