@@ -81,13 +81,13 @@ func registerTerminatingSignalHandler(mountPoint string) {
 				sigName = "SIGINT"
 			}
 
-			//on signal receive wait in background and give 30 second for unmount to finish
-			// and then exit, so application is closed
+			//On signal receive wait in background and give 30 second for unmount to finish
+			//and then exit, so application is closed.
 			go func() {
 				logger.Warnf("Received %s, waiting for %d sec to let system gracefully unmount before killing the process", sigName, WaitTimeOnSignalReceive)
 				time.Sleep(WaitTimeOnSignalReceive)
 				logger.Warnf("killing goroutines and exit")
-				//forcefully exit to 0 so that caller get success on forcefull exit also
+				//Forcefully exit to 0 so that caller get success on forcefull exit also.
 				os.Exit(0)
 			}()
 
