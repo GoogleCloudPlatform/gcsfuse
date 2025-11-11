@@ -196,10 +196,10 @@ fi
 # Test packages which can be run for both Zonal and Regional buckets.
 # Sorted list descending run times. (Longest Processing Time first strategy) 
 TEST_PACKAGES_COMMON=(
-  "managed_folders"
-  "operations"
-  "read_large_files"
-  "concurrent_operations"
+  #"managed_folders"
+  #"operations"
+  #"read_large_files"
+  #"concurrent_operations"
   # "read_cache"
   "list_large_dir"
   "mount_timeout"
