@@ -96,7 +96,7 @@ func createWithContents(ctx context.Context, t *testing.T, bucket gcs.Bucket, na
 }
 
 func waitForMetricsProcessing() {
-	time.Sleep(time.Millisecond)
+	time.Sleep(5 * time.Millisecond)
 }
 
 func TestLookUpInode_Metrics(t *testing.T) {
