@@ -35,6 +35,7 @@ func MountGcsfuseWithDynamicMountingWithConfig(cfg *test_suite.TestConfig, flags
 	flags = append(flags, defaultArg...)
 
 	err = mounting.MountGcsfuse(setup.BinFile(), flags)
+	setup.SetMntDir(path.Join(cfg.GCSFuseMountedDirectory, cfg.TestBucket))
 
 	return err
 }

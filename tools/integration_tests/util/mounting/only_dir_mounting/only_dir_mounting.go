@@ -49,6 +49,7 @@ func MountGcsfuseWithOnlyDirWithConfigFile(config *test_suite.TestConfig, flags 
 	flags = append(flags, defaultArg...)
 
 	err = mounting.MountGcsfuse(setup.BinFile(), flags)
+	setup.SetMntDir(config.GCSFuseMountedDirectory)
 
 	return err
 }

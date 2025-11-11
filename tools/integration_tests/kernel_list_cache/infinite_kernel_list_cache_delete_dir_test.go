@@ -37,16 +37,28 @@ type infiniteKernelListCacheDeleteDirTest struct {
 	suite.Suite
 }
 
+func (s *infiniteKernelListCacheDeleteDirTest) SetupSuite() {
+	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, s.flags, mountFunc)
+}
+
+func (s *infiniteKernelListCacheDeleteDirTest) TearDownSuite() {
+	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
+}
+
 func (s *infiniteKernelListCacheDeleteDirTest) SetupTest() {
-	mountGCSFuseAndSetupTestDir(s.flags, testDirName)
+	testEnv.testDirPath = setup.SetupTestDirectory(testDirName)
 }
 
 func (s *infiniteKernelListCacheDeleteDirTest) TearDownTest() {
-	setup.UnmountGCSFuse(rootDir)
+	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 }
 
+////////////////////////////////////////////////////////////////////////
+// Test scenarios
+////////////////////////////////////////////////////////////////////////
+
 func (s *infiniteKernelListCacheDeleteDirTest) TestKernelListCache_ListAndDeleteDirectory() {
-	targetDir := path.Join(testDirPath, "explicit_dir")
+	targetDir := path.Join(testEnv.testDirPath, "explicit_dir")
 	operations.CreateDirectory(targetDir, s.T())
 	// Create test data
 	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, s.T())
@@ -66,7 +78,7 @@ func (s *infiniteKernelListCacheDeleteDirTest) TestKernelListCache_ListAndDelete
 	assert.NoError(s.T(), err)
 	// Adding one object to make sure to change the ReadDir() response.
 	// All files including file3.txt will be deleted by os.RemoveAll
-	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", s.T())
+	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", s.T())
 
 	err = os.RemoveAll(targetDir)
 
@@ -74,7 +86,7 @@ func (s *infiniteKernelListCacheDeleteDirTest) TestKernelListCache_ListAndDelete
 }
 
 func (s *infiniteKernelListCacheDeleteDirTest) TestKernelListCache_DeleteAndListDirectory() {
-	targetDir := path.Join(testDirPath, "explicit_dir")
+	targetDir := path.Join(testEnv.testDirPath, "explicit_dir")
 	operations.CreateDirectory(targetDir, s.T())
 	// Create test data
 	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, s.T())
@@ -86,9 +98,9 @@ func (s *infiniteKernelListCacheDeleteDirTest) TestKernelListCache_DeleteAndList
 	assert.NoError(s.T(), err)
 
 	// Adding object to GCS to make sure to change the ReadDir() response.
-	err = client.CreateObjectOnGCS(ctx, storageClient, path.Join(testDirName, "explicit_dir")+"/", "")
+	err = client.CreateObjectOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, "explicit_dir")+"/", "")
 	require.NoError(s.T(), err)
-	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", s.T())
+	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", s.T())
 	// Read will be served from GCS as removing the directory also deletes the cache.
 	f, err := os.Open(targetDir)
 	assert.NoError(s.T(), err)
@@ -113,23 +125,15 @@ func TestInfiniteKernelListCacheDeleteDirTest(t *testing.T) {
 
 	ts := &infiniteKernelListCacheDeleteDirTest{}
 
-	// Run tests for mounted directory if the flag is set.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+	// Run tests for mounted directory if the flag is set. This assumes that run flag is properly passed by GKE team as per the config.
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
 		suite.Run(t, ts)
 		return
 	}
 
-	// Define flag set to run the tests.
-	// Note: metadata cache is disabled to avoid cache consistency issue between
-	// gcsfuse cache and kernel cache. As gcsfuse cache might hold the entry which
-	// already became stale due to delete operation.
-	flagsSet := [][]string{
-		{"--kernel-list-cache-ttl-secs=-1", "--metadata-cache-ttl-secs=0", "--metadata-cache-negative-ttl-secs=0"},
-	}
-
-	// Run tests.
-	for _, flags := range flagsSet {
-		ts.flags = flags
+	// Run tests for GCE environment otherwise.
+	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
+	for _, ts.flags = range flagsSet {
 		log.Printf("Running tests with flags: %s", ts.flags)
 		suite.Run(t, ts)
 	}

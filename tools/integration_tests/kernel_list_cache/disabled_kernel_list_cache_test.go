@@ -37,12 +37,20 @@ type disabledKernelListCacheTest struct {
 	suite.Suite
 }
 
+func (s *disabledKernelListCacheTest) SetupSuite() {
+	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, s.flags, mountFunc)
+}
+
+func (s *disabledKernelListCacheTest) TearDownSuite() {
+	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
+}
+
 func (s *disabledKernelListCacheTest) SetupTest() {
-	mountGCSFuseAndSetupTestDir(s.flags, testDirName)
+	testEnv.testDirPath = setup.SetupTestDirectory(testDirName)
 }
 
 func (s *disabledKernelListCacheTest) TearDownTest() {
-	setup.UnmountGCSFuse(rootDir)
+	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -50,7 +58,7 @@ func (s *disabledKernelListCacheTest) TearDownTest() {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *disabledKernelListCacheTest) TestKernelListCache_AlwaysCacheMiss() {
-	targetDir := path.Join(testDirPath, "explicit_dir")
+	targetDir := path.Join(testEnv.testDirPath, "explicit_dir")
 	operations.CreateDirectory(targetDir, s.T())
 	// Create test data
 	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, s.T())
@@ -72,7 +80,7 @@ func (s *disabledKernelListCacheTest) TestKernelListCache_AlwaysCacheMiss() {
 	err = f.Close()
 	require.NoError(s.T(), err)
 	// Adding one object to make sure to change the ReadDir() response.
-	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", s.T())
+	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", s.T())
 
 	// Zero ttl, means readdir will always be served from gcsfuse.
 	f, err = os.Open(targetDir)
@@ -93,20 +101,15 @@ func (s *disabledKernelListCacheTest) TestKernelListCache_AlwaysCacheMiss() {
 func TestDisabledKernelListCacheTest(t *testing.T) {
 	ts := &disabledKernelListCacheTest{}
 
-	// Run tests for mounted directory if the flag is set.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+	// Run tests for mounted directory if the flag is set. This assumes that run flag is properly passed by GKE team as per the config.
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
 		suite.Run(t, ts)
 		return
 	}
 
-	// Define flag set to run the tests.
-	flagsSet := [][]string{
-		{"--kernel-list-cache-ttl-secs=0", "--stat-cache-ttl=0", "--rename-dir-limit=10"},
-	}
-
-	// Run tests.
-	for _, flags := range flagsSet {
-		ts.flags = flags
+	// Run tests for GCE environment otherwise.
+	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
+	for _, ts.flags = range flagsSet {
 		log.Printf("Running tests with flags: %s", ts.flags)
 		suite.Run(t, ts)
 	}

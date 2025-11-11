@@ -616,3 +616,42 @@ unsupported_path:
       hns: true
       zonal: true
     run_on_gke: true
+
+kernel_list_cache:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    configs:
+      - flags:
+          - "--kernel-list-cache-ttl-secs=-1"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: "TestInfiniteKernelListCacheTest"
+        run_on_gke: true
+      - flags:
+          # Note: metadata cache is disabled to avoid cache consistency issue between gcsfuse cache and kernel cache. As
+          # gcsfuse cache might hold the entry which already became stale due to delete operation.
+          - "--kernel-list-cache-ttl-secs=-1 --metadata-cache-ttl-secs=0 --metadata-cache-negative-ttl-secs=0"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: "TestInfiniteKernelListCacheDeleteDirTest"
+        run_on_gke: true
+      - flags:
+          - "--kernel-list-cache-ttl-secs=5 --rename-dir-limit=10"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: "TestFiniteKernelListCacheTest"
+        run_on_gke: true
+      - flags:
+          - "--kernel-list-cache-ttl-secs=0 --stat-cache-ttl=0 --rename-dir-limit=10"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: "TestDisabledKernelListCacheTest"
+        run_on_gke: true
