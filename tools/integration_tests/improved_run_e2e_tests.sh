@@ -318,9 +318,7 @@ create_bucket() {
     acquire_lock "$BUCKET_CREATION_LOCK_FILE"
     eval "$bucket_cmd" > "$bucket_cmd_log" 2>&1
     local status=$?
-    if [ $status -eq 0 ]; then
-      sleep "$DELAY_BETWEEN_BUCKET_CREATION" # have 6 seconds gap between creating buckets.
-    fi
+    sleep "$DELAY_BETWEEN_BUCKET_CREATION" # have 6 seconds gap between creating buckets.
     release_lock "$BUCKET_CREATION_LOCK_FILE"
     if [ $status -eq 0 ]; then
       break
