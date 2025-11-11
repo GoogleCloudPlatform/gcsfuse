@@ -377,7 +377,7 @@ safe_kill() {
 # Cleanup ensures each of the buckets created is destroyed and the temp files are cleaned up.
 clean_up() {
   if ${TRACK_RESOURCE_USAGE}; then
-    if ! safe_kill "$RESOURCE_USAGE_PID" "resource_usage.sh"; then
+    if ! safe_kill "${RESOURCE_USAGE_PID-}" "resource_usage.sh"; then
       log_error "Failed to stop resource usage collection process (or it's already stopped)"
     else
       log_info "Resource usage collection process stopped."

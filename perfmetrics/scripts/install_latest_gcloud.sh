@@ -27,11 +27,23 @@ fi
 INSTALL_DIR="/usr/local" # Installation directory
 
 install_latest_gcloud() {
-    # Upgrade Python first, as gcloud requires a version between 3.9 and 3.13.
-    # The upgrade_python3.sh script installs Python 3.11.9.
+    # Define the custom Python path for clarity
+    local PYTHON_DIR="$HOME/.local/python-3.11.9"
+    local PYTHON_EXEC="${PYTHON_DIR}/bin/python3.11"
+    
+    # Define the site-packages directory based on your custom Python install
+    # NOTE: The exact path may vary (e.g., python3.11/site-packages)
+    local PYTHON_SITE_PACKAGES="${PYTHON_DIR}/lib/python3.11/site-packages"
+
+    # Upgrade Python first
     "$(dirname "$0")/upgrade_python3.sh"
+    
+    # --- CRITICAL ADDITION ---
+    # Set PYTHONPATH to ensure 'gcloud' components can find their dependencies
+    export PYTHONPATH="$PYTHON_SITE_PACKAGES"
+
     # Set CLOUDSDK_PYTHON to point to the newly installed Python executable.
-    export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"
+    export CLOUDSDK_PYTHON="$PYTHON_EXEC"
     echo "cloud SDK python: " $CLOUDSDK_PYTHON
 
     local temp_dir
@@ -39,12 +51,22 @@ install_latest_gcloud() {
     pushd "$temp_dir"
     
     wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
-    sudo rm -rf "${INSTALL_DIR}/google-cloud-sdk" # Remove existing gcloud installation
+    sudo rm -rf "${INSTALL_DIR}/google-cloud-sdk"
     sudo tar -C "$INSTALL_DIR" -xzf gcloud.tar.gz
-    # Use `sudo env` to pass the CLOUDSDK_PYTHON variable to the gcloud commands.
-    sudo env CLOUDSDK_PYTHON="$CLOUDSDK_PYTHON" "${INSTALL_DIR}/google-cloud-sdk/install.sh" -q
-    sudo env CLOUDSDK_PYTHON="$CLOUDSDK_PYTHON" "${INSTALL_DIR}/google-cloud-sdk/bin/gcloud" components update -q
-    sudo env CLOUDSDK_PYTHON="$CLOUDSDK_PYTHON" "${INSTALL_DIR}/google-cloud-sdk/bin/gcloud" components install alpha -q
+    
+    # Use `sudo env` to pass BOTH CLOUDSDK_PYTHON AND PYTHONPATH variables
+    sudo env CLOUDSDK_PYTHON="$CLOUDSDK_PYTHON" \
+        PYTHONPATH="$PYTHONPATH" \
+        "${INSTALL_DIR}/google-cloud-sdk/install.sh" -q
+        
+    sudo env CLOUDSDK_PYTHON="$CLOUDSDK_PYTHON" \
+        PYTHONPATH="$PYTHONPATH" \
+        "${INSTALL_DIR}/google-cloud-sdk/bin/gcloud" components update -q
+        
+    sudo env CLOUDSDK_PYTHON="$CLOUDSDK_PYTHON" \
+        PYTHONPATH="$PYTHONPATH" \
+        "${INSTALL_DIR}/google-cloud-sdk/bin/gcloud" components install alpha -q
+        
     popd
     sudo rm -rf "$temp_dir"
 }
