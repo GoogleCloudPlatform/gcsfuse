@@ -94,7 +94,7 @@ RUN_TESTS_WITH_PRESUBMIT_FLAG=false
 RUN_TESTS_WITH_ZONAL_BUCKET=false
 BUILD_BINARY_IN_SCRIPT=true
 TRACK_RESOURCE_USAGE=false
-PACKAGE_LEVEL_PARALLELISM=1 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
+PACKAGE_LEVEL_PARALLELISM=5 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
 
 # Define options for getopt
 # A long option name followed by a colon indicates it requires an argument.
