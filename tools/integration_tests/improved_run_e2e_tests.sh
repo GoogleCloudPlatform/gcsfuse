@@ -196,10 +196,10 @@ fi
 # Test packages which can be run for both Zonal and Regional buckets.
 # Sorted list descending run times. (Longest Processing Time first strategy) 
 TEST_PACKAGES_COMMON=(
-  #"managed_folders"
-  #"operations"
-  #"read_large_files"
-  #"concurrent_operations"
+  "managed_folders"
+  "operations"
+  "read_large_files"
+  "concurrent_operations"
   # "read_cache"
   "list_large_dir"
   "mount_timeout"
@@ -288,7 +288,6 @@ log_error_locked() {
 }
 
 # Helper method to create "flat", "hns" or "zonal" bucket.
-# shellcheck disable=SC2329
 create_bucket() {
   if [[ $# -ne 2 ]]; then
     log_error "create_bucket() called with incorrect number of arguments."
@@ -316,19 +315,21 @@ create_bucket() {
       cat "$bucket_cmd_log"
       return 1
     fi
+    acquire_lock "$BUCKET_CREATION_LOCK_FILE"
     eval "$bucket_cmd" > "$bucket_cmd_log" 2>&1
     if [ $? -eq 0 ]; then
       sleep "$DELAY_BETWEEN_BUCKET_CREATION" # have 6 seconds gap between creating buckets. 
       break
     fi
+    release_lock "$BUCKET_CREATION_LOCK_FILE"
   done
   echo "$bucket_name" >> "$BUCKET_NAMES" # Add bucket names to file.
   echo "$bucket_name"
+  rm -rf "$bucket_cmd_log"
   return 0
 }
 
 # Helper method to delete the bucket.
-# shellcheck disable=SC2329
 delete_bucket() {
   if [[ $# -ne 1 ]]; then
     log_error_locked "delete_bucket() called with incorrect number of arguments."
@@ -355,7 +356,6 @@ safe_kill() {
 }
 
 # Cleanup ensures each of the buckets created is destroyed and the temp files are cleaned up.
-# shellcheck disable=SC2329
 clean_up() {
   if ${TRACK_RESOURCE_USAGE}; then
     if ! safe_kill "$RESOURCE_USAGE_PID" "resource_usage.sh"; then
@@ -409,8 +409,9 @@ process_any_pid() {
 #   The function returns a non-zero exit status if any of the parallel commands fail.
 #
 # Usage: run_parallel "parallelism" "command_template_with_@" "substitute1" "substitute2" ...
-#   The '@' in the command_template will be replaced by each substitute argument.
-#   This first argument is exten of parallelism for this command.
+#   First argument is extent of parallelism for this command.
+#   Second argument is the command template with single @.
+#   Rest of the arguments are values that would be substituted in the command template.
 #
 # Example:
 #   run_parallel 2 "echo 'Processing @' && sleep 1" "itemA" "itemB" "itemC"
@@ -446,7 +447,6 @@ run_parallel() {
 }
 
 # Helper method that creates a bucket and then runs the test package.
-# shellcheck disable=SC2329
 create_bucket_and_run_test() {
   if [[ $# -ne 2 ]]; then
     log_error_locked "create_bucket_and_run_test() called with incorrect number of arguments."
@@ -463,7 +463,6 @@ create_bucket_and_run_test() {
 }
 
 # Helper method to executes e2e test package.
-# shellcheck disable=SC2329
 test_package() {
   if [[ $# -ne 3 ]]; then
     log_error_locked "test_package() called with incorrect number of arguments."
@@ -522,7 +521,6 @@ test_package() {
 }
 
 # Helper method to generate Kokoro artifacts(log) files when building in Kokoro environment.
-# shellcheck disable=SC2329
 generate_test_log_artifacts() {
   # If KOKORO_ARTIFACTS_DIR is not set, skip artifact generation.
   if ! $KOKORO_DIR_AVAILABLE; then
@@ -621,23 +619,17 @@ install_packages() {
 # Generic function to run a group of E2E tests for a given bucket type.
 # Args:
 #   $1: Descriptive group name (e.g., "REGIONAL", "ZONAL", "TPC")
-#   $2: Name of the array holding test packages (e.g., "TEST_PACKAGES_FOR_RB", "TEST_PACKAGES_FOR_ZB")
-#   $3: Bucket type ("flat", "hns", "zonal")
+#   $2: Bucket type ("flat", "hns", "zonal")
+#   $@: A list of test package names to run.
 run_test_group() {
     local group_name="$1"
-    local test_packages_var_name="$2"
-    local bucket_type="$3"
-    local packages_for_run=()
-    local -n test_packages_ref="$test_packages_var_name"
+    local bucket_type="$2"
+    shift 2
+    local -a test_packages=("$@")
     local group_exit_code=0
     log_info_locked "Started running e2e tests for ${group_name} group (bucket type: ${bucket_type})."
 
-    # Prepare arguments for create_bucket_and_run_test.
-    for package in "${test_packages_ref[@]}"; do
-        packages_for_run+=("${package} ${bucket_type}")
-    done
-
-    run_parallel "$PACKAGE_LEVEL_PARALLELISM" "create_bucket_and_run_test @" "${packages_for_run[@]}"
+    run_parallel "$PACKAGE_LEVEL_PARALLELISM" "create_bucket_and_run_test @ ${bucket_type}" "${test_packages[@]}"
     group_exit_code=$?
 
     if [ "$group_exit_code" -ne 0 ]; then
@@ -704,16 +696,16 @@ main() {
   local pids=()
   local overall_exit_code=0
   if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
-    run_test_group "ZONAL" "TEST_PACKAGES_FOR_ZB" "$ZONAL" & pids+=($!)
+    run_test_group "ZONAL" "$ZONAL" "${TEST_PACKAGES_FOR_ZB[@]}" & pids+=($!)
   elif ${RUN_TEST_ON_TPC_ENDPOINT}; then
     # Override PROJECT_ID and BUCKET_LOCATION for TPC tests
     PROJECT_ID="$TPCZERO_PROJECT_ID"
     BUCKET_LOCATION="$TPC_BUCKET_LOCATION"
-    run_test_group "TPC" "TEST_PACKAGES_FOR_TPC" "$HNS" & pids+=($!)
-    run_test_group "TPC" "TEST_PACKAGES_FOR_TPC" "$FLAT" & pids+=($!)
+    run_test_group "TPC" "$HNS" "${TEST_PACKAGES_FOR_TPC[@]}" & pids+=($!)
+    run_test_group "TPC" "$FLAT" "${TEST_PACKAGES_FOR_TPC[@]}" & pids+=($!)
   else
-    run_test_group "REGIONAL" "TEST_PACKAGES_FOR_RB" "$HNS" & pids+=($!)
-    run_test_group "REGIONAL" "TEST_PACKAGES_FOR_RB" "$FLAT" & pids+=($!)
+    run_test_group "REGIONAL" "$HNS" "${TEST_PACKAGES_FOR_RB[@]}" & pids+=($!)
+    run_test_group "REGIONAL" "$FLAT" "${TEST_PACKAGES_FOR_RB[@]}" & pids+=($!)
     run_e2e_tests_for_emulator & pids+=($!) # Emulator tests are a separate group
   fi
   # Wait for all background processes to complete and aggregate their exit codes
