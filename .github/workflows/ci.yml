@@ -80,7 +80,7 @@ jobs:
       run: CGO_ENABLED=0 go test -count=1 -covermode=atomic -coverprofile=coverage.out -coverpkg=./... -v -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./... | grep -v 'internal/cache/file/downloader'`
     - name: RaceDetector Test
       if: ${{ needs.filter.outputs.run_tests == 'true' }}
-      run: go test -count=1 -v -race -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` ./internal/cache/... ./internal/gcsx/...
+      run: go test -count=1 -v -race -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./internal/cache/... ./internal/gcsx/... | grep -v 'internal/cache/file/downloader'`
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v4.3.1
       timeout-minutes: 5
