@@ -46,9 +46,9 @@ type PrefetchBlock interface {
 	// Here, off is relative to the start of the block.
 	ReadAt(p []byte, off int64) (n int, err error)
 
-	// ReadAtSlice provides a zero-copy way to read data from the block. It
-	// returns a slice of the underlying buffer. The returned slice must not be
-	// modified. The offset is relative to the start of the block.
+	// ReadAtSlice provides a way to read data from the block by returning a
+	// slice of the underlying buffer. The returned slice must not be modified.
+	// The offset is relative to the start of the block.
 	ReadAtSlice(off int64, size int) (p []byte, err error)
 
 	// AbsStartOff returns the absolute start offset of the block.
@@ -147,10 +147,10 @@ func (pmb *prefetchMemoryBlock) ReadAt(p []byte, off int64) (n int, err error) {
 	return n, nil
 }
 
-// ReadAtSlice provides a zero-copy way to read data from the block. It returns
-// a slice of the underlying buffer starting at the given offset, which is
-// relative to the start of the block. The returned slice must not be modified
-// by the caller.
+// ReadAtSlice returns a slice of the underlying buffer starting at the given
+// offset, which is relative to the start of the block. This allows for reading
+// data without an additional copy. The returned slice must not be modified by
+// the caller.
 //
 // If the requested size exceeds the available data from the offset, it returns
 // a slice of the available data and an io.EOF error. If the offset is out of

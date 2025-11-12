@@ -53,13 +53,6 @@ const (
 	ReadOp                    = "readOp"
 )
 
-// blockQueueEntry holds a data block with a function
-// to cancel its in-flight download.
-type blockQueueEntry struct {
-	block  block.PrefetchBlock
-	cancel context.CancelFunc
-}
-
 type BufferedReader struct {
 	gcsx.Reader
 	object *gcs.MinObject
@@ -109,6 +102,10 @@ type BufferedReader struct {
 	// of blocks that can be allocated across all BufferedReader instances.
 	// GUARDED by (mu)
 	blockPool *block.GenBlockPool[block.PrefetchBlock]
+
+	// A waitgroup to track outstanding references to data slices that have been returned
+	// directly from internal buffers to FUSE library.
+	inflightCallbackWg sync.WaitGroup
 }
 
 // BufferedReaderOptions holds the dependencies for a BufferedReader.
@@ -182,11 +179,8 @@ func (p *BufferedReader) handleRandomRead(offset int64, handleID int64) error {
 	// release the blocks back to the pool.
 	for !p.blockQueue.IsEmpty() {
 		entry := p.blockQueue.Pop()
-		entry.cancel()
-		if _, waitErr := entry.block.AwaitReady(context.Background()); waitErr != nil {
-			logger.Warnf("handleRandomRead: AwaitReady during discard (offset=%d): %v", offset, waitErr)
-		}
-		p.blockPool.Release(entry.block)
+		entry.cancelAndWait()
+		p.releaseBlock(entry)
 	}
 
 	if p.randomSeekCount > p.randomReadsThreshold {
@@ -230,16 +224,25 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 		if offset < blockStart || offset >= blockEnd {
 			// Offset is either before or beyond this block – discard.
 			p.blockQueue.Pop()
-			entry.cancel()
-
-			if _, waitErr := block.AwaitReady(context.Background()); waitErr != nil {
-				logger.Warnf("prepareQueueForOffset: AwaitReady during discard (offset=%d): %v", offset, waitErr)
-			}
-
-			p.blockPool.Release(block)
+			entry.cancelAndWait()
+			p.releaseBlock(entry)
 		} else {
 			break
 		}
+	}
+}
+
+// callback is called when the FUSE library is finished with a buffer slice that
+// was returned directly from a block. It decrements the block's reference count
+// and releases it back to the pool if the count drops to zero and it was
+// previously marked for eviction.
+func (p *BufferedReader) callback(entry *blockQueueEntry) {
+	defer p.inflightCallbackWg.Done()
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if entry.block.DecRef() && entry.wasEvicted {
+		p.releaseBlock(entry)
 	}
 }
 
@@ -307,6 +310,8 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 	prefetchTriggered := false
 
+	var data [][]byte
+	var callbacks []func()
 	for bytesRead < len(inputBuf) {
 		p.prepareQueueForOffset(off)
 
@@ -343,13 +348,22 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		}
 
 		relOff := off - blk.AbsStartOff()
-		n, readErr := blk.ReadAt(inputBuf[bytesRead:], relOff)
-		bytesRead += n
-		off += int64(n)
+		bytesToRead := len(inputBuf) - bytesRead
+		dataSlice, readErr := blk.ReadAtSlice(relOff, bytesToRead)
+		sliceLen := len(dataSlice)
+		bytesRead += sliceLen
+		off += int64(sliceLen)
 
 		if readErr != nil && !errors.Is(readErr, io.EOF) {
 			err = fmt.Errorf("BufferedReader.ReadAt: block.ReadAt: %w", readErr)
 			break
+		}
+
+		if sliceLen > 0 {
+			data = append(data, dataSlice)
+			p.inflightCallbackWg.Add(1)
+			blk.IncRef()
+			callbacks = append(callbacks, func() { p.callback(entry) })
 		}
 
 		if off >= int64(p.object.Size) {
@@ -357,8 +371,8 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		}
 
 		if off >= blk.AbsStartOff()+blk.Size() {
-			p.blockQueue.Pop()
-			p.blockPool.Release(blk)
+			entry := p.blockQueue.Pop()
+			p.releaseBlock(entry)
 
 			if !prefetchTriggered {
 				prefetchTriggered = true
@@ -369,6 +383,12 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		}
 	}
 
+	resp.Data = data
+	resp.Callback = func() {
+		for _, cb := range callbacks {
+			cb()
+		}
+	}
 	resp.Size = bytesRead
 	return resp, err
 }
@@ -495,33 +515,58 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockInde
 // LOCKS_EXCLUDED(p.mu)
 func (p *BufferedReader) Destroy() {
 	p.mu.Lock()
-	defer p.mu.Unlock()
-
 	for !p.blockQueue.IsEmpty() {
 		bqe := p.blockQueue.Pop()
-		bqe.cancel()
+		bqe.cancelAndWait()
+		p.releaseBlock(bqe)
+	}
+	p.mu.Unlock()
 
-		// We wait for the block's worker goroutine to finish. We expect its
-		// status to contain a context.Canceled error because we just called cancel.
-		status, err := bqe.block.AwaitReady(context.Background())
-		if err != nil {
-			logger.Warnf("Destroy: AwaitReady for block failed: %v", err)
-		} else if status.Err != nil && !errors.Is(status.Err, context.Canceled) {
-			logger.Warnf("Destroy: waiting for block on destroy: %v", status.Err)
-		}
-		p.blockPool.Release(bqe.block)
+	// Wait for any remaining operations where data slices were returned directly
+	// to complete, with a timeout to prevent indefinite blocking. Their Done
+	// callbacks will handle the final release of those blocks.
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		p.inflightCallbackWg.Wait()
+	}()
+
+	select {
+	case <-done:
+		// Wait completed successfully.
+	case <-time.After(10 * time.Second):
+		logger.Warnf("BufferedReader.Destroy: timed out waiting for outstanding data slice references to be released.")
 	}
 
+	// After the wait, no new read calls can arrive. This is because the kernel
+	// prevents read operations on a closed file handle, so no further locking is
+	// necessary for the final cleanup.
 	if p.cancelFunc != nil {
 		p.cancelFunc()
 		p.cancelFunc = nil
 	}
 
-	err := p.blockPool.ClearFreeBlockChannel(true)
-	if err != nil {
+	if err := p.blockPool.ClearFreeBlockChannel(true); err != nil {
 		logger.Warnf("Destroy: clearing free block channel: %v", err)
 	}
 	p.blockPool = nil
+}
+
+// releaseBlock waits for any pending download on the given block to complete
+// and then handles its release. If the block has no outstanding references,
+// it is immediately returned to the block pool. If there are outstanding
+// references, the block is marked as evicted, and its final release
+// is deferred until the last reference's callback is executed.
+// LOCKS_REQUIRED(p.mu)
+func (p *BufferedReader) releaseBlock(entry *blockQueueEntry) {
+	// If the block still has outstanding references, do not release it to the
+	// pool. Instead, mark it as evicted so the callback can release it later
+	// when the reference count drops to zero.
+	if entry.block.RefCount() > 0 {
+		entry.wasEvicted = true
+	} else {
+		p.blockPool.Release(entry.block)
+	}
 }
 
 // CheckInvariants checks for internal consistency of the reader.

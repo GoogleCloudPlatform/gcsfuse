@@ -946,7 +946,13 @@ func (t *fileTest) Test_ReadWithReadManager_FullReadSuccessWithBufferedRead() {
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), fileSize, resp.Size)
-	assert.Equal(t.T(), expectedData, buf)
+	// When buffered read is enabled, the data is returned in resp.Data and not
+	// directly in the buffer. We need to copy it to compare.
+	bytesCopied := 0
+	for _, dataSlice := range resp.Data {
+		bytesCopied += copy(buf[bytesCopied:], dataSlice)
+	}
+	assert.Equal(t.T(), expectedData, buf[:bytesCopied])
 }
 
 func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() {
