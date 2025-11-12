@@ -57,8 +57,9 @@ jobs:
     - name: Formatting diff
       run: go fmt ./... && go mod tidy && git diff --exit-code --name-only
 
-  linux-tests:
+  test-all:
     needs: filter
+    if: ${{ needs.filter.outputs.run_tests == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -71,16 +72,11 @@ jobs:
     - name: Install fuse
       run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fuse3 libfuse-dev
     - name: Build Tools
-      if: ${{ needs.filter.outputs.run_tests == 'true' }}
       run: |
         go install ./tools/build_gcsfuse
         build_gcsfuse . /tmp ${GITHUB_SHA}
     - name: Test all
-      if: ${{ needs.filter.outputs.run_tests == 'true' }}
       run: CGO_ENABLED=0 go test -count=1 -covermode=atomic -coverprofile=coverage.out -coverpkg=./... -v -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./... | grep -v 'internal/cache/file/downloader'`
-    - name: RaceDetector Test
-      if: ${{ needs.filter.outputs.run_tests == 'true' }}
-      run: go test -count=1 -v -race -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./internal/cache/... ./internal/gcsx/... | grep -v 'internal/cache/file/downloader'`
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v4.3.1
       timeout-minutes: 5
@@ -88,6 +84,27 @@ jobs:
         fail_ci_if_error: false
         token: ${{ secrets.CODECOV_TOKEN }}
         flags: unittests
+
+  race-detector-test:
+    needs: filter
+    if: ${{ needs.filter.outputs.run_tests == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        cache: true
+    - name: Install fuse
+      run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fuse3 libfuse-dev
+    - name: Build Tools
+      run: |
+        go install ./tools/build_gcsfuse
+        build_gcsfuse . /tmp ${GITHUB_SHA}
+    - name: RaceDetector Test
+      run: go test -count=1 -v -race -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./internal/cache/... ./internal/gcsx/... | grep -v 'internal/cache/file/downloader'`
 
   lint:
     name: Lint
