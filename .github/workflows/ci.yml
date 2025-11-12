@@ -76,7 +76,7 @@ jobs:
         go install ./tools/build_gcsfuse
         build_gcsfuse . /tmp ${GITHUB_SHA}
     - name: Test all
-      run: CGO_ENABLED=0 go test -count=1 -covermode=atomic -coverprofile=coverage.out -coverpkg=./... -v -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./... | grep -v 'internal/cache/file/downloader'`
+      run: CGO_ENABLED=0 go test -p 1 -count=1 -covermode=atomic -coverprofile=coverage.out -coverpkg=./... -v -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./...`
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v4.3.1
       timeout-minutes: 5
@@ -104,7 +104,7 @@ jobs:
         go install ./tools/build_gcsfuse
         build_gcsfuse . /tmp ${GITHUB_SHA}
     - name: RaceDetector Test
-      run: go test -count=1 -v -race -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./internal/cache/... ./internal/gcsx/... | grep -v 'internal/cache/file/downloader'`
+      run: go test -p 1 -count=1 -v -race -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./internal/cache/... ./internal/gcsx/...`
 
   lint:
     name: Lint
