@@ -800,7 +800,6 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 					MaxConnsPerHost:            1000,
 					MaxIdleConnsPerHost:        20,
 					SequentialReadSizeMb:       70,
-					EnableHttpDnsCache:         true,
 				},
 			},
 		},
@@ -820,13 +819,12 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 					MaxConnsPerHost:            0,
 					MaxIdleConnsPerHost:        100,
 					SequentialReadSizeMb:       200,
-					EnableHttpDnsCache:         true,
 				},
 			},
 		},
 		{
-			name: "test_dns_cache_disabled",
-			args: []string{"gcsfuse", "--enable-http-dns-cache=false", "abc", "pqr"},
+			name: "test_dns_cache",
+			args: []string{"gcsfuse", "--enable-http-dns-cache", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				GcsConnection: cfg.GcsConnectionConfig{
 					BillingProject:             "",
@@ -840,7 +838,7 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 					MaxConnsPerHost:            0,
 					MaxIdleConnsPerHost:        100,
 					SequentialReadSizeMb:       200,
-					EnableHttpDnsCache:         false,
+					EnableHttpDnsCache:         true,
 				},
 			},
 		},
