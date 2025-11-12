@@ -38,7 +38,7 @@ INSTALL_DIR="/usr/local" # Installation directory
 # This function requires sudo privileges for installation and for modifying .bashrc.
 install_latest_gcloud() {
     local -r python_version="3.11.9"
-    local -r python_bin_dir="/user/.local/python-$python_version/bin"
+    local -r python_bin_dir="/user/local/python-$python_version/bin"
     local -r python_executable="$python_bin_dir/python3.11"
     local -r bashrc="$HOME/.bashrc"
     local -r gcloud_install_dir="${INSTALL_DIR}/google-cloud-sdk"
