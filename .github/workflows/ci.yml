@@ -77,7 +77,7 @@ jobs:
         build_gcsfuse . /tmp ${GITHUB_SHA}
     - name: Test all
       if: ${{ needs.filter.outputs.run_tests == 'true' }}
-      run: CGO_ENABLED=0 go test -count=1 -covermode=atomic -coverprofile=coverage.out -coverpkg=./... -v -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./...`
+      run: CGO_ENABLED=0 go test -count=1 -covermode=atomic -coverprofile=coverage.out -coverpkg=./... -v -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./... | grep -v 'internal/cache/file/downloader'`
     - name: RaceDetector Test
       if: ${{ needs.filter.outputs.run_tests == 'true' }}
       run: go test -count=1 -v -race -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` ./internal/cache/... ./internal/gcsx/...
