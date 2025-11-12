@@ -41,10 +41,6 @@ const (
 var (
 	testEnv   env
 	mountFunc func(*test_suite.TestConfig, []string) error
-	// mount directory is where our tests run.
-	mountDir string
-	// root directory is the directory to be unmounted.
-	rootDir string
 )
 
 type env struct {
@@ -115,9 +111,6 @@ func TestMain(m *testing.M) {
 
 	// Run tests for testBucket
 	setup.SetUpTestDirForTestBucket(testEnv.cfg)
-
-	// Save mount and root directory variables.
-	mountDir, rootDir = setup.MntDir(), setup.MntDir()
 
 	log.Println("Running static mounting tests...")
 	mountFunc = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile

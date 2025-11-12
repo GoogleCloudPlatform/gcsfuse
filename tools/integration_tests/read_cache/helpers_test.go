@@ -176,11 +176,9 @@ func validateFileIsCached(fileName string, t *testing.T) {
 }
 
 func remountGCSFuse(flags []string) {
-	setup.SetMntDir(rootDir)
-	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
+	setup.UnmountGCSFuseAndDeleteLogFile(testEnv.cfg.GCSFuseMountedDirectory)
 
 	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, flags, mountFunc)
-	setup.SetMntDir(mountDir)
 }
 
 func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage.Client, filename string, fileSize int64, checkCacheSize bool, t *testing.T) (expectedOutcome *Expected) {
