@@ -619,42 +619,83 @@ func BatchUploadFilesWithoutIntermediateDelays(ctx context.Context, storageClien
 // ListDirectory lists objects in the specified GCS bucket under the given prefix.
 // It returns a slice of object names.
 func ListDirectory(ctx context.Context, client *storage.Client, bucketName, prefix string) ([]string, error) {
-	var entries []string
-
 	if prefix != "" && !strings.HasSuffix(prefix, "/") {
 		prefix += "/"
 	}
 
-	query := &storage.Query{
-		Prefix: prefix,
-		// Delimiter to prevent listing objects recursively and to return subdirectories as prefixes.
-		Delimiter:                "/",
-		IncludeFoldersAsPrefixes: true,
-	}
-
 	bucket := client.Bucket(bucketName)
+	attrs, err := bucket.Attrs(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error getting bucket attrs: %w", err)
+	}
 
-	it := bucket.Objects(ctx, query)
-	for {
-		attrs, err := it.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("error iterating GCS objects: %w", err)
-		}
+	var entries []string
+	var mu sync.Mutex
+	g, ctx := errgroup.WithContext(ctx)
 
-		if attrs.Name == prefix {
-			continue // Skip the object if its name exactly matches the prefix
+	// List objects recursively.
+	g.Go(func() error {
+		objQuery := &storage.Query{
+			Prefix: prefix,
 		}
-		if attrs.Prefix != "" {
-			// This is a subdirectory prefix (e.g., "my-dir/subdir/").
-			entries = append(entries, attrs.Prefix)
-		} else {
-			// This is an object (file) (e.g., "my-dir/file.txt").
-			entries = append(entries, attrs.Name)
+		it := bucket.Objects(ctx, objQuery)
+		for {
+			attrs, err := it.Next()
+			if err == iterator.Done {
+				break
+			}
+			if err != nil {
+				return fmt.Errorf("error iterating GCS objects: %w", err)
+			}
+			if attrs.Name != prefix {
+				mu.Lock()
+				entries = append(entries, attrs.Name)
+				mu.Unlock()
+			}
+		}
+		return nil
+	})
+
+	// For HNS buckets, also list folders recursively.
+	if attrs.HierarchicalNamespace != nil && attrs.HierarchicalNamespace.Enabled {
+		g.Go(func() error {
+			folderQuery := &storage.Query{
+				Prefix:                   prefix,
+				IncludeFoldersAsPrefixes: true,
+				Delimiter:                "/",
+			}
+			it := bucket.Objects(ctx, folderQuery)
+			for {
+				attrs, err := it.Next()
+				if err == iterator.Done {
+					break
+				}
+				if err != nil {
+					return fmt.Errorf("error iterating GCS folders: %w", err)
+				}
+				if attrs.Prefix != "" && attrs.Prefix != prefix {
+					mu.Lock()
+					entries = append(entries, attrs.Prefix)
+					mu.Unlock()
+				}
+			}
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	// Using a map to remove duplicates that might arise from listing objects and folders.
+	seen := make(map[string]struct{})
+	var uniqueEntries []string
+	for _, entry := range entries {
+		if _, ok := seen[entry]; !ok {
+			seen[entry] = struct{}{}
+			uniqueEntries = append(uniqueEntries, entry)
 		}
 	}
 
-	return entries, nil
+	return uniqueEntries, nil
 }
