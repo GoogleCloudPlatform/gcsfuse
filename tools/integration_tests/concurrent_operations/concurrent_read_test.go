@@ -16,15 +16,17 @@ package concurrent_operations
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"log"
 	"math/rand"
 	"os"
 	"path"
 	"sync"
-	"syscall"
 	"testing"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
@@ -33,27 +35,51 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-const (
-	testDirNameForRead = "concurrent_read_test"
-)
-
-var testDirPathForRead string
-
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
 type concurrentReadTest struct {
-	flags []string
+	flags         []string
+	storageClient *storage.Client
+	ctx           context.Context
+	baseTestName  string
 	suite.Suite
 }
 
 func (s *concurrentReadTest) SetupTest() {
-	mountGCSFuseAndSetupTestDir(s.flags, testDirNameForRead, s.T())
+	fmt.Println("after mounting, Read test individual setup Test*****************************", path.Join(testDirName, s.T().Name()))
+	// client.SetupTestDirectory handles GCS-level directory creation and cleanup.
+	// It returns the mounted path, but does not create the local directory structure.
+	// We need to ensure the local directory exists for file operations.
+	mountedTestDirPath := client.SetupTestDirectory(s.ctx, s.storageClient, path.Join(testDirName, s.T().Name()))
+	err := os.MkdirAll(mountedTestDirPath, setup.DirPermission_0755)
+	require.NoError(s.T(), err, "Failed to create local test directory: %s", mountedTestDirPath)
+	testEnv.testDirPath = mountedTestDirPath
 }
 
 func (s *concurrentReadTest) TearDownTest() {
-	setup.UnmountGCSFuse(setup.MntDir())
+	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
+}
+
+func (s *concurrentReadTest) TearDownSuite() {
+	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
+}
+
+func (s *concurrentReadTest) SetupSuite() {
+	setup.SetUpLogFilePath(s.baseTestName, GKETempDir, OldGKElogFilePath, testEnv.cfg)
+	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
+}
+
+// createFileAndUploadToGCS is a helper function to create a local file of a given
+// size and upload it to GCS for subsequent validation.
+func (s *concurrentReadTest) createFileAndUploadToGCS(fileName string, fileSize int64) string {
+	testFilePath := path.Join(testEnv.testDirPath, fileName)
+	operations.CreateFileOfSize(fileSize, testFilePath, s.T())
+	gcsObjectName := path.Join(path.Base(testEnv.testDirPath), fileName)
+	err := client.UploadGcsObject(s.ctx, s.storageClient, testFilePath, setup.TestBucket(), gcsObjectName, false)
+	require.NoError(s.T(), err, "Failed to upload file to GCS")
+	return testFilePath
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -73,8 +99,7 @@ func (s *concurrentReadTest) Test_ConcurrentSequentialAndRandomReads() {
 		randomReads     = 5                       // Number of random readers
 	)
 	// Create a 500MiB test file
-	testFilePath := path.Join(testDirPathForRead, "large_test_file.bin")
-	operations.CreateFileOfSize(fileSize, testFilePath, s.T())
+	testFilePath := s.createFileAndUploadToGCS("large_test_file.bin", fileSize)
 	var wg sync.WaitGroup
 	timeout := 300 * time.Second // 5 minutes timeout for 500MiB operations
 
@@ -87,8 +112,8 @@ func (s *concurrentReadTest) Test_ConcurrentSequentialAndRandomReads() {
 			content, err := operations.ReadFileSequentially(testFilePath, chunkSize)
 			require.NoError(s.T(), err, "Sequential reader %d: read failed.", readerID)
 			require.Equal(s.T(), fileSize, len(content), "Sequential reader %d: expected to read entire file", readerID)
-			obj := storageClient.Bucket(setup.TestBucket()).Object(path.Join(path.Base(testDirPathForRead), "large_test_file.bin"))
-			attrs, err := obj.Attrs(ctx)
+			obj := testEnv.storageClient.Bucket(setup.TestBucket()).Object(path.Join(path.Base(testEnv.testDirPath), "large_test_file.bin"))
+			attrs, err := obj.Attrs(testEnv.ctx)
 			require.NoError(s.T(), err, "obj.Attrs")
 			localCRC32C, err := operations.CalculateCRC32(bytes.NewReader(content))
 			require.NoError(s.T(), err, "Sequential reader %d: failed to calculate local CRC32C", readerID)
@@ -108,7 +133,7 @@ func (s *concurrentReadTest) Test_ConcurrentSequentialAndRandomReads() {
 				// Use operations.ReadChunkFromFile for reading chunks
 				chunk, err := operations.ReadChunkFromFile(testFilePath, chunkSize, randomOffset, os.O_RDONLY)
 				require.NoError(s.T(), err, "Random reader %d: ReadChunkFromFile failed at offset %d", readerID, randomOffset)
-				client.ValidateObjectChunkFromGCS(ctx, storageClient, path.Base(testDirPathForRead), "large_test_file.bin", randomOffset, int64(len(chunk)), string(chunk), s.T())
+				client.ValidateObjectChunkFromGCS(testEnv.ctx, testEnv.storageClient, path.Base(testEnv.testDirPath), "large_test_file.bin", randomOffset, int64(len(chunk)), string(chunk), s.T())
 			}
 		}(i)
 	}
@@ -139,8 +164,7 @@ func (s *concurrentReadTest) Test_ConcurrentSegmentReadsSharedHandle() {
 		segmentSize = fileSize / numReaders   // Each reader reads 100 MiB segment
 	)
 	// Create a 500MiB test file
-	testFilePath := path.Join(testDirPathForRead, "segment_test_file.bin")
-	operations.CreateFileOfSize(fileSize, testFilePath, s.T())
+	testFilePath := s.createFileAndUploadToGCS("segment_test_file.bin", fileSize)
 	// Open shared file handle that will be used by all goroutines
 	sharedFile, err := os.Open(testFilePath)
 	require.NoError(s.T(), err, "Failed to open shared file handle")
@@ -196,8 +220,8 @@ func (s *concurrentReadTest) Test_ConcurrentSegmentReadsSharedHandle() {
 		// Validate checksum of reconstructed content
 		reconstructedChecksum, err := operations.CalculateCRC32(bytes.NewReader(fullContent.Bytes()))
 		require.NoError(s.T(), err, "Failed to calculate reconstructed checksum")
-		obj := storageClient.Bucket(setup.TestBucket()).Object(path.Join(path.Base(testDirPathForRead), "segment_test_file.bin"))
-		attrs, err := obj.Attrs(ctx)
+		obj := testEnv.storageClient.Bucket(setup.TestBucket()).Object(path.Join(path.Base(testEnv.testDirPath), "segment_test_file.bin"))
+		attrs, err := obj.Attrs(testEnv.ctx)
 		require.NoError(s.T(), err, "obj.Attrs")
 		assert.Equal(s.T(), attrs.CRC32C, reconstructedChecksum, "CRC32C mismatch. GCS: %d, Local: %d", attrs.CRC32C, reconstructedChecksum)
 	case <-time.After(timeout):
@@ -220,21 +244,16 @@ func (s *concurrentReadTest) Test_ConcurrentReadPlusWrite() {
 			defer wg.Done()
 
 			fileName := fmt.Sprintf("test_%d.bin", workerId)
-			filePath := path.Join(testDirPathForRead, fileName)
-			f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, setup.FilePermission_0600) //nolint:staticcheck
-			require.NoError(s.T(), err)
-			randomData, err := operations.GenerateRandomData(fileSize)
-			require.NoError(s.T(), err)
-			n, err := f.Write(randomData)
-			require.NoError(s.T(), err)
-			require.Equal(s.T(), fileSize, n)
-			operations.CloseFileShouldNotThrowError(s.T(), f)
+			filePath := path.Join(testEnv.testDirPath, fileName)
+			// Create and upload the file.
+			s.createFileAndUploadToGCS(fileName, fileSize)
 
+			// Read the file back and validate its content.
 			content, err := operations.ReadFileSequentially(filePath, chunkSize)
-			require.NoError(s.T(), err, "Sequential reader %d: read failed.", workerId)
+			require.NoError(s.T(), err, "Sequential reader %d: read failed.", workerId) //nolint:staticcheck
 			require.Equal(s.T(), fileSize, len(content), "Sequential reader %d: expected to read entire file", workerId)
-			obj := storageClient.Bucket(setup.TestBucket()).Object(path.Join(path.Base(testDirPathForRead), fileName))
-			attrs, err := obj.Attrs(ctx)
+			obj := testEnv.storageClient.Bucket(setup.TestBucket()).Object(path.Join(path.Base(testEnv.testDirPath), fileName))
+			attrs, err := obj.Attrs(testEnv.ctx)
 			require.NoError(s.T(), err, "obj.Attrs")
 			localCRC32C, err := operations.CalculateCRC32(bytes.NewReader(content))
 			require.NoError(s.T(), err, "Sequential reader %d: failed to calculate local CRC32C", workerId)
@@ -261,23 +280,18 @@ func (s *concurrentReadTest) Test_ConcurrentReadPlusWrite() {
 ////////////////////////////////////////////////////////////////////////
 
 func TestConcurrentRead(t *testing.T) {
-	ts := &concurrentReadTest{}
+	ts := &concurrentReadTest{ctx: context.Background(), storageClient: testEnv.storageClient, baseTestName: t.Name()}
 
-	// Run tests for mounted directory if the flag is set.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+	// Run tests for mounted directory if the flag is set. This assumes that run flag is properly passed by GKE team as per the config.
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
 		suite.Run(t, ts)
 		return
 	}
 
-	// Define flag sets specific for concurrent read tests
-	flagsSet := [][]string{
-		{},                         // For default read path.
-		{"--enable-buffered-read"}, // For Buffered read enabled.
-	}
-
-	// Run tests with each flag set
-	for _, flags := range flagsSet {
-		ts.flags = flags
+	// Run tests for GCE environment otherwise.
+	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
+	for _, ts.flags = range flagsSet {
+		log.Printf("Running tests with flags: %s", ts.flags)
 		suite.Run(t, ts)
 	}
 }

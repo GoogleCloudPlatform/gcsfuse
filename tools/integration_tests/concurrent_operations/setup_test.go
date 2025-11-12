@@ -29,75 +29,94 @@ import (
 )
 
 const (
-	testDirName    = "ConcurrentOperationsTest"
-	onlyDirMounted = "OnlyDirConcurrentOperationsTest"
+	testDirName    = "TestConcurrentOperations"
+	GKETempDir    = "/gcsfuse-tmp"
+	// // TODO: clean this up when GKE test migration completes.
+	OldGKElogFilePath = "/tmp/ConcurrentOperations_logs/log.json"
 )
 
 var (
-	storageClient *storage.Client
-	ctx           context.Context
-	testDirPath   string
-
+	testEnv   env
+	mountFunc func(*test_suite.TestConfig, []string) error
+	mountDir string
 	// root directory is the directory to be unmounted.
 	rootDir string
 )
 
-////////////////////////////////////////////////////////////////////////
-// Helper functions
-////////////////////////////////////////////////////////////////////////
+type env struct {
+	storageClient *storage.Client
+	ctx           context.Context
+	testDirPath   string
+	cfg           *test_suite.TestConfig
+	bucketType    string
+}
 
-func mountGCSFuseAndSetupTestDir(flags []string, testDirName string, t *testing.T) {
-	// When tests are running in GKE environment, use the mounted directory provided as test flag.
-	if setup.MountedDirectory() != "" {
-		testDirPathForRead = setup.MountedDirectory()
-	} else {
-		config := &test_suite.TestConfig{
-			TestBucket:              setup.TestBucket(),
-			GCSFuseMountedDirectory: setup.MntDir(),
-			GKEMountedDirectory:     setup.MountedDirectory(),
-			LogFile:                 setup.LogFile(),
-		}
-		if err := static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(config, flags); err != nil {
-			t.Fatalf("Failed to mount GCS FUSE: %v", err)
-			return
-		}
-		testDirPathForRead = setup.MntDir()
-	}
-	setup.SetMntDir(testDirPathForRead)
-	testDirPath := setup.SetupTestDirectory(testDirName)
-	testDirPathForRead = testDirPath
+func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) {
+	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, flags, mountFunc)
+	setup.SetMntDir(mountDir)
+	testEnv.testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
 }
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
-	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
-
-	// Create common storage client to be used in test.
-	ctx = context.Background()
-	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
-	defer func() {
-		err := closeStorageClient()
-		if err != nil {
-			log.Fatalf("closeStorageClient failed: %v", err)
+		// 1. Load and parse the common configuration.
+	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
+	if len(cfg.ConcurrentOperations) == 0 {
+		log.Println("No configuration found for concurrent operations tests in config. Using flags instead.")
+		// Populate the config manually.
+		cfg.ConcurrentOperations = make([]test_suite.TestConfig, 1)
+		cfg.ConcurrentOperations[0].TestBucket = setup.TestBucket()
+		cfg.ConcurrentOperations[0].GKEMountedDirectory = setup.MountedDirectory()
+		cfg.ConcurrentOperations[0].LogFile = setup.LogFile()
+		cfg.ConcurrentOperations[0].Configs = make([]test_suite.ConfigItem, 2)
+		cfg.ConcurrentOperations[0].Configs[0].Flags = []string{
+			"",
+			"--enable-buffered-read",
 		}
-	}()
+		cfg.ConcurrentOperations[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.ConcurrentOperations[0].Configs[0].Run = "TestConcurrentRead"
 
-	// If Mounted Directory flag is set, run tests for mounted directory.
-	setup.RunTestsForMountedDirectoryFlag(m)
-	// Else run tests for testBucket.
+		cfg.ConcurrentOperations[0].Configs[1].Flags = []string{
+			"--kernel-list-cache-ttl-secs=0",
+			"--kernel-list-cache-ttl-secs=0 --client-protocol=grpc",
+			"--kernel-list-cache-ttl-secs=1",
+			"--kernel-list-cache-ttl-secs=1 --client-protocol=grpc",
+		}
+		cfg.ConcurrentOperations[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.ConcurrentOperations[0].Configs[1].Run = "TestConcurrentListing"
+	}
+
+	testEnv.ctx = context.Background()
+	testEnv.cfg = &cfg.ConcurrentOperations[0]
+	testEnv.bucketType = setup.TestEnvironment(testEnv.ctx, testEnv.cfg)
+
+	// 2. Create storage client before running tests.
+	var err error
+	testEnv.storageClient, err = client.CreateStorageClient(testEnv.ctx)
+	if err != nil {
+		log.Printf("Error creating storage client: %v\n", err)
+		os.Exit(1)
+	}
+	defer testEnv.storageClient.Close()
+
+	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		mountDir = testEnv.cfg.GKEMountedDirectory
+		os.Exit(setup.RunTestsForMountedDirectory(mountDir, m))
+	}
+
+	// Run tests for testBucket
 	// Set up test directory.
-	setup.SetUpTestDirForTestBucketFlag()
+	setup.SetUpTestDirForTestBucket(testEnv.cfg)
 
-	// Save root directory variables.
-	rootDir = setup.MntDir()
+	// Save mount and root directory variables.
+	mountDir, rootDir = setup.MntDir(), setup.MntDir()
 
 	log.Println("Running static mounting tests...")
+	mountFunc = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile
 	successCode := m.Run()
 
-	// If test failed, save the gcsfuse log files for debugging.
-	setup.SaveLogFileInCaseOfFailure(successCode)
-
 	// Clean up test directory created.
-	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
+	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(cfg.ConcurrentOperations[0].TestBucket, testDirName))
 	os.Exit(successCode)
 }

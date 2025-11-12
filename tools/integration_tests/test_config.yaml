@@ -492,6 +492,31 @@ dentry_cache:
        run: TestNotifierTest
        run_on_gke: true
 
+concurrent_operations:
+ - mounted_directory: "${MOUNTED_DIR}"
+   test_bucket: "${BUCKET_NAME}"
+   configs:
+     - flags:
+       - ""
+       - "--enable-buffered-read"
+       compatible:
+         flat: true
+         hns: true
+         zonal: true
+       run: TestConcurrentRead
+       run_on_gke: true
+     - flags:
+       - "--kernel-list-cache-ttl-secs=0"
+       - "--kernel-list-cache-ttl-secs=0 --client-protocol=grpc"
+       - "--kernel-list-cache-ttl-secs=1"
+       - "--kernel-list-cache-ttl-secs=1 --client-protocol=grpc"
+       compatible:
+         flat: true
+         hns: true
+         zonal: true
+       run: TestConcurrentListing
+       run_on_gke: true
+
 read_gcs_algo:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
