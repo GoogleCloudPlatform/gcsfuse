@@ -17,7 +17,7 @@
 set -e
 
 PYTHON_VERSION=3.11.9
-INSTALL_PREFIX="$HOME/.local/python-$PYTHON_VERSION"
+INSTALL_PREFIX="/usr/local/python-$PYTHON_VERSION"
 
 if command -v apt-get &> /dev/null; then
     # For Debian/Ubuntu-based systems
@@ -49,14 +49,14 @@ wget -q https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERS
 tar -xf Python-${PYTHON_VERSION}.tgz
 cd Python-${PYTHON_VERSION}
 
-echo "Configuring Python build for local install..."
+echo "Configuring Python build for system-wide install..."
 ./configure --enable-optimizations --prefix="$INSTALL_PREFIX" > /dev/null
 
 echo "Building Python $PYTHON_VERSION..."
 make -j"$(nproc)" > /dev/null
 
-echo "Installing Python $PYTHON_VERSION locally at $INSTALL_PREFIX..."
-make altinstall > /dev/null
+echo "Installing Python $PYTHON_VERSION at $INSTALL_PREFIX..."
+sudo make altinstall > /dev/null
 
 echo "Python $PYTHON_VERSION installed at $INSTALL_PREFIX/bin/python3.11"
 "$INSTALL_PREFIX/bin/python3.11" --version

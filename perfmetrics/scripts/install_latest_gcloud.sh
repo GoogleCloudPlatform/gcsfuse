@@ -26,64 +26,84 @@ fi
 
 INSTALL_DIR="/usr/local" # Installation directory
 
+# install_latest_gcloud installs the latest version of the Google Cloud SDK.
+#
+# The function performs the following steps:
+# 1. Upgrades Python to a specific version using a helper script.
+# 2. Sets the CLOUDSDK_PYTHON environment variable for the installation.
+# 3. Downloads and installs the Google Cloud SDK to a system-wide location.
+# 4. Installs the 'alpha' component.
+# 5. Persists the CLOUDSDK_PYTHON and PATH configuration to the user's .bashrc.
+#
+# This function requires sudo privileges for installation and for modifying .bashrc.
 install_latest_gcloud() {
-    # Define the necessary paths
-    local python_bin_dir="$INSTALL_DIR/.local/python-3.11.9/bin"
-    local python_executable="$python_bin_dir/python3.11"
-    local bashrc="$HOME/.bashrc" # Use "$HOME/.zshrc" for Zsh
+    local -r python_version="3.11.9"
+    local -r python_bin_dir="$HOME/.local/python-$python_version/bin"
+    local -r python_executable="$python_bin_dir/python3.11"
+    local -r bashrc="$HOME/.bashrc"
+    local -r gcloud_install_dir="${INSTALL_DIR}/google-cloud-sdk"
 
-    # --- Existing Python Upgrade and Variable Setup for *Current* Session ---
+    # Ensure we have sudo privileges upfront if not running as root.
+    if [[ $EUID -ne 0 ]]; then
+        echo "Sudo privileges are required. Please enter your password if prompted."
+        sudo -v
+    fi
+
+    # Upgrade Python environment.
+    echo "Upgrading Python to version $python_version..."
     "$(dirname "$0")/upgrade_python3.sh"
-    # Set CLOUDSDK_PYTHON for the *current* script/shell execution
     export CLOUDSDK_PYTHON="$python_executable"
 
-    # --- Cloud SDK Installation Logic ---
+    # Create a temporary directory for the installation files.
+    # Use a trap to ensure the directory is cleaned up on exit, error, or interrupt.
     local temp_dir
     temp_dir=$(mktemp -d /tmp/gcloud_install_src.XXXXXX)
-    pushd "$temp_dir"
+    trap 'echo "Cleaning up temporary directory..."; rm -rf "$temp_dir"' EXIT
 
-    # ... (rest of your installation logic) ...
+    # Download and install gcloud.
+    echo "Downloading and installing the latest Google Cloud SDK..."
+    pushd "$temp_dir" > /dev/null
     wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
-    sudo rm -rf "${INSTALL_DIR}/google-cloud-sdk"
+    
+    echo "Removing existing gcloud installation at ${gcloud_install_dir}..."
+    sudo rm -rf "${gcloud_install_dir}"
+    
+    echo "Extracting new gcloud version to ${INSTALL_DIR}..."
     sudo tar -C "$INSTALL_DIR" -xzf gcloud.tar.gz
-    sudo env CLOUDSDK_PYTHON="$CLOUDSDK_PYTHON" "${INSTALL_DIR}/google-cloud-sdk/install.sh" -q
-    sudo env CLOUDSDK_PYTHON="$CLOUDSDK_PYTHON" "${INSTALL_DIR}/google-cloud-sdk/bin/gcloud" components update -q
-    sudo env CLOUDSDK_PYTHON="$CLOUDSDK_PYTHON" "${INSTALL_DIR}/google-cloud-sdk/bin/gcloud" components install alpha -q
-    popd
-    sudo rm -rf "$temp_dir"
+    
+    echo "Running gcloud install script..."
+    sudo env CLOUDSDK_PYTHON="$CLOUDSDK_PYTHON" "${gcloud_install_dir}/install.sh" -q
 
-    # ---------------------------------------
-    # --- CORRECTED PERSISTENCE STEP ---
-    # ---------------------------------------
+    echo "Updating gcloud components..."
+    sudo env CLOUDSDK_PYTHON="$CLOUDSDK_PYTHON" "${gcloud_install_dir}/bin/gcloud" components update -q
     
-    # 1. Persist CLOUDSDK_PYTHON
-    echo ""
-    echo "✅ Persisting CLOUDSDK_PYTHON to $bashrc..."
-    local export_cloudsdk='export CLOUDSDK_PYTHON="'"$python_executable"'"'
+    echo "Installing alpha components..."
+    sudo env CLOUDSDK_PYTHON="$CLOUDSDK_PYTHON" "${gcloud_install_dir}/bin/gcloud" components install alpha -q
     
-    # Check if the line already exists to avoid duplication
-    if ! grep -qxF -- "$export_cloudsdk" "$bashrc"; then
-        echo "$export_cloudsdk" >> "$bashrc"
-        echo "   -> Added CLOUDSDK_PYTHON export."
+    popd > /dev/null
+
+    # --- Persistence ---
+    echo "Persisting environment variables to $bashrc..."
+
+    local -r cloudsdk_export='export CLOUDSDK_PYTHON="'"$python_executable"'"'
+    if ! grep -qxF -- "$cloudsdk_export" "$bashrc"; then
+        echo "$cloudsdk_export" >> "$bashrc"
+        echo "   -> Added CLOUDSDK_PYTHON to $bashrc."
+    else
+        echo "   -> CLOUDSDK_PYTHON already configured in $bashrc."
     fi
 
-    # 2. Persist PATH addition
-    echo "✅ Persisting PATH addition ($python_bin_dir) to $bashrc..."
-    local export_path='export PATH="'"$python_bin_dir"':$PATH"'
-
-    # Check if the line already exists to avoid duplication
-    if ! grep -qxF -- "$export_path" "$bashrc"; then
-        echo "$export_path" >> "$bashrc"
-        echo "   -> Added Python bin directory to PATH export."
+    local -r path_export='export PATH="'"$python_bin_dir"':$PATH"'
+    if ! grep -qxF -- "$path_export" "$bashrc"; then
+        echo "$path_export" >> "$bashrc"
+        echo "   -> Added Python bin directory to PATH in $bashrc."
+    else
+        echo "   -> Python bin directory already in PATH in $bashrc."
     fi
-
-    # 3. Source the file to apply the change immediately to the parent shell
-    source "$bashrc"
 
     echo "---"
-    echo "Cloud SDK installation complete. Variables are now set for all new shells."
-    echo "CLOUDSDK_PYTHON set to: $CLOUDSDK_PYTHON"
-    echo "Current PATH includes: $python_bin_dir"
+    echo "Cloud SDK installation complete."
+    echo "Please run 'source $bashrc' or start a new shell to apply the changes."
 }
 
 echo "Installing latest gcloud version to ${INSTALL_DIR}"
