@@ -50,7 +50,6 @@ func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockReuse() {
 	err = pmb.SetAbsStartOff(23)
 	require.Nil(testSuite.T(), err)
 	pmb.IncrementRef()
-	pmb.MarkEvicted()
 	assert.Equal(testSuite.T(), int32(1), pmb.RefCount())
 	require.Nil(testSuite.T(), err)
 
@@ -65,7 +64,6 @@ func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockReuse() {
 		_ = pmb.AbsStartOff()
 	})
 	assert.Equal(testSuite.T(), int32(0), pmb.RefCount())
-	assert.False(testSuite.T(), pmb.WasEvicted())
 }
 
 func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockReadAtSuccess() {
@@ -312,13 +310,4 @@ func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockDecrementRef() 
 
 	assert.Equal(testSuite.T(), int32(1), newCount)
 	assert.Equal(testSuite.T(), int32(1), pmb.RefCount())
-}
-
-func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockEviction() {
-	pmb, err := createPrefetchBlock(12)
-	require.Nil(testSuite.T(), err)
-
-	pmb.MarkEvicted()
-
-	assert.True(testSuite.T(), pmb.WasEvicted())
 }
