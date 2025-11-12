@@ -154,10 +154,10 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 	return reader, nil
 }
 
-// handleZeroCopyDone is called when the kernel is finished with a zero-copy buffer.
+// callback is called when the kernel is finished with a zero-copy buffer.
 // It decrements the block's reference count and releases it back to the pool if
 // the count drops to zero and it was previously marked for eviction.
-func (p *BufferedReader) handleZeroCopyDone(entry *blockQueueEntry) {
+func (p *BufferedReader) callback(entry *blockQueueEntry) {
 	defer p.zeroCopyWg.Done()
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -265,6 +265,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 	}
 
 	var data [][]byte
+	var callbacks []func()
 	for bytesRead < len(inputBuf) {
 		p.prepareQueueForOffset(off)
 
@@ -322,7 +323,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 			data = append(data, slice)
 			p.zeroCopyWg.Add(1)
 			blk.IncrementRef()
-			resp.Done = func() { p.handleZeroCopyDone(entry) }
+			callbacks = append(callbacks, func() { p.callback(entry) })
 		}
 
 		// The read is complete if the buffer is full or we have reached the end of the object.
@@ -339,6 +340,11 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 	resp.Size = bytesRead
 	resp.Data = data
+	resp.Done = func() {
+		for _, cb := range callbacks {
+			cb()
+		}
+	}
 	return resp, err
 }
 
