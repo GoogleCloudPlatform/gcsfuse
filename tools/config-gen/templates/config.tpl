@@ -63,8 +63,8 @@ var machineTypeToGroupMap = map[string]string{
 }
 
 // ApplyOptimizations modifies the config in-place with optimized values.
-func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
-	var optimizedFlags []string
+func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationResult {
+	var optimizedFlags = make(map[string]OptimizationResult)
 	// Skip all optimizations if autoconfig is disabled.
 	if c.DisableAutoconfig {
 		return nil
@@ -88,7 +88,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.({{ .GoType }}); ok {
 				if c.{{ .GoPath }} != val {
 					c.{{ .GoPath }} = val
-					optimizedFlags = append(optimizedFlags, "{{ .ConfigPath }}")
+					optimizedFlags["{{ .ConfigPath }}"] = result
 				}
 			}
 		}

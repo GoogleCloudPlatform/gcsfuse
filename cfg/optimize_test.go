@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -80,6 +81,12 @@ func resetMetadataEndpoints(t *testing.T) {
 	metadataEndpoints = []string{
 		"http://metadata.google.internal/computeMetadata/v1/instance/machine-type",
 	}
+}
+
+// Helper function to detect if a given flag is present in the map of optimized flags.
+func isFlagPresentInOptimizationResults(optimizationResults map[string]OptimizationResult, flag string) bool {
+	_, ok := optimizationResults[flag]
+	return ok
 }
 
 func TestGetMachineType_Success(t *testing.T) {
@@ -339,13 +346,139 @@ func TestApplyOptimizations_Success(t *testing.T) {
 
 	optimizedFlags := cfg.ApplyOptimizations(isSet)
 
-	assert.True(t, isFlagPresent(optimizedFlags, "write.global-max-blocks"))
+	assert.True(t, isFlagPresentInOptimizationResults(optimizedFlags, "write.global-max-blocks"))
 	assert.EqualValues(t, 1600, cfg.Write.GlobalMaxBlocks)
-	assert.True(t, isFlagPresent(optimizedFlags, "metadata-cache.negative-ttl-secs"))
+	assert.True(t, isFlagPresentInOptimizationResults(optimizedFlags, "metadata-cache.negative-ttl-secs"))
 	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
 	assert.EqualValues(t, -1, cfg.MetadataCache.TtlSecs)
 	assert.EqualValues(t, 1024, cfg.MetadataCache.StatCacheMaxSizeMb)
 	assert.EqualValues(t, 128, cfg.MetadataCache.TypeCacheMaxSizeMb)
 	assert.True(t, cfg.ImplicitDirs)
 	assert.EqualValues(t, 200000, cfg.FileSystem.RenameDirLimit)
+}
+
+func TestCreateHierarchicalOptimizedFlags_Positive(t *testing.T) {
+	testCases := []struct {
+		name     string
+		inputMap map[string]OptimizationResult
+		expected map[string]any
+	}{
+		{
+			name:     "Empty map",
+			inputMap: map[string]OptimizationResult{},
+			expected: map[string]any{},
+		},
+		{
+			name: "Flat keys",
+			inputMap: map[string]OptimizationResult{
+				"key1": {FinalValue: "value1", OptimizationReason: "reason1"},
+				"key2": {FinalValue: 123, OptimizationReason: "reason2"},
+			},
+			expected: map[string]any{
+				"key1": OptimizationResult{FinalValue: "value1", OptimizationReason: "reason1"},
+				"key2": OptimizationResult{FinalValue: 123, OptimizationReason: "reason2"},
+			},
+		},
+		{
+			name: "Single level nesting",
+			inputMap: map[string]OptimizationResult{
+				"a.b": {FinalValue: "valueAB", OptimizationReason: "reasonAB"},
+				"a.c": {FinalValue: "valueAC", OptimizationReason: "reasonAC"},
+			},
+			expected: map[string]any{
+				"a": map[string]any{
+					"b": OptimizationResult{FinalValue: "valueAB", OptimizationReason: "reasonAB"},
+					"c": OptimizationResult{FinalValue: "valueAC", OptimizationReason: "reasonAC"},
+				},
+			},
+		},
+		{
+			name: "Multi-level nesting",
+			inputMap: map[string]OptimizationResult{
+				"a.b.c": {FinalValue: "valueABC", OptimizationReason: "reasonABC"},
+				"a.b.d": {FinalValue: "valueABD", OptimizationReason: "reasonABD"},
+				"x.y.z": {FinalValue: true, OptimizationReason: "reasonXYZ"},
+			},
+			expected: map[string]any{
+				"a": map[string]any{
+					"b": map[string]any{
+						"c": OptimizationResult{FinalValue: "valueABC", OptimizationReason: "reasonABC"},
+						"d": OptimizationResult{FinalValue: "valueABD", OptimizationReason: "reasonABD"},
+					},
+				},
+				"x": map[string]any{
+					"y": map[string]any{
+						"z": OptimizationResult{FinalValue: true, OptimizationReason: "reasonXYZ"},
+					},
+				},
+			},
+		},
+		{
+			name: "No conflict complex keys",
+			inputMap: map[string]OptimizationResult{
+				"metadata-cache.ttl-secs":               {FinalValue: int64(-1), OptimizationReason: "reasonTTL"},
+				"metadata-cache.stat-cache-max-size-mb": {FinalValue: int64(1024), OptimizationReason: "reasonStat"},
+				"file-cache.cache-file-for-range-read":  {FinalValue: true, OptimizationReason: "reasonFileCache"},
+			},
+			expected: map[string]any{
+				"metadata-cache": map[string]any{
+					"ttl-secs":               OptimizationResult{FinalValue: int64(-1), OptimizationReason: "reasonTTL"},
+					"stat-cache-max-size-mb": OptimizationResult{FinalValue: int64(1024), OptimizationReason: "reasonStat"},
+				},
+				"file-cache": map[string]any{
+					"cache-file-for-range-read": OptimizationResult{FinalValue: true, OptimizationReason: "reasonFileCache"},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := CreateHierarchicalOptimizedFlags(tc.inputMap)
+
+			assert.NoError(t, err)
+			if !reflect.DeepEqual(tc.expected, got) {
+				t.Errorf("CreateHierarchicalOptimizedFlags() = %v, want %v", got, tc.expected)
+			}
+		})
+	}
+}
+
+func TestCreateHierarchicalOptimizedFlags_Negative(t *testing.T) {
+	testCases := []struct {
+		name     string
+		inputMap map[string]OptimizationResult
+	}{
+		{
+			name: "Conflict: Prefix as terminal key first",
+			inputMap: map[string]OptimizationResult{
+				"a.b":   {FinalValue: "valAB", OptimizationReason: "rAB"},
+				"a.b.d": {FinalValue: "valABD", OptimizationReason: "rABD"},
+			},
+		},
+		{
+			name: "Conflict: Path key first",
+			inputMap: map[string]OptimizationResult{
+				"a.b.d": {FinalValue: "valABD", OptimizationReason: "rABD"},
+				"a.b":   {FinalValue: "valAB", OptimizationReason: "rAB"},
+			},
+		},
+		{
+			name: "Conflict: Deeper nesting",
+			inputMap: map[string]OptimizationResult{
+				"a.b.c":   {FinalValue: "valABC", OptimizationReason: "rABC"},
+				"a.b.c.d": {FinalValue: "valABCD", OptimizationReason: "rABCD"},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := CreateHierarchicalOptimizedFlags(tc.inputMap)
+
+			assert.Error(t, err)
+			assert.Nil(t, got)
+			assert.Contains(t, err.Error(), "key conflict")
+		})
+	}
 }
