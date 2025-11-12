@@ -412,52 +412,44 @@ read_cache:
 
 stale_handle:
   - mounted_directory: "${MOUNTED_DIR}"
-    test_bucket: "pranjal-bucket-1"
-    log_file: # Not Required by stale_handle tests
-    run_on_gke: false
+    test_bucket: "${BUCKET_NAME}"
     configs:
       - flags:
-        - "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false --client-protocol=grpc"
+          - "--metadata-cache-ttl-secs=0 --write-block-size-mb=1 --write-max-blocks-per-file=1"
+          - "--metadata-cache-ttl-secs=0 --write-block-size-mb=1 --write-max-blocks-per-file=1 --client-protocol=grpc"
         compatible:
           flat: true
           hns: true
           zonal: true
-        run: TestStaleFileHandleLocalFileTest
+        run: "TestStaleFileHandleLocalFileTestStreamingWritesEnabled"
+        run_on_gke: true
       - flags:
-        - "--metadata-cache-ttl-secs=0 --write-block-size-mb=1 --write-max-blocks-per-file=1 --client-protocol=grpc"
+          - "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false"
+          - "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false --client-protocol=grpc"
         compatible:
           flat: true
           hns: true
           zonal: true
-        run: TestStaleFileHandleLocalFileTest
+        run: "TestStaleFileHandleLocalFileTestStreamingWritesDisabled"
+        run_on_gke: true
       - flags:
-        - "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false --client-protocol=grpc"
+          - "--metadata-cache-ttl-secs=0 --write-block-size-mb=1 --write-max-blocks-per-file=1"
+          - "--metadata-cache-ttl-secs=0 --write-block-size-mb=1 --write-max-blocks-per-file=1 --client-protocol=grpc"
         compatible:
           flat: true
           hns: true
           zonal: true
-        run: TestStaleFileHandleEmptyGcsFileTest
+        run: "TestStaleFileHandleEmptyGcsFileTestStreamingWritesEnabled"
+        run_on_gke: true
       - flags:
-        - "--metadata-cache-ttl-secs=0 --write-block-size-mb=1 --write-max-blocks-per-file=1 --client-protocol=grpc"
+          - "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false"
+          - "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false --client-protocol=grpc"
         compatible:
           flat: true
           hns: true
           zonal: true
-        run: TestStaleFileHandleEmptyGcsFileTest
-      - flags:
-        - "--metadata-cache-ttl-secs=0 --enable-streaming-writes=false --client-protocol=grpc"
-        compatible:
-          flat: true
-          hns: true
-          zonal: true
-        run: TestStaleFileHandleSyncedFileTest
-      - flags:
-        - "--metadata-cache-ttl-secs=0 --write-block-size-mb=1 --write-max-blocks-per-file=1 --client-protocol=grpc"
-        compatible:
-          flat: true
-          hns: true
-          zonal: true
-        run: TestStaleFileHandleSyncedFileTest
+        run: "TestStaleFileHandleEmptyGcsFileTestStreamingWritesDisabled"
+        run_on_gke: true
 
 readdirplus:
   - mounted_directory: "${MOUNTED_DIR}"

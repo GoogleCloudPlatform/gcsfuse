@@ -15,8 +15,8 @@
 package stale_handle
 
 import (
+	"log"
 	"path"
-	"slices"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
@@ -28,7 +28,7 @@ import (
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
 
-type staleFileHandleLocalFileTest struct {
+type staleFileHandleLocalFile struct {
 	staleFileHandleCommon
 }
 
@@ -36,29 +36,50 @@ type staleFileHandleLocalFileTest struct {
 // Helpers
 // //////////////////////////////////////////////////////////////////////
 
-func (s *staleFileHandleLocalFileTest) SetupTest() {
+func (s *staleFileHandleLocalFile) SetupTest() {
 	// Create a local file.
 	s.fileName = path.Base(s.T().Name()) + setup.GenerateRandomString(5)
 	s.f1 = operations.OpenFileWithODirect(s.T(), path.Join(testEnv.testDirPath, s.fileName))
 	s.isLocal = true
+}
+func (s *staleFileHandleLocalFile) TearDownTest() {
+	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestStaleFileHandleLocalFileTest(t *testing.T) {
+func TestStaleFileHandleLocalFileTestStreamingWritesEnabled(t *testing.T) {
 	// Run tests for mounted directory if the flag is set and return.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		suite.Run(t, new(staleFileHandleLocalFileTest))
+		suite.Run(t, new(staleFileHandleLocalFile))
 		return
 	}
 
 	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, flags := range flagsSet {
-		s := new(staleFileHandleLocalFileTest)
+		s := new(staleFileHandleLocalFile)
 		s.flags = flags
-		s.isStreamingWritesEnabled = !slices.Contains(s.flags, "--enable-streaming-writes=false")
+		log.Printf("Running tests with flags: %s", s.flags)
+		s.isStreamingWritesEnabled = true
+		suite.Run(t, s)
+	}
+}
+
+func TestStaleFileHandleLocalFileTestStreamingWritesDisabled(t *testing.T) {
+	// Run tests for mounted directory if the flag is set and return.
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		suite.Run(t, new(staleFileHandleLocalFile))
+		return
+	}
+
+	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
+	for _, flags := range flagsSet {
+		s := new(staleFileHandleLocalFile)
+		s.flags = flags
+		log.Printf("Running tests with flags: %s", s.flags)
+		s.isStreamingWritesEnabled = false
 		suite.Run(t, s)
 	}
 }

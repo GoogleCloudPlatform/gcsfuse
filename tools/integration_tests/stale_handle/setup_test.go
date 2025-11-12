@@ -61,25 +61,32 @@ func TestMain(m *testing.M) {
 		cfg.StaleHandle[0].LogFile = setup.LogFile()
 		cfg.StaleHandle[0].Configs = make([]test_suite.ConfigItem, 4)
 		cfg.StaleHandle[0].Configs[0].Flags = []string{
-			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false",
+			"--metadata-cache-ttl-secs=0 --write-block-size-mb=1 --write-max-blocks-per-file=1",
+			"--metadata-cache-ttl-secs=0 --write-block-size-mb=1 --write-max-blocks-per-file=1 --client-protocol=grpc",
 		}
 		cfg.StaleHandle[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.StaleHandle[0].Configs[0].Run = "TestStaleFileHandleLocalFileTest"
+		cfg.StaleHandle[0].Configs[0].Run = "TestStaleFileHandleLocalFileTestStreamingWritesEnabled"
+
 		cfg.StaleHandle[0].Configs[1].Flags = []string{
-			"--metadata-cache-ttl-secs=0 --write-block-size-mb=1 --write-max-blocks-per-file=1",
+			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false",
+			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false --client-protocol=grpc",
 		}
 		cfg.StaleHandle[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.StaleHandle[0].Configs[1].Run = "TestStaleFileHandleLocalFileTest"
+		cfg.StaleHandle[0].Configs[1].Run = "TestStaleFileHandleLocalFileTestStreamingWritesDisabled"
+
 		cfg.StaleHandle[0].Configs[2].Flags = []string{
-			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false",
+			"--metadata-cache-ttl-secs=0 --write-block-size-mb=1 --write-max-blocks-per-file=1",
+			"--metadata-cache-ttl-secs=0 --write-block-size-mb=1 --write-max-blocks-per-file=1 --client-protocol=grpc",
 		}
 		cfg.StaleHandle[0].Configs[2].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.StaleHandle[0].Configs[2].Run = "TestStaleFileHandleSyncedFileTest"
+		cfg.StaleHandle[0].Configs[2].Run = "TestStaleFileHandleEmptyGcsFileTestStreamingWritesEnabled"
+
 		cfg.StaleHandle[0].Configs[3].Flags = []string{
-			"--metadata-cache-ttl-secs=0 --write-block-size-mb=1 --write-max-blocks-per-file=1",
+			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false",
+			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false --client-protocol=grpc",
 		}
 		cfg.StaleHandle[0].Configs[3].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.StaleHandle[0].Configs[3].Run = "TestStaleFileHandleSyncedFileTest"
+		cfg.StaleHandle[0].Configs[3].Run = "TestStaleFileHandleEmptyGcsFileTestStreamingWritesDisabled"
 	}
 
 	testEnv.ctx = context.Background()

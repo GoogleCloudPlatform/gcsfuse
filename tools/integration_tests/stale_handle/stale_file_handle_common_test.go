@@ -67,12 +67,7 @@ func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHand
 	err := WriteToObject(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, s.fileName), FileContents, storage.Conditions{})
 	assert.NoError(s.T(), err)
 
-	if s.isStreamingWritesEnabled && !s.isLocal {
-		err = s.f1.Sync()
-		operations.ValidateESTALEError(s.T(), err)
-	} else {
-		operations.ValidateSyncGivenThatFileIsClobbered(s.T(), s.f1, s.isStreamingWritesEnabled)
-	}
+	operations.ValidateSyncGivenThatFileIsClobbered(s.T(), s.f1, s.isStreamingWritesEnabled)
 
 	err = s.f1.Close()
 	operations.ValidateESTALEError(s.T(), err)
