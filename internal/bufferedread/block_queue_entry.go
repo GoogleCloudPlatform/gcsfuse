@@ -25,6 +25,7 @@ type blockQueueEntry struct {
 	block             block.PrefetchBlock
 	cancel            context.CancelFunc
 	prefetchTriggered bool
+	wasEvicted        bool
 }
 
 // Size returns the size of the block in bytes to implement lru.ValueType.

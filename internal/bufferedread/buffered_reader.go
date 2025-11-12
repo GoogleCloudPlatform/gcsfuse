@@ -163,7 +163,7 @@ func (p *BufferedReader) callback(entry *blockQueueEntry) {
 	defer p.mu.Unlock()
 
 	blk := entry.block
-	if blk.DecrementRef() == 0 && blk.WasEvicted() {
+	if blk.DecrementRef() == 0 && entry.wasEvicted {
 		// The block is no longer referenced by the kernel and has already been
 		// marked for eviction from the active queue. It is now safe to release
 		// it back to the pool.
@@ -356,7 +356,7 @@ func (p *BufferedReader) Destroy() {
 		if entry.block.RefCount() == 0 {
 			p.releaseBlock(entry)
 		} else {
-			entry.block.SetWasEvicted(true)
+			entry.wasEvicted = true
 		}
 	}
 	p.mu.Unlock()
@@ -403,7 +403,7 @@ func (p *BufferedReader) releaseBlock(entry *blockQueueEntry) {
 	// If the block is still referenced (e.g., by a zero-copy read), do not
 	// release it to the pool. Mark it as evicted so the Done callback can clean it up.
 	if entry.block.RefCount() > 0 {
-		entry.block.SetWasEvicted(true)
+		entry.wasEvicted = true
 	} else {
 		p.blockPool.Release(entry.block)
 	}
