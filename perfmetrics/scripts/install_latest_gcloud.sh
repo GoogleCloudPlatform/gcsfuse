@@ -28,7 +28,7 @@ INSTALL_DIR="/usr/local" # Installation directory
 
 install_latest_gcloud() {
     # Define the necessary paths
-    local python_bin_dir="$HOME/.local/python-3.11.9/bin"
+    local python_bin_dir="$INSTALL_DIR/.local/python-3.11.9/bin"
     local python_executable="$python_bin_dir/python3.11"
     local bashrc="$HOME/.bashrc" # Use "$HOME/.zshrc" for Zsh
 
