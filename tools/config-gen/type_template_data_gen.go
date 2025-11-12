@@ -53,7 +53,7 @@ func capitalizeIdentifier(name string) (string, error) {
 	// For the purposes of capitalization, both "." and "-" are equivalent.
 	name = strings.ReplaceAll(name, ".", "-")
 	var buf strings.Builder
-	for _, w := range strings.Split(name, "-") {
+	for w := range strings.SplitSeq(name, "-") {
 		// Capitalize the first letter and concatenate.
 		buf.WriteString(cases.Title(language.English).String(w))
 	}

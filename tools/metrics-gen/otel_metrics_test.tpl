@@ -36,7 +36,7 @@ type metricValueMap map[string]int64
 type metricHistogramMap map[string]metricdata.HistogramDataPoint[int64]
 
 func waitForMetricsProcessing() {
-	time.Sleep(time.Millisecond)
+	time.Sleep(5 * time.Millisecond)
 }
 
 func setupOTel(ctx context.Context, t *testing.T) (*otelMetrics, *metric.ManualReader) {
@@ -129,7 +129,7 @@ func gatherNonZeroCounterMetrics(ctx context.Context, t *testing.T, rd *metric.M
 }
 
 {{range .Metrics}}
-{{if isCounter .}}
+{{if or (isCounter .) (isUpDownCounter .)}}
 func Test{{toPascal .Name}}(t *testing.T) {
 	{{- if .Attributes}}
 	tests := []struct {
@@ -168,6 +168,15 @@ func Test{{toPascal .Name}}(t *testing.T) {
 			},
 		},
 		{{- end}}
+		{
+			name: "negative_increment",
+			f: func(m *otelMetrics) {
+				{{- $firstComb := (index $combinations 0) -}}
+				m.{{toPascal $metric.Name}}(-5, {{getTestFuncArgs $firstComb}})
+				m.{{toPascal $metric.Name}}(2, {{getTestFuncArgs $firstComb}})
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet({{getExpectedAttrs (index $combinations 0)}}): {{if isUpDownCounter $metric}}-3{{else}}2{{end}}},
+		},
 	}
 
 	for _, tc := range tests {
@@ -181,7 +190,11 @@ func Test{{toPascal .Name}}(t *testing.T) {
 
 			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 			metric, ok := metrics["{{.Name}}"]
-			assert.True(t, ok, "{{.Name}} metric not found")
+			if len(tc.expected) == 0 {
+				assert.False(t, ok, "{{.Name}} metric should not be found")
+				return
+			}
+			require.True(t, ok, "{{.Name}} metric not found")
 			expectedMap := make(map[string]int64)
 			for k, v := range tc.expected {
 				expectedMap[k.Encoded(encoder)] = v
@@ -202,7 +215,16 @@ func Test{{toPascal .Name}}(t *testing.T) {
 	metric, ok := metrics["{{.Name}}"]
 	require.True(t, ok, "{{.Name}} metric not found")
 	s := attribute.NewSet()
-	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric)
+	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric, "Positive increments should be summed.")
+
+	// Test negative increment
+	m.{{toPascal .Name}}(-100)
+	waitForMetricsProcessing()
+
+	metrics = gatherNonZeroCounterMetrics(ctx, t, rd)
+	metric, ok = metrics["{{.Name}}"]
+	require.True(t, ok, "{{.Name}} metric not found after negative increment")
+	assert.Equal(t, map[string]int64{s.Encoded(encoder): {{if isUpDownCounter .}}2972{{else}}3072{{end}}}, metric, "Negative increment should {{if isUpDownCounter .}}change{{else}}not change{{end}} the metric value.")
 	{{- end}}
 }
 {{else if isHistogram .}}
@@ -221,7 +243,7 @@ func Test{{toPascal .Name}}(t *testing.T) {
 			name:      "{{getTestName $combination}}",
 			latencies: []time.Duration{100 * time.{{getLatencyUnit $metric.Unit}}, 200 * time.{{getLatencyUnit $metric.Unit}}},
 			{{- range $pair := $combination}}
-			{{toCamel $pair.Name}}: {{if eq $pair.Type "string"}}"{{$pair.Value}}"{{else}}{{$pair.Value}}{{end}},
+			{{toCamel $pair.Name}}: {{if eq $pair.Type "bool"}}{{$pair.Value}}{{else}}"{{$pair.Value}}"{{end}},
 			{{- end}}
 		},
 		{{- end}}
@@ -246,7 +268,7 @@ func Test{{toPascal .Name}}(t *testing.T) {
 
 			attrs := []attribute.KeyValue{
 				{{- range .Attributes}}
-				attribute.{{if eq .Type "string"}}String{{else}}Bool{{end}}("{{.Name}}", tc.{{toCamel .Name}}),
+				attribute.{{if eq .Type "bool"}}Bool("{{.Name}}", tc.{{toCamel .Name}}){{else}}String("{{.Name}}", string(tc.{{toCamel .Name}})){{end}},
 				{{- end}}
 			}
 			s := attribute.NewSet(attrs...)

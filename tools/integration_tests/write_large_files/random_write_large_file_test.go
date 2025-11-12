@@ -41,7 +41,7 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 	// Open local file and mounted directory file for writing.
 	filesToWrite := operations.OpenFiles(t, []string{localFilePath, mountedDirFilePath})
 
-	for i := 0; i < NumberOfRandomWriteCalls; i++ {
+	for range NumberOfRandomWriteCalls {
 		offset := rand2.Int63n(MaxFileOffset - ChunkSize)
 		// Aligning to 4KiB page boundaries is required for O_DIRECT writes to local files.
 		offset = offset - offset%(4*util.KiB)

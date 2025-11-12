@@ -18,7 +18,6 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
 
 type testCase struct {
@@ -29,7 +28,7 @@ type testCase struct {
 
 func TestReadSequentialWithDifferentBlockSizes(t *testing.T) {
 	fileSize := 10 * OneMB
-	filePathInLocalDisk, filePathInMntDir := setup.CreateFileAndCopyToMntDir(t, fileSize, DirForReadAlgoTests)
+	filePathInLocalDisk, filePathInMntDir := operations.CreateFileAndCopyToMntDir(t, fileSize, DirForReadAlgoTests)
 
 	tests := []testCase{
 		{

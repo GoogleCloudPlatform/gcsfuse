@@ -33,29 +33,62 @@ func (d *dummyTask) Execute() {
 
 func TestNewStaticWorkerPool_Success(t *testing.T) {
 	tests := []struct {
-		name           string
-		priorityWorker uint32
-		normalWorker   uint32
+		name               string
+		priorityWorker     uint32
+		normalWorker       uint32
+		readMaxBlocks      int64
+		expectedPriorityCh int
+		expectedNormalCh   int
 	}{
-		{"valid_workers", 5, 10},
-		{"zero_normal_worker", 1, 0},
+		{
+			name:           "worker-based size is smaller",
+			priorityWorker: 2,
+			normalWorker:   1,
+			readMaxBlocks:  1000,
+			// priority: min(2*200, 2*1000) = 400
+			// normal: min(1*5000, 2*1000) = 2000
+			expectedPriorityCh: 400,
+			expectedNormalCh:   2000,
+		},
+		{
+			name:           "global cap is smaller",
+			priorityWorker: 50,
+			normalWorker:   10,
+			readMaxBlocks:  100,
+			// priority: min(50*200, 2*100) = 200
+			// normal: min(10*5000, 2*100) = 200
+			expectedPriorityCh: 200,
+			expectedNormalCh:   200,
+		},
+		{
+			name:           "zero normal workers",
+			priorityWorker: 1,
+			normalWorker:   0,
+			readMaxBlocks:  100,
+			// priority: min(1*200, 2*100) = 200
+			// normal: min(0*5000, 2*100) = 0
+			expectedPriorityCh: 200,
+			expectedNormalCh:   0,
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			pool, err := NewStaticWorkerPool(uint32(tc.priorityWorker), uint32(tc.normalWorker))
+			pool, err := NewStaticWorkerPool(tc.priorityWorker, tc.normalWorker, tc.readMaxBlocks)
 
 			assert.NoError(t, err)
 			assert.NotNil(t, pool)
 			assert.Equal(t, tc.priorityWorker, pool.priorityWorker)
 			assert.Equal(t, tc.normalWorker, pool.normalWorker)
+			assert.Equal(t, tc.expectedPriorityCh, cap(pool.priorityCh))
+			assert.Equal(t, tc.expectedNormalCh, cap(pool.normalCh))
 			pool.Stop() // Clean up
 		})
 	}
 }
 
 func TestNewStaticWorkerPool_Failure(t *testing.T) {
-	pool, err := NewStaticWorkerPool(0, 0)
+	pool, err := NewStaticWorkerPool(0, 0, 0)
 
 	assert.Error(t, err)
 	assert.Nil(t, pool)
@@ -63,7 +96,7 @@ func TestNewStaticWorkerPool_Failure(t *testing.T) {
 }
 
 func TestStaticWorkerPool_Start(t *testing.T) {
-	pool, err := NewStaticWorkerPool(2, 3)
+	pool, err := NewStaticWorkerPool(2, 3, 5)
 	require.NoError(t, err)
 	require.NotNil(t, pool)
 
@@ -81,7 +114,7 @@ func TestStaticWorkerPool_Start(t *testing.T) {
 }
 
 func TestStaticWorkerPool_SchedulePriorityTask(t *testing.T) {
-	pool, err := NewStaticWorkerPool(2, 3)
+	pool, err := NewStaticWorkerPool(2, 3, 5)
 	require.NoError(t, err)
 	require.NotNil(t, pool)
 	pool.Start()
@@ -97,7 +130,7 @@ func TestStaticWorkerPool_SchedulePriorityTask(t *testing.T) {
 }
 
 func TestStaticWorkerPool_ScheduleNormalTask(t *testing.T) {
-	pool, err := NewStaticWorkerPool(2, 3)
+	pool, err := NewStaticWorkerPool(2, 3, 5)
 	require.NoError(t, err)
 	require.NotNil(t, pool)
 	pool.Start()
@@ -113,14 +146,14 @@ func TestStaticWorkerPool_ScheduleNormalTask(t *testing.T) {
 }
 
 func TestStaticWorkerPool_HighNumberOfTasks(t *testing.T) {
-	pool, err := NewStaticWorkerPool(5, 10)
+	pool, err := NewStaticWorkerPool(5, 10, 15)
 	require.NoError(t, err)
 	require.NotNil(t, pool)
 	pool.Start()
 	defer pool.Stop()
 
 	// Schedule a large number of tasks.
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		dt := &dummyTask{}
 		pool.Schedule(i%2 == 0, dt) // Alternate between priority and normal tasks
 	}
@@ -132,7 +165,7 @@ func TestStaticWorkerPool_HighNumberOfTasks(t *testing.T) {
 }
 
 func TestStaticWorkerPool_ScheduleAfterStop(t *testing.T) {
-	pool, err := NewStaticWorkerPool(2, 3)
+	pool, err := NewStaticWorkerPool(2, 3, 5)
 	require.NoError(t, err)
 	require.NotNil(t, pool)
 	pool.Start()
@@ -143,7 +176,7 @@ func TestStaticWorkerPool_ScheduleAfterStop(t *testing.T) {
 }
 
 func TestStaticWorkerPool_Stop(t *testing.T) {
-	pool, err := NewStaticWorkerPool(2, 3)
+	pool, err := NewStaticWorkerPool(2, 3, 5)
 	require.NoError(t, err)
 	require.NotNil(t, pool)
 	pool.Start()

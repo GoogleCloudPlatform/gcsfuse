@@ -19,6 +19,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
@@ -31,16 +32,21 @@ func MountGcsfuse(binaryFile string, flags []string) error {
 	)
 
 	// Adding mount command in LogFile
+	err := os.MkdirAll(path.Dir(setup.LogFile()), 0777)
+	if err != nil {
+		fmt.Println("error creating directory: ", err)
+		return err
+	}
 	file, err := os.OpenFile(setup.LogFile(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		fmt.Println("Could not open logfile")
+		fmt.Println("Could not open logfile: ", err.Error())
 	}
 	// Closing file at the end.
 	defer operations.CloseFile(file)
 
 	_, err = file.WriteString(mountCmd.String() + "\n")
 	if err != nil {
-		fmt.Println("Could not write cmd to logFile")
+		fmt.Println("Could not write cmd to logFile: ", err.Error())
 	}
 
 	output, err := mountCmd.CombinedOutput()

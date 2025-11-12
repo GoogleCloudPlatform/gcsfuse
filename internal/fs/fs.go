@@ -35,6 +35,8 @@ import (
 
 	"golang.org/x/sync/semaphore"
 
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
@@ -199,12 +201,13 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		implicitDirInodes:          make(map[inode.Name]inode.DirInode),
 		folderInodes:               make(map[inode.Name]inode.DirInode),
 		localFileInodes:            make(map[inode.Name]inode.Inode),
-		handles:                    make(map[fuseops.HandleID]interface{}),
+		handles:                    make(map[fuseops.HandleID]any),
 		newConfig:                  serverCfg.NewConfig,
 		fileCacheHandler:           fileCacheHandler,
 		cacheFileForRangeRead:      serverCfg.NewConfig.FileCache.CacheFileForRangeRead,
 		metricHandle:               serverCfg.MetricHandle,
 		enableAtomicRenameObject:   serverCfg.NewConfig.EnableAtomicRenameObject,
+		isTracingEnabled:           cfg.IsTracingEnabled(serverCfg.NewConfig),
 		globalMaxWriteBlocksSem:    semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
 		globalMaxReadBlocksSem:     semaphore.NewWeighted(serverCfg.NewConfig.Read.GlobalMaxBlocks),
 	}
@@ -271,7 +274,7 @@ func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.Cac
 	}
 
 	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir, serverCfg.SequentialReadSizeMb, &serverCfg.NewConfig.FileCache, serverCfg.MetricHandle)
-	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager, cacheDir, filePerm, dirPerm, serverCfg.NewConfig.FileCache.ExperimentalExcludeRegex)
+	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager, cacheDir, filePerm, dirPerm, serverCfg.NewConfig.FileCache.ExcludeRegex, serverCfg.NewConfig.FileCache.IncludeRegex)
 	return
 }
 
@@ -300,6 +303,7 @@ func makeRootForBucket(
 		fs.cacheClock,
 		fs.newConfig.MetadataCache.TypeCacheMaxSizeMb,
 		fs.newConfig.EnableHns,
+		fs.newConfig.EnableUnsupportedPathSupport,
 	)
 }
 
@@ -486,7 +490,7 @@ type fileSystem struct {
 	// INVARIANT: All values are of type *dirHandle or *handle.FileHandle
 	//
 	// GUARDED_BY(mu)
-	handles map[fuseops.HandleID]interface{}
+	handles map[fuseops.HandleID]any
 
 	// The next handle ID to hand out. We assume that this will never overflow.
 	//
@@ -509,6 +513,8 @@ type fileSystem struct {
 	metricHandle metrics.MetricHandle
 
 	enableAtomicRenameObject bool
+
+	isTracingEnabled bool
 
 	// Limits the max number of blocks that can be created across file system when
 	// streaming writes are enabled.
@@ -775,7 +781,8 @@ func (fs *fileSystem) createExplicitDirInode(inodeID fuseops.InodeID, ic inode.C
 		fs.mtimeClock,
 		fs.cacheClock,
 		fs.newConfig.MetadataCache.TypeCacheMaxSizeMb,
-		fs.newConfig.EnableHns)
+		fs.newConfig.EnableHns,
+		fs.newConfig.EnableUnsupportedPathSupport)
 
 	return in
 }
@@ -819,6 +826,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			fs.cacheClock,
 			fs.newConfig.MetadataCache.TypeCacheMaxSizeMb,
 			fs.newConfig.EnableHns,
+			fs.newConfig.EnableUnsupportedPathSupport,
 		)
 
 	case inode.IsSymlink(ic.MinObject):
@@ -870,7 +878,7 @@ func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.
 
 	var maxTriesToCreateInode = 3
 
-	for n := 0; n < maxTriesToCreateInode; n++ {
+	for range maxTriesToCreateInode {
 		in, ok := (inodes)[ic.FullName]
 		// Create a new inode when a folder is created first time, or when a folder is deleted and then recreated with the same name.
 		if !ok || in.IsUnlinked() {
@@ -1044,7 +1052,7 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 
 	// Run a retry loop around lookUpOrCreateInodeIfNotStale.
 	const maxTries = 3
-	for n := 0; n < maxTries; n++ {
+	for range maxTries {
 		// Create a record.
 		var core *inode.Core
 		core, err = getLookupResult()
@@ -1094,7 +1102,7 @@ func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName stri
 	}()
 
 	var maxTriesToLookupInode = 3
-	for n := 0; n < maxTriesToLookupInode; n++ {
+	for range maxTriesToLookupInode {
 		child = fs.localFileInodes[fileName]
 
 		if child == nil {
@@ -1671,15 +1679,35 @@ func (fs *fileSystem) StatFS(
 	return
 }
 
+// When tracing is enabled ensure span & trace context from oldCtx is passed on to newCtx
+func maybePropagateTraceContext(newCtx context.Context, oldCtx context.Context, isTracingEnabled bool) context.Context {
+	if !isTracingEnabled {
+		return newCtx
+	}
+
+	span := trace.SpanFromContext(oldCtx)
+	return trace.ContextWithSpan(newCtx, span)
+}
+
+// getInterruptlessContext returns a new context that is not cancellable by the
+// parent context if the ignore-interrupts flag is set. Otherwise, it returns
+// the original context.
+func (fs *fileSystem) getInterruptlessContext(ctx context.Context) context.Context {
+	if fs.newConfig.FileSystem.IgnoreInterrupts {
+		// When ignore interrupts config is set, we are creating a new context not
+		// cancellable by parent context.
+		newCtx := context.Background()
+		return maybePropagateTraceContext(newCtx, ctx, fs.isTracingEnabled)
+	}
+
+	return ctx
+}
+
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) (err error) {
-	if fs.newConfig.FileSystem.IgnoreInterrupts {
-		// When ignore interrupts config is set, we are creating a new context not
-		// cancellable by parent context.
-		ctx = context.Background()
-	}
+	ctx = fs.getInterruptlessContext(ctx)
 	// Find the parent directory in question.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -1712,11 +1740,7 @@ func (fs *fileSystem) LookUpInode(
 func (fs *fileSystem) GetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.GetInodeAttributesOp) (err error) {
-	if fs.newConfig.FileSystem.IgnoreInterrupts {
-		// When ignore interrupts config is set, we are creating a new context not
-		// cancellable by parent context.
-		ctx = context.Background()
-	}
+	ctx = fs.getInterruptlessContext(ctx)
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodeOrDie(op.Inode)
@@ -1738,11 +1762,7 @@ func (fs *fileSystem) GetInodeAttributes(
 func (fs *fileSystem) SetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.SetInodeAttributesOp) (err error) {
-	if fs.newConfig.FileSystem.IgnoreInterrupts {
-		// When ignore interrupts config is set, we are creating a new context not
-		// cancellable by parent context.
-		ctx = context.Background()
-	}
+	ctx = fs.getInterruptlessContext(ctx)
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodeOrDie(op.Inode)
@@ -1812,11 +1832,7 @@ func (fs *fileSystem) ForgetInode(
 func (fs *fileSystem) MkDir(
 	ctx context.Context,
 	op *fuseops.MkDirOp) (err error) {
-	if fs.newConfig.FileSystem.IgnoreInterrupts {
-		// When ignore interrupts config is set, we are creating a new context not
-		// cancellable by parent context.
-		ctx = context.Background()
-	}
+	ctx = fs.getInterruptlessContext(ctx)
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -1869,11 +1885,7 @@ func (fs *fileSystem) MkDir(
 func (fs *fileSystem) MkNode(
 	ctx context.Context,
 	op *fuseops.MkNodeOp) (err error) {
-	if fs.newConfig.FileSystem.IgnoreInterrupts {
-		// When ignore interrupts config is set, we are creating a new context not
-		// cancellable by parent context.
-		ctx = context.Background()
-	}
+	ctx = fs.getInterruptlessContext(ctx)
 	if (op.Mode & (iofs.ModeNamedPipe | iofs.ModeSocket)) != 0 {
 		return syscall.ENOTSUP
 	}
@@ -2007,11 +2019,7 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 func (fs *fileSystem) CreateFile(
 	ctx context.Context,
 	op *fuseops.CreateFileOp) (err error) {
-	if fs.newConfig.FileSystem.IgnoreInterrupts {
-		// When ignore interrupts config is set, we are creating a new context not
-		// cancellable by parent context.
-		ctx = context.Background()
-	}
+	ctx = fs.getInterruptlessContext(ctx)
 	// Create the child.
 	var child inode.Inode
 	if fs.newConfig.Write.CreateEmptyFile {
@@ -2056,11 +2064,7 @@ func (fs *fileSystem) CreateFile(
 func (fs *fileSystem) CreateSymlink(
 	ctx context.Context,
 	op *fuseops.CreateSymlinkOp) (err error) {
-	if fs.newConfig.FileSystem.IgnoreInterrupts {
-		// When ignore interrupts config is set, we are creating a new context not
-		// cancellable by parent context.
-		ctx = context.Background()
-	}
+	ctx = fs.getInterruptlessContext(ctx)
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -2124,11 +2128,7 @@ func (fs *fileSystem) RmDir(
 
 	ctx context.Context,
 	op *fuseops.RmDirOp) (err error) {
-	if fs.newConfig.FileSystem.IgnoreInterrupts {
-		// When ignore interrupts config is set, we are creating a new context not
-		// cancellable by parent context.
-		ctx = context.Background()
-	}
+	ctx = fs.getInterruptlessContext(ctx)
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -2183,10 +2183,19 @@ func (fs *fileSystem) RmDir(
 	var tok string
 	for {
 		var entries []fuseutil.Dirent
-		entries, tok, err = childDir.ReadEntries(ctx, tok)
+		var unsupportedPaths []string
+		entries, unsupportedPaths, tok, err = childDir.ReadEntries(ctx, tok)
 		if err != nil {
 			err = fmt.Errorf("ReadEntries: %w", err)
 			return err
+		}
+
+		// If there are unsupported objects, delete them recursively.
+		if len(unsupportedPaths) > 0 {
+			err = childDir.DeleteObjects(ctx, unsupportedPaths)
+			if err != nil {
+				return fmt.Errorf("RmDir: failed to delete unsupported objects: %w", err)
+			}
 		}
 
 		if fs.kernelListCacheTTL > 0 {
@@ -2230,11 +2239,7 @@ func (fs *fileSystem) RmDir(
 func (fs *fileSystem) Rename(
 	ctx context.Context,
 	op *fuseops.RenameOp) (err error) {
-	if fs.newConfig.FileSystem.IgnoreInterrupts {
-		// When ignore interrupts config is set, we are creating a new context not
-		// cancellable by parent context.
-		ctx = context.Background()
-	}
+	ctx = fs.getInterruptlessContext(ctx)
 	// Find the old and new parents.
 	fs.mu.Lock()
 	oldParent := fs.dirInodeOrDie(op.OldParent)
@@ -2289,11 +2294,6 @@ func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, chil
 
 	switch c := child.(type) {
 	case *inode.FileInode:
-		// TODO(b/402335988): Fix rename flow for local files when streaming writes is disabled.
-		// If object to be renamed is a local file inode and streaming writes are disabled, rename operation is not supported.
-		if c.IsLocal() && !fs.newConfig.Write.EnableStreamingWrites {
-			return fmt.Errorf("cannot rename open file %q: %w", op.OldName, syscall.ENOTSUP)
-		}
 		updatedMinObject, err = fs.flushPendingWrites(ctx, c)
 		if err != nil {
 			return fmt.Errorf("flushPendingWrites: %w", err)
@@ -2316,9 +2316,6 @@ func (fs *fileSystem) flushPendingWrites(ctx context.Context, fileInode *inode.F
 	fileInode.Lock()
 	defer fileInode.Unlock()
 	minObject = fileInode.Source()
-	if !fs.newConfig.Write.EnableStreamingWrites {
-		return
-	}
 	// Try to flush if there are any pending writes.
 	err = fs.flushFile(ctx, fileInode)
 	minObject = fileInode.Source()
@@ -2575,8 +2572,13 @@ func (fs *fileSystem) renameNonHierarchicalDir(
 				return fmt.Errorf("delete file %q: %w", o.Name, err)
 			}
 		} else {
-			// For regular files, perform an in-place rename to the new directory.
-			if _, err = oldDir.RenameFile(ctx, o, path.Join(newDir.Name().GcsObjectName(), nameDiff)); err != nil {
+			// For regular files, perform an in-place rename by constructing the new GCS object name.
+			// Standard path.Join is avoided here because object names in GCS are distinct from
+			// directory prefixes; the "/" character is *always* treated as a separate directory
+			// element, not part of the object's base name. This manual approach correctly
+			// handles those GCS naming edge cases (like objects with unsupported characters).
+			newObject := newDir.Name().GcsObjectName() + nameDiff
+			if _, err = oldDir.RenameFile(ctx, o, newObject); err != nil {
 				return fmt.Errorf("renameFile: while renaming file: %w", err)
 			}
 		}
@@ -2606,11 +2608,7 @@ func (fs *fileSystem) renameNonHierarchicalDir(
 func (fs *fileSystem) Unlink(
 	ctx context.Context,
 	op *fuseops.UnlinkOp) (err error) {
-	if fs.newConfig.FileSystem.IgnoreInterrupts {
-		// When ignore interrupts config is set, we are creating a new context not
-		// cancellable by parent context.
-		ctx = context.Background()
-	}
+	ctx = fs.getInterruptlessContext(ctx)
 
 	fs.mu.Lock()
 
@@ -2701,11 +2699,7 @@ func (fs *fileSystem) OpenDir(
 func (fs *fileSystem) ReadDir(
 	ctx context.Context,
 	op *fuseops.ReadDirOp) (err error) {
-	if fs.newConfig.FileSystem.IgnoreInterrupts {
-		// When ignore interrupts config is set, we are creating a new context not
-		// cancellable by parent context.
-		ctx = context.Background()
-	}
+	ctx = fs.getInterruptlessContext(ctx)
 	// Find the handle.
 	fs.mu.Lock()
 	dh := fs.handles[op.Handle].(*handle.DirHandle)
@@ -2727,11 +2721,7 @@ func (fs *fileSystem) ReadDir(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReadDirPlus(ctx context.Context, op *fuseops.ReadDirPlusOp) (err error) {
-	if fs.newConfig.FileSystem.IgnoreInterrupts {
-		// When ignore interrupts config is set, we are creating a new context not
-		// cancellable by parent context.
-		ctx = context.Background()
-	}
+	ctx = fs.getInterruptlessContext(ctx)
 	// Find the handle.
 	fs.mu.Lock()
 	dh := fs.handles[op.Handle].(*handle.DirHandle)
@@ -2794,6 +2784,11 @@ func (fs *fileSystem) ReleaseDirHandle(
 func (fs *fileSystem) OpenFile(
 	ctx context.Context,
 	op *fuseops.OpenFileOp) (err error) {
+	// Bypass the kernel's page cache for file reads and writes
+	if fs.newConfig.FileSystem.ODirect {
+		op.UseDirectIO = true
+	}
+
 	fs.mu.Lock()
 
 	// Find the inode.
@@ -2830,11 +2825,7 @@ func (fs *fileSystem) OpenFile(
 func (fs *fileSystem) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
-	if fs.newConfig.FileSystem.IgnoreInterrupts {
-		// When ignore interrupts config is set, we are creating a new context not
-		// cancellable by parent context.
-		ctx = context.Background()
-	}
+	ctx = fs.getInterruptlessContext(ctx)
 	// Save readOp in context for access in logs.
 	ctx = context.WithValue(ctx, gcsx.ReadOp, op)
 
@@ -2845,15 +2836,21 @@ func (fs *fileSystem) ReadFile(
 
 	fh.Inode().Lock()
 	if fh.Inode().IsUsingBWH() {
-		// Flush Pending streaming writes and issue read within same inode lock.
-		// TODO(b/417136852): Remove bucket type check and call only flushFile
-		// when we start leaving zonal bucket objects unfinalized.
-		if !fh.Inode().Bucket().BucketType().Zonal {
-			err = fs.flushFile(ctx, fh.Inode())
+		// Flush/Sync Pending streaming writes and issue read within same inode lock.
+		if fh.Inode().Bucket().BucketType().Zonal {
+			// With zonal buckets, we can read from unfinalized objects as well.
+			// Hence, there is no need to finalize the object from here for zonal buckets.
+			// Hence, if FinalizeFileForRapid is set, then we will call syncFile otherwise
+			// we can call flushFile (as it will not finalize when FinalizeFileForRapid is false) itself.
+			if fs.newConfig.Write.FinalizeFileForRapid {
+				err = fs.syncFile(ctx, fh.Inode())
+			} else {
+				err = fs.flushFile(ctx, fh.Inode())
+			}
 		} else {
-			// Flush but don't finalize, in zonal bucket.
-			err = fs.syncFile(ctx, fh.Inode())
+			err = fs.flushFile(ctx, fh.Inode())
 		}
+
 		if err != nil {
 			fh.Inode().Unlock()
 			return err
@@ -2862,7 +2859,10 @@ func (fs *fileSystem) ReadFile(
 	// Serve the read.
 
 	if fs.newConfig.EnableNewReader {
-		op.Dst, op.BytesRead, err = fh.ReadWithReadManager(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
+		var resp gcsx.ReadResponse
+		resp, err = fh.ReadWithReadManager(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
+		op.BytesRead = resp.Size
+		op.Callback = resp.Callback
 	} else {
 		op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
 	}
@@ -2909,11 +2909,7 @@ func (fs *fileSystem) ReadSymlink(
 func (fs *fileSystem) WriteFile(
 	ctx context.Context,
 	op *fuseops.WriteFileOp) (err error) {
-	if fs.newConfig.FileSystem.IgnoreInterrupts {
-		// When ignore interrupts config is set, we are creating a new context not
-		// cancellable by parent context.
-		ctx = context.Background()
-	}
+	ctx = fs.getInterruptlessContext(ctx)
 
 	// Find the inode( and file handle in case of appends).
 	fs.mu.Lock()
@@ -2961,11 +2957,7 @@ func (fs *fileSystem) WriteFile(
 func (fs *fileSystem) SyncFile(
 	ctx context.Context,
 	op *fuseops.SyncFileOp) (err error) {
-	if fs.newConfig.FileSystem.IgnoreInterrupts {
-		// When ignore interrupts config is set, we are creating a new context not
-		// cancellable by parent context.
-		ctx = context.Background()
-	}
+	ctx = fs.getInterruptlessContext(ctx)
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodeOrDie(op.Inode)
@@ -2992,11 +2984,7 @@ func (fs *fileSystem) SyncFile(
 func (fs *fileSystem) FlushFile(
 	ctx context.Context,
 	op *fuseops.FlushFileOp) (err error) {
-	if fs.newConfig.FileSystem.IgnoreInterrupts {
-		// When ignore interrupts config is set, we are creating a new context not
-		// cancellable by parent context.
-		ctx = context.Background()
-	}
+	ctx = fs.getInterruptlessContext(ctx)
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.fileInodeOrDie(op.Inode)

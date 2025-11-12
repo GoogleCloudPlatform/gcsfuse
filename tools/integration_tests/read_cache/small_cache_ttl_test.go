@@ -16,8 +16,8 @@ package read_cache
 
 import (
 	"context"
-	"fmt"
 	"log"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -27,7 +27,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -38,65 +39,79 @@ type smallCacheTTLTest struct {
 	flags         []string
 	storageClient *storage.Client
 	ctx           context.Context
+	baseTestName  string
+	suite.Suite
 }
 
-func (s *smallCacheTTLTest) Setup(t *testing.T) {
-	setupForMountedDirectoryTests()
-	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
-	operations.RemoveDir(cacheDirPath)
+func (s *smallCacheTTLTest) SetupSuite() {
+	setupLogFileAndCacheDir(s.baseTestName)
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
 }
 
-func (s *smallCacheTTLTest) Teardown(t *testing.T) {
-	setup.SaveGCSFuseLogFileInCaseOfFailure(t)
-	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
+func (s *smallCacheTTLTest) SetupTest() {
+	//Truncate log file created.
+	err := os.Truncate(testEnv.cfg.LogFile, 0)
+	require.NoError(s.T(), err)
+	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
+	operations.RemoveDir(testEnv.cacheDirPath)
+	testEnv.testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
+}
+
+func (s *smallCacheTTLTest) TearDownTest() {
+	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
+}
+
+func (s *smallCacheTTLTest) TearDownSuite() {
+	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss(t *testing.T) {
-	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSize, t)
+func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss() {
+	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSize, s.T())
 
 	// Read file 1st time.
-	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, t)
+	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, s.T())
 	// Modify the file.
-	modifyFile(s.ctx, s.storageClient, testFileName, t)
+	modifyFile(s.ctx, s.storageClient, testFileName, s.T())
 	// Read same file again immediately.
-	expectedOutcome2 := readFileAndGetExpectedOutcome(testDirPath, testFileName, true, zeroOffset, t)
-	validateFileSizeInCacheDirectory(testFileName, fileSize, t)
+	expectedOutcome2 := readFileAndGetExpectedOutcome(testEnv.testDirPath, testFileName, true, zeroOffset, s.T())
+	validateFileSizeInCacheDirectory(testFileName, fileSize, s.T())
 	// Validate that stale data is served from cache in this case.
 	if strings.Compare(expectedOutcome1.content, expectedOutcome2.content) != 0 {
-		t.Errorf("content mismatch. Expected old data to be served again.")
+		s.T().Errorf("content mismatch. Expected old data to be served again.")
 	}
 	// Wait for metadata cache expiry and read the file again.
 	time.Sleep(metadataCacheTTlInSec * time.Second)
-	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, smallContentSize, true, t)
+	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, smallContentSize, true, s.T())
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
-	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	validate(expectedOutcome1, structuredReadLogs[0], true, false, chunksRead, t)
-	validate(expectedOutcome2, structuredReadLogs[1], true, true, chunksRead, t)
-	validate(expectedOutcome3, structuredReadLogs[2], true, false, chunksReadAfterUpdate, t)
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
+	require.Equal(s.T(), 3, len(structuredReadLogs))
+	validate(expectedOutcome1, structuredReadLogs[0], true, false, chunksRead, s.T())
+	validate(expectedOutcome2, structuredReadLogs[1], true, true, chunksRead, s.T())
+	validate(expectedOutcome3, structuredReadLogs[2], true, false, chunksReadAfterUpdate, s.T())
 }
 
-func (s *smallCacheTTLTest) TestReadForLowMetaDataCacheTTLIsCacheHit(t *testing.T) {
-	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSize, t)
+func (s *smallCacheTTLTest) TestReadForLowMetaDataCacheTTLIsCacheHit() {
+	testFileName := setupFileInTestDir(s.ctx, s.storageClient, fileSize, s.T())
 
 	// Read file 1st time.
-	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, t)
+	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, s.T())
 	// Wait for metadata cache expiry and read the file again.
 	time.Sleep(metadataCacheTTlInSec * time.Second)
-	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, t)
+	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, s.T())
 	// Read same file again immediately.
-	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, t)
+	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, s.T())
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
-	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	validate(expectedOutcome1, structuredReadLogs[0], true, false, chunksRead, t)
-	validate(expectedOutcome2, structuredReadLogs[1], true, true, chunksRead, t)
-	validate(expectedOutcome3, structuredReadLogs[2], true, true, chunksRead, t)
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
+	require.Equal(s.T(), 3, len(structuredReadLogs))
+	validate(expectedOutcome1, structuredReadLogs[0], true, false, chunksRead, s.T())
+	validate(expectedOutcome2, structuredReadLogs[1], true, true, chunksRead, s.T())
+	validate(expectedOutcome3, structuredReadLogs[2], true, true, chunksRead, s.T())
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -104,53 +119,18 @@ func (s *smallCacheTTLTest) TestReadForLowMetaDataCacheTTLIsCacheHit(t *testing.
 ////////////////////////////////////////////////////////////////////////
 
 func TestSmallCacheTTLTest(t *testing.T) {
-	ts := &smallCacheTTLTest{ctx: context.Background()}
-	// Create storage client before running tests.
-	closeStorageClient := client.CreateStorageClientWithCancel(&ts.ctx, &ts.storageClient)
-	defer func() {
-		err := closeStorageClient()
-		if err != nil {
-			t.Errorf("closeStorageClient failed: %v", err)
-		}
-	}()
+	ts := &smallCacheTTLTest{ctx: context.Background(), storageClient: testEnv.storageClient, baseTestName: t.Name()}
 
-	// Run tests for mounted directory if the flag is set.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		test_setup.RunTests(t, ts)
+	// Run tests for mounted directory if the flag is set. This assumes that run flag is properly passed by GKE team as per the config.
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		suite.Run(t, ts)
 		return
 	}
 
-	// Define flag set to run the tests.
-	flagsSet := []gcsfuseTestFlags{
-		{
-			cliFlags:                []string{fmt.Sprintf("--stat-cache-ttl=%ds", metadataCacheTTlInSec), "--implicit-dirs"},
-			cacheSize:               cacheCapacityInMB,
-			cacheFileForRangeRead:   false,
-			fileName:                configFileName,
-			enableParallelDownloads: false,
-			enableODirect:           false,
-			cacheDirPath:            getDefaultCacheDirPathForTests(),
-		},
-		{
-			cliFlags:                []string{fmt.Sprintf("--stat-cache-ttl=%ds", metadataCacheTTlInSec)},
-			cacheSize:               cacheCapacityInMB,
-			cacheFileForRangeRead:   false,
-			fileName:                configFileNameForParallelDownloadTests,
-			enableParallelDownloads: true,
-			enableODirect:           false,
-			cacheDirPath:            getDefaultCacheDirPathForTests(),
-		},
-	}
-	flagsSet = appendClientProtocolConfigToFlagSet(flagsSet)
-
-	// Run tests.
-	for _, flags := range flagsSet {
-		configFilePath := createConfigFile(&flags)
-		ts.flags = []string{"--config-file=" + configFilePath}
-		if flags.cliFlags != nil {
-			ts.flags = append(ts.flags, flags.cliFlags...)
-		}
+	// Run tests for GCE environment otherwise.
+	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
+	for _, ts.flags = range flagsSet {
 		log.Printf("Running tests with flags: %s", ts.flags)
-		test_setup.RunTests(t, ts)
+		suite.Run(t, ts)
 	}
 }

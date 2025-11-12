@@ -17,6 +17,7 @@ package storageutil
 import (
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptrace"
 	"strings"
@@ -25,6 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	dns "github.com/ncruces/go-dns"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
@@ -32,20 +34,33 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// ConfigureDialerWithLocalAddr resolves the provided socket address and returns a net.TCPAddr.
+// The port can be 0, in which case the OS will choose a local port.
+// The format of SocketAddress is expected to be IP address.
+func ConfigureDialerWithLocalAddr(dialer *net.Dialer, socketAddress string) error {
+	localAddr, err := net.ResolveTCPAddr("tcp", socketAddress+":0")
+	if err != nil {
+		return fmt.Errorf("failed to resolve socket address %q: %w", socketAddress, err)
+	}
+	dialer.LocalAddr = localAddr
+	return nil
+}
+
 const urlSchemeSeparator = "://"
 
 type StorageClientConfig struct {
 	/** Common client parameters. */
 
 	// ClientProtocol decides the go-sdk client to create.
-	ClientProtocol    cfg.Protocol
-	UserAgent         string
-	CustomEndpoint    string
-	KeyFile           string
-	TokenUrl          string
-	ReuseTokenFromUrl bool
-	MaxRetrySleep     time.Duration
-	RetryMultiplier   float64
+	ClientProtocol     cfg.Protocol
+	UserAgent          string
+	CustomEndpoint     string
+	KeyFile            string
+	TokenUrl           string
+	ReuseTokenFromUrl  bool
+	MaxRetrySleep      time.Duration
+	RetryMultiplier    float64
+	LocalSocketAddress string
 
 	/** HTTP client parameters. */
 	MaxConnsPerHost            int
@@ -69,6 +84,8 @@ type StorageClientConfig struct {
 
 	TracingEnabled bool
 
+	EnableHTTPDNSCache bool
+
 	EnableGrpcMetrics bool
 
 	// IsGKE inspects the mountPoint and indicates if running in a GKE environment.
@@ -76,10 +93,21 @@ type StorageClientConfig struct {
 }
 
 func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.TokenSource) (httpClient *http.Client, err error) {
+	dialer := net.Dialer{}
+	if storageClientConfig.LocalSocketAddress != "" {
+		if err := ConfigureDialerWithLocalAddr(&dialer, storageClientConfig.LocalSocketAddress); err != nil {
+			return nil, fmt.Errorf("failed to configure dialer with local-socket-address %q: %w", storageClientConfig.LocalSocketAddress, err)
+		}
+	}
+	if storageClientConfig.EnableHTTPDNSCache {
+		dialer.Resolver = dns.NewCachingResolver(nil, dns.MinCacheTTL(1*time.Minute))
+	}
+
 	var transport *http.Transport
 	// Using http1 makes the client more performant.
 	if storageClientConfig.ClientProtocol == cfg.HTTP1 {
 		transport = &http.Transport{
+			DialContext:         dialer.DialContext,
 			Proxy:               http.ProxyFromEnvironment,
 			MaxConnsPerHost:     storageClientConfig.MaxConnsPerHost,
 			MaxIdleConnsPerHost: storageClientConfig.MaxIdleConnsPerHost,
@@ -91,6 +119,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 	} else {
 		// For http2, change in MaxConnsPerHost doesn't affect the performance.
 		transport = &http.Transport{
+			DialContext:       dialer.DialContext,
 			Proxy:             http.ProxyFromEnvironment,
 			DisableKeepAlives: true,
 			MaxConnsPerHost:   storageClientConfig.MaxConnsPerHost,

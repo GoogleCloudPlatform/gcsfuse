@@ -122,6 +122,8 @@ TEST_DIR_PARALLEL=(
   "readdirplus"
   "dentry_cache"
   "buffered_read"
+  "requester_pays_bucket"
+  "flag_optimizations"
 )
 
 # These tests never become parallel as it is changing bucket permissions.
@@ -148,6 +150,7 @@ TEST_DIR_PARALLEL_FOR_ZB=(
   "mounting"
   "negative_stat_cache"
   "operations"
+  "rapid_appends"
   "read_cache"
   "read_large_files"
   "rename_dir_limit"
@@ -155,9 +158,10 @@ TEST_DIR_PARALLEL_FOR_ZB=(
   "streaming_writes"
   "write_large_files"
   "unfinalized_object"
-   "release_version"
-   "readdirplus"
-   "dentry_cache"
+  "release_version"
+  "readdirplus"
+  "dentry_cache"
+  "flag_optimizations"
 )
 
 # Subset of TEST_DIR_NON_PARALLEL,
@@ -250,7 +254,7 @@ function upgrade_gcloud_version() {
 
 function install_packages() {
   # Install required go version.
-  ./perfmetrics/scripts/install_go.sh "1.24.5"
+  ./perfmetrics/scripts/install_go.sh "1.24.10"
   export PATH="/usr/local/go/bin:$PATH"
   
   sudo apt-get update

@@ -37,19 +37,19 @@ func TestReadFilesConcurrently(t *testing.T) {
 	var filesPathInLocalDisk []string
 	var filesPathInMntDir []string
 
-	for i := 0; i < NumberOfFilesInLocalDiskForConcurrentRead; i++ {
+	for i := range NumberOfFilesInLocalDiskForConcurrentRead {
 		fileInLocalDisk := path.Join(os.Getenv("HOME"), filesInLocalDisk[i])
 		filesPathInLocalDisk = append(filesPathInLocalDisk, fileInLocalDisk)
 
 		file := path.Join(testDir, filesInLocalDisk[i])
 		filesPathInMntDir = append(filesPathInMntDir, file)
 
-		setup.CreateFileOnDiskAndCopyToMntDir(t, fileInLocalDisk, file, FiveHundredMB)
+		operations.CreateFileOnDiskAndCopyToMntDir(t, fileInLocalDisk, file, FiveHundredMB)
 	}
 
 	var eG errgroup.Group
 
-	for i := 0; i < NumberOfFilesInLocalDiskForConcurrentRead; i++ {
+	for i := range NumberOfFilesInLocalDiskForConcurrentRead {
 		// Copy the current value of i into a local variable to avoid data races.
 		fileIndex := i
 
@@ -62,7 +62,7 @@ func TestReadFilesConcurrently(t *testing.T) {
 
 	// Wait on threads to end.
 	err := eG.Wait()
-	for i := 0; i < NumberOfFilesInLocalDiskForConcurrentRead; i++ {
+	for i := range NumberOfFilesInLocalDiskForConcurrentRead {
 		operations.RemoveFile(filesPathInLocalDisk[i])
 	}
 	if err != nil {

@@ -19,13 +19,16 @@ package interrupt
 
 import (
 	"log"
+	"math/rand"
 	"path"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
+	"github.com/stretchr/testify/suite"
 )
 
 const (
@@ -44,11 +47,13 @@ var (
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type ignoreInterruptsTest struct{}
+type ignoreInterruptsTest struct {
+	suite.Suite
+}
 
-func (s *ignoreInterruptsTest) Teardown(t *testing.T) {}
+func (s *ignoreInterruptsTest) TearDownTest() {}
 
-func (s *ignoreInterruptsTest) Setup(t *testing.T) {
+func (s *ignoreInterruptsTest) SetupTest() {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 }
 
@@ -56,8 +61,26 @@ func (s *ignoreInterruptsTest) Setup(t *testing.T) {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func cloneRepository() ([]byte, error) {
-	return operations.ExecuteToolCommandfInDirectory(testDirPath, tool, "clone %s", repoURL)
+func (s *ignoreInterruptsTest) cloneRepository() (output []byte, err error) {
+	maxAttempts := 5
+	isRetryableError := func(err error) bool {
+		lowerErr := strings.ToLower(err.Error())
+		return strings.Contains(lowerErr, "could not resolve host") || strings.Contains(lowerErr, "could not read from remote repository") || strings.Contains(lowerErr, "failed to connect to github.com")
+	}
+	for i := range maxAttempts {
+		output, err = operations.ExecuteToolCommandfInDirectory(testDirPath, tool, "clone %s", repoURL)
+
+		if err == nil || !isRetryableError(err) {
+			return
+		}
+		s.T().Logf("failed to clone %q with stdout = %q and retryable error = %v", repoURL, string(output), err)
+		if i < maxAttempts-1 {
+			// Wait for [1ms, 2000ms] before trying again.
+			time.Sleep(time.Millisecond * time.Duration(1+rand.Intn(2000)))
+		}
+	}
+	// All retries failed
+	return
 }
 
 func checkoutBranch(branchName string) ([]byte, error) {
@@ -96,58 +119,58 @@ func setGithubUserConfig() {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *ignoreInterruptsTest) TestGitClone(t *testing.T) {
-	output, err := cloneRepository()
+func (s *ignoreInterruptsTest) TestGitClone() {
+	output, err := s.cloneRepository()
 
 	if err != nil {
-		t.Errorf("Git clone failed: %s: %v", string(output), err)
+		s.T().Errorf("Git clone failed: %s: %v", string(output), err)
 	}
 }
 
-func (s *ignoreInterruptsTest) TestGitCheckout(t *testing.T) {
-	_, err := cloneRepository()
+func (s *ignoreInterruptsTest) TestGitCheckout() {
+	_, err := s.cloneRepository()
 	if err != nil {
-		t.Errorf("cloneRepository() failed: %v", err)
+		s.T().Errorf("cloneRepository() failed: %v", err)
 	}
 
 	output, err := checkoutBranch(branchName)
 
 	if err != nil {
-		t.Errorf("Git checkout failed: %s: %v", string(output), err)
+		s.T().Errorf("Git checkout failed: %s: %v", string(output), err)
 	}
 }
 
-func (s *ignoreInterruptsTest) TestGitEmptyCommit(t *testing.T) {
-	_, err := cloneRepository()
+func (s *ignoreInterruptsTest) TestGitEmptyCommit() {
+	_, err := s.cloneRepository()
 	if err != nil {
-		t.Errorf("cloneRepository() failed: %v", err)
+		s.T().Errorf("cloneRepository() failed: %v", err)
 	}
 	setGithubUserConfig()
 
 	output, err := emptyCommit()
 
 	if err != nil {
-		t.Errorf("Git empty commit failed: %s: %v", string(output), err)
+		s.T().Errorf("Git empty commit failed: %s: %v", string(output), err)
 	}
 }
 
-func (s *ignoreInterruptsTest) TestGitCommitWithChanges(t *testing.T) {
-	_, err := cloneRepository()
+func (s *ignoreInterruptsTest) TestGitCommitWithChanges() {
+	_, err := s.cloneRepository()
 	if err != nil {
-		t.Errorf("cloneRepository() failed: %v", err)
+		s.T().Errorf("cloneRepository() failed: %v", err)
 	}
 	setGithubUserConfig()
 
 	filePath := path.Join(testDirPath, repoName, testFileName)
-	operations.CreateFileOfSize(util.MiB, filePath, t)
+	operations.CreateFileOfSize(util.MiB, filePath, s.T())
 	output, err := gitAdd(filePath)
 	if err != nil {
-		t.Errorf("Git add failed: %s: %v", string(output), err)
+		s.T().Errorf("Git add failed: %s: %v", string(output), err)
 	}
 	output, err = nonEmptyCommit()
 
 	if err != nil {
-		t.Errorf("Git commit failed: %s: %v", string(output), err)
+		s.T().Errorf("Git commit failed: %s: %v", string(output), err)
 	}
 }
 
@@ -157,5 +180,5 @@ func (s *ignoreInterruptsTest) TestGitCommitWithChanges(t *testing.T) {
 
 func TestIgnoreInterrupts(t *testing.T) {
 	ts := &ignoreInterruptsTest{}
-	test_setup.RunTests(t, ts)
+	suite.Run(t, ts)
 }

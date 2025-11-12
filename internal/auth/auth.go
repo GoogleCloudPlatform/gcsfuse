@@ -24,7 +24,7 @@ import (
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
-const universeDomainDefault = "googleapis.com"
+const UniverseDomainDefault = "googleapis.com"
 
 func getUniverseDomain(ctx context.Context, contents []byte, scope string) (string, error) {
 	creds, err := google.CredentialsFromJSON(ctx, contents, scope)
@@ -70,7 +70,7 @@ func newTokenSourceFromPath(ctx context.Context, path string, scope string) (oau
 	// For non-GDU universe domains, token exchange is impossible and services
 	// must support self-signed JWTs with scopes.
 	// Override the token source to use self-signed JWT.
-	if domain != universeDomainDefault {
+	if domain != UniverseDomainDefault {
 		// Create self signed JWT access token.
 		ts, err = google.JWTAccessTokenSourceWithScope(contents, scope)
 		if err != nil {

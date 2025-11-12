@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
+	"maps"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -518,9 +519,7 @@ func copyMetadata(in map[string]string) (out map[string]string) {
 	}
 
 	out = make(map[string]string)
-	for k, v := range in {
-		out[k] = v
-	}
+	maps.Copy(out, in)
 
 	return
 }

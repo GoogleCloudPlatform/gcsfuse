@@ -31,10 +31,20 @@ fi
 
 # Upgrade gcloud
 echo "Upgrade gcloud version"
-gcloud version
 wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
 sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm -r google-cloud-sdk
-sudo /usr/local/google-cloud-sdk/install.sh
+
+# Conditionally install python3.9 and run gcloud installer with it for RHEL 8 and Rocky 8
+INSTALL_COMMAND="sudo /usr/local/google-cloud-sdk/install.sh --quiet"
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    if [[ ($ID == "rhel" || $ID == "rocky") && $VERSION_ID == 8* ]]; then
+        sudo yum install -y python39
+        INSTALL_COMMAND="sudo env CLOUDSDK_PYTHON=/usr/bin/python3.9 /usr/local/google-cloud-sdk/install.sh --quiet"
+    fi
+fi
+$INSTALL_COMMAND 
+
 export PATH=/usr/local/google-cloud-sdk/bin:$PATH
 gcloud version && rm gcloud.tar.gz
 
@@ -68,14 +78,83 @@ gcloud storage cp gs://gcsfuse-release-packages/version-detail/details.txt .
 # Writing VM instance name to details.txt (Format: release-test-<os-name>)
 curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >>details.txt
 
-# Based on the os type(from vm instance name) in detail.txt, run the following commands to add starterscriptuser
-if grep -q ubuntu details.txt || grep -q debian details.txt; then
-	#  For ubuntu and debian os
-	sudo adduser --ingroup google-sudoers --disabled-password --home=/home/starterscriptuser --gecos "" starterscriptuser
-else
-	#  For rhel and centos
-	sudo adduser -g google-sudoers --home-dir=/home/starterscriptuser starterscriptuser
-fi
+# Function to create the local user
+create_user() {
+  local USERNAME=$1
+  local HOMEDIR=$2
+  local DETAILS=$3
+  if id "${USERNAME}" &>/dev/null; then
+    echo "User ${USERNAME} already exists."
+    return 0
+  fi
+
+  echo "Creating user ${USERNAME}..."
+  if grep -qi -E 'ubuntu|debian' $DETAILS; then
+    # For Ubuntu and Debian
+    sudo adduser --disabled-password --home "${HOMEDIR}" --gecos "" "${USERNAME}"
+  elif grep -qi -E 'rhel|centos|rocky' $DETAILS; then
+    # For RHEL, CentOS, Rocky Linux
+    sudo adduser --home-dir "${HOMEDIR}" "${USERNAME}" && sudo passwd -d "${USERNAME}"
+  else
+    echo "Unsupported OS type in details file." >&2
+    return 1
+  fi
+  local exit_code=$?
+
+  if [ ${exit_code} -eq 0 ]; then
+    echo "User ${USERNAME} created successfully."
+  else
+    echo "Failed to create user ${USERNAME}." >&2
+  fi
+  return ${exit_code}
+}
+
+# Function to grant sudo access by creating a file in /etc/sudoers.d/
+grant_sudo() {
+  local USERNAME=$1
+  local HOMEDIR=$2
+  if ! id "${USERNAME}" &>/dev/null; then
+    echo "User ${USERNAME} does not exist. Cannot grant sudo."
+    return 1
+  fi
+
+  sudo mkdir -p /etc/sudoers.d/
+  SUDOERS_FILE="/etc/sudoers.d/${USERNAME}"
+
+  if sudo test -f "${SUDOERS_FILE}"; then
+    echo "Sudoers file ${SUDOERS_FILE} already exists."
+  else
+    echo "Granting ${USERNAME} NOPASSWD sudo access..."
+    # Create the sudoers file with the correct content
+    if ! echo "${USERNAME} ALL=(ALL:ALL) NOPASSWD:ALL" | sudo tee "${SUDOERS_FILE}" > /dev/null; then
+      echo "Failed to create sudoers file." >&2
+      return 1
+    fi
+
+    # Set the correct permissions on the sudoers file
+    if ! sudo chmod 440 "${SUDOERS_FILE}"; then
+      echo "Failed to set permissions on sudoers file." >&2
+      # Attempt to clean up the partially created file
+      sudo rm -f "${SUDOERS_FILE}"
+      return 1
+    fi
+    echo "Sudo access granted to ${USERNAME} via ${SUDOERS_FILE}."
+  fi
+  return 0
+}
+################################################################################
+# Main script execution flow starts here.
+# The script will first attempt to create the user specified by $USERNAME.
+# If the user creation is successful, it will then proceed to grant sudo
+# privileges to the newly created user.
+################################################################################
+USERNAME=starterscriptuser
+HOMEDIR="/home/${USERNAME}"
+DETAILS_FILE=$(pwd)/details.txt
+
+create_user $USERNAME $HOMEDIR $DETAILS_FILE
+grant_sudo  $USERNAME $HOMEDIR
+
 
 # Run the following as starterscriptuser
 sudo -u starterscriptuser bash -c '
@@ -145,7 +224,7 @@ then
 else
 #  For rhel and centos
     # uname can be aarch or x86_64
-    uname=$(uname -i)
+    uname=$(uname -m)
 
     if [[ $uname == "x86_64" ]]; then
       architecture="amd64"
@@ -174,7 +253,7 @@ else
 fi
 
 # install go
-wget -O go_tar.tar.gz https://go.dev/dl/go1.24.5.linux-${architecture}.tar.gz
+wget -O go_tar.tar.gz https://go.dev/dl/go1.24.10.linux-${architecture}.tar.gz
 sudo tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=${PATH}:/usr/local/go/bin
 #Write gcsfuse and go version to log file
@@ -227,6 +306,9 @@ TEST_DIR_PARALLEL=(
   "readdirplus"
   "dentry_cache"
   "buffered_read"
+  # Disabled because of b/451462914.
+  #"requester_pays_bucket"
+  "flag_optimizations"
 )
 
 # These tests never become parallel as they are changing bucket permissions.
@@ -239,25 +321,31 @@ TEST_DIR_NON_PARALLEL=(
 
 # For Zonal buckets : Test directory arrays
 TEST_DIR_PARALLEL_ZONAL=(
+  buffered_read
+  concurrent_operations
+  dentry_cache
+  explicit_dir
+  flag_optimizations
   gzip
+  implicit_dir
   interrupt
   kernel_list_cache
   local_file
   log_rotation
-  mounting
+  monitoring
   mount_timeout
+  mounting
   negative_stat_cache
+  operations
+  rapid_appends
   read_large_files
+  readdirplus
+  release_version
   rename_dir_limit
   stale_handle
+  streaming_writes
+  unfinalized_object
   write_large_files
-  #concurrent_operations
-  #explicit_dir
-  #implicit_dir
-  #list_large_dir
-  #log_content
-  #operations
-  #streaming_writes
 )
 
 # For Zonal Buckets :  These tests never become parallel as they are changing bucket permissions.
@@ -265,6 +353,7 @@ TEST_DIR_NON_PARALLEL_ZONAL=(
   "managed_folders"
   "readonly"
   "readonly_creds"
+  "list_large_dir"
 )
 
 # Create a temporary file to store the log file name.

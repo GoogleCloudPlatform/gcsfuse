@@ -16,12 +16,14 @@ package gcsx
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"sync"
 	"sync/atomic"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
@@ -107,31 +109,73 @@ func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, config *GCSReaderConfig
 	}
 }
 
-func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (readerResponse gcsx.ReaderResponse, err error) {
+// Detects whether the read was short or not and returns whether it should be retried or not.
+// Reads would only be retried in case of zonal buckets and when the read data was less than requested (& object size)
+// and there was no error apart from EOF or short reads.
+func shouldRetryForShortRead(err error, bytesRead int, p []byte, offset int64, objectSize uint64, bucketType gcs.BucketType) bool {
+	if !bucketType.Zonal {
+		return false
+	}
+
+	if bytesRead >= len(p) {
+		return false
+	}
+
+	if offset+int64(bytesRead) >= int64(objectSize) {
+		return false
+	}
+
+	if !(err == nil || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, util.ErrShortRead)) {
+		return false
+	}
+
+	return true
+}
+
+func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (readResponse gcsx.ReadResponse, err error) {
 
 	if offset >= int64(gr.object.Size) {
-		return readerResponse, io.EOF
+		return readResponse, io.EOF
 	} else if offset < 0 {
 		err := fmt.Errorf(
 			"illegal offset %d for %d byte object",
 			offset,
 			gr.object.Size)
-		return readerResponse, err
+		return readResponse, err
 	}
 
 	readReq := &gcsx.GCSReaderRequest{
-		Buffer:    p,
-		Offset:    offset,
-		EndOffset: offset + int64(len(p)),
+		Buffer:            p,
+		Offset:            offset,
+		EndOffset:         offset + int64(len(p)),
+		ForceCreateReader: false,
 	}
 	defer func() {
-		gr.updateExpectedOffset(offset + int64(readerResponse.Size))
-		gr.totalReadBytes.Add(uint64(readerResponse.Size))
+		gr.updateExpectedOffset(offset + int64(readResponse.Size))
+		gr.totalReadBytes.Add(uint64(readResponse.Size))
 	}()
 
+	bytesRead, err := gr.read(ctx, readReq)
+	readResponse.Size = bytesRead
+
+	// Retry reading in case of short read.
+	if shouldRetryForShortRead(err, bytesRead, p, offset, gr.object.Size, gr.bucket.BucketType()) {
+		readReq.Offset += int64(bytesRead)
+		readReq.Buffer = p[bytesRead:]
+		readReq.ForceCreateReader = true
+		var bytesReadOnRetry int
+		bytesReadOnRetry, err = gr.read(ctx, readReq)
+		readResponse.Size += bytesReadOnRetry
+	}
+
+	return readResponse, err
+}
+
+func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest) (bytesRead int, err error) {
 	// Not taking any lock for getting reader type to ensure random read requests do not wait.
-	readInfo := gr.getReadInfo(offset, false)
+	readInfo := gr.getReadInfo(readReq.Offset, false)
 	reqReaderType := gr.readerType(readInfo.readType, gr.bucket.BucketType())
+	var readResp gcsx.ReadResponse
 
 	if reqReaderType == RangeReaderType {
 		gr.mu.Lock()
@@ -142,7 +186,7 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (reader
 		// Recalculating only for ZB and only when another read had been performed between now and
 		// the time when readerType was calculated for this request.
 		if gr.bucket.BucketType().Zonal && readInfo.expectedOffset != gr.expectedOffset.Load() {
-			readInfo = gr.getReadInfo(offset, readInfo.seekRecorded)
+			readInfo = gr.getReadInfo(readReq.Offset, readInfo.seekRecorded)
 			reqReaderType = gr.readerType(readInfo.readType, gr.bucket.BucketType())
 		}
 		// If the readerType is range reader after re calculation, then use range reader.
@@ -152,17 +196,15 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (reader
 			// Calculate the end offset based on previous read requests.
 			// It will be used if a new range reader needs to be created.
 			readReq.EndOffset = gr.getEndOffset(readReq.Offset)
-			readerResponse, err = gr.rangeReader.ReadAt(ctx, readReq)
-			return readerResponse, err
+			readReq.ReadType = readInfo.readType
+			readResp, err = gr.rangeReader.ReadAt(ctx, readReq)
+			return readResp.Size, err
 		}
 		gr.mu.Unlock()
 	}
 
-	if reqReaderType == MultiRangeReaderType {
-		readerResponse, err = gr.mrr.ReadAt(ctx, readReq)
-	}
-
-	return readerResponse, err
+	readResp, err = gr.mrr.ReadAt(ctx, readReq)
+	return readResp.Size, err
 }
 
 // readerType specifies the go-sdk interface to use for reads.
@@ -241,10 +283,7 @@ func (gr *GCSReader) determineEnd(start int64) int64 {
 		gr.readType.Store(metrics.ReadTypeRandom)
 		averageReadBytes := gr.totalReadBytes.Load() / seeks
 		if averageReadBytes < maxReadSize {
-			randomReadSize := int64(((averageReadBytes / MB) + 1) * MB)
-			if randomReadSize < minReadSize {
-				randomReadSize = minReadSize
-			}
+			randomReadSize := max(int64(((averageReadBytes/MB)+1)*MB), minReadSize)
 			if randomReadSize > maxReadSize {
 				randomReadSize = maxReadSize
 			}

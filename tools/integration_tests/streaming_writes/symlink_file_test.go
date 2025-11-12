@@ -26,7 +26,7 @@ import (
 
 func (t *StreamingWritesSuite) TestCreateSymlinkForLocalFileAndReadFromSymlink() {
 	// Create Symlink.
-	symlink := path.Join(testDirPath, setup.GenerateRandomString(5))
+	symlink := path.Join(testEnv.testDirPath, setup.GenerateRandomString(5))
 	operations.CreateSymLink(t.filePath, symlink, t.T())
 	_, err := t.f1.WriteAt([]byte(t.data), 0)
 	assert.NoError(t.T(), err)
@@ -39,12 +39,12 @@ func (t *StreamingWritesSuite) TestCreateSymlinkForLocalFileAndReadFromSymlink()
 	t.validateReadCall(symlink_fh, t.data)
 
 	// Close the file and validate that the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, t.data, t.T())
+	CloseFileAndValidateContentFromGCS(testEnv.ctx, testEnv.storageClient, t.f1, testDirName, t.fileName, t.data, t.T())
 }
 
 func (t *StreamingWritesSuite) TestReadingFromSymlinkForDeletedLocalFile() {
 	// Create Symlink.
-	symlink := path.Join(testDirPath, setup.GenerateRandomString(5))
+	symlink := path.Join(testEnv.testDirPath, setup.GenerateRandomString(5))
 	operations.CreateSymLink(t.filePath, symlink, t.T())
 	_, err := t.f1.WriteAt([]byte(t.data), 0)
 	assert.NoError(t.T(), err)
@@ -59,7 +59,7 @@ func (t *StreamingWritesSuite) TestReadingFromSymlinkForDeletedLocalFile() {
 	// Remove filePath and then close the fileHandle to avoid syncing to GCS.
 	operations.RemoveFile(t.filePath)
 	operations.CloseFileShouldNotThrowError(t.T(), t.f1)
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, t.fileName, t.T())
+	ValidateObjectNotFoundErrOnGCS(testEnv.ctx, testEnv.storageClient, testDirName, t.fileName, t.T())
 	// Reading symlink should fail.
 	_, err = os.Stat(symlink)
 	assert.Error(t.T(), err)

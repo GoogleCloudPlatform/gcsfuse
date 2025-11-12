@@ -22,6 +22,7 @@ import (
 	"math"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
@@ -60,7 +61,6 @@ type RangeReader struct {
 	readHandle []byte
 	cancel     func()
 
-	readType     int64
 	config       *cfg.Config
 	metricHandle metrics.MetricHandle
 }
@@ -111,18 +111,25 @@ func (rr *RangeReader) closeReader() {
 	}
 }
 
-func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (gcsx.ReaderResponse, error) {
-	readerResponse := gcsx.ReaderResponse{
-		DataBuf: req.Buffer,
-		Size:    0,
-	}
-	var err error
+func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (gcsx.ReadResponse, error) {
+	var (
+		readResponse gcsx.ReadResponse
+		err          error
+	)
 
-	readerResponse.Size, err = rr.readFromExistingReader(ctx, req)
-	if errors.Is(err, gcsx.FallbackToAnotherReader) {
-		readerResponse.Size, err = rr.readFromRangeReader(ctx, req.Buffer, req.Offset, req.EndOffset, rr.readType)
+	if req.ForceCreateReader && rr.reader != nil {
+		rr.closeReader()
+		rr.reader = nil
+		rr.cancel = nil
+		rr.start = -1
+		rr.limit = -1
 	}
-	return readerResponse, err
+
+	readResponse.Size, err = rr.readFromExistingReader(ctx, req)
+	if errors.Is(err, gcsx.FallbackToAnotherReader) {
+		readResponse.Size, err = rr.readFromRangeReader(ctx, req.Buffer, req.Offset, req.EndOffset, req.ReadType)
+	}
+	return readResponse, err
 }
 
 // readFromRangeReader reads using the NewReader interface of go-sdk. It uses
@@ -132,7 +139,7 @@ func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset
 	var err error
 	// If we don't have a reader, start a read operation.
 	if rr.reader == nil {
-		err = rr.startRead(offset, end)
+		err = rr.startRead(offset, end, readType)
 		if err != nil {
 			err = fmt.Errorf("startRead: %w", err)
 			return 0, err
@@ -171,7 +178,7 @@ func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset
 		// if the reader peters out early. That's fine, but it means we should
 		// have hit the limit above.
 		if rr.reader != nil {
-			err = fmt.Errorf("range reader returned early by skipping %d bytes", rr.limit-rr.start)
+			err = fmt.Errorf("range reader returned early by skipping %d bytes: %w", rr.limit-rr.start, util.ErrShortRead)
 			return 0, err
 		}
 
@@ -182,9 +189,6 @@ func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset
 		err = fmt.Errorf("readFull: %w", err)
 		return 0, err
 	}
-
-	requestedDataSize := end - offset
-	metrics.CaptureGCSReadMetrics(rr.metricHandle, metrics.ReadTypeNames[readType], requestedDataSize)
 
 	return n, err
 }
@@ -224,7 +228,7 @@ func (rr *RangeReader) readFull(ctx context.Context, p []byte) (int, error) {
 // Ensure that rr.reader is set up for a range for which [start, start+size) is
 // a prefix. Irrespective of the size requested, we try to fetch more data
 // from GCS defined by SequentialReadSizeMb flag to serve future read requests.
-func (rr *RangeReader) startRead(start int64, end int64) error {
+func (rr *RangeReader) startRead(start int64, end int64, readType int64) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	var err error
 
@@ -279,7 +283,7 @@ func (rr *RangeReader) startRead(start int64, end int64) error {
 	rr.limit = end
 
 	requestedDataSize := end - start
-	metrics.CaptureGCSReadMetrics(rr.metricHandle, metrics.ReadTypeNames[metrics.ReadTypeSequential], requestedDataSize)
+	metrics.CaptureGCSReadMetrics(rr.metricHandle, metrics.ReadTypeNames[readType], requestedDataSize)
 
 	return nil
 }
@@ -337,7 +341,7 @@ func (rr *RangeReader) readFromExistingReader(ctx context.Context, req *gcsx.GCS
 
 	rr.invalidateReaderIfMisalignedOrTooSmall(req.Offset, endOffset)
 	if rr.reader != nil {
-		return rr.readFromRangeReader(ctx, req.Buffer, req.Offset, endOffset, rr.readType)
+		return rr.readFromRangeReader(ctx, req.Buffer, req.Offset, endOffset, req.ReadType)
 	}
 
 	return 0, gcsx.FallbackToAnotherReader

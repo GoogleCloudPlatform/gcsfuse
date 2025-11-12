@@ -22,6 +22,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -77,7 +78,7 @@ func (t *staleFileHandleSyncedFile) TestClobberedFileFirstWriteThrowsStaleFileHa
 	assert.Equal(t.T(), "foobar", string(contents))
 }
 
-func (t *staleFileHandleSyncedFile) TestRenamedFileSyncThrowsStaleFileHandleError() {
+func (t *staleFileHandleSyncedFile) TestRenamedFileWriteThrowsStaleFileHandleError() {
 	// Dirty the file by giving it some contents.
 	n, err := t.f1.Write([]byte("foobar"))
 	assert.NoError(t.T(), err)
@@ -85,16 +86,15 @@ func (t *staleFileHandleSyncedFile) TestRenamedFileSyncThrowsStaleFileHandleErro
 	// Rename the object.
 	err = os.Rename(t.f1.Name(), path.Join(mntDir, "bar"))
 	assert.NoError(t.T(), err)
-	// Attempt to write to file should not give any error.
-	n, err = t.f1.Write([]byte("taco"))
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), 4, n)
 
+	// Attempt to write to file should give ESTALE error.
+	_, err = t.f1.Write([]byte("taco"))
+	operations.ValidateESTALEError(t.T(), err)
+	// No error on sync and close because no data was written.
 	err = t.f1.Sync()
-
-	operations.ValidateESTALEError(t.T(), err)
+	require.NoError(t.T(), err)
 	err = t.f1.Close()
-	operations.ValidateESTALEError(t.T(), err)
+	require.NoError(t.T(), err)
 	// Make f1 nil, so that another attempt is not taken in TearDown to close the
 	// file.
 	t.f1 = nil

@@ -69,7 +69,7 @@ func IsKLCacheEvictionUnSupported() (bool, error) {
 		return false, err
 	}
 
-	for i := 0; i < len(UnsupportedKernelVersions); i++ {
+	for i := range UnsupportedKernelVersions {
 		matched, err := regexp.MatchString(UnsupportedKernelVersions[i], kernelVersion)
 		if err != nil {
 			return false, err

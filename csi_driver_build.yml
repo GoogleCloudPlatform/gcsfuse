@@ -1,0 +1,129 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+substitutions:
+  _GOLANG_VERSION: '1.24'
+  _GCSFUSE_VERSION: 'v4'
+  _CSI_VERSION: 'main'
+  _BUILD_ARM: 'false'
+  _USER: 'cloudbuild'
+  _IMAGE_PREFIX: 'build'
+  _STAGINGVERSION: ''
+
+steps:
+# --- Build GCSFuse ---
+# This step clones the GCSFuse CSI Driver repository.
+- name: 'gcr.io/cloud-builders/git'
+  id: 'clone-csi-driver' # ID is used in waitFor below.
+  waitFor: ['-'] # This step can run concurrently with other steps that have waitFor: ['-']
+  args: ['clone', '--branch', '${_CSI_VERSION}', '--depth', '1', 'https://github.com/GoogleCloudPlatform/gcs-fuse-csi-driver.git', 'csi-driver-src']
+
+# This step builds the GCSFuse binary for each platform specified in the _PLATFORMS substitution.
+# The binaries are placed in the /workspace/gcsfuse-artifacts directory.
+- name: 'golang:${_GOLANG_VERSION}'
+  id: 'build-gcsfuse' # ID is used in waitFor below.
+  waitFor: ['-'] # This step can run concurrently with other steps that have waitFor: ['-']
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    set -e
+    ARCHS="amd64"
+    if [[ "${_BUILD_ARM}" == "true" ]]; then
+      ARCHS="$$ARCHS arm64"
+    fi
+    
+    for arch in $$ARCHS; do
+      echo "Building GCSFuse for linux/$arch..."
+      GOOS=linux go run tools/build_gcsfuse/main.go --arch=$$arch . . "${_GCSFUSE_VERSION}"
+      mkdir -p "/workspace/gcsfuse-artifacts/linux/$$arch"
+      mv "bin/gcsfuse" "/workspace/gcsfuse-artifacts/linux/$$arch/gcsfuse"
+      echo "Cleaning up bin and sbin directories..."
+      rm -rf bin sbin
+    done
+
+# --- Store GCSFuse binaries in GCS ---
+# The GCSFuse CSI Driver build process needs to fetch the GCSFuse binaries from a GCS bucket.
+# This step creates a temporary GCS bucket for this purpose.
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 'create-gcs-bucket' # ID is used in waitFor below.
+  waitFor: ['-'] # This step can run concurrently with other steps that have waitFor: ['-']
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    BUCKET_NAME="gs://${PROJECT_ID}-csibuild-${BUILD_ID}"
+    gcloud storage buckets create $$BUCKET_NAME
+    echo $$BUCKET_NAME > /workspace/bucket_name
+
+# This step uploads the GCSFuse binaries to the GCS bucket.
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 'upload-gcsfuse-binaries'
+  waitFor: ['create-gcs-bucket', 'build-gcsfuse']
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    BUCKET_NAME=$$(cat /workspace/bucket_name)
+    gcloud storage cp -r /workspace/gcsfuse-artifacts/* $$BUCKET_NAME/
+
+# --- Build and Push GCSFuse CSI Driver Image ---
+
+# Step 1: Build and Push GCSFuse CSI Driver Image
+# This step builds the GCSFuse CSI Driver image and pushes it to the registry.
+# It uses the docker builder and installs gcloud to get the credential helper.
+- name: 'gcr.io/cloud-builders/docker'
+  id: 'build-and-push-csi-driver'
+  waitFor: ['upload-gcsfuse-binaries', 'clone-csi-driver']
+  dir: 'csi-driver-src'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    set -e
+    # --- Install gcloud ---
+    apt-get update && apt-get install -y apt-transport-https ca-certificates gnupg curl
+    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+    echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee /etc/apt/sources.list.d/google-cloud-sdk.list
+    apt-get update && apt-get install -y google-cloud-cli kubectl
+
+    # --- Authenticate Docker ---
+    gcloud auth configure-docker gcr.io --quiet
+
+    # --- Download gcsfuse binaries ---
+    GCSFUSE_PATH=$$(cat /workspace/bucket_name)
+    if [[ -n "${_STAGINGVERSION}" ]]; then
+      STAGINGVERSION="${_STAGINGVERSION}"
+    else
+      STAGINGVERSION=${BUILD_ID}
+      STAGINGVERSION=${_IMAGE_PREFIX}-$${STAGINGVERSION:0:8}
+    fi
+    REGISTRY="gcr.io/${PROJECT_ID}/${_USER}-gcsfuse-csi"
+
+    make build-image-and-push-multi-arch REGISTRY=$${REGISTRY} GCSFUSE_PATH=$${GCSFUSE_PATH} STAGINGVERSION=$${STAGINGVERSION} BUILD_ARM=${_BUILD_ARM}
+
+# This step cleans up the GCS bucket.
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 'cleanup-gcs-bucket'
+  waitFor: ['build-and-push-csi-driver']
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    BUCKET_NAME=$$(cat /workspace/bucket_name)
+    gcloud storage rm --recursive $$BUCKET_NAME
+
+options:
+  # Using a more powerful machine is recommended for multi-platform builds.
+  machineType: 'E2_HIGHCPU_32'

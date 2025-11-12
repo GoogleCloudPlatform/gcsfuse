@@ -35,7 +35,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -43,6 +42,8 @@ import (
 	"path"
 	"runtime"
 	"strings"
+
+	"github.com/spf13/pflag"
 )
 
 // Build release binaries according to the supplied settings, setting up the
@@ -50,8 +51,9 @@ import (
 //
 // version is the gcsfuse version being built (e.g. "0.11.1"), or a short git
 // commit name if this is not for an official release.
-func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err error) {
+func buildBinaries(dstDir, srcDir, version, arch string, buildArgs []string) (err error) {
 	osys := runtime.GOOS
+
 	// Create the target structure.
 	{
 		dirs := []string{
@@ -160,6 +162,7 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 			fmt.Sprintf("GOPATH=%s", gopath),
 			fmt.Sprintf("GOCACHE=%s", gocache),
 			"CGO_ENABLED=0",
+			fmt.Sprintf("GOARCH=%s", arch),
 		)
 
 		// Build.
@@ -190,10 +193,13 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 }
 
 func run() (err error) {
+	var arch = pflag.String("arch", runtime.GOARCH, "Target architecture (e.g., amd64, arm64). Defaults to host architecture.")
+	pflag.Parse()
+
 	// Extract arguments.
-	args := flag.Args()
+	args := pflag.Args()
 	if len(args) < 3 {
-		err = fmt.Errorf("usage: %s src_dir dst_dir version [build args]", os.Args[0])
+		err = fmt.Errorf("usage: %s [flags] src_dir dst_dir version [build args]", os.Args[0])
 		return
 	}
 
@@ -203,7 +209,7 @@ func run() (err error) {
 	buildArgs := args[3:]
 
 	// Build.
-	err = buildBinaries(dstDir, srcDir, version, buildArgs)
+	err = buildBinaries(dstDir, srcDir, version, *arch, buildArgs)
 	if err != nil {
 		err = fmt.Errorf("buildBinaries: %w", err)
 		return
@@ -214,7 +220,7 @@ func run() (err error) {
 
 func main() {
 	log.SetFlags(log.Lmicroseconds)
-	flag.Parse()
+	// pflag.Parse() is called in run()
 
 	err := run()
 	if err != nil {

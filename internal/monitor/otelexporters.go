@@ -28,7 +28,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/exemplar"
@@ -43,19 +42,18 @@ const cloudMonitoringMetricPrefix = "custom.googleapis.com/gcsfuse/"
 var allowedMetricPrefixes = []string{"fs/", "gcs/", "file_cache/", "buffered_read/", "grpc."}
 
 // SetupOTelMetricExporters sets up the metrics exporters
-func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config) (shutdownFn common.ShutdownFn) {
-	shutdownFns := make([]common.ShutdownFn, 0)
+func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config, mountID string) (shutdownFn common.ShutdownFn) {
+	var shutdownFns []common.ShutdownFn
 	options := make([]metric.Option, 0)
 
-	opts, shutdownFn := setupPrometheus(c.Metrics.PrometheusPort)
+	opts, promShutdownFn := setupPrometheus(c.Metrics.PrometheusPort)
 	options = append(options, opts...)
-	shutdownFns = append(shutdownFns, shutdownFn)
+	shutdownFns = append(shutdownFns, promShutdownFn)
 
-	opts, shutdownFn = setupCloudMonitoring(c.Metrics.CloudMetricsExportIntervalSecs)
+	opts = setupCloudMonitoring(c.Metrics.CloudMetricsExportIntervalSecs)
 	options = append(options, opts...)
-	shutdownFns = append(shutdownFns, shutdownFn)
 
-	res, err := getResource(ctx)
+	res, err := getResource(ctx, mountID)
 	if err != nil {
 		logger.Errorf("Error while fetching resource: %v", err)
 	} else {
@@ -65,9 +63,10 @@ func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config) (shutdownFn co
 	options = append(options, metric.WithView(dropDisallowedMetricsView), metric.WithExemplarFilter(exemplar.AlwaysOffFilter))
 
 	meterProvider := metric.NewMeterProvider(options...)
-	shutdownFns = append(shutdownFns, meterProvider.Shutdown)
 
 	otel.SetMeterProvider(meterProvider)
+
+	shutdownFns = append(shutdownFns, meterProvider.Shutdown)
 
 	return common.JoinShutdownFunc(shutdownFns...)
 }
@@ -84,26 +83,21 @@ func dropDisallowedMetricsView(i metric.Instrument) (metric.Stream, bool) {
 	return s, true
 }
 
-func setupCloudMonitoring(secs int64) ([]metric.Option, common.ShutdownFn) {
+func setupCloudMonitoring(secs int64) []metric.Option {
 	if secs <= 0 {
-		return nil, nil
+		return nil
 	}
 	options := []cloudmetric.Option{
 		cloudmetric.WithMetricDescriptorTypeFormatter(metricFormatter),
-		cloudmetric.WithFilteredResourceAttributes(func(kv attribute.KeyValue) bool {
-			// Ensure that PID is available as a metric label on metrics explorer as it'll help distinguish between different mounts on the same node.
-			return cloudmetric.DefaultResourceAttributesFilter(kv) ||
-				kv.Key == semconv.ProcessPIDKey
-		}),
 	}
 	exporter, err := cloudmetric.New(options...)
 	if err != nil {
 		logger.Errorf("Error while creating Google Cloud exporter:%v", err)
-		return nil, nil
+		return nil
 	}
 
 	r := metric.NewPeriodicReader(exporter, metric.WithInterval(time.Duration(secs)*time.Second))
-	return []metric.Option{metric.WithReader(r)}, r.Shutdown
+	return []metric.Option{metric.WithReader(r)}
 }
 
 func metricFormatter(m metricdata.Metrics) string {
@@ -119,7 +113,7 @@ func setupPrometheus(port int64) ([]metric.Option, common.ShutdownFn) {
 		return nil, nil
 	}
 	shutdownCh := make(chan context.Context)
-	done := make(chan interface{})
+	done := make(chan any)
 	go serveMetrics(port, shutdownCh, done)
 	return []metric.Option{metric.WithReader(exporter)}, func(ctx context.Context) error {
 		shutdownCh <- ctx
@@ -130,7 +124,7 @@ func setupPrometheus(port int64) ([]metric.Option, common.ShutdownFn) {
 	}
 }
 
-func serveMetrics(port int64, shutdownCh <-chan context.Context, done chan<- interface{}) {
+func serveMetrics(port int64, shutdownCh <-chan context.Context, done chan<- any) {
 	logger.Infof("Serving metrics at localhost:%d/metrics", port)
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
@@ -159,7 +153,7 @@ func serveMetrics(port int64, shutdownCh <-chan context.Context, done chan<- int
 	logger.Info("Prometheus collector exporter started")
 }
 
-func getResource(ctx context.Context) (*resource.Resource, error) {
+func getResource(ctx context.Context, mountID string) (*resource.Resource, error) {
 	return resource.New(ctx,
 		// Use the GCP resource detector to detect information about the GCP platform
 		resource.WithDetectors(gcp.NewDetector()),
@@ -167,6 +161,7 @@ func getResource(ctx context.Context) (*resource.Resource, error) {
 		resource.WithAttributes(
 			semconv.ServiceName(serviceName),
 			semconv.ServiceVersion(common.GetVersion()),
+			semconv.ServiceInstanceID(mountID),
 		),
 	)
 }

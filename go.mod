@@ -1,6 +1,6 @@
 module github.com/googlecloudplatform/gcsfuse/v3
 
-go 1.24.5
+go 1.24.10
 
 require (
 	cloud.google.com/go/auth v0.16.5
@@ -9,7 +9,7 @@ require (
 	cloud.google.com/go/iam v1.5.2
 	cloud.google.com/go/profiler v0.4.3
 	cloud.google.com/go/secretmanager v1.15.0
-	cloud.google.com/go/storage v1.56.1
+	cloud.google.com/go/storage v1.56.3
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.53.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.29.0
 	github.com/fsouza/fake-gcs-server v1.52.2
@@ -17,7 +17,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/googleapis/gax-go/v2 v2.15.0
 	github.com/jacobsa/daemonize v0.0.0-20240917082746-f35568b6c3ec
-	github.com/jacobsa/fuse v0.0.0-20250726160139-b8f47b05858b
+	github.com/jacobsa/fuse v0.0.0-20251107072612-d2942a9b1218
 	github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd
 	github.com/jacobsa/oglemock v0.0.0-20150831005832-e94d794d06ff
 	github.com/jacobsa/ogletest v0.0.0-20170503003838-80d50a735a11
@@ -25,6 +25,8 @@ require (
 	github.com/jacobsa/syncutil v0.0.0-20180201203307-228ac8e5a6c3
 	github.com/jacobsa/timeutil v0.0.0-20170205232429-577e5acbbcf6
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
+	github.com/ncruces/go-dns v1.2.7
+	github.com/pkg/xattr v0.4.10
 	github.com/prometheus/client_golang v1.22.0
 	github.com/prometheus/client_model v0.6.2
 	github.com/prometheus/common v0.65.0
@@ -34,7 +36,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	go.opencensus.io v0.24.0
 	go.opentelemetry.io/contrib/detectors/gcp v1.37.0
-	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.61.0
+	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.62.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace v0.62.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.62.0
 	go.opentelemetry.io/otel v1.37.0
@@ -47,12 +49,12 @@ require (
 	golang.org/x/net v0.43.0
 	golang.org/x/oauth2 v0.30.0
 	golang.org/x/sync v0.16.0
-	golang.org/x/sys v0.35.0
+	golang.org/x/sys v0.37.0
 	golang.org/x/text v0.28.0
 	golang.org/x/time v0.12.0
-	google.golang.org/api v0.247.0
-	google.golang.org/grpc v1.74.2
-	google.golang.org/protobuf v1.36.7
+	google.golang.org/api v0.248.0
+	google.golang.org/grpc v1.75.1
+	google.golang.org/protobuf v1.36.8
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -74,7 +76,7 @@ require (
 	github.com/envoyproxy/protoc-gen-validate v1.2.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.0 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.1 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
@@ -88,7 +90,6 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
-	github.com/pkg/xattr v0.4.10 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/otlptranslator v0.0.0-20250717125610-8549f4ab4f8f // indirect

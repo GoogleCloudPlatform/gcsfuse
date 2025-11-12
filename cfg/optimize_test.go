@@ -16,21 +16,22 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+func defaultConfig() Config {
+	return Config{MetadataCache: MetadataCacheConfig{NegativeTtlSecs: 5, TtlSecs: 60, StatCacheMaxSizeMb: 33, TypeCacheMaxSizeMb: 4}, ImplicitDirs: false, FileSystem: FileSystemConfig{RenameDirLimit: 0}, Write: WriteConfig{EnableStreamingWrites: true}}
+}
+
 // Mock IsValueSet for testing.
 type mockIsValueSet struct {
 	setFlags    map[string]bool
 	boolFlags   map[string]bool
 	stringFlags map[string]string
-}
-
-func (m *mockIsValueSet) IsValueSet(flag string) bool {
-	return m.setFlags[flag]
 }
 
 func (m *mockIsValueSet) IsSet(flag string) bool {
@@ -80,6 +81,12 @@ func resetMetadataEndpoints(t *testing.T) {
 	metadataEndpoints = []string{
 		"http://metadata.google.internal/computeMetadata/v1/instance/machine-type",
 	}
+}
+
+// Helper function to detect if a given flag is present in the map of optimized flags.
+func isFlagPresentInOptimizationResults(optimizationResults map[string]OptimizationResult, flag string) bool {
+	_, ok := optimizationResults[flag]
+	return ok
 }
 
 func TestGetMachineType_Success(t *testing.T) {
@@ -150,7 +157,8 @@ func TestGetMachineType_QuotaError(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "n1-standard-1", machineType)
 }
-func TestOptimize_DisableAutoConfig(t *testing.T) {
+
+func TestApplyOptimizations_DisableAutoConfig(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a matching machine type.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -159,21 +167,22 @@ func TestOptimize_DisableAutoConfig(t *testing.T) {
 	defer closeTestServer(t, server)
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
-	cfg := &Config{}
-	isSet := &mockIsValueSet{setFlags: map[string]bool{"disable-autoconfig": true}, boolFlags: map[string]bool{"disable-autoconfig": true}}
+	cfg := defaultConfig()
+	cfg.DisableAutoconfig = true
+	isSet := &mockIsValueSet{}
 
-	_ = Optimize(cfg, isSet)
+	optimizedFlags := cfg.ApplyOptimizations(isSet)
 
-	assert.False(t, cfg.Write.EnableStreamingWrites)
-	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
-	assert.EqualValues(t, 0, cfg.MetadataCache.TtlSecs)
-	assert.EqualValues(t, 0, cfg.MetadataCache.StatCacheMaxSizeMb)
-	assert.EqualValues(t, 0, cfg.MetadataCache.TypeCacheMaxSizeMb)
+	require.Empty(t, optimizedFlags)
+	assert.EqualValues(t, 5, cfg.MetadataCache.NegativeTtlSecs)
+	assert.EqualValues(t, 60, cfg.MetadataCache.TtlSecs)
+	assert.EqualValues(t, 33, cfg.MetadataCache.StatCacheMaxSizeMb)
+	assert.EqualValues(t, 4, cfg.MetadataCache.TypeCacheMaxSizeMb)
 	assert.False(t, cfg.ImplicitDirs)
 	assert.EqualValues(t, 0, cfg.FileSystem.RenameDirLimit)
 }
 
-func TestApplyMachineTypeOptimizations_MatchingMachineType(t *testing.T) {
+func TestApplyOptimizations_MatchingMachineType(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a matching machine type.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -182,11 +191,10 @@ func TestApplyMachineTypeOptimizations_MatchingMachineType(t *testing.T) {
 	defer closeTestServer(t, server)
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
-	config := defaultOptimizationConfig
-	cfg := &Config{}
+	cfg := defaultConfig()
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	optimizedFlags := applyMachineTypeOptimizations(&config, cfg, isSet)
+	optimizedFlags := cfg.ApplyOptimizations(isSet)
 
 	assert.NotEmpty(t, optimizedFlags)
 	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
@@ -197,7 +205,7 @@ func TestApplyMachineTypeOptimizations_MatchingMachineType(t *testing.T) {
 	assert.EqualValues(t, 200000, cfg.FileSystem.RenameDirLimit)
 }
 
-func TestApplyMachineTypeOptimizations_NonMatchingMachineType(t *testing.T) {
+func TestApplyOptimizations_NonMatchingMachineType(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a non-matching machine type.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -206,17 +214,21 @@ func TestApplyMachineTypeOptimizations_NonMatchingMachineType(t *testing.T) {
 	defer closeTestServer(t, server)
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
-	config := defaultOptimizationConfig
-	cfg := &Config{}
+	cfg := defaultConfig()
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	optimizedFlags := applyMachineTypeOptimizations(&config, cfg, isSet)
+	optimizedFlags := cfg.ApplyOptimizations(isSet)
 
 	assert.Empty(t, optimizedFlags)
-	assert.False(t, cfg.Write.EnableStreamingWrites)
+	assert.EqualValues(t, 5, cfg.MetadataCache.NegativeTtlSecs)
+	assert.EqualValues(t, 60, cfg.MetadataCache.TtlSecs)
+	assert.EqualValues(t, 33, cfg.MetadataCache.StatCacheMaxSizeMb)
+	assert.EqualValues(t, 4, cfg.MetadataCache.TypeCacheMaxSizeMb)
+	assert.False(t, cfg.ImplicitDirs)
+	assert.EqualValues(t, 0, cfg.FileSystem.RenameDirLimit)
 }
 
-func TestApplyMachineTypeOptimizations_UserSetFlag(t *testing.T) {
+func TestApplyOptimizations_UserSetFlag(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a matching machine type.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -225,13 +237,12 @@ func TestApplyMachineTypeOptimizations_UserSetFlag(t *testing.T) {
 	defer closeTestServer(t, server)
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
-	config := defaultOptimizationConfig
-	cfg := &Config{}
-	isSet := &mockIsValueSet{setFlags: map[string]bool{"file-system.rename-dir-limit": true}}
+	cfg := defaultConfig()
+	isSet := &mockIsValueSet{setFlags: map[string]bool{"rename-dir-limit": true}}
 	// Simulate setting config value by user
 	cfg.FileSystem.RenameDirLimit = 10000
 
-	optimizedFlags := applyMachineTypeOptimizations(&config, cfg, isSet)
+	optimizedFlags := cfg.ApplyOptimizations(isSet)
 
 	assert.NotEmpty(t, optimizedFlags)
 	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
@@ -242,33 +253,7 @@ func TestApplyMachineTypeOptimizations_UserSetFlag(t *testing.T) {
 	assert.EqualValues(t, 10000, cfg.FileSystem.RenameDirLimit)
 }
 
-func TestApplyMachineTypeOptimizations_MissingFlagOverrideSet(t *testing.T) {
-	resetMetadataEndpoints(t)
-	// Create a test server that returns a machine type with a missing FlagOverrideSet.
-	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
-	})
-	defer closeTestServer(t, server)
-	// Override metadataEndpoints for testing.
-	metadataEndpoints = []string{server.URL}
-	config := optimizationConfig{
-		flagOverrideSets: []flagOverrideSet{}, // Empty FlagOverrideSets.
-		machineTypes: []machineType{
-			{
-				names:               []string{"a3-highgpu-8g"},
-				flagOverrideSetName: "high-performance",
-			},
-		},
-	}
-	cfg := &Config{}
-	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
-
-	optimizedFlags := applyMachineTypeOptimizations(&config, cfg, isSet)
-
-	require.Empty(t, optimizedFlags)
-}
-
-func TestApplyMachineTypeOptimizations_GetMachineTypeError(t *testing.T) {
+func TestApplyOptimizations_GetMachineTypeError(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns an error.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -277,16 +262,21 @@ func TestApplyMachineTypeOptimizations_GetMachineTypeError(t *testing.T) {
 	defer closeTestServer(t, server)
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
-	config := defaultOptimizationConfig
-	cfg := &Config{}
+	cfg := defaultConfig()
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	optimizedFlags := applyMachineTypeOptimizations(&config, cfg, isSet)
+	optimizedFlags := cfg.ApplyOptimizations(isSet)
 
 	assert.Empty(t, optimizedFlags)
+	assert.EqualValues(t, 5, cfg.MetadataCache.NegativeTtlSecs)
+	assert.EqualValues(t, 60, cfg.MetadataCache.TtlSecs)
+	assert.EqualValues(t, 33, cfg.MetadataCache.StatCacheMaxSizeMb)
+	assert.EqualValues(t, 4, cfg.MetadataCache.TypeCacheMaxSizeMb)
+	assert.False(t, cfg.ImplicitDirs)
+	assert.EqualValues(t, 0, cfg.FileSystem.RenameDirLimit)
 }
 
-func TestApplyMachineTypeOptimizations_NoError(t *testing.T) {
+func TestApplyOptimizations_NoError(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a matching machine type.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -295,11 +285,10 @@ func TestApplyMachineTypeOptimizations_NoError(t *testing.T) {
 	defer closeTestServer(t, server)
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
-	config := defaultOptimizationConfig
-	cfg := &Config{}
+	cfg := defaultConfig()
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	optimizedFlags := applyMachineTypeOptimizations(&config, cfg, isSet)
+	optimizedFlags := cfg.ApplyOptimizations(isSet)
 
 	assert.NotEmpty(t, optimizedFlags)
 }
@@ -343,7 +332,7 @@ func TestSetFlagValue_InvalidFlagName(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestApplyMachineTypeOptimizations_NoMachineTypes(t *testing.T) {
+func TestApplyOptimizations_Success(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a matching machine type.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -352,47 +341,144 @@ func TestApplyMachineTypeOptimizations_NoMachineTypes(t *testing.T) {
 	defer closeTestServer(t, server)
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
-	config := optimizationConfig{
-		flagOverrideSets: []flagOverrideSet{
-			{
-				name: "high-performance",
-				overrides: map[string]flagOverride{
-					"write.enable-streaming-writes": {newValue: true},
-				},
-			},
-		},
-		machineTypes: []machineType{},
-	}
-	cfg := &Config{}
+	cfg := defaultConfig()
 	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
 
-	_ = applyMachineTypeOptimizations(&config, cfg, isSet)
+	optimizedFlags := cfg.ApplyOptimizations(isSet)
 
-	// Check that no optimizations were applied as no machine mapping is set.
-	assert.False(t, cfg.Write.EnableStreamingWrites)
-}
-
-func TestOptimize_Success(t *testing.T) {
-	resetMetadataEndpoints(t)
-	// Create a test server that returns a matching machine type.
-	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
-	})
-	defer closeTestServer(t, server)
-	// Override metadataEndpoints for testing.
-	metadataEndpoints = []string{server.URL}
-	cfg := &Config{}
-	isSet := &mockIsValueSet{setFlags: map[string]bool{}}
-
-	optimizedFlags := Optimize(cfg, isSet)
-
-	assert.True(t, isFlagPresent(optimizedFlags, "write.global-max-blocks"))
+	assert.True(t, isFlagPresentInOptimizationResults(optimizedFlags, "write.global-max-blocks"))
 	assert.EqualValues(t, 1600, cfg.Write.GlobalMaxBlocks)
-	assert.True(t, isFlagPresent(optimizedFlags, "metadata-cache.negative-ttl-secs"))
+	assert.True(t, isFlagPresentInOptimizationResults(optimizedFlags, "metadata-cache.negative-ttl-secs"))
 	assert.EqualValues(t, 0, cfg.MetadataCache.NegativeTtlSecs)
 	assert.EqualValues(t, -1, cfg.MetadataCache.TtlSecs)
 	assert.EqualValues(t, 1024, cfg.MetadataCache.StatCacheMaxSizeMb)
 	assert.EqualValues(t, 128, cfg.MetadataCache.TypeCacheMaxSizeMb)
 	assert.True(t, cfg.ImplicitDirs)
 	assert.EqualValues(t, 200000, cfg.FileSystem.RenameDirLimit)
+}
+
+func TestCreateHierarchicalOptimizedFlags_Positive(t *testing.T) {
+	testCases := []struct {
+		name     string
+		inputMap map[string]OptimizationResult
+		expected map[string]any
+	}{
+		{
+			name:     "Empty map",
+			inputMap: map[string]OptimizationResult{},
+			expected: map[string]any{},
+		},
+		{
+			name: "Flat keys",
+			inputMap: map[string]OptimizationResult{
+				"key1": {FinalValue: "value1", OptimizationReason: "reason1"},
+				"key2": {FinalValue: 123, OptimizationReason: "reason2"},
+			},
+			expected: map[string]any{
+				"key1": OptimizationResult{FinalValue: "value1", OptimizationReason: "reason1"},
+				"key2": OptimizationResult{FinalValue: 123, OptimizationReason: "reason2"},
+			},
+		},
+		{
+			name: "Single level nesting",
+			inputMap: map[string]OptimizationResult{
+				"a.b": {FinalValue: "valueAB", OptimizationReason: "reasonAB"},
+				"a.c": {FinalValue: "valueAC", OptimizationReason: "reasonAC"},
+			},
+			expected: map[string]any{
+				"a": map[string]any{
+					"b": OptimizationResult{FinalValue: "valueAB", OptimizationReason: "reasonAB"},
+					"c": OptimizationResult{FinalValue: "valueAC", OptimizationReason: "reasonAC"},
+				},
+			},
+		},
+		{
+			name: "Multi-level nesting",
+			inputMap: map[string]OptimizationResult{
+				"a.b.c": {FinalValue: "valueABC", OptimizationReason: "reasonABC"},
+				"a.b.d": {FinalValue: "valueABD", OptimizationReason: "reasonABD"},
+				"x.y.z": {FinalValue: true, OptimizationReason: "reasonXYZ"},
+			},
+			expected: map[string]any{
+				"a": map[string]any{
+					"b": map[string]any{
+						"c": OptimizationResult{FinalValue: "valueABC", OptimizationReason: "reasonABC"},
+						"d": OptimizationResult{FinalValue: "valueABD", OptimizationReason: "reasonABD"},
+					},
+				},
+				"x": map[string]any{
+					"y": map[string]any{
+						"z": OptimizationResult{FinalValue: true, OptimizationReason: "reasonXYZ"},
+					},
+				},
+			},
+		},
+		{
+			name: "No conflict complex keys",
+			inputMap: map[string]OptimizationResult{
+				"metadata-cache.ttl-secs":               {FinalValue: int64(-1), OptimizationReason: "reasonTTL"},
+				"metadata-cache.stat-cache-max-size-mb": {FinalValue: int64(1024), OptimizationReason: "reasonStat"},
+				"file-cache.cache-file-for-range-read":  {FinalValue: true, OptimizationReason: "reasonFileCache"},
+			},
+			expected: map[string]any{
+				"metadata-cache": map[string]any{
+					"ttl-secs":               OptimizationResult{FinalValue: int64(-1), OptimizationReason: "reasonTTL"},
+					"stat-cache-max-size-mb": OptimizationResult{FinalValue: int64(1024), OptimizationReason: "reasonStat"},
+				},
+				"file-cache": map[string]any{
+					"cache-file-for-range-read": OptimizationResult{FinalValue: true, OptimizationReason: "reasonFileCache"},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := CreateHierarchicalOptimizedFlags(tc.inputMap)
+
+			assert.NoError(t, err)
+			if !reflect.DeepEqual(tc.expected, got) {
+				t.Errorf("CreateHierarchicalOptimizedFlags() = %v, want %v", got, tc.expected)
+			}
+		})
+	}
+}
+
+func TestCreateHierarchicalOptimizedFlags_Negative(t *testing.T) {
+	testCases := []struct {
+		name     string
+		inputMap map[string]OptimizationResult
+	}{
+		{
+			name: "Conflict: Prefix as terminal key first",
+			inputMap: map[string]OptimizationResult{
+				"a.b":   {FinalValue: "valAB", OptimizationReason: "rAB"},
+				"a.b.d": {FinalValue: "valABD", OptimizationReason: "rABD"},
+			},
+		},
+		{
+			name: "Conflict: Path key first",
+			inputMap: map[string]OptimizationResult{
+				"a.b.d": {FinalValue: "valABD", OptimizationReason: "rABD"},
+				"a.b":   {FinalValue: "valAB", OptimizationReason: "rAB"},
+			},
+		},
+		{
+			name: "Conflict: Deeper nesting",
+			inputMap: map[string]OptimizationResult{
+				"a.b.c":   {FinalValue: "valABC", OptimizationReason: "rABC"},
+				"a.b.c.d": {FinalValue: "valABCD", OptimizationReason: "rABCD"},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := CreateHierarchicalOptimizedFlags(tc.inputMap)
+
+			assert.Error(t, err)
+			assert.Nil(t, got)
+			assert.Contains(t, err.Error(), "key conflict")
+		})
+	}
 }

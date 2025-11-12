@@ -20,7 +20,6 @@ import (
 	"math"
 	"os"
 	"path"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -110,51 +109,9 @@ func checkIfObjNameIsCorrect(t *testing.T, objName string, prefix string, maxNum
 // testdataUploadFilesToBucket uploads matching files from a local directory to a specified path in a GCS bucket.
 func testdataUploadFilesToBucket(ctx context.Context, t *testing.T, storageClient *storage.Client, bucketNameWithDirPath, dirWith12KFiles, filesPrefix string) {
 	t.Helper()
-
 	bucketName, dirPathInBucket := operations.SplitBucketNameAndDirPath(t, bucketNameWithDirPath)
-
-	dirWith12KFilesFullPathPrefix := filepath.Join(dirWith12KFiles, filesPrefix)
-	matches, err := filepath.Glob(dirWith12KFilesFullPathPrefix + "*")
-	if err != nil {
-		t.Fatalf("Failed to get files of pattern %s*: %v", dirWith12KFilesFullPathPrefix, err)
-	}
-
-	type copyRequest struct {
-		srcLocalFilePath string
-		dstGCSObjectPath string
-	}
-	channel := make(chan copyRequest, len(matches))
-
-	// Copy request producer.
-	go func() {
-		for _, match := range matches {
-			_, fileName := filepath.Split(match)
-			if len(fileName) > 0 {
-				req := copyRequest{srcLocalFilePath: match, dstGCSObjectPath: filepath.Join(dirPathInBucket, fileName)}
-				channel <- req
-			}
-		}
-		// Close the channel to let the go-routines know that there is no more object to be copied.
-		close(channel)
-	}()
-
-	// Copy request consumers.
-	numCopyGoroutines := runtime.NumCPU() / 2
-	var wg sync.WaitGroup
-	for range numCopyGoroutines {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for {
-				copyRequest, ok := <-channel
-				if !ok {
-					break
-				}
-				client.CopyFileInBucketWithPreconditions(ctx, storageClient, copyRequest.srcLocalFilePath, copyRequest.dstGCSObjectPath, bucketName, &storage.Conditions{DoesNotExist: true})
-			}
-		}()
-	}
-	wg.Wait()
+	err := client.BatchUploadFilesWithoutIntermediateDelays(ctx, storageClient, bucketName, dirPathInBucket, dirWith12KFiles, filesPrefix)
+	assert.NoError(t, err)
 }
 
 // createFilesAndUpload generates files and uploads them to the specified directory.
@@ -183,7 +140,7 @@ func listDirTime(t *testing.T, dirPath string, expectExplicitDirs bool, expectIm
 	firstListTime := endTime.Sub(startTime)
 
 	minSecondListTime := time.Duration(math.MaxInt64)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		startTime = time.Now()
 		objs, err = os.ReadDir(dirPath)
 		if err != nil {
@@ -299,6 +256,9 @@ func (t *listLargeDir) TestListDirectoryWithTwelveThousandFilesAndHundredExplici
 }
 
 func (t *listLargeDir) TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir() {
+	if setup.IsZonalBucketRun() {
+		t.T().Skipf("Redundant test for ZB as implicit-dir is a non-HNS concept, hence not applicable here. ")
+	}
 	dirPath := prepareTestDirectory(t.T(), true, true)
 
 	firstListTime, secondListTime := listDirTime(t.T(), dirPath, true, true)

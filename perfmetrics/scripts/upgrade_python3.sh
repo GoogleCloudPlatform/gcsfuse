@@ -19,12 +19,29 @@ set -e
 PYTHON_VERSION=3.11.9
 INSTALL_PREFIX="$HOME/.local/python-$PYTHON_VERSION"
 
-echo "Installing dependencies for building Python..."
-sudo apt-get update -y > /dev/null
-sudo apt-get install -y \
-  build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev \
-  libssl-dev libreadline-dev libffi-dev curl libsqlite3-dev \
-  libbz2-dev liblzma-dev tk-dev uuid-dev wget > /dev/null
+if command -v apt-get &> /dev/null; then
+    # For Debian/Ubuntu-based systems
+    echo "Installing dependencies for building Python for Debian..."
+    sudo apt-get update -y > /dev/null
+    sudo apt-get install -y \
+      build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev \
+      libssl-dev libreadline-dev libffi-dev curl libsqlite3-dev \
+      libbz2-dev liblzma-dev tk-dev uuid-dev wget > /dev/null
+elif command -v yum &> /dev/null; then
+    # For RHEL/CentOS-based systems
+    echo "Installing dependencies for building Python on RHEL..."
+    # For RHEL-based systems, use 'yum' to install packages.
+    # The "Development Tools" group is equivalent to 'build-essential' on Debian.
+    # The '-devel' packages provide the necessary header files for compilation.
+    sudo yum -y groupinstall "Development Tools" > /dev/null
+    sudo yum -y install \
+          zlib-devel ncurses-devel nss-devel openssl-devel \
+          readline-devel libffi-devel curl sqlite-devel bzip2-devel \
+          xz-devel tk-devel libuuid-devel wget > /dev/null
+else
+    exit 1
+fi
+
 
 # Download and build Python locally
 cd /tmp
@@ -43,3 +60,6 @@ make altinstall > /dev/null
 
 echo "Python $PYTHON_VERSION installed at $INSTALL_PREFIX/bin/python3.11"
 "$INSTALL_PREFIX/bin/python3.11" --version
+
+echo 'export PATH="$HOME/.local/python-3.11.9/bin:$PATH"' >> "$HOME/.bashrc"
+source "$HOME/.bashrc"

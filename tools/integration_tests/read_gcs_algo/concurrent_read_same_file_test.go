@@ -22,19 +22,18 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"golang.org/x/sync/errgroup"
 )
 
 func TestReadSameFileConcurrently(t *testing.T) {
 	fileSize := 30 * OneMB
-	filePathInLocalDisk, filePathInMntDir := setup.CreateFileAndCopyToMntDir(t, fileSize, DirForReadAlgoTests)
+	filePathInLocalDisk, filePathInMntDir := operations.CreateFileAndCopyToMntDir(t, fileSize, DirForReadAlgoTests)
 
 	var eG errgroup.Group
 	concurrentReaderCount := 3
 
 	// We will x numbers of concurrent threads trying to read from the same file.
-	for i := 0; i < concurrentReaderCount; i++ {
+	for range concurrentReaderCount {
 		randomOffset := rand.Int64N(int64(fileSize))
 
 		eG.Go(func() error {
@@ -57,7 +56,7 @@ func readAndCompare(t *testing.T, filePathInMntDir string, filePathInLocalDisk s
 
 	// Perform 5 reads on each file.
 	numberOfReads := 5
-	for i := 0; i < numberOfReads; i++ {
+	for range numberOfReads {
 		mountContents := make([]byte, chunkSize)
 		// Reading chunk size randomly from the file.
 		_, err = mountedFile.ReadAt(mountContents, offset)

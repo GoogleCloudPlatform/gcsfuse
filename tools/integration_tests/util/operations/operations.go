@@ -83,3 +83,11 @@ func ExecuteGcloudCommandf(format string, args ...any) ([]byte, error) {
 func ExecuteGcloudCommand(command string) ([]byte, error) {
 	return executeToolCommand("gcloud", command)
 }
+
+// WaitForSizeUpdate waits for a specified time duration to ensure that stat()
+// call returns correct size for unfinalized object.
+func WaitForSizeUpdate(isZonal bool, duration time.Duration) {
+	if isZonal {
+		time.Sleep(duration)
+	}
+}

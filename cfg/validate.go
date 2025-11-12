@@ -29,6 +29,9 @@ const (
 	ParallelDownloadsPerFileInvalidValueError = "the value of parallel-downloads-per-file for file-cache can't be less than 1"
 	DownloadChunkSizeMBInvalidValueError      = "the value of download-chunk-size-mb for file-cache can't be less than 1"
 	MaxParallelDownloadsCantBeZeroError       = "the value of max-parallel-downloads for file-cache must not be 0 when enable-parallel-downloads is true"
+	ProfileAIMLTraining                       = "aiml-training"
+	ProfileAIMLServing                        = "aiml-serving"
+	ProfileAIMLCheckpointing                  = "aiml-checkpointing"
 )
 
 func isValidLogRotateConfig(config *LogRotateLoggingConfig) error {
@@ -78,8 +81,12 @@ func isValidFileCacheConfig(config *FileCacheConfig) error {
 	if config.DownloadChunkSizeMb < 1 {
 		return errors.New(DownloadChunkSizeMBInvalidValueError)
 	}
-	if _, err := regexp.Compile(config.ExperimentalExcludeRegex); err != nil {
-		return fmt.Errorf("invalid regex value %q provided for experimental-exclude-regex", config.ExperimentalExcludeRegex)
+	if _, err := regexp.Compile(config.ExcludeRegex); err != nil {
+		return fmt.Errorf("invalid regex value %q provided for exclude-regex", config.ExcludeRegex)
+	}
+
+	if _, err := regexp.Compile(config.IncludeRegex); err != nil {
+		return fmt.Errorf("invalid regex value %q provided for include-regex", config.IncludeRegex)
 	}
 
 	return nil
@@ -249,6 +256,21 @@ func isValidBufferedReadConfig(rc *ReadConfig) error {
 	return nil
 }
 
+func isValidOptimizationProfile(config *Config) error {
+	if config.Profile == "" {
+		return nil
+	}
+
+	switch config.Profile {
+	case ProfileAIMLServing, ProfileAIMLCheckpointing, ProfileAIMLTraining:
+		// Supported profiles.
+	default:
+		return fmt.Errorf("Unknown profile: %q", config.Profile)
+	}
+
+	return nil
+}
+
 // ValidateConfig returns a non-nil error if the config is invalid.
 func ValidateConfig(v isSet, config *Config) error {
 	var err error
@@ -307,6 +329,10 @@ func ValidateConfig(v isSet, config *Config) error {
 
 	if err = isValidBufferedReadConfig(&config.Read); err != nil {
 		return fmt.Errorf("error parsing buffered read config: %w", err)
+	}
+
+	if err = isValidOptimizationProfile(config); err != nil {
+		return fmt.Errorf("error parsing optimize profile config: %w", err)
 	}
 
 	return nil

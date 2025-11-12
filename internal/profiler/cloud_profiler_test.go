@@ -31,11 +31,11 @@ func TestSetupCloudProfiler_Disabled(t *testing.T) {
 		mockProfilerStartCalled = true
 		return nil
 	}
-	profilingConfig := &cfg.ProfilingConfig{
+	cloudProfilerConfig := &cfg.CloudProfilerConfig{
 		Enabled: false,
 	}
 
-	err := setupCloudProfiler(profilingConfig, profilerStart)
+	err := setupCloudProfiler(cloudProfilerConfig, profilerStart)
 
 	require.NoError(t, err, "SetupCloudProfiler should not return an error")
 	assert.False(t, mockProfilerStartCalled, "profilerStart should not be called when profiler is disabled")
@@ -49,7 +49,7 @@ func TestSetupCloudProfiler_EnabledSuccess(t *testing.T) {
 		capturedProfilerConfig = pcfg
 		return nil
 	}
-	profilingConfig := &cfg.ProfilingConfig{
+	cloudProfilerConfig := &cfg.CloudProfilerConfig{
 		Enabled:       true,
 		Label:         "v1.2.3",
 		Mutex:         true,
@@ -59,7 +59,7 @@ func TestSetupCloudProfiler_EnabledSuccess(t *testing.T) {
 		Goroutines:    false,
 	}
 
-	err := setupCloudProfiler(profilingConfig, profilerStart)
+	err := setupCloudProfiler(cloudProfilerConfig, profilerStart)
 
 	require.NoError(t, err, "SetupCloudProfiler should not return an error")
 	require.True(t, mockProfilerStartCalled, "profilerStart should be called")
@@ -76,11 +76,11 @@ func TestSetupCloudProfiler_EnabledSuccess(t *testing.T) {
 func TestSetupCloudProfiler_EnabledStartFails(t *testing.T) {
 	expectedErr := errors.New("profiler failed to start")
 	profilerStart := func(_ cloudprofiler.Config, _ ...option.ClientOption) error { return expectedErr }
-	profilingConfig := &cfg.ProfilingConfig{
+	cloudProfilerConfig := &cfg.CloudProfilerConfig{
 		Enabled: true,
 	}
 
-	err := setupCloudProfiler(profilingConfig, profilerStart)
+	err := setupCloudProfiler(cloudProfilerConfig, profilerStart)
 
 	assert.EqualError(t, err, expectedErr.Error())
 }

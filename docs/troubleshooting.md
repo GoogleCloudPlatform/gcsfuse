@@ -83,11 +83,11 @@ Please refer [here](https://cloud.google.com/storage/docs/gcsfuse-mount#authenti
 **Solution** - depending upon the use-case, you can choose one of the following options.
 * If you are explicitly authenticating for a specific service account by providing say a key-file, then make sure that the service account has appropriate IAM role for the operation e.g. roles/storage.objectAdmin, roles/storage.objectUser
 * If you are using the default service account i.e. not specifying a key-file, then ensure that
-  * The VM's service account has got the required IAM roles for the operation e.g. roles/storage.objectUser to allow read-write access.
-  * The VM's scope has been appropriately set. You can set the scope to storage-full to give the VM full-access to the cloud-storage buckets. For this:
-    * Turn-off the instance
-    * Change the VM's scope either by using the GCP console or by executing  `gcloud beta compute instances set-scopes INSTANCE_NAME --scopes=storage-full`
-    * Start the instance
+    * The VM's service account has got the required IAM roles for the operation e.g. roles/storage.objectUser to allow read-write access.
+    * The VM's scope has been appropriately set. You can set the scope to storage-full to give the VM full-access to the cloud-storage buckets. For this:
+        * Turn-off the instance
+        * Change the VM's scope either by using the GCP console or by executing  `gcloud beta compute instances set-scopes INSTANCE_NAME --scopes=storage-full`
+        * Start the instance
 
 ### Bad gateway error while installing/upgrading GCSFuse:
 `Err: http://packages.cloud.google.com/apt gcsfuse-focal/main amd64 gcsfuse amd64 1.2.0`<br/>`502  Bad Gateway [IP: xxx.xxx.xx.xxx 80]`
@@ -129,7 +129,7 @@ By default `ls` does listing but sometimes additionally does `stat` for each lis
 
 Both these errors are expected and part of GCSFuse standard operating procedure. More details [here](https://github.com/GoogleCloudPlatform/gcsfuse/discussions/2300).
 
-### GCSFuse logs showing errors for StatObject NotFoundError 
+### GCSFuse logs showing errors for StatObject NotFoundError
 
 `StatObject(\"<object_name>") (<time>ms): gcs.NotFoundError: storage: object doesn't exist"`.
 This is an expected error. Please refer to **NOT_FOUND GetObjectMetadata** section [here](https://github.com/GoogleCloudPlatform/gcsfuse/discussions/2300#discussioncomment-10261838).
@@ -151,7 +151,7 @@ It is possible customer is seeing the error "transport endpoint is not connected
 **Additional troubleshooting steps:**
 
 - Try to unmount and mount the mount-point using the command:
-   `umount -f /<mount point>` && `mount /<mount point>`
+  `umount -f /<mount point>` && `mount /<mount point>`
 - Try restarting/rebooting the VM Instance.
 
 If it's running on GKE, the issue could be caused by an Out-of-Memory (OOM) error. Consider increasing the memory allocated to the GKE sidecar container. For more info refer [here](https://github.com/GoogleCloudPlatform/gcs-fuse-csi-driver/blob/main/docs/known-issues.md#implications-of-the-sidecar-container-design).
@@ -160,6 +160,18 @@ If it's running on GKE, the issue could be caused by an Out-of-Memory (OOM) erro
 
 **Solution:** This happens when the mounting bucket contains an object with suffix `/\n` like, `gs://gcs-bkt/a/\n`
 You need to find such objects and replace them with any other valid gcs object names. - [How](https://github.com/GoogleCloudPlatform/gcsfuse/discussions/2894)?
+
+### Mount fails with 'can't create with 0 workers' when using buffered read
+
+When using buffered reads (`--enable-buffered-read`) with `--read-global-max-blocks` set to `-1`, GCSFuse versions `v3.3.0` and `v3.4.0` fail to mount with an error similar to this:
+
+```
+Error: ... failed to create worker pool for buffered read: staticWorkerPool: can't create with 0 workers, priority: 0, normal: 0
+```
+
+This is a known issue and is fixed in later versions.
+
+**Workaround:** If you are using an affected version, avoid setting `--read-global-max-blocks` to `-1`. Instead, set it to a large positive integer (e.g., `2147483647`) to approximate an infinite limit while avoiding the bug.
 
 ### OSError [ErrNo 28] No space left on device
 
@@ -174,14 +186,14 @@ Alternatively, from [GCSFuse version 2.9.1](https://github.com/GoogleCloudPlatfo
 By default, GCSFuse assigns file-mode 0644 and dir-mode 0755 for mounted files and directories. As a result, other users (such as third-party clients or the root user) may not have the necessary permissions to access the mounted file system. To resolve this issue, you can modify the permissions using the following options:
 
 - **Adjust File and Directory Permissions:**
-Use the `--file-mode` and `--dir-mode` flags to set the appropriate file and directory permissions when mounting.
+  Use the `--file-mode` and `--dir-mode` flags to set the appropriate file and directory permissions when mounting.
 - **Allow Access for Other Users:**
-To allow users other than the mounting user to access the bucket, use the `-o allow_other` flag during the mount process. Additionally, for this flag to function, the `user_allow_other` option must be enabled in the `/etc/fuse.conf` file, or the gcsfuse command must be run as the root user.
+  To allow users other than the mounting user to access the bucket, use the `-o allow_other` flag during the mount process. Additionally, for this flag to function, the `user_allow_other` option must be enabled in the `/etc/fuse.conf` file, or the gcsfuse command must be run as the root user.
 
 **Note:** Be aware that allowing access to other users can introduce potential [security risks](https://github.com/torvalds/linux/blob/a33f32244d8550da8b4a26e277ce07d5c6d158b5/Documentation/filesystems/fuse.txt#L218-L310). Therefore, it should be done with caution.
 
 - **Set User and Group IDs:**
-Use the `--uid` and `--gid` flags to specify the correct user and group IDs for access.
+  Use the `--uid` and `--gid` flags to specify the correct user and group IDs for access.
 
 Please note that GCSFuse does not support using `chmod` or similar commands to manage file access. For more detailed information, refer to the [Permissions and Ownership](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#permissions-and-ownership).
 
@@ -193,7 +205,7 @@ During a Git clone, Git doesn’t just fetch object data, it builds out the enti
 - Git repeatedly writes and updates .git/config, especially when setting remotes, branches, and defaults.
 - Each update uses Git’s lock-write-rename-delete pattern to ensure consistency.
 
-While using the mount configuration `o=sync,o=dirsync`, all modifications to the config file incur a network call due to enforced synchronous writes, resulting in 
+While using the mount configuration `o=sync,o=dirsync`, all modifications to the config file incur a network call due to enforced synchronous writes, resulting in
 performance bottleneck. \
 **Note** : There is no impact of disabling this mount configuration on the user workflow, since we avoid flushing data to GCS on sync( happens multiple times during the course of a Git clone ) , but only on close(), thus ensuring data persistence.
 
@@ -205,18 +217,46 @@ If this increased CPU usage negatively impacts your workload's performance, you 
 ### Potential Stat Consistency Issues on high-performance machines with Default TTL
 Starting with [version 3.0.0](https://github.com/GoogleCloudPlatform/gcsfuse/releases/tag/v3.0.0), On high-performance machines - gcsfuse will default to infinite stat cache TTL ([refer](https://cloud.google.com/storage/docs/cloud-storage-fuse/automated-configurations)), potentially causing stale file/directory information if the bucket is modified externally. If strict consistency is needed, manually set a finite TTL (e.g., --stat-cache-ttl 1m) to ensure metadata reflects recent changes. Consult [semantics](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md) doc for more details.
 
-### Writes still using staged writes even though streaming writes are enabled.
+### Writes still using legacy staged writes even though streaming writes are enabled.
 If you observe that GCSFuse is still utilizing staged writes despite streaming writes being enabled, several factors could be at play.
 
-- **Global Max Blocks Limit Reached:** You might encounter warning logs indicating that streaming write blocks cannot be allocated because the global maximum blocks limit has been reached. In such cases, consider increasing the `--write-global-max-blocks` limit if sufficient memory resources are available.
+- **Concurrent Streaming Write Limit Reached:** When the number of concurrent streaming writes exceeds the configured limit (`--write-global-max-blocks`), GCSFuse automatically uses legacy staged writes for concurrent file writes above this limit. You will see an warnining log message when this happens, similar to:
+  > File <var>file_name</var> will use legacy staged writes because concurrent streaming write limit (set by --write-global-max-blocks) has been reached.
 
-- **Unsupported Write Operations:** Streaming writes only work for sequential writes to new or empty files. GCSFuse will automatically revert to staged writes for the following scenarios:
-  - Modifying existing files (non-zero size).
-  - Performing out-of-order writes.
-  - Reading from a file while writes are in progress (this action finalizes the object and subsequent writes will fall back).
-  - Truncating a file downwards while writes are in progress (this action also finalizes the object and subsequent writes will fall back).
+  This is not an error, but a fallback mechanism to manage memory usage. If your system has sufficient memory, you can increase the number of allowed concurrent streaming writes by adjusting the `--write-global-max-blocks` flag to prevent this warning. For memory usage refer [write semantics](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#writes) doc for more details.
 
-An informational log message will be emitted by GCSFuse whenever a fallback to staged writes occurs, providing details on the reason.
+- **Unsupported Streaming Write Operations:** Streaming writes only work for sequential writes to new or empty files. GCSFuse will automatically revert to legacy staged writes for the following scenarios:
+    - **Modifying existing files (non-zero size):** Writing to a file that is not empty will cause that file to use legacy staged writes. You will see an informational log message similar to:
+      > Existing file <var>file_name</var> of size <var>size</var> bytes (non-zero) will use legacy staged writes.
 
-### Issues related to the gcs-fuse-csi-driver 
+    - **Performing out-of-order writes:** Streaming writes require data to be written sequentially. If a write occurs at an unexpected offset, GCSFuse will finalize the currently written sequential data and switch to legacy staged writes. You will see an informational log message similar to:
+      > Out of order write detected. File <var>file_name</var> will now use legacy staged writes.
+
+    - **Reading from a file while writes are in progress:** Performing a read on a file that is being actively written to using streaming writes will finalizes the object on GCS. Subsequent writes to that file will use the legacy staged writes.
+
+    - **Truncating a file downwards while streaming writes are in progress:** If a file is truncated to a smaller size while being written via streaming writes, the object is finalized on GCS, and subsequent writes will use the legacy staged writes. You will see an informational log message similar to:
+      > Out of order write detected. File <var>file_name</var> will now use legacy staged writes.
+
+### Issues related to the gcs-fuse-csi-driver
 The `gcs-fuse-csi-driver` serves as the orchestration layer that manages the gke-gcsfuse-sidecar which hosts GCSFuse in Google Kubernetes Engine (GKE) environments. This driver is maintained in a separate repository. Consequently, any issues regarding the gcs-fuse-csi-driver should be reported in its dedicated GitHub repository: https://github.com/GoogleCloudPlatform/gcs-fuse-csi-driver
+
+### Errors for unsupported file system operations
+This is an expected error for file operations unsupported in GCSFUSE file system. Currently, GCSFuse does not support
+the following operations:
+- **Fallocate:** Used for pre-allocating disk space for a file so that disk space does not run out before writing. This
+  is usually not implemented for Cloud based FUSE products as the disk space running out is not a concern there.
+- **SetXattr, ListXattr, GetXattr, RemoveXattr:** GCSFuse doesn't support extended-attributes (x-attrs) operations.
+  Extended attributes provide a way to associate additional metadata or information with files and directories beyond
+  the standard attributes like file size, modification time, etc. This is not usually implemented for Cloud based Fuse
+  products.
+- **CreateLink:** Creates a hard link (a directory entry that associates a name with a file). GCSFuse doesn't support
+  hardlinks.
+- **BatchForget:**  This is a performance optimization for batch-forgetting inodes. When this is unimplemented,
+  filesystem instead utilizes individual ForgetInode calls.
+
+### Installation error: The repository does not have a Release file
+The full error log would be something like: `Error: The repository 'https://packages.cloud.google.com/apt gcsfuse-<abc> Release' does not have a Release file.`
+
+This occurs when the gcsfuse package corresponding to OS version returned by `lsb_release` (say x) is not in the [list of supported OS versions](https://cloud.google.com/storage/docs/cloud-storage-fuse/overview#frameworks-os-architectures) .
+
+**Workaround**: Install GCSFuse for the closest supported OS version (say y), by running `export GCSFUSE_REPO="gcsfuse-y"` and retrying installation. An example of this is in https://github.com/GoogleCloudPlatform/gcsfuse/issues/3779, with x=`trixie` (for debian-13), and y=`bookworm` (for debian-12).  

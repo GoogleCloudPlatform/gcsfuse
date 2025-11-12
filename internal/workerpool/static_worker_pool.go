@@ -42,7 +42,7 @@ type staticWorkerPool struct {
 }
 
 // NewStaticWorkerPool creates a new thread pool
-func NewStaticWorkerPool(priorityWorker uint32, normalWorker uint32) (*staticWorkerPool, error) {
+func NewStaticWorkerPool(priorityWorker uint32, normalWorker uint32, readGlobalMaxBlocks int64) (*staticWorkerPool, error) {
 	totalWorkers := priorityWorker + normalWorker
 	if totalWorkers == 0 {
 		return nil, fmt.Errorf("staticWorkerPool: can't create with 0 workers, priority: %d, normal: %d", priorityWorker, normalWorker)
@@ -50,13 +50,18 @@ func NewStaticWorkerPool(priorityWorker uint32, normalWorker uint32) (*staticWor
 
 	logger.Infof("staticWorkerPool: creating with %d normal, and %d priority workers.", normalWorker, priorityWorker)
 
+	// The channel capacity is set to the minimum of a worker-based buffer size
+	// and a global cap. This prevents creating overly large channels, which can be
+	// slow to initialize and consume unnecessary memory. The cap is based on
+	// `readGlobalMaxBlocks` because we can't schedule more download tasks than this at once.
+	priorityChSize := min(int(priorityWorker)*200, int(2*readGlobalMaxBlocks))
+	normalChSize := min(int(normalWorker)*5000, int(2*readGlobalMaxBlocks))
 	return &staticWorkerPool{
 		priorityWorker: priorityWorker,
 		normalWorker:   normalWorker,
 		stop:           make(chan bool),
-		// Keep the channel capacity large enough to handle burst of tasks.
-		priorityCh: make(chan Task, priorityWorker*200),
-		normalCh:   make(chan Task, normalWorker*5000),
+		priorityCh:     make(chan Task, priorityChSize),
+		normalCh:       make(chan Task, normalChSize),
 	}, nil
 }
 
@@ -85,7 +90,7 @@ func newStaticWorkerPoolForCurrentCPU(readGlobalMaxBlocks int64, numCPU func() i
 	priorityWorkers := (totalWorkers + 9) / 10
 	normalWorkers := totalWorkers - priorityWorkers
 
-	wp, err := NewStaticWorkerPool(uint32(priorityWorkers), uint32(normalWorkers))
+	wp, err := NewStaticWorkerPool(uint32(priorityWorkers), uint32(normalWorkers), readGlobalMaxBlocks)
 	if err != nil {
 		return nil, err
 	}

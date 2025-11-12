@@ -19,14 +19,335 @@ package cfg
 import (
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
+
+// AllFlagOptimizationRules is the generated map from a flag's config-path to its specific rules.
+var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-cache.cache-file-for-range-read": {
+	Profiles: []shared.ProfileOptimization{
+		{
+			Name:  "aiml-serving",
+			Value: bool(true),
+		},
+		{
+			Name:  "aiml-checkpointing",
+			Value: bool(true),
+		},
+	},
+}, "implicit-dirs": {
+	MachineBasedOptimization: []shared.MachineBasedOptimization{
+		{
+			Group: "high-performance",
+			Value: bool(true),
+		},
+	},
+	Profiles: []shared.ProfileOptimization{
+		{
+			Name:  "aiml-training",
+			Value: bool(true),
+		},
+		{
+			Name:  "aiml-serving",
+			Value: bool(true),
+		},
+		{
+			Name:  "aiml-checkpointing",
+			Value: bool(true),
+		},
+	},
+}, "file-system.kernel-list-cache-ttl-secs": {
+	Profiles: []shared.ProfileOptimization{
+		{
+			Name:  "aiml-serving",
+			Value: int64(-1),
+		},
+	},
+}, "metadata-cache.negative-ttl-secs": {
+	MachineBasedOptimization: []shared.MachineBasedOptimization{
+		{
+			Group: "high-performance",
+			Value: int64(0),
+		},
+	},
+	Profiles: []shared.ProfileOptimization{
+		{
+			Name:  "aiml-training",
+			Value: int64(0),
+		},
+		{
+			Name:  "aiml-serving",
+			Value: int64(0),
+		},
+		{
+			Name:  "aiml-checkpointing",
+			Value: int64(0),
+		},
+	},
+}, "metadata-cache.ttl-secs": {
+	MachineBasedOptimization: []shared.MachineBasedOptimization{
+		{
+			Group: "high-performance",
+			Value: int64(-1),
+		},
+	},
+	Profiles: []shared.ProfileOptimization{
+		{
+			Name:  "aiml-training",
+			Value: int64(-1),
+		},
+		{
+			Name:  "aiml-serving",
+			Value: int64(-1),
+		},
+		{
+			Name:  "aiml-checkpointing",
+			Value: int64(-1),
+		},
+	},
+}, "file-system.rename-dir-limit": {
+	MachineBasedOptimization: []shared.MachineBasedOptimization{
+		{
+			Group: "high-performance",
+			Value: int64(200000),
+		},
+	},
+	Profiles: []shared.ProfileOptimization{
+		{
+			Name:  "aiml-checkpointing",
+			Value: int64(200000),
+		},
+	},
+}, "metadata-cache.stat-cache-max-size-mb": {
+	MachineBasedOptimization: []shared.MachineBasedOptimization{
+		{
+			Group: "high-performance",
+			Value: int64(1024),
+		},
+	},
+	Profiles: []shared.ProfileOptimization{
+		{
+			Name:  "aiml-training",
+			Value: int64(-1),
+		},
+		{
+			Name:  "aiml-serving",
+			Value: int64(-1),
+		},
+		{
+			Name:  "aiml-checkpointing",
+			Value: int64(-1),
+		},
+	},
+}, "metadata-cache.type-cache-max-size-mb": {
+	MachineBasedOptimization: []shared.MachineBasedOptimization{
+		{
+			Group: "high-performance",
+			Value: int64(128),
+		},
+	},
+	Profiles: []shared.ProfileOptimization{
+		{
+			Name:  "aiml-training",
+			Value: int64(-1),
+		},
+		{
+			Name:  "aiml-serving",
+			Value: int64(-1),
+		},
+		{
+			Name:  "aiml-checkpointing",
+			Value: int64(-1),
+		},
+	},
+}, "write.global-max-blocks": {
+	MachineBasedOptimization: []shared.MachineBasedOptimization{
+		{
+			Group: "high-performance",
+			Value: int64(1600),
+		},
+	},
+},
+}
+
+// machineTypeToGroupMap is the generated map from machine type to the group it belongs to.
+var machineTypeToGroupMap = map[string]string{
+	"a2-megagpu-16g":        "high-performance",
+	"a2-ultragpu-8g":        "high-performance",
+	"a3-edgegpu-8g":         "high-performance",
+	"a3-highgpu-8g":         "high-performance",
+	"a3-megagpu-8g":         "high-performance",
+	"a3-ultragpu-8g":        "high-performance",
+	"a4-highgpu-8g":         "high-performance",
+	"a4-highgpu-8g-lowmem":  "high-performance",
+	"a4-highgpu-8g-nolssd":  "high-performance",
+	"a4x-highgpu-4g":        "high-performance",
+	"a4x-highgpu-4g-nolssd": "high-performance",
+	"ct5l-hightpu-8t":       "high-performance",
+	"ct5lp-hightpu-8t":      "high-performance",
+	"ct5p-hightpu-4t":       "high-performance",
+	"ct5p-hightpu-4t-tpu":   "high-performance",
+	"ct6e-standard-4t":      "high-performance",
+	"ct6e-standard-4t-tpu":  "high-performance",
+	"ct6e-standard-8t":      "high-performance",
+	"ct6e-standard-8t-tpu":  "high-performance",
+	"tpu7x-standard-4t":     "high-performance",
+	"tpu7x-standard-4t-tpu": "high-performance",
+	"tpu7x-ultranet-4t":     "high-performance",
+	"tpu7x-ultranet-4t-tpu": "high-performance",
+}
+
+// ApplyOptimizations modifies the config in-place with optimized values.
+func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationResult {
+	var optimizedFlags = make(map[string]OptimizationResult)
+	// Skip all optimizations if autoconfig is disabled.
+	if c.DisableAutoconfig {
+		return nil
+	}
+
+	profileName := c.Profile
+	machineType, err := getMachineType(isSet)
+	if err != nil {
+		// Non-fatal, just means machine-based optimizations won't apply.
+		machineType = ""
+	}
+	c.MachineType = machineType
+
+	// Apply optimizations for each flag that has rules defined.
+	if !isSet.IsSet("file-cache-cache-file-for-range-read") {
+		rules := AllFlagOptimizationRules["file-cache.cache-file-for-range-read"]
+		result := getOptimizedValue(&rules, c.FileCache.CacheFileForRangeRead, profileName, machineType, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(bool); ok {
+				if c.FileCache.CacheFileForRangeRead != val {
+					c.FileCache.CacheFileForRangeRead = val
+					optimizedFlags["file-cache.cache-file-for-range-read"] = result
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("implicit-dirs") {
+		rules := AllFlagOptimizationRules["implicit-dirs"]
+		result := getOptimizedValue(&rules, c.ImplicitDirs, profileName, machineType, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(bool); ok {
+				if c.ImplicitDirs != val {
+					c.ImplicitDirs = val
+					optimizedFlags["implicit-dirs"] = result
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("kernel-list-cache-ttl-secs") {
+		rules := AllFlagOptimizationRules["file-system.kernel-list-cache-ttl-secs"]
+		result := getOptimizedValue(&rules, c.FileSystem.KernelListCacheTtlSecs, profileName, machineType, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.FileSystem.KernelListCacheTtlSecs != val {
+					c.FileSystem.KernelListCacheTtlSecs = val
+					optimizedFlags["file-system.kernel-list-cache-ttl-secs"] = result
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("metadata-cache-negative-ttl-secs") {
+		rules := AllFlagOptimizationRules["metadata-cache.negative-ttl-secs"]
+		result := getOptimizedValue(&rules, c.MetadataCache.NegativeTtlSecs, profileName, machineType, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.MetadataCache.NegativeTtlSecs != val {
+					c.MetadataCache.NegativeTtlSecs = val
+					optimizedFlags["metadata-cache.negative-ttl-secs"] = result
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("metadata-cache-ttl-secs") {
+		rules := AllFlagOptimizationRules["metadata-cache.ttl-secs"]
+		result := getOptimizedValue(&rules, c.MetadataCache.TtlSecs, profileName, machineType, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.MetadataCache.TtlSecs != val {
+					c.MetadataCache.TtlSecs = val
+					optimizedFlags["metadata-cache.ttl-secs"] = result
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("rename-dir-limit") {
+		rules := AllFlagOptimizationRules["file-system.rename-dir-limit"]
+		result := getOptimizedValue(&rules, c.FileSystem.RenameDirLimit, profileName, machineType, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.FileSystem.RenameDirLimit != val {
+					c.FileSystem.RenameDirLimit = val
+					optimizedFlags["file-system.rename-dir-limit"] = result
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("stat-cache-max-size-mb") {
+		rules := AllFlagOptimizationRules["metadata-cache.stat-cache-max-size-mb"]
+		result := getOptimizedValue(&rules, c.MetadataCache.StatCacheMaxSizeMb, profileName, machineType, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.MetadataCache.StatCacheMaxSizeMb != val {
+					c.MetadataCache.StatCacheMaxSizeMb = val
+					optimizedFlags["metadata-cache.stat-cache-max-size-mb"] = result
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("type-cache-max-size-mb") {
+		rules := AllFlagOptimizationRules["metadata-cache.type-cache-max-size-mb"]
+		result := getOptimizedValue(&rules, c.MetadataCache.TypeCacheMaxSizeMb, profileName, machineType, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.MetadataCache.TypeCacheMaxSizeMb != val {
+					c.MetadataCache.TypeCacheMaxSizeMb = val
+					optimizedFlags["metadata-cache.type-cache-max-size-mb"] = result
+				}
+			}
+		}
+	}
+	if !isSet.IsSet("write-global-max-blocks") {
+		rules := AllFlagOptimizationRules["write.global-max-blocks"]
+		result := getOptimizedValue(&rules, c.Write.GlobalMaxBlocks, profileName, machineType, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.Write.GlobalMaxBlocks != val {
+					c.Write.GlobalMaxBlocks = val
+					optimizedFlags["write.global-max-blocks"] = result
+				}
+			}
+		}
+	}
+	return optimizedFlags
+}
+
+type CloudProfilerConfig struct {
+	AllocatedHeap bool `yaml:"allocated-heap"`
+
+	Cpu bool `yaml:"cpu"`
+
+	Enabled bool `yaml:"enabled"`
+
+	Goroutines bool `yaml:"goroutines"`
+
+	Heap bool `yaml:"heap"`
+
+	Label string `yaml:"label"`
+
+	Mutex bool `yaml:"mutex"`
+}
 
 type Config struct {
 	AppName string `yaml:"app-name"`
 
 	CacheDir ResolvedPath `yaml:"cache-dir"`
+
+	CloudProfiler CloudProfilerConfig `yaml:"cloud-profiler"`
 
 	Debug DebugConfig `yaml:"debug"`
 
@@ -39,6 +360,8 @@ type Config struct {
 	EnableHns bool `yaml:"enable-hns"`
 
 	EnableNewReader bool `yaml:"enable-new-reader"`
+
+	EnableUnsupportedPathSupport bool `yaml:"enable-unsupported-path-support"`
 
 	FileCache FileCacheConfig `yaml:"file-cache"`
 
@@ -68,9 +391,11 @@ type Config struct {
 
 	OnlyDir string `yaml:"only-dir"`
 
-	Profiling ProfilingConfig `yaml:"profiling"`
+	Profile string `yaml:"profile"`
 
 	Read ReadConfig `yaml:"read"`
+
+	WorkloadInsight WorkloadInsightConfig `yaml:"workload-insight"`
 
 	Write WriteConfig `yaml:"write"`
 }
@@ -96,9 +421,11 @@ type FileCacheConfig struct {
 
 	EnableParallelDownloads bool `yaml:"enable-parallel-downloads"`
 
-	ExperimentalExcludeRegex string `yaml:"experimental-exclude-regex"`
+	ExcludeRegex string `yaml:"exclude-regex"`
 
 	ExperimentalParallelDownloadsDefaultOn bool `yaml:"experimental-parallel-downloads-default-on"`
+
+	IncludeRegex string `yaml:"include-regex"`
 
 	MaxParallelDownloads int64 `yaml:"max-parallel-downloads"`
 
@@ -128,6 +455,10 @@ type FileSystemConfig struct {
 
 	KernelListCacheTtlSecs int64 `yaml:"kernel-list-cache-ttl-secs"`
 
+	MaxReadAheadKb int64 `yaml:"max-read-ahead-kb"`
+
+	ODirect bool `yaml:"o-direct"`
+
 	PreconditionErrors bool `yaml:"precondition-errors"`
 
 	RenameDirLimit int64 `yaml:"rename-dir-limit"`
@@ -154,7 +485,11 @@ type GcsConnectionConfig struct {
 
 	CustomEndpoint string `yaml:"custom-endpoint"`
 
+	EnableHttpDnsCache bool `yaml:"enable-http-dns-cache"`
+
 	ExperimentalEnableJsonRead bool `yaml:"experimental-enable-json-read"`
+
+	ExperimentalLocalSocketAddress string `yaml:"experimental-local-socket-address"`
 
 	GrpcConnPoolSize int64 `yaml:"grpc-conn-pool-size"`
 
@@ -244,23 +579,9 @@ type MetricsConfig struct {
 type MonitoringConfig struct {
 	ExperimentalTracingMode string `yaml:"experimental-tracing-mode"`
 
+	ExperimentalTracingProjectId string `yaml:"experimental-tracing-project-id"`
+
 	ExperimentalTracingSamplingRatio float64 `yaml:"experimental-tracing-sampling-ratio"`
-}
-
-type ProfilingConfig struct {
-	AllocatedHeap bool `yaml:"allocated-heap"`
-
-	Cpu bool `yaml:"cpu"`
-
-	Enabled bool `yaml:"enabled"`
-
-	Goroutines bool `yaml:"goroutines"`
-
-	Heap bool `yaml:"heap"`
-
-	Label string `yaml:"label"`
-
-	Mutex bool `yaml:"mutex"`
 }
 
 type ReadConfig struct {
@@ -295,6 +616,14 @@ type ReadStallGcsRetriesConfig struct {
 	ReqTargetPercentile float64 `yaml:"req-target-percentile"`
 }
 
+type WorkloadInsightConfig struct {
+	ForwardMergeThresholdMb int64 `yaml:"forward-merge-threshold-mb"`
+
+	OutputFile string `yaml:"output-file"`
+
+	Visualize bool `yaml:"visualize"`
+}
+
 type WriteConfig struct {
 	BlockSizeMb int64 `yaml:"block-size-mb"`
 
@@ -303,6 +632,8 @@ type WriteConfig struct {
 	EnableRapidAppends bool `yaml:"enable-rapid-appends"`
 
 	EnableStreamingWrites bool `yaml:"enable-streaming-writes"`
+
+	FinalizeFileForRapid bool `yaml:"finalize-file-for-rapid"`
 
 	GlobalMaxBlocks int64 `yaml:"global-max-blocks"`
 
@@ -319,7 +650,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("cache-dir", "", "", "Enables file-caching. Specifies the directory to use for file-cache.")
 
-	flagSet.IntP("chunk-transfer-timeout-secs", "", 10, "We send larger file uploads in 16 MiB chunks. This flag controls the duration  that the HTTP client will wait for a response after making a request to upload a chunk.  As an example, a value of 10 indicates that the client will wait 10 seconds for upload completion;  otherwise, it cancels the request and retries for that chunk till chunkRetryDeadline(32s). 0 means no timeout.")
+	flagSet.IntP("chunk-transfer-timeout-secs", "", 10, "We send larger file uploads in 16 MiB chunks. This flag controls the duration that the HTTP client will wait for a response after making a request to upload a chunk. As an example, a value of 10 indicates that the client will wait 10 seconds for upload completion; otherwise, it cancels the request and retries for that chunk till chunkRetryDeadline(32s). 0 means no timeout.")
 
 	if err := flagSet.MarkHidden("chunk-transfer-timeout-secs"); err != nil {
 		return err
@@ -329,13 +660,49 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("cloud-metrics-export-interval-secs", "", 0, "Specifies the interval at which the metrics are uploaded to cloud monitoring")
 
+	flagSet.BoolP("cloud-profiler-allocated-heap", "", true, "Enables allocated heap (HeapProfileAllocs) profiling. This only works when --enable-cloud-profiler is set to true.")
+
+	if err := flagSet.MarkHidden("cloud-profiler-allocated-heap"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("cloud-profiler-cpu", "", true, "Enables cpu profiling. This only works when --enable-cloud-profiler is set to true.")
+
+	if err := flagSet.MarkHidden("cloud-profiler-cpu"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("cloud-profiler-goroutines", "", false, "Enables goroutines cloud-profiler. This only works when --enable-cloud-profiler is set to true.")
+
+	if err := flagSet.MarkHidden("cloud-profiler-goroutines"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("cloud-profiler-heap", "", true, "Enables heap cloud-profiler. This only works when --enable-cloud-profiler is set to true.")
+
+	if err := flagSet.MarkHidden("cloud-profiler-heap"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("cloud-profiler-label", "", "gcsfuse-0.0.0", "Allow setting a profile label to uniquely identify and compare cloud-profiler data with other profiles. This only works when --enable-cloud-profiler is set to true.")
+
+	if err := flagSet.MarkHidden("cloud-profiler-label"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("cloud-profiler-mutex", "", false, "Enables mutex cloud-profiler. This only works when --enable-cloud-profiler is set to true.")
+
+	if err := flagSet.MarkHidden("cloud-profiler-mutex"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("create-empty-file", "", false, "For a new file, it creates an empty file in Cloud Storage bucket as a hold.")
 
 	if err := flagSet.MarkHidden("create-empty-file"); err != nil {
 		return err
 	}
 
-	flagSet.StringP("custom-endpoint", "", "", "Specifies an alternative custom endpoint for fetching data. The custom endpoint must support the equivalent resources and operations as the GCS JSON endpoint, https://storage.googleapis.com/storage/v1. If a custom endpoint is not specified, GCSFuse uses the global GCS JSON API endpoint, https://storage.googleapis.com/storage/v1.")
+	flagSet.StringP("custom-endpoint", "", "", "To specify a custom storage endpoint, ensure it supports the same resources as the default storage.googleapis.com:443 and includes the port number.")
 
 	flagSet.BoolP("debug_fs", "", false, "This flag is unused.")
 
@@ -393,9 +760,9 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-buffered-read", "", false, "When enabled, read starts using buffer to prefetch (asynchronous and in parallel) data from GCS. This improves performance for large file sequential reads. Note: Enabling this flag can increase the memory usage significantly.")
 
-	flagSet.BoolP("enable-cloud-profiling", "", false, "Enables cloud profiling, by default disabled.")
+	flagSet.BoolP("enable-cloud-profiler", "", false, "Enables cloud-profiler, by default disabled.")
 
-	if err := flagSet.MarkHidden("enable-cloud-profiling"); err != nil {
+	if err := flagSet.MarkHidden("enable-cloud-profiler"); err != nil {
 		return err
 	}
 
@@ -419,6 +786,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.BoolP("enable-http-dns-cache", "", true, "Enables DNS cache for HTTP/1 connections")
+
+	if err := flagSet.MarkHidden("enable-http-dns-cache"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("enable-new-reader", "", true, "Enables support for new reader implementation.")
 
 	if err := flagSet.MarkHidden("enable-new-reader"); err != nil {
@@ -436,6 +809,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.BoolP("enable-streaming-writes", "", true, "Enables streaming uploads during write file operation.")
+
+	flagSet.BoolP("enable-unsupported-path-support", "", false, "Enables support for file system paths with unsupported GCS names (e.g., names containing '//' or starting with /).  When set, GCSFuse will ignore these objects during listing and copying operations.  For rename and delete operations, the flag allows the action to proceed for all specified objects, including those with unsupported names.")
+
+	if err := flagSet.MarkHidden("enable-unsupported-path-support"); err != nil {
+		return err
+	}
 
 	flagSet.BoolP("experimental-enable-dentry-cache", "", false, "When enabled, it sets the Dentry cache entry timeout same as metadata-cache-ttl. This enables kernel to use cached entry to map the file paths to inodes, instead of making LookUpInode calls to GCSFuse.")
 
@@ -461,6 +840,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.StringP("experimental-local-socket-address", "", "", "The local socket address to bind to. This is useful in multi-NIC scenarios. This is an experimental flag.")
+
+	if err := flagSet.MarkHidden("experimental-local-socket-address"); err != nil {
+		return err
+	}
+
 	flagSet.StringP("experimental-metadata-prefetch-on-mount", "", "disabled", "Experimental: This indicates whether or not to prefetch the metadata (prefilling of metadata caches and creation of inodes) of the mounted bucket at the time of mounting the bucket. Supported values: \"disabled\", \"sync\" and \"async\". Any other values will return error on mounting. This is applicable only to static mounting, and not to dynamic mounting.")
 
 	if err := flagSet.MarkDeprecated("experimental-metadata-prefetch-on-mount", "Experimental flag: could be removed even in a minor release."); err != nil {
@@ -470,6 +855,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.StringP("experimental-tracing-mode", "", "", "Experimental: specify tracing mode")
 
 	if err := flagSet.MarkHidden("experimental-tracing-mode"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("experimental-tracing-project-id", "", "", "Experimental: specify the GCP project-id to which traces will be exported. When unset, a project-id will be inferred as per the default credential detection process")
+
+	if err := flagSet.MarkHidden("experimental-tracing-project-id"); err != nil {
 		return err
 	}
 
@@ -483,7 +874,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("file-cache-download-chunk-size-mb", "", 200, "Size of chunks in MiB that each concurrent request downloads.")
 
-	flagSet.BoolP("file-cache-enable-crc", "", false, "Performs CRC to ensure that file is correctly downloaded into cache.")
+	flagSet.BoolP("file-cache-enable-crc", "", false, "Performs CRC to ensure that file is correctly downloaded into cache. No op for rapid storage.")
 
 	if err := flagSet.MarkHidden("file-cache-enable-crc"); err != nil {
 		return err
@@ -497,15 +888,21 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("file-cache-enable-parallel-downloads", "", false, "Enable parallel downloads.")
 
-	flagSet.StringP("file-cache-experimental-exclude-regex", "", "", "Exclude file paths (in the format bucket_name/object_key) specified by this regex from file caching.")
+	flagSet.StringP("file-cache-exclude-regex", "", "", "Exclude file paths (in the format bucket_name/object_key) specified by this regex from file caching.")
 
-	if err := flagSet.MarkHidden("file-cache-experimental-exclude-regex"); err != nil {
+	if err := flagSet.MarkHidden("file-cache-exclude-regex"); err != nil {
 		return err
 	}
 
 	flagSet.BoolP("file-cache-experimental-parallel-downloads-default-on", "", true, "Enable parallel downloads by default on experimental basis.")
 
 	if err := flagSet.MarkHidden("file-cache-experimental-parallel-downloads-default-on"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("file-cache-include-regex", "", "", "Include file paths (in the format bucket_name/object_key) specified by this regex for file caching.")
+
+	if err := flagSet.MarkHidden("file-cache-include-regex"); err != nil {
 		return err
 	}
 
@@ -522,6 +919,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.StringP("file-mode", "", "0644", "Permissions bits for files, in octal.")
+
+	flagSet.BoolP("finalize-file-for-rapid", "", false, "Finalizes the files on close for Rapid storage. Appends will be slower on finalized files.")
+
+	if err := flagSet.MarkHidden("finalize-file-for-rapid"); err != nil {
+		return err
+	}
 
 	flagSet.BoolP("foreground", "", false, "Stay in the foreground after mounting.")
 
@@ -541,7 +944,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.Float64P("limit-ops-per-sec", "", -1, "Operations per second limit, measured over a 30-second window (use -1 for no limit)")
 
-	flagSet.StringP("log-file", "", "", "The file for storing logs that can be parsed by fluentd. When not provided, plain text logs are printed to stdout when Cloud Storage FUSE is run  in the foreground, or to syslog when Cloud Storage FUSE is run in the  background.")
+	flagSet.StringP("log-file", "", "", "The file for storing logs that can be parsed by fluentd. When not provided, plain text logs are printed to stdout when Cloud Storage FUSE is run in the foreground, or to syslog when Cloud Storage FUSE is run in the background.")
 
 	flagSet.StringP("log-format", "", "json", "The format of the log file: 'text' or 'json'.")
 
@@ -562,6 +965,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.IntP("max-conns-per-host", "", 0, "The max number of TCP connections allowed per server. This is effective when client-protocol is set to 'http1'. A value of 0 indicates no limit on TCP connections (limited by the machine specifications).")
 
 	flagSet.IntP("max-idle-conns-per-host", "", 100, "The number of maximum idle connections allowed per server.")
+
+	flagSet.IntP("max-read-ahead-kb", "", 0, "Sets max kernel-read-ahead for the mount in KiB. 0 means system default. Requires sudo permission to set this value, otherwise the value will be ignored and system default will be used.")
+
+	if err := flagSet.MarkHidden("max-read-ahead-kb"); err != nil {
+		return err
+	}
 
 	flagSet.IntP("max-retry-attempts", "", 0, "It sets a limit on the number of times an operation will be retried if it fails, preventing endless retry loops. A value of 0 indicates no limit.")
 
@@ -597,59 +1006,31 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringSliceP("o", "", []string{}, "Additional system-specific mount options. Multiple options can be passed as comma separated. For readonly, use --o ro")
 
+	flagSet.BoolP("o-direct", "", false, "Bypasses the kernel's page cache for file reads and writes. When enabled, all I/O operations are sent directly to the GCSFuse daemon. ")
+
+	if err := flagSet.MarkHidden("o-direct"); err != nil {
+		return err
+	}
+
 	flagSet.StringP("only-dir", "", "", "Mount only a specific directory within the bucket. See docs/mounting for more information")
 
-	flagSet.BoolP("precondition-errors", "", true, "Throw Stale NFS file handle error in case the object being synced or read  from is modified by some other concurrent process. This helps prevent  silent data loss or data corruption.")
+	flagSet.BoolP("precondition-errors", "", true, "Throw Stale NFS file handle error in case the object being synced or read from is modified by some other concurrent process. This helps prevent silent data loss or data corruption.")
 
 	if err := flagSet.MarkHidden("precondition-errors"); err != nil {
 		return err
 	}
 
-	flagSet.BoolP("profiling-allocated-heap", "", true, "Enables allocated heap (HeapProfileAllocs) profiling. This only works when --enable-cloud-profiling is set to true.")
-
-	if err := flagSet.MarkHidden("profiling-allocated-heap"); err != nil {
-		return err
-	}
-
-	flagSet.BoolP("profiling-cpu", "", true, "Enables cpu profiling. This only works when --enable-cloud-profiling is set to true.")
-
-	if err := flagSet.MarkHidden("profiling-cpu"); err != nil {
-		return err
-	}
-
-	flagSet.BoolP("profiling-goroutines", "", false, "Enables goroutines profiling. This only works when --enable-cloud-profiling is set to true.")
-
-	if err := flagSet.MarkHidden("profiling-goroutines"); err != nil {
-		return err
-	}
-
-	flagSet.BoolP("profiling-heap", "", true, "Enables heap profiling. This only works when --enable-cloud-profiling is set to true.")
-
-	if err := flagSet.MarkHidden("profiling-heap"); err != nil {
-		return err
-	}
-
-	flagSet.StringP("profiling-label", "", "gcsfuse-0.0.0", "Allow setting a profile label to uniquely identify and compare profiling data with other profiles. This only works when --enable-cloud-profiling is set to true.  ")
-
-	if err := flagSet.MarkHidden("profiling-label"); err != nil {
-		return err
-	}
-
-	flagSet.BoolP("profiling-mutex", "", false, "Enables mutex profiling. This only works when --enable-cloud-profiling is set to true.")
-
-	if err := flagSet.MarkHidden("profiling-mutex"); err != nil {
-		return err
-	}
+	flagSet.StringP("profile", "", "", "The name of the profile to apply. e.g. aiml-training, aiml-serving, aiml-checkpointing")
 
 	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
 
-	flagSet.IntP("read-block-size-mb", "", 16, "Specifies the block size for buffered reads. The value should be more than  0. This is used to read data in chunks from GCS.")
+	flagSet.IntP("read-block-size-mb", "", 16, "Specifies the block size for buffered reads. The value should be more than 0. This is used to read data in chunks from GCS.")
 
 	if err := flagSet.MarkHidden("read-block-size-mb"); err != nil {
 		return err
 	}
 
-	flagSet.IntP("read-global-max-blocks", "", 80, "Specifies the maximum number of blocks available for buffered reads across all file-handles. The value should be >= 0 or -1 (for infinite blocks). A value of 0 disables buffered reads.")
+	flagSet.IntP("read-global-max-blocks", "", 40, "Specifies the maximum number of blocks available for buffered reads across all file-handles. The value should be >= 0 or -1 (for infinite blocks). A value of 0 disables buffered reads.")
 
 	flagSet.DurationP("read-inactive-stream-timeout", "", 10000000000*time.Nanosecond, "Duration of inactivity after which an open GCS read stream is automatically closed. This helps conserve resources when a file handle remains open without active Read calls. A value of '0s' disables this timeout.")
 
@@ -657,7 +1038,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("read-max-blocks-per-handle", "", 20, "Specifies the maximum number of blocks to be used by a single file handle for  buffered reads. The value should be >= 0 or -1 (for infinite blocks). A value of 0 disables buffered reads.")
+	flagSet.IntP("read-max-blocks-per-handle", "", 20, "Specifies the maximum number of blocks to be used by a single file handle for buffered reads. The value should be >= 0 or -1 (for infinite blocks). A value of 0 disables buffered reads.")
 
 	if err := flagSet.MarkHidden("read-max-blocks-per-handle"); err != nil {
 		return err
@@ -753,15 +1134,33 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("uid", "", -1, "UID owner of all inodes.")
 
-	flagSet.IntP("write-block-size-mb", "", 32, "Specifies the block size for streaming writes. The value should be more  than 0.")
+	flagSet.BoolP("visualize-workload-insight", "", false, "A flag to enable workload visualization. When enabled, workload insights will include visualizations to help understand access patterns. Insights will be written to the file specified by --workload-insight-output-file.")
+
+	if err := flagSet.MarkHidden("visualize-workload-insight"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("workload-insight-forward-merge-threshold-mb", "", 0, "The threshold in MB for merging forward sequential reads for workload insights visualization.Reads within this threshold will be merged into a single read operation. Applicable only when --visualize-workload-insight is enabled.")
+
+	if err := flagSet.MarkHidden("workload-insight-forward-merge-threshold-mb"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("workload-insight-output-file", "", "", "The file path where the workload insights will be written. If not specified, insights will be written to stdout")
+
+	if err := flagSet.MarkHidden("workload-insight-output-file"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("write-block-size-mb", "", 32, "Specifies the block size for streaming writes. The value should be more than 0.")
 
 	if err := flagSet.MarkHidden("write-block-size-mb"); err != nil {
 		return err
 	}
 
-	flagSet.IntP("write-global-max-blocks", "", 4, "Specifies the maximum number of blocks available for streaming writes across all files.  The value should be >= 0 or -1 (for infinite blocks). A value of 0 disables streaming writes.")
+	flagSet.IntP("write-global-max-blocks", "", 4, "Specifies the maximum number of blocks available for streaming writes across all files. The value should be >= 0 or -1 (for infinite blocks). A value of 0 disables streaming writes.")
 
-	flagSet.IntP("write-max-blocks-per-file", "", 1, "Specifies the maximum number of blocks to be used by a single file for  streaming writes. The value should be >= 1 or -1 (for infinite blocks).")
+	flagSet.IntP("write-max-blocks-per-file", "", 1, "Specifies the maximum number of blocks to be used by a single file for streaming writes. The value should be >= 1 or -1 (for infinite blocks).")
 
 	if err := flagSet.MarkHidden("write-max-blocks-per-file"); err != nil {
 		return err
@@ -797,6 +1196,30 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metrics.cloud-metrics-export-interval-secs", flagSet.Lookup("cloud-metrics-export-interval-secs")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("cloud-profiler.allocated-heap", flagSet.Lookup("cloud-profiler-allocated-heap")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("cloud-profiler.cpu", flagSet.Lookup("cloud-profiler-cpu")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("cloud-profiler.goroutines", flagSet.Lookup("cloud-profiler-goroutines")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("cloud-profiler.heap", flagSet.Lookup("cloud-profiler-heap")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("cloud-profiler.label", flagSet.Lookup("cloud-profiler-label")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("cloud-profiler.mutex", flagSet.Lookup("cloud-profiler-mutex")); err != nil {
 		return err
 	}
 
@@ -844,7 +1267,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("profiling.enabled", flagSet.Lookup("enable-cloud-profiling")); err != nil {
+	if err := v.BindPFlag("cloud-profiler.enabled", flagSet.Lookup("enable-cloud-profiler")); err != nil {
 		return err
 	}
 
@@ -861,6 +1284,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("enable-hns", flagSet.Lookup("enable-hns")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("gcs-connection.enable-http-dns-cache", flagSet.Lookup("enable-http-dns-cache")); err != nil {
 		return err
 	}
 
@@ -884,6 +1311,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("enable-unsupported-path-support", flagSet.Lookup("enable-unsupported-path-support")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("file-system.experimental-enable-dentry-cache", flagSet.Lookup("experimental-enable-dentry-cache")); err != nil {
 		return err
 	}
@@ -900,11 +1331,19 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("gcs-connection.experimental-local-socket-address", flagSet.Lookup("experimental-local-socket-address")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("metadata-cache.experimental-metadata-prefetch-on-mount", flagSet.Lookup("experimental-metadata-prefetch-on-mount")); err != nil {
 		return err
 	}
 
 	if err := v.BindPFlag("monitoring.experimental-tracing-mode", flagSet.Lookup("experimental-tracing-mode")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("monitoring.experimental-tracing-project-id", flagSet.Lookup("experimental-tracing-project-id")); err != nil {
 		return err
 	}
 
@@ -932,11 +1371,15 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("file-cache.experimental-exclude-regex", flagSet.Lookup("file-cache-experimental-exclude-regex")); err != nil {
+	if err := v.BindPFlag("file-cache.exclude-regex", flagSet.Lookup("file-cache-exclude-regex")); err != nil {
 		return err
 	}
 
 	if err := v.BindPFlag("file-cache.experimental-parallel-downloads-default-on", flagSet.Lookup("file-cache-experimental-parallel-downloads-default-on")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-cache.include-regex", flagSet.Lookup("file-cache-include-regex")); err != nil {
 		return err
 	}
 
@@ -957,6 +1400,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.file-mode", flagSet.Lookup("file-mode")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("write.finalize-file-for-rapid", flagSet.Lookup("finalize-file-for-rapid")); err != nil {
 		return err
 	}
 
@@ -1032,6 +1479,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("file-system.max-read-ahead-kb", flagSet.Lookup("max-read-ahead-kb")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("gcs-retries.max-retry-attempts", flagSet.Lookup("max-retry-attempts")); err != nil {
 		return err
 	}
@@ -1064,6 +1515,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("file-system.o-direct", flagSet.Lookup("o-direct")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("only-dir", flagSet.Lookup("only-dir")); err != nil {
 		return err
 	}
@@ -1072,27 +1527,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("profiling.allocated-heap", flagSet.Lookup("profiling-allocated-heap")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("profiling.cpu", flagSet.Lookup("profiling-cpu")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("profiling.goroutines", flagSet.Lookup("profiling-goroutines")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("profiling.heap", flagSet.Lookup("profiling-heap")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("profiling.label", flagSet.Lookup("profiling-label")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("profiling.mutex", flagSet.Lookup("profiling-mutex")); err != nil {
+	if err := v.BindPFlag("profile", flagSet.Lookup("profile")); err != nil {
 		return err
 	}
 
@@ -1197,6 +1632,18 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.uid", flagSet.Lookup("uid")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("workload-insight.visualize", flagSet.Lookup("visualize-workload-insight")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("workload-insight.forward-merge-threshold-mb", flagSet.Lookup("workload-insight-forward-merge-threshold-mb")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("workload-insight.output-file", flagSet.Lookup("workload-insight-output-file")); err != nil {
 		return err
 	}
 

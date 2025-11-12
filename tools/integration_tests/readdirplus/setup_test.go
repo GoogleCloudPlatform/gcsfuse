@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,35 +20,44 @@ import (
 	"io"
 	"log"
 	"os"
+	"path"
 	"strings"
 	"testing"
 	"time"
 
 	"cloud.google.com/go/storage"
-
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 	"github.com/stretchr/testify/require"
 )
 
 const (
-	testDirName                         = "dirForReaddirplusTest"
-	targetDirName                       = "target_dir"
-	logFileNameForMountedDirectoryTests = "/tmp/readdirplus_logs/log.json"
+	testDirName   = "dirForReaddirplusTest"
+	targetDirName = "target_dir"
+	GKETempDir    = "/gcsfuse-tmp"
+	// // TODO: clean this up when GKE test migration completes.
+	OldGKElogFilePath = "/tmp/readdirplus_logs/log.json"
 )
 
 var (
-	storageClient *storage.Client
-	ctx           context.Context
-	testDirPath   string
-	mountFunc     func([]string) error
+	testEnv   env
+	mountFunc func(*test_suite.TestConfig, []string) error
 	// mount directory is where our tests run.
 	mountDir string
 	// root directory is the directory to be unmounted.
 	rootDir string
 )
+
+type env struct {
+	storageClient *storage.Client
+	ctx           context.Context
+	testDirPath   string
+	cfg           *test_suite.TestConfig
+	bucketType    string
+}
 
 func loadLogLines(reader io.Reader) ([]string, error) {
 	content, err := io.ReadAll(reader)
@@ -108,42 +117,71 @@ func validateLogsForReaddirplus(t *testing.T, logFile string, dentryCacheEnabled
 	}
 }
 
-func mountGCSFuseAndSetupTestDir(flags []string, testDirName string) {
-	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
+func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) {
+	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, flags, mountFunc)
 	setup.SetMntDir(mountDir)
-	testDirPath = setup.SetupTestDirectory(testDirName)
+	testEnv.testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
 }
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
-	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
-	// Create common storage client to be used in test.
-	ctx = context.Background()
-	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
-	defer func() {
-		err := closeStorageClient()
-		if err != nil {
-			log.Fatalf("closeStorageClient failed: %v", err)
+	// 1. Load and parse the common configuration.
+	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
+	if len(cfg.ReadDirPlus) == 0 {
+		log.Println("No configuration found for readdirplus tests in config. Using flags instead.")
+		// Populate the config manually.
+		cfg.ReadDirPlus = make([]test_suite.TestConfig, 1)
+		cfg.ReadDirPlus[0].TestBucket = setup.TestBucket()
+		cfg.ReadDirPlus[0].GKEMountedDirectory = setup.MountedDirectory()
+		cfg.ReadDirPlus[0].LogFile = setup.LogFile()
+		cfg.ReadDirPlus[0].Configs = make([]test_suite.ConfigItem, 2)
+		cfg.ReadDirPlus[0].Configs[0].Flags = []string{
+			"--implicit-dirs --experimental-enable-readdirplus --experimental-enable-dentry-cache --log-file=/gcsfuse-tmp/TestReaddirplusWithDentryCacheTest.log --log-severity=TRACE",
 		}
-	}()
+		cfg.ReadDirPlus[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.ReadDirPlus[0].Configs[0].Run = "TestReaddirplusWithDentryCacheTest"
 
-	if setup.MountedDirectory() != "" {
-		mountDir = setup.MountedDirectory()
-		setup.SetLogFile(logFileNameForMountedDirectoryTests)
-		// Run tests for mounted directory if the flag is set.
-		os.Exit(m.Run())
+		cfg.ReadDirPlus[0].Configs[1].Flags = []string{
+			"--implicit-dirs --experimental-enable-readdirplus --log-file=/gcsfuse-tmp/TestReaddirplusWithoutDentryCacheTest.log --log-severity=TRACE",
+		}
+		cfg.ReadDirPlus[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.ReadDirPlus[0].Configs[1].Run = "TestReaddirplusWithoutDentryCacheTest"
 	}
-	// Else run tests for testBucket.
+
+	testEnv.ctx = context.Background()
+	testEnv.cfg = &cfg.ReadDirPlus[0]
+	testEnv.bucketType = setup.TestEnvironment(testEnv.ctx, testEnv.cfg)
+
+	// 2. Create storage client before running tests.
+	var err error
+	testEnv.storageClient, err = client.CreateStorageClient(testEnv.ctx)
+	if err != nil {
+		log.Printf("Error creating storage client: %v\n", err)
+		os.Exit(1)
+	}
+	defer testEnv.storageClient.Close()
+
+	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		mountDir = testEnv.cfg.GKEMountedDirectory
+		os.Exit(setup.RunTestsForMountedDirectory(mountDir, m))
+	}
+
+	// Run tests for testBucket
 	// Set up test directory.
-	setup.SetUpTestDirForTestBucketFlag()
+	setup.SetUpTestDirForTestBucket(testEnv.cfg)
+	// Override GKE specific paths with GCSFuse paths if running in GCE environment.
+	setup.OverrideFilePathsInFlagSet(testEnv.cfg, setup.TestDir())
 
 	// Save mount and root directory variables.
 	mountDir, rootDir = setup.MntDir(), setup.MntDir()
 
 	log.Println("Running static mounting tests...")
-	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
+	mountFunc = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile
 	successCode := m.Run()
 
+	// Clean up test directory created.
+	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(cfg.ReadDirPlus[0].TestBucket, testDirName))
 	os.Exit(successCode)
 }

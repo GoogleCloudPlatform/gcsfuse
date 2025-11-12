@@ -27,6 +27,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -93,22 +94,68 @@ func RenameDir(dirName string, newDirName string) (err error) {
 }
 
 func CreateDirectoryWithNFiles(numberOfFiles int, dirPath string, prefix string, t *testing.T) {
+	// 1. Create the directory.
 	err := os.Mkdir(dirPath, FilePermission_0777)
 	if err != nil && !errors.Is(err, fs.ErrExist) {
 		t.Fatalf("Error in creating directory %q: %v", dirPath, err)
 	}
 
-	for i := 1; i <= numberOfFiles; i++ {
-		// Create file with name prefix + i
-		// e.g. If prefix = temp  then temp1, temp2
-		filePath := path.Join(dirPath, prefix+strconv.Itoa(i))
-		file, err := os.Create(filePath)
-		if err != nil {
-			t.Fatalf("Failed to create file %q: %v", filePath, err)
-		}
+	// Limit the maximum number of I/O goroutines that can run simultaneously.
+	const maxConcurrency = 1024
+	sem := make(chan struct{}, maxConcurrency)
 
-		// Closing file at the end.
-		CloseFileShouldNotThrowError(t, file)
+	// 2. Setup a WaitGroup to manage concurrent Go routines
+	var wg sync.WaitGroup
+
+	// 3. Setup a channel to collect and report any errors
+	// A buffered channel is used so a Go routine won't block if the main thread
+	// has already called t.Fatalf and stopped processing.
+	errCh := make(chan error, numberOfFiles)
+
+	// 4. Loop to start concurrent file creation
+	for i := 1; i <= numberOfFiles; i++ {
+		// ACQUIRE TOKEN: This will block if 1024 goroutines are currently active
+		// to prevent thread limit exhaustion.
+		sem <- struct{}{}
+
+		wg.Add(1) // Increment the counter for each Go routine started
+
+		// Capture the loop variable locally to avoid race conditions
+		// where multiple Go routines might use the final value of i.
+		i := i
+
+		go func() {
+			defer wg.Done() // Decrement the counter when the Go routine finishes
+			// RELEASE TOKEN: Execute this immediately before the goroutine exits
+			// to allow the next waiting goroutine to proceed.
+			defer func() { <-sem }()
+
+			// Create file with name prefix + i (e.g., temp1, temp2)
+			filePath := path.Join(dirPath, prefix+strconv.Itoa(i))
+
+			file, err := os.Create(filePath)
+			if err != nil {
+				// Send the error to the channel instead of calling t.Fatalf directly
+				errCh <- err
+				return
+			}
+
+			// Closing file at the end.
+			CloseFileShouldNotThrowError(t, file)
+		}()
+	}
+
+	// 5. Wait for all Go routines to finish
+	wg.Wait()
+
+	// 6. Check for errors
+	// We need to check if any errors were sent to the channel.
+	select {
+	case err := <-errCh:
+		// If an error is received, fail the test
+		t.Fatalf("Failed to create file during parallel execution: %v", err)
+	default:
+		// No errors were available, so proceed
 	}
 }
 

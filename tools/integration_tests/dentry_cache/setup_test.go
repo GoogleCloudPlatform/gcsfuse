@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,63 +26,95 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 const (
 	testDirName        = "testDirForDentryCache"
-	testFileName       = "testFile"
 	initialContentSize = 5
 	updatedContentSize = 10
 )
 
 var (
-	storageClient *storage.Client
-	ctx           context.Context
-	testDirPath   string
-	mountFunc     func([]string) error
+	testEnv   env
+	mountFunc func(*test_suite.TestConfig, []string) error
 	// mount directory is where our tests run.
 	mountDir string
 	// root directory is the directory to be unmounted.
 	rootDir string
 )
 
-func mountGCSFuseAndSetupTestDir(flags []string, testDirName string) {
-	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
-	setup.SetMntDir(mountDir)
-	testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
+type env struct {
+	storageClient *storage.Client
+	ctx           context.Context
+	testDirPath   string
+	cfg           *test_suite.TestConfig
+	bucketType    string
+}
+
+func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) {
+	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, flags, mountFunc)
+	setup.SetMntDir(testEnv.cfg.GCSFuseMountedDirectory)
+	testEnv.testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
 }
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
-	if setup.TestBucket() == "" {
-		log.Print("--testbucket must be specified")
+
+	// 1. Load and parse the common configuration.
+	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
+	if len(cfg.DentryCache) == 0 {
+		log.Println("No configuration found for dentry_cache tests in config. Using flags instead.")
+		// Populate the config manually.
+		cfg.DentryCache = make([]test_suite.TestConfig, 1)
+		cfg.DentryCache[0].TestBucket = setup.TestBucket()
+		cfg.DentryCache[0].GKEMountedDirectory = setup.MountedDirectory()
+		cfg.DentryCache[0].LogFile = setup.LogFile()
+		cfg.DentryCache[0].Configs = make([]test_suite.ConfigItem, 3)
+		cfg.DentryCache[0].Configs[0].Flags = []string{
+			"--implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=2",
+		}
+		cfg.DentryCache[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.DentryCache[0].Configs[0].Run = "TestStatWithDentryCacheEnabledTest"
+		cfg.DentryCache[0].Configs[1].Flags = []string{
+			"--implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=1000",
+		}
+		cfg.DentryCache[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.DentryCache[0].Configs[1].Run = "TestDeleteOperationTest"
+		cfg.DentryCache[0].Configs[2].Flags = []string{
+			"--implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=1000",
+		}
+		cfg.DentryCache[0].Configs[2].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		cfg.DentryCache[0].Configs[2].Run = "TestNotifierTest"
+	}
+
+	testEnv.ctx = context.Background()
+	testEnv.cfg = &cfg.DentryCache[0]
+	testEnv.bucketType = setup.TestEnvironment(testEnv.ctx, testEnv.cfg)
+
+	// 2. Create storage client before running tests.
+	var err error
+	testEnv.storageClient, err = client.CreateStorageClient(testEnv.ctx)
+	if err != nil {
+		log.Printf("Error creating storage client: %v\n", err)
 		os.Exit(1)
 	}
+	defer testEnv.storageClient.Close()
 
-	// Create common storage client to be used in test.
-	ctx = context.Background()
-	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
-	defer func() {
-		err := closeStorageClient()
-		if err != nil {
-			log.Fatalf("closeStorageClient failed: %v", err)
-		}
-	}()
-
-	if setup.MountedDirectory() != "" {
-		mountDir = setup.MountedDirectory()
-		// Run tests for mounted directory if the flag is set.
-		os.Exit(m.Run())
+	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
 	}
-	// Else run tests for testBucket.
+
+	// Run tests for testBucket
 	// Set up test directory.
-	setup.SetUpTestDirForTestBucketFlag()
+	setup.SetUpTestDirForTestBucket(testEnv.cfg)
 
 	// Save mount and root directory variables.
 	mountDir, rootDir = setup.MntDir(), setup.MntDir()
 
 	log.Println("Running static mounting tests...")
-	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
+	mountFunc = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile
 	successCode := m.Run()
 
 	os.Exit(successCode)

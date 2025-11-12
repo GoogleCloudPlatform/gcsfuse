@@ -64,8 +64,8 @@ func setupForMountedDirectoryTests() {
 }
 
 func createConfigFile(flags *gcsfuseTestFlags) string {
-	mountConfig := make(map[string]interface{})
-	readConfig := make(map[string]interface{})
+	mountConfig := make(map[string]any)
+	readConfig := make(map[string]any)
 
 	// Only add flags to the config if they have a non-zero/non-default value.
 	// This prevents writing zero values that would override GCSFuse's built-in defaults.
@@ -91,7 +91,7 @@ func createConfigFile(flags *gcsfuseTestFlags) string {
 		mountConfig["read"] = readConfig
 	}
 	if flags.clientProtocol != "" {
-		mountConfig["gcs-connection"] = map[string]interface{}{"client-protocol": flags.clientProtocol}
+		mountConfig["gcs-connection"] = map[string]any{"client-protocol": flags.clientProtocol}
 	}
 	filePath := setup.YAMLConfigFile(mountConfig, "config.yaml")
 	return filePath
@@ -124,15 +124,16 @@ func TestMain(m *testing.M) {
 	}
 
 	// Else run tests for testBucket.
-	setup.SetUpTestDirForTestBucket(setup.TestBucket())
+	setup.SetUpTestDirForTestBucketFlag()
 	rootDir = setup.MntDir()
 
 	// Set up the static mounting function.
 	mountFunc = func(flags []string) error {
 		config := &test_suite.TestConfig{
-			TestBucket:       setup.TestBucket(),
-			MountedDirectory: setup.MountedDirectory(),
-			LogFile:          setup.LogFile(),
+			TestBucket:              setup.TestBucket(),
+			GKEMountedDirectory:     setup.MountedDirectory(),
+			GCSFuseMountedDirectory: setup.MntDir(),
+			LogFile:                 setup.LogFile(),
 		}
 		return static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(config, flags)
 	}

@@ -29,7 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
 
-type DownloadTask struct {
+type downloadTask struct {
 	workerpool.Task
 	object       *gcs.MinObject
 	bucket       gcs.Bucket
@@ -45,54 +45,36 @@ type DownloadTask struct {
 	readHandle []byte
 }
 
-func NewDownloadTask(ctx context.Context, object *gcs.MinObject, bucket gcs.Bucket, block block.PrefetchBlock, readHandle []byte, metricHandle metrics.MetricHandle) *DownloadTask {
-	return &DownloadTask{
-		ctx:          ctx,
-		object:       object,
-		bucket:       bucket,
-		block:        block,
-		readHandle:   readHandle,
-		metricHandle: metricHandle,
-	}
-}
-
 // Execute implements the workerpool.Task interface. It downloads the data from
 // the GCS object to the block.
 // After completion, it notifies the block consumer about the status of the
 // download task. The status can be one of the following:
 // - BlockStatusDownloaded: The download was successful.
 // - BlockStatusDownloadFailed: The download failed due to an error.
-func (p *DownloadTask) Execute() {
+func (p *downloadTask) Execute() {
 	startOff := p.block.AbsStartOff()
 	blockId := startOff / p.block.Cap()
 	logger.Tracef("Download: <- block (%s, %v).", p.object.Name, blockId)
 	stime := time.Now()
 	var err error
+	var n int64
 	defer func() {
-		var status string
 		dur := time.Since(stime)
 		if err == nil {
-			status = "successful"
 			logger.Tracef("Download: -> block (%s, %v) Ok(%v).", p.object.Name, blockId, dur)
 			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloaded})
 		} else if errors.Is(err, context.Canceled) && p.ctx.Err() == context.Canceled {
-			status = "cancelled"
 			logger.Tracef("Download: -> block (%s, %v) cancelled: %v.", p.object.Name, blockId, err)
 			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})
 		} else {
-			status = "failed"
 			logger.Errorf("Download: -> block (%s, %v) failed: %v.", p.object.Name, blockId, err)
 			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})
 		}
-		p.metricHandle.BufferedReadDownloadBlockLatency(p.ctx, dur, status)
-		p.metricHandle.BufferedReadScheduledBlockCount(1, status)
+		p.metricHandle.GcsDownloadBytesCount(n, metrics.ReadTypeBufferedAttr)
 	}()
 
 	start := uint64(startOff)
-	end := start + uint64(p.block.Cap())
-	if end > p.object.Size {
-		end = p.object.Size
-	}
+	end := min(start+uint64(p.block.Cap()), p.object.Size)
 	newReader, err := p.bucket.NewReaderWithReadHandle(
 		p.ctx,
 		&gcs.ReadObjectRequest{
@@ -116,7 +98,7 @@ func (p *DownloadTask) Execute() {
 	}
 	defer newReader.Close()
 
-	_, err = io.CopyN(p.block, newReader, int64(end-start))
+	n, err = io.CopyN(p.block, newReader, int64(end-start))
 	if err != nil {
 		err = fmt.Errorf("DownloadTask.Execute: while data-copy: %w", err)
 		return

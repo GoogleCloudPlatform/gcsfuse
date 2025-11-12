@@ -254,7 +254,7 @@ func (t *TypeCacheTestWithMaxSize1MB) TestSizeBasedEviction() {
 	// Increase the object-name size to increase per-entry-size (max allowed is 1024)
 	// to decrease count of objects being created for this,
 	// to reduce the runtime.
-	for i := 0; i < 99; i++ {
+	for range 99 {
 		objectNameTemplate += "abcdefjhij" // This makes it length+=10.
 	}
 	nameOfIthObject := func(i int) string {
@@ -313,10 +313,7 @@ func (t *TypeCacheTestWithMaxSize1MB) TestSizeBasedEviction() {
 
 	var batchOffset int
 	for remainingObjectsToBeInserted := numObjectsToBeInserted; remainingObjectsToBeInserted > 0; {
-		objectsInsertedInThisBatch := maxNumObjectsPerBatch
-		if objectsInsertedInThisBatch > remainingObjectsToBeInserted {
-			objectsInsertedInThisBatch = remainingObjectsToBeInserted
-		}
+		objectsInsertedInThisBatch := min(maxNumObjectsPerBatch, remainingObjectsToBeInserted)
 
 		wg.Add(1)
 		go createAndStatBatchOfObjects(batchOffset, objectsInsertedInThisBatch)

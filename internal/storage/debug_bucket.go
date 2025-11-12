@@ -54,13 +54,13 @@ func (b *debugBucket) mintRequestID() (id uint64) {
 func (b *debugBucket) requestLogf(
 	id uint64,
 	format string,
-	v ...interface{}) {
+	v ...any) {
 	logger.Tracef("gcs: Req %#16x: %s", id, fmt.Sprintf(format, v...))
 }
 
 func (b *debugBucket) startRequest(
 	format string,
-	v ...interface{}) (id uint64, desc string, start time.Time) {
+	v ...any) (id uint64, desc string, start time.Time) {
 	start = time.Now()
 	id = b.mintRequestID()
 	desc = fmt.Sprintf(format, v...)
@@ -364,6 +364,13 @@ func (dmrd *debugMultiRangeDownloader) Wait() {
 func (dmrd *debugMultiRangeDownloader) Error() (err error) {
 	err = dmrd.wrapped.Error()
 	return
+}
+
+func (dmrd *debugMultiRangeDownloader) GetHandle() []byte {
+	id, desc, start := dmrd.bucket.startRequest("MultiRangeDownloader.GetHandle()")
+	var err error
+	defer dmrd.bucket.finishRequest(id, desc, start, &err)
+	return dmrd.wrapped.GetHandle()
 }
 
 func (b *debugBucket) NewMultiRangeDownloader(

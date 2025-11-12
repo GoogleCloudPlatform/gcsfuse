@@ -37,7 +37,7 @@ func (m *mockStatCache) AddNegativeEntryForFolder(p0 string, p1 time.Time) {
 		"AddNegativeEntryForFolder",
 		name,
 		line,
-		[]interface{}{p0, p1})
+		[]any{p0, p1})
 
 	if len(retVals) != 0 {
 		panic(fmt.Sprintf("mockStatCache.AddNegativeEntryforFolder: invalid return values: %v", retVals))
@@ -71,7 +71,7 @@ func (m *mockStatCache) AddNegativeEntry(p0 string, p1 time.Time) {
 		"AddNegativeEntry",
 		file,
 		line,
-		[]interface{}{p0, p1})
+		[]any{p0, p1})
 
 	if len(retVals) != 0 {
 		panic(fmt.Sprintf("mockStatCache.AddNegativeEntry: invalid return values: %v", retVals))
@@ -88,7 +88,7 @@ func (m *mockStatCache) Erase(p0 string) {
 		"Erase",
 		file,
 		line,
-		[]interface{}{p0})
+		[]any{p0})
 
 	if len(retVals) != 0 {
 		panic(fmt.Sprintf("mockStatCache.Erase: invalid return values: %v", retVals))
@@ -105,7 +105,7 @@ func (m *mockStatCache) Insert(p0 *gcs.MinObject, p1 time.Time) {
 		"Insert",
 		file,
 		line,
-		[]interface{}{p0, p1})
+		[]any{p0, p1})
 
 	if len(retVals) != 0 {
 		panic(fmt.Sprintf("mockStatCache.Insert: invalid return values: %v", retVals))
@@ -122,7 +122,7 @@ func (m *mockStatCache) LookUp(p0 string, p1 time.Time) (o0 bool, o1 *gcs.MinObj
 		"LookUp",
 		file,
 		line,
-		[]interface{}{p0, p1})
+		[]any{p0, p1})
 
 	if len(retVals) != 2 {
 		panic(fmt.Sprintf("mockStatCache.LookUp: invalid return values: %v", retVals))
@@ -151,7 +151,7 @@ func (m *mockStatCache) InsertFolder(p0 *gcs.Folder, p1 time.Time) {
 		"InsertFolder",
 		file,
 		line,
-		[]interface{}{p0, p1})
+		[]any{p0, p1})
 
 	if len(retVals) != 0 {
 		panic(fmt.Sprintf("mockStatCache.InsertFolder: invalid return values: %v", retVals))
@@ -168,7 +168,7 @@ func (m *mockStatCache) LookUpFolder(p0 string, p1 time.Time) (o0 bool, o1 *gcs.
 		"LookUpFolder",
 		file,
 		line,
-		[]interface{}{p0, p1})
+		[]any{p0, p1})
 
 	if len(retVals) != 2 {
 		panic(fmt.Sprintf("mockStatCache.LookUpFolder: invalid return values: %v", retVals))
@@ -197,7 +197,7 @@ func (m *mockStatCache) EraseEntriesWithGivenPrefix(p0 string) {
 		"EraseEntriesWithGivenPrefix",
 		file,
 		line,
-		[]interface{}{p0})
+		[]any{p0})
 
 	if len(retVals) != 0 {
 		panic(fmt.Sprintf("mockStatCache.LookUpFolder: invalid return values: %v", retVals))

@@ -48,7 +48,14 @@ func validFileCacheConfig(t *testing.T) FileCacheConfig {
 func validFileCacheConfigWithExcludeRegex(t *testing.T, r string) FileCacheConfig {
 	t.Helper()
 	cfg := validFileCacheConfig(t)
-	cfg.ExperimentalExcludeRegex = r
+	cfg.ExcludeRegex = r
+	return cfg
+}
+
+func validFileCacheConfigWithIncludeRegex(t *testing.T, r string) FileCacheConfig {
+	t.Helper()
+	cfg := validFileCacheConfig(t)
+	cfg.IncludeRegex = r
 	return cfg
 }
 
@@ -228,6 +235,25 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
 				CacheDir:  "/some/valid/path",
 				FileCache: validFileCacheConfigWithExcludeRegex(t, ".*"),
+				GcsConnection: GcsConnectionConfig{
+					CustomEndpoint:       "https://bing.com/search?q=dotnet",
+					SequentialReadSizeMb: 200,
+				},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "disabled",
+				},
+				Metrics: MetricsConfig{
+					Workers:    3,
+					BufferSize: 256,
+				},
+			},
+		},
+		{
+			name: "valid_file_cache_include_config",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				CacheDir:  "/some/valid/path",
+				FileCache: validFileCacheConfigWithIncludeRegex(t, ".*"),
 				GcsConnection: GcsConnectionConfig{
 					CustomEndpoint:       "https://bing.com/search?q=dotnet",
 					SequentialReadSizeMb: 200,
@@ -456,6 +482,13 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 			config: &Config{
 				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
 				FileCache: validFileCacheConfigWithExcludeRegex(t, "["),
+			},
+		},
+		{
+			name: "file_cache_include_regex",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfigWithIncludeRegex(t, "["),
 			},
 		},
 		{
@@ -759,6 +792,10 @@ func validConfig(t *testing.T) Config {
 		MetadataCache: MetadataCacheConfig{
 			ExperimentalMetadataPrefetchOnMount: "disabled",
 		},
+		Metrics: MetricsConfig{
+			Workers:    1,
+			BufferSize: 1,
+		},
 	}
 }
 
@@ -863,7 +900,6 @@ func TestValidateMetrics(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			c := validConfig(t)
@@ -925,7 +961,6 @@ func TestValidateLogSeverityRanks(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.logSev, func(t *testing.T) {
 			t.Parallel()
 			level := LogSeverity(tc.logSev)
@@ -938,6 +973,52 @@ func TestValidateLogSeverityRanks(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tc.wantLogSev.Rank(), level.Rank())
+			}
+		})
+	}
+}
+
+func TestValidateProfile(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name    string
+		profile string
+		wantErr bool
+	}{
+		{
+			name:    "empty_profile",
+			profile: "",
+			wantErr: false,
+		}, {
+			name:    "profile_training",
+			profile: ProfileAIMLTraining,
+			wantErr: false,
+		}, {
+			name:    "profile_serving",
+			profile: ProfileAIMLServing,
+			wantErr: false,
+		}, {
+			name:    "profile_checkpointing",
+			profile: ProfileAIMLCheckpointing,
+			wantErr: false,
+		}, {
+			name:    "unsupported_profile",
+			profile: "unsupported-profile",
+			wantErr: true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			c := validConfig(t)
+			c.Profile = tc.profile
+
+			err := ValidateConfig(&mockIsSet{}, &c)
+
+			if tc.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}

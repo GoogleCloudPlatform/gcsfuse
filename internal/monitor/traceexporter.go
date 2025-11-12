@@ -23,17 +23,13 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
-	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
-
-	"go.opentelemetry.io/contrib/detectors/gcp"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
 // SetupTracing bootstraps the OpenTelemetry tracing pipeline.
-func SetupTracing(ctx context.Context, c *cfg.Config) common.ShutdownFn {
-	tp, shutdown, err := newTraceProvider(ctx, c)
+func SetupTracing(ctx context.Context, c *cfg.Config, mountID string) common.ShutdownFn {
+	tp, shutdown, err := newTraceProvider(ctx, c, mountID)
 	if err != nil {
 		logger.Errorf("error occurred while setting up tracing: %v", err)
 		return nil
@@ -46,12 +42,12 @@ func SetupTracing(ctx context.Context, c *cfg.Config) common.ShutdownFn {
 	return nil
 }
 
-func newTraceProvider(ctx context.Context, c *cfg.Config) (trace.TracerProvider, common.ShutdownFn, error) {
+func newTraceProvider(ctx context.Context, c *cfg.Config, mountID string) (trace.TracerProvider, common.ShutdownFn, error) {
 	switch c.Monitoring.ExperimentalTracingMode {
 	case "stdout":
 		return newStdoutTraceProvider()
 	case "gcptrace":
-		return newGCPCloudTraceExporter(ctx, c)
+		return newGCPCloudTraceExporter(ctx, c, mountID)
 	default:
 		return nil, nil, nil
 	}
@@ -67,20 +63,19 @@ func newStdoutTraceProvider() (trace.TracerProvider, common.ShutdownFn, error) {
 	return tp, tp.Shutdown, nil
 }
 
-func newGCPCloudTraceExporter(ctx context.Context, c *cfg.Config) (*sdktrace.TracerProvider, common.ShutdownFn, error) {
-	exporter, err := cloudtrace.New()
+func newGCPCloudTraceExporter(ctx context.Context, c *cfg.Config, mountID string) (*sdktrace.TracerProvider, common.ShutdownFn, error) {
+	var traceOptions []cloudtrace.Option
+
+	if c.Monitoring.ExperimentalTracingProjectId != "" {
+		traceOptions = append(traceOptions, cloudtrace.WithProjectID(c.Monitoring.ExperimentalTracingProjectId))
+	}
+
+	exporter, err := cloudtrace.New(traceOptions...)
+
 	if err != nil {
 		return nil, nil, err
 	}
-	res, err := resource.New(ctx,
-		// Use the GCP resource detector to detect information about the GCP platform
-		resource.WithDetectors(gcp.NewDetector()),
-		resource.WithTelemetrySDK(),
-		resource.WithAttributes(
-			semconv.ServiceName(serviceName),
-			semconv.ServiceVersion(common.GetVersion()),
-		),
-	)
+	res, err := getResource(ctx, mountID)
 	if err != nil {
 		return nil, nil, err
 	}

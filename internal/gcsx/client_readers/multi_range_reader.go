@@ -63,7 +63,7 @@ func NewMultiRangeReader(object *gcs.MinObject, metricHandle metrics.MetricHandl
 // Returns:
 //   - int: The number of bytes read.
 //   - error: An error if the read operation fails.
-func (mrd *MultiRangeReader) readFromMultiRangeReader(ctx context.Context, p []byte, offset, end int64) (int, error) {
+func (mrd *MultiRangeReader) readFromMultiRangeReader(ctx context.Context, p []byte, offset, end int64, forceCreateMRD bool) (int, error) {
 	if mrd.mrdWrapper == nil {
 		return 0, fmt.Errorf("readFromMultiRangeReader: Invalid MultiRangeDownloaderWrapper")
 	}
@@ -72,24 +72,23 @@ func (mrd *MultiRangeReader) readFromMultiRangeReader(ctx context.Context, p []b
 		mrd.mrdWrapper.IncrementRefCount()
 	}
 
-	return mrd.mrdWrapper.Read(ctx, p, offset, end, mrd.metricHandle)
+	return mrd.mrdWrapper.Read(ctx, p, offset, end, mrd.metricHandle, forceCreateMRD)
 }
 
-func (mrd *MultiRangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (gcsx.ReaderResponse, error) {
-	readerResponse := gcsx.ReaderResponse{
-		DataBuf: req.Buffer,
-		Size:    0,
-	}
-	var err error
+func (mrd *MultiRangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (gcsx.ReadResponse, error) {
+	var (
+		readResponse gcsx.ReadResponse
+		err          error
+	)
 
 	if req.Offset >= int64(mrd.object.Size) {
 		err = io.EOF
-		return readerResponse, err
+		return readResponse, err
 	}
 
-	readerResponse.Size, err = mrd.readFromMultiRangeReader(ctx, req.Buffer, req.Offset, req.EndOffset)
+	readResponse.Size, err = mrd.readFromMultiRangeReader(ctx, req.Buffer, req.Offset, req.EndOffset, req.ForceCreateReader)
 
-	return readerResponse, err
+	return readResponse, err
 }
 
 func (mrd *MultiRangeReader) destroy() {

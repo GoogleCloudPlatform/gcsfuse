@@ -69,6 +69,43 @@ func TestRationalizeCustomEndpointSuccessful(t *testing.T) {
 	}
 }
 
+func TestRationalize_ReadConfig(t *testing.T) {
+	testCases := []struct {
+		name                    string
+		config                  *Config
+		expectedGlobalMaxBlocks int64
+	}{
+		{
+			name: "global-max-blocks is -1",
+			config: &Config{
+				Read: ReadConfig{
+					GlobalMaxBlocks: -1,
+				},
+			},
+			expectedGlobalMaxBlocks: math.MaxInt32,
+		},
+		{
+			name: "global-max-blocks is not -1",
+			config: &Config{
+				Read: ReadConfig{
+					GlobalMaxBlocks: 100,
+				},
+			},
+			expectedGlobalMaxBlocks: 100,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := Rationalize(&mockIsSet{}, tc.config, []string{})
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedGlobalMaxBlocks, tc.config.Read.GlobalMaxBlocks)
+			}
+		})
+	}
+}
+
 func TestRationalizeCustomEndpointUnsuccessful(t *testing.T) {
 	testCases := []struct {
 		name   string
@@ -429,7 +466,7 @@ func TestRationalize_WriteConfig(t *testing.T) {
 			},
 			expectedCreateEmptyFile:  false,
 			expectedMaxBlocksPerFile: math.MaxInt16,
-			expectedBlockSizeMB:      10 * 1024 * 1024,
+			expectedBlockSizeMB:      10,
 		},
 		{
 			name: "valid_config_global_max_blocks_less_than_blocks_per_file",
@@ -444,7 +481,7 @@ func TestRationalize_WriteConfig(t *testing.T) {
 			},
 			expectedCreateEmptyFile:  false,
 			expectedMaxBlocksPerFile: 20,
-			expectedBlockSizeMB:      5 * 1024 * 1024,
+			expectedBlockSizeMB:      5,
 		},
 		{
 			name: "valid_config_global_max_blocks_more_than_blocks_per_file",
@@ -459,7 +496,7 @@ func TestRationalize_WriteConfig(t *testing.T) {
 			},
 			expectedCreateEmptyFile:  false,
 			expectedMaxBlocksPerFile: 10,
-			expectedBlockSizeMB:      64 * 1024 * 1024,
+			expectedBlockSizeMB:      64,
 		},
 	}
 
@@ -516,7 +553,6 @@ func TestRationalizeMetricsConfig(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 

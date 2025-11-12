@@ -18,6 +18,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -29,7 +30,7 @@ func TestVersion(t *testing.T) {
 		t.Fatalf("Error while creating temporary directory: %v", err)
 	}
 	t.Cleanup(func() { _ = os.RemoveAll(dir) })
-	err = buildBinaries(dir, "../../", "99.88.77", nil)
+	err = buildBinaries(dir, "../../", "99.88.77", runtime.GOARCH, nil)
 	if err != nil {
 		t.Fatalf("Error while building binary: %v", err)
 	}

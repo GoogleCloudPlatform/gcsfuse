@@ -24,10 +24,14 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"golang.org/x/sys/unix"
@@ -52,6 +56,8 @@ import (
 const (
 	SuccessfulMountMessage         = "File system has been successfully mounted."
 	UnsuccessfulMountMessagePrefix = "Error while mounting gcsfuse"
+	DynamicMountFSName             = "gcsfuse"
+	WaitTimeOnSignalReceive        = 30 * time.Second
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -74,8 +80,18 @@ func registerTerminatingSignalHandler(mountPoint string) {
 			case os.Interrupt:
 				sigName = "SIGINT"
 			}
-			logger.Infof("Received %s, attempting to unmount...", sigName)
 
+			//On signal receive wait in background and give 30 second for unmount to finish
+			//and then exit, so application is closed.
+			go func() {
+				logger.Warnf("Received %s, waiting for %s to let system gracefully unmount before killing the process", sigName, WaitTimeOnSignalReceive)
+				time.Sleep(WaitTimeOnSignalReceive)
+				logger.Warnf("killing goroutines and exit")
+				//Forcefully exit to 0 so that caller get success on forcefull exit also.
+				os.Exit(0)
+			}()
+
+			logger.Warnf("Received %s, attempting to unmount...", sigName)
 			err := fuse.Unmount(mountPoint)
 			if err != nil {
 				if errors.Is(err, fuse.ErrExternallyManagedMountPoint) {
@@ -91,37 +107,38 @@ func registerTerminatingSignalHandler(mountPoint string) {
 	}()
 }
 
-func getUserAgent(appName string, config string) string {
+func getUserAgent(appName, config, mountInstanceID string) string {
+	var userAgent string
 	gcsfuseMetadataImageType := os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE")
 	if len(gcsfuseMetadataImageType) > 0 {
-		userAgent := fmt.Sprintf("gcsfuse/%s %s (GPN:gcsfuse-%s) (Cfg:%s)", common.GetVersion(), appName, gcsfuseMetadataImageType, config)
-		return strings.Join(strings.Fields(userAgent), " ")
+		userAgent = fmt.Sprintf("gcsfuse/%s %s (GPN:gcsfuse-%s) (Cfg:%s)", common.GetVersion(), appName, gcsfuseMetadataImageType, config)
+		userAgent = strings.Join(strings.Fields(userAgent), " ")
 	} else if len(appName) > 0 {
-		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-%s) (Cfg:%s)", common.GetVersion(), appName, config)
+		userAgent = fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-%s) (Cfg:%s)", common.GetVersion(), appName, config)
 	} else {
-		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse) (Cfg:%s)", common.GetVersion(), config)
+		userAgent = fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse) (Cfg:%s)", common.GetVersion(), config)
 	}
+	return fmt.Sprintf("%s (mount-id:%s)", userAgent, mountInstanceID)
+}
+
+func boolToBin(b bool) string {
+	if b {
+		return "1"
+	}
+	return "0"
 }
 
 func getConfigForUserAgent(mountConfig *cfg.Config) string {
-	// Minimum configuration details created in a bitset fashion. Right now, its restricted only to File Cache Settings.
-	isFileCacheEnabled := "0"
-	if cfg.IsFileCacheEnabled(mountConfig) {
-		isFileCacheEnabled = "1"
+	// Minimum configuration details created in a bitset fashion.
+	parts := []string{
+		boolToBin(cfg.IsFileCacheEnabled(mountConfig)),
+		boolToBin(mountConfig.FileCache.CacheFileForRangeRead),
+		boolToBin(cfg.IsParallelDownloadsEnabled(mountConfig)),
+		boolToBin(mountConfig.Write.EnableStreamingWrites),
+		boolToBin(mountConfig.Read.EnableBufferedRead),
+		boolToBin(mountConfig.Profile != ""),
 	}
-	isFileCacheForRangeReadEnabled := "0"
-	if mountConfig.FileCache.CacheFileForRangeRead {
-		isFileCacheForRangeReadEnabled = "1"
-	}
-	isParallelDownloadsEnabled := "0"
-	if cfg.IsParallelDownloadsEnabled(mountConfig) {
-		isParallelDownloadsEnabled = "1"
-	}
-	areStreamingWritesEnabled := "0"
-	if mountConfig.Write.EnableStreamingWrites {
-		areStreamingWritesEnabled = "1"
-	}
-	return fmt.Sprintf("%s:%s:%s:%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled, isParallelDownloadsEnabled, areStreamingWritesEnabled)
+	return strings.Join(parts, ":")
 }
 func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle metrics.MetricHandle, isGKE bool) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
@@ -145,7 +162,9 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		ReadStallRetryConfig:       newConfig.GcsRetries.ReadStall,
 		MetricHandle:               metricHandle,
 		TracingEnabled:             cfg.IsTracingEnabled(newConfig),
-		EnableGrpcMetrics:          newConfig.Metrics.EnableGrpcMetrics,
+		EnableHTTPDNSCache:         newConfig.GcsConnection.EnableHttpDnsCache,
+		LocalSocketAddress:         newConfig.GcsConnection.ExperimentalLocalSocketAddress,
+    EnableGrpcMetrics:          newConfig.Metrics.EnableGrpcMetrics,
 		IsGKE:                      isGKE,
 	}
 	logger.Infof("UserAgent = %s\n", storageClientConfig.UserAgent)
@@ -175,7 +194,7 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, 
 	// connection.
 	var storageHandle storage.StorageHandle
 	if bucketName != canned.FakeBucketName {
-		userAgent := getUserAgent(newConfig.AppName, getConfigForUserAgent(newConfig))
+		userAgent := getUserAgent(newConfig.AppName, getConfigForUserAgent(newConfig), logger.MountInstanceID(fsName(bucketName)))
 		logger.Info("Creating Storage handle...")
 		storageHandle, err = createStorageHandle(newConfig, userAgent, metricHandle, isGKE)
 		if err != nil {
@@ -200,6 +219,53 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, 
 	}
 
 	return
+}
+
+// getDeviceMajorMinor returns the major and minor device numbers
+// for the filesystem mounted at the given mountPath.
+func getDeviceMajorMinor(mountPoint string) (major uint32, minor uint32, err error) {
+	if runtime.GOOS != "linux" {
+		return 0, 0, fmt.Errorf("unsupported OS: %s, device major/minor lookup is linux-specific", runtime.GOOS)
+	}
+
+	fileInfo, err := os.Stat(mountPoint)
+	if err != nil {
+		err = fmt.Errorf("os.Stat: %w", err)
+		return
+	}
+
+	stat, ok := fileInfo.Sys().(*syscall.Stat_t)
+	if !ok {
+		err = fmt.Errorf("fileInfo.Sys() is not of type *syscall.Stat_t")
+		return
+	}
+
+	devID := stat.Dev
+	major = unix.Major(uint64(devID))
+	minor = unix.Minor(uint64(devID))
+	return
+}
+
+// setMaxReadAhead sets the kernel-read-ahead for the filesystem mounted at
+// the given mountPoint to readAheadKb.
+func setMaxReadAhead(mountPoint string, readAheadKb int) error {
+	major, minor, err := getDeviceMajorMinor(mountPoint)
+	if err != nil {
+		return fmt.Errorf("getting device major/minor for mount point %s: %v", mountPoint, err)
+	}
+
+	sysPath := filepath.Join("/sys/class/bdi", fmt.Sprintf("%d:%d", major, minor), "read_ahead_kb")
+	cmd := exec.Command("sudo", "-n", "tee", sysPath)
+	cmd.Stdin = strings.NewReader(fmt.Sprintf("%d\n", readAheadKb))
+
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+	err = cmd.Run()
+	if err != nil {
+		err = fmt.Errorf("setting the read ahead on mount-path %s: %v, stderr: %s", mountPoint, err, stderr.String())
+		return err
+	}
+	return nil
 }
 
 func populateArgs(args []string) (
@@ -263,6 +329,13 @@ func isDynamicMount(bucketName string) bool {
 	return bucketName == "" || bucketName == "_"
 }
 
+func fsName(bucketName string) string {
+	if isDynamicMount(bucketName) {
+		return DynamicMountFSName
+	}
+	return bucketName
+}
+
 // forwardedEnvVars collects and returns all the environment
 // variables which should be sent to the gcsfuse daemon
 // process in case of background run.
@@ -324,18 +397,38 @@ func forwardedEnvVars() []string {
 	// process and daemon process. If this environment variable set that means
 	// programme is running as daemon process.
 	env = append(env, fmt.Sprintf("%s=true", logger.GCSFuseInBackgroundMode))
+
+	// This environment variable is used to enhance gcsfuse logging by using unique
+	// MountUUID to identify logs from different mounts.
+	// MountUUID is used here instead of the MountInstanceID for unified logic
+	// in callers of MountInstaceID in both background and foreground mode.
+	env = append(env, fmt.Sprintf("%s=%s", logger.MountUUIDEnvKey, logger.MountUUID()))
 	return env
 }
 
-func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
-	// Ideally this call to SetLogFormat (which internally creates a new defaultLogger)
+// logGCSFuseMountInformation logs the CLI flags, config file flags and the resolved config.
+func logGCSFuseMountInformation(mountInfo *mountInfo) {
+	logger.Info("GCSFuse Config", "CLI Flags", mountInfo.cliFlags)
+	if mountInfo.configFileFlags != nil {
+		logger.Info("GCSFuse Config", "ConfigFile Flags", mountInfo.configFileFlags)
+	}
+	if len(mountInfo.optimizedFlags) > 0 {
+		logger.Info("GCSFuse Config", "Optimized Flags", mountInfo.optimizedFlags)
+	}
+	logger.Info("GCSFuse Config", "Full Config", mountInfo.config)
+}
+
+func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
+	newConfig := mountInfo.config
+	// Ideally this call to UpdateDefaultLogger (which internally creates a
+	// new defaultLogger with user provided log-format and custom attribute 'fsName-MountInstanceID')
 	// should be set as an else to the 'if flags.Foreground' check below, but currently
 	// that means the logs generated by resolveConfigFilePaths below don't honour
 	// the user-provided log-format.
-	logger.SetLogFormat(newConfig.Logging.Format)
+	logger.UpdateDefaultLogger(newConfig.Logging.Format, fsName(bucketName))
 
 	if newConfig.Foreground {
-		err = logger.InitLogFile(newConfig.Logging)
+		err = logger.InitLogFile(newConfig.Logging, fsName(bucketName))
 		if err != nil {
 			return fmt.Errorf("init log file: %w", err)
 		}
@@ -349,7 +442,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	// if these are already being logged into a log-file, otherwise
 	// there will be duplicate logs for these in both places (stdout and log-file).
 	if newConfig.Foreground || newConfig.Logging.FilePath == "" {
-		logger.Info("GCSFuse config", "config", newConfig)
+		logGCSFuseMountInformation(mountInfo)
 	}
 
 	// The following will not warn if the user explicitly passed the default value for StatCacheCapacity.
@@ -401,16 +494,16 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 	var metricExporterShutdownFn common.ShutdownFn
 	metricHandle := metrics.NewNoopMetrics()
 	if cfg.IsMetricsEnabled(&newConfig.Metrics) {
-		metricExporterShutdownFn = monitor.SetupOTelMetricExporters(ctx, newConfig)
+		metricExporterShutdownFn = monitor.SetupOTelMetricExporters(ctx, newConfig, logger.MountInstanceID(fsName(bucketName)))
 		if metricHandle, err = metrics.NewOTelMetrics(ctx, int(newConfig.Metrics.Workers), int(newConfig.Metrics.BufferSize)); err != nil {
 			metricHandle = metrics.NewNoopMetrics()
 		}
 	}
-	shutdownTracingFn := monitor.SetupTracing(ctx, newConfig)
+	shutdownTracingFn := monitor.SetupTracing(ctx, newConfig, logger.MountInstanceID(fsName(bucketName)))
 	shutdownFn := common.JoinShutdownFunc(metricExporterShutdownFn, shutdownTracingFn)
 
 	// No-op if profiler is disabled.
-	if err := profiler.SetupCloudProfiler(&newConfig.Profiling); err != nil {
+	if err := profiler.SetupCloudProfiler(&newConfig.CloudProfiler); err != nil {
 		logger.Warnf("Failed to setup cloud profiler: %v", err)
 	}
 
@@ -464,6 +557,16 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 			}
 		}
 		markSuccessfulMount()
+
+		if newConfig.FileSystem.MaxReadAheadKb != 0 {
+			err = setMaxReadAhead(mountPoint, int(newConfig.FileSystem.MaxReadAheadKb))
+			if err != nil {
+				logger.Infof("Failed to set the max read ahead: %v", err)
+			} else {
+				logger.Infof("Max read-ahead set to %d KB successfully.", newConfig.FileSystem.MaxReadAheadKb)
+			}
+		}
+
 	}
 
 	// Let the user unmount with Ctrl-C (SIGINT).
@@ -476,7 +579,7 @@ func Mount(newConfig *cfg.Config, bucketName, mountPoint string) (err error) {
 
 	if shutdownFn != nil {
 		if shutdownErr := shutdownFn(ctx); shutdownErr != nil {
-			logger.Errorf("Error while shutting down trace exporter: %v", shutdownErr)
+			logger.Errorf("Error while shutting down dependencies: %v", shutdownErr)
 		}
 	}
 

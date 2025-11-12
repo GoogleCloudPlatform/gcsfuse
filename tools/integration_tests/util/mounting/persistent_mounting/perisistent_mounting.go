@@ -42,16 +42,16 @@ func makePersistentMountingArgs(flags []string) (args []string) {
 
 func mountGcsfuseWithPersistentMountingWithConfigFile(config *test_suite.TestConfig, flags []string) (err error) {
 	defaultArg := []string{config.TestBucket,
-		setup.MntDir(),
+		config.GCSFuseMountedDirectory,
 		"-o",
 		"log_severity=trace",
 		"-o",
-		"log_file=" + setup.LogFile(),
+		"log_file=" + config.LogFile,
 	}
 
 	persistentMountingArgs := makePersistentMountingArgs(flags)
 
-	for i := 0; i < len(persistentMountingArgs); i++ {
+	for i := range persistentMountingArgs {
 		// e.g. -o flag1, -o flag2, ...
 		defaultArg = append(defaultArg, "-o", persistentMountingArgs[i])
 	}
@@ -64,7 +64,7 @@ func mountGcsfuseWithPersistentMountingWithConfigFile(config *test_suite.TestCon
 func executeTestsForPersistentMountingWithConfigFile(config *test_suite.TestConfig, flagsSet [][]string, m *testing.M) (successCode int) {
 	var err error
 
-	for i := 0; i < len(flagsSet); i++ {
+	for i := range flagsSet {
 		if err = mountGcsfuseWithPersistentMountingWithConfigFile(config, flagsSet[i]); err != nil {
 			setup.LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
 		}
@@ -81,9 +81,10 @@ func executeTestsForPersistentMountingWithConfigFile(config *test_suite.TestConf
 // TODO(b/438068132): cleanup deprecated methods after migration is complete.
 func RunTests(flagsSet [][]string, m *testing.M) (successCode int) {
 	config := &test_suite.TestConfig{
-		TestBucket:       setup.TestBucket(),
-		MountedDirectory: setup.MountedDirectory(),
-		LogFile:          setup.LogFile(),
+		TestBucket:              setup.TestBucket(),
+		GKEMountedDirectory:     setup.MountedDirectory(),
+		GCSFuseMountedDirectory: setup.MntDir(),
+		LogFile:                 setup.LogFile(),
 	}
 	return RunTestsWithConfigFile(config, flagsSet, m)
 }
@@ -91,6 +92,6 @@ func RunTests(flagsSet [][]string, m *testing.M) (successCode int) {
 func RunTestsWithConfigFile(config *test_suite.TestConfig, flagsSet [][]string, m *testing.M) (successCode int) {
 	log.Println("Running persistent mounting tests...")
 	successCode = executeTestsForPersistentMountingWithConfigFile(config, flagsSet, m)
-	log.Printf("Test log: %s\n", setup.LogFile())
+	log.Printf("Test log: %s\n", config.LogFile)
 	return successCode
 }

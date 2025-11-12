@@ -88,7 +88,7 @@ func initializeCacheHandlerTestArgs(t *testing.T, fileCacheConfig *cfg.FileCache
 		util.DefaultDirPerm, cacheDir, DefaultSequentialReadSizeMb, fileCacheConfig, metrics.NewNoopMetrics())
 
 	// Mocked cached handler object.
-	cacheHandler := NewCacheHandler(cache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, fileCacheConfig.ExperimentalExcludeRegex)
+	cacheHandler := NewCacheHandler(cache, jobManager, cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, fileCacheConfig.ExcludeRegex, fileCacheConfig.IncludeRegex)
 
 	// Follow consistency, local-cache file, entry in fileInfo cache and job should exist initially.
 	fileInfoKeyName := addTestFileInfoEntryInCache(t, cache, object, storage.TestBucketName)
@@ -543,7 +543,7 @@ func Test_GetCacheHandle_IfLocalFileGetsDeleted(t *testing.T) {
 func Test_GetCacheHandle_ExcludeFromCache(t *testing.T) {
 	regex := ".*object_1"
 	cacheDir := path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir")
-	chTestArgs := initializeCacheHandlerTestArgs(t, &cfg.FileCacheConfig{EnableCrc: true, ExperimentalExcludeRegex: regex}, cacheDir)
+	chTestArgs := initializeCacheHandlerTestArgs(t, &cfg.FileCacheConfig{EnableCrc: true, ExcludeRegex: regex}, cacheDir)
 
 	// Check cache handle is not created for excluded file
 	chTestArgs.object.Name = "object_1"
@@ -557,6 +557,57 @@ func Test_GetCacheHandle_ExcludeFromCache(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Nil(t, cacheHandle.validateCacheHandle())
 
+}
+
+func Test_GetCacheHandle_IncludeInCache(t *testing.T) {
+	regex := ".*object_1"
+	cacheDir := path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir")
+	chTestArgs := initializeCacheHandlerTestArgs(t, &cfg.FileCacheConfig{EnableCrc: true, IncludeRegex: regex}, cacheDir)
+
+	// Check cache handle is created for included file.
+	chTestArgs.object.Name = "object_1"
+	cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
+	assert.NoError(t, err)
+	assert.Nil(t, cacheHandle.validateCacheHandle())
+
+	// Check cache handle is not created for file not included.
+	chTestArgs.object.Name = "object_2"
+	cacheHandle, err = chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
+	assert.True(t, errors.Is(err, util.ErrFileExcludedFromCacheByRegex))
+	assert.Nil(t, cacheHandle)
+}
+
+func Test_GetCacheHandle_IncludeAndExclude(t *testing.T) {
+	includeRegex := ".*\\.txt"
+	excludeRegex := ".*_internal\\.txt"
+	cacheDir := path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir")
+	chTestArgs := initializeCacheHandlerTestArgs(t, &cfg.FileCacheConfig{EnableCrc: true, IncludeRegex: includeRegex, ExcludeRegex: excludeRegex}, cacheDir)
+
+	// Check cache handle is created for included file.
+	chTestArgs.object.Name = "some_file.txt"
+	cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
+	assert.NoError(t, err)
+	assert.Nil(t, cacheHandle.validateCacheHandle())
+
+	// Check cache handle is not created for excluded file even if it matches include pattern.
+	chTestArgs.object.Name = "some_file_internal.txt"
+	cacheHandle, err = chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
+	assert.True(t, errors.Is(err, util.ErrFileExcludedFromCacheByRegex))
+	assert.Nil(t, cacheHandle)
+}
+
+func Test_GetCacheHandle_SameIncludeAndExcludeRegex(t *testing.T) {
+	regex := ".*\\.txt"
+	cacheDir := path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir")
+	chTestArgs := initializeCacheHandlerTestArgs(t, &cfg.FileCacheConfig{EnableCrc: true, IncludeRegex: regex, ExcludeRegex: regex}, cacheDir)
+
+	// Check cache handle is not created for a file that matches both include and
+	// exclude regex, as exclude takes precedence.
+	chTestArgs.object.Name = "some_file.txt"
+	cacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
+
+	assert.True(t, errors.Is(err, util.ErrFileExcludedFromCacheByRegex))
+	assert.Nil(t, cacheHandle)
 }
 
 func Test_GetCacheHandle_CacheForRangeRead(t *testing.T) {
@@ -651,7 +702,7 @@ func Test_GetCacheHandle_ConcurrentSameFile(t *testing.T) {
 			}
 
 			// Start concurrent GetCacheHandle()
-			for i := 0; i < 5; i++ {
+			for range 5 {
 				wg.Add(1)
 				go getCacheHandleTestFun(t)
 			}
@@ -687,7 +738,7 @@ func Test_GetCacheHandle_ConcurrentDifferentFiles(t *testing.T) {
 	}
 
 	// Start concurrent GetCacheHandle()
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		wg.Add(1)
 		go getCacheHandleTestFun(i)
 	}
@@ -859,7 +910,7 @@ func Test_InvalidateCache_ConcurrentSameFile(t *testing.T) {
 			}
 
 			// Start concurrent GetCacheHandle()
-			for i := 0; i < 5; i++ {
+			for range 5 {
 				wg.Add(1)
 				go invalidateCacheTestFun(t)
 			}
@@ -910,7 +961,7 @@ func Test_InvalidateCache_ConcurrentDifferentFiles(t *testing.T) {
 			}
 
 			// Start concurrent GetCacheHandle()
-			for i := 0; i < 5; i++ {
+			for i := range 5 {
 				wg.Add(1)
 				go invalidateCacheTestFun(i)
 			}
@@ -971,7 +1022,7 @@ func Test_InvalidateCache_GetCacheHandle_Concurrent(t *testing.T) {
 			}
 
 			// Start concurrent GetCacheHandle()
-			for i := 0; i < 5; i++ {
+			for i := range 5 {
 				wg.Add(1)
 				go invalidateCacheTestFun(i)
 				wg.Add(1)

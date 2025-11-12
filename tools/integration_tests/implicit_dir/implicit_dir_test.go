@@ -70,7 +70,7 @@ func TestMain(m *testing.M) {
 		// Populate the config manually.
 		cfg.ImplicitDir = make([]test_suite.TestConfig, 1)
 		cfg.ImplicitDir[0].TestBucket = setup.TestBucket()
-		cfg.ImplicitDir[0].MountedDirectory = setup.MountedDirectory()
+		cfg.ImplicitDir[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.ImplicitDir[0].Configs = make([]test_suite.ConfigItem, 2)
 		cfg.ImplicitDir[0].Configs[0].Flags = []string{"--implicit-dirs"}
 		cfg.ImplicitDir[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
@@ -79,14 +79,8 @@ func TestMain(m *testing.M) {
 	}
 
 	// 2. Create storage client before running tests.
-	setup.SetBucketFromConfigFile(cfg.ImplicitDir[0].TestBucket)
 	testEnv.ctx = context.Background()
-
-	bucketType, err := setup.BucketType(testEnv.ctx, cfg.ImplicitDir[0].TestBucket)
-	if err != nil {
-		log.Fatalf("BucketType failed: %v", err)
-	}
-
+	bucketType := setup.TestEnvironment(testEnv.ctx, &cfg.ImplicitDir[0])
 	closeStorageClient := client.CreateStorageClientWithCancel(&testEnv.ctx, &testEnv.storageClient)
 	defer func() {
 		err := closeStorageClient()
@@ -95,14 +89,14 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	// 4. Build the flag sets dynamically from the config.
-	flags := setup.BuildFlagSets(cfg.ImplicitDir[0], bucketType)
+	// 3. Build the flag sets dynamically from the config.
+	flags := setup.BuildFlagSets(cfg.ImplicitDir[0], bucketType, "")
 
-	// 5. Run tests with the dynamically generated flags.
+	// 4. Run tests with the dynamically generated flags.
 	successCode := implicit_and_explicit_dir_setup.RunTestsForExplicitAndImplicitDir(&cfg.ImplicitDir[0], flags, m)
 	setup.SaveLogFileInCaseOfFailure(successCode)
 
-	// Clean up test directory created.
+	// 5. Clean up test directory created.
 	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
 }

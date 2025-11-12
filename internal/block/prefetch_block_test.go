@@ -122,6 +122,54 @@ func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockReadAtEOF() {
 	assert.Equal(testSuite.T(), []byte("world"), readBuffer[0:n])
 }
 
+func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockReadAtSliceSuccess() {
+	pmb, err := createPrefetchBlock(12)
+	require.Nil(testSuite.T(), err)
+	content := []byte("hello world")
+	_, err = pmb.Write(content)
+	require.Nil(testSuite.T(), err)
+
+	slice, err := pmb.ReadAtSlice(6, 5) // Read "world"
+
+	assert.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), []byte("world"), slice)
+}
+
+func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockReadAtSliceEOF() {
+	pmb, err := createPrefetchBlock(12)
+	require.Nil(testSuite.T(), err)
+	content := []byte("hello world")
+	_, err = pmb.Write(content)
+	require.Nil(testSuite.T(), err)
+
+	slice, err := pmb.ReadAtSlice(6, 15) // Read "world" and beyond
+
+	assert.Equal(testSuite.T(), io.EOF, err)
+	assert.Equal(testSuite.T(), []byte("world"), slice)
+}
+
+func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockReadAtSliceWithNegativeOffset() {
+	pmb, err := createPrefetchBlock(12)
+	require.Nil(testSuite.T(), err)
+	_, err = pmb.Write([]byte("hello world"))
+	require.Nil(testSuite.T(), err)
+
+	_, err = pmb.ReadAtSlice(-1, 5)
+
+	assert.Error(testSuite.T(), err)
+}
+
+func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockReadAtSliceWithOffsetOutOfBounds() {
+	pmb, err := createPrefetchBlock(12)
+	require.Nil(testSuite.T(), err)
+	_, err = pmb.Write([]byte("hello"))
+	require.Nil(testSuite.T(), err)
+
+	_, err = pmb.ReadAtSlice(5, 1) // Offset is equal to size, which is out of bounds
+
+	assert.Error(testSuite.T(), err)
+}
+
 func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockAbsStartOffsetPanicsOnEmptyBlock() {
 	pmb, err := createPrefetchBlock(12)
 	require.Nil(testSuite.T(), err)
@@ -274,7 +322,7 @@ func (testSuite *PrefetchMemoryBlockTest) TestSingleNotifyAndMultipleAwaitReady(
 
 	// Multiple goroutines waiting for the same block to be ready.
 	// They should all receive the same status once the block is notified.
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		go func() {
 			defer wg.Done()
 

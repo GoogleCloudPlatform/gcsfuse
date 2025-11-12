@@ -347,7 +347,7 @@ func (t *UploadHandlerTest) TestUploadSingleBlockThrowsErrorInCopy() {
 func (t *UploadHandlerTest) TestUploadMultipleBlocksThrowsErrorInCopy() {
 	// Create some blocks.
 	blocks := t.createBlocks(4)
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		n, err := blocks[i].Write([]byte("testdata" + strconv.Itoa(i) + " "))
 		require.Equal(t.T(), 10, n)
 		require.NoError(t.T(), err)
@@ -556,7 +556,7 @@ func (t *UploadHandlerTest) TestDestroy() {
 
 func (t *UploadHandlerTest) createBlocks(count int) []block.Block {
 	var blocks []block.Block
-	for i := 0; i < count; i++ {
+	for range count {
 		b, err := t.blockPool.Get()
 		require.NoError(t.T(), err)
 		blocks = append(blocks, b)

@@ -49,7 +49,7 @@ func (t *AuthTest) TestGetUniverseDomainForGoogle() {
 	domain, err := getUniverseDomain(context.Background(), contents, storagev1.DevstorageFullControlScope)
 
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), universeDomainDefault, domain)
+	assert.Equal(t.T(), UniverseDomainDefault, domain)
 }
 
 func (t *AuthTest) TestGetUniverseDomainForTPC() {

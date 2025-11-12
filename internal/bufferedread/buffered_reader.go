@@ -111,36 +111,46 @@ type BufferedReader struct {
 	blockPool *block.GenBlockPool[block.PrefetchBlock]
 }
 
+// BufferedReaderOptions holds the dependencies for a BufferedReader.
+type BufferedReaderOptions struct {
+	Object             *gcs.MinObject
+	Bucket             gcs.Bucket
+	Config             *BufferedReadConfig
+	GlobalMaxBlocksSem *semaphore.Weighted
+	WorkerPool         workerpool.WorkerPool
+	MetricHandle       metrics.MetricHandle
+}
+
 // NewBufferedReader returns a new bufferedReader instance.
-func NewBufferedReader(object *gcs.MinObject, bucket gcs.Bucket, config *BufferedReadConfig, globalMaxBlocksSem *semaphore.Weighted, workerPool workerpool.WorkerPool, metricHandle metrics.MetricHandle) (*BufferedReader, error) {
-	if config.PrefetchBlockSizeBytes <= 0 {
-		return nil, fmt.Errorf("NewBufferedReader: PrefetchBlockSizeBytes must be positive, but is %d", config.PrefetchBlockSizeBytes)
+func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
+	if opts.Config.PrefetchBlockSizeBytes <= 0 {
+		return nil, fmt.Errorf("NewBufferedReader: PrefetchBlockSizeBytes must be positive, but is %d", opts.Config.PrefetchBlockSizeBytes)
 	}
 	// To optimize resource usage, reserve only the number of blocks required for
 	// the file, capped by the configured minimum.
-	blocksInFile := (int64(object.Size) + config.PrefetchBlockSizeBytes - 1) / config.PrefetchBlockSizeBytes
-	numBlocksToReserve := min(blocksInFile, config.MinBlocksPerHandle)
-	blockpool, err := block.NewPrefetchBlockPool(config.PrefetchBlockSizeBytes, config.MaxPrefetchBlockCnt, numBlocksToReserve, globalMaxBlocksSem)
+	blocksInFile := (int64(opts.Object.Size) + opts.Config.PrefetchBlockSizeBytes - 1) / opts.Config.PrefetchBlockSizeBytes
+	numBlocksToReserve := min(blocksInFile, opts.Config.MinBlocksPerHandle)
+	blockpool, err := block.NewPrefetchBlockPool(opts.Config.PrefetchBlockSizeBytes, opts.Config.MaxPrefetchBlockCnt, numBlocksToReserve, opts.GlobalMaxBlocksSem)
 	if err != nil {
 		if errors.Is(err, block.CantAllocateAnyBlockError) {
-			metricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
+			opts.MetricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
 		}
 		return nil, fmt.Errorf("NewBufferedReader: creating block-pool: %w", err)
 	}
 
 	reader := &BufferedReader{
-		object:                   object,
-		bucket:                   bucket,
-		config:                   config,
+		object:                   opts.Object,
+		bucket:                   opts.Bucket,
+		config:                   opts.Config,
 		nextBlockIndexToPrefetch: 0,
 		randomSeekCount:          0,
-		numPrefetchBlocks:        config.InitialPrefetchBlockCnt,
+		numPrefetchBlocks:        opts.Config.InitialPrefetchBlockCnt,
 		blockQueue:               common.NewLinkedListQueue[*blockQueueEntry](),
 		blockPool:                blockpool,
-		workerPool:               workerPool,
-		metricHandle:             metricHandle,
+		workerPool:               opts.WorkerPool,
+		metricHandle:             opts.MetricHandle,
 		prefetchMultiplier:       defaultPrefetchMultiplier,
-		randomReadsThreshold:     config.RandomSeekThreshold,
+		randomReadsThreshold:     opts.Config.RandomSeekThreshold,
 	}
 
 	reader.ctx, reader.cancelFunc = context.WithCancel(context.Background())
@@ -255,8 +265,8 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 //     reached, or an error occurs.
 //
 // LOCKS_EXCLUDED(p.mu)
-func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64) (gcsx.ReaderResponse, error) {
-	resp := gcsx.ReaderResponse{DataBuf: inputBuf}
+func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64) (gcsx.ReadResponse, error) {
+	resp := gcsx.ReadResponse{}
 	reqID := uuid.New()
 	start := time.Now()
 	initOff := off
@@ -285,14 +295,14 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 	defer func() {
 		dur := time.Since(start)
 		p.metricHandle.BufferedReadReadLatency(ctx, dur)
+		p.metricHandle.GcsReadBytesCount(int64(bytesRead), metrics.ReaderBufferedAttr)
 		if err == nil || errors.Is(err, io.EOF) {
 			logger.Tracef("%.13v -> ReadAt(): Ok(%v)", reqID, dur)
 		}
 	}()
 
 	if err = p.handleRandomRead(off, handleID); err != nil {
-		err = fmt.Errorf("BufferedReader.ReadAt: handleRandomRead: %w", err)
-		return resp, err
+		return resp, fmt.Errorf("BufferedReader.ReadAt: handleRandomRead: %w", err)
 	}
 
 	prefetchTriggered := false
@@ -381,7 +391,7 @@ func (p *BufferedReader) prefetch() error {
 	}
 
 	allBlocksScheduledSuccessfully := true
-	for i := int64(0); i < blockCountToPrefetch; i++ {
+	for range blockCountToPrefetch {
 		if err := p.scheduleNextBlock(false); err != nil {
 			if errors.Is(err, ErrPrefetchBlockNotAvailable) {
 				// This is not a critical error for a background prefetch. We just stop
@@ -464,7 +474,14 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockInde
 	}
 
 	ctx, cancel := context.WithCancel(p.ctx)
-	task := NewDownloadTask(ctx, p.object, p.bucket, b, p.readHandle, p.metricHandle)
+	task := &downloadTask{
+		ctx:          ctx,
+		object:       p.object,
+		bucket:       p.bucket,
+		block:        b,
+		readHandle:   p.readHandle,
+		metricHandle: p.metricHandle,
+	}
 
 	logger.Tracef("Scheduling block: (%s, %d, %t).", p.object.Name, blockIndex, urgent)
 	p.blockQueue.Push(&blockQueueEntry{

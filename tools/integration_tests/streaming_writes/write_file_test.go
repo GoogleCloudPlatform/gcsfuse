@@ -30,24 +30,20 @@ func (t *StreamingWritesSuite) TestOutOfOrderWriteSyncsFileToGcs() {
 	// Perform out of order write.
 	operations.WriteAt("foo", 3, t.f1, t.T())
 
-	if !t.fallbackToDiskCase {
-		ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, t.fileName, "foobar", t.T())
-	}
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, t.f1, testDirName, t.fileName, "foofoo", t.T())
+	ValidateObjectContentsFromGCS(testEnv.ctx, testEnv.storageClient, testDirName, t.fileName, "foobar", t.T())
+	CloseFileAndValidateContentFromGCS(testEnv.ctx, testEnv.storageClient, t.f1, testDirName, t.fileName, "foofoo", t.T())
 }
 
-func (t *StreamingWritesSuite) TestOutOfOrderWriteSyncsFileToGcsAndDeletingFileDeletsFileFromGcs() {
+func (t *StreamingWritesSuite) TestOutOfOrderWriteSyncsFileToGcsAndDeletingFileDeletesFileFromGcs() {
 	// Write
 	operations.WriteWithoutClose(t.f1, "foobar", t.T())
 	operations.VerifyStatFile(t.filePath, int64(len("foobar")), FilePerms, t.T())
 	// Perform out of order write.
 	operations.WriteAt("foo", 3, t.f1, t.T())
-	if !t.fallbackToDiskCase {
-		ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, t.fileName, "foobar", t.T())
-	}
+	ValidateObjectContentsFromGCS(testEnv.ctx, testEnv.storageClient, testDirName, t.fileName, "foobar", t.T())
 
 	err := os.Remove(t.filePath)
 
 	require.NoError(t.T(), err)
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, t.fileName, t.T())
+	ValidateObjectNotFoundErrOnGCS(testEnv.ctx, testEnv.storageClient, testDirName, t.fileName, t.T())
 }

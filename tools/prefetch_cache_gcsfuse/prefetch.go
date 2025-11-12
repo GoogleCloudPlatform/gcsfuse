@@ -116,7 +116,7 @@ func prefetchCache(cacheDir, bucketName, prefix string) (err error) {
 	}()
 
 	// Consumers
-	for i := 0; i < NUM_WORKERS; i++ {
+	for i := range NUM_WORKERS {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()

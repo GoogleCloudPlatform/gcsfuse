@@ -463,7 +463,7 @@ func (rr *randomReader) readFull(
 // Ensure that rr.reader is set up for a range for which [start, start+size) is
 // a prefix. Irrespective of the size requested, we try to fetch more data
 // from GCS defined by sequentialReadSizeMb flag to serve future read requests.
-func (rr *randomReader) startRead(start int64, end int64) (err error) {
+func (rr *randomReader) startRead(start int64, end int64, readType int64) (err error) {
 	// Begin the read.
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -516,7 +516,7 @@ func (rr *randomReader) startRead(start int64, end int64) (err error) {
 	rr.limit = end
 
 	requestedDataSize := end - start
-	metrics.CaptureGCSReadMetrics(rr.metricHandle, metrics.ReadTypeNames[metrics.ReadTypeSequential], requestedDataSize)
+	metrics.CaptureGCSReadMetrics(rr.metricHandle, metrics.ReadTypeNames[readType], requestedDataSize)
 
 	return
 }
@@ -593,10 +593,7 @@ func (rr *randomReader) getEndOffset(
 	if seeks := rr.seeks.Load(); seeks >= minSeeksForRandom {
 		averageReadBytes := rr.totalReadBytes.Load() / seeks
 		if averageReadBytes < maxReadSize {
-			randomReadSize := int64(((averageReadBytes / MiB) + 1) * MiB)
-			if randomReadSize < minReadSize {
-				randomReadSize = minReadSize
-			}
+			randomReadSize := max(int64(((averageReadBytes/MiB)+1)*MiB), minReadSize)
 			if randomReadSize > maxReadSize {
 				randomReadSize = maxReadSize
 			}
@@ -681,7 +678,7 @@ func (rr *randomReader) readFromExistingRangeReader(ctx context.Context, p []byt
 func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType int64) (n int, err error) {
 	// If we don't have a reader, start a read operation.
 	if rr.reader == nil {
-		err = rr.startRead(offset, end)
+		err = rr.startRead(offset, end, readType)
 		if err != nil {
 			err = fmt.Errorf("startRead: %w", err)
 			return
@@ -734,8 +731,6 @@ func (rr *randomReader) readFromRangeReader(ctx context.Context, p []byte, offse
 		return
 	}
 
-	requestedDataSize := end - offset
-	metrics.CaptureGCSReadMetrics(rr.metricHandle, metrics.ReadTypeNames[readType], requestedDataSize)
 	rr.updateExpectedOffset(offset + int64(n))
 
 	return
@@ -750,7 +745,7 @@ func (rr *randomReader) readFromMultiRangeReader(ctx context.Context, p []byte, 
 		rr.mrdWrapper.IncrementRefCount()
 	}
 
-	bytesRead, err = rr.mrdWrapper.Read(ctx, p, offset, end, rr.metricHandle)
+	bytesRead, err = rr.mrdWrapper.Read(ctx, p, offset, end, rr.metricHandle, false)
 	rr.totalReadBytes.Add(uint64(bytesRead))
 	rr.updateExpectedOffset(offset + int64(bytesRead))
 	return

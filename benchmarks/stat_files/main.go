@@ -59,7 +59,7 @@ func createFiles(
 	fileChan := make(chan *os.File)
 	var wg sync.WaitGroup
 
-	for i := 0; i < parallelism; i++ {
+	for range parallelism {
 		wg.Add(1)
 		group.Go(func() (err error) {
 			defer wg.Done()

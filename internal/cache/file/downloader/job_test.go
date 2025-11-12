@@ -829,7 +829,7 @@ func (dt *downloaderTest) Test_Invalidate_Concurrent() {
 	}
 
 	// start concurrent Invalidate
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		wg.Add(1)
 		go invalidateFunc()
 	}
@@ -872,7 +872,7 @@ func (dt *downloaderTest) Test_Invalidate_Download_Concurrent() {
 
 	// Start concurrent invalidate and download
 	offsets := [6]int64{0, util.MiB, 5 * util.MiB, 0, 2 * util.MiB, 10 * util.MiB}
-	for i := 0; i < len(offsets); i++ {
+	for i := range len(offsets) {
 		wg.Add(2)
 		waitForDownload := false
 		if i%2 == 0 {
@@ -968,7 +968,12 @@ func (dt *downloaderTest) Test_validateCRC_WheContextIsCancelled() {
 	AssertEq(nil, dt.job.status.Err)
 	AssertGe(dt.job.status.Offset, offset)
 
-	dt.job.cancelFunc()
+	// Taking lock to ensure cancelFunc is valid before calling it.
+	dt.job.mu.Lock()
+	if dt.job.cancelFunc != nil {
+		dt.job.cancelFunc()
+	}
+	dt.job.mu.Unlock()
 	dt.waitForCrcCheckToBeCompleted()
 
 	AssertEq(Invalid, dt.job.status.Name)

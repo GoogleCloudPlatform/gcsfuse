@@ -38,7 +38,7 @@ var (
 {{- range $combination := (index $.AttrCombinations $metric.Name)}}
 	{{getVarName $metric.Name $combination}} = metric.WithAttributeSet(attribute.NewSet(
 		{{- range $pair := $combination -}}
-			attribute.{{if eq $pair.Type "string"}}String{{else}}Bool{{end}}("{{$pair.Name}}", {{if eq $pair.Type "string"}}"{{$pair.Value}}"{{else}}{{$pair.Value}}{{end}}),
+			attribute.{{if eq $pair.Type "bool"}}Bool{{else}}String{{end}}("{{$pair.Name}}", {{if eq $pair.Type "bool"}}{{$pair.Value}}{{else}}"{{$pair.Value}}"{{end}}),
 		{{- end -}}
 	))
 {{- end -}}
@@ -57,7 +57,7 @@ type otelMetrics struct {
     ch chan histogramRecord
 	wg *sync.WaitGroup
 	{{- range $metric := .Metrics}}
-		{{- if isCounter $metric}}
+		{{- if or (isCounter $metric) (isUpDownCounter $metric)}}
 			{{- range $combination := (index $.AttrCombinations $metric.Name)}}
 	{{getAtomicName $metric.Name $combination}} *atomic.Int64
 			{{- end}}
@@ -72,7 +72,7 @@ type otelMetrics struct {
 
 {{range .Metrics}}
 func (o *otelMetrics) {{toPascal .Name}}(
-	{{- if isCounter . }}
+	{{- if or (isCounter .) (isUpDownCounter .)}}
 		inc int64
 	{{- else }}
 		ctx context.Context, latency time.Duration
@@ -81,7 +81,13 @@ func (o *otelMetrics) {{toPascal .Name}}(
 	{{- range $i, $attr := .Attributes -}}
 		{{if $i}}, {{end}}{{toCamel $attr.Name}} {{getGoType $attr.Type}}
 	{{- end }}) {
-{{- if isCounter . }}
+{{- if or (isCounter .) (isUpDownCounter .)}}
+	{{- if isCounter . }}
+	if inc < 0 {
+		logger.Errorf("Counter metric {{.Name}} received a negative increment: %d", inc)
+		return
+	}
+	{{- end}}
 	{{buildSwitches .}}
 {{- else }}
 	var record histogramRecord
@@ -90,7 +96,7 @@ func (o *otelMetrics) {{toPascal .Name}}(
 	  case o.ch <- record: // Do nothing
 	  default: // Unblock writes to channel if it's full.
 	}
-	{{- end}}
+	{{- end -}}
 }
 {{end}}
 
@@ -113,7 +119,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
   }
   meter := otel.Meter("gcsfuse")
 {{- range $metric := .Metrics}}
-	{{- if isCounter $metric}}
+	{{- if or (isCounter $metric) (isUpDownCounter $metric) }}
 	var {{range $i, $combination := (index $.AttrCombinations $metric.Name)}}{{if $i}},
 	{{end}}{{getAtomicName $metric.Name $combination}}{{end}} atomic.Int64
 	{{- end}}
@@ -121,16 +127,27 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 {{end}}
 
 {{- range $i, $metric := .Metrics}}
-	{{- if isCounter $metric}}
-	_, err{{$i}} := meter.Int64ObservableCounter("{{$metric.Name}}",
+	{{- if or (isCounter $metric) (isUpDownCounter $metric)}}
+		{{- $instrumentCreationFunc := "" -}}
+		{{- $observationFunc := "" -}}
+		{{- if isCounter $metric -}}
+			{{- $instrumentCreationFunc = "meter.Int64ObservableCounter" -}}
+			{{- $observationFunc = "conditionallyObserve" -}}
+		{{- else -}}
+			{{- $instrumentCreationFunc = "meter.Int64ObservableUpDownCounter" -}}
+			{{- $observationFunc = "observeUpDownCounter" -}}
+		{{- end}}
+
+	_, err{{$i}} := {{$instrumentCreationFunc}}("{{$metric.Name}}",
 		metric.WithDescription("{{.Description}}"),
 		metric.WithUnit("{{.Unit}}"),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
 			{{- range $combination := (index $.AttrCombinations $metric.Name)}}
-			conditionallyObserve(obsrv, &{{getAtomicName $metric.Name $combination}}{{if $metric.Attributes}}, {{getVarName $metric.Name $combination}}{{end}})
+			{{$observationFunc}}(obsrv, &{{getAtomicName $metric.Name $combination}}{{if $metric.Attributes}}, {{getVarName $metric.Name $combination}}{{end}})
 			{{- end}}
 			return nil
 		}))
+
 	{{- else}}
 	{{toCamel $metric.Name}}, err{{$i}} := meter.Int64Histogram("{{$metric.Name}}",
 		metric.WithDescription("{{.Description}}"),
@@ -156,7 +173,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		ch : ch,
 		wg: &wg,
 		{{- range $metric := .Metrics}}
-			{{- if isCounter $metric}}
+			{{- if or (isCounter $metric) (isUpDownCounter $metric)}}
 				{{- range $combination := (index $.AttrCombinations $metric.Name)}}
 			{{getAtomicName $metric.Name $combination}}: &{{getAtomicName $metric.Name $combination}},
 				{{- end}}
@@ -176,6 +193,10 @@ func conditionallyObserve(obsrv metric.Int64Observer, counter *atomic.Int64, obs
 	if val := counter.Load(); val > 0 {
 		obsrv.Observe(val, obsrvOptions...)
 	}
+}
+
+func observeUpDownCounter(obsrv metric.Int64Observer, counter *atomic.Int64, obsrvOptions ...metric.ObserveOption) {
+	obsrv.Observe(counter.Load(), obsrvOptions...)
 }
 
 func updateUnrecognizedAttribute(newValue string) {

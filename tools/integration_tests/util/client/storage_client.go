@@ -16,12 +16,15 @@ package client
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"strings"
@@ -37,10 +40,33 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	storagev1 "google.golang.org/api/storage/v1"
 )
+
+func CreateHttp1StorageClient(ctx context.Context) (*storage.Client, error) {
+	defaultTokenSrc, err := google.DefaultTokenSource(ctx, storagev1.DevstorageFullControlScope)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create default token source: %w", err)
+	}
+
+	httpClient := &http.Client{
+		Transport: &oauth2.Transport{
+			Base: &http.Transport{
+				Proxy:               http.ProxyFromEnvironment,
+				MaxIdleConns:        0, // No connection limit.
+				MaxIdleConnsPerHost: 100,
+				TLSNextProto:        make(map[string]func(authority string, c *tls.Conn) http.RoundTripper), // Disables HTTP/2 transport.
+			},
+			Source: defaultTokenSrc,
+		},
+		Timeout: 0, // No timeout.
+	}
+
+	return storage.NewClient(ctx, option.WithHTTPClient(httpClient))
+}
 
 func CreateStorageClient(ctx context.Context) (client *storage.Client, err error) {
 	// Create new storage client.
@@ -56,7 +82,7 @@ func CreateStorageClient(ctx context.Context) (client *storage.Client, err error
 		if setup.IsZonalBucketRun() {
 			client, err = storage.NewGRPCClient(ctx, experimental.WithGRPCBidiReads())
 		} else {
-			client, err = storage.NewClient(ctx)
+			client, err = CreateHttp1StorageClient(ctx)
 		}
 	}
 	if err != nil {
@@ -149,6 +175,8 @@ func NewWriter(ctx context.Context, o *storage.ObjectHandle, client *storage.Cli
 		if setup.IsZonalBucketRun() {
 			// Zonal bucket writers require append-flag to be set.
 			wc.Append = true
+			// Zonal buckets with rapid appends should not finalize on close.
+			wc.FinalizeOnClose = false
 		} else {
 			return nil, fmt.Errorf("found zonal bucket %q in non-zonal e2e test run (--zonal=false)", o.BucketName())
 		}
@@ -176,6 +204,7 @@ func WriteToObject(ctx context.Context, client *storage.Client, object, content 
 	if err := wc.Close(); err != nil {
 		return fmt.Errorf("Writer.Close failed for object %q: %w", object, err)
 	}
+	operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), operations.WaitDurationAfterCloseZB)
 
 	return nil
 }
@@ -183,6 +212,24 @@ func WriteToObject(ctx context.Context, client *storage.Client, object, content 
 // CreateObjectOnGCS creates an object with given name and content on GCS.
 func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, content string) error {
 	return WriteToObject(ctx, client, object, content, storage.Conditions{DoesNotExist: true})
+}
+
+func CreateFinalizedObjectOnGCS(ctx context.Context, client *storage.Client, object, content string) error {
+	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
+	o := client.Bucket(bucket).Object(object)
+
+	// Upload an object with storage.Writer with finalizeOnClose=true
+	wc := o.NewWriter(ctx)
+	wc.Append = true
+	wc.FinalizeOnClose = true
+	if _, err := io.WriteString(wc, content); err != nil {
+		return fmt.Errorf("io.WriteString failed for object %q: %w", object, err)
+	}
+	if err := wc.Close(); err != nil {
+		return fmt.Errorf("Writer.Close failed for object %q: %w", object, err)
+	}
+	operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), operations.WaitDurationAfterCloseZB)
+	return nil
 }
 
 // CreateStorageClientWithCancel creates a new storage client with a cancelable context and returns a function that can be used to cancel the client's operations
@@ -262,7 +309,7 @@ func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, pre
 	errChan := make(chan error, 100)
 
 	// Determine the number of concurrent goroutines using CPU cores
-	numCores := runtime.NumCPU()
+	numCores := max(16, runtime.NumCPU())
 	sem := make(chan struct{}, numCores) // Semaphore to limit concurrency
 
 	var wg sync.WaitGroup
@@ -327,6 +374,7 @@ func UploadGcsObjectWithPreconditions(ctx context.Context, client *storage.Clien
 		if err := w.Close(); err != nil {
 			log.Printf("Failed to close GCS object gs://%s/%s: %v", bucketName, objectName, err)
 		}
+		operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), operations.WaitDurationAfterCloseZB)
 	}()
 
 	filePathToUpload := localPath
@@ -465,5 +513,105 @@ func CreateGcsDir(ctx context.Context, client *storage.Client, dirName, bucketNa
 		return fmt.Errorf("failed to create GCS directory object %q in bucket %q: %w", fullObjectPath, bucketName, err)
 	}
 
+	return nil
+}
+
+func uploadGcsObjectWithPreconditionsWithoutIntermediateDelays(ctx context.Context, client *storage.Client, localPath, bucketName, objectName string, uploadGzipEncoded bool, preconditions *storage.Conditions) error {
+	// Create a writer to upload the object.
+	obj := client.Bucket(bucketName).Object(objectName)
+	if preconditions != nil {
+		obj = obj.If(*preconditions)
+	}
+	w, err := NewWriter(ctx, obj, client)
+	if err != nil {
+		return fmt.Errorf("failed to open writer for GCS object gs://%s/%s: %w", bucketName, objectName, err)
+	}
+	defer func() {
+		if err := w.Close(); err != nil {
+			log.Printf("Failed to close GCS object gs://%s/%s: %v", bucketName, objectName, err)
+		}
+	}()
+
+	filePathToUpload := localPath
+	// Set content encoding if gzip compression is needed.
+	if uploadGzipEncoded {
+		data, err := os.ReadFile(localPath)
+		if err != nil {
+			return err
+		}
+
+		content := string(data)
+		if filePathToUpload, err = operations.CreateLocalTempFile(content, true); err != nil {
+			return fmt.Errorf("failed to create local gzip file from %s for upload to bucket: %w", localPath, err)
+		}
+		defer func() {
+			if removeErr := os.Remove(filePathToUpload); removeErr != nil {
+				log.Printf("Error removing temporary gzip file %s: %v", filePathToUpload, removeErr)
+			}
+		}()
+	}
+
+	// Open the local file for reading.
+	f, err := operations.OpenFileAsReadonly(filePathToUpload)
+	if err != nil {
+		return fmt.Errorf("failed to open local file %s: %w", filePathToUpload, err)
+	}
+	// Defer the Close() call immediately after the error check.
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil {
+			log.Printf("Warning: error closing file %s: %v", filePathToUpload, closeErr)
+		}
+	}()
+
+	// Copy the file contents to the object writer.
+	if _, err := io.Copy(w, f); err != nil {
+		return fmt.Errorf("failed to copy file %s to gs://%s/%s: %w", localPath, bucketName, objectName, err)
+	}
+	return nil
+}
+
+func BatchUploadFilesWithoutIntermediateDelays(ctx context.Context, storageClient *storage.Client, bucketName, dirPathInBucket, srcDir, filesPrefix string) error {
+	srcFilesFullPathPrefix := filepath.Join(srcDir, filesPrefix)
+	matches, err := filepath.Glob(srcFilesFullPathPrefix + "*")
+	if err != nil {
+		return fmt.Errorf("failed to get files of pattern %s*: %w", srcFilesFullPathPrefix, err)
+	}
+
+	if len(matches) == 0 {
+		return nil // No files to upload
+	}
+
+	group, ctx := errgroup.WithContext(ctx)
+
+	// Limit the number of concurrent uploads to avoid overwhelming resources.
+	maxConcurrentUploads := max(16, runtime.NumCPU()/2)
+	group.SetLimit(maxConcurrentUploads)
+
+	for _, match := range matches {
+		srcLocalFilePath := match
+
+		_, fileName := filepath.Split(match)
+		if len(fileName) == 0 {
+			continue
+		}
+
+		dstGCSObjectPath := filepath.Join(dirPathInBucket, fileName)
+
+		group.Go(func() error {
+			err := uploadGcsObjectWithPreconditionsWithoutIntermediateDelays(ctx, storageClient, srcLocalFilePath, bucketName, dstGCSObjectPath, false, &storage.Conditions{DoesNotExist: true})
+			if err != nil {
+				return fmt.Errorf("failed to upload %s to gs://%s/%s: %w", srcLocalFilePath, bucketName, dstGCSObjectPath, err)
+			}
+			return nil
+		})
+	}
+
+	// Wait for all uploads to complete or for the first error.
+	if err := group.Wait(); err != nil {
+		return err
+	}
+
+	// Wait for metadata updates after object creation.
+	time.Sleep(time.Second)
 	return nil
 }

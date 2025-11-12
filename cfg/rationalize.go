@@ -50,7 +50,6 @@ func resolveMetadataCacheTTL(v isSet, c *MetadataCacheConfig, optimizedFlags []s
 			c.NegativeTtlSecs = maxSupportedTTLInSeconds
 		}
 	}
-
 	// Order of precedence for setting TTL seconds
 	// 1. If metadata-cache:ttl-secs has been set, then it has highest precedence
 	// 2. If metadata-cache:stat-cache-ttl or metadata-cache:type-cache-ttl has been set or no optimization applied, then it has second highest precedence
@@ -97,8 +96,6 @@ func resolveStreamingWriteConfig(w *WriteConfig) {
 		w.CreateEmptyFile = false
 	}
 
-	w.BlockSizeMb *= util.MiB
-
 	if w.GlobalMaxBlocks == -1 {
 		w.GlobalMaxBlocks = math.MaxInt64
 	}
@@ -136,6 +133,12 @@ func resolveFileCacheAndBufferedReadConflict(v isSet, c *Config) {
 	}
 }
 
+func resolveReadConfig(r *ReadConfig) {
+	if r.GlobalMaxBlocks == -1 {
+		r.GlobalMaxBlocks = math.MaxInt32
+	}
+}
+
 func resolveLoggingConfig(config *Config) {
 	if config.Debug.Fuse || config.Debug.Gcs || config.Debug.LogMutex {
 		config.Logging.Severity = "TRACE"
@@ -161,6 +164,7 @@ func Rationalize(v isSet, c *Config, optimizedFlags []string) error {
 	}
 
 	resolveLoggingConfig(c)
+	resolveReadConfig(&c.Read)
 	resolveStreamingWriteConfig(&c.Write)
 	resolveMetadataCacheTTL(v, &c.MetadataCache, optimizedFlags)
 	resolveStatCacheMaxSizeMB(v, &c.MetadataCache, optimizedFlags)

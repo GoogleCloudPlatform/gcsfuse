@@ -27,6 +27,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/persistent_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 const DirForRenameDirLimitTests = "dirForRenameDirLimitTests"
@@ -51,9 +52,32 @@ var (
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	var err error
+	// 1. Load and parse the common configuration.
+	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
+	if len(cfg.RenameDirLimit) == 0 {
+		log.Println("No configuration found for rename dir limit tests in config. Using flags instead.")
+		// Populate the config manually.
+		cfg.RenameDirLimit = make([]test_suite.TestConfig, 1)
+		cfg.RenameDirLimit[0].TestBucket = setup.TestBucket()
+		cfg.RenameDirLimit[0].GKEMountedDirectory = setup.MountedDirectory()
+		cfg.RenameDirLimit[0].Configs = make([]test_suite.ConfigItem, 2)
+		cfg.RenameDirLimit[0].Configs[0].Flags = []string{
+			"--rename-dir-limit=3 --implicit-dirs --client-protocol=grpc",
+			"--rename-dir-limit=3",
+			"--rename-dir-limit=3 --client-protocol=grpc",
+		}
+		cfg.RenameDirLimit[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
+		cfg.RenameDirLimit[0].Configs[1].Flags = []string{
+			"",
+		}
+		cfg.RenameDirLimit[0].Configs[1].Compatible = map[string]bool{"flat": false, "hns": true, "zonal": true}
+	}
 
 	ctx = context.Background()
+	bucketType := setup.TestEnvironment(ctx, &cfg.RenameDirLimit[0])
+
+	// 2. Create storage client before running tests.
+	var err error
 	storageClient, err = client.CreateStorageClient(ctx)
 	if err != nil {
 		log.Printf("Error creating storage client: %v\n", err)
@@ -61,32 +85,24 @@ func TestMain(m *testing.M) {
 	}
 	defer storageClient.Close()
 
-	flags := [][]string{{"--rename-dir-limit=3", "--implicit-dirs"}, {"--rename-dir-limit=3"}}
-	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flags, "", "--client-protocol=grpc")
-	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
-		flags = [][]string{hnsFlagSet}
+	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	if cfg.RenameDirLimit[0].GKEMountedDirectory != "" && cfg.RenameDirLimit[0].TestBucket != "" {
+		os.Exit(setup.RunTestsForMountedDirectory(cfg.RenameDirLimit[0].GKEMountedDirectory, m))
 	}
-	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
-
-	if setup.TestBucket() == "" && setup.MountedDirectory() != "" {
-		log.Print("Please pass the name of bucket mounted at mountedDirectory to --testBucket flag.")
-		os.Exit(1)
-	}
-
-	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
-	setup.RunTestsForMountedDirectoryFlag(m)
 
 	// Run tests for testBucket
-	setup.SetUpTestDirForTestBucketFlag()
+	// 4. Build the flag sets dynamically from the config.
+	flags := setup.BuildFlagSets(cfg.RenameDirLimit[0], bucketType, "")
+	setup.SetUpTestDirForTestBucket(&cfg.RenameDirLimit[0])
 
-	successCode := static_mounting.RunTests(flags, m)
+	successCode := static_mounting.RunTestsWithConfigFile(&cfg.RenameDirLimit[0], flags, m)
 
 	if successCode == 0 {
-		successCode = only_dir_mounting.RunTests(flags, onlyDirMounted, m)
+		successCode = only_dir_mounting.RunTestsWithConfigFile(&cfg.RenameDirLimit[0], flags, onlyDirMounted, m)
 	}
 
 	if successCode == 0 {
-		successCode = persistent_mounting.RunTests(flags, m)
+		successCode = persistent_mounting.RunTestsWithConfigFile(&cfg.RenameDirLimit[0], flags, m)
 	}
 
 	os.Exit(successCode)

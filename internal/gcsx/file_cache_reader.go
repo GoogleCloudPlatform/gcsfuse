@@ -175,16 +175,11 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 	return 0, false, nil
 }
 
-func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (ReaderResponse, error) {
-	var err error
-	readerResponse := ReaderResponse{
-		DataBuf: p,
-		Size:    0,
-	}
+func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (ReadResponse, error) {
+	var readResponse ReadResponse
 
 	if offset >= int64(fc.object.Size) {
-		err = io.EOF
-		return readerResponse, err
+		return readResponse, io.EOF
 	}
 
 	// Note: If we are reading the file for the first time and read type is sequential
@@ -193,21 +188,19 @@ func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (
 	// false in that case.
 	bytesRead, cacheHit, err := fc.tryReadingFromFileCache(ctx, p, offset)
 	if err != nil {
-		err = fmt.Errorf("ReadAt: while reading from cache: %w", err)
-		return readerResponse, err
+		return readResponse, fmt.Errorf("ReadAt: while reading from cache: %w", err)
 	}
 	// Data was served from cache.
 	if cacheHit || bytesRead == len(p) || (bytesRead < len(p) && uint64(offset)+uint64(bytesRead) == fc.object.Size) {
-		readerResponse.Size = bytesRead
-		return readerResponse, nil
+		readResponse.Size = bytesRead
+		return readResponse, nil
 	}
 
 	// The cache is unable to serve data and requires a fallback to another reader.
-	err = FallbackToAnotherReader
-	return readerResponse, err
+	return readResponse, FallbackToAnotherReader
 }
 
-func captureFileCacheMetrics(ctx context.Context, metricHandle metrics.MetricHandle, readType string, readDataSize int, cacheHit bool, readLatency time.Duration) {
+func captureFileCacheMetrics(ctx context.Context, metricHandle metrics.MetricHandle, readType metrics.ReadType, readDataSize int, cacheHit bool, readLatency time.Duration) {
 	metricHandle.FileCacheReadCount(1, cacheHit, readType)
 	metricHandle.FileCacheReadBytesCount(int64(readDataSize), readType)
 	metricHandle.FileCacheReadLatencies(ctx, readLatency, cacheHit)

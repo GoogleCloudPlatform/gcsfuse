@@ -201,7 +201,7 @@ func TestMain(m *testing.M) {
 		// Populate the config manually.
 		cfg.Gzip = make([]test_suite.TestConfig, 1)
 		cfg.Gzip[0].TestBucket = setup.TestBucket()
-		cfg.Gzip[0].MountedDirectory = setup.MountedDirectory()
+		cfg.Gzip[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.Gzip[0].Configs = make([]test_suite.ConfigItem, 1)
 		cfg.Gzip[0].Configs[0].Flags = []string{
 			"--sequential-read-size-mb=1 --implicit-dirs",
@@ -209,19 +209,10 @@ func TestMain(m *testing.M) {
 		}
 		cfg.Gzip[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 	}
-	var err error
-
-	setup.SetBucketFromConfigFile(cfg.Gzip[0].TestBucket)
-	ctx = context.Background()
-	bucketType, err := setup.BucketType(ctx, cfg.Gzip[0].TestBucket)
-	if err != nil {
-		log.Fatalf("BucketType failed: %v", err)
-	}
-	if bucketType == setup.ZonalBucket {
-		setup.SetIsZonalBucketRun(true)
-	}
 
 	// 2. Create storage client before running tests.
+	ctx = context.Background()
+	bucketType := setup.TestEnvironment(ctx, &cfg.Gzip[0])
 	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
 	defer func() {
 		err := closeStorageClient()
@@ -230,7 +221,7 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	err = setup_testdata()
+	err := setup_testdata()
 	if err != nil {
 		log.Fatalf("Failed to setup test data: %v", err)
 	}
@@ -244,15 +235,15 @@ func TestMain(m *testing.M) {
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as Gzip tests validates content from the bucket.
-	if cfg.Gzip[0].MountedDirectory != "" && cfg.Gzip[0].TestBucket != "" {
-		os.Exit(setup.RunTestsForMountedDirectory(cfg.Gzip[0].MountedDirectory, m))
+	if cfg.Gzip[0].GKEMountedDirectory != "" && cfg.Gzip[0].TestBucket != "" {
+		os.Exit(setup.RunTestsForMountedDirectory(cfg.Gzip[0].GKEMountedDirectory, m))
 	}
 
-	// Run tests for testBucket// Run tests for testBucket
+	// Run tests for testBucket.
 	// 4. Build the flag sets dynamically from the config.
-	flags := setup.BuildFlagSets(cfg.Gzip[0], bucketType)
+	flags := setup.BuildFlagSets(cfg.Gzip[0], bucketType, "")
 
-	setup.SetUpTestDirForTestBucket(cfg.Gzip[0].TestBucket)
+	setup.SetUpTestDirForTestBucket(&cfg.Gzip[0])
 
 	successCode := static_mounting.RunTestsWithConfigFile(&cfg.Gzip[0], flags, m)
 

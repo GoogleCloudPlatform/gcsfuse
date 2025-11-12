@@ -30,16 +30,16 @@ func (t *StreamingWritesSuite) TestRenameBeforeFileIsFlushed() {
 	require.NoError(t.T(), err)
 
 	newFile := "new" + t.fileName
-	destDirPath := path.Join(testDirPath, newFile)
+	destDirPath := path.Join(testEnv.testDirPath, newFile)
 	err = operations.RenameFile(t.filePath, destDirPath)
 
 	// Validate that move didn't throw any error.
 	require.NoError(t.T(), err)
 	// Verify the new object contents.
-	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, newFile, t.data+t.data, t.T())
+	ValidateObjectContentsFromGCS(testEnv.ctx, testEnv.storageClient, testDirName, newFile, t.data+t.data, t.T())
 	require.NoError(t.T(), t.f1.Close())
 	// Check if old object is deleted.
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, t.fileName, t.T())
+	ValidateObjectNotFoundErrOnGCS(testEnv.ctx, testEnv.storageClient, testDirName, t.fileName, t.T())
 }
 
 func (t *StreamingWritesSuite) TestSyncAfterRenameSucceeds() {
@@ -49,7 +49,7 @@ func (t *StreamingWritesSuite) TestSyncAfterRenameSucceeds() {
 	err = t.f1.Sync()
 	require.NoError(t.T(), err)
 	newFile := "new" + t.fileName
-	err = operations.RenameFile(t.filePath, path.Join(testDirPath, newFile))
+	err = operations.RenameFile(t.filePath, path.Join(testEnv.testDirPath, newFile))
 	require.NoError(t.T(), err)
 
 	err = t.f1.Sync()
@@ -57,8 +57,8 @@ func (t *StreamingWritesSuite) TestSyncAfterRenameSucceeds() {
 	// Verify that sync succeeds after rename.
 	require.NoError(t.T(), err)
 	// Verify the new object contents.
-	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, newFile, string(t.data), t.T())
+	ValidateObjectContentsFromGCS(testEnv.ctx, testEnv.storageClient, testDirName, newFile, string(t.data), t.T())
 	require.NoError(t.T(), t.f1.Close())
 	// Check if old object is deleted.
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, t.fileName, t.T())
+	ValidateObjectNotFoundErrOnGCS(testEnv.ctx, testEnv.storageClient, testDirName, t.fileName, t.T())
 }

@@ -54,10 +54,18 @@ type AttrValuePair struct {
 // AttrCombination is a list of AttrValuePairs.
 type AttrCombination []AttrValuePair
 
+// DistinctAttr represents a unique attribute with all its possible values.
+type DistinctAttr struct {
+	TypeName      string   // e.g., ReadType
+	AttributeName string   // e.g., read_type
+	Values        []string // e.g., ["sequential", "random"]
+}
+
 // Data structure to pass to the template.
 type TemplateData struct {
 	Metrics          []Metric
 	AttrCombinations map[string][]AttrCombination
+	DistinctAttrs    []DistinctAttr
 }
 
 // Helper functions for the template.
@@ -67,9 +75,11 @@ var funcMap = template.FuncMap{
 	"getVarName":                  getVarName,
 	"getAtomicName":               getAtomicName,
 	"getGoType":                   getGoType,
+	"getAttrConstName":            getAttrConstName,
 	"getUnitMethod":               getUnitMethod,
 	"joinInts":                    joinInts,
 	"isCounter":                   func(m Metric) bool { return m.Type == "int_counter" },
+	"isUpDownCounter":             func(m Metric) bool { return m.Type == "int_up_down_counter" },
 	"isHistogram":                 func(m Metric) bool { return m.Type == "int_histogram" },
 	"buildSwitches":               buildSwitches,
 	"getTestName":                 getTestName,
@@ -124,14 +134,15 @@ func getAtomicName(metricName string, combo AttrCombination) string {
 }
 
 func getGoType(t string) string {
-	switch t {
-	case "string":
-		return "string"
-	case "bool":
-		return "bool"
-	default:
-		return "interface{}"
+	// If the type is not a primitive, it's a custom attribute type.
+	if t != "string" && t != "bool" {
+		return toPascal(t)
 	}
+	return t
+}
+
+func getAttrConstName(typeName, valueName string) string {
+	return toPascal(typeName) + toPascal(valueName) + "Attr"
 }
 
 func getUnitMethod(unit string) string {
@@ -173,8 +184,8 @@ func getTestName(combo AttrCombination) string {
 func getTestFuncArgs(combo AttrCombination) string {
 	var parts []string
 	for _, pair := range combo {
-		if pair.Type == "string" {
-			parts = append(parts, `"`+pair.Value+`"`)
+		if pair.Type != "bool" {
+			parts = append(parts, fmt.Sprintf(`"%s"`, pair.Value))
 		} else {
 			parts = append(parts, pair.Value)
 		}
@@ -186,7 +197,7 @@ func getTestFuncArgs(combo AttrCombination) string {
 func getExpectedAttrs(combo AttrCombination) string {
 	var parts []string
 	for _, pair := range combo {
-		if pair.Type == "string" {
+		if pair.Type != "bool" {
 			parts = append(parts, fmt.Sprintf(`attribute.String("%s", "%s")`, pair.Name, pair.Value))
 		} else { // bool
 			parts = append(parts, fmt.Sprintf(`attribute.Bool("%s", %s)`, pair.Name, pair.Value))
@@ -231,9 +242,10 @@ func generateCombinations(attributes []Attribute) []AttrCombination {
 	combsOfRest := generateCombinations(remainingAttrs)
 
 	var firstAttrValues []AttrValuePair
-	if firstAttr.Type == "string" {
+	if firstAttr.Type != "bool" {
 		for _, v := range firstAttr.Values {
-			firstAttrValues = append(firstAttrValues, AttrValuePair{Name: firstAttr.Name, Type: "string", Value: v})
+			// The type of the attribute is now the custom type, not "string".
+			firstAttrValues = append(firstAttrValues, AttrValuePair{Name: firstAttr.Name, Type: firstAttr.Type, Value: v})
 		}
 	} else if firstAttr.Type == "bool" {
 		firstAttrValues = append(firstAttrValues, AttrValuePair{Name: firstAttr.Name, Type: "bool", Value: "true"})
@@ -252,7 +264,7 @@ func generateCombinations(attributes []Attribute) []AttrCombination {
 
 func handleDefaultInSwitchCase(level int, attrName string, builder *strings.Builder) {
 	builder.WriteString(fmt.Sprintf("%sdefault:\n", strings.Repeat("\t", level+2)))
-	builder.WriteString(fmt.Sprintf("%supdateUnrecognizedAttribute(%s)\n", strings.Repeat("\t", level+3), toCamel(attrName)))
+	builder.WriteString(fmt.Sprintf("%supdateUnrecognizedAttribute(string(%s))\n", strings.Repeat("\t", level+3), toCamel(attrName)))
 	builder.WriteString(fmt.Sprintf("%sreturn\n", strings.Repeat("\t", level+3)))
 }
 
@@ -263,8 +275,8 @@ func validateMetric(m Metric) error {
 	if m.Description == "" {
 		return fmt.Errorf("description is required for metric %q", m.Name)
 	}
-	if m.Type != "int_counter" && m.Type != "int_histogram" {
-		return fmt.Errorf("type for metric %q must be 'int_counter' or 'int_histogram', got %q", m.Name, m.Type)
+	if m.Type != "int_counter" && m.Type != "int_histogram" && m.Type != "int_up_down_counter" {
+		return fmt.Errorf("type for metric %q must be 'int_counter', 'int_histogram', or 'int_up_down_counter', got %q", m.Name, m.Type)
 	}
 
 	if m.Type == "int_histogram" {
@@ -292,6 +304,25 @@ func validateMetric(m Metric) error {
 		}
 		if a.Type == "bool" && len(a.Values) != 0 {
 			return fmt.Errorf("values should not be present for bool attribute %q in metric %q", a.Name, m.Name)
+		}
+	}
+	return nil
+}
+
+// validateAttributeConstants checks if any two attributes would resolve to the
+// same constant name.
+func validateAttributeConstants(attrs []DistinctAttr) error {
+	constNames := make(map[string]string)
+	for _, attr := range attrs {
+		for _, val := range attr.Values {
+			constName := getAttrConstName(attr.TypeName, val)
+			if originalAttr, ok := constNames[constName]; ok {
+				return fmt.Errorf(
+					"constant name collision: attribute %q with value %q and attribute %q "+
+						"both generate constant %q",
+					attr.AttributeName, val, originalAttr, constName)
+			}
+			constNames[constName] = attr.AttributeName
 		}
 	}
 	return nil
@@ -356,7 +387,7 @@ func buildSwitches(metric Metric) string {
 		if level == len(metric.Attributes) {
 			// Base case: record the metric
 			indent := strings.Repeat("\t", level+1)
-			if metric.Type == "int_counter" {
+			if metric.Type == "int_counter" || metric.Type == "int_up_down_counter" {
 				atomicName := getAtomicName(metric.Name, combo)
 				builder.WriteString(fmt.Sprintf("%so.%s.Add(inc)\n", indent, atomicName))
 			} else { // histogram
@@ -372,22 +403,23 @@ func buildSwitches(metric Metric) string {
 		builder.WriteString(fmt.Sprintf("%sswitch %s {\n", indent, toCamel(attr.Name)))
 
 		var values []string
-		if attr.Type == "string" {
-			values = attr.Values
-		} else { // bool
+		isBool := attr.Type == "bool"
+		if isBool {
 			values = []string{"true", "false"}
+		} else {
+			values = attr.Values
 		}
 
 		for _, val := range values {
 			caseVal := val
-			if attr.Type == "string" {
-				caseVal = `"` + val + `"`
+			if !isBool {
+				caseVal = getAttrConstName(attr.Type, val)
 			}
 			builder.WriteString(fmt.Sprintf("%scase %s:\n", strings.Repeat("\t", level+2), caseVal))
 			currentCombo := append(combo, AttrValuePair{Name: attr.Name, Type: attr.Type, Value: val})
 			recorder(level+1, currentCombo)
 		}
-		if attr.Type == "string" {
+		if !isBool {
 			handleDefaultInSwitchCase(level, attr.Name, &builder)
 		}
 		builder.WriteString(fmt.Sprintf("%s}\n", indent))
@@ -397,7 +429,7 @@ func buildSwitches(metric Metric) string {
 		if metric.Type == "int_histogram" {
 			unitMethod := getUnitMethod(metric.Unit)
 			builder.WriteString(fmt.Sprintf("\trecord = histogramRecord{ctx: ctx, instrument: o.%s, value: latency%s}\n", toCamel(metric.Name), unitMethod))
-		} else if metric.Type == "int_counter" {
+		} else if metric.Type == "int_counter" || metric.Type == "int_up_down_counter" {
 			atomicName := getAtomicName(metric.Name, AttrCombination{})
 			builder.WriteString(fmt.Sprintf("\to.%s.Add(inc)\n", atomicName))
 		}
@@ -406,6 +438,39 @@ func buildSwitches(metric Metric) string {
 	}
 
 	return builder.String()
+}
+
+// findDistinctAttributes finds all unique string attributes across all metrics
+// and returns them as a slice of DistinctAttr, sorted by attribute name.
+func findDistinctAttributes(metrics []Metric) []DistinctAttr {
+	distinctAttrsMap := make(map[string]map[string]bool) // map[attrName]map[value]bool
+	for _, m := range metrics {
+		for _, attr := range m.Attributes {
+			// We only generate constants for string attributes.
+			if attr.Type == "string" {
+				if _, ok := distinctAttrsMap[attr.Name]; !ok {
+					distinctAttrsMap[attr.Name] = make(map[string]bool)
+				}
+				for _, val := range attr.Values {
+					distinctAttrsMap[attr.Name][val] = true
+				}
+			}
+		}
+	}
+	var distinctAttrs []DistinctAttr
+	for attrName, valuesMap := range distinctAttrsMap {
+		var values []string
+		for val := range valuesMap {
+			values = append(values, val)
+		}
+		sort.Strings(values)
+		distinctAttrs = append(distinctAttrs, DistinctAttr{
+			TypeName:      toPascal(attrName),
+			AttributeName: attrName,
+			Values:        values,
+		})
+	}
+	return distinctAttrs
 }
 
 func main() {
@@ -441,18 +506,46 @@ func main() {
 		}
 	}
 
-	attrCombinations := make(map[string][]AttrCombination)
-	for _, m := range metrics {
-		attrCombinations[m.Name] = generateCombinations(m.Attributes)
+	distinctAttrs := findDistinctAttributes(metrics)
+	// Sort for deterministic output.
+	sort.Slice(distinctAttrs, func(i, j int) bool {
+		return distinctAttrs[i].AttributeName < distinctAttrs[j].AttributeName
+	})
+
+	if err := validateAttributeConstants(distinctAttrs); err != nil {
+		log.Fatalf("error validating attribute constants: %v", err)
+	}
+
+	// In the template data, update the attribute type to be the custom type name
+	// for the distinct attributes. This allows the templates to generate the
+	// correct type in function signatures.
+	for i, m := range metrics {
+		distinctAttrsMap := make(map[string]bool)
+		for _, da := range distinctAttrs {
+			distinctAttrsMap[da.AttributeName] = true
+		}
+
+		for j, attr := range m.Attributes {
+			if distinctAttrsMap[attr.Name] {
+				metrics[i].Attributes[j].Type = attr.Name
+			}
+		}
 	}
 
 	// Create the directory if it doesn't exist
 	if err := os.MkdirAll(*outputDir, 0755); err != nil {
 		log.Fatalf("error creating output directory: %v", err)
 	}
+
+	attrCombinations := make(map[string][]AttrCombination)
+	for _, m := range metrics {
+		attrCombinations[m.Name] = generateCombinations(m.Attributes)
+	}
+
 	data := TemplateData{
 		Metrics:          metrics,
 		AttrCombinations: attrCombinations,
+		DistinctAttrs:    distinctAttrs,
 	}
 	createFile(&data, fmt.Sprintf("%s/metric_handle.go", *outputDir), "metric_handle.tpl")
 	createFile(&data, fmt.Sprintf("%s/noop_metrics.go", *outputDir), "noop_metrics.tpl")

@@ -16,66 +16,45 @@ package logger
 
 import (
 	"bytes"
+	"fmt"
 	"log/slog"
-	"os"
-	"regexp"
+	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/suite"
+	"github.com/stretchr/testify/require"
 )
 
 const (
-	textTraceString   = "^time=\"[a-zA-Z0-9/:. ]{26}\" severity=TRACE message=\"TestLogs: www.traceExample.com\""
-	textDebugString   = "^time=\"[a-zA-Z0-9/:. ]{26}\" severity=DEBUG message=\"TestLogs: www.debugExample.com\""
-	textInfoString    = "^time=\"[a-zA-Z0-9/:. ]{26}\" severity=INFO message=\"TestLogs: www.infoExample.com\""
-	textWarningString = "^time=\"[a-zA-Z0-9/:. ]{26}\" severity=WARNING message=\"TestLogs: www.warningExample.com\""
-	textErrorString   = "^time=\"[a-zA-Z0-9/:. ]{26}\" severity=ERROR message=\"TestLogs: www.errorExample.com\""
-
-	jsonTraceString   = "^{\"timestamp\":{\"seconds\":\\d{10},\"nanos\":\\d{0,9}},\"severity\":\"TRACE\",\"message\":\"TestLogs: www.traceExample.com\"}"
-	jsonDebugString   = "^{\"timestamp\":{\"seconds\":\\d{10},\"nanos\":\\d{0,9}},\"severity\":\"DEBUG\",\"message\":\"TestLogs: www.debugExample.com\"}"
-	jsonInfoString    = "^{\"timestamp\":{\"seconds\":\\d{10},\"nanos\":\\d{0,9}},\"severity\":\"INFO\",\"message\":\"TestLogs: www.infoExample.com\"}"
-	jsonWarningString = "^{\"timestamp\":{\"seconds\":\\d{10},\"nanos\":\\d{0,9}},\"severity\":\"WARNING\",\"message\":\"TestLogs: www.warningExample.com\"}"
-	jsonErrorString   = "^{\"timestamp\":{\"seconds\":\\d{10},\"nanos\":\\d{0,9}},\"severity\":\"ERROR\",\"message\":\"TestLogs: www.errorExample.com\"}"
+	testFsName     = "testFS" // This is used in redirectLogsToGivenBuffer to construct the mount instance ID.
+	textLogPattern = `^time="[a-zA-Z0-9/:. ]{26}" severity=%s message="TestLogs: %s" mount-id=testFS-[0-9a-f]{8}\s*$`
+	jsonLogPattern = `^{"timestamp":{"seconds":\d{10},"nanos":\d{0,9}},"severity":"%s","message":"TestLogs: %s","mount-id":"testFS-[0-9a-f]{8}"}\s*$`
 )
 
-type LoggerTest struct {
-	suite.Suite
-}
-
-func TestLoggerSuite(t *testing.T) {
-	suite.Run(t, new(LoggerTest))
-}
-
 // //////////////////////////////////////////////////////////////////////
-// Boilerplate
+// Helpers
 // //////////////////////////////////////////////////////////////////////
+
+func expectedLogRegex(t *testing.T, format, severity, message string) string {
+	t.Helper()
+	switch format {
+	case "text":
+		return fmt.Sprintf(textLogPattern, severity, message)
+	case "json":
+		return fmt.Sprintf(jsonLogPattern, severity, message)
+	default:
+		return ""
+	}
+}
 
 func redirectLogsToGivenBuffer(buf *bytes.Buffer, level string) {
 	var programLevel = new(slog.LevelVar)
-	defaultLogger = slog.New(
-		defaultLoggerFactory.createJsonOrTextHandler(buf, programLevel, "TestLogs: "),
-	)
+	handler := defaultLoggerFactory.createJsonOrTextHandler(buf, programLevel, "TestLogs: ")
+	handler = handler.WithAttrs(loggerAttr(testFsName))
+	defaultLogger = slog.New(handler)
 	setLoggingLevel(level, programLevel)
-}
-
-// fetchLogOutputForSpecifiedSeverityLevel takes configured severity and
-// functions that write logs as parameter and returns string array containing
-// output from each function call.
-func fetchLogOutputForSpecifiedSeverityLevel(level string, functions []func()) []string {
-	// create a logger that writes to buffer at configured level.
-	var buf bytes.Buffer
-	redirectLogsToGivenBuffer(&buf, level)
-
-	var output []string
-	// run the functions provided.
-	for _, f := range functions {
-		f()
-		output = append(output, buf.String())
-		buf.Reset()
-	}
-	return output
 }
 
 func getTestLoggingFunctions() []func() {
@@ -98,180 +77,254 @@ func getTestLoggingFunctions() []func() {
 	}
 }
 
-func validateOutput(t *testing.T, expected []string, output []string) {
-	for i := range output {
-		if expected[i] == "" {
-			assert.Equal(t, expected[i], output[i])
-		} else {
-			expectedRegexp := regexp.MustCompile(expected[i])
-			assert.True(t, expectedRegexp.MatchString(output[i]))
-		}
-	}
-}
-
-func validateLogOutputAtSpecifiedFormatAndSeverity(t *testing.T, format string, level string, expectedOutput []string) {
+// fetchAllLogLevelOutputsForSpecifiedSeverityLevel sets the log format and severity,
+// executes standard logging functions, and returns their output.
+func fetchAllLogLevelOutputsForSpecifiedSeverityLevel(t *testing.T, format, level string) []string {
+	t.Helper()
 	// set log format
 	defaultLoggerFactory.format = format
 
-	output := fetchLogOutputForSpecifiedSeverityLevel(level, getTestLoggingFunctions())
+	// create a logger that writes to buffer at configured level.
+	var buf bytes.Buffer
+	redirectLogsToGivenBuffer(&buf, level)
 
-	validateOutput(t, expectedOutput, output)
+	var actualLogLines []string
+	// run the functions provided.
+	for _, f := range getTestLoggingFunctions() {
+		f()
+		actualLogLines = append(actualLogLines, buf.String())
+		buf.Reset()
+	}
+	return actualLogLines
+}
+
+// validateLogOutputs compares the captured log line output with the expected log regex patterns.
+func validateLogOutputs(t *testing.T, expectedLogLineRegexes, actualLogLines []string) {
+	t.Helper()
+	require.Equal(t, len(expectedLogLineRegexes), len(actualLogLines))
+	for i := range actualLogLines {
+		assert.Regexp(t, expectedLogLineRegexes[i], actualLogLines[i])
+	}
 }
 
 // //////////////////////////////////////////////////////////////////////
 // Tests
 // //////////////////////////////////////////////////////////////////////
-func (t *LoggerTest) TestTextFormatLogs_LogLevelOFF() {
-	var expected = []string{
-		"", "", "", "", "",
+func TestTextFormatLogs_LogLevelOFF(t *testing.T) {
+	var expectedLogLineRegexes = []string{
+		"", // TRACE
+		"", // DEBUG
+		"", // INFO
+		"", // WARNING
+		"", // ERROR
 	}
 
-	// Assert that nothing is logged when log level is OFF.
-	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "json", cfg.OFF, expected)
+	actualLogLines := fetchAllLogLevelOutputsForSpecifiedSeverityLevel(t, "text", cfg.OFF)
+
+	validateLogOutputs(t, expectedLogLineRegexes, actualLogLines)
 }
 
-func (t *LoggerTest) TestTextFormatLogs_LogLevelERROR() {
-	var expected = []string{
-		"", "", "", "", textErrorString,
+func TestTextFormatLogs_LogLevelERROR(t *testing.T) {
+	var expectedLogLineRegexes = []string{
+		"", // TRACE
+		"", // DEBUG
+		"", // INFO
+		"", // WARNING
+		expectedLogRegex(t, "text", "ERROR", "www.errorExample.com"),
 	}
 
-	// Assert only error logs are logged when log level is ERROR.
-	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "text", cfg.ERROR, expected)
+	actualLogLines := fetchAllLogLevelOutputsForSpecifiedSeverityLevel(t, "text", cfg.ERROR)
+
+	validateLogOutputs(t, expectedLogLineRegexes, actualLogLines)
 }
 
-func (t *LoggerTest) TestTextFormatLogs_LogLevelWARNING() {
-	var expected = []string{
-		"", "", "", textWarningString, textErrorString,
+func TestTextFormatLogs_LogLevelWARNING(t *testing.T) {
+	expectedLogLineRegexes := []string{
+		"", // TRACE
+		"", // DEBUG
+		"", // INFO
+		expectedLogRegex(t, "text", "WARNING", "www.warningExample.com"),
+		expectedLogRegex(t, "text", "ERROR", "www.errorExample.com"),
 	}
 
-	// Assert warning and error logs are logged when log level is WARNING.
-	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "text", cfg.WARNING, expected)
+	actualLogLines := fetchAllLogLevelOutputsForSpecifiedSeverityLevel(t, "text", cfg.WARNING)
+
+	validateLogOutputs(t, expectedLogLineRegexes, actualLogLines)
 }
 
-func (t *LoggerTest) TestTextFormatLogs_LogLevelINFO() {
-	var expected = []string{
-		"", "", textInfoString, textWarningString, textErrorString,
+func TestTextFormatLogs_LogLevelINFO(t *testing.T) {
+	expectedLogLineRegexes := []string{
+		"", // TRACE
+		"", // DEBUG
+		expectedLogRegex(t, "text", "INFO", "www.infoExample.com"),
+		expectedLogRegex(t, "text", "WARNING", "www.warningExample.com"),
+		expectedLogRegex(t, "text", "ERROR", "www.errorExample.com"),
 	}
 
-	// Assert info, warning & error logs are logged when log level is INFO.
-	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "text", cfg.INFO, expected)
+	actualLogLines := fetchAllLogLevelOutputsForSpecifiedSeverityLevel(t, "text", cfg.INFO)
+
+	validateLogOutputs(t, expectedLogLineRegexes, actualLogLines)
 }
 
-func (t *LoggerTest) TestTextFormatLogs_LogLevelDEBUG() {
-	var expected = []string{
-		"", textDebugString, textInfoString, textWarningString, textErrorString,
+func TestTextFormatLogs_LogLevelDEBUG(t *testing.T) {
+	expectedLogLineRegexes := []string{
+		"", // TRACE
+		expectedLogRegex(t, "text", "DEBUG", "www.debugExample.com"),
+		expectedLogRegex(t, "text", "INFO", "www.infoExample.com"),
+		expectedLogRegex(t, "text", "WARNING", "www.warningExample.com"),
+		expectedLogRegex(t, "text", "ERROR", "www.errorExample.com"),
 	}
 
-	// Assert debug, info, warning & error logs are logged when log level is DEBUG.
-	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "text", cfg.DEBUG, expected)
+	actualLogLines := fetchAllLogLevelOutputsForSpecifiedSeverityLevel(t, "text", cfg.DEBUG)
+
+	validateLogOutputs(t, expectedLogLineRegexes, actualLogLines)
 }
 
-func (t *LoggerTest) TestTextFormatLogs_LogLevelTRACE() {
-	var expected = []string{
-		textTraceString, textDebugString, textInfoString, textWarningString, textErrorString,
+func TestTextFormatLogs_LogLevelTRACE(t *testing.T) {
+	expectedLogLineRegexes := []string{
+		expectedLogRegex(t, "text", "TRACE", "www.traceExample.com"),
+		expectedLogRegex(t, "text", "DEBUG", "www.debugExample.com"),
+		expectedLogRegex(t, "text", "INFO", "www.infoExample.com"),
+		expectedLogRegex(t, "text", "WARNING", "www.warningExample.com"),
+		expectedLogRegex(t, "text", "ERROR", "www.errorExample.com"),
 	}
 
-	// Assert all logs are logged when log level is TRACE.
-	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "text", cfg.TRACE, expected)
+	actualLogLines := fetchAllLogLevelOutputsForSpecifiedSeverityLevel(t, "text", cfg.TRACE)
+
+	validateLogOutputs(t, expectedLogLineRegexes, actualLogLines)
 }
 
-func (t *LoggerTest) TestJSONFormatLogs_LogLevelOFF() {
-	var expected = []string{
-		"", "", "", "", "",
+func TestJSONFormatLogs_LogLevelOFF(t *testing.T) {
+	expectedLogLineRegexes := []string{
+		"", // TRACE
+		"", // DEBUG
+		"", // INFO
+		"", // WARNING
+		"", // ERROR
 	}
 
-	// Assert that nothing is logged when log level is OFF.
-	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "json", cfg.OFF, expected)
+	actualLogLines := fetchAllLogLevelOutputsForSpecifiedSeverityLevel(t, "json", cfg.OFF)
+
+	validateLogOutputs(t, expectedLogLineRegexes, actualLogLines)
 }
 
-func (t *LoggerTest) TestJSONFormatLogs_LogLevelERROR() {
-	var expected = []string{
-		"", "", "", "", jsonErrorString,
+func TestJSONFormatLogs_LogLevelERROR(t *testing.T) {
+	expectedLogLineRegexes := []string{
+		"", // TRACE
+		"", // DEBUG
+		"", // INFO
+		"", // WARNING
+		expectedLogRegex(t, "json", "ERROR", "www.errorExample.com"),
 	}
 
-	// Assert only error logs are logged when log level is ERROR.
-	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "json", cfg.ERROR, expected)
+	actualLogLines := fetchAllLogLevelOutputsForSpecifiedSeverityLevel(t, "json", cfg.ERROR)
+
+	validateLogOutputs(t, expectedLogLineRegexes, actualLogLines)
 }
 
-func (t *LoggerTest) TestJSONFormatLogs_LogLevelWARNING() {
-	var expected = []string{
-		"", "", "", jsonWarningString, jsonErrorString,
+func TestJSONFormatLogs_LogLevelWARNING(t *testing.T) {
+	expectedLogLineRegexes := []string{
+		"", // TRACE
+		"", // DEBUG
+		"", // INFO
+		expectedLogRegex(t, "json", "WARNING", "www.warningExample.com"),
+		expectedLogRegex(t, "json", "ERROR", "www.errorExample.com"),
 	}
 
-	// Assert warning and error logs are logged when log level is WARNING.
-	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "json", cfg.WARNING, expected)
+	actualLogLines := fetchAllLogLevelOutputsForSpecifiedSeverityLevel(t, "json", cfg.WARNING)
+
+	validateLogOutputs(t, expectedLogLineRegexes, actualLogLines)
 }
 
-func (t *LoggerTest) TestJSONFormatLogs_LogLevelINFO() {
-	var expected = []string{
-		"", "", jsonInfoString, jsonWarningString, jsonErrorString,
+func TestJSONFormatLogs_LogLevelINFO(t *testing.T) {
+	expectedLogLineRegexes := []string{
+		"", // TRACE
+		"", // DEBUG
+		expectedLogRegex(t, "json", "INFO", "www.infoExample.com"),
+		expectedLogRegex(t, "json", "WARNING", "www.warningExample.com"),
+		expectedLogRegex(t, "json", "ERROR", "www.errorExample.com"),
 	}
 
-	// Assert info, warning & error logs are logged when log level is INFO.
-	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "json", cfg.INFO, expected)
+	actualLogLines := fetchAllLogLevelOutputsForSpecifiedSeverityLevel(t, "json", cfg.INFO)
+
+	validateLogOutputs(t, expectedLogLineRegexes, actualLogLines)
 }
 
-func (t *LoggerTest) TestJSONFormatLogs_LogLevelDEBUG() {
-	var expected = []string{
-		"", jsonDebugString, jsonInfoString, jsonWarningString, jsonErrorString,
+func TestJSONFormatLogs_LogLevelDEBUG(t *testing.T) {
+	expectedLogLineRegexes := []string{
+		"", // TRACE
+		expectedLogRegex(t, "json", "DEBUG", "www.debugExample.com"),
+		expectedLogRegex(t, "json", "INFO", "www.infoExample.com"),
+		expectedLogRegex(t, "json", "WARNING", "www.warningExample.com"),
+		expectedLogRegex(t, "json", "ERROR", "www.errorExample.com"),
 	}
 
-	// Assert debug, info, warning & error logs are logged when log level is DEBUG.
-	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "json", cfg.DEBUG, expected)
+	actualLogLines := fetchAllLogLevelOutputsForSpecifiedSeverityLevel(t, "json", cfg.DEBUG)
+
+	validateLogOutputs(t, expectedLogLineRegexes, actualLogLines)
 }
 
-func (t *LoggerTest) TestJSONFormatLogs_LogLevelTRACE() {
-	var expected = []string{
-		jsonTraceString, jsonDebugString, jsonInfoString, jsonWarningString, jsonErrorString,
+func TestJSONFormatLogs_LogLevelTRACE(t *testing.T) {
+	expectedLogLineRegexes := []string{
+		expectedLogRegex(t, "json", "TRACE", "www.traceExample.com"),
+		expectedLogRegex(t, "json", "DEBUG", "www.debugExample.com"),
+		expectedLogRegex(t, "json", "INFO", "www.infoExample.com"),
+		expectedLogRegex(t, "json", "WARNING", "www.warningExample.com"),
+		expectedLogRegex(t, "json", "ERROR", "www.errorExample.com"),
 	}
 
-	// Assert all logs are logged when log level is TRACE.
-	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "json", cfg.TRACE, expected)
+	actualLogLines := fetchAllLogLevelOutputsForSpecifiedSeverityLevel(t, "json", cfg.TRACE)
+
+	validateLogOutputs(t, expectedLogLineRegexes, actualLogLines)
 }
 
-func (t *LoggerTest) TestSetLoggingLevel() {
-	testData := []struct {
+func TestSetLoggingLevel(t *testing.T) {
+	testCases := []struct {
+		name                 string
 		inputLevel           string
-		programLevel         *slog.LevelVar
 		expectedProgramLevel slog.Level
 	}{
 		{
-			cfg.TRACE,
-			new(slog.LevelVar),
-			LevelTrace,
+			name:                 "TRACE",
+			inputLevel:           cfg.TRACE,
+			expectedProgramLevel: LevelTrace,
 		},
 		{
-			cfg.DEBUG,
-			new(slog.LevelVar),
-			LevelDebug,
+			name:                 "DEBUG",
+			inputLevel:           cfg.DEBUG,
+			expectedProgramLevel: LevelDebug,
 		},
 		{
-			cfg.WARNING,
-			new(slog.LevelVar),
-			LevelWarn,
+			name:                 "WARNING",
+			inputLevel:           cfg.WARNING,
+			expectedProgramLevel: LevelWarn,
 		},
 		{
-			cfg.ERROR,
-			new(slog.LevelVar),
-			LevelError,
+			name:                 "ERROR",
+			inputLevel:           cfg.ERROR,
+			expectedProgramLevel: LevelError,
 		},
 		{
-			cfg.OFF,
-			new(slog.LevelVar),
-			LevelOff,
+			name:                 "OFF",
+			inputLevel:           cfg.OFF,
+			expectedProgramLevel: LevelOff,
 		},
 	}
 
-	for _, test := range testData {
-		setLoggingLevel(test.inputLevel, test.programLevel)
-		assert.Equal(t.T(), test.programLevel.Level(), test.expectedProgramLevel)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			programLevel := new(slog.LevelVar)
+
+			setLoggingLevel(tc.inputLevel, programLevel)
+
+			assert.Equal(t, tc.expectedProgramLevel, programLevel.Level())
+		})
 	}
 }
 
-func (t *LoggerTest) TestInitLogFile() {
+func TestInitLogFile(t *testing.T) {
+	filePath := filepath.Join(t.TempDir(), "log.txt")
 	format := "text"
-	filePath, _ := os.UserHomeDir()
-	filePath += "/log.txt"
 	fileSize := int64(100)
 	backupFileCount := int64(2)
 	newLogConfig := cfg.LoggingConfig{
@@ -285,57 +338,150 @@ func (t *LoggerTest) TestInitLogFile() {
 		},
 	}
 
-	err := InitLogFile(newLogConfig)
+	err := InitLogFile(newLogConfig, testFsName)
 
-	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), filePath, defaultLoggerFactory.file.Name())
-	assert.Nil(t.T(), defaultLoggerFactory.sysWriter)
-	assert.Equal(t.T(), format, defaultLoggerFactory.format)
-	assert.Equal(t.T(), cfg.DEBUG, defaultLoggerFactory.level)
-	assert.Equal(t.T(), fileSize, defaultLoggerFactory.logRotate.MaxFileSizeMb)
-	assert.Equal(t.T(), backupFileCount, defaultLoggerFactory.logRotate.BackupFileCount)
-	assert.True(t.T(), defaultLoggerFactory.logRotate.Compress)
+	require.NoError(t, err)
+	require.NotNil(t, defaultLoggerFactory.file)
+	t.Cleanup(func() {
+		defaultLoggerFactory.file.Close() // Close file handle to release resources.
+	})
+	assert.Equal(t, filePath, defaultLoggerFactory.file.Name())
+	assert.Nil(t, defaultLoggerFactory.sysWriter)
+	assert.Equal(t, format, defaultLoggerFactory.format)
+	assert.Equal(t, cfg.DEBUG, defaultLoggerFactory.level)
+	assert.Equal(t, fileSize, defaultLoggerFactory.logRotate.MaxFileSizeMb)
+	assert.Equal(t, backupFileCount, defaultLoggerFactory.logRotate.BackupFileCount)
+	assert.True(t, defaultLoggerFactory.logRotate.Compress)
 }
 
-func (t *LoggerTest) TestSetLogFormatToText() {
-	logConfig := cfg.DefaultLoggingConfig()
-	defaultLoggerFactory = &loggerFactory{
-		file:      nil,
-		level:     string(logConfig.Severity), // setting log level to INFO by default
-		logRotate: logConfig.LogRotate,
-	}
-
-	testData := []struct {
-		format         string
-		expectedOutput string
+func TestUpdateDefaultLogger(t *testing.T) {
+	testCases := []struct {
+		name          string
+		format        string
+		expectedRegex string
 	}{
 		{
-			"text",
-			textInfoString,
+			name:          "TextFormat",
+			format:        "text",
+			expectedRegex: expectedLogRegex(t, "text", "INFO", "www.infoExample.com"),
 		},
 		{
-			"json",
-			jsonInfoString,
+			name:          "JsonFormat",
+			format:        "json",
+			expectedRegex: expectedLogRegex(t, "json", "INFO", "www.infoExample.com"),
 		},
 		{
-			"",
-			jsonInfoString,
+			name:          "EmptyFormatDefaultsToJson",
+			format:        "",
+			expectedRegex: expectedLogRegex(t, "json", "INFO", "www.infoExample.com"),
 		},
 	}
 
-	for _, test := range testData {
-		SetLogFormat(test.format)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Initialize logger factory for each subtest to ensure isolation.
+			logConfig := cfg.DefaultLoggingConfig()
+			defaultLoggerFactory = &loggerFactory{
+				file:      nil,
+				level:     string(logConfig.Severity), // setting log level to INFO by default
+				logRotate: logConfig.LogRotate,
+			}
 
-		assert.NotNil(t.T(), defaultLoggerFactory)
-		assert.NotNil(t.T(), defaultLogger)
-		assert.Equal(t.T(), defaultLoggerFactory.format, test.format)
-		// Create a logger using defaultLoggerFactory that writes to buffer.
-		var buf bytes.Buffer
-		redirectLogsToGivenBuffer(&buf, defaultLoggerFactory.level)
-		Infof("www.infoExample.com")
-		output := buf.String()
-		// Compare expected and actual log.
-		expectedRegexp := regexp.MustCompile(test.expectedOutput)
-		assert.True(t.T(), expectedRegexp.MatchString(output))
+			UpdateDefaultLogger(tc.format, testFsName)
+			var buf bytes.Buffer
+			redirectLogsToGivenBuffer(&buf, defaultLoggerFactory.level)
+			Infof("www.infoExample.com")
+
+			assert.Regexp(t, tc.expectedRegex, buf.String())
+		})
+	}
+}
+
+func TestGenerateMountUUID_Success(t *testing.T) {
+	testCases := []struct {
+		name                   string
+		size                   int
+		expectedMountUUIDRegex string
+	}{
+		{
+			name:                   "TenChars",
+			size:                   10,
+			expectedMountUUIDRegex: "^[0-9a-f]{10}$",
+		},
+		{
+			name:                   "ThirtyTwoChars",
+			size:                   32,
+			expectedMountUUIDRegex: "^[0-9a-f]{32}$",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mountUUID, err := generateMountUUID(tc.size)
+
+			require.NoError(t, err)
+			assert.Regexp(t, tc.expectedMountUUIDRegex, mountUUID)
+		})
+	}
+}
+
+func TestGenerateMountUUID_FailureDueToUUIDSize(t *testing.T) {
+	mountUUID, err := generateMountUUID(999)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "UUID is smaller than requested size")
+	assert.Equal(t, "", mountUUID)
+}
+
+func TestGenerateMountUUID_FailureDueToNegativeSize(t *testing.T) {
+	mountUUID, err := generateMountUUID(0)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "MountUUID must be positive")
+	assert.Equal(t, "", mountUUID)
+}
+
+func TestSetupMountUUID_Success(t *testing.T) {
+	testCases := []struct {
+		name                   string
+		inBackgroundMode       bool
+		mountUUIDEnv           string
+		expectedID             string
+		expectedMountUUIDRegex string
+	}{
+		{
+			name:                   "ForegroundMode",
+			inBackgroundMode:       false,
+			expectedID:             "",
+			expectedMountUUIDRegex: "^[0-9a-f]{8}$", // default size for MountUUID is 8.
+		},
+		{
+			name:             "BackgroundModeWithInstanceID",
+			inBackgroundMode: true,
+			mountUUIDEnv:     "12345678",
+			expectedID:       "12345678",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Cleanup(func() {
+				// Initialize package level variables for each subtest to ensure isolation.
+				mountUUID = ""
+				setupMountUUIDOnce = sync.Once{}
+			})
+			if tc.inBackgroundMode {
+				t.Setenv(GCSFuseInBackgroundMode, "true")
+				t.Setenv(MountUUIDEnvKey, tc.mountUUIDEnv)
+			}
+
+			setupMountUUID()
+
+			if tc.inBackgroundMode {
+				assert.Equal(t, tc.expectedID, mountUUID)
+			} else {
+				assert.Len(t, mountUUID, mountUUIDLength)
+				assert.Regexp(t, tc.expectedMountUUIDRegex, mountUUID)
+			}
+		})
 	}
 }

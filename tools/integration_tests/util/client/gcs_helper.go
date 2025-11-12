@@ -22,6 +22,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
@@ -61,16 +62,16 @@ func CreateImplicitDir(ctx context.Context, storageClient *storage.Client,
 	}
 }
 
-func ValidateObjectNotFoundErrOnGCS(ctx context.Context, storageClient *storage.Client,
-	testDirName string, fileName string, t *testing.T) {
-	_, err := ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, fileName))
+func ValidateObjectNotFoundErrOnGCS(ctx context.Context, storageClient *storage.Client, testDirName string, fileName string, t *testing.T) {
+	t.Helper()
+	_, err := StatObject(ctx, storageClient, path.Join(testDirName, fileName))
 	if err == nil || !strings.Contains(err.Error(), "storage: object doesn't exist") {
 		t.Fatalf("Incorrect error returned from GCS for file %s: %v", fileName, err)
 	}
 }
 
-func ValidateObjectContentsFromGCS(ctx context.Context, storageClient *storage.Client,
-	testDirName string, fileName string, expectedContent string, t *testing.T) {
+func ValidateObjectContentsFromGCS(ctx context.Context, storageClient *storage.Client, testDirName string, fileName string, expectedContent string, t *testing.T) {
+	t.Helper()
 	gotContent, err := ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, fileName))
 	if err != nil {
 		t.Fatalf("Error while reading file from GCS, Err: %v", err)
@@ -125,6 +126,15 @@ func CreateObjectInGCSTestDir(ctx context.Context, storageClient *storage.Client
 	}
 }
 
+func CreateFinalizedObjectInGCSTestDir(ctx context.Context, storageClient *storage.Client,
+	testDirName, fileName, content string, t *testing.T) {
+	objectName := path.Join(testDirName, fileName)
+	err := CreateFinalizedObjectOnGCS(ctx, storageClient, objectName, content)
+	if err != nil {
+		t.Fatalf("Create Object %s on GCS: %v.", objectName, err)
+	}
+}
+
 func SetupFileInTestDirectory(ctx context.Context, storageClient *storage.Client,
 	testDirName, testFileName string, size int64, t *testing.T) {
 	randomData, err := operations.GenerateRandomData(size)
@@ -150,7 +160,7 @@ func SetupTestDirectory(ctx context.Context, storageClient *storage.Client, test
 }
 
 func CreateNFilesInDir(ctx context.Context, storageClient *storage.Client, numFiles int, fileName string, fileSize int64, dirName string, t *testing.T) (fileNames []string) {
-	for i := 0; i < numFiles; i++ {
+	for range numFiles {
 		testFileName := fileName + setup.GenerateRandomString(4)
 		fileNames = append(fileNames, testFileName)
 		SetupFileInTestDirectory(ctx, storageClient, dirName, testFileName, fileSize, t)
@@ -177,9 +187,36 @@ func CreateUnfinalizedObject(ctx context.Context, t *testing.T, client *storage.
 	require.NoError(t, err)
 	assert.EqualValues(t, len(content), bytesWritten)
 
-	flushOffset, err := writer.Flush()
+	err = writer.Close()
 	require.NoError(t, err)
-	assert.Equal(t, int64(len(content)), flushOffset)
-
+	// Sleep for a second after close to get correct size on stat.
+	time.Sleep(time.Second)
 	return writer
+}
+
+// setRequesterPays sets requester-pays flag to given boolean for the given bucket.
+func setRequesterPays(storageClient *storage.Client, ctx context.Context, bucketName string, enable bool) error {
+	bucket := storageClient.Bucket(bucketName)
+	bucketAttrsToUpdate := storage.BucketAttrsToUpdate{
+		RequesterPays: enable,
+	}
+	if _, err := bucket.Update(ctx, bucketAttrsToUpdate); err != nil {
+		return fmt.Errorf("failed to set requester-pays to %v for bucket %s: %w", enable, bucketName, err)
+	}
+	log.Printf("requester-pays set to %v for bucket %v\n", enable, bucketName)
+	return nil
+}
+
+// MustEnableRequesterPays enables requester-pays for the given bucket and panics if it fails.
+func MustEnableRequesterPays(storageClient *storage.Client, ctx context.Context, bucketName string) {
+	if err := setRequesterPays(storageClient, ctx, bucketName, true); err != nil {
+		panic(fmt.Sprintf("MustEnableRequesterPays: failed to enable requester-pays for bucket %s: %v", bucketName, err))
+	}
+}
+
+// MustDisableRequesterPays disables requester-pays for the given bucket and panics if it fails.
+func MustDisableRequesterPays(storageClient *storage.Client, ctx context.Context, bucketName string) {
+	if err := setRequesterPays(storageClient, ctx, bucketName, false); err != nil {
+		panic(fmt.Sprintf("MustDisableRequesterPays: failed to disable requester-pays for bucket %s: %v", bucketName, err))
+	}
 }

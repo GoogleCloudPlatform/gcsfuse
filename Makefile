@@ -12,9 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+CSI_VERSION ?= main
+GCSFUSE_VERSION ?= $(shell HASH=$$(git rev-parse --short=6 HEAD 2>/dev/null); if [ -z "$$HASH" ]; then echo "unknown"; else if [ -n "$$(git status --porcelain)" ]; then echo "$$HASH-dirty"; else echo "$$HASH"; fi; fi)
+BUILD_ARM ?= true
+STAGINGVERSION ?=
+PROJECT ?= $(shell gcloud config get-value project 2>/dev/null)
 .DEFAULT_GOAL := build
 
-.PHONY: generate imports fmt vet build buildTest install test clean-gen clean clean-all
+.PHONY: generate imports fmt vet build buildTest install test clean-gen clean clean-all build-csi
 
 generate:
 	go generate ./...
@@ -41,10 +46,13 @@ test: fmt
 	CGO_ENABLED=0 go test -timeout 5m -count 1 `go list ./... | grep -v internal/cache/...` && CGO_ENABLED=0 go test -timeout 5m -p 1 -count 1 ./internal/cache/...
 
 clean-gen:
-	rm -rf cfg/config.go
+	rm -rf cfg/config.go cfg/config_test.go
 
 clean: clean-gen
 	go clean
 
 clean-all: clean-gen
 	go clean -i ./...
+
+build-csi:
+	gcloud builds submit --config csi_driver_build.yml --project=$(PROJECT) --substitutions=_CSI_VERSION=$(CSI_VERSION),_GCSFUSE_VERSION=$(GCSFUSE_VERSION),_BUILD_ARM=$(BUILD_ARM),_STAGINGVERSION=$(STAGINGVERSION)

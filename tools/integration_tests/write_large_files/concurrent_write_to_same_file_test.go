@@ -39,7 +39,7 @@ func TestWriteToSameFileConcurrently(t *testing.T) {
 	concurrentWriterCount := 5
 	chunkSize := 50 * OneMiB / concurrentWriterCount
 
-	for i := 0; i < concurrentWriterCount; i++ {
+	for i := range concurrentWriterCount {
 		offset := i * chunkSize
 		eG.Go(func() error {
 			writeToFileSequentially(t, []string{localFilePath, mountedDirFilePath}, offset, offset+chunkSize)
@@ -68,5 +68,8 @@ func writeToFileSequentially(t *testing.T, filePaths []string, startOffset int, 
 		require.NoError(t, err)
 
 		startOffset = startOffset + chunkSize
+	}
+	if setup.IsZonalBucketRun() {
+		operations.SyncFiles(filesToWrite, t)
 	}
 }

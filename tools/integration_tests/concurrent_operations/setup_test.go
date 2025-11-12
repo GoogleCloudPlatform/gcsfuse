@@ -52,9 +52,10 @@ func mountGCSFuseAndSetupTestDir(flags []string, testDirName string, t *testing.
 		testDirPathForRead = setup.MountedDirectory()
 	} else {
 		config := &test_suite.TestConfig{
-			TestBucket:       setup.TestBucket(),
-			MountedDirectory: setup.MountedDirectory(),
-			LogFile:          setup.LogFile(),
+			TestBucket:              setup.TestBucket(),
+			GCSFuseMountedDirectory: setup.MntDir(),
+			GKEMountedDirectory:     setup.MountedDirectory(),
+			LogFile:                 setup.LogFile(),
 		}
 		if err := static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(config, flags); err != nil {
 			t.Fatalf("Failed to mount GCS FUSE: %v", err)
@@ -92,6 +93,9 @@ func TestMain(m *testing.M) {
 
 	log.Println("Running static mounting tests...")
 	successCode := m.Run()
+
+	// If test failed, save the gcsfuse log files for debugging.
+	setup.SaveLogFileInCaseOfFailure(successCode)
 
 	// Clean up test directory created.
 	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))

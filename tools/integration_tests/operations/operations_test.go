@@ -19,7 +19,6 @@ import (
 	"context"
 	"log"
 	"os"
-	"path"
 	"strconv"
 	"testing"
 
@@ -96,49 +95,24 @@ var (
 )
 
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
-	cacheDirPath := path.Join(os.TempDir(), cacheDir)
-
-	// Set up config file with create-empty-file: true.
-	mountConfig1 := map[string]interface{}{
-		"write": map[string]interface{}{
-			"create-empty-file": true,
-		},
-		"enable-atomic-rename-object": true,
-	}
-
-	filePath1 := setup.YAMLConfigFile(mountConfig1, "config1.yaml")
-	flags = append(flags, []string{"--config-file=" + filePath1})
-
-	// Set up config file for file cache.
-	mountConfig2 := map[string]interface{}{
-		"file-cache": map[string]interface{}{
-			// Keeping the size as low because the operations are performed on small
-			// files
-			"max-size-mb": 2,
-		},
-		"cache-dir": cacheDirPath,
-	}
-	filePath2 := setup.YAMLConfigFile(mountConfig2, "config2.yaml")
-	flags = append(flags, []string{"--config-file=" + filePath2})
-
-	mountConfig3 := map[string]interface{}{
-		"metadata-cache": map[string]interface{}{
+	mountConfig1 := map[string]any{
+		"metadata-cache": map[string]any{
 			"ttl-secs": 0,
 		},
-		"write": map[string]interface{}{
+		"write": map[string]any{
 			"enable-streaming-writes": false,
 		},
 	}
-	filePath3 := setup.YAMLConfigFile(mountConfig3, "config3.yaml")
-	flags = append(flags, []string{"--config-file=" + filePath3})
+	filePath1 := setup.YAMLConfigFile(mountConfig1, "config1.yaml")
+	flags = append(flags, []string{"--config-file=" + filePath1})
 
-	mountConfig4 := map[string]interface{}{
-		"file-system": map[string]interface{}{
+	mountConfig2 := map[string]any{
+		"file-system": map[string]any{
 			"kernel-list-cache-ttl-secs": -1,
 		},
 	}
-	filePath4 := setup.YAMLConfigFile(mountConfig4, "config4.yaml")
-	flags = append(flags, []string{"--config-file=" + filePath4, "--implicit-dirs=true"})
+	filePath2 := setup.YAMLConfigFile(mountConfig2, "config2.yaml")
+	flags = append(flags, []string{"--config-file=" + filePath2, "--implicit-dirs=true"})
 	return flags
 }
 

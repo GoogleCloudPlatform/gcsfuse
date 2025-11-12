@@ -130,16 +130,21 @@ func (t *fsTest) SetUpTestSuite() {
 	cacheClock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
 	t.serverCfg.CacheClock = &cacheClock
 
+	mountCfg := t.mountCfg
+	mountCfg.OpContext = ctx
+
 	if buckets != nil {
 		// mount all buckets
 		bucket = nil
 		t.serverCfg.BucketName = ""
+		mountCfg.FSName = "gcsfuse"
 	} else {
 		// mount a single bucket
 		if bucket == nil {
 			bucket = fake.NewFakeBucket(mtimeClock, "some_bucket", bucketType)
 		}
 		t.serverCfg.BucketName = bucket.Name()
+		mountCfg.FSName = bucket.Name()
 		buckets = map[string]gcs.Bucket{bucket.Name(): bucket}
 	}
 
@@ -189,18 +194,15 @@ func (t *fsTest) SetUpTestSuite() {
 	server, err := fs.NewServer(ctx, &t.serverCfg)
 	AssertEq(nil, err)
 
-	// Mount the file system.
-	mountCfg := t.mountCfg
-	mountCfg.OpContext = ctx
-
+	// Initialize Fuse Loggers.
 	if mountCfg.ErrorLogger == nil {
-		mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse_errors: ")
+		mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse_errors: ", mountCfg.FSName)
 	}
 
 	if *fDebug {
-		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelDebug, "fuse: ")
+		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelDebug, "fuse: ", mountCfg.FSName)
 	}
-
+	// Mount the file system.
 	mfs, err = fuse.Mount(mntDir, server, &mountCfg)
 	AssertEq(nil, err)
 }
@@ -290,7 +292,7 @@ func (t *fsTest) createEmptyObjects(names []string) error {
 }
 
 func (t *fsTest) createFolders(folders []string) error {
-	for i := 0; i < len(folders); i++ {
+	for i := range folders {
 		if _, err := bucket.CreateFolder(ctx, folders[i]); err != nil {
 			return err
 		}

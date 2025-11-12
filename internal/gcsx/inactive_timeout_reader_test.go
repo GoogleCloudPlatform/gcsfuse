@@ -369,7 +369,7 @@ func (s *InactiveTimeoutReaderTestSuite) TestRaceCondition() {
 	// Concurrent handleTimeout.
 	go func() {
 		defer wg.Done()
-		for i := 0; i < 1000; i++ {
+		for range 1000 {
 			s.reader.(*InactiveTimeoutReader).handleTimeout()
 		}
 	}()

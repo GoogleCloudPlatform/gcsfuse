@@ -4,6 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
+//
 //     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
@@ -15,6 +16,7 @@
 package storageutil
 
 import (
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -176,4 +178,44 @@ func (t *clientTest) TestCreateHttpClientWithHttpTracing() {
 	assert.Condition(t.T(), func() bool {
 		return slices.ContainsFunc(ss, func(s tracetest.SpanStub) bool { return s.Name == "http.send" })
 	})
+}
+
+func (t *clientTest) TestCreateHttpClientWithSocketAddress() {
+	// Start a local server to inspect incoming connections.
+	var remoteAddr string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		remoteAddr = r.RemoteAddr
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	// Configure the client to use a specific local IP address.
+	sc := GetDefaultStorageClientConfig(keyFile)
+	sc.LocalSocketAddress = "127.0.0.1"
+	// Use a static token to avoid network calls for token acquisition.
+	var tokenSrc = oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "test-token"})
+	httpClient, err := CreateHttpClient(&sc, tokenSrc)
+	require.NoError(t.T(), err)
+	require.NotNil(t.T(), httpClient)
+
+	// Have the client connect to the test server.
+	_, err = httpClient.Get(server.URL)
+	require.NoError(t.T(), err)
+
+	// Verify on the server side that the client's connection originates from the specified IP address.
+	host, _, err := net.SplitHostPort(remoteAddr)
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), sc.LocalSocketAddress, host)
+}
+
+func (t *clientTest) TestCreateHttpClientWithInvalidSocketAddress() {
+	// Configure the client to use an invalid local IP address.
+	sc := GetDefaultStorageClientConfig(keyFile)
+	sc.LocalSocketAddress = "invalid-address"
+	// Use a static token to avoid network calls for token acquisition.
+	var tokenSrc = oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "test-token"})
+
+	httpClient, err := CreateHttpClient(&sc, tokenSrc)
+
+	assert.Error(t.T(), err)
+	assert.Nil(t.T(), httpClient)
 }

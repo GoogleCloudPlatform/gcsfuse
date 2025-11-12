@@ -13,34 +13,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This script will run e2e tests.
-# This will stop execution when any command will have non-zero status.
-set -e
+# Script to run e2e tests for regional or zonal buckets.
+# Exit on error, treat unset variables as errors, and propagate pipeline errors.
+set -euo pipefail
 
-readonly RUN_E2E_TESTS_ON_INSTALLED_PACKAGE=true
-readonly SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=false
-readonly RUN_TEST_ON_TPC_ENDPOINT=false
-readonly PROJECT_ID="gcs-fuse-test-ml"
-readonly BUCKET_LOCATION=us-central1
-
-# This flag, if set true, will indicate to the underlying script, to customize for a presubmit-run.
-readonly RUN_TESTS_WITH_PRESUBMIT_FLAG=false
-
-# This flag, if set true, will indicate to underlying script(s) to run for zonal bucket(s) instead of non-zonal bucket(s).
-ZONAL_BUCKET_ARG=false
-if [ $# -gt 0 ]; then
-  if [ $1 = "true" ]; then
-    ZONAL_BUCKET_ARG=true
-  elif [ $1 != "false" ]; then
-    >&2 echo "$0: ZONAL_BUCKET_ARG (\$1) passed as $1 . Expected: true or false"
-    exit  1
-  fi
-elif test -n "${RUN_TESTS_WITH_ZONAL_BUCKET}" && ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
-  echo "Running for zonal bucket(s) ...";
-  ZONAL_BUCKET_ARG=${RUN_TESTS_WITH_ZONAL_BUCKET}
+if [[ $# -gt 1 ]]; then
+    echo "This script requires at most one argument" 
+    echo "Usage: $0 true, for zonal e2e test runs."
+    echo "Usage: $0 false, for regional e2e test runs."
+    echo "Example: $0 false"
+    exit 1
 fi
 
+readonly BUCKET_LOCATION="us-central1"
+readonly REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT="5.1"
+readonly INSTALL_BASH_VERSION="5.3" # Using 5.3 for installation as bash 5.1 has an installation bug.
+IS_ZONAL=${1:-false}
+
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
+
 echo "Building and installing gcsfuse..."
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
 commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
@@ -49,6 +40,26 @@ commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 # To execute tests for a specific commitId, ensure you've checked out from that commitId first.
 git checkout $commitId
 
-echo "Running e2e tests on installed package...."
-# $1 argument is refering to value of testInstalledPackage
-./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG ${ZONAL_BUCKET_ARG}
+# Check and install required bash version for e2e script.
+BASH_EXECUTABLE="bash"
+REQUIRED_BASH_MAJOR=$(echo "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT" | cut -d'.' -f1)
+REQUIRED_BASH_MINOR=$(echo "$REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT" | cut -d'.' -f2)
+
+echo "Current Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
+echo "Required Bash version for e2e script: ${REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT}"
+
+if (( BASH_VERSINFO[0] < REQUIRED_BASH_MAJOR || ( BASH_VERSINFO[0] == REQUIRED_BASH_MAJOR && BASH_VERSINFO[1] < REQUIRED_BASH_MINOR ) )); then
+    echo "Current Bash version is older than the required version. Installing Bash ${INSTALL_BASH_VERSION}..."
+    ./perfmetrics/scripts/install_bash.sh "$INSTALL_BASH_VERSION"
+    BASH_EXECUTABLE="/usr/local/bin/bash"
+else
+    echo "Current Bash version (${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}) meets or exceeds the required version (${REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT}). Skipping Bash installation."
+fi
+
+if $IS_ZONAL; then
+  echo "Running zonal e2e tests on installed package...."
+  "${BASH_EXECUTABLE}" ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location="$BUCKET_LOCATION" --test-installed-package --zonal
+  exit 0
+fi
+echo "Running regional e2e tests on installed package...."
+"${BASH_EXECUTABLE}" ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location="$BUCKET_LOCATION" --test-installed-package

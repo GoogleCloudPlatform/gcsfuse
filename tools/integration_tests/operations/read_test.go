@@ -31,7 +31,7 @@ func TestReadAfterWrite(t *testing.T) {
 		t.Errorf("Mkdir at %q: %v", testDir, err)
 		return
 	}
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		tmpFile, err := os.CreateTemp(tmpDir, tempFileName)
 		if err != nil {
 			t.Errorf("Create file at %q: %v", tmpDir, err)

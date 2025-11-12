@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,58 +15,72 @@
 package readdirplus
 
 import (
+	"context"
 	"log"
 	"os"
 	"path"
 	"testing"
 	"time"
 
+	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_setup"
 	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
-type readdirplusWithoutDentryCacheTest struct {
-	flags []string
+type ReaddirplusWithoutDentryCacheTest struct {
+	flags         []string
+	storageClient *storage.Client
+	ctx           context.Context
+	baseTestName  string
+	suite.Suite
 }
 
-func (s *readdirplusWithoutDentryCacheTest) Setup(t *testing.T) {
-	mountGCSFuseAndSetupTestDir(s.flags, testDirName)
+func (s *ReaddirplusWithoutDentryCacheTest) SetupTest() {
+	testEnv.testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, path.Join(testDirName, s.T().Name()))
 }
 
-func (s *readdirplusWithoutDentryCacheTest) Teardown(t *testing.T) {
-	if setup.MountedDirectory() == "" { // Only unmount if not using a pre-mounted directory
-		setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
-		setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
-	}
+func (s *ReaddirplusWithoutDentryCacheTest) TearDownTest() {
+	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 }
 
-func (s *readdirplusWithoutDentryCacheTest) TestReaddirplusWithoutDentryCache(t *testing.T) {
-	// Create directory structure
-	// testBucket/target_dir/                                                       -- Dir
-	// testBucket/target_dir/file		                                            -- File
-	// testBucket/target_dir/emptySubDirectory                                      -- Dir
-	// testBucket/target_dir/subDirectory                                           -- Dir
-	// testBucket/target_dir/subDirectory/file1                                     -- File
-	targetDir := path.Join(testDirPath, targetDirName)
-	operations.CreateDirectory(targetDir, t)
+func (s *ReaddirplusWithoutDentryCacheTest) TearDownSuite() {
+	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
+}
+
+func (s *ReaddirplusWithoutDentryCacheTest) SetupSuite() {
+	setup.SetUpLogFilePath(s.baseTestName, GKETempDir, OldGKElogFilePath, testEnv.cfg)
+	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient)
+}
+
+func (s *ReaddirplusWithoutDentryCacheTest) TestReaddirplusWithoutDentryCache() {
+	// Create directory structure:
+	// testBucket/dirForReaddirplusTest/target_dir/
+	// testBucket/dirForReaddirplusTest/target_dir/file
+	// testBucket/dirForReaddirplusTest/target_dir/emptySubDirectory/
+	// testBucket/dirForReaddirplusTest/target_dir/subDirectory/
+	// testBucket/dirForReaddirplusTest/target_dir/subDirectory/file1
+	targetDir := path.Join(testEnv.testDirPath, targetDirName)
+	operations.CreateDirectory(targetDir, s.T())
 	// Create a file in the target directory.
-	f1 := operations.CreateFile(path.Join(targetDir, "file"), setup.FilePermission_0600, t)
-	operations.CloseFileShouldNotThrowError(t, f1)
+	f1 := operations.CreateFile(path.Join(targetDir, "file"), setup.FilePermission_0600, s.T())
+	operations.CloseFileShouldNotThrowError(s.T(), f1)
 	// Create an empty subdirectory
-	operations.CreateDirectory(path.Join(targetDir, "emptySubDirectory"), t)
+	operations.CreateDirectory(path.Join(targetDir, "emptySubDirectory"), s.T())
 	// Create a subdirectory with file
-	operations.CreateDirectoryWithNFiles(1, path.Join(targetDir, "subDirectory"), "file", t)
+	operations.CreateDirectoryWithNFiles(1, path.Join(targetDir, "subDirectory"), "file", s.T())
 
 	// Call Readdirplus to list the directory.
 	startTime := time.Now()
 	entries, err := fusetesting.ReadDirPlusPicky(targetDir)
 	endTime := time.Now()
 
-	require.NoError(t, err, "ReadDirPlusPicky failed")
+	require.NoError(s.T(), err, "ReadDirPlusPicky failed")
+	// Verify the entries.
 	expectedEntries := []struct {
 		name  string
 		isDir bool
@@ -76,31 +90,32 @@ func (s *readdirplusWithoutDentryCacheTest) TestReaddirplusWithoutDentryCache(t 
 		{name: "file", isDir: false, mode: 0644},
 		{name: "subDirectory", isDir: true, mode: os.ModeDir | 0755},
 	}
-	// Verify the entries.
-	assert.Equal(t, len(expectedEntries), len(entries), "Number of entries mismatch")
+	assert.Equal(s.T(), len(expectedEntries), len(entries), "Number of entries mismatch")
 	for i, expected := range expectedEntries {
 		entry := entries[i]
-		assert.Equal(t, expected.name, entry.Name(), "Name mismatch for entry %d", i)
-		assert.Equal(t, expected.isDir, entry.IsDir(), "IsDir mismatch for entry %s", entry.Name())
-		assert.Equal(t, expected.mode, entry.Mode(), "Mode mismatch for entry %s", entry.Name())
+		assert.Equal(s.T(), expected.name, entry.Name(), "Name mismatch for entry %d", i)
+		assert.Equal(s.T(), expected.isDir, entry.IsDir(), "IsDir mismatch for entry %s", entry.Name())
+		assert.Equal(s.T(), expected.mode, entry.Mode(), "Mode mismatch for entry %s", entry.Name())
 	}
+
 	// Validate logs to check that ReadDirPlus was called and ReadDir was not.
 	// Dentry cache is not enabled, so LookUpInode should be called for
 	// parent directory as well as for all the entries.
-	validateLogsForReaddirplus(t, setup.LogFile(), false, startTime, endTime)
+	validateLogsForReaddirplus(s.T(), testEnv.cfg.LogFile, false, startTime, endTime)
 }
 
 func TestReaddirplusWithoutDentryCacheTest(t *testing.T) {
-	ts := &readdirplusWithoutDentryCacheTest{}
+	ts := &ReaddirplusWithoutDentryCacheTest{ctx: context.Background(), storageClient: testEnv.storageClient, baseTestName: t.Name()}
 
-	// Run tests for mounted directory if the flag is set.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		test_setup.RunTests(t, ts)
+	// Run tests for mounted directory if the flag is set. This assumes that run flag is properly passed by GKE team as per the config.
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		suite.Run(t, ts)
 		return
 	}
-
-	// Run tests.
-	ts.flags = []string{"--implicit-dirs", "--experimental-enable-readdirplus"}
-	log.Printf("Running tests with flags: %s", ts.flags)
-	test_setup.RunTests(t, ts)
+	// Run tests for GCE environment otherwise.
+	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
+	for _, ts.flags = range flagsSet {
+		log.Printf("Running tests with flags: %s", ts.flags)
+		suite.Run(t, ts)
+	}
 }

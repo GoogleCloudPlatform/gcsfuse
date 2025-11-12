@@ -15,10 +15,7 @@
 package rapid_appends
 
 import (
-	"fmt"
-	"log"
 	"math/rand/v2"
-	"os"
 	"path"
 	"syscall"
 	"testing"
@@ -27,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -76,91 +74,151 @@ func readRandomlyAndVerify(t *testing.T, filePath string, expectedContent []byte
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Tests
+// Tests for the SingleMountReadsTestSuite
 ////////////////////////////////////////////////////////////////////////
 
-func (t *CommonAppendsSuite) TestAppendsAndReads() {
-	const metadataCacheTTLSecs = 10
-	metadataCacheEnableFlag := fmt.Sprintf("%s%v", "--metadata-cache-ttl-secs=", metadataCacheTTLSecs)
-	fileCacheDirFlag := func() string {
-		return "--cache-dir=" + getNewEmptyCacheDir(t.primaryMount.rootDir)
+// runAppendAndReadTest contains the core test logic for the SingleMountReadsTestSuite.
+func (t *SingleMountReadsTestSuite) runAppendAndReadTest(verifyFunc readAndVerifyFunc) {
+	t.createUnfinalizedObject()
+	defer t.deleteUnfinalizedObject()
+
+	appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(t.primaryMount.testDirPath, t.fileName), fileOpenModeAppend|syscall.O_DIRECT)
+	defer operations.CloseFileShouldNotThrowError(t.T(), appendFileHandle)
+
+	readPath := path.Join(t.primaryMount.testDirPath, t.fileName)
+	for i := range numAppends {
+		// Wait for a minute for stat to return the correct file size, which is needed by appendToFile.
+		if i > 0 {
+			time.Sleep(operations.WaitDurationAfterFlushZB)
+		}
+
+		t.appendToFile(appendFileHandle, setup.GenerateRandomString(appendSize))
+		sizeAfterAppend := len(t.fileContent)
+
+		// For same-mount appends/reads, file size is always current.
+		verifyFunc(t.T(), readPath, []byte(t.fileContent[:sizeAfterAppend]))
 	}
+}
 
-	testCases := []struct {
-		name          string
-		readAndVerify readAndVerifyFunc
-	}{
-		{
-			name:          "SequentialRead",
-			readAndVerify: readSequentiallyAndVerify,
-		},
-		{
-			name:          "RandomRead",
-			readAndVerify: readRandomlyAndVerify,
-		},
+func (t *SingleMountReadsTestSuite) TestSequentialRead() {
+	t.runAppendAndReadTest(readSequentiallyAndVerify)
+}
+
+func (t *SingleMountReadsTestSuite) TestRandomRead() {
+	t.runAppendAndReadTest(readRandomlyAndVerify)
+}
+
+////////////////////////////////////////////////////////////////////////
+// Tests for the DualMountReadsTestSuite
+////////////////////////////////////////////////////////////////////////
+
+// runAppendAndReadTest contains the core test logic for the DualMountReadsTestSuite.
+func (t *DualMountReadsTestSuite) runAppendAndReadTest(verifyFunc readAndVerifyFunc) {
+	t.createUnfinalizedObject()
+	defer t.deleteUnfinalizedObject()
+
+	appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(t.getAppendPath(), t.fileName), fileOpenModeAppend|syscall.O_DIRECT)
+	defer operations.CloseFileShouldNotThrowError(t.T(), appendFileHandle)
+
+	readPath := path.Join(t.primaryMount.testDirPath, t.fileName)
+	for i := range numAppends {
+		sizeBeforeAppend := len(t.fileContent)
+		t.appendToFile(appendFileHandle, setup.GenerateRandomString(appendSize))
+		sizeAfterAppend := len(t.fileContent)
+
+		// If metadata cache is enabled, gcsfuse reads up to the cached file size.
+		// The initial read (i=0) bypasses cache, seeing the latest file size.
+		if !t.cfg.metadataCacheEnabled || (i == 0) {
+			verifyFunc(t.T(), readPath, []byte(t.fileContent[:sizeAfterAppend]))
+		} else {
+			// Read only up to the cached file size (before append).
+			verifyFunc(t.T(), readPath, []byte(t.fileContent[:sizeBeforeAppend]))
+
+			// Wait for metadata cache to expire to fetch the latest size for the next read.
+			// Metadata update for appends in current iteration itself takes a minute, so the
+			// cached size will expire in ttl-60 secs from now, so wait accordingly.
+			time.Sleep(time.Duration(metadataCacheTTLSecs*time.Second - operations.WaitDurationAfterFlushZB))
+			// Expect read up to the latest file size which is the size after the append.
+			verifyFunc(t.T(), readPath, []byte(t.fileContent[:sizeAfterAppend]))
+		}
 	}
+}
 
-	for _, scenario := range []struct {
-		enableMetadataCache bool
-		enableFileCache     bool
-		flags               []string
-	}{{
-		// all cache disabled
-		enableMetadataCache: false,
-		enableFileCache:     false,
-		flags:               []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1", "--metadata-cache-ttl-secs=0"},
-	}, {
-		enableMetadataCache: true,
-		enableFileCache:     false,
-		flags:               []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1", metadataCacheEnableFlag},
-	}, {
-		enableMetadataCache: true,
-		enableFileCache:     true,
-		flags:               []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1", metadataCacheEnableFlag, "--file-cache-max-size-mb=-1", fileCacheDirFlag()},
-	}, {
-		enableMetadataCache: false,
-		enableFileCache:     true,
-		flags:               []string{"--enable-rapid-appends=true", "--write-global-max-blocks=-1", "--metadata-cache-ttl-secs=0", "--file-cache-max-size-mb=-1", fileCacheDirFlag()},
-	}} {
-		func() {
-			t.mountPrimaryMount(scenario.flags)
-			defer t.unmountPrimaryMount()
+func (t *DualMountReadsTestSuite) TestSequentialRead() {
+	t.runAppendAndReadTest(readSequentiallyAndVerify)
+}
 
-			log.Printf("Running tests with flags: %v", scenario.flags)
+func (t *DualMountReadsTestSuite) TestRandomRead() {
+	t.runAppendAndReadTest(readRandomlyAndVerify)
+}
 
-			for _, tc := range testCases {
-				t.Run(tc.name, func() {
-					// Initially create an unfinalized object.
-					t.createUnfinalizedObject()
-					defer t.deleteUnfinalizedObject()
+////////////////////////////////////////////////////////////////////////
+// Test Runner
+////////////////////////////////////////////////////////////////////////
 
-					// Open this object as a file for appending on the appropriate mount.
-					appendFileHandle := operations.OpenFileInMode(t.T(), path.Join(t.appendMountPath, t.fileName), os.O_APPEND|os.O_WRONLY|syscall.O_DIRECT)
-					defer operations.CloseFileShouldNotThrowError(t.T(), appendFileHandle)
+// readTestConfigs defines the matrix of configurations for the ReadsTestSuite.
+var readTestConfigs = []*testConfig{
+	// Single-Mount Scenarios
+	{
+		name:                 "SingleMount_NoCache",
+		isDualMount:          false,
+		metadataCacheEnabled: false,
+		fileCacheEnabled:     false,
+	},
+	{
+		name:                 "SingleMount_MetadataCache",
+		isDualMount:          false,
+		metadataCacheEnabled: true,
+		fileCacheEnabled:     false,
+	},
+	{
+		name:                 "SingleMount_FileCache",
+		isDualMount:          false,
+		metadataCacheEnabled: false,
+		fileCacheEnabled:     true,
+	},
+	{
+		name:                 "SingleMount_MetadataAndFileCache",
+		isDualMount:          false,
+		metadataCacheEnabled: true,
+		fileCacheEnabled:     true,
+	},
+	// Dual-Mount Scenarios
+	{
+		name:                 "DualMount_NoCache",
+		isDualMount:          true,
+		metadataCacheEnabled: false,
+		fileCacheEnabled:     false,
+	},
+	{
+		name:                 "DualMount_MetadataCache",
+		isDualMount:          true,
+		metadataCacheEnabled: true,
+		fileCacheEnabled:     false,
+	},
+	{
+		name:                 "DualMount_FileCache",
+		isDualMount:          true,
+		metadataCacheEnabled: false,
+		fileCacheEnabled:     true,
+	},
+	{
+		name:                 "DualMount_MetadataAndFileCache",
+		isDualMount:          true,
+		metadataCacheEnabled: true,
+		fileCacheEnabled:     true,
+	},
+}
 
-					readPath := path.Join(t.primaryMount.testDirPath, t.fileName)
-					for i := range numAppends {
-						sizeBeforeAppend := len(t.fileContent)
-						t.appendToFile(appendFileHandle, setup.GenerateRandomString(appendSize))
-						sizeAfterAppend := len(t.fileContent)
-
-						// If metadata cache is enabled, gcsfuse reads up to the cached file size.
-						// For same-mount appends/reads, file size is always current.
-						// The initial read (i=0) bypasses cache, seeing the latest file size.
-						if !scenario.enableMetadataCache || !t.isSyncNeededAfterAppend || (i == 0) {
-							tc.readAndVerify(t.T(), readPath, []byte(t.fileContent[:sizeAfterAppend]))
-						} else {
-							// Read only up to the cached file size (before append).
-							tc.readAndVerify(t.T(), readPath, []byte(t.fileContent[:sizeBeforeAppend]))
-
-							// Wait for metadata cache to expire to fetch the latest size for the next read.
-							time.Sleep(time.Duration(metadataCacheTTLSecs) * time.Second)
-							// Expect read up to the latest file size which is the size after the append.
-							tc.readAndVerify(t.T(), readPath, []byte(t.fileContent[:sizeAfterAppend]))
-						}
-					}
-				})
+// TestReadsSuiteRunner executes all read-after-append tests against the readTestConfigs matrix.
+func TestReadsSuiteRunner(t *testing.T) {
+	for _, cfg := range readTestConfigs {
+		t.Run(cfg.name, func(t *testing.T) {
+			if cfg.isDualMount {
+				suite.Run(t, &DualMountReadsTestSuite{BaseSuite{cfg: cfg}})
+			} else {
+				suite.Run(t, &SingleMountReadsTestSuite{BaseSuite{cfg: cfg}})
 			}
-		}()
+		})
 	}
 }

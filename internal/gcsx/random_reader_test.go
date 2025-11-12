@@ -102,7 +102,7 @@ func (br *blockingReader) Read(p []byte) (n int, err error) {
 ////////////////////////////////////////////////////////////////////////
 
 func rangeStartIs(expected uint64) (m Matcher) {
-	pred := func(c interface{}) (err error) {
+	pred := func(c any) (err error) {
 		req := c.(*gcs.ReadObjectRequest)
 		if req.Range == nil {
 			err = errors.New("which has a nil range")
@@ -122,7 +122,7 @@ func rangeStartIs(expected uint64) (m Matcher) {
 }
 
 func rangeLimitIs(expected uint64) (m Matcher) {
-	pred := func(c interface{}) (err error) {
+	pred := func(c any) (err error) {
 		req := c.(*gcs.ReadObjectRequest)
 		if req.Range == nil {
 			err = errors.New("which has a nil range")
@@ -182,7 +182,7 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, &cfg.FileCacheConfig{
 		EnableCrc: false,
 	}, metrics.NewNoopMetrics())
-	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "")
+	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm, "", "")
 
 	// Set up the reader.
 	rr := NewRandomReader(t.object, t.bucket, sequentialReadSizeInMb, nil, false, metrics.NewNoopMetrics(), nil, nil)
@@ -572,8 +572,8 @@ func (t *RandomReaderTest) UpgradesSequentialReads_NoExistingReader() {
 
 	// Check the state now.
 	ExpectFalse(objectData.CacheHit)
-	ExpectEq(nil, err)
-	ExpectEq(data, string(objectData.DataBuf))
+	AssertEq(nil, err)
+	ExpectEq(data, string(buf))
 	ExpectEq(1+readSize, t.rr.wrapped.start)
 	ExpectEq(1+readSize, t.rr.wrapped.limit)
 }
@@ -1089,7 +1089,7 @@ func (t *RandomReaderTest) TestNewReader_FileClobbered() {
 	ExpectCall(t.bucket, "NewReaderWithReadHandle")(Any(), Any()).
 		WillOnce(Return(nil, notFoundError))
 
-	err := t.rr.wrapped.startRead(0, 1)
+	err := t.rr.wrapped.startRead(0, 1, 0)
 
 	AssertNe(nil, err)
 	var clobberedErr *gcsfuse_errors.FileClobberedError

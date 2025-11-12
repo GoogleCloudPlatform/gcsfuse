@@ -569,13 +569,27 @@ func TestCLIFlagPassing(t *testing.T) {
 				assert.Equal(t, cfg.ResolvedPath(""), c.CacheDir)
 			},
 		},
+		{
+			name: "profile1",
+			args: []string{"--profile", cfg.ProfileAIMLTraining},
+			testFn: func(t *testing.T, c *cfg.Config) {
+				assert.Equal(t, cfg.ProfileAIMLTraining, c.Profile)
+			},
+		},
+		{
+			name: "socketaddress1",
+			args: []string{"--experimental-local-socket-address", "127.0.0.1"},
+			testFn: func(t *testing.T, c *cfg.Config) {
+				assert.Equal(t, "127.0.0.1", c.GcsConnection.ExperimentalLocalSocketAddress)
+			},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			var c *cfg.Config
-			command, err := newRootCmd(func(config *cfg.Config, _, _ string) error {
-				c = config
+			command, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				c = mountInfo.config
 				return nil
 			})
 			require.NoError(t, err)
@@ -747,8 +761,8 @@ func TestConfigPassing(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			var c *cfg.Config
-			command, err := newRootCmd(func(config *cfg.Config, _, _ string) error {
-				c = config
+			command, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				c = mountInfo.config
 				return nil
 			})
 			require.NoError(t, err)
@@ -802,7 +816,7 @@ func TestPredefinedFlagThrowNoError(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			command, err := newRootCmd(func(config *cfg.Config, _, _ string) error {
+			command, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				return nil
 			})
 			require.NoError(t, err)

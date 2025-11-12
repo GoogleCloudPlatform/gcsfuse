@@ -182,23 +182,23 @@ func (d *baseDirInode) ReadDescendants(ctx context.Context, limit int) (map[Name
 // LOCKS_REQUIRED(d)
 func (d *baseDirInode) ReadEntries(
 	ctx context.Context,
-	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
+	tok string) (entries []fuseutil.Dirent, unsupportedPaths []string, newTok string, err error) {
 
 	// The subdirectories of the base directory should be all the accessible
 	// buckets. Although the user is allowed to visit each individual
 	// subdirectory, listing all the subdirectories (i.e. the buckets) can be
 	// very expensive and currently not supported.
-	return nil, "", syscall.ENOTSUP
+	return nil, nil, "", syscall.ENOTSUP
 }
 
 // LOCKS_REQUIRED(d)
-func (d *baseDirInode) ReadEntryCores(ctx context.Context, tok string) (cores map[Name]*Core, newTok string, err error) {
+func (d *baseDirInode) ReadEntryCores(ctx context.Context, tok string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
 
 	// The subdirectories of the base directory should be all the accessible
 	// buckets. Although the user is allowed to visit each individual
 	// subdirectory, listing all the subdirectories (i.e. the buckets) can be
 	// very expensive and currently not supported.
-	return nil, "", syscall.ENOTSUP
+	return nil, nil, "", syscall.ENOTSUP
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -250,6 +250,10 @@ func (d *baseDirInode) DeleteChildDir(
 	dirInode DirInode) (err error) {
 	err = fuse.ENOSYS
 	return
+}
+
+func (d *baseDirInode) DeleteObjects(ctx context.Context, objectNames []string) error {
+	return fuse.ENOSYS
 }
 
 func (d *baseDirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntries map[string]fuseutil.Dirent) {

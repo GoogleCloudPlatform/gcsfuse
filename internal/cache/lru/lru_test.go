@@ -319,7 +319,7 @@ func (t *CacheTest) TestRaceCondition() {
 
 	go func() {
 		defer wg.Done()
-		for i := 0; i < OperationCount; i++ {
+		for i := range OperationCount {
 			_, err := t.cache.Insert("key", testData{
 				Value:    int64(i),
 				DataSize: uint64(rand.Intn(MaxSize)),
@@ -331,28 +331,28 @@ func (t *CacheTest) TestRaceCondition() {
 
 	go func() {
 		defer wg.Done()
-		for i := 0; i < OperationCount; i++ {
+		for range OperationCount {
 			t.cache.Erase("key")
 		}
 	}()
 
 	go func() {
 		defer wg.Done()
-		for i := 0; i < OperationCount; i++ {
+		for range OperationCount {
 			t.cache.LookUp("key")
 		}
 	}()
 
 	go func() {
 		defer wg.Done()
-		for i := 0; i < OperationCount; i++ {
+		for range OperationCount {
 			t.cache.LookUpWithoutChangingOrder("key")
 		}
 	}()
 
 	go func() {
 		defer wg.Done()
-		for i := 0; i < OperationCount; i++ {
+		for i := range OperationCount {
 			_ = t.cache.UpdateWithoutChangingOrder("key", testData{
 				Value:    int64(i),
 				DataSize: uint64(rand.Intn(MaxSize)),

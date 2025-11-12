@@ -36,6 +36,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 const NameOfServiceAccount = "creds-integration-tests"
@@ -51,6 +52,11 @@ func CreateCredentials(ctx context.Context) (serviceAccount, localKeyFilePath st
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error in fetching project id: %v", err))
 	}
+	if strings.Contains(id, "cloudtop") {
+		// In cloudtop environments, well known path is used for auth. So explicitly set the project as whitelisted.
+		id = WhitelistedGcpProjects[0]
+	}
+
 	// return if active GCP project is not in whitelisted gcp projects
 	if !slices.Contains(WhitelistedGcpProjects, id) {
 		log.Printf("The active GCP project is not one of: %s. So the credentials test will not run.", strings.Join(WhitelistedGcpProjects, ", "))
@@ -124,10 +130,10 @@ func RevokePermission(ctx context.Context, storageClient *storage.Client, servic
 	}
 }
 
-func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(ctx context.Context, storageClient *storage.Client, testFlagSet [][]string, permission string, m *testing.M) (successCode int) {
+func RunTestsForDifferentAuthMethods(ctx context.Context, cfg *test_suite.TestConfig, storageClient *storage.Client, testFlagSet [][]string, permission string, m *testing.M) (successCode int) {
 	serviceAccount, localKeyFilePath := CreateCredentials(ctx)
-	ApplyPermissionToServiceAccount(ctx, storageClient, serviceAccount, permission, setup.TestBucket())
-	defer RevokePermission(ctx, storageClient, serviceAccount, permission, setup.TestBucket())
+	ApplyPermissionToServiceAccount(ctx, storageClient, serviceAccount, permission, cfg.TestBucket)
+	defer RevokePermission(ctx, storageClient, serviceAccount, permission, cfg.TestBucket)
 
 	// Without –key-file flag and GOOGLE_APPLICATION_CREDENTIALS
 	// This case will not get covered as gcsfuse internally authenticates from a metadata server on GCE VM.
@@ -139,7 +145,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(ctx context.Cont
 		setup.LogAndExit(fmt.Sprintf("Error in setting environment variable: %v", err))
 	}
 
-	successCode = static_mounting.RunTests(testFlagSet, m)
+	successCode = static_mounting.RunTestsWithConfigFile(cfg, testFlagSet, m)
 
 	if successCode != 0 {
 		return
@@ -148,11 +154,11 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(ctx context.Cont
 	// Testing with --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
 	keyFileFlag := "--key-file=" + localKeyFilePath
 
-	for i := 0; i < len(testFlagSet); i++ {
+	for i := range testFlagSet {
 		testFlagSet[i] = append(testFlagSet[i], keyFileFlag)
 	}
 
-	successCode = static_mounting.RunTests(testFlagSet, m)
+	successCode = static_mounting.RunTestsWithConfigFile(cfg, testFlagSet, m)
 
 	if successCode != 0 {
 		return
@@ -163,12 +169,24 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(ctx context.Cont
 		setup.LogAndExit(fmt.Sprintf("Error in unsetting environment variable: %v", err))
 	}
 
-	// Testing with --key-file flag only
-	successCode = static_mounting.RunTests(testFlagSet, m)
+	// Testing with --key-file flag only.
+	successCode = static_mounting.RunTestsWithConfigFile(cfg, testFlagSet, m)
 
 	if successCode != 0 {
 		return
 	}
 
 	return successCode
+}
+
+// Deprecated: Use RunTestsForDifferentAuthMethods instead.
+// TODO(b/438068132): cleanup deprecated methods after migration is complete.
+func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(ctx context.Context, storageClient *storage.Client, testFlagSet [][]string, permission string, m *testing.M) (successCode int) {
+	config := &test_suite.TestConfig{
+		TestBucket:              setup.TestBucket(),
+		GKEMountedDirectory:     setup.MountedDirectory(),
+		GCSFuseMountedDirectory: setup.MntDir(),
+		LogFile:                 setup.LogFile(),
+	}
+	return RunTestsForDifferentAuthMethods(ctx, config, storageClient, testFlagSet, permission, m)
 }

@@ -51,7 +51,7 @@ func TestMain(m *testing.M) {
 		// Populate the config manually.
 		cfg.ExplicitDir = make([]test_suite.TestConfig, 1)
 		cfg.ExplicitDir[0].TestBucket = setup.TestBucket()
-		cfg.ExplicitDir[0].MountedDirectory = setup.MountedDirectory()
+		cfg.ExplicitDir[0].GKEMountedDirectory = setup.MountedDirectory()
 		cfg.ExplicitDir[0].Configs = make([]test_suite.ConfigItem, 1)
 		cfg.ExplicitDir[0].Configs[0].Flags = []string{"--implicit-dirs=false", "--implicit-dirs=false --client-protocol=grpc"}
 		cfg.ExplicitDir[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
@@ -59,12 +59,7 @@ func TestMain(m *testing.M) {
 
 	// 2. Create storage client before running tests.
 	testEnv.ctx = context.Background()
-
-	bucketType, err := setup.BucketType(testEnv.ctx, cfg.ExplicitDir[0].TestBucket)
-	if err != nil {
-		log.Fatalf("BucketType failed: %v", err)
-	}
-
+	bucketType := setup.TestEnvironment(testEnv.ctx, &cfg.ExplicitDir[0])
 	closeStorageClient := client.CreateStorageClientWithCancel(&testEnv.ctx, &testEnv.storageClient)
 	defer func() {
 		err := closeStorageClient()
@@ -73,10 +68,10 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	// 4. Build the flag sets dynamically from the config.
-	flags := setup.BuildFlagSets(cfg.ExplicitDir[0], bucketType)
+	// 3. Build the flag sets dynamically from the config.
+	flags := setup.BuildFlagSets(cfg.ExplicitDir[0], bucketType, "")
 
-	// 5. Run tests with the dynamically generated flags.
+	// 4. Run tests with the dynamically generated flags.
 	successCode := implicit_and_explicit_dir_setup.RunTestsForExplicitAndImplicitDir(&cfg.ExplicitDir[0], flags, m)
 	os.Exit(successCode)
 }

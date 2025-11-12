@@ -25,13 +25,13 @@ import (
 )
 
 // recordRequest records a request and its latency.
-func recordRequest(ctx context.Context, metricHandle metrics.MetricHandle, method string, start time.Time) {
+func recordRequest(ctx context.Context, metricHandle metrics.MetricHandle, method metrics.GcsMethod, start time.Time) {
 	metricHandle.GcsRequestCount(1, method)
 
 	metricHandle.GcsRequestLatencies(ctx, time.Since(start), method)
 }
 
-func CaptureMultiRangeDownloaderMetrics(ctx context.Context, metricHandle metrics.MetricHandle, method string, start time.Time) {
+func CaptureMultiRangeDownloaderMetrics(ctx context.Context, metricHandle metrics.MetricHandle, method metrics.GcsMethod, start time.Time) {
 	recordRequest(ctx, metricHandle, method, start)
 }
 
@@ -56,7 +56,7 @@ func (mb *monitoringBucket) BucketType() gcs.BucketType {
 	return mb.wrapped.BucketType()
 }
 
-func setupReader(ctx context.Context, mb *monitoringBucket, req *gcs.ReadObjectRequest, method string) (gcs.StorageReader, error) {
+func setupReader(ctx context.Context, mb *monitoringBucket, req *gcs.ReadObjectRequest, method metrics.GcsMethod) (gcs.StorageReader, error) {
 	startTime := time.Now()
 
 	rc, err := mb.wrapped.NewReaderWithReadHandle(ctx, req)
@@ -73,7 +73,7 @@ func (mb *monitoringBucket) NewReaderWithReadHandle(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rd gcs.StorageReader, err error) {
 	// Using NewReader here also as NewReader() method is not used and will be removed.
-	rd, err = setupReader(ctx, mb, req, "NewReader")
+	rd, err = setupReader(ctx, mb, req, metrics.GcsMethodNewReaderAttr)
 	return
 }
 
@@ -82,35 +82,35 @@ func (mb *monitoringBucket) CreateObject(
 	req *gcs.CreateObjectRequest) (*gcs.Object, error) {
 	startTime := time.Now()
 	o, err := mb.wrapped.CreateObject(ctx, req)
-	recordRequest(ctx, mb.metricHandle, "CreateObject", startTime)
+	recordRequest(ctx, mb.metricHandle, metrics.GcsMethodCreateObjectAttr, startTime)
 	return o, err
 }
 
 func (mb *monitoringBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
 	startTime := time.Now()
 	wc, err := mb.wrapped.CreateObjectChunkWriter(ctx, req, chunkSize, callBack)
-	recordRequest(ctx, mb.metricHandle, "CreateObjectChunkWriter", startTime)
+	recordRequest(ctx, mb.metricHandle, metrics.GcsMethodCreateObjectChunkWriterAttr, startTime)
 	return wc, err
 }
 
 func (mb *monitoringBucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.CreateObjectChunkWriterRequest) (gcs.Writer, error) {
 	startTime := time.Now()
 	wc, err := mb.wrapped.CreateAppendableObjectWriter(ctx, req)
-	recordRequest(ctx, mb.metricHandle, "CreateAppendableObjectWriter", startTime)
+	recordRequest(ctx, mb.metricHandle, metrics.GcsMethodCreateAppendableObjectWriterAttr, startTime)
 	return wc, err
 }
 
 func (mb *monitoringBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.MinObject, error) {
 	startTime := time.Now()
 	o, err := mb.wrapped.FinalizeUpload(ctx, w)
-	recordRequest(ctx, mb.metricHandle, "FinalizeUpload", startTime)
+	recordRequest(ctx, mb.metricHandle, metrics.GcsMethodFinalizeUploadAttr, startTime)
 	return o, err
 }
 
 func (mb *monitoringBucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (*gcs.MinObject, error) {
 	startTime := time.Now()
 	o, err := mb.wrapped.FlushPendingWrites(ctx, w)
-	recordRequest(ctx, mb.metricHandle, "FlushPendingWrites", startTime)
+	recordRequest(ctx, mb.metricHandle, metrics.GcsMethodFlushPendingWritesAttr, startTime)
 	return o, err
 }
 
@@ -119,7 +119,7 @@ func (mb *monitoringBucket) CopyObject(
 	req *gcs.CopyObjectRequest) (*gcs.Object, error) {
 	startTime := time.Now()
 	o, err := mb.wrapped.CopyObject(ctx, req)
-	recordRequest(ctx, mb.metricHandle, "CopyObject", startTime)
+	recordRequest(ctx, mb.metricHandle, metrics.GcsMethodCopyObjectAttr, startTime)
 	return o, err
 }
 
@@ -128,7 +128,7 @@ func (mb *monitoringBucket) ComposeObjects(
 	req *gcs.ComposeObjectsRequest) (*gcs.Object, error) {
 	startTime := time.Now()
 	o, err := mb.wrapped.ComposeObjects(ctx, req)
-	recordRequest(ctx, mb.metricHandle, "ComposeObjects", startTime)
+	recordRequest(ctx, mb.metricHandle, metrics.GcsMethodComposeObjectsAttr, startTime)
 	return o, err
 }
 
@@ -137,7 +137,7 @@ func (mb *monitoringBucket) StatObject(
 	req *gcs.StatObjectRequest) (*gcs.MinObject, *gcs.ExtendedObjectAttributes, error) {
 	startTime := time.Now()
 	m, e, err := mb.wrapped.StatObject(ctx, req)
-	recordRequest(ctx, mb.metricHandle, "StatObject", startTime)
+	recordRequest(ctx, mb.metricHandle, metrics.GcsMethodStatObjectAttr, startTime)
 	return m, e, err
 }
 
@@ -146,7 +146,7 @@ func (mb *monitoringBucket) ListObjects(
 	req *gcs.ListObjectsRequest) (*gcs.Listing, error) {
 	startTime := time.Now()
 	listing, err := mb.wrapped.ListObjects(ctx, req)
-	recordRequest(ctx, mb.metricHandle, "ListObjects", startTime)
+	recordRequest(ctx, mb.metricHandle, metrics.GcsMethodListObjectsAttr, startTime)
 	return listing, err
 }
 
@@ -155,7 +155,7 @@ func (mb *monitoringBucket) UpdateObject(
 	req *gcs.UpdateObjectRequest) (*gcs.Object, error) {
 	startTime := time.Now()
 	o, err := mb.wrapped.UpdateObject(ctx, req)
-	recordRequest(ctx, mb.metricHandle, "UpdateObject", startTime)
+	recordRequest(ctx, mb.metricHandle, metrics.GcsMethodUpdateObjectAttr, startTime)
 	return o, err
 }
 
@@ -164,42 +164,42 @@ func (mb *monitoringBucket) DeleteObject(
 	req *gcs.DeleteObjectRequest) error {
 	startTime := time.Now()
 	err := mb.wrapped.DeleteObject(ctx, req)
-	recordRequest(ctx, mb.metricHandle, "DeleteObject", startTime)
+	recordRequest(ctx, mb.metricHandle, metrics.GcsMethodDeleteObjectAttr, startTime)
 	return err
 }
 
 func (mb *monitoringBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
 	startTime := time.Now()
 	o, err := mb.wrapped.MoveObject(ctx, req)
-	recordRequest(ctx, mb.metricHandle, "MoveObject", startTime)
+	recordRequest(ctx, mb.metricHandle, metrics.GcsMethodMoveObjectAttr, startTime)
 	return o, err
 }
 
 func (mb *monitoringBucket) DeleteFolder(ctx context.Context, folderName string) error {
 	startTime := time.Now()
 	err := mb.wrapped.DeleteFolder(ctx, folderName)
-	recordRequest(ctx, mb.metricHandle, "DeleteFolder", startTime)
+	recordRequest(ctx, mb.metricHandle, metrics.GcsMethodDeleteFolderAttr, startTime)
 	return err
 }
 
 func (mb *monitoringBucket) GetFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {
 	startTime := time.Now()
 	folder, err := mb.wrapped.GetFolder(ctx, folderName)
-	recordRequest(ctx, mb.metricHandle, "GetFolder", startTime)
+	recordRequest(ctx, mb.metricHandle, metrics.GcsMethodGetFolderAttr, startTime)
 	return folder, err
 }
 
 func (mb *monitoringBucket) CreateFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {
 	startTime := time.Now()
 	folder, err := mb.wrapped.CreateFolder(ctx, folderName)
-	recordRequest(ctx, mb.metricHandle, "CreateFolder", startTime)
+	recordRequest(ctx, mb.metricHandle, metrics.GcsMethodCreateFolderAttr, startTime)
 	return folder, err
 }
 
 func (mb *monitoringBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o *gcs.Folder, err error) {
 	startTime := time.Now()
 	o, err = mb.wrapped.RenameFolder(ctx, folderName, destinationFolderId)
-	recordRequest(ctx, mb.metricHandle, "RenameFolder", startTime)
+	recordRequest(ctx, mb.metricHandle, metrics.GcsMethodRenameFolderAttr, startTime)
 	return
 }
 
@@ -207,7 +207,7 @@ func (mb *monitoringBucket) NewMultiRangeDownloader(
 	ctx context.Context, req *gcs.MultiRangeDownloaderRequest) (mrd gcs.MultiRangeDownloader, err error) {
 	startTime := time.Now()
 	mrd, err = mb.wrapped.NewMultiRangeDownloader(ctx, req)
-	recordRequest(ctx, mb.metricHandle, "NewMultiRangeDownloader", startTime)
+	recordRequest(ctx, mb.metricHandle, metrics.GcsMethodNewMultiRangeDownloaderAttr, startTime)
 	return
 }
 
@@ -216,13 +216,13 @@ func (mb *monitoringBucket) GCSName(obj *gcs.MinObject) string {
 }
 
 // recordReader increments the reader count when it's opened or closed.
-func recordReader(metricHandle metrics.MetricHandle, ioMethod string) {
+func recordReader(metricHandle metrics.MetricHandle, ioMethod metrics.IoMethod) {
 	metricHandle.GcsReaderCount(1, ioMethod)
 }
 
 // Monitoring on the object reader
 func newMonitoringReadCloser(ctx context.Context, object string, rc gcs.StorageReader, metricHandle metrics.MetricHandle) gcs.StorageReader {
-	recordReader(metricHandle, "opened")
+	recordReader(metricHandle, metrics.IoMethodOpenedAttr)
 	return &monitoringReadCloser{
 		ctx:          ctx,
 		object:       object,
@@ -240,7 +240,7 @@ type monitoringReadCloser struct {
 
 func (mrc *monitoringReadCloser) Read(p []byte) (n int, err error) {
 	n, err = mrc.wrapped.Read(p)
-	mrc.metricHandle.GcsReadBytesCount(int64(n))
+	mrc.metricHandle.GcsReadBytesCount(int64(n), metrics.ReaderOthersAttr)
 	return
 }
 
@@ -249,12 +249,12 @@ func (mrc *monitoringReadCloser) Close() (err error) {
 	if err != nil {
 		return fmt.Errorf("close reader: %w", err)
 	}
-	recordReader(mrc.metricHandle, "closed")
+	recordReader(mrc.metricHandle, metrics.IoMethodClosedAttr)
 	return
 }
 
 func (mrc *monitoringReadCloser) ReadHandle() (rh storagev2.ReadHandle) {
 	rh = mrc.wrapped.ReadHandle()
-	recordReader(mrc.metricHandle, "ReadHandle")
+	recordReader(mrc.metricHandle, metrics.IoMethodReadHandleAttr)
 	return
 }

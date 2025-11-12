@@ -18,13 +18,21 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"time"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 type flagTemplateData struct {
 	Param
 	// The pFlag function to invoke in order to add the flag.
 	Fn string
+	// The path to the field in the Go Config struct, e.g. "MetadataCache.TtlSecs"
+	GoPath string
+	// The Go type of the field, e.g. "int64"
+	GoType string
 }
 
 func computeFlagTemplateData(paramsConfig []Param) ([]flagTemplateData, error) {
@@ -37,6 +45,14 @@ func computeFlagTemplateData(paramsConfig []Param) ([]flagTemplateData, error) {
 		flgTemplate = append(flgTemplate, td)
 	}
 	return flgTemplate, nil
+}
+
+func capitalize(name string) string {
+	var buf strings.Builder
+	for w := range strings.SplitSeq(name, "-") {
+		buf.WriteString(cases.Title(language.English).String(w))
+	}
+	return buf.String()
 }
 
 func computeFlagTemplateDataForParam(p Param) (flagTemplateData, error) {
@@ -93,8 +109,16 @@ func computeFlagTemplateDataForParam(p Param) (flagTemplateData, error) {
 	p.DefaultValue = defaultValue
 	// Usage string safely escaped with Go syntax.
 	p.Usage = fmt.Sprintf("%q", p.Usage)
+	// Compute the Go field path, e.g., "metadata-cache.ttl-secs" -> "MetadataCache.TtlSecs"
+	var goPathParts []string
+	for part := range strings.SplitSeq(p.ConfigPath, ".") {
+		goPathParts = append(goPathParts, capitalize(part))
+	}
+	goPath := strings.Join(goPathParts, ".")
 	return flagTemplateData{
-		Param: p,
-		Fn:    fn,
+		Param:  p,
+		Fn:     fn,
+		GoPath: goPath,
+		GoType: getGoDataType(p.Type), // Assumes getGoDataType is available
 	}, nil
 }

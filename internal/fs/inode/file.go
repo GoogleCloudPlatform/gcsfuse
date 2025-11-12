@@ -41,7 +41,12 @@ import (
 
 // A GCS object metadata key for file mtimes. mtimes are UTC, and are stored in
 // the format defined by time.RFC3339Nano.
-const FileMtimeMetadataKey = gcs.MtimeMetadataKey
+const (
+	FileMtimeMetadataKey = gcs.MtimeMetadataKey
+	// TODO(b/447991081): Update streaming writes semantic message once semantics for ZB are updated on semantics doc.
+	StreamingWritesSemantics = "Streaming writes is supported for sequential writes to new/empty files. " +
+		"For more details, see: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#writes"
+)
 
 type FileInode struct {
 	/////////////////////////
@@ -314,9 +319,6 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 			return err
 		}
 
-		if f.config.Write.EnableStreamingWrites {
-			logger.Infof("Falling back to staged write for '%s'. Streaming write is limited to sequential writes on new/empty files.", f.name)
-		}
 		tf, err := f.contentCache.NewTempFile(rc)
 		if err != nil {
 			err = fmt.Errorf("NewTempFile: %w", err)
@@ -632,7 +634,7 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 	}
 	// Fall back to temp file for Out-Of-Order Writes.
 	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
-		logger.Infof("Falling back to staged writes on disk for file %s (inode %d) due to err: %v.", f.Name(), f.ID(), err.Error())
+		logger.Infof("Out of order write detected. File %s will now use legacy staged writes. "+StreamingWritesSemantics, f.name.String())
 		// Finalize the object.
 		err = f.flushUsingBufferedWriteHandler()
 		if err != nil {
@@ -946,7 +948,7 @@ func (f *FileInode) truncateUsingBufferedWriteHandler(ctx context.Context, size 
 	err := f.bwh.Truncate(size)
 	// If truncate size is less than the total file size resulting in OutOfOrder write, finalize and fall back to temp file.
 	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
-		logger.Warnf("Falling back to staged writes on disk for file %s (inode %d) due to err: %v.", f.Name(), f.ID(), err.Error())
+		logger.Infof("Out of order write detected. File %s will now use legacy staged writes. "+StreamingWritesSemantics, f.name.String())
 		// Finalize the object.
 		err = f.flushUsingBufferedWriteHandler()
 		if err != nil {
@@ -1047,13 +1049,16 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 			Object:                   latestGcsObj,
 			ObjectName:               f.name.GcsObjectName(),
 			Bucket:                   f.bucket,
-			BlockSize:                f.config.Write.BlockSizeMb,
+			BlockSize:                f.config.Write.BlockSizeMb * util.MiB,
 			MaxBlocksPerFile:         f.config.Write.MaxBlocksPerFile,
 			GlobalMaxBlocksSem:       f.globalMaxWriteBlocksSem,
 			ChunkTransferTimeoutSecs: f.config.GcsRetries.ChunkTransferTimeoutSecs,
 		})
 		if errors.Is(err, block.CantAllocateAnyBlockError) {
-			logger.Warnf("writes will fall back to staged writes due to err: %v. Please increase block limit using --write-global-max-blocks mount option.", block.CantAllocateAnyBlockError.Error())
+			logger.Warnf("File %s will use legacy staged writes because concurrent streaming write "+
+				"limit (set by --write-global-max-blocks) has been reached. To allow more concurrent files "+
+				"to use streaming writes, consider increasing this limit if sufficient memory is available. "+
+				"For more details on memory usage, see: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#writes", f.name.String())
 			return false, nil
 		}
 		if err != nil {
@@ -1070,11 +1075,9 @@ func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, obj *gcs.
 	if f.local || obj.Size == 0 {
 		return true
 	}
-	if !f.config.Write.EnableRapidAppends {
-		return false
-	}
-	if openMode == util.Append && f.bucket.BucketType().Zonal && obj.Finalized.IsZero() {
+	if f.config.Write.EnableRapidAppends && openMode == util.Append && f.bucket.BucketType().Zonal && obj.Finalized.IsZero() {
 		return true
 	}
+	logger.Infof("Existing file %s of size %d bytes (non-zero) will use legacy staged writes. "+StreamingWritesSemantics, f.name.String(), obj.Size)
 	return false
 }

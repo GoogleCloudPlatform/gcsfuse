@@ -18,7 +18,6 @@ import (
 	"path"
 	"testing"
 
-	. "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/local_file"
 	. "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
@@ -40,7 +39,7 @@ func (t *streamingWritesLocalFileTestSuite) SetupSubTest() {
 
 func (t *streamingWritesLocalFileTestSuite) createLocalFile() {
 	t.fileName = FileName1 + setup.GenerateRandomString(5)
-	t.filePath = path.Join(testDirPath, t.fileName)
+	t.filePath = path.Join(testEnv.testDirPath, t.fileName)
 	// Create a local file with O_DIRECT.
 	t.f1 = operations.OpenFileWithODirect(t.T(), t.filePath)
 }
@@ -50,31 +49,4 @@ func TestStreamingWritesLocalFileTestSuite(t *testing.T) {
 	s := new(streamingWritesLocalFileTestSuite)
 	s.StreamingWritesSuite.TestifySuite = &s.Suite
 	suite.Run(t, s)
-}
-
-type existingLocalFileTestSuite struct {
-	CommonLocalFileTestSuite
-	suite.Suite
-}
-
-func (t *existingLocalFileTestSuite) SetupSuite() {
-	SetCtx(ctx)
-	SetStorageClient(storageClient)
-	SetTestDirName(testDirName)
-
-	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
-}
-
-func (t *existingLocalFileTestSuite) TearDownSuite() {
-	setup.UnmountGCSFuse(rootDir)
-	setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
-}
-
-// Executes all tests that run with single streamingWrites configuration for localFiles.
-func TestExistingLocalFileTest(t *testing.T) {
-	if !setup.IsZonalBucketRun() {
-		s := new(existingLocalFileTestSuite)
-		s.CommonLocalFileTestSuite.TestifySuite = &s.Suite
-		suite.Run(t, s)
-	}
 }

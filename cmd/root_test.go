@@ -23,15 +23,17 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestDefaultMaxParallelDownloads(t *testing.T) {
 	var actual *cfg.Config
-	cmd, err := newRootCmd(func(c *cfg.Config, _, _ string) error {
-		actual = c
+	cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+		actual = mountInfo.config
 		return nil
 	})
 	require.Nil(t, err)
@@ -72,7 +74,7 @@ func TestCobraArgsNumInRange(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd, err := newRootCmd(func(*cfg.Config, string, string) error { return nil })
+			cmd, err := newRootCmd(func(*mountInfo, string, string) error { return nil })
 			require.Nil(t, err)
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
 
@@ -127,7 +129,7 @@ func TestArgsParsing_MountPoint(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var bucketName, mountPoint string
-			cmd, err := newRootCmd(func(_ *cfg.Config, b string, m string) error {
+			cmd, err := newRootCmd(func(_ *mountInfo, b string, m string) error {
 				bucketName = b
 				mountPoint = m
 				return nil
@@ -176,8 +178,8 @@ func TestArgsParsing_MountOptions(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var mountOptions []string
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				mountOptions = cfg.FileSystem.FuseOptions
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				mountOptions = mountInfo.config.FileSystem.FuseOptions
 				return nil
 			})
 			require.Nil(t, err)
@@ -234,8 +236,8 @@ func TestArgsParsing_ImplicitDirsFlag(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotImplicit bool
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotImplicit = cfg.ImplicitDirs
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotImplicit = mountInfo.config.ImplicitDirs
 				return nil
 			})
 			require.Nil(t, err)
@@ -266,7 +268,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedCreateEmptyFile:       true,
 			expectedEnableStreamingWrites: false,
 			expectedEnableRapidAppends:    true,
-			expectedWriteBlockSizeMB:      32 * util.MiB,
+			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 1,
 		},
@@ -276,7 +278,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
 			expectedEnableRapidAppends:    true,
-			expectedWriteBlockSizeMB:      32 * util.MiB,
+			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 1,
 		},
@@ -286,7 +288,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
 			expectedEnableRapidAppends:    true,
-			expectedWriteBlockSizeMB:      32 * util.MiB,
+			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 1,
 		},
@@ -296,7 +298,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
 			expectedEnableRapidAppends:    true,
-			expectedWriteBlockSizeMB:      32 * util.MiB,
+			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 1,
 		},
@@ -306,7 +308,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: false,
 			expectedEnableRapidAppends:    true,
-			expectedWriteBlockSizeMB:      32 * util.MiB,
+			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 1,
 		},
@@ -316,7 +318,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
 			expectedEnableRapidAppends:    false,
-			expectedWriteBlockSizeMB:      32 * util.MiB,
+			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 1,
 		},
@@ -326,7 +328,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
 			expectedEnableRapidAppends:    true,
-			expectedWriteBlockSizeMB:      10 * util.MiB,
+			expectedWriteBlockSizeMB:      10,
 			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 1,
 		},
@@ -336,7 +338,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
 			expectedEnableRapidAppends:    true,
-			expectedWriteBlockSizeMB:      32 * util.MiB,
+			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  10,
 			expectedWriteMaxBlocksPerFile: 1,
 		},
@@ -346,7 +348,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
 			expectedEnableRapidAppends:    true,
-			expectedWriteBlockSizeMB:      32 * util.MiB,
+			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 10,
 		},
@@ -355,7 +357,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			args:                          []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--disable-autoconfig=false", "abc", "pqr"},
 			expectedEnableStreamingWrites: true,
 			expectedEnableRapidAppends:    true,
-			expectedWriteBlockSizeMB:      32 * util.MiB,
+			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  1600,
 		},
 		{
@@ -364,8 +366,48 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
 			expectedEnableRapidAppends:    true,
-			expectedWriteBlockSizeMB:      32 * util.MiB,
+			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  2000,
+			expectedWriteMaxBlocksPerFile: 1,
+		},
+		{
+			name:                          "Test_optimization_fallback_to_machine-type_config_with_un-overridden_profile_on_high-end_machine",
+			args:                          []string{"gcsfuse", "--machine-type=a3-highgpu-8g", "--profile=" + cfg.ProfileAIMLCheckpointing, "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: true,
+			expectedEnableRapidAppends:    true,
+			expectedWriteBlockSizeMB:      32,
+			expectedWriteGlobalMaxBlocks:  1600,
+			expectedWriteMaxBlocksPerFile: 1,
+		},
+		{
+			name:                          "Test_optimization_fallback_to_default_config_with_un-overridden_profile_on_low-end_machine",
+			args:                          []string{"gcsfuse", "--machine-type=low-end-machine", "--profile=" + cfg.ProfileAIMLCheckpointing, "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: true,
+			expectedEnableRapidAppends:    true,
+			expectedWriteBlockSizeMB:      32,
+			expectedWriteGlobalMaxBlocks:  4,
+			expectedWriteMaxBlocksPerFile: 1,
+		},
+		{
+			name:                          "Test_optimization_overriden_by_user_config_with_profile_set_on_high-end_machine",
+			args:                          []string{"gcsfuse", "--write-global-max-blocks=200", "--machine-type=a3-highgpu-8g", "--profile=" + cfg.ProfileAIMLCheckpointing, "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: true,
+			expectedEnableRapidAppends:    true,
+			expectedWriteBlockSizeMB:      32,
+			expectedWriteGlobalMaxBlocks:  200,
+			expectedWriteMaxBlocksPerFile: 1,
+		},
+		{
+			name:                          "Test_optimizationoverriden_by_user_config_with_profile_set_on_low-end_machine",
+			args:                          []string{"gcsfuse", "--write-global-max-blocks=16", "--machine-type=low-end-machine", "--profile=" + cfg.ProfileAIMLCheckpointing, "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: true,
+			expectedEnableRapidAppends:    true,
+			expectedWriteBlockSizeMB:      32,
+			expectedWriteGlobalMaxBlocks:  16,
 			expectedWriteMaxBlocksPerFile: 1,
 		},
 	}
@@ -373,8 +415,8 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var wc cfg.WriteConfig
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				wc = cfg.Write
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				wc = mountInfo.config.Write
 				return nil
 			})
 			require.Nil(t, err)
@@ -407,7 +449,7 @@ func TestArgsParsing_ReadConfigFlags(t *testing.T) {
 			name:                             "Test default flags.",
 			args:                             []string{"gcsfuse", "abc", "pqr"},
 			expectedReadBlockSizeMB:          16,
-			expectedReadGlobalMaxBlocks:      80,
+			expectedReadGlobalMaxBlocks:      40,
 			expectedReadMaxBlocksPerHandle:   20,
 			expectedReadStartBlocksPerHandle: 1,
 			expectedReadMinBlocksPerHandle:   4,
@@ -416,7 +458,7 @@ func TestArgsParsing_ReadConfigFlags(t *testing.T) {
 			name:                             "Test enable buffered read flag true.",
 			args:                             []string{"gcsfuse", "--enable-buffered-read", "abc", "pqr"},
 			expectedReadBlockSizeMB:          16,
-			expectedReadGlobalMaxBlocks:      80,
+			expectedReadGlobalMaxBlocks:      40,
 			expectedReadMaxBlocksPerHandle:   20,
 			expectedReadStartBlocksPerHandle: 1,
 			expectedReadMinBlocksPerHandle:   4,
@@ -425,7 +467,7 @@ func TestArgsParsing_ReadConfigFlags(t *testing.T) {
 			name:                             "Test enable buffered read flag false.",
 			args:                             []string{"gcsfuse", "--enable-buffered-read=false", "abc", "pqr"},
 			expectedReadBlockSizeMB:          16,
-			expectedReadGlobalMaxBlocks:      80,
+			expectedReadGlobalMaxBlocks:      40,
 			expectedReadMaxBlocksPerHandle:   20,
 			expectedReadStartBlocksPerHandle: 1,
 			expectedReadMinBlocksPerHandle:   4,
@@ -434,7 +476,7 @@ func TestArgsParsing_ReadConfigFlags(t *testing.T) {
 			name:                             "Test positive read-block-size-mb flag.",
 			args:                             []string{"gcsfuse", "--read-block-size-mb=10", "abc", "pqr"},
 			expectedReadBlockSizeMB:          10,
-			expectedReadGlobalMaxBlocks:      80,
+			expectedReadGlobalMaxBlocks:      40,
 			expectedReadMaxBlocksPerHandle:   20,
 			expectedReadStartBlocksPerHandle: 1,
 			expectedReadMinBlocksPerHandle:   4,
@@ -452,7 +494,7 @@ func TestArgsParsing_ReadConfigFlags(t *testing.T) {
 			name:                             "Test positive read-max-blocks-per-handle flag.",
 			args:                             []string{"gcsfuse", "--read-max-blocks-per-handle=10", "abc", "pqr"},
 			expectedReadBlockSizeMB:          16,
-			expectedReadGlobalMaxBlocks:      80,
+			expectedReadGlobalMaxBlocks:      40,
 			expectedReadMaxBlocksPerHandle:   10,
 			expectedReadStartBlocksPerHandle: 1,
 			expectedReadMinBlocksPerHandle:   4,
@@ -461,7 +503,7 @@ func TestArgsParsing_ReadConfigFlags(t *testing.T) {
 			name:                             "Test positive read-start-blocks-per-handle flag.",
 			args:                             []string{"gcsfuse", "--read-start-blocks-per-handle=10", "abc", "pqr"},
 			expectedReadBlockSizeMB:          16,
-			expectedReadGlobalMaxBlocks:      80,
+			expectedReadGlobalMaxBlocks:      40,
 			expectedReadMaxBlocksPerHandle:   20,
 			expectedReadStartBlocksPerHandle: 10,
 			expectedReadMinBlocksPerHandle:   4,
@@ -470,7 +512,7 @@ func TestArgsParsing_ReadConfigFlags(t *testing.T) {
 			name:                             "Test positive read-min-blocks-per-handle flag.",
 			args:                             []string{"gcsfuse", "--read-min-blocks-per-handle=10", "abc", "pqr"},
 			expectedReadBlockSizeMB:          16,
-			expectedReadGlobalMaxBlocks:      80,
+			expectedReadGlobalMaxBlocks:      40,
 			expectedReadMaxBlocksPerHandle:   20,
 			expectedReadStartBlocksPerHandle: 1,
 			expectedReadMinBlocksPerHandle:   10,
@@ -480,8 +522,8 @@ func TestArgsParsing_ReadConfigFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var rc cfg.ReadConfig
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				rc = cfg.Read
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				rc = mountInfo.config.Read
 				return nil
 			})
 			require.Nil(t, err)
@@ -508,7 +550,7 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 	}{
 		{
 			name: "Test file cache flags.",
-			args: []string{"gcsfuse", "--file-cache-cache-file-for-range-read", "--file-cache-download-chunk-size-mb=20", "--file-cache-enable-crc", "--cache-dir=/some/valid/dir", "--file-cache-experimental-exclude-regex=.*", "--file-cache-enable-parallel-downloads", "--file-cache-max-parallel-downloads=40", "--file-cache-max-size-mb=100", "--file-cache-parallel-downloads-per-file=2", "--file-cache-enable-o-direct=false", "abc", "pqr"},
+			args: []string{"gcsfuse", "--file-cache-cache-file-for-range-read", "--file-cache-download-chunk-size-mb=20", "--file-cache-enable-crc", "--cache-dir=/some/valid/dir", "--file-cache-exclude-regex=.*", "--file-cache-include-regex=.*", "--file-cache-enable-parallel-downloads", "--file-cache-max-parallel-downloads=40", "--file-cache-max-size-mb=100", "--file-cache-parallel-downloads-per-file=2", "--file-cache-enable-o-direct=false", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				CacheDir: "/some/valid/dir",
 				FileCache: cfg.FileCacheConfig{
@@ -516,7 +558,8 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 					DownloadChunkSizeMb:                    20,
 					EnableCrc:                              true,
 					EnableParallelDownloads:                true,
-					ExperimentalExcludeRegex:               ".*",
+					ExcludeRegex:                           ".*",
+					IncludeRegex:                           ".*",
 					ExperimentalParallelDownloadsDefaultOn: true,
 					MaxParallelDownloads:                   40,
 					MaxSizeMb:                              100,
@@ -535,7 +578,8 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 					DownloadChunkSizeMb:                    200,
 					EnableCrc:                              false,
 					EnableParallelDownloads:                false,
-					ExperimentalExcludeRegex:               "",
+					ExcludeRegex:                           "",
+					IncludeRegex:                           "",
 					ExperimentalParallelDownloadsDefaultOn: true,
 					MaxParallelDownloads:                   int64(max(16, 2*runtime.NumCPU())),
 					MaxSizeMb:                              -1,
@@ -550,8 +594,8 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotConfig = cfg
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
 				return nil
 			})
 			require.Nil(t, err)
@@ -602,8 +646,8 @@ func TestArgParsing_ExperimentalMetadataPrefetchFlag(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var experimentalMetadataPrefetch string
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				experimentalMetadataPrefetch = cfg.MetadataCache.ExperimentalMetadataPrefetchOnMount
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				experimentalMetadataPrefetch = mountInfo.config.MetadataCache.ExperimentalMetadataPrefetchOnMount
 				return nil
 			})
 			require.Nil(t, err)
@@ -635,7 +679,7 @@ func TestArgParsing_ExperimentalMetadataPrefetchFlag_Failed(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				return nil
 			})
 			require.Nil(t, err)
@@ -685,8 +729,8 @@ func TestArgsParsing_GCSAuthFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotConfig = cfg
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
 				return nil
 			})
 			require.Nil(t, err)
@@ -723,7 +767,7 @@ func TestArgsParsing_GCSAuthFlagsThrowsError(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+			cmd, err := newRootCmd(func(_ *mountInfo, _, _ string) error {
 				return nil
 			})
 			require.Nil(t, err)
@@ -756,6 +800,7 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 					MaxConnsPerHost:            1000,
 					MaxIdleConnsPerHost:        20,
 					SequentialReadSizeMb:       70,
+					EnableHttpDnsCache:         true,
 				},
 			},
 		},
@@ -775,6 +820,27 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 					MaxConnsPerHost:            0,
 					MaxIdleConnsPerHost:        100,
 					SequentialReadSizeMb:       200,
+					EnableHttpDnsCache:         true,
+				},
+			},
+		},
+		{
+			name: "test_dns_cache_disabled",
+			args: []string{"gcsfuse", "--enable-http-dns-cache=false", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				GcsConnection: cfg.GcsConnectionConfig{
+					BillingProject:             "",
+					ClientProtocol:             "http1",
+					CustomEndpoint:             "",
+					ExperimentalEnableJsonRead: false,
+					GrpcConnPoolSize:           1,
+					HttpClientTimeout:          0,
+					LimitBytesPerSec:           -1,
+					LimitOpsPerSec:             -1,
+					MaxConnsPerHost:            0,
+					MaxIdleConnsPerHost:        100,
+					SequentialReadSizeMb:       200,
+					EnableHttpDnsCache:         false,
 				},
 			},
 		},
@@ -783,8 +849,8 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotConfig = cfg
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
 				return nil
 			})
 			require.Nil(t, err)
@@ -827,7 +893,7 @@ func TestArgsParsing_GCSConnectionFlagsThrowsError(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+			cmd, err := newRootCmd(func(_ *mountInfo, _, _ string) error {
 				return nil
 			})
 			require.Nil(t, err)
@@ -839,12 +905,33 @@ func TestArgsParsing_GCSConnectionFlagsThrowsError(t *testing.T) {
 }
 
 func TestArgsParsing_FileSystemFlags(t *testing.T) {
+	expectedDefaultFileSystemConfig := cfg.FileSystemConfig{
+		DirMode:                       0755,
+		DisableParallelDirops:         false,
+		ExperimentalEnableDentryCache: false,
+		ExperimentalEnableReaddirplus: false,
+		FileMode:                      0644,
+		FuseOptions:                   []string{},
+		Gid:                           -1,
+		IgnoreInterrupts:              true,
+		KernelListCacheTtlSecs:        0,
+		RenameDirLimit:                0,
+		TempDir:                       "",
+		PreconditionErrors:            true,
+		ODirect:                       false,
+		Uid:                           -1,
+	}
+	expectedAIMLCheckpointingFileSystemConfig := expectedDefaultFileSystemConfig
+	expectedAIMLCheckpointingFileSystemConfig.RenameDirLimit = 200000
+	expectedAIMLTrainingFileSystemConfig := expectedDefaultFileSystemConfig
+
 	hd, err := os.UserHomeDir()
 	require.NoError(t, err)
 	tests := []struct {
-		name           string
-		args           []string
-		expectedConfig *cfg.Config
+		name             string
+		args             []string
+		expectedConfig   *cfg.Config
+		checkMachineType bool
 	}{
 		{
 			name: "normal",
@@ -863,6 +950,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					RenameDirLimit:                10,
 					TempDir:                       cfg.ResolvedPath(path.Join(hd, "temp")),
 					PreconditionErrors:            false,
+					ODirect:                       false,
 					Uid:                           8,
 				},
 			},
@@ -884,6 +972,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					RenameDirLimit:                0,
 					TempDir:                       "",
 					PreconditionErrors:            true,
+					ODirect:                       false,
 					Uid:                           -1,
 				},
 			},
@@ -905,9 +994,12 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					RenameDirLimit:                200000,
 					TempDir:                       "",
 					PreconditionErrors:            true,
+					ODirect:                       false,
 					Uid:                           -1,
 				},
+				MachineType: "a3-highgpu-8g",
 			},
+			checkMachineType: true,
 		},
 		{
 			name: "high performance defaults with rename dir options with autoconfig disabled",
@@ -926,9 +1018,12 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					RenameDirLimit:                0,
 					TempDir:                       "",
 					PreconditionErrors:            true,
+					ODirect:                       false,
 					Uid:                           -1,
 				},
+				MachineType: "a3-highgpu-8g",
 			},
+			checkMachineType: true,
 		},
 		{
 			name: "high performance defaults with overriden rename dir options",
@@ -947,28 +1042,115 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					RenameDirLimit:                15000,
 					TempDir:                       "",
 					PreconditionErrors:            true,
+					ODirect:                       false,
 					Uid:                           -1,
 				},
+				MachineType: "a3-highgpu-8g",
+			},
+			checkMachineType: true,
+		},
+		{
+			name: "profile_checkpointing_with_low_machine_type",
+			args: []string{"gcsfuse", "--profile=" + cfg.ProfileAIMLCheckpointing, "--machine-type=machine-type-1", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem:  expectedAIMLCheckpointingFileSystemConfig,
+				Profile:     cfg.ProfileAIMLCheckpointing,
+				MachineType: "machine-type-1",
+			},
+			checkMachineType: true,
+		},
+		{
+			name: "profile_checkpointing_with_high_machine_type",
+			args: []string{"gcsfuse", "--profile=" + cfg.ProfileAIMLCheckpointing, "--machine-type=a3-highgpu-8g", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem:  expectedAIMLCheckpointingFileSystemConfig,
+				Profile:     cfg.ProfileAIMLCheckpointing,
+				MachineType: "a3-highgpu-8g",
+			},
+			checkMachineType: true,
+		},
+		{
+			name: "profile_training_with_machine_type",
+			args: []string{"gcsfuse", "--profile=" + cfg.ProfileAIMLTraining, "--machine-type=machine-type-1", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem:  expectedAIMLTrainingFileSystemConfig,
+				Profile:     cfg.ProfileAIMLTraining,
+				MachineType: "machine-type-1",
+			},
+			checkMachineType: true,
+		},
+		{
+			name: "profile_checkpointing_without_machine_type",
+			args: []string{"gcsfuse", "--profile=" + cfg.ProfileAIMLCheckpointing, "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: expectedAIMLCheckpointingFileSystemConfig,
+				Profile:    cfg.ProfileAIMLCheckpointing,
+			},
+		},
+		{
+			name: "machine_type_without_profile",
+			args: []string{"gcsfuse", "--machine-type=machine-type-1", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem:  expectedDefaultFileSystemConfig,
+				MachineType: "machine-type-1",
 			},
 		},
 		{
 			name: "default",
 			args: []string{"gcsfuse", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
+				FileSystem:  expectedDefaultFileSystemConfig,
+				MachineType: "",
+				Profile:     "",
+			},
+		},
+		{
+			name: "Test file system o-direct flag enabled.",
+			args: []string{"gcsfuse", "--o-direct", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					DirMode:                       0755,
-					DisableParallelDirops:         false,
-					ExperimentalEnableDentryCache: false,
-					ExperimentalEnableReaddirplus: false,
-					FileMode:                      0644,
-					FuseOptions:                   []string{},
-					Gid:                           -1,
-					IgnoreInterrupts:              true,
-					KernelListCacheTtlSecs:        0,
-					RenameDirLimit:                0,
-					TempDir:                       "",
-					PreconditionErrors:            true,
-					Uid:                           -1,
+					DirMode:            0755,
+					FileMode:           0644,
+					FuseOptions:        []string{},
+					Gid:                -1,
+					IgnoreInterrupts:   true,
+					ODirect:            true,
+					PreconditionErrors: true,
+					Uid:                -1,
+				},
+			},
+		},
+		{
+			name: "Test file system max-read-ahead-kb flag enabled.",
+			args: []string{"gcsfuse", "--max-read-ahead-kb=1024", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:            0755,
+					FileMode:           0644,
+					FuseOptions:        []string{},
+					Gid:                -1,
+					IgnoreInterrupts:   true,
+					ODirect:            false,
+					PreconditionErrors: true,
+					Uid:                -1,
+					MaxReadAheadKb:     1024,
+				},
+			},
+		},
+		{
+			name: "Test file system max-read-ahead-kb flag disabled.",
+			args: []string{"gcsfuse", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					DirMode:            0755,
+					FileMode:           0644,
+					FuseOptions:        []string{},
+					Gid:                -1,
+					IgnoreInterrupts:   true,
+					ODirect:            false,
+					PreconditionErrors: true,
+					Uid:                -1,
+					MaxReadAheadKb:     0,
 				},
 			},
 		},
@@ -977,8 +1159,8 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotConfig = cfg
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
 				return nil
 			})
 			require.Nil(t, err)
@@ -988,6 +1170,10 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedConfig.FileSystem, gotConfig.FileSystem)
+				if tc.checkMachineType {
+					assert.Equal(t, tc.expectedConfig.MachineType, gotConfig.MachineType)
+				}
+				assert.Equal(t, tc.expectedConfig.Profile, gotConfig.Profile)
 			}
 		})
 	}
@@ -1030,7 +1216,7 @@ func TestArgsParsing_FileSystemFlagsThrowsError(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
+			cmd, err := newRootCmd(func(_ *mountInfo, _, _ string) error {
 				return nil
 			})
 			require.Nil(t, err)
@@ -1066,8 +1252,8 @@ func TestArgsParsing_ListFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotConfig = cfg
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
 				return nil
 			})
 			require.Nil(t, err)
@@ -1103,8 +1289,8 @@ func TestArgsParsing_EnableHNSFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotEnableHNS bool
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotEnableHNS = cfg.EnableHns
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotEnableHNS = mountInfo.config.EnableHns
 				return nil
 			})
 			require.Nil(t, err)
@@ -1114,6 +1300,43 @@ func TestArgsParsing_EnableHNSFlags(t *testing.T) {
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedEnableHNS, gotEnableHNS)
+			}
+		})
+	}
+}
+
+func TestArgsParsing_EnableUnsupportedPathSupport(t *testing.T) {
+	tests := []struct {
+		name                           string
+		args                           []string
+		expectedUnsupportedPathSupport bool
+	}{
+		{
+			name:                           "normal",
+			args:                           []string{"gcsfuse", "--enable-unsupported-path-support=true", "abc", "pqr"},
+			expectedUnsupportedPathSupport: true,
+		},
+		{
+			name:                           "default",
+			args:                           []string{"gcsfuse", "abc", "pqr"},
+			expectedUnsupportedPathSupport: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotUnsupportedPathSupport bool
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotUnsupportedPathSupport = mountInfo.config.EnableUnsupportedPathSupport
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedUnsupportedPathSupport, gotUnsupportedPathSupport)
 			}
 		})
 	}
@@ -1140,8 +1363,8 @@ func TestArgsParsing_EnableGoogleLibAuthFlag(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotEnableGoogleLibAuth bool
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotEnableGoogleLibAuth = cfg.EnableGoogleLibAuth
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotEnableGoogleLibAuth = mountInfo.config.EnableGoogleLibAuth
 				return nil
 			})
 			require.Nil(t, err)
@@ -1177,8 +1400,8 @@ func TestArgsParsing_EnableAtomicRenameObjectFlag(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotEnableAtomicRenameObject bool
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotEnableAtomicRenameObject = cfg.EnableAtomicRenameObject
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotEnableAtomicRenameObject = mountInfo.config.EnableAtomicRenameObject
 				return nil
 			})
 			require.Nil(t, err)
@@ -1214,8 +1437,8 @@ func TestArgsParsing_EnableNewReaderFlag(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotEnableNewReader bool
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotEnableNewReader = cfg.EnableNewReader
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotEnableNewReader = mountInfo.config.EnableNewReader
 				return nil
 			})
 			require.Nil(t, err)
@@ -1297,8 +1520,8 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotConfig = cfg
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
 				return nil
 			})
 			require.Nil(t, err)
@@ -1343,8 +1566,8 @@ func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotConfig = cfg
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
 				return nil
 			})
 			require.Nil(t, err)
@@ -1472,8 +1695,8 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotConfig = cfg
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
 				return nil
 			})
 			require.Nil(t, err)
@@ -1518,8 +1741,8 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotConfig = cfg
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
 				return nil
 			})
 			require.Nil(t, err)
@@ -1538,25 +1761,25 @@ func TestArgsParsing_ProfilerFlags(t *testing.T) {
 	tests := []struct {
 		name           string
 		args           []string
-		expectedConfig cfg.ProfilingConfig
+		expectedConfig cfg.CloudProfilerConfig
 	}{
 		{
 			name: "Default profiler config (disabled)",
 			args: []string{"gcsfuse", "bucket", "mountpoint"},
-			expectedConfig: cfg.ProfilingConfig{
+			expectedConfig: cfg.CloudProfilerConfig{
 				Enabled:       false, // Profiler is disabled by default
 				Label:         "gcsfuse-0.0.0",
-				Mutex:         false, // Default for --profiling-mutex
-				Cpu:           true,  // Default for --profiling-cpu
-				AllocatedHeap: true,  // Default for --profiling-allocated-heap
-				Heap:          true,  // Default for --profiling-heap
-				Goroutines:    false, // Default for --profiling-goroutines
+				Mutex:         false, // Default for --cloud-profiler-mutex
+				Cpu:           true,  // Default for --cloud-profiler-cpu
+				AllocatedHeap: true,  // Default for --cloud-profiler-allocated-heap
+				Heap:          true,  // Default for --cloud-profiler-heap
+				Goroutines:    false, // Default for --cloud-profiler-goroutines
 			},
 		},
 		{
 			name: "Profiler enabled, sub-profilers default",
-			args: []string{"gcsfuse", "--enable-cloud-profiling", "bucket", "mountpoint"},
-			expectedConfig: cfg.ProfilingConfig{
+			args: []string{"gcsfuse", "--enable-cloud-profiler", "bucket", "mountpoint"},
+			expectedConfig: cfg.CloudProfilerConfig{
 				Enabled:       true,
 				Label:         "gcsfuse-0.0.0",
 				Mutex:         false,
@@ -1568,8 +1791,8 @@ func TestArgsParsing_ProfilerFlags(t *testing.T) {
 		},
 		{
 			name: "Profiler enabled, all sub-profilers explicitly true and label set",
-			args: []string{"gcsfuse", "--enable-cloud-profiling", "--profiling-label=v1.0.0", "--profiling-mutex=true", "--profiling-cpu=true", "--profiling-allocated-heap=true", "--profiling-heap=true", "--profiling-goroutines=true", "bucket", "mountpoint"},
-			expectedConfig: cfg.ProfilingConfig{
+			args: []string{"gcsfuse", "--enable-cloud-profiler", "--cloud-profiler-label=v1.0.0", "--cloud-profiler-mutex=true", "--cloud-profiler-cpu=true", "--cloud-profiler-allocated-heap=true", "--cloud-profiler-heap=true", "--cloud-profiler-goroutines=true", "bucket", "mountpoint"},
+			expectedConfig: cfg.CloudProfilerConfig{
 				Enabled:       true,
 				Label:         "v1.0.0",
 				Mutex:         true,
@@ -1581,8 +1804,8 @@ func TestArgsParsing_ProfilerFlags(t *testing.T) {
 		},
 		{
 			name: "Profiler enabled, all sub-profilers explicitly false",
-			args: []string{"gcsfuse", "--enable-cloud-profiling", "--profiling-mutex=false", "--profiling-cpu=false", "--profiling-allocated-heap=false", "--profiling-heap=false", "--profiling-goroutines=false", "bucket", "mountpoint"},
-			expectedConfig: cfg.ProfilingConfig{
+			args: []string{"gcsfuse", "--enable-cloud-profiler", "--cloud-profiler-mutex=false", "--cloud-profiler-cpu=false", "--cloud-profiler-allocated-heap=false", "--cloud-profiler-heap=false", "--cloud-profiler-goroutines=false", "bucket", "mountpoint"},
+			expectedConfig: cfg.CloudProfilerConfig{
 				Enabled:       true,
 				Label:         "gcsfuse-0.0.0",
 				Mutex:         false,
@@ -1594,8 +1817,8 @@ func TestArgsParsing_ProfilerFlags(t *testing.T) {
 		},
 		{
 			name: "Profiler explicitly disabled, some sub-profiler flags set",
-			args: []string{"gcsfuse", "--enable-cloud-profiling=false", "--profiling-mutex=true", "--profiling-cpu=false", "bucket", "mountpoint"},
-			expectedConfig: cfg.ProfilingConfig{
+			args: []string{"gcsfuse", "--enable-cloud-profiler=false", "--cloud-profiler-mutex=true", "--cloud-profiler-cpu=false", "bucket", "mountpoint"},
+			expectedConfig: cfg.CloudProfilerConfig{
 				Enabled:       false, // Master switch is off
 				Label:         "gcsfuse-0.0.0",
 				Mutex:         true,  // Flag was parsed
@@ -1609,9 +1832,9 @@ func TestArgsParsing_ProfilerFlags(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var gotProfilerConfig cfg.ProfilingConfig
-			cmd, err := newRootCmd(func(c *cfg.Config, _, _ string) error {
-				gotProfilerConfig = c.Profiling
+			var gotProfilerConfig cfg.CloudProfilerConfig
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotProfilerConfig = mountInfo.config.CloudProfiler
 				return nil
 			})
 			require.Nil(t, err)
@@ -1651,8 +1874,8 @@ func TestArgsParsing_ReadInactiveTimeoutConfig(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotConfig *cfg.Config
-			cmd, err := newRootCmd(func(cfg *cfg.Config, _, _ string) error {
-				gotConfig = cfg
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
 				return nil
 			})
 			require.Nil(t, err)
@@ -1662,6 +1885,349 @@ func TestArgsParsing_ReadInactiveTimeoutConfig(t *testing.T) {
 
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedTimeout, gotConfig.Read.InactiveStreamTimeout)
+		})
+	}
+}
+
+func TestArgsParsing_WorkloadInsightFlags(t *testing.T) {
+	tests := []struct {
+		name           string
+		args           []string
+		expectedConfig *cfg.Config
+	}{
+		{
+			name: "default",
+			args: []string{"gcsfuse", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				WorkloadInsight: cfg.WorkloadInsightConfig{
+					Visualize:               false,
+					OutputFile:              "",
+					ForwardMergeThresholdMb: 0,
+				},
+			},
+		},
+		{
+			name: "visual with output file",
+			args: []string{"gcsfuse", "--visualize-workload-insight=true", "--workload-insight-output-file=/tmp/insight.html", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				WorkloadInsight: cfg.WorkloadInsightConfig{
+					Visualize:  true,
+					OutputFile: "/tmp/insight.html",
+				},
+			},
+		},
+		{
+			name: "visual without output file",
+			args: []string{"gcsfuse", "--visualize-workload-insight=true", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				WorkloadInsight: cfg.WorkloadInsightConfig{
+					Visualize:               true,
+					OutputFile:              "",
+					ForwardMergeThresholdMb: 0,
+				},
+			},
+		},
+		{
+			name: "visual with forward merge threshold",
+			args: []string{"gcsfuse", "--visualize-workload-insight=true", "--workload-insight-forward-merge-threshold-mb=50", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				WorkloadInsight: cfg.WorkloadInsightConfig{
+					Visualize:               true,
+					OutputFile:              "",
+					ForwardMergeThresholdMb: 50,
+				},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotConfig *cfg.Config
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedConfig.WorkloadInsight, gotConfig.WorkloadInsight)
+		})
+	}
+}
+
+func TestArgsParsing_WorkloadInsightConfigFile(t *testing.T) {
+	tests := []struct {
+		name               string
+		cfgFile            string
+		expectedVisualize  bool
+		expectedOutputFile string
+	}{
+		{
+			name:               "default",
+			cfgFile:            "empty.yaml",
+			expectedVisualize:  false,
+			expectedOutputFile: "",
+		},
+		{
+			name:               "visual with output file",
+			cfgFile:            "visual_with_output_file.yaml",
+			expectedVisualize:  true,
+			expectedOutputFile: "/tmp/insight.html",
+		},
+		{
+			name:               "visual without output file",
+			cfgFile:            "visual_without_output_file.yaml",
+			expectedVisualize:  true,
+			expectedOutputFile: "",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotConfig *cfg.Config
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotConfig = mountInfo.config
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs([]string{"gcsfuse", fmt.Sprintf("--config-file=testdata/workload_insight_config/%s", tc.cfgFile), "abc", "pqr"}, cmd))
+
+			err = cmd.Execute()
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedVisualize, gotConfig.WorkloadInsight.Visualize)
+			assert.Equal(t, tc.expectedOutputFile, gotConfig.WorkloadInsight.OutputFile)
+		})
+	}
+}
+
+func TestMountInfoPopulation(t *testing.T) {
+	testCases := []struct {
+		name                    string
+		cliArgs                 []string
+		configFilePath          string
+		validateMountInfo       func(t *testing.T, mi *mountInfo)
+		expectedResolvedGid     int64
+		expectedResolvedAppName string
+	}{
+		{
+			name:    "CLI flags only",
+			cliArgs: []string{"--app-name=cli-app", "--foreground", "--gid=1001"},
+			validateMountInfo: func(t *testing.T, mi *mountInfo) {
+				assert.Contains(t, mi.cliFlags, "app-name")
+				assert.Equal(t, "cli-app", mi.cliFlags["app-name"])
+				assert.Contains(t, mi.cliFlags, "foreground")
+				assert.Equal(t, "true", mi.cliFlags["foreground"])
+				assert.Contains(t, mi.cliFlags, "gid")
+				assert.Equal(t, "1001", mi.cliFlags["gid"])
+				assert.Empty(t, mi.configFileFlags)
+			},
+			expectedResolvedGid:     1001,
+			expectedResolvedAppName: "cli-app",
+		},
+		{
+			name:           "Config file only",
+			configFilePath: "testdata/mount_info_population/config_file_only.yaml",
+			validateMountInfo: func(t *testing.T, mi *mountInfo) {
+				assert.NotContains(t, mi.cliFlags, "app-name")
+				assert.NotContains(t, mi.cliFlags, "gid")
+				assert.Contains(t, mi.configFileFlags, "app-name")
+				assert.Equal(t, "config-app", mi.configFileFlags["app-name"])
+				fsFlags, ok := mi.configFileFlags["file-system"].(map[string]interface{})
+				require.True(t, ok)
+				assert.Equal(t, 1002, fsFlags["gid"])
+			},
+			expectedResolvedGid:     1002,
+			expectedResolvedAppName: "config-app",
+		},
+		{
+			name:           "CLI flags override config file",
+			cliArgs:        []string{"--app-name=cli-app-override", "--gid=1003"},
+			configFilePath: "testdata/mount_info_population/cli_override_config.yaml",
+			validateMountInfo: func(t *testing.T, mi *mountInfo) {
+				// Check CLI flags
+				assert.Equal(t, "cli-app-override", mi.cliFlags["app-name"])
+				assert.Equal(t, "1003", mi.cliFlags["gid"])
+
+				// Check config file flags
+				assert.Equal(t, "config-app", mi.configFileFlags["app-name"])
+				fsFlags, ok := mi.configFileFlags["file-system"].(map[string]interface{})
+				require.True(t, ok)
+				assert.Equal(t, 1002, fsFlags["gid"])
+				logFlags, ok := mi.configFileFlags["logging"].(map[string]interface{})
+				require.True(t, ok)
+				assert.Equal(t, "error", logFlags["severity"])
+			},
+			expectedResolvedGid:     1003,               // CLI overrides config
+			expectedResolvedAppName: "cli-app-override", // CLI overrides config
+		},
+		{
+			name: "Defaults when no flags or config",
+			validateMountInfo: func(t *testing.T, mi *mountInfo) {
+				assert.Empty(t, mi.cliFlags)
+				assert.Empty(t, mi.configFileFlags)
+			},
+			expectedResolvedGid:     -1, // Default value
+			expectedResolvedAppName: "", // Default value
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var capturedMountInfo *mountInfo
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				capturedMountInfo = mountInfo
+				return nil
+			})
+			require.NoError(t, err)
+
+			args := []string{"gcsfuse"}
+			if tc.configFilePath != "" {
+				// Use the provided config file path from testdata.
+				args = append(args, "--config-file", tc.configFilePath)
+			}
+			args = append(args, tc.cliArgs...)
+			args = append(args, "my-bucket", "/mnt/gcs")
+			cmd.SetArgs(convertToPosixArgs(args, cmd))
+
+			require.NoError(t, cmd.Execute())
+
+			require.NotNil(t, capturedMountInfo)
+			tc.validateMountInfo(t, capturedMountInfo)
+			assert.Equal(t, tc.expectedResolvedGid, capturedMountInfo.config.FileSystem.Gid)
+			assert.Equal(t, tc.expectedResolvedAppName, capturedMountInfo.config.AppName)
+		})
+	}
+}
+
+func TestGetCliFlags(t *testing.T) {
+	testCases := []struct {
+		name              string
+		setupFlags        func(t *testing.T, fs *pflag.FlagSet)
+		backgroundMode    bool
+		expectedCliFlags  map[string]string
+		unexpectedCliFlag string
+	}{
+		{
+			name:             "No flags set",
+			setupFlags:       func(t *testing.T, fs *pflag.FlagSet) {},
+			backgroundMode:   false,
+			expectedCliFlags: map[string]string{},
+		},
+		{
+			name: "Some flags set",
+			setupFlags: func(t *testing.T, fs *pflag.FlagSet) {
+				fs.String("app-name", "", "")
+				require.NoError(t, fs.Set("app-name", "test-app"))
+			},
+			backgroundMode: false,
+			expectedCliFlags: map[string]string{
+				"app-name": "test-app",
+			},
+		},
+		{
+			name: "Foreground flag set in foreground mode",
+			setupFlags: func(t *testing.T, fs *pflag.FlagSet) {
+				fs.Bool("foreground", false, "")
+				require.NoError(t, fs.Set("foreground", "true"))
+			},
+			backgroundMode:   false,
+			expectedCliFlags: map[string]string{"foreground": "true"},
+		},
+		{
+			name: "Foreground flag set in background mode",
+			setupFlags: func(t *testing.T, fs *pflag.FlagSet) {
+				fs.Bool("foreground", false, "")
+				require.NoError(t, fs.Set("foreground", "true"))
+			},
+			backgroundMode:    true,
+			expectedCliFlags:  map[string]string{},
+			unexpectedCliFlag: "foreground",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.backgroundMode {
+				t.Setenv(logger.GCSFuseInBackgroundMode, "true")
+			}
+			flagSet := pflag.NewFlagSet("test", pflag.ContinueOnError)
+			tc.setupFlags(t, flagSet)
+
+			cliFlags := getCliFlags(flagSet)
+
+			assert.Equal(t, tc.expectedCliFlags, cliFlags)
+			if tc.unexpectedCliFlag != "" {
+				_, ok := cliFlags[tc.unexpectedCliFlag]
+				assert.False(t, ok, "unexpected flag %q found", tc.unexpectedCliFlag)
+			}
+		})
+	}
+}
+
+func TestGetConfigFileFlags(t *testing.T) {
+	testCases := []struct {
+		name      string
+		defaults  map[string]any
+		filePath  string
+		noFile    bool
+		expected  map[string]any
+		expectNil bool
+	}{
+		{
+			name:      "No config file",
+			noFile:    true,
+			expectNil: true,
+		},
+		{
+			name:     "Empty config file",
+			defaults: map[string]any{"key1": "default"},
+			filePath: "testdata/get_config_file_flags/empty.yaml",
+			expected: map[string]any{},
+		},
+		{
+			name:     "Default values are ignored",
+			defaults: map[string]any{"default_key": "default_value"},
+			filePath: "testdata/get_config_file_flags/simple_values.yaml",
+			expected: map[string]any{"key1": "value1", "key2": 123},
+		},
+		{
+			name:     "Config file with nested values",
+			filePath: "testdata/get_config_file_flags/nested_values.yaml",
+			expected: map[string]any{
+				"logging": map[string]any{
+					"file-path": "/var/log/gcsfuse.log",
+					"format":    "json",
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			inputViper := viper.New()
+
+			if !tc.noFile {
+				// Set defaults on the input viper to simulate the real scenario
+				for key, value := range tc.defaults {
+					inputViper.SetDefault(key, value)
+				}
+
+				// Configure viper to use the testdata file and read it
+				inputViper.SetConfigFile(tc.filePath)
+				inputViper.SetConfigType("yaml") // Ensure inputViper also knows the config type
+				require.NoError(t, inputViper.ReadInConfig())
+			}
+
+			got := getConfigFileFlags(inputViper)
+
+			if tc.expectNil {
+				assert.Nil(t, got)
+			} else {
+				assert.Equal(t, tc.expected, got)
+			}
 		})
 	}
 }

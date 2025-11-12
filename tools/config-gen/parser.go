@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,22 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"regexp"
 	"slices"
+	"strings"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
 	"gopkg.in/yaml.v3"
+)
+
+const (
+	machineTypeGroupRegexPattern = `^[a-z]+(-[a-z0-9]+)*$`
+)
+
+var (
+	machineTypeGroupRegex = regexp.MustCompile(machineTypeGroupRegexPattern)
 )
 
 type Param struct {
@@ -35,25 +44,38 @@ type Param struct {
 	IsDeprecated       bool   `yaml:"deprecated"`
 	DeprecationWarning string `yaml:"deprecation-warning"`
 	Usage              string
-	HideFlag           bool `yaml:"hide-flag"`
-	HideShorthand      bool `yaml:"hide-shorthand"`
+	HideFlag           bool                      `yaml:"hide-flag"`
+	HideShorthand      bool                      `yaml:"hide-shorthand"`
+	Optimizations      *shared.OptimizationRules `yaml:"optimizations,omitempty"`
 }
 
-func parseParamsConfig() ([]Param, error) {
+// ParamsYAML mirrors the params.yaml file itself.
+type ParamsYAML struct {
+	Params            []Param             `yaml:"params"`
+	MachineTypeGroups map[string][]string `yaml:"machine-type-groups"`
+}
+
+func parseParamsYAMLStr(paramsYAMLStr string) (paramsYAML ParamsYAML, err error) {
+	dec := yaml.NewDecoder(strings.NewReader(paramsYAMLStr))
+	dec.KnownFields(true)
+	if err = dec.Decode(&paramsYAML); err != nil {
+		return ParamsYAML{}, err
+	}
+	if err = validateParams(paramsYAML.Params); err != nil {
+		return ParamsYAML{}, err
+	}
+	if err = validateMachineTypeGroups(paramsYAML.MachineTypeGroups); err != nil {
+		return ParamsYAML{}, err
+	}
+	return paramsYAML, nil
+}
+
+func parseParamsYAML() (ParamsYAML, error) {
 	buf, err := os.ReadFile(*paramsFile)
 	if err != nil {
-		return nil, err
+		return ParamsYAML{}, err
 	}
-	var paramsConfig []Param
-	dec := yaml.NewDecoder(bytes.NewReader(buf))
-	dec.KnownFields(true)
-	if err = dec.Decode(&paramsConfig); err != nil {
-		return nil, err
-	}
-	if err = validateParams(paramsConfig); err != nil {
-		return nil, err
-	}
-	return paramsConfig, nil
+	return parseParamsYAMLStr(string(buf))
 }
 
 func checkFlagName(name string) error {
@@ -151,6 +173,60 @@ func validateForDuplicates(params []Param, fn func(param Param) string) error {
 			return fmt.Errorf("%s is present more than once", value)
 		}
 		lookup[value] = true
+	}
+	return nil
+}
+
+// validateMachineTypeGroups validates the machine-type-groups map.
+func validateMachineTypeGroups(groups map[string][]string) error {
+	// Temporary map to check if a machine-type belong to multiple groups.
+	machineTypeToGroupMap := make(map[string]string)
+	// Note: We can't easily validate that the group names themselves are sorted
+	// in the YAML file because Go maps do not preserve insertion order. This
+	// should be enforced through code reviews or a linter.
+	for groupName, machineTypes := range groups {
+		// 1. Validate group name format (e.g., kebab-case).
+		if !machineTypeGroupRegex.MatchString(groupName) {
+			return fmt.Errorf("group name %q does not conform to machineTypeGroupRegexPattern: %q", groupName, machineTypeGroupRegexPattern)
+		}
+
+		if len(machineTypes) == 0 {
+			return fmt.Errorf("group %q must contain at least one machine type", groupName)
+		}
+
+		// 2. Validate machine types within the group are sorted and unique.
+		if !slices.IsSorted(machineTypes) {
+			return fmt.Errorf("machine types in group %q are not sorted alphabetically", groupName)
+		}
+		if err := validateForDuplicatesInSortedSlice(machineTypes); err != nil {
+			return fmt.Errorf("duplicate machine type found in group %q: %w", groupName, err)
+		}
+		// Check for cross-group uniqueness for each machine type.
+		for _, machineType := range machineTypes {
+			if existingGroup, ok := machineTypeToGroupMap[machineType]; ok {
+				return fmt.Errorf(
+					"machine type %q cannot be in multiple groups; it is in both %q and %q",
+					machineType,
+					existingGroup,
+					groupName,
+				)
+			}
+			machineTypeToGroupMap[machineType] = groupName
+		}
+	}
+
+	return nil
+}
+
+// validateForDuplicatesInSortedSlice is a helper to check for duplicates in an already sorted string slice.
+func validateForDuplicatesInSortedSlice(items []string) error {
+	for i, item := range items {
+		if item == "" {
+			return fmt.Errorf("item cannot be an empty string")
+		}
+		if i > 0 && item == items[i-1] {
+			return fmt.Errorf("%q is present more than once", item)
+		}
 	}
 	return nil
 }

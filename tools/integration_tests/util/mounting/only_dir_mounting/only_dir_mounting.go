@@ -22,29 +22,40 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 	"golang.org/x/net/context"
 )
 
+// Deprecated: Use MountGcsfuseWithOnlyDirMountingWithConfigFile instead.
+// TODO(b/438068132): cleanup deprecated methods after migration is complete.
 func MountGcsfuseWithOnlyDir(flags []string) (err error) {
+	config := &test_suite.TestConfig{
+		TestBucket:              setup.TestBucket(),
+		GKEMountedDirectory:     setup.MountedDirectory(),
+		GCSFuseMountedDirectory: setup.MntDir(),
+		LogFile:                 setup.LogFile(),
+	}
+	return MountGcsfuseWithOnlyDirWithConfigFile(config, flags)
+}
+
+func MountGcsfuseWithOnlyDirWithConfigFile(config *test_suite.TestConfig, flags []string) (err error) {
 	defaultArg := []string{"--only-dir",
 		setup.OnlyDirMounted(),
 		"--log-severity=trace",
-		"--log-file=" + setup.LogFile(),
-		setup.TestBucket(),
-		setup.MntDir()}
+		"--log-file=" + config.LogFile,
+		config.TestBucket,
+		config.GCSFuseMountedDirectory}
 
-	for i := 0; i < len(defaultArg); i++ {
-		flags = append(flags, defaultArg[i])
-	}
+	flags = append(flags, defaultArg...)
 
 	err = mounting.MountGcsfuse(setup.BinFile(), flags)
 
 	return err
 }
 
-func mountGcsFuseForFlagsAndExecuteTests(flags [][]string, m *testing.M) (successCode int) {
-	for i := 0; i < len(flags); i++ {
-		if err := MountGcsfuseWithOnlyDir(flags[i]); err != nil {
+func mountGcsFuseForFlagsAndExecuteTests(config *test_suite.TestConfig, flags [][]string, m *testing.M) (successCode int) {
+	for i := range flags {
+		if err := MountGcsfuseWithOnlyDirWithConfigFile(config, flags[i]); err != nil {
 			setup.LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
 		}
 		log.Printf("Running only dir mounting tests with flags: %s", flags[i])
@@ -56,7 +67,7 @@ func mountGcsFuseForFlagsAndExecuteTests(flags [][]string, m *testing.M) (succes
 	return
 }
 
-func executeTestsForOnlyDirMounting(flags [][]string, dirName string, m *testing.M) (successCode int) {
+func executeTestsForOnlyDirMounting(config *test_suite.TestConfig, flags [][]string, dirName string, m *testing.M) (successCode int) {
 	ctx := context.Background()
 	storageClient, err := client.CreateStorageClient(ctx)
 	if err != nil {
@@ -74,7 +85,7 @@ func executeTestsForOnlyDirMounting(flags [][]string, dirName string, m *testing
 	if err != nil {
 		log.Println("Error deleting object on GCS: %w", err)
 	}
-	successCode = mountGcsFuseForFlagsAndExecuteTests(flags, m)
+	successCode = mountGcsFuseForFlagsAndExecuteTests(config, flags, m)
 	if successCode != 0 {
 		return
 	}
@@ -82,7 +93,7 @@ func executeTestsForOnlyDirMounting(flags [][]string, dirName string, m *testing
 	// Test scenario when only-dir-mounted directory pre-exists in bucket.
 	client.SetupTestDirectory(ctx, storageClient, dirName)
 
-	successCode = mountGcsFuseForFlagsAndExecuteTests(flags, m)
+	successCode = mountGcsFuseForFlagsAndExecuteTests(config, flags, m)
 	err = client.DeleteAllObjectsWithPrefix(ctx, storageClient, dirName)
 	if err != nil {
 		log.Println("Error deleting object on GCS: %w", err)
@@ -93,10 +104,22 @@ func executeTestsForOnlyDirMounting(flags [][]string, dirName string, m *testing
 	return
 }
 
+// Deprecated: Use RunTestsWithConfigFile instead.
+// TODO(b/438068132): cleanup deprecated methods after migration is complete.
 func RunTests(flags [][]string, dirName string, m *testing.M) (successCode int) {
+	config := &test_suite.TestConfig{
+		TestBucket:              setup.TestBucket(),
+		GKEMountedDirectory:     setup.MountedDirectory(),
+		GCSFuseMountedDirectory: setup.MntDir(),
+		LogFile:                 setup.LogFile(),
+	}
+	return RunTestsWithConfigFile(config, flags, dirName, m)
+}
+
+func RunTestsWithConfigFile(config *test_suite.TestConfig, flagsSet [][]string, dirName string, m *testing.M) (successCode int) {
 	log.Println("Running only dir mounting tests...")
 
-	successCode = executeTestsForOnlyDirMounting(flags, dirName, m)
+	successCode = executeTestsForOnlyDirMounting(config, flagsSet, dirName, m)
 
 	log.Printf("Test log: %s\n", setup.LogFile())
 

@@ -71,9 +71,9 @@ func ShouldRetryWithMonitoring(ctx context.Context, err error, metricHandle metr
 		return false
 	}
 	// Record metrics
-	val := "OTHER_ERRORS"
+	val := metrics.RetryErrorCategoryOTHERERRORSAttr
 	if errors.Is(err, context.DeadlineExceeded) {
-		val = "STALLED_READ_REQUEST"
+		val = metrics.RetryErrorCategorySTALLEDREADREQUESTAttr
 	}
 
 	metricHandle.GcsRetryCount(1, val)

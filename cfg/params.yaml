@@ -32,874 +32,1077 @@
 #
 ###################################### DOCUMENTATION ENDS ######################
 
-- config-path: "app-name"
-  flag-name: "app-name"
-  type: "string"
-  usage: "The application name of this mount."
-  default: ""
-
-- config-path: "cache-dir"
-  flag-name: "cache-dir"
-  type: "resolvedPath"
-  usage: "Enables file-caching. Specifies the directory to use for file-cache."
-
-- config-path: "debug.exit-on-invariant-violation"
-  flag-name: "debug_invariants"
-  type: "bool"
-  usage: "Exit when internal invariants are violated."
-  default: false
-
-- config-path: "debug.fuse"
-  flag-name: "debug_fuse"
-  type: "bool"
-  usage: "Enables debug logs."
-  default: false
-  deprecated: true
-  deprecation-warning: "Please set log-severity to TRACE instead."
-
-- config-path: "debug.gcs"
-  flag-name: "debug_gcs"
-  type: "bool"
-  usage: "Enables debug logs."
-  default: false
-  deprecated: true
-  deprecation-warning: "Please set log-severity to TRACE instead."
-
-- config-path: "debug.log-mutex"
-  flag-name: "debug_mutex"
-  type: "bool"
-  usage: "Print debug messages when a mutex is held too long."
-  default: false
-
-- config-path: "disable-autoconfig"
-  flag-name: "disable-autoconfig"
-  type: "bool"
-  usage: "Disable optimizing configuration automatically for a machine"
-  default: false
-  hide-flag: true
-
-- config-path: "enable-atomic-rename-object"
-  flag-name: "enable-atomic-rename-object"
-  type: "bool"
-  usage: "Enables support for atomic rename object operation on HNS bucket."
-  default: true
-  hide-flag: true
-
-- flag-name: "enable-google-lib-auth"
-  config-path: "enable-google-lib-auth"
-  type: "bool"
-  usage: "Enable google library authentication method to fetch the credentials"
-  default: true
-  hide-flag: true
-
-- config-path: "enable-hns"
-  flag-name: "enable-hns"
-  type: "bool"
-  usage: "Enables support for HNS buckets"
-  default: true
-  hide-flag: true
-
-- config-path: "enable-new-reader"
-  flag-name: "enable-new-reader"
-  type: "bool"
-  usage: "Enables support for new reader implementation."
-  default: true
-  hide-flag: true
-
-- config-path: "file-cache.cache-file-for-range-read"
-  flag-name: "file-cache-cache-file-for-range-read"
-  type: "bool"
-  usage: "Whether to cache file for range reads."
-  default: false
-
-- config-path: "file-cache.download-chunk-size-mb"
-  flag-name: "file-cache-download-chunk-size-mb"
-  type: "int"
-  usage: "Size of chunks in MiB that each concurrent request downloads."
-  default: "200"
-
-- config-path: "file-cache.enable-crc"
-  flag-name: "file-cache-enable-crc"
-  type: "bool"
-  usage: "Performs CRC to ensure that file is correctly downloaded into cache."
-  default: false
-  hide-flag: true
-
-- config-path: "file-cache.enable-o-direct"
-  flag-name: "file-cache-enable-o-direct"
-  type: "bool"
-  usage: "Whether to use O_DIRECT while writing to file-cache in case of parallel downloads."
-  default: "false"
-  hide-flag: true
-
-- config-path: "file-cache.enable-parallel-downloads"
-  flag-name: "file-cache-enable-parallel-downloads"
-  type: "bool"
-  usage: "Enable parallel downloads."
-  default: false
-
-- config-path: "file-cache.experimental-exclude-regex"
-  flag-name: "file-cache-experimental-exclude-regex"
-  type: "string"
-  usage: "Exclude file paths (in the format bucket_name/object_key) specified by this regex from file caching."
-  default: ""
-  hide-flag: true
-
-- config-path: "file-cache.experimental-parallel-downloads-default-on"
-  flag-name: "file-cache-experimental-parallel-downloads-default-on"
-  type: "bool"
-  usage: "Enable parallel downloads by default on experimental basis."
-  default: true
-  hide-flag: true
-
-- config-path: "file-cache.max-parallel-downloads"
-  flag-name: "file-cache-max-parallel-downloads"
-  type: "int"
-  usage: "Sets an uber limit of number of concurrent file download requests that are made across all files."
-  default: "DefaultMaxParallelDownloads()"
-
-- config-path: "file-cache.max-size-mb"
-  flag-name: "file-cache-max-size-mb"
-  type: "int"
-  usage: "Maximum size of the file-cache in MiBs"
-  default: "-1"
-
-- config-path: "file-cache.parallel-downloads-per-file"
-  flag-name: "file-cache-parallel-downloads-per-file"
-  type: "int"
-  usage: "Number of concurrent download requests per file."
-  default: "16"
-
-- config-path: "file-cache.write-buffer-size"
-  flag-name: "file-cache-write-buffer-size"
-  type: "int"
-  usage: "Size of in-memory buffer that is used per goroutine in parallel downloads while writing to file-cache."
-  default: "4194304" # 4MiB
-  hide-flag: true
-
-- config-path: "file-system.dir-mode"
-  flag-name: "dir-mode"
-  type: "octal"
-  usage: "Permissions bits for directories, in octal."
-  default: "0755"
-
-- config-path: "file-system.disable-parallel-dirops"
-  flag-name: "disable-parallel-dirops"
-  type: "bool"
-  usage: "Specifies whether to allow parallel dir operations (lookups and readers)"
-  default: false
-  hide-flag: true
-
-- config-path: "file-system.experimental-enable-dentry-cache"
-  flag-name: "experimental-enable-dentry-cache"
-  type: "bool"
-  usage: >-
-    When enabled, it sets the Dentry cache entry timeout same as metadata-cache-ttl.
-    This enables kernel to use cached entry to map the file paths to inodes,
-    instead of making LookUpInode calls to GCSFuse.
-  default: false
-  hide-flag: true
-
-- config-path: "file-system.experimental-enable-readdirplus"
-  flag-name: "experimental-enable-readdirplus"
-  type: "bool"
-  usage: "Enables ReadDirPlus capability"
-  default: false
-  hide-flag: true
-
-- config-path: "file-system.file-mode"
-  flag-name: "file-mode"
-  type: "octal"
-  usage: "Permissions bits for files, in octal."
-  default: "0644"
-
-- config-path: "file-system.fuse-options"
-  flag-name: "o"
-  type: "[]string"
-  usage: "Additional system-specific mount options. Multiple options can be passed as comma separated. For readonly, use --o ro"
-
-- config-path: "file-system.gid"
-  flag-name: "gid"
-  type: "int"
-  default: -1
-  usage: "GID owner of all inodes."
-
-- config-path: "file-system.ignore-interrupts"
-  flag-name: "ignore-interrupts"
-  type: "bool"
-  usage: >-
-    Instructs gcsfuse to ignore system interrupt signals (like SIGINT, triggered
-    by Ctrl+C). This prevents those signals from immediately terminating gcsfuse
-    inflight operations.
-  default: true
-
-- config-path: "file-system.kernel-list-cache-ttl-secs"
-  flag-name: "kernel-list-cache-ttl-secs"
-  type: "int"
-  usage: >-
-    How long the directory listing (output of ls <dir>) should be cached in the
-    kernel page cache. If a particular directory cache entry is kept by kernel
-    for longer than TTL, then it will be sent for invalidation by gcsfuse on
-    next opendir (comes in the start, as part of next listing) call. 0 means no
-    caching. Use -1 to cache for lifetime (no ttl). Negative value other than -1
-    will throw error.
-  default: "0"
-
-- config-path: "file-system.precondition-errors"
-  flag-name: "precondition-errors"
-  type: "bool"
-  usage: >-
-    Throw Stale NFS file handle error in case the object being synced or read 
-    from is modified by some other concurrent process. This helps prevent 
-    silent data loss or data corruption.
-  hide-flag: true
-  default: true
-
-- config-path: "file-system.rename-dir-limit"
-  flag-name: "rename-dir-limit"
-  type: "int"
-  usage: "Allow rename a directory containing fewer descendants than this limit."
-  default: "0"
-
-- config-path: "file-system.temp-dir"
-  flag-name: "temp-dir"
-  type: "resolvedPath"
-  usage: >-
-    Path to the temporary directory where writes are staged prior to upload to
-    Cloud Storage. (default: system default, likely /tmp)
-  default: ""
-
-- config-path: "file-system.uid"
-  flag-name: "uid"
-  type: "int"
-  default: -1
-  usage: "UID owner of all inodes."
-
-- flag-name: "foreground"
-  config-path: "foreground"
-  type: "bool"
-  usage: "Stay in the foreground after mounting."
-  default: false
-
-- config-path: "gcs-auth.anonymous-access"
-  flag-name: "anonymous-access"
-  type: "bool"
-  usage: "This flag disables authentication."
-  default: false
-
-- config-path: "gcs-auth.key-file"
-  flag-name: "key-file"
-  type: "resolvedPath"
-  usage: "Absolute path to JSON key file for use with GCS. If this flag is left unset, Google application default credentials are used."
-
-- config-path: "gcs-auth.reuse-token-from-url"
-  flag-name: "reuse-token-from-url"
-  type: "bool"
-  usage: "If false, the token acquired from token-url is not reused."
-  default: "true"
-
-- config-path: "gcs-auth.token-url"
-  flag-name: "token-url"
-  type: "string"
-  usage: "A url for getting an access token when the key-file is absent."
-  default: ""
-
-- config-path: "gcs-connection.billing-project"
-  flag-name: "billing-project"
-  type: "string"
-  usage: >-
-    Project to use for billing when accessing a bucket enabled with "Requester
-    Pays".
-  default: ""
-
-- config-path: "gcs-connection.client-protocol"
-  flag-name: "client-protocol"
-  type: "protocol"
-  usage: >-
-    The protocol used for communicating with the GCS backend.
-    Value can be 'http1' (HTTP/1.1), 'http2' (HTTP/2) or 'grpc'.
-  default: "http1"
-
-- config-path: "gcs-connection.custom-endpoint"
-  flag-name: "custom-endpoint"
-  type: "string"
-  usage: >-
-    Specifies an alternative custom endpoint for fetching data. The custom endpoint
-    must support the equivalent resources and operations as the GCS JSON endpoint,
-    https://storage.googleapis.com/storage/v1. If a custom endpoint is not
-    specified, GCSFuse uses the global GCS JSON API endpoint,
-    https://storage.googleapis.com/storage/v1.
-  default: ""
-
-- config-path: "gcs-connection.experimental-enable-json-read"
-  flag-name: "experimental-enable-json-read"
-  type: "bool"
-  usage: >-
-    By default, GCSFuse uses the GCS XML API to get and read objects. When this
-    flag is specified, GCSFuse uses the GCS JSON API instead."
-  default: false
-  deprecated: true
-  deprecation-warning: "Experimental flag: could be dropped even in a minor release."
-
-- config-path: "gcs-connection.grpc-conn-pool-size"
-  flag-name: "experimental-grpc-conn-pool-size"
-  type: "int"
-  usage: "The number of gRPC channel in grpc client."
-  default: "1"
-  deprecated: true
-  deprecation-warning: "Experimental flag: can be removed in a minor release."
-
-- config-path: "gcs-connection.http-client-timeout"
-  flag-name: "http-client-timeout"
-  type: "duration"
-  usage: >-
-    The time duration that http client will wait to get response from the
-    server. A value of 0 indicates no timeout.
-  default: "0s"
-
-- config-path: "gcs-connection.limit-bytes-per-sec"
-  flag-name: "limit-bytes-per-sec"
-  type: "float64"
-  usage: "Bandwidth limit for reading data, measured over a 30-second window. (use -1 for no limit)"
-  default: "-1"
-
-- config-path: "gcs-connection.limit-ops-per-sec"
-  flag-name: "limit-ops-per-sec"
-  type: "float64"
-  usage: "Operations per second limit, measured over a 30-second window (use -1 for no limit)"
-  default: "-1"
-
-- config-path: "gcs-connection.max-conns-per-host"
-  flag-name: "max-conns-per-host"
-  type: "int"
-  usage: >-
-    The max number of TCP connections allowed per server. This is effective when
-    client-protocol is set to 'http1'. A value of 0 indicates no limit on
-    TCP connections (limited by the machine specifications).
-  default: "0"
-
-- config-path: "gcs-connection.max-idle-conns-per-host"
-  flag-name: "max-idle-conns-per-host"
-  type: "int"
-  usage: "The number of maximum idle connections allowed per server."
-  default: "100"
-
-- config-path: "gcs-connection.sequential-read-size-mb"
-  flag-name: "sequential-read-size-mb"
-  type: "int"
-  usage: "File chunk size to read from GCS in one call. Need to specify the value in MB. ChunkSize less than 1MB is not supported"
-  default: "200"
-
-- config-path: "gcs-retries.chunk-transfer-timeout-secs"
-  flag-name: "chunk-transfer-timeout-secs"
-  type: "int"
-  usage: >-
-    We send larger file uploads in 16 MiB chunks. This flag controls the duration 
-    that the HTTP client will wait for a response after making a request to upload a chunk. 
-    As an example, a value of 10 indicates that the client will wait 10 seconds for upload completion; 
-    otherwise, it cancels the request and retries for that chunk till chunkRetryDeadline(32s). 0 means no timeout.
-  default: "10"
-  hide-flag: true
-
-- config-path: "gcs-retries.max-retry-attempts"
-  flag-name: "max-retry-attempts"
-  type: "int"
-  usage: >-
-    It sets a limit on the number of times an operation will be retried if it
-    fails, preventing endless retry loops. A value of 0 indicates no limit.
-  default: "0"
-
-- config-path: "gcs-retries.max-retry-sleep"
-  flag-name: "max-retry-sleep"
-  type: "duration"
-  usage: >-
-    The maximum duration allowed to sleep in a retry loop with exponential
-    backoff for failed requests to GCS backend. Once the backoff duration
-    exceeds this limit, the retry continues with this specified maximum value.
-  default: "30s"
-
-- config-path: "gcs-retries.multiplier"
-  flag-name: "retry-multiplier"
-  type: "float64"
-  usage: Param for exponential backoff algorithm, which is used to increase waiting time b/w two consecutive retries.
-  default: 2
-
-- config-path: "gcs-retries.read-stall.enable"
-  flag-name: "enable-read-stall-retry"
-  type: "bool"
-  usage: >-
-    To turn on/off retries for stalled read requests. This is based on a timeout
-    that changes depending on how long similar requests took in the past.
-  default: true
-  hide-flag: true
-
-- config-path: "gcs-retries.read-stall.initial-req-timeout"
-  flag-name: "read-stall-initial-req-timeout"
-  type: "duration"
-  usage: Initial value of the read-request dynamic timeout.
-  default: 20s
-  hide-flag: true
-
-- config-path: "gcs-retries.read-stall.max-req-timeout"
-  flag-name: "read-stall-max-req-timeout"
-  type: "duration"
-  usage: Upper bound of the read-request dynamic timeout.
-  default: 20m
-  hide-flag: true
-
-- config-path: "gcs-retries.read-stall.min-req-timeout"
-  flag-name: "read-stall-min-req-timeout"
-  type: "duration"
-  usage: Lower bound of the read request dynamic timeout.
-  default: 1500ms
-  hide-flag: true
-
-- config-path: "gcs-retries.read-stall.req-increase-rate"
-  flag-name: "read-stall-req-increase-rate"
-  type: "float64"
-  usage: Determines how many increase calls it takes for dynamic timeout to double.
-  default: 15
-  hide-flag: true
-
-- config-path: "gcs-retries.read-stall.req-target-percentile"
-  flag-name: "read-stall-req-target-percentile"
-  type: "float64"
-  usage: Retry the request which take more than p(targetPercentile * 100) of past similar request.
-  default: 0.99
-  hide-flag: true
-
-- config-path: "implicit-dirs"
-  flag-name: "implicit-dirs"
-  type: "bool"
-  usage: "Implicitly define directories based on content. See files and directories in docs/semantics for more information"
-  default: false
-
-- config-path: "list.enable-empty-managed-folders"
-  flag-name: "enable-empty-managed-folders"
-  type: "bool"
-  usage: >-
-    This handles the corner case in listing managed folders.
-    There are two corner cases (a) empty managed folder (b) nested managed folder which doesn't contain any descendent as object.
-    This flag always works in conjunction with --implicit-dirs flag.
-    (a) If only ImplicitDirectories is true, all managed folders are listed other than above two mentioned cases.
-    (b) If both ImplicitDirectories and EnableEmptyManagedFolders are true, then all the managed folders are listed including the above-mentioned corner case.
-    (c) If ImplicitDirectories is false then no managed folders are listed irrespective of enable-empty-managed-folders flag.
-  default: false
-  hide-flag: true
-
-- config-path: "logging.file-path"
-  flag-name: "log-file"
-  type: "resolvedPath"
-  usage: >-
-    The file for storing logs that can be parsed by fluentd. When not provided,
-    plain text logs are printed to stdout when Cloud Storage FUSE is run 
-    in the foreground, or to syslog when Cloud Storage FUSE is run in the 
-    background.
-
-- config-path: "logging.format"
-  flag-name: "log-format"
-  type: "string"
-  usage: "The format of the log file: 'text' or 'json'."
-  default: "json"
-
-- config-path: "logging.log-rotate.backup-file-count"
-  flag-name: "log-rotate-backup-file-count"
-  type: "int"
-  usage: >-
-    The maximum number of backup log files to retain after they have been
-    rotated. A value of 0 indicates all backup files are retained.
-  default: "10"
-
-- config-path: "logging.log-rotate.compress"
-  flag-name: "log-rotate-compress"
-  type: "bool"
-  usage: "Controls whether the rotated log files should be compressed using gzip."
-  default: "true"
-
-- config-path: "logging.log-rotate.max-file-size-mb"
-  flag-name: "log-rotate-max-file-size-mb"
-  type: "int"
-  usage: "The maximum size in megabytes that a log file can reach before it is rotated."
-  default: "512"
-
-- config-path: "logging.severity"
-  flag-name: "log-severity"
-  type: "logSeverity"
-  usage: "Specifies the logging severity expressed as one of [trace, debug, info, warning, error, off]"
-  default: "info"
-
-- config-path: "machine-type"
-  flag-name: "machine-type"
-  type: "string"
-  usage: "Type of the machine on which gcsfuse is being run e.g. a3-highgpu-4g"
-  default: ""
-  hide-flag: true
-
-- config-path: "metadata-cache.deprecated-stat-cache-capacity"
-  flag-name: "stat-cache-capacity"
-  type: "int"
-  usage: >-
-    How many entries can the stat-cache hold (impacts memory consumption). This
-    flag has been deprecated (starting v2.0) and in favor of
-    stat-cache-max-size-mb. For now, the value of stat-cache-capacity will be
-    translated to the next higher corresponding value of stat-cache-max-size-mb
-    (assuming stat-cache entry-size ~= 1688 bytes, including 1448 for positive
-    entry and 240 for corresponding negative entry), if stat-cache-max-size-mb
-    is not set."
-  deprecated: true
-  deprecation-warning: "Please use --stat-cache-max-size-mb instead."
-  default: "20460"
-
-- config-path: "metadata-cache.deprecated-stat-cache-ttl"
-  flag-name: "stat-cache-ttl"
-  type: "duration"
-  usage: >-
-    How long to cache StatObject results and inode attributes. This flag
-    has been deprecated (starting v2.0) in favor of metadata-cache-ttl-secs. For
-    now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to
-    the next higher multiple of a second is used as ttl for both stat-cache and
-    type-cache, when metadata-cache-ttl-secs is not set.
-  default: "60s"
-  deprecated: true
-  deprecation-warning: >-
-    This flag has been deprecated (starting v2.0) in favor of
-    metadata-cache-ttl-secs.
-
-- config-path: "metadata-cache.deprecated-type-cache-ttl"
-  flag-name: "type-cache-ttl"
-  type: "duration"
-  usage: >-
-    Usage: How long to cache StatObject results and inode attributes. This flag
-    has been deprecated (starting v2.0) in favor of metadata-cache-ttl-secs. For
-    now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to
-    the next higher multiple of a second is used as ttl for both stat-cache and
-    type-cache, when metadata-cache-ttl-secs is not set.
-  default: "60s"
-  deprecated: true
-  deprecation-warning: >-
-    This flag has been deprecated (starting v2.0) in favor of
-    metadata-cache-ttl-secs.
-
-- config-path: "metadata-cache.enable-nonexistent-type-cache"
-  flag-name: "enable-nonexistent-type-cache"
-  type: "bool"
-  usage: >-
-    Once set, if an inode is not found in GCS, a type cache entry with type
-    NonexistentType will be created. This also means new file/dir created might
-    not be seen. For example, if this flag is set, and metadata-cache-ttl-secs
-    is set, then if we create the same file/node in the meantime using the same
-    mount, since we are not refreshing the cache, it will still return nil.
-  default: false
-
-- config-path: "metadata-cache.experimental-metadata-prefetch-on-mount"
-  flag-name: "experimental-metadata-prefetch-on-mount"
-  type: "string"
-  usage: >-
-    Experimental: This indicates whether or not to prefetch the metadata
-    (prefilling of metadata caches and creation of inodes) of the mounted bucket
-    at the time of mounting the bucket. Supported values: "disabled", "sync" and
-    "async". Any other values will return error on mounting. This is applicable
-    only to static mounting, and not to dynamic mounting.
-  default: "disabled"
-  deprecated: true
-  deprecation-warning: "Experimental flag: could be removed even in a minor release."
-
-- config-path: "metadata-cache.negative-ttl-secs"
-  flag-name: "metadata-cache-negative-ttl-secs"
-  type: "int"
-  usage: >-
-    The negative-ttl-secs value in seconds to be used for expiring negative entries in metadata-cache. It
-    can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled
-    negative entries in metadata-cache. Any value set below -1 will throw an error.
-  default: "5"
-
-- config-path: "metadata-cache.stat-cache-max-size-mb"
-  flag-name: "stat-cache-max-size-mb"
-  type: "int"
-  usage: >-
-    The maximum size of stat-cache in MiBs. It can also be set to -1 for
-    no-size-limit, 0 for no cache. Values below -1 are not supported.
-  default: "33"
-
-- config-path: "metadata-cache.ttl-secs"
-  flag-name: "metadata-cache-ttl-secs"
-  type: "int"
-  usage: >-
-    The ttl value in seconds to be used for expiring items in metadata-cache. It
-    can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled
-    metadata-cache. Any value set below -1 will throw an error.
-  default: "60"
-
-- config-path: "metadata-cache.type-cache-max-size-mb"
-  flag-name: "type-cache-max-size-mb"
-  type: "int"
-  usage: "Max size of type-cache maps which are maintained at a per-directory level."
-  default: "4"
-
-- config-path: "metrics.buffer-size"
-  flag-name: "metrics-buffer-size"
-  type: "int"
-  usage: "The maximum number of histogram metric updates in the queue."
-  default: "256"
-  hide-flag: true
-
-- config-path: "metrics.cloud-metrics-export-interval-secs"
-  flag-name: "cloud-metrics-export-interval-secs"
-  type: "int"
-  usage: "Specifies the interval at which the metrics are uploaded to cloud monitoring"
-  default: 0
-
-- config-path: "metrics.enable-grpc-metrics"
-  flag-name: "enable-grpc-metrics"
-  type: "bool"
-  usage: "Enables support for gRPC metrics"
-  default: true
-
-- config-path: "metrics.prometheus-port"
-  flag-name: "prometheus-port"
-  type: "int"
-  usage: "Expose Prometheus metrics endpoint on this port and a path of /metrics."
-  default: "0"
-
-- config-path: "metrics.stackdriver-export-interval"
-  flag-name: "stackdriver-export-interval"
-  type: "duration"
-  usage: >-
-    Export metrics to stackdriver with this interval. A value of 0
-    indicates no exporting.
-  default: "0s"
-  deprecated: true
-  deprecation-warning: "Please use --cloud-metrics-export-interval-secs instead."
-
-- config-path: "metrics.use-new-names"
-  flag-name: "metrics-use-new-names"
-  type: "bool"
-  usage: "Use the new metric names."
-  default: false
-  hide-flag: true
-
-- config-path: "metrics.workers"
-  flag-name: "metrics-workers"
-  type: "int"
-  usage: "The number of workers that update histogram metrics concurrently."
-  default: "3"
-  hide-flag: true
-
-- config-path: "monitoring.experimental-tracing-mode"
-  flag-name: "experimental-tracing-mode"
-  type: "string"
-  usage: "Experimental: specify tracing mode"
-  default: ""
-  hide-flag: true
-
-- config-path: "monitoring.experimental-tracing-sampling-ratio"
-  flag-name: "experimental-tracing-sampling-ratio"
-  type: "float64"
-  usage: "Experimental: Trace sampling ratio"
-  default: 0
-  hide-flag: true
-
-- config-path: "only-dir"
-  flag-name: "only-dir"
-  type: "string"
-  usage: "Mount only a specific directory within the bucket. See docs/mounting for more information"
-  default: ""
-
-- config-path: "profiling.allocated-heap"
-  flag-name: "profiling-allocated-heap"
-  type: "bool"
-  usage: "Enables allocated heap (HeapProfileAllocs) profiling. This only works when --enable-cloud-profiling is set to true."
-  default: true
-  hide-flag: true
-
-- config-path: "profiling.cpu"
-  flag-name: "profiling-cpu"
-  type: "bool"
-  usage: "Enables cpu profiling. This only works when --enable-cloud-profiling is set to true."
-  default: true
-  hide-flag: true
-
-- config-path: "profiling.enabled"
-  flag-name: "enable-cloud-profiling"
-  type: "bool"
-  usage: "Enables cloud profiling, by default disabled."
-  default: false
-  hide-flag: true
-
-- config-path: "profiling.goroutines"
-  flag-name: "profiling-goroutines"
-  type: "bool"
-  usage: "Enables goroutines profiling. This only works when --enable-cloud-profiling is set to true."
-  default: false
-  hide-flag: true
-
-- config-path: "profiling.heap"
-  flag-name: "profiling-heap"
-  type: "bool"
-  usage: "Enables heap profiling. This only works when --enable-cloud-profiling is set to true."
-  default: true
-  hide-flag: true
-
-- config-path: "profiling.label"
-  flag-name: "profiling-label"
-  type: "string"
-  usage: >-
-    Allow setting a profile label to uniquely identify and compare profiling data with other profiles.
-    This only works when --enable-cloud-profiling is set to true.  
-  default: "gcsfuse-0.0.0"
-  hide-flag: true
-
-- config-path: "profiling.mutex"
-  flag-name: "profiling-mutex"
-  type: "bool"
-  usage: "Enables mutex profiling. This only works when --enable-cloud-profiling is set to true."
-  default: false
-  hide-flag: true
-
-- config-path: "read.block-size-mb"
-  flag-name: "read-block-size-mb"
-  type: "int"
-  usage: >-
-    Specifies the block size for buffered reads. The value should be more than 
-    0. This is used to read data in chunks from GCS.
-  default: 16
-  hide-flag: true
-
-- config-path: "read.enable-buffered-read"
-  flag-name: "enable-buffered-read"
-  type: "bool"
-  usage: >-
-    When enabled, read starts using buffer to prefetch (asynchronous and in parallel)
-    data from GCS. This improves performance for large file sequential reads.
-    Note: Enabling this flag can increase the memory usage significantly.
-  default: false
-
-- config-path: "read.global-max-blocks"
-  flag-name: "read-global-max-blocks"
-  type: "int"
-  usage: >-
-    Specifies the maximum number of blocks available for buffered reads across all file-handles.
-    The value should be >= 0 or -1 (for infinite blocks).
-    A value of 0 disables buffered reads.
-  default: 80
-
-- config-path: "read.inactive-stream-timeout"
-  flag-name: "read-inactive-stream-timeout"
-  type: "duration"
-  usage: >-
-    Duration of inactivity after which an open GCS read stream is automatically closed.
-    This helps conserve resources when a file handle remains open without active Read calls.
-    A value of '0s' disables this timeout.
-  default: "10s"
-  hide-flag: true
-
-- config-path: "read.max-blocks-per-handle"
-  flag-name: "read-max-blocks-per-handle"
-  type: "int"
-  usage: >-
-    Specifies the maximum number of blocks to be used by a single file handle for 
-    buffered reads. The value should be >= 0 or -1 (for infinite blocks).
-    A value of 0 disables buffered reads.
-  default: 20
-  hide-flag: true
-
-- config-path: "read.min-blocks-per-handle"
-  flag-name: "read-min-blocks-per-handle"
-  type: "int"
-  usage: >-
-    Specifies the minimum number of blocks required by a file-handle to start
-    reading via buffered reads. The value should be >= 1 or "read-max-blocks-per-handle".
-  default: 4
-  hide-flag: true
-
-- config-path: "read.random-seek-threshold"
-  flag-name: "read-random-seek-threshold"
-  type: "int"
-  usage: >-
-    Specifies the random seek threshold to switch to another reader when random reads are detected.
-  default: 3
-  hide-flag: true
-
-- config-path: "read.start-blocks-per-handle"
-  flag-name: "read-start-blocks-per-handle"
-  type: "int"
-  usage: >-
-    Specifies the number of blocks to be prefetched on the first read.
-  default: 1
-  hide-flag: true
-
-- config-path: "write.block-size-mb"
-  flag-name: "write-block-size-mb"
-  type: "int"
-  usage: >-
-    Specifies the block size for streaming writes. The value should be more 
-    than 0.
-  default: 32
-  hide-flag: true
-
-- config-path: "write.create-empty-file"
-  flag-name: "create-empty-file"
-  type: "bool"
-  usage: "For a new file, it creates an empty file in Cloud Storage bucket as a hold."
-  default: false
-  hide-flag: true
-
-- config-path: "write.enable-rapid-appends"
-  flag-name: "enable-rapid-appends"
-  type: "bool"
-  usage: "Enables support for appends to unfinalized object using streaming writes"
-  default: true
-
-- config-path: "write.enable-streaming-writes"
-  flag-name: "enable-streaming-writes"
-  type: "bool"
-  usage: "Enables streaming uploads during write file operation."
-  default: true
-  hide-flag: false
-
-- config-path: "write.global-max-blocks"
-  flag-name: "write-global-max-blocks"
-  type: "int"
-  usage: >-
-    Specifies the maximum number of blocks available for streaming writes across all files. 
-    The value should be >= 0 or -1 (for infinite blocks).
-    A value of 0 disables streaming writes.
-  default: 4
-  hide-flag: false
-
-- config-path: "write.max-blocks-per-file"
-  flag-name: "write-max-blocks-per-file"
-  type: "int"
-  usage: >-
-    Specifies the maximum number of blocks to be used by a single file for 
-    streaming writes. The value should be >= 1 or -1 (for infinite blocks).
-  default: 1
-  hide-flag: true
-
-- flag-name: "debug_fs"
-  type: "bool"
-  usage: "This flag is unused."
-  default: false
-  deprecated: true
-  deprecation-warning: "This flag is currently unused."
-
-- flag-name: "debug_fuse_errors"
-  type: "bool"
-  usage: "This flag is currently unused."
-  default: "true"
-  deprecated: true
-  deprecation-warning: "This flag is currently unused."
-
-- flag-name: "debug_http"
-  type: "bool"
-  usage: "This flag is currently unused."
-  default: false
-  deprecated: true
-  deprecation-warning: "This flag is currently unused."
-
-- flag-name: "max-retry-duration"
-  type: "duration"
-  usage: "This is currently unused."
-  default: "0s"
-  deprecated: true
-  deprecation-warning: "This is currently unused."
+# Keep this section at the top of the file.
+machine-type-groups:
+  high-performance:
+    - "a2-megagpu-16g"
+    - "a2-ultragpu-8g"
+    - "a3-edgegpu-8g"
+    - "a3-highgpu-8g"
+    - "a3-megagpu-8g"
+    - "a3-ultragpu-8g"
+    - "a4-highgpu-8g"
+    - "a4-highgpu-8g-lowmem"
+    - "a4-highgpu-8g-nolssd"
+    - "a4x-highgpu-4g"
+    - "a4x-highgpu-4g-nolssd"
+    - "ct5l-hightpu-8t"
+    - "ct5lp-hightpu-8t"
+    - "ct5p-hightpu-4t"
+    - "ct5p-hightpu-4t-tpu"
+    - "ct6e-standard-4t"
+    - "ct6e-standard-4t-tpu"
+    - "ct6e-standard-8t"
+    - "ct6e-standard-8t-tpu"
+    - "tpu7x-standard-4t"
+    - "tpu7x-standard-4t-tpu"
+    - "tpu7x-ultranet-4t"
+    - "tpu7x-ultranet-4t-tpu"
+    # Add other machine types here as needed.
+  # Add other groups here as needed
+
+params:
+  - config-path: "app-name"
+    flag-name: "app-name"
+    type: "string"
+    usage: "The application name of this mount."
+    default: ""
+
+  - config-path: "cache-dir"
+    flag-name: "cache-dir"
+    type: "resolvedPath"
+    usage: "Enables file-caching. Specifies the directory to use for file-cache."
+
+  - config-path: "cloud-profiler.allocated-heap"
+    flag-name: "cloud-profiler-allocated-heap"
+    type: "bool"
+    usage: "Enables allocated heap (HeapProfileAllocs) profiling. This only works when --enable-cloud-profiler is set to true."
+    default: true
+    hide-flag: true
+
+  - config-path: "cloud-profiler.cpu"
+    flag-name: "cloud-profiler-cpu"
+    type: "bool"
+    usage: "Enables cpu profiling. This only works when --enable-cloud-profiler is set to true."
+    default: true
+    hide-flag: true
+
+  - config-path: "cloud-profiler.enabled"
+    flag-name: "enable-cloud-profiler"
+    type: "bool"
+    usage: "Enables cloud-profiler, by default disabled."
+    default: false
+    hide-flag: true
+
+  - config-path: "cloud-profiler.goroutines"
+    flag-name: "cloud-profiler-goroutines"
+    type: "bool"
+    usage: "Enables goroutines cloud-profiler. This only works when --enable-cloud-profiler is set to true."
+    default: false
+    hide-flag: true
+
+  - config-path: "cloud-profiler.heap"
+    flag-name: "cloud-profiler-heap"
+    type: "bool"
+    usage: "Enables heap cloud-profiler. This only works when --enable-cloud-profiler is set to true."
+    default: true
+    hide-flag: true
+
+  - config-path: "cloud-profiler.label"
+    flag-name: "cloud-profiler-label"
+    type: "string"
+    usage: >-
+      Allow setting a profile label to uniquely identify and compare cloud-profiler data with other profiles.
+      This only works when --enable-cloud-profiler is set to true.
+    default: "gcsfuse-0.0.0"
+    hide-flag: true
+
+  - config-path: "cloud-profiler.mutex"
+    flag-name: "cloud-profiler-mutex"
+    type: "bool"
+    usage: "Enables mutex cloud-profiler. This only works when --enable-cloud-profiler is set to true."
+    default: false
+    hide-flag: true
+
+  - config-path: "debug.exit-on-invariant-violation"
+    flag-name: "debug_invariants"
+    type: "bool"
+    usage: "Exit when internal invariants are violated."
+    default: false
+
+  - config-path: "debug.fuse"
+    flag-name: "debug_fuse"
+    type: "bool"
+    usage: "Enables debug logs."
+    default: false
+    deprecated: true
+    deprecation-warning: "Please set log-severity to TRACE instead."
+
+  - config-path: "debug.gcs"
+    flag-name: "debug_gcs"
+    type: "bool"
+    usage: "Enables debug logs."
+    default: false
+    deprecated: true
+    deprecation-warning: "Please set log-severity to TRACE instead."
+
+  - config-path: "debug.log-mutex"
+    flag-name: "debug_mutex"
+    type: "bool"
+    usage: "Print debug messages when a mutex is held too long."
+    default: false
+
+  - config-path: "disable-autoconfig"
+    flag-name: "disable-autoconfig"
+    type: "bool"
+    usage: "Disable optimizing configuration automatically for a machine"
+    default: false
+    hide-flag: true
+
+  - config-path: "enable-atomic-rename-object"
+    flag-name: "enable-atomic-rename-object"
+    type: "bool"
+    usage: "Enables support for atomic rename object operation on HNS bucket."
+    default: true
+    hide-flag: true
+
+  - flag-name: "enable-google-lib-auth"
+    config-path: "enable-google-lib-auth"
+    type: "bool"
+    usage: "Enable google library authentication method to fetch the credentials"
+    default: true
+    hide-flag: true
+
+  - config-path: "enable-hns"
+    flag-name: "enable-hns"
+    type: "bool"
+    usage: "Enables support for HNS buckets"
+    default: true
+    hide-flag: true
+
+  - config-path: "enable-new-reader"
+    flag-name: "enable-new-reader"
+    type: "bool"
+    usage: "Enables support for new reader implementation."
+    default: true
+    hide-flag: true
+
+  - config-path: "enable-unsupported-path-support"
+    flag-name: "enable-unsupported-path-support"
+    type: "bool"
+    usage: >-
+      Enables support for file system paths with unsupported GCS names (e.g., names containing '//' or starting with /). 
+      When set, GCSFuse will ignore these objects during listing and copying operations. 
+      For rename and delete operations, the flag allows the action to proceed for all specified objects, including those with unsupported names.
+    default: false
+    hide-flag: true
+
+  - config-path: "file-cache.cache-file-for-range-read"
+    flag-name: "file-cache-cache-file-for-range-read"
+    type: "bool"
+    usage: "Whether to cache file for range reads."
+    default: false
+    optimizations:
+      profiles:
+        - name: "aiml-serving"
+          value: true
+        - name: "aiml-checkpointing"
+          value: true
+
+  - config-path: "file-cache.download-chunk-size-mb"
+    flag-name: "file-cache-download-chunk-size-mb"
+    type: "int"
+    usage: "Size of chunks in MiB that each concurrent request downloads."
+    default: "200"
+
+  - config-path: "file-cache.enable-crc"
+    flag-name: "file-cache-enable-crc"
+    type: "bool"
+    usage: "Performs CRC to ensure that file is correctly downloaded into cache. No op for rapid storage."
+    default: false
+    hide-flag: true
+
+  - config-path: "file-cache.enable-o-direct"
+    flag-name: "file-cache-enable-o-direct"
+    type: "bool"
+    usage: "Whether to use O_DIRECT while writing to file-cache in case of parallel downloads."
+    default: "false"
+    hide-flag: true
+
+  - config-path: "file-cache.enable-parallel-downloads"
+    flag-name: "file-cache-enable-parallel-downloads"
+    type: "bool"
+    usage: "Enable parallel downloads."
+    default: false
+
+  - config-path: "file-cache.exclude-regex"
+    flag-name: "file-cache-exclude-regex"
+    type: "string"
+    usage: "Exclude file paths (in the format bucket_name/object_key) specified by this regex from file caching."
+    default: ""
+    hide-flag: true
+
+  - config-path: "file-cache.experimental-parallel-downloads-default-on"
+    flag-name: "file-cache-experimental-parallel-downloads-default-on"
+    type: "bool"
+    usage: "Enable parallel downloads by default on experimental basis."
+    default: true
+    hide-flag: true
+
+  - config-path: "file-cache.include-regex"
+    flag-name: "file-cache-include-regex"
+    type: "string"
+    usage: "Include file paths (in the format bucket_name/object_key) specified by this regex for file caching."
+    default: ""
+    hide-flag: true
+ 
+  - config-path: "file-cache.max-parallel-downloads"
+    flag-name: "file-cache-max-parallel-downloads"
+    type: "int"
+    usage: "Sets an uber limit of number of concurrent file download requests that are made across all files."
+    default: "DefaultMaxParallelDownloads()"
+
+  - config-path: "file-cache.max-size-mb"
+    flag-name: "file-cache-max-size-mb"
+    type: "int"
+    usage: "Maximum size of the file-cache in MiBs"
+    default: "-1"
+
+  - config-path: "file-cache.parallel-downloads-per-file"
+    flag-name: "file-cache-parallel-downloads-per-file"
+    type: "int"
+    usage: "Number of concurrent download requests per file."
+    default: "16"
+
+  - config-path: "file-cache.write-buffer-size"
+    flag-name: "file-cache-write-buffer-size"
+    type: "int"
+    usage: "Size of in-memory buffer that is used per goroutine in parallel downloads while writing to file-cache."
+    default: "4194304" # 4MiB
+    hide-flag: true
+
+  - config-path: "file-system.dir-mode"
+    flag-name: "dir-mode"
+    type: "octal"
+    usage: "Permissions bits for directories, in octal."
+    default: "0755"
+
+  - config-path: "file-system.disable-parallel-dirops"
+    flag-name: "disable-parallel-dirops"
+    type: "bool"
+    usage: "Specifies whether to allow parallel dir operations (lookups and readers)"
+    default: false
+    hide-flag: true
+
+  - config-path: "file-system.experimental-enable-dentry-cache"
+    flag-name: "experimental-enable-dentry-cache"
+    type: "bool"
+    usage: >-
+      When enabled, it sets the Dentry cache entry timeout same as metadata-cache-ttl.
+      This enables kernel to use cached entry to map the file paths to inodes,
+      instead of making LookUpInode calls to GCSFuse.
+    default: false
+    hide-flag: true
+
+  - config-path: "file-system.experimental-enable-readdirplus"
+    flag-name: "experimental-enable-readdirplus"
+    type: "bool"
+    usage: "Enables ReadDirPlus capability"
+    default: false
+    hide-flag: true
+
+  - config-path: "file-system.file-mode"
+    flag-name: "file-mode"
+    type: "octal"
+    usage: "Permissions bits for files, in octal."
+    default: "0644"
+
+  - config-path: "file-system.fuse-options"
+    flag-name: "o"
+    type: "[]string"
+    usage: "Additional system-specific mount options. Multiple options can be passed as comma separated. For readonly, use --o ro"
+
+  - config-path: "file-system.gid"
+    flag-name: "gid"
+    type: "int"
+    default: -1
+    usage: "GID owner of all inodes."
+
+  - config-path: "file-system.ignore-interrupts"
+    flag-name: "ignore-interrupts"
+    type: "bool"
+    usage: >-
+      Instructs gcsfuse to ignore system interrupt signals (like SIGINT, triggered
+      by Ctrl+C). This prevents those signals from immediately terminating gcsfuse
+      inflight operations.
+    default: true
+
+  - config-path: "file-system.kernel-list-cache-ttl-secs"
+    flag-name: "kernel-list-cache-ttl-secs"
+    type: "int"
+    usage: >-
+      How long the directory listing (output of ls <dir>) should be cached in the
+      kernel page cache. If a particular directory cache entry is kept by kernel
+      for longer than TTL, then it will be sent for invalidation by gcsfuse on
+      next opendir (comes in the start, as part of next listing) call. 0 means no
+      caching. Use -1 to cache for lifetime (no ttl). Negative value other than -1
+      will throw error.
+    default: "0"
+    optimizations:
+      profiles:
+        - name: "aiml-serving"
+          value: -1
+
+  - config-path: "file-system.max-read-ahead-kb"
+    flag-name: "max-read-ahead-kb"
+    type: "int"
+    usage: >-
+      Sets max kernel-read-ahead for the mount in KiB. 0 means system default.
+      Requires sudo permission to set this value, otherwise the value will be ignored
+      and system default will be used.
+    default: "0"
+    hide-flag: true
+  
+  - config-path: "file-system.o-direct"
+    flag-name: "o-direct"
+    type: "bool"
+    usage: >-
+      Bypasses the kernel's page cache for file reads and writes. When enabled,
+      all I/O operations are sent directly to the GCSFuse daemon. 
+    default: false
+    hide-flag: true
+
+
+  - config-path: "file-system.precondition-errors"
+    flag-name: "precondition-errors"
+    type: "bool"
+    usage: >-
+      Throw Stale NFS file handle error in case the object being synced or read
+      from is modified by some other concurrent process. This helps prevent
+      silent data loss or data corruption.
+    hide-flag: true
+    default: true
+
+  - config-path: "file-system.rename-dir-limit"
+    flag-name: "rename-dir-limit"
+    type: "int"
+    usage: "Allow rename a directory containing fewer descendants than this limit."
+    default: "0"
+    optimizations:
+      machine-based-optimization:
+        - group: "high-performance"
+          value: 200000
+      profiles:
+        - name: "aiml-checkpointing"
+          value: 200000
+
+  - config-path: "file-system.temp-dir"
+    flag-name: "temp-dir"
+    type: "resolvedPath"
+    usage: >-
+      Path to the temporary directory where writes are staged prior to upload to
+      Cloud Storage. (default: system default, likely /tmp)
+    default: ""
+
+  - config-path: "file-system.uid"
+    flag-name: "uid"
+    type: "int"
+    default: -1
+    usage: "UID owner of all inodes."
+
+  - flag-name: "foreground"
+    config-path: "foreground"
+    type: "bool"
+    usage: "Stay in the foreground after mounting."
+    default: false
+
+  - config-path: "gcs-auth.anonymous-access"
+    flag-name: "anonymous-access"
+    type: "bool"
+    usage: "This flag disables authentication."
+    default: false
+
+  - config-path: "gcs-auth.key-file"
+    flag-name: "key-file"
+    type: "resolvedPath"
+    usage: "Absolute path to JSON key file for use with GCS. If this flag is left unset, Google application default credentials are used."
+
+  - config-path: "gcs-auth.reuse-token-from-url"
+    flag-name: "reuse-token-from-url"
+    type: "bool"
+    usage: "If false, the token acquired from token-url is not reused."
+    default: "true"
+
+  - config-path: "gcs-auth.token-url"
+    flag-name: "token-url"
+    type: "string"
+    usage: "A url for getting an access token when the key-file is absent."
+    default: ""
+
+  - config-path: "gcs-connection.billing-project"
+    flag-name: "billing-project"
+    type: "string"
+    usage: >-
+      Project to use for billing when accessing a bucket enabled with "Requester
+      Pays".
+    default: ""
+
+  - config-path: "gcs-connection.client-protocol"
+    flag-name: "client-protocol"
+    type: "protocol"
+    usage: >-
+      The protocol used for communicating with the GCS backend.
+      Value can be 'http1' (HTTP/1.1), 'http2' (HTTP/2) or 'grpc'.
+    default: "http1"
+
+  - config-path: "gcs-connection.custom-endpoint"
+    flag-name: "custom-endpoint"
+    type: "string"
+    usage: >-
+      To specify a custom storage endpoint, ensure it supports the same resources as the default storage.googleapis.com:443 and includes the port number.
+    default: ""
+
+  - config-path: "gcs-connection.enable-http-dns-cache"
+    flag-name: "enable-http-dns-cache"
+    type: "bool"
+    usage: "Enables DNS cache for HTTP/1 connections"
+    default: true
+    hide-flag: true
+
+  - config-path: "gcs-connection.experimental-enable-json-read"
+    flag-name: "experimental-enable-json-read"
+    type: "bool"
+    usage: >-
+      By default, GCSFuse uses the GCS XML API to get and read objects. When this
+      flag is specified, GCSFuse uses the GCS JSON API instead."
+    default: false
+    deprecated: true
+    deprecation-warning: "Experimental flag: could be dropped even in a minor release."
+
+  - config-path: "gcs-connection.experimental-local-socket-address"
+    flag-name: "experimental-local-socket-address"
+    type: "string"
+    usage: "The local socket address to bind to. This is useful in multi-NIC scenarios. This is an experimental flag."
+    default: ""
+    hide-flag: true
+
+  - config-path: "gcs-connection.grpc-conn-pool-size"
+    flag-name: "experimental-grpc-conn-pool-size"
+    type: "int"
+    usage: "The number of gRPC channel in grpc client."
+    default: "1"
+    deprecated: true
+    deprecation-warning: "Experimental flag: can be removed in a minor release."
+
+  - config-path: "gcs-connection.http-client-timeout"
+    flag-name: "http-client-timeout"
+    type: "duration"
+    usage: >-
+      The time duration that http client will wait to get response from the
+      server. A value of 0 indicates no timeout.
+    default: "0s"
+
+  - config-path: "gcs-connection.limit-bytes-per-sec"
+    flag-name: "limit-bytes-per-sec"
+    type: "float64"
+    usage: "Bandwidth limit for reading data, measured over a 30-second window. (use -1 for no limit)"
+    default: "-1"
+
+  - config-path: "gcs-connection.limit-ops-per-sec"
+    flag-name: "limit-ops-per-sec"
+    type: "float64"
+    usage: "Operations per second limit, measured over a 30-second window (use -1 for no limit)"
+    default: "-1"
+
+  - config-path: "gcs-connection.max-conns-per-host"
+    flag-name: "max-conns-per-host"
+    type: "int"
+    usage: >-
+      The max number of TCP connections allowed per server. This is effective when
+      client-protocol is set to 'http1'. A value of 0 indicates no limit on
+      TCP connections (limited by the machine specifications).
+    default: "0"
+
+  - config-path: "gcs-connection.max-idle-conns-per-host"
+    flag-name: "max-idle-conns-per-host"
+    type: "int"
+    usage: "The number of maximum idle connections allowed per server."
+    default: "100"
+
+  - config-path: "gcs-connection.sequential-read-size-mb"
+    flag-name: "sequential-read-size-mb"
+    type: "int"
+    usage: "File chunk size to read from GCS in one call. Need to specify the value in MB. ChunkSize less than 1MB is not supported"
+    default: "200"
+
+  - config-path: "gcs-retries.chunk-transfer-timeout-secs"
+    flag-name: "chunk-transfer-timeout-secs"
+    type: "int"
+    usage: >-
+      We send larger file uploads in 16 MiB chunks. This flag controls the duration
+      that the HTTP client will wait for a response after making a request to upload a chunk.
+      As an example, a value of 10 indicates that the client will wait 10 seconds for upload completion;
+      otherwise, it cancels the request and retries for that chunk till chunkRetryDeadline(32s). 0 means no timeout.
+    default: "10"
+    hide-flag: true
+
+  - config-path: "gcs-retries.max-retry-attempts"
+    flag-name: "max-retry-attempts"
+    type: "int"
+    usage: >-
+      It sets a limit on the number of times an operation will be retried if it
+      fails, preventing endless retry loops. A value of 0 indicates no limit.
+    default: "0"
+
+  - config-path: "gcs-retries.max-retry-sleep"
+    flag-name: "max-retry-sleep"
+    type: "duration"
+    usage: >-
+      The maximum duration allowed to sleep in a retry loop with exponential
+      backoff for failed requests to GCS backend. Once the backoff duration
+      exceeds this limit, the retry continues with this specified maximum value.
+    default: "30s"
+
+  - config-path: "gcs-retries.multiplier"
+    flag-name: "retry-multiplier"
+    type: "float64"
+    usage: Param for exponential backoff algorithm, which is used to increase waiting time b/w two consecutive retries.
+    default: 2
+
+  - config-path: "gcs-retries.read-stall.enable"
+    flag-name: "enable-read-stall-retry"
+    type: "bool"
+    usage: >-
+      To turn on/off retries for stalled read requests. This is based on a timeout
+      that changes depending on how long similar requests took in the past.
+    default: true
+    hide-flag: true
+
+  - config-path: "gcs-retries.read-stall.initial-req-timeout"
+    flag-name: "read-stall-initial-req-timeout"
+    type: "duration"
+    usage: Initial value of the read-request dynamic timeout.
+    default: 20s
+    hide-flag: true
+
+  - config-path: "gcs-retries.read-stall.max-req-timeout"
+    flag-name: "read-stall-max-req-timeout"
+    type: "duration"
+    usage: Upper bound of the read-request dynamic timeout.
+    default: 20m
+    hide-flag: true
+
+  - config-path: "gcs-retries.read-stall.min-req-timeout"
+    flag-name: "read-stall-min-req-timeout"
+    type: "duration"
+    usage: Lower bound of the read request dynamic timeout.
+    default: 1500ms
+    hide-flag: true
+
+  - config-path: "gcs-retries.read-stall.req-increase-rate"
+    flag-name: "read-stall-req-increase-rate"
+    type: "float64"
+    usage: Determines how many increase calls it takes for dynamic timeout to double.
+    default: 15
+    hide-flag: true
+
+  - config-path: "gcs-retries.read-stall.req-target-percentile"
+    flag-name: "read-stall-req-target-percentile"
+    type: "float64"
+    usage: Retry the request which take more than p(targetPercentile * 100) of past similar request.
+    default: 0.99
+    hide-flag: true
+
+  - config-path: "implicit-dirs"
+    flag-name: "implicit-dirs"
+    type: "bool"
+    usage: "Implicitly define directories based on content. See files and directories in docs/semantics for more information"
+    default: false
+    optimizations:
+      machine-based-optimization:
+        - group: "high-performance"
+          value: true
+      profiles:
+        - name: "aiml-training"
+          value: true
+        - name: "aiml-serving"
+          value: true
+        - name: "aiml-checkpointing"
+          value: true
+
+  - config-path: "list.enable-empty-managed-folders"
+    flag-name: "enable-empty-managed-folders"
+    type: "bool"
+    usage: >-
+      This handles the corner case in listing managed folders.
+      There are two corner cases (a) empty managed folder (b) nested managed folder which doesn't contain any descendent as object.
+      This flag always works in conjunction with --implicit-dirs flag.
+      (a) If only ImplicitDirectories is true, all managed folders are listed other than above two mentioned cases.
+      (b) If both ImplicitDirectories and EnableEmptyManagedFolders are true, then all the managed folders are listed including the above-mentioned corner case.
+      (c) If ImplicitDirectories is false then no managed folders are listed irrespective of enable-empty-managed-folders flag.
+    default: false
+    hide-flag: true
+
+  - config-path: "logging.file-path"
+    flag-name: "log-file"
+    type: "resolvedPath"
+    usage: >-
+      The file for storing logs that can be parsed by fluentd. When not provided,
+      plain text logs are printed to stdout when Cloud Storage FUSE is run
+      in the foreground, or to syslog when Cloud Storage FUSE is run in the
+      background.
+
+  - config-path: "logging.format"
+    flag-name: "log-format"
+    type: "string"
+    usage: "The format of the log file: 'text' or 'json'."
+    default: "json"
+
+  - config-path: "logging.log-rotate.backup-file-count"
+    flag-name: "log-rotate-backup-file-count"
+    type: "int"
+    usage: >-
+      The maximum number of backup log files to retain after they have been
+      rotated. A value of 0 indicates all backup files are retained.
+    default: "10"
+
+  - config-path: "logging.log-rotate.compress"
+    flag-name: "log-rotate-compress"
+    type: "bool"
+    usage: "Controls whether the rotated log files should be compressed using gzip."
+    default: "true"
+
+  - config-path: "logging.log-rotate.max-file-size-mb"
+    flag-name: "log-rotate-max-file-size-mb"
+    type: "int"
+    usage: "The maximum size in megabytes that a log file can reach before it is rotated."
+    default: "512"
+
+  - config-path: "logging.severity"
+    flag-name: "log-severity"
+    type: "logSeverity"
+    usage: "Specifies the logging severity expressed as one of [trace, debug, info, warning, error, off]"
+    default: "info"
+
+  - config-path: "machine-type"
+    flag-name: "machine-type"
+    type: "string"
+    usage: "Type of the machine on which gcsfuse is being run e.g. a3-highgpu-4g"
+    default: ""
+    hide-flag: true
+
+  - config-path: "metadata-cache.deprecated-stat-cache-capacity"
+    flag-name: "stat-cache-capacity"
+    type: "int"
+    usage: >-
+      How many entries can the stat-cache hold (impacts memory consumption). This
+      flag has been deprecated (starting v2.0) and in favor of
+      stat-cache-max-size-mb. For now, the value of stat-cache-capacity will be
+      translated to the next higher corresponding value of stat-cache-max-size-mb
+      (assuming stat-cache entry-size ~= 1688 bytes, including 1448 for positive
+      entry and 240 for corresponding negative entry), if stat-cache-max-size-mb
+      is not set."
+    deprecated: true
+    deprecation-warning: "Please use --stat-cache-max-size-mb instead."
+    default: "20460"
+
+  - config-path: "metadata-cache.deprecated-stat-cache-ttl"
+    flag-name: "stat-cache-ttl"
+    type: "duration"
+    usage: >-
+      How long to cache StatObject results and inode attributes. This flag
+      has been deprecated (starting v2.0) in favor of metadata-cache-ttl-secs. For
+      now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to
+      the next higher multiple of a second is used as ttl for both stat-cache and
+      type-cache, when metadata-cache-ttl-secs is not set.
+    default: "60s"
+    deprecated: true
+    deprecation-warning: >-
+      This flag has been deprecated (starting v2.0) in favor of
+      metadata-cache-ttl-secs.
+
+  - config-path: "metadata-cache.deprecated-type-cache-ttl"
+    flag-name: "type-cache-ttl"
+    type: "duration"
+    usage: >-
+      Usage: How long to cache StatObject results and inode attributes. This flag
+      has been deprecated (starting v2.0) in favor of metadata-cache-ttl-secs. For
+      now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to
+      the next higher multiple of a second is used as ttl for both stat-cache and
+      type-cache, when metadata-cache-ttl-secs is not set.
+    default: "60s"
+    deprecated: true
+    deprecation-warning: >-
+      This flag has been deprecated (starting v2.0) in favor of
+      metadata-cache-ttl-secs.
+
+  - config-path: "metadata-cache.enable-nonexistent-type-cache"
+    flag-name: "enable-nonexistent-type-cache"
+    type: "bool"
+    usage: >-
+      Once set, if an inode is not found in GCS, a type cache entry with type
+      NonexistentType will be created. This also means new file/dir created might
+      not be seen. For example, if this flag is set, and metadata-cache-ttl-secs
+      is set, then if we create the same file/node in the meantime using the same
+      mount, since we are not refreshing the cache, it will still return nil.
+    default: false
+
+  - config-path: "metadata-cache.experimental-metadata-prefetch-on-mount"
+    flag-name: "experimental-metadata-prefetch-on-mount"
+    type: "string"
+    usage: >-
+      Experimental: This indicates whether or not to prefetch the metadata
+      (prefilling of metadata caches and creation of inodes) of the mounted bucket
+      at the time of mounting the bucket. Supported values: "disabled", "sync" and
+      "async". Any other values will return error on mounting. This is applicable
+      only to static mounting, and not to dynamic mounting.
+    default: "disabled"
+    deprecated: true
+    deprecation-warning: "Experimental flag: could be removed even in a minor release."
+
+  - config-path: "metadata-cache.negative-ttl-secs"
+    flag-name: "metadata-cache-negative-ttl-secs"
+    type: "int"
+    usage: >-
+      The negative-ttl-secs value in seconds to be used for expiring negative entries in metadata-cache. It
+      can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled
+      negative entries in metadata-cache. Any value set below -1 will throw an error.
+    default: "5"
+    optimizations:
+      machine-based-optimization:
+        - group: "high-performance"
+          value: 0
+      profiles:
+        - name: "aiml-training"
+          value: 0
+        - name: "aiml-serving"
+          value: 0
+        - name: "aiml-checkpointing"
+          value: 0
+
+  - config-path: "metadata-cache.stat-cache-max-size-mb"
+    flag-name: "stat-cache-max-size-mb"
+    type: "int"
+    usage: >-
+      The maximum size of stat-cache in MiBs. It can also be set to -1 for
+      no-size-limit, 0 for no cache. Values below -1 are not supported.
+    default: "33"
+    optimizations:
+      machine-based-optimization:
+        - group: "high-performance"
+          value: 1024
+      profiles:
+        - name: "aiml-training"
+          value: -1
+        - name: "aiml-serving"
+          value: -1
+        - name: "aiml-checkpointing"
+          value: -1
+
+  - config-path: "metadata-cache.ttl-secs"
+    flag-name: "metadata-cache-ttl-secs"
+    type: "int"
+    usage: >-
+      The ttl value in seconds to be used for expiring items in metadata-cache. It
+      can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled
+      metadata-cache. Any value set below -1 will throw an error.
+    default: "60"
+    optimizations:
+      machine-based-optimization:
+        - group: "high-performance"
+          value: -1
+      profiles:
+        - name: "aiml-training"
+          value: -1
+        - name: "aiml-serving"
+          value: -1
+        - name: "aiml-checkpointing"
+          value: -1
+
+  - config-path: "metadata-cache.type-cache-max-size-mb"
+    flag-name: "type-cache-max-size-mb"
+    type: "int"
+    usage: "Max size of type-cache maps which are maintained at a per-directory level."
+    default: "4"
+    optimizations:
+      machine-based-optimization:
+        - group: "high-performance"
+          value: 128
+      profiles:
+        - name: "aiml-training"
+          value: -1
+        - name: "aiml-serving"
+          value: -1
+        - name: "aiml-checkpointing"
+          value: -1
+
+  - config-path: "metrics.buffer-size"
+    flag-name: "metrics-buffer-size"
+    type: "int"
+    usage: "The maximum number of histogram metric updates in the queue."
+    default: "256"
+    hide-flag: true
+
+  - config-path: "metrics.cloud-metrics-export-interval-secs"
+    flag-name: "cloud-metrics-export-interval-secs"
+    type: "int"
+    usage: "Specifies the interval at which the metrics are uploaded to cloud monitoring"
+    default: 0
+
+  - config-path: "metrics.enable-grpc-metrics"
+    flag-name: "enable-grpc-metrics"
+    type: "bool"
+    usage: "Enables support for gRPC metrics"
+    default: false
+
+  - config-path: "metrics.prometheus-port"
+    flag-name: "prometheus-port"
+    type: "int"
+    usage: "Expose Prometheus metrics endpoint on this port and a path of /metrics."
+    default: "0"
+
+  - config-path: "metrics.stackdriver-export-interval"
+    flag-name: "stackdriver-export-interval"
+    type: "duration"
+    usage: >-
+      Export metrics to stackdriver with this interval. A value of 0
+      indicates no exporting.
+    default: "0s"
+    deprecated: true
+    deprecation-warning: "Please use --cloud-metrics-export-interval-secs instead."
+
+  - config-path: "metrics.use-new-names"
+    flag-name: "metrics-use-new-names"
+    type: "bool"
+    usage: "Use the new metric names."
+    default: false
+    hide-flag: true
+
+  - config-path: "metrics.workers"
+    flag-name: "metrics-workers"
+    type: "int"
+    usage: "The number of workers that update histogram metrics concurrently."
+    default: "3"
+    hide-flag: true
+
+  - config-path: "monitoring.experimental-tracing-mode"
+    flag-name: "experimental-tracing-mode"
+    type: "string"
+    usage: "Experimental: specify tracing mode"
+    default: ""
+    hide-flag: true
+
+  - config-path: "monitoring.experimental-tracing-project-id"
+    flag-name: "experimental-tracing-project-id"
+    type: "string"
+    usage: "Experimental: specify the GCP project-id to which traces will be exported. When unset, a project-id will be inferred as per the default credential detection process"
+    default: ""
+    hide-flag: true
+
+  - config-path: "monitoring.experimental-tracing-sampling-ratio"
+    flag-name: "experimental-tracing-sampling-ratio"
+    type: "float64"
+    usage: "Experimental: Trace sampling ratio"
+    default: 0
+    hide-flag: true
+
+  - config-path: "only-dir"
+    flag-name: "only-dir"
+    type: "string"
+    usage: "Mount only a specific directory within the bucket. See docs/mounting for more information"
+    default: ""
+
+  - config-path: "profile"
+    flag-name: "profile"
+    type: "string"
+    usage: "The name of the profile to apply. e.g. aiml-training, aiml-serving, aiml-checkpointing"
+    default: ""
+
+  - config-path: "read.block-size-mb"
+    flag-name: "read-block-size-mb"
+    type: "int"
+    usage: >-
+      Specifies the block size for buffered reads. The value should be more than
+      0. This is used to read data in chunks from GCS.
+    default: 16
+    hide-flag: true
+
+  - config-path: "read.enable-buffered-read"
+    flag-name: "enable-buffered-read"
+    type: "bool"
+    usage: >-
+      When enabled, read starts using buffer to prefetch (asynchronous and in parallel)
+      data from GCS. This improves performance for large file sequential reads.
+      Note: Enabling this flag can increase the memory usage significantly.
+    default: false
+
+  - config-path: "read.global-max-blocks"
+    flag-name: "read-global-max-blocks"
+    type: "int"
+    usage: >-
+      Specifies the maximum number of blocks available for buffered reads across all file-handles.
+      The value should be >= 0 or -1 (for infinite blocks).
+      A value of 0 disables buffered reads.
+    default: 40
+
+  - config-path: "read.inactive-stream-timeout"
+    flag-name: "read-inactive-stream-timeout"
+    type: "duration"
+    usage: >-
+      Duration of inactivity after which an open GCS read stream is automatically closed.
+      This helps conserve resources when a file handle remains open without active Read calls.
+      A value of '0s' disables this timeout.
+    default: "10s"
+    hide-flag: true
+
+  - config-path: "read.max-blocks-per-handle"
+    flag-name: "read-max-blocks-per-handle"
+    type: "int"
+    usage: >-
+      Specifies the maximum number of blocks to be used by a single file handle for
+      buffered reads. The value should be >= 0 or -1 (for infinite blocks).
+      A value of 0 disables buffered reads.
+    default: 20
+    hide-flag: true
+
+  - config-path: "read.min-blocks-per-handle"
+    flag-name: "read-min-blocks-per-handle"
+    type: "int"
+    usage: >-
+      Specifies the minimum number of blocks required by a file-handle to start
+      reading via buffered reads. The value should be >= 1 or "read-max-blocks-per-handle".
+    default: 4
+    hide-flag: true
+
+  - config-path: "read.random-seek-threshold"
+    flag-name: "read-random-seek-threshold"
+    type: "int"
+    usage: >-
+      Specifies the random seek threshold to switch to another reader when random reads are detected.
+    default: 3
+    hide-flag: true
+
+  - config-path: "read.start-blocks-per-handle"
+    flag-name: "read-start-blocks-per-handle"
+    type: "int"
+    usage: >-
+      Specifies the number of blocks to be prefetched on the first read.
+    default: 1
+    hide-flag: true
+
+  - config-path: "workload-insight.forward-merge-threshold-mb"
+    flag-name: "workload-insight-forward-merge-threshold-mb"
+    type: "int"
+    usage: >-
+      The threshold in MB for merging forward sequential reads for workload
+      insights visualization.Reads within this threshold will be merged into
+      a single read operation. Applicable only when --visualize-workload-insight
+      is enabled.
+    default: 0
+    hide-flag: true
+
+  - config-path: "workload-insight.output-file"
+    flag-name: "workload-insight-output-file"
+    type: "string"
+    usage: >-
+      The file path where the workload insights will be written.
+      If not specified, insights will be written to stdout
+    default: ""
+    hide-flag: true
+
+  - config-path: "workload-insight.visualize"
+    flag-name: "visualize-workload-insight"
+    type: "bool"
+    usage: >-
+      A flag to enable workload visualization. When enabled, workload insights
+      will include visualizations to help understand access patterns. Insights
+      will be written to the file specified by --workload-insight-output-file.
+    default: false
+    hide-flag: true
+
+  - config-path: "write.block-size-mb"
+    flag-name: "write-block-size-mb"
+    type: "int"
+    usage: >-
+      Specifies the block size for streaming writes. The value should be more
+      than 0.
+    default: 32
+    hide-flag: true
+
+  - config-path: "write.create-empty-file"
+    flag-name: "create-empty-file"
+    type: "bool"
+    usage: "For a new file, it creates an empty file in Cloud Storage bucket as a hold."
+    default: false
+    hide-flag: true
+
+  - config-path: "write.enable-rapid-appends"
+    flag-name: "enable-rapid-appends"
+    type: "bool"
+    usage: "Enables support for appends to unfinalized object using streaming writes"
+    default: true
+
+  - config-path: "write.enable-streaming-writes"
+    flag-name: "enable-streaming-writes"
+    type: "bool"
+    usage: "Enables streaming uploads during write file operation."
+    default: true
+    hide-flag: false
+
+  - config-path: "write.finalize-file-for-rapid"
+    flag-name: "finalize-file-for-rapid"
+    type: "bool"
+    usage: "Finalizes the files on close for Rapid storage. Appends will be slower on finalized files."
+    default: false
+    hide-flag: true
+
+  - config-path: "write.global-max-blocks"
+    flag-name: "write-global-max-blocks"
+    type: "int"
+    usage: >-
+      Specifies the maximum number of blocks available for streaming writes across all files.
+      The value should be >= 0 or -1 (for infinite blocks).
+      A value of 0 disables streaming writes.
+    default: 4
+    hide-flag: false
+    optimizations:
+      machine-based-optimization:
+        - group: "high-performance"
+          value: 1600
+
+  - config-path: "write.max-blocks-per-file"
+    flag-name: "write-max-blocks-per-file"
+    type: "int"
+    usage: >-
+      Specifies the maximum number of blocks to be used by a single file for
+      streaming writes. The value should be >= 1 or -1 (for infinite blocks).
+    default: 1
+    hide-flag: true
+
+  - flag-name: "debug_fs"
+    type: "bool"
+    usage: "This flag is unused."
+    default: false
+    deprecated: true
+    deprecation-warning: "This flag is currently unused."
+
+  - flag-name: "debug_fuse_errors"
+    type: "bool"
+    usage: "This flag is currently unused."
+    default: "true"
+    deprecated: true
+    deprecation-warning: "This flag is currently unused."
+
+  - flag-name: "debug_http"
+    type: "bool"
+    usage: "This flag is currently unused."
+    default: false
+    deprecated: true
+    deprecation-warning: "This flag is currently unused."
+
+  - flag-name: "max-retry-duration"
+    type: "duration"
+    usage: "This is currently unused."
+    default: "0s"
+    deprecated: true
+    deprecation-warning: "This is currently unused."

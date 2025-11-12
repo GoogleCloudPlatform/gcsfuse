@@ -39,6 +39,7 @@ var (
 	ErrFileNotPresentInCache               = errors.New("file is not present in cache")
 	ErrCacheHandleNotRequiredForRandomRead = errors.New("cacheFileForRangeRead is false, read type random read and fileInfo entry is absent")
 	ErrFileExcludedFromCacheByRegex        = errors.New("file excluded from cache by regex")
+	ErrShortRead                           = errors.New("short read")
 )
 
 const (
@@ -208,7 +209,7 @@ func GetMemoryAlignedBuffer(bufferSize int64, alignSize int64) (buffer []byte, e
 
 	// Though we haven't seen any error while aligning buffer but still it is safer
 	// to attempt few times in case alignment fails.
-	for try := 0; try < 3; try++ {
+	for range 3 {
 		buffer, err = createAndAlignBuffer()
 		if err == nil {
 			return buffer, err

@@ -36,16 +36,23 @@ type GCSReaderRequest struct {
 
 	// This determines GCS range request.
 	EndOffset int64
+
+	// ReadType indicates the type of read operation (e.g., sequential, random).
+	// Pass the information to RangeReader to record the metrics.
+	ReadType int64
+
+	// This parameter specifies whether the reader needs to be discarded for a new reader.
+	ForceCreateReader bool
 }
 
-// ReaderResponse represents the response returned as part of a ReadAt call.
+// ReadResponse represents the response returned as part of a ReadAt call.
 // It includes the actual data read and its size.
-type ReaderResponse struct {
-	// DataBuf contains the bytes read from the object.
-	DataBuf []byte
-
+type ReadResponse struct {
 	// Size indicates how many bytes were read into DataBuf.
 	Size int
+
+	// Callback is a function to be executed after the read operation is completed.
+	Callback func()
 }
 
 type Reader interface {
@@ -53,11 +60,11 @@ type Reader interface {
 	CheckInvariants()
 
 	// ReadAt reads data into the provided byte slice starting from the specified offset.
-	// It returns an ReaderResponse containing the data read and the number of bytes read.
+	// It returns a ReadResponse containing the data read and the number of bytes read.
 	// To indicate that the operation should be handled by an alternative reader, return
 	// the error FallbackToAnotherReader.
-	// If an error occurs, the size in ReaderResponse will be zero.
-	ReadAt(ctx context.Context, p []byte, offset int64) (ReaderResponse, error)
+	// If an error occurs, the size in ReadResponse will be zero.
+	ReadAt(ctx context.Context, p []byte, offset int64) (ReadResponse, error)
 
 	// Destroy is called to release any resources held by the reader.
 	Destroy()
@@ -76,6 +83,6 @@ type ReadManager interface {
 // This interface is intended for lower-level interactions with GCS readers.
 type GCSReader interface {
 	// ReadAt reads data into the provided request buffer, starting from the specified offset and ending at the specified end offset.
-	// It returns an ReaderResponse response containing the data read and any error encountered.
-	ReadAt(ctx context.Context, req *GCSReaderRequest) (ReaderResponse, error)
+	// It returns a ReadResponse response containing the data read and any error encountered.
+	ReadAt(ctx context.Context, req *GCSReaderRequest) (ReadResponse, error)
 }

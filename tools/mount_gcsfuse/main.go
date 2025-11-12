@@ -268,6 +268,7 @@ func run(args []string) (err error) {
 	// Run gcsfuse.
 	cmd := exec.Command(gcsfusePath, gcsfuseArgs...)
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PATH=%s", path.Dir(fusermountPath)))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", os.Getenv("HOME")))
 
 	// Pass through the https_proxy/http_proxy environment variable,
 	// in case the host requires a proxy server to reach the GCS endpoint.

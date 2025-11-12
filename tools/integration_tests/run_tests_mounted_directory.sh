@@ -655,7 +655,7 @@ done
 # Test package: cloud_profiler
 # Run cloud_profiler tests.
 random_profile_label="test"
-gcsfuse --enable-cloud-profiling --profiling-goroutines --profiling-cpu --profiling-heap --profiling-allocated-heap --profiling-mutex --profiling-label $random_profile_label $TEST_BUCKET_NAME $MOUNT_DIR
+gcsfuse --enable-cloud-profiler --cloud-profiler-goroutines --cloud-profiler-cpu --cloud-profiler-heap --cloud-profiler-allocated-heap --cloud-profiler-mutex --cloud-profiler-label $random_profile_label $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/cloud_profiler/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --profile_label=$random_profile_label
 sudo umount $MOUNT_DIR
 
@@ -745,3 +745,39 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/buffered_read/... -p
 sudo umount $MOUNT_DIR
 
 rm -rf $log_dir
+
+# Package requester_pays_bucket
+declare -A requester_pays_bucket_scenarios
+requester_pays_bucket_scenarios["--billing-project=gcs-fuse-test-ml"]=""
+for flags in "${!requester_pays_bucket_scenarios[@]}"; do
+  printf "\n=============================================================\n"
+  echo "Running requester_pays_bucket test with \"${flags}\" ... "
+  printf "\n=============================================================\n"
+  gcsfuse_mount_args=" --log-severity=trace ${flags} $TEST_BUCKET_NAME $MOUNT_DIR"
+  gcsfuse ${gcsfuse_mount_args}
+  testfilter="${requester_pays_bucket_scenarios[${flags}]}"
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/requester_pays_bucket/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG} -test.run ${testfilter}
+  sudo umount $MOUNT_DIR
+done
+
+# Package flag_optimizations
+declare -A flag_optimizations_scenarios
+flag_optimizations_scenarios["--machine-type=low-end-machine"]="TestImplicitDirsNotEnabled/--machine-type=low-end-machine|TestRenameDirLimitNotSet/--machine-type=low-end-machine"
+flag_optimizations_scenarios["--machine-type=a3-highgpu-8g"]="TestImplicitDirsEnabled/--machine-type=a3-highgpu-8g|TestRenameDirLimitSet/--machine-type=a3-highgpu-8g"
+flag_optimizations_scenarios["--profile=aiml-training"]="TestImplicitDirsEnabled/--profile=aiml-training|TestRenameDirLimitNotSet/--profile=aiml-training"
+flag_optimizations_scenarios["--profile=aiml-checkpointing"]="TestImplicitDirsEnabled/--profile=aiml-checkpointing|TestRenameDirLimitSet/--profile=aiml-checkpointing"
+flag_optimizations_scenarios["--profile=aiml-serving"]="TestImplicitDirsEnabled/--profile=aiml-serving|TestRenameDirLimitNotSet/--profile=aiml-serving"
+flag_optimizations_scenarios["--machine-type=low-end-machine --profile=aiml-training"]="TestImplicitDirsEnabled/--machine-type=low-end-machine_--profile=aiml-training"
+flag_optimizations_scenarios["--machine-type=low-end-machine --profile=aiml-checkpointing"]="TestImplicitDirsEnabled/--machine-type=low-end-machine_--profile=aiml-checkpointing|TestRenameDirLimitSet/--machine-type=low-end-machine_--profile=aiml-checkpointing"
+flag_optimizations_scenarios["--machine-type=low-end-machine --profile=aiml-serving"]="TestImplicitDirsEnabled/--machine-type=low-end-machine_--profile=aiml-serving"
+for flags in "${!flag_optimizations_scenarios[@]}"; do
+  printf "\n=============================================================\n"
+  echo "Running flag_optimizations test with \"${flags}\" ... "
+  printf "\n=============================================================\n"
+  gcsfuse_mount_args=" --log-severity=trace ${flags} $TEST_BUCKET_NAME $MOUNT_DIR"
+  gcsfuse ${gcsfuse_mount_args}
+  testfilter="${flag_optimizations_scenarios[${flags}]}"
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/flag_optimizations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG} -test.run ${testfilter}
+  sudo umount $MOUNT_DIR
+done
+

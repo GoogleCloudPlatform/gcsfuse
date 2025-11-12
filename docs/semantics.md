@@ -2,9 +2,39 @@
 
 ## Reads
 
+### Default Reads
+
 Cloud Storage FUSE makes API calls to Cloud Storage to read an object directly, without downloading it to a local directory. A TCP connection is established, in which the entire object, or just portions as specified by the application/operating system via an offset, can be read back.
 
 Files that have not been modified are read portion by portion on demand. Cloud Storage FUSE uses a heuristic to detect when a file is being read sequentially, and will issue fewer, larger read requests to Cloud Storage in this case, increasing performance.
+
+### Buffered Reads
+
+Buffered Read feature accelerates large sequential reads by asynchronously prefetching data into in-memory buffers and serving subsequent reads from in-memory buffer instead of making network calls.
+
+The feature is **disabled by default** and can be enabled using:
+- Command-line flag: `--enable-buffered-read`
+- Config file: `read:enable-buffered-read: true`
+
+**Note:** Buffered reads are designed to operate exclusively when the file cache is disabled. If both features are enabled, the file cache takes precedence and buffered reads will be ignored.
+
+**Best Use Cases:**
+- Single-threaded applications reading large files (> 100MB) sequentially.
+
+**Performance Gains:**
+- Can provide 2-5x improvement in sequential read throughput.
+- Most effective for files larger than 100 MB.
+
+**Memory Usage:**
+- **Per file handle:** Up to 320 MB (20 × 16MB memory blocks) while reading.
+- **Global limit:** Controlled by `--read-global-max-blocks` flag or `read:global-max-blocks` config (default: 40 blocks). By default 640 MB (40 × 16MB) across all the file handles.
+
+**Important:** Please Consider available system memory when enabling buffered reads or adjusting `--read-global-max-blocks` to prevent out-of-memory (OOM) issues.
+
+**CPU Usage:** The CPU overhead is typically proportional to the performance gains achieved.
+
+**Known Limitations:** Workloads combining sequential and random reads (e.g., some model serving scenarios) may not benefit and could automatically fall back to default reads. Future releases will include improved heuristics for these scenarios.
+
 
 ## Writes
 
@@ -21,7 +51,7 @@ such as checkpoints. Streaming writes can be enabled using `--enable-streaming-w
 `write:enable-streaming-writes:true` in the config file (Default starting GCSFuse v3.0.0).
 
 **Memory Usage:** Each file opened for streaming writes will consume
-approximately 64MiB of RAM during the upload process. This memory is released
+approximately 96MiB of RAM during the upload process. This memory is released
 when the file handle is closed. This should be considered when planning resource
 allocation for applications using streaming writes.
 

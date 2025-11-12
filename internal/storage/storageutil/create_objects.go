@@ -43,7 +43,7 @@ func CreateObjects(
 
 	// Create the objects in parallel.
 	const parallelism = 64
-	for i := 0; i < parallelism; i++ {
+	for range parallelism {
 		group.Go(func() (err error) {
 			for r := range recordChan {
 				_, err = CreateObject(

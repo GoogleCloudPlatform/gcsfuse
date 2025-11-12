@@ -56,18 +56,17 @@ type CacheHandler struct {
 
 	// excludeRegex is the compiled regex for excluding files from cache
 	excludeRegex *regexp.Regexp
+
+	// includeRegex is the compiled regex for including files from cache
+	includeRegex *regexp.Regexp
 }
 
-func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode, excludeRegex string) *CacheHandler {
-	var compiledRegex *regexp.Regexp
-	if excludeRegex != "" {
-		var err error
-		compiledRegex, err = regexp.Compile(excludeRegex)
-		if err != nil {
-			logger.Warnf("Failed to compile exclude regex %q: %v", excludeRegex, err)
-			compiledRegex = nil
-		}
-	}
+func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode, excludeRegex string, includeRegex string) *CacheHandler {
+	var compiledExcludeRegex *regexp.Regexp
+	var compiledIncludeRegex *regexp.Regexp
+
+	compiledExcludeRegex = compileRegex(excludeRegex)
+	compiledIncludeRegex = compileRegex(includeRegex)
 
 	return &CacheHandler{
 		fileInfoCache: fileInfoCache,
@@ -76,8 +75,22 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 		filePerm:      filePerm,
 		dirPerm:       dirPerm,
 		mu:            locker.New("FileCacheHandler", func() {}),
-		excludeRegex:  compiledRegex,
+		excludeRegex:  compiledExcludeRegex,
+		includeRegex:  compiledIncludeRegex,
 	}
+}
+
+func compileRegex(regexString string) *regexp.Regexp {
+	var compiledRegex *regexp.Regexp
+
+	if regexString != "" {
+		var err error
+		compiledRegex, err = regexp.Compile(regexString)
+		if err != nil {
+			logger.Warnf("Failed to compile regex %q: %v", regexString, err)
+		}
+	}
+	return compiledRegex
 }
 
 func (chr *CacheHandler) createLocalFileReadHandle(objectName string, bucketName string) (*os.File, error) {
@@ -297,13 +310,24 @@ func (chr *CacheHandler) Destroy() (err error) {
 }
 
 // shouldExcludeFromCache checks if the object should be excluded from cache
-// based on the configured regex pattern.
+// based on the configured regex pattern of include and/or exclude regex.
 func (chr *CacheHandler) shouldExcludeFromCache(bucket gcs.Bucket, object *gcs.MinObject) bool {
-	if chr.excludeRegex == nil {
+	// If no regex is configured, nothing is excluded.
+	if chr.includeRegex == nil && chr.excludeRegex == nil {
 		return false
 	}
 
-	// Get the GCS name of the object and create the cloud path in the format bucket/object.
-	cloudPath := path.Join(bucket.Name(), bucket.GCSName(object))
-	return chr.excludeRegex.MatchString(cloudPath)
+	objectName := path.Join(bucket.Name(), bucket.GCSName(object))
+
+	// Exclude if it matches the exclude pattern.
+	// Exclude flag take precedence over Include regex (if matched).
+	if chr.excludeRegex != nil && chr.excludeRegex.MatchString(objectName) {
+		return true
+	}
+	// Exclude if an include pattern is present and it doesn't match.
+	if chr.includeRegex != nil && !chr.includeRegex.MatchString(objectName) {
+		return true
+	}
+
+	return false
 }

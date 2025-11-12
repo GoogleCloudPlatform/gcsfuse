@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/api/option"
 )
@@ -37,12 +38,33 @@ func (testSuite *ControlClientTest) SetupTest() {
 func (testSuite *ControlClientTest) TearDownTest() {
 }
 
-func (testSuite *ControlClientTest) TestStorageControlClient() {
+func (testSuite *ControlClientTest) TestStorageControlClientWithGaxRetries() {
 	var clientOpts []option.ClientOption
 	clientOpts = append(clientOpts, option.WithoutAuthentication())
 
-	controlClient, err := CreateGRPCControlClient(context.Background(), clientOpts)
+	controlClient, err := CreateGRPCControlClient(context.Background(), clientOpts, false)
 
-	assert.Nil(testSuite.T(), err)
-	assert.NotNil(testSuite.T(), controlClient)
+	require.Nil(testSuite.T(), err)
+	require.NotNil(testSuite.T(), controlClient)
+	require.NotNil(testSuite.T(), controlClient.CallOptions)
+	assert.Greater(testSuite.T(), len(controlClient.CallOptions.CreateFolder), 0)
+	assert.Greater(testSuite.T(), len(controlClient.CallOptions.GetFolder), 0)
+	assert.Greater(testSuite.T(), len(controlClient.CallOptions.DeleteFolder), 0)
+	assert.Greater(testSuite.T(), len(controlClient.CallOptions.RenameFolder), 0)
+}
+
+func (testSuite *ControlClientTest) TestStorageControlClientWithoutGaxRetries() {
+	var clientOpts []option.ClientOption
+	clientOpts = append(clientOpts, option.WithoutAuthentication())
+
+	controlClient, err := CreateGRPCControlClient(context.Background(), clientOpts, true)
+
+	require.Nil(testSuite.T(), err)
+	require.NotNil(testSuite.T(), controlClient)
+	if controlClient.CallOptions != nil {
+		assert.Empty(testSuite.T(), controlClient.CallOptions.CreateFolder)
+		assert.Empty(testSuite.T(), controlClient.CallOptions.GetFolder)
+		assert.Empty(testSuite.T(), controlClient.CallOptions.DeleteFolder)
+		assert.Empty(testSuite.T(), controlClient.CallOptions.RenameFolder)
+	}
 }

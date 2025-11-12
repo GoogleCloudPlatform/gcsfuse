@@ -58,8 +58,8 @@ func RunTestsForExplicitAndImplicitDir(config *test_suite.TestConfig, flags [][]
 		return 0
 	}
 
-	if config.MountedDirectory != "" && config.TestBucket != "" {
-		successCode := setup.RunTestsForMountedDirectory(config.MountedDirectory, m)
+	if config.GKEMountedDirectory != "" && config.TestBucket != "" {
+		successCode := setup.RunTestsForMountedDirectory(config.GKEMountedDirectory, m)
 		return successCode
 	}
 
@@ -68,7 +68,7 @@ func RunTestsForExplicitAndImplicitDir(config *test_suite.TestConfig, flags [][]
 		log.Print("pass test bucket to run the tests")
 		return 1
 	}
-	setup.SetUpTestDirForTestBucket(config.TestBucket)
+	setup.SetUpTestDirForTestBucket(config)
 
 	successCode := static_mounting.RunTestsWithConfigFile(config, flags, m)
 
