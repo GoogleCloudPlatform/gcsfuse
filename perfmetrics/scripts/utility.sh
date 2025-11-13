@@ -165,7 +165,7 @@ install_latest_gcloud() {
     local python_path log_file build_dir
     log_file=$(mktemp "/tmp/gcloud_install_log_file.XXXXXX") || { log_and_exit "Unable to create gcloud install log file"; }
     build_dir=$(mktemp -d "/tmp/gcloud-build-dir.XXXXXX") || { log_and_exit "Unable to create temporary build directory"; }
-    get_python "$1"
+    install_python "$PYTHON_VERSION"
     local major_minor
     major_minor=$(echo "$PYTHON_VERSION" | cut -d'.' -f1,2)
     python_path=$(which "python${major_minor}")
