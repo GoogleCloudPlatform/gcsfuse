@@ -624,10 +624,6 @@ func ListDirectory(ctx context.Context, client *storage.Client, bucketName, pref
 	}
 
 	bucket := client.Bucket(bucketName)
-	attrs, err := bucket.Attrs(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("error getting bucket attrs: %w", err)
-	}
 
 	var entries []string
 	var mu sync.Mutex
@@ -656,32 +652,29 @@ func ListDirectory(ctx context.Context, client *storage.Client, bucketName, pref
 		return nil
 	})
 
-	// For HNS buckets, also list folders recursively.
-	if attrs.HierarchicalNamespace != nil && attrs.HierarchicalNamespace.Enabled {
-		g.Go(func() error {
-			folderQuery := &storage.Query{
-				Prefix:                   prefix,
-				IncludeFoldersAsPrefixes: true,
-				Delimiter:                "/",
+	g.Go(func() error {
+		folderQuery := &storage.Query{
+			Prefix:                   prefix,
+			IncludeFoldersAsPrefixes: true,
+			Delimiter:                "/",
+		}
+		it := bucket.Objects(ctx, folderQuery)
+		for {
+			attrs, err := it.Next()
+			if err == iterator.Done {
+				break
 			}
-			it := bucket.Objects(ctx, folderQuery)
-			for {
-				attrs, err := it.Next()
-				if err == iterator.Done {
-					break
-				}
-				if err != nil {
-					return fmt.Errorf("error iterating GCS folders: %w", err)
-				}
-				if attrs.Prefix != "" && attrs.Prefix != prefix {
-					mu.Lock()
-					entries = append(entries, attrs.Prefix)
-					mu.Unlock()
-				}
+			if err != nil {
+				return fmt.Errorf("error iterating GCS folders: %w", err)
 			}
-			return nil
-		})
-	}
+			if attrs.Prefix != "" && attrs.Prefix != prefix {
+				mu.Lock()
+				entries = append(entries, attrs.Prefix)
+				mu.Unlock()
+			}
+		}
+		return nil
+	})
 
 	if err := g.Wait(); err != nil {
 		return nil, err
