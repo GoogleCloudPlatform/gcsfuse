@@ -60,6 +60,8 @@ else
     echo "latest gcloud installed successfully."
     echo "gcloud Version is:"
     export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
+    export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"
+    export PATH="$HOME/.local/python-3.11.9/bin:$PATH"
     gcloud version
     echo "Gcloud is present at: $( (which gcloud) )"
     rm -f "$INSTALLATION_LOG"
