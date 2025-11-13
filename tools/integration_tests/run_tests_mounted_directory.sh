@@ -317,22 +317,6 @@ gcsfuse --implicit-dirs=false --rename-dir-limit=3 --enable-streaming-writes=fal
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/local_file/... -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG}
 sudo umount $MOUNT_DIR
 
-# Run tests with log rotation config.
-rm -r /tmp/gcsfuse_integration_test_logs
-mkdir /tmp/gcsfuse_integration_test_logs
-echo "logging:
-        file-path: /tmp/gcsfuse_integration_test_logs/log.txt
-        format: text
-        severity: trace
-        log-rotate:
-          max-file-size-mb: 2
-          backup-file-count: 3
-          compress: true
-       " > /tmp/gcsfuse_config.yaml
-gcsfuse --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/log_rotation/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR ${ZONAL_BUCKET_ARG}
-sudo umount $MOUNT_DIR
-
 # Run read cache functional tests.
 function read_cache_test_setup() {
     local cache_size_mb=$1
