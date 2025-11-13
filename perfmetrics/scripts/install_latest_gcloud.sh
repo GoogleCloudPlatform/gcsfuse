@@ -30,14 +30,18 @@ INSTALL_DIR="/usr/local" # Installation directory
 install_latest_gcloud() {
     # Upgrade Python first, as gcloud requires a version between 3.9 and 3.13.
     # The upgrade_python3.sh script installs Python 3.11.9.
+    echo "Upgrading Python to 3.11.9..."
     "$(dirname "$0")/upgrade_python3.sh"
+    echo "Python upgrade successful."
     # Set CLOUDSDK_PYTHON to point to the newly installed Python executable.
-    export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"
+    local python_path="$HOME/.local/python-3.11.9"
+    export CLOUDSDK_PYTHON="$python_path/bin/python3.11"
+    export PATH="$python_path/bin:$PATH"
 
     local temp_dir
     temp_dir=$(mktemp -d /tmp/gcloud_install_src.XXXXXX)
     pushd "$temp_dir"
-    
+
     wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
     sudo rm -rf "${INSTALL_DIR}/google-cloud-sdk" # Remove existing gcloud installation
     sudo tar -C "$INSTALL_DIR" -xzf gcloud.tar.gz
@@ -61,12 +65,11 @@ else
     # If this script is run in background or different shell then
     # export PATH needs to be called from the shell or use absolute gcloud path
     # or permanently add this path to path variable in bashrc.
-    echo 'export PATH="/usr/local/google-cloud-sdk/bin:$PATH"' >> "$HOME/.bashrc"
-    echo 'export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"' >> "$HOME/.bashrc"
-    echo 'export PATH="$HOME/.local/python-3.11.9/bin:$PATH"' >> "$HOME/.bashrc"
-    set +u
-    source "$HOME/.bashrc"
-    set -u
+    export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
+    {
+        echo 'export PATH="/usr/local/google-cloud-sdk/bin:$HOME/.local/python-3.11.9/bin:$PATH"'
+        echo 'export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"'
+    } >> "$HOME/.bashrc"
     echo "gcloud Version is:"
     gcloud version
     echo "Gcloud is present at: $( (which gcloud) )"
