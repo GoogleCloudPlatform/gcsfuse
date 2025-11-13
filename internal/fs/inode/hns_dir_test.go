@@ -573,10 +573,11 @@ func (t *HNSDirTest) TestDeleteObjects() {
 	t.mockBucket.On("DeleteObject", t.ctx, &gcs.DeleteObjectRequest{Name: "dir1/file1.txt"}).Return(nil)
 	// Mock for recursive deletion of dir2/
 	listReq := &gcs.ListObjectsRequest{
-		Prefix:            "dir2/",
-		MaxResults:        MaxResultsForListObjectsCall,
-		Delimiter:         "/",
-		ContinuationToken: "",
+		Prefix:                   "dir2/",
+		MaxResults:               MaxResultsForListObjectsCall,
+		Delimiter:                "/",
+		ContinuationToken:        "",
+		IncludeFoldersAsPrefixes: true,
 	}
 	listResp := &gcs.Listing{
 		MinObjects: []*gcs.MinObject{
@@ -588,10 +589,11 @@ func (t *HNSDirTest) TestDeleteObjects() {
 	t.mockBucket.On("DeleteObject", mock.Anything, &gcs.DeleteObjectRequest{Name: "dir2/file2.txt"}).Return(nil)
 	// Mock for recursive call on subdir/
 	listReqSubdir := &gcs.ListObjectsRequest{
-		Prefix:            "dir2/subdir/",
-		MaxResults:        MaxResultsForListObjectsCall,
-		Delimiter:         "/",
-		ContinuationToken: "",
+		Prefix:                   "dir2/subdir/",
+		MaxResults:               MaxResultsForListObjectsCall,
+		Delimiter:                "/",
+		ContinuationToken:        "",
+		IncludeFoldersAsPrefixes: true,
 	}
 	listRespSubdir := &gcs.Listing{}
 	t.mockBucket.On("ListObjects", mock.Anything, listReqSubdir).Return(listRespSubdir, nil)

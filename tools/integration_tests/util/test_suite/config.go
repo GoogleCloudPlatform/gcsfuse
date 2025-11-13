@@ -79,6 +79,7 @@ type Config struct {
 	MountTimeout          []TestConfig `yaml:"mount_timeout"`
 	Monitoring            []TestConfig `yaml:"monitoring"`
 	FlagOptimizations     []TestConfig `yaml:"flag_optimizations"`
+	UnsupportedPath       []TestConfig `yaml:"unsupported_path"`
 }
 
 func processTestConfigs(configs []TestConfig) {

@@ -217,6 +217,7 @@ TEST_PACKAGES_COMMON=(
   "log_rotation"
   "monitoring"
   "mounting"
+  "unsupported_path"
   # "grpc_validation"
   "negative_stat_cache"
   "stale_handle"
