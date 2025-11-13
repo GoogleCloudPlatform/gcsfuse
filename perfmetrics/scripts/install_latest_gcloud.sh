@@ -17,6 +17,7 @@
 
 # Exit on error, treat unset variables as errors, and propagate pipeline errors.
 set -euo pipefail
+set -x
 
 if [[ $# -ne 0 ]]; then
     echo "This script requires no argument."
@@ -62,7 +63,9 @@ else
     # or permanently add this path to path variable in bashrc.
     echo 'export PATH="/usr/local/google-cloud-sdk/bin:$PATH"' >> "$HOME/.bashrc"
     echo 'export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"' >> "$HOME/.bashrc"
+    set +u
     source "$HOME/.bashrc"
+    set -u
     echo "gcloud Version is:"
     gcloud version
     echo "Gcloud is present at: $( (which gcloud) )"
