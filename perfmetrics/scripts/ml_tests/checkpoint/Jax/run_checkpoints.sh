@@ -33,7 +33,9 @@ export PATH=$PATH:/usr/local/go/bin
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 # Install latest gcloud version for compatability with HNS bucket.
 ./perfmetrics/scripts/install_latest_gcloud.sh
-source "$HOME/.bashrc"
+export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
+export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"
+export PATH="$HOME/.local/python-3.11.9/bin:$PATH"
 echo "PATH:" $PATH
 echo "CLOUDSDK_PYTHON:" $CLOUDSDK_PYTHON
 

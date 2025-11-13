@@ -620,9 +620,9 @@ install_packages() {
   export PATH="/usr/local/go/bin:$PATH"
   # Install latest gcloud version.
   bash ./perfmetrics/scripts/install_latest_gcloud.sh
-  source "$HOME/.bashrc"
-  echo "PATH:" $PATH
-  echo "CLOUDSDK_PYTHON:" $CLOUDSDK_PYTHON
+  export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
+  export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"
+  export PATH="$HOME/.local/python-3.11.9/bin:$PATH"
   if ${KOKORO_DIR_AVAILABLE} ; then
     # Install go-junit-report to generate XML test reports from go logs.
     go install github.com/jstemmer/go-junit-report/v2@latest
