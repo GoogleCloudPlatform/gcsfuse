@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-if [[ -n "$UTILITY_SH_SOURCED" ]]; then
+if [[ -v "$UTILITY_SH_SOURCED" ]]; then
     # The file has already been sourced, so return.
     return 0
 else
