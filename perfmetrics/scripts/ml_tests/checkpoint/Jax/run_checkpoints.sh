@@ -60,7 +60,6 @@ function mount_gcsfuse_and_run_test() {
 }
 
 # Install pip
-sleep 10000
 curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 python3.11 get-pip.py
 rm get-pip.py
