@@ -59,6 +59,7 @@ if ! install_latest_gcloud >"$INSTALLATION_LOG" 2>&1; then
 else
     echo "latest gcloud installed successfully."
     echo "gcloud Version is:"
+    export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
     gcloud version
     echo "Gcloud is present at: $( (which gcloud) )"
     rm -f "$INSTALLATION_LOG"

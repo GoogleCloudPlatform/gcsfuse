@@ -38,7 +38,7 @@ func GenerateRandomData(sizeInBytes int64) ([]byte, error) {
 func setEnvVariables(cmd *exec.Cmd) {
 	cmd.Env = os.Environ() // Start with existing environment
 	cmd.Env = append(cmd.Env, "CLOUDSDK_PYTHON=$HOME/.local/python-3.11.9/bin/python3.11")
-	cmd.Env = append(cmd.Env, "PATH=$HOME/.local/python-3.11.9/bin:$PATH")
+	cmd.Env = append(cmd.Env, "PATH=$HOME/.local/python-3.11.9/bin:"+os.Getenv("PATH"))
 	cmd.Env = append(cmd.Env, "PATH=/usr/local/google-cloud-sdk/bin:"+os.Getenv("PATH")) // Ensure latest gcloud bin is first
 }
 
