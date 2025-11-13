@@ -63,6 +63,7 @@ else
     # or permanently add this path to path variable in bashrc.
     echo 'export PATH="/usr/local/google-cloud-sdk/bin:$PATH"' >> "$HOME/.bashrc"
     echo 'export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"' >> "$HOME/.bashrc"
+    echo 'export PATH="$HOME/.local/python-3.11.9/bin:$PATH"' >> "$HOME/.bashrc"
     set +u
     source "$HOME/.bashrc"
     set -u
