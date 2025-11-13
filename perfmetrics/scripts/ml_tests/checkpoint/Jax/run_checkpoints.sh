@@ -19,7 +19,7 @@ set -euo pipefail
 source "$(dirname "$(realpath "$0")")/../../../utility.sh"
 
 echo "Running JAX checkpoint tests"
-
+sleep 600
 sudo apt-get update
 # Install Git.
 echo "Installing git"
