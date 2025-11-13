@@ -49,7 +49,7 @@ func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockReuse() {
 	require.Equal(testSuite.T(), int64(2), pmb.Size())
 	err = pmb.SetAbsStartOff(23)
 	require.Nil(testSuite.T(), err)
-	pmb.IncrementRef()
+	pmb.IncRef()
 	assert.Equal(testSuite.T(), int32(1), pmb.RefCount())
 	require.Nil(testSuite.T(), err)
 
@@ -291,23 +291,37 @@ func (testSuite *PrefetchMemoryBlockTest) TestSingleNotifyAndMultipleAwaitReady(
 	wg.Wait()
 }
 
-func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockIncrementRef() {
+func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockIncRef() {
 	pmb, err := createPrefetchBlock(12)
 	require.Nil(testSuite.T(), err)
 
-	pmb.IncrementRef()
+	pmb.IncRef()
 
 	assert.Equal(testSuite.T(), int32(1), pmb.RefCount())
 }
 
-func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockDecrementRef() {
+func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockDecRef() {
 	pmb, err := createPrefetchBlock(12)
 	require.Nil(testSuite.T(), err)
-	pmb.IncrementRef()
-	pmb.IncrementRef()
+	pmb.IncRef()
+	pmb.IncRef()
 
-	newCount := pmb.DecrementRef()
+	isZero := pmb.DecRef()
 
-	assert.Equal(testSuite.T(), int32(1), newCount)
+	assert.False(testSuite.T(), isZero)
 	assert.Equal(testSuite.T(), int32(1), pmb.RefCount())
+
+	isZero = pmb.DecRef()
+
+	assert.True(testSuite.T(), isZero)
+	assert.Equal(testSuite.T(), int32(0), pmb.RefCount())
+}
+
+func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockDecRefPanics() {
+	pmb, err := createPrefetchBlock(12)
+	require.Nil(testSuite.T(), err)
+
+	assert.PanicsWithValue(testSuite.T(), "DecRef called more times than IncRef, resulting in a negative refCount.", func() {
+		pmb.DecRef()
+	})
 }

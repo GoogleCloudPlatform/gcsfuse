@@ -66,11 +66,13 @@ type PrefetchBlock interface {
 	// - BlockStatusDownloadFailed: Download of this block has failed.
 	NotifyReady(val BlockStatus)
 
-	// IncrementRef increments the reference count of the block.
-	IncrementRef()
+	// IncRef increments the reference count of the block.
+	IncRef()
 
-	// DecrementRef decrements the reference count of the block.
-	DecrementRef() int32
+	// DecRef decrements the reference count of the block. It returns true if
+	// the reference count reaches 0, otherwise false. Panics if the reference
+	// count becomes negative.
+	DecRef() bool
 
 	// RefCount returns the current reference count of the block.
 	RefCount() int32
@@ -193,12 +195,16 @@ func (pmb *prefetchMemoryBlock) NotifyReady(val BlockStatus) {
 	}
 }
 
-func (pmb *prefetchMemoryBlock) IncrementRef() {
+func (pmb *prefetchMemoryBlock) IncRef() {
 	pmb.refCount.Add(1)
 }
 
-func (pmb *prefetchMemoryBlock) DecrementRef() int32 {
-	return pmb.refCount.Add(-1)
+func (pmb *prefetchMemoryBlock) DecRef() bool {
+	newRefCount := pmb.refCount.Add(-1)
+	if newRefCount < 0 {
+		panic("DecRef called more times than IncRef, resulting in a negative refCount.")
+	}
+	return newRefCount == 0
 }
 
 func (pmb *prefetchMemoryBlock) RefCount() int32 {
