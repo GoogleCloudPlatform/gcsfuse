@@ -137,7 +137,7 @@ func (s *UnsupportedPathSuite) TestCopyDirWithUnsupportedPaths() {
 	// List the contents of the destination directory in the GCS bucket (to check actual objects created).
 	entries, err := client.ListDirectory(ctx, storageClient, setup.TestBucket(), destBucketPath)
 	require.NoError(s.T(), err, "Listing the destination directory in GCS should succeed.")
-	// Verify that only supported objects were copied (5 objects).
+	// Verify that only supported objects were copied (3 objects).
 	assert.Len(s.T(), entries, 3, "The number of copied objects should only match supported objects.")
 	s.Assert().ElementsMatch(expectedObjectNames, entries, "The copied object names must match the expected supported names.")
 }
