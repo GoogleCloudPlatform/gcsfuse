@@ -14,7 +14,8 @@
 # limitations under the License.
 #!/bin/bash
 
-set -e
+set -euo pipefail
+set -x
 
 PYTHON_VERSION=3.11.9
 INSTALL_PREFIX="$HOME/.local/python-$PYTHON_VERSION"
@@ -62,4 +63,6 @@ echo "Python $PYTHON_VERSION installed at $INSTALL_PREFIX/bin/python3.11"
 "$INSTALL_PREFIX/bin/python3.11" --version
 
 echo 'export PATH="$HOME/.local/python-3.11.9/bin:$PATH"' >> "$HOME/.bashrc"
+set +u
 source "$HOME/.bashrc"
+set -u
