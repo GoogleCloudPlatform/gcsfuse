@@ -15,6 +15,7 @@
 
 # Exit on error, treat unset variables as errors, and propagate pipeline errors.
 set -euo pipefail
+
 # Get utility methods
 source "$(dirname "$(realpath "$0")")/../../../utility.sh"
 
@@ -33,7 +34,7 @@ export PATH=$PATH:/usr/local/go/bin
 # Build gcsfuse.
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 # Install latest gcloud version for compatability with HNS bucket.
-get_latest_gcloud "3.11.9"
+install_latest_gcloud "3.11.9"
 
 
 CGO_ENABLED=0 go build .
