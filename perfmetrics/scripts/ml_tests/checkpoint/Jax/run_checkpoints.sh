@@ -15,9 +15,9 @@
 
 # Exit on error, treat unset variables as errors, and propagate pipeline errors.
 set -euo pipefail
-sleep 6000
 # Get utility methods
 source "$(dirname "$(realpath "$0")")/../../../utility.sh"
+
 echo "Running JAX checkpoint tests"
 sudo apt-get update
 # Install Git.

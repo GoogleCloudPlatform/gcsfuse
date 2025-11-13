@@ -13,12 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-if [ -n "${UTILITY_SH_SOURCED-}" ]; then
-    # The file has already been sourced, so return.
-    return 0
-else
-    UTILITY_SH_SOURCED=true
-fi
+# if [ -n "${UTILITY_SH_SOURCED-}" ]; then
+#     # The file has already been sourced, so return.
+#     return 0
+# else
+#     UTILITY_SH_SOURCED=true
+# fi
 
 # Helpers for logging
 log_info() {
@@ -95,7 +95,7 @@ _get_python() {
     log_info "Installing python version ${version} at installation path ${prefix}/bin"
     ./configure --enable-optimizations --prefix="$prefix"
     make -j"$(nproc)"
-    make altinstall
+    sudo make altinstall
     popd || log_and_exit "Failed to move back to parent directory."
     popd || log_and_exit "Failed to move back to parent directory."
     )
@@ -108,7 +108,7 @@ get_python() {
         echo "Example: get_python 3.11.9"
         exit 1
     fi
-    set -x
+
     get_build_tools
     local PYTHON_VERSION="$1"
     local INSTALLATION_DIR="/usr/local/python/${PYTHON_VERSION}"
@@ -116,31 +116,21 @@ get_python() {
     log_file=$(mktemp "/tmp/python_install_log_file.XXXXXX") || { log_and_exit "Unable to create python install log file"; }
     build_dir=$(mktemp -d "/tmp/python-build-dir.XXXXXX") || { log_and_exit "Unable to create temporary build directory"; }
     log_info "Installing python version ${PYTHON_VERSION} at installation path ${INSTALLATION_DIR}"
-    if ! _get_python "$1" "$INSTALLATION_DIR" "$build_dir" >"$log_file" 2>&1; then
+    _get_python "$1" "$INSTALLATION_DIR" "$build_dir" >"$log_file" 2>&1 
+    local success=$?
+    if [[ $success -ne 0 ]]; then
         log_error "Unable to install python version ${PYTHON_VERSION} at installation path ${INSTALLATION_DIR}/bin"
         cat "$log_file"
     else
         log_info "Successfully installed python version ${PYTHON_VERSION} at installation path ${INSTALLATION_DIR}/bin"
         export PATH="${INSTALLATION_DIR}/bin:$PATH"
-        hash -r
         local major_minor
         major_minor=$(echo "$PYTHON_VERSION" | cut -d'.' -f1,2)
-        local python_exe_path
-        return 0
-        python_exe_path=$(find "${INSTALLATION_DIR}/bin" -name "python${major_minor}" -type f -executable)
-        if [ -z "$python_exe_path" ]; then
-            python_exe_path=$(find "${INSTALLATION_DIR}/bin" -name "python*" -type f -executable | head -n 1)
-        fi
-        if [ -z "$python_exe_path" ]; then
-            log_error "No python executable found in ${INSTALLATION_DIR}/bin after installation."
-            log_error "Listing contents of ${INSTALLATION_DIR}/bin:"
-            ls -l "${INSTALLATION_DIR}/bin"
-            exit 1
-        fi
-        log_info "Found python executable: $python_exe_path"
-        log_info "Checking installed python version with command $python_exe_path --version"
-        "$python_exe_path" --version
-        rm -rf "$build_dir"
+        log_info "Checking from which location we are using python${major_minor}"
+        which "python${major_minor}"
+        log_info "Checking installed python version with command $ python${major_minor} --version"
+        "python${major_minor}" --version
+        sudo rm -rf "$build_dir"
     fi
 }
 
@@ -156,9 +146,9 @@ _get_latest_gcloud() {
     sudo rm -rf "${install_dir}/google-cloud-sdk" # Remove existing gcloud installation
     sudo tar -C "$install_dir" -xzf gcloud.tar.gz
     export CLOUDSDK_PYTHON="$python_path" # For installation within this subshell
-    "${install_dir}/google-cloud-sdk/install.sh" -q
-    "${install_dir}/google-cloud-sdk/bin/gcloud" components update -q
-    "${install_dir}/google-cloud-sdk/bin/gcloud" components install alpha -q
+    sudo "${install_dir}/google-cloud-sdk/install.sh" -q
+    sudo "${install_dir}/google-cloud-sdk/bin/gcloud" components update -q
+    sudo "${install_dir}/google-cloud-sdk/bin/gcloud" components install alpha -q
     popd
     )
 }
@@ -177,12 +167,13 @@ get_latest_gcloud() {
     log_file=$(mktemp "/tmp/gcloud_install_log_file.XXXXXX") || { log_and_exit "Unable to create gcloud install log file"; }
     build_dir=$(mktemp -d "/tmp/gcloud-build-dir.XXXXXX") || { log_and_exit "Unable to create temporary build directory"; }
     get_python "$1"
-    return 0
     local major_minor
     major_minor=$(echo "$PYTHON_VERSION" | cut -d'.' -f1,2)
     python_path=$(which "python${major_minor}")
     log_info "Installing latest gcloud version at installation path ${INSTALLATION_DIR}/google-cloud-sdk/bin"
-    if ! _get_latest_gcloud "$python_path" "$INSTALLATION_DIR" "$build_dir" >"$log_file" 2>&1; then
+    _get_latest_gcloud "$python_path" "$INSTALLATION_DIR" "$build_dir" >"$log_file" 2>&1
+    local success=$?
+    if [[ $success -ne 0 ]]; then
         log_error "Unable to install latest gcloud version with python version ${PYTHON_VERSION} at installation path ${INSTALLATION_DIR}/google-cloud-sdk/bin"
         cat "$log_file"
     else
@@ -190,10 +181,10 @@ get_latest_gcloud() {
         export PATH="${INSTALLATION_DIR}/google-cloud-sdk/bin:$PATH"
         export CLOUDSDK_PYTHON="$python_path" # For callers of get_latest_gcloud
         local major_minor
-        log_info "Checking where gcloud is installed"
-        whereis gcloud
-        log_info "Checking installed gcloud version with command $ python${major_minor} --version"
+        log_info "Checking from which location we are using gcloud"
+        which gcloud
+        log_info "Checking installed gcloud version with command $ gcloud --version"
         gcloud --version
-        rm -rf "$build_dir"
+        sudo rm -rf "$build_dir"
     fi
 }
