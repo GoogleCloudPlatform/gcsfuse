@@ -620,9 +620,7 @@ install_packages() {
   export PATH="/usr/local/go/bin:$PATH"
   # Install latest gcloud version.
   bash ./perfmetrics/scripts/install_latest_gcloud.sh
-  set +u
   source "$HOME/.bashrc"
-  set -u
   echo "PATH:" $PATH
   echo "CLOUDSDK_PYTHON:" $CLOUDSDK_PYTHON
   if ${KOKORO_DIR_AVAILABLE} ; then
