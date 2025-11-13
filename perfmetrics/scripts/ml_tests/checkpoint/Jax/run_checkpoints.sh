@@ -20,8 +20,6 @@ source "$(dirname "$(realpath "$0")")/../../../utility.sh"
 
 echo "Running JAX checkpoint tests"
 
-exit 0
-
 sudo apt-get update
 # Install Git.
 echo "Installing git"
