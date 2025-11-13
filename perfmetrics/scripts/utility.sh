@@ -108,6 +108,7 @@ get_python() {
         echo "Example: get_python 3.11.9"
         exit 1
     fi
+    set -x
     get_build_tools
     local PYTHON_VERSION="$1"
     local INSTALLATION_DIR="/usr/local/python/${PYTHON_VERSION}"
@@ -168,6 +169,7 @@ get_latest_gcloud() {
         echo "Example: get_latest_gcloud 3.11.9"
         exit 1
     fi
+    set -x
     local PYTHON_VERSION="$1"
     local INSTALLATION_DIR="/usr/local"
     local python_path log_file build_dir
