@@ -121,6 +121,7 @@ get_python() {
     else
         log_info "Successfully installed python version ${PYTHON_VERSION} at installation path ${INSTALLATION_DIR}/bin"
         export PATH="${INSTALLATION_DIR}/bin:$PATH"
+        hash -r
         local major_minor
         major_minor=$(echo "$PYTHON_VERSION" | cut -d'.' -f1,2)
         log_info "Checking where python${major_minor} is installed"
