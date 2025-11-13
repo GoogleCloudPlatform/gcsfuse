@@ -124,10 +124,20 @@ get_python() {
         hash -r
         local major_minor
         major_minor=$(echo "$PYTHON_VERSION" | cut -d'.' -f1,2)
-        log_info "Checking where python${major_minor} is installed"
-        whereis "python${major_minor}"
-        log_info "Checking installed python version with command $ python${major_minor} --version"
-        "python${major_minor}" --version
+        local python_exe_path
+        python_exe_path=$(find "${INSTALLATION_DIR}/bin" -name "python${major_minor}" -type f -executable)
+        if [ -z "$python_exe_path" ]; then
+            python_exe_path=$(find "${INSTALLATION_DIR}/bin" -name "python*" -type f -executable | head -n 1)
+        fi
+        if [ -z "$python_exe_path" ]; then
+            log_error "No python executable found in ${INSTALLATION_DIR}/bin after installation."
+            log_error "Listing contents of ${INSTALLATION_DIR}/bin:"
+            ls -l "${INSTALLATION_DIR}/bin"
+            exit 1
+        fi
+        log_info "Found python executable: $python_exe_path"
+        log_info "Checking installed python version with command $python_exe_path --version"
+        "$python_exe_path" --version
         rm -rf "$build_dir"
     fi
 }
