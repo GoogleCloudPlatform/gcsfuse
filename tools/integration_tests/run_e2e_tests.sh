@@ -250,6 +250,8 @@ function upgrade_gcloud_version() {
   # Install latest gcloud.
   ./perfmetrics/scripts/install_latest_gcloud.sh
   export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
+  export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"
+  export PATH="$HOME/.local/python-3.11.9/bin:$PATH""
 }
 
 function install_packages() {

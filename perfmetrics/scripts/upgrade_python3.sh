@@ -61,8 +61,3 @@ make altinstall > /dev/null
 
 echo "Python $PYTHON_VERSION installed at $INSTALL_PREFIX/bin/python3.11"
 "$INSTALL_PREFIX/bin/python3.11" --version
-
-echo 'export PATH="$HOME/.local/python-3.11.9/bin:$PATH"' >> "$HOME/.bashrc"
-set +u
-source "$HOME/.bashrc"
-set -u
