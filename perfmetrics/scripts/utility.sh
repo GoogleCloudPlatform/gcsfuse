@@ -126,6 +126,7 @@ get_python() {
         local major_minor
         major_minor=$(echo "$PYTHON_VERSION" | cut -d'.' -f1,2)
         local python_exe_path
+        return 0
         python_exe_path=$(find "${INSTALLATION_DIR}/bin" -name "python${major_minor}" -type f -executable)
         if [ -z "$python_exe_path" ]; then
             python_exe_path=$(find "${INSTALLATION_DIR}/bin" -name "python*" -type f -executable | head -n 1)
