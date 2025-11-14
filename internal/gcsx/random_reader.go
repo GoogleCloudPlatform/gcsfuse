@@ -309,16 +309,16 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 	n = 0
 
 	if cacheutil.IsCacheHandleInvalid(err) {
-rr.fileCacheMu.Lock()
-if rr.fileCacheHandle != nil {
-	logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
-	err = rr.fileCacheHandle.Close()
-	if err != nil {
-		logger.Warnf("tryReadingFromFileCache: while closing fileCacheHandle: %v", err)
-	}
-	rr.fileCacheHandle = nil
-}
-rr.fileCacheMu.Unlock()
+		rr.fileCacheMu.Lock()
+		if rr.fileCacheHandle != nil {
+			logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
+			err = rr.fileCacheHandle.Close()
+			if err != nil {
+				logger.Warnf("tryReadingFromFileCache: while closing fileCacheHandle: %v", err)
+			}
+			rr.fileCacheHandle = nil
+		}
+		rr.fileCacheMu.Unlock()
 	} else if !errors.Is(err, cacheutil.ErrFallbackToGCS) {
 		err = fmt.Errorf("tryReadingFromFileCache: while reading via cache: %w", err)
 		return
@@ -431,6 +431,8 @@ func (rr *randomReader) Destroy() {
 		rr.cancel = nil
 	}
 
+	rr.fileCacheMu.Lock()
+	defer rr.fileCacheMu.Unlock()
 	if rr.fileCacheHandle != nil {
 		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
 		err := rr.fileCacheHandle.Close()
