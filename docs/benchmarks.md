@@ -172,7 +172,7 @@ nrfiles=${NRFILES}
 </details>
 
 > [!NOTE]
-> Random Writes/Appends to an existing file are performed by first staging the whole file on disk so the whole file is read first and then upon `close` or `sync` the whole file is uploaded. So the performance would be similar to complete file upload in addition to the read of existing file.
+> Random writes and appends to existing files are handled by first downloading the entire file. After changes are made locally, the entire file is uploaded again on `close` or `sync`. This results in performance similar to a full file read followed by a full file write.
 ---
 <!-- Benchmarks end -->
 
