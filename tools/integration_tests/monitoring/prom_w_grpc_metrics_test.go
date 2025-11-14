@@ -18,26 +18,18 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
-// PromGrpcTest is the test suite for gRPC metrics.
+// PromGrpcMetricsTest is the test suite for gRPC metrics.
 type PromGrpcMetricsTest struct {
-	suite.Suite
-	gcsfusePath string
-	mountPoint  string
-}
-
-func (testSuite *PromGrpcMetricsTest) SetupSuite() {
-	setup.IgnoreTestIfIntegrationTestFlagIsNotSet(testSuite.T())
-	_, err := setup.SetUpTestDir()
-	require.NoErrorf(testSuite.T(), err, "error while building GCSFuse: %p", err)
+	PromTestBase
 }
 
 func (testSuite *PromGrpcMetricsTest) SetupTest() {
@@ -47,7 +39,8 @@ func (testSuite *PromGrpcMetricsTest) SetupTest() {
 	require.NoError(testSuite.T(), err)
 	setPrometheusPort(testSuite.T())
 
-	err = testSuite.mount(testFlatBucket)
+	setup.SetLogFile(fmt.Sprintf("%s%s.txt", "/tmp/gcsfuse_monitoring_test_", strings.ReplaceAll(testSuite.T().Name(), "/", "_")))
+	err = testSuite.mount(getBucket(testSuite.T()))
 	require.NoError(testSuite.T(), err)
 }
 
@@ -60,21 +53,13 @@ func (testSuite *PromGrpcMetricsTest) TearDownTest() {
 
 func (testSuite *PromGrpcMetricsTest) mount(bucketName string) error {
 	testSuite.T().Helper()
-	if portAvailable := isPortOpen(prometheusPort); !portAvailable {
-		require.Failf(testSuite.T(), "prometheus port is not available.", "port: %d", int64(prometheusPort))
-	}
 	cacheDir, err := os.MkdirTemp("", "gcsfuse-cache")
 	require.NoError(testSuite.T(), err)
 	testSuite.T().Cleanup(func() { _ = os.RemoveAll(cacheDir) })
 
 	// Specify client protocol to "grpc" for gRPC metrics to be emitted and captured.
-	flags := []string{"--client-protocol=grpc", fmt.Sprintf("--prometheus-port=%d", prometheusPort), "--cache-dir", cacheDir}
-	args := append(flags, bucketName, testSuite.mountPoint)
-
-	if err := mounting.MountGcsfuse(testSuite.gcsfusePath, args); err != nil {
-		return err
-	}
-	return nil
+	flags := []string{"--client-protocol=grpc", "--enable-grpc-metrics=true", fmt.Sprintf("--prometheus-port=%d", prometheusPort), "--cache-dir", cacheDir}
+	return testSuite.mountGcsfuse(bucketName, flags)
 }
 
 func (testSuite *PromGrpcMetricsTest) TestStorageClientGrpcMetrics() {
