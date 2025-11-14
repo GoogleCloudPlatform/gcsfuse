@@ -14,7 +14,7 @@ workloads for the given test setup:
 * VM Region: us-south1
 * GCS Bucket ([HNS enabled](https://cloud.google.com/storage/docs/hns-overview)) Region: us-south1
 * Framework: FIO (version 3.39)
-* GCSFuse version: 3.4.3
+* GCSFuse version: [3.4.3](https://github.com/GoogleCloudPlatform/gcsfuse/releases/tag/v3.4.3)
 
 ## FIO workloads
 Please read the details about the FIO specification [here](https://fio.readthedocs.io/en/latest/).
@@ -40,8 +40,8 @@ Please read the details about the FIO specification [here](https://fio.readthedo
   <summary> Click to expand </summary> 
 
 ##### GCSFuse Mount Options
+See more details about each option [here](https://cloud.google.com/storage/docs/cloud-storage-fuse/cli-options#options).
 ```bash
-# See https://cloud.google.com/storage/docs/cloud-storage-fuse/cli-options#options for more details about each option here.
 --implicit-dirs
 --metadata-cache-ttl-secs=-1
 ```
@@ -89,8 +89,9 @@ nrfiles=${NRFILES}
   <summary> Click to expand </summary> 
 
 ##### GCSFuse Mount Options
+See more details about each option [here](https://cloud.google.com/storage/docs/cloud-storage-fuse/cli-options#options).
 ```bash
-# See https://cloud.google.com/storage/docs/cloud-storage-fuse/cli-options#options for more details about each option here.
+# 
 --implicit-dirs
 --metadata-cache-ttl-secs=-1
 ```
@@ -137,8 +138,8 @@ nrfiles=${NRFILES}
   <summary> Click to expand </summary> 
 
 ##### GCSFuse Mount Options
+See more details about each option [here](https://cloud.google.com/storage/docs/cloud-storage-fuse/cli-options#options).
 ```bash
-# See https://cloud.google.com/storage/docs/cloud-storage-fuse/cli-options#options for more details about each option here.
 --implicit-dirs
 --metadata-cache-ttl-secs=-1
 --write-global-max-blocks=-1
@@ -176,35 +177,50 @@ nrfiles=${NRFILES}
 
 ## Steps to benchmark GCSFuse performance
 
+Note: GCSFuse performance may differ based on region of VM and GCS Bucket region and the GCSFuse version in use. To reproduce above benchmark please use the exact testing infra setup mentiond above.
+
 1. [Create](https://cloud.google.com/compute/docs/instances/create-start-instance#publicimage)
-   a GCP VM instance.
+   a GCP VM instance
 2. [Connect](https://cloud.google.com/compute/docs/instances/connecting-to-instance)
-   to the VM instance.
+   to the VM instance
 3. Install FIO.
 
-    ```
+    ```bash
     sudo apt-get update
     sudo apt-get install fio
     ```
 
-5. [Install GCSFuse](https://cloud.google.com/storage/docs/gcsfuse-install).
-6. Create a directory on the VM and then mount the gcs bucket to that directory.
+4. [Install GCSFuse](https://cloud.google.com/storage/docs/gcsfuse-install)
+5. [Create GCS Bucket](https://cloud.google.com/storage/docs/creating-buckets)
+6. Create a directory on the VM and then mount the gcs bucket to that directory with the mount options provided in benchmark result section.
 
-    ```
+    ```bash
     mkdir <path-to-mount-point>
-    gcsfuse <bucket-name> <path-to-mount-point>
+    gcsfuse <mount options> <bucket-name> <path-to-mount-point>
     ```
 
-7. Create a FIO job spec file.\
-   The fio workload files can be found [above](#fio-workloads). 
-    ```
+7. Create a fio job file with the templated fio configuration content provided in benchmark result section.
+    ```bash
+    # Copy content of fio confuration to this file.
     vi samplejobspec.fio
     ```
 
 8. Run the FIO test using following command.
 
-    ```
-    DIR=<path-to-mount-point> fio samplejobspec.fio
+    ```bash
+    # See the values of these variables from the respective benchmark result table.
+    DIR=<path-to-mount-point> \
+    NUMJOBS="" \
+    BS="" \
+    FILESIZE="" \
+    NRFILES="" fio samplejobspec.fio
+
+    # Example command for last row of sequential write benchmark result table.
+    DIR=<path-to-mount-point> \
+    NUMJOBS="96" \
+    BS="1M" \
+    FILESIZE="1G" \
+    NRFILES="10" fio samplejobspec.fio
     ```
 
 9. Metrics will be displayed on the terminal after test is completed.
