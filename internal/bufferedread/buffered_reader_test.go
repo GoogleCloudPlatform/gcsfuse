@@ -1819,7 +1819,7 @@ func (t *BufferedReaderTest) TestReleaseBlockWithOutstandingReference() {
 	initialFreeBlocks := reader.blockPool.TotalFreeBlocks()
 
 	reader.mu.Lock()
-	reader.releaseBlock(entry)
+	reader.releaseOrMarkEvicted(entry)
 	reader.mu.Unlock()
 
 	assert.True(t.T(), entry.wasEvicted, "Block should be marked as evicted")

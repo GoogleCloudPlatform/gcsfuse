@@ -969,6 +969,7 @@ func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() 
 			MaxBlocksPerHandle:   10,
 			StartBlocksPerHandle: 2,
 			BlockSizeMb:          1,
+			RandomSeekThreshold:  3,
 		},
 	}
 	workerPool, err := workerpool.NewStaticWorkerPoolForCurrentCPU(20)
@@ -996,6 +997,13 @@ func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() 
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), readSize, resp.Size)
+			// When buffered read is enabled, the data is returned in resp.Data and not
+			// directly in the buffer. We need to copy it to compare.
+			bytesCopied := 0
+			for _, dataSlice := range resp.Data {
+				bytesCopied += copy(readBuf[bytesCopied:], dataSlice)
+			}
+			assert.Equal(t.T(), readSize, bytesCopied)
 			results[index] = readBuf
 		}(i)
 	}

@@ -180,7 +180,7 @@ func (p *BufferedReader) handleRandomRead(offset int64, handleID int64) error {
 	for !p.blockQueue.IsEmpty() {
 		entry := p.blockQueue.Pop()
 		entry.cancelAndWait()
-		p.releaseBlock(entry)
+		p.releaseOrMarkEvicted(entry)
 	}
 
 	if p.randomSeekCount > p.randomReadsThreshold {
@@ -225,24 +225,10 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 			// Offset is either before or beyond this block – discard.
 			p.blockQueue.Pop()
 			entry.cancelAndWait()
-			p.releaseBlock(entry)
+			p.releaseOrMarkEvicted(entry)
 		} else {
 			break
 		}
-	}
-}
-
-// callback is called when the FUSE library is finished with a buffer slice that
-// was returned directly from a block. It decrements the block's reference count
-// and releases it back to the pool if the count drops to zero and it was
-// previously marked for eviction.
-func (p *BufferedReader) callback(entry *blockQueueEntry) {
-	defer p.inflightCallbackWg.Done()
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	if entry.block.DecRef() && entry.wasEvicted {
-		p.releaseBlock(entry)
 	}
 }
 
@@ -310,8 +296,8 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 	prefetchTriggered := false
 
-	var data [][]byte
-	var callbacks []func()
+	var dataSlices [][]byte
+	var entriesToCallback []*blockQueueEntry
 	for bytesRead < len(inputBuf) {
 		p.prepareQueueForOffset(off)
 
@@ -360,10 +346,10 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		}
 
 		if sliceLen > 0 {
-			data = append(data, dataSlice)
+			dataSlices = append(dataSlices, dataSlice)
 			p.inflightCallbackWg.Add(1)
 			blk.IncRef()
-			callbacks = append(callbacks, func() { p.callback(entry) })
+			entriesToCallback = append(entriesToCallback, entry)
 		}
 
 		if off >= int64(p.object.Size) {
@@ -372,7 +358,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 		if off >= blk.AbsStartOff()+blk.Size() {
 			entry := p.blockQueue.Pop()
-			p.releaseBlock(entry)
+			p.releaseOrMarkEvicted(entry)
 
 			if !prefetchTriggered {
 				prefetchTriggered = true
@@ -383,14 +369,29 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		}
 	}
 
-	resp.Data = data
-	resp.Callback = func() {
-		for _, cb := range callbacks {
-			cb()
-		}
-	}
+	resp.Data = dataSlices
+	resp.Callback = func() { p.callback(entriesToCallback) }
 	resp.Size = bytesRead
 	return resp, err
+}
+
+// callback is called when the FUSE library is finished with buffer slices that
+// were returned directly from blocks. It decrements the reference count for each
+// associated block and releases it back to the pool if the count drops to zero
+// and it was previously marked for eviction.
+func (p *BufferedReader) callback(entries []*blockQueueEntry) {
+	defer func() {
+		for range entries {
+			p.inflightCallbackWg.Done()
+		}
+	}()
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _, entry := range entries {
+		if entry.block.DecRef() && entry.wasEvicted {
+			p.blockPool.Release(entry.block)
+		}
+	}
 }
 
 // prefetch schedules the next set of blocks for prefetching starting from
@@ -518,7 +519,7 @@ func (p *BufferedReader) Destroy() {
 	for !p.blockQueue.IsEmpty() {
 		bqe := p.blockQueue.Pop()
 		bqe.cancelAndWait()
-		p.releaseBlock(bqe)
+		p.releaseOrMarkEvicted(bqe)
 	}
 	p.mu.Unlock()
 
@@ -552,15 +553,15 @@ func (p *BufferedReader) Destroy() {
 	p.blockPool = nil
 }
 
-// releaseBlock waits for any pending download on the given block to complete
+// releaseOrMarkEvicted waits for any pending download on the given block to complete
 // and then handles its release. If the block has no outstanding references,
 // it is immediately returned to the block pool. If there are outstanding
 // references, the block is marked as evicted, and its final release
 // is deferred until the last reference's callback is executed.
 // LOCKS_REQUIRED(p.mu)
-func (p *BufferedReader) releaseBlock(entry *blockQueueEntry) {
+func (p *BufferedReader) releaseOrMarkEvicted(entry *blockQueueEntry) {
 	// If the block still has outstanding references, do not release it to the
-	// pool. Instead, mark it as evicted so the callback can release it later
+	// pool. Instead, mark it as evicted so the callback can release it later,
 	// when the reference count drops to zero.
 	if entry.block.RefCount() > 0 {
 		entry.wasEvicted = true
