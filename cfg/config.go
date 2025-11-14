@@ -778,7 +778,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("enable-grpc-metrics", "", true, "Enables support for gRPC metrics")
+	flagSet.BoolP("enable-grpc-metrics", "", false, "Enables support for gRPC metrics")
 
 	flagSet.BoolP("enable-hns", "", true, "Enables support for HNS buckets")
 
