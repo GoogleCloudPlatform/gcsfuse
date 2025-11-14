@@ -66,6 +66,18 @@ func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPC() {
 	assert.NotNil(t.T(), storageHandle)
 }
 
+func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPCIsGKE() {
+	newConfig := &cfg.Config{
+		GcsConnection: cfg.GcsConnectionConfig{ClientProtocol: cfg.GRPC},
+		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
+	}
+
+	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), true)
+
+	assert.Nil(t.T(), err)
+	assert.NotNil(t.T(), storageHandle)
+}
+
 func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsSet() {
 	t.T().Setenv("GCSFUSE_METADATA_IMAGE_TYPE", "DLVM")
 	mountConfig := &cfg.Config{}
