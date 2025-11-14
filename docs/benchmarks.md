@@ -1,23 +1,23 @@
 # GCSFuse Performance Benchmarks
 
-[FIO](https://fio.readthedocs.io/en/latest/) is used to perform load tests on
-GCSFuse. Below tables shows performance metrics of GCSFuse for different
+[fio](https://fio.readthedocs.io/en/latest/) is used to perform load tests on
+GCSFuse. The tables below show performance metrics of GCSFuse for different
 workloads for the given test setup:
 
 ## Test setup:
 
 * Infra: GCP VM [C4-standard-192](https://cloud.google.com/compute/docs/general-purpose-machines#c4_series)
-* Network: [Tier_1](https://cloud.google.com/compute/docs/networking/configure-vm-with-high-bandwidth-configuration) Networking enabled on VM providing 200Gpbs egress bandwidth.
+* Network: [Tier_1](https://cloud.google.com/compute/docs/networking/configure-vm-with-high-bandwidth-configuration) Networking enabled on VM providing 200 Gbps egress bandwidth.
 * OS Version: [Ubuntu 22.04 LTS](https://cloud.google.com/compute/docs/images/os-details#notable-difference-ubuntu)
 * Image Family: [ubuntu-2204-lts](https://cloud.google.com/compute/docs/images/os-details#notable-difference-ubuntu)
 * Disk Type: [Hyperdisk Balanced](https://cloud.google.com/compute/docs/disks/hd-types/hyperdisk-balanced)
 * VM Region: us-south1
 * GCS Bucket ([HNS enabled](https://cloud.google.com/storage/docs/hns-overview)) Region: us-south1
-* Framework: FIO (version 3.39)
-* GCSFuse version: [3.4.3](https://github.com/GoogleCloudPlatform/gcsfuse/releases/tag/v3.4.3)
+* Framework: fio (version 3.39)
+* GCSFuse version: [v3.4.3](https://github.com/GoogleCloudPlatform/gcsfuse/releases/tag/v3.4.3)
 
-## FIO workloads
-Please read the details about the FIO specification [here](https://fio.readthedocs.io/en/latest/).
+## fio workloads
+Please read the details about the fio specification [here](https://fio.readthedocs.io/en/latest/).
 
 <!-- Benchmarks start -->
 ---
@@ -91,7 +91,6 @@ nrfiles=${NRFILES}
 ##### GCSFuse Mount Options
 See more details about each option [here](https://cloud.google.com/storage/docs/cloud-storage-fuse/cli-options#options).
 ```bash
-# 
 --implicit-dirs
 --metadata-cache-ttl-secs=-1
 ```
@@ -177,7 +176,7 @@ nrfiles=${NRFILES}
 
 ## Steps to benchmark GCSFuse performance
 
-Note: GCSFuse performance may differ based on region of VM and GCS Bucket region and the GCSFuse version in use. To reproduce above benchmark please use the exact testing infra setup mentiond above.
+Note: GCSFuse performance may differ based on region of VM and GCS Bucket region and the GCSFuse version in use. To reproduce above benchmark please use the exact testing infra setup mentioned above. Use new GCS Bucket for each fio run which ensures for sequential write objects are not being overwritten.
 
 1. [Create](https://cloud.google.com/compute/docs/instances/create-start-instance#publicimage)
    a GCP VM instance
@@ -201,11 +200,11 @@ Note: GCSFuse performance may differ based on region of VM and GCS Bucket region
 
 7. Create a fio job file with the templated fio configuration content provided in benchmark result section.
     ```bash
-    # Copy content of fio confuration to this file.
+    # Copy content of fio configuration to this file.
     vi samplejobspec.fio
     ```
 
-8. Run the FIO test using following command.
+8. Run the FIO tool using following command.
 
     ```bash
     # See the values of these variables from the respective benchmark result table.
@@ -217,10 +216,10 @@ Note: GCSFuse performance may differ based on region of VM and GCS Bucket region
 
     # Example command for last row of sequential write benchmark result table.
     DIR=<path-to-mount-point> \
-    NUMJOBS="96" \
+    NUMJOBS="10" \
     BS="1M" \
     FILESIZE="1G" \
-    NRFILES="10" fio samplejobspec.fio
+    NRFILES="96" fio samplejobspec.fio
     ```
 
 9. Metrics will be displayed on the terminal after test is completed.
