@@ -171,6 +171,7 @@ nrfiles=${NRFILES}
 ```
 </details>
 
+Note: Peformance for Random Writes to an existing file would be performance of complete file read and performance of complete file write after append operations.
 ---
 <!-- Benchmarks end -->
 
