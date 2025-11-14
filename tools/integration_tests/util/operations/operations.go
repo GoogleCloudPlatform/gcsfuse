@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"fmt"
 	"math/rand"
-	"os"
 	"os/exec"
 	"time"
 )
@@ -33,13 +32,6 @@ func GenerateRandomData(sizeInBytes int64) ([]byte, error) {
 		return nil, fmt.Errorf("r.Read(): %v", err)
 	}
 	return data, nil
-}
-
-func setEnvVariables(cmd *exec.Cmd) {
-	cmd.Env = os.Environ() // Start with existing environment
-	cmd.Env = append(cmd.Env, "CLOUDSDK_PYTHON="+os.Getenv("HOME")+"/.local/python-3.11.9/bin/python3.11")
-	cmd.Env = append(cmd.Env, "PATH="+os.Getenv("HOME")+"/.local/python-3.11.9/bin:"+os.Getenv("PATH"))
-	cmd.Env = append(cmd.Env, "PATH=/usr/local/google-cloud-sdk/bin:"+os.Getenv("PATH")) // Ensure latest gcloud bin is first
 }
 
 // Executes any given tool (e.g. gsutil/gcloud) with given args.
@@ -73,8 +65,6 @@ func runCommand(cmd *exec.Cmd) ([]byte, error) {
 
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-
-	setEnvVariables(cmd)
 
 	err := cmd.Run()
 	if err != nil {
