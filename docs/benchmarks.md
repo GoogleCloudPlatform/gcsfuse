@@ -12,7 +12,7 @@ workloads for the given test setup:
 * Image Family: [ubuntu-2204-lts](https://cloud.google.com/compute/docs/images/os-details#notable-difference-ubuntu)
 * Disk Type: [Hyperdisk Balanced](https://cloud.google.com/compute/docs/disks/hd-types/hyperdisk-balanced)
 * VM Region: us-south1
-* GCS Bucket Region: us-south1
+* GCS Bucket ([HNS enabled](https://cloud.google.com/storage/docs/hns-overview)) Region: us-south1
 * Framework: FIO (version 3.39)
 * GCSFuse version: 3.4.3
 
@@ -24,16 +24,16 @@ Please read the details about the FIO specification [here](https://fio.readthedo
 
 ### Sequential Reads
 | File Size | BlockSize | NRFiles | NumJobs | **Avg Bandwidth (MB/s)** | **Avg IOPS** | **Avg Latency (msec)** |
-| :--- | :--- | ---: | ---: | ---: | ---: | ---: |
-| 128 KiB | 128 KiB | 192 | 30 | 1,303.87 | | |
-| 256 KiB | 128 KiB | 192 | 30| 2,539.67 | | |
-| 1 MiB | 1 MiB | 192 | 30 | 6,204.93 | | |
-| 5 MiB | 1 MiB | 192 | 20 | 12,394.90 | | |
-| 10 MiB | 1 MiB | 192 | 20 | 14,489.90 | | |
-| 50 MiB | 1 MiB | 192 | 20 | 13,808.20 | | |
-| 100 MiB | 1 MiB | 144 | 10 | 13,433.40 | | |
-| 200 MiB | 1 MiB | 144 | 10 | 13,261.70 | | |
-| 1 GiB | 1 MiB | 144 | 10 | 14,198.00 | | |
+| :---      | :---      | ---:    | ---:    | ---:                     | ---:         | ---:                   |
+| 128 KiB   | 128 KiB   | 192     | 30      | 1,303.87                 |              |                        |
+| 256 KiB   | 128 KiB   | 192     | 30      | 2,539.67                 |              |                        |
+| 1 MiB     | 1 MiB     | 192     | 30      | 6,204.93                 |              |                        |
+| 5 MiB     | 1 MiB     | 192     | 20      | 12,394.90                |              |                        |
+| 10 MiB    | 1 MiB     | 192     | 20      | 14,489.90                |              |                        |
+| 50 MiB    | 1 MiB     | 192     | 20      | 13,808.20                |              |                        |
+| 100 MiB   | 1 MiB     | 144     | 10      | 13,433.40                |              |                        |
+| 200 MiB   | 1 MiB     | 144     | 10      | 13,261.70                |              |                        |
+| 1 GiB     | 1 MiB     | 144     | 10      | 14,198.00                |              |                        | 
 
 #### GCSFuse Mount Option and fio configuration
 <details>
@@ -74,14 +74,14 @@ nrfiles=${NRFILES}
 
 ### Random Reads
 | File Size | BlockSize | NRFiles | NumJobs | **Avg Bandwidth (MB/s)** | **Avg IOPS** | **Avg Latency (msec)** |
-| :--- | :--- | ---: | ---: | ---: | ---: | ---: |
-| 256 KiB | 128 KiB | 192 | 30| 1,591.49 | | |
-| 5 MiB | 1 MiB | 192 | 20 | 5,014.54 | | |
-| 10 MiB | 1 MiB | 192 | 20 | 4,197.65 | | |
-| 50 MiB | 1 MiB | 192 | 20 | 4,421.05 | | |
-| 100 MiB | 1 MiB | 192 | 10 | 4,454.59 | | |
-| 200 MiB | 1 MiB | 192 | 10 | 4,205.02 | | |
-| 1 GiB | 1 MiB | 192 | 10 | 4,107.23 | | |
+| :---      | :---      | ---: | ---: | ---: | ---: | ---: |
+| 256 KiB   | 128 KiB   | 192 | 30| 1,591.49 | | |
+| 5 MiB     | 1 MiB     | 192 | 20 | 5,014.54 | | |
+| 10 MiB    | 1 MiB     | 192 | 20 | 4,197.65 | | |
+| 50 MiB    | 1 MiB     | 192 | 20 | 4,421.05 | | |
+| 100 MiB   | 1 MiB     | 192 | 10 | 4,454.59 | | |
+| 200 MiB   | 1 MiB     | 192 | 10 | 4,205.02 | | |
+| 1 GiB     | 1 MiB     | 192 | 10 | 4,107.23 | | |
 
 #### GCSFuse Mount Option and fio configuration
 <details>
