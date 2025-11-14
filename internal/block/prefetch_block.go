@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync/atomic"
 	"syscall"
 )
 
@@ -69,6 +70,17 @@ type PrefetchBlock interface {
 	// - BlockStatusDownloaded: Download of this block is complete.
 	// - BlockStatusDownloadFailed: Download of this block has failed.
 	NotifyReady(val BlockStatus)
+
+	// IncRef increments the reference count of the block.
+	IncRef()
+
+	// DecRef decrements the reference count of the block. It returns true if
+	// the reference count reaches 0, otherwise false. Panics if the reference
+	// count becomes negative.
+	DecRef() bool
+
+	// RefCount returns the current reference count of the block.
+	RefCount() int32
 }
 
 type prefetchMemoryBlock struct {
@@ -82,6 +94,9 @@ type prefetchMemoryBlock struct {
 
 	// Stores the absolute start offset of the block-segment in the file.
 	absStartOff int64
+
+	// refCount tracks the number of active references to the block.
+	refCount atomic.Int32
 }
 
 func (pmb *prefetchMemoryBlock) Reuse() {
@@ -90,6 +105,7 @@ func (pmb *prefetchMemoryBlock) Reuse() {
 	pmb.notification = make(chan BlockStatus, 1)
 	pmb.status = BlockStatus{State: BlockStateInProgress}
 	pmb.absStartOff = -1
+	pmb.refCount.Store(0)
 }
 
 // createPrefetchBlock creates a new PrefetchBlock.
@@ -205,4 +221,20 @@ func (pmb *prefetchMemoryBlock) NotifyReady(val BlockStatus) {
 	default:
 		panic("Expected to notify only once, but got multiple notifications.")
 	}
+}
+
+func (pmb *prefetchMemoryBlock) IncRef() {
+	pmb.refCount.Add(1)
+}
+
+func (pmb *prefetchMemoryBlock) DecRef() bool {
+	newRefCount := pmb.refCount.Add(-1)
+	if newRefCount < 0 {
+		panic("DecRef called more times than IncRef, resulting in a negative refCount.")
+	}
+	return newRefCount == 0
+}
+
+func (pmb *prefetchMemoryBlock) RefCount() int32 {
+	return pmb.refCount.Load()
 }
