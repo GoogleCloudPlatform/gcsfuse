@@ -782,7 +782,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("enable-http-dns-cache", "", false, "Enables DNS cache for HTTP/1 connections")
+	flagSet.BoolP("enable-http-dns-cache", "", true, "Enables DNS cache for HTTP/1 connections")
 
 	if err := flagSet.MarkHidden("enable-http-dns-cache"); err != nil {
 		return err

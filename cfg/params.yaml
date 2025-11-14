@@ -466,7 +466,7 @@ params:
     flag-name: "enable-http-dns-cache"
     type: "bool"
     usage: "Enables DNS cache for HTTP/1 connections"
-    default: false
+    default: true
     hide-flag: true
 
   - config-path: "gcs-connection.experimental-enable-json-read"
