@@ -172,7 +172,7 @@ nrfiles=${NRFILES}
 </details>
 
 > [!NOTE]
-> Peformance for Random Writes to an existing file would be performance of complete file read and performance of complete file write.
+> Random Writes/Appends to an existing file are performed by first staging the whole file on disk so the whole file is read first and then upon `close` or `sync` the whole file is uploaded. So the performance would be similar to complete file upload in addition to the read of existing file.
 ---
 <!-- Benchmarks end -->
 
