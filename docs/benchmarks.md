@@ -16,7 +16,7 @@ workloads for the given test setup:
 * Framework: fio (version 3.39)
 * GCSFuse version: [v3.4.3](https://github.com/GoogleCloudPlatform/gcsfuse/releases/tag/v3.4.3)
 
-## fio workloads
+## Fio workloads
 Please read the details about the fio specification [here](https://fio.readthedocs.io/en/latest/).
 
 <!-- Benchmarks start -->
