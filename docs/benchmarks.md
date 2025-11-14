@@ -177,7 +177,8 @@ Note: Peformance for Random Writes to an existing file would be performance of c
 
 ## Steps to benchmark GCSFuse performance
 
-Note: GCSFuse performance may differ based on region of VM and GCS Bucket region and the GCSFuse version in use. To reproduce above benchmark please use the exact testing infra setup mentioned above. Use new GCS Bucket for each fio run which ensures for sequential write objects are not being overwritten.
+> [!IMPORTANT]
+> GCSFuse performance may differ based on region of VM and GCS Bucket region and the GCSFuse version in use. To reproduce above benchmark please use the exact testing infra setup mentioned above. Use new GCS Bucket for each fio run which ensures for sequential write objects are not being overwritten.
 
 1. [Create](https://cloud.google.com/compute/docs/instances/create-start-instance#publicimage)
    a GCP VM instance
