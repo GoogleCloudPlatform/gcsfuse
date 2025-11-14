@@ -170,7 +170,7 @@ func (c *Connection) Init() error {
 
 	// kernel 4.20 increases the max from 32 -> 256
 	initOp.Flags |= fusekernel.InitMaxPages
-	initOp.MaxPages = 1024
+	initOp.MaxPages = 2048
 
 	// Enable writeback caching if the user hasn't asked us not to.
 	if !c.cfg.DisableWritebackCaching {

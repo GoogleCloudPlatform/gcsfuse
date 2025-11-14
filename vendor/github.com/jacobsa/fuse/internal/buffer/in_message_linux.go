@@ -17,4 +17,4 @@ package buffer
 // The maximum fuse write request size that InMessage can acommodate.
 //
 // As of kernel 4.20 Linux accepts writes up to 256 pages or 1MiB
-const MaxWriteSize = 4 * 1024 * 1024
+const MaxWriteSize = 8 * 1024 * 1024
