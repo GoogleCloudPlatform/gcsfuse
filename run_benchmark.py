@@ -18,7 +18,7 @@ GCSFUSE_WORKSPACE = os.path.expanduser("~/workspace/gcsfuse")
 
 # Block sizes in MB
 BLOCK_SIZES_MB = [1] + list(range(10, 151, 10))
-# BLOCK_SIZES_MB = [1] + list(range(10, 11, 10))
+BLOCK_SIZES_MB = list(range(80, 81, 10))
 
 DATA_KEYS = ["block_size", "read_bw", "fio_output"]
 CSV_HEADERS = ["Block Size", "Read BW", "Complete FIO Output"]
