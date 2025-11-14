@@ -41,6 +41,7 @@ Please read the details about the FIO specification [here](https://fio.readthedo
 
 ##### GCSFuse Mount Options
 ```bash
+# See https://cloud.google.com/storage/docs/cloud-storage-fuse/cli-options#options for more details about each option here.
 --implicit-dirs
 --metadata-cache-ttl-secs=-1
 ```
@@ -74,14 +75,14 @@ nrfiles=${NRFILES}
 
 ### Random Reads
 | File Size | BlockSize | NRFiles | NumJobs | **Avg Bandwidth (MB/s)** | **Avg IOPS** | **Avg Latency (msec)** |
-| :---      | :---      | ---: | ---: | ---: | ---: | ---: |
-| 256 KiB   | 128 KiB   | 192 | 30| 1,591.49 | | |
-| 5 MiB     | 1 MiB     | 192 | 20 | 5,014.54 | | |
-| 10 MiB    | 1 MiB     | 192 | 20 | 4,197.65 | | |
-| 50 MiB    | 1 MiB     | 192 | 20 | 4,421.05 | | |
-| 100 MiB   | 1 MiB     | 192 | 10 | 4,454.59 | | |
-| 200 MiB   | 1 MiB     | 192 | 10 | 4,205.02 | | |
-| 1 GiB     | 1 MiB     | 192 | 10 | 4,107.23 | | |
+| :---      | :---      | ---:    | ---:    | ---:                     | ---:         | ---:                   |
+| 256 KiB   | 128 KiB   | 192     | 30      | 1,591.49                 |              |                        |
+| 5 MiB     | 1 MiB     | 192     | 20      | 5,014.54                 |              |                        | 
+| 10 MiB    | 1 MiB     | 192     | 20      | 4,197.65                 |              |                        |
+| 50 MiB    | 1 MiB     | 192     | 20      | 4,421.05                 |              |                        |
+| 100 MiB   | 1 MiB     | 192     | 10      | 4,454.59                 |              |                        |
+| 200 MiB   | 1 MiB     | 192     | 10      | 4,205.02                 |              |                        |
+| 1 GiB     | 1 MiB     | 192     | 10      | 4,107.23                 |              |                        |
 
 #### GCSFuse Mount Option and fio configuration
 <details>
@@ -89,6 +90,7 @@ nrfiles=${NRFILES}
 
 ##### GCSFuse Mount Options
 ```bash
+# See https://cloud.google.com/storage/docs/cloud-storage-fuse/cli-options#options for more details about each option here.
 --implicit-dirs
 --metadata-cache-ttl-secs=-1
 ```
@@ -122,20 +124,21 @@ nrfiles=${NRFILES}
 
 ### Sequential Writes
 | File Size | BlockSize | NRFiles | NumJobs | **Avg Bandwidth (MB/s)** | **Avg IOPS** | **Avg Latency (msec)** |
-| :--- | :--- | ---: | ---: | ---: | ---: | ---: |
-| 256 KiB | 16K KiB | 96 | 30| 170.88 | | |
-| 1 MiB | 1 MiB | 96 | 30 | 528.49 | | |
-| 50 MiB | 1 MiB | 96 | 30 | 3,581.07 | | |
-| 100 MiB | 1 MiB | 96 | 20 | 4,061.29 | | |
-| 500 MiB | 1 MiB | 96 | 20 | 4,569.04 | | |
-| 1 GiB | 1 MiB | 96 | 10 | 4,624.59 | | |
+| :---      | :---      | ---:    | ---:    | ---:                     | ---:         | ---:                   |
+| 256 KiB   | 16K KiB   | 96      | 30      | 170.88                   |              |                        |
+| 1 MiB     | 1 MiB     | 96      | 30      | 528.49                   |              |                        |
+| 50 MiB    | 1 MiB     | 96      | 30      | 3,581.07                 |              |                        |
+| 100 MiB   | 1 MiB     | 96      | 20      | 4,061.29                 |              |                        |
+| 500 MiB   | 1 MiB     | 96      | 20      | 4,569.04                 |              |                        |
+| 1 GiB     | 1 MiB     | 96      | 10      | 4,624.59                 |              |                        |
 
 #### GCSFuse Mount Option and fio configuration
 <details>
   <summary> Click to expand </summary> 
 
 ##### GCSFuse Mount Options
-```text
+```bash
+# See https://cloud.google.com/storage/docs/cloud-storage-fuse/cli-options#options for more details about each option here.
 --implicit-dirs
 --metadata-cache-ttl-secs=-1
 --write-global-max-blocks=-1
@@ -174,7 +177,7 @@ nrfiles=${NRFILES}
 ## Steps to benchmark GCSFuse performance
 
 1. [Create](https://cloud.google.com/compute/docs/instances/create-start-instance#publicimage)
-   a GCP VM instance. 
+   a GCP VM instance.
 2. [Connect](https://cloud.google.com/compute/docs/instances/connecting-to-instance)
    to the VM instance.
 3. Install FIO.
