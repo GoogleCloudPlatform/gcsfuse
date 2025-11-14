@@ -6,42 +6,116 @@ workloads for the given test setup:
 
 ## Test setup:
 
-* Infra: GCP VM
-* OS: ubuntu-20.04
+* Infra: GCP VM [C4-standard-192](https://cloud.google.com/compute/docs/general-purpose-machines#c4_series)
+* Network: [Tier_1](https://cloud.google.com/compute/docs/networking/configure-vm-with-high-bandwidth-configuration) Networking enabled on VM providing 200Gpbs egress bandwidth.
+* OS Version: [Ubuntu 22.04 LTS](https://cloud.google.com/compute/docs/images/os-details#notable-difference-ubuntu)
+* Image Family: [ubuntu-2204-lts](https://cloud.google.com/compute/docs/images/os-details#notable-difference-ubuntu)
+* Disk Type: [Hyperdisk Balanced](https://cloud.google.com/compute/docs/disks/hd-types/hyperdisk-balanced)
+* VM Region: us-south1
+* GCS Bucket Region: us-south1
 * Framework: FIO (version 3.39)
-* GCSFuse version: 2.11.1
+* GCSFuse version: 3.4.3
 
 ## FIO workloads
 Please read the details about the FIO specification [here](https://fio.readthedocs.io/en/latest/).
-### Reads 
-  ```
+### Sequential Reads
+| File Size | BlockSize | NRFiles | NumJobs | **Avg Bandwidth (MB/s)** | **Avg IOPS** | **Avg Latency (msec)** |
+| :--- | :--- | ---: | ---: | ---: | ---: | ---: |
+| 128 KiB | 128 KiB | 192 | 30 | 1,303.87 | | |
+| 256 KiB | 128 KiB | 192 | 30| 2,539.67 | | |
+| 1 MiB | 1 MiB | 192 | 30 | 6,204.93 | | |
+| 5 MiB | 1 MiB | 192 | 20 | 12,394.90 | | |
+| 10 MiB | 1 MiB | 192 | 20 | 14,489.90 | | |
+| 50 MiB | 1 MiB | 192 | 20 | 13,808.20 | | |
+| 100 MiB | 1 MiB | 144 | 10 | 13,433.40 | | |
+| 200 MiB | 1 MiB | 144 | 10 | 13,261.70 | | |
+| 1 GiB | 1 MiB | 144 | 10 | 14,198.00 | | |
+
+#### GCSFuse Mount Option and fio configuration
+<details>
+  <summary> Click to expand </summary> 
+
+##### GCSFuse Mount Options
+```text
+--implicit-dirs
+--metadata-cache-ttl-secs=-1
+```
+##### Fio templated configuration
+```ini
 [global]
-allrandrepeat=0
-create_serialize=0
+ioengine=libaio
 direct=1
 fadvise_hint=0
-file_service_type=random
-group_reporting=1
 iodepth=64
-ioengine=libaio
 invalidate=1
-numjobs=128
-openfiles=1
-# Change "read" to "randread" to test random reads.
-rw=read 
 thread=1
-filename_format=$jobname.$jobnum/$filenum
+openfiles=1
+group_reporting=1
+create_serialize=0
+allrandrepeat=0
+file_service_type=random
+rw=read
+filename_format=$jobname.$jobnum.$filenum.size-${FILESIZE}
 
-[experiment]
-stonewall
+[seq_read]
 directory=${DIR}
-# Update the block size value from the table for different experiments.
-bs=128K
-# Update the file size value from table(file size) for different experiments.
-filesize=128K
-# Set nrfiles per thread in such a way that the test runs for 1-2 min.
-nrfiles=30
-  ```
+filesize=${FILESIZE}
+bs=${BS}
+numjobs=${NUMJOBS}
+nrfiles=${NRFILES}
+```
+</details>
+
+---
+
+### Random Reads
+| File Size | BlockSize | NRFiles | NumJobs | **Avg Bandwidth (MB/s)** | **Avg IOPS** | **Avg Latency (msec)** |
+| :--- | :--- | ---: | ---: | ---: | ---: | ---: |
+| 256 KiB | 128 KiB | 192 | 30| 1,591.49 | | |
+| 5 MiB | 1 MiB | 192 | 20 | 5,014.54 | | |
+| 10 MiB | 1 MiB | 192 | 20 | 4,197.65 | | |
+| 50 MiB | 1 MiB | 192 | 20 | 4,421.05 | | |
+| 100 MiB | 1 MiB | 192 | 10 | 4,454.59 | | |
+| 200 MiB | 1 MiB | 192 | 10 | 4,205.02 | | |
+| 1 GiB | 1 MiB | 192 | 10 | 4,107.23 | | |
+
+#### GCSFuse Mount Option and fio configuration
+<details>
+  <summary> Click to expand </summary> 
+
+##### GCSFuse Mount Options
+```text
+--implicit-dirs
+--metadata-cache-ttl-secs=-1
+```
+##### Fio templated configuration
+```ini
+[global]
+ioengine=libaio
+direct=1
+fadvise_hint=0
+iodepth=64
+invalidate=1
+thread=1
+openfiles=1
+group_reporting=1
+create_serialize=0
+allrandrepeat=0
+file_service_type=random
+rw=randread
+filename_format=$jobname.$jobnum.$filenum.size-${FILESIZE}
+
+[rand_read]
+directory=${DIR}
+filesize=${FILESIZE}
+bs=${BS}
+numjobs=${NUMJOBS}
+nrfiles=${NRFILES}
+```
+</details>
+
+
+
 **Note:** Please note an update to our FIO read workload. This change accounts for the bandwidth difference between the current and [previous](https://github.com/GoogleCloudPlatform/gcsfuse/blob/26bc07f3dd210e05a7030954bb3e6070e957bfca/docs/benchmarks.md#sequential-read) n2 benchmarks.
 ### Writes
 ```
@@ -77,21 +151,10 @@ filesize=256K
 bs=16K
 ```
 **Note:** 
-* Benchmarking is done by writing out new files to GCS. Performance
-numbers will be different for edits/appends to existing files.
-
-* Random writes and sequential write performance will generally be the same, as
-all writes are first staged to a local temporary directory before being written
-to GCS on close/fsync.
 
 <!-- Benchmarks start -->
 
-## GCSFuse Benchmarking on c4 machine-type
-* VM Type: c4-standard-96
-* VM location: us-south1
-* Networking: gVNIC+  tier_1 networking (200Gbps)
-* Disk Type: Hyperdisk balanced 
-* GCS Bucket location: us-south1
+## GCSFuse Benchmarks on c4-standard-192 machine-type
 
 ### Sequential Reads
 | File Size | BlockSize | nrfiles |Bandwidth in (GiB/sec) | IOPs  |  Avg Latency (msec) |
