@@ -23,81 +23,50 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
 
-// SparseReadResult contains the result of a sparse file read operation.
-type SparseReadResult struct {
-	CacheHit         bool
-	NeedsFallbackGCS bool
-}
-
 // HandleSparseRead manages the download and validation of sparse file ranges.
 // It checks if the requested range is already downloaded, calculates chunk
 // boundaries, downloads missing chunks, and validates the cache hit status.
 //
-// Returns a SparseReadResult containing:
-// - CacheHit: whether the requested range is available in cache
-// - NeedsFallbackGCS: whether the operation should fallback to GCS
+// Returns:
+// - cacheHit: true if the requested range is available in cache, false if fallback to GCS is needed
+// - error: non-nil if there was an error during the operation
 //
 // Note: The FileInfo in the cache is automatically updated by DownloadRange.
-func (job *Job) HandleSparseRead(ctx context.Context, offset, requiredOffset int64) (SparseReadResult, error) {
+func (job *Job) HandleSparseRead(ctx context.Context, offset, requiredOffset int64) (cacheHit bool, err error) {
 	// Get current file info from cache
 	fileInfo, err := job.getFileInfo()
 	if err != nil {
-		return SparseReadResult{
-			CacheHit:         false,
-			NeedsFallbackGCS: true,
-		}, fmt.Errorf("HandleSparseRead: error getting file info: %w", err)
+		return false, fmt.Errorf("HandleSparseRead: error getting file info: %w", err)
 	}
 
 	// Check if the requested range is already downloaded
 	if fileInfo.DownloadedRanges.ContainsRange(uint64(offset), uint64(requiredOffset)) {
 		// Range already downloaded, return cache hit
-		return SparseReadResult{
-			CacheHit:         true,
-			NeedsFallbackGCS: false,
-		}, nil
+		return true, nil
 	}
 
 	// Calculate the chunk boundaries to download
 	chunkStart, chunkEnd, err := job.calculateSparseChunkBoundaries(offset, requiredOffset)
 	if err != nil {
-		return SparseReadResult{
-			CacheHit:         false,
-			NeedsFallbackGCS: true,
-		}, fmt.Errorf("HandleSparseRead: error calculating chunk boundaries: %w", err)
+		return false, fmt.Errorf("HandleSparseRead: error calculating chunk boundaries: %w", err)
 	}
 
 	// Download the chunk
 	if err := job.DownloadRange(ctx, chunkStart, chunkEnd); err != nil {
-		logger.Infof("Sparse file download failed for range [%d, %d): %v. Falling back to GCS for this read.", chunkStart, chunkEnd, err)
-		return SparseReadResult{
-			CacheHit:         false,
-			NeedsFallbackGCS: true,
-		}, nil
+		return false, fmt.Errorf("download failed for range [%d, %d): %w", chunkStart, chunkEnd, err)
 	}
 
 	// Verify the download was successful
-	cacheHit, err := job.verifySparseRangeDownloaded(offset, requiredOffset)
+	cacheHit, err = job.verifySparseRangeDownloaded(offset, requiredOffset)
 	if err != nil {
-		logger.Infof("Error verifying sparse file download: %v. Falling back to GCS for this read.", err)
-		return SparseReadResult{
-			CacheHit:         false,
-			NeedsFallbackGCS: true,
-		}, nil
+		return false, fmt.Errorf("error verifying download: %w", err)
 	}
 
 	if !cacheHit {
-		logger.Errorf("Sparse file cache misses even after a seemingly successful download: offset=%d, requiredOffset=%d",
-			offset, requiredOffset)
-		return SparseReadResult{
-			CacheHit:         false,
-			NeedsFallbackGCS: true,
-		}, nil
+		return false, fmt.Errorf("cache miss after download: range [%d, %d) not found in downloaded ranges", offset, requiredOffset)
 	}
 
-	return SparseReadResult{
-		CacheHit:         true,
-		NeedsFallbackGCS: false,
-	}, nil
+	return true, nil
 }
 
 // getFileInfo retrieves the FileInfo from cache for this job's object.

@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
 
@@ -196,14 +197,15 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 
 	// Handle sparse file reads
 	if fileInfoData.SparseMode {
-		result, err := fch.fileDownloadJob.HandleSparseRead(ctx, offset, requiredOffset)
+		cacheHit, err = fch.fileDownloadJob.HandleSparseRead(ctx, offset, requiredOffset)
 		if err != nil {
-			return 0, false, fmt.Errorf("sparse file read error: %w", err)
-		}
-		if result.NeedsFallbackGCS {
+			// Log the error and fallback to GCS
+			logger.Infof("Sparse file read failed: %v. Falling back to GCS.", err)
 			return 0, false, util.ErrFallbackToGCS
 		}
-		cacheHit = result.CacheHit
+		if !cacheHit {
+			return 0, false, util.ErrFallbackToGCS
+		}
 	} else if fch.fileDownloadJob != nil {
 		// If fileDownloadJob is not nil, it's better to get status of cache file
 		// from the job itself than to use file info cache.
