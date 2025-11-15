@@ -31,10 +31,10 @@ import (
 )
 
 const (
-	testDirName      = "sparse_file_test"
-	largeFileSize    = 100 * 1024 * 1024 // 100MB
-	chunkSize        = 20 * 1024 * 1024  // 20MB
-	smallReadSize    = 1 * 1024 * 1024   // 1MB
+	testDirName   = "sparse_file_test"
+	largeFileSize = 100 * 1024 * 1024 // 100MB
+	chunkSize     = 20 * 1024 * 1024  // 20MB
+	smallReadSize = 1 * 1024 * 1024   // 1MB
 )
 
 type sparseFileTest struct {
