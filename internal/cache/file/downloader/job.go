@@ -140,11 +140,6 @@ func NewJob(
 	return
 }
 
-// SequentialReadSizeMb returns the sequential read size in MB for this job.
-func (job *Job) SequentialReadSizeMb() int64 {
-	return int64(job.sequentialReadSizeMb)
-}
-
 // checkInvariants panic if any internal invariants have been violated.
 func (job *Job) checkInvariants() {
 	// INVARIANT: Each subscriber is of type jobSubscriber
@@ -410,7 +405,7 @@ func (job *Job) createCacheFile() (*os.File, error) {
 
 // DownloadRange downloads a specific byte range [start, end) from the GCS object
 // for sparse file support. It writes the data to the cache file at the appropriate
-// offset using O_DIRECT.
+// offset.
 //
 // Acquires and releases LOCK(job.mu)
 func (job *Job) DownloadRange(ctx context.Context, start, end uint64) error {

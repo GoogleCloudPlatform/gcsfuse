@@ -28,18 +28,21 @@ type ByteRange struct {
 }
 
 // ByteRangeMap tracks which chunk-aligned byte ranges have been downloaded in a sparse file.
-// It uses fixed-size chunks (1MB by default) for simplified tracking and assumes all downloads
-// are aligned to chunk boundaries.
+// The chunk size should match the actual download chunk size for efficient tracking.
 type ByteRangeMap struct {
 	mu        sync.RWMutex
 	chunkSize uint64
 	chunks    map[uint64]bool // chunk ID -> downloaded
 }
 
-// NewByteRangeMap creates a new empty ByteRangeMap with 1MB chunks
-func NewByteRangeMap() *ByteRangeMap {
+// NewByteRangeMap creates a new empty ByteRangeMap with the specified chunk size.
+// The chunkSize should match the download chunk size (e.g., DownloadChunkSizeMb * 1MB).
+func NewByteRangeMap(chunkSize uint64) *ByteRangeMap {
+	if chunkSize == 0 {
+		chunkSize = DefaultChunkSize
+	}
 	return &ByteRangeMap{
-		chunkSize: DefaultChunkSize,
+		chunkSize: chunkSize,
 		chunks:    make(map[uint64]bool),
 	}
 }
