@@ -96,7 +96,7 @@ func (s *sparseFileTest) TestRandomReadsDownloadOnlyRequiredChunks() {
 	}
 
 	// Upload to GCS
-	err := client.WriteToObject(s.ctx, s.storageClient, objectPath, content)
+	err := client.WriteToObject(s.ctx, s.storageClient, objectPath, string(content), storage.Conditions{})
 	require.NoError(s.T(), err)
 
 	mountedFilePath := path.Join(setup.MntDir(), testDirName, objectName)
@@ -142,7 +142,7 @@ func (s *sparseFileTest) TestSubsequentReadsAreCacheHits() {
 		content[i] = byte(i % 256)
 	}
 
-	err := client.WriteToObject(s.ctx, s.storageClient, objectPath, content)
+	err := client.WriteToObject(s.ctx, s.storageClient, objectPath, string(content), storage.Conditions{})
 	require.NoError(s.T(), err)
 
 	mountedFilePath := path.Join(setup.MntDir(), testDirName, objectName)
@@ -192,7 +192,7 @@ func (s *sparseFileTest) TestSequentialReadsWithSparseFiles() {
 		content[i] = byte(i % 256)
 	}
 
-	err := client.WriteToObject(s.ctx, s.storageClient, objectPath, content)
+	err := client.WriteToObject(s.ctx, s.storageClient, objectPath, string(content), storage.Conditions{})
 	require.NoError(s.T(), err)
 
 	mountedFilePath := path.Join(setup.MntDir(), testDirName, objectName)
@@ -220,7 +220,7 @@ func (s *sparseFileTest) TestReadsAtChunkBoundaries() {
 		content[i] = byte(i % 256)
 	}
 
-	err := client.WriteToObject(s.ctx, s.storageClient, objectPath, content)
+	err := client.WriteToObject(s.ctx, s.storageClient, objectPath, string(content), storage.Conditions{})
 	require.NoError(s.T(), err)
 
 	mountedFilePath := path.Join(setup.MntDir(), testDirName, objectName)
