@@ -48,8 +48,8 @@ type FileInfo struct {
 	ObjectGeneration int64
 	Offset           uint64 // For non-sparse files: bytes downloaded so far. For sparse files: set to MaxUint64 as sentinel
 	FileSize         uint64
-	SparseMode       bool           // Whether this file is using sparse file mode
-	DownloadedRanges *ByteRangeMap  // For sparse files: tracks which byte ranges have been downloaded
+	SparseMode       bool          // Whether this file is using sparse file mode
+	DownloadedRanges *ByteRangeMap // For sparse files: tracks which byte ranges have been downloaded
 }
 
 func (fi FileInfo) Size() uint64 {

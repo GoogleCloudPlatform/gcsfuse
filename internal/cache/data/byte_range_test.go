@@ -29,7 +29,7 @@ func TestByteRangeMap_AddRange(t *testing.T) {
 		addStart       uint64
 		addEnd         uint64
 		expectedRanges []ByteRange // chunk-aligned ranges
-		expectedAdded  uint64       // bytes added (chunk size multiples)
+		expectedAdded  uint64      // bytes added (chunk size multiples)
 	}{
 		{
 			name:           "add to empty map - single chunk",
@@ -125,9 +125,9 @@ func TestByteRangeMap_AddRange(t *testing.T) {
 
 func TestByteRangeMap_ContainsRange(t *testing.T) {
 	brm := NewByteRangeMap(DefaultChunkSize)
-	brm.AddRange(0, MB)       // chunk 0
-	brm.AddRange(2*MB, 3*MB)  // chunk 2
-	brm.AddRange(5*MB, 6*MB)  // chunk 5
+	brm.AddRange(0, MB)      // chunk 0
+	brm.AddRange(2*MB, 3*MB) // chunk 2
+	brm.AddRange(5*MB, 6*MB) // chunk 5
 
 	tests := []struct {
 		name     string
@@ -155,9 +155,9 @@ func TestByteRangeMap_ContainsRange(t *testing.T) {
 
 func TestByteRangeMap_GetMissingRanges(t *testing.T) {
 	brm := NewByteRangeMap(DefaultChunkSize)
-	brm.AddRange(0, MB)       // chunk 0
-	brm.AddRange(2*MB, 3*MB)  // chunk 2
-	brm.AddRange(5*MB, 6*MB)  // chunk 5
+	brm.AddRange(0, MB)      // chunk 0
+	brm.AddRange(2*MB, 3*MB) // chunk 2
+	brm.AddRange(5*MB, 6*MB) // chunk 5
 
 	tests := []struct {
 		name     string
@@ -232,7 +232,7 @@ func TestByteRangeMap_TotalBytes(t *testing.T) {
 	brm.AddRange(2*MB, 4*MB) // 2 chunks
 	assert.Equal(t, uint64(3*MB), brm.TotalBytes())
 
-	brm.AddRange(MB, 2*MB) // 1 chunk, fills gap
+	brm.AddRange(MB, 2*MB)                          // 1 chunk, fills gap
 	assert.Equal(t, uint64(4*MB), brm.TotalBytes()) // 4 contiguous chunks
 }
 

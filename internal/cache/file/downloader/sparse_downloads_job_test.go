@@ -51,14 +51,14 @@ func (dt *sparseDownloaderTest) SetUp(*TestInfo) {
 
 func (dt *sparseDownloaderTest) Test_calculateSparseChunkBoundaries() {
 	tests := []struct {
-		name              string
-		offset            int64
-		requiredOffset    int64
-		chunkSizeMb       int64
-		objectSize        uint64
-		expectedStart     uint64
-		expectedEnd       uint64
-		expectError       bool
+		name           string
+		offset         int64
+		requiredOffset int64
+		chunkSizeMb    int64
+		objectSize     uint64
+		expectedStart  uint64
+		expectedEnd    uint64
+		expectError    bool
 	}{
 		{
 			name:           "single chunk - aligned",
