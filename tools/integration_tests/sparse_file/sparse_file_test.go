@@ -24,6 +24,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/require"
@@ -61,7 +62,8 @@ func (s *sparseFileTest) SetupSuite() {
 		fmt.Sprintf("--file-cache-download-chunk-size-mb=%d", chunkSize/(1024*1024)),
 	}
 
-	setup.MountGCSFuseWithGivenMountFunc(s.flags, &s.ctx, s.storageClient, setup.MountGCSFuseForTesting)
+	err = static_mounting.MountGcsfuseWithStaticMounting(s.flags)
+	require.NoError(s.T(), err)
 }
 
 func (s *sparseFileTest) SetupTest() {
@@ -74,7 +76,7 @@ func (s *sparseFileTest) TearDownTest() {
 }
 
 func (s *sparseFileTest) TearDownSuite() {
-	setup.UnmountGCSFuse(setup.TestDir())
+	setup.UnmountGCSFuseAndDeleteLogFile(setup.TestDir())
 }
 
 func TestSparseFile(t *testing.T) {
