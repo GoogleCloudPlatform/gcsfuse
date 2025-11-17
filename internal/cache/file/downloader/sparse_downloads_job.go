@@ -155,26 +155,6 @@ func (job *Job) verifySparseRangeDownloaded(offset, requiredOffset int64) (cache
 	return cacheHit, nil
 }
 
-// IsSparseFile returns true if the object is configured for sparse file mode.
-func (job *Job) IsSparseFile(bucket gcs.Bucket, object *gcs.MinObject) (bool, error) {
-	fileInfoKey := data.FileInfoKey{
-		BucketName: bucket.Name(),
-		ObjectName: object.Name,
-	}
-	fileInfoKeyName, err := fileInfoKey.Key()
-	if err != nil {
-		return false, fmt.Errorf("error creating fileInfoKeyName: %w", err)
-	}
-
-	fileInfoVal := job.fileInfoCache.LookUpWithoutChangingOrder(fileInfoKeyName)
-	if fileInfoVal == nil {
-		return false, nil
-	}
-
-	fileInfo := fileInfoVal.(data.FileInfo)
-	return fileInfo.SparseMode, nil
-}
-
 // DownloadRange downloads a specific byte range [start, end) from the GCS object
 // for sparse file support. It writes the data to the cache file at the appropriate
 // offset.

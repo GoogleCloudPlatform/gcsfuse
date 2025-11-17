@@ -250,9 +250,10 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 		return nil, util.ErrFileExcludedFromCacheByRegex
 	}
 
-	// If cacheForRangeRead is set to False, initialOffset is non-zero (i.e. random read)
-	// and entry for file doesn't already exist in fileInfoCache then no need to
-	// create file in cache.
+	// If cacheForRangeRead is set to False, initialOffset is non-zero (i.e. random read),
+	// not in sparse mode, and entry for file doesn't already exist in fileInfoCache
+	// then no need to create file in cache. Sparse files need cache handles even for
+	// random reads to track downloaded ranges.
 	if !cacheForRangeRead && initialOffset != 0 && !chr.isSparse {
 		fileInfoKey := data.FileInfoKey{
 			BucketName: bucket.Name(),
