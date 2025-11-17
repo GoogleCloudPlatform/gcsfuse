@@ -180,7 +180,7 @@ func (dt *sparseDownloaderTest) Test_DownloadRange() {
 	// Download a range [10MB, 30MB)
 	start := uint64(10 * util.MiB)
 	end := uint64(30 * util.MiB)
-	err = dt.job.DownloadRange(context.Background(), start, end)
+	err = dt.job.downloadSparseRange(context.Background(), start, end)
 	AssertEq(nil, err)
 
 	// Verify the content was written correctly
