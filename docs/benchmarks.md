@@ -172,7 +172,11 @@ nrfiles=${NRFILES}
 </details>
 
 > [!NOTE]
-> Random writes and appends to existing files are handled by first downloading the entire file. After changes are made locally, the entire file is uploaded again on `close` or `sync`. This results in performance similar to a full file read followed by a full file write.
+> Edits and appends to existing files are handled by first downloading the entire file. After changes are made locally, the entire file is uploaded again on `close` or `sync`. This results in performance similar to a full file read followed by a full file write.
+
+> [!NOTE]
+> The bandwidth observed during benchmark runs can vary by up to 10%. This variation is expected and is due to normal fluctuations in Google Cloud Storage. To obtain more statistically reliable results, we recommend running the benchmarks multiple times. The numbers published above are the average of 5 runs.
+
 ---
 <!-- Benchmarks end -->
 
