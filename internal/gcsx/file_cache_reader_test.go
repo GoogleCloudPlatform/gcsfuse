@@ -711,7 +711,6 @@ func (t *fileCacheReaderTest) Test_Concurrent_ReadAt() {
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(rd, nil).Once()
 	t.mockBucket.On("Name").Return("test-bucket")
 	t.mockBucket.On("BucketType").Return(t.bucketType)
-
 	var wg sync.WaitGroup
 	numGoroutines := 5
 
@@ -729,12 +728,21 @@ func (t *fileCacheReaderTest) Test_Concurrent_ReadAt() {
 			assert.Equal(t.T(), testContent, buf)
 		}()
 	}
+	// Wait for all goroutines or timeout
+	done := make(chan bool)
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
 
-	wg.Wait()
-
-	// Final Assertions
-	t.mockBucket.AssertExpectations(t.T())
-	assert.NotNil(t.T(), t.reader.fileCacheHandle)
+	select {
+	case <-done:
+		// Final Assertions
+		t.mockBucket.AssertExpectations(t.T())
+		assert.NotNil(t.T(), t.reader.fileCacheHandle)
+	case <-time.After(10 * time.Second):
+		assert.Fail(t.T(), "Test timed out, potential deadlock.")
+	}
 }
 
 func (t *fileCacheReaderTest) Test_Concurrent_ReadAt_And_Destroy() {
@@ -745,33 +753,31 @@ func (t *fileCacheReaderTest) Test_Concurrent_ReadAt_And_Destroy() {
 	t.mockNewReaderWithHandleCallForTestBucket(t.object.Size, rd)
 	t.mockBucket.On("Name").Return("test-bucket")
 	t.mockBucket.On("BucketType").Return(t.bucketType)
-
 	var wg sync.WaitGroup
 	numGoroutines := 20
 	wg.Add(numGoroutines)
 
 	// Act: Concurrently try to read and destroy from a bunch of goroutines.
-	for i := 0; i < numGoroutines; i++ {
-		if i%2 == 0 {
-			// Reader goroutine
-			go func() {
-				defer wg.Done()
-				// This read should not cause a panic, even if Destroy() nils out the handle
-				// in the middle of the operation.
-				buf := make([]byte, t.object.Size)
-				_, err := t.reader.ReadAt(t.ctx, buf, 0)
+	// Reader goroutines
+	for i := 0; i < numGoroutines/2; i++ {
+		go func() {
+			defer wg.Done()
+			// This read should not cause a panic, even if Destroy() nils out the handle
+			// in the middle of the operation.
+			buf := make([]byte, t.object.Size)
+			_, err := t.reader.ReadAt(t.ctx, buf, 0)
 
-				// Assert: The read might fail with a fallback error or succeed if it completes before Destroy.
-				// The key is that it doesn't panic.
-				assert.True(t.T(), err == nil || errors.Is(err, FallbackToAnotherReader))
-			}()
-		} else {
-			// Destroyer goroutine
-			go func() {
-				defer wg.Done()
-				t.reader.Destroy()
-			}()
-		}
+			// Assert: The read might fail with a fallback error or succeed if it completes before Destroy.
+			// The key is that it doesn't panic.
+			assert.True(t.T(), err == nil || errors.Is(err, FallbackToAnotherReader))
+		}()
+	}
+	// Destroyer goroutines
+	for i := 0; i < numGoroutines/2; i++ {
+		go func() {
+			defer wg.Done()
+			t.reader.Destroy()
+		}()
 	}
 
 	wg.Wait()
