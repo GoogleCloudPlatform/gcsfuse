@@ -129,22 +129,11 @@ func (job *Job) calculateSparseChunkBoundaries(startOffset, endOffset int64) (ch
 // - cacheHit: whether the range is present in the downloaded ranges
 // - err: any error that occurred while fetching the FileInfo
 func (job *Job) verifySparseRangeDownloaded(startOffset, endOffset int64) (cacheHit bool, err error) {
-	// Create file info key
-	fileInfoKey := data.FileInfoKey{
-		BucketName: job.bucket.Name(),
-		ObjectName: job.object.Name,
-	}
-	fileInfoKeyName, err := fileInfoKey.Key()
-	if err != nil {
-		return false, fmt.Errorf("error creating fileInfoKeyName: %w", err)
-	}
-
 	// Fetch updated file info from cache
-	fileInfoVal := job.fileInfoCache.LookUpWithoutChangingOrder(fileInfoKeyName)
-	if fileInfoVal == nil {
-		return false, fmt.Errorf("file info not found in cache after download")
+	fileInfo, err := job.getFileInfo()
+	if err != nil {
+		return false, fmt.Errorf("verifySparseRangeDownloaded: %w", err)
 	}
-	fileInfo := fileInfoVal.(data.FileInfo)
 
 	// Check if the range is downloaded
 	cacheHit = fileInfo.DownloadedRanges != nil && fileInfo.DownloadedRanges.ContainsRange(uint64(startOffset), uint64(endOffset))
