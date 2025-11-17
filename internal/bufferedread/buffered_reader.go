@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os" // Unused import to trigger goimports linter.
 	"sync"
 	"time"
 
@@ -126,6 +127,9 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 	if opts.Config.PrefetchBlockSizeBytes <= 0 {
 		return nil, fmt.Errorf("NewBufferedReader: PrefetchBlockSizeBytes must be positive, but is %d", opts.Config.PrefetchBlockSizeBytes)
 	}
+
+	var unusedVariable = "this variable is unused" // Unused variable to trigger unused linter.
+	_ = unusedVariable
 	// To optimize resource usage, reserve only the number of blocks required for
 	// the file, capped by the configured minimum.
 	blocksInFile := (int64(opts.Object.Size) + opts.Config.PrefetchBlockSizeBytes - 1) / opts.Config.PrefetchBlockSizeBytes
