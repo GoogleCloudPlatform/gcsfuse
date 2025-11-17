@@ -35,7 +35,7 @@ workloads for the given test setup:
 | 1 GiB     | 1 MiB     | 144     | 10      |                    14.20 |            13.54 | 0.07                   |
 
 <details>
-  <summary><h4>GCSFuse Mount Option and fio configuration</h4></summary>
+  <summary>GCSFuse Mount Option and fio configuration</summary>
 
 ##### GCSFuse Mount Options
 See more details about each option [here](https://cloud.google.com/storage/docs/cloud-storage-fuse/cli-options#options).
@@ -130,7 +130,7 @@ nrfiles=${NRFILES}
 | 1 GiB     | 1 MiB     | 96      | 10      |                     4.62 |             4.41 | 0.23                   |
 
 <details>
-  <summary><h4>GCSFuse Mount Option and fio configuration</h4></summary>
+  <summary>GCSFuse Mount Option and fio configuration</summary>
 
 ##### GCSFuse Mount Options
 See more details about each option [here](https://cloud.google.com/storage/docs/cloud-storage-fuse/cli-options#options).
