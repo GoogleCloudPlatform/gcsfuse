@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -37,6 +38,11 @@ const (
 	MiB    = 1 << 20
 )
 
+// FileCacheReader is a reader that attempts to satisfy read requests for a GCS
+// object from a local file cache. It is designed to be part of a layered
+// reading strategy, where it acts as the first-level cache.
+//
+// FileCacheReader supports parallel reads.
 type FileCacheReader struct {
 	Reader
 	object *gcs.MinObject
@@ -50,8 +56,12 @@ type FileCacheReader struct {
 	// will be downloaded for random reads as well too.
 	cacheFileForRangeRead bool
 
+	// To synchronize access to fileCacheHandle.
+	mu sync.RWMutex
+
 	// fileCacheHandle is used to read from the cached location. It is created on the fly
 	// using fileCacheHandler for the given object and bucket.
+	// GUARDED_BY(mu)
 	fileCacheHandle *file.CacheHandle
 
 	metricHandle metrics.MetricHandle
@@ -109,9 +119,11 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 		if err != nil {
 			requestOutput = fmt.Sprintf("err: %v (%v)", err, executionTime)
 		} else {
+			fc.mu.RLock()
 			if fc.fileCacheHandle != nil {
 				isSequential = fc.fileCacheHandle.IsSequential(offset)
 			}
+			fc.mu.RUnlock()
 			requestOutput = fmt.Sprintf("OK (isSeq: %t, cacheHit: %t) (%v)", isSequential, cacheHit, executionTime)
 		}
 
@@ -125,9 +137,11 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 	}()
 
 	// Create fileCacheHandle if not already.
+	fc.mu.Lock()
 	if fc.fileCacheHandle == nil {
 		fc.fileCacheHandle, err = fc.fileCacheHandler.GetCacheHandle(fc.object, fc.bucket, fc.cacheFileForRangeRead, offset)
 		if err != nil {
+			fc.mu.Unlock()
 			cacheHit = false
 			bytesRead = 0
 			switch {
@@ -150,8 +164,17 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 			}
 		}
 	}
+	fc.mu.Unlock()
 
+	fc.mu.RLock()
+	// Because we're releasing write lock & then taking a read lock, we need to perform a nil check before accessing
+	// fileCacheHandle as some other thread could have set it to nil in between.
+	if fc.fileCacheHandle == nil {
+		fc.mu.RUnlock()
+		return 0, false, nil
+	}
 	bytesRead, cacheHit, err = fc.fileCacheHandle.Read(ctx, fc.bucket, fc.object, offset, p)
+	fc.mu.RUnlock()
 	if err == nil {
 		return bytesRead, cacheHit, nil
 	}
@@ -160,12 +183,16 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 	cacheHit = false
 
 	if cacheUtil.IsCacheHandleInvalid(err) {
-		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", fc.fileCacheHandle, fc.bucket.Name(), fc.object.Name)
-		closeErr := fc.fileCacheHandle.Close()
-		if closeErr != nil {
-			logger.Warnf("tryReadingFromFileCache: close cacheHandle error: %v", closeErr)
+		fc.mu.Lock()
+		if fc.fileCacheHandle != nil {
+			logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", fc.fileCacheHandle, fc.bucket.Name(), fc.object.Name)
+			closeErr := fc.fileCacheHandle.Close()
+			if closeErr != nil {
+				logger.Warnf("tryReadingFromFileCache: close cacheHandle error: %v", closeErr)
+			}
+			fc.fileCacheHandle = nil
 		}
-		fc.fileCacheHandle = nil
+		fc.mu.Unlock()
 	} else if !errors.Is(err, cacheUtil.ErrFallbackToGCS) {
 		err = fmt.Errorf("tryReadingFromFileCache: while reading via cache: %w", err)
 		return 0, false, err
@@ -207,6 +234,8 @@ func captureFileCacheMetrics(ctx context.Context, metricHandle metrics.MetricHan
 }
 
 func (fc *FileCacheReader) Destroy() {
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
 	if fc.fileCacheHandle != nil {
 		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", fc.fileCacheHandle, fc.bucket.Name(), fc.object.Name)
 		err := fc.fileCacheHandle.Close()

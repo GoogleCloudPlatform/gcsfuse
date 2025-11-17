@@ -183,6 +183,9 @@ type randomReader struct {
 
 	// To synchronize reads served from range reader.
 	mu sync.Mutex
+
+	// To synchronize access to fileCacheHandle
+	fileCacheMu sync.RWMutex
 }
 
 type readInfo struct {
@@ -248,9 +251,11 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 		if err != nil {
 			requestOutput = fmt.Sprintf("err: %v (%v)", err, executionTime)
 		} else {
+			rr.fileCacheMu.RLock()
 			if rr.fileCacheHandle != nil {
 				isSeq = rr.fileCacheHandle.IsSequential(offset)
 			}
+			rr.fileCacheMu.RUnlock()
 			requestOutput = fmt.Sprintf("OK (isSeq: %t, hit: %t) (%v)", isSeq, cacheHit, executionTime)
 		}
 
@@ -265,9 +270,11 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 	}()
 
 	// Create fileCacheHandle if not already.
+	rr.fileCacheMu.Lock()
 	if rr.fileCacheHandle == nil {
 		rr.fileCacheHandle, err = rr.fileCacheHandler.GetCacheHandle(rr.object, rr.bucket, rr.cacheFileForRangeRead, offset)
 		if err != nil {
+			rr.fileCacheMu.Unlock()
 			// We fall back to GCS if file size is greater than the cache size
 			if errors.Is(err, lru.ErrInvalidEntrySize) {
 				logger.Warnf("tryReadingFromFileCache: while creating CacheHandle: %v", err)
@@ -285,8 +292,15 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 			return 0, false, fmt.Errorf("tryReadingFromFileCache: while creating CacheHandle instance: %w", err)
 		}
 	}
+	rr.fileCacheMu.Unlock()
 
+	rr.fileCacheMu.RLock()
+	if rr.fileCacheHandle == nil {
+		rr.fileCacheMu.RUnlock()
+		return
+	}
 	n, cacheHit, err = rr.fileCacheHandle.Read(ctx, rr.bucket, rr.object, offset, p)
+	rr.fileCacheMu.RUnlock()
 	if err == nil {
 		return
 	}
@@ -295,12 +309,16 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 	n = 0
 
 	if cacheutil.IsCacheHandleInvalid(err) {
-		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
-		err = rr.fileCacheHandle.Close()
-		if err != nil {
-			logger.Warnf("tryReadingFromFileCache: while closing fileCacheHandle: %v", err)
+		rr.fileCacheMu.Lock()
+		if rr.fileCacheHandle != nil {
+			logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
+			err = rr.fileCacheHandle.Close()
+			if err != nil {
+				logger.Warnf("tryReadingFromFileCache: while closing fileCacheHandle: %v", err)
+			}
+			rr.fileCacheHandle = nil
 		}
-		rr.fileCacheHandle = nil
+		rr.fileCacheMu.Unlock()
 	} else if !errors.Is(err, cacheutil.ErrFallbackToGCS) {
 		err = fmt.Errorf("tryReadingFromFileCache: while reading via cache: %w", err)
 		return
@@ -413,6 +431,8 @@ func (rr *randomReader) Destroy() {
 		rr.cancel = nil
 	}
 
+	rr.fileCacheMu.Lock()
+	defer rr.fileCacheMu.Unlock()
 	if rr.fileCacheHandle != nil {
 		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
 		err := rr.fileCacheHandle.Close()

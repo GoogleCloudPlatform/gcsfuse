@@ -22,6 +22,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"sync"
 	"testing"
 	"time"
 
@@ -698,4 +699,86 @@ func (t *fileCacheReaderTest) Test_Destroy_NilCacheHandle() {
 	t.reader.Destroy()
 
 	assert.Nil(nil, t.reader.fileCacheHandle)
+}
+
+func (t *fileCacheReaderTest) Test_Concurrent_ReadAt() {
+	// Setup
+	t.object.Size = 100
+	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
+	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
+	// Mock NewReaderWithReadHandle for the downloader job, which is triggered by GetCacheHandle.
+	// This should only be called once across all concurrent reads.
+	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(rd, nil).Once()
+	t.mockBucket.On("Name").Return("test-bucket")
+	t.mockBucket.On("BucketType").Return(t.bucketType)
+	var wg sync.WaitGroup
+	numGoroutines := 5
+
+	// Act
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			buf := make([]byte, t.object.Size)
+			readResponse, err := t.reader.ReadAt(t.ctx, buf, 0)
+
+			// Assert
+			assert.NoError(t.T(), err)
+			assert.Equal(t.T(), int(t.object.Size), readResponse.Size)
+			assert.Equal(t.T(), testContent, buf)
+		}()
+	}
+	// Wait for all goroutines or timeout
+	done := make(chan bool)
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// Final Assertions
+		t.mockBucket.AssertExpectations(t.T())
+		assert.NotNil(t.T(), t.reader.fileCacheHandle)
+	case <-time.After(10 * time.Second):
+		assert.Fail(t.T(), "Test timed out, potential deadlock.")
+	}
+}
+
+func (t *fileCacheReaderTest) Test_Concurrent_ReadAt_And_Destroy() {
+	// Setup
+	t.object.Size = 100
+	testContent := testutil.GenerateRandomBytes(int(t.object.Size))
+	rd := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
+	t.mockNewReaderWithHandleCallForTestBucket(t.object.Size, rd)
+	t.mockBucket.On("Name").Return("test-bucket")
+	t.mockBucket.On("BucketType").Return(t.bucketType)
+	var wg sync.WaitGroup
+	numGoroutines := 20
+	wg.Add(numGoroutines)
+
+	// Act: Concurrently try to read and destroy from a bunch of goroutines.
+	// Reader goroutines
+	for i := 0; i < numGoroutines/2; i++ {
+		go func() {
+			defer wg.Done()
+			// This read should not cause a panic, even if Destroy() nils out the handle
+			// in the middle of the operation.
+			buf := make([]byte, t.object.Size)
+			_, err := t.reader.ReadAt(t.ctx, buf, 0)
+
+			// Assert: The read might fail with a fallback error or succeed if it completes before Destroy.
+			// The key is that it doesn't panic.
+			assert.True(t.T(), err == nil || errors.Is(err, FallbackToAnotherReader))
+		}()
+	}
+	// Destroyer goroutines
+	for i := 0; i < numGoroutines/2; i++ {
+		go func() {
+			defer wg.Done()
+			t.reader.Destroy()
+		}()
+	}
+
+	wg.Wait()
 }
