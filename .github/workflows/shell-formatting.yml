@@ -1,0 +1,40 @@
+name: Shell Formatting
+
+on:
+  pull_request_target:
+    paths:
+      - "**.sh"
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  reformat_with_shfmt:
+    runs-on: ubuntu-latest
+    permissions:
+      # Write permissions are required to commit changes back to the PR branch.
+      contents: write
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          # Check out the head of the pull request.
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          # A token with write permissions is needed to push changes.
+          token: ${{ secrets.GO_REFORMAT_TOKEN }}
+
+      - name: Run shfmt
+        uses: reviewdog/action-shfmt@v1
+        with:
+          shfmt_flags: "-w ."
+
+      - name: Commit changes
+        uses: EndBug/add-and-commit@v9
+        with:
+          message: "style: apply shfmt formatting"
+          author_name: ${{ github.actor }}
+          author_email: ${{ github.actor }}@users.noreply.github.com
+          commit: --signoff

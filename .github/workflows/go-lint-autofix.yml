@@ -1,0 +1,42 @@
+name: Go Lint Autofix
+
+on:
+  pull_request_target:
+    paths:
+      - "**.go"
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  autofix_with_golangci_lint:
+    runs-on: ubuntu-latest
+    permissions:
+      # Write permissions are required to commit changes back to the PR branch.
+      contents: write
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          # Check out the head of the pull request.
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          # A token with write permissions is needed to push changes.
+          token: ${{ secrets.GO_REFORMAT_TOKEN }}
+
+      - name: Run golangci-lint with autofix
+        uses: golangci/golangci-lint-action@v6
+        with:
+          # The version should be kept in sync with other linting jobs.
+          version: v1.59
+          args: run --fix -E=unused
+
+      - name: Commit changes
+        uses: EndBug/add-and-commit@v9
+        with:
+          message: "style: apply golangci-lint autofixes"
+          author_name: ${{ github.actor }}
+          author_email: ${{ github.actor }}@users.noreply.github.com
+          commit: --signoff

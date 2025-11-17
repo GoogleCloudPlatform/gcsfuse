@@ -79,14 +79,14 @@ func (dts *DownloadTaskTestSuite) TestExecuteSuccess() {
 	err = downloadBlock.SetAbsStartOff(0)
 	require.Nil(dts.T(), err)
 	task := &downloadTask{
-		ctx:          context.Background(),
+		ctx:         context.Background(),
 		object:       dts.object,
 		bucket:       dts.mockBucket,
 		block:        downloadBlock,
 		readHandle:   nil,
 		metricHandle: dts.metricHandle,
 	}
-	testContent := testutil.GenerateRandomBytes(testBlockSize)
+	testContent :=testutil.GenerateRandomBytes(testBlockSize)
 	rc := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 	readObjectRequest := &gcs.ReadObjectRequest{
 		Name:       dts.object.Name,
@@ -100,7 +100,7 @@ func (dts *DownloadTaskTestSuite) TestExecuteSuccess() {
 
 	task.Execute()
 
-	assert.Equal(dts.T(), int64(len(testContent)), downloadBlock.Size())
+	assert.Equal(dts.T(), int64(len(testContent)),downloadBlock.Size())
 	assert.Equal(dts.T(), int64(testBlockSize), downloadBlock.Cap())
 	assert.NoError(dts.T(), err)
 	dts.mockBucket.AssertExpectations(dts.T())
