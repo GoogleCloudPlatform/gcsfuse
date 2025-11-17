@@ -101,6 +101,7 @@ func (p *downloadTask) Execute() {
 	n, err = io.CopyN(p.block, newReader, int64(end-start))
 	if err != nil {
 		err = fmt.Errorf("DownloadTask.Execute: while data-copy: %w", err)
+		logger.Errorf("DownloadTask.Execute: while data-copy: %v", err)
 		return
 	}
 }
