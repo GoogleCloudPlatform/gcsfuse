@@ -946,13 +946,7 @@ func (t *fileTest) Test_ReadWithReadManager_FullReadSuccessWithBufferedRead() {
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), fileSize, resp.Size)
-	// When buffered read is enabled, the data is returned in resp.Data and not
-	// directly in the buffer. We need to copy it to compare.
-	bytesCopied := 0
-	for _, dataSlice := range resp.Data {
-		bytesCopied += copy(buf[bytesCopied:], dataSlice)
-	}
-	assert.Equal(t.T(), expectedData, buf[:bytesCopied])
+	assert.Equal(t.T(), expectedData, util.ConvertReadResponseToBytes(resp.Data, resp.Size))
 }
 
 func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() {
@@ -997,14 +991,7 @@ func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() 
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), readSize, resp.Size)
-			// When buffered read is enabled, the data is returned in resp.Data and not
-			// directly in the buffer. We need to copy it to compare.
-			bytesCopied := 0
-			for _, dataSlice := range resp.Data {
-				bytesCopied += copy(readBuf[bytesCopied:], dataSlice)
-			}
-			assert.Equal(t.T(), readSize, bytesCopied)
-			results[index] = readBuf
+			results[index] = util.ConvertReadResponseToBytes(resp.Data, resp.Size)
 		}(i)
 	}
 	// Wait for all goroutines to finish.

@@ -26,3 +26,13 @@ func GenerateRandomBytes(length int) []byte {
 	}
 	return randBytes
 }
+
+// ConvertReadResponseToBytes concatenates the data slices from a read response into a single byte slice.
+func ConvertReadResponseToBytes(data [][]byte, size int) []byte {
+	buf := make([]byte, size)
+	bytesCopied := 0
+	for _, dataSlice := range data {
+		bytesCopied += copy(buf[bytesCopied:], dataSlice)
+	}
+	return buf
+}

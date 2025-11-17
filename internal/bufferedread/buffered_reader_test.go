@@ -24,11 +24,11 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/stretchr/testify/mock"
@@ -1263,11 +1263,7 @@ func (t *BufferedReaderTest) TestReadAtFromDownloadedBlock() {
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), 5, resp.Size)
-	bytesCopied := 0
-	for _, dataSlice := range resp.Data {
-		bytesCopied += copy(buf[bytesCopied:], dataSlice)
-	}
-	assert.Equal(t.T(), "abcde", string(buf[:bytesCopied]))
+	assert.Equal(t.T(), content[:5], util.ConvertReadResponseToBytes(resp.Data, resp.Size))
 	assert.False(t.T(), reader.blockQueue.IsEmpty())
 }
 
@@ -1679,13 +1675,8 @@ func (t *BufferedReaderTest) TestReadAtConcurrentReads() {
 
 			require.NoError(t.T(), err)
 			require.Equal(t.T(), readSize, resp.Size)
-			// Copy the result to a new slice to avoid data races on resp.Data.
-			results[index] = make([]byte, readSize)
-			bytesCopied := 0
-			for _, dataSlice := range resp.Data {
-				bytesCopied += copy(results[index][bytesCopied:], dataSlice)
-			}
-			require.Equal(t.T(), readSize, bytesCopied)
+			results[index] = util.ConvertReadResponseToBytes(resp.Data, resp.Size)
+			require.Equal(t.T(), readSize, len(results[index]))
 		}(i)
 	}
 
@@ -1801,33 +1792,36 @@ func (t *BufferedReaderTest) TestConcurrentReadsOnSameBlock() {
 	t.bucket.AssertExpectations(t.T())
 }
 
-func (t *BufferedReaderTest) TestReleaseBlockWithOutstandingReference() {
+func (t *BufferedReaderTest) TestEvictedBlockIsReleasedOnlyAfterCallback() {
 	reader, err := NewBufferedReader(&BufferedReaderOptions{
 		Object:             t.object,
 		Bucket:             t.bucket,
 		Config:             t.config,
 		GlobalMaxBlocksSem: t.globalMaxBlocksSem,
 		WorkerPool:         t.workerPool,
-		MetricHandle:       t.metricHandle})
+		MetricHandle:       t.metricHandle,
+	})
 	require.NoError(t.T(), err)
 	defer reader.Destroy()
-	b, err := reader.blockPool.Get()
+	// Mock initial read and prefetch (blocks 0, 1, 2).
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 0 })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), 0), nil).Once()
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 1024 })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), 1024), nil).Once()
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 2048 })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), 2048), nil).Once()
+	t.bucket.On("Name").Return("test-bucket").Maybe()
+	// Mock random read and prefetch (blocks 5, 6, 7).
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 5120 })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), 5120), nil).Maybe()
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 6144 })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), 6144), nil).Maybe()
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 7168 })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), 7168), nil).Maybe()
+	resp1, err := reader.ReadAt(t.ctx, make([]byte, 10), 0)
 	require.NoError(t.T(), err)
-	b.IncRef() // Simulate an outstanding reference.
-	entry := &blockQueueEntry{block: b, cancel: func() {}}
-	b.NotifyReady(block.BlockStatus{State: block.BlockStateDownloaded})
-	initialFreeBlocks := reader.blockPool.TotalFreeBlocks()
+	require.NotNil(t.T(), resp1.Callback)
+	// This random read evicts the prefetched blocks (1 and 2) from the queue. Block 0 is not evicted as it's in use by the first read.
+	resp2, err := reader.ReadAt(t.ctx, make([]byte, 10), 5*testPrefetchBlockSizeBytes)
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), 0, reader.blockPool.TotalFreeBlocks(), "Free blocks should be consumed by the new prefetch.")
 
-	reader.mu.Lock()
-	reader.releaseOrMarkEvicted(entry)
-	reader.mu.Unlock()
+	resp1.Callback()
 
-	assert.True(t.T(), entry.wasEvicted, "Block should be marked as evicted")
-	assert.Equal(t.T(), initialFreeBlocks, reader.blockPool.TotalFreeBlocks(), "Block should not be released to pool yet")
-	reader.mu.Lock()
-	if entry.block.DecRef() {
-		reader.blockPool.Release(entry.block)
-	}
-	reader.mu.Unlock()
-	assert.Equal(t.T(), initialFreeBlocks+1, reader.blockPool.TotalFreeBlocks(), "Block should be released after last reference is gone")
+	assert.Equal(t.T(), 1, reader.blockPool.TotalFreeBlocks(), "Evicted block should be released after its callback.")
+	resp2.Callback()
 }

@@ -103,8 +103,9 @@ type BufferedReader struct {
 	// GUARDED by (mu)
 	blockPool *block.GenBlockPool[block.PrefetchBlock]
 
-	// A waitgroup to track outstanding references to data slices that have been returned
-	// directly from internal buffers to FUSE library.
+	// A WaitGroup to synchronize the destruction of the reader with any ongoing
+	// FUSE read callback goroutines. This ensures that all callbacks for
+	// in-flight data slices have completed before the reader is fully torn down.
 	inflightCallbackWg sync.WaitGroup
 }
 
@@ -553,10 +554,10 @@ func (p *BufferedReader) Destroy() {
 	p.blockPool = nil
 }
 
-// releaseOrMarkEvicted waits for any pending download on the given block to complete
-// and then handles its release. If the block has no outstanding references,
-// it is immediately returned to the block pool. If there are outstanding
-// references, the block is marked as evicted, and its final release
+// releaseOrMarkEvicted handles the release of a block that has been removed
+// from the prefetch queue. If the block has no outstanding references (i.e.,
+// it has not been returned to a FUSE read), it is immediately returned to the
+// block pool. Otherwise, the block is marked as evicted, and its final release
 // is deferred until the last reference's callback is executed.
 // LOCKS_REQUIRED(p.mu)
 func (p *BufferedReader) releaseOrMarkEvicted(entry *blockQueueEntry) {
