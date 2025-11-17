@@ -48,6 +48,10 @@ type GCSReaderRequest struct {
 // ReadResponse represents the response returned as part of a ReadAt call.
 // It includes the actual data read and its size.
 type ReadResponse struct {
+	// Data contains slices of bytes read from the object. This is populated when
+	// the reader returns data directly from its internal buffers.
+	Data [][]byte
+
 	// Size indicates how many bytes were read into DataBuf.
 	Size int
 
@@ -59,10 +63,11 @@ type Reader interface {
 	// CheckInvariants performs internal consistency checks on the reader state.
 	CheckInvariants()
 
-	// ReadAt reads data into the provided byte slice starting from the specified offset.
-	// It returns a ReadResponse containing the data read and the number of bytes read.
-	// To indicate that the operation should be handled by an alternative reader, return
-	// the error FallbackToAnotherReader.
+	// ReadAt attempts to read data from the object. Depending on the
+	// implementation, it may either populate the provided buffer `p` directly
+	// or return data as a slice of byte slices in the `Data` field of the
+	// ReadResponse. To indicate that the operation should be handled by an
+	// alternative reader, return the error FallbackToAnotherReader.
 	// If an error occurs, the size in ReadResponse will be zero.
 	ReadAt(ctx context.Context, p []byte, offset int64) (ReadResponse, error)
 
@@ -82,7 +87,8 @@ type ReadManager interface {
 // GCSReader defines an interface for reading data from a GCS object.
 // This interface is intended for lower-level interactions with GCS readers.
 type GCSReader interface {
-	// ReadAt reads data into the provided request buffer, starting from the specified offset and ending at the specified end offset.
-	// It returns a ReadResponse response containing the data read and any error encountered.
+	// ReadAt reads data into the `Buffer` field of the provided `GCSReaderRequest`,
+	// starting from the specified offset and ending at the specified end offset.
+	// It returns a `ReadResponse` indicating the number of bytes successfully read and any error encountered.
 	ReadAt(ctx context.Context, req *GCSReaderRequest) (ReadResponse, error)
 }

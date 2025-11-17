@@ -946,7 +946,7 @@ func (t *fileTest) Test_ReadWithReadManager_FullReadSuccessWithBufferedRead() {
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), fileSize, resp.Size)
-	assert.Equal(t.T(), expectedData, buf)
+	assert.Equal(t.T(), expectedData, util.ConvertReadResponseToBytes(resp.Data, resp.Size))
 }
 
 func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() {
@@ -963,6 +963,7 @@ func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() 
 			MaxBlocksPerHandle:   10,
 			StartBlocksPerHandle: 2,
 			BlockSizeMb:          1,
+			RandomSeekThreshold:  3,
 		},
 	}
 	workerPool, err := workerpool.NewStaticWorkerPoolForCurrentCPU(20)
@@ -990,7 +991,7 @@ func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() 
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), readSize, resp.Size)
-			results[index] = readBuf
+			results[index] = util.ConvertReadResponseToBytes(resp.Data, resp.Size)
 		}(i)
 	}
 	// Wait for all goroutines to finish.

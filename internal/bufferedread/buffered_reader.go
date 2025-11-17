@@ -53,13 +53,6 @@ const (
 	ReadOp                    = "readOp"
 )
 
-// blockQueueEntry holds a data block with a function
-// to cancel its in-flight download.
-type blockQueueEntry struct {
-	block  block.PrefetchBlock
-	cancel context.CancelFunc
-}
-
 type BufferedReader struct {
 	gcsx.Reader
 	object *gcs.MinObject
@@ -109,6 +102,11 @@ type BufferedReader struct {
 	// of blocks that can be allocated across all BufferedReader instances.
 	// GUARDED by (mu)
 	blockPool *block.GenBlockPool[block.PrefetchBlock]
+
+	// A WaitGroup to synchronize the destruction of the reader with any ongoing
+	// FUSE read callback goroutines. This ensures that all callbacks for
+	// in-flight data slices have completed before the reader is fully torn down.
+	inflightCallbackWg sync.WaitGroup
 }
 
 // BufferedReaderOptions holds the dependencies for a BufferedReader.
@@ -182,11 +180,8 @@ func (p *BufferedReader) handleRandomRead(offset int64, handleID int64) error {
 	// release the blocks back to the pool.
 	for !p.blockQueue.IsEmpty() {
 		entry := p.blockQueue.Pop()
-		entry.cancel()
-		if _, waitErr := entry.block.AwaitReady(context.Background()); waitErr != nil {
-			logger.Warnf("handleRandomRead: AwaitReady during discard (offset=%d): %v", offset, waitErr)
-		}
-		p.blockPool.Release(entry.block)
+		entry.cancelAndWait()
+		p.releaseOrMarkEvicted(entry)
 	}
 
 	if p.randomSeekCount > p.randomReadsThreshold {
@@ -230,13 +225,8 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 		if offset < blockStart || offset >= blockEnd {
 			// Offset is either before or beyond this block – discard.
 			p.blockQueue.Pop()
-			entry.cancel()
-
-			if _, waitErr := block.AwaitReady(context.Background()); waitErr != nil {
-				logger.Warnf("prepareQueueForOffset: AwaitReady during discard (offset=%d): %v", offset, waitErr)
-			}
-
-			p.blockPool.Release(block)
+			entry.cancelAndWait()
+			p.releaseOrMarkEvicted(entry)
 		} else {
 			break
 		}
@@ -307,6 +297,8 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 	prefetchTriggered := false
 
+	var dataSlices [][]byte
+	var entriesToCallback []*blockQueueEntry
 	for bytesRead < len(inputBuf) {
 		p.prepareQueueForOffset(off)
 
@@ -343,13 +335,22 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		}
 
 		relOff := off - blk.AbsStartOff()
-		n, readErr := blk.ReadAt(inputBuf[bytesRead:], relOff)
-		bytesRead += n
-		off += int64(n)
+		bytesToRead := len(inputBuf) - bytesRead
+		dataSlice, readErr := blk.ReadAtSlice(relOff, bytesToRead)
+		sliceLen := len(dataSlice)
+		bytesRead += sliceLen
+		off += int64(sliceLen)
 
 		if readErr != nil && !errors.Is(readErr, io.EOF) {
 			err = fmt.Errorf("BufferedReader.ReadAt: block.ReadAt: %w", readErr)
 			break
+		}
+
+		if sliceLen > 0 {
+			dataSlices = append(dataSlices, dataSlice)
+			p.inflightCallbackWg.Add(1)
+			blk.IncRef()
+			entriesToCallback = append(entriesToCallback, entry)
 		}
 
 		if off >= int64(p.object.Size) {
@@ -357,8 +358,8 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		}
 
 		if off >= blk.AbsStartOff()+blk.Size() {
-			p.blockQueue.Pop()
-			p.blockPool.Release(blk)
+			entry := p.blockQueue.Pop()
+			p.releaseOrMarkEvicted(entry)
 
 			if !prefetchTriggered {
 				prefetchTriggered = true
@@ -369,8 +370,29 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		}
 	}
 
+	resp.Data = dataSlices
+	resp.Callback = func() { p.callback(entriesToCallback) }
 	resp.Size = bytesRead
 	return resp, err
+}
+
+// callback is called when the FUSE library is finished with buffer slices that
+// were returned directly from blocks. It decrements the reference count for each
+// associated block and releases it back to the pool if the count drops to zero
+// and it was previously marked for eviction.
+func (p *BufferedReader) callback(entries []*blockQueueEntry) {
+	defer func() {
+		for range entries {
+			p.inflightCallbackWg.Done()
+		}
+	}()
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _, entry := range entries {
+		if entry.block.DecRef() && entry.wasEvicted {
+			p.blockPool.Release(entry.block)
+		}
+	}
 }
 
 // prefetch schedules the next set of blocks for prefetching starting from
@@ -495,33 +517,58 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockInde
 // LOCKS_EXCLUDED(p.mu)
 func (p *BufferedReader) Destroy() {
 	p.mu.Lock()
-	defer p.mu.Unlock()
-
 	for !p.blockQueue.IsEmpty() {
 		bqe := p.blockQueue.Pop()
-		bqe.cancel()
+		bqe.cancelAndWait()
+		p.releaseOrMarkEvicted(bqe)
+	}
+	p.mu.Unlock()
 
-		// We wait for the block's worker goroutine to finish. We expect its
-		// status to contain a context.Canceled error because we just called cancel.
-		status, err := bqe.block.AwaitReady(context.Background())
-		if err != nil {
-			logger.Warnf("Destroy: AwaitReady for block failed: %v", err)
-		} else if status.Err != nil && !errors.Is(status.Err, context.Canceled) {
-			logger.Warnf("Destroy: waiting for block on destroy: %v", status.Err)
-		}
-		p.blockPool.Release(bqe.block)
+	// Wait for any remaining operations where data slices were returned directly
+	// to complete, with a timeout to prevent indefinite blocking. Their Done
+	// callbacks will handle the final release of those blocks.
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		p.inflightCallbackWg.Wait()
+	}()
+
+	select {
+	case <-done:
+		// Wait completed successfully.
+	case <-time.After(10 * time.Second):
+		logger.Warnf("BufferedReader.Destroy: timed out waiting for outstanding data slice references to be released.")
 	}
 
+	// After the wait, no new read calls can arrive. This is because the kernel
+	// prevents read operations on a closed file handle, so no further locking is
+	// necessary for the final cleanup.
 	if p.cancelFunc != nil {
 		p.cancelFunc()
 		p.cancelFunc = nil
 	}
 
-	err := p.blockPool.ClearFreeBlockChannel(true)
-	if err != nil {
+	if err := p.blockPool.ClearFreeBlockChannel(true); err != nil {
 		logger.Warnf("Destroy: clearing free block channel: %v", err)
 	}
 	p.blockPool = nil
+}
+
+// releaseOrMarkEvicted handles the release of a block that has been removed
+// from the prefetch queue. If the block has no outstanding references (i.e.,
+// it has not been returned to a FUSE read), it is immediately returned to the
+// block pool. Otherwise, the block is marked as evicted, and its final release
+// is deferred until the last reference's callback is executed.
+// LOCKS_REQUIRED(p.mu)
+func (p *BufferedReader) releaseOrMarkEvicted(entry *blockQueueEntry) {
+	// If the block still has outstanding references, do not release it to the
+	// pool. Instead, mark it as evicted so the callback can release it later,
+	// when the reference count drops to zero.
+	if entry.block.RefCount() > 0 {
+		entry.wasEvicted = true
+	} else {
+		p.blockPool.Release(entry.block)
+	}
 }
 
 // CheckInvariants checks for internal consistency of the reader.
