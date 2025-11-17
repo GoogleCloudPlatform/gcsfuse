@@ -16,6 +16,7 @@ package fs_test
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/wrappers"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/fuse"
@@ -33,9 +35,34 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"
+	"fmt"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/sdk/metric"
 )
+
+type fakeBucketManager struct {
+	buckets map[string]gcs.Bucket
+}
+
+func (bm *fakeBucketManager) ShutDown() {}
+
+func (bm *fakeBucketManager) SetUpBucket(
+	ctx context.Context,
+	name string, isMultibucketMount bool, _ metrics.MetricHandle,
+) (sb gcsx.SyncerBucket, err error) {
+	bucket, ok := bm.buckets[name]
+	if ok {
+		sb = gcsx.NewSyncerBucket(
+			0,
+			10,
+			".gcsfuse_tmp/",
+			gcsx.NewContentTypeBucket(bucket),
+		)
+		return
+	}
+	err = fmt.Errorf("Bucket %q does not exist", name)
+	return
+}
 
 // serverConfigParams holds parameters for creating a test file system.
 type serverConfigParams struct {
@@ -74,6 +101,55 @@ func createTestFileSystemWithMetrics(ctx context.Context, t *testing.T, params *
 				MaxBlocksPerHandle: 10,
 			},
 			EnableNewReader: params.enableNewReader,
+		},
+		MetricHandle: mh,
+		CacheClock:   &timeutil.SimulatedClock{},
+		BucketName:   bucketName,
+		BucketManager: &fakeBucketManager{
+			buckets: map[string]gcs.Bucket{
+				bucketName: bucket,
+			},
+		},
+		SequentialReadSizeMb: 200,
+	}
+	server, err := fs.NewFileSystem(ctx, serverCfg)
+	require.NoError(t, err, "NewFileSystem")
+	return bucket, server, mh, reader
+}
+
+func createTestFileSystemWithFileCacheMetrics(ctx context.Context, t *testing.T) (gcs.Bucket, fuseutil.FileSystem, metrics.MetricHandle, *metric.ManualReader) {
+	t.Helper()
+	origProvider := otel.GetMeterProvider()
+	t.Cleanup(func() { otel.SetMeterProvider(origProvider) })
+	reader := metric.NewManualReader()
+	provider := metric.NewMeterProvider(metric.WithReader(reader))
+	otel.SetMeterProvider(provider)
+
+	mh, err := metrics.NewOTelMetrics(ctx, 1, 100)
+	require.NoError(t, err, "metrics.NewOTelMetrics")
+	bucketName := "test-bucket"
+	bucket := fake.NewFakeBucket(timeutil.RealClock(), bucketName, gcs.BucketType{Hierarchical: false})
+
+	// Create a temporary directory for the cache.
+	cacheDir, err := os.MkdirTemp("", "gcsfuse_test_cache")
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(cacheDir) })
+
+	serverCfg := &fs.ServerConfig{
+		NewConfig: &cfg.Config{
+			Write: cfg.WriteConfig{
+				GlobalMaxBlocks: 1,
+			},
+			Read: cfg.ReadConfig{
+				GlobalMaxBlocks:    1,
+				BlockSizeMb:        1,
+				MaxBlocksPerHandle: 10,
+			},
+			CacheDir: cfg.ResolvedPath(cacheDir),
+			FileCache: cfg.FileCacheConfig{
+				CacheFileForRangeRead: true,
+			},
+			EnableNewReader: false,
 		},
 		MetricHandle: mh,
 		CacheClock:   &timeutil.SimulatedClock{},
@@ -302,6 +378,175 @@ func TestGetInodeAttributes_Metrics(t *testing.T) {
 	attrs := attribute.NewSet(attribute.String("fs_op", "GetInodeAttributes"))
 	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
 	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestFileCache_SequentialReadMetrics(t *testing.T) {
+	t.Run("CacheMiss", func(t *testing.T) {
+		ctx := context.Background()
+		bucket, server, mh, reader := createTestFileSystemWithFileCacheMetrics(ctx, t)
+		server = wrappers.WithMonitoring(server, mh)
+		fileName := "test.txt"
+		content := "test content"
+		createWithContents(ctx, t, bucket, fileName, content)
+		lookupOp := &fuseops.LookUpInodeOp{
+			Parent: fuseops.RootInodeID,
+			Name:   fileName,
+		}
+		err := server.LookUpInode(ctx, lookupOp)
+		require.NoError(t, err, "LookUpInode")
+		openOp := &fuseops.OpenFileOp{
+			Inode: lookupOp.Entry.Child,
+		}
+		err = server.OpenFile(ctx, openOp)
+		require.NoError(t, err, "OpenFile")
+		readOp := &fuseops.ReadFileOp{
+			Inode:  lookupOp.Entry.Child,
+			Handle: openOp.Handle,
+			Offset: 0,
+			Dst:    make([]byte, len(content)),
+		}
+
+		err = server.ReadFile(ctx, readOp)
+		waitForMetricsProcessing()
+
+		require.NoError(t, err, "ReadFile")
+		attrs := attribute.NewSet(attribute.String("read_type", "Sequential"))
+		metrics.VerifyCounterMetric(t, ctx, reader, "file_cache/read_bytes_count", attrs, int64(len(content)))
+		attrs = attribute.NewSet(attribute.String("read_type", "Sequential"), attribute.Bool("cache_hit", false))
+		metrics.VerifyCounterMetric(t, ctx, reader, "file_cache/read_count", attrs, 1)
+		attrs = attribute.NewSet(attribute.String("read_type", "Sequential"), attribute.Bool("cache_hit", true))
+		metrics.VerifyCounterMetric(t, ctx, reader, "file_cache/read_count", attrs, 0)
+		attrs = attribute.NewSet(attribute.Bool("cache_hit", false))
+		metrics.VerifyHistogramMetric(t, ctx, reader, "file_cache/read_latencies", attrs, 1)
+	})
+
+	t.Run("CacheHit", func(t *testing.T) {
+		ctx := context.Background()
+		bucket, server, mh, reader := createTestFileSystemWithFileCacheMetrics(ctx, t)
+		server = wrappers.WithMonitoring(server, mh)
+		fileName := "test.txt"
+		content := "test content"
+		createWithContents(ctx, t, bucket, fileName, content)
+		lookupOp := &fuseops.LookUpInodeOp{
+			Parent: fuseops.RootInodeID,
+			Name:   fileName,
+		}
+		err := server.LookUpInode(ctx, lookupOp)
+		require.NoError(t, err, "LookUpInode")
+		openOp := &fuseops.OpenFileOp{
+			Inode: lookupOp.Entry.Child,
+		}
+		err = server.OpenFile(ctx, openOp)
+		require.NoError(t, err, "OpenFile")
+		readOp := &fuseops.ReadFileOp{
+			Inode:  lookupOp.Entry.Child,
+			Handle: openOp.Handle,
+			Offset: 0,
+			Dst:    make([]byte, len(content)),
+		}
+		// First read (cache miss)
+		err = server.ReadFile(ctx, readOp)
+		require.NoError(t, err, "ReadFile")
+
+		// Second read (cache hit)
+		err = server.ReadFile(ctx, readOp)
+		waitForMetricsProcessing()
+
+		require.NoError(t, err, "ReadFile")
+		attrs := attribute.NewSet(attribute.String("read_type", "Sequential"))
+		metrics.VerifyCounterMetric(t, ctx, reader, "file_cache/read_bytes_count", attrs, int64(2*len(content)))
+		attrs = attribute.NewSet(attribute.String("read_type", "Sequential"), attribute.Bool("cache_hit", false))
+		metrics.VerifyCounterMetric(t, ctx, reader, "file_cache/read_count", attrs, 1)
+		attrs = attribute.NewSet(attribute.String("read_type", "Sequential"), attribute.Bool("cache_hit", true))
+		metrics.VerifyCounterMetric(t, ctx, reader, "file_cache/read_count", attrs, 1)
+		attrs = attribute.NewSet(attribute.Bool("cache_hit", true))
+		metrics.VerifyHistogramMetric(t, ctx, reader, "file_cache/read_latencies", attrs, 1)
+	})
+}
+
+func TestFileCache_RandomReadMetrics(t *testing.T) {
+	t.Run("CacheMiss", func(t *testing.T) {
+		ctx := context.Background()
+		bucket, server, mh, reader := createTestFileSystemWithFileCacheMetrics(ctx, t)
+		server = wrappers.WithMonitoring(server, mh)
+		fileName := "test.txt"
+		content := "test content"
+		createWithContents(ctx, t, bucket, fileName, content)
+		lookupOp := &fuseops.LookUpInodeOp{
+			Parent: fuseops.RootInodeID,
+			Name:   fileName,
+		}
+		err := server.LookUpInode(ctx, lookupOp)
+		require.NoError(t, err, "LookUpInode")
+		openOp := &fuseops.OpenFileOp{
+			Inode: lookupOp.Entry.Child,
+		}
+		err = server.OpenFile(ctx, openOp)
+		require.NoError(t, err, "OpenFile")
+		readOp := &fuseops.ReadFileOp{
+			Inode:  lookupOp.Entry.Child,
+			Handle: openOp.Handle,
+			Offset: 5,
+			Dst:    make([]byte, 5),
+		}
+
+		err = server.ReadFile(ctx, readOp)
+		waitForMetricsProcessing()
+
+		require.NoError(t, err, "ReadFile")
+		attrs := attribute.NewSet(attribute.String("read_type", "Random"))
+		// Bytes are not recorded on cache miss for random reads.
+		metrics.VerifyCounterMetric(t, ctx, reader, "file_cache/read_bytes_count", attrs, 0)
+		attrs = attribute.NewSet(attribute.String("read_type", "Random"), attribute.Bool("cache_hit", false))
+		metrics.VerifyCounterMetric(t, ctx, reader, "file_cache/read_count", attrs, 1)
+		attrs = attribute.NewSet(attribute.String("read_type", "Random"), attribute.Bool("cache_hit", true))
+		metrics.VerifyCounterMetric(t, ctx, reader, "file_cache/read_count", attrs, 0)
+		attrs = attribute.NewSet(attribute.Bool("cache_hit", false))
+		metrics.VerifyHistogramMetric(t, ctx, reader, "file_cache/read_latencies", attrs, 1)
+	})
+
+	t.Run("CacheHit", func(t *testing.T) {
+		ctx := context.Background()
+		bucket, server, mh, reader := createTestFileSystemWithFileCacheMetrics(ctx, t)
+		server = wrappers.WithMonitoring(server, mh)
+		fileName := "test.txt"
+		content := "test content"
+		createWithContents(ctx, t, bucket, fileName, content)
+		lookupOp := &fuseops.LookUpInodeOp{
+			Parent: fuseops.RootInodeID,
+			Name:   fileName,
+		}
+		err := server.LookUpInode(ctx, lookupOp)
+		require.NoError(t, err, "LookUpInode")
+		openOp := &fuseops.OpenFileOp{
+			Inode: lookupOp.Entry.Child,
+		}
+		err = server.OpenFile(ctx, openOp)
+		require.NoError(t, err, "OpenFile")
+		readOp := &fuseops.ReadFileOp{
+			Inode:  lookupOp.Entry.Child,
+			Handle: openOp.Handle,
+			Offset: 5,
+			Dst:    make([]byte, 5),
+		}
+		// First read (cache miss)
+		err = server.ReadFile(ctx, readOp)
+		require.NoError(t, err, "ReadFile")
+
+		// Second read (cache hit)
+		err = server.ReadFile(ctx, readOp)
+		waitForMetricsProcessing()
+
+		require.NoError(t, err, "ReadFile")
+		attrs := attribute.NewSet(attribute.String("read_type", "Random"))
+		metrics.VerifyCounterMetric(t, ctx, reader, "file_cache/read_bytes_count", attrs, 5)
+		attrs = attribute.NewSet(attribute.String("read_type", "Random"), attribute.Bool("cache_hit", false))
+		metrics.VerifyCounterMetric(t, ctx, reader, "file_cache/read_count", attrs, 1)
+		attrs = attribute.NewSet(attribute.String("read_type", "Random"), attribute.Bool("cache_hit", true))
+		metrics.VerifyCounterMetric(t, ctx, reader, "file_cache/read_count", attrs, 1)
+		attrs = attribute.NewSet(attribute.Bool("cache_hit", true))
+		metrics.VerifyHistogramMetric(t, ctx, reader, "file_cache/read_latencies", attrs, 1)
+	})
 }
 
 func TestRemoveXattr_Metrics(t *testing.T) {
