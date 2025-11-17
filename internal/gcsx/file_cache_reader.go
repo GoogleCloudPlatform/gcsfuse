@@ -38,6 +38,11 @@ const (
 	MiB    = 1 << 20
 )
 
+// FileCacheReader is a reader that attempts to satisfy read requests for a GCS
+// object from a local file cache. It is designed to be part of a layered
+// reading strategy, where it acts as the first-level cache.
+//
+// FileCacheReader supports parallel reads.
 type FileCacheReader struct {
 	Reader
 	object *gcs.MinObject
@@ -162,6 +167,8 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 	fc.mu.Unlock()
 
 	fc.mu.RLock()
+	// Because we're releasing write lock & then taking a read lock, we need to perform a nil check before accessing
+	// fileCacheHandle as some other thread could have set it to nil in between.
 	if fc.fileCacheHandle == nil {
 		fc.mu.RUnlock()
 		return 0, false, nil
