@@ -158,16 +158,6 @@ func (job *Job) downloadSparseRange(ctx context.Context, start, end uint64) erro
 		end = job.object.Size
 	}
 
-	// Check if this is a sparse file
-	fileInfoKey := data.FileInfoKey{
-		BucketName: job.bucket.Name(),
-		ObjectName: job.object.Name,
-	}
-	fileInfoKeyName, err := fileInfoKey.Key()
-	if err != nil {
-		return fmt.Errorf("downloadSparseRange: error creating fileInfoKeyName: %w", err)
-	}
-
 	// Create GCS reader for the specific range
 	newReader, err := job.bucket.NewReaderWithReadHandle(
 		ctx,
@@ -202,16 +192,23 @@ func (job *Job) downloadSparseRange(ctx context.Context, start, end uint64) erro
 	defer job.mu.Unlock()
 
 	// Re-fetch FileInfo in case it changed
-	fileInfoVal := job.fileInfoCache.LookUpWithoutChangingOrder(fileInfoKeyName)
-	if fileInfoVal == nil {
-		return fmt.Errorf("downloadSparseRange: file info not found in cache after download")
+	fileInfo, err := job.getFileInfo()
+	if err != nil {
+		return fmt.Errorf("downloadSparseRange: %w", err)
 	}
-	fileInfo := fileInfoVal.(data.FileInfo)
 
 	// Add the downloaded range
 	bytesAdded := fileInfo.DownloadedRanges.AddRange(start, start+uint64(bytesWritten))
 
 	// Update LRU cache size accounting
+	fileInfoKey := data.FileInfoKey{
+		BucketName: job.bucket.Name(),
+		ObjectName: job.object.Name,
+	}
+	fileInfoKeyName, err := fileInfoKey.Key()
+	if err != nil {
+		return fmt.Errorf("downloadSparseRange: error creating fileInfoKeyName: %w", err)
+	}
 	err = job.fileInfoCache.UpdateSize(fileInfoKeyName, bytesAdded)
 	if err != nil {
 		return fmt.Errorf("downloadSparseRange: error updating cache size: %w", err)
