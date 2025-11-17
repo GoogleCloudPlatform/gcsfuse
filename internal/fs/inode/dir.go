@@ -89,7 +89,7 @@ type DirInode interface {
 	// undefined.
 	ReadEntries(
 		ctx context.Context,
-		tok string) (entries []fuseutil.Dirent, unsupportedDirs []string, newTok string, err error)
+		tok string) (entries []fuseutil.Dirent, unsupportedPaths []string, newTok string, err error)
 
 	// ReadEntryCores reads a batch of directory entries and returns them as a
 	// map of `inode.Core` objects along with a continuation token that can be
@@ -100,7 +100,7 @@ type DirInode interface {
 	// empty. Otherwise it will be non-empty. There is no guarantee about the
 	// number of entries returned; it may be zero even with a non-empty
 	// continuation token.
-	ReadEntryCores(ctx context.Context, tok string) (cores map[Name]*Core, unsupportedDirs []string, newTok string, err error)
+	ReadEntryCores(ctx context.Context, tok string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error)
 
 	// Create an empty child file with the supplied (relative) name, failing with
 	// *gcs.PreconditionError if a backing object already exists in GCS.
@@ -152,6 +152,9 @@ type DirInode interface {
 		name string,
 		isImplicitDir bool,
 		dirInode DirInode) (err error)
+
+	// DeleteObjects recursively deletes the given objects and prefixes.
+	DeleteObjects(ctx context.Context, objectNames []string) error
 
 	// LocalFileEntries lists the local files present in the directory.
 	// Local means that the file is not yet present on GCS.
@@ -236,7 +239,7 @@ type dirInode struct {
 	prevDirListingTimeStamp time.Time
 	isHNSEnabled            bool
 
-	isUnsupportedDirSupportEnabled bool
+	isUnsupportedPathSupportEnabled bool
 
 	// Represents if folder has been unlinked in hierarchical bucket. This is not getting used in
 	// non-hierarchical bucket.
@@ -277,7 +280,7 @@ func NewDirInode(
 	cacheClock timeutil.Clock,
 	typeCacheMaxSizeMB int64,
 	isHNSEnabled bool,
-	isUnsupportedDirSupportEnabled bool,
+	isUnsupportedPathSupportEnabled bool,
 ) (d DirInode) {
 
 	if !name.IsDir() {
@@ -285,19 +288,19 @@ func NewDirInode(
 	}
 
 	typed := &dirInode{
-		bucket:                         bucket,
-		mtimeClock:                     mtimeClock,
-		cacheClock:                     cacheClock,
-		id:                             id,
-		implicitDirs:                   implicitDirs,
-		includeFoldersAsPrefixes:       includeFoldersAsPrefixes,
-		enableNonexistentTypeCache:     enableNonexistentTypeCache,
-		name:                           name,
-		attrs:                          attrs,
-		cache:                          metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL),
-		isHNSEnabled:                   isHNSEnabled,
-		isUnsupportedDirSupportEnabled: isUnsupportedDirSupportEnabled,
-		unlinked:                       false,
+		bucket:                          bucket,
+		mtimeClock:                      mtimeClock,
+		cacheClock:                      cacheClock,
+		id:                              id,
+		implicitDirs:                    implicitDirs,
+		includeFoldersAsPrefixes:        includeFoldersAsPrefixes,
+		enableNonexistentTypeCache:      enableNonexistentTypeCache,
+		name:                            name,
+		attrs:                           attrs,
+		cache:                           metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL),
+		isHNSEnabled:                    isHNSEnabled,
+		isUnsupportedPathSupportEnabled: isUnsupportedPathSupportEnabled,
+		unlinked:                        false,
 	}
 
 	typed.lc.Init(id)
@@ -677,7 +680,7 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 // LOCKS_REQUIRED(d)
 func (d *dirInode) readObjects(
 	ctx context.Context,
-	tok string) (cores map[Name]*Core, unsupportedDirs []string, newTok string, err error) {
+	tok string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
 	if d.isBucketHierarchical() {
 		d.includeFoldersAsPrefixes = true
 	}
@@ -709,6 +712,15 @@ func (d *dirInode) readObjects(
 	}()
 
 	for _, o := range listing.MinObjects {
+		if storageutil.IsUnsupportedPath(o.Name) {
+			unsupportedPaths = append(unsupportedPaths, o.Name)
+			// Skip unsupported objects in the listing, as the kernel cannot process these file system elements.
+			// TODO: Remove this check once we gain confidence that it is not causing any issues.
+			if d.isUnsupportedPathSupportEnabled {
+				continue
+			}
+		}
+
 		// Skip empty results or the directory object backing this inode.
 		if o.Name == d.Name().GcsObjectName() || o.Name == "" {
 			continue
@@ -753,11 +765,11 @@ func (d *dirInode) readObjects(
 	// Add implicit directories into the result.
 	for _, p := range listing.CollapsedRuns {
 		pathBase := path.Base(p)
-		if storageutil.IsUnsupportedObjectName(p) {
-			unsupportedDirs = append(unsupportedDirs, p)
+		if storageutil.IsUnsupportedPath(p) {
+			unsupportedPaths = append(unsupportedPaths, p)
 			// Skip unsupported objects in the listing, as the kernel cannot process these file system elements.
 			// TODO: Remove this check once we gain confidence that it is not causing any issues.
-			if d.isUnsupportedDirSupportEnabled {
+			if d.isUnsupportedPathSupportEnabled {
 				continue
 			}
 		}
@@ -784,8 +796,8 @@ func (d *dirInode) readObjects(
 			cores[dirName] = implicitDir
 		}
 	}
-	if len(unsupportedDirs) > 0 {
-		logger.Errorf("Encountered unsupported prefixes during listing: %v", unsupportedDirs)
+	if len(unsupportedPaths) > 0 {
+		logger.Errorf("Encountered unsupported prefixes during listing: %v", unsupportedPaths)
 	}
 	return
 }
@@ -793,9 +805,9 @@ func (d *dirInode) readObjects(
 // LOCKS_REQUIRED(d)
 func (d *dirInode) ReadEntries(
 	ctx context.Context,
-	tok string) (entries []fuseutil.Dirent, unsupportedDirs []string, newTok string, err error) {
+	tok string) (entries []fuseutil.Dirent, unsupportedPaths []string, newTok string, err error) {
 	var cores map[Name]*Core
-	cores, unsupportedDirs, newTok, err = d.ReadEntryCores(ctx, tok)
+	cores, unsupportedPaths, newTok, err = d.ReadEntryCores(ctx, tok)
 	if err != nil {
 		return
 	}
@@ -820,8 +832,8 @@ func (d *dirInode) ReadEntries(
 }
 
 // LOCKS_REQUIRED(d)
-func (d *dirInode) ReadEntryCores(ctx context.Context, tok string) (cores map[Name]*Core, unsupportedDirs []string, newTok string, err error) {
-	cores, unsupportedDirs, newTok, err = d.readObjects(ctx, tok)
+func (d *dirInode) ReadEntryCores(ctx context.Context, tok string) (cores map[Name]*Core, unsupportedPaths []string, newTok string, err error) {
+	cores, unsupportedPaths, newTok, err = d.readObjects(ctx, tok)
 	if err != nil {
 		err = fmt.Errorf("read objects: %w", err)
 		return
@@ -1032,6 +1044,96 @@ func (d *dirInode) DeleteChildDir(
 
 	d.cache.Erase(name)
 	return nil
+}
+
+// LOCKS_REQUIRED(d)
+func (d *dirInode) DeleteObjects(ctx context.Context, objectNames []string) error {
+	for _, objectName := range objectNames {
+		if strings.HasSuffix(objectName, "/") {
+			// Initiate deletion for a prefix (directory). This logic handles pagination internally.
+			if err := d.deletePrefixRecursively(ctx, objectName); err != nil {
+				return fmt.Errorf("recursively deleting prefix %q: %w", objectName, err)
+			}
+		} else {
+			// Handle single file-like object deletion.
+			if err := d.deleteObject(ctx, objectName); err != nil {
+				return fmt.Errorf("deleting unsupported object %q: %w", objectName, err)
+			}
+		}
+	}
+	return nil
+}
+
+// Helper to delete a single object, handling 'Not Found' errors gracefully.
+// This is important for idempotency. For example, in a recursive delete, we
+// list objects and then delete them. If an object is deleted by another process
+// between our List and Delete calls, we'd get a 'Not Found' error. By ignoring
+// it, we ensure the delete operation succeeds if the object is already gone.
+func (d *dirInode) deleteObject(ctx context.Context, objectName string) error {
+	if d.isBucketHierarchical() && strings.HasSuffix(objectName, "/") {
+		if err := d.bucket.DeleteFolder(ctx, objectName); err != nil {
+			var notFoundErr *gcs.NotFoundError
+			if !errors.As(err, &notFoundErr) {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := d.bucket.DeleteObject(ctx, &gcs.DeleteObjectRequest{Name: objectName}); err != nil {
+		var notFoundErr *gcs.NotFoundError
+		if !errors.As(err, &notFoundErr) {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Core recursive function to list, delete, and handle pagination for a prefix.
+func (d *dirInode) deletePrefixRecursively(ctx context.Context, prefix string) error {
+	var tok string
+	for {
+		objects, err := d.bucket.ListObjects(ctx, &gcs.ListObjectsRequest{
+			Prefix:                   prefix,
+			MaxResults:               MaxResultsForListObjectsCall,
+			Delimiter:                "/", // Use Delimiter to separate nested folders (CollapsedRuns)
+			ContinuationToken:        tok,
+			IncludeFoldersAsPrefixes: d.includeFoldersAsPrefixes,
+		})
+		if err != nil {
+			return fmt.Errorf("listing objects under prefix %q: %w", prefix, err)
+		}
+
+		// 1. Delete all file-like objects and recurse into subdirectories in parallel.
+		g, gCtx := errgroup.WithContext(ctx)
+		for _, obj := range objects.MinObjects {
+			// obj.Name is guaranteed to start with 'prefix'.
+			if !strings.HasSuffix(obj.Name, "/") {
+				// It's a file, delete it.
+				g.Go(func() error {
+					return d.deleteObject(gCtx, obj.Name)
+				})
+			}
+		}
+
+		for _, nestedPrefix := range objects.CollapsedRuns {
+			g.Go(func() error {
+				return d.deletePrefixRecursively(gCtx, nestedPrefix)
+			})
+		}
+
+		if err = g.Wait(); err != nil {
+			return err // Propagate the first error encountered.
+		}
+
+		// If there are no more pages, we are done with this prefix's contents.
+		tok = objects.ContinuationToken
+		if tok == "" {
+			break
+		}
+	}
+
+	return d.deleteObject(ctx, prefix)
 }
 
 // LOCKS_REQUIRED(fs)

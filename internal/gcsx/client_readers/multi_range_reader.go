@@ -75,21 +75,20 @@ func (mrd *MultiRangeReader) readFromMultiRangeReader(ctx context.Context, p []b
 	return mrd.mrdWrapper.Read(ctx, p, offset, end, mrd.metricHandle, forceCreateMRD)
 }
 
-func (mrd *MultiRangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (gcsx.ReaderResponse, error) {
-	readerResponse := gcsx.ReaderResponse{
-		DataBuf: req.Buffer,
-		Size:    0,
-	}
-	var err error
+func (mrd *MultiRangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (gcsx.ReadResponse, error) {
+	var (
+		readResponse gcsx.ReadResponse
+		err          error
+	)
 
 	if req.Offset >= int64(mrd.object.Size) {
 		err = io.EOF
-		return readerResponse, err
+		return readResponse, err
 	}
 
-	readerResponse.Size, err = mrd.readFromMultiRangeReader(ctx, req.Buffer, req.Offset, req.EndOffset, req.ForceCreateReader)
+	readResponse.Size, err = mrd.readFromMultiRangeReader(ctx, req.Buffer, req.Offset, req.EndOffset, req.ForceCreateReader)
 
-	return readerResponse, err
+	return readResponse, err
 }
 
 func (mrd *MultiRangeReader) destroy() {

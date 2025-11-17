@@ -49,23 +49,26 @@ func runOperationsOnFileTillLogRotation(t *testing.T, wg *sync.WaitGroup, fileNa
 	testDirPath := path.Join(setup.MntDir(), testDirName)
 	filePath := path.Join(testDirPath, fileName)
 	operations.CreateFileWithContent(filePath, filePerms, string(randomData), t)
+	currentLogFile := cfg.LogFile
 
 	// Keep performing operations in mounted directory until log file is rotated.
 	var lastLogFileSize int64 = 0
 	var retryStatLogFile = true
 	for {
-		// Perform Read operation to generate logs.
+		// 1. Perform Read operation to generate logs
 		_, err = operations.ReadFile(filePath)
 		if err != nil {
 			t.Errorf("ReadFile failed: %v", err)
 		}
 
 		// Break the loop when log file is rotated.
-		fi, err := operations.StatFile(logFilePath)
+		fi, err := operations.StatFile(currentLogFile)
 		if err != nil {
-			t.Logf("stat operation on file %s failed: %v", logFilePath, err)
+			// --- StatFile Error Handling with Retry Limit ---
+			t.Logf("Stat operation on file %s failed: %v.",
+				currentLogFile, err)
 			if !retryStatLogFile {
-				t.Errorf("Stat retry exhausted on log file: %s", logFilePath)
+				t.Errorf("Stat retry exhausted on log file")
 			}
 			retryStatLogFile = false
 			continue
@@ -104,7 +107,6 @@ func validateLogFileSize(t *testing.T, dirEntry os.DirEntry) {
 
 func TestLogRotation(t *testing.T) {
 	setup.SetupTestDirectory(testDirName)
-
 	// Perform log rotation 4 times.
 	for range 4 {
 		runParallelOperationsInMountedDirectoryTillLogRotation(t)
@@ -114,23 +116,32 @@ func TestLogRotation(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// Validate log files generated.
-	dirEntries := operations.ReadDirectory(logDirPath, t)
+	logFilesDirectory := path.Dir(cfg.LogFile)
+	dirEntries := operations.ReadDirectory(logFilesDirectory, t)
+
 	if len(dirEntries) != logFileCount {
 		t.Errorf("Expected log files in dirEntries folder: %d, got: %d",
 			logFileCount, len(dirEntries))
 	}
+
+	// Get the base name of the log file from the setup.
+	activeLogFileName := t.Name() + ".log"
 	rotatedCompressedFileCtr := 0
 	logFileCtr := 0
 	rotatedUncompressedFileCtr := 0
-	for i := range logFileCount {
-		if dirEntries[i].Name() == logFileName {
+	for _, entry := range dirEntries {
+		// Skip directories created by the test setup.
+		if entry.IsDir() {
+			continue
+		}
+		if entry.Name() == activeLogFileName {
 			logFileCtr++
-			validateLogFileSize(t, dirEntries[i])
-		} else if strings.Contains(dirEntries[i].Name(), "txt.gz") {
+			validateLogFileSize(t, entry)
+		} else if strings.HasSuffix(entry.Name(), ".log.gz") {
 			rotatedCompressedFileCtr++
-		} else if !strings.Contains(dirEntries[i].Name(), ".stderr") {
+		} else if !strings.HasSuffix(entry.Name(), ".stderr") {
 			rotatedUncompressedFileCtr++
-			validateLogFileSize(t, dirEntries[i])
+			validateLogFileSize(t, entry)
 		}
 	}
 

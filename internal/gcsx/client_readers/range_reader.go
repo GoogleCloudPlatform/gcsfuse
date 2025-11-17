@@ -111,12 +111,11 @@ func (rr *RangeReader) closeReader() {
 	}
 }
 
-func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (gcsx.ReaderResponse, error) {
-	readerResponse := gcsx.ReaderResponse{
-		DataBuf: req.Buffer,
-		Size:    0,
-	}
-	var err error
+func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (gcsx.ReadResponse, error) {
+	var (
+		readResponse gcsx.ReadResponse
+		err          error
+	)
 
 	if req.ForceCreateReader && rr.reader != nil {
 		rr.closeReader()
@@ -126,11 +125,11 @@ func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (
 		rr.limit = -1
 	}
 
-	readerResponse.Size, err = rr.readFromExistingReader(ctx, req)
+	readResponse.Size, err = rr.readFromExistingReader(ctx, req)
 	if errors.Is(err, gcsx.FallbackToAnotherReader) {
-		readerResponse.Size, err = rr.readFromRangeReader(ctx, req.Buffer, req.Offset, req.EndOffset, req.ReadType)
+		readResponse.Size, err = rr.readFromRangeReader(ctx, req.Buffer, req.Offset, req.EndOffset, req.ReadType)
 	}
-	return readerResponse, err
+	return readResponse, err
 }
 
 // readFromRangeReader reads using the NewReader interface of go-sdk. It uses

@@ -187,10 +187,13 @@ params:
     default: true
     hide-flag: true
 
-  - config-path: "enable-unsupported-dir-support"
-    flag-name: "enable-unsupported-dir-support"
+  - config-path: "enable-unsupported-path-support"
+    flag-name: "enable-unsupported-path-support"
     type: "bool"
-    usage: "Enables support for un-supported directory fix implementation."
+    usage: >-
+      Enables support for file system paths with unsupported GCS names (e.g., names containing '//' or starting with /). 
+      When set, GCSFuse will ignore these objects during listing and copying operations. 
+      For rename and delete operations, the flag allows the action to proceed for all specified objects, including those with unsupported names.
     default: false
     hide-flag: true
 
@@ -482,6 +485,13 @@ params:
     default: false
     deprecated: true
     deprecation-warning: "Experimental flag: could be dropped even in a minor release."
+
+  - config-path: "gcs-connection.experimental-local-socket-address"
+    flag-name: "experimental-local-socket-address"
+    type: "string"
+    usage: "The local socket address to bind to. This is useful in multi-NIC scenarios. This is an experimental flag."
+    default: ""
+    hide-flag: true
 
   - config-path: "gcs-connection.grpc-conn-pool-size"
     flag-name: "experimental-grpc-conn-pool-size"
@@ -979,6 +989,17 @@ params:
     usage: >-
       Specifies the number of blocks to be prefetched on the first read.
     default: 1
+    hide-flag: true
+
+  - config-path: "workload-insight.forward-merge-threshold-mb"
+    flag-name: "workload-insight-forward-merge-threshold-mb"
+    type: "int"
+    usage: >-
+      The threshold in MB for merging forward sequential reads for workload
+      insights visualization.Reads within this threshold will be merged into
+      a single read operation. Applicable only when --visualize-workload-insight
+      is enabled.
+    default: 0
     hide-flag: true
 
   - config-path: "workload-insight.output-file"

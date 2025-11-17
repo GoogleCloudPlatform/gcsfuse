@@ -65,7 +65,7 @@ func (s *ignoreInterruptsTest) cloneRepository() (output []byte, err error) {
 	maxAttempts := 5
 	isRetryableError := func(err error) bool {
 		lowerErr := strings.ToLower(err.Error())
-		return strings.Contains(lowerErr, "could not resolve host") || strings.Contains(lowerErr, "could not read from remote repository")
+		return strings.Contains(lowerErr, "could not resolve host") || strings.Contains(lowerErr, "could not read from remote repository") || strings.Contains(lowerErr, "failed to connect to github.com")
 	}
 	for i := range maxAttempts {
 		output, err = operations.ExecuteToolCommandfInDirectory(testDirPath, tool, "clone %s", repoURL)

@@ -199,8 +199,8 @@ var machineTypeToGroupMap = map[string]string{
 }
 
 // ApplyOptimizations modifies the config in-place with optimized values.
-func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
-	var optimizedFlags []string
+func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationResult {
+	var optimizedFlags = make(map[string]OptimizationResult)
 	// Skip all optimizations if autoconfig is disabled.
 	if c.DisableAutoconfig {
 		return nil
@@ -222,7 +222,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(bool); ok {
 				if c.FileCache.CacheFileForRangeRead != val {
 					c.FileCache.CacheFileForRangeRead = val
-					optimizedFlags = append(optimizedFlags, "file-cache.cache-file-for-range-read")
+					optimizedFlags["file-cache.cache-file-for-range-read"] = result
 				}
 			}
 		}
@@ -234,7 +234,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(bool); ok {
 				if c.ImplicitDirs != val {
 					c.ImplicitDirs = val
-					optimizedFlags = append(optimizedFlags, "implicit-dirs")
+					optimizedFlags["implicit-dirs"] = result
 				}
 			}
 		}
@@ -246,7 +246,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.FileSystem.KernelListCacheTtlSecs != val {
 					c.FileSystem.KernelListCacheTtlSecs = val
-					optimizedFlags = append(optimizedFlags, "file-system.kernel-list-cache-ttl-secs")
+					optimizedFlags["file-system.kernel-list-cache-ttl-secs"] = result
 				}
 			}
 		}
@@ -258,7 +258,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.NegativeTtlSecs != val {
 					c.MetadataCache.NegativeTtlSecs = val
-					optimizedFlags = append(optimizedFlags, "metadata-cache.negative-ttl-secs")
+					optimizedFlags["metadata-cache.negative-ttl-secs"] = result
 				}
 			}
 		}
@@ -270,7 +270,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.TtlSecs != val {
 					c.MetadataCache.TtlSecs = val
-					optimizedFlags = append(optimizedFlags, "metadata-cache.ttl-secs")
+					optimizedFlags["metadata-cache.ttl-secs"] = result
 				}
 			}
 		}
@@ -282,7 +282,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.FileSystem.RenameDirLimit != val {
 					c.FileSystem.RenameDirLimit = val
-					optimizedFlags = append(optimizedFlags, "file-system.rename-dir-limit")
+					optimizedFlags["file-system.rename-dir-limit"] = result
 				}
 			}
 		}
@@ -294,7 +294,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.StatCacheMaxSizeMb != val {
 					c.MetadataCache.StatCacheMaxSizeMb = val
-					optimizedFlags = append(optimizedFlags, "metadata-cache.stat-cache-max-size-mb")
+					optimizedFlags["metadata-cache.stat-cache-max-size-mb"] = result
 				}
 			}
 		}
@@ -306,7 +306,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.TypeCacheMaxSizeMb != val {
 					c.MetadataCache.TypeCacheMaxSizeMb = val
-					optimizedFlags = append(optimizedFlags, "metadata-cache.type-cache-max-size-mb")
+					optimizedFlags["metadata-cache.type-cache-max-size-mb"] = result
 				}
 			}
 		}
@@ -318,7 +318,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.Write.GlobalMaxBlocks != val {
 					c.Write.GlobalMaxBlocks = val
-					optimizedFlags = append(optimizedFlags, "write.global-max-blocks")
+					optimizedFlags["write.global-max-blocks"] = result
 				}
 			}
 		}
@@ -361,7 +361,7 @@ type Config struct {
 
 	EnableNewReader bool `yaml:"enable-new-reader"`
 
-	EnableUnsupportedDirSupport bool `yaml:"enable-unsupported-dir-support"`
+	EnableUnsupportedPathSupport bool `yaml:"enable-unsupported-path-support"`
 
 	FileCache FileCacheConfig `yaml:"file-cache"`
 
@@ -491,6 +491,8 @@ type GcsConnectionConfig struct {
 
 	ExperimentalEnableJsonRead bool `yaml:"experimental-enable-json-read"`
 
+	ExperimentalLocalSocketAddress string `yaml:"experimental-local-socket-address"`
+
 	GrpcConnPoolSize int64 `yaml:"grpc-conn-pool-size"`
 
 	HttpClientTimeout time.Duration `yaml:"http-client-timeout"`
@@ -615,6 +617,8 @@ type ReadStallGcsRetriesConfig struct {
 }
 
 type WorkloadInsightConfig struct {
+	ForwardMergeThresholdMb int64 `yaml:"forward-merge-threshold-mb"`
+
 	OutputFile string `yaml:"output-file"`
 
 	Visualize bool `yaml:"visualize"`
@@ -804,9 +808,9 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-streaming-writes", "", true, "Enables streaming uploads during write file operation.")
 
-	flagSet.BoolP("enable-unsupported-dir-support", "", false, "Enables support for un-supported directory fix implementation.")
+	flagSet.BoolP("enable-unsupported-path-support", "", false, "Enables support for file system paths with unsupported GCS names (e.g., names containing '//' or starting with /).  When set, GCSFuse will ignore these objects during listing and copying operations.  For rename and delete operations, the flag allows the action to proceed for all specified objects, including those with unsupported names.")
 
-	if err := flagSet.MarkHidden("enable-unsupported-dir-support"); err != nil {
+	if err := flagSet.MarkHidden("enable-unsupported-path-support"); err != nil {
 		return err
 	}
 
@@ -831,6 +835,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.IntP("experimental-grpc-conn-pool-size", "", 1, "The number of gRPC channel in grpc client.")
 
 	if err := flagSet.MarkDeprecated("experimental-grpc-conn-pool-size", "Experimental flag: can be removed in a minor release."); err != nil {
+		return err
+	}
+
+	flagSet.StringP("experimental-local-socket-address", "", "", "The local socket address to bind to. This is useful in multi-NIC scenarios. This is an experimental flag.")
+
+	if err := flagSet.MarkHidden("experimental-local-socket-address"); err != nil {
 		return err
 	}
 
@@ -1134,6 +1144,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.IntP("workload-insight-forward-merge-threshold-mb", "", 0, "The threshold in MB for merging forward sequential reads for workload insights visualization.Reads within this threshold will be merged into a single read operation. Applicable only when --visualize-workload-insight is enabled.")
+
+	if err := flagSet.MarkHidden("workload-insight-forward-merge-threshold-mb"); err != nil {
+		return err
+	}
+
 	flagSet.StringP("workload-insight-output-file", "", "", "The file path where the workload insights will be written. If not specified, insights will be written to stdout")
 
 	if err := flagSet.MarkHidden("workload-insight-output-file"); err != nil {
@@ -1295,7 +1311,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("enable-unsupported-dir-support", flagSet.Lookup("enable-unsupported-dir-support")); err != nil {
+	if err := v.BindPFlag("enable-unsupported-path-support", flagSet.Lookup("enable-unsupported-path-support")); err != nil {
 		return err
 	}
 
@@ -1312,6 +1328,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-connection.grpc-conn-pool-size", flagSet.Lookup("experimental-grpc-conn-pool-size")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("gcs-connection.experimental-local-socket-address", flagSet.Lookup("experimental-local-socket-address")); err != nil {
 		return err
 	}
 
@@ -1620,6 +1640,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("workload-insight.visualize", flagSet.Lookup("visualize-workload-insight")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("workload-insight.forward-merge-threshold-mb", flagSet.Lookup("workload-insight-forward-merge-threshold-mb")); err != nil {
 		return err
 	}
 

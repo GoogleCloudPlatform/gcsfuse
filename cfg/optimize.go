@@ -43,11 +43,11 @@ const (
 // new value and the reason for the change.
 type OptimizationResult struct {
 	// FinalValue is the value after applying all the optimizations. This will be the same as the original value if optimizations didn't change anything.
-	FinalValue any
+	FinalValue any `yaml:"final_value" json:"final_value"`
 	// If value is optimized, then this will contain the description of what optimization caused the change, e.g. "profile aiml-training", or "machine-type a3-highgpu-8g" etc.
-	OptimizationReason string
+	OptimizationReason string `yaml:"optimization_reason" json:"optimization_reason"`
 	// Optimized true indicates that the value was changed by optimization (either machine-type based, or profile-based).
-	Optimized bool
+	Optimized bool `yaml:"-" json:"-"` // Field hidden from YAML and JSON to avoid it in logs.
 }
 
 type isValueSet interface {
@@ -59,24 +59,6 @@ type isValueSet interface {
 // flagOverride represents a flag override with its new value.
 type flagOverride struct {
 	newValue any
-}
-
-// flagOverrideSet represents a named set of flag overrides.
-type flagOverrideSet struct {
-	name      string
-	overrides map[string]flagOverride
-}
-
-// machineType represents a specific machine type with associated flag overrides.
-type machineType struct {
-	names               []string
-	flagOverrideSetName string
-}
-
-// optimizationConfig holds the configuration for machine-specific optimizations.
-type optimizationConfig struct {
-	flagOverrideSets []flagOverrideSet
-	machineTypes     []machineType
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -250,7 +232,7 @@ func getOptimizedValue(
 		if p.Name == profileName {
 			return OptimizationResult{
 				FinalValue:         p.Value,
-				OptimizationReason: fmt.Sprintf("profile %q setting", profileName),
+				OptimizationReason: fmt.Sprintf("profile %q", profileName),
 				Optimized:          true,
 			}
 		}
@@ -274,4 +256,39 @@ func getOptimizedValue(
 		FinalValue: currentValue,
 		Optimized:  false,
 	}
+}
+
+// CreateHierarchicalOptimizedFlags converts a flat map with dot-separated keys
+// into a nested map structure.
+// It returns an error if a key prefix conflict is detected.
+func CreateHierarchicalOptimizedFlags(flatMap map[string]OptimizationResult) (map[string]any, error) {
+	nestedMap := make(map[string]any)
+
+	for key, value := range flatMap {
+		parts := strings.Split(key, ".")
+		currentLevel := nestedMap
+
+		// Traverse the path and create intermediate maps.
+		for i, part := range parts[:len(parts)-1] {
+			// Intermediate part, ensure the next level map exists
+			if existingVal, exists := currentLevel[part]; exists {
+				if _, isMap := existingVal.(map[string]any); !isMap {
+					return nil, fmt.Errorf("key conflict: %q is both a path and a terminal key", strings.Join(parts[0:i+1], "."))
+				}
+				currentLevel = existingVal.(map[string]any)
+			} else {
+				newLevel := make(map[string]any)
+				currentLevel[part] = newLevel
+				currentLevel = newLevel
+			}
+		}
+
+		// Set the value at the final key.
+		lastKey := parts[len(parts)-1]
+		if _, exists := currentLevel[lastKey]; exists {
+			return nil, fmt.Errorf("key conflict: %q is both a path and a terminal key", key)
+		}
+		currentLevel[lastKey] = value
+	}
+	return nestedMap, nil
 }
