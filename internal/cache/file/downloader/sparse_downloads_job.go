@@ -34,7 +34,7 @@ import (
 // - error: non-nil if there was an error during the operation
 //
 // Note: The FileInfo in the cache is automatically updated by DownloadRange.
-func (job *Job) HandleSparseRead(ctx context.Context, offset, requiredOffset int64) (cacheHit bool, err error) {
+func (job *Job) HandleSparseRead(ctx context.Context, startOffset, endOffset int64) (cacheHit bool, err error) {
 	// Get current file info from cache
 	fileInfo, err := job.getFileInfo()
 	if err != nil {
@@ -42,13 +42,13 @@ func (job *Job) HandleSparseRead(ctx context.Context, offset, requiredOffset int
 	}
 
 	// Check if the requested range is already downloaded
-	if fileInfo.DownloadedRanges.ContainsRange(uint64(offset), uint64(requiredOffset)) {
+	if fileInfo.DownloadedRanges.ContainsRange(uint64(startOffset), uint64(endOffset)) {
 		// Range already downloaded, return cache hit
 		return true, nil
 	}
 
 	// Calculate the chunk boundaries to download
-	chunkStart, chunkEnd, err := job.calculateSparseChunkBoundaries(offset, requiredOffset)
+	chunkStart, chunkEnd, err := job.calculateSparseChunkBoundaries(startOffset, endOffset)
 	if err != nil {
 		return false, fmt.Errorf("HandleSparseRead: error calculating chunk boundaries: %w", err)
 	}
@@ -59,13 +59,13 @@ func (job *Job) HandleSparseRead(ctx context.Context, offset, requiredOffset int
 	}
 
 	// Verify the download was successful
-	cacheHit, err = job.verifySparseRangeDownloaded(offset, requiredOffset)
+	cacheHit, err = job.verifySparseRangeDownloaded(startOffset, endOffset)
 	if err != nil {
 		return false, fmt.Errorf("error verifying download: %w", err)
 	}
 
 	if !cacheHit {
-		return false, fmt.Errorf("cache miss after download: range [%d, %d) not found in downloaded ranges", offset, requiredOffset)
+		return false, fmt.Errorf("cache miss after download: range [%d, %d) not found in downloaded ranges", startOffset, endOffset)
 	}
 
 	return true, nil
@@ -99,9 +99,9 @@ func (job *Job) getFileInfo() (data.FileInfo, error) {
 // - chunkEnd is capped at the object size
 //
 // Uses DownloadChunkSizeMb from fileCacheConfig (default 200MB) for chunk size.
-func (job *Job) calculateSparseChunkBoundaries(offset, requiredOffset int64) (chunkStart, chunkEnd uint64, err error) {
-	if offset < 0 || requiredOffset < 0 || offset >= requiredOffset {
-		return 0, 0, fmt.Errorf("invalid offset range: [%d, %d)", offset, requiredOffset)
+func (job *Job) calculateSparseChunkBoundaries(startOffset, endOffset int64) (chunkStart, chunkEnd uint64, err error) {
+	if startOffset < 0 || endOffset < 0 || startOffset >= endOffset {
+		return 0, 0, fmt.Errorf("invalid offset range: [%d, %d)", startOffset, endOffset)
 	}
 
 	// Get the configured chunk size from fileCacheConfig
@@ -109,10 +109,10 @@ func (job *Job) calculateSparseChunkBoundaries(offset, requiredOffset int64) (ch
 
 	// Align chunk start and end to chunk boundaries
 	// Start: round down to chunk boundary
-	chunkStart = (uint64(offset) / chunkSize) * chunkSize
+	chunkStart = (uint64(startOffset) / chunkSize) * chunkSize
 
-	// End: round up requiredOffset to chunk boundary to ensure full coverage
-	chunkEnd = ((uint64(requiredOffset) + chunkSize - 1) / chunkSize) * chunkSize
+	// End: round up endOffset to chunk boundary to ensure full coverage
+	chunkEnd = ((uint64(endOffset) + chunkSize - 1) / chunkSize) * chunkSize
 
 	// Cap at object size
 	if chunkEnd > job.object.Size {
@@ -128,7 +128,7 @@ func (job *Job) calculateSparseChunkBoundaries(offset, requiredOffset int64) (ch
 // Returns:
 // - cacheHit: whether the range is present in the downloaded ranges
 // - err: any error that occurred while fetching the FileInfo
-func (job *Job) verifySparseRangeDownloaded(offset, requiredOffset int64) (cacheHit bool, err error) {
+func (job *Job) verifySparseRangeDownloaded(startOffset, endOffset int64) (cacheHit bool, err error) {
 	// Create file info key
 	fileInfoKey := data.FileInfoKey{
 		BucketName: job.bucket.Name(),
@@ -147,10 +147,10 @@ func (job *Job) verifySparseRangeDownloaded(offset, requiredOffset int64) (cache
 	fileInfo := fileInfoVal.(data.FileInfo)
 
 	// Check if the range is downloaded
-	cacheHit = fileInfo.DownloadedRanges != nil && fileInfo.DownloadedRanges.ContainsRange(uint64(offset), uint64(requiredOffset))
+	cacheHit = fileInfo.DownloadedRanges != nil && fileInfo.DownloadedRanges.ContainsRange(uint64(startOffset), uint64(endOffset))
 
-	logger.Tracef("Sparse file cache hit check: offset=%d, requiredOffset=%d, DownloadedRanges=%v, cacheHit=%t",
-		offset, requiredOffset, fileInfo.DownloadedRanges != nil, cacheHit)
+	logger.Tracef("Sparse file cache hit check: startOffset=%d, endOffset=%d, DownloadedRanges=%v, cacheHit=%t",
+		startOffset, endOffset, fileInfo.DownloadedRanges != nil, cacheHit)
 
 	return cacheHit, nil
 }
