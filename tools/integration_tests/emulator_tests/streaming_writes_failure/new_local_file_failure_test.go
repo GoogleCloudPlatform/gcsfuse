@@ -17,8 +17,8 @@ package streaming_writes_failure
 import (
 	"testing"
 
-	. "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/stretchr/testify/suite"
+	. "github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/client"
 )
 
 // //////////////////////////////////////////////////////////////////////

@@ -25,9 +25,9 @@ import (
 	"path/filepath"
 	"unsafe"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
 	"github.com/jacobsa/fuse/fsutil"
+	"github.com/vipnydav/gcsfuse/v3/cfg"
+	"github.com/vipnydav/gcsfuse/v3/internal/cache/data"
 )
 
 var (

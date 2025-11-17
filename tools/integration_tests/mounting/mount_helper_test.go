@@ -22,10 +22,10 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/canned"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
+	"github.com/vipnydav/gcsfuse/v3/internal/canned"
+	"github.com/vipnydav/gcsfuse/v3/tools/util"
 )
 
 func TestMountHelper(t *testing.T) { RunTests(t) }

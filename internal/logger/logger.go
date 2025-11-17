@@ -26,7 +26,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/vipnydav/gcsfuse/v3/cfg"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 

@@ -17,8 +17,8 @@ package gcsx
 import (
 	"context"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/stretchr/testify/mock"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/gcs"
 )
 
 type MockRandomReader struct {

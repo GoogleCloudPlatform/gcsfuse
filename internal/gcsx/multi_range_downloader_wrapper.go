@@ -21,12 +21,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/clock"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/vipnydav/gcsfuse/v3/cfg"
+	"github.com/vipnydav/gcsfuse/v3/internal/clock"
+	"github.com/vipnydav/gcsfuse/v3/internal/logger"
+	"github.com/vipnydav/gcsfuse/v3/internal/monitor"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/gcs"
+	"github.com/vipnydav/gcsfuse/v3/metrics"
 	"golang.org/x/net/context"
 )
 

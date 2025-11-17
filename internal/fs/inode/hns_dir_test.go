@@ -22,19 +22,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	storagemock "github.com/googlecloudplatform/gcsfuse/v3/internal/storage/mock"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"github.com/vipnydav/gcsfuse/v3/internal/cache/metadata"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/gcs"
+	storagemock "github.com/vipnydav/gcsfuse/v3/internal/storage/mock"
 
 	"golang.org/x/net/context"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
+	"github.com/vipnydav/gcsfuse/v3/internal/gcsx"
 )
 
 type hnsDirTest struct {

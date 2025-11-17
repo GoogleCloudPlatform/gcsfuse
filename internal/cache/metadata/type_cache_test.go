@@ -19,8 +19,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	. "github.com/jacobsa/ogletest"
+	"github.com/vipnydav/gcsfuse/v3/internal/util"
 )
 
 const (

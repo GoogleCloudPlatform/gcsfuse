@@ -19,8 +19,8 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/stretchr/testify/assert"
+	"github.com/vipnydav/gcsfuse/v3/metrics"
 )
 
 func TestFsErrStrAndCategory(t *testing.T) {

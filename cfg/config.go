@@ -19,9 +19,9 @@ package cfg
 import (
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"github.com/vipnydav/gcsfuse/v3/cfg/shared"
 )
 
 // AllFlagOptimizationRules is the generated map from a flag's config-path to its specific rules.

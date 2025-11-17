@@ -28,9 +28,9 @@ import (
 
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/operations"
+	"github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/setup"
 )
 
 const (

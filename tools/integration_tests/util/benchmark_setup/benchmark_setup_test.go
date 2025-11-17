@@ -18,8 +18,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/benchmark_setup"
 	"github.com/stretchr/testify/assert"
+	"github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/benchmark_setup"
 )
 
 type benchmarkStructure struct {

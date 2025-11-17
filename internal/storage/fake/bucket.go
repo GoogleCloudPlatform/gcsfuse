@@ -30,10 +30,10 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/gcs"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/storageutil"
 )
 
 var crc32cTable = crc32.MakeTable(crc32.Castagnoli)

@@ -29,8 +29,8 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/benchmarks/internal/format"
 	"github.com/jacobsa/fuse/fsutil"
+	"github.com/vipnydav/gcsfuse/v3/benchmarks/internal/format"
 )
 
 var fDir = flag.String("dir", "", "Directory within which to create the files.")

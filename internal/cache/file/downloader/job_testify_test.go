@@ -22,21 +22,21 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/fake"
+	"github.com/vipnydav/gcsfuse/v3/metrics"
 	"golang.org/x/net/context"
 	"golang.org/x/sync/semaphore"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	testutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"github.com/vipnydav/gcsfuse/v3/cfg"
+	"github.com/vipnydav/gcsfuse/v3/internal/cache/data"
+	"github.com/vipnydav/gcsfuse/v3/internal/cache/lru"
+	"github.com/vipnydav/gcsfuse/v3/internal/cache/util"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/gcs"
+	testutil "github.com/vipnydav/gcsfuse/v3/internal/util"
 )
 
 type JobTestifyTest struct {

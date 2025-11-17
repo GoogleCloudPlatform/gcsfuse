@@ -18,10 +18,10 @@ package local_file
 import (
 	"os"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
-	. "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/vipnydav/gcsfuse/v3/internal/fs/inode"
+	. "github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/operations"
+	"github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/setup"
 )
 
 func (t *LocalFileTestSuite) TestStatOnLocalFile() {

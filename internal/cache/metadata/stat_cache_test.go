@@ -18,12 +18,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"github.com/vipnydav/gcsfuse/v3/cfg"
+	"github.com/vipnydav/gcsfuse/v3/internal/cache/lru"
+	"github.com/vipnydav/gcsfuse/v3/internal/cache/metadata"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/gcs"
 )
 
 func TestStatCache(testSuite *testing.T) {

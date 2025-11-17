@@ -25,11 +25,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
-	testutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	. "github.com/jacobsa/ogletest"
+	"github.com/vipnydav/gcsfuse/v3/cfg"
+	"github.com/vipnydav/gcsfuse/v3/internal/cache/util"
+	testutil "github.com/vipnydav/gcsfuse/v3/internal/util"
+	"github.com/vipnydav/gcsfuse/v3/metrics"
 )
 
 // //////////////////////////////////////////////////////////////////////

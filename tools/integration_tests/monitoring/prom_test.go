@@ -24,16 +24,16 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
 	"github.com/pkg/xattr"
 	promclient "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/mounting"
+	"github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/vipnydav/gcsfuse/v3/tools/util"
 )
 
 const (

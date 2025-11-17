@@ -22,10 +22,10 @@ import (
 	"testing"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
+	"github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
+	"github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 const DirForExplicitDirTests = "dirForExplicitDirTests"

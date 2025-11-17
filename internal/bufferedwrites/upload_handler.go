@@ -25,9 +25,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/vipnydav/gcsfuse/v3/internal/block"
+	"github.com/vipnydav/gcsfuse/v3/internal/logger"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/gcs"
 )
 
 // UploadHandler is responsible for synchronized uploads of the filled blocks

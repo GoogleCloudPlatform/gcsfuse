@@ -28,10 +28,10 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
-	. "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/client"
+	. "github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/operations"
+	"github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/setup"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/stretchr/testify/assert"

@@ -24,22 +24,22 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/vipnydav/gcsfuse/v3/cfg"
+	"github.com/vipnydav/gcsfuse/v3/internal/cache/metadata"
+	"github.com/vipnydav/gcsfuse/v3/internal/contentcache"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/fake"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/gcs"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/vipnydav/gcsfuse/v3/internal/util"
 	"golang.org/x/net/context"
 	"golang.org/x/sync/semaphore"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
+	"github.com/vipnydav/gcsfuse/v3/internal/gcsx"
 )
 
 func TestDir(t *testing.T) { RunTests(t) }

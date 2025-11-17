@@ -18,10 +18,10 @@ import (
 	"testing"
 	"time"
 
-	gcstesting "github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake/testing"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
+	gcstesting "github.com/vipnydav/gcsfuse/v3/internal/storage/fake/testing"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
 

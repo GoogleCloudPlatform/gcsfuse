@@ -12,9 +12,9 @@ import (
 	time "time"
 	unsafe "unsafe"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	oglemock "github.com/jacobsa/oglemock"
+	"github.com/vipnydav/gcsfuse/v3/internal/cache/metadata"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/gcs"
 )
 
 type MockStatCache interface {

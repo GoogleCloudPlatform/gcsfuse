@@ -17,9 +17,9 @@ package read_manager
 import (
 	"context"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/stretchr/testify/mock"
+	"github.com/vipnydav/gcsfuse/v3/internal/gcsx"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/gcs"
 )
 
 type MockReadManager struct {

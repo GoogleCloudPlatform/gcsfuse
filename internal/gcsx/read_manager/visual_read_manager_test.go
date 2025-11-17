@@ -19,13 +19,13 @@ import (
 	"os"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/workloadinsight"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/vipnydav/gcsfuse/v3/cfg"
+	"github.com/vipnydav/gcsfuse/v3/internal/gcsx"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/gcs"
+	"github.com/vipnydav/gcsfuse/v3/internal/workloadinsight"
 )
 
 func TestNewVisualReadManager(t *testing.T) {

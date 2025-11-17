@@ -20,9 +20,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	. "github.com/jacobsa/ogletest"
+	"github.com/vipnydav/gcsfuse/v3/internal/cache/lru"
+	"github.com/vipnydav/gcsfuse/v3/internal/locker"
 )
 
 func TestCache(t *testing.T) { RunTests(t) }

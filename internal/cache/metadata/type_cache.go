@@ -19,8 +19,8 @@ import (
 	"math"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/vipnydav/gcsfuse/v3/internal/cache/lru"
+	"github.com/vipnydav/gcsfuse/v3/internal/util"
 )
 
 type Type int

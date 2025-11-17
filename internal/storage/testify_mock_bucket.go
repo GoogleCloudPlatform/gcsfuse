@@ -17,8 +17,8 @@ package storage
 import (
 	"context"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/stretchr/testify/mock"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/gcs"
 )
 
 // TODO: Rename to mock bucket once deprecated ogle mock bucket is removed from all usages in unit tests

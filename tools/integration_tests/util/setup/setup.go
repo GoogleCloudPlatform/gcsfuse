@@ -32,8 +32,8 @@ import (
 
 	"cloud.google.com/go/storage"
 	"cloud.google.com/go/storage/experimental"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
+	"github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/test_suite"
+	"github.com/vipnydav/gcsfuse/v3/tools/util"
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"google.golang.org/api/iterator"

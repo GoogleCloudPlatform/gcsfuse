@@ -23,8 +23,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/stretchr/testify/suite"
+	"github.com/vipnydav/gcsfuse/v3/cfg"
 )
 
 ////////////////////////////////////////////////////////////////////////

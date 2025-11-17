@@ -19,7 +19,7 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/vipnydav/gcsfuse/v3/internal/logger"
 )
 
 // staticWorkerPool starts all the workers (goroutines) on startup and keeps them running.

@@ -20,9 +20,9 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/gcs"
 	"google.golang.org/api/googleapi"
 )
 

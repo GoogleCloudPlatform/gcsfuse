@@ -28,14 +28,14 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
-	testutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	. "github.com/jacobsa/ogletest"
+	"github.com/vipnydav/gcsfuse/v3/internal/cache/data"
+	"github.com/vipnydav/gcsfuse/v3/internal/cache/lru"
+	"github.com/vipnydav/gcsfuse/v3/internal/cache/util"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/storageutil"
+	testutil "github.com/vipnydav/gcsfuse/v3/internal/util"
+	"github.com/vipnydav/gcsfuse/v3/metrics"
 	"golang.org/x/sync/semaphore"
 )
 

@@ -21,11 +21,11 @@ import (
 	"io"
 	"os"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
-	cacheutil "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/vipnydav/gcsfuse/v3/internal/cache/data"
+	cacheutil "github.com/vipnydav/gcsfuse/v3/internal/cache/util"
+	"github.com/vipnydav/gcsfuse/v3/internal/logger"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/gcs"
+	"github.com/vipnydav/gcsfuse/v3/metrics"
 	"golang.org/x/sync/errgroup"
 )
 

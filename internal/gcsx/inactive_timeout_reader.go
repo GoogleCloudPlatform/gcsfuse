@@ -20,10 +20,10 @@ import (
 	"time"
 
 	storagev2 "cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/clock"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/vipnydav/gcsfuse/v3/internal/clock"
+	"github.com/vipnydav/gcsfuse/v3/internal/locker"
+	"github.com/vipnydav/gcsfuse/v3/internal/logger"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
 

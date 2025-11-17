@@ -17,7 +17,7 @@ package storageutil
 import (
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/vipnydav/gcsfuse/v3/cfg"
 )
 
 const CustomEndpoint = "https://localhost:9000"

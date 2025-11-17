@@ -20,13 +20,13 @@ import (
 	"path"
 	"regexp"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/vipnydav/gcsfuse/v3/internal/cache/data"
+	"github.com/vipnydav/gcsfuse/v3/internal/cache/file/downloader"
+	"github.com/vipnydav/gcsfuse/v3/internal/cache/lru"
+	"github.com/vipnydav/gcsfuse/v3/internal/cache/util"
+	"github.com/vipnydav/gcsfuse/v3/internal/locker"
+	"github.com/vipnydav/gcsfuse/v3/internal/logger"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/gcs"
 )
 
 // CacheHandler is responsible for creating CacheHandle and invalidating file cache

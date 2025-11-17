@@ -24,9 +24,9 @@ import (
 	"path"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
+	"github.com/vipnydav/gcsfuse/v3/metrics"
 )
 
 ////////////////////////////////////////////////////////////////////////

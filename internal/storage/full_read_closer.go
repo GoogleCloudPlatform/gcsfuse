@@ -18,7 +18,7 @@ import (
 	"io"
 
 	storagev2 "cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/gcs"
 )
 
 // gcsFullReadCloser wraps a gcs.StorageReader and ensures that the Read call reads the entire response up to the buffer size even if the wrapped read returns data in smaller chunks.

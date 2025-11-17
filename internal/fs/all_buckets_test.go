@@ -19,11 +19,11 @@ import (
 	"os"
 	"path"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/fake"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/gcs"
 )
 
 ////////////////////////////////////////////////////////////////////////

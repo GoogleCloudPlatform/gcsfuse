@@ -18,9 +18,9 @@ import (
 	"os"
 	"path"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/storageutil"
 )
 
 ////////////////////////////////////////////////////////////////////////

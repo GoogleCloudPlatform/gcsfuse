@@ -22,7 +22,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
+	"github.com/vipnydav/gcsfuse/v3/cfg/shared"
 )
 
 ////////////////////////////////////////////////////////////////////////

@@ -21,10 +21,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"github.com/vipnydav/gcsfuse/v3/cfg"
 )
 
 ////////////////////////////////////////////////////////////////////////

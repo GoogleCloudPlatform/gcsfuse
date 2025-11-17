@@ -17,7 +17,7 @@ package gcsx
 import (
 	"sync/atomic"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/vipnydav/gcsfuse/v3/metrics"
 )
 
 // ReaderType enum values.

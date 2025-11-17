@@ -18,8 +18,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/vipnydav/gcsfuse/v3/internal/util"
 )
 
 func validLogRotateConfig() LogRotateLoggingConfig {

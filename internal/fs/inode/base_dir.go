@@ -18,15 +18,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/vipnydav/gcsfuse/v3/internal/locker"
+	"github.com/vipnydav/gcsfuse/v3/metrics"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/jacobsa/fuse"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/gcs"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
+	"github.com/vipnydav/gcsfuse/v3/internal/gcsx"
 	"golang.org/x/net/context"
 )
 

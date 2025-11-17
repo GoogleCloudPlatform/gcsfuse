@@ -26,9 +26,9 @@ import (
 	"regexp"
 	"sync"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/jacobsa/timeutil"
+	"github.com/vipnydav/gcsfuse/v3/internal/gcsx"
+	"github.com/vipnydav/gcsfuse/v3/internal/logger"
 )
 
 const CacheFilePrefix = "gcsfusecache"

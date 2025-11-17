@@ -17,10 +17,10 @@ package inode
 import (
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/timeutil"
+	"github.com/vipnydav/gcsfuse/v3/internal/gcsx"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/gcs"
 )
 
 // An inode representing a directory backed by an object in GCS with a specific

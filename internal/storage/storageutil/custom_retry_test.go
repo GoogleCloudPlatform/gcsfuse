@@ -22,8 +22,8 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/stretchr/testify/assert"
+	"github.com/vipnydav/gcsfuse/v3/metrics"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

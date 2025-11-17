@@ -24,8 +24,8 @@ import (
 	"io"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/gcs"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/storageutil"
 )
 
 // FakeObjectWriter is a mock implementation of storage.Writer used by FakeBucket.

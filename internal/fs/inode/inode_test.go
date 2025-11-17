@@ -17,8 +17,8 @@ package inode_test
 import (
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	"github.com/stretchr/testify/assert"
+	"github.com/vipnydav/gcsfuse/v3/internal/fs/inode"
 )
 
 func TestGenerationCompare(t *testing.T) {

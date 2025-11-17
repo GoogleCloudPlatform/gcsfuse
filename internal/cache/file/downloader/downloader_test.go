@@ -23,18 +23,18 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	testutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	. "github.com/jacobsa/ogletest"
 	"github.com/stretchr/testify/mock"
+	"github.com/vipnydav/gcsfuse/v3/cfg"
+	"github.com/vipnydav/gcsfuse/v3/internal/cache/data"
+	"github.com/vipnydav/gcsfuse/v3/internal/cache/lru"
+	"github.com/vipnydav/gcsfuse/v3/internal/cache/util"
+	"github.com/vipnydav/gcsfuse/v3/internal/locker"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/gcs"
+	testutil "github.com/vipnydav/gcsfuse/v3/internal/util"
+	"github.com/vipnydav/gcsfuse/v3/metrics"
+	"github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/operations"
 )
 
 var cacheDir = path.Join(os.Getenv("HOME"), "cache/dir")

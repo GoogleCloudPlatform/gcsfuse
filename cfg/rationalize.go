@@ -21,7 +21,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/vipnydav/gcsfuse/v3/internal/util"
 )
 
 // isSet interface is abstraction over the IsSet() method of viper, specially

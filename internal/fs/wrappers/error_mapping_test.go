@@ -21,9 +21,9 @@ import (
 	"testing"
 
 	"github.com/googleapis/gax-go/v2/apierror"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"github.com/vipnydav/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

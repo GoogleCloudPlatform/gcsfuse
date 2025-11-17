@@ -21,15 +21,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/fake"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/gcs"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/storageutil"
 	"golang.org/x/net/context"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/stretchr/testify/suite"
+	"github.com/vipnydav/gcsfuse/v3/internal/gcsx"
 
 	"github.com/jacobsa/timeutil"
 )

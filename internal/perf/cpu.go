@@ -22,7 +22,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/vipnydav/gcsfuse/v3/internal/logger"
 )
 
 func HandleCPUProfileSignals() {

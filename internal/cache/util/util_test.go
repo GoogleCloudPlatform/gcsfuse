@@ -27,12 +27,12 @@ import (
 	"testing"
 	"unsafe"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
-	testutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	. "github.com/jacobsa/ogletest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vipnydav/gcsfuse/v3/internal/cache/data"
+	testutil "github.com/vipnydav/gcsfuse/v3/internal/util"
+	"github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/operations"
 	"golang.org/x/net/context"
 )
 

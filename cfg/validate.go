@@ -20,7 +20,7 @@ import (
 	"math"
 	"regexp"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/vipnydav/gcsfuse/v3/internal/util"
 )
 
 const (

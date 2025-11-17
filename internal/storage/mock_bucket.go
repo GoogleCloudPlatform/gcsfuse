@@ -11,8 +11,8 @@ import (
 	runtime "runtime"
 	unsafe "unsafe"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	oglemock "github.com/jacobsa/oglemock"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/gcs"
 	context "golang.org/x/net/context"
 )
 

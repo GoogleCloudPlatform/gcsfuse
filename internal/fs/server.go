@@ -17,10 +17,10 @@ package fs
 import (
 	"fmt"
 
-	newcfg "github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/wrappers"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
+	newcfg "github.com/vipnydav/gcsfuse/v3/cfg"
+	"github.com/vipnydav/gcsfuse/v3/internal/fs/wrappers"
 	"golang.org/x/net/context"
 )
 

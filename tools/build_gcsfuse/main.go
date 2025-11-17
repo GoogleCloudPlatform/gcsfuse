@@ -95,7 +95,7 @@ func buildBinaries(dstDir, srcDir, version, arch string, buildArgs []string) (er
 
 	// Make it appear as if the source directory is at the appropriate position
 	// in $GOPATH.
-	gcsfuseDir := path.Join(gopath, "src/github.com/googlecloudplatform/gcsfuse")
+	gcsfuseDir := path.Join(gopath, "src/github.com/vipnydav/gcsfuse")
 	err = os.MkdirAll(path.Dir(gcsfuseDir), 0700)
 	if err != nil {
 		err = fmt.Errorf("MkdirAll: %w", err)
@@ -120,11 +120,11 @@ func buildBinaries(dstDir, srcDir, version, arch string, buildArgs []string) (er
 		outputPath string
 	}{
 		{
-			"github.com/googlecloudplatform/gcsfuse/v3",
+			"github.com/vipnydav/gcsfuse/v3",
 			"bin/gcsfuse",
 		},
 		{
-			"github.com/googlecloudplatform/gcsfuse/v3/tools/mount_gcsfuse",
+			"github.com/vipnydav/gcsfuse/v3/tools/mount_gcsfuse",
 			path.Join("sbin", mountHelperName),
 		},
 	}
@@ -145,7 +145,7 @@ func buildBinaries(dstDir, srcDir, version, arch string, buildArgs []string) (er
 			cmd.Args = append(
 				cmd.Args,
 				"-ldflags",
-				fmt.Sprintf("-X github.com/googlecloudplatform/gcsfuse/v3/common.gcsfuseVersion=%s", version),
+				fmt.Sprintf("-X github.com/vipnydav/gcsfuse/v3/common.gcsfuseVersion=%s", version),
 			)
 			cmd.Args = append(cmd.Args, buildArgs...)
 		}

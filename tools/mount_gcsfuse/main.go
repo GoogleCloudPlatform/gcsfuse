@@ -63,9 +63,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/mount"
 	"github.com/spf13/pflag"
+	"github.com/vipnydav/gcsfuse/v3/cfg"
+	"github.com/vipnydav/gcsfuse/v3/internal/mount"
 )
 
 func flagTypes(flagSet *pflag.FlagSet) (boolFlags, nonBoolFlags []string) {

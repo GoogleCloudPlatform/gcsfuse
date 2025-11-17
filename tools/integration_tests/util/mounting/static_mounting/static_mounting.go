@@ -19,9 +19,9 @@ import (
 	"log"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
+	"github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/mounting"
+	"github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 // TODO(b/438068132): cleanup deprecated methods after migration is complete.

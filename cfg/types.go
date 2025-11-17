@@ -20,7 +20,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/vipnydav/gcsfuse/v3/internal/util"
 )
 
 // Octal is the datatype for params such as file-mode and dir-mode which accept a base-8 value.

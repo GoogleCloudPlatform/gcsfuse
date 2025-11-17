@@ -28,7 +28,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
+	"github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/operations"
 )
 
 const PortAndProxyProcessIdInfoRegex = `Listening Proxy Server On Port \[(\d+)\] with Process ID \[(\d+)\]`

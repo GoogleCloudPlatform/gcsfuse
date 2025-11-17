@@ -17,8 +17,8 @@ package cmd
 import (
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/stretchr/testify/assert"
+	"github.com/vipnydav/gcsfuse/v3/cfg"
 )
 
 func TestGetFuseMountConfig_MountOptionsFormattedCorrectly(t *testing.T) {

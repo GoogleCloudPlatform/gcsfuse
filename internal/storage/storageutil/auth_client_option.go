@@ -20,8 +20,8 @@ import (
 
 	"cloud.google.com/go/auth"
 	"cloud.google.com/go/auth/oauth2adapt"
-	auth2 "github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	auth2 "github.com/vipnydav/gcsfuse/v3/internal/auth"
+	"github.com/vipnydav/gcsfuse/v3/internal/logger"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 )

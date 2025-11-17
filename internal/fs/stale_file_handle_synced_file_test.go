@@ -19,11 +19,11 @@ import (
 	"path"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/operations"
 )
 
 // //////////////////////////////////////////////////////////////////////

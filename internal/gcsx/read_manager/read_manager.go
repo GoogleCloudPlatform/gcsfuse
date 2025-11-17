@@ -19,17 +19,17 @@ import (
 	"errors"
 	"io"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/vipnydav/gcsfuse/v3/cfg"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedread"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
-	clientReaders "github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/client_readers"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/vipnydav/gcsfuse/v3/internal/bufferedread"
+	"github.com/vipnydav/gcsfuse/v3/internal/cache/file"
+	"github.com/vipnydav/gcsfuse/v3/internal/cache/util"
+	"github.com/vipnydav/gcsfuse/v3/internal/gcsx"
+	clientReaders "github.com/vipnydav/gcsfuse/v3/internal/gcsx/client_readers"
+	"github.com/vipnydav/gcsfuse/v3/internal/logger"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/gcs"
+	"github.com/vipnydav/gcsfuse/v3/internal/workerpool"
+	"github.com/vipnydav/gcsfuse/v3/metrics"
 	"golang.org/x/sync/semaphore"
 )
 

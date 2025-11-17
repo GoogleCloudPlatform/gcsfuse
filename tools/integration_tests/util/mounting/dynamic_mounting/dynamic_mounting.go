@@ -22,9 +22,9 @@ import (
 	"testing"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
+	"github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/mounting"
+	"github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/vipnydav/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 func MountGcsfuseWithDynamicMountingWithConfig(cfg *test_suite.TestConfig, flags []string) (err error) {

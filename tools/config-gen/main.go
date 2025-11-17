@@ -26,7 +26,7 @@ import (
 	"slices"
 	"text/template" // NOLINT
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
+	"github.com/vipnydav/gcsfuse/v3/cfg/shared"
 )
 
 var (

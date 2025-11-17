@@ -21,8 +21,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	. "github.com/jacobsa/ogletest"
+	"github.com/vipnydav/gcsfuse/v3/internal/storage/gcs"
 	storagev1 "google.golang.org/api/storage/v1"
 )
 

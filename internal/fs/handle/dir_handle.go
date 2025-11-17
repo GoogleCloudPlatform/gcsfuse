@@ -20,11 +20,11 @@ import (
 	"maps"
 	"slices"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
+	"github.com/vipnydav/gcsfuse/v3/internal/fs/inode"
+	"github.com/vipnydav/gcsfuse/v3/internal/locker"
 	"golang.org/x/net/context"
 )
 
