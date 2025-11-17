@@ -356,7 +356,7 @@ func TestGetInodeAttributes_Metrics(t *testing.T) {
 	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
-func TestReadFile_SequentialReadCache(t *testing.T) {
+func TestReadFile_FileCacheMetrics(t *testing.T) {
 	ctx := context.Background()
 	bucket, server, mh, reader := createTestFileSystemWithFileCache(ctx, t, defaultServerConfigParams())
 	server = wrappers.WithMonitoring(server, mh)
@@ -394,50 +394,22 @@ func TestReadFile_SequentialReadCache(t *testing.T) {
 	require.NoError(t, err, "ReadFile")
 	waitForMetricsProcessing()
 
-	attrs = attribute.NewSet(attribute.Bool("cache_hit", true))
-	metrics.VerifyCounterMetric(t, ctx, reader, "file_cache/read_bytes_count", attrs, int64(len(content)))
-}
+	metrics.VerifyCounterMetric(
+		t, ctx, reader, "file_cache/read_bytes_count",
+		attribute.NewSet(attribute.Bool("cache_hit", true)),
+		int64(len(content)),
+	)
 
-func TestReadFile_RandomReadCache(t *testing.T) {
-	ctx := context.Background()
-	bucket, server, mh, reader := createTestFileSystemWithFileCache(ctx, t, defaultServerConfigParams())
-	server = wrappers.WithMonitoring(server, mh)
-	fileName := "test.txt"
-	content := "test content"
-	createWithContents(ctx, t, bucket, fileName, content)
-	lookupOp := &fuseops.LookUpInodeOp{
-		Parent: fuseops.RootInodeID,
-		Name:   fileName,
-	}
-	err := server.LookUpInode(ctx, lookupOp)
-	require.NoError(t, err, "LookUpInode")
-	openOp := &fuseops.OpenFileOp{
-		Inode: lookupOp.Entry.Child,
-	}
-	err = server.OpenFile(ctx, openOp)
-	require.NoError(t, err, "OpenFile")
-	readOp := &fuseops.ReadFileOp{
-		Inode:  lookupOp.Entry.Child,
-		Handle: openOp.Handle,
-		Offset: 0,
-		Dst:    make([]byte, len(content)),
-	}
-
-	// First read should be a cache miss.
+	readOp.Offset = 5
 	err = server.ReadFile(ctx, readOp)
 	require.NoError(t, err, "ReadFile")
 	waitForMetricsProcessing()
 
-	// first read is a miss and second is a hit.
-	attrs := attribute.NewSet(attribute.Bool("cache_hit", false))
-	metrics.VerifyCounterMetric(t, ctx, reader, "file_cache/read_bytes_count", attrs, int64(len(content)))
-	// Subsequent read should be a cache hit.
-	err = server.ReadFile(ctx, readOp)
-	require.NoError(t, err, "ReadFile")
-	waitForMetricsProcessing()
-
-	attrs = attribute.NewSet(attribute.Bool("cache_hit", true))
-	metrics.VerifyCounterMetric(t, ctx, reader, "file_cache/read_bytes_count", attrs, int64(len(content)))
+	metrics.VerifyCounterMetric(
+		t, ctx, reader, "file_cache/read_bytes_count",
+		attribute.NewSet(attribute.Bool("cache_hit", true)),
+		int64(len(content))+7, // Previously read content length + 7 bytes from offset 5
+	)
 }
 
 func TestRemoveXattr_Metrics(t *testing.T) {
