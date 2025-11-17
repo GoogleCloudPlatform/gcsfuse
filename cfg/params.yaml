@@ -235,6 +235,13 @@ params:
     usage: "Enable parallel downloads."
     default: false
 
+  - config-path: "file-cache.enable-sparse-file"
+    flag-name: "file-cache-enable-sparse-file"
+    type: "bool"
+    usage: "Enable sparse file mode for random I/O optimization with partial downloads."
+    default: false
+    hide-flag: true
+
   - config-path: "file-cache.exclude-regex"
     flag-name: "file-cache-exclude-regex"
     type: "string"

@@ -59,9 +59,12 @@ type CacheHandler struct {
 
 	// includeRegex is the compiled regex for including files from cache
 	includeRegex *regexp.Regexp
+
+	// isSparse indicates whether sparse file mode is enabled
+	isSparse bool
 }
 
-func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode, excludeRegex string, includeRegex string) *CacheHandler {
+func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode, excludeRegex string, includeRegex string, isSparse bool) *CacheHandler {
 	var compiledExcludeRegex *regexp.Regexp
 	var compiledIncludeRegex *regexp.Regexp
 
@@ -77,6 +80,7 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 		mu:            locker.New("FileCacheHandler", func() {}),
 		excludeRegex:  compiledExcludeRegex,
 		includeRegex:  compiledIncludeRegex,
+		isSparse:      isSparse,
 	}
 }
 
@@ -188,14 +192,24 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 	}
 
 	if addEntryToCache {
-		fileInfo = data.FileInfo{
+		newFileInfo := data.FileInfo{
 			Key:              fileInfoKey,
 			ObjectGeneration: object.Generation,
 			Offset:           0,
 			FileSize:         object.Size,
+			SparseMode:       chr.isSparse,
+			DownloadedRanges: nil,
+		}
+		// For sparse files, set Offset to MaxUint64 as a sentinel to indicate
+		// sparse mode, so Offset < requiredOffset checks always fail
+		if chr.isSparse {
+			newFileInfo.Offset = ^uint64(0) // math.MaxUint64
+			// Use download chunk size for ByteRangeMap tracking granularity
+			chunkSizeBytes := uint64(chr.jobManager.DownloadChunkSizeMb()) * 1024 * 1024
+			newFileInfo.DownloadedRanges = data.NewByteRangeMap(chunkSizeBytes)
 		}
 
-		evictedValues, err := chr.fileInfoCache.Insert(fileInfoKeyName, fileInfo)
+		evictedValues, err := chr.fileInfoCache.Insert(fileInfoKeyName, newFileInfo)
 		if err != nil {
 			return fmt.Errorf("addFileInfoEntryAndCreateDownloadJob: while inserting into the cache: %w", err)
 		}
@@ -239,7 +253,7 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 	// If cacheForRangeRead is set to False, initialOffset is non-zero (i.e. random read)
 	// and entry for file doesn't already exist in fileInfoCache then no need to
 	// create file in cache.
-	if !cacheForRangeRead && initialOffset != 0 {
+	if !cacheForRangeRead && initialOffset != 0 && !chr.isSparse {
 		fileInfoKey := data.FileInfoKey{
 			BucketName: bucket.Name(),
 			ObjectName: object.Name,

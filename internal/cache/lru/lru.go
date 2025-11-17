@@ -269,6 +269,27 @@ func (c *Cache) UpdateWithoutChangingOrder(
 	return nil
 }
 
+// UpdateSize updates the currentSize accounting when an entry's size has changed.
+// This is needed for entries whose size grows incrementally (e.g., sparse files).
+// Eviction is deferred until the next Insert() call.
+// The entry's order in the LRU is not changed.
+func (c *Cache) UpdateSize(key string, sizeDelta uint64) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	_, ok := c.index[key]
+	if !ok {
+		return ErrEntryNotExist
+	}
+
+	// Update currentSize accounting
+	// Note: This may temporarily violate currentSize <= maxSize invariant
+	// Eviction will happen on the next Insert() call
+	c.currentSize += sizeDelta
+
+	return nil
+}
+
 func (c *Cache) EraseEntriesWithGivenPrefix(prefix string) {
 	for key := range c.index {
 		if strings.HasPrefix(key, prefix) {

@@ -421,6 +421,8 @@ type FileCacheConfig struct {
 
 	EnableParallelDownloads bool `yaml:"enable-parallel-downloads"`
 
+	EnableSparseFile bool `yaml:"enable-sparse-file"`
+
 	ExcludeRegex string `yaml:"exclude-regex"`
 
 	ExperimentalParallelDownloadsDefaultOn bool `yaml:"experimental-parallel-downloads-default-on"`
@@ -883,6 +885,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.BoolP("file-cache-enable-parallel-downloads", "", false, "Enable parallel downloads.")
+
+	flagSet.BoolP("file-cache-enable-sparse-file", "", false, "Enable sparse file mode for random I/O optimization with partial downloads.")
+
+	if err := flagSet.MarkHidden("file-cache-enable-sparse-file"); err != nil {
+		return err
+	}
 
 	flagSet.StringP("file-cache-exclude-regex", "", "", "Exclude file paths (in the format bucket_name/object_key) specified by this regex from file caching.")
 
@@ -1360,6 +1368,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-cache.enable-parallel-downloads", flagSet.Lookup("file-cache-enable-parallel-downloads")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-cache.enable-sparse-file", flagSet.Lookup("file-cache-enable-sparse-file")); err != nil {
 		return err
 	}
 
