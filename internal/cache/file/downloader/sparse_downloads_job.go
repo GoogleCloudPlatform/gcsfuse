@@ -87,7 +87,12 @@ func (job *Job) getFileInfo() (data.FileInfo, error) {
 		return data.FileInfo{}, fmt.Errorf("file info not found in cache")
 	}
 
-	return fileInfoVal.(data.FileInfo), nil
+	fileInfo, ok := fileInfoVal.(data.FileInfo)
+	if !ok {
+		return data.FileInfo{}, fmt.Errorf("getFileInfo: cached value has wrong type")
+	}
+
+	return fileInfo, nil
 }
 
 // calculateSparseChunkBoundaries calculates the aligned chunk boundaries
