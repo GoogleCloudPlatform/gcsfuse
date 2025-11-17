@@ -35,7 +35,7 @@ var (
 	// tasks to read from a fixed dummy buffer instead of GCS. This is intended
 	// for performance testing and isolating download-related bottlenecks. To
 	// enable, change this to true and recompile.
-	useDummyReaderForPerformanceTesting = false
+	useDummyReaderForPerformanceTesting = true
 	dummyBufferForPerformanceTesting    []byte
 )
 
@@ -98,14 +98,6 @@ func (p *downloadTask) Execute() {
 	end := min(start+uint64(p.block.Cap()), p.object.Size)
 	var newReader io.ReadCloser
 	if useDummyReaderForPerformanceTesting {
-		bytesToRead := int64(end - start)
-		if int64(len(dummyBufferForPerformanceTesting)) < bytesToRead {
-			err = fmt.Errorf(
-				"dummy buffer for performance testing is too small: buffer size %d, need %d",
-				len(dummyBufferForPerformanceTesting),
-				bytesToRead)
-			return
-		}
 		newReader = io.NopCloser(bytes.NewReader(dummyBufferForPerformanceTesting))
 	} else {
 		newReader, err = p.bucket.NewReaderWithReadHandle(
