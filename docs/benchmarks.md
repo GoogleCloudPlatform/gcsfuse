@@ -22,17 +22,17 @@ workloads for the given test setup:
 ---
 
 ### Sequential Reads
-| File Size | BlockSize | NRFiles | NumJobs | **Avg Bandwidth (GB/s)** | **Avg IOPS** | **Avg Latency (msec)** |
-| :---      | :---      | ---:    | ---:    | ---:                     | ---:         | ---:                   |
-| 128 KiB   | 128 KiB   | 192     | 30      |                     1.30 | 9,947.74     | 0.10                   |
-| 256 KiB   | 128 KiB   | 192     | 30      |                     2.54 | 19,375.51    | 0.05                   |
-| 1 MiB     | 1 MiB     | 192     | 30      |                     6.20 | 5,917.49     | 0.17                   |
-| 5 MiB     | 1 MiB     | 192     | 20      |                    12.39 | 11,820.68    | 0.08                   |
-| 10 MiB    | 1 MiB     | 192     | 20      |                    14.49 | 13,818.61    | 0.07                   |
-| 50 MiB    | 1 MiB     | 192     | 20      |                    13.81 | 13,168.52    | 0.08                   |
-| 100 MiB   | 1 MiB     | 144     | 10      |                    13.43 | 12,811.09    | 0.08                   |
-| 200 MiB   | 1 MiB     | 144     | 10      |                    13.26 | 12,647.36    | 0.08                   |
-| 1 GiB     | 1 MiB     | 144     | 10      |                    14.20 | 13,540.29    | 0.07                   |
+| File Size | BlockSize | NRFiles | NumJobs | **Avg Bandwidth (GB/s)** | **Avg IOPS (K)** | **Avg Latency (msec)** |
+| :---      | :---      | ---:    | ---:    | ---:                     | ---:             | ---:                   |
+| 128 KiB   | 128 KiB   | 192     | 30      |                     1.30 |             9.95 | 0.10                   |
+| 256 KiB   | 128 KiB   | 192     | 30      |                     2.54 |            19.38 | 0.05                   |
+| 1 MiB     | 1 MiB     | 192     | 30      |                     6.20 |             5.92 | 0.17                   |
+| 5 MiB     | 1 MiB     | 192     | 20      |                    12.39 |            11.82 | 0.08                   |
+| 10 MiB    | 1 MiB     | 192     | 20      |                    14.49 |            13.82 | 0.07                   |
+| 50 MiB    | 1 MiB     | 192     | 20      |                    13.81 |            13.17 | 0.08                   |
+| 100 MiB   | 1 MiB     | 144     | 10      |                    13.43 |            12.81 | 0.08                   |
+| 200 MiB   | 1 MiB     | 144     | 10      |                    13.26 |            12.65 | 0.08                   |
+| 1 GiB     | 1 MiB     | 144     | 10      |                    14.20 |            13.54 | 0.07                   |
 
 #### GCSFuse Mount Option and fio configuration
 <details>
@@ -73,15 +73,15 @@ nrfiles=${NRFILES}
 ---
 
 ### Random Reads
-| File Size | BlockSize | NRFiles | NumJobs | **Avg Bandwidth (GB/s)** | **Avg IOPS** | **Avg Latency (msec)** |
-| :---      | :---      | ---:    | ---:    | ---:                     | ---:         | ---:                   |
-| 256 KiB   | 128 KiB   | 192     | 30      |                     1.59 | 12,142.02    | 0.08                   |
-| 5 MiB     | 1 MiB     | 192     | 20      |                     5.01 | 4,782.28     | 0.21                   |
-| 10 MiB    | 1 MiB     | 192     | 20      |                     4.20 | 4,003.21     | 0.25                   |
-| 50 MiB    | 1 MiB     | 192     | 20      |                     4.42 | 4,216.24     | 0.24                   |
-| 100 MiB   | 1 MiB     | 192     | 10      |                     4.45 | 4,248.22     | 0.24                   |
-| 200 MiB   | 1 MiB     | 192     | 10      |                     4.21 | 4,009.95     | 0.25                   |
-| 1 GiB     | 1 MiB     | 192     | 10      |                     4.11 | 3,916.94     | 0.26                   |
+| File Size | BlockSize | NRFiles | NumJobs | **Avg Bandwidth (GB/s)** | **Avg IOPS (K)** | **Avg Latency (msec)** |
+| :---      | :---      | ---:    | ---:    | ---:                     | ---:             | ---:                   |
+| 256 KiB   | 128 KiB   | 192     | 30      |                     1.59 |            12.14 | 0.08                   |
+| 5 MiB     | 1 MiB     | 192     | 20      |                     5.01 |             4.78 | 0.21                   |
+| 10 MiB    | 1 MiB     | 192     | 20      |                     4.20 |             4.00 | 0.25                   |
+| 50 MiB    | 1 MiB     | 192     | 20      |                     4.42 |             4.22 | 0.24                   |
+| 100 MiB   | 1 MiB     | 192     | 10      |                     4.45 |             4.25 | 0.24                   |
+| 200 MiB   | 1 MiB     | 192     | 10      |                     4.21 |             4.01 | 0.25                   |
+| 1 GiB     | 1 MiB     | 192     | 10      |                     4.11 |             3.92 | 0.26                   |
 
 #### GCSFuse Mount Option and fio configuration
 <details>
@@ -122,14 +122,14 @@ nrfiles=${NRFILES}
 ---
 
 ### Sequential Writes
-| File Size | BlockSize | NRFiles | NumJobs | **Avg Bandwidth (GB/s)** | **Avg IOPS** | **Avg Latency (msec)** |
-| :---      | :---      | ---:    | ---:    | ---:                     | ---:         | ---:                   |
-| 256 KiB   | 16 KiB    | 96      | 30      |                     0.17 | 10,430.00    | 0.10                   |
-| 1 MiB     | 1 MiB     | 96      | 30      |                     0.53 | 504.00       | 1.98                   |
-| 50 MiB    | 1 MiB     | 96      | 30      |                     3.58 | 3,415.15     | 0.29                   |
-| 100 MiB   | 1 MiB     | 96      | 20      |                     4.06 | 3,873.18     | 0.26                   |
-| 500 MiB   | 1 MiB     | 96      | 20      |                     4.57 | 4,357.39     | 0.23                   |
-| 1 GiB     | 1 MiB     | 96      | 10      |                     4.62 | 4,410.39     | 0.23                   |
+| File Size | BlockSize | NRFiles | NumJobs | **Avg Bandwidth (GB/s)** | **Avg IOPS (K)** | **Avg Latency (msec)** |
+| :---      | :---      | ---:    | ---:    | ---:                     | ---:             | ---:                   |
+| 256 KiB   | 16 KiB    | 96      | 30      |                     0.17 |            10.43 | 0.10                   |
+| 1 MiB     | 1 MiB     | 96      | 30      |                     0.53 |             0.50 | 1.98                   |
+| 50 MiB    | 1 MiB     | 96      | 30      |                     3.58 |             3.42 | 0.29                   |
+| 100 MiB   | 1 MiB     | 96      | 20      |                     4.06 |             3.87 | 0.26                   |
+| 500 MiB   | 1 MiB     | 96      | 20      |                     4.57 |             4.36 | 0.23                   |
+| 1 GiB     | 1 MiB     | 96      | 10      |                     4.62 |             4.41 | 0.23                   |
 
 #### GCSFuse Mount Option and fio configuration
 <details>
