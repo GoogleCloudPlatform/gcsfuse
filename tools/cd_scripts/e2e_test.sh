@@ -303,7 +303,7 @@ TEST_DIR_PARALLEL=(
   "negative_stat_cache"
   "streaming_writes"
   "release_version"
-  # Reenable when b/459305966 is done.
+  # Reenable when b/461334834 is done.
   # "readdirplus"
   # "dentry_cache"
   "buffered_read"
@@ -324,7 +324,7 @@ TEST_DIR_NON_PARALLEL=(
 TEST_DIR_PARALLEL_ZONAL=(
   buffered_read
   concurrent_operations
-  # Reenable when b/459305966 is done.
+  # Reenable when b/461334834 is done.
   # dentry_cache
   explicit_dir
   flag_optimizations
@@ -341,7 +341,7 @@ TEST_DIR_PARALLEL_ZONAL=(
   operations
   rapid_appends
   read_large_files
-  # Reenable when b/459305966 is done.
+  # Reenable when b/461334834 is done.
   # readdirplus
   release_version
   rename_dir_limit
