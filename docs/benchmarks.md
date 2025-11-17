@@ -1,6 +1,6 @@
 # GCSFuse Performance Benchmarks
 
-[fio](https://fio.readthedocs.io/en/latest/) is used to perform load tests on
+[FIO](https://fio.readthedocs.io/en/latest/) is used to perform load tests on
 GCSFuse. The tables below show performance metrics of GCSFuse for different
 workloads for the given test setup:
 
