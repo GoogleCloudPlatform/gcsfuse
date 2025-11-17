@@ -49,27 +49,19 @@
   - 100000
 
 - metric-name: "file_cache/read_bytes_count"
-  description: "The cumulative number of bytes read from file cache along with read type - Sequential/Random"
+  description: "The cumulative number of bytes read from file cache."
   unit: "By"
-  type: "int_counter"
-  attributes:
-  - attribute-name: read_type
-    attribute-type: string
-    values: &read_types_list
-    - "Parallel"
-    - "Random"
-    - "Sequential"
-    - "Unknown"
-
-- metric-name: "file_cache/read_count"
-  description: "Specifies the number of read requests made via file cache along with type - Sequential/Random and cache hit - true/false"
   type: "int_counter"
   attributes:
   - attribute-name: cache_hit
     attribute-type: bool
-  - attribute-name: read_type
-    attribute-type: string
-    values: *read_types_list
+
+- metric-name: "file_cache/read_count"
+  description: "Specifies the number of read requests made via file cache and cache hit - true/false"
+  type: "int_counter"
+  attributes:
+  - attribute-name: cache_hit
+    attribute-type: bool
 
 - metric-name: "file_cache/read_latencies"
   description: "The cumulative distribution of the file cache read latencies along with cache hit - true/false."
@@ -180,7 +172,11 @@
   attributes:
   - attribute-name: read_type
     attribute-type: string
-    values: *read_types_list
+    values:
+    - "Parallel"
+    - "Random"
+    - "Sequential"
+    - "Unknown"
 
 - metric-name: "gcs/reader_count"
   description: "The cumulative number of GCS object readers opened or closed."

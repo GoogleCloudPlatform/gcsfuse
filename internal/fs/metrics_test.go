@@ -16,6 +16,7 @@ package fs_test
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -64,6 +65,57 @@ func createTestFileSystemWithMetrics(ctx context.Context, t *testing.T, params *
 	bucket := fake.NewFakeBucket(timeutil.RealClock(), bucketName, gcs.BucketType{Hierarchical: false})
 	serverCfg := &fs.ServerConfig{
 		NewConfig: &cfg.Config{
+			Write: cfg.WriteConfig{
+				GlobalMaxBlocks: 1,
+			},
+			Read: cfg.ReadConfig{
+				EnableBufferedRead: params.enableBufferedRead,
+				GlobalMaxBlocks:    1,
+				BlockSizeMb:        1,
+				MaxBlocksPerHandle: 10,
+			},
+			EnableNewReader: params.enableNewReader,
+		},
+		MetricHandle: mh,
+		CacheClock:   &timeutil.SimulatedClock{},
+		BucketName:   bucketName,
+		BucketManager: &fakeBucketManager{
+			buckets: map[string]gcs.Bucket{
+				bucketName: bucket,
+			},
+		},
+		SequentialReadSizeMb: 200,
+	}
+	server, err := fs.NewFileSystem(ctx, serverCfg)
+	require.NoError(t, err, "NewFileSystem")
+	return bucket, server, mh, reader
+}
+
+func createTestFileSystemWithFileCache(ctx context.Context, t *testing.T, params *serverConfigParams) (gcs.Bucket, fuseutil.FileSystem, metrics.MetricHandle, *metric.ManualReader) {
+	t.Helper()
+	// Define a cache directory and ensure it exists.
+	cacheDir, err := os.MkdirTemp("", "gcsfuse_test")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		os.RemoveAll(cacheDir)
+	})
+	origProvider := otel.GetMeterProvider()
+	t.Cleanup(func() { otel.SetMeterProvider(origProvider) })
+	reader := metric.NewManualReader()
+	provider := metric.NewMeterProvider(metric.WithReader(reader))
+	otel.SetMeterProvider(provider)
+
+	mh, err := metrics.NewOTelMetrics(ctx, 1, 100)
+	require.NoError(t, err, "metrics.NewOTelMetrics")
+	bucketName := "test-bucket"
+	bucket := fake.NewFakeBucket(timeutil.RealClock(), bucketName, gcs.BucketType{Hierarchical: false})
+	serverCfg := &fs.ServerConfig{
+		NewConfig: &cfg.Config{
+			FileCache: cfg.FileCacheConfig{
+				MaxSizeMb:             1,
+				CacheFileForRangeRead: true,
+			},
+			CacheDir: cfg.ResolvedPath(cacheDir),
 			Write: cfg.WriteConfig{
 				GlobalMaxBlocks: 1,
 			},
@@ -302,6 +354,90 @@ func TestGetInodeAttributes_Metrics(t *testing.T) {
 	attrs := attribute.NewSet(attribute.String("fs_op", "GetInodeAttributes"))
 	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
 	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestReadFile_SequentialReadCache(t *testing.T) {
+	ctx := context.Background()
+	bucket, server, mh, reader := createTestFileSystemWithFileCache(ctx, t, defaultServerConfigParams())
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test.txt"
+	content := "test content"
+	createWithContents(ctx, t, bucket, fileName, content)
+	lookupOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookupOp)
+	require.NoError(t, err, "LookUpInode")
+	openOp := &fuseops.OpenFileOp{
+		Inode: lookupOp.Entry.Child,
+	}
+	err = server.OpenFile(ctx, openOp)
+	require.NoError(t, err, "OpenFile")
+	readOp := &fuseops.ReadFileOp{
+		Inode:  lookupOp.Entry.Child,
+		Handle: openOp.Handle,
+		Offset: 0,
+		Dst:    make([]byte, len(content)),
+	}
+
+	// First read should be a cache miss.
+	err = server.ReadFile(ctx, readOp)
+	require.NoError(t, err, "ReadFile")
+	waitForMetricsProcessing()
+
+	// first read is a miss and second is a hit.
+	attrs := attribute.NewSet(attribute.Bool("cache_hit", false))
+	metrics.VerifyCounterMetric(t, ctx, reader, "file_cache/read_bytes_count", attrs, int64(len(content)))
+	// Subsequent read should be a cache hit.
+	err = server.ReadFile(ctx, readOp)
+	require.NoError(t, err, "ReadFile")
+	waitForMetricsProcessing()
+
+	attrs = attribute.NewSet(attribute.Bool("cache_hit", true))
+	metrics.VerifyCounterMetric(t, ctx, reader, "file_cache/read_bytes_count", attrs, int64(len(content)))
+}
+
+func TestReadFile_RandomReadCache(t *testing.T) {
+	ctx := context.Background()
+	bucket, server, mh, reader := createTestFileSystemWithFileCache(ctx, t, defaultServerConfigParams())
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test.txt"
+	content := "test content"
+	createWithContents(ctx, t, bucket, fileName, content)
+	lookupOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookupOp)
+	require.NoError(t, err, "LookUpInode")
+	openOp := &fuseops.OpenFileOp{
+		Inode: lookupOp.Entry.Child,
+	}
+	err = server.OpenFile(ctx, openOp)
+	require.NoError(t, err, "OpenFile")
+	readOp := &fuseops.ReadFileOp{
+		Inode:  lookupOp.Entry.Child,
+		Handle: openOp.Handle,
+		Offset: 0,
+		Dst:    make([]byte, len(content)),
+	}
+
+	// First read should be a cache miss.
+	err = server.ReadFile(ctx, readOp)
+	require.NoError(t, err, "ReadFile")
+	waitForMetricsProcessing()
+
+	// first read is a miss and second is a hit.
+	attrs := attribute.NewSet(attribute.Bool("cache_hit", false))
+	metrics.VerifyCounterMetric(t, ctx, reader, "file_cache/read_bytes_count", attrs, int64(len(content)))
+	// Subsequent read should be a cache hit.
+	err = server.ReadFile(ctx, readOp)
+	require.NoError(t, err, "ReadFile")
+	waitForMetricsProcessing()
+
+	attrs = attribute.NewSet(attribute.Bool("cache_hit", true))
+	metrics.VerifyCounterMetric(t, ctx, reader, "file_cache/read_bytes_count", attrs, int64(len(content)))
 }
 
 func TestRemoveXattr_Metrics(t *testing.T) {
