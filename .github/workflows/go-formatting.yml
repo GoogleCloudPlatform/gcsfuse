@@ -1,0 +1,51 @@
+name: Go Formatting
+
+on:
+ pull_request_target:
+   paths:
+     - "**.go"
+   types: [opened, synchronize, reopened, labeled, unlabeled]
+
+defaults:
+ run:
+   shell: bash
+
+jobs:
+ reformat_with_goimports:
+   runs-on: ubuntu-latest
+   permissions:
+     # Write permissions are required to commit changes back to the PR branch.
+     contents: write
+   steps:
+     - name: Checkout branch
+       uses: actions/checkout@v4
+       with:
+         # Check out the head of the pull request.
+         repository: ${{ github.event.pull_request.head.repo.full_name }}
+         ref: ${{ github.event.pull_request.head.ref }}
+         # A token with write permissions is needed to push changes.
+         token: ${{ secrets.GO_REFORMAT_TOKEN }}
+
+     - name: Set up Go
+       uses: actions/setup-go@v5
+       with:
+         go-version: '1.24' # Using the same Go version as your CI
+
+     - name: Install goimports
+       run: go install golang.org/x/tools/cmd/goimports@latest
+
+     - name: Run goimports
+       run: |
+         # The -w flag writes the changes directly to the files.
+        goimports -w .
+
+     - name: Commit changes
+       uses: EndBug/add-and-commit@v9
+       with:
+         # The message for the formatting commit.
+         message: "style: apply goimports formatting"
+         # Use the same author as the last commit to avoid CI loops.
+         author_name: ${{ github.actor }}
+         author_email: ${{ github.actor }}@users.noreply.github.com
+         # Signoff the commit.
+         commit: --signoff
