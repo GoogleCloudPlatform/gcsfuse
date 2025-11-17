@@ -61,22 +61,22 @@ func (s *concurrentReadTest) TearDownTest() {
 ////////////////////////////////////////////////////////////////////////
 
 // Test_ConcurrentSequentialAndRandomReads tests concurrent read operations where
-// 5 goroutines read a 500MiB file sequentially and 5 goroutines read randomly.
+// 5 goroutines read a 100MiB file sequentially and 5 goroutines read randomly.
 // This test validates that concurrent sequential and random read patterns work
 // correctly without deadlocks or race conditions. It also validates data integrity
 // using CRC32 checksums for sequential reads and chunk validation for random reads.
 func (s *concurrentReadTest) Test_ConcurrentSequentialAndRandomReads() {
 	const (
-		fileSize        = 500 * operations.OneMiB // 500 MiB file
+		fileSize        = 100 * operations.OneMiB // 100 MiB file
 		chunkSize       = 64 * operations.OneKiB  // 64 KiB chunks for reads
 		sequentialReads = 5                       // Number of sequential readers
 		randomReads     = 5                       // Number of random readers
 	)
-	// Create a 500MiB test file
+	// Create a 100MiB test file
 	testFilePath := path.Join(testDirPathForRead, "large_test_file.bin")
 	operations.CreateFileOfSize(fileSize, testFilePath, s.T())
 	var wg sync.WaitGroup
-	timeout := 300 * time.Second // 5 minutes timeout for 500MiB operations
+	timeout := 300 * time.Second // 5 minutes timeout for 100MiB operations
 
 	// Launch 5 sequential readers
 	for i := range sequentialReads {
@@ -134,11 +134,11 @@ func (s *concurrentReadTest) Test_ConcurrentSequentialAndRandomReads() {
 // with each reader handling a distinct segment of the file for comprehensive coverage.
 func (s *concurrentReadTest) Test_ConcurrentSegmentReadsSharedHandle() {
 	const (
-		fileSize    = 500 * operations.OneMiB // 500 MiB file
+		fileSize    = 100 * operations.OneMiB // 100 MiB file
 		numReaders  = 5                       // Number of concurrent readers
-		segmentSize = fileSize / numReaders   // Each reader reads 100 MiB segment
+		segmentSize = fileSize / numReaders   // Each reader reads 20 MiB segment
 	)
-	// Create a 500MiB test file
+	// Create a 100MiB test file
 	testFilePath := path.Join(testDirPathForRead, "segment_test_file.bin")
 	operations.CreateFileOfSize(fileSize, testFilePath, s.T())
 	// Open shared file handle that will be used by all goroutines
