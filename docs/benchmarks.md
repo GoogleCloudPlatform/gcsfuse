@@ -22,7 +22,7 @@ workloads for the given test setup:
 ---
 
 ### Sequential Reads
-| File Size | BlockSize | NRFiles | NumJobs | **Avg Bandwidth (GB/s)** | **Avg IOPS (K)** | **Avg Latency (msec)** |
+| File Size | BlockSize | NumJobs | NRFiles | **Avg Bandwidth (GB/s)** | **Avg IOPS (K)** | **Avg Latency (msec)** |
 | :---      | :---      | ---:    | ---:    | ---:                     | ---:             | ---:                   |
 | 128 KiB   | 128 KiB   | 192     | 30      |                     1.30 |             9.95 | 0.10                   |
 | 256 KiB   | 128 KiB   | 192     | 30      |                     2.54 |            19.38 | 0.05                   |
@@ -72,7 +72,7 @@ nrfiles=${NRFILES}
 ---
 
 ### Random Reads
-| File Size | BlockSize | NRFiles | NumJobs | **Avg Bandwidth (GB/s)** | **Avg IOPS (K)** | **Avg Latency (msec)** |
+| File Size | BlockSize | NumJobs | NRFiles | **Avg Bandwidth (GB/s)** | **Avg IOPS (K)** | **Avg Latency (msec)** |
 | :---      | :---      | ---:    | ---:    | ---:                     | ---:             | ---:                   |
 | 256 KiB   | 128 KiB   | 192     | 30      |                     1.59 |            12.14 | 0.08                   |
 | 5 MiB     | 1 MiB     | 192     | 20      |                     5.01 |             4.78 | 0.21                   |
@@ -120,7 +120,7 @@ nrfiles=${NRFILES}
 ---
 
 ### Sequential Writes
-| File Size | BlockSize | NRFiles | NumJobs | **Avg Bandwidth (GB/s)** | **Avg IOPS (K)** | **Avg Latency (msec)** |
+| File Size | BlockSize | NumJobs | NRFiles | **Avg Bandwidth (GB/s)** | **Avg IOPS (K)** | **Avg Latency (msec)** |
 | :---      | :---      | ---:    | ---:    | ---:                     | ---:             | ---:                   |
 | 256 KiB   | 16 KiB    | 96      | 30      |                     0.17 |            10.43 | 0.10                   |
 | 1 MiB     | 1 MiB     | 96      | 30      |                     0.53 |             0.50 | 1.98                   |
@@ -219,10 +219,10 @@ nrfiles=${NRFILES}
 
     # Example command for last row of sequential write benchmark result table.
     DIR=<path-to-mount-point> \
-    NUMJOBS="10" \
+    NUMJOBS="96" \
     BS="1M" \
     FILESIZE="1G" \
-    NRFILES="96" fio samplejobspec.fio
+    NRFILES="10" fio samplejobspec.fio
     ```
 
 9. Metrics will be displayed on the terminal after test is completed.
