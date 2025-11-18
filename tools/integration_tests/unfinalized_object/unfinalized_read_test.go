@@ -54,7 +54,9 @@ func (s *unfinalizedObjectReads) TearDownSuite() {
 
 func (s *unfinalizedObjectReads) SetupSuite() {
 	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, s.flags, mountFunc)
-	setup.SetMntDir(testEnv.cfg.GCSFuseMountedDirectory)
+	if setup.MountedDirectory() == "" {
+		setup.SetMntDir(testEnv.cfg.GCSFuseMountedDirectory)
+	}
 	testEnv.testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
 }
 
