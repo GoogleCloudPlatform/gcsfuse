@@ -2,10 +2,6 @@ name: Generate and Format
 
 on:
   pull_request:
-    paths:
-      - "**.go"
-      - "go.mod"
-      - "go.sum"
 
 # Ensure that only the latest run for a given pull request is active.
 concurrency:
