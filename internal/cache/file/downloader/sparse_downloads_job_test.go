@@ -42,9 +42,10 @@ func init() { RegisterTestSuite(&sparseDownloaderTest{}) }
 
 func (dt *sparseDownloaderTest) SetUp(*TestInfo) {
 	dt.defaultFileCacheConfig = &cfg.FileCacheConfig{
-		EnableSparseFile:    true,
-		DownloadChunkSizeMb: 20, // 20MB chunks for sparse files
-		EnableCrc:           true,
+		EnableSparseFile:                       true,
+		DownloadChunkSizeMb:                    20, // 20MB chunks for sparse files
+		EnableCrc:                              true,
+		ExperimentalParallelDownloadsDefaultOn: true,
 	}
 	dt.setupHelper()
 }
@@ -193,7 +194,7 @@ func (dt *sparseDownloaderTest) Test_DownloadRange() {
 
 	// Verify the downloaded range was tracked in ByteRangeMap
 	updatedFileInfoVal := dt.cache.LookUpWithoutChangingOrder(fileInfoKeyName)
-	AssertNe(nil, updatedFileInfoVal)
+	AssertTrue(updatedFileInfoVal != nil, "FileInfo should exist in cache")
 	updatedFileInfo := updatedFileInfoVal.(data.FileInfo)
 	AssertTrue(updatedFileInfo.DownloadedRanges.ContainsRange(start, end), "Downloaded range not tracked in ByteRangeMap")
 }
@@ -288,7 +289,7 @@ func (dt *sparseDownloaderTest) Test_HandleSparseRead_NeedsDownload() {
 	// Verify the chunk was downloaded [0, 40MB) due to alignment
 	// offset 15MB rounds down to 0, requiredOffset 25MB rounds up to 40MB
 	updatedFileInfoVal := dt.cache.LookUpWithoutChangingOrder(fileInfoKeyName)
-	AssertNe(nil, updatedFileInfoVal)
+	AssertTrue(updatedFileInfoVal != nil, "FileInfo should exist in cache")
 	updatedFileInfo := updatedFileInfoVal.(data.FileInfo)
 	AssertTrue(updatedFileInfo.DownloadedRanges.ContainsRange(0, 40*util.MiB),
 		"Expected range [0, 40MB) to be downloaded")
