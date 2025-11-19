@@ -28,6 +28,10 @@ usage() {
   echo "    --no-build-binary-in-script                  To disable building gcsfuse binary in script. (Default: false)"
   echo "    --package-level-parallelism   <parallelism>  To adjust the number of packages to execute in parallel. (Default: 10)"
   echo "    --track-resource-usage                       To track resource(cpu/mem/disk) usage during e2e run. (Default: false)"
+  echo "    --skip-install                               Skip installing dependencies (e.g. go, gcloud). (Default: false)"
+  echo "    --test-package                <package>      Run only the specified test package(s). Can be specified multiple times."
+  echo "    --skip-emulator-tests                        Skip running emulator tests. (Default: false)"
+  echo "    --runtime-stats-file          <file>         File to store package runtime stats."
   echo "    --help                                       Display this help and exit."
   exit "$1"
 }
@@ -77,7 +81,8 @@ BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR=""
 LOG_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_logging_lock.XXXXXX") || { log_error "Unable to create lock file"; exit 1; }
 BUCKET_CREATION_LOCK_FILE=$(mktemp "/tmp/${TMP_PREFIX}_bucket_creation_lock.XXXXXX") || { log_error "Unable to create bucket creation lock file"; exit 1; }
 BUCKET_NAMES=$(mktemp "/tmp/${TMP_PREFIX}_bucket_names.XXXXXX") || { log_error "Unable to create bucket names file"; exit 1; }
-PACKAGE_RUNTIME_STATS=$(mktemp "/tmp/${TMP_PREFIX}_package_stats_runtime.XXXXXX") || { log_error "Unable to create package stats runtime file"; exit 1; }
+BUCKET_NAMES=$(mktemp "/tmp/${TMP_PREFIX}_bucket_names.XXXXXX") || { log_error "Unable to create bucket names file"; exit 1; }
+# PACKAGE_RUNTIME_STATS will be set later (defaulting to temp if not provided)
 RESOURCE_USAGE_FILE=$(mktemp "/tmp/${TMP_PREFIX}_system_resource_usage.XXXXXX") || { log_error "Unable to create system resource usage file"; exit 1; }
 
 KOKORO_DIR_AVAILABLE=false
@@ -95,10 +100,15 @@ RUN_TESTS_WITH_ZONAL_BUCKET=false
 BUILD_BINARY_IN_SCRIPT=true
 TRACK_RESOURCE_USAGE=false
 PACKAGE_LEVEL_PARALLELISM=10 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
+SKIP_INSTALL=false
+SKIP_EMULATOR_TESTS=false
+USER_TEST_PACKAGES=()
+RUNTIME_STATS_FILE_ARG=""
+
 
 # Define options for getopt
 # A long option name followed by a colon indicates it requires an argument.
-LONG=bucket-location:,test-installed-package,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,help
+LONG=bucket-location:,test-installed-package,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,skip-install,test-package:,skip-emulator-tests,runtime-stats-file:,help
 
 # Parse the options using getopt
 # --options "" specifies that there are no short options.
@@ -147,8 +157,25 @@ while (( $# >= 1 )); do
             shift
             ;;
         --track-resource-usage)
+        --track-resource-usage)
             TRACK_RESOURCE_USAGE=true
             shift
+            ;;
+        --skip-install)
+            SKIP_INSTALL=true
+            shift
+            ;;
+        --test-package)
+            USER_TEST_PACKAGES+=("$2")
+            shift 2
+            ;;
+        --skip-emulator-tests)
+            SKIP_EMULATOR_TESTS=true
+            shift
+            ;;
+        --runtime-stats-file)
+            RUNTIME_STATS_FILE_ARG="$2"
+            shift 2
             ;;
         --help)
             usage 0
@@ -177,6 +204,12 @@ validate_option_value() {
 # Validate long options which require values.
 validate_option_value "--bucket-location" "$BUCKET_LOCATION"
 validate_option_value "--package-level-parallelism" "$PACKAGE_LEVEL_PARALLELISM"
+
+if [[ -n "$RUNTIME_STATS_FILE_ARG" ]]; then
+  PACKAGE_RUNTIME_STATS="$RUNTIME_STATS_FILE_ARG"
+else
+  PACKAGE_RUNTIME_STATS=$(mktemp "/tmp/${TMP_PREFIX}_package_stats_runtime.XXXXXX") || { log_error "Unable to create package stats runtime file"; exit 1; }
+fi
 
 # Zonal Bucket location validation.
 if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
@@ -630,6 +663,12 @@ run_test_group() {
   local bucket_type="$2"
   shift 2
   local -a test_packages=("$@")
+
+  # Override test packages if user specified any
+  if [[ "${#USER_TEST_PACKAGES[@]}" -gt 0 ]]; then
+    test_packages=("${USER_TEST_PACKAGES[@]}")
+  fi
+
   local group_exit_code=0
   log_info_locked "Started running e2e tests for ${group_name} group (bucket type: ${bucket_type})."
 
@@ -647,16 +686,22 @@ run_test_group() {
 run_e2e_tests_for_emulator() {
   log_info_locked "Started running e2e tests for emulator."
   local emulator_test_log=$(mktemp "/tmp/${TMP_PREFIX}_emulator_test_log.XXXXXX")
+  local start=$SECONDS
+  local exit_code=0
   if ! ./tools/integration_tests/emulator_tests/emulator_tests.sh "$TEST_INSTALLED_PACKAGE" > "$emulator_test_log" 2>&1; then
     acquire_lock "$LOG_LOCK_FILE"
     log_error ""
     log_error "--- Emulator Tests Failed ---"
     cat "$emulator_test_log"
     release_lock "$LOG_LOCK_FILE"
-    return 1
+    exit_code=1
+  else
+    log_info_locked "Emulator tests successful."
   fi
-  log_info_locked "Emulator tests successful."
-  return 0
+  local end=$SECONDS
+  echo "emulator_tests emulator ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
+  generate_test_log_artifacts "$emulator_test_log" "emulator_tests" "emulator"
+  return $exit_code
 }
 
 main() {
@@ -666,7 +711,11 @@ main() {
   log_info "------ Upgrading gcloud and installing packages ------"
   log_info ""
   set -e
-  install_packages
+  if ! ${SKIP_INSTALL}; then
+    install_packages
+  else
+    log_info "Skipping installation of packages as requested."
+  fi
   set +e
   log_info "------ Upgrading gcloud and installing packages took $SECONDS seconds ------"
 
@@ -710,7 +759,9 @@ main() {
   else
     run_test_group "REGIONAL" "$HNS" "${TEST_PACKAGES_FOR_RB[@]}" & pids+=($!)
     run_test_group "REGIONAL" "$FLAT" "${TEST_PACKAGES_FOR_RB[@]}" & pids+=($!)
-    run_e2e_tests_for_emulator & pids+=($!) # Emulator tests are a separate group
+    if ! ${SKIP_EMULATOR_TESTS}; then
+      run_e2e_tests_for_emulator & pids+=($!) # Emulator tests are a separate group
+    fi
   fi
   # Wait for all background processes to complete and aggregate their exit codes
   for pid in "${pids[@]}"; do

@@ -282,330 +282,92 @@ git checkout $(sed -n 2p ~/details.txt) |& tee -a ${LOG_FILE}
 
 #run tests with testbucket flag
 set +e
-# Test directory arrays
-TEST_DIR_PARALLEL=(
-  "monitoring"
-  "local_file"
-  "log_rotation"
-  "mounting"
-  "gzip"
-  "write_large_files"
-  "rename_dir_limit"
-  "read_large_files"
-  "explicit_dir"
-  "implicit_dir"
-  "interrupt"
-  "operations"
-  "kernel_list_cache"
-  "concurrent_operations"
-  "mount_timeout"
-  "stale_handle"
-  "negative_stat_cache"
-  "streaming_writes"
-  "release_version"
-  # Reenable when b/461334834 is done.
-  # "readdirplus"
-  # "dentry_cache"
-  "buffered_read"
-  # Disabled because of b/451462914.
-  #"requester_pays_bucket"
-  "flag_optimizations"
+
+# Create a temporary directory for artifacts
+ARTIFACTS_DIR=$(mktemp -d)
+export KOKORO_ARTIFACTS_DIR="$ARTIFACTS_DIR"
+RUNTIME_STATS_FILE=$(mktemp)
+
+echo "Artifacts directory: $ARTIFACTS_DIR"
+echo "Runtime stats file: $RUNTIME_STATS_FILE"
+
+IMPROVED_SCRIPT="./tools/integration_tests/improved_run_e2e_tests.sh"
+COMMON_ARGS=(
+  "--bucket-location" "$ZONE_NAME"
+  "--skip-install"
+  "--test-installed-package"
+  "--runtime-stats-file" "$RUNTIME_STATS_FILE"
 )
 
-# These tests never become parallel as they are changing bucket permissions.
-TEST_DIR_NON_PARALLEL=(
-  "readonly"
-  "managed_folders"
-  "readonly_creds"
-  "list_large_dir"
-)
-
-# For Zonal buckets : Test directory arrays
-TEST_DIR_PARALLEL_ZONAL=(
-  buffered_read
-  concurrent_operations
-  # Reenable when b/461334834 is done.
-  # dentry_cache
-  explicit_dir
-  flag_optimizations
-  gzip
-  implicit_dir
-  interrupt
-  kernel_list_cache
-  local_file
-  log_rotation
-  monitoring
-  mount_timeout
-  mounting
-  negative_stat_cache
-  operations
-  rapid_appends
-  read_large_files
-  # Reenable when b/461334834 is done.
-  # readdirplus
-  release_version
-  rename_dir_limit
-  stale_handle
-  streaming_writes
-  unfinalized_object
-  write_large_files
-)
-
-# For Zonal Buckets :  These tests never become parallel as they are changing bucket permissions.
-TEST_DIR_NON_PARALLEL_ZONAL=(
-  "managed_folders"
-  "readonly"
-  "readonly_creds"
-  "list_large_dir"
-)
-
-# Create a temporary file to store the log file name.
-TEST_LOGS_FILE=$(mktemp)
-
-INTEGRATION_TEST_TIMEOUT=240m
-
-# This method runs test packages in sequence.Necessary when the tests involves
-# permissions modification etc.
-# Arguments:
-#   $1: BUCKET_NAME (The name of the GCS bucket to use for tests.)
-#   $2: IS_ZONAL_BUCKET_FLAG (Boolean flag: 'true' if the bucket is zonal, 'false' otherwise.)
-#   $3: NAME_OF_TEST_DIR_ARRAY (The shell variable name of the array containing test directory.)
-function run_non_parallel_tests() {
-  if [ "$#" -ne 3 ]; then
-    echo "Incorrect number of arguments passed, Expecting <BUCKET_NAME>
-    <IS_ZONAL_BUCKET> <TEST_DIR_ARRAY>"
-    exit 1
-  fi
-  local exit_code=0 # Initialize to 0 for success
-  local BUCKET_NAME=$1
-  local zonal=$2
-  if [[ -z $3 ]]; then
-    return 1 # The name of the test array cannot be empty.
-  fi
-  local -n test_array=$3 # Create a nameref to this array.
-
-  for test_dir_np in "${test_array[@]}"
-  do
-    test_path_non_parallel="./tools/integration_tests/$test_dir_np"
-    # To make it clear whether tests are running on a flat or HNS or zonal bucket, We kept the log file naming
-    # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
-    local log_file="/tmp/${test_dir_np}_${BUCKET_NAME}.log"
-    echo "$log_file" >> "$TEST_LOGS_FILE" # Use double quotes for log_file
-    GODEBUG=asyncpreemptoff=1 go test "$test_path_non_parallel" -p 1 --zonal="${zonal}" --integrationTest -v --testbucket="$BUCKET_NAME" --testInstalledPackage=true -timeout "$INTEGRATION_TEST_TIMEOUT" > "$log_file" 2>&1
-    exit_code_non_parallel=$?
-    if [ $exit_code_non_parallel -ne 0 ]; then
-      exit_code=$exit_code_non_parallel
-    fi
-  done
-  return $exit_code
-}
-
-#This method runs test packages in parallel.
-# Arguments:
-#   $1: BUCKET_NAME (The name of the GCS bucket to use for tests.)
-#   $2: IS_ZONAL_BUCKET_FLAG (Boolean flag: 'true' if the bucket is zonal, 'false' otherwise.)
-#   $3: NAME_OF_TEST_DIR_ARRAY (The shell variable name of the array containing test directory.)
-function run_parallel_tests() {
-  if [ "$#" -ne 3 ]; then
-    echo "Incorrect number of arguments passed, Expecting <BUCKET_NAME>
-    <IS_ZONAL_BUCKET> <TEST_DIR_ARRAY>"
-    exit 1
-  fi
-  local exit_code=0
-  local BUCKET_NAME=$1
-  local zonal=$2
-  if [[ -z $3 ]]; then
-    return 1 # The name of the test array cannot be empty.
-  fi
-  local -n test_array=$3 # Create a nameref to this array.
-  local pids=()
-
-  for test_dir_p in "${test_array[@]}"
-  do
-    test_path_parallel="./tools/integration_tests/$test_dir_p"
-    # To make it clear whether tests are running on a flat or HNS or zonal bucket, We kept the log file naming
-    # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
-    local log_file="/tmp/${test_dir_p}_${BUCKET_NAME}.log"
-    echo "$log_file" >> "$TEST_LOGS_FILE"
-    GODEBUG=asyncpreemptoff=1 go test "$test_path_parallel" -p 1 --zonal="${zonal}" --integrationTest -v --testbucket="$BUCKET_NAME" --testInstalledPackage=true -timeout "$INTEGRATION_TEST_TIMEOUT" > "$log_file" 2>&1 &
-    pid=$!
-    pids+=("$pid")
-  done
-  for pid in "${pids[@]}"; do
-    wait "$pid"
-    exit_code_parallel=$?
-    if [ $exit_code_parallel -ne 0 ]; then
-      exit_code=$exit_code_parallel
-    fi
-  done
-  return $exit_code
-}
-
-#Common method to invoke e2e tests on different types of buckets: flat, HNS or Zonal
-# Arguments:
-#   $1: BUCKET-TYPE (flat/hns/zonal)
-#   $2: TEST_DIR_PARALLEL (list of test packages that can be run in parallel)
-#   $3: TEST_DIR_NON_PARALLEL (list of test packages that should be run in sequence)
-#   $4: IS_ZONAL_BUCKET_FLAG (Boolean flag: 'true' if the bucket is zonal, 'false' otherwise.)
-function run_e2e_tests() {
-  if [ "$#" -ne 4 ]; then
-    echo "Incorrect number of arguments passed, Expecting <TESTCASE>
-    <NAME_OF_PARALLEL_TEST_DIR_ARRAY> <NAME_OF_PARALLEL_TEST_DIR_ARRAY>
-    <IS_ZONAL_BUCKET_FLAG>"
-    exit 1
-  fi
-  local testcase=$1
-  local -n test_dir_parallel=$2
-  local -n test_dir_non_parallel=$3
-  local is_zonal=$4
-  local overall_exit_code=0
-
-  prefix=$(sed -n 3p ~/details.txt)
-  if [[ "$testcase" != "flat" ]]; then
-    prefix=$(sed -n 3p ~/details.txt)-$testcase
-  fi
-
-  local bkt_non_parallel=$prefix
-  echo "Bucket name to run non-parallel tests sequentially: $bkt_non_parallel"
-
-  local bkt_parallel=$prefix-parallel
-  echo "Bucket name to run parallel tests: $bkt_parallel"
-
-  echo "Running parallel tests..."
-  run_parallel_tests  "$bkt_parallel" "$is_zonal" test_dir_parallel & # Pass the name of the array
-  parallel_tests_pid=$!
-
-  echo "Running non parallel tests ..."
-  run_non_parallel_tests  "$bkt_non_parallel" "$is_zonal" test_dir_non_parallel & # Pass the name of the array
-  non_parallel_tests_pid=$!
-
-  wait "$parallel_tests_pid"
-  local parallel_tests_exit_code=$?
-  wait "$non_parallel_tests_pid"
-  local non_parallel_tests_exit_code=$?
-
-  if [ "$non_parallel_tests_exit_code" -ne 0 ]; then
-    overall_exit_code=$non_parallel_tests_exit_code
-  fi
-
-  if [ "$parallel_tests_exit_code" -ne 0 ]; then
-    overall_exit_code=$parallel_tests_exit_code
-  fi
-  return $overall_exit_code
-}
-
-function gather_test_logs() {
-  readarray -t test_logs_array < "$TEST_LOGS_FILE"
-  rm "$TEST_LOGS_FILE"
-  for test_log_file in "${test_logs_array[@]}"
-  do
-    log_file=${test_log_file}
-    if [ -f "$log_file" ]; then
-      if [[ "$test_log_file" == *"hns"* ]]; then
-        output_file="$HOME/logs-hns.txt"
-      elif [[ "$test_log_file" == *"zonal"* ]]; then
-        output_file="$HOME/logs-zonal.txt"
-      else
-        output_file="$HOME/logs.txt"
-      fi
-
-      echo "=== Log for ${test_log_file} ===" >> "$output_file"
-      cat "$log_file" >> "$output_file"
-      echo "=========================================" >> "$output_file"
-    fi
-  done
-}
-
-# Function to log test results and upload them to GCS based on exit status.
-# Arguments: $1 = name of the associative array containing testcase exit statuses.
-function log_based_on_exit_status() {
-  if [ "$#" -ne 1 ]; then
-    echo "Incorrect number of arguments passed, Expecting <EXIT_STATUS_ARRAY_NAME>"
-    exit 1
-  fi
-  gather_test_logs
-  local -n exit_status_array=$1
-
-  for testcase in "${!exit_status_array[@]}"
-    do
-        local logfile=""
-        local successfile=""
-        if [[ "$testcase" == "flat" ]]; then
-          logfile="$HOME/logs.txt"
-          successfile="$HOME/success.txt"
-        else
-          logfile="$HOME/logs-$testcase.txt"
-          successfile="$HOME/success-$testcase.txt"
-        fi
-        if [ "${exit_status_array["$testcase"]}" != 0 ];
-        then
-            echo "Test failures detected in $testcase bucket." &>> $logfile
-        else
-            touch $successfile
-            gcloud storage cp $successfile gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
-        fi
-    gcloud storage cp $logfile gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
-    done
-
-}
-
-# Function to run emulator-based E2E tests and log results.
-function run_e2e_tests_for_emulator_and_log() {
-  ./tools/integration_tests/emulator_tests/emulator_tests.sh true > ~/logs-emulator.txt
-  emulator_test_status=$?
-  if [ $e2e_tests_emulator_status != 0 ];
-    then
-        echo "Test failures detected in emulator based tests." &>> ~/logs-emulator.txt
-    else
-        touch success-emulator.txt
-        gcloud storage cp success-emulator.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
-    fi
-    gcloud storage cp ~/logs-emulator.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
-}
-
-# Declare an associative array to store the exit status of different test runs.
-declare -A exit_status
 if [[ "$RUN_READ_CACHE_TESTS_ONLY" == "true" ]]; then
-    read_cache_test_dir_parallel=() # Empty for read cache tests only
-    read_cache_test_dir_non_parallel=("read_cache")
+  echo "Running read cache tests only..."
+  # Run Regional (HNS + Flat)
+  $IMPROVED_SCRIPT "${COMMON_ARGS[@]}" --test-package read_cache --skip-emulator-tests
+  
+  # Run Zonal
+  $IMPROVED_SCRIPT "${COMMON_ARGS[@]}" --zonal --test-package read_cache --skip-emulator-tests
 
-    # Run E2E tests for flat, HNS, and zonal buckets with only read cache tests.
-    # Running sequentially due to known limitations of simultaneous execution.
-    run_e2e_tests "flat" read_cache_test_dir_parallel read_cache_test_dir_non_parallel false
-    exit_status["flat"]=$?
+elif [[ "$RUN_ON_ZB_ONLY" == "true" ]]; then
+  echo "Running zonal tests only..."
+  $IMPROVED_SCRIPT "${COMMON_ARGS[@]}" --zonal
 
-    run_e2e_tests "hns" read_cache_test_dir_parallel read_cache_test_dir_non_parallel false
-    exit_status["hns"]=$?
-
-    run_e2e_tests "zonal" read_cache_test_dir_parallel read_cache_test_dir_non_parallel true
-    exit_status["zonal"]=$?
 else
-    # If not running *only* read cache tests, proceed with full test suites.
-    if [[ "$RUN_ON_ZB_ONLY" == "true" ]]; then
-        # If only zonal bucket tests are to be run.
-        run_e2e_tests "zonal" TEST_DIR_PARALLEL_ZONAL TEST_DIR_NON_PARALLEL_ZONAL true
-        exit_status["zonal"]=$?
-    else
-        # Run flat and HNS tests concurrently in the background.
-        run_e2e_tests "flat" TEST_DIR_PARALLEL TEST_DIR_NON_PARALLEL false &
-        flat_test_pid=$!
-
-        run_e2e_tests "hns" TEST_DIR_PARALLEL TEST_DIR_NON_PARALLEL false &
-        hns_test_pid=$!
-
-        # Wait for PIDs and populate exit_status associative array
-        wait $flat_test_pid
-        exit_status["flat"]=$?
-
-        wait $hns_test_pid
-        exit_status["hns"]=$?
-
-        # Run emulator tests and log their results.
-        run_e2e_tests_for_emulator_and_log
-    fi
-
+  echo "Running all tests (Regional + Emulator)..."
+  $IMPROVED_SCRIPT "${COMMON_ARGS[@]}"
 fi
-#Log results based on the collected exit statuses.
-log_based_on_exit_status exit_status
 
-'
+# Function to aggregate logs
+aggregate_logs() {
+  local bucket_type=$1
+  local log_file=$2
+  
+  if [ -d "$ARTIFACTS_DIR/$bucket_type" ]; then
+    find "$ARTIFACTS_DIR/$bucket_type" -name "sponge_log.log" | while read -r file; do
+      echo "=== Log for $(basename $(dirname $file)) ===" >> "$log_file"
+      cat "$file" >> "$log_file"
+      echo "=========================================" >> "$log_file"
+    done
+  fi
+}
+
+declare -A failures
+failures["flat"]=0
+failures["hns"]=0
+failures["zonal"]=0
+failures["emulator"]=0
+
+# Parse stats file
+if [ -f "$RUNTIME_STATS_FILE" ]; then
+  while read -r package bucket exit_code start end; do
+    if [[ "$exit_code" != "0" ]]; then
+      failures["$bucket"]=1
+    fi
+  done < "$RUNTIME_STATS_FILE"
+fi
+
+# Aggregate logs and upload
+for bucket in flat hns zonal emulator; do
+  target_log="$HOME/logs.txt"
+  target_success="$HOME/success.txt"
+  if [[ "$bucket" != "flat" ]]; then
+    target_log="$HOME/logs-$bucket.txt"
+    target_success="$HOME/success-$bucket.txt"
+  fi
+  
+  aggregate_logs "$bucket" "$target_log"
+  
+  # Check if we have any stats for this bucket
+  if grep -q " $bucket " "$RUNTIME_STATS_FILE"; then
+    if [[ "${failures[$bucket]}" == "0" ]]; then
+       touch "$target_success"
+       gcloud storage cp "$target_success" gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+    else
+       echo "Test failures detected in $bucket bucket." >> "$target_log"
+    fi
+    
+    if [ -f "$target_log" ]; then
+      gcloud storage cp "$target_log" gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+    fi
+  fi
+done
+

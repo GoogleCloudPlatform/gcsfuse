@@ -39,11 +39,11 @@ ENV GO111MODULE=auto
 
 ARG GCSFUSE_VERSION
 ARG GCSFUSE_REPO="https://github.com/googlecloudplatform/gcsfuse/"
-ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
+ARG BRANCH_NAME=${GCSFUSE_VERSION}
 RUN git clone ${GCSFUSE_REPO} 
 ARG GCSFUSE_PATH=${GOPATH}/gcsfuse
 WORKDIR ${GCSFUSE_PATH}
-RUN git checkout ${BRANCH_NAME}
+RUN git checkout ${BRANCH_NAME} || git checkout v${BRANCH_NAME}
 
 ARG DEBEMAIL="gcs-fuse-maintainers@google.com"
 ARG DEBFULLNAME="GCSFuse Team"
@@ -66,8 +66,13 @@ RUN mv ${GCSFUSE_BIN}/DEBIAN/copyright ${GCSFUSE_DOC} &&  \
     mv ${GCSFUSE_BIN}/DEBIAN/changelog ${GCSFUSE_DOC} && \
     mv ${GCSFUSE_BIN}/DEBIAN/gcsfuse-docs.docs ${GCSFUSE_DOC}
 # Update gcsfuse version in changelog and control file
-RUN sed -i "1s/.*/gcsfuse (${GCSFUSE_VERSION}) stable; urgency=medium/" ${GCSFUSE_DOC}/changelog && \
-    sed -i "1s/.*/Version: ${GCSFUSE_VERSION}/" ${GCSFUSE_BIN}/DEBIAN/control
+RUN if echo "${GCSFUSE_VERSION}" | grep -qE "^[0-9]"; then \
+    VERSION="${GCSFUSE_VERSION}"; \
+    else \
+    VERSION="0.0.0-${GCSFUSE_VERSION}"; \
+    fi && \
+    sed -i "1s/.*/gcsfuse (${VERSION}) stable; urgency=medium/" ${GCSFUSE_DOC}/changelog && \
+    sed -i "1s/.*/Version: ${VERSION}/" ${GCSFUSE_BIN}/DEBIAN/control
 
 # Update ARCHITECTURE in control file.
 RUN sed -i "6s/.*/Architecture: ${ARCHITECTURE}/" ${GCSFUSE_BIN}/DEBIAN/control
