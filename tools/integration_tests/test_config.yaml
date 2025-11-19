@@ -15,7 +15,6 @@
 explicit_dir:
   - mounted_directory: "${MOUNTED_DIR}" # To be passed by GKE after mounting
     test_bucket: "${BUCKET_NAME}" # To be passed by both gcsfuse and gke tests
-    log_file: # Optional flag required by some tests where log parsing is done to validate end behavior
     configs:
       - flags:
           - "--implicit-dirs=false"
@@ -29,7 +28,6 @@ explicit_dir:
 implicit_dir:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
-    log_file: # Optional
     configs:
       - flags:
           - "--implicit-dirs"
@@ -49,7 +47,6 @@ implicit_dir:
 list_large_dir:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
-    log_file: # Optional flag required by some tests where log parsing is done to validate end behavior
     configs:
       - flags:
           - "--implicit-dirs=true --stat-cache-ttl=0 --kernel-list-cache-ttl-secs=-1"
@@ -69,7 +66,6 @@ list_large_dir:
 write_large_files:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
-    log_file: # Not Required by write large files tests
     configs:
       - flags:
           - "--enable-streaming-writes=false"
@@ -86,7 +82,6 @@ write_large_files:
 gzip:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
-    log_file: # Not Required by gzip tests
     configs:
       - flags:
           - "--sequential-read-size-mb=1 --implicit-dirs"
@@ -100,7 +95,6 @@ gzip:
 read_large_files:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
-    log_file:  # Not required by read large files tests.
     configs:
       - flags:
           - "--implicit-dirs"
@@ -118,7 +112,6 @@ read_large_files:
 readonly:
   - mounted_directory: "${MOUNTED_DIR}" # To be passed by GKE after mounting
     test_bucket: "${BUCKET_NAME}" # To be passed by both gcsfuse and gke tests
-    log_file: # Not required by readonly tests.
     configs:
       - flags:
           - "--o=ro --implicit-dirs=true"
@@ -135,7 +128,6 @@ rename_dir_limit:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
     only_dir: "${ONLY_DIR}"
-    log_file: # Optional
     configs:
       - flags:
           - "--rename-dir-limit=3 --implicit-dirs --client-protocol=grpc"
@@ -158,7 +150,6 @@ local_file:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
     only_dir: "${ONLY_DIR}"
-    log_file: # Optional
     configs:
       - flags:
           - "--implicit-dirs=true --rename-dir-limit=3 --enable-streaming-writes=false"
@@ -181,7 +172,6 @@ local_file:
 streaming_writes:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
-    log_file: # Not Required by streaming writes tests
     configs:
       - flags:
           - "--rename-dir-limit=3 --write-block-size-mb=1 --write-max-blocks-per-file=2 --client-protocol=grpc --write-global-max-blocks=-1"
@@ -195,7 +185,6 @@ streaming_writes:
 cloud_profiler:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
-    log_file: # Optional
     configs:
       - flags:
           # Set the 'PROFILE_LABEL' environment variable for GKE
@@ -204,13 +193,11 @@ cloud_profiler:
           flat: true
           hns: true
           zonal: true
-        run_on_gke: false
+        run_on_gke: true
 
 requester_pays_bucket:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
-    log_file: # Optional flag required by some tests where log parsing is done to validate end behavior
-    run_on_gke: false
     configs:
       - flags:
           - "--billing-project=gcs-fuse-test-ml"
@@ -218,12 +205,12 @@ requester_pays_bucket:
           flat: true
           hns: true
           zonal: false
+        run_on_gke: true
 
 read_cache:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
     only_dir: "${ONLY_DIR}"
-    log_file: # Not Required by read_cache tests
     configs:
       - flags:
           - "--metadata-cache-ttl-secs=10 --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest --log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log --log-severity=TRACE --implicit-dirs"
@@ -423,10 +410,30 @@ read_cache:
         run: TestCacheFileForIncludeRegexTest
         run_on_gke: true
 
+readdirplus:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    configs:
+      - flags:
+          - "--implicit-dirs --experimental-enable-readdirplus --experimental-enable-dentry-cache --log-file=/gcsfuse-tmp/TestReaddirplusWithDentryCacheTest.log --log-severity=TRACE"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: TestReaddirplusWithDentryCacheTest
+        run_on_gke: true
+      - flags:
+          - "--implicit-dirs --experimental-enable-readdirplus --log-file=/gcsfuse-tmp/TestReaddirplusWithoutDentryCacheTest.log --log-severity=TRACE"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: TestReaddirplusWithoutDentryCacheTest
+        run_on_gke: true
+
 benchmarking:
   - test_bucket: "${BUCKET_NAME}"
     mounted_directory: "${MOUNTED_DIR}"
-    log_file: # Not required
     configs:
       - flags:
           - "--stat-cache-ttl=0"
@@ -436,6 +443,7 @@ benchmarking:
               hns: true
               zonal: true
         run: "Benchmark_Stat"
+        run_on_gke: true
       - flags:
           - "--stat-cache-ttl=0 --enable-atomic-rename-object=true"
           - "--stat-cache-ttl=0 --enable-atomic-rename-object=true --client-protocol=grpc"
@@ -458,8 +466,6 @@ benchmarking:
 dentry_cache:
  - mounted_directory: "${MOUNTED_DIR}"
    test_bucket: "${BUCKET_NAME}"
-   log_file: # Not Required by dentry_cache tests
-   run_on_gke: true
    configs:
      - flags:
        - "--implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=2"
@@ -468,6 +474,7 @@ dentry_cache:
          hns: true
          zonal: true
        run: TestStatWithDentryCacheEnabledTest
+       run_on_gke: true
      - flags:
        - "--implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=1000"
        compatible:
@@ -475,6 +482,7 @@ dentry_cache:
          hns: true
          zonal: true
        run: TestDeleteOperationTest
+       run_on_gke: true
      - flags:
        - "--implicit-dirs --experimental-enable-dentry-cache --metadata-cache-ttl-secs=1000"
        compatible:
@@ -482,16 +490,129 @@ dentry_cache:
          hns: true
          zonal: true
        run: TestNotifierTest
+       run_on_gke: true
 
 read_gcs_algo:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
-    log_file: # Not required by readonly tests.
     configs:
       - flags:
+        # Do not enable fileCache as we want to test gcs read flow.
           - "--implicit-dirs=true"
         compatible:
           flat: true
           hns: true
           zonal: true
         run_on_gke: true
+
+interrupt:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    configs:
+      - flags:
+        #TODO(b/417136852): Enable this test for Zonal Bucket also once read start working.
+          - "--enable-streaming-writes=true"
+        compatible:
+          flat: true
+          hns: true
+          zonal: false
+        run_on_gke: true
+      - flags:
+          - "--implicit-dirs=true --enable-streaming-writes=false"
+          - "--ignore-interrupts=true --enable-streaming-writes=false"
+          - "--ignore-interrupts=false --enable-streaming-writes=false"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run_on_gke: true
+
+log_rotation:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    log_file: # To be removed
+    configs:
+      - flags:
+          - "--log-file=/gcsfuse-tmp/TestLogRotation.log --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=false --log-severity=trace"
+          - "--log-file=/gcsfuse-tmp/TestLogRotation.log --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=true --log-severity=trace"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run_on_gke: false
+
+flag_optimizations:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    configs:
+      - run: TestMountFails
+        flags:
+          - "--profile=unknown-profile"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run_on_gke: false
+      - run: TestImplicitDirsNotEnabled
+        flags:
+          - "--machine-type=low-end-machine"
+        compatible:
+          flat: true
+          hns: false
+          zonal: false
+        run_on_gke: true
+      - run: TestRenameDirLimitNotSet
+        flags:
+          - "--machine-type=low-end-machine"
+          - "--profile=aiml-training"
+          - "--profile=aiml-serving"
+        compatible:
+          flat: true
+          hns: false
+          zonal: false
+        run_on_gke: true
+      - run: TestImplicitDirsEnabled
+        flags:
+          - "--machine-type=a3-highgpu-8g"
+          - "--profile=aiml-training"
+          - "--profile=aiml-serving"
+          - "--profile=aiml-checkpointing"
+          - "--machine-type=low-end-machine --profile=aiml-training"
+          - "--machine-type=low-end-machine --profile=aiml-serving"
+          - "--machine-type=low-end-machine --profile=aiml-checkpointing"
+        compatible:
+          flat: true
+          hns: false
+          zonal: false
+        run_on_gke: true
+      - run: TestRenameDirLimitSet
+        flags:
+          - "--machine-type=a3-highgpu-8g"
+          - "--profile=aiml-checkpointing"
+          - "--machine-type=low-end-machine --profile=aiml-checkpointing"
+        compatible:
+          flat: true
+          hns: false
+          zonal: false
+        run_on_gke: true
+
+unsupported_path:
+- mounted_directory: "${MOUNTED_DIR}"
+  test_bucket: "${BUCKET_NAME}"
+  only_dir: "${ONLY_DIR}"
+  log_file: # Optional
+  configs:
+  - flags:
+    - "--implicit-dirs --client-protocol=grpc --enable-unsupported-path-support=true --rename-dir-limit=200 --metadata-cache-negative-ttl-secs=0"
+    compatible:
+      flat: true
+      hns: true
+      zonal: false
+    run_on_gke: true
+  - flags:
+    - "--implicit-dirs --enable-unsupported-path-support=true --rename-dir-limit=200 --metadata-cache-negative-ttl-secs=0"
+    compatible:
+      flat: true
+      hns: true
+      zonal: true
+    run_on_gke: true

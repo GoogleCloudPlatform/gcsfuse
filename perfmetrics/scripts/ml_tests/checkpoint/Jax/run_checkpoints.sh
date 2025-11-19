@@ -23,28 +23,22 @@ sudo apt-get update
 echo "Installing git"
 sudo apt-get install git
 # Install Golang.
-#wget -O go_tar.tar.gz https://go.dev/dl/go1.24.5.linux-amd64.tar.gz -q
+#wget -O go_tar.tar.gz https://go.dev/dl/go1.24.10.linux-amd64.tar.gz -q
 architecture=$(dpkg --print-architecture)
-wget -O go_tar.tar.gz https://go.dev/dl/go1.24.5.linux-${architecture}.tar.gz -q
+wget -O go_tar.tar.gz https://go.dev/dl/go1.24.10.linux-${architecture}.tar.gz -q
 sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=$PATH:/usr/local/go/bin
-# Install latest gcloud version for compatability with HNS bucket.
-function upgrade_gcloud_version() {
-  sudo apt-get update
-  gcloud version
-  wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
-  sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm -r google-cloud-sdk
-  sudo /usr/local/google-cloud-sdk/install.sh
-  export PATH=/usr/local/google-cloud-sdk/bin:$PATH
-  echo 'export PATH=/usr/local/google-cloud-sdk/bin:$PATH' >> ~/.bashrc
-  gcloud version && rm gcloud.tar.gz
-  sudo /usr/local/google-cloud-sdk/bin/gcloud components update
-  sudo /usr/local/google-cloud-sdk/bin/gcloud components install alpha
-}
-upgrade_gcloud_version
 
 # Build gcsfuse.
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
+# Install latest gcloud version for compatability with HNS bucket.
+./perfmetrics/scripts/install_latest_gcloud.sh
+export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
+export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"
+export PATH="$HOME/.local/python-3.11.9/bin:$PATH"
+echo "PATH:" $PATH
+echo "CLOUDSDK_PYTHON:" $CLOUDSDK_PYTHON
+
 CGO_ENABLED=0 go build .
 
 function mount_gcsfuse_and_run_test() {
@@ -69,14 +63,6 @@ function mount_gcsfuse_and_run_test() {
   python3.11 ./perfmetrics/scripts/ml_tests/checkpoint/Jax/emulated_checkpoints.py --checkpoint_dir "${MOUNT_POINT}"
 }
 
-# Enable python virtual environment.
-# By default KOKORO VM installs python 3.8 which causes dependency issues.
-# Following commands are to explicitly set up python 3.11.
-sudo apt update
-sudo apt install -y software-properties-common
-sudo add-apt-repository -y ppa:deadsnakes/ppa
-sudo apt update
-sudo apt install -y python3.11 python3.11-dev python3.11-venv
 # Install pip
 curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 python3.11 get-pip.py

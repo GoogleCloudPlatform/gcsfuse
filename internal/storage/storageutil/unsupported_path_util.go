@@ -20,24 +20,30 @@ import (
 )
 
 var (
-	unsupportedObjectNameSubstrings = []string{"//"}
-	unsupportedObjectNamePrefixes   = []string{"/"}
-	unsupportedObjectNames          = []string{""}
+	unsupportedPathNameSubstrings = []string{"//", "/../", "/./"}
+	unsupportedPathNamePrefixes   = []string{"/"}
+	unsupportedPathNameSuffix     = []string{"/.", "/.."}
+	unsupportedPathNames          = []string{"", ".", ".."}
 )
 
-// IsUnsupportedObjectName returns true if the passed
+// IsUnsupportedPath returns true if the passed
 // string is a valid GCS object name or prefix,
 // which is unsupported in GCSFuse.
-func IsUnsupportedObjectName(name string) bool {
-	for _, substring := range unsupportedObjectNameSubstrings {
+func IsUnsupportedPath(name string) bool {
+	for _, substring := range unsupportedPathNameSubstrings {
 		if strings.Contains(name, substring) {
 			return true
 		}
 	}
-	for _, prefix := range unsupportedObjectNamePrefixes {
+	for _, prefix := range unsupportedPathNamePrefixes {
 		if strings.HasPrefix(name, prefix) {
 			return true
 		}
 	}
-	return slices.Contains(unsupportedObjectNames, name)
+	for _, suffix := range unsupportedPathNameSuffix {
+		if strings.HasSuffix(name, suffix) {
+			return true
+		}
+	}
+	return slices.Contains(unsupportedPathNames, name)
 }

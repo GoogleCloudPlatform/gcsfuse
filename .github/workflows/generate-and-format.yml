@@ -1,0 +1,42 @@
+name: Generate and Format
+
+on:
+  pull_request:
+
+# Ensure that only the latest run for a given pull request is active.
+concurrency:
+  # The group is the pull request number.
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  build_patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Install dependencies
+        run: go install golang.org/x/tools/cmd/goimports@latest
+
+      - name: Run formatters
+        run: make fmt
+
+      - name: Generate patch
+        run: |
+          # Create a patch file if there are any changes
+          git diff --exit-code > auto_fixes.patch || true
+
+      - name: Upload patch artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: auto-fixes-patch
+          path: auto_fixes.patch
+          if-no-files-found: ignore

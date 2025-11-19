@@ -217,7 +217,7 @@ func (cht *cacheHandleTest) Test_Close_WithNilFileHandle() {
 }
 
 func (cht *cacheHandleTest) Test_IsSequential_WhenReadTypeIsNotSequential() {
-	cht.cacheHandle.isSequential = false
+	cht.cacheHandle.isSequential.Store(false)
 	currentOffset := int64(3)
 
 	isSeq := cht.cacheHandle.IsSequential(currentOffset)
@@ -226,8 +226,8 @@ func (cht *cacheHandleTest) Test_IsSequential_WhenReadTypeIsNotSequential() {
 }
 
 func (cht *cacheHandleTest) Test_IsSequential_WhenPrevOffsetGreaterThanCurrent() {
-	cht.cacheHandle.isSequential = true
-	cht.cacheHandle.prevOffset = 5
+	cht.cacheHandle.isSequential.Store(true)
+	cht.cacheHandle.prevOffset.Store(5)
 	currentOffset := int64(3)
 
 	isSeq := cht.cacheHandle.IsSequential(currentOffset)
@@ -236,8 +236,8 @@ func (cht *cacheHandleTest) Test_IsSequential_WhenPrevOffsetGreaterThanCurrent()
 }
 
 func (cht *cacheHandleTest) Test_IsSequential_WhenOffsetDiffIsMoreThanMaxAllowed() {
-	cht.cacheHandle.isSequential = true
-	cht.cacheHandle.prevOffset = 5
+	cht.cacheHandle.isSequential.Store(true)
+	cht.cacheHandle.prevOffset.Store(5)
 	currentOffset := int64(8 + downloader.ReadChunkSize)
 
 	isSeq := cht.cacheHandle.IsSequential(currentOffset)
@@ -246,8 +246,8 @@ func (cht *cacheHandleTest) Test_IsSequential_WhenOffsetDiffIsMoreThanMaxAllowed
 }
 
 func (cht *cacheHandleTest) Test_IsSequential_WhenOffsetDiffIsLessThanMaxAllowed() {
-	cht.cacheHandle.isSequential = true
-	cht.cacheHandle.prevOffset = 5
+	cht.cacheHandle.isSequential.Store(true)
+	cht.cacheHandle.prevOffset.Store(5)
 	currentOffset := int64(10)
 
 	isSeq := cht.cacheHandle.IsSequential(currentOffset)
@@ -256,8 +256,8 @@ func (cht *cacheHandleTest) Test_IsSequential_WhenOffsetDiffIsLessThanMaxAllowed
 }
 
 func (cht *cacheHandleTest) Test_IsSequential_WhenOffsetDiffIsEqualToMaxAllowed() {
-	cht.cacheHandle.isSequential = true
-	cht.cacheHandle.prevOffset = 5
+	cht.cacheHandle.isSequential.Store(true)
+	cht.cacheHandle.prevOffset.Store(5)
 	currentOffset := int64(5 + downloader.ReadChunkSize)
 
 	isSeq := cht.cacheHandle.IsSequential(currentOffset)
@@ -572,7 +572,7 @@ func (cht *cacheHandleTest) Test_Read_WithNilFileDownloadJobAndCacheHit() {
 	assert.Equal(cht.T(), downloader.Downloading, jobStatus.Name)
 	dst := make([]byte, cht.object.Size)
 	offset := int64(0)
-	cht.cacheHandle.isSequential = false
+	cht.cacheHandle.isSequential.Store(false)
 	cht.cacheHandle.fileDownloadJob = nil
 
 	// Because the whole object is downloaded into the cache, file info cache
@@ -588,7 +588,7 @@ func (cht *cacheHandleTest) Test_Read_WithNilFileDownloadJobAndCacheHit() {
 func (cht *cacheHandleTest) Test_RandomRead() {
 	dst := make([]byte, ReadContentSize)
 	offset := int64(cht.object.Size - ReadContentSize)
-	cht.cacheHandle.isSequential = false
+	cht.cacheHandle.isSequential.Store(false)
 	cht.cacheHandle.cacheFileForRangeRead = true
 
 	// Since, it's a random read hence will not wait to download till requested offset.
@@ -606,7 +606,7 @@ func (cht *cacheHandleTest) Test_RandomRead() {
 func (cht *cacheHandleTest) Test_RandomRead_CacheForRangeReadFalse() {
 	dst := make([]byte, ReadContentSize)
 	offset := int64(cht.object.Size - ReadContentSize)
-	cht.cacheHandle.isSequential = false
+	cht.cacheHandle.isSequential.Store(false)
 
 	// Since, it's a random read hence will not wait to download till requested offset.
 	n, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
@@ -628,7 +628,7 @@ func (cht *cacheHandleTest) Test_RandomRead_CacheForRangeReadFalseButCacheHit() 
 	assert.Equal(cht.T(), downloader.Downloading, jobStatus.Name)
 	dst := make([]byte, ReadContentSize)
 	offset := int64(1)
-	cht.cacheHandle.isSequential = false
+	cht.cacheHandle.isSequential.Store(false)
 
 	// Since, it's a random read hence will not wait to download till requested offset.
 	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
@@ -644,8 +644,8 @@ func (cht *cacheHandleTest) Test_RandomRead_CacheForRangeReadFalseButCacheHit() 
 func (cht *cacheHandleTest) Test_SequentialRead() {
 	dst := make([]byte, ReadContentSize)
 	offset := int64(cht.object.Size - ReadContentSize)
-	cht.cacheHandle.isSequential = true
-	cht.cacheHandle.prevOffset = offset - util.MiB
+	cht.cacheHandle.isSequential.Store(true)
+	cht.cacheHandle.prevOffset.Store(offset - util.MiB)
 	cht.cacheHandle.cacheFileForRangeRead = false
 
 	// Since, it's a sequential read, hence will wait to download till requested offset.
@@ -680,8 +680,8 @@ func (cht *cacheHandleTest) Test_Read_ChangeCacheOrder() {
 	assert.Equal(cht.T(), 0, len(evictedEntries))
 	dst := make([]byte, ReadContentSize)
 	offset := int64(cht.object.Size - ReadContentSize)
-	cht.cacheHandle.isSequential = true
-	cht.cacheHandle.prevOffset = offset - util.MiB
+	cht.cacheHandle.isSequential.Store(true)
+	cht.cacheHandle.prevOffset.Store(offset - util.MiB)
 	cht.cacheHandle.cacheFileForRangeRead = false
 
 	// Read should change the order in cache and bring cht.Object to most recently
@@ -715,7 +715,7 @@ func (cht *cacheHandleTest) Test_Read_ChangeCacheOrder() {
 func (cht *cacheHandleTest) Test_SequentialReadToRandom() {
 	dst := make([]byte, ReadContentSize)
 	firstReqOffset := int64(0)
-	cht.cacheHandle.isSequential = true
+	cht.cacheHandle.isSequential.Store(true)
 	cht.cacheHandle.cacheFileForRangeRead = true
 	// Since, it's a sequential read, hence will wait to download till requested offset.
 	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, firstReqOffset, dst)
@@ -723,7 +723,7 @@ func (cht *cacheHandleTest) Test_SequentialReadToRandom() {
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	assert.GreaterOrEqual(cht.T(), jobStatus.Offset, firstReqOffset)
 	assert.False(cht.T(), cacheHit)
-	assert.True(cht.T(), cht.cacheHandle.isSequential)
+	assert.True(cht.T(), cht.cacheHandle.isSequential.Load())
 
 	secondReqOffset := int64(cht.object.Size - ReadContentSize) // type will change to random.
 	_, cacheHit, err = cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, secondReqOffset, dst)
@@ -731,7 +731,7 @@ func (cht *cacheHandleTest) Test_SequentialReadToRandom() {
 	assert.NotNil(cht.T(), err)
 	assert.True(cht.T(), errors.Is(err, util.ErrFallbackToGCS))
 	assert.False(cht.T(), cacheHit)
-	assert.False(cht.T(), cht.cacheHandle.isSequential)
+	assert.False(cht.T(), cht.cacheHandle.isSequential.Load())
 	jobStatus = cht.cacheHandle.fileDownloadJob.GetStatus()
 	assert.LessOrEqual(cht.T(), jobStatus.Offset, secondReqOffset)
 }
@@ -741,8 +741,8 @@ func (cht *cacheHandleTest) Test_Read_WhenDstBufferIsMoreContentToBeRead() {
 	extraBuffer := 2
 	dst := make([]byte, ReadContentSize+extraBuffer)
 	offset := int64(cht.object.Size - ReadContentSize)
-	cht.cacheHandle.isSequential = true
-	cht.cacheHandle.prevOffset = offset - util.MiB
+	cht.cacheHandle.isSequential.Store(true)
+	cht.cacheHandle.prevOffset.Store(offset - util.MiB)
 	cht.cacheHandle.cacheFileForRangeRead = true
 
 	// Since, it's a sequential read, hence will wait to download till requested offset.
@@ -757,7 +757,7 @@ func (cht *cacheHandleTest) Test_Read_WhenDstBufferIsMoreContentToBeRead() {
 
 func (cht *cacheHandleTest) Test_Read_FileInfoRemoved() {
 	dst := make([]byte, ReadContentSize)
-	cht.cacheHandle.isSequential = true
+	cht.cacheHandle.isSequential.Store(true)
 	cht.cacheHandle.cacheFileForRangeRead = true
 	// First let the cache populated (we are doing this so that we can externally
 	// modify file info cache for this unit test without hampering download job).
@@ -784,7 +784,7 @@ func (cht *cacheHandleTest) Test_Read_FileInfoRemoved() {
 
 func (cht *cacheHandleTest) Test_Read_FileInfoGenerationChanged() {
 	dst := make([]byte, ReadContentSize)
-	cht.cacheHandle.isSequential = true
+	cht.cacheHandle.isSequential.Store(true)
 	cht.cacheHandle.cacheFileForRangeRead = true
 	// First let the cache populated (we are doing this so that we can externally
 	// modify file info cache for this unit test without hampering download job).
@@ -816,8 +816,8 @@ func (cht *cacheHandleTest) Test_Read_FileInfoGenerationChanged() {
 func (cht *cacheHandleTest) Test_MultipleReads_CacheHitShouldBeFalseThenTrue() {
 	dst := make([]byte, ReadContentSize)
 	offset := int64(cht.object.Size - ReadContentSize)
-	cht.cacheHandle.isSequential = true
-	cht.cacheHandle.prevOffset = offset - util.MiB
+	cht.cacheHandle.isSequential.Store(true)
+	cht.cacheHandle.prevOffset.Store(offset - util.MiB)
 	cht.cacheHandle.cacheFileForRangeRead = true
 	// First read should be cache miss.
 	n, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
@@ -839,8 +839,8 @@ func (cht *cacheHandleTest) Test_MultipleReads_CacheHitShouldBeFalseThenTrue() {
 func (cht *cacheHandleTest) Test_SequentialRead_Parallel_Download_True() {
 	dst := make([]byte, ReadContentSize)
 	offset := int64(cht.object.Size - ReadContentSize)
-	cht.cacheHandle.isSequential = true
-	cht.cacheHandle.prevOffset = offset - util.MiB
+	cht.cacheHandle.isSequential.Store(true)
+	cht.cacheHandle.prevOffset.Store(offset - util.MiB)
 	cht.cacheHandle.cacheFileForRangeRead = false
 	fileCacheConfig := &cfg.FileCacheConfig{
 		EnableCrc:                true,
@@ -875,7 +875,7 @@ func (cht *cacheHandleTest) Test_SequentialRead_Parallel_Download_True() {
 func (cht *cacheHandleTest) Test_RandomRead_Parallel_Download_True() {
 	dst := make([]byte, ReadContentSize)
 	offset := int64(cht.object.Size - ReadContentSize)
-	cht.cacheHandle.isSequential = false
+	cht.cacheHandle.isSequential.Store(false)
 	cht.cacheHandle.cacheFileForRangeRead = true
 	fileCacheConfig := &cfg.FileCacheConfig{
 		EnableCrc:                true,
@@ -910,7 +910,7 @@ func (cht *cacheHandleTest) Test_RandomRead_Parallel_Download_True() {
 func (cht *cacheHandleTest) Test_RandomRead_CacheForRangeReadFalse_And_ParallelDownloadsEnabled() {
 	dst := make([]byte, ReadContentSize)
 	offset := int64(cht.object.Size - ReadContentSize)
-	cht.cacheHandle.isSequential = false
+	cht.cacheHandle.isSequential.Store(false)
 	cht.cacheHandle.cacheFileForRangeRead = false
 	fileCacheConfig := &cfg.FileCacheConfig{
 		EnableCrc:                true,

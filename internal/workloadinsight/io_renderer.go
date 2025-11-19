@@ -17,6 +17,7 @@ package workloadinsight
 import (
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 )
 
@@ -59,7 +60,7 @@ type Renderer struct {
 }
 
 func NewRenderer() (*Renderer, error) {
-	return NewRendererWithSettings(80, len(labelHeader), 2)
+	return NewRendererWithSettings(100, 20, 2)
 }
 
 // NewRendererWithSettings returns a Renderer with the specified settings.
@@ -88,7 +89,7 @@ func NewRendererWithSettings(plotWidth, labelWidth, pad int) (*Renderer, error) 
 // and returns the ASCII representation as a string.
 func (r *Renderer) Render(name string, size uint64, ranges []Range) (string, error) {
 	var sb strings.Builder
-	header, err := r.buildHeader(name, size)
+	header, err := r.buildHeader(name, size, ranges)
 	if err != nil {
 		return "", err
 	}
@@ -104,7 +105,30 @@ func (r *Renderer) Render(name string, size uint64, ranges []Range) (string, err
 			sb.WriteByte('\n')
 		}
 	}
+	sb.WriteByte('\n')
 	return sb.String(), nil
+}
+
+// buildStats builds statistics about the given ranges for a single file
+// and returns them as a string.
+func (r *Renderer) buildStats(ranges []Range) string {
+	length := len(ranges)
+	if length <= 0 {
+		return ""
+	}
+
+	sizes := make([]uint64, length)
+	sum := uint64(0)
+	for i, rg := range ranges {
+		sizes[i] = rg.End - rg.Start
+		sum += sizes[i]
+	}
+	sort.Slice(sizes, func(i, j int) bool { return sizes[i] < sizes[j] })
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Total IOs: %d\n", length))
+	sb.WriteString(fmt.Sprintf("IO Size Distributions: (Min: %s, Median: %s, Max: %s, Avg: %s)\n", humanReadable(sizes[0]), humanReadable(sizes[length/2]), humanReadable(sizes[length-1]), humanReadable(sum/uint64(length))))
+	return sb.String()
 }
 
 // buildHeader composes the header (filename, tick marks, numeric labels)
@@ -116,7 +140,7 @@ func (r *Renderer) Render(name string, size uint64, ranges []Range) (string, err
 //	0B        250B         500B        750B      1000B
 //
 // [offset,len)          |-----------|------------|-----------|-----------|
-func (r *Renderer) buildHeader(name string, size uint64) (string, error) {
+func (r *Renderer) buildHeader(name string, size uint64, ranges []Range) (string, error) {
 	var sb strings.Builder
 
 	// Helper to build a runes slice filled with the provided fill rune.
@@ -157,6 +181,9 @@ func (r *Renderer) buildHeader(name string, size uint64) (string, error) {
 	// Filename line.
 	sb.WriteString(fmt.Sprintf("Name: %s\n", name))
 
+	// IO stats.
+	sb.WriteString(r.buildStats(ranges))
+
 	// Fileoffset labels just above the fileOffsetAxis.
 	sb.WriteString(strings.Repeat(" ", r.labelWidth))
 	if r.pad > 0 {
@@ -191,14 +218,14 @@ func (r *Renderer) buildRow(size uint64, rg Range) (string, error) {
 		return "", fmt.Errorf("range extends beyond file size: [%d,%d) size=%d", rg.Start, rg.End, size)
 	}
 
-	s := rg.Start
-	e := rg.End
-
 	// Build plotting row
 	cells := make([]string, r.plotWidth)
 	for j := range cells {
 		cells[j] = emptyChar
 	}
+
+	s := rg.Start
+	e := rg.End - 1 // make end inclusive for plotting
 
 	// Map start/end to columns. Reserve column 0 as a separator when possible by
 	// mapping into [1, plotWidth-1] when plotWidth > 1.
@@ -213,15 +240,6 @@ func (r *Renderer) buildRow(size uint64, rg Range) (string, error) {
 	cs = cs + 1
 	ce = ce + 1
 
-	// Ensure at least one visible column is set for very small ranges.
-	if cs == ce {
-		if ce < r.plotWidth-1 {
-			ce = cs + 1
-		} else if cs > 0 {
-			cs = cs - 1
-		}
-	}
-
 	for c := cs; c <= ce; c++ {
 		cells[c] = blockChar
 	}
@@ -232,7 +250,7 @@ func (r *Renderer) buildRow(size uint64, rg Range) (string, error) {
 	}
 
 	// Compose label and write.
-	label := fmt.Sprintf("[%d,%d)", s, e-s)
+	label := fmt.Sprintf("[%d,%s)", s, humanReadable(e-s+1))
 	if len(label) > r.labelWidth {
 		label = label[:r.labelWidth]
 	}
@@ -257,7 +275,7 @@ func mapCoord(offset, size uint64, plotWidth int) (int, error) {
 		return 0, fmt.Errorf("invalid arguments to mapCoord")
 	}
 	frac := float64(offset) / float64(size)
-	col := int(math.Round(frac * float64(plotWidth)))
+	col := int(math.Floor(frac * float64(plotWidth)))
 	if col < 0 {
 		return 0, nil
 	}

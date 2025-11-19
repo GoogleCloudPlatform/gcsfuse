@@ -615,3 +615,80 @@ func BatchUploadFilesWithoutIntermediateDelays(ctx context.Context, storageClien
 	time.Sleep(time.Second)
 	return nil
 }
+
+// ListDirectory lists objects in the specified GCS bucket under the given prefix.
+// It returns a slice of object names.
+func ListDirectory(ctx context.Context, client *storage.Client, bucketName, prefix string) ([]string, error) {
+	if prefix != "" && !strings.HasSuffix(prefix, "/") {
+		prefix += "/"
+	}
+
+	bucket := client.Bucket(bucketName)
+
+	var entries []string
+	var mu sync.Mutex
+	g, ctx := errgroup.WithContext(ctx)
+
+	// List objects recursively.
+	g.Go(func() error {
+		objQuery := &storage.Query{
+			Prefix: prefix,
+		}
+		it := bucket.Objects(ctx, objQuery)
+		for {
+			attrs, err := it.Next()
+			if err == iterator.Done {
+				break
+			}
+			if err != nil {
+				return fmt.Errorf("error iterating GCS objects: %w", err)
+			}
+			if attrs.Name != prefix {
+				mu.Lock()
+				entries = append(entries, attrs.Name)
+				mu.Unlock()
+			}
+		}
+		return nil
+	})
+
+	g.Go(func() error {
+		folderQuery := &storage.Query{
+			Prefix:                   prefix,
+			IncludeFoldersAsPrefixes: true,
+			Delimiter:                "/",
+		}
+		it := bucket.Objects(ctx, folderQuery)
+		for {
+			attrs, err := it.Next()
+			if err == iterator.Done {
+				break
+			}
+			if err != nil {
+				return fmt.Errorf("error iterating GCS folders: %w", err)
+			}
+			if attrs.Prefix != "" && attrs.Prefix != prefix {
+				mu.Lock()
+				entries = append(entries, attrs.Prefix)
+				mu.Unlock()
+			}
+		}
+		return nil
+	})
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	// Using a map to remove duplicates that might arise from listing objects and folders.
+	seen := make(map[string]struct{})
+	var uniqueEntries []string
+	for _, entry := range entries {
+		if _, ok := seen[entry]; !ok {
+			seen[entry] = struct{}{}
+			uniqueEntries = append(uniqueEntries, entry)
+		}
+	}
+
+	return uniqueEntries, nil
+}

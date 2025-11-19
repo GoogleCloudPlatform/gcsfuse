@@ -30,8 +30,8 @@ import (
 func getConfigObject(t *testing.T, args []string) (*cfg.Config, error) {
 	t.Helper()
 	var c *cfg.Config
-	cmd, err := newRootCmd(func(config *cfg.Config, _, _ string) error {
-		c = config
+	cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+		c = mountInfo.config
 		return nil
 	})
 	require.Nil(t, err)
@@ -592,6 +592,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 					TempDir:                "",
 					PreconditionErrors:     true,
 					Uid:                    -1,
+					MaxReadAheadKb:         0,
 				},
 			},
 		},
@@ -611,6 +612,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 					TempDir:                "",
 					PreconditionErrors:     true,
 					Uid:                    -1,
+					MaxReadAheadKb:         0,
 				},
 			},
 		},
@@ -630,6 +632,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 					TempDir:                cfg.ResolvedPath(path.Join(hd, "temp")),
 					PreconditionErrors:     false,
 					Uid:                    8,
+					MaxReadAheadKb:         1024,
 				},
 				GcsConnection: cfg.GcsConnectionConfig{
 					EnableHttpDnsCache: true,

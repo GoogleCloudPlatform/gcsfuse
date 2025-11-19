@@ -187,11 +187,14 @@ params:
     default: true
     hide-flag: true
 
-  - config-path: "enable-unsupported-dir-support"
-    flag-name: "enable-unsupported-dir-support"
+  - config-path: "enable-unsupported-path-support"
+    flag-name: "enable-unsupported-path-support"
     type: "bool"
-    usage: "Enables support for un-supported directory fix implementation."
-    default: true
+    usage: >-
+      Enables support for file system paths with unsupported GCS names (e.g., names containing '//' or starting with /). 
+      When set, GCSFuse will ignore these objects during listing and copying operations. 
+      For rename and delete operations, the flag allows the action to proceed for all specified objects, including those with unsupported names.
+    default: false
     hide-flag: true
 
   - config-path: "file-cache.cache-file-for-range-read"
@@ -350,6 +353,16 @@ params:
         - name: "aiml-serving"
           value: -1
 
+  - config-path: "file-system.max-read-ahead-kb"
+    flag-name: "max-read-ahead-kb"
+    type: "int"
+    usage: >-
+      Sets max kernel-read-ahead for the mount in KiB. 0 means system default.
+      Requires sudo permission to set this value, otherwise the value will be ignored
+      and system default will be used.
+    default: "0"
+    hide-flag: true
+  
   - config-path: "file-system.o-direct"
     flag-name: "o-direct"
     type: "bool"
@@ -358,6 +371,7 @@ params:
       all I/O operations are sent directly to the GCSFuse daemon. 
     default: false
     hide-flag: true
+
 
   - config-path: "file-system.precondition-errors"
     flag-name: "precondition-errors"
@@ -464,6 +478,13 @@ params:
     default: false
     deprecated: true
     deprecation-warning: "Experimental flag: could be dropped even in a minor release."
+
+  - config-path: "gcs-connection.experimental-local-socket-address"
+    flag-name: "experimental-local-socket-address"
+    type: "string"
+    usage: "The local socket address to bind to. This is useful in multi-NIC scenarios. This is an experimental flag."
+    default: ""
+    hide-flag: true
 
   - config-path: "gcs-connection.grpc-conn-pool-size"
     flag-name: "experimental-grpc-conn-pool-size"
@@ -865,6 +886,13 @@ params:
     default: ""
     hide-flag: true
 
+  - config-path: "monitoring.experimental-tracing-project-id"
+    flag-name: "experimental-tracing-project-id"
+    type: "string"
+    usage: "Experimental: specify the GCP project-id to which traces will be exported. When unset, a project-id will be inferred as per the default credential detection process"
+    default: ""
+    hide-flag: true
+
   - config-path: "monitoring.experimental-tracing-sampling-ratio"
     flag-name: "experimental-tracing-sampling-ratio"
     type: "float64"
@@ -954,6 +982,36 @@ params:
     usage: >-
       Specifies the number of blocks to be prefetched on the first read.
     default: 1
+    hide-flag: true
+
+  - config-path: "workload-insight.forward-merge-threshold-mb"
+    flag-name: "workload-insight-forward-merge-threshold-mb"
+    type: "int"
+    usage: >-
+      The threshold in MB for merging forward sequential reads for workload
+      insights visualization.Reads within this threshold will be merged into
+      a single read operation. Applicable only when --visualize-workload-insight
+      is enabled.
+    default: 0
+    hide-flag: true
+
+  - config-path: "workload-insight.output-file"
+    flag-name: "workload-insight-output-file"
+    type: "string"
+    usage: >-
+      The file path where the workload insights will be written.
+      If not specified, insights will be written to stdout
+    default: ""
+    hide-flag: true
+
+  - config-path: "workload-insight.visualize"
+    flag-name: "visualize-workload-insight"
+    type: "bool"
+    usage: >-
+      A flag to enable workload visualization. When enabled, workload insights
+      will include visualizations to help understand access patterns. Insights
+      will be written to the file specified by --workload-insight-output-file.
+    default: false
     hide-flag: true
 
   - config-path: "write.block-size-mb"

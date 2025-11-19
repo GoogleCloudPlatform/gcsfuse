@@ -34,13 +34,13 @@ echo "Upgrade gcloud version"
 wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
 sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm -r google-cloud-sdk
 
-# Conditionally install python3.9 and run gcloud installer with it for RHEL 8 and Rocky 8
+# Conditionally install python3.11 and run gcloud installer with it for RHEL 8 and Rocky 8
 INSTALL_COMMAND="sudo /usr/local/google-cloud-sdk/install.sh --quiet"
 if [ -f /etc/os-release ]; then
     . /etc/os-release
     if [[ ($ID == "rhel" || $ID == "rocky") && $VERSION_ID == 8* ]]; then
-        sudo yum install -y python39
-        INSTALL_COMMAND="sudo env CLOUDSDK_PYTHON=/usr/bin/python3.9 /usr/local/google-cloud-sdk/install.sh --quiet"
+        sudo yum install -y python311
+        INSTALL_COMMAND="sudo env CLOUDSDK_PYTHON=/usr/bin/python3.11 /usr/local/google-cloud-sdk/install.sh --quiet"
     fi
 fi
 $INSTALL_COMMAND 
@@ -253,7 +253,7 @@ else
 fi
 
 # install go
-wget -O go_tar.tar.gz https://go.dev/dl/go1.24.5.linux-${architecture}.tar.gz
+wget -O go_tar.tar.gz https://go.dev/dl/go1.24.10.linux-${architecture}.tar.gz
 sudo tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=${PATH}:/usr/local/go/bin
 #Write gcsfuse and go version to log file
@@ -303,11 +303,13 @@ TEST_DIR_PARALLEL=(
   "negative_stat_cache"
   "streaming_writes"
   "release_version"
-  "readdirplus"
-  "dentry_cache"
+  # Reenable when b/461334834 is done.
+  # "readdirplus"
+  # "dentry_cache"
   "buffered_read"
   # Disabled because of b/451462914.
   #"requester_pays_bucket"
+  "flag_optimizations"
 )
 
 # These tests never become parallel as they are changing bucket permissions.
@@ -322,8 +324,10 @@ TEST_DIR_NON_PARALLEL=(
 TEST_DIR_PARALLEL_ZONAL=(
   buffered_read
   concurrent_operations
-  dentry_cache
+  # Reenable when b/461334834 is done.
+  # dentry_cache
   explicit_dir
+  flag_optimizations
   gzip
   implicit_dir
   interrupt
@@ -337,7 +341,8 @@ TEST_DIR_PARALLEL_ZONAL=(
   operations
   rapid_appends
   read_large_files
-  readdirplus
+  # Reenable when b/461334834 is done.
+  # readdirplus
   release_version
   rename_dir_limit
   stale_handle

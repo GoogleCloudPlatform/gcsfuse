@@ -38,7 +38,7 @@ func TestGcsUtil(t *testing.T) {
 // //////////////////////////////////////////////////////////////////////
 // Tests
 // //////////////////////////////////////////////////////////////////////
-func (ts *GcsUtilTest) TestIsUnsupportedObjectName() {
+func (ts *GcsUtilTest) TestIsUnsupportedPathName() {
 	cases := []struct {
 		name          string
 		isUnsupported bool
@@ -75,11 +75,35 @@ func (ts *GcsUtilTest) TestIsUnsupportedObjectName() {
 			name:          "",
 			isUnsupported: true,
 		},
+		{
+			name:          "foo/.",
+			isUnsupported: true,
+		},
+		{
+			name:          "foo/..",
+			isUnsupported: true,
+		},
+		{
+			name:          "foo/./",
+			isUnsupported: true,
+		},
+		{
+			name:          "foo/../",
+			isUnsupported: true,
+		},
+		{
+			name:          "foo/.config",
+			isUnsupported: false,
+		},
+		{
+			name:          "foo/c..d",
+			isUnsupported: false,
+		},
 	}
 
 	for _, tc := range cases {
 		ts.Run(fmt.Sprintf("name=%s", tc.name), func() {
-			assert.Equal(ts.T(), tc.isUnsupported, IsUnsupportedObjectName(tc.name))
+			assert.Equal(ts.T(), tc.isUnsupported, IsUnsupportedPath(tc.name))
 		})
 	}
 }

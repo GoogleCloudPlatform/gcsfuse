@@ -317,22 +317,6 @@ gcsfuse --implicit-dirs=false --rename-dir-limit=3 --enable-streaming-writes=fal
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/local_file/... -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG}
 sudo umount $MOUNT_DIR
 
-# Run tests with log rotation config.
-rm -r /tmp/gcsfuse_integration_test_logs
-mkdir /tmp/gcsfuse_integration_test_logs
-echo "logging:
-        file-path: /tmp/gcsfuse_integration_test_logs/log.txt
-        format: text
-        severity: trace
-        log-rotate:
-          max-file-size-mb: 2
-          backup-file-count: 3
-          compress: true
-       " > /tmp/gcsfuse_config.yaml
-gcsfuse --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/log_rotation/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR ${ZONAL_BUCKET_ARG}
-sudo umount $MOUNT_DIR
-
 # Run read cache functional tests.
 function read_cache_test_setup() {
     local cache_size_mb=$1
@@ -746,16 +730,37 @@ sudo umount $MOUNT_DIR
 
 rm -rf $log_dir
 
-# Package flag_optimizations
+# Package requester_pays_bucket
 declare -A requester_pays_bucket_scenarios
 requester_pays_bucket_scenarios["--billing-project=gcs-fuse-test-ml"]=""
 for flags in "${!requester_pays_bucket_scenarios[@]}"; do
   printf "\n=============================================================\n"
   echo "Running requester_pays_bucket test with \"${flags}\" ... "
   printf "\n=============================================================\n"
-  gcsuse_mount_args=" --log-severity=trace ${flags} $TEST_BUCKET_NAME $MOUNT_DIR"
-  gcsfuse ${gcsuse_mount_args}
+  gcsfuse_mount_args=" --log-severity=trace ${flags} $TEST_BUCKET_NAME $MOUNT_DIR"
+  gcsfuse ${gcsfuse_mount_args}
   testfilter="${requester_pays_bucket_scenarios[${flags}]}"
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/requester_pays_bucket/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG} -test.run ${testfilter}
+  sudo umount $MOUNT_DIR
+done
+
+# Package flag_optimizations
+declare -A flag_optimizations_scenarios
+flag_optimizations_scenarios["--machine-type=low-end-machine"]="TestImplicitDirsNotEnabled/--machine-type=low-end-machine|TestRenameDirLimitNotSet/--machine-type=low-end-machine"
+flag_optimizations_scenarios["--machine-type=a3-highgpu-8g"]="TestImplicitDirsEnabled/--machine-type=a3-highgpu-8g|TestRenameDirLimitSet/--machine-type=a3-highgpu-8g"
+flag_optimizations_scenarios["--profile=aiml-training"]="TestImplicitDirsEnabled/--profile=aiml-training|TestRenameDirLimitNotSet/--profile=aiml-training"
+flag_optimizations_scenarios["--profile=aiml-checkpointing"]="TestImplicitDirsEnabled/--profile=aiml-checkpointing|TestRenameDirLimitSet/--profile=aiml-checkpointing"
+flag_optimizations_scenarios["--profile=aiml-serving"]="TestImplicitDirsEnabled/--profile=aiml-serving|TestRenameDirLimitNotSet/--profile=aiml-serving"
+flag_optimizations_scenarios["--machine-type=low-end-machine --profile=aiml-training"]="TestImplicitDirsEnabled/--machine-type=low-end-machine_--profile=aiml-training"
+flag_optimizations_scenarios["--machine-type=low-end-machine --profile=aiml-checkpointing"]="TestImplicitDirsEnabled/--machine-type=low-end-machine_--profile=aiml-checkpointing|TestRenameDirLimitSet/--machine-type=low-end-machine_--profile=aiml-checkpointing"
+flag_optimizations_scenarios["--machine-type=low-end-machine --profile=aiml-serving"]="TestImplicitDirsEnabled/--machine-type=low-end-machine_--profile=aiml-serving"
+for flags in "${!flag_optimizations_scenarios[@]}"; do
+  printf "\n=============================================================\n"
+  echo "Running flag_optimizations test with \"${flags}\" ... "
+  printf "\n=============================================================\n"
+  gcsfuse_mount_args=" --log-severity=trace ${flags} $TEST_BUCKET_NAME $MOUNT_DIR"
+  gcsfuse ${gcsfuse_mount_args}
+  testfilter="${flag_optimizations_scenarios[${flags}]}"
   GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/flag_optimizations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME ${ZONAL_BUCKET_ARG} -test.run ${testfilter}
   sudo umount $MOUNT_DIR
 done

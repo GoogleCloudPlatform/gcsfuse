@@ -33,8 +33,8 @@ type BucketType struct {
 type TestConfig struct {
 	GKEMountedDirectory     string `yaml:"mounted_directory"`
 	GCSFuseMountedDirectory string
-	TestBucket              string       `yaml:"test_bucket"`
-	LogFile                 string       `yaml:"log_file,omitempty"`
+	TestBucket              string `yaml:"test_bucket"`
+	LogFile                 string
 	Configs                 []ConfigItem `yaml:"configs"`
 	OnlyDir                 string       `yaml:"only_dir,omitempty"`
 }
@@ -78,6 +78,8 @@ type Config struct {
 	RapidAppends          []TestConfig `yaml:"rapid_appends"`
 	MountTimeout          []TestConfig `yaml:"mount_timeout"`
 	Monitoring            []TestConfig `yaml:"monitoring"`
+	FlagOptimizations     []TestConfig `yaml:"flag_optimizations"`
+	UnsupportedPath       []TestConfig `yaml:"unsupported_path"`
 }
 
 func processTestConfigs(configs []TestConfig) {
@@ -118,6 +120,7 @@ func (c *Config) postProcessConfig() {
 	processTestConfigs(c.RapidAppends)
 	processTestConfigs(c.MountTimeout)
 	processTestConfigs(c.Monitoring)
+	processTestConfigs(c.FlagOptimizations)
 }
 
 // ReadConfigFile returns a Config struct from the YAML file.

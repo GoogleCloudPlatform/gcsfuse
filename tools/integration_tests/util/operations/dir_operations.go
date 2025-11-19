@@ -100,6 +100,10 @@ func CreateDirectoryWithNFiles(numberOfFiles int, dirPath string, prefix string,
 		t.Fatalf("Error in creating directory %q: %v", dirPath, err)
 	}
 
+	// Limit the maximum number of I/O goroutines that can run simultaneously.
+	const maxConcurrency = 1024
+	sem := make(chan struct{}, maxConcurrency)
+
 	// 2. Setup a WaitGroup to manage concurrent Go routines
 	var wg sync.WaitGroup
 
@@ -110,6 +114,10 @@ func CreateDirectoryWithNFiles(numberOfFiles int, dirPath string, prefix string,
 
 	// 4. Loop to start concurrent file creation
 	for i := 1; i <= numberOfFiles; i++ {
+		// ACQUIRE TOKEN: This will block if 1024 goroutines are currently active
+		// to prevent thread limit exhaustion.
+		sem <- struct{}{}
+
 		wg.Add(1) // Increment the counter for each Go routine started
 
 		// Capture the loop variable locally to avoid race conditions
@@ -118,6 +126,9 @@ func CreateDirectoryWithNFiles(numberOfFiles int, dirPath string, prefix string,
 
 		go func() {
 			defer wg.Done() // Decrement the counter when the Go routine finishes
+			// RELEASE TOKEN: Execute this immediately before the goroutine exits
+			// to allow the next waiting goroutine to proceed.
+			defer func() { <-sem }()
 
 			// Create file with name prefix + i (e.g., temp1, temp2)
 			filePath := path.Join(dirPath, prefix+strconv.Itoa(i))

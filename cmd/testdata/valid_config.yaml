@@ -63,6 +63,7 @@ file-system:
   rename-dir-limit: 10
   temp-dir: ~/temp
   precondition-errors: false
+  max-read-ahead-kb: 1024
 list:
   enable-empty-managed-folders: true
 enable-hns: false

@@ -35,7 +35,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/sdk/metric"
-	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
 // serverConfigParams holds parameters for creating a test file system.
@@ -97,79 +96,7 @@ func createWithContents(ctx context.Context, t *testing.T, bucket gcs.Bucket, na
 }
 
 func waitForMetricsProcessing() {
-	time.Sleep(time.Millisecond)
-}
-
-// verifyCounterMetric finds a counter metric and verifies that the data point
-// matching the provided attributes has the expected value.
-func verifyCounterMetric(t *testing.T, ctx context.Context, reader *metric.ManualReader, metricName string, attrs attribute.Set, expectedValue int64) {
-	t.Helper()
-	var rm metricdata.ResourceMetrics
-	err := reader.Collect(ctx, &rm)
-	require.NoError(t, err, "reader.Collect")
-	encoder := attribute.DefaultEncoder()
-	expectedKey := attrs.Encoded(encoder)
-
-	require.Len(t, rm.ScopeMetrics, 1, "expected 1 scope metric")
-	require.NotEmpty(t, rm.ScopeMetrics[0].Metrics, "expected at least 1 metric")
-
-	foundMetric := false
-	for _, m := range rm.ScopeMetrics[0].Metrics {
-		if m.Name == metricName {
-			foundMetric = true
-			data, ok := m.Data.(metricdata.Sum[int64])
-			require.True(t, ok, "metric %s is not a Sum[int64], but %T", metricName, m.Data)
-
-			foundDataPoint := false
-			for _, dp := range data.DataPoints {
-				if dp.Attributes.Encoded(encoder) == expectedKey {
-					foundDataPoint = true
-					assert.Equal(t, expectedValue, dp.Value, "metric value mismatch for attributes: %s", attrs.Encoded(encoder))
-					break
-				}
-			}
-
-			require.True(t, foundDataPoint, "Data point for attributes %v not found in %s metric", attrs, metricName)
-			break
-		}
-	}
-
-	require.True(t, foundMetric, "metric %s not found", metricName)
-}
-
-// verifyHistogramMetric finds a histogram metric and verifies that the data point
-// matching the provided attributes has the expected count.
-func verifyHistogramMetric(t *testing.T, ctx context.Context, reader *metric.ManualReader, metricName string, attrs attribute.Set, expectedCount uint64) {
-	t.Helper()
-	var rm metricdata.ResourceMetrics
-	err := reader.Collect(ctx, &rm)
-	require.NoError(t, err, "reader.Collect")
-	encoder := attribute.DefaultEncoder()
-	expectedKey := attrs.Encoded(encoder)
-
-	require.Len(t, rm.ScopeMetrics, 1, "expected 1 scope metric")
-	require.NotEmpty(t, rm.ScopeMetrics[0].Metrics, "expected at least 1 metric")
-
-	foundMetric := false
-	for _, m := range rm.ScopeMetrics[0].Metrics {
-		if m.Name == metricName {
-			foundMetric = true
-			data, ok := m.Data.(metricdata.Histogram[int64])
-			require.True(t, ok, "metric %s is not a Histogram[int64], but %T", metricName, m.Data)
-
-			foundDataPoint := false
-			for _, dp := range data.DataPoints {
-				if dp.Attributes.Encoded(encoder) == expectedKey {
-					foundDataPoint = true
-					assert.Equal(t, expectedCount, dp.Count, "metric count mismatch for attributes: %s", attrs.Encoded(encoder))
-					break
-				}
-			}
-			require.True(t, foundDataPoint, "Data point for attributes %v not found in %s metric", attrs, metricName)
-			break
-		}
-	}
-	require.True(t, foundMetric, "metric %s not found", metricName)
+	time.Sleep(5 * time.Millisecond)
 }
 
 func TestLookUpInode_Metrics(t *testing.T) {
@@ -212,8 +139,8 @@ func TestLookUpInode_Metrics(t *testing.T) {
 
 			assert.Equal(t, tc.expectedError, err)
 			attrs := attribute.NewSet(attribute.String("fs_op", "LookUpInode"))
-			verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-			verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+			metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+			metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 		})
 	}
 }
@@ -249,9 +176,9 @@ func TestReadFile_BufferedReadMetrics(t *testing.T) {
 	waitForMetricsProcessing()
 
 	require.NoError(t, err, "ReadFile")
-	verifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeBufferedAttr))), int64(len(content)))
-	verifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count", attribute.NewSet(attribute.String("reader", string(metrics.ReaderBufferedAttr))), int64(len(content)))
-	verifyHistogramMetric(t, ctx, reader, "buffered_read/read_latency", attribute.NewSet(), uint64(1))
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeBufferedAttr))), int64(len(content)))
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count", attribute.NewSet(attribute.String("reader", string(metrics.ReaderBufferedAttr))), int64(len(content)))
+	metrics.VerifyHistogramMetric(t, ctx, reader, "buffered_read/read_latency", attribute.NewSet(), uint64(1))
 }
 
 func TestReadFile_GCSReaderSequentialReadMetrics(t *testing.T) {
@@ -295,8 +222,8 @@ func TestReadFile_GCSReaderSequentialReadMetrics(t *testing.T) {
 			waitForMetricsProcessing()
 
 			require.NoError(t, err, "ReadFile")
-			verifyCounterMetric(t, ctx, reader, "gcs/read_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeSequentialAttr))), int64(1))
-			verifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeSequentialAttr))), int64(len(content)))
+			metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeSequentialAttr))), int64(1))
+			metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeSequentialAttr))), int64(len(content)))
 		})
 	}
 }
@@ -352,10 +279,10 @@ func TestReadFile_GCSReaderRandomReadMetrics(t *testing.T) {
 			require.NoError(t, err, "ReadFile")
 			waitForMetricsProcessing()
 
-			verifyCounterMetric(t, ctx, reader, "gcs/read_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeSequentialAttr))), int64(2))
-			verifyCounterMetric(t, ctx, reader, "gcs/read_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(2))
-			verifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeSequentialAttr))), int64(9))
-			verifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(21))
+			metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeSequentialAttr))), int64(2))
+			metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(2))
+			metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeSequentialAttr))), int64(9))
+			metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(21))
 		})
 	}
 }
@@ -373,8 +300,8 @@ func TestGetInodeAttributes_Metrics(t *testing.T) {
 
 	assert.NoError(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "GetInodeAttributes"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
 func TestRemoveXattr_Metrics(t *testing.T) {
@@ -400,8 +327,8 @@ func TestRemoveXattr_Metrics(t *testing.T) {
 	// The operation is not implemented, so we expect an error.
 	assert.Error(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "Others"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
 func TestListXattr_Metrics(t *testing.T) {
@@ -426,8 +353,8 @@ func TestListXattr_Metrics(t *testing.T) {
 	// The operation is not implemented, so we expect an error.
 	assert.NotNil(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "Others"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
 func TestSetXattr_Metrics(t *testing.T) {
@@ -454,8 +381,8 @@ func TestSetXattr_Metrics(t *testing.T) {
 	// The operation is not implemented, so we expect an error.
 	assert.NotNil(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "Others"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
 func TestGetXattr_Metrics(t *testing.T) {
@@ -481,8 +408,8 @@ func TestGetXattr_Metrics(t *testing.T) {
 	// The operation is not implemented, so we expect an error.
 	assert.NotNil(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "Others"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
 func TestFallocate_Metrics(t *testing.T) {
@@ -516,8 +443,8 @@ func TestFallocate_Metrics(t *testing.T) {
 	// The operation is not implemented, so we expect an error.
 	assert.Error(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "Others"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
 func TestCreateLink_Metrics(t *testing.T) {
@@ -544,8 +471,8 @@ func TestCreateLink_Metrics(t *testing.T) {
 	// The operation is not implemented, so we expect an error.
 	assert.Error(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "CreateLink"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
 func TestStatFS_Metrics(t *testing.T) {
@@ -559,8 +486,8 @@ func TestStatFS_Metrics(t *testing.T) {
 
 	assert.NoError(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "Others"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
 func TestReleaseFileHandle_Metrics(t *testing.T) {
@@ -589,8 +516,8 @@ func TestReleaseFileHandle_Metrics(t *testing.T) {
 
 	assert.NoError(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "ReleaseFileHandle"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
 func TestFlushFile_Metrics(t *testing.T) {
@@ -620,8 +547,8 @@ func TestFlushFile_Metrics(t *testing.T) {
 
 	assert.NoError(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "FlushFile"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
 func TestSyncFile_Metrics(t *testing.T) {
@@ -645,8 +572,8 @@ func TestSyncFile_Metrics(t *testing.T) {
 
 	assert.NoError(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "SyncFile"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
 func TestWriteFile_Metrics(t *testing.T) {
@@ -678,8 +605,8 @@ func TestWriteFile_Metrics(t *testing.T) {
 
 	assert.NoError(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "WriteFile"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
 func TestReadSymlink_Metrics(t *testing.T) {
@@ -704,8 +631,8 @@ func TestReadSymlink_Metrics(t *testing.T) {
 
 	assert.NoError(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "ReadSymlink"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
 func TestReadFile_Metrics(t *testing.T) {
@@ -738,8 +665,8 @@ func TestReadFile_Metrics(t *testing.T) {
 
 	assert.NoError(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "ReadFile"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
 func TestOpenFile_Metrics(t *testing.T) {
@@ -763,8 +690,8 @@ func TestOpenFile_Metrics(t *testing.T) {
 
 	assert.NoError(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "OpenFile"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
 func TestReleaseDirHandle_Metrics(t *testing.T) {
@@ -785,8 +712,8 @@ func TestReleaseDirHandle_Metrics(t *testing.T) {
 
 	assert.NoError(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "ReleaseDirHandle"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
 func TestReadDirPlus_Metrics(t *testing.T) {
@@ -812,8 +739,8 @@ func TestReadDirPlus_Metrics(t *testing.T) {
 
 	assert.NoError(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "ReadDirPlus"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
 func TestReadDir_Metrics(t *testing.T) {
@@ -837,8 +764,8 @@ func TestReadDir_Metrics(t *testing.T) {
 
 	assert.NoError(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "ReadDir"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
 func TestOpenDir_Metrics(t *testing.T) {
@@ -854,8 +781,8 @@ func TestOpenDir_Metrics(t *testing.T) {
 
 	assert.NoError(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "OpenDir"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
 func TestForgetInode_Metrics(t *testing.T) {
@@ -880,8 +807,8 @@ func TestForgetInode_Metrics(t *testing.T) {
 
 	assert.NoError(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "ForgetInode"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
 func TestRename_Metrics(t *testing.T) {
@@ -903,8 +830,8 @@ func TestRename_Metrics(t *testing.T) {
 
 	assert.NoError(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "Rename"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
 func TestUnlink_Metrics(t *testing.T) {
@@ -923,8 +850,8 @@ func TestUnlink_Metrics(t *testing.T) {
 
 	assert.NoError(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "Unlink"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
 func TestRmDir_Metrics(t *testing.T) {
@@ -948,8 +875,8 @@ func TestRmDir_Metrics(t *testing.T) {
 
 	assert.NoError(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "RmDir"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
 func TestCreateSymlink_Metrics(t *testing.T) {
@@ -967,8 +894,8 @@ func TestCreateSymlink_Metrics(t *testing.T) {
 
 	assert.NoError(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "CreateSymlink"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
 func TestCreateFile_Metrics(t *testing.T) {
@@ -985,8 +912,8 @@ func TestCreateFile_Metrics(t *testing.T) {
 
 	assert.NoError(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "CreateFile"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
 func TestMkNode_Metrics(t *testing.T) {
@@ -1003,8 +930,8 @@ func TestMkNode_Metrics(t *testing.T) {
 
 	assert.NoError(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "MkNode"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
 func TestMkDir_Metrics(t *testing.T) {
@@ -1021,8 +948,8 @@ func TestMkDir_Metrics(t *testing.T) {
 
 	assert.NoError(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "MkDir"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }
 
 func TestSetInodeAttributes_Metrics(t *testing.T) {
@@ -1046,6 +973,6 @@ func TestSetInodeAttributes_Metrics(t *testing.T) {
 
 	assert.NoError(t, err)
 	attrs := attribute.NewSet(attribute.String("fs_op", "SetInodeAttributes"))
-	verifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
-	verifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
+	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
 }

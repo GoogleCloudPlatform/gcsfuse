@@ -199,8 +199,8 @@ var machineTypeToGroupMap = map[string]string{
 }
 
 // ApplyOptimizations modifies the config in-place with optimized values.
-func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
-	var optimizedFlags []string
+func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationResult {
+	var optimizedFlags = make(map[string]OptimizationResult)
 	// Skip all optimizations if autoconfig is disabled.
 	if c.DisableAutoconfig {
 		return nil
@@ -222,7 +222,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(bool); ok {
 				if c.FileCache.CacheFileForRangeRead != val {
 					c.FileCache.CacheFileForRangeRead = val
-					optimizedFlags = append(optimizedFlags, "file-cache.cache-file-for-range-read")
+					optimizedFlags["file-cache.cache-file-for-range-read"] = result
 				}
 			}
 		}
@@ -234,7 +234,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(bool); ok {
 				if c.ImplicitDirs != val {
 					c.ImplicitDirs = val
-					optimizedFlags = append(optimizedFlags, "implicit-dirs")
+					optimizedFlags["implicit-dirs"] = result
 				}
 			}
 		}
@@ -246,7 +246,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.FileSystem.KernelListCacheTtlSecs != val {
 					c.FileSystem.KernelListCacheTtlSecs = val
-					optimizedFlags = append(optimizedFlags, "file-system.kernel-list-cache-ttl-secs")
+					optimizedFlags["file-system.kernel-list-cache-ttl-secs"] = result
 				}
 			}
 		}
@@ -258,7 +258,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.NegativeTtlSecs != val {
 					c.MetadataCache.NegativeTtlSecs = val
-					optimizedFlags = append(optimizedFlags, "metadata-cache.negative-ttl-secs")
+					optimizedFlags["metadata-cache.negative-ttl-secs"] = result
 				}
 			}
 		}
@@ -270,7 +270,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.TtlSecs != val {
 					c.MetadataCache.TtlSecs = val
-					optimizedFlags = append(optimizedFlags, "metadata-cache.ttl-secs")
+					optimizedFlags["metadata-cache.ttl-secs"] = result
 				}
 			}
 		}
@@ -282,7 +282,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.FileSystem.RenameDirLimit != val {
 					c.FileSystem.RenameDirLimit = val
-					optimizedFlags = append(optimizedFlags, "file-system.rename-dir-limit")
+					optimizedFlags["file-system.rename-dir-limit"] = result
 				}
 			}
 		}
@@ -294,7 +294,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.StatCacheMaxSizeMb != val {
 					c.MetadataCache.StatCacheMaxSizeMb = val
-					optimizedFlags = append(optimizedFlags, "metadata-cache.stat-cache-max-size-mb")
+					optimizedFlags["metadata-cache.stat-cache-max-size-mb"] = result
 				}
 			}
 		}
@@ -306,7 +306,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.TypeCacheMaxSizeMb != val {
 					c.MetadataCache.TypeCacheMaxSizeMb = val
-					optimizedFlags = append(optimizedFlags, "metadata-cache.type-cache-max-size-mb")
+					optimizedFlags["metadata-cache.type-cache-max-size-mb"] = result
 				}
 			}
 		}
@@ -318,7 +318,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.Write.GlobalMaxBlocks != val {
 					c.Write.GlobalMaxBlocks = val
-					optimizedFlags = append(optimizedFlags, "write.global-max-blocks")
+					optimizedFlags["write.global-max-blocks"] = result
 				}
 			}
 		}
@@ -361,7 +361,7 @@ type Config struct {
 
 	EnableNewReader bool `yaml:"enable-new-reader"`
 
-	EnableUnsupportedDirSupport bool `yaml:"enable-unsupported-dir-support"`
+	EnableUnsupportedPathSupport bool `yaml:"enable-unsupported-path-support"`
 
 	FileCache FileCacheConfig `yaml:"file-cache"`
 
@@ -394,6 +394,8 @@ type Config struct {
 	Profile string `yaml:"profile"`
 
 	Read ReadConfig `yaml:"read"`
+
+	WorkloadInsight WorkloadInsightConfig `yaml:"workload-insight"`
 
 	Write WriteConfig `yaml:"write"`
 }
@@ -453,6 +455,8 @@ type FileSystemConfig struct {
 
 	KernelListCacheTtlSecs int64 `yaml:"kernel-list-cache-ttl-secs"`
 
+	MaxReadAheadKb int64 `yaml:"max-read-ahead-kb"`
+
 	ODirect bool `yaml:"o-direct"`
 
 	PreconditionErrors bool `yaml:"precondition-errors"`
@@ -484,6 +488,8 @@ type GcsConnectionConfig struct {
 	EnableHttpDnsCache bool `yaml:"enable-http-dns-cache"`
 
 	ExperimentalEnableJsonRead bool `yaml:"experimental-enable-json-read"`
+
+	ExperimentalLocalSocketAddress string `yaml:"experimental-local-socket-address"`
 
 	GrpcConnPoolSize int64 `yaml:"grpc-conn-pool-size"`
 
@@ -571,6 +577,8 @@ type MetricsConfig struct {
 type MonitoringConfig struct {
 	ExperimentalTracingMode string `yaml:"experimental-tracing-mode"`
 
+	ExperimentalTracingProjectId string `yaml:"experimental-tracing-project-id"`
+
 	ExperimentalTracingSamplingRatio float64 `yaml:"experimental-tracing-sampling-ratio"`
 }
 
@@ -604,6 +612,14 @@ type ReadStallGcsRetriesConfig struct {
 	ReqIncreaseRate float64 `yaml:"req-increase-rate"`
 
 	ReqTargetPercentile float64 `yaml:"req-target-percentile"`
+}
+
+type WorkloadInsightConfig struct {
+	ForwardMergeThresholdMb int64 `yaml:"forward-merge-threshold-mb"`
+
+	OutputFile string `yaml:"output-file"`
+
+	Visualize bool `yaml:"visualize"`
 }
 
 type WriteConfig struct {
@@ -790,9 +806,9 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-streaming-writes", "", true, "Enables streaming uploads during write file operation.")
 
-	flagSet.BoolP("enable-unsupported-dir-support", "", true, "Enables support for un-supported directory fix implementation.")
+	flagSet.BoolP("enable-unsupported-path-support", "", false, "Enables support for file system paths with unsupported GCS names (e.g., names containing '//' or starting with /).  When set, GCSFuse will ignore these objects during listing and copying operations.  For rename and delete operations, the flag allows the action to proceed for all specified objects, including those with unsupported names.")
 
-	if err := flagSet.MarkHidden("enable-unsupported-dir-support"); err != nil {
+	if err := flagSet.MarkHidden("enable-unsupported-path-support"); err != nil {
 		return err
 	}
 
@@ -820,6 +836,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.StringP("experimental-local-socket-address", "", "", "The local socket address to bind to. This is useful in multi-NIC scenarios. This is an experimental flag.")
+
+	if err := flagSet.MarkHidden("experimental-local-socket-address"); err != nil {
+		return err
+	}
+
 	flagSet.StringP("experimental-metadata-prefetch-on-mount", "", "disabled", "Experimental: This indicates whether or not to prefetch the metadata (prefilling of metadata caches and creation of inodes) of the mounted bucket at the time of mounting the bucket. Supported values: \"disabled\", \"sync\" and \"async\". Any other values will return error on mounting. This is applicable only to static mounting, and not to dynamic mounting.")
 
 	if err := flagSet.MarkDeprecated("experimental-metadata-prefetch-on-mount", "Experimental flag: could be removed even in a minor release."); err != nil {
@@ -829,6 +851,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.StringP("experimental-tracing-mode", "", "", "Experimental: specify tracing mode")
 
 	if err := flagSet.MarkHidden("experimental-tracing-mode"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("experimental-tracing-project-id", "", "", "Experimental: specify the GCP project-id to which traces will be exported. When unset, a project-id will be inferred as per the default credential detection process")
+
+	if err := flagSet.MarkHidden("experimental-tracing-project-id"); err != nil {
 		return err
 	}
 
@@ -933,6 +961,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.IntP("max-conns-per-host", "", 0, "The max number of TCP connections allowed per server. This is effective when client-protocol is set to 'http1'. A value of 0 indicates no limit on TCP connections (limited by the machine specifications).")
 
 	flagSet.IntP("max-idle-conns-per-host", "", 100, "The number of maximum idle connections allowed per server.")
+
+	flagSet.IntP("max-read-ahead-kb", "", 0, "Sets max kernel-read-ahead for the mount in KiB. 0 means system default. Requires sudo permission to set this value, otherwise the value will be ignored and system default will be used.")
+
+	if err := flagSet.MarkHidden("max-read-ahead-kb"); err != nil {
+		return err
+	}
 
 	flagSet.IntP("max-retry-attempts", "", 0, "It sets a limit on the number of times an operation will be retried if it fails, preventing endless retry loops. A value of 0 indicates no limit.")
 
@@ -1096,6 +1130,24 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("uid", "", -1, "UID owner of all inodes.")
 
+	flagSet.BoolP("visualize-workload-insight", "", false, "A flag to enable workload visualization. When enabled, workload insights will include visualizations to help understand access patterns. Insights will be written to the file specified by --workload-insight-output-file.")
+
+	if err := flagSet.MarkHidden("visualize-workload-insight"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("workload-insight-forward-merge-threshold-mb", "", 0, "The threshold in MB for merging forward sequential reads for workload insights visualization.Reads within this threshold will be merged into a single read operation. Applicable only when --visualize-workload-insight is enabled.")
+
+	if err := flagSet.MarkHidden("workload-insight-forward-merge-threshold-mb"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("workload-insight-output-file", "", "", "The file path where the workload insights will be written. If not specified, insights will be written to stdout")
+
+	if err := flagSet.MarkHidden("workload-insight-output-file"); err != nil {
+		return err
+	}
+
 	flagSet.IntP("write-block-size-mb", "", 32, "Specifies the block size for streaming writes. The value should be more than 0.")
 
 	if err := flagSet.MarkHidden("write-block-size-mb"); err != nil {
@@ -1251,7 +1303,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("enable-unsupported-dir-support", flagSet.Lookup("enable-unsupported-dir-support")); err != nil {
+	if err := v.BindPFlag("enable-unsupported-path-support", flagSet.Lookup("enable-unsupported-path-support")); err != nil {
 		return err
 	}
 
@@ -1271,11 +1323,19 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("gcs-connection.experimental-local-socket-address", flagSet.Lookup("experimental-local-socket-address")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("metadata-cache.experimental-metadata-prefetch-on-mount", flagSet.Lookup("experimental-metadata-prefetch-on-mount")); err != nil {
 		return err
 	}
 
 	if err := v.BindPFlag("monitoring.experimental-tracing-mode", flagSet.Lookup("experimental-tracing-mode")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("monitoring.experimental-tracing-project-id", flagSet.Lookup("experimental-tracing-project-id")); err != nil {
 		return err
 	}
 
@@ -1408,6 +1468,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-connection.max-idle-conns-per-host", flagSet.Lookup("max-idle-conns-per-host")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.max-read-ahead-kb", flagSet.Lookup("max-read-ahead-kb")); err != nil {
 		return err
 	}
 
@@ -1560,6 +1624,18 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.uid", flagSet.Lookup("uid")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("workload-insight.visualize", flagSet.Lookup("visualize-workload-insight")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("workload-insight.forward-merge-threshold-mb", flagSet.Lookup("workload-insight-forward-merge-threshold-mb")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("workload-insight.output-file", flagSet.Lookup("workload-insight-output-file")); err != nil {
 		return err
 	}
 
