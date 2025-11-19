@@ -46,8 +46,8 @@ var (
 	uncachedBucket gcs.Bucket
 )
 
-func newLruCache(capacity uint64) *lru.Cache {
-	return lru.NewCache(capacity)
+func newLruCache(maxSize uint64) *lru.TrieCache {
+	return lru.NewTrieCache(maxSize)
 }
 
 type cachingTestCommon struct {
