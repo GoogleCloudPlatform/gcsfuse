@@ -533,13 +533,17 @@ function log_based_on_exit_status() {
         if [[ "$testcase" == "flat" ]]; then
           logfile="$HOME/logs.txt"
           successfile="$HOME/success.txt"
+          failurefile="$HOME/failure.txt"
         else
           logfile="$HOME/logs-$testcase.txt"
           successfile="$HOME/success-$testcase.txt"
+          failurefile="$HOME/failure-$testcase.txt"
         fi
         if [ "${exit_status_array["$testcase"]}" != 0 ];
         then
             echo "Test failures detected in $testcase bucket." &>> $logfile
+            touch $failurefile
+            gcloud storage cp $failurefile gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
         else
             touch $successfile
             gcloud storage cp $successfile gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
@@ -555,6 +559,8 @@ function run_e2e_tests_for_emulator_and_log() {
   emulator_test_status=$?
   if [ $e2e_tests_emulator_status != 0 ];
     then
+        touch failure-emulator.txt
+        gcloud storage cp failure-emulator.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
         echo "Test failures detected in emulator based tests." &>> ~/logs-emulator.txt
     else
         touch success-emulator.txt
