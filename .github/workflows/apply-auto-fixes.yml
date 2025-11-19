@@ -1,0 +1,63 @@
+name: Apply Auto Fixes
+
+on:
+  workflow_run:
+    workflows: ["Generate and Format"]
+    types:
+      - completed
+
+# Ensure that only one 'apply_patch' job runs at a time for the same PR.
+concurrency:
+  # The group is the pull request number.
+  group: ${{ github.event.workflow_run.pull_requests[0].number }}-apply-patch
+  cancel-in-progress: true
+
+jobs:
+  apply_patch:
+    # Only run on successful completion of the 'Generate and Lint Diff' workflow
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download patch artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: auto-fixes-patch
+          path: .
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Check if patch file exists and is not empty
+        id: check_patch
+        run: |
+          if [ -s auto_fixes.patch ]; then
+            echo "patch_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "No changes to apply."
+            echo "patch_exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout PR branch
+        if: steps.check_patch.outputs.patch_exists == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.workflow_run.head_repository.full_name }}
+          ref: ${{ github.event.workflow_run.head_branch }}
+          token: ${{ secrets.CODE_AUTO_FORMAT }}
+
+      - name: Apply patch
+        if: steps.check_patch.outputs.patch_exists == 'true'
+        run: |
+          # Applying the patch will fail if it's empty, but we've already checked for that.
+          git apply auto_fixes.patch
+
+      - name: Commit changes
+        if: steps.check_patch.outputs.patch_exists == 'true'
+        uses: EndBug/add-and-commit@v9
+        with:
+          message: "style: apply auto-formatting and generation"
+          author_name: ${{ github.event.workflow_run.actor.login }}
+          author_email: ${{ github.event.workflow_run.actor.login }}@users.noreply.github.com
+          commit: --signoff
