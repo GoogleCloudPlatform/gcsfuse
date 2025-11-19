@@ -71,6 +71,7 @@ RUN if echo "${GCSFUSE_VERSION}" | grep -qE "^[0-9]"; then \
     else \
     VERSION="0.0.0-${GCSFUSE_VERSION}"; \
     fi && \
+    VERSION=$(echo "${VERSION}" | tr '_' '-') && \
     sed -i "1s/.*/gcsfuse (${VERSION}) stable; urgency=medium/" ${GCSFUSE_DOC}/changelog && \
     sed -i "1s/.*/Version: ${VERSION}/" ${GCSFUSE_BIN}/DEBIAN/control
 
