@@ -191,6 +191,9 @@ func (job *Job) downloadSparseRange(ctx context.Context, start, end uint64) erro
 	// Download from GCS and write to cache file
 	offsetWriter := io.NewOffsetWriter(cacheFile, int64(start))
 	bytesWritten, err := io.CopyN(offsetWriter, newReader, int64(end-start))
+	if err != nil {
+		return fmt.Errorf("downloadSparseRange: error copying data: %w", err)
+	}
 
 	// Update FileInfo with downloaded range
 	job.mu.Lock()
