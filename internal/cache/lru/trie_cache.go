@@ -296,11 +296,11 @@ func (c *TrieCache) EraseEntriesWithGivenPrefix(prefix string) {
 		parentNode = parentNode.children[prefix[i]]
 	}
 	lastByte := prefix[len(prefix)-1]
-	
+
 	// If the prefix node itself has an element, it was already added to `elements` by `collectElements`.
 	// So we can just delete the child from parent.
 	delete(parentNode.children, lastByte)
-	
+
 	// We also need to prune upwards if parent becomes empty and has no element.
 	// This is handled by deleteFromTrieRecursive usually, but here we did a bulk delete.
 	// For simplicity, we can leave potentially empty nodes, or do a cleanup.
@@ -320,25 +320,25 @@ func (c *TrieCache) collectElements(node *trieNode, elements *[]*list.Element) {
 
 func (c *TrieCache) cleanupUpwards(key string) {
 	// Similar to deleteFromTrieRecursive but we know we just deleted the end.
-	// Actually, we can just call deleteFromTrieRecursive with the prefix, 
-	// but we need to make sure it knows the child is already gone? 
+	// Actually, we can just call deleteFromTrieRecursive with the prefix,
+	// but we need to make sure it knows the child is already gone?
 	// Or just use deleteFromTrieRecursive logic to remove the node if it exists?
 	// Wait, we already deleted the child from parent.
 	// So we just need to check if parent is now empty and has no element.
-	
+
 	// Let's just use a simplified loop going backwards? Trie doesn't have parent pointers.
 	// So we have to use recursion or stack.
-	// Let's just use deleteFromTrieRecursive logic but for the prefix string, 
+	// Let's just use deleteFromTrieRecursive logic but for the prefix string,
 	// effectively "deleting" the prefix key but treating it as if we want to remove the node.
-	// Actually, `deleteFromTrieRecursive` removes the element at the end. 
+	// Actually, `deleteFromTrieRecursive` removes the element at the end.
 	// Here we want to remove the whole subtree at the end.
 	// We already removed the subtree by `delete(parentNode.children, lastByte)`.
 	// Now we just need to prune parents if they are empty.
-	
+
 	if len(key) == 0 {
 		return
 	}
-	
+
 	// We can call a helper that goes down to (len-1) and checks if it can prune.
 	c.pruneEmptyNodes(c.root, key, 0)
 }
@@ -355,7 +355,7 @@ func (c *TrieCache) pruneEmptyNodes(node *trieNode, key string, index int) bool 
 		// So we should call it with `prefix` but stop at `len(prefix)-1`.
 		return false
 	}
-	
+
 	// If we are at the parent of the deleted node
 	if index == len(key)-1 {
 		// This node contains the pointer to the deleted child.
