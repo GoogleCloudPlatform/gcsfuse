@@ -148,3 +148,138 @@ func (t *TrieCacheTest) TestLRUEviction_WithPrefixErase() {
 	// Check internal consistency if possible, or just rely on no panic/correct behavior
 	assert.Equal(t.T(), 2, t.cache.Len())
 }
+
+func (t *TrieCacheTest) TestLookUpWithoutChangingOrder() {
+	val := testValue{size: 10}
+	t.cache.Insert("key1", val)
+
+	// LookUp should move to front
+	t.cache.LookUp("key1")
+	// We can't easily check order without internal access or multiple items.
+	// Let's insert another item.
+	t.cache.Insert("key2", val)
+	// Order: key2, key1 (key2 is front)
+
+	// LookUpWithoutChangingOrder key1
+	got := t.cache.LookUpWithoutChangingOrder("key1")
+	assert.Equal(t.T(), val, got)
+
+	// Not found case
+	got = t.cache.LookUpWithoutChangingOrder("nonexistent")
+	assert.Nil(t.T(), got)
+
+	// It should NOT have moved to front. key2 should still be front.
+	// If we evict one, key1 should be evicted if it is at back.
+	// Current: key2 (front), key1 (back).
+	// If we insert key3 (size 90, max 100), it should evict key1.
+	// Wait, max size is 100. Used 20.
+	// Let's make max size small to test eviction order.
+}
+
+func (t *TrieCacheTest) TestUpdateWithoutChangingOrder() {
+	t.cache = NewTrieCache(100)
+	val := testValue{size: 10}
+	t.cache.Insert("key1", val)
+
+	newVal := testValue{size: 10}
+	err := t.cache.UpdateWithoutChangingOrder("key1", newVal)
+	assert.NoError(t.T(), err)
+
+	got := t.cache.LookUp("key1")
+	assert.Equal(t.T(), newVal, got)
+
+	// Test error cases
+	err = t.cache.UpdateWithoutChangingOrder("nonexistent", val)
+	assert.ErrorIs(t.T(), err, ErrEntryNotExist)
+
+	err = t.cache.UpdateWithoutChangingOrder("key1", nil)
+	assert.ErrorIs(t.T(), err, ErrInvalidEntry)
+
+	largeVal := testValue{size: 20}
+	err = t.cache.UpdateWithoutChangingOrder("key1", largeVal)
+	assert.ErrorIs(t.T(), err, ErrInvalidUpdateEntrySize)
+}
+
+func (t *TrieCacheTest) TestKeys() {
+	t.cache.Insert("a", testValue{size: 1})
+	t.cache.Insert("b", testValue{size: 1})
+	t.cache.Insert("a/c", testValue{size: 1})
+
+	keys := t.cache.Keys()
+	assert.Len(t.T(), keys, 3)
+	assert.Contains(t.T(), keys, "a")
+	assert.Contains(t.T(), keys, "b")
+	assert.Contains(t.T(), keys, "a/c")
+}
+
+func (t *TrieCacheTest) TestContains() {
+	t.cache.Insert("a", testValue{size: 1})
+	assert.True(t.T(), t.cache.Contains("a"))
+	assert.False(t.T(), t.cache.Contains("b"))
+}
+
+func (t *TrieCacheTest) TestPrintTrie() {
+	t.cache.Insert("a", testValue{size: 1})
+	// Just ensure it doesn't panic
+	t.cache.PrintTrie()
+}
+
+func (t *TrieCacheTest) TestCheckInvariants() {
+	// Directly call checkInvariants to cover it.
+	assert.NotPanics(t.T(), func() {
+		t.cache.checkInvariants()
+	})
+
+	// Test panic on invalid maxSize
+	oldMaxSize := t.cache.maxSize
+	t.cache.maxSize = 0
+	assert.Panics(t.T(), func() {
+		t.cache.checkInvariants()
+	})
+	t.cache.maxSize = oldMaxSize
+
+	// Test panic on currentSize > maxSize
+	t.cache.currentSize = t.cache.maxSize + 1
+	assert.Panics(t.T(), func() {
+		t.cache.checkInvariants()
+	})
+	t.cache.currentSize = 0 // Reset
+
+	// Test panic on wrong type in list
+	t.cache.entries.PushFront("wrong type")
+	assert.Panics(t.T(), func() {
+		t.cache.checkInvariants()
+	})
+	t.cache.entries.Remove(t.cache.entries.Front()) // Cleanup
+}
+
+func (t *TrieCacheTest) TestDeleteFromTrie_NonExistent() {
+	// deleteFromTrie is private, but we can call it.
+	// It shouldn't panic or error.
+	t.cache.deleteFromTrie("nonexistent")
+}
+
+func (t *TrieCacheTest) TestCleanupUpwards_Empty() {
+	t.cache.cleanupUpwards("")
+}
+
+func (t *TrieCacheTest) TestPruneEmptyNodes_NonExistent() {
+	// Trigger "should not happen" path
+	t.cache.pruneEmptyNodes(t.cache.root, "nonexistent", 0)
+}
+
+func (t *TrieCacheTest) TestInsert_Errors() {
+	// Nil value
+	_, err := t.cache.Insert("key", nil)
+	assert.ErrorIs(t.T(), err, ErrInvalidEntry)
+
+	// Too large
+	largeVal := testValue{size: 200} // Max is 100
+	_, err = t.cache.Insert("key", largeVal)
+	assert.ErrorIs(t.T(), err, ErrInvalidEntrySize)
+}
+
+func (t *TrieCacheTest) TestErase_NonExistent() {
+	val := t.cache.Erase("nonexistent")
+	assert.Nil(t.T(), val)
+}
