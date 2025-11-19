@@ -197,7 +197,7 @@ func TestSequentialReadSuite(t *testing.T) {
 
 	// Run tests for mounted directory if the flag is set.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		suite.Run(t, &SequentialReadSuite{testFlags: &baseTestFlags})
+		suite.Run(t, &SequentialReadSuite{testFlags:&baseTestFlags})
 		return
 	}
 

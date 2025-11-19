@@ -984,6 +984,13 @@ params:
     default: 1
     hide-flag: true
 
+  - config-path: "vipin-test-flag"
+    flag-name: "vipin-test-flag"
+    type: "int"
+    usage: Testing auto generation
+    default: 5
+    hide-flag: true
+
   - config-path: "workload-insight.forward-merge-threshold-mb"
     flag-name: "workload-insight-forward-merge-threshold-mb"
     type: "int"

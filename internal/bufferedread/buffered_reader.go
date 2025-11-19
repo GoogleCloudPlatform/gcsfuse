@@ -161,7 +161,7 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 // returns a gcsx.FallbackToAnotherReader error to signal that another reader
 // should be used. It takes handleID for logging purposes.
 // LOCKS_REQUIRED(p.mu)
-func (p *BufferedReader) handleRandomRead(offset int64, handleID int64) error {
+func (p *BufferedReader) handleRandomRead(offset int64,handleID int64) error {
 	// Exit early if we have already decided to fall back to another reader.
 	// This avoids re-evaluating the read pattern on every call when the random
 	// read threshold has been met.
