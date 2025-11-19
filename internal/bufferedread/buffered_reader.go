@@ -303,12 +303,13 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		p.prepareQueueForOffset(off)
 
 		if p.blockQueue.IsEmpty() {
-			if err = p.freshStart(off); err != nil {
+			shouldPrefetch := int64(len(inputBuf)-bytesRead) > p.config.PrefetchBlockSizeBytes-(off%p.config.PrefetchBlockSizeBytes)
+			if err = p.freshStart(off, shouldPrefetch); err != nil {
 				logger.Warnf("Fallback to another reader for object %q, handle %d, due to freshStart failure: %v", p.object.Name, handleID, err)
 				p.metricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
 				return resp, gcsx.FallbackToAnotherReader
 			}
-			prefetchTriggered = true
+			prefetchTriggered = shouldPrefetch
 		}
 
 		entry := p.blockQueue.Peek()
@@ -442,10 +443,9 @@ func (p *BufferedReader) prefetch() error {
 	return nil
 }
 
-// freshStart resets the prefetching state and schedules the initial set of
-// blocks starting from the given offset.
-// LOCKS_REQUIRED(p.mu)
-func (p *BufferedReader) freshStart(currentOffset int64) error {
+// freshStart resets the prefetching state and if requested, schedules the
+// initial set of blocks starting from the given offset.
+func (p *BufferedReader) freshStart(currentOffset int64, shouldPrefetch bool) error {
 	blockIndex := currentOffset / p.config.PrefetchBlockSizeBytes
 	p.nextBlockIndexToPrefetch = blockIndex
 
@@ -457,11 +457,14 @@ func (p *BufferedReader) freshStart(currentOffset int64) error {
 		return fmt.Errorf("freshStart: scheduling first block: %w", err)
 	}
 
-	// Prefetch the initial blocks.
-	if err := p.prefetch(); err != nil {
-		// A failure during the initial prefetch is not fatal, as the first block
-		// has already been scheduled. Log the error and continue.
-		logger.Warnf("freshStart: initial prefetch: %v", err)
+	// Prefetch subsequent blocks if requested.
+	if shouldPrefetch {
+		// Prefetch the initial blocks.
+		if err := p.prefetch(); err != nil {
+			// A failure during the initial prefetch is not fatal, as the first block
+			// has already been scheduled. Log the error and continue.
+			logger.Warnf("freshStart: initial prefetch: %v", err)
+		}
 	}
 	return nil
 }
