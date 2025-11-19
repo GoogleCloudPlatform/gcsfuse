@@ -1648,6 +1648,7 @@ func (fs *fileSystem) invalidateCachedEntry(childID fuseops.InodeID) error {
 ////////////////////////////////////////////////////////////////////////
 
 func (fs *fileSystem) Destroy() {
+	logger.LogLatencies()
 	fs.bucketManager.ShutDown()
 	if fs.fileCacheHandler != nil {
 		_ = fs.fileCacheHandler.Destroy()
@@ -2828,6 +2829,9 @@ func (fs *fileSystem) OpenFile(
 func (fs *fileSystem) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
+	startTime := time.Now()
+	defer func() { logger.AddLatency(time.Since(startTime)) }()
+
 	ctx = fs.getInterruptlessContext(ctx)
 	// Save readOp in context for access in logs.
 	ctx = context.WithValue(ctx, gcsx.ReadOp, op)

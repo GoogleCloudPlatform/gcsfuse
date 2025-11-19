@@ -24,6 +24,7 @@ import (
 	"runtime/debug"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -262,4 +263,26 @@ func (f *loggerFactory) handler(levelVar *slog.LevelVar, prefix string) slog.Han
 		return f.createJsonOrTextHandler(f.sysWriter, levelVar, prefix)
 	}
 	return f.createJsonOrTextHandler(os.Stdout, levelVar, prefix)
+}
+
+var (
+	// latencies stores read latencies in microseconds.
+	latencies []int64
+)
+
+// AddLatency adds a duration to the global latencies slice in microseconds.
+func AddLatency(duration time.Duration) {
+	latencies = append(latencies, duration.Microseconds())
+}
+
+func LogLatencies() {
+	if len(latencies) == 0 {
+		Infof("No latencies to log")
+		return
+	}
+	for i := 0; i < len(latencies); i++ {
+		if latencies[i] > 50 {
+			Infof("Latency at %d readFile operation: %d microseconds", i, latencies[i])
+		}
+	}
 }

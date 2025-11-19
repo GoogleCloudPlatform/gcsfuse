@@ -14,12 +14,16 @@ rm -rf "$MP" || true
 mkdir "$MP" || true
 
 echo "" > "$LF" 
-go run ./ --config-file=~/repro-8gbps/gcsfuse.yaml  "$BUCKET_NAME" "$MP" 
+go run ./ --implicit-dirs --log-severity=INFO --log-file="$LF" --enable-buffered-read=true --read-global-max-blocks=100000 --metadata-cache-negative-ttl-secs=-1 "$BUCKET_NAME" "$MP" 
 
 sleep 3
 
+
+# Fio config is exactly same as published benchmarks fo sequential reads.
 DIR="${MP}/" \
 NUMJOBS="1" \
 BS="1M" \
 FILESIZE="5G" \
 NRFILES="1" fio --group_reporting --output-format=normal ~/repro-8gbps/seq.fio
+
+fusermount -uz "$MP" || true
