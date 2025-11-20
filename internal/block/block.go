@@ -59,8 +59,6 @@ type memoryBlock struct {
 }
 
 func (m *memoryBlock) Reuse() {
-	clear(m.buffer)
-
 	m.offset.end = 0
 	m.offset.start = 0
 	m.readSeek = 0
