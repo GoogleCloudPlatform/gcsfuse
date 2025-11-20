@@ -45,6 +45,10 @@ const (
 var (
 	testEnv   env
 	mountFunc func(*test_suite.TestConfig, []string) error
+	// mount directory is where our tests run.
+	mountDir string
+	// root directory is the directory to be unmounted.
+	rootDir string
 )
 
 type env struct {
@@ -115,6 +119,7 @@ func validateLogsForReaddirplus(t *testing.T, logFile string, dentryCacheEnabled
 
 func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) {
 	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, flags, mountFunc)
+	setup.SetMntDir(mountDir)
 	testEnv.testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
 }
 
@@ -159,7 +164,8 @@ func TestMain(m *testing.M) {
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
-		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
+		mountDir = testEnv.cfg.GKEMountedDirectory
+		os.Exit(setup.RunTestsForMountedDirectory(mountDir, m))
 	}
 
 	// Run tests for testBucket
@@ -167,6 +173,9 @@ func TestMain(m *testing.M) {
 	setup.SetUpTestDirForTestBucket(testEnv.cfg)
 	// Override GKE specific paths with GCSFuse paths if running in GCE environment.
 	setup.OverrideFilePathsInFlagSet(testEnv.cfg, setup.TestDir())
+
+	// Save mount and root directory variables.
+	mountDir, rootDir = setup.MntDir(), setup.MntDir()
 
 	log.Println("Running static mounting tests...")
 	mountFunc = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile

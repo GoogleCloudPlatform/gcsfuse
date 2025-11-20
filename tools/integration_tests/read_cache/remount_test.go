@@ -17,6 +17,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"path"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -69,6 +70,7 @@ func (s *remountTest) TearDownSuite() {
 func readFileAndValidateCacheWithGCSForDynamicMount(bucketName string, ctx context.Context, storageClient *storage.Client, fileName string, checkCacheSize bool, t *testing.T) (expectedOutcome *Expected) {
 	setup.SetDynamicBucketMounted(bucketName)
 	defer setup.SetDynamicBucketMounted("")
+	testEnv.testDirPath = path.Join(rootDir, bucketName, testDirName)
 	expectedOutcome = readFileAndValidateCacheWithGCS(ctx, storageClient, fileName, fileSize, checkCacheSize, t)
 
 	return expectedOutcome
