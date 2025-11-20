@@ -43,6 +43,9 @@ type GCSReaderRequest struct {
 
 	// This parameter specifies whether the reader needs to be discarded for a new reader.
 	ForceCreateReader bool
+
+	// ShouldUseRangeReader is a function that determines if the RangeReader should be used for the read operation.
+	ShouldUseRangeReader func(offset int64) bool
 }
 
 // ReadResponse represents the response returned as part of a ReadAt call.
