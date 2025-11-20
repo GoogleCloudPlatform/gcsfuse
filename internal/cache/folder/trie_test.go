@@ -333,6 +333,7 @@ func (t *TrieTest) TestConcurrentInsertDelete() {
 
 func (t *TrieTest) TestMove() {
 	trie := NewTrie()
+
 	trie.Insert("/a/b/c", &FileInfo{size: 1})
 	trie.Insert("/a/b/d", &FileInfo{size: 2})
 	trie.InsertDir("/x/y")
@@ -354,13 +355,11 @@ func (t *TrieTest) TestMove() {
 	ExpectFalse(trie.PathExists("/a/b"))
 	ExpectFalse(trie.PathExists("/a/b/c"))
 
-	// List with prefix /a/b
-	paths := trie.ListPathsWithPrefix("/")
-	sort.Strings(paths)
-	fmt.Println("Path: ", paths)
-
-	// /a should be pruned
+	//a should be pruned
 	ExpectFalse(trie.PathExists("/a"))
+
+	// fmt.Println(trie.root.ToString())
+	// fmt.Println(trie.root.children["x"].ToString())
 
 	// Move a single file
 	trie.Insert("/p/q", &FileInfo{size: 3})
@@ -380,36 +379,36 @@ func (t *TrieTest) TestMove() {
 	ExpectFalse(trie.Move("/p/r", "/x/y/z/d")) // destination exists
 }
 
-// func (t *TrieTest) TestConcurrentMove() {
-// 	trie := NewTrie()
-// 	var wg sync.WaitGroup
-// 	numRoutines := 100
+func (t *TrieTest) TestConcurrentMove() {
+	trie := NewTrie()
+	var wg sync.WaitGroup
+	numRoutines := 100
 
-// 	// Insert initial paths
-// 	for i := 0; i < numRoutines; i++ {
-// 		trie.Insert(fmt.Sprintf("/src/%d", i), &FileInfo{size: int64(i)})
-// 	}
-// 	trie.InsertDir("/dest")
-// 	ExpectEq(numRoutines, trie.CountFiles())
+	// Insert initial paths
+	for i := 0; i < numRoutines; i++ {
+		trie.Insert(fmt.Sprintf("/src/%d", i), &FileInfo{size: int64(i)})
+	}
+	trie.InsertDir("/dest")
+	ExpectEq(numRoutines, trie.CountFiles())
 
-// 	// Concurrently move them
-// 	for i := 0; i < numRoutines; i++ {
-// 		wg.Add(1)
-// 		go func(i int) {
-// 			defer wg.Done()
-// 			sourcePath := fmt.Sprintf("/src/%d", i)
-// 			destPath := fmt.Sprintf("/dest/%d", i)
-// 			trie.Move(sourcePath, destPath)
-// 		}(i)
-// 	}
-// 	wg.Wait()
+	// Concurrently move them
+	for i := 0; i < numRoutines; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			sourcePath := fmt.Sprintf("/src/%d", i)
+			destPath := fmt.Sprintf("/dest/%d", i)
+			trie.Move(sourcePath, destPath)
+		}(i)
+	}
+	wg.Wait()
 
-// 	ExpectEq(numRoutines, trie.CountFiles())
-// 	ExpectFalse(trie.PathExists("/src")) // Should be pruned
-// 	ExpectTrue(trie.PathExists("/dest"))
+	ExpectEq(numRoutines, trie.CountFiles())
+	ExpectFalse(trie.PathExists("/src")) // Should be pruned
+	ExpectTrue(trie.PathExists("/dest"))
 
-// 	for i := 0; i < numRoutines; i++ {
-// 		_, ok := trie.Get(fmt.Sprintf("/dest/%d", i))
-// 		ExpectTrue(ok)
-// 	}
-// }
+	for i := 0; i < numRoutines; i++ {
+		_, ok := trie.Get(fmt.Sprintf("/dest/%d", i))
+		ExpectTrue(ok)
+	}
+}

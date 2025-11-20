@@ -15,6 +15,8 @@
 package folder2
 
 import (
+	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -47,6 +49,25 @@ func newTrieNode(name string) *TrieNode {
 		children: make(map[string]*TrieNode),
 		name:     name,
 	}
+}
+
+// ToString returns a string representation of the TrieNode for debugging.
+func (n *TrieNode) ToString() string {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+
+	var childrenKeys []string
+	for k := range n.children {
+		childrenKeys = append(childrenKeys, k)
+	}
+	sort.Strings(childrenKeys)
+
+	fileInfoStr := "nil"
+	if n.file != nil {
+		fileInfoStr = fmt.Sprintf("&{size: %d}", n.file.size)
+	}
+
+	return fmt.Sprintf("TrieNode{name: %q, isLeaf: %v, file: %s, children: %v}", n.name, n.isLeaf, fileInfoStr, childrenKeys)
 }
 
 // Trie is a thread-safe prefix tree (trie) data structure suitable for storing
@@ -473,7 +494,7 @@ func (t *Trie) Move(sourcePath, destPath string) bool {
 
 	// 4. Prune the old path.
 	if len(sourceParent.children) == 0 && !sourceParent.isLeaf {
-		t.pruneEmptyPath(sourcePruneNodes, sourceParts, sourceParent, destParent)
+		t.pruneEmptyPath(sourcePruneNodes, sourceParts[:len(sourceParts)-1], sourceParent, destParent)
 	}
 
 	return true
