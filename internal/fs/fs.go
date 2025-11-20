@@ -1784,7 +1784,7 @@ func (fs *fileSystem) SetInodeAttributes(
 	// Truncate files.
 	if isFile && op.Size != nil {
 		// Initialize BWH if eligible and Sync file inode.
-		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, file, util.Write)
+		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, file, util.OpenMode{AccessMode: util.WriteOnly})
 		if err != nil {
 			return
 		}
@@ -2003,7 +2003,7 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	fs.mu.Unlock()
 	defer fs.mu.Lock()
 	fileInode.Lock()
-	err = fs.createBufferedWriteHandlerAndSyncOrTempWriter(ctx, fileInode, util.Write)
+	err = fs.createBufferedWriteHandlerAndSyncOrTempWriter(ctx, fileInode, util.OpenMode{AccessMode: util.ReadWrite})
 	fileInode.Unlock()
 	if err != nil {
 		return
@@ -2042,7 +2042,7 @@ func (fs *fileSystem) CreateFile(
 
 	// CreateFile() invoked to create new files, can be safely considered as filehandle
 	// opened in append mode.
-	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, util.Append, fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem)
+	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, util.FileOpenMode(op.OpenFlags), fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem)
 	op.Handle = handleID
 
 	fs.mu.Unlock()
@@ -2811,7 +2811,7 @@ func (fs *fileSystem) OpenFile(
 	fs.nextHandleID++
 
 	// Figure out the mode in which the file is being opened.
-	openMode := util.FileOpenMode(op)
+	openMode := util.FileOpenMode(op.OpenFlags)
 	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem)
 	op.Handle = handleID
 
@@ -2944,7 +2944,7 @@ func (fs *fileSystem) WriteFile(
 		gcsSynced, err = fh.Write(ctx, op.Data, op.Offset)
 	} else {
 		// Serve the request.
-		gcsSynced, err = in.Write(ctx, op.Data, op.Offset, util.Write)
+		gcsSynced, err = in.Write(ctx, op.Data, op.Offset, util.OpenMode{AccessMode: util.WriteOnly})
 	}
 	if err != nil {
 		return

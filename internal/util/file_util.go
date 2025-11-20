@@ -14,36 +14,75 @@
 
 package util
 
-import (
-	"github.com/jacobsa/fuse/fuseops"
-)
-
-// OpenMode represents the file access mode.
-type OpenMode int
-
-// Available file open modes.
+// Available file access modes, corresponding to O_RDONLY, O_WRONLY, O_RDWR.
 const (
-	Read OpenMode = iota
-	Write
-	Append
+	ReadOnly int = iota
+	WriteOnly
+	ReadWrite
 )
+
+// Available file flags.
+const (
+	O_APPEND int = 1 << iota // O_APPEND
+	O_DIRECT                 // O_DIRECT
+)
+
+// OpenMode represents the file open mode.
+type OpenMode struct {
+	// AccessMode defines the mutually exclusive access modes for opening a file.
+	AccessMode int
+
+	// FileFlag defines flags that modify the open/read/write behavior.
+	// These can be combined using bitwise OR.
+	FileFlags int
+}
+
+func (om OpenMode) IsAppend() bool {
+	return om.FileFlags&O_APPEND != 0
+}
+
+func (om OpenMode) IsDirect() bool {
+	return om.FileFlags&O_DIRECT != 0
+}
+
+// OpenFlagAttributes defines the methods required from the open flags.
+type OpenFlagAttributes interface {
+	IsReadOnly() bool
+	IsWriteOnly() bool
+	IsReadWrite() bool
+	IsAppend() bool
+	IsDirect() bool
+}
+
+// Function to obtain the mutually exclusive access mode.
+func getAccessMode(flags OpenFlagAttributes) int {
+	if flags.IsReadOnly() {
+		return ReadOnly
+	} else if flags.IsWriteOnly() {
+		return WriteOnly
+	} else {
+		return ReadWrite
+	}
+}
+
+// Combine file flags e.g. O_DIRECT,O_APPEND.
+func getFileFlags(flags OpenFlagAttributes) int {
+	var fileFlags int
+	if flags.IsAppend() {
+		fileFlags |= O_APPEND
+	}
+	if flags.IsDirect() {
+		fileFlags |= O_DIRECT
+	}
+	return fileFlags
+}
 
 // FileOpenMode analyzes the open flags to determine the file's open mode.
-// It returns Read, Write, or Append.
-//
-// GCSFuse needs to distinguish between the append mode, readonly mode and modes where
-// writes are supported.
-// read vs write is required to initialize the writeHandle count currently in fileHandle.
-// The main difference of r vs (r+, w, w+) is the support for reads which is
-// implicitly handled by kernel. Hence combining r+, w, w+ as writes.
-// Same goes for a vs a+, hence grouped as append.
-func FileOpenMode(op *fuseops.OpenFileOp) OpenMode {
-	switch {
-	case op.OpenFlags.IsAppend():
-		return Append
-	case op.OpenFlags.IsReadOnly():
-		return Read
-	default:
-		return Write
-	}
+func FileOpenMode(flags OpenFlagAttributes) OpenMode {
+	openMode := OpenMode{}
+	// Construct the openMode based on the received flags
+	openMode.AccessMode = getAccessMode(flags)
+	openMode.FileFlags = getFileFlags(flags)
+
+	return openMode
 }
