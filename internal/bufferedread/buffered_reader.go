@@ -303,10 +303,11 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		p.prepareQueueForOffset(off)
 
 		if p.blockQueue.IsEmpty() {
-			// Prefetch only if the read spans across more than one block. This avoids aggressive
-			// prefetching for small reads contained within a single block.
+			// Prefetch if the read is sequential from the start, or if it spans multiple blocks.
+			// This ensures good performance for sequential reads while avoiding aggressive
+			// prefetching for small, random reads contained within a single block, thus saving blocks.
 			remainingReadSize := int64(len(inputBuf) - bytesRead)
-			shouldPrefetch := (off / p.config.PrefetchBlockSizeBytes) != ((off + remainingReadSize - 1) / p.config.PrefetchBlockSizeBytes)
+			shouldPrefetch := off == 0 || (off/p.config.PrefetchBlockSizeBytes) != ((off+remainingReadSize-1)/p.config.PrefetchBlockSizeBytes)
 			if err = p.freshStart(off, shouldPrefetch); err != nil {
 				logger.Warnf("Fallback to another reader for object %q, handle %d, due to freshStart failure: %v", p.object.Name, handleID, err)
 				p.metricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
