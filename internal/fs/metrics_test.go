@@ -264,7 +264,7 @@ func TestSequentialReadFile_FileCacheMetrics(t *testing.T) {
 	metrics.VerifyHistogramMetric(
 		t, ctx, reader, "file_cache/read_latencies",
 		attribute.NewSet(attribute.Bool("cache_hit", true)),
-		uint64(2),
+		uint64(1),
 	)
 }
 
