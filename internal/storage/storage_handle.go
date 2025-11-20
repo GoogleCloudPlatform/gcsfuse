@@ -413,10 +413,11 @@ func (sh *storageClient) controlClientForBucketHandle(bucketType *gcs.BucketType
 
 func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, billingProject string, finalizeFileForRapid bool) (bh *bucketHandle, err error) {
 	var client *storage.Client
-	bucketType, err := sh.lookupBucketType(bucketName)
-	if err != nil {
-		return nil, fmt.Errorf("storageLayout call failed: %s", err)
-	}
+	//bucketType, err := sh.lookupBucketType(bucketName)
+	//if err != nil {
+	//	return nil, fmt.Errorf("storageLayout call failed: %s", err)
+	//}
+	bucketType := &gcs.BucketType{Hierarchical: false, Zonal: false}
 
 	client, err = sh.getClient(ctx, bucketType.Zonal)
 	if err != nil {
