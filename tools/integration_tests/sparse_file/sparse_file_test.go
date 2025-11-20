@@ -80,6 +80,8 @@ func (s *sparseFileTest) TearDownSuite() {
 }
 
 func TestSparseFile(t *testing.T) {
+	// TODO: Enable these tests using conditional t.SkipNow() if integrationTest flag is not set.
+	t.SkipNow()
 	suite.Run(t, new(sparseFileTest))
 }
 
