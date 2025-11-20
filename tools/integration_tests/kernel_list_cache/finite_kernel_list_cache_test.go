@@ -40,6 +40,7 @@ type finiteKernelListCacheTest struct {
 
 func (s *finiteKernelListCacheTest) SetupSuite() {
 	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, s.flags, mountFunc)
+	setup.SetMntDir(mountDir)
 }
 
 func (s *finiteKernelListCacheTest) TearDownSuite() {

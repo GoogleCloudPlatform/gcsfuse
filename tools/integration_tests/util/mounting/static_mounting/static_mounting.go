@@ -52,7 +52,6 @@ func MountGcsfuseWithStaticMountingWithConfigFile(config *test_suite.TestConfig,
 	}
 
 	err = mounting.MountGcsfuse(setup.BinFile(), flags)
-	setup.SetMntDir(config.GCSFuseMountedDirectory)
 	return err
 }
 

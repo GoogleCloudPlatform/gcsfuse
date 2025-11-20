@@ -39,6 +39,7 @@ type disabledKernelListCacheTest struct {
 
 func (s *disabledKernelListCacheTest) SetupSuite() {
 	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, s.flags, mountFunc)
+	setup.SetMntDir(mountDir)
 }
 
 func (s *disabledKernelListCacheTest) TearDownSuite() {

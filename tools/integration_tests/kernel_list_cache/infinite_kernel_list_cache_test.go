@@ -40,6 +40,7 @@ type infiniteKernelListCacheTest struct {
 
 func (s *infiniteKernelListCacheTest) SetupSuite() {
 	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, s.flags, mountFunc)
+	setup.SetMntDir(mountDir)
 }
 
 func (s *infiniteKernelListCacheTest) TearDownSuite() {
