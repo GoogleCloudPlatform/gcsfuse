@@ -16,6 +16,7 @@ package folder2
 
 import (
 	"fmt"
+	"math/rand"
 	"sort"
 	"strings"
 	"sync"
@@ -410,5 +411,61 @@ func (t *TrieTest) TestConcurrentMove() {
 	for i := 0; i < numRoutines; i++ {
 		_, ok := trie.Get(fmt.Sprintf("/dest/%d", i))
 		ExpectTrue(ok)
+	}
+}
+
+func BenchmarkInsertOverlappingPath(b *testing.B) {
+	const numFolders = 100
+	const minFiles = 100
+	const maxFiles = 500
+
+	// Generate the file paths once to avoid this in the benchmark loop.
+	var paths []string
+	var currentPath string
+	for i := 0; i < numFolders; i++ {
+		currentPath += fmt.Sprintf("/dir%d", i)
+		numFiles := rand.Intn(maxFiles-minFiles+1) + minFiles
+		for j := 0; j < numFiles; j++ {
+			paths = append(paths, fmt.Sprintf("%s/file%d", currentPath, j))
+		}
+	}
+
+	b.ResetTimer()
+
+	for n := 0; n < b.N; n++ {
+		trie := NewTrie()
+		fileInfo := &FileInfo{size: 1}
+
+		for _, path := range paths {
+			trie.Insert(path, fileInfo)
+		}
+	}
+}
+
+func BenchmarkGet(b *testing.B) {
+	trie := NewTrie()
+	numFolders := 100
+	numFilesPerFolder := 10000
+	var paths []string
+	fileInfo := &FileInfo{size: 1}
+
+	// Setup: Create and populate the trie.
+	for i := 0; i < numFolders; i++ {
+		folderPath := fmt.Sprintf("/dir%d", i)
+		for j := 0; j < numFilesPerFolder; j++ {
+			path := fmt.Sprintf("%s/file%d", folderPath, j)
+			paths = append(paths, path)
+			trie.Insert(path, fileInfo)
+		}
+	}
+
+	// Shuffle paths to make access random within the benchmark loop.
+	rand.Shuffle(len(paths), func(i, j int) { paths[i], paths[j] = paths[j], paths[i] })
+
+	b.ResetTimer()
+
+	for n := 0; n < b.N; n++ {
+		// In each iteration, get a random file.
+		trie.Get(paths[n%len(paths)])
 	}
 }

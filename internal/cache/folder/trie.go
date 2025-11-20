@@ -103,36 +103,32 @@ func (t *Trie) Insert(path string, fileInfo *FileInfo) {
 	}
 
 	node := t.root
+	node.mu.Lock() // Lock the root initially.
+
 	for i, part := range parts {
-		node.mu.RLock()
 		child, ok := node.children[part]
-		node.mu.RUnlock()
 
 		if !ok {
-			node.mu.Lock()
-			// Re-check in case another goroutine created it in the meantime.
-			if child, ok = node.children[part]; !ok {
-				child = newTrieNode(part)
-				node.children[part] = child
-			}
-			node.mu.Unlock()
+			child = newTrieNode(part)
+			node.children[part] = child
 		}
+
+		child.mu.Lock()  // Lock the child.
+		node.mu.Unlock() // Unlock the parent.
+		node = child     // Move to the next level.
 
 		// If it's the last part, it's a leaf node (file).
 		if i == len(parts)-1 {
-			child.mu.Lock()
-			if !child.isLeaf {
+			if !node.isLeaf {
 				t.mu.Lock()
 				t.leaf_counts++
 				t.mu.Unlock()
-				child.isLeaf = true
+				node.isLeaf = true
 			}
-			child.file = fileInfo
-			child.mu.Unlock()
+			node.file = fileInfo
 		}
-
-		node = child
 	}
+	node.mu.Unlock() // Unlock the final node.
 }
 
 // InsertDir adds a directory path to the trie. It creates the necessary
@@ -144,23 +140,20 @@ func (t *Trie) InsertDir(path string) {
 	}
 
 	node := t.root
+	node.mu.Lock() // Lock the root initially.
+
 	for _, part := range parts {
-		node.mu.RLock()
 		child, ok := node.children[part]
-		node.mu.RUnlock()
 
 		if !ok {
-			node.mu.Lock()
-			// Re-check in case another goroutine created it in the meantime.
-			if child, ok = node.children[part]; !ok {
-				child = newTrieNode(part)
-				node.children[part] = child
-			}
-			node.mu.Unlock()
+			child = newTrieNode(part)
+			node.children[part] = child
 		}
+		child.mu.Lock()  // Lock child before unlocking parent.
+		node.mu.Unlock() // Unlock parent.
 		node = child
 	}
-	// The final node represents a directory, so we don't mark it as a leaf.
+	node.mu.Unlock() // Unlock the final node.
 }
 
 // Get retrieves the FileInfo for a given path from the trie.
@@ -349,17 +342,20 @@ func (t *Trie) collectPaths(node *TrieNode, currentPath string, paths *[]string)
 func (t *Trie) traverse(path string) *TrieNode {
 	parts := splitPath(path)
 	node := t.root
+	node.mu.RLock() // Lock the root node initially.
 
 	for _, part := range parts {
-		node.mu.RLock()
 		child, ok := node.children[part]
-		node.mu.RUnlock()
-
 		if !ok {
+			node.mu.RUnlock()
 			return nil
 		}
+
+		child.mu.RLock()  // Lock the child before unlocking the parent.
+		node.mu.RUnlock() // Unlock the parent.
 		node = child
 	}
+	node.mu.RUnlock() // Unlock the final node.
 
 	return node
 }
