@@ -111,7 +111,7 @@ type BufferedReader struct {
 
 // BufferedReaderOptions holds the dependencies for a BufferedReader.
 type BufferedReaderOptions struct {
-	Object             *gcs.MinObject
+	Object       *gcs.MinObject
 	Bucket             gcs.Bucket
 	Config             *BufferedReadConfig
 	GlobalMaxBlocksSem *semaphore.Weighted
@@ -142,7 +142,7 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 		config:                   opts.Config,
 		nextBlockIndexToPrefetch: 0,
 		randomSeekCount:          0,
-		numPrefetchBlocks:        opts.Config.InitialPrefetchBlockCnt,
+		numPrefetchBlocks:   opts.Config.InitialPrefetchBlockCnt,
 		blockQueue:               common.NewLinkedListQueue[*blockQueueEntry](),
 		blockPool:                blockpool,
 		workerPool:               opts.WorkerPool,
@@ -195,7 +195,7 @@ func (p *BufferedReader) handleRandomRead(offset int64, handleID int64) error {
 
 // isRandomSeek checks if the read for the given offset is random or not.
 // LOCKS_REQUIRED(p.mu)
-func (p *BufferedReader) isRandomSeek(offset int64) bool {
+func (p *BufferedReader) isRandomSeek(offset int64)bool {
 	if p.blockQueue.IsEmpty() {
 		return offset != 0
 	}
@@ -255,7 +255,7 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 //     reached, or an error occurs.
 //
 // LOCKS_EXCLUDED(p.mu)
-func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64) (gcsx.ReadResponse, error) {
+func (p *BufferedReader) ReadAt(ctx context.Context,inputBuf []byte, off int64) (gcsx.ReadResponse, error) {
 	resp := gcsx.ReadResponse{}
 	reqID := uuid.New()
 	start := time.Now()
@@ -329,7 +329,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 			case block.BlockStateDownloadFailed:
 				err = fmt.Errorf("BufferedReader.ReadAt: download failed: %w", status.Err)
 			default:
-				err = fmt.Errorf("BufferedReader.ReadAt: unexpected block state: %d", status.State)
+				err = fmt.Errorf("BufferedReader.ReadAt: unexpected block state: %d",status.State)
 			}
 			break
 		}
