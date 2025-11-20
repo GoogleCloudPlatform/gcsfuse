@@ -21,19 +21,42 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewDummyIOBucket(t *testing.T) {
-	// Test that NewDummyIOBucket doesn't panic and returns a non-nil bucket
-	bucket := NewDummyIOBucket(nil)
-	assert.NotNil(t, bucket)
+	testCases := []struct {
+		name     string
+		wrapped  gcs.Bucket
+		expected gcs.Bucket
+	}{
+		{
+			name:     "nil_wrapped",
+			wrapped:  nil,
+			expected: nil,
+		},
+		{
+			name:     "non_nil_wrapped",
+			wrapped:  &TestifyMockBucket{},
+			expected: &dummyIOBucket{wrapped: &TestifyMockBucket{}},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := NewDummyIOBucket(tc.wrapped)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
 }
 
 func TestDummyIOBucket_Name(t *testing.T) {
 	mockBucket := &TestifyMockBucket{}
 	mockBucket.On("Name").Return("test-bucket")
+	dummyBucket := NewDummyIOBucket(mockBucket)
 
-	result := mockBucket.Name()
+	result := dummyBucket.Name()
+
 	assert.Equal(t, "test-bucket", result)
 	mockBucket.AssertExpectations(t)
 }
@@ -42,8 +65,11 @@ func TestDummyIOBucket_BucketType(t *testing.T) {
 	mockBucket := &TestifyMockBucket{}
 	expectedType := gcs.BucketType{Hierarchical: false, Zonal: false}
 	mockBucket.On("BucketType").Return(expectedType)
+	dummyBucket := NewDummyIOBucket(mockBucket)
+	require.NotNil(t, dummyBucket)
 
-	result := mockBucket.BucketType()
+	result := dummyBucket.BucketType()
+
 	assert.Equal(t, expectedType, result)
 	mockBucket.AssertExpectations(t)
 }
@@ -52,10 +78,12 @@ func TestDummyIOBucket_DeleteObject(t *testing.T) {
 	mockBucket := &TestifyMockBucket{}
 	ctx := context.Background()
 	req := &gcs.DeleteObjectRequest{Name: "test-object"}
-
 	mockBucket.On("DeleteObject", ctx, req).Return(nil)
+	dummyBucket := NewDummyIOBucket(mockBucket)
+	require.NotNil(t, dummyBucket)
 
-	err := mockBucket.DeleteObject(ctx, req)
+	err := dummyBucket.DeleteObject(ctx, req)
+
 	assert.NoError(t, err)
 	mockBucket.AssertExpectations(t)
 }
@@ -65,10 +93,12 @@ func TestDummyIOBucket_DeleteObject_Error(t *testing.T) {
 	ctx := context.Background()
 	req := &gcs.DeleteObjectRequest{Name: "test-object"}
 	expectedErr := errors.New("delete failed")
-
 	mockBucket.On("DeleteObject", ctx, req).Return(expectedErr)
+	dummyBucket := NewDummyIOBucket(mockBucket)
+	require.NotNil(t, dummyBucket)
 
-	err := mockBucket.DeleteObject(ctx, req)
+	err := dummyBucket.DeleteObject(ctx, req)
+
 	assert.Error(t, err)
 	assert.Equal(t, expectedErr, err)
 	mockBucket.AssertExpectations(t)
@@ -80,10 +110,12 @@ func TestDummyIOBucket_StatObject(t *testing.T) {
 	req := &gcs.StatObjectRequest{Name: "test-object"}
 	expectedMinObj := &gcs.MinObject{Name: "test-object"}
 	expectedExtAttrs := &gcs.ExtendedObjectAttributes{}
-
 	mockBucket.On("StatObject", ctx, req).Return(expectedMinObj, expectedExtAttrs, nil)
+	dummyBucket := NewDummyIOBucket(mockBucket)
+	require.NotNil(t, dummyBucket)
 
-	minObj, extAttrs, err := mockBucket.StatObject(ctx, req)
+	minObj, extAttrs, err := dummyBucket.StatObject(ctx, req)
+
 	assert.NoError(t, err)
 	assert.Equal(t, expectedMinObj, minObj)
 	assert.Equal(t, expectedExtAttrs, extAttrs)
@@ -95,10 +127,12 @@ func TestDummyIOBucket_ListObjects(t *testing.T) {
 	ctx := context.Background()
 	req := &gcs.ListObjectsRequest{Prefix: "test-"}
 	expectedListing := &gcs.Listing{}
-
 	mockBucket.On("ListObjects", ctx, req).Return(expectedListing, nil)
+	dummyBucket := NewDummyIOBucket(mockBucket)
+	require.NotNil(t, dummyBucket)
 
-	listing, err := mockBucket.ListObjects(ctx, req)
+	listing, err := dummyBucket.ListObjects(ctx, req)
+
 	assert.NoError(t, err)
 	assert.Equal(t, expectedListing, listing)
 	mockBucket.AssertExpectations(t)
@@ -112,10 +146,12 @@ func TestDummyIOBucket_CopyObject(t *testing.T) {
 		DstName: "dest-object",
 	}
 	expectedObj := &gcs.Object{Name: "dest-object"}
-
 	mockBucket.On("CopyObject", ctx, req).Return(expectedObj, nil)
+	dummyBucket := NewDummyIOBucket(mockBucket)
+	require.NotNil(t, dummyBucket)
 
-	obj, err := mockBucket.CopyObject(ctx, req)
+	obj, err := dummyBucket.CopyObject(ctx, req)
+
 	assert.NoError(t, err)
 	assert.Equal(t, expectedObj, obj)
 	mockBucket.AssertExpectations(t)
@@ -125,10 +161,12 @@ func TestDummyIOBucket_DeleteFolder(t *testing.T) {
 	mockBucket := &TestifyMockBucket{}
 	ctx := context.Background()
 	folderName := "test-folder"
-
 	mockBucket.On("DeleteFolder", ctx, folderName).Return(nil)
+	dummyBucket := NewDummyIOBucket(mockBucket)
+	require.NotNil(t, dummyBucket)
 
-	err := mockBucket.DeleteFolder(ctx, folderName)
+	err := dummyBucket.DeleteFolder(ctx, folderName)
+
 	assert.NoError(t, err)
 	mockBucket.AssertExpectations(t)
 }
@@ -138,10 +176,12 @@ func TestDummyIOBucket_GetFolder(t *testing.T) {
 	ctx := context.Background()
 	folderName := "test-folder"
 	expectedFolder := &gcs.Folder{Name: folderName}
-
 	mockBucket.On("GetFolder", ctx, folderName).Return(expectedFolder, nil)
+	dummyBucket := NewDummyIOBucket(mockBucket)
+	require.NotNil(t, dummyBucket)
 
-	folder, err := mockBucket.GetFolder(ctx, folderName)
+	folder, err := dummyBucket.GetFolder(ctx, folderName)
+
 	assert.NoError(t, err)
 	assert.Equal(t, expectedFolder, folder)
 	mockBucket.AssertExpectations(t)
@@ -152,10 +192,12 @@ func TestDummyIOBucket_CreateFolder(t *testing.T) {
 	ctx := context.Background()
 	folderName := "new-folder"
 	expectedFolder := &gcs.Folder{Name: folderName}
-
 	mockBucket.On("CreateFolder", ctx, folderName).Return(expectedFolder, nil)
+	dummyBucket := NewDummyIOBucket(mockBucket)
+	require.NotNil(t, dummyBucket)
 
-	folder, err := mockBucket.CreateFolder(ctx, folderName)
+	folder, err := dummyBucket.CreateFolder(ctx, folderName)
+
 	assert.NoError(t, err)
 	assert.Equal(t, expectedFolder, folder)
 	mockBucket.AssertExpectations(t)
@@ -165,10 +207,12 @@ func TestDummyIOBucket_GCSName(t *testing.T) {
 	mockBucket := &TestifyMockBucket{}
 	obj := &gcs.MinObject{Name: "test-object"}
 	expectedName := "gcs-name"
-
 	mockBucket.On("GCSName", obj).Return(expectedName)
+	dummyBucket := NewDummyIOBucket(mockBucket)
+	require.NotNil(t, dummyBucket)
 
-	name := mockBucket.GCSName(obj)
+	name := dummyBucket.GCSName(obj)
+
 	assert.Equal(t, expectedName, name)
 	mockBucket.AssertExpectations(t)
 }
@@ -181,10 +225,12 @@ func TestDummyIOBucket_MoveObject(t *testing.T) {
 		DstName: "dest-object",
 	}
 	expectedObj := &gcs.Object{Name: "dest-object"}
-
 	mockBucket.On("MoveObject", ctx, req).Return(expectedObj, nil)
+	dummyBucket := NewDummyIOBucket(mockBucket)
+	require.NotNil(t, dummyBucket)
 
-	obj, err := mockBucket.MoveObject(ctx, req)
+	obj, err := dummyBucket.MoveObject(ctx, req)
+
 	assert.NoError(t, err)
 	assert.Equal(t, expectedObj, obj)
 	mockBucket.AssertExpectations(t)

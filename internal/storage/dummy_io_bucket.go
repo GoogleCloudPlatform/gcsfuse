@@ -28,7 +28,12 @@ type dummyIOBucket struct {
 }
 
 // NewDummyIOBucket creates a new dummyIOBucket wrapping the given gcs.Bucket.
+// If the wrapped bucket is nil, it returns nil.
 func NewDummyIOBucket(wrapped gcs.Bucket) gcs.Bucket {
+	if wrapped == nil {
+		return nil
+	}
+
 	return &dummyIOBucket{
 		wrapped: wrapped,
 	}
