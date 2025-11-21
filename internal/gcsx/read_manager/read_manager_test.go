@@ -102,10 +102,10 @@ func getReadCloser(content []byte) io.ReadCloser {
 	return rc
 }
 
-func (t *readManagerTest) readAt(offset int64, size int64) (gcsx.ReadResponse, error) {
+func (t *readManagerTest) readAt(dst []byte, offset int64) (gcsx.ReadResponse, error) {
 	t.readManager.CheckInvariants()
 	defer t.readManager.CheckInvariants()
-	return t.readManager.ReadAt(t.ctx, make([]byte, size), offset)
+	return t.readManager.ReadAt(t.ctx, dst, offset)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -220,7 +220,7 @@ func (t *readManagerTest) Test_NewReadManager_BufferedReaderCreationFails() {
 
 func (t *readManagerTest) Test_ReadAt_EmptyRead() {
 	// Nothing should happen.
-	readResponse, err := t.readAt(0, 0)
+	readResponse, err := t.readAt(make([]byte, 0), 0)
 
 	assert.NoError(t.T(), err)
 	assert.Zero(t.T(), readResponse.Size)
@@ -243,7 +243,7 @@ func (t *readManagerTest) Test_ReadAt_InvalidOffset() {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func() {
-			readResponse, err := t.readAt(tc.offset, 1)
+			readResponse, err := t.readAt(make([]byte, 1), tc.offset)
 
 			assert.Zero(t.T(), readResponse.Size)
 			assert.True(t.T(), errors.Is(err, io.EOF), "expected %v error got %v", io.EOF, err)
@@ -257,7 +257,7 @@ func (t *readManagerTest) Test_ReadAt_NoExistingReader() {
 	t.mockBucket.On("BucketType", mock.Anything).Return(t.bucketType)
 	t.mockBucket.On("Name").Return("test-bucket")
 
-	_, err := t.readAt(0, 1)
+	_, err := t.readAt(make([]byte, 1), 0)
 
 	assert.Error(t.T(), err)
 	t.mockBucket.AssertExpectations(t.T())
@@ -270,7 +270,7 @@ func (t *readManagerTest) Test_ReadAt_ReaderFailsWithTimeout() {
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(rc, nil).Once()
 	t.mockBucket.On("BucketType", mock.Anything).Return(t.bucketType).Times(3)
 
-	_, err := t.readAt(0, 3)
+	_, err := t.readAt(make([]byte, 3), 0)
 
 	assert.Error(t.T(), err)
 	assert.Contains(t.T(), err.Error(), "timeout")
@@ -282,7 +282,7 @@ func (t *readManagerTest) Test_ReadAt_FileClobbered() {
 	t.mockBucket.On("BucketType", mock.Anything).Return(t.bucketType).Times(3)
 	t.mockBucket.On("Name").Return("test-bucket")
 
-	_, err := t.readAt(1, 3)
+	_, err := t.readAt(make([]byte, 3), 1)
 
 	assert.Error(t.T(), err)
 	var clobberedErr *gcsfuse_errors.FileClobberedError
@@ -300,20 +300,25 @@ func (t *readManagerTest) Test_ReadAt_FullObjectFromCache() {
 	t.mockNewReaderWithHandleCallForTestBucket(0, t.object.Size, fakeReader)
 	t.mockBucket.On("Name").Return("test-bucket").Maybe()
 	t.mockBucket.On("BucketType").Return(t.bucketType)
+	buf := make([]byte, objectSize)
 
 	// Act: First read (expected to be served via GCS, populating the cache)
-	firstResp, err := t.readAt(0, int64(objectSize))
+	firstResp, err := t.readAt(buf, 0)
 
 	// Assert: First read succeeds and returns expected data
 	assert.NoError(t.T(), err, "First read should not return an error")
-	assert.Equal(t.T(), expectedData, firstResp.DataBuf, "First read should return expected data")
+	assert.Equal(t.T(), objectSize, firstResp.Size)
+	assert.Equal(t.T(), expectedData, buf, "First read should return expected data")
+
+	clear(buf)
 
 	// Act: Second read (should be served from cache)
-	secondResp, err := t.readAt(0, int64(objectSize))
+	secondResp, err := t.readAt(buf, 0)
 
 	// Assert: Second read also succeeds and returns the same cached data
 	assert.NoError(t.T(), err, "Second read (from cache) should not return an error")
-	assert.Equal(t.T(), expectedData, secondResp.DataBuf, "Second read should return cached data")
+	assert.Equal(t.T(), objectSize, secondResp.Size)
+	assert.Equal(t.T(), expectedData, buf, "Second read should return cached data")
 	// Verify that bucket mock expectations are met
 	t.mockBucket.AssertExpectations(t.T())
 }

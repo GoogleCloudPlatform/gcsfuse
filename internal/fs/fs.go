@@ -2190,11 +2190,14 @@ func (fs *fileSystem) RmDir(
 			return err
 		}
 
-		// If there are unsupported objects, delete them recursively.
-		if len(unsupportedPaths) > 0 {
-			err = childDir.DeleteObjects(ctx, unsupportedPaths)
-			if err != nil {
-				return fmt.Errorf("RmDir: failed to delete unsupported objects: %w", err)
+		// TODO: Remove this check once we gain confidence that it is not causing any issues.
+		if fs.newConfig.EnableUnsupportedPathSupport {
+			// If there are unsupported objects, delete them recursively.
+			if len(unsupportedPaths) > 0 {
+				err = childDir.DeleteObjects(ctx, unsupportedPaths)
+				if err != nil {
+					return fmt.Errorf("RmDir: failed to delete unsupported objects: %w", err)
+				}
 			}
 		}
 
@@ -2861,8 +2864,8 @@ func (fs *fileSystem) ReadFile(
 	if fs.newConfig.EnableNewReader {
 		var resp gcsx.ReadResponse
 		resp, err = fh.ReadWithReadManager(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
-		op.Dst = resp.DataBuf
 		op.BytesRead = resp.Size
+		op.Data = resp.Data
 		op.Callback = resp.Callback
 	} else {
 		op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)

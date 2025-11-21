@@ -49,6 +49,9 @@ func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockReuse() {
 	require.Equal(testSuite.T(), int64(2), pmb.Size())
 	err = pmb.SetAbsStartOff(23)
 	require.Nil(testSuite.T(), err)
+	pmb.IncRef()
+	assert.Equal(testSuite.T(), int32(1), pmb.RefCount())
+	require.Nil(testSuite.T(), err)
 
 	pmb.Reuse()
 
@@ -60,6 +63,7 @@ func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockReuse() {
 	assert.Panics(testSuite.T(), func() {
 		_ = pmb.AbsStartOff()
 	})
+	assert.Equal(testSuite.T(), int32(0), pmb.RefCount())
 }
 
 func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockReadAtSuccess() {
@@ -120,6 +124,54 @@ func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockReadAtEOF() {
 	assert.Equal(testSuite.T(), io.EOF, err)
 	assert.Equal(testSuite.T(), 5, n)
 	assert.Equal(testSuite.T(), []byte("world"), readBuffer[0:n])
+}
+
+func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockReadAtSliceSuccess() {
+	pmb, err := createPrefetchBlock(12)
+	require.Nil(testSuite.T(), err)
+	content := []byte("hello world")
+	_, err = pmb.Write(content)
+	require.Nil(testSuite.T(), err)
+
+	slice, err := pmb.ReadAtSlice(6, 5) // Read "world"
+
+	assert.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), []byte("world"), slice)
+}
+
+func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockReadAtSliceEOF() {
+	pmb, err := createPrefetchBlock(12)
+	require.Nil(testSuite.T(), err)
+	content := []byte("hello world")
+	_, err = pmb.Write(content)
+	require.Nil(testSuite.T(), err)
+
+	slice, err := pmb.ReadAtSlice(6, 15) // Read "world" and beyond
+
+	assert.Equal(testSuite.T(), io.EOF, err)
+	assert.Equal(testSuite.T(), []byte("world"), slice)
+}
+
+func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockReadAtSliceWithNegativeOffset() {
+	pmb, err := createPrefetchBlock(12)
+	require.Nil(testSuite.T(), err)
+	_, err = pmb.Write([]byte("hello world"))
+	require.Nil(testSuite.T(), err)
+
+	_, err = pmb.ReadAtSlice(-1, 5)
+
+	assert.Error(testSuite.T(), err)
+}
+
+func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockReadAtSliceWithOffsetOutOfBounds() {
+	pmb, err := createPrefetchBlock(12)
+	require.Nil(testSuite.T(), err)
+	_, err = pmb.Write([]byte("hello"))
+	require.Nil(testSuite.T(), err)
+
+	_, err = pmb.ReadAtSlice(5, 1) // Offset is equal to size, which is out of bounds
+
+	assert.Error(testSuite.T(), err)
 }
 
 func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockAbsStartOffsetPanicsOnEmptyBlock() {
@@ -285,4 +337,39 @@ func (testSuite *PrefetchMemoryBlockTest) TestSingleNotifyAndMultipleAwaitReady(
 		}()
 	}
 	wg.Wait()
+}
+
+func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockIncRef() {
+	pmb, err := createPrefetchBlock(12)
+	require.Nil(testSuite.T(), err)
+
+	pmb.IncRef()
+
+	assert.Equal(testSuite.T(), int32(1), pmb.RefCount())
+}
+
+func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockDecRef() {
+	pmb, err := createPrefetchBlock(12)
+	require.Nil(testSuite.T(), err)
+	pmb.IncRef()
+	pmb.IncRef()
+
+	isZero := pmb.DecRef()
+
+	assert.False(testSuite.T(), isZero)
+	assert.Equal(testSuite.T(), int32(1), pmb.RefCount())
+
+	isZero = pmb.DecRef()
+
+	assert.True(testSuite.T(), isZero)
+	assert.Equal(testSuite.T(), int32(0), pmb.RefCount())
+}
+
+func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockDecRefPanics() {
+	pmb, err := createPrefetchBlock(12)
+	require.Nil(testSuite.T(), err)
+
+	assert.PanicsWithValue(testSuite.T(), "DecRef called more times than IncRef, resulting in a negative refCount.", func() {
+		pmb.DecRef()
+	})
 }

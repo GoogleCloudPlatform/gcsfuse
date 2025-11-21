@@ -124,6 +124,7 @@ TEST_DIR_PARALLEL=(
   "buffered_read"
   "requester_pays_bucket"
   "flag_optimizations"
+  "unsupported_path"
 )
 
 # These tests never become parallel as it is changing bucket permissions.
@@ -162,6 +163,7 @@ TEST_DIR_PARALLEL_FOR_ZB=(
   "readdirplus"
   "dentry_cache"
   "flag_optimizations"
+  "unsupported_path"
 )
 
 # Subset of TEST_DIR_NON_PARALLEL,
@@ -250,6 +252,8 @@ function upgrade_gcloud_version() {
   # Install latest gcloud.
   ./perfmetrics/scripts/install_latest_gcloud.sh
   export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
+  export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"
+  export PATH="$HOME/.local/python-3.11.9/bin:$PATH""
 }
 
 function install_packages() {

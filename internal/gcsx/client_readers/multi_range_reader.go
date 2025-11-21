@@ -76,11 +76,10 @@ func (mrd *MultiRangeReader) readFromMultiRangeReader(ctx context.Context, p []b
 }
 
 func (mrd *MultiRangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (gcsx.ReadResponse, error) {
-	readResponse := gcsx.ReadResponse{
-		DataBuf: req.Buffer,
-		Size:    0,
-	}
-	var err error
+	var (
+		readResponse gcsx.ReadResponse
+		err          error
+	)
 
 	if req.Offset >= int64(mrd.object.Size) {
 		err = io.EOF

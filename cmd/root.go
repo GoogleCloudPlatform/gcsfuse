@@ -17,7 +17,9 @@ package cmd
 import (
 	"fmt"
 	"log"
+	"maps"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/go-viper/mapstructure/v2"
@@ -40,6 +42,9 @@ type mountInfo struct {
 	// config is the final config object after merging cli and config file flags applying
 	// all optimisation based on machineType, Profile etc. This is the final config used for mounting GCSFuse.
 	config *cfg.Config
+	// optimizedFlags contains the flags that were optimized
+	// based on either machine-type or profile.
+	optimizedFlags map[string]any
 }
 
 type mountFn func(mountInfo *mountInfo, bucketName, mountPoint string) error
@@ -112,11 +117,10 @@ func getConfigFileFlags(v *viper.Viper) map[string]any {
 func newRootCmd(m mountFn) (*cobra.Command, error) {
 	var (
 		mountInfo mountInfo
-		configObj cfg.Config
 		cfgFile   string
-		cfgErr    error
 		v         = viper.New()
 	)
+	mountInfo.config = &cfg.Config{}
 	rootCmd := &cobra.Command{
 		Use:   "gcsfuse [flags] bucket mount_point",
 		Short: "Mount a specified GCS bucket or all accessible buckets locally",
@@ -126,10 +130,56 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 		Version:      common.GetVersion(),
 		Args:         cobra.RangeArgs(2, 3),
 		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if cfgErr != nil {
-				return fmt.Errorf("error while parsing config: %w", cfgErr)
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			if cfgFile != "" {
+				resolvedCfgFile, err := util.GetResolvedPath(cfgFile)
+				if err != nil {
+					return fmt.Errorf("error while resolving config-file path[%s]: %w", cfgFile, err)
+				}
+				v.SetConfigFile(resolvedCfgFile)
+				v.SetConfigType("yaml")
+				if err := v.ReadInConfig(); err != nil {
+					return fmt.Errorf("error while reading the config: %w", err)
+				}
 			}
+
+			if err := v.Unmarshal(mountInfo.config, viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
+				// By default, viper supports mapstructure tags for unmarshalling. Override that to support yaml tag.
+				decoderConfig.TagName = "yaml"
+				// Reject the config file if any of the fields in the YAML don't map to the struct.
+				decoderConfig.ErrorUnused = true
+			},
+			); err != nil {
+				return fmt.Errorf("error while unmarshalling config: %w", err)
+			}
+			if err := cfg.ValidateConfig(v, mountInfo.config); err != nil {
+				return fmt.Errorf("invalid config: %w", err)
+			}
+
+			isSet := &pflagAsIsValueSet{fs: cmd.PersistentFlags()}
+			optimizedFlags := mountInfo.config.ApplyOptimizations(isSet)
+			optimizedFlagNames := slices.Collect(maps.Keys(optimizedFlags))
+			for k := range optimizedFlags {
+				optimizedFlagNames = append(optimizedFlagNames, k)
+			}
+			if err := cfg.Rationalize(v, mountInfo.config, optimizedFlagNames); err != nil {
+				return fmt.Errorf("error rationalizing config: %w", err)
+			}
+			mountInfo.cliFlags = getCliFlags(cmd.PersistentFlags())
+			mountInfo.configFileFlags = getConfigFileFlags(v)
+			optimizedFlagsAsHierarchicalMap, err := cfg.CreateHierarchicalOptimizedFlags(optimizedFlags)
+			if err != nil {
+				logger.Errorf("GCSFuse Config: error creating hierarchical map for optimized flags: %v", err)
+				// Log the raw map as a fallback
+				optimizedFlagsAsHierarchicalMap = make(map[string]any, len(optimizedFlags))
+				for flag, value := range optimizedFlags {
+					optimizedFlagsAsHierarchicalMap[flag] = value
+				}
+			}
+			mountInfo.optimizedFlags = optimizedFlagsAsHierarchicalMap
+			return nil
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
 			bucket, mountPoint, err := populateArgs(args[1:])
 			if err != nil {
 				return fmt.Errorf("error occurred while extracting the bucket and mountPoint: %w", err)
@@ -137,44 +187,6 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 			return m(&mountInfo, bucket, mountPoint)
 		},
 	}
-	initConfig := func() {
-		if cfgFile != "" {
-			cfgFile, err := util.GetResolvedPath(cfgFile)
-			if err != nil {
-				cfgErr = fmt.Errorf("error while resolving config-file path[%s]: %w", cfgFile, err)
-				return
-			}
-			v.SetConfigFile(cfgFile)
-			v.SetConfigType("yaml")
-			if err := v.ReadInConfig(); err != nil {
-				cfgErr = fmt.Errorf("error while reading the config: %w", err)
-				return
-			}
-		}
-
-		if cfgErr = v.Unmarshal(&configObj, viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
-			// By default, viper supports mapstructure tags for unmarshalling. Override that to support yaml tag.
-			decoderConfig.TagName = "yaml"
-			// Reject the config file if any of the fields in the YAML don't map to the struct.
-			decoderConfig.ErrorUnused = true
-		},
-		); cfgErr != nil {
-			return
-		}
-		if cfgErr = cfg.ValidateConfig(v, &configObj); cfgErr != nil {
-			return
-		}
-
-		isSet := &pflagAsIsValueSet{fs: rootCmd.PersistentFlags()}
-		optimizedFlags := configObj.ApplyOptimizations(isSet)
-		if cfgErr = cfg.Rationalize(v, &configObj, optimizedFlags); cfgErr != nil {
-			return
-		}
-		mountInfo.cliFlags = getCliFlags(rootCmd.PersistentFlags())
-		mountInfo.configFileFlags = getConfigFileFlags(v)
-		mountInfo.config = &configObj
-	}
-	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringVar(&cfgFile, cfg.ConfigFileFlagName, "", "The path to the config file where all gcsfuse related config needs to be specified. "+
 		"Refer to 'https://cloud.google.com/storage/docs/gcsfuse-cli#config-file' for possible configurations.")
 

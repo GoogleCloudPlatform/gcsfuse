@@ -313,7 +313,7 @@ func (t *fileTest) Test_ReadWithReadManager_Success() {
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), len(expectedData), resp.Size)
-	assert.Equal(t.T(), expectedData, resp.DataBuf)
+	assert.Equal(t.T(), expectedData, buf[:resp.Size])
 }
 
 // Test_ReadWithReadManager_Concurrent validates concurrent read behavior using the readManager.
@@ -459,7 +459,6 @@ func (t *fileTest) Test_ReadWithReadManager_ErrorScenarios() {
 			resp, err := fh.ReadWithReadManager(t.ctx, dst, 0, 200)
 
 			assert.Zero(t.T(), resp.Size, "expected 0 bytes read")
-			assert.Nil(t.T(), resp.DataBuf, "expected output to be nil")
 			assert.True(t.T(), errors.Is(err, tc.returnErr), "expected error to match")
 			mockRM.AssertExpectations(t.T())
 		})
@@ -509,7 +508,7 @@ func (t *fileTest) Test_Read_ErrorScenarios() {
 func (t *fileTest) Test_ReadWithReadManager_FallbackToInode() {
 	dst := make([]byte, 100)
 	objectData := []byte("fallback data")
-	object := gcs.MinObject{Name: "test_obj", Generation: 0}
+	object := gcs.MinObject{Name: "test_obj"}
 	parent := createDirInode(&t.bucket, &t.clock)
 	in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, objectData, true)
 	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{}, nil, nil)
@@ -521,7 +520,7 @@ func (t *fileTest) Test_ReadWithReadManager_FallbackToInode() {
 
 	assert.Equal(t.T(), io.EOF, err)
 	assert.Equal(t.T(), len(objectData), resp.Size)
-	assert.Equal(t.T(), objectData, resp.DataBuf[:resp.Size])
+	assert.Equal(t.T(), objectData, dst[:resp.Size])
 	mockRM.AssertExpectations(t.T())
 }
 
@@ -530,7 +529,7 @@ func (t *fileTest) Test_ReadWithReadManager_FallbackToInode() {
 func (t *fileTest) Test_Read_FallbackToInode() {
 	dst := make([]byte, 100)
 	objectData := []byte("fallback data")
-	object := gcs.MinObject{Name: "test_obj", Generation: 0}
+	object := gcs.MinObject{Name: "test_obj"}
 	parent := createDirInode(&t.bucket, &t.clock)
 	in := createFileInode(t.T(), &t.bucket, &t.clock, nil, parent, object.Name, objectData, true)
 	fh := NewFileHandle(in, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{}, nil, nil)
@@ -583,7 +582,7 @@ func (t *fileTest) Test_ReadWithReadManager_ReadManagerInvalidatedByGenerationCh
 	assert.NotNil(t.T(), fh.readManager)
 	assert.NotEqual(t.T(), oldReadManager, fh.readManager)
 	assert.Equal(t.T(), len(content2), resp.Size)
-	assert.Equal(t.T(), content2, resp.DataBuf)
+	assert.Equal(t.T(), content2, dst)
 }
 
 func (t *fileTest) Test_Read_ReaderInvalidatedByGenerationChange() {
@@ -947,7 +946,7 @@ func (t *fileTest) Test_ReadWithReadManager_FullReadSuccessWithBufferedRead() {
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), fileSize, resp.Size)
-	assert.Equal(t.T(), expectedData, resp.DataBuf)
+	assert.Equal(t.T(), expectedData, util.ConvertReadResponseToBytes(resp.Data, resp.Size))
 }
 
 func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() {
@@ -964,6 +963,7 @@ func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() 
 			MaxBlocksPerHandle:   10,
 			StartBlocksPerHandle: 2,
 			BlockSizeMb:          1,
+			RandomSeekThreshold:  3,
 		},
 	}
 	workerPool, err := workerpool.NewStaticWorkerPoolForCurrentCPU(20)
@@ -991,7 +991,7 @@ func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() 
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), readSize, resp.Size)
-			results[index] = resp.DataBuf
+			results[index] = util.ConvertReadResponseToBytes(resp.Data, resp.Size)
 		}(i)
 	}
 	// Wait for all goroutines to finish.
@@ -1031,20 +1031,26 @@ func (t *fileTest) Test_ReadWithReadManager_WorkloadInsightVisual() {
 
 	// Perform multiple reads and destroy the file-handle.
 	fh.inode.Lock()
-	resp1, err := fh.ReadWithReadManager(t.ctx, make([]byte, MiB), MiB, 200)
+	dst := make([]byte, MiB)
+	// First read.
+	resp1, err := fh.ReadWithReadManager(t.ctx, dst, MiB, 200)
 	require.NoError(t.T(), err)
 	require.Equal(t.T(), MiB, resp1.Size)
-	require.Equal(t.T(), content[MiB:2*MiB], resp1.DataBuf)
+	require.Equal(t.T(), content[MiB:2*MiB], dst[:resp1.Size])
+	clear(dst)
+	// Second read.
 	fh.inode.Lock()
-	resp2, err := fh.ReadWithReadManager(t.ctx, make([]byte, MiB), 0, 200)
+	resp2, err := fh.ReadWithReadManager(t.ctx, dst, 0, 200)
 	require.NoError(t.T(), err)
-	require.Equal(t.T(), MiB, resp2.Size)
-	require.Equal(t.T(), content[0:MiB], resp2.DataBuf)
+	assert.Equal(t.T(), MiB, resp2.Size)
+	assert.Equal(t.T(), content[0:MiB], dst[:resp2.Size])
+	clear(dst)
+	// Third read.
 	fh.inode.Lock()
-	resp3, err := fh.ReadWithReadManager(t.ctx, make([]byte, MiB), 2*MiB, 200)
+	resp3, err := fh.ReadWithReadManager(t.ctx, dst, 2*MiB, 200)
 	require.NoError(t.T(), err)
-	require.Equal(t.T(), MiB, resp3.Size)
-	require.Equal(t.T(), content[2*MiB:3*MiB], resp3.DataBuf)
+	assert.Equal(t.T(), MiB, resp3.Size)
+	assert.Equal(t.T(), content[2*MiB:3*MiB], dst[:resp3.Size])
 	fh.Destroy()
 
 	// Validate the output file creation for workload insight.

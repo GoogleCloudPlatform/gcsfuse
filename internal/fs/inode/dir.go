@@ -1094,10 +1094,11 @@ func (d *dirInode) deletePrefixRecursively(ctx context.Context, prefix string) e
 	var tok string
 	for {
 		objects, err := d.bucket.ListObjects(ctx, &gcs.ListObjectsRequest{
-			Prefix:            prefix,
-			MaxResults:        MaxResultsForListObjectsCall,
-			Delimiter:         "/", // Use Delimiter to separate nested folders (CollapsedRuns)
-			ContinuationToken: tok,
+			Prefix:                   prefix,
+			MaxResults:               MaxResultsForListObjectsCall,
+			Delimiter:                "/", // Use Delimiter to separate nested folders (CollapsedRuns)
+			ContinuationToken:        tok,
+			IncludeFoldersAsPrefixes: d.includeFoldersAsPrefixes,
 		})
 		if err != nil {
 			return fmt.Errorf("listing objects under prefix %q: %w", prefix, err)
