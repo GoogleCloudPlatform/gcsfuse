@@ -168,6 +168,7 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (readRe
 }
 
 func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest) (bytesRead int, err error) {
+	var readResp gcsx.ReadResponse
 	readInfo := gr.getReadInfo(readReq.Offset, false)
 	readReq.EndOffset = gr.getEndOffset(readReq.Offset)
 	readReq.ReadType = readInfo.readType
@@ -182,13 +183,13 @@ func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest) (
 			readReq.ReadType = reReadInfo.readType
 			return gr.readerType(reReadInfo.readType, gr.bucket.BucketType()) == RangeReaderType
 		}
-		readResp, err := gr.rangeReader.ReadAt(ctx, readReq)
-		if errors.Is(err, gcsx.FallbackToAnotherReader) {
-			readResp, err = gr.mrr.ReadAt(ctx, readReq) // Fallback to MultiRangeReader
+		readResp, err = gr.rangeReader.ReadAt(ctx, readReq)
+		if !errors.Is(err, gcsx.FallbackToAnotherReader) {
+			return readResp.Size, err
 		}
-		return readResp.Size, err
+		// Fallback to MultiRangeReader
 	}
-	readResp, err := gr.mrr.ReadAt(ctx, readReq)
+	readResp, err = gr.mrr.ReadAt(ctx, readReq)
 	return readResp.Size, err
 }
 

@@ -335,9 +335,9 @@ func (rr *RangeReader) skipBytes(offset int64) {
 	}
 }
 
-// invalidateReaderIfMisalignedOrTooSmall ensures the reader is valid for the
-// requested read. It invalidates the reader if it's nil, misaligned, or its
-// prefetched limit is insufficient for the request.
+// invalidateReaderIfMisalignedOrTooSmall checks an existing reader and
+// invalidates it if it is misaligned or its prefetched limit is
+// insufficient for the new request.
 func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(startOffset, endOffset int64) {
 	if rr.reader != nil && (rr.start != startOffset || rr.limit < endOffset) {
 		rr.closeReader()
