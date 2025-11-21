@@ -423,6 +423,8 @@ type FileCacheConfig struct {
 
 	ExcludeRegex string `yaml:"exclude-regex"`
 
+	ExperimentalEnableBlockCache bool `yaml:"experimental-enable-block-cache"`
+
 	ExperimentalParallelDownloadsDefaultOn bool `yaml:"experimental-parallel-downloads-default-on"`
 
 	IncludeRegex string `yaml:"include-regex"`
@@ -887,6 +889,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.StringP("file-cache-exclude-regex", "", "", "Exclude file paths (in the format bucket_name/object_key) specified by this regex from file caching.")
 
 	if err := flagSet.MarkHidden("file-cache-exclude-regex"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("file-cache-experimental-enable-block-cache", "", false, "Enable block cache mode for random I/O optimization that downloads only requested blocks.")
+
+	if err := flagSet.MarkHidden("file-cache-experimental-enable-block-cache"); err != nil {
 		return err
 	}
 
@@ -1364,6 +1372,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-cache.exclude-regex", flagSet.Lookup("file-cache-exclude-regex")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-cache.experimental-enable-block-cache", flagSet.Lookup("file-cache-experimental-enable-block-cache")); err != nil {
 		return err
 	}
 

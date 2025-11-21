@@ -242,6 +242,13 @@ params:
     default: ""
     hide-flag: true
 
+  - config-path: "file-cache.experimental-enable-block-cache"
+    flag-name: "file-cache-experimental-enable-block-cache"
+    type: "bool"
+    usage: "Enable block cache mode for random I/O optimization that downloads only requested blocks."
+    default: false
+    hide-flag: true
+
   - config-path: "file-cache.experimental-parallel-downloads-default-on"
     flag-name: "file-cache-experimental-parallel-downloads-default-on"
     type: "bool"

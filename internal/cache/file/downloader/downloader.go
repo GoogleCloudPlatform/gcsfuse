@@ -152,6 +152,11 @@ func (jm *JobManager) InvalidateAndRemoveJob(objectName string, bucketName strin
 	}
 }
 
+// DownloadChunkSizeMb returns the download chunk size in MB from the file cache config.
+func (jm *JobManager) DownloadChunkSizeMb() int64 {
+	return jm.fileCacheConfig.DownloadChunkSizeMb
+}
+
 // Destroy invalidates and deletes all the jobs that job manager is managing.
 //
 // Acquires and releases Lock(jm.mu)
