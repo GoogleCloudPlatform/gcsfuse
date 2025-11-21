@@ -38,7 +38,7 @@ type OpenMode struct {
 }
 
 func (om OpenMode) IsAppend() bool {
-	return om.FileFlags&O_APPEND != 0
+	return om.AccessMode != ReadOnly && om.FileFlags&O_APPEND != 0
 }
 
 func (om OpenMode) IsDirect() bool {
