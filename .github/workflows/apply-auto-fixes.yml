@@ -59,6 +59,11 @@ jobs:
           # Applying the patch will fail if it's empty, but we've already checked for that.
           git apply auto_fixes.patch
 
+      - name: Clean up patch file
+        if: steps.check_artifact.outputs.exists == 'true'
+        run: |
+          rm auto_fixes.patch
+
       - name: Commit changes
         if: steps.check_artifact.outputs.exists == 'true'
         uses: EndBug/add-and-commit@v9
