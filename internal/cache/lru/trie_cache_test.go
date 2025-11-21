@@ -58,7 +58,9 @@ func (t *TrieCacheTest) TestInsertAndLookUp() {
 func (t *TrieCacheTest) TestErase() {
 	val := testValue{size: 10}
 	_, err := t.cache.Insert("key1", val)
-	assert.NoError(t.T(), err)
+	if err != nil {
+		t.T().Fatalf("Insert failed: %v", err)
+	}
 
 	erased := t.cache.Erase("key1")
 	assert.Equal(t.T(), val, erased)
@@ -70,15 +72,25 @@ func (t *TrieCacheTest) TestErase() {
 func (t *TrieCacheTest) TestEraseEntriesWithGivenPrefix() {
 	// Insert keys: "a", "a/b", "a/c", "b", "b/d"
 	_, err := t.cache.Insert("a", testValue{size: 10})
-	assert.NoError(t.T(), err)
+	if err != nil {
+		t.T().Fatalf("Insert failed: %v", err)
+	}
 	_, err = t.cache.Insert("a/b", testValue{size: 10})
-	assert.NoError(t.T(), err)
+	if err != nil {
+		t.T().Fatalf("Insert failed: %v", err)
+	}
 	_, err = t.cache.Insert("a/c", testValue{size: 10})
-	assert.NoError(t.T(), err)
+	if err != nil {
+		t.T().Fatalf("Insert failed: %v", err)
+	}
 	_, err = t.cache.Insert("b", testValue{size: 10})
-	assert.NoError(t.T(), err)
+	if err != nil {
+		t.T().Fatalf("Insert failed: %v", err)
+	}
 	_, err = t.cache.Insert("b/d", testValue{size: 10})
-	assert.NoError(t.T(), err)
+	if err != nil {
+		t.T().Fatalf("Insert failed: %v", err)
+	}
 
 	// Erase prefix "a"
 	t.cache.EraseEntriesWithGivenPrefix("a")
@@ -95,9 +107,13 @@ func (t *TrieCacheTest) TestEraseEntriesWithGivenPrefix() {
 
 func (t *TrieCacheTest) TestEraseEntriesWithGivenPrefix_ExactMatch() {
 	_, err := t.cache.Insert("apple", testValue{size: 10})
-	assert.NoError(t.T(), err)
+	if err != nil {
+		t.T().Fatalf("Insert failed: %v", err)
+	}
 	_, err = t.cache.Insert("apple_pie", testValue{size: 10})
-	assert.NoError(t.T(), err)
+	if err != nil {
+		t.T().Fatalf("Insert failed: %v", err)
+	}
 
 	t.cache.EraseEntriesWithGivenPrefix("apple")
 
@@ -107,7 +123,9 @@ func (t *TrieCacheTest) TestEraseEntriesWithGivenPrefix_ExactMatch() {
 
 func (t *TrieCacheTest) TestEraseEntriesWithGivenPrefix_NoMatch() {
 	_, err := t.cache.Insert("apple", testValue{size: 10})
-	assert.NoError(t.T(), err)
+	if err != nil {
+		t.T().Fatalf("Insert failed: %v", err)
+	}
 
 	t.cache.EraseEntriesWithGivenPrefix("banana")
 
@@ -116,9 +134,13 @@ func (t *TrieCacheTest) TestEraseEntriesWithGivenPrefix_NoMatch() {
 
 func (t *TrieCacheTest) TestEraseEntriesWithGivenPrefix_EmptyPrefix() {
 	_, err := t.cache.Insert("apple", testValue{size: 10})
-	assert.NoError(t.T(), err)
+	if err != nil {
+		t.T().Fatalf("Insert failed: %v", err)
+	}
 	_, err = t.cache.Insert("banana", testValue{size: 10})
-	assert.NoError(t.T(), err)
+	if err != nil {
+		t.T().Fatalf("Insert failed: %v", err)
+	}
 
 	t.cache.EraseEntriesWithGivenPrefix("")
 
@@ -133,11 +155,17 @@ func (t *TrieCacheTest) TestLRUEviction() {
 	v := testValue{size: 40}
 
 	_, err := t.cache.Insert("1", v) // 40
-	assert.NoError(t.T(), err)
+	if err != nil {
+		t.T().Fatalf("Insert failed: %v", err)
+	}
 	_, err = t.cache.Insert("2", v) // 80
-	assert.NoError(t.T(), err)
+	if err != nil {
+		t.T().Fatalf("Insert failed: %v", err)
+	}
 	_, err = t.cache.Insert("3", v) // 120 -> evict "1" (LRU)
-	assert.NoError(t.T(), err)
+	if err != nil {
+		t.T().Fatalf("Insert failed: %v", err)
+	}
 
 	assert.Nil(t.T(), t.cache.LookUp("1"))
 	assert.NotNil(t.T(), t.cache.LookUp("2"))
@@ -150,11 +178,17 @@ func (t *TrieCacheTest) TestLRUEviction_WithPrefixErase() {
 	v := testValue{size: 10}
 
 	_, err := t.cache.Insert("a", v)
-	assert.NoError(t.T(), err)
+	if err != nil {
+		t.T().Fatalf("Insert failed: %v", err)
+	}
 	_, err = t.cache.Insert("b", v)
-	assert.NoError(t.T(), err)
+	if err != nil {
+		t.T().Fatalf("Insert failed: %v", err)
+	}
 	_, err = t.cache.Insert("c", v)
-	assert.NoError(t.T(), err)
+	if err != nil {
+		t.T().Fatalf("Insert failed: %v", err)
+	}
 
 	t.cache.EraseEntriesWithGivenPrefix("b")
 
@@ -169,14 +203,18 @@ func (t *TrieCacheTest) TestLRUEviction_WithPrefixErase() {
 func (t *TrieCacheTest) TestLookUpWithoutChangingOrder() {
 	val := testValue{size: 10}
 	_, err := t.cache.Insert("key1", val)
-	assert.NoError(t.T(), err)
+	if err != nil {
+		t.T().Fatalf("Insert failed: %v", err)
+	}
 
 	// LookUp should move to front
 	t.cache.LookUp("key1")
 	// We can't easily check order without internal access or multiple items.
 	// Let's insert another item.
 	_, err = t.cache.Insert("key2", val)
-	assert.NoError(t.T(), err)
+	if err != nil {
+		t.T().Fatalf("Insert failed: %v", err)
+	}
 	// Order: key2, key1 (key2 is front)
 
 	// LookUpWithoutChangingOrder key1
@@ -199,7 +237,9 @@ func (t *TrieCacheTest) TestUpdateWithoutChangingOrder() {
 	t.cache = NewTrieCache(100)
 	val := testValue{size: 10}
 	_, err := t.cache.Insert("key1", val)
-	assert.NoError(t.T(), err)
+	if err != nil {
+		t.T().Fatalf("Insert failed: %v", err)
+	}
 
 	newVal := testValue{size: 10}
 	err = t.cache.UpdateWithoutChangingOrder("key1", newVal)
@@ -222,11 +262,17 @@ func (t *TrieCacheTest) TestUpdateWithoutChangingOrder() {
 
 func (t *TrieCacheTest) TestKeys() {
 	_, err := t.cache.Insert("a", testValue{size: 1})
-	assert.NoError(t.T(), err)
+	if err != nil {
+		t.T().Fatalf("Insert failed: %v", err)
+	}
 	_, err = t.cache.Insert("b", testValue{size: 1})
-	assert.NoError(t.T(), err)
+	if err != nil {
+		t.T().Fatalf("Insert failed: %v", err)
+	}
 	_, err = t.cache.Insert("a/c", testValue{size: 1})
-	assert.NoError(t.T(), err)
+	if err != nil {
+		t.T().Fatalf("Insert failed: %v", err)
+	}
 
 	keys := t.cache.Keys()
 	assert.Len(t.T(), keys, 3)
@@ -237,14 +283,18 @@ func (t *TrieCacheTest) TestKeys() {
 
 func (t *TrieCacheTest) TestContains() {
 	_, err := t.cache.Insert("a", testValue{size: 1})
-	assert.NoError(t.T(), err)
+	if err != nil {
+		t.T().Fatalf("Insert failed: %v", err)
+	}
 	assert.True(t.T(), t.cache.Contains("a"))
 	assert.False(t.T(), t.cache.Contains("b"))
 }
 
 func (t *TrieCacheTest) TestPrintTrie() {
 	_, err := t.cache.Insert("a", testValue{size: 1})
-	assert.NoError(t.T(), err)
+	if err != nil {
+		t.T().Fatalf("Insert failed: %v", err)
+	}
 	// Just ensure it doesn't panic
 	t.cache.PrintTrie()
 }
