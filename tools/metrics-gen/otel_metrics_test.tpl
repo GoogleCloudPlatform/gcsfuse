@@ -36,7 +36,7 @@ type metricValueMap map[string]int64
 type metricHistogramMap map[string]metricdata.HistogramDataPoint[int64]
 
 func waitForMetricsProcessing() {
-	time.Sleep(time.Millisecond)
+	time.Sleep(5 * time.Millisecond)
 }
 
 func setupOTel(ctx context.Context, t *testing.T) (*otelMetrics, *metric.ManualReader) {

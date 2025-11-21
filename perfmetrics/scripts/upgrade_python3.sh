@@ -14,7 +14,8 @@
 # limitations under the License.
 #!/bin/bash
 
-set -e
+set -euo pipefail
+set -x
 
 PYTHON_VERSION=3.11.9
 INSTALL_PREFIX="$HOME/.local/python-$PYTHON_VERSION"

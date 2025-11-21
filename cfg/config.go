@@ -199,8 +199,8 @@ var machineTypeToGroupMap = map[string]string{
 }
 
 // ApplyOptimizations modifies the config in-place with optimized values.
-func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
-	var optimizedFlags []string
+func (c *Config) ApplyOptimizations(isSet isValueSet) map[string]OptimizationResult {
+	var optimizedFlags = make(map[string]OptimizationResult)
 	// Skip all optimizations if autoconfig is disabled.
 	if c.DisableAutoconfig {
 		return nil
@@ -222,7 +222,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(bool); ok {
 				if c.FileCache.CacheFileForRangeRead != val {
 					c.FileCache.CacheFileForRangeRead = val
-					optimizedFlags = append(optimizedFlags, "file-cache.cache-file-for-range-read")
+					optimizedFlags["file-cache.cache-file-for-range-read"] = result
 				}
 			}
 		}
@@ -234,7 +234,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(bool); ok {
 				if c.ImplicitDirs != val {
 					c.ImplicitDirs = val
-					optimizedFlags = append(optimizedFlags, "implicit-dirs")
+					optimizedFlags["implicit-dirs"] = result
 				}
 			}
 		}
@@ -246,7 +246,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.FileSystem.KernelListCacheTtlSecs != val {
 					c.FileSystem.KernelListCacheTtlSecs = val
-					optimizedFlags = append(optimizedFlags, "file-system.kernel-list-cache-ttl-secs")
+					optimizedFlags["file-system.kernel-list-cache-ttl-secs"] = result
 				}
 			}
 		}
@@ -258,7 +258,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.NegativeTtlSecs != val {
 					c.MetadataCache.NegativeTtlSecs = val
-					optimizedFlags = append(optimizedFlags, "metadata-cache.negative-ttl-secs")
+					optimizedFlags["metadata-cache.negative-ttl-secs"] = result
 				}
 			}
 		}
@@ -270,7 +270,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.TtlSecs != val {
 					c.MetadataCache.TtlSecs = val
-					optimizedFlags = append(optimizedFlags, "metadata-cache.ttl-secs")
+					optimizedFlags["metadata-cache.ttl-secs"] = result
 				}
 			}
 		}
@@ -282,7 +282,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.FileSystem.RenameDirLimit != val {
 					c.FileSystem.RenameDirLimit = val
-					optimizedFlags = append(optimizedFlags, "file-system.rename-dir-limit")
+					optimizedFlags["file-system.rename-dir-limit"] = result
 				}
 			}
 		}
@@ -294,7 +294,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.StatCacheMaxSizeMb != val {
 					c.MetadataCache.StatCacheMaxSizeMb = val
-					optimizedFlags = append(optimizedFlags, "metadata-cache.stat-cache-max-size-mb")
+					optimizedFlags["metadata-cache.stat-cache-max-size-mb"] = result
 				}
 			}
 		}
@@ -306,7 +306,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.TypeCacheMaxSizeMb != val {
 					c.MetadataCache.TypeCacheMaxSizeMb = val
-					optimizedFlags = append(optimizedFlags, "metadata-cache.type-cache-max-size-mb")
+					optimizedFlags["metadata-cache.type-cache-max-size-mb"] = result
 				}
 			}
 		}
@@ -318,7 +318,7 @@ func (c *Config) ApplyOptimizations(isSet isValueSet) []string {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.Write.GlobalMaxBlocks != val {
 					c.Write.GlobalMaxBlocks = val
-					optimizedFlags = append(optimizedFlags, "write.global-max-blocks")
+					optimizedFlags["write.global-max-blocks"] = result
 				}
 			}
 		}

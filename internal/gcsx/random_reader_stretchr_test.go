@@ -1080,7 +1080,7 @@ func (t *RandomReaderStretchrTest) Test_ReadAt_MRDRead() {
 			assert.NoError(t.T(), err)
 			assert.Nil(t.T(), t.rr.wrapped.reader)
 			assert.Equal(t.T(), tc.bytesToRead, objData.Size)
-			assert.Equal(t.T(), testContent[tc.offset:tc.offset+tc.bytesToRead], objData.DataBuf[:objData.Size])
+			assert.Equal(t.T(), testContent[tc.offset:tc.offset+tc.bytesToRead], buf[:objData.Size])
 			if tc.bytesToRead != 0 {
 				assert.Equal(t.T(), int64(tc.offset+tc.bytesToRead), t.rr.wrapped.expectedOffset.Load())
 			}

@@ -31,6 +31,7 @@ import (
 	"runtime"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"golang.org/x/sys/unix"
@@ -56,6 +57,7 @@ const (
 	SuccessfulMountMessage         = "File system has been successfully mounted."
 	UnsuccessfulMountMessagePrefix = "Error while mounting gcsfuse"
 	DynamicMountFSName             = "gcsfuse"
+	WaitTimeOnSignalReceive        = 30 * time.Second
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -78,8 +80,18 @@ func registerTerminatingSignalHandler(mountPoint string) {
 			case os.Interrupt:
 				sigName = "SIGINT"
 			}
-			logger.Infof("Received %s, attempting to unmount...", sigName)
 
+			//On signal receive wait in background and give 30 second for unmount to finish
+			//and then exit, so application is closed.
+			go func() {
+				logger.Warnf("Received %s, waiting for %s to let system gracefully unmount before killing the process", sigName, WaitTimeOnSignalReceive)
+				time.Sleep(WaitTimeOnSignalReceive)
+				logger.Warnf("killing goroutines and exit")
+				//Forcefully exit to 0 so that caller get success on forcefull exit also.
+				os.Exit(0)
+			}()
+
+			logger.Warnf("Received %s, attempting to unmount...", sigName)
 			err := fuse.Unmount(mountPoint)
 			if err != nil {
 				if errors.Is(err, fuse.ErrExternallyManagedMountPoint) {
@@ -395,6 +407,9 @@ func logGCSFuseMountInformation(mountInfo *mountInfo) {
 	logger.Info("GCSFuse Config", "CLI Flags", mountInfo.cliFlags)
 	if mountInfo.configFileFlags != nil {
 		logger.Info("GCSFuse Config", "ConfigFile Flags", mountInfo.configFileFlags)
+	}
+	if len(mountInfo.optimizedFlags) > 0 {
+		logger.Info("GCSFuse Config", "Optimized Flags", mountInfo.optimizedFlags)
 	}
 	logger.Info("GCSFuse Config", "Full Config", mountInfo.config)
 }
