@@ -31,8 +31,8 @@ jobs:
 
       - name: Generate patch
         run: |
-          # Create a patch file if there are any changes
-          git diff --exit-code > auto_fixes.patch || true
+          # Create a patch file only if there are any changes.
+          git diff --quiet || git diff > auto_fixes.patch
 
       - name: Upload patch artifact
         uses: actions/upload-artifact@v4

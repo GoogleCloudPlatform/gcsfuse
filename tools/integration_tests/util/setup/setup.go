@@ -512,8 +512,8 @@ func SetupTestDirectoryRecursive(testDirName string) string {
 
 // CleanupDirectoryOnGCS cleans up the object/directory path passed in parameter.
 func CleanupDirectoryOnGCS(ctx context.Context, client *storage.Client, directoryPathOnGCS string) {
-	bucket := strings.Split(directoryPathOnGCS, "/")[0]
-	dirPath := strings.Split(directoryPathOnGCS, "/")[1]
+	bucketAndDirPath := strings.Split(directoryPathOnGCS, "/")
+	bucket, dirPath := bucketAndDirPath[0], bucketAndDirPath[1]
 	bucketHandle := client.Bucket(bucket)
 
 	it := bucketHandle.Objects(ctx, &storage.Query{Prefix: dirPath + "/"})
