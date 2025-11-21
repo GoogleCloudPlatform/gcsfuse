@@ -1960,7 +1960,7 @@ func (fs *fileSystem) createFile(
 // LOCKS_EXCLUDED(fs.mu)
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(child)
-func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.InodeID, name string) (child inode.Inode, err error) {
+func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.InodeID, name string, openMode util.OpenMode) (child inode.Inode, err error) {
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(parentID)
@@ -2003,7 +2003,7 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	fs.mu.Unlock()
 	defer fs.mu.Lock()
 	fileInode.Lock()
-	err = fs.createBufferedWriteHandlerAndSyncOrTempWriter(ctx, fileInode, util.OpenMode{AccessMode: util.ReadWrite})
+	err = fs.createBufferedWriteHandlerAndSyncOrTempWriter(ctx, fileInode, openMode)
 	fileInode.Unlock()
 	if err != nil {
 		return
@@ -2022,10 +2022,11 @@ func (fs *fileSystem) CreateFile(
 	ctx = fs.getInterruptlessContext(ctx)
 	// Create the child.
 	var child inode.Inode
+	openMode := util.FileOpenMode(op.OpenFlags)
 	if fs.newConfig.Write.CreateEmptyFile {
 		child, err = fs.createFile(ctx, op.Parent, op.Name)
 	} else {
-		child, err = fs.createLocalFile(ctx, op.Parent, op.Name)
+		child, err = fs.createLocalFile(ctx, op.Parent, op.Name, openMode)
 	}
 
 	if err != nil {
@@ -2042,7 +2043,7 @@ func (fs *fileSystem) CreateFile(
 
 	// CreateFile() invoked to create new files, can be safely considered as filehandle
 	// opened in append mode.
-	fs.handles[op.Handle] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, util.FileOpenMode(op.OpenFlags), fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem, op.Handle)
+	fs.handles[op.Handle] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead, fs.metricHandle, openMode, fs.newConfig, fs.bufferedReadWorkerPool, fs.globalMaxReadBlocksSem, op.Handle)
 
 	fs.mu.Unlock()
 
