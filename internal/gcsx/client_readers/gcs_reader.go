@@ -168,22 +168,27 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (readRe
 }
 
 func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest) (bytesRead int, err error) {
-	var readResp gcsx.ReadResponse
-
+	readInfo := gr.getReadInfo(readReq.Offset, false)
 	readReq.EndOffset = gr.getEndOffset(readReq.Offset)
-	readReq.ShouldUseRangeReader = func(offset int64) bool {
-		// In case of multiple threads reading parallely, it is possible that many of them might be waiting
-		// at this lock and hence the earlier calculated value of readerType might not be valid once they
-		// acquire the lock. Hence, needs to be calculated again.
-		readInfo := gr.getReadInfo(offset, false)
-		readReq.ReadType = readInfo.readType
-		return gr.readerType(readInfo.readType, gr.bucket.BucketType()) == RangeReaderType
-	}
+	readReq.ReadType = readInfo.readType
 
-	readResp, err = gr.rangeReader.ReadAt(ctx, readReq)
-	if errors.Is(err, gcsx.FallbackToAnotherReader) {
-		readResp, err = gr.mrr.ReadAt(ctx, readReq)
+	// Decide which reader to use.
+	if gr.readerType(readInfo.readType, gr.bucket.BucketType()) == RangeReaderType {
+		readReq.ShouldUseRangeReader = func(offset int64) bool {
+			// In case of multiple threads reading parallely, it is possible that many of them might be waiting
+			// at this lock and hence the earlier calculated value of readerType might not be valid once they
+			// acquire the lock. Hence, needs to be calculated again.
+			reReadInfo := gr.getReadInfo(offset, false)
+			readReq.ReadType = reReadInfo.readType
+			return gr.readerType(reReadInfo.readType, gr.bucket.BucketType()) == RangeReaderType
+		}
+		readResp, err := gr.rangeReader.ReadAt(ctx, readReq)
+		if errors.Is(err, gcsx.FallbackToAnotherReader) {
+			readResp, err = gr.mrr.ReadAt(ctx, readReq) // Fallback to MultiRangeReader
+		}
+		return readResp.Size, err
 	}
+	readResp, err := gr.mrr.ReadAt(ctx, readReq)
 	return readResp.Size, err
 }
 

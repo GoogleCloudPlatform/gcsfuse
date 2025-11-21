@@ -156,8 +156,8 @@ func (rr *RangeReader) ensureReader(offset int64, end int64, readType int64) (er
 	// Try to reuse the existing reader by skipping forward if it's a small gap.
 	rr.skipBytes(offset)
 
-	// If the reader is still misaligned (or nil), create a new one.
-	rr.invalidateReaderIfMisaligned(offset)
+	// If the reader is misaligned or can't serve the full request, invalidate it.
+	rr.invalidateReaderIfMisalignedOrTooSmall(offset, end)
 	// If we don't have a reader, start a read operation.
 	if rr.reader == nil {
 		err = rr.startRead(offset, end, readType)
@@ -335,13 +335,11 @@ func (rr *RangeReader) skipBytes(offset int64) {
 	}
 }
 
-// invalidateReaderIfMisaligned ensures that the existing reader is valid for
-// the requested offset. If the reader is misaligned (not at the requested
-// offset), it is closed and discarded.
-func (rr *RangeReader) invalidateReaderIfMisaligned(startOffset int64) {
-	// If we have an existing reader, but it's positioned at the wrong place,
-	// clean it up and throw it away.
-	if rr.reader != nil && rr.start != startOffset {
+// invalidateReaderIfMisalignedOrTooSmall ensures the reader is valid for the
+// requested read. It invalidates the reader if it's nil, misaligned, or its
+// prefetched limit is insufficient for the request.
+func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(startOffset, endOffset int64) {
+	if rr.reader != nil && (rr.start != startOffset || rr.limit < endOffset) {
 		rr.closeReader()
 		rr.reader = nil
 		rr.cancel = nil
