@@ -32,7 +32,7 @@ type OpenMode struct {
 	// AccessMode defines the mutually exclusive access modes for opening a file.
 	AccessMode int
 
-	// FileFlag defines flags that modify the open/read/write behavior.
+	// FileFlags defines flags that modify the open/read/write behavior.
 	// These can be combined using bitwise OR.
 	FileFlags int
 }

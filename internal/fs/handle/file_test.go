@@ -655,7 +655,7 @@ func (t *fileTest) TestOpenMode() {
 		},
 		{
 			name:     "OpenModeAppendWithODirect",
-			openMode: util.OpenMode{FileFlags: util.O_APPEND | util.O_DIRECT},
+			openMode: util.OpenMode{AccessMode: util.WriteOnly, FileFlags: util.O_APPEND | util.O_DIRECT},
 		},
 	}
 	for _, tc := range testCases {
