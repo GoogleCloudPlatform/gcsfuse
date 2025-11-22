@@ -266,3 +266,56 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockSeek() {
 		})
 	}
 }
+
+func (testSuite *MemoryBlockTest) TestMemoryBlockSeekInvalidWhence() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+	_, err = mb.Write([]byte("hello"))
+	require.Nil(testSuite.T(), err)
+
+	_, err = mb.Seek(0, 4)
+
+	assert.ErrorContains(testSuite.T(), err, "invalid whence value")
+}
+
+func (testSuite *MemoryBlockTest) TestMemoryBlockSeekOutOfBounds() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+	_, err = mb.Write([]byte("hello"))
+	require.Nil(testSuite.T(), err)
+
+	tests := []struct {
+		name   string
+		offset int64
+		whence int
+	}{
+		{"SeekStartNegative", -1, io.SeekStart},
+		{"SeekStartBeyondEnd", 6, io.SeekStart},
+		{"SeekCurrentNegative", -1, io.SeekCurrent},
+		{"SeekCurrentBeyondEnd", 6, io.SeekCurrent},
+		{"SeekEndNegative", -6, io.SeekEnd},
+		{"SeekEndBeyondEnd", 1, io.SeekEnd},
+	}
+
+	for _, tt := range tests {
+		testSuite.T().Run(tt.name, func(t *testing.T) {
+			// Reset readSeek to 0 before each test case
+			_, _ = mb.Seek(0, io.SeekStart)
+
+			_, err := mb.Seek(tt.offset, tt.whence)
+
+			assert.ErrorContains(t, err, "out of bounds")
+		})
+	}
+}
+
+func (testSuite *MemoryBlockTest) TestMemoryBlockDoubleDeallocate() {
+	mb, err := createBlock(12)
+	require.Nil(testSuite.T(), err)
+	err = mb.Deallocate()
+	require.Nil(testSuite.T(), err)
+
+	err = mb.Deallocate()
+
+	assert.ErrorContains(testSuite.T(), err, "invalid buffer")
+}

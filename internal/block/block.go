@@ -98,7 +98,7 @@ func (m *memoryBlock) Seek(offset int64, whence int) (int64, error) {
 	newReadSeek := m.readSeek
 	switch whence {
 	case io.SeekStart:
-		m.readSeek = offset
+		newReadSeek = offset
 	case io.SeekCurrent:
 		newReadSeek += offset
 	case io.SeekEnd:
