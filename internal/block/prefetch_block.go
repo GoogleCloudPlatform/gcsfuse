@@ -117,8 +117,7 @@ func createPrefetchBlock(blockSize int64) (PrefetchBlock, error) {
 	}
 
 	mb := memoryBlock{
-		buffer: addr,
-		offset: offset{0, 0},
+		buffer: addr[:0],
 	}
 
 	pmb := prefetchMemoryBlock{
@@ -139,7 +138,7 @@ func (pmb *prefetchMemoryBlock) ReadAt(p []byte, off int64) (n int, err error) {
 		return 0, fmt.Errorf("prefetchMemoryBlock.ReadAt: offset %d is out of bounds for block size %d", off, pmb.Size())
 	}
 
-	n = copy(p, pmb.buffer[pmb.offset.start+off:pmb.offset.end])
+	n = copy(p, pmb.buffer[off:])
 
 	if n < len(p) {
 		return n, io.EOF
@@ -160,14 +159,13 @@ func (pmb *prefetchMemoryBlock) ReadAtSlice(off int64, size int) ([]byte, error)
 		return nil, fmt.Errorf("prefetchMemoryBlock.ReadAtSlice: offset %d is out of bounds for block size %d", off, pmb.Size())
 	}
 
-	dataStart := pmb.offset.start + off
-	dataEnd := dataStart + int64(size)
-	if dataEnd > pmb.offset.end {
-		dataEnd = pmb.offset.end
-		return pmb.buffer[dataStart:dataEnd], io.EOF
+	dataEnd := off + int64(size)
+	if dataEnd > int64(len(pmb.buffer)) {
+		dataEnd = int64(len(pmb.buffer))
+		return pmb.buffer[off:dataEnd], io.EOF
 	}
 
-	return pmb.buffer[dataStart:dataEnd], nil
+	return pmb.buffer[off:dataEnd], nil
 }
 
 func (pmb *prefetchMemoryBlock) AbsStartOff() int64 {

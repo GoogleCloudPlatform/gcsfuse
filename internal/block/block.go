@@ -43,29 +43,20 @@ type Block interface {
 	Write(bytes []byte) (n int, err error)
 }
 
-// TODO: check if we need offset or just storing end is sufficient. We might need
-// for handling ordered writes. It will be decided after ordered writes design.
-type offset struct {
-	start, end int64
-}
-
 type memoryBlock struct {
-	Block
 	buffer []byte
-	offset offset
 
 	// readSeek is used to track the position for reading data.
 	readSeek int64
 }
 
 func (m *memoryBlock) Reuse() {
-	m.offset.end = 0
-	m.offset.start = 0
 	m.readSeek = 0
+	m.buffer = m.buffer[:0]
 }
 
 func (m *memoryBlock) Size() int64 {
-	return m.offset.end - m.offset.start
+	return int64(len(m.buffer))
 }
 
 func (m *memoryBlock) Cap() int64 {
@@ -75,19 +66,19 @@ func (m *memoryBlock) Cap() int64 {
 // Read reads data from the block into the provided byte slice.
 // Please make sure to call Seek before calling Read if you want to read from a specific position.
 func (m *memoryBlock) Read(bytes []byte) (int, error) {
-	if m.readSeek < m.offset.start {
-		return 0, fmt.Errorf("readSeek %d is less than start offset %d", m.readSeek, m.offset.start)
+	if m.readSeek < 0 {
+		return 0, fmt.Errorf("readSeek %d is less than start offset 0", m.readSeek)
 	}
 
-	if m.readSeek >= m.offset.end {
+	if m.readSeek >= int64(len(m.buffer)) {
 		return 0, io.EOF
 	}
 
-	n := copy(bytes, m.buffer[m.readSeek:m.offset.end])
+	n := copy(bytes, m.buffer[m.readSeek:])
 	m.readSeek += int64(n)
 
 	// If readSeek is beyond the end of the block, return EOF early.
-	if m.readSeek >= m.offset.end {
+	if m.readSeek >= int64(len(m.buffer)) {
 		return n, io.EOF
 	}
 
@@ -107,16 +98,16 @@ func (m *memoryBlock) Seek(offset int64, whence int) (int64, error) {
 	newReadSeek := m.readSeek
 	switch whence {
 	case io.SeekStart:
-		m.readSeek = m.offset.start + offset
+		m.readSeek = offset
 	case io.SeekCurrent:
 		newReadSeek += offset
 	case io.SeekEnd:
-		newReadSeek = m.offset.end + offset
+		newReadSeek = int64(len(m.buffer)) + offset
 	default:
 		return 0, fmt.Errorf("invalid whence value: %d", whence)
 	}
 
-	if newReadSeek < m.offset.start || newReadSeek > m.offset.end {
+	if newReadSeek < 0 || newReadSeek > int64(len(m.buffer)) {
 		return 0, fmt.Errorf("new readSeek position %d is out of bounds", newReadSeek)
 	}
 
@@ -125,16 +116,14 @@ func (m *memoryBlock) Seek(offset int64, whence int) (int64, error) {
 }
 
 func (m *memoryBlock) Write(bytes []byte) (int, error) {
-	if m.Size()+int64(len(bytes)) > int64(cap(m.buffer)) {
+	if len(bytes) > cap(m.buffer)-len(m.buffer) {
 		return 0, fmt.Errorf("received data more than capacity of the block")
 	}
 
-	n := copy(m.buffer[m.offset.end:], bytes)
-	if n != len(bytes) {
-		return 0, fmt.Errorf("error in copying the data to block. Expected %d, got %d", len(bytes), n)
-	}
+	currentLen := len(m.buffer)
+	m.buffer = m.buffer[:currentLen+len(bytes)]
+	n := copy(m.buffer[currentLen:], bytes)
 
-	m.offset.end += int64(len(bytes))
 	return n, nil
 }
 
@@ -143,7 +132,7 @@ func (m *memoryBlock) Deallocate() error {
 		return fmt.Errorf("invalid buffer")
 	}
 
-	err := syscall.Munmap(m.buffer)
+	err := syscall.Munmap(m.buffer[:cap(m.buffer)])
 	m.buffer = nil
 	if err != nil {
 		// if we get here, there is likely memory corruption.
@@ -162,8 +151,7 @@ func createBlock(blockSize int64) (Block, error) {
 	}
 
 	mb := memoryBlock{
-		buffer: addr,
-		offset: offset{0, 0},
+		buffer: addr[:0],
 	}
 	return &mb, nil
 }
