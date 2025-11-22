@@ -182,7 +182,7 @@ func (pmb *prefetchMemoryBlock) SetAbsStartOff(startOff int64) error {
 
 	// If absStartOff is already set, then return an error.
 	if pmb.absStartOff >= 0 {
-		return fmt.Errorf("SetAbsStartOff: absStartOff is already set, re-setting is not allowed.")
+		return fmt.Errorf("SetAbsStartOff: absStartOff is already set, re-setting is not allowed")
 	}
 
 	pmb.absStartOff = startOff
