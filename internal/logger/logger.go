@@ -266,23 +266,38 @@ func (f *loggerFactory) handler(levelVar *slog.LevelVar, prefix string) slog.Han
 }
 
 var (
-	// latencies stores read latencies in microseconds.
-	latencies []int64
+	// readLatencies stores readFile total readLatencies in microseconds for each readFile operation.
+	readLatencies      []int64
+	blockWaitLatencies []int64
 )
 
-// AddLatency adds a duration to the global latencies slice in microseconds.
-func AddLatency(duration time.Duration) {
-	latencies = append(latencies, duration.Microseconds())
+func AddReadFileLatency(duration time.Duration) {
+	readLatencies = append(readLatencies, duration.Microseconds())
+}
+
+func AddBlockWaitLatency(duration time.Duration) {
+	blockWaitLatencies = append(blockWaitLatencies, duration.Microseconds())
 }
 
 func LogLatencies() {
-	if len(latencies) == 0 {
+	if len(readLatencies) == 0 {
 		Infof("No latencies to log")
 		return
 	}
-	for i := 0; i < len(latencies); i++ {
-		if latencies[i] > 50 {
-			Infof("Latency at %d readFile operation: %d microseconds", i, latencies[i])
-		}
+	if len(readLatencies) != len(blockWaitLatencies) {
+		Infof("Both arrays are not same...")
+		return
 	}
+	totalReadFileLatency := int64(0)
+	totalBlockWaitLatency := int64(0)
+	for i := 0; i < len(readLatencies); i++ {
+		if readLatencies[i] > 100 || blockWaitLatencies[i] > 100 {
+			Infof("Latency at %d readFile operation: %d  microseconds and overhead for %d microseconds", i, readLatencies[i], blockWaitLatencies[i])
+		}
+		totalReadFileLatency += readLatencies[i]
+		totalBlockWaitLatency += blockWaitLatencies[i]
+	}
+	Infof("Total ReadFile op latency is %d microseconds", totalReadFileLatency)
+	Infof("Total Latency added due to Block Wait is %d microseconds", totalBlockWaitLatency)
+	Infof("Total download overhead (due to wait) Is: %f percentage", float64(totalBlockWaitLatency)/float64(totalReadFileLatency)*100)
 }

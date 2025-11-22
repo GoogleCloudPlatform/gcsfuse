@@ -14,16 +14,28 @@ rm -rf "$MP" || true
 mkdir "$MP" || true
 
 echo "" > "$LF" 
-go run ./ --implicit-dirs --log-severity=INFO --log-file="$LF" --enable-buffered-read=true --read-global-max-blocks=100000 --metadata-cache-negative-ttl-secs=-1 "$BUCKET_NAME" "$MP" 
+go run ./ \
+    --implicit-dirs \
+    --log-severity=INFO \
+    --log-file="$LF" \
+    --enable-buffered-read=true \
+    --metadata-cache-negative-ttl-secs=-1 \
+    "$BUCKET_NAME" "$MP"
 
 sleep 3
 
+ls -R "$MP"
 
+COUNT=1
+
+for ((i=1; i<=COUNT; i++)) 
+do
 # Fio config is exactly same as published benchmarks fo sequential reads.
 DIR="${MP}/" \
 NUMJOBS="1" \
 BS="1M" \
-FILESIZE="5G" \
+FILESIZE="20G" \
 NRFILES="1" fio --group_reporting --output-format=normal ~/repro-8gbps/seq.fio
+done
 
 fusermount -uz "$MP" || true
