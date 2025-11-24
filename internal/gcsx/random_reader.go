@@ -92,19 +92,6 @@ type ObjectData struct {
 	CacheHit bool
 }
 
-// ReaderType represents different types of go-sdk gcs readers.
-// For eg: NewReader and MRD both point to bidi read api. This enum specifies
-// the go-sdk type.
-type ReaderType int
-
-// ReaderType enum values.
-const (
-	// RangeReader corresponds to NewReader method in bucket_handle.go
-	RangeReader ReaderType = iota
-	// MultiRangeReader corresponds to NewMultiRangeDownloader method in bucket_handle.go
-	MultiRangeReader
-)
-
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
 func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool, metricHandle metrics.MetricHandle, mrdWrapper *MultiRangeDownloaderWrapper, config *cfg.Config) RandomReader {

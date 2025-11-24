@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 	"sync/atomic"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -28,10 +29,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
 
-// ReaderType represents different types of go-sdk gcs readers.
-type ReaderType int
-
-// ReaderType enum values.
 const (
 	MB = 1 << 20
 
@@ -42,15 +39,6 @@ const (
 
 	// Minimum number of seeks before evaluating if the read pattern is random.
 	minSeeksForRandom = 2
-)
-
-// ReaderType enum values.
-const (
-	// RangeReaderType corresponds to NewReader method in bucket_handle.go
-	RangeReaderType ReaderType = iota
-
-	// MultiRangeReaderType corresponds to NewMultiRangeDownloader method in bucket_handle.go
-	MultiRangeReaderType
 )
 
 // readInfo Stores information for this read request.
@@ -86,6 +74,9 @@ type GCSReader struct {
 
 	// totalReadBytes is the total number of bytes read by the reader.
 	totalReadBytes atomic.Uint64
+
+	// mu synchronizes reads through range reader.
+	mu sync.Mutex
 }
 
 type GCSReaderConfig struct {
@@ -170,18 +161,17 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (readRe
 func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest) (bytesRead int, err error) {
 	var readResp gcsx.ReadResponse
 	readInfo := gr.getReadInfo(readReq.Offset, false)
-	readReq.EndOffset = gr.getEndOffset(readReq.Offset)
 	readReq.ReadType = readInfo.readType
 
 	// Decide which reader to use.
-	if gr.readerType(readInfo.readType, gr.bucket.BucketType()) == RangeReaderType {
-		readReq.ShouldUseRangeReader = func(offset int64) bool {
+	if gr.readerType(readInfo.readType, gr.bucket.BucketType()) == gcsx.RangeReader {
+		readReq.GetReaderType = func(offset int64) gcsx.ReaderType {
 			// In case of multiple threads reading parallely, it is possible that many of them might be waiting
 			// at this lock and hence the earlier calculated value of readerType might not be valid once they
 			// acquire the lock. Hence, needs to be calculated again.
-			reReadInfo := gr.getReadInfo(offset, false)
+			reReadInfo := gr.getReadInfo(offset, readInfo.seekRecorded)
 			readReq.ReadType = reReadInfo.readType
-			return gr.readerType(reReadInfo.readType, gr.bucket.BucketType()) == RangeReaderType
+			return gr.readerType(reReadInfo.readType, gr.bucket.BucketType())
 		}
 		readResp, err = gr.rangeReader.ReadAt(ctx, readReq)
 		if !errors.Is(err, gcsx.FallbackToAnotherReader) {
@@ -194,11 +184,11 @@ func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest) (
 }
 
 // readerType specifies the go-sdk interface to use for reads.
-func (gr *GCSReader) readerType(readType int64, bucketType gcs.BucketType) ReaderType {
+func (gr *GCSReader) readerType(readType int64, bucketType gcs.BucketType) gcsx.ReaderType {
 	if readType == metrics.ReadTypeRandom && bucketType.Zonal {
-		return MultiRangeReaderType
+		return gcsx.MultiRangeReader
 	}
-	return RangeReaderType
+	return gcsx.RangeReader
 }
 
 // isSeekNeeded determines if the current read at `offset` should be considered a
@@ -279,8 +269,7 @@ func (gr *GCSReader) getEndOffset(start int64) int64 {
 		end = int64(gr.object.Size)
 	}
 
-	// To avoid overloading GCS and to have reasonable latencies, the prefetch
-	// window is capped by the configured sequentialReadSizeMb.
+	// Limit the read end to ensure it doesn't exceed the maximum sequential read size.
 	maxPrefetchSize := int64(gr.sequentialReadSizeMb) * MB
 	if end-start > maxPrefetchSize {
 		end = start + maxPrefetchSize
@@ -294,6 +283,8 @@ func (gr *GCSReader) updateExpectedOffset(offset int64) {
 }
 
 func (gr *GCSReader) Destroy() {
+	gr.mu.Lock()
+	defer gr.mu.Unlock()
 	gr.rangeReader.destroy()
 	gr.mrr.destroy()
 }
