@@ -27,8 +27,6 @@ import (
 var FallbackToAnotherReader = errors.New("fallback to another reader is required")
 
 // ReaderType represents different types of go-sdk gcs readers.
-// For eg: NewReader and MRD both point to bidi read api. This enum specifies
-// the go-sdk type.
 type ReaderType int
 
 // ReaderType enum values.

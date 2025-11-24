@@ -134,7 +134,6 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (readRe
 	readReq := &gcsx.GCSReaderRequest{
 		Buffer:            p,
 		Offset:            offset,
-		EndOffset:         offset + int64(len(p)),
 		ForceCreateReader: false,
 	}
 	defer func() {
@@ -165,6 +164,7 @@ func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest) (
 
 	// Decide which reader to use.
 	if gr.readerType(readInfo.readType, gr.bucket.BucketType()) == gcsx.RangeReader {
+		readReq.EndOffset = gr.getEndOffset(readReq.Offset)
 		readReq.GetReaderType = func(offset int64) gcsx.ReaderType {
 			// In case of multiple threads reading parallely, it is possible that many of them might be waiting
 			// at this lock and hence the earlier calculated value of readerType might not be valid once they
@@ -179,6 +179,7 @@ func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest) (
 		}
 		// Fallback to MultiRangeReader
 	}
+	readReq.EndOffset = readReq.Offset + int64(len(readReq.Buffer))
 	readResp, err = gr.mrr.ReadAt(ctx, readReq)
 	return readResp.Size, err
 }
@@ -246,35 +247,27 @@ func (gr *GCSReader) getReadInfo(offset int64, seekRecorded bool) readInfo {
 
 // getEndOffset calculates the end offset for a GCS read request, considering
 // the read pattern (sequential vs. random) and configured read sizes.
-// For sequential reads, it defaults to reading the entire object.
+// For sequential reads, it prefetches up to `sequentialReadSizeMb`.
 // For random reads, it calculates a dynamic prefetch size based on the
-// historical average read size. The final end offset is always capped by the
-// object size and the configured `sequentialReadSizeMb`.
-func (gr *GCSReader) getEndOffset(start int64) int64 {
-	end := int64(gr.object.Size)
+// historical average read size, capped at `maxReadSize`. The final end offset is
+// always capped by the object size.
+func (gr *GCSReader) getEndOffset(start int64) (end int64) {
+	// By default, prefetch up to the configured sequential read size.
+	prefetchSize := int64(gr.sequentialReadSizeMb) * MB
 
 	// If the read pattern is random, calculate a dynamic prefetch size.
 	if seeks := gr.seeks.Load(); seeks >= minSeeksForRandom {
 		gr.readType.Store(metrics.ReadTypeRandom)
 		averageReadBytes := gr.totalReadBytes.Load() / seeks
 		if averageReadBytes < maxReadSize {
-			randomReadSize := max(int64(((averageReadBytes/MB)+1)*MB), minReadSize)
-			randomReadSize = min(randomReadSize, maxReadSize)
-			end = start + randomReadSize
+			// For random reads, prefetch a smaller, calculated amount.
+			prefetchSize = max(int64(((averageReadBytes/MB)+1)*MB), minReadSize)
+			prefetchSize = min(prefetchSize, maxReadSize)
 		}
 	}
 
-	// The end offset should not exceed the object's size.
-	if end > int64(gr.object.Size) {
-		end = int64(gr.object.Size)
-	}
-
-	// Limit the read end to ensure it doesn't exceed the maximum sequential read size.
-	maxPrefetchSize := int64(gr.sequentialReadSizeMb) * MB
-	if end-start > maxPrefetchSize {
-		end = start + maxPrefetchSize
-	}
-
+	end = start + prefetchSize
+	end = min(end, int64(gr.object.Size))
 	return end
 }
 
