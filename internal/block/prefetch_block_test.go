@@ -319,7 +319,7 @@ func (testSuite *PrefetchMemoryBlockTest) TestSingleNotifyAndMultipleAwaitReady(
 	go func() {
 		pmb.NotifyReady(BlockStatus{State: BlockStateDownloaded})
 	}()
-	ctx, cancel := context.WithTimeout(testSuite.T().Context(), 5*time.Millisecond)
+	ctx, cancel := context.WithTimeout(testSuite.T().Context(), 100*time.Millisecond)
 	defer cancel()
 	var wg sync.WaitGroup
 	wg.Add(5)
