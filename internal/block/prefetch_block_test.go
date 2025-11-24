@@ -276,7 +276,7 @@ func (testSuite *PrefetchMemoryBlockTest) TestAwaitReadyNotifyVariants() {
 				pmb.NotifyReady(tt.notifyStatus)
 			}()
 
-			status, err := pmb.AwaitReady(context.Background())
+			status, err := pmb.AwaitReady(t.Context())
 
 			require.Nil(t, err)
 			assert.Equal(t, tt.wantStatus, status)
@@ -298,12 +298,10 @@ func (testSuite *PrefetchMemoryBlockTest) TestTwoNotifyReadyWithoutAwaitReady() 
 func (testSuite *PrefetchMemoryBlockTest) TestNotifyReadyAfterAwaitReady() {
 	pmb, err := createPrefetchBlock(12)
 	require.Nil(testSuite.T(), err)
-	ctx, cancel := context.WithTimeout(testSuite.T().Context(), 100*time.Millisecond)
-	defer cancel()
 	go func() {
 		pmb.NotifyReady(BlockStatus{State: BlockStateDownloaded})
 	}()
-	status, err := pmb.AwaitReady(ctx)
+	status, err := pmb.AwaitReady(testSuite.T().Context())
 	require.Nil(testSuite.T(), err)
 	assert.Equal(testSuite.T(), BlockStatus{State: BlockStateDownloaded}, status)
 
@@ -319,8 +317,6 @@ func (testSuite *PrefetchMemoryBlockTest) TestSingleNotifyAndMultipleAwaitReady(
 	go func() {
 		pmb.NotifyReady(BlockStatus{State: BlockStateDownloaded})
 	}()
-	ctx, cancel := context.WithTimeout(testSuite.T().Context(), 100*time.Millisecond)
-	defer cancel()
 	var wg sync.WaitGroup
 	wg.Add(5)
 
@@ -330,7 +326,7 @@ func (testSuite *PrefetchMemoryBlockTest) TestSingleNotifyAndMultipleAwaitReady(
 		go func() {
 			defer wg.Done()
 
-			status, err := pmb.AwaitReady(ctx)
+			status, err := pmb.AwaitReady(testSuite.T().Context())
 
 			require.Nil(testSuite.T(), err)
 			assert.Equal(testSuite.T(), BlockStatus{State: BlockStateDownloaded}, status)
