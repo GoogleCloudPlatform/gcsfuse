@@ -27,7 +27,7 @@ WORKDIR ${GCSFUSE_REPO}
 RUN go install ./tools/build_gcsfuse
 RUN build_gcsfuse . /tmp $(git log -1 --format=format:"%H")
 
-FROM alpine:3.22
+FROM alpine:3.21
 
 RUN apk add --update --no-cache bash ca-certificates fuse
 
