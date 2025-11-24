@@ -333,7 +333,8 @@ func TestRandomReadFile_FileCacheMetrics(t *testing.T) {
 		uint64(1),
 	)
 
-	// Read at a different offset should be a cache miss.
+	// TODO(b/463220507): Add metrics for File cache miss with disabled range read.
+	// Read at a different offset should be a cache hit since file is downloaded in FileCache.
 	readOp.Offset = 8
 	err = server.ReadFile(ctx, readOp)
 	require.NoError(t, err, "ReadFile")
