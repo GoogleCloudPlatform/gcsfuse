@@ -83,8 +83,8 @@ function upgrade_gcloud_version() {
 function install_packages() {
   # e.g. architecture=arm64 or amd64
   architecture=$(dpkg --print-architecture)
-  echo "Installing go-lang 1.23.0..."
-  wget -O go_tar.tar.gz https://go.dev/dl/go1.23.0.linux-${architecture}.tar.gz -q
+  echo "Installing go-lang 1.23.12..."
+  wget -O go_tar.tar.gz https://go.dev/dl/go1.23.12.linux-${architecture}.tar.gz -q
   sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
   export PATH=$PATH:/usr/local/go/bin
   # install python3-setuptools tools.
