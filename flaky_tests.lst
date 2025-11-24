@@ -15,3 +15,6 @@ TestParallelDiropsWithoutCachesTestSuite/TestParallelReadDirsForDifferentDirs
 
 # b/362906103
 TestParallelDiropsWithoutCachesTestSuite/TestParallelReadDirs
+
+# b/460615197
+TestPrefetchMemoryBlockTestSuite.*
