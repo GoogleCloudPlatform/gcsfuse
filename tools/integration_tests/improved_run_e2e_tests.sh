@@ -52,7 +52,7 @@ fi
 log_info "Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
 
 # Constants
-readonly GO_VERSION="1.24.5"
+readonly GO_VERSION="1.24.9"
 readonly DEFAULT_PROJECT_ID="gcs-fuse-test-ml"
 readonly TPCZERO_PROJECT_ID="tpczero-system:gcsfuse-test-project"
 readonly TPC_BUCKET_LOCATION="u-us-prp1"
