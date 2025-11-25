@@ -60,12 +60,12 @@ func newTrieNode() *TrieNode {
 type Trie struct {
 	root           *TrieNode
 	mu             *sync.RWMutex
-	ttl            int //ttl in minutes
-	ttl_long       int //ttl_long in minutes
-	lwm_file_count int64
-	hwm_file_count int64
-	leaf_counts    int64      // TODO: make this atomic
-	file_counts    int64      // TODO: make this atomic
+	ttl            int        // ttl in minutes.
+	ttl_long       int        // ttl_long in minutes.
+	lwm_file_count int64      // low water mark when the thread will check for ttl_long/
+	hwm_file_count int64      // high water mark beyond which aggresive ttl will be used.
+	leaf_counts    int64      // leaf nodes count
+	file_counts    int64      // file counts
 	is_evicting    bool       // A flag to prevent concurrent eviction runs.
 	eviction_mu    sync.Mutex // Mutex to protect the is_evicting flag.
 }
@@ -452,31 +452,6 @@ func (t *Trie) CountFiles() int {
 	defer t.mu.RUnlock()
 	return int(t.file_counts)
 }
-
-// // countRecursive is a helper function to recursively count all leaf nodes
-// // starting from a given node.
-// func (t *Trie) countRecursive(node *TrieNode) int {
-// 	// Lock the node only long enough to read its state.
-// 	node.mu.RLock()
-// 	count := 0
-// 	if node.isLeaf {
-// 		count = 1
-// 	}
-
-// 	// Make a copy of the children map to iterate over after releasing the lock.
-// 	children := make(map[string]*TrieNode, len(node.children))
-// 	for name, child := range node.children {
-// 		children[name] = child
-// 	}
-// 	node.mu.RUnlock()
-
-// 	// Recursively count files in child nodes.
-// 	for _, child := range children {
-// 		count += t.countRecursive(child)
-// 	}
-
-// 	return count
-// }
 
 // Move renames or moves a path, pruning the old path if it becomes empty.
 // It moves the entire subtree from sourcePath to destPath.
