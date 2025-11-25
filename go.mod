@@ -60,7 +60,7 @@ require (
 	cloud.google.com/go/auth v0.15.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.7 // indirect
 	cloud.google.com/go/longrunning v0.6.5 // indirect
-	cloud.google.com/go/monitoring v1.24.9 // indirect
+	cloud.google.com/go/monitoring v1.24.0 // indirect
 	cloud.google.com/go/pubsub v1.47.0 // indirect
 	cloud.google.com/go/trace v1.11.4 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.27.0 // indirect
