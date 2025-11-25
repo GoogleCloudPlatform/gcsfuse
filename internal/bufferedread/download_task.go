@@ -15,6 +15,7 @@
 package bufferedread
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -28,6 +29,26 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
+
+var (
+	// useDummyReaderForPerformanceTesting, when set to true, will cause download
+	// tasks to read from a fixed dummy buffer instead of GCS. This is intended
+	// for performance testing and isolating download-related bottlenecks. To
+	// enable, change this to true and recompile.
+	useDummyReaderForPerformanceTesting = true
+	dummyBufferForPerformanceTesting    []byte
+)
+
+const dummyBufferSizeForPerformanceTesting = 16 * 1024 * 1024 // 16 MiB
+
+func init() {
+	if useDummyReaderForPerformanceTesting {
+		dummyBufferForPerformanceTesting = make([]byte, dummyBufferSizeForPerformanceTesting)
+		for i := range dummyBufferForPerformanceTesting {
+			dummyBufferForPerformanceTesting[i] = byte(i)
+		}
+	}
+}
 
 type downloadTask struct {
 	workerpool.Task
@@ -52,6 +73,10 @@ type downloadTask struct {
 // - BlockStatusDownloaded: The download was successful.
 // - BlockStatusDownloadFailed: The download failed due to an error.
 func (p *downloadTask) Execute() {
+	s1 := time.Now()
+	defer func() {
+		logger.Add(logger.BLOCK_DOWNLOAD_LAT, time.Since(s1))
+	}()
 	startOff := p.block.AbsStartOff()
 	blockId := startOff / p.block.Cap()
 	logger.Tracef("Download: <- block (%s, %v).", p.object.Name, blockId)
@@ -75,18 +100,23 @@ func (p *downloadTask) Execute() {
 
 	start := uint64(startOff)
 	end := min(start+uint64(p.block.Cap()), p.object.Size)
-	newReader, err := p.bucket.NewReaderWithReadHandle(
-		p.ctx,
-		&gcs.ReadObjectRequest{
-			Name:       p.object.Name,
-			Generation: p.object.Generation,
-			Range: &gcs.ByteRange{
-				Start: start,
-				Limit: end,
-			},
-			ReadCompressed: p.object.HasContentEncodingGzip(),
-			ReadHandle:     p.readHandle,
-		})
+	var newReader io.ReadCloser
+	if useDummyReaderForPerformanceTesting {
+		newReader = io.NopCloser(bytes.NewReader(dummyBufferForPerformanceTesting))
+	} else {
+		newReader, err = p.bucket.NewReaderWithReadHandle(
+			p.ctx,
+			&gcs.ReadObjectRequest{
+				Name:       p.object.Name,
+				Generation: p.object.Generation,
+				Range: &gcs.ByteRange{
+					Start: start,
+					Limit: end,
+				},
+				ReadCompressed: p.object.HasContentEncodingGzip(),
+				ReadHandle:     p.readHandle,
+			})
+	}
 	if err != nil {
 		var notFoundError *gcs.NotFoundError
 		if errors.As(err, &notFoundError) {

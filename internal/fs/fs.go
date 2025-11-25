@@ -1648,6 +1648,7 @@ func (fs *fileSystem) invalidateCachedEntry(childID fuseops.InodeID) error {
 ////////////////////////////////////////////////////////////////////////
 
 func (fs *fileSystem) Destroy() {
+	logger.PrintAll()
 	fs.bucketManager.ShutDown()
 	if fs.fileCacheHandler != nil {
 		_ = fs.fileCacheHandler.Destroy()

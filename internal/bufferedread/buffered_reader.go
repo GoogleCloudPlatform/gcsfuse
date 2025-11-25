@@ -256,6 +256,10 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 //
 // LOCKS_EXCLUDED(p.mu)
 func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64) (gcsx.ReadResponse, error) {
+	s1 := time.Now()
+	defer func(){
+		logger.Add(logger.READ_CALL_LAT, time.Since(s1))
+	}()
 	resp := gcsx.ReadResponse{}
 	reqID := uuid.New()
 	start := time.Now()
@@ -313,13 +317,13 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 		entry := p.blockQueue.Peek()
 		blk := entry.block
-
+		s2 := time.Now()
 		status, waitErr := blk.AwaitReady(ctx)
 		if waitErr != nil {
 			err = fmt.Errorf("BufferedReader.ReadAt: AwaitReady: %w", waitErr)
 			break
 		}
-
+		logger.Add(logger.READ_CALL_BLOCK_WAIT, time.Since(s2))
 		if status.State != block.BlockStateDownloaded {
 			p.blockQueue.Pop()
 			p.blockPool.Release(blk)

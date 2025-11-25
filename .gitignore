@@ -43,3 +43,7 @@ _testmain.go
 
 # External folders
 vendor/
+
+*.png
+
+seq.fio
