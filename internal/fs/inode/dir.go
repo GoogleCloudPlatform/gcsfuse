@@ -797,7 +797,7 @@ func (d *dirInode) readObjects(
 		}
 	}
 	if len(unsupportedPaths) > 0 {
-		logger.Errorf("Encountered unsupported prefixes during listing: %v", unsupportedPaths)
+		logger.Warnf("Encountered unsupported prefixes during listing: %v", unsupportedPaths)
 	}
 	return
 }
