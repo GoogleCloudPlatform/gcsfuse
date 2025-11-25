@@ -1784,7 +1784,7 @@ func (fs *fileSystem) SetInodeAttributes(
 	// Truncate files.
 	if isFile && op.Size != nil {
 		// Initialize BWH if eligible and Sync file inode.
-		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, file, util.OpenMode{AccessMode: util.WriteOnly})
+		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, file, util.NewOpenMode(util.WriteOnly, 0))
 		if err != nil {
 			return
 		}
@@ -2945,7 +2945,7 @@ func (fs *fileSystem) WriteFile(
 		gcsSynced, err = fh.Write(ctx, op.Data, op.Offset)
 	} else {
 		// Serve the request.
-		gcsSynced, err = in.Write(ctx, op.Data, op.Offset, util.OpenMode{AccessMode: util.WriteOnly})
+		gcsSynced, err = in.Write(ctx, op.Data, op.Offset, util.NewOpenMode(util.WriteOnly, 0))
 	}
 	if err != nil {
 		return

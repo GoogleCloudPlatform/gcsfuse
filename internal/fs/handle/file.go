@@ -95,7 +95,7 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 		handleID:               handleID,
 	}
 
-	fh.inode.RegisterFileHandle(fh.openMode.AccessMode == util.ReadOnly)
+	fh.inode.RegisterFileHandle(fh.openMode.AccessMode() == util.ReadOnly)
 	fh.mu = syncutil.NewInvariantMutex(fh.checkInvariants)
 
 	return
@@ -109,7 +109,7 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 func (fh *FileHandle) Destroy() {
 	// Deregister the fileHandle with the inode.
 	fh.inode.Lock()
-	fh.inode.DeRegisterFileHandle(fh.openMode.AccessMode == util.ReadOnly)
+	fh.inode.DeRegisterFileHandle(fh.openMode.AccessMode() == util.ReadOnly)
 	fh.inode.Unlock()
 	if fh.reader != nil {
 		fh.reader.Destroy()

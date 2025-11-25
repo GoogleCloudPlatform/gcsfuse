@@ -46,30 +46,21 @@ func TestFileOpenMode(t *testing.T) {
 			flags: &mockOpenFlags{
 				fReadOnly: true,
 			},
-			expectedMode: OpenMode{
-				AccessMode: ReadOnly,
-				FileFlags:  0,
-			},
+			expectedMode: NewOpenMode(ReadOnly, 0),
 		},
 		{
 			name: "WriteOnly",
 			flags: &mockOpenFlags{
 				fWriteOnly: true,
 			},
-			expectedMode: OpenMode{
-				AccessMode: WriteOnly,
-				FileFlags:  0,
-			},
+			expectedMode: NewOpenMode(WriteOnly, 0),
 		},
 		{
 			name: "ReadWrite",
 			flags: &mockOpenFlags{
 				fReadWrite: true,
 			},
-			expectedMode: OpenMode{
-				AccessMode: ReadWrite,
-				FileFlags:  0,
-			},
+			expectedMode: NewOpenMode(ReadWrite, 0),
 		},
 		{
 			name: "ReadWrite with Append",
@@ -77,10 +68,7 @@ func TestFileOpenMode(t *testing.T) {
 				fReadWrite: true,
 				fAppend:    true,
 			},
-			expectedMode: OpenMode{
-				AccessMode: ReadWrite,
-				FileFlags:  O_APPEND,
-			},
+			expectedMode: NewOpenMode(ReadWrite, O_APPEND),
 		},
 		{
 			name: "WriteOnly with Append and O_DIRECT",
@@ -89,10 +77,7 @@ func TestFileOpenMode(t *testing.T) {
 				fAppend:    true,
 				fODirect:   true,
 			},
-			expectedMode: OpenMode{
-				AccessMode: WriteOnly,
-				FileFlags:  O_APPEND | O_DIRECT,
-			},
+			expectedMode: NewOpenMode(WriteOnly, O_APPEND|O_DIRECT),
 		},
 		{
 			name: "ReadOnly with O_DIRECT",
@@ -100,10 +85,7 @@ func TestFileOpenMode(t *testing.T) {
 				fReadOnly: true,
 				fODirect:  true,
 			},
-			expectedMode: OpenMode{
-				AccessMode: ReadOnly,
-				FileFlags:  O_DIRECT,
-			},
+			expectedMode: NewOpenMode(ReadOnly, O_DIRECT),
 		},
 		{
 			name: "ReadWrite with all behavioural flags",
@@ -112,10 +94,7 @@ func TestFileOpenMode(t *testing.T) {
 				fAppend:    true,
 				fODirect:   true,
 			},
-			expectedMode: OpenMode{
-				AccessMode: ReadWrite,
-				FileFlags:  O_APPEND | O_DIRECT,
-			},
+			expectedMode: NewOpenMode(ReadWrite, O_APPEND|O_DIRECT),
 		},
 	}
 

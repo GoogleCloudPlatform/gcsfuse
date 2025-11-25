@@ -49,8 +49,8 @@ import (
 
 const testDirName = "parentRoot"
 
-var readMode = util.OpenMode{AccessMode: util.ReadOnly}
-var writeMode = util.OpenMode{AccessMode: util.WriteOnly}
+var readMode = util.NewOpenMode(util.ReadOnly, 0)
+var writeMode = util.NewOpenMode(util.WriteOnly, 0)
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
@@ -654,27 +654,27 @@ func (t *fileTest) TestOpenMode() {
 	}{
 		{
 			name:     "OpenModeRead",
-			openMode: util.OpenMode{AccessMode: util.ReadOnly},
+			openMode: util.NewOpenMode(util.ReadOnly, 0),
 		},
 		{
 			name:     "OpenModeWrite",
-			openMode: util.OpenMode{AccessMode: util.WriteOnly},
+			openMode: util.NewOpenMode(util.WriteOnly, 0),
 		},
 		{
 			name:     "OpenModeAppend",
-			openMode: util.OpenMode{AccessMode: util.WriteOnly, FileFlags: util.O_APPEND},
+			openMode: util.NewOpenMode(util.WriteOnly, util.O_APPEND),
 		},
 		{
 			name:     "OpenModeReadWithODirect",
-			openMode: util.OpenMode{AccessMode: util.ReadOnly, FileFlags: util.O_DIRECT},
+			openMode: util.NewOpenMode(util.ReadOnly, util.O_DIRECT),
 		},
 		{
 			name:     "OpenModeWriteWithODirect",
-			openMode: util.OpenMode{AccessMode: util.WriteOnly, FileFlags: util.O_DIRECT},
+			openMode: util.NewOpenMode(util.WriteOnly, util.O_DIRECT),
 		},
 		{
 			name:     "OpenModeAppendWithODirect",
-			openMode: util.OpenMode{AccessMode: util.WriteOnly, FileFlags: util.O_APPEND | util.O_DIRECT},
+			openMode: util.NewOpenMode(util.WriteOnly, util.O_APPEND|util.O_DIRECT),
 		},
 	}
 	for _, tc := range testCases {

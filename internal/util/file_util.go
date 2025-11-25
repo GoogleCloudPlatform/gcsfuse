@@ -29,20 +29,49 @@ const (
 
 // OpenMode represents the file open mode.
 type OpenMode struct {
-	// AccessMode defines the mutually exclusive access modes for opening a file.
-	AccessMode int
+	// accessMode defines the mutually exclusive access modes for opening a file.
+	accessMode int
 
-	// FileFlags defines flags that modify the open/read/write behavior.
+	// fileFlags defines flags that modify the open/read/write behavior.
 	// These can be combined using bitwise OR.
-	FileFlags int
+	fileFlags int
 }
 
+// NewOpenMode constructs OpenMode given the accessMode and fileFlags.
+func NewOpenMode(accessMode int, fileFlags int) OpenMode {
+	return OpenMode{
+		accessMode: accessMode,
+		fileFlags:  fileFlags,
+	}
+}
+
+func (om OpenMode) AccessMode() int {
+	return om.accessMode
+}
+
+func (om OpenMode) FileFlags() int {
+	return om.fileFlags
+}
+
+func (om *OpenMode) SetAccessMode(accessMode int) {
+	om.accessMode = accessMode
+}
+
+func (om *OpenMode) SetFileFlags(fileFlags int) {
+	om.fileFlags = fileFlags
+}
+
+// IsAppend checks if the file was opened in append mode.
+// A file is considered in append mode (as suited for GCSFuse logic) if it is not
+// opened as read-only and the O_APPEND flag is set.
 func (om OpenMode) IsAppend() bool {
-	return om.AccessMode != ReadOnly && om.FileFlags&O_APPEND != 0
+	return om.accessMode != ReadOnly && om.fileFlags&O_APPEND != 0
 }
 
+// IsDirect checks if the O_DIRECT flag is set, indicating that I/O should
+// bypass the kernel's page cache.
 func (om OpenMode) IsDirect() bool {
-	return om.FileFlags&O_DIRECT != 0
+	return om.fileFlags&O_DIRECT != 0
 }
 
 // OpenFlagAttributes provides an abstraction for the open flags received from
@@ -60,7 +89,7 @@ type OpenFlagAttributes interface {
 	IsDirect() bool
 }
 
-// Function to obtain the mutually exclusive access mode.
+// Function to obtain the mutually exclusive access mode based on the flags passed.
 func getAccessMode(flags OpenFlagAttributes) int {
 	if flags.IsReadOnly() {
 		return ReadOnly
@@ -71,7 +100,7 @@ func getAccessMode(flags OpenFlagAttributes) int {
 	}
 }
 
-// Combine file flags e.g. O_DIRECT,O_APPEND.
+// Combine behavior-modifying file flags like O_DIRECT and O_APPEND.
 func getFileFlags(flags OpenFlagAttributes) int {
 	var fileFlags int
 	if flags.IsAppend() {
@@ -85,10 +114,7 @@ func getFileFlags(flags OpenFlagAttributes) int {
 
 // FileOpenMode analyzes the open flags to determine the file's open mode.
 func FileOpenMode(flags OpenFlagAttributes) OpenMode {
-	openMode := OpenMode{}
-	// Construct the openMode based on the received flags
-	openMode.AccessMode = getAccessMode(flags)
-	openMode.FileFlags = getFileFlags(flags)
-
-	return openMode
+	accessMode := getAccessMode(flags)
+	fileFlags := getFileFlags(flags)
+	return NewOpenMode(accessMode, fileFlags)
 }
