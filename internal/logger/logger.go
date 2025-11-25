@@ -297,7 +297,7 @@ var (
 
 	// 2. The Global Channel (The Buffer)
 	// Buffer size 1000 means the first 1000 Add calls are instant/non-blocking
-	latencyCh = make(chan metricData, 1000)
+	latencyCh = make(chan metricData, 1000000)
 )
 
 // --- Core Logic ---
@@ -411,7 +411,12 @@ func PrintAll() {
 	// from one execution to the next.
 	for metricType := range latencies {
 		Print(metricType)
-		PlotLatencies(metricType, "/home/mohitkyadav_google_com/try-read-handle-reuse/gcsfuse")
+		dir, err := os.Getwd()
+		if err != nil {
+			Errorf("Could not get current directory for plotting: %v", err)
+		} else {
+			PlotLatencies(metricType, dir)
+		}
 	}
 	Info("======================================")
 
