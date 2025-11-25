@@ -58,8 +58,8 @@ const Delta = 30 * time.Minute
 const LocalFile = "Local"
 const EmptyGCSFile = "EmptyGCS"
 
-var AppendMode = util.OpenMode{AccessMode: util.WriteOnly, FileFlags: util.O_APPEND}
-var WriteMode = util.OpenMode{AccessMode: util.WriteOnly}
+var AppendMode = util.NewOpenMode(util.WriteOnly, util.O_APPEND)
+var WriteMode = util.NewOpenMode(util.WriteOnly, 0)
 
 type FileTest struct {
 	suite.Suite
