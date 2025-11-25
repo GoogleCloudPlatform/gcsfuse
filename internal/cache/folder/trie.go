@@ -15,8 +15,6 @@
 package folder
 
 import (
-	"fmt"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -25,7 +23,7 @@ import (
 
 // FileInfo represents a leaf node data in the trie.
 type FileInfo struct {
-	mu    sync.RWMutex
+	mu    *sync.RWMutex
 	atime time.Time
 	mtime time.Time
 	ctime time.Time
@@ -33,71 +31,89 @@ type FileInfo struct {
 	data  interface{} //can be used for caching file content
 }
 
+// NewFileInfo creates a new FileInfo.
+func NewFileInfo() *FileInfo {
+	return &FileInfo{
+		mu: new(sync.RWMutex),
+	}
+}
+
 // TrieNode represents a node in the trie. Each node corresponds to a
 // component in a path.
 type TrieNode struct {
-	mu       sync.RWMutex
+	mu       *sync.RWMutex
 	children map[string]*TrieNode
 	isLeaf   bool
-	name     string
 	file     *FileInfo
 }
 
 // newTrieNode creates a new trie node with the given name.
-func newTrieNode(name string) *TrieNode {
+func newTrieNode() *TrieNode {
 	return &TrieNode{
-		children: make(map[string]*TrieNode),
-		name:     name,
+		mu: new(sync.RWMutex),
+		// children map is lazily initialized to save memory on leaf nodes.
 	}
-}
-
-// ToString returns a string representation of the TrieNode for debugging.
-func (n *TrieNode) ToString() string {
-	n.mu.RLock()
-	defer n.mu.RUnlock()
-
-	var childrenKeys []string
-	for k := range n.children {
-		childrenKeys = append(childrenKeys, k)
-	}
-	sort.Strings(childrenKeys)
-
-	fileInfoStr := "nil"
-	if n.file != nil {
-		fileInfoStr = fmt.Sprintf("&{size: %d}", n.file.size)
-	}
-
-	return fmt.Sprintf("TrieNode{name: %q, isLeaf: %v, file: %s, children: %v}", n.name, n.isLeaf, fileInfoStr, childrenKeys)
 }
 
 // Trie is a thread-safe prefix tree (trie) data structure suitable for storing
 // hierarchical data, such as file system paths.
 type Trie struct {
 	root        *TrieNode
-	mu          sync.RWMutex
-	leaf_counts int64
+	mu          *sync.RWMutex
+	leaf_counts int64 // TODO: make this atomic
+	file_counts int64 // TODO: make this atomic
 }
 
 // NewTrie creates and returns a new, empty Trie.
 func NewTrie() *Trie {
 	return &Trie{
-		root: newTrieNode(""),
+		mu:   new(sync.RWMutex),
+		root: newTrieNode(),
 	}
 }
 
-// splitPath splits a path string into its components. It filters out any
-// empty strings that result from splitting, for example, from leading/trailing
-// or consecutive slashes.
-func splitPath(path string) []string {
-	return strings.FieldsFunc(path, func(r rune) bool {
-		return r == '/'
-	})
+// Insert adds a path to the trie. The last part of the path is a leaf node
+// representing a file. Intermediate parts are directory nodes.
+// This method is not a thread safe option but used for init direct load.
+func (t *Trie) InsertDirect(path *string, fileInfo *FileInfo) {
+	parts := strings.Split(*path, "/")
+	if len(parts) == 0 {
+		return
+	}
+
+	node := t.root
+
+	for i, part := range parts {
+		child, ok := node.children[part]
+
+		if !ok {
+			if node.children == nil {
+				node.children = make(map[string]*TrieNode)
+			}
+			child = newTrieNode()
+			node.children[part] = child
+		}
+
+		node = child // Move to the next level.
+
+		// If it's the last part, it's a leaf node (file).
+		if i == len(parts)-1 {
+			if !node.isLeaf {
+				t.leaf_counts++
+				node.isLeaf = true
+			}
+			if node.file == nil && fileInfo != nil {
+				t.file_counts++
+			}
+			node.file = fileInfo
+		}
+	}
 }
 
 // Insert adds a path to the trie. The last part of the path is a leaf node
 // representing a file. Intermediate parts are directory nodes.
 func (t *Trie) Insert(path string, fileInfo *FileInfo) {
-	parts := splitPath(path)
+	parts := strings.Split(path, "/")
 	if len(parts) == 0 {
 		return
 	}
@@ -109,7 +125,10 @@ func (t *Trie) Insert(path string, fileInfo *FileInfo) {
 		child, ok := node.children[part]
 
 		if !ok {
-			child = newTrieNode(part)
+			if node.children == nil {
+				node.children = make(map[string]*TrieNode)
+			}
+			child = newTrieNode()
 			node.children[part] = child
 		}
 
@@ -125,7 +144,15 @@ func (t *Trie) Insert(path string, fileInfo *FileInfo) {
 				t.mu.Unlock()
 				node.isLeaf = true
 			}
+			if node.file == nil && fileInfo != nil {
+				t.mu.Lock()
+				t.file_counts++
+				t.mu.Unlock()
+			}
 			node.file = fileInfo
+			if fileInfo != nil {
+				node.file.atime = time.Now()
+			}
 		}
 	}
 	node.mu.Unlock() // Unlock the final node.
@@ -134,33 +161,30 @@ func (t *Trie) Insert(path string, fileInfo *FileInfo) {
 // InsertDir adds a directory path to the trie. It creates the necessary
 // intermediate nodes. The final node will not be marked as a leaf.
 func (t *Trie) InsertDir(path string) {
-	parts := splitPath(path)
+	parts := strings.Split(path, "/")
 	if len(parts) == 0 {
 		return
 	}
-
 	node := t.root
-	node.mu.Lock() // Lock the root initially.
-
 	for _, part := range parts {
 		child, ok := node.children[part]
 
 		if !ok {
-			child = newTrieNode(part)
+			if node.children == nil {
+				node.children = make(map[string]*TrieNode)
+			}
+			child = newTrieNode()
 			node.children[part] = child
 		}
-		child.mu.Lock()  // Lock child before unlocking parent.
-		node.mu.Unlock() // Unlock parent.
 		node = child
 	}
-	node.mu.Unlock() // Unlock the final node.
 }
 
 // Get retrieves the FileInfo for a given path from the trie.
 // It returns the FileInfo and true if the path corresponds to a file,
 // otherwise it returns nil and false.
 func (t *Trie) Get(path string) (*FileInfo, bool) {
-	node := t.traverse(path)
+	node := t.traverse(&path)
 	if node == nil {
 		return nil, false
 	}
@@ -168,6 +192,7 @@ func (t *Trie) Get(path string) (*FileInfo, bool) {
 	defer node.mu.RUnlock()
 
 	if node.isLeaf && node.file != nil {
+		node.file.atime = time.Now()
 		return node.file, true
 	}
 
@@ -176,7 +201,7 @@ func (t *Trie) Get(path string) (*FileInfo, bool) {
 
 // PathExists checks if a given path exists in the trie, either as a file or a directory.
 func (t *Trie) PathExists(path string) bool {
-	node := t.traverse(path)
+	node := t.traverse(&path)
 	return node != nil
 }
 
@@ -184,7 +209,7 @@ func (t *Trie) PathExists(path string) bool {
 // If the node at the given path becomes empty (no children and no data),
 // it and any empty parent nodes will be pruned from the trie.
 func (t *Trie) Delete(path string) {
-	parts := splitPath(path)
+	parts := strings.Split(path, "/")
 	if len(parts) == 0 {
 		return
 	}
@@ -209,6 +234,9 @@ func (t *Trie) Delete(path string) {
 	if node.isLeaf {
 		t.mu.Lock()
 		t.leaf_counts--
+		if node.file != nil {
+			t.file_counts--
+		}
 		t.mu.Unlock()
 		node.isLeaf = false
 		node.file = nil
@@ -272,7 +300,7 @@ func (t *Trie) pruneEmptyPath(nodes []*TrieNode, parts []string, lockedNodes ...
 // It returns the FileInfo of the deleted file and a boolean indicating if the
 // file was found and deleted.
 func (t *Trie) DeleteFile(path string) (*FileInfo, bool) {
-	node := t.traverse(path)
+	node := t.traverse(&path)
 	if node == nil {
 		return nil, false
 	}
@@ -289,6 +317,9 @@ func (t *Trie) DeleteFile(path string) (*FileInfo, bool) {
 	node.file = nil
 	t.mu.Lock()
 	t.leaf_counts--
+	if node.file != nil {
+		t.file_counts--
+	}
 	t.mu.Unlock()
 
 	return fileInfo, true
@@ -296,7 +327,7 @@ func (t *Trie) DeleteFile(path string) (*FileInfo, bool) {
 
 // ListPathsWithPrefix returns all the file paths in the trie that start with the given prefix.
 func (t *Trie) ListPathsWithPrefix(prefix string) []string {
-	node := t.traverse(prefix)
+	node := t.traverse(&prefix)
 	if node == nil {
 		return nil // Prefix does not exist.
 	}
@@ -339,8 +370,8 @@ func (t *Trie) collectPaths(node *TrieNode, currentPath string, paths *[]string)
 
 // traverse finds the node corresponding to the given path using read locks.
 // It returns nil if the path does not exist.
-func (t *Trie) traverse(path string) *TrieNode {
-	parts := splitPath(path)
+func (t *Trie) traverse(path *string) *TrieNode {
+	parts := strings.Split(*path, "/")
 	node := t.root
 	node.mu.RLock() // Lock the root node initially.
 
@@ -360,11 +391,18 @@ func (t *Trie) traverse(path string) *TrieNode {
 	return node
 }
 
-// CountFiles returns the total number of files (leaf nodes) stored in the trie.
-func (t *Trie) CountFiles() int {
+// CountLeafs returns the total number of files (leaf nodes) stored in the trie.
+func (t *Trie) CountLeafs() int {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	return int(t.leaf_counts)
+}
+
+// CountFiles returns the total number of files (files nodes) stored in the trie.
+func (t *Trie) CountFiles() int {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return int(t.file_counts)
 }
 
 // // countRecursive is a helper function to recursively count all leaf nodes
@@ -401,8 +439,8 @@ func (t *Trie) Move(sourcePath, destPath string) bool {
 		return false // Invalid move request.
 	}
 
-	sourceParts := splitPath(sourcePath)
-	destParts := splitPath(destPath)
+	sourceParts := strings.Split(sourcePath, "/")
+	destParts := strings.Split(destPath, "/")
 	if len(sourceParts) == 0 || len(destParts) == 0 {
 		return false
 	}
@@ -437,7 +475,10 @@ func (t *Trie) Move(sourcePath, destPath string) bool {
 			node.mu.Lock()
 			// Re-check in case another goroutine created it.
 			if child, ok = node.children[destParts[i]]; !ok {
-				child = newTrieNode(destParts[i])
+				if node.children == nil {
+					node.children = make(map[string]*TrieNode)
+				}
+				child = newTrieNode()
 				node.children[destParts[i]] = child
 			}
 			node.mu.Unlock()
@@ -483,9 +524,9 @@ func (t *Trie) Move(sourcePath, destPath string) bool {
 
 	// 3. Perform the move.
 	delete(sourceParent.children, sourceName)
-	sourceNode.mu.Lock()
-	sourceNode.name = destName
-	sourceNode.mu.Unlock()
+	if destParent.children == nil {
+		destParent.children = make(map[string]*TrieNode)
+	}
 	destParent.children[destName] = sourceNode
 
 	// 4. Prune the old path.
