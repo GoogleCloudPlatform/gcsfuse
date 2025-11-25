@@ -8,7 +8,7 @@ DETAIL_DIR="$HOME" # Here we create bucket mount point and gcsfuse.log
 mkdir -p "$DETAIL_DIR" || true
 
 MP="$DETAIL_DIR/b"
-LF="$DETAIL_DIR/gcsfuse.log"
+LF="gcsfuse.log"
 fusermount -uz "$MP" || true
 rm -rf "$MP" || true
 mkdir "$MP" || true

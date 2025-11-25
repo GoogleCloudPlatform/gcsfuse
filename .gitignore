@@ -46,4 +46,6 @@ vendor/
 
 *.png
 
+gcsfuse.log
+gcsfuse.log.stderr
 seq.fio

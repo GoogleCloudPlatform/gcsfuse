@@ -35,7 +35,7 @@ var (
 	// tasks to read from a fixed dummy buffer instead of GCS. This is intended
 	// for performance testing and isolating download-related bottlenecks. To
 	// enable, change this to true and recompile.
-	useDummyReaderForPerformanceTesting = true
+	useDummyReaderForPerformanceTesting = false
 	dummyBufferForPerformanceTesting    []byte
 )
 
