@@ -45,7 +45,13 @@ func (om OpenMode) IsDirect() bool {
 	return om.FileFlags&O_DIRECT != 0
 }
 
-// OpenFlagAttributes defines the methods required from the open flags.
+// OpenFlagAttributes provides an abstraction for the open flags received from
+// the FUSE kernel. This interface is necessary because the concrete type for open
+// flags in `jacobsa/fuse` (e.g., in `fuseops.OpenFileOp` and `fuseops.CreateFileOp`)
+// resides in an internal package and cannot be directly referenced.
+//
+// This abstraction allows a single function, `FileOpenMode`, to process flags
+// from different FUSE operations and also simplifies unit testing.
 type OpenFlagAttributes interface {
 	IsReadOnly() bool
 	IsWriteOnly() bool
