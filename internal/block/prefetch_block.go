@@ -198,10 +198,12 @@ func (pmb *prefetchMemoryBlock) AwaitReady(ctx context.Context) (BlockStatus, er
 			return pmb.status, nil
 		}
 
-		// Close the notification channel to prevent further notifications.
-		close(pmb.notification)
-		// Save the last status for subsequent AwaitReady calls.
+		// First Save the last status for subsequent AwaitReady calls, and
+		// then close the notification channel which allows to read the last status
+		// without blocking.
+		// This is safe because NotifyReady is expected to be called only once.
 		pmb.status = val
+		close(pmb.notification)
 
 		return pmb.status, nil
 	case <-ctx.Done():
