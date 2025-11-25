@@ -165,6 +165,7 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 	// If content cache enabled, CacheEnsureContent forces the file handler to fall through to the inode
 	// and fh.inode.SourceGenerationIsAuthoritative() will return false
 	if err := fh.inode.CacheEnsureContent(ctx); err != nil {
+		fh.inode.Unlock()
 		return gcsx.ReadResponse{}, fmt.Errorf("failed to ensure inode content: %w", err)
 	}
 
@@ -246,6 +247,7 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	// and fh.inode.SourceGenerationIsAuthoritative() will return false
 	err = fh.inode.CacheEnsureContent(ctx)
 	if err != nil {
+		fh.inode.Unlock()
 		return nil, 0, fmt.Errorf("failed to ensure inode content: %w", err)
 	}
 
