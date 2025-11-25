@@ -26,6 +26,18 @@ import (
 // to an alternative reader.
 var FallbackToAnotherReader = errors.New("fallback to another reader is required")
 
+// ReaderType represents different types of go-sdk gcs readers.
+type ReaderType int
+
+// ReaderType enum values.
+const (
+	// RangeReader corresponds to NewReader method in bucket_handle.go
+	RangeReader ReaderType = iota
+
+	// MultiRangeReader corresponds to NewMultiRangeDownloader method in bucket_handle.go
+	MultiRangeReader
+)
+
 // GCSReaderRequest represents the request parameters needed to read a data from a GCS object.
 type GCSReaderRequest struct {
 	// Buffer is provided by jacobsa/fuse and should be filled with data from the object.
@@ -43,6 +55,10 @@ type GCSReaderRequest struct {
 
 	// This parameter specifies whether the reader needs to be discarded for a new reader.
 	ForceCreateReader bool
+
+	// GetReaderType is a function that re-evaluates and returns the appropriate
+	// reader type for the read operation, which is crucial in concurrent scenarios.
+	GetReaderType func(offset int64) ReaderType
 }
 
 // ReadResponse represents the response returned as part of a ReadAt call.

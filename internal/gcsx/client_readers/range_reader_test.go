@@ -97,6 +97,9 @@ func (t *rangeReaderTest) readAt(dst []byte, offset int64) (gcsx.ReadResponse, e
 		Offset:    offset,
 		EndOffset: offset + int64(len(dst)),
 		Buffer:    dst,
+		GetReaderType: func(int64) gcsx.ReaderType {
+			return gcsx.RangeReader
+		},
 	}
 	t.rangeReader.checkInvariants()
 	defer t.rangeReader.checkInvariants()
@@ -384,7 +387,7 @@ func (t *rangeReaderTest) Test_invalidateReaderIfMisalignedOrTooSmall() {
 	}
 }
 
-func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenReaderReturnedMoreData() {
+func (t *rangeReaderTest) Test_readFromReader_WhenReaderReturnedMoreData() {
 	testCases := []struct {
 		name       string
 		readHandle []byte
@@ -410,9 +413,10 @@ func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenReaderReturnedMoreData() 
 			}
 			t.rangeReader.cancel = func() {}
 
-			n, err := t.rangeReader.readFromRangeReader(t.ctx, make([]byte, 10), 0, 10, metrics.ReadTypeUnknown)
+			n, err := t.rangeReader.readFromReader(t.ctx, make([]byte, 10))
 
 			assert.Error(t.T(), err)
+			assert.ErrorContains(t.T(), err, "reader returned extra bytes: 2")
 			assert.Zero(t.T(), n)
 			assert.Nil(t.T(), t.rangeReader.reader)
 			assert.Equal(t.T(), int64(-1), t.rangeReader.start)
@@ -446,6 +450,9 @@ func (t *rangeReaderTest) Test_ReadAt_PropagatesCancellation() {
 			Buffer:    make([]byte, 2),
 			Offset:    0,
 			EndOffset: 2,
+			GetReaderType: func(int64) gcsx.ReaderType {
+				return gcsx.RangeReader
+			},
 		})
 		close(readReturned)
 	}()
@@ -492,8 +499,11 @@ func (t *rangeReaderTest) Test_ReadAt_DoesntPropagateCancellationAfterReturning(
 
 	// Successfully read two bytes using a context whose cancellation we control.
 	readResponse, err := t.rangeReader.ReadAt(ctx, &gcsx.GCSReaderRequest{
-		Buffer:    buf,
-		Offset:    0,
+		Buffer: buf,
+		Offset: 0,
+		GetReaderType: func(int64) gcsx.ReaderType {
+			return gcsx.RangeReader
+		},
 		EndOffset: 2,
 	})
 
@@ -510,7 +520,7 @@ func (t *rangeReaderTest) Test_ReadAt_DoesntPropagateCancellationAfterReturning(
 	}
 }
 
-func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenAllDataFromReaderIsRead() {
+func (t *rangeReaderTest) Test_readFromReader_WhenAllDataFromReaderIsRead() {
 	testCases := []struct {
 		name       string
 		readHandle []byte
@@ -540,7 +550,7 @@ func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenAllDataFromReaderIsRead()
 			t.rangeReader.cancel = func() {}
 			buf := make([]byte, dataSize)
 
-			n, err := t.rangeReader.readFromRangeReader(t.ctx, buf, 4, 10, metrics.ReadTypeUnknown)
+			n, err := t.rangeReader.readFromReader(t.ctx, buf)
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), dataSize, n)
@@ -554,7 +564,7 @@ func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenAllDataFromReaderIsRead()
 	}
 }
 
-func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenReaderHasLessDataThanRequested() {
+func (t *rangeReaderTest) Test_ReadFromReader_WhenReaderHasLessDataThanRequested() {
 	testCases := []struct {
 		name       string
 		readHandle []byte
@@ -583,7 +593,7 @@ func (t *rangeReaderTest) Test_ReadFromRangeReader_WhenReaderHasLessDataThanRequ
 			t.rangeReader.cancel = func() {}
 			buf := make([]byte, 10)
 
-			n, err := t.rangeReader.readFromRangeReader(t.ctx, buf, 0, 10, metrics.ReadTypeUnknown)
+			n, err := t.rangeReader.readFromReader(t.ctx, buf)
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), dataSize, n)
@@ -657,6 +667,9 @@ func (t *rangeReaderTest) Test_ReadAt_ForceCreateReader() {
 		Offset:    offset,
 		EndOffset: offset + size,
 		Buffer:    make([]byte, readSize),
+		GetReaderType: func(int64) gcsx.ReaderType {
+			return gcsx.RangeReader
+		},
 	}
 	resp1, err := t.rangeReader.ReadAt(t.ctx, req1)
 
@@ -674,9 +687,12 @@ func (t *rangeReaderTest) Test_ReadAt_ForceCreateReader() {
 	// 4. Read with forceCreateReader = true. The existing reader can serve this
 	// request, but it will be discarded because ForceCreateReader is true.
 	req2 := &gcsx.GCSReaderRequest{
-		Offset:            offset + readSize,
-		EndOffset:         offset + size,
-		Buffer:            make([]byte, readsize2),
+		Offset:    offset + readSize,
+		EndOffset: offset + size,
+		Buffer:    make([]byte, readsize2),
+		GetReaderType: func(int64) gcsx.ReaderType {
+			return gcsx.RangeReader
+		},
 		ForceCreateReader: true,
 	}
 	resp2, err := t.rangeReader.ReadAt(t.ctx, req2)
