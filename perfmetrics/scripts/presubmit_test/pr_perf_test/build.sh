@@ -50,8 +50,8 @@ set -e
 sudo apt-get update
 echo Installing git
 sudo apt-get install git
-echo Installing go-lang  1.24.0
-wget -O go_tar.tar.gz https://go.dev/dl/go1.24.0.linux-amd64.tar.gz -q
+echo Installing go-lang  1.24.9
+wget -O go_tar.tar.gz https://go.dev/dl/go1.24.9.linux-amd64.tar.gz -q
 sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 export PATH=$PATH:/usr/local/go/bin
 export CGO_ENABLED=0
