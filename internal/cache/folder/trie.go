@@ -58,17 +58,40 @@ func newTrieNode() *TrieNode {
 // Trie is a thread-safe prefix tree (trie) data structure suitable for storing
 // hierarchical data, such as file system paths.
 type Trie struct {
-	root        *TrieNode
-	mu          *sync.RWMutex
-	leaf_counts int64 // TODO: make this atomic
-	file_counts int64 // TODO: make this atomic
+	root           *TrieNode
+	mu             *sync.RWMutex
+	ttl            int //ttl in minutes
+	ttl_long       int //ttl_long in minutes
+	lwm_file_count int64
+	hwm_file_count int64
+	leaf_counts    int64      // TODO: make this atomic
+	file_counts    int64      // TODO: make this atomic
+	is_evicting    bool       // A flag to prevent concurrent eviction runs.
+	eviction_mu    sync.Mutex // Mutex to protect the is_evicting flag.
 }
 
 // NewTrie creates and returns a new, empty Trie.
 func NewTrie() *Trie {
 	return &Trie{
-		mu:   new(sync.RWMutex),
-		root: newTrieNode(),
+		mu:             new(sync.RWMutex),
+		root:           newTrieNode(),
+		ttl:            -1,
+		ttl_long:       -1,
+		lwm_file_count: -1,
+		hwm_file_count: -1,
+	}
+}
+
+// NewTrie creates and returns a new, empty Trie.
+func NewTrieWithTTL(ttl int, ttl_long int,
+	lwm_file_count int64, hwm_file_count int64) *Trie {
+	return &Trie{
+		mu:             new(sync.RWMutex),
+		root:           newTrieNode(),
+		ttl:            ttl,
+		ttl_long:       ttl_long,
+		lwm_file_count: lwm_file_count,
+		hwm_file_count: hwm_file_count,
 	}
 }
 
@@ -105,7 +128,11 @@ func (t *Trie) InsertDirect(path *string, fileInfo *FileInfo) {
 			if node.file == nil && fileInfo != nil {
 				t.file_counts++
 			}
+			if fileInfo.mu == nil {
+				fileInfo.mu = new(sync.RWMutex)
+			}
 			node.file = fileInfo
+
 		}
 	}
 }
@@ -149,13 +176,34 @@ func (t *Trie) Insert(path string, fileInfo *FileInfo) {
 				t.file_counts++
 				t.mu.Unlock()
 			}
+			if fileInfo.mu == nil {
+				fileInfo.mu = new(sync.RWMutex)
+			}
 			node.file = fileInfo
-			if fileInfo != nil {
+			if fileInfo != nil && node.file.atime.IsZero() {
 				node.file.atime = time.Now()
 			}
 		}
 	}
 	node.mu.Unlock() // Unlock the final node.
+
+	// Check if eviction is needed and not already running.
+	t.mu.RLock()
+	needsEviction := t.hwm_file_count > 0 && t.file_counts > t.hwm_file_count
+	t.mu.RUnlock()
+
+	if needsEviction {
+		t.eviction_mu.Lock()
+		if !t.is_evicting {
+			t.is_evicting = true
+			go func() {
+				defer func() { t.eviction_mu.Lock(); t.is_evicting = false; t.eviction_mu.Unlock() }()
+				t.EvictOlderAccessFiles()
+			}()
+		}
+		t.eviction_mu.Unlock()
+	}
+
 }
 
 // InsertDir adds a directory path to the trie. It creates the necessary
@@ -535,4 +583,78 @@ func (t *Trie) Move(sourcePath, destPath string) bool {
 	}
 
 	return true
+}
+
+// EvictOlderThan traverses the trie and removes files with an access time
+// older than the specified duration. It prunes empty parent directories.
+func (t *Trie) EvictOlderAccessFiles() {
+	if t.hwm_file_count <= 0 || t.lwm_file_count <= 0 {
+		return
+	}
+	now := time.Now()
+
+	// Phase 1: Evict based on the long TTL.
+	if t.ttl_long > 0 {
+		t.evictRecursive(t.root, "", now, time.Duration(t.ttl_long)*time.Minute)
+	}
+
+	// Phase 2: If still over low watermark, evict based on the short TTL.
+	t.mu.RLock()
+	isOverLWM := t.file_counts > t.lwm_file_count
+	t.mu.RUnlock()
+	if isOverLWM && t.ttl > 0 {
+		t.evictRecursive(t.root, "", now, time.Duration(t.ttl)*time.Minute)
+	}
+}
+
+// evictRecursive is a helper function to recursively traverse the trie and
+// evict old files.
+func (t *Trie) evictRecursive(node *TrieNode, currentPath string, now time.Time, ttl time.Duration) {
+	node.mu.Lock()
+
+	if node.isLeaf && node.file != nil {
+		node.file.mu.RLock()
+		atime := node.file.atime
+		node.file.mu.RUnlock()
+
+		if now.Sub(atime) > ttl {
+			// Evict this file.
+			node.isLeaf = false
+			node.file = nil
+			t.mu.Lock()
+			t.leaf_counts--
+			t.file_counts--
+			t.mu.Unlock()
+		}
+	}
+
+	// Make a copy of children to iterate over after potentially modifying node.children
+	childrenToVisit := make(map[string]*TrieNode, len(node.children))
+	for name, child := range node.children {
+		childrenToVisit[name] = child
+	}
+
+	// Unlock parent before traversing to children to allow for better concurrency.
+	node.mu.Unlock()
+
+	for name, child := range childrenToVisit {
+		var childPath string
+		if currentPath == "" {
+			childPath = "/" + name
+		} else {
+			childPath = currentPath + "/" + name
+		}
+		t.evictRecursive(child, childPath, now, ttl)
+	}
+
+	// After visiting children, re-lock and check if this node became empty and can be pruned.
+	node.mu.Lock()
+	defer node.mu.Unlock()
+
+	// Prune children that are now empty leaves without files.
+	for name, child := range node.children {
+		if !child.isLeaf && len(child.children) == 0 {
+			delete(node.children, name)
+		}
+	}
 }

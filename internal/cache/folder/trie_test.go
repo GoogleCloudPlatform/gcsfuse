@@ -22,6 +22,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	. "github.com/jacobsa/ogletest"
 )
@@ -607,4 +608,67 @@ func BenchmarkTrieMemory(b *testing.B) {
 		endStats.Sys/1024/1024)
 	b.ReportMetric(float64(endStats.HeapAlloc)/1024/1024, "MB/op")
 
+}
+
+func (t *TrieTest) TestTwoPhaseEviction() {
+	const (
+		lwm           = 5
+		hwm           = 10
+		shortTTL      = 1 // 1 minute
+		longTTL       = 5 // 5 minutes
+		numLongFiles  = 6 // Files to be evicted by long TTL
+		numShortFiles = 4 // Files to be evicted by short TTL
+		numNewFiles   = 2 // Files that should not be evicted
+	)
+
+	trie := NewTrieWithTTL(shortTTL, longTTL, lwm, hwm)
+
+	// --- Setup ---
+	// Insert files that will be older than the long TTL
+	for i := 0; i < numLongFiles; i++ {
+		path := fmt.Sprintf("/old/%d", i)
+		fileInfo := &FileInfo{size: 1}
+		// Manually set atime to trigger eviction
+		fileInfo.atime = time.Now().Add(-time.Duration(longTTL+1) * time.Minute)
+		trie.Insert(path, fileInfo)
+	}
+	ExpectEq(numLongFiles, trie.CountFiles())
+
+	// Insert files that are older than the short TTL but not the long TTL
+	for i := 0; i < numShortFiles; i++ {
+		path := fmt.Sprintf("/recent/%d", i)
+		fileInfo := &FileInfo{size: 1}
+		fileInfo.atime = time.Now().Add(-time.Duration(shortTTL+1) * time.Minute)
+		trie.Insert(path, fileInfo)
+	}
+	ExpectEq(numLongFiles+numShortFiles, trie.CountFiles()) // Now at HWM
+
+	// --- Action ---
+	// Insert one more file to exceed the HWM and trigger eviction
+	trie.Insert("/new/0", &FileInfo{size: 1})
+
+	// Wait for the eviction goroutine to complete.
+	// In a real-world scenario, this might need a more robust synchronization mechanism,
+	// but for a test, a short sleep is usually sufficient.
+	time.Sleep(1000 * time.Millisecond)
+
+	// Insert another new file to ensure it's not evicted
+	trie.Insert("/new/1", &FileInfo{size: 1})
+
+	// Expected count after eviction:
+	// Initial: numLongFiles + numShortFiles + 1 (trigger) = 6 + 4 + 1 = 11
+	// Phase 1 (long TTL): 11 - numLongFiles = 11 - 6 = 5.
+	// The count is now 5, which is equal to the LWM.
+	// Phase 2 (short TTL) should NOT run.
+	// Finally, we added one more file post-eviction.
+	// Final expected count: 5 (after phase 1) + 1 (post-eviction file) = 6
+	expectedCount := (numLongFiles + numShortFiles + 1) - numLongFiles + 1
+	ExpectEq(expectedCount, trie.CountFiles())
+
+	// Verify that the correct files were evicted
+	ExpectFalse(trie.PathExists("/old")) // Pruned
+	ExpectTrue(trie.PathExists("/recent"))
+	ExpectTrue(trie.PathExists("/new"))
+	ExpectEq(numShortFiles, len(trie.ListPathsWithPrefix("/recent")))
+	ExpectEq(numNewFiles, len(trie.ListPathsWithPrefix("/new")))
 }
