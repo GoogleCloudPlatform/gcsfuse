@@ -255,7 +255,7 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 //     reached, or an error occurs.
 //
 // LOCKS_EXCLUDED(p.mu)
-func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64) (gcsx.ReadResponse, error) {
+func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64, skipSizeChecks bool) (gcsx.ReadResponse, error) {
 	resp := gcsx.ReadResponse{}
 	reqID := uuid.New()
 	start := time.Now()

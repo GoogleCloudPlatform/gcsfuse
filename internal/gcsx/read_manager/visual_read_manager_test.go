@@ -193,7 +193,7 @@ func TestVisualReadManager_ReadAt(t *testing.T) {
 	require.NoError(t, err, "Failed to create IORenderer")
 	vrm := NewVisualReadManager(mockReadManager, ioRenderer, cfg.WorkloadInsightConfig{})
 
-	_, err = vrm.ReadAt(context.Background(), make([]byte, 20), 10)
+	_, err = vrm.ReadAt(context.Background(), make([]byte, 20), 10, false)
 	require.NoError(t, err, "ReadAt should not return an error")
 
 	expectedRange := workloadinsight.Range{Start: 10, End: 30}

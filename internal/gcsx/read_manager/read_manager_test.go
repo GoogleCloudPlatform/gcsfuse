@@ -105,7 +105,7 @@ func getReadCloser(content []byte) io.ReadCloser {
 func (t *readManagerTest) readAt(dst []byte, offset int64) (gcsx.ReadResponse, error) {
 	t.readManager.CheckInvariants()
 	defer t.readManager.CheckInvariants()
-	return t.readManager.ReadAt(t.ctx, dst, offset)
+	return t.readManager.ReadAt(t.ctx, dst, offset, false)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -338,7 +338,7 @@ func (t *readManagerTest) Test_ReadAt_R1FailsR2Succeeds() {
 	mockReader2.On("ReadAt", t.ctx, buf, offset).Return(expectedResp, nil).Once()
 	mockReader2.On("Destroy").Once()
 
-	resp, err := rm.ReadAt(t.ctx, buf, offset)
+	resp, err := rm.ReadAt(t.ctx, buf, offset, false)
 	rm.Destroy()
 
 	assert.NoError(t.T(), err, "expected no error when second reader succeeds")
@@ -361,7 +361,7 @@ func (t *readManagerTest) Test_ReadAt_BufferedReaderFallsBack() {
 	mockGCSReader.On("ReadAt", t.ctx, buf, offset).Return(gcsx.ReadResponse{Size: 10}, nil).Once()
 	mockGCSReader.On("Destroy").Once()
 
-	resp, err := rm.ReadAt(t.ctx, buf, offset)
+	resp, err := rm.ReadAt(t.ctx, buf, offset, false)
 	rm.Destroy()
 
 	assert.NoError(t.T(), err)

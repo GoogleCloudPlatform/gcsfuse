@@ -27,7 +27,7 @@ type MockReadManager struct {
 	mock.Mock
 }
 
-func (m *MockReadManager) ReadAt(ctx context.Context, dst []byte, offset int64) (gcsx.ReadResponse, error) {
+func (m *MockReadManager) ReadAt(ctx context.Context, dst []byte, offset int64, skipSizeChecks bool) (gcsx.ReadResponse, error) {
 	args := m.Called(ctx, dst, offset)
 	return args.Get(0).(gcsx.ReadResponse), args.Error(1)
 }

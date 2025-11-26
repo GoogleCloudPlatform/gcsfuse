@@ -47,7 +47,7 @@ const (
 func (t *gcsReaderTest) readAt(dst []byte, offset int64) (gcsx.ReadResponse, error) {
 	t.gcsReader.CheckInvariants()
 	defer t.gcsReader.CheckInvariants()
-	return t.gcsReader.ReadAt(t.ctx, dst, offset)
+	return t.gcsReader.ReadAt(t.ctx, dst, offset, false)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -133,7 +133,7 @@ func (t *gcsReaderTest) Test_ReadAt_InvalidOffset() {
 			t.object.Size = uint64(tc.objectSize)
 			buf := make([]byte, tc.objectSize)
 
-			_, err := t.gcsReader.ReadAt(t.ctx, buf, int64(tc.start))
+			_, err := t.gcsReader.ReadAt(t.ctx, buf, int64(tc.start), false)
 
 			assert.Error(t.T(), err)
 		})
@@ -379,7 +379,7 @@ func (t *gcsReaderTest) Test_ReadAt_PropagatesCancellation() {
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(3)
 
 	go func() {
-		_, err = t.gcsReader.ReadAt(ctx, make([]byte, 2), 0)
+		_, err = t.gcsReader.ReadAt(ctx, make([]byte, 2), 0, false)
 
 		assert.Error(t.T(), err)
 
@@ -842,11 +842,11 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateZonalRandomReads() {
 	buf := make([]byte, 3*MiB)
 
 	// Sequential read #1
-	_, err = t.gcsReader.ReadAt(t.ctx, buf, 13*MiB)
+	_, err = t.gcsReader.ReadAt(t.ctx, buf, 13*MiB, false)
 	assert.NoError(t.T(), err)
 	// Random read #1
 	seeks := 1
-	_, err = t.gcsReader.ReadAt(t.ctx, buf, 12*MiB)
+	_, err = t.gcsReader.ReadAt(t.ctx, buf, 12*MiB, false)
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), uint64(seeks), t.gcsReader.seeks.Load())
 
@@ -881,7 +881,7 @@ func (t *gcsReaderTest) Test_ReadAt_MRDShortReadOnZonal() {
 	buf := make([]byte, t.object.Size)
 
 	// Act
-	readResponse, err := t.gcsReader.ReadAt(t.ctx, buf, 0)
+	readResponse, err := t.gcsReader.ReadAt(t.ctx, buf, 0, false)
 
 	// Assert
 	assert.NoError(t.T(), err)
@@ -927,7 +927,7 @@ func (t *gcsReaderTest) Test_ReadAt_ParallelRandomReads() {
 			buf := make([]byte, size)
 			// Each goroutine gets its own context.
 			ctx := context.Background()
-			objData, err := t.gcsReader.ReadAt(ctx, buf, offset)
+			objData, err := t.gcsReader.ReadAt(ctx, buf, offset, false)
 
 			require.NoError(t.T(), err)
 			require.Equal(t.T(), size, objData.Size)
