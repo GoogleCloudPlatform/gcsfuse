@@ -597,7 +597,9 @@ func (t *HNSDirTest) TestDeleteObjects() {
 	}
 	listRespSubdir := &gcs.Listing{}
 	t.mockBucket.On("ListObjects", mock.Anything, listReqSubdir).Return(listRespSubdir, nil)
+	t.mockBucket.On("DeleteObject", mock.Anything, &gcs.DeleteObjectRequest{Name: "dir2/subdir/"}).Return(nil)
 	t.mockBucket.On("DeleteFolder", mock.Anything, "dir2/subdir/").Return(nil)
+	t.mockBucket.On("DeleteObject", mock.Anything, &gcs.DeleteObjectRequest{Name: "dir2/"}).Return(nil)
 	t.mockBucket.On("DeleteFolder", mock.Anything, "dir2/").Return(nil)
 
 	// Act
