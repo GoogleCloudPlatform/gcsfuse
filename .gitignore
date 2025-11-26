@@ -44,8 +44,6 @@ _testmain.go
 # External folders
 vendor/
 
-*.png
-
 gcsfuse.log
 gcsfuse.log.stderr
 seq.fio

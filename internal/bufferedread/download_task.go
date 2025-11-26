@@ -22,6 +22,7 @@ import (
 	"io"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
@@ -64,6 +65,9 @@ type downloadTask struct {
 
 	// Used for zonal bucket to bypass the auth & metadata checks.
 	readHandle []byte
+
+	// Callback to update the read handle in the buffered reader.
+	updateReadHandle func([]byte)
 }
 
 // Execute implements the workerpool.Task interface. It downloads the data from
@@ -132,5 +136,12 @@ func (p *downloadTask) Execute() {
 	if err != nil {
 		err = fmt.Errorf("DownloadTask.Execute: while data-copy: %w", err)
 		return
+	}
+	if !useDummyReaderForPerformanceTesting {
+		if r, ok := newReader.(interface{ ReadHandle() storage.ReadHandle }); ok {
+			if handle := r.ReadHandle(); len(handle) > 0 && p.updateReadHandle != nil {
+				p.updateReadHandle(handle)
+			}
+		}
 	}
 }

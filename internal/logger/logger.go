@@ -36,6 +36,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -336,22 +337,55 @@ func Add(metricType MetricType, dur time.Duration) {
 var readFileTotal int64
 var blockTimeTotal int64
 
-func Print(metricType MetricType) {
-	// 1. Get the reference to the original data
+const (
+	Percentage    int = 100
+	TakeFromFront     = true
+)
+
+// GetDataPoints extracts and returns a subset of latency data for a given metric.
+// This is useful for analyzing performance during specific phases of a workload
+// (e.g., the initial 10% of operations vs. the final 10%).
+func GetDataPoints(metricType MetricType, percentage int, take_from_front bool) []int64 {
+	mu.RLock()
+	defer mu.RUnlock()
+
 	originalData, ok := latencies[metricType]
 	if !ok || len(originalData) == 0 {
+		Infof("Metric %q has no data to analyze.", metricType)
+		return nil
+	}
+
+	if percentage < 0 || percentage > 100 {
+		Errorf("Percentage for GetDataPoints must be between 0 and 100, got %d.", percentage)
+		return nil
+	}
+
+	count := len(originalData)
+	numPointsToTake := (count * percentage) / 100
+
+	if take_from_front {
+		return slices.Clone(originalData[:numPointsToTake])
+	}
+	return slices.Clone(originalData[count-numPointsToTake:])
+}
+
+func Print(metricType MetricType) {
+	// 1. Get the reference to the original data
+	data := GetDataPoints(metricType, Percentage, TakeFromFront)
+
+	if data == nil {
 		Errorf("Metric %q has no data to print.", metricType)
 		return
 	}
 
-	count := len(originalData)
+	count := len(data)
 
 	// 2. Calculate Sum/Min/Max using the original data (Order doesn't matter here)
 	var sum int64 = 0
-	var min int64 = originalData[0]
-	var max int64 = originalData[0]
+	var min int64 = data[0]
+	var max int64 = data[0]
 
-	for _, val := range originalData {
+	for _, val := range data {
 		sum += val
 		if val < min {
 			min = val
@@ -363,7 +397,7 @@ func Print(metricType MetricType) {
 
 	// 3. CRITICAL FIX: Create a copy for percentile calculation
 	// We need a sorted list for P50/P99, but we must not touch originalData.
-	sortedData := slices.Clone(originalData)
+	sortedData := slices.Clone(data)
 	slices.Sort(sortedData)
 
 	p50Index := count / 2
@@ -411,11 +445,16 @@ func PrintAll() {
 	// from one execution to the next.
 	for metricType := range latencies {
 		Print(metricType)
-		dir, err := os.Getwd()
-		if err != nil {
-			Errorf("Could not get current directory for plotting: %v", err)
+		dir, set := os.LookupEnv(util.GCSFUSE_PARENT_PROCESS_DIR)
+		if !set {
+			Errorf("Could not get current directory for plotting as I got empty")
 		} else {
-			PlotLatencies(metricType, dir)
+			Infof("Got dir for graph: %s", dir)
+			if metricType == BLOCK_DOWNLOAD_LAT {
+				PlotLatencies(metricType, dir, false, true)
+			} else {
+				PlotLatencies(metricType, dir, true, false)
+			}
 		}
 	}
 	Info("======================================")
@@ -494,28 +533,65 @@ func (customLogTicker) Ticks(min, max float64) []plot.Tick {
 	return ticks
 }
 
-func PlotLatencies(metricType MetricType, dir string) {
-	data, ok := latencies[metricType]
-	if !ok || len(data) == 0 {
-		Errorf("Metric %q has no data to plot.\n", metricType)
+// customLinearTicker is a plot.Ticker that generates ticks with uniform intervals.
+type customLinearTicker struct{}
+
+// Ticks returns Ticks in a linear scale.
+func (customLinearTicker) Ticks(min, max float64) []plot.Tick {
+	if max <= min {
+		return []plot.Tick{{Value: min, Label: fmt.Sprintf("%.0f", min)}}
+	}
+
+	const targetTicks = 20
+	span := max - min
+	rawStep := span / float64(targetTicks)
+
+	// Round up to the nearest multiple of 10
+	step := math.Ceil(rawStep/10.0) * 10.0
+	format := "%.0f"
+
+	var ticks []plot.Tick
+	start := math.Ceil(min/step) * step
+	for val := start; val <= max+step*1e-6; val += step {
+		ticks = append(ticks, plot.Tick{Value: val, Label: fmt.Sprintf(format, val)})
+	}
+	return ticks
+}
+
+func PlotLatencies(metricType MetricType, dir string, useLogScale bool, useMilliseconds bool) {
+	data := GetDataPoints(metricType, Percentage, TakeFromFront)
+	if data == nil {
+		Errorf("Metric %q has no data to plot.", metricType)
 		return
 	}
 
 	// Define defaults if they aren't global
-	const plotFloorValue = 1.0
+	var plotFloorValue float64
+	if useMilliseconds {
+		plotFloorValue = 0.001
+	} else {
+		plotFloorValue = 1.0
+	}
 	floorCount := 0
 
 	// 1. Prepare Plot Points
 	pts := make(plotter.XYs, len(data))
 	for i, latencyUs := range data {
 		var plotValue float64
+		var val float64
+
+		if useMilliseconds {
+			val = float64(latencyUs) / 1000.0
+		} else {
+			val = float64(latencyUs)
+		}
 
 		// CRITICAL: Replace non-positive values (<= 0) with 1 µs for the log scale.
-		if latencyUs <= 0 {
+		if useLogScale && val <= 0 {
 			plotValue = plotFloorValue
 			floorCount++
 		} else {
-			plotValue = float64(latencyUs)
+			plotValue = val
 		}
 
 		// X-axis: Index of the measurement
@@ -533,20 +609,36 @@ func PlotLatencies(metricType MetricType, dir string) {
 	p.Title.Text = fmt.Sprintf("Latency Over Time: %s", metricType)
 	p.X.Label.Text = "Measurement Index"
 
-	// Y-axis Label updated to Microseconds
-	p.Y.Label.Text = "Latency (µs) - Log Scale"
+	// Y-axis Label updated to Microseconds or Milliseconds
+	if useLogScale {
+		if useMilliseconds {
+			p.Y.Label.Text = "Latency (ms) - Log Scale"
+		} else {
+			p.Y.Label.Text = "Latency (µs) - Log Scale"
+		}
+		// 3. Configure the Y-axis to be logarithmic
+		p.Y.Scale = plot.LogScale{}
+		// Use the custom ticker to get more labels on the Y-axis.
+		p.Y.Tick.Marker = customLogTicker{}
+		// Optional: set the Min to the floor value so the axis starts cleanly
+		p.Y.Min = plotFloorValue
+	} else {
+		if useMilliseconds {
+			p.Y.Label.Text = "Latency (ms)"
+		} else {
+			p.Y.Label.Text = "Latency (µs)"
+		}
+		p.Y.Min = 0
+		p.Y.Tick.Marker = customLinearTicker{}
+	}
 
-	// 3. Configure the Y-axis to be logarithmic
-	p.Y.Scale = plot.LogScale{}
-
-	// Use the custom ticker to get more labels on the Y-axis.
-	p.Y.Tick.Marker = customLogTicker{}
-
-	// Optional: set the Min to the floor value so the axis starts cleanly
-	p.Y.Min = plotFloorValue
+	yMin := 0.0
+	if useLogScale {
+		yMin = plotFloorValue
+	}
 
 	// 4. Create vertical green lines for each data point.
-	errBars, err := plotter.NewYErrorBars(yErrorPoints{pts, plotFloorValue})
+	errBars, err := plotter.NewYErrorBars(yErrorPoints{pts, yMin})
 	if err != nil {
 		Errorf("Could not create YErrorBars plot: %v\n", err)
 		return
@@ -563,7 +655,11 @@ func PlotLatencies(metricType MetricType, dir string) {
 	} else {
 		Infof("Successfully created plot for %q at %q\n", metricType, filename)
 		if floorCount > 0 {
-			Infof("Note: %d data points were <= 0 and clamped to %0.1f µs for log scaling.\n", floorCount, plotFloorValue)
+			unit := "µs"
+			if useMilliseconds {
+				unit = "ms"
+			}
+			Infof("Note: %d data points were <= 0 and clamped to %0.3f %s for log scaling.\n", floorCount, plotFloorValue, unit)
 		}
 	}
 }

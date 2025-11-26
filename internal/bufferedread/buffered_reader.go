@@ -73,7 +73,7 @@ type BufferedReader struct {
 
 	metricHandle metrics.MetricHandle
 
-	readHandle []byte // For zonal bucket.
+	readHandle []byte
 
 	ctx        context.Context
 	cancelFunc context.CancelFunc
@@ -85,6 +85,9 @@ type BufferedReader struct {
 	// `mu` synchronizes access to the buffered reader's shared state.
 	// All shared variables, such as the block pool and queue, require this lock before any operation.
 	mu sync.Mutex
+
+	// readHandleMu protects readHandle.
+	readHandleMu sync.RWMutex
 
 	// GUARDED by (mu)
 	workerPool workerpool.WorkerPool
@@ -257,7 +260,7 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 // LOCKS_EXCLUDED(p.mu)
 func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64) (gcsx.ReadResponse, error) {
 	s1 := time.Now()
-	defer func(){
+	defer func() {
 		logger.Add(logger.READ_CALL_LAT, time.Since(s1))
 	}()
 	resp := gcsx.ReadResponse{}
@@ -501,12 +504,13 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockInde
 
 	ctx, cancel := context.WithCancel(p.ctx)
 	task := &downloadTask{
-		ctx:          ctx,
-		object:       p.object,
-		bucket:       p.bucket,
-		block:        b,
-		readHandle:   p.readHandle,
-		metricHandle: p.metricHandle,
+		ctx:              ctx,
+		object:           p.object,
+		bucket:           p.bucket,
+		block:            b,
+		readHandle:       p.GetReadHandle(),
+		metricHandle:     p.metricHandle,
+		updateReadHandle: p.UpdateReadHandle,
 	}
 
 	logger.Tracef("Scheduling block: (%s, %d, %t).", p.object.Name, blockIndex, urgent)
@@ -600,4 +604,16 @@ func (p *BufferedReader) CheckInvariants() {
 	if p.randomSeekCount > p.randomReadsThreshold {
 		panic(fmt.Sprintf("BufferedReader: randomSeekCount %d exceeds threshold %d", p.randomSeekCount, p.randomReadsThreshold))
 	}
+}
+
+func (p *BufferedReader) UpdateReadHandle(updatedReadHandle []byte) {
+	p.readHandleMu.Lock()
+	defer p.readHandleMu.Unlock()
+	p.readHandle = updatedReadHandle
+}
+
+func (p *BufferedReader) GetReadHandle() []byte {
+	p.readHandleMu.RLock()
+	defer p.readHandleMu.RUnlock()
+	return p.readHandle
 }
