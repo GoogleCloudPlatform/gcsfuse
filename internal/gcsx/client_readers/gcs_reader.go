@@ -132,26 +132,26 @@ func shouldRetryForShortRead(err error, bytesRead int, p []byte, offset int64, o
 	return true
 }
 
-func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (readResponse gcsx.ReadResponse, err error) {
+func (gr *GCSReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (readResponse gcsx.ReadResponse, err error) {
 
-	if offset >= int64(gr.object.Size) {
+	if req.Offset >= int64(gr.object.Size) {
 		return readResponse, io.EOF
-	} else if offset < 0 {
+	} else if req.Offset < 0 {
 		err := fmt.Errorf(
 			"illegal offset %d for %d byte object",
-			offset,
+			req.Offset,
 			gr.object.Size)
 		return readResponse, err
 	}
 
 	readReq := &gcsx.GCSReaderRequest{
-		Buffer:            p,
-		Offset:            offset,
-		EndOffset:         offset + int64(len(p)),
+		Buffer:            req.Buffer,
+		Offset:            req.Offset,
+		EndOffset:         req.Offset + int64(len(req.Buffer)),
 		ForceCreateReader: false,
 	}
 	defer func() {
-		gr.updateExpectedOffset(offset + int64(readResponse.Size))
+		gr.updateExpectedOffset(req.Offset + int64(readResponse.Size))
 		gr.totalReadBytes.Add(uint64(readResponse.Size))
 	}()
 
@@ -159,9 +159,9 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64) (readRe
 	readResponse.Size = bytesRead
 
 	// Retry reading in case of short read.
-	if shouldRetryForShortRead(err, bytesRead, p, offset, gr.object.Size, gr.bucket.BucketType()) {
+	if shouldRetryForShortRead(err, bytesRead, req.Buffer, req.Offset, gr.object.Size, gr.bucket.BucketType()) {
 		readReq.Offset += int64(bytesRead)
-		readReq.Buffer = p[bytesRead:]
+		readReq.Buffer = req.Buffer[bytesRead:]
 		readReq.ForceCreateReader = true
 		var bytesReadOnRetry int
 		bytesReadOnRetry, err = gr.read(ctx, readReq)

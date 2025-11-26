@@ -47,7 +47,10 @@ const (
 func (t *gcsReaderTest) readAt(dst []byte, offset int64) (gcsx.ReadResponse, error) {
 	t.gcsReader.CheckInvariants()
 	defer t.gcsReader.CheckInvariants()
-	return t.gcsReader.ReadAt(t.ctx, dst, offset)
+	return t.gcsReader.ReadAt(t.ctx, &gcsx.ReadRequest{
+		Buffer: dst,
+		Offset: offset,
+	})
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -133,7 +136,10 @@ func (t *gcsReaderTest) Test_ReadAt_InvalidOffset() {
 			t.object.Size = uint64(tc.objectSize)
 			buf := make([]byte, tc.objectSize)
 
-			_, err := t.gcsReader.ReadAt(t.ctx, buf, int64(tc.start))
+			_, err := t.gcsReader.ReadAt(t.ctx, &gcsx.ReadRequest{
+				Buffer: buf,
+				Offset: int64(tc.start),
+			})
 
 			assert.Error(t.T(), err)
 		})
@@ -377,9 +383,12 @@ func (t *gcsReaderTest) Test_ReadAt_PropagatesCancellation() {
 	readReturned := make(chan struct{})
 	var err error
 	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{}).Times(3)
-
+	req := &gcsx.ReadRequest{
+		Buffer: make([]byte, 2),
+		Offset: 0,
+	}
 	go func() {
-		_, err = t.gcsReader.ReadAt(ctx, make([]byte, 2), 0)
+		_, err = t.gcsReader.ReadAt(ctx, req)
 
 		assert.Error(t.T(), err)
 
@@ -842,11 +851,17 @@ func (t *gcsReaderTest) Test_ReadAt_ValidateZonalRandomReads() {
 	buf := make([]byte, 3*MiB)
 
 	// Sequential read #1
-	_, err = t.gcsReader.ReadAt(t.ctx, buf, 13*MiB)
+	_, err = t.gcsReader.ReadAt(t.ctx, &gcsx.ReadRequest{
+		Buffer: buf,
+		Offset: 13 * MiB,
+	})
 	assert.NoError(t.T(), err)
 	// Random read #1
 	seeks := 1
-	_, err = t.gcsReader.ReadAt(t.ctx, buf, 12*MiB)
+	_, err = t.gcsReader.ReadAt(t.ctx, &gcsx.ReadRequest{
+		Buffer: buf,
+		Offset: 12 * MiB,
+	})
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), uint64(seeks), t.gcsReader.seeks.Load())
 
@@ -881,7 +896,10 @@ func (t *gcsReaderTest) Test_ReadAt_MRDShortReadOnZonal() {
 	buf := make([]byte, t.object.Size)
 
 	// Act
-	readResponse, err := t.gcsReader.ReadAt(t.ctx, buf, 0)
+	readResponse, err := t.gcsReader.ReadAt(t.ctx, &gcsx.ReadRequest{
+		Buffer: buf,
+		Offset: 0,
+	})
 
 	// Assert
 	assert.NoError(t.T(), err)
@@ -927,7 +945,10 @@ func (t *gcsReaderTest) Test_ReadAt_ParallelRandomReads() {
 			buf := make([]byte, size)
 			// Each goroutine gets its own context.
 			ctx := context.Background()
-			objData, err := t.gcsReader.ReadAt(ctx, buf, offset)
+			objData, err := t.gcsReader.ReadAt(ctx, &gcsx.ReadRequest{
+				Buffer: buf,
+				Offset: offset,
+			})
 
 			require.NoError(t.T(), err)
 			require.Equal(t.T(), size, objData.Size)

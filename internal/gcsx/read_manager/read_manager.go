@@ -132,20 +132,20 @@ func (rr *ReadManager) CheckInvariants() {
 // ReadAt attempts to read data from the provided offset, using the configured readers.
 // It prioritizes readers in the order they are defined (file cache first, then GCS).
 // If a reader returns a FallbackToAnotherReader error, it tries the next reader.
-func (rr *ReadManager) ReadAt(ctx context.Context, p []byte, offset int64) (gcsx.ReadResponse, error) {
+func (rr *ReadManager) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
 	var readResponse gcsx.ReadResponse
-	if offset >= int64(rr.object.Size) {
+	if req.Offset >= int64(rr.object.Size) {
 		return readResponse, io.EOF
 	}
 
 	// empty read
-	if len(p) == 0 {
+	if len(req.Buffer) == 0 {
 		return readResponse, nil
 	}
 
 	var err error
 	for _, r := range rr.readers {
-		readResponse, err = r.ReadAt(ctx, p, offset)
+		readResponse, err = r.ReadAt(ctx, req)
 		if err == nil {
 			return readResponse, nil
 		}

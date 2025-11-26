@@ -161,7 +161,7 @@ func (fh *FileHandle) unlockHandleAndInode(rLock bool) {
 //
 // LOCKS_REQUIRED(fh.inode.mu)
 // UNLOCK_FUNCTION(fh.inode.mu)
-func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offset int64, sequentialReadSizeMb int32) (gcsx.ReadResponse, error) {
+func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadRequest, sequentialReadSizeMb int32) (gcsx.ReadResponse, error) {
 	// If content cache enabled, CacheEnsureContent forces the file handler to fall through to the inode
 	// and fh.inode.SourceGenerationIsAuthoritative() will return false
 	if err := fh.inode.CacheEnsureContent(ctx); err != nil {
@@ -172,7 +172,7 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 	if !fh.inode.SourceGenerationIsAuthoritative() {
 		// Read from inode if source generation is not authoratative
 		defer fh.inode.Unlock()
-		n, err := fh.inode.Read(ctx, dst, offset)
+		n, err := fh.inode.Read(ctx, req.Buffer, req.Offset)
 		return gcsx.ReadResponse{Size: n}, err
 	}
 
@@ -221,8 +221,7 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, dst []byte, offse
 
 	// Use the readManager to read data.
 	var readResponse gcsx.ReadResponse
-	var err error
-	readResponse, err = fh.readManager.ReadAt(ctx, dst, offset)
+	readResponse, err := fh.readManager.ReadAt(ctx, req)
 	switch {
 	case errors.Is(err, io.EOF):
 		if err != io.EOF {

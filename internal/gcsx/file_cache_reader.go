@@ -202,10 +202,10 @@ func (fc *FileCacheReader) tryReadingFromFileCache(ctx context.Context, p []byte
 	return 0, false, nil
 }
 
-func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (ReadResponse, error) {
+func (fc *FileCacheReader) ReadAt(ctx context.Context, req *ReadRequest) (ReadResponse, error) {
 	var readResponse ReadResponse
 
-	if offset >= int64(fc.object.Size) {
+	if req.Offset >= int64(fc.object.Size) {
 		return readResponse, io.EOF
 	}
 
@@ -213,12 +213,12 @@ func (fc *FileCacheReader) ReadAt(ctx context.Context, p []byte, offset int64) (
 	// then the file cache behavior is write-through i.e. data is first read from
 	// GCS, cached in file and then served from that file. But the cacheHit is
 	// false in that case.
-	bytesRead, cacheHit, err := fc.tryReadingFromFileCache(ctx, p, offset)
+	bytesRead, cacheHit, err := fc.tryReadingFromFileCache(ctx, req.Buffer, req.Offset)
 	if err != nil {
 		return readResponse, fmt.Errorf("ReadAt: while reading from cache: %w", err)
 	}
 	// Data was served from cache.
-	if cacheHit || bytesRead == len(p) || (bytesRead < len(p) && uint64(offset)+uint64(bytesRead) == fc.object.Size) {
+	if cacheHit || bytesRead == len(req.Buffer) || (bytesRead < len(req.Buffer) && uint64(req.Offset)+uint64(bytesRead) == fc.object.Size) {
 		readResponse.Size = bytesRead
 		return readResponse, nil
 	}
