@@ -58,8 +58,10 @@ ZONE_NAME=$(basename "$ZONE")
 # This parameter is passed as the GCE VM metadata at the time of creation.(Logic is handled in louhi stage script)
 RUN_ON_ZB_ONLY=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-on-zb-only)')
 RUN_READ_CACHE_TESTS_ONLY=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-read-cache-only)')
+RUN_LIGHT_TEST=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-light-test)')
 echo "RUN_ON_ZB_ONLY flag set to : \"${RUN_ON_ZB_ONLY}\""
 echo "RUN_READ_CACHE_TESTS_ONLY flag set to : \"${RUN_READ_CACHE_TESTS_ONLY}\""
+echo "RUN_LIGHT_TEST flag set to : \"${RUN_LIGHT_TEST}\""
 
 # Logging the tests being run on the active GCE VM
 if [[ "$RUN_ON_ZB_ONLY" == "true" ]]; then
@@ -71,6 +73,11 @@ fi
 # Logging the tests being run on the active GCE VM
 if [[ "$RUN_READ_CACHE_TESTS_ONLY" == "true" ]]; then
 	echo "Running read cache test only..."
+fi
+
+# Logging the tests being run on the active GCE VM
+if [[ "$RUN_LIGHT_TEST" == "true" ]]; then
+	echo "Running light tests only..."
 fi
 
 #details.txt file contains the release version and commit hash of the current release.
@@ -173,6 +180,7 @@ export PATH=/usr/local/google-cloud-sdk/bin:$PATH
 # and can be used for conditional logic or decisions within that script.
 export RUN_ON_ZB_ONLY='$RUN_ON_ZB_ONLY'
 export RUN_READ_CACHE_TESTS_ONLY='$RUN_READ_CACHE_TESTS_ONLY'
+export RUN_LIGHT_TEST='$RUN_LIGHT_TEST'
 
 #Copy details.txt to starterscriptuser home directory and create logs.txt
 cd ~/
@@ -563,11 +571,16 @@ function run_e2e_tests_for_emulator_and_log() {
     gcloud storage cp ~/logs-emulator.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
 }
 
-exit 0 # Skip the tests for now.
 
 # Declare an associative array to store the exit status of different test runs.
 declare -A exit_status
-if [[ "$RUN_READ_CACHE_TESTS_ONLY" == "true" ]]; then
+if [[ "$RUN_LIGHT_TEST" == "true" ]]; then
+    light_test_dir_non_parallel=("monitoring")
+    light_test_dir_parallel=("")
+
+    run_e2e_tests "flat"  light_test_dir_parallel light_test_dir_non_parallel false
+    exit_status["flat"]=$?
+elif [[ "$RUN_READ_CACHE_TESTS_ONLY" == "true" ]]; then
     read_cache_test_dir_parallel=() # Empty for read cache tests only
     read_cache_test_dir_non_parallel=("read_cache")
 
