@@ -13,15 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Script to run e2e tests for regional or zonal buckets.
+# Script to run e2e tests for regional or zonal buckets if env variable RUN_TESTS_WITH_ZONAL_BUCKET is set to 'true'.
 # Exit on error, treat unset variables as errors, and propagate pipeline errors.
 set -euo pipefail
 
-if [[ $# -gt 1 ]]; then
-    echo "This script requires at most one argument" 
-    echo "Usage: $0 true, for zonal e2e test runs."
-    echo "Usage: $0 false, for regional e2e test runs."
-    echo "Example: $0 false"
+if [[ $# -gt 0 ]]; then
+    echo "This script requires no argument" 
     exit 1
 fi
 
@@ -56,7 +53,7 @@ else
     echo "Current Bash version (${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}) meets or exceeds the required version (${REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT}). Skipping Bash installation."
 fi
 
-if $IS_ZONAL; then
+if [[ "${RUN_TESTS_WITH_ZONAL_BUCKET:-false}" == "true" ]]; then
   echo "Running zonal e2e tests on installed package...."
   "${BASH_EXECUTABLE}" ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location="$BUCKET_LOCATION" --test-installed-package --zonal
   exit 0
