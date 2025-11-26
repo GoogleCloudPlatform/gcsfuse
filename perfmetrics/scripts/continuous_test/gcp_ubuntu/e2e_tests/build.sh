@@ -18,14 +18,13 @@
 set -euo pipefail
 
 if [[ $# -gt 0 ]]; then
-    echo "This script requires no argument" 
+    echo "This script requires no argument. Pass env variable RUN_TESTS_WITH_ZONAL_BUCKET set to 'true' to run this script for zonal buckets." 
     exit 1
 fi
 
 readonly BUCKET_LOCATION="us-central1"
 readonly REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT="5.1"
 readonly INSTALL_BASH_VERSION="5.3" # Using 5.3 for installation as bash 5.1 has an installation bug.
-IS_ZONAL=${1:-false}
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 
@@ -54,9 +53,9 @@ else
 fi
 
 if [[ "${RUN_TESTS_WITH_ZONAL_BUCKET:-false}" == "true" ]]; then
-  echo "Running zonal e2e tests on installed package...."
-  "${BASH_EXECUTABLE}" ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location="$BUCKET_LOCATION" --test-installed-package --zonal
-  exit 0
+    echo "Running zonal e2e tests on installed package...."
+    "${BASH_EXECUTABLE}" ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location="$BUCKET_LOCATION" --test-installed-package --zonal
+    exit 0
 fi
 echo "Running regional e2e tests on installed package...."
 "${BASH_EXECUTABLE}" ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location="$BUCKET_LOCATION" --test-installed-package
