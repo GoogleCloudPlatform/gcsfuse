@@ -155,7 +155,7 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64, skipSiz
 		gr.totalReadBytes.Add(uint64(readResponse.Size))
 	}()
 
-	bytesRead, err := gr.read(ctx, readReq)
+	bytesRead, err := gr.read(ctx, readReq, skipSizeChecks)
 	readResponse.Size = bytesRead
 
 	// Retry reading in case of short read.
@@ -164,14 +164,14 @@ func (gr *GCSReader) ReadAt(ctx context.Context, p []byte, offset int64, skipSiz
 		readReq.Buffer = p[bytesRead:]
 		readReq.ForceCreateReader = true
 		var bytesReadOnRetry int
-		bytesReadOnRetry, err = gr.read(ctx, readReq)
+		bytesReadOnRetry, err = gr.read(ctx, readReq, skipSizeChecks)
 		readResponse.Size += bytesReadOnRetry
 	}
 
 	return readResponse, err
 }
 
-func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest) (bytesRead int, err error) {
+func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest, skipSizeChecks bool) (bytesRead int, err error) {
 	// Not taking any lock for getting reader type to ensure random read requests do not wait.
 	readInfo := gr.getReadInfo(readReq.Offset, false)
 	reqReaderType := gr.readerType(readInfo.readType, gr.bucket.BucketType())
@@ -203,7 +203,7 @@ func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest) (
 		gr.mu.Unlock()
 	}
 
-	readResp, err = gr.mrr.ReadAt(ctx, readReq)
+	readResp, err = gr.mrr.ReadAt(ctx, readReq, skipSizeChecks)
 	return readResp.Size, err
 }
 

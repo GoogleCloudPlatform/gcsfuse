@@ -134,7 +134,7 @@ func (rr *ReadManager) CheckInvariants() {
 // If a reader returns a FallbackToAnotherReader error, it tries the next reader.
 func (rr *ReadManager) ReadAt(ctx context.Context, p []byte, offset int64, skipSizeChecks bool) (gcsx.ReadResponse, error) {
 	var readResponse gcsx.ReadResponse
-	if offset >= int64(rr.object.Size) {
+	if !skipSizeChecks && offset >= int64(rr.object.Size) {
 		return readResponse, io.EOF
 	}
 

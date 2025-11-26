@@ -53,7 +53,7 @@ func (t *multiRangeReaderTest) readAt(dst []byte, offset int64) (gcsx.ReadRespon
 		EndOffset: offset + int64(len(dst)),
 		Buffer:    dst,
 	}
-	return t.multiRangeReader.ReadAt(t.ctx, req)
+	return t.multiRangeReader.ReadAt(t.ctx, req, false)
 }
 
 func TestMultiRangeReaderTestSuite(t *testing.T) {
