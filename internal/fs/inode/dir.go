@@ -1070,6 +1070,17 @@ func (d *dirInode) DeleteObjects(ctx context.Context, objectNames []string) erro
 // between our List and Delete calls, we'd get a 'Not Found' error. By ignoring
 // it, we ensure the delete operation succeeds if the object is already gone.
 func (d *dirInode) deleteObject(ctx context.Context, objectName string) error {
+	err := d.bucket.DeleteObject(ctx, &gcs.DeleteObjectRequest{Name: objectName})
+	if !d.isBucketHierarchical() && err != nil {
+		var notFoundErr *gcs.NotFoundError
+		if !errors.As(err, &notFoundErr) {
+			return err
+		}
+	}
+
+	// Ignoring delete object error here, as in case of hns there is no way of knowing
+	// if underlying placeholder object exists or not in Hierarchical bucket.
+	// The DeleteFolder operation handles removing empty folders.
 	if d.isBucketHierarchical() && strings.HasSuffix(objectName, "/") {
 		if err := d.bucket.DeleteFolder(ctx, objectName); err != nil {
 			var notFoundErr *gcs.NotFoundError
@@ -1078,12 +1089,6 @@ func (d *dirInode) deleteObject(ctx context.Context, objectName string) error {
 			}
 		}
 		return nil
-	}
-	if err := d.bucket.DeleteObject(ctx, &gcs.DeleteObjectRequest{Name: objectName}); err != nil {
-		var notFoundErr *gcs.NotFoundError
-		if !errors.As(err, &notFoundErr) {
-			return err
-		}
 	}
 
 	return nil
