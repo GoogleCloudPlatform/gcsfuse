@@ -97,7 +97,11 @@ func setupLogFileAndCacheDir(testName string) {
 		if setup.ConfigFile() == "" {
 			// TODO: clean this up when GKE test migration completes.
 			logFilePath = "/tmp/gcsfuse_read_cache_test_logs/log.json"
-			testEnv.cacheDirPath = "/tmp/cache-dir-read-cache-hns-false"
+			if testEnv.bucketType == setup.FlatBucket {
+				testEnv.cacheDirPath = "/tmp/cache-dir-read-cache-hns-false"
+			} else {
+				testEnv.cacheDirPath = "/tmp/cache-dir-read-cache-hns-true"
+			}
 		}
 	}
 	testEnv.cfg.LogFile = logFilePath
