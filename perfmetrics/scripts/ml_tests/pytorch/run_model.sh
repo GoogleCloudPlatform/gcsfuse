@@ -20,7 +20,7 @@ NUM_EPOCHS=80
 TEST_BUCKET="gcsfuse-ml-data"
 
 # Install golang
-wget -O go_tar.tar.gz https://go.dev/dl/go1.24.5.linux-amd64.tar.gz -q
+wget -O go_tar.tar.gz https://go.dev/dl/go1.24.10.linux-amd64.tar.gz -q
 rm -rf /usr/local/go && tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=$PATH:/usr/local/go/bin
 
