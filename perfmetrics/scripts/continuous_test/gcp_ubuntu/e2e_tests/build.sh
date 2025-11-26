@@ -52,10 +52,15 @@ else
     echo "Current Bash version (${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}) meets or exceeds the required version (${REQUIRED_BASH_VERSION_FOR_E2E_SCRIPT}). Skipping Bash installation."
 fi
 
-if [[ "${RUN_TESTS_WITH_ZONAL_BUCKET:-false}" == "true" ]]; then
+if [[ "${RUN_TESTS_WITH_ZONAL_BUCKET-}" == "true" ]]; then
     echo "Running zonal e2e tests on installed package...."
     "${BASH_EXECUTABLE}" ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location="$BUCKET_LOCATION" --test-installed-package --zonal
-    exit 0
+else
+    if [[ -n "${RUN_TESTS_WITH_ZONAL_BUCKET-}" ]]; then
+        echo "Warning: RUN_TESTS_WITH_ZONAL_BUCKET is set to '${RUN_TESTS_WITH_ZONAL_BUCKET}', which is not 'true'. Running regional tests."
+    else
+        echo "RUN_TESTS_WITH_ZONAL_BUCKET is not set. Running regional tests by default."
+    fi
+    echo "Running regional e2e tests on installed package...."
+    "${BASH_EXECUTABLE}" ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location="$BUCKET_LOCATION" --test-installed-package
 fi
-echo "Running regional e2e tests on installed package...."
-"${BASH_EXECUTABLE}" ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location="$BUCKET_LOCATION" --test-installed-package
