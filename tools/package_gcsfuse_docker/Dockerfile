@@ -16,8 +16,7 @@
 #
 # Build Arguments:
 #   GCSFUSE_VERSION  - Version string for the package (required, e.g., "0.39.2")
-#   COMMIT_HASH      - Specific git commit to build from (optional)
-#                      If not provided, builds from tag "v${GCSFUSE_VERSION}"
+#   BRANCH_NAME      - Git commit, branch or tag to build from (default: "v${GCSFUSE_VERSION}")
 #   ARCHITECTURE     - Target architecture: "amd64" or "arm64" (default: "amd64")
 #   GCSFUSE_REPO     - Repository URL (default: https://github.com/googlecloudplatform/gcsfuse/)
 #
@@ -26,10 +25,10 @@
 #   Build from version tag (standard release):
 #     docker build . -t gcsfuse-release --build-arg GCSFUSE_VERSION=0.39.2
 #
-#   Build from specific commit (e.g., for testing unreleased changes):
+#   Build from specific branch/commit/tag (e.g., for testing unreleased changes):
 #     docker build . -t gcsfuse-release \
 #       --build-arg GCSFUSE_VERSION=0.40.0 \
-#       --build-arg COMMIT_HASH=abc123def456
+#       --build-arg BRANCH_NAME=<commit_hash_or_branch_name>
 #
 #   Build for ARM64 architecture:
 #     docker build . -t gcsfuse-release \
@@ -66,18 +65,10 @@ ENV GO111MODULE=auto
 ARG GCSFUSE_VERSION
 ARG GCSFUSE_REPO="https://github.com/googlecloudplatform/gcsfuse/"
 ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
-ARG COMMIT_HASH=""
 RUN git clone ${GCSFUSE_REPO} 
 ARG GCSFUSE_PATH=${GOPATH}/gcsfuse
 WORKDIR ${GCSFUSE_PATH}
-# Checkout either COMMIT_HASH (if provided) or BRANCH_NAME (default to version tag)
-RUN if [ -n "${COMMIT_HASH}" ]; then \
-    echo "Building from commit hash: ${COMMIT_HASH}"; \
-    git checkout ${COMMIT_HASH}; \
-    else \
-    echo "Building from branch/tag: ${BRANCH_NAME}"; \
-    git checkout ${BRANCH_NAME}; \
-    fi
+RUN echo "Building from branch/commit/tag: ${BRANCH_NAME}" && git checkout ${BRANCH_NAME}
 
 ARG DEBEMAIL="gcs-fuse-maintainers@google.com"
 ARG DEBFULLNAME="GCSFuse Team"
