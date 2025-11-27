@@ -72,33 +72,43 @@ func SetupNestedTestDir(path string, permission os.FileMode, t *testing.T) {
 func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) {
 	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, flags, mountFunc)
 	// In case of GKE, the test directory is not created by the test.
-	if setup.MountedDirectory() != "" {
-		testEnv.testDirPath = path.Join(setup.MntDir(), kTestDirName)
-	} else {
-		testEnv.testDirPath = client.SetupTestDirectory(ctx, storageClient, kTestDirName)
+	if testEnv.cfg.GKEMountedDirectory != "" {
+		setup.SetMntDir(testEnv.cfg.GKEMountedDirectory)
 	}
+	testEnv.testDirPath = client.SetupTestDirectory(ctx, storageClient, kTestDirName)
 }
 
+func loadLogLines(reader io.Reader) ([]string, error) {
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+	return strings.Split(string(content), "\n"), nil
+}
+
+// validateInactiveReaderClosedLog checks if the "Closing reader for object ... due to inactivity"
+// log message is present (or absent) for the given objectName, b/w the [startTime, endTime] interval.
+// Also expects based on the shouldBePresent value.
 func validateInactiveReaderClosedLog(t *testing.T, logFile, objectName string, shouldBePresent bool, startTime, endTime time.Time) {
 	t.Helper()
+	// Be specific about the object name in the expected message.
 	expectedMsgSubstring := fmt.Sprintf("Closing reader for object %q due to inactivity.", objectName)
 
 	file, err := os.Open(logFile)
 	require.NoError(t, err, "Failed to open log file")
 	defer file.Close()
 
-	content, err := io.ReadAll(file)
-	if err != nil {
-		t.Fatalf("Failed to read log file: %v", err)
-	}
-	logLines := strings.Split(string(content), "\n")
-
+	logLines, err := loadLogLines(file)
 	require.NoError(t, err, "Failed to read log file")
 
 	found := false
 	for _, line := range logLines {
-		logEntry, err := read_logs.ParseJsonLogLineIntoLogEntryStruct(line)
+		logEntry, err := read_logs.ParseJsonLogLineIntoLogEntryStruct(line) // Assuming read_logs can parse general log lines too or a more generic parser is available.
+		// If parsing fails, it might be a non-JSON line or a different structured log.
+		// For this specific message, we expect it to be in the "Message" field of a structured log.
+
 		if err == nil && logEntry != nil {
+			// Check if the log entry's timestamp is within the expected window.
 			if (logEntry.Timestamp.After(startTime) || logEntry.Timestamp.Equal(startTime)) &&
 				(logEntry.Timestamp.Before(endTime) || logEntry.Timestamp.Equal(endTime)) {
 				if strings.Contains(logEntry.Message, expectedMsgSubstring) {

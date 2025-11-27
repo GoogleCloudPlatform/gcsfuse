@@ -127,18 +127,14 @@ func TestTimeoutEnabledSuite(t *testing.T) {
 		storageClient: testEnv.storageClient,
 		baseTestName:  t.Name(),
 	}
-	//setupLogFile(t.Name())
 	// Run tests for mounted directory if the flag is set.
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
-		// flags := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())[0]
-		// ts.flags = flags
 		suite.Run(t, ts)
 		return
 	}
 
 	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, ts.flags = range flagsSet {
-		// ts.flags = flags
 		log.Printf("Running inactive_read_timeout tests with flags: %s", ts.flags)
 		suite.Run(t, ts)
 	}
