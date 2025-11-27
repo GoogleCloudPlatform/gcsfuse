@@ -26,6 +26,18 @@ import (
 // to an alternative reader.
 var FallbackToAnotherReader = errors.New("fallback to another reader is required")
 
+// ReadRequest encapsulates the parameters for a read operation.
+type ReadRequest struct {
+	// Buffer is provided by jacobsa/fuse and should be filled with data from the object.
+	Buffer []byte
+
+	// Offset specifies the starting position in the object from where data should be read.
+	Offset int64
+
+	// ReadInfo contains metadata about the read pattern.
+	ReadInfo
+}
+
 // GCSReaderRequest represents the request parameters needed to read a data from a GCS object.
 type GCSReaderRequest struct {
 	// Buffer is provided by jacobsa/fuse and should be filled with data from the object.
@@ -69,7 +81,7 @@ type Reader interface {
 	// ReadResponse. To indicate that the operation should be handled by an
 	// alternative reader, return the error FallbackToAnotherReader.
 	// If an error occurs, the size in ReadResponse will be zero.
-	ReadAt(ctx context.Context, p []byte, offset int64) (ReadResponse, error)
+	ReadAt(ctx context.Context, req *ReadRequest) (ReadResponse, error)
 
 	// Destroy is called to release any resources held by the reader.
 	Destroy()

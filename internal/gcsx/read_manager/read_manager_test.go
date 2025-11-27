@@ -106,7 +106,10 @@ func getReadCloser(content []byte) io.ReadCloser {
 func (t *readManagerTest) readAt(dst []byte, offset int64) (gcsx.ReadResponse, error) {
 	t.readManager.CheckInvariants()
 	defer t.readManager.CheckInvariants()
-	return t.readManager.ReadAt(t.ctx, dst, offset)
+	return t.readManager.ReadAt(t.ctx, &gcsx.ReadRequest{
+		Buffer: dst,
+		Offset: offset,
+	})
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -334,12 +337,15 @@ func (t *readManagerTest) Test_ReadAt_R1FailsR2Succeeds() {
 		object:  t.object,
 		readers: []gcsx.Reader{mockReader1, mockReader2},
 	}
-	mockReader1.On("ReadAt", t.ctx, buf, offset).Return(gcsx.ReadResponse{}, gcsx.FallbackToAnotherReader).Once()
+	mockReader1.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(gcsx.ReadResponse{}, gcsx.FallbackToAnotherReader).Once()
 	mockReader1.On("Destroy").Once()
-	mockReader2.On("ReadAt", t.ctx, buf, offset).Return(expectedResp, nil).Once()
+	mockReader2.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(expectedResp, nil).Once()
 	mockReader2.On("Destroy").Once()
 
-	resp, err := rm.ReadAt(t.ctx, buf, offset)
+	resp, err := rm.ReadAt(t.ctx, &gcsx.ReadRequest{
+		Buffer: buf,
+		Offset: offset,
+	})
 	rm.Destroy()
 
 	assert.NoError(t.T(), err, "expected no error when second reader succeeds")
@@ -357,12 +363,15 @@ func (t *readManagerTest) Test_ReadAt_BufferedReaderFallsBack() {
 		object:  t.object,
 		readers: []gcsx.Reader{mockBufferedReader, mockGCSReader},
 	}
-	mockBufferedReader.On("ReadAt", t.ctx, buf, offset).Return(gcsx.ReadResponse{}, gcsx.FallbackToAnotherReader).Once()
+	mockBufferedReader.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(gcsx.ReadResponse{}, gcsx.FallbackToAnotherReader).Once()
 	mockBufferedReader.On("Destroy").Once()
-	mockGCSReader.On("ReadAt", t.ctx, buf, offset).Return(gcsx.ReadResponse{Size: 10}, nil).Once()
+	mockGCSReader.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(gcsx.ReadResponse{Size: 10}, nil).Once()
 	mockGCSReader.On("Destroy").Once()
 
-	resp, err := rm.ReadAt(t.ctx, buf, offset)
+	resp, err := rm.ReadAt(t.ctx, &gcsx.ReadRequest{
+		Buffer: buf,
+		Offset: offset,
+	})
 	rm.Destroy()
 
 	assert.NoError(t.T(), err)

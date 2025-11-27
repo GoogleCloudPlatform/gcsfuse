@@ -255,11 +255,11 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 //     reached, or an error occurs.
 //
 // LOCKS_EXCLUDED(p.mu)
-func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64) (gcsx.ReadResponse, error) {
+func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
 	resp := gcsx.ReadResponse{}
 	reqID := uuid.New()
 	start := time.Now()
-	initOff := off
+	initOff := req.Offset
 	blockIdx := initOff / p.config.PrefetchBlockSizeBytes
 	var bytesRead int
 	var err error
@@ -268,14 +268,14 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		handleID = int64(readOp.Handle)
 	}
 
-	logger.Tracef("%.13v <- ReadAt(%s:/%s, %d, %d, %d, %d)", reqID, p.bucket.Name(), p.object.Name, handleID, off, len(inputBuf), blockIdx)
+	logger.Tracef("%.13v <- ReadAt(%s:/%s, %d, %d, %d, %d)", reqID, p.bucket.Name(), p.object.Name, handleID, req.Offset, len(req.Buffer), blockIdx)
 
-	if off >= int64(p.object.Size) {
+	if req.Offset >= int64(p.object.Size) {
 		err = io.EOF
 		return resp, err
 	}
 
-	if len(inputBuf) == 0 {
+	if len(req.Buffer) == 0 {
 		return resp, nil
 	}
 
@@ -291,7 +291,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		}
 	}()
 
-	if err = p.handleRandomRead(off, handleID); err != nil {
+	if err = p.handleRandomRead(req.Offset, handleID); err != nil {
 		return resp, fmt.Errorf("BufferedReader.ReadAt: handleRandomRead: %w", err)
 	}
 
@@ -299,11 +299,11 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 
 	var dataSlices [][]byte
 	var entriesToCallback []*blockQueueEntry
-	for bytesRead < len(inputBuf) {
-		p.prepareQueueForOffset(off)
+	for bytesRead < len(req.Buffer) {
+		p.prepareQueueForOffset(req.Offset)
 
 		if p.blockQueue.IsEmpty() {
-			if err = p.freshStart(off); err != nil {
+			if err = p.freshStart(req.Offset); err != nil {
 				logger.Warnf("Fallback to another reader for object %q, handle %d, due to freshStart failure: %v", p.object.Name, handleID, err)
 				p.metricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
 				return resp, gcsx.FallbackToAnotherReader
@@ -334,12 +334,12 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 			break
 		}
 
-		relOff := off - blk.AbsStartOff()
-		bytesToRead := len(inputBuf) - bytesRead
+		relOff := req.Offset - blk.AbsStartOff()
+		bytesToRead := len(req.Buffer) - bytesRead
 		dataSlice, readErr := blk.ReadAtSlice(relOff, bytesToRead)
 		sliceLen := len(dataSlice)
 		bytesRead += sliceLen
-		off += int64(sliceLen)
+		req.Offset += int64(sliceLen)
 
 		if readErr != nil && !errors.Is(readErr, io.EOF) {
 			err = fmt.Errorf("BufferedReader.ReadAt: block.ReadAt: %w", readErr)
@@ -353,11 +353,11 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 			entriesToCallback = append(entriesToCallback, entry)
 		}
 
-		if off >= int64(p.object.Size) {
+		if req.Offset >= int64(p.object.Size) {
 			break
 		}
 
-		if off >= blk.AbsStartOff()+blk.Size() {
+		if req.Offset >= blk.AbsStartOff()+blk.Size() {
 			entry := p.blockQueue.Pop()
 			p.releaseOrMarkEvicted(entry)
 

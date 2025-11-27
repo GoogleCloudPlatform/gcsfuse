@@ -41,6 +41,7 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/sync/semaphore"
@@ -309,7 +310,10 @@ func (t *fileTest) Test_ReadWithReadManager_Success() {
 	buf := make([]byte, len(expectedData))
 	fh.inode.Lock()
 
-	resp, err := fh.ReadWithReadManager(t.ctx, buf, 0, 200)
+	resp, err := fh.ReadWithReadManager(t.ctx, &gcsx.ReadRequest{
+		Buffer: buf,
+		Offset: 0,
+	}, 200)
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), len(expectedData), resp.Size)
@@ -348,7 +352,10 @@ func (t *fileTest) Test_ReadWithReadManager_Concurrent() {
 
 			fh.inode.Lock() // Lock required by ReadWithReadManager
 			// The method is responsible for unlocking.
-			resp, err := fh.ReadWithReadManager(t.ctx, dst, int64(offset), 200)
+			resp, err := fh.ReadWithReadManager(t.ctx, &gcsx.ReadRequest{
+				Buffer: dst,
+				Offset: int64(offset),
+			}, 200)
 
 			// Assertions
 			assert.NoError(t.T(), err)
@@ -452,11 +459,14 @@ func (t *fileTest) Test_ReadWithReadManager_ErrorScenarios() {
 			fh := NewFileHandle(testInode, nil, false, metrics.NewNoopMetrics(), util.Read, &cfg.Config{}, nil, nil)
 			fh.inode.Lock()
 			mockRM := new(read_manager.MockReadManager)
-			mockRM.On("ReadAt", t.ctx, dst, int64(0)).Return(gcsx.ReadResponse{}, tc.returnErr)
+			mockRM.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(gcsx.ReadResponse{}, tc.returnErr)
 			mockRM.On("Object").Return(&object)
 			fh.readManager = mockRM
 
-			resp, err := fh.ReadWithReadManager(t.ctx, dst, 0, 200)
+			resp, err := fh.ReadWithReadManager(t.ctx, &gcsx.ReadRequest{
+				Buffer: dst,
+				Offset: 0,
+			}, 200)
 
 			assert.Zero(t.T(), resp.Size, "expected 0 bytes read")
 			assert.True(t.T(), errors.Is(err, tc.returnErr), "expected error to match")
@@ -516,7 +526,10 @@ func (t *fileTest) Test_ReadWithReadManager_FallbackToInode() {
 	mockRM := new(read_manager.MockReadManager)
 	fh.readManager = mockRM
 
-	resp, err := fh.ReadWithReadManager(t.ctx, dst, 0, 200)
+	resp, err := fh.ReadWithReadManager(t.ctx, &gcsx.ReadRequest{
+		Buffer: dst,
+		Offset: 0,
+	}, 200)
 
 	assert.Equal(t.T(), io.EOF, err)
 	assert.Equal(t.T(), len(objectData), resp.Size)
@@ -557,7 +570,10 @@ func (t *fileTest) Test_ReadWithReadManager_ReadManagerInvalidatedByGenerationCh
 
 	// First read, to create a readManager.
 	fh.inode.Lock()
-	_, err := fh.ReadWithReadManager(t.ctx, make([]byte, len(content1)), 0, 200)
+	_, err := fh.ReadWithReadManager(t.ctx, &gcsx.ReadRequest{
+		Buffer: make([]byte, len(content1)),
+		Offset: 0,
+	}, 200)
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), fh.readManager)
 	oldReadManager := fh.readManager
@@ -576,7 +592,10 @@ func (t *fileTest) Test_ReadWithReadManager_ReadManagerInvalidatedByGenerationCh
 	// The next ReadWithReadManager call should detect this, destroy the old one,
 	// create a new one, and read the new content.
 	fh.inode.Lock()
-	resp, err := fh.ReadWithReadManager(t.ctx, dst, 0, 200)
+	resp, err := fh.ReadWithReadManager(t.ctx, &gcsx.ReadRequest{
+		Buffer: dst,
+		Offset: 0,
+	}, 200)
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), fh.readManager)
@@ -942,7 +961,10 @@ func (t *fileTest) Test_ReadWithReadManager_FullReadSuccessWithBufferedRead() {
 	buf := make([]byte, fileSize)
 
 	// ReadWithReadManager will unlock the inode.
-	resp, err := fh.ReadWithReadManager(context.Background(), buf, 0, 200)
+	resp, err := fh.ReadWithReadManager(context.Background(), &gcsx.ReadRequest{
+		Buffer: buf,
+		Offset: 0,
+	}, 200)
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), fileSize, resp.Size)
@@ -987,7 +1009,10 @@ func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() 
 			fh.inode.Lock()
 
 			// Each goroutine use same file handle.
-			resp, err := fh.ReadWithReadManager(context.Background(), readBuf, offset, int32(readSize))
+			resp, err := fh.ReadWithReadManager(context.Background(), &gcsx.ReadRequest{
+				Buffer: readBuf,
+				Offset: offset,
+			}, int32(readSize))
 
 			assert.NoError(t.T(), err)
 			assert.Equal(t.T(), readSize, resp.Size)
@@ -1033,21 +1058,27 @@ func (t *fileTest) Test_ReadWithReadManager_WorkloadInsightVisual() {
 	fh.inode.Lock()
 	dst := make([]byte, MiB)
 	// First read.
-	resp1, err := fh.ReadWithReadManager(t.ctx, dst, MiB, 200)
+	resp1, err := fh.ReadWithReadManager(t.ctx, &gcsx.ReadRequest{
+		Buffer: dst,
+		Offset: MiB,
+	}, 200)
 	require.NoError(t.T(), err)
 	require.Equal(t.T(), MiB, resp1.Size)
 	require.Equal(t.T(), content[MiB:2*MiB], dst[:resp1.Size])
 	clear(dst)
 	// Second read.
 	fh.inode.Lock()
-	resp2, err := fh.ReadWithReadManager(t.ctx, dst, 0, 200)
+	resp2, err := fh.ReadWithReadManager(t.ctx, &gcsx.ReadRequest{
+		Buffer: dst,
+		Offset: 0,
+	}, 200)
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), MiB, resp2.Size)
 	assert.Equal(t.T(), content[0:MiB], dst[:resp2.Size])
 	clear(dst)
 	// Third read.
 	fh.inode.Lock()
-	resp3, err := fh.ReadWithReadManager(t.ctx, dst, 2*MiB, 200)
+	resp3, err := fh.ReadWithReadManager(t.ctx, &gcsx.ReadRequest{Buffer: dst, Offset: 2 * MiB}, 200)
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), MiB, resp3.Size)
 	assert.Equal(t.T(), content[2*MiB:3*MiB], dst[:resp3.Size])
