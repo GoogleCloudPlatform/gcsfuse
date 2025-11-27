@@ -116,12 +116,10 @@ func createPrefetchBlock(blockSize int64) (PrefetchBlock, error) {
 		return nil, fmt.Errorf("createPrefetchBlock: Mmap: %w", err)
 	}
 
-	mb := memoryBlock{
-		buffer: addr[:0],
-	}
-
 	pmb := prefetchMemoryBlock{
-		memoryBlock:  mb,
+		memoryBlock: memoryBlock{
+			buffer: addr,
+		},
 		status:       BlockStatus{State: BlockStateInProgress},
 		notification: make(chan BlockStatus, 1),
 		absStartOff:  -1,
@@ -134,14 +132,16 @@ func createPrefetchBlock(blockSize int64) (PrefetchBlock, error) {
 // The offset is relative to the start of the block.
 // It returns the number of bytes read and an error if any.
 func (pmb *prefetchMemoryBlock) ReadAt(p []byte, off int64) (n int, err error) {
-	if off < 0 || off >= pmb.Size() {
+	if off < 0 || off >= int64(pmb.Size()) {
 		return 0, fmt.Errorf("prefetchMemoryBlock.ReadAt: offset %d is out of bounds for block size %d", off, pmb.Size())
 	}
 
-	n = copy(p, pmb.buffer[off:])
+	// We should only read up to the current size of the block.
+	readableBytes := pmb.buffer[off:pmb.Size()]
+	n = copy(p, readableBytes)
 
 	if n < len(p) {
-		return n, io.EOF
+		return n, io.EOF // We didn't fill the buffer, so we must have hit the end.
 	}
 	return n, nil
 }
@@ -155,13 +155,13 @@ func (pmb *prefetchMemoryBlock) ReadAt(p []byte, off int64) (n int, err error) {
 // a slice of the available data and an io.EOF error. If the offset is out of
 // bounds, it returns an error.
 func (pmb *prefetchMemoryBlock) ReadAtSlice(off int64, size int) ([]byte, error) {
-	if off < 0 || off >= pmb.Size() {
+	if off < 0 || off >= int64(pmb.Size()) {
 		return nil, fmt.Errorf("prefetchMemoryBlock.ReadAtSlice: offset %d is out of bounds for block size %d", off, pmb.Size())
 	}
 
 	dataEnd := off + int64(size)
-	if dataEnd > int64(len(pmb.buffer)) {
-		dataEnd = int64(len(pmb.buffer))
+	if dataEnd > int64(pmb.Size()) {
+		dataEnd = int64(pmb.Size())
 		return pmb.buffer[off:dataEnd], io.EOF
 	}
 

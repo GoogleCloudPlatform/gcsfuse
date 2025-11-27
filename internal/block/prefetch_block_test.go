@@ -46,7 +46,7 @@ func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockReuse() {
 	output, err := io.ReadAll(pmb)
 	require.Nil(testSuite.T(), err)
 	require.Equal(testSuite.T(), content, output)
-	require.Equal(testSuite.T(), int64(2), pmb.Size())
+	require.Equal(testSuite.T(), 2, pmb.Size())
 	err = pmb.SetAbsStartOff(23)
 	require.Nil(testSuite.T(), err)
 	pmb.IncRef()
@@ -59,7 +59,7 @@ func (testSuite *PrefetchMemoryBlockTest) TestPrefetchMemoryBlockReuse() {
 	output, err = io.ReadAll(pmb)
 	assert.Nil(testSuite.T(), err)
 	assert.Empty(testSuite.T(), output)
-	assert.Equal(testSuite.T(), int64(0), pmb.Size())
+	assert.Equal(testSuite.T(), 0, pmb.Size())
 	assert.Panics(testSuite.T(), func() {
 		_ = pmb.AbsStartOff()
 	})

@@ -17,6 +17,7 @@ package block
 import (
 	"fmt"
 	"io"
+	"sync"
 	"syscall"
 )
 
@@ -34,13 +35,12 @@ type Block interface {
 
 	// Size provides the current data size of the block. The capacity of the block
 	// can be >= data_size.
-	Size() int64
+	Size() int
 
 	// Cap returns the capacity of the block, kind of block-size.
-	Cap() int64
+	Cap() int
 
-	// Write writes the given data to block.
-	Write(bytes []byte) (n int, err error)
+	LimitedReadFrom(r io.Reader, n int) (int, error)
 }
 
 type memoryBlock struct {
@@ -48,19 +48,25 @@ type memoryBlock struct {
 
 	// readSeek is used to track the position for reading data.
 	readSeek int64
+
+	// currentSize is used to track the current size of the buffer (Protected by mu).
+	currentSize int
+	mu          sync.RWMutex
 }
 
 func (m *memoryBlock) Reuse() {
+	m.currentSize = 0
 	m.readSeek = 0
-	m.buffer = m.buffer[:0]
 }
 
-func (m *memoryBlock) Size() int64 {
-	return int64(len(m.buffer))
+func (m *memoryBlock) Cap() int {
+	return cap(m.buffer)
 }
 
-func (m *memoryBlock) Cap() int64 {
-	return int64(cap(m.buffer))
+func (m *memoryBlock) Size() int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.currentSize
 }
 
 // Read reads data from the block into the provided byte slice.
@@ -70,15 +76,18 @@ func (m *memoryBlock) Read(bytes []byte) (int, error) {
 		return 0, fmt.Errorf("readSeek %d is less than start offset 0", m.readSeek)
 	}
 
-	if m.readSeek >= int64(len(m.buffer)) {
+	if m.readSeek >= int64(m.Size()) {
 		return 0, io.EOF
 	}
 
-	n := copy(bytes, m.buffer[m.readSeek:])
+	// We should only read up to the current size of the block.
+	readableBytes := m.buffer[m.readSeek:m.Size()]
+
+	n := copy(bytes, readableBytes)
 	m.readSeek += int64(n)
 
-	// If readSeek is beyond the end of the block, return EOF early.
-	if m.readSeek >= int64(len(m.buffer)) {
+	// If we have read up to the end of the written data, return EOF.
+	if m.readSeek >= int64(m.Size()) || n < len(bytes) {
 		return n, io.EOF
 	}
 
@@ -102,12 +111,12 @@ func (m *memoryBlock) Seek(offset int64, whence int) (int64, error) {
 	case io.SeekCurrent:
 		newReadSeek += offset
 	case io.SeekEnd:
-		newReadSeek = int64(len(m.buffer)) + offset
+		newReadSeek = int64(m.Size()) + offset
 	default:
 		return 0, fmt.Errorf("invalid whence value: %d", whence)
 	}
 
-	if newReadSeek < 0 || newReadSeek > int64(len(m.buffer)) {
+	if newReadSeek < 0 || newReadSeek > int64(m.Size()) {
 		return 0, fmt.Errorf("new readSeek position %d is out of bounds", newReadSeek)
 	}
 
@@ -116,15 +125,25 @@ func (m *memoryBlock) Seek(offset int64, whence int) (int64, error) {
 }
 
 func (m *memoryBlock) Write(bytes []byte) (int, error) {
-	if len(bytes) > cap(m.buffer)-len(m.buffer) {
+	if len(bytes) > m.Cap()-m.Size() {
 		return 0, fmt.Errorf("received data more than capacity of the block")
 	}
-
-	currentLen := len(m.buffer)
-	m.buffer = m.buffer[:currentLen+len(bytes)]
-	n := copy(m.buffer[currentLen:], bytes)
-
+	n := copy(m.buffer[m.Size():], bytes)
+	m.mu.Lock()
+	m.currentSize += n
+	m.mu.Unlock()
 	return n, nil
+}
+
+func (m *memoryBlock) LimitedReadFrom(r io.Reader, limit int) (n int, err error) {
+	if m.Size()+limit > m.Cap() {
+		return 0, fmt.Errorf("limit is more than remaining capacity of block")
+	}
+	limitedReadFrom, err := r.Read(m.buffer[m.Size() : m.Size()+limit])
+	m.mu.Lock()
+	m.currentSize += limitedReadFrom
+	m.mu.Unlock()
+	return limitedReadFrom, err
 }
 
 func (m *memoryBlock) Deallocate() error {
@@ -151,7 +170,7 @@ func createBlock(blockSize int64) (Block, error) {
 	}
 
 	mb := memoryBlock{
-		buffer: addr[:0],
+		buffer: addr,
 	}
 	return &mb, nil
 }

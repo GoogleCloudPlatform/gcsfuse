@@ -15,6 +15,7 @@
 package block
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -47,7 +48,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockWrite() {
 	output, err := io.ReadAll(mb)
 	assert.Nil(testSuite.T(), err)
 	assert.Equal(testSuite.T(), content, output)
-	assert.Equal(testSuite.T(), int64(2), mb.Size())
+	assert.Equal(testSuite.T(), 2, mb.Size())
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockWriteWithDataGreaterThanCapacity() {
@@ -75,7 +76,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockWriteWithMultipleWrites() {
 	output, err := io.ReadAll(mb)
 	assert.Nil(testSuite.T(), err)
 	assert.Equal(testSuite.T(), []byte("hihello"), output)
-	assert.Equal(testSuite.T(), int64(7), mb.Size())
+	assert.Equal(testSuite.T(), 7, mb.Size())
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockWriteWith2ndWriteBeyondCapacity() {
@@ -103,7 +104,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReuse() {
 	output, err := io.ReadAll(mb)
 	require.Nil(testSuite.T(), err)
 	require.Equal(testSuite.T(), content, output)
-	require.Equal(testSuite.T(), int64(2), mb.Size())
+	require.Equal(testSuite.T(), 2, mb.Size())
 
 	mb.Reuse()
 
@@ -111,7 +112,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReuse() {
 	output, err = io.ReadAll(mb)
 	assert.Nil(testSuite.T(), err)
 	assert.Empty(testSuite.T(), output)
-	assert.Equal(testSuite.T(), int64(0), mb.Size())
+	assert.Equal(testSuite.T(), 0, mb.Size())
 }
 
 // Other cases for Size are covered as part of write tests.
@@ -119,7 +120,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockSizeForEmptyBlock() {
 	mb, err := createBlock(12)
 	require.Nil(testSuite.T(), err)
 
-	assert.Equal(testSuite.T(), int64(0), mb.Size())
+	assert.Equal(testSuite.T(), 0, mb.Size())
 }
 
 // Other cases for reader are covered as part of write tests.
@@ -131,7 +132,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReaderForEmptyBlock() {
 	output, err := io.ReadAll(mb)
 	assert.Nil(testSuite.T(), err)
 	assert.Empty(testSuite.T(), output)
-	assert.Equal(testSuite.T(), int64(0), mb.Size())
+	assert.Equal(testSuite.T(), 0, mb.Size())
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockDeAllocate() {
@@ -145,7 +146,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockDeAllocate() {
 	output, err := io.ReadAll(mb)
 	require.Nil(testSuite.T(), err)
 	require.Equal(testSuite.T(), content, output)
-	require.Equal(testSuite.T(), int64(2), mb.Size())
+	require.Equal(testSuite.T(), 2, mb.Size())
 
 	err = mb.Deallocate()
 
@@ -157,7 +158,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockCap() {
 	mb, err := createBlock(12)
 	require.Nil(testSuite.T(), err)
 
-	assert.Equal(testSuite.T(), int64(12), mb.Cap())
+	assert.Equal(testSuite.T(), 12, mb.Cap())
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockCapAfterWrite() {
@@ -168,7 +169,7 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockCapAfterWrite() {
 	require.Nil(testSuite.T(), err)
 	require.Equal(testSuite.T(), 2, n)
 
-	assert.Equal(testSuite.T(), int64(12), mb.Cap())
+	assert.Equal(testSuite.T(), 12, mb.Cap())
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockReadSuccess() {
@@ -216,6 +217,81 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockReadSeekBeyondEnd() {
 
 	require.Equal(testSuite.T(), io.EOF, err)
 	require.Equal(testSuite.T(), 0, n)
+}
+
+func (testSuite *MemoryBlockTest) TestMemoryBlockLimitedReadFromSuccess() {
+	mb, err := createBlock(20)
+	require.Nil(testSuite.T(), err)
+	content := []byte("hello world")
+	reader := bytes.NewReader(content)
+
+	n, err := mb.LimitedReadFrom(reader, len(content))
+
+	require.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), len(content), n)
+	assert.Equal(testSuite.T(), len(content), mb.Size())
+	readContent := make([]byte, len(content))
+	_, err = mb.Read(readContent)
+	require.ErrorIs(testSuite.T(), err, io.EOF)
+	assert.Equal(testSuite.T(), content, readContent)
+}
+
+func (testSuite *MemoryBlockTest) TestMemoryBlockLimitedReadFromLimitMoreThanCapacity() {
+	mb, err := createBlock(10)
+	require.Nil(testSuite.T(), err)
+	content := []byte("hello world") // 11 bytes
+	reader := bytes.NewReader(content)
+
+	n, err := mb.LimitedReadFrom(reader, len(content))
+
+	assert.Error(testSuite.T(), err)
+	assert.Contains(testSuite.T(), err.Error(), "limit is more than remaining capacity of block")
+	assert.Equal(testSuite.T(), 0, n)
+	assert.Equal(testSuite.T(), 0, mb.Size())
+}
+
+func (testSuite *MemoryBlockTest) TestMemoryBlockLimitedReadFromReaderWithLessData() {
+	mb, err := createBlock(20)
+	require.Nil(testSuite.T(), err)
+	content := []byte("hello") // 5 bytes
+	reader := bytes.NewReader(content)
+
+	n, err := mb.LimitedReadFrom(reader, 10)
+
+	// The underlying reader's Read may return io.EOF (for memoryBlock), but it's not guaranteed
+	// to be propagated by all implementations (e.g. io.Copy in bytes.NewReader).
+	// We only require that there is no error other than a potential EOF.
+	require.True(testSuite.T(), err == nil || err == io.EOF, "Error should be nil or io.EOF")
+	assert.Equal(testSuite.T(), len(content), n)
+	assert.Equal(testSuite.T(), len(content), mb.Size())
+	readContent := make([]byte, len(content))
+	_, readErr := mb.Read(readContent)
+	require.ErrorIs(testSuite.T(), readErr, io.EOF)
+	assert.Equal(testSuite.T(), content, readContent)
+}
+
+func (testSuite *MemoryBlockTest) TestMemoryBlockLimitedReadFromMultipleReads() {
+	mb, err := createBlock(30)
+	require.Nil(testSuite.T(), err)
+	content1 := []byte("hello ")
+	reader1 := bytes.NewReader(content1)
+	content2 := []byte("world")
+	reader2 := bytes.NewReader(content2)
+
+	n1, err1 := mb.LimitedReadFrom(reader1, len(content1))
+	require.NoError(testSuite.T(), err1)
+	assert.Equal(testSuite.T(), len(content1), n1)
+	assert.Equal(testSuite.T(), len(content1), mb.Size())
+
+	n2, err2 := mb.LimitedReadFrom(reader2, len(content2))
+	require.NoError(testSuite.T(), err2)
+	assert.Equal(testSuite.T(), len(content2), n2)
+	assert.Equal(testSuite.T(), len(content1)+len(content2), mb.Size())
+
+	readContent := make([]byte, mb.Size())
+	_, readErr := mb.Read(readContent)
+	require.ErrorIs(testSuite.T(), readErr, io.EOF)
+	assert.Equal(testSuite.T(), "hello world", string(readContent))
 }
 
 func (testSuite *MemoryBlockTest) TestMemoryBlockReadFailure() {

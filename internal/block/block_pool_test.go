@@ -89,7 +89,7 @@ func (t *BlockPoolTest) TestTryGetWhenBlockIsAvailableForReuse() {
 	require.Nil(t.T(), err)
 	require.NotNil(t.T(), block)
 	// This ensures the block is reset.
-	assert.Equal(t.T(), int64(0), block.Size())
+	assert.Equal(t.T(), 0, block.Size())
 }
 
 func (t *BlockPoolTest) TestTryGetWhenTotalBlocksIsLessThanThanMaxBlocks() {
@@ -100,7 +100,7 @@ func (t *BlockPoolTest) TestTryGetWhenTotalBlocksIsLessThanThanMaxBlocks() {
 
 	require.Nil(t.T(), err)
 	require.NotNil(t.T(), block)
-	assert.Equal(t.T(), int64(0), block.Size())
+	assert.Equal(t.T(), 0, block.Size())
 }
 
 func (t *BlockPoolTest) TestTryGetToCreateLargeBlock() {
@@ -130,7 +130,7 @@ func (t *BlockPoolTest) TestGetWhenBlockIsAvailableForReuse() {
 	require.Nil(t.T(), err)
 	require.NotNil(t.T(), block)
 	// This ensures the block is reset.
-	assert.Equal(t.T(), int64(0), block.Size())
+	assert.Equal(t.T(), 0, block.Size())
 }
 
 func (t *BlockPoolTest) TestGetWhenTotalBlocksIsLessThanThanMaxBlocks() {
@@ -141,7 +141,7 @@ func (t *BlockPoolTest) TestGetWhenTotalBlocksIsLessThanThanMaxBlocks() {
 
 	require.Nil(t.T(), err)
 	require.NotNil(t.T(), block)
-	assert.Equal(t.T(), int64(0), block.Size())
+	assert.Equal(t.T(), 0, block.Size())
 }
 
 func (t *BlockPoolTest) TestCreateBlockWithLargeSize() {
