@@ -53,7 +53,7 @@ type downloadTask struct {
 // - BlockStatusDownloadFailed: The download failed due to an error.
 func (p *downloadTask) Execute() {
 	startOff := p.block.AbsStartOff()
-	blockId := startOff / p.block.Cap()
+	blockId := startOff / int64(p.block.Cap())
 	logger.Tracef("Download: <- block (%s, %v).", p.object.Name, blockId)
 	stime := time.Now()
 	var err error

@@ -100,8 +100,8 @@ func (dts *DownloadTaskTestSuite) TestExecuteSuccess() {
 
 	task.Execute()
 
-	assert.Equal(dts.T(), int64(len(testContent)), downloadBlock.Size())
-	assert.Equal(dts.T(), int64(testBlockSize), downloadBlock.Cap())
+	assert.EqualValues(dts.T(), len(testContent), downloadBlock.Size())
+	assert.EqualValues(dts.T(), testBlockSize, downloadBlock.Cap())
 	assert.NoError(dts.T(), err)
 	dts.mockBucket.AssertExpectations(dts.T())
 	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))

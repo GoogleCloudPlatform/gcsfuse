@@ -220,7 +220,7 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 		entry := p.blockQueue.Peek()
 		block := entry.block
 		blockStart := block.AbsStartOff()
-		blockEnd := blockStart + block.Cap()
+		blockEnd := blockStart + int64(block.Cap())
 
 		if offset < blockStart || offset >= blockEnd {
 			// Offset is either before or beyond this block – discard.
@@ -357,7 +357,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 			break
 		}
 
-		if off >= blk.AbsStartOff()+blk.Size() {
+		if off >= blk.AbsStartOff()+int64(blk.Size()) {
 			entry := p.blockQueue.Pop()
 			p.releaseOrMarkEvicted(entry)
 
