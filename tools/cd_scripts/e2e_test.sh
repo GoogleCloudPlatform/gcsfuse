@@ -576,10 +576,16 @@ function run_e2e_tests_for_emulator_and_log() {
 declare -A exit_status
 if [[ "$RUN_LIGHT_TEST" == "true" ]]; then
     light_test_dir_non_parallel=("monitoring")
-    light_test_dir_parallel=("")
+    light_test_dir_parallel=()
 
     run_e2e_tests "flat"  light_test_dir_parallel light_test_dir_non_parallel false
     exit_status["flat"]=$?
+
+    run_e2e_tests "hns"  light_test_dir_parallel light_test_dir_non_parallel false
+    exit_status["hns"]=$?
+
+    run_e2e_tests "zonal"  light_test_dir_parallel light_test_dir_non_parallel true
+    exit_status["zonal"]=$?
 elif [[ "$RUN_READ_CACHE_TESTS_ONLY" == "true" ]]; then
     read_cache_test_dir_parallel=() # Empty for read cache tests only
     read_cache_test_dir_non_parallel=("read_cache")
