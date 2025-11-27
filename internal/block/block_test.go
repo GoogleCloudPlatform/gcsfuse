@@ -258,10 +258,9 @@ func (testSuite *MemoryBlockTest) TestMemoryBlockLimitedReadFromReaderWithLessDa
 
 	n, err := mb.LimitedReadFrom(reader, 10)
 
-	// The underlying reader's Read may return io.EOF (for memoryBlock), but it's not guaranteed
-	// to be propagated by all implementations (e.g. io.Copy in bytes.NewReader).
-	// We only require that there is no error other than a potential EOF.
-	require.True(testSuite.T(), err == nil || err == io.EOF, "Error should be nil or io.EOF")
+	// io.ReadFull returns io.ErrUnexpectedEOF if the reader provides fewer bytes than requested.
+	// This is expected behavior in this test case.
+	require.ErrorIs(testSuite.T(), err, io.ErrUnexpectedEOF)
 	assert.Equal(testSuite.T(), len(content), n)
 	assert.Equal(testSuite.T(), len(content), mb.Size())
 	readContent := make([]byte, len(content))

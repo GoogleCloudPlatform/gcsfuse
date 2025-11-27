@@ -136,10 +136,11 @@ func (m *memoryBlock) Write(bytes []byte) (int, error) {
 }
 
 func (m *memoryBlock) LimitedReadFrom(r io.Reader, limit int) (n int, err error) {
-	if m.Size()+limit > m.Cap() {
+	currentSize := m.Size()
+	if currentSize+limit > m.Cap() {
 		return 0, fmt.Errorf("limit is more than remaining capacity of block")
 	}
-	limitedReadFrom, err := r.Read(m.buffer[m.Size() : m.Size()+limit])
+	limitedReadFrom, err := io.ReadFull(r, m.buffer[currentSize:currentSize+limit])
 	m.mu.Lock()
 	m.currentSize += limitedReadFrom
 	m.mu.Unlock()
