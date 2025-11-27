@@ -505,6 +505,27 @@ read_gcs_algo:
           zonal: true
         run_on_gke: true
 
+unfinalized_object:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    configs:
+      - flags:
+        - "--metadata-cache-ttl-secs=-1"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: TestUnfinalizedObjectReadTest
+        run_on_gke: true
+      - flags:
+        - "--metadata-cache-ttl-secs=0"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: TestUnfinalizedObjectOperationTest
+        run_on_gke: true
+
 interrupt:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
