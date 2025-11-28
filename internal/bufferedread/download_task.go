@@ -43,6 +43,9 @@ type downloadTask struct {
 
 	// Used for zonal bucket to bypass the auth & metadata checks.
 	readHandle []byte
+
+	// Callback to update the read handle in the buffered reader.
+	updateReadHandle func([]byte)
 }
 
 // Execute implements the workerpool.Task interface. It downloads the data from
@@ -102,5 +105,8 @@ func (p *downloadTask) Execute() {
 	if err != nil {
 		err = fmt.Errorf("DownloadTask.Execute: while data-copy: %w", err)
 		return
+	}
+	if p.bucket.BucketType().Zonal {
+		p.updateReadHandle(newReader.ReadHandle())
 	}
 }

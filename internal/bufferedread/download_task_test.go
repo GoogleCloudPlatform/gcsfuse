@@ -61,6 +61,7 @@ func (dts *DownloadTaskTestSuite) SetupTest() {
 		Generation: 1234567890,
 	}
 	dts.mockBucket = new(storage.TestifyMockBucket)
+	dts.mockBucket.On("BucketType").Return(gcs.BucketType{Zonal: true}).Maybe()
 	var err error
 	dts.blockPool, err = block.NewPrefetchBlockPool(testBlockSize, 10, 1, semaphore.NewWeighted(100))
 	dts.metricHandle = metrics.NewNoopMetrics()
@@ -85,6 +86,7 @@ func (dts *DownloadTaskTestSuite) TestExecuteSuccess() {
 		block:        downloadBlock,
 		readHandle:   nil,
 		metricHandle: dts.metricHandle,
+		updateReadHandle: func([]byte) {},
 	}
 	testContent := testutil.GenerateRandomBytes(testBlockSize)
 	rc := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
