@@ -1070,7 +1070,14 @@ func (d *dirInode) DeleteObjects(ctx context.Context, objectNames []string) erro
 // between our List and Delete calls, we'd get a 'Not Found' error. By ignoring
 // it, we ensure the delete operation succeeds if the object is already gone.
 func (d *dirInode) deleteObject(ctx context.Context, objectName string) error {
+	// For HNS buckets, the directory entry might be backed by:
+	// 1. **Only a folder:** Deleting the 'object' will fail (not found), and the DeleteFolder call is needed.
+	// 2. **A 0-byte placeholder object + an empty folder:** We first attempt to delete the 0-byte object. The subsequent DeleteFolder handles the folder removal.
+
+	// 1. Attempt to delete the underlying GCS object (This handles files and 0-byte directory placeholders).
 	err := d.bucket.DeleteObject(ctx, &gcs.DeleteObjectRequest{Name: objectName})
+
+	// If it's a non-HNS bucket, return any error other than Not Found.
 	if !d.isBucketHierarchical() && err != nil {
 		var notFoundErr *gcs.NotFoundError
 		if !errors.As(err, &notFoundErr) {
