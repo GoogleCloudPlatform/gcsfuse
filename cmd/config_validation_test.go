@@ -127,6 +127,16 @@ func TestValidateConfigFile(t *testing.T) {
 			configFile: "testdata/valid_profile.yaml",
 			wantErr:    false,
 		},
+		{
+			name:       "set_machine_type",
+			configFile: "testdata/set_machine_type.yaml",
+			wantErr:    false,
+		},
+		{
+			name:       "unset_machine_type",
+			configFile: "testdata/unset_machine_type.yaml",
+			wantErr:    false,
+		},
 	}
 
 	for _, tc := range testCases {
