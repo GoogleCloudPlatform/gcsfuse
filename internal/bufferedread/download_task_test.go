@@ -80,12 +80,12 @@ func (dts *DownloadTaskTestSuite) TestExecuteSuccess() {
 	err = downloadBlock.SetAbsStartOff(0)
 	require.Nil(dts.T(), err)
 	task := &downloadTask{
-		ctx:          context.Background(),
-		object:       dts.object,
-		bucket:       dts.mockBucket,
-		block:        downloadBlock,
-		readHandle:   nil,
-		metricHandle: dts.metricHandle,
+		ctx:              context.Background(),
+		object:           dts.object,
+		bucket:           dts.mockBucket,
+		block:            downloadBlock,
+		readHandle:       nil,
+		metricHandle:     dts.metricHandle,
 		updateReadHandle: func([]byte) {},
 	}
 	testContent := testutil.GenerateRandomBytes(testBlockSize)
