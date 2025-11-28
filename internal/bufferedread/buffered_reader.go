@@ -630,7 +630,7 @@ func (br *BufferedReader) UpdateReadHandle(readHandle []byte) {
 	}
 
 	// Atomically store the new ReadHandle, overwriting the old one. We are intentionaly using
-	// Store here instead of CAS as we don't care if anyone other download task updated the
+	// Store here instead of CAS as we don't care if any other download task updated the
 	// atomic pointer from the time we detected the expiration as long as it's updated.
 	br.readHandle.Store(newReadHandle)
 }
