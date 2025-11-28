@@ -127,6 +127,7 @@ func (t *BufferedReaderTest) SetupTest() {
 		Generation: 1234567890,
 	}
 	t.bucket = new(storage.TestifyMockBucket)
+	t.bucket.On("BucketType").Return(gcs.BucketType{Zonal: true}).Maybe()
 	t.globalMaxBlocksSem = semaphore.NewWeighted(testGlobalMaxBlocks)
 	t.config = &BufferedReadConfig{
 		MaxPrefetchBlockCnt:     testMaxPrefetchBlockCnt,
@@ -1926,4 +1927,56 @@ func (t *BufferedReaderTest) TestEvictedBlockIsReleasedOnlyAfterCallback() {
 
 	assert.Equal(t.T(), 1, reader.blockPool.TotalFreeBlocks(), "Evicted block should be released after its callback.")
 	resp2.Callback()
+}
+
+func TestReadHandle_InitialState(t *testing.T) {
+	br := &BufferedReader{}
+	br.readHandle.Store(&ReadHandle{readHandle: nil, expiry: time.Time{}})
+
+	handle := br.ReadHandle()
+
+	assert.Nil(t, handle)
+}
+
+func TestUpdateReadHandle_UpdatesWhenExpired(t *testing.T) {
+	br := &BufferedReader{}
+	br.readHandle.Store(&ReadHandle{readHandle: nil, expiry: time.Time{}})
+	newHandle := []byte("new-handle")
+
+	br.UpdateReadHandle(newHandle)
+
+	assert.Equal(t, newHandle, br.ReadHandle())
+	// Verify expiry is set to future
+	current := br.readHandle.Load()
+	assert.True(t, current.expiry.After(time.Now()))
+}
+
+func TestUpdateReadHandle_DoesNotUpdateWhenNotExpired(t *testing.T) {
+	br := &BufferedReader{}
+	initialHandle := []byte("initial-handle")
+	// Set a handle that expires in the future
+	br.readHandle.Store(&ReadHandle{
+		readHandle: initialHandle,
+		expiry:     time.Now().Add(1 * time.Hour),
+	})
+
+	ignoredHandle := []byte("ignored-handle")
+	br.UpdateReadHandle(ignoredHandle)
+
+	assert.Equal(t, initialHandle, br.ReadHandle())
+}
+
+func TestUpdateReadHandle_UpdatesWhenManuallyExpired(t *testing.T) {
+	br := &BufferedReader{}
+	initialHandle := []byte("initial-handle")
+	// Set a handle that is already expired
+	br.readHandle.Store(&ReadHandle{
+		readHandle: initialHandle,
+		expiry:     time.Now().Add(-1 * time.Hour),
+	})
+
+	newHandle := []byte("new-handle")
+	br.UpdateReadHandle(newHandle)
+
+	assert.Equal(t, newHandle, br.ReadHandle())
 }

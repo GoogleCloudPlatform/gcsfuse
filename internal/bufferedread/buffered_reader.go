@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -50,8 +51,15 @@ type BufferedReadConfig struct {
 
 const (
 	defaultPrefetchMultiplier = 2
-	ReadOp                    = "readOp"
+	readOp                    = "readOp"
+	readHandleValidity        = 5 * time.Minute // source go/gcsfuse-zonal-buckets-read-design-doc
 )
+
+// Struct for holding readHandle data.
+type ReadHandle struct {
+	readHandle []byte
+	expiry     time.Time
+}
 
 type BufferedReader struct {
 	gcsx.Reader
@@ -73,7 +81,9 @@ type BufferedReader struct {
 
 	metricHandle metrics.MetricHandle
 
-	readHandle []byte // For zonal bucket.
+	// readHandle is used to optimize creation of subsequent GCS Readers.
+	// Only applicable for Zonal Buckets.
+	readHandle atomic.Pointer[ReadHandle]
 
 	ctx        context.Context
 	cancelFunc context.CancelFunc
@@ -150,6 +160,8 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 		prefetchMultiplier:       defaultPrefetchMultiplier,
 		randomReadsThreshold:     opts.Config.RandomSeekThreshold,
 	}
+
+	reader.readHandle.Store(&ReadHandle{readHandle: nil, expiry: time.Time{}})
 
 	reader.ctx, reader.cancelFunc = context.WithCancel(context.Background())
 	return reader, nil
@@ -264,7 +276,7 @@ func (p *BufferedReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (gcs
 	var bytesRead int
 	var err error
 	handleID := int64(-1) // As 0 is a valid handle ID, we use -1 to indicate no handle.
-	if readOp, ok := ctx.Value(ReadOp).(*fuseops.ReadFileOp); ok {
+	if readOp, ok := ctx.Value(readOp).(*fuseops.ReadFileOp); ok {
 		handleID = int64(readOp.Handle)
 	}
 
@@ -497,12 +509,13 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockInde
 
 	ctx, cancel := context.WithCancel(p.ctx)
 	task := &downloadTask{
-		ctx:          ctx,
-		object:       p.object,
-		bucket:       p.bucket,
-		block:        b,
-		readHandle:   p.readHandle,
-		metricHandle: p.metricHandle,
+		ctx:              ctx,
+		object:           p.object,
+		bucket:           p.bucket,
+		block:            b,
+		readHandle:       p.ReadHandle(),
+		metricHandle:     p.metricHandle,
+		updateReadHandle: p.UpdateReadHandle,
 	}
 
 	logger.Tracef("Scheduling block: (%s, %d, %t).", p.object.Name, blockIndex, urgent)
@@ -596,4 +609,28 @@ func (p *BufferedReader) CheckInvariants() {
 	if p.randomSeekCount > p.randomReadsThreshold {
 		panic(fmt.Sprintf("BufferedReader: randomSeekCount %d exceeds threshold %d", p.randomSeekCount, p.randomReadsThreshold))
 	}
+}
+
+// ReadHandle returns the current GCS ReadHandle data in Buffered Reader, regardless of expiry.
+func (br *BufferedReader) ReadHandle() []byte {
+	return br.readHandle.Load().readHandle
+}
+
+// UpdateReadHandle creates a new ReadHandle instance with the provided ReadHandle
+// and updates the atomic pointer if readHandle is expired.
+func (br *BufferedReader) UpdateReadHandle(readHandle []byte) {
+	if time.Now().Before(br.readHandle.Load().expiry) {
+		return
+	}
+
+	// Create the new ReadHandle instance.
+	newReadHandle := &ReadHandle{
+		readHandle: readHandle,
+		expiry:     time.Now().Add(readHandleValidity),
+	}
+
+	// Atomically store the new ReadHandle, overwriting the old one. We are intentionaly using
+	// Store here instead of CAS as we don't care if any other download task updated the
+	// atomic pointer from the time we detected the expiration as long as it's updated.
+	br.readHandle.Store(newReadHandle)
 }
