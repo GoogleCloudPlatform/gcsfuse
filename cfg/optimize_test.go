@@ -184,14 +184,7 @@ func TestGetMachineType_InputPrecedenceOrder(t *testing.T) {
 			// Override metadataEndpoints for testing.
 			metadataEndpoints = []string{server.URL}
 
-			var testConfig *Config
-			if tc.config != nil {
-				c := defaultConfig()
-				c.MachineType = tc.config.MachineType
-				testConfig = &c
-			}
-
-			machineType, err := getMachineType(tc.isSet, testConfig)
+			machineType, err := getMachineType(tc.isSet, tc.config)
 
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedMachineType, machineType)
