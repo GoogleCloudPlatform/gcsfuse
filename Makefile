@@ -55,4 +55,4 @@ clean-all: clean-gen
 	go clean -i ./...
 
 build-csi:
-	gcloud builds submit --config csi_driver_build.yml --project=$(PROJECT) --substitutions=_CSI_VERSION=$(CSI_VERSION),_GCSFUSE_VERSION=$(GCSFUSE_VERSION),_BUILD_ARM=$(BUILD_ARM),_STAGINGVERSION=$(STAGINGVERSION)
+	cd .. && gcloud builds submit --config gcsfuse/csi_driver_build.yml --project=$(PROJECT) --substitutions=_GCSFUSE_VERSION=$(GCSFUSE_VERSION),_BUILD_ARM=$(BUILD_ARM),_STAGINGVERSION=$(STAGINGVERSION),_USER=cloudbuild-prow-gob-internal-boskos

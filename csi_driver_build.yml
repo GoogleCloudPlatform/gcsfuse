@@ -15,7 +15,6 @@
 substitutions:
   _GOLANG_VERSION: '1.24'
   _GCSFUSE_VERSION: 'v4'
-  _CSI_VERSION: 'main'
   _BUILD_ARM: 'false'
   _USER: 'cloudbuild'
   _IMAGE_PREFIX: 'build'
@@ -24,16 +23,17 @@ substitutions:
 steps:
 # --- Build GCSFuse ---
 # This step clones the GCSFuse CSI Driver repository.
-- name: 'gcr.io/cloud-builders/git'
+- name: 'bash'
   id: 'clone-csi-driver' # ID is used in waitFor below.
   waitFor: ['-'] # This step can run concurrently with other steps that have waitFor: ['-']
-  args: ['clone', '--branch', '${_CSI_VERSION}', '--depth', '1', 'https://github.com/GoogleCloudPlatform/gcs-fuse-csi-driver.git', 'csi-driver-src']
+  args: ['-c', 'cp -r gcs-fuse-csi-driver csi-driver-src']
 
 # This step builds the GCSFuse binary for each platform specified in the _PLATFORMS substitution.
 # The binaries are placed in the /workspace/gcsfuse-artifacts directory.
 - name: 'golang:${_GOLANG_VERSION}'
   id: 'build-gcsfuse' # ID is used in waitFor below.
   waitFor: ['-'] # This step can run concurrently with other steps that have waitFor: ['-']
+  dir: 'gcsfuse'
   entrypoint: 'bash'
   args:
   - '-c'
