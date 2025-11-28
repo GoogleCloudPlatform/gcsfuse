@@ -318,6 +318,7 @@ TEST_DIR_PARALLEL=(
   # Disabled because of b/451462914.
   #"requester_pays_bucket"
   "flag_optimizations"
+  "unsupported_path"
 )
 
 # These tests never become parallel as they are changing bucket permissions.
@@ -357,6 +358,7 @@ TEST_DIR_PARALLEL_ZONAL=(
   streaming_writes
   unfinalized_object
   write_large_files
+  "unsupported_path"
 )
 
 # For Zonal Buckets :  These tests never become parallel as they are changing bucket permissions.
