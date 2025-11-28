@@ -16,6 +16,6 @@ This document lists known issues and bugs in GCSFuse, their impact, and the rele
 | Issue | Affected Versions | Fixed in | Reference |
 | :--- | :--- | :--- | :--- |
 | Input/output error when metrics are enabled. Applications may receive input/output errors from GCSFuse mounts when metrics are enabled. | v2.11.* | v2.12.0 | [#3870](https://github.com/GoogleCloudPlatform/gcsfuse/issues/3870) |
-| Double counting of gcs/reader_count and gcs/download_bytes_count | gcs/reader_count and gcs/download_bytes_count are unreliable before v3.5 | v3.5 | [#3895](https://github.com/GoogleCloudPlatform/gcsfuse/pull/3895)
+| Incorrect gcs/reader_count and gcs/download_bytes_count metrics. gcs/reader_count and gcs/download_bytes_count are unreliable before v3.5. | v3.4 and older | v3.5 | [#3895](https://github.com/GoogleCloudPlatform/gcsfuse/pull/3895)
 | Points must be written in order. One or more of the points specified had an older start time than the most recent point | v3.4 and older | v3.5 | [#3895](https://github.com/GoogleCloudPlatform/gcsfuse/pull/3923)
 | One or more points were written more frequently than the maximum sampling period configured for the metric. | v3.4 and older | v3.5 | [#3895](https://github.com/GoogleCloudPlatform/gcsfuse/pull/3923)
