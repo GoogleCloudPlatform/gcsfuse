@@ -54,9 +54,9 @@ const (
 	ReadOp                    = "readOp"
 )
 
-const ReadHandleValidity = 30 * time.Second
+const ReadHandleValidity = 5 * time.Minute
 
-// Struct for holding readHandle with shared read access and exclusive write access.
+// Struct for holding readHandle data.
 type ReadHandle struct {
 	readHandle []byte
 	expiry     time.Time
@@ -510,12 +510,12 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockInde
 
 	ctx, cancel := context.WithCancel(p.ctx)
 	task := &downloadTask{
-		ctx:          ctx,
-		object:       p.object,
-		bucket:       p.bucket,
-		block:        b,
-		readHandle:   p.ReadHandle(),
-		metricHandle: p.metricHandle,
+		ctx:              ctx,
+		object:           p.object,
+		bucket:           p.bucket,
+		block:            b,
+		readHandle:       p.ReadHandle(),
+		metricHandle:     p.metricHandle,
 		updateReadHandle: p.UpdateReadHandle,
 	}
 
