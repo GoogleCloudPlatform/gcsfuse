@@ -2374,21 +2374,21 @@ func (fs *fileSystem) nonAtomicRename(
 	// Delete behind. Make sure to delete exactly the generation we cloned, in
 	// case the referent of the name has changed in the meantime.
 	oldParent.Lock()
+	defer oldParent.Unlock()
+
 	err = oldParent.DeleteChildFile(
 		ctx,
 		oldName,
 		oldObject.Generation,
 		&oldObject.MetaGeneration)
 
-	if err := fs.invalidateChildFileCacheIfExist(oldParent, oldObject.Name); err != nil {
-		return fmt.Errorf("nonAtomicRename: while invalidating cache for delete file: %w", err)
-	}
-
-	oldParent.Unlock()
-
 	if err != nil {
 		err = fmt.Errorf("DeleteChildFile: %w", err)
 		return err
+	}
+
+	if err := fs.invalidateChildFileCacheIfExist(oldParent, oldObject.Name); err != nil {
+		return fmt.Errorf("nonAtomicRename: while invalidating cache for delete file: %w", err)
 	}
 
 	return nil
