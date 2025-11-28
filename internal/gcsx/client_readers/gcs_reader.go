@@ -144,10 +144,9 @@ func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest) (
 		// acquire the lock. Hence, needs to be calculated again.
 		// Recalculating only for ZB and only when another read had been performed between now and
 		// the time when readerType was calculated for this request.
-		newReadInfo := readReq.ReadInfo
 		if gr.bucket.BucketType().Zonal && readReq.ExpectedOffset != gr.readTypeClassifier.NextExpectedOffset() {
-			newReadInfo = gr.readTypeClassifier.GetReadInfo(readReq.Offset, readReq.SeekRecorded)
-			reqReaderType = gr.readerType(newReadInfo.ReadType, gr.bucket.BucketType())
+			readReq.ReadInfo = gr.readTypeClassifier.GetReadInfo(readReq.Offset, readReq.SeekRecorded)
+			reqReaderType = gr.readerType(readReq.ReadType, gr.bucket.BucketType())
 		}
 		// If the readerType is range reader after re calculation, then use range reader.
 		// Otherwise fall back to MultiRange Downloder
@@ -156,7 +155,6 @@ func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest) (
 			// Calculate the end offset based on previous read requests.
 			// It will be used if a new range reader needs to be created.
 			readReq.EndOffset = gr.getEndOffset(readReq.Offset)
-			readReq.ReadType = newReadInfo.ReadType
 			readResp, err = gr.rangeReader.ReadAt(ctx, readReq)
 			return readResp.Size, err
 		}
