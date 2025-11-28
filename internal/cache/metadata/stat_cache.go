@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,12 +15,10 @@
 package metadata
 
 import (
-	"math"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/folder"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
 
 // A cache mapping from name to most recent known record for the object of that
@@ -83,7 +81,7 @@ type StatCache interface {
 // Create a new bucket-view to the passed shared-cache object.
 // For dynamic-mount (mount for multiple buckets), pass bn as bucket-name.
 // For static-mout (mount for single bucket), pass bn as "".
-func NewStatCacheBucketView(sc *lru.Cache, bn string) StatCache {
+func NewStatCacheBucketView(sc *folder.Trie, bn string) StatCache {
 	return &statCacheBucketView{
 		sharedCache: sc,
 		bucketName:  bn,
@@ -97,7 +95,7 @@ func NewStatCacheBucketView(sc *lru.Cache, bn string) StatCache {
 // bucket-name to its entry keys to make them unique
 // to it.
 type statCacheBucketView struct {
-	sharedCache *lru.Cache
+	sharedCache *folder.Trie
 	// bucketName is the unique identifier for this
 	// statCache object among all statCache objects
 	// using the same shared lru.Cache object.
@@ -111,33 +109,6 @@ type entry struct {
 	m          *gcs.MinObject
 	f          *gcs.Folder
 	expiration time.Time
-	key        string
-}
-
-// Size returns the memory-size (resident set size) of the receiver entry.
-// The size calculated by the unsafe.Sizeof calls, and
-// NestedSizeOfGcsMinObject etc. does not account for
-// hidden members in data structures like maps, slices, linked-lists etc.
-// To account for those, we are adding a fixed constant of 515 bytes (deduced from
-// benchmark runs) to heap-size per positive stat-cache entry
-// to calculate a size closer to the actual memory utilization.
-func (e entry) Size() (size uint64) {
-	// First, calculate size on heap (including folder size also in case of hns buckets, in case of non-hns buckets 0 will be added as e.f will be Nil ).
-	// Additional 2*util.UnsafeSizeOf(&e.key) is to account for the copies of string
-	// struct stored in the cache map and in the cache linked-list.
-	size = uint64(util.UnsafeSizeOf(&e) + len(e.key) + 2*util.UnsafeSizeOf(&e.key) + util.NestedSizeOfGcsMinObject(e.m))
-	if e.m != nil {
-		size += 515
-	}
-
-	if e.f != nil {
-		size += uint64(util.UnsafeSizeOf(&e.f))
-	}
-
-	// Convert heap-size to RSS (resident set size).
-	size = uint64(math.Ceil(util.HeapSizeToRssConversionFactor * float64(size)))
-
-	return
 }
 
 // Should the supplied object for a new positive entry replace the given
@@ -176,10 +147,12 @@ func (sc *statCacheBucketView) key(objectName string) string {
 func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 	name := sc.key(m.Name)
 
-	// Is there already a better entry?
-	if existing := sc.sharedCache.LookUp(name); existing != nil {
-		if !shouldReplace(m, existing.(entry)) {
-			return
+	// Check if a better entry already exists.
+	if fileInfo, ok := sc.sharedCache.Get(name); ok {
+		if existing, ok := fileInfo.Data().(entry); ok {
+			if !shouldReplace(m, existing) {
+				return
+			}
 		}
 	}
 
@@ -187,12 +160,8 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 	e := entry{
 		m:          m,
 		expiration: expiration,
-		key:        name,
 	}
-
-	if _, err := sc.sharedCache.Insert(name, e); err != nil {
-		panic(err)
-	}
+	sc.sharedCache.Insert(name, folder.NewFileInfoWithData(e))
 }
 
 func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration time.Time) {
@@ -200,14 +169,9 @@ func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration ti
 
 	// Insert a negative entry.
 	e := entry{
-		m:          nil,
 		expiration: expiration,
-		key:        name,
 	}
-
-	if _, err := sc.sharedCache.Insert(name, e); err != nil {
-		panic(err)
-	}
+	sc.sharedCache.Insert(name, folder.NewFileInfoWithData(e))
 }
 
 func (sc *statCacheBucketView) AddNegativeEntryForFolder(folderName string, expiration time.Time) {
@@ -215,25 +179,20 @@ func (sc *statCacheBucketView) AddNegativeEntryForFolder(folderName string, expi
 
 	// Insert a negative entry.
 	e := entry{
-		f:          nil,
 		expiration: expiration,
-		key:        name,
 	}
-
-	if _, err := sc.sharedCache.Insert(name, e); err != nil {
-		panic(err)
-	}
+	sc.sharedCache.Insert(name, folder.NewFileInfoWithData(e))
 }
 
 func (sc *statCacheBucketView) Erase(objectName string) {
 	name := sc.key(objectName)
-	sc.sharedCache.Erase(name)
+	sc.sharedCache.Delete(name)
 }
 
 func (sc *statCacheBucketView) LookUp(
 	objectName string,
 	now time.Time) (bool, *gcs.MinObject) {
-	// Look up in the LRU cache.
+	// Look up in the trie cache.
 	hit, entry := sc.sharedCacheLookup(objectName, now)
 	if hit {
 		return hit, entry.m
@@ -245,7 +204,7 @@ func (sc *statCacheBucketView) LookUp(
 func (sc *statCacheBucketView) LookUpFolder(
 	folderName string,
 	now time.Time) (bool, *gcs.Folder) {
-	// Look up in the LRU cache.
+	// Look up in the trie cache.
 	hit, entry := sc.sharedCacheLookup(folderName, now)
 
 	if hit {
@@ -256,12 +215,15 @@ func (sc *statCacheBucketView) LookUpFolder(
 }
 
 func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (bool, *entry) {
-	value := sc.sharedCache.LookUp(sc.key(key))
-	if value == nil {
+	fileInfo, ok := sc.sharedCache.Get(sc.key(key))
+	if !ok || fileInfo.Data() == nil {
 		return false, nil
 	}
 
-	e := value.(entry)
+	e, ok := fileInfo.Data().(entry)
+	if !ok {
+		return false, nil
+	}
 
 	// Has this entry expired?
 	if e.expiration.Before(now) {
@@ -278,16 +240,18 @@ func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time)
 	e := entry{
 		f:          f,
 		expiration: expiration,
-		key:        name,
 	}
 
-	if _, err := sc.sharedCache.Insert(name, e); err != nil {
-		panic(err)
-	}
+	sc.sharedCache.Insert(name, folder.NewFileInfoWithData(e))
 }
 
 // Invalidate cache for all the entries with given prefix.
 func (sc *statCacheBucketView) EraseEntriesWithGivenPrefix(prefix string) {
 	prefix = sc.key(prefix)
-	sc.sharedCache.EraseEntriesWithGivenPrefix(prefix)
+	paths := sc.sharedCache.ListPathsWithPrefix(prefix)
+	for _, path := range paths {
+		sc.sharedCache.Delete(path)
+	}
+	// Also delete the prefix itself, in case it's a directory node without being a file.
+	sc.sharedCache.Delete(prefix)
 }

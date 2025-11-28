@@ -31,10 +31,25 @@ type FileInfo struct {
 	data  interface{} //can be used for caching file content
 }
 
+// Data returns the data associated with the file.
+func (fi *FileInfo) Data() interface{} {
+	if fi == nil {
+		return nil
+	}
+	return fi.data
+}
+
 // NewFileInfo creates a new FileInfo.
 func NewFileInfo() *FileInfo {
 	return &FileInfo{
 		mu: new(sync.RWMutex),
+	}
+}
+
+func NewFileInfoWithData(data interface{}) *FileInfo {
+	return &FileInfo{
+		data: data,
+		mu:   new(sync.RWMutex),
 	}
 }
 
