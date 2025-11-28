@@ -48,7 +48,7 @@ func (t *MainTest) TestCreateStorageHandle() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics())
+	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), false)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), storageHandle)
@@ -60,7 +60,19 @@ func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPC() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics())
+	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), false)
+
+	assert.Nil(t.T(), err)
+	assert.NotNil(t.T(), storageHandle)
+}
+
+func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPCIsGKE() {
+	newConfig := &cfg.Config{
+		GcsConnection: cfg.GcsConnectionConfig{ClientProtocol: cfg.GRPC},
+		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
+	}
+
+	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), true)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), storageHandle)

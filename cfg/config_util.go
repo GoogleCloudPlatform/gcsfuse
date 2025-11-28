@@ -17,6 +17,7 @@ package cfg
 import (
 	"fmt"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -54,4 +55,9 @@ func ListCacheTTLSecsToDuration(secs int64) time.Duration {
 // IsMetricsEnabled returns true if metrics are enabled.
 func IsMetricsEnabled(c *MetricsConfig) bool {
 	return c.CloudMetricsExportIntervalSecs > 0 || c.PrometheusPort > 0
+}
+
+// IsGKEEnvironment returns true for /dev/fd/N mountpoints.
+func IsGKEEnvironment(mountPoint string) bool {
+	return strings.HasPrefix(mountPoint, "/dev/fd/")
 }

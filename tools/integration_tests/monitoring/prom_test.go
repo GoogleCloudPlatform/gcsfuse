@@ -171,7 +171,6 @@ func assertNonZeroCountMetric(t *testing.T, metricName, labelName, labelValue st
 				}
 			}
 		}
-
 	}
 	assert.Fail(t, fmt.Sprintf("Didn't find the metric with name: %s, labelName: %s and labelValue: %s",
 		metricName, labelName, labelValue))

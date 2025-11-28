@@ -31,6 +31,8 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"go.opentelemetry.io/otel"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
 )
@@ -764,6 +766,29 @@ func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithTra
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), optsWithTracing)
 	assert.Len(testSuite.T(), optsWithTracing, len(optsWithoutTracing)+1, "Enabling tracing should add exactly one client option.")
+}
+
+func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithGrpcMetrics() {
+	oldProvider := otel.GetMeterProvider()
+	defer otel.SetMeterProvider(oldProvider)
+
+	sdkProvider := sdkmetric.NewMeterProvider()
+	otel.SetMeterProvider(sdkProvider)
+
+	scWithMetrics := storageutil.GetDefaultStorageClientConfig(keyFile)
+	scWithMetrics.ClientProtocol = cfg.GRPC
+	scWithMetrics.EnableGrpcMetrics = true
+
+	optsWithMetrics, err := createClientOptionForGRPCClient(context.TODO(), &scWithMetrics, false)
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), optsWithMetrics)
+
+	scWithoutMetrics := storageutil.GetDefaultStorageClientConfig(keyFile)
+	scWithoutMetrics.ClientProtocol = cfg.GRPC
+	scWithoutMetrics.EnableGrpcMetrics = false
+	optsWithoutMetrics, err := createClientOptionForGRPCClient(context.TODO(), &scWithoutMetrics, false)
+	require.NoError(testSuite.T(), err)
+	assert.Len(testSuite.T(), optsWithMetrics, len(optsWithoutMetrics)+1, "Enabling gRPC metrics should add exactly one client option.")
 }
 
 func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_AuthFailures() {
