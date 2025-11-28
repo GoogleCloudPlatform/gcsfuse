@@ -617,9 +617,8 @@ func (br *BufferedReader) ReadHandle() []byte {
 }
 
 // UpdateReadHandle creates a new ReadHandle instance with the provided ReadHandle
-// and updates the atomic pointer.
+// and updates the atomic pointer if readHandle is expired.
 func (br *BufferedReader) UpdateReadHandle(readHandle []byte) {
-	// If read handle is not expired then we don't need to update.
 	if time.Now().Before(br.readHandle.Load().expiry) {
 		return
 	}
@@ -630,8 +629,8 @@ func (br *BufferedReader) UpdateReadHandle(readHandle []byte) {
 		expiry:     time.Now().Add(readHandleValidity),
 	}
 
-	// Atomically store the new handle, overwriting the old one. We are intentionaly using
-	// Store here instead of CAS as we don't care if anyone else updated the atomic pointer
-	// from the time we detected the expiration as long as it's updated.
+	// Atomically store the new ReadHandle, overwriting the old one. We are intentionaly using
+	// Store here instead of CAS as we don't care if anyone other download task updated the
+	// atomic pointer from the time we detected the expiration as long as it's updated.
 	br.readHandle.Store(newReadHandle)
 }
