@@ -30,6 +30,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+////////////////////
+// Helpers
+////////////////////
+
+func createTempConfigFile(t *testing.T, content string) string {
+	t.Helper()
+	f, err := os.CreateTemp(t.TempDir(), "config.yaml")
+	require.NoError(t, err)
+	_, err = f.WriteString(content)
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
+	return f.Name()
+}
+
+////////////////////
+// Tests
+////////////////////
+
 func TestDefaultMaxParallelDownloads(t *testing.T) {
 	var actual *cfg.Config
 	cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
@@ -924,15 +942,6 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 	expectedAIMLCheckpointingFileSystemConfig := expectedDefaultFileSystemConfig
 	expectedAIMLCheckpointingFileSystemConfig.RenameDirLimit = 200000
 	expectedAIMLTrainingFileSystemConfig := expectedDefaultFileSystemConfig
-	createTempConfigFile := func(t *testing.T, content string) string {
-		t.Helper()
-		f, err := os.CreateTemp(t.TempDir(), "config.yaml")
-		require.NoError(t, err)
-		_, err = f.WriteString(content)
-		require.NoError(t, err)
-		require.NoError(t, f.Close())
-		return f.Name()
-	}
 
 	hd, err := os.UserHomeDir()
 	require.NoError(t, err)
