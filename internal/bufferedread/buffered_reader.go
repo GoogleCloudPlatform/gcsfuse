@@ -130,7 +130,7 @@ func NewBufferedReader(opts *BufferedReaderOptions) (*BufferedReader, error) {
 	numBlocksToReserve := min(blocksInFile, opts.Config.MinBlocksPerHandle)
 	blockpool, err := block.NewPrefetchBlockPool(opts.Config.PrefetchBlockSizeBytes, opts.Config.MaxPrefetchBlockCnt, numBlocksToReserve, opts.GlobalMaxBlocksSem)
 	if err != nil {
-		if errors.Is(err, block.CantAllocateAnyBlockError) {
+		if errors.Is(err, block.ErrCantAllocateAnyBlockError) {
 			opts.MetricHandle.BufferedReadFallbackTriggerCount(1, "insufficient_memory")
 		}
 		return nil, fmt.Errorf("NewBufferedReader: creating block-pool: %w", err)
@@ -314,28 +314,34 @@ func (p *BufferedReader) ReadAt(ctx context.Context, inputBuf []byte, off int64)
 		entry := p.blockQueue.Peek()
 		blk := entry.block
 
-		status, waitErr := blk.AwaitReady(ctx)
+		relOff := off - blk.AbsStartOff()
+		bytesToRead := len(inputBuf) - bytesRead
+		if allowed := p.config.PrefetchBlockSizeBytes - relOff; int64(bytesToRead) > allowed {
+			bytesToRead = int(allowed)
+		}
+		if allowed := int64(p.object.Size) - off; int64(bytesToRead) > allowed {
+			bytesToRead = int(allowed)
+		}
+		requestedSize := int(relOff) + bytesToRead
+		status, waitErr := blk.AwaitReady(ctx, requestedSize)
 		if waitErr != nil {
 			err = fmt.Errorf("BufferedReader.ReadAt: AwaitReady: %w", waitErr)
 			break
 		}
 
-		if status.State != block.BlockStateDownloaded {
+		if status.Size < requestedSize {
 			p.blockQueue.Pop()
 			p.blockPool.Release(blk)
 			entry.cancel()
 
-			switch status.State {
-			case block.BlockStateDownloadFailed:
-				err = fmt.Errorf("BufferedReader.ReadAt: download failed: %w", status.Err)
-			default:
-				err = fmt.Errorf("BufferedReader.ReadAt: unexpected block state: %d", status.State)
+			if status.Err != nil {
+				err = status.Err
+			} else {
+				err = fmt.Errorf("unexpected size of block returned from AwaitReady")
 			}
 			break
 		}
 
-		relOff := off - blk.AbsStartOff()
-		bytesToRead := len(inputBuf) - bytesRead
 		dataSlice, readErr := blk.ReadAtSlice(relOff, bytesToRead)
 		sliceLen := len(dataSlice)
 		bytesRead += sliceLen

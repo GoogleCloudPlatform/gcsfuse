@@ -349,7 +349,7 @@ func (t *BlockPoolTest) TestBlockPoolCreationFailsWhenGlobalMaxBlocksIsZero() {
 
 	require.Error(t.T(), err)
 	assert.Nil(t.T(), bp)
-	assert.ErrorContains(t.T(), err, CantAllocateAnyBlockError.Error())
+	assert.ErrorContains(t.T(), err, ErrCantAllocateAnyBlockError.Error())
 }
 
 func (t *BlockPoolTest) TestTryGetWhenLimitedByGlobalBlocks() {
@@ -367,7 +367,7 @@ func (t *BlockPoolTest) TestTryGetWhenLimitedByGlobalBlocks() {
 
 	require.Nil(t.T(), b3)
 	require.NotNil(t.T(), err3)
-	require.ErrorIs(t.T(), err3, CantAllocateAnyBlockError)
+	require.ErrorIs(t.T(), err3, ErrCantAllocateAnyBlockError)
 	require.Equal(t.T(), int64(2), bp.totalBlocks)
 }
 
@@ -379,7 +379,7 @@ func (t *BlockPoolTest) TestTryGetWhenTotalBlocksEqualToMaxBlocks() {
 	b, err := bp.TryGet()
 
 	require.NotNil(t.T(), err)
-	assert.Equal(t.T(), CantAllocateAnyBlockError, err)
+	assert.Equal(t.T(), ErrCantAllocateAnyBlockError, err)
 	require.Nil(t.T(), b)
 }
 

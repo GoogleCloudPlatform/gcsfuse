@@ -40,7 +40,7 @@ func (bqe *blockQueueEntry) cancelAndWait() {
 	bqe.cancel()
 	// We wait for the block's worker goroutine to finish. We expect its
 	// status to contain a context.Canceled error because we just called cancel.
-	status, err := bqe.block.AwaitReady(context.Background())
+	status, err := bqe.block.AwaitReady(context.Background(), 0)
 	if err != nil {
 		logger.Warnf("cancelAndWait: AwaitReady for block starting at %d failed: %v",
 			bqe.block.AbsStartOff(), err)

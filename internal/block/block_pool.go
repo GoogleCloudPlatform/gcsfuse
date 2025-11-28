@@ -21,7 +21,7 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
-var CantAllocateAnyBlockError error = errors.New("cant allocate any block as global max blocks limit is reached")
+var ErrCantAllocateAnyBlockError error = errors.New("cant allocate any block as global max blocks limit is reached")
 
 type GenBlock interface {
 	// Reuse resets the block for reuse.
@@ -79,7 +79,7 @@ func NewGenBlockPool[T GenBlock](blockSize int64, maxBlocks int64, reservedBlock
 
 	semAcquired := globalMaxBlocksSem.TryAcquire(reservedBlocks)
 	if !semAcquired {
-		return nil, CantAllocateAnyBlockError
+		return nil, ErrCantAllocateAnyBlockError
 	}
 
 	return &GenBlockPool[T]{
@@ -143,7 +143,7 @@ func (bp *GenBlockPool[T]) TryGet() (T, error) {
 			return b, nil
 		}
 		var zero T
-		return zero, CantAllocateAnyBlockError
+		return zero, ErrCantAllocateAnyBlockError
 	}
 }
 

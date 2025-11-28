@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
@@ -27,6 +26,10 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+)
+
+const (
+	MiB = 1024 * 1024
 )
 
 type downloadTask struct {
@@ -62,13 +65,13 @@ func (p *downloadTask) Execute() {
 		dur := time.Since(stime)
 		if err == nil {
 			logger.Tracef("Download: -> block (%s, %v) Ok(%v).", p.object.Name, blockId, dur)
-			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloaded})
+			p.block.NotifyReady(block.BlockStatus{Size: p.block.Size(), Complete: true})
 		} else if errors.Is(err, context.Canceled) && p.ctx.Err() == context.Canceled {
 			logger.Tracef("Download: -> block (%s, %v) cancelled: %v.", p.object.Name, blockId, err)
-			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})
+			p.block.NotifyReady(block.BlockStatus{Size: p.block.Size(), Err: err, Complete: true})
 		} else {
 			logger.Errorf("Download: -> block (%s, %v) failed: %v.", p.object.Name, blockId, err)
-			p.block.NotifyReady(block.BlockStatus{State: block.BlockStateDownloadFailed, Err: err})
+			p.block.NotifyReady(block.BlockStatus{Size: p.block.Size(), Err: err, Complete: true})
 		}
 		p.metricHandle.GcsDownloadBytesCount(n, metrics.ReadTypeBufferedAttr)
 	}()
@@ -98,9 +101,32 @@ func (p *downloadTask) Execute() {
 	}
 	defer newReader.Close()
 
-	n, err = io.CopyN(p.block, newReader, int64(end-start))
-	if err != nil {
-		err = fmt.Errorf("DownloadTask.Execute: while data-copy: %w", err)
-		return
+	bytesToCopy := end - start
+	copied := 0
+	for bytesToCopy > 0 {
+		if bytesToCopy > MiB {
+			copied, err = p.block.LimitedReadFrom(newReader, MiB)
+			if err != nil {
+				err = fmt.Errorf("DownloadTask.Execute: while data-copy: %w", err)
+				return
+			}
+			if copied != MiB {
+				err = fmt.Errorf("DownloadTask.Execute: while data-copy mismatch on byte copy: expected %d actual %d", MiB, copied)
+				return
+			}
+			bytesToCopy -= MiB
+			p.block.NotifyReady(block.BlockStatus{Size: p.block.Size()})
+		} else {
+			copied, err = p.block.LimitedReadFrom(newReader, int(bytesToCopy))
+			if err != nil {
+				err = fmt.Errorf("DownloadTask.Execute: while data-copy: %w", err)
+				return
+			}
+			if copied != int(bytesToCopy) {
+				err = fmt.Errorf("DownloadTask.Execute: while data-copy mismatch on byte copy: expected %d actual %d", bytesToCopy, copied)
+				return
+			}
+			bytesToCopy -= bytesToCopy
+		}
 	}
 }

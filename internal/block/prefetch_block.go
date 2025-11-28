@@ -22,22 +22,18 @@ import (
 	"syscall"
 )
 
+const (
+	MiB = 1024 * 1024 // 1 MiB
+)
+
 // BlockStatus represents the status of a block.
-// It contains the state of the block and an error
+// It contains the downloaded size of the block and an error
 // that may have occurred during the block's operation.
 type BlockStatus struct {
-	State BlockState
-	Err   error
+	Size int
+	Err  error
+	Complete bool
 }
-
-// BlockState represents the state of the block.
-type BlockState int
-
-const (
-	BlockStateInProgress     BlockState = iota // Download of this block is in progress
-	BlockStateDownloaded                       // Download of this block is complete
-	BlockStateDownloadFailed                   // Download of this block has failed
-)
 
 type PrefetchBlock interface {
 	Block
@@ -61,14 +57,11 @@ type PrefetchBlock interface {
 	// TODO(princer): check if a way to set it as part of constructor.
 	SetAbsStartOff(startOff int64) error
 
-	// AwaitReady waits for the block to be ready to consume.
-	// It returns the status of the block and an error if any.
-	AwaitReady(ctx context.Context) (BlockStatus, error)
+	// AwaitReady waits for the block to be ready to consume if the downloaded block size is more than requested block size.
+	// It returns the size of the block and an error if any.
+	AwaitReady(ctx context.Context, requestedBlockSize int) (BlockStatus, error)
 
-	// NotifyReady is used by producer to mark the block as ready to consume.
-	// The value indicates the status of the block:
-	// - BlockStatusDownloaded: Download of this block is complete.
-	// - BlockStatusDownloadFailed: Download of this block has failed.
+	// NotifyReady is used by producer to update the block download progress.
 	NotifyReady(val BlockStatus)
 
 	// IncRef increments the reference count of the block.
@@ -86,7 +79,7 @@ type PrefetchBlock interface {
 type prefetchMemoryBlock struct {
 	memoryBlock
 
-	// Indicates if block is in progress, downloaded, download failed or download cancelled.
+	// Indicates the current block download size and any error if occurred.
 	status BlockStatus
 
 	// notification is a channel that notifies when the block is ready to consume.
@@ -102,8 +95,8 @@ type prefetchMemoryBlock struct {
 func (pmb *prefetchMemoryBlock) Reuse() {
 	pmb.memoryBlock.Reuse()
 
-	pmb.notification = make(chan BlockStatus, 1)
-	pmb.status = BlockStatus{State: BlockStateInProgress}
+	pmb.notification = make(chan BlockStatus, (pmb.Cap()+MiB-1)/MiB)
+	pmb.status = BlockStatus{Size: 0}
 	pmb.absStartOff = -1
 	pmb.refCount.Store(0)
 }
@@ -120,8 +113,8 @@ func createPrefetchBlock(blockSize int64) (PrefetchBlock, error) {
 		memoryBlock: memoryBlock{
 			buffer: addr,
 		},
-		status:       BlockStatus{State: BlockStateInProgress},
-		notification: make(chan BlockStatus, 1),
+		status:       BlockStatus{Size: 0},
+		notification: make(chan BlockStatus, (blockSize+MiB-1)/MiB),
 		absStartOff:  -1,
 	}
 
@@ -191,35 +184,35 @@ func (pmb *prefetchMemoryBlock) SetAbsStartOff(startOff int64) error {
 
 // AwaitReady waits for the block to be ready to consume.
 // It returns the status of the block and an error if any.
-func (pmb *prefetchMemoryBlock) AwaitReady(ctx context.Context) (BlockStatus, error) {
-	select {
-	case val, ok := <-pmb.notification:
-		if !ok {
-			return pmb.status, nil
-		}
-
-		// First Save the last status for subsequent AwaitReady calls, and
-		// then close the notification channel which allows to read the last status
-		// without blocking.
-		// This is safe because NotifyReady is expected to be called only once.
-		pmb.status = val
-		close(pmb.notification)
-
+func (pmb *prefetchMemoryBlock) AwaitReady(ctx context.Context, size int) (BlockStatus, error) {
+	if (size > 0 && pmb.status.Size >= size) || pmb.status.Complete || pmb.status.Err != nil {
 		return pmb.status, nil
-	case <-ctx.Done():
-		return BlockStatus{State: BlockStateInProgress}, ctx.Err()
+	}
+
+	for {
+		select {
+		case status, ok := <-pmb.notification:
+			if !ok {
+				// Channel closed, which means download is complete (or failed). Return last saved status.
+				return pmb.status, nil
+			}
+			pmb.status = status
+			if (size > 0 && pmb.status.Size >= size) || pmb.status.Complete || pmb.status.Err != nil {
+				return pmb.status, nil
+			}
+		case <-ctx.Done():
+			return pmb.status, ctx.Err()
+		}
 	}
 }
 
 // NotifyReady is used by the producer to mark the block as ready to consume.
-// This should be called only once to notify the consumer.
-// If called multiple times, it will panic - either because of writing to the
-// closed channel or blocking due to writing over full notification channel.
+// This can be called multiple times to provide progress updates.
 func (pmb *prefetchMemoryBlock) NotifyReady(val BlockStatus) {
 	select {
 	case pmb.notification <- val:
 	default:
-		panic("Expected to notify only once, but got multiple notifications.")
+		panic("The channel can't be full producer must not send more than channels capacity.")
 	}
 }
 

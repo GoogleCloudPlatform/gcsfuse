@@ -172,7 +172,7 @@ func (wh *bufferedWriteHandlerImpl) appendBuffer(data []byte) (err error) {
 
 		dataWritten += bytesToCopy
 
-		if wh.current.Size() == wh.blockPool.BlockSize() {
+		if int64(wh.current.Size()) == wh.blockPool.BlockSize() {
 			err := wh.uploadHandler.Upload(wh.current)
 			if err != nil {
 				return err

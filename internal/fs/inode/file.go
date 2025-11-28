@@ -1054,7 +1054,7 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 			GlobalMaxBlocksSem:       f.globalMaxWriteBlocksSem,
 			ChunkTransferTimeoutSecs: f.config.GcsRetries.ChunkTransferTimeoutSecs,
 		})
-		if errors.Is(err, block.CantAllocateAnyBlockError) {
+		if errors.Is(err, block.ErrCantAllocateAnyBlockError) {
 			logger.Warnf("File %s will use legacy staged writes because concurrent streaming write "+
 				"limit (set by --write-global-max-blocks) has been reached. To allow more concurrent files "+
 				"to use streaming writes, consider increasing this limit if sufficient memory is available. "+

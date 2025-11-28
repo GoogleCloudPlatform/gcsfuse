@@ -106,8 +106,8 @@ func (dts *DownloadTaskTestSuite) TestExecuteSuccess() {
 	dts.mockBucket.AssertExpectations(dts.T())
 	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
 	defer cancelFunc()
-	status, err := downloadBlock.AwaitReady(ctx)
-	assert.Equal(dts.T(), block.BlockStatus{State: block.BlockStateDownloaded}, status)
+	status, err := downloadBlock.AwaitReady(ctx, len(testContent))
+	assert.Equal(dts.T(), block.BlockStatus{Size: len(testContent), Complete: true}, status)
 	assert.NoError(dts.T(), err)
 }
 
@@ -139,8 +139,7 @@ func (dts *DownloadTaskTestSuite) TestExecuteError() {
 	dts.mockBucket.AssertExpectations(dts.T())
 	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
 	defer cancelFunc()
-	status, err := downloadBlock.AwaitReady(ctx)
-	assert.Equal(dts.T(), block.BlockStateDownloadFailed, status.State)
+	status, err := downloadBlock.AwaitReady(ctx, 0)
 	assert.NotNil(dts.T(), status.Err)
 	assert.NoError(dts.T(), err)
 }
@@ -176,9 +175,8 @@ func (dts *DownloadTaskTestSuite) TestExecuteContextDeadlineExceededByServerTrea
 	dts.mockBucket.AssertExpectations(dts.T())
 	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
 	defer cancelFunc()
-	status, err := downloadBlock.AwaitReady(ctx)
+	status, err := downloadBlock.AwaitReady(ctx, 0)
 	assert.NoError(dts.T(), err)
-	assert.Equal(dts.T(), block.BlockStateDownloadFailed, status.State)
 	assert.NotNil(dts.T(), status.Err)
 }
 
@@ -214,9 +212,8 @@ func (dts *DownloadTaskTestSuite) TestExecuteContextCancelledWhileReaderCreation
 	dts.mockBucket.AssertExpectations(dts.T())
 	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
 	defer cancelFunc()
-	status, err := downloadBlock.AwaitReady(ctx)
+	status, err := downloadBlock.AwaitReady(ctx, 0)
 	assert.NoError(dts.T(), err)
-	assert.Equal(dts.T(), block.BlockStateDownloadFailed, status.State)
 	assert.ErrorIs(dts.T(), status.Err, context.Canceled)
 }
 
@@ -266,9 +263,8 @@ func (dts *DownloadTaskTestSuite) TestExecuteContextCancelledWhileReadingFromRea
 	dts.mockBucket.AssertExpectations(dts.T())
 	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
 	defer cancelFunc()
-	status, err := downloadBlock.AwaitReady(ctx)
+	status, err := downloadBlock.AwaitReady(ctx, 0)
 	assert.NoError(dts.T(), err)
-	assert.Equal(dts.T(), block.BlockStateDownloadFailed, status.State)
 	assert.ErrorIs(dts.T(), status.Err, context.Canceled)
 }
 
@@ -302,9 +298,8 @@ func (dts *DownloadTaskTestSuite) TestExecuteClobbered() {
 	dts.mockBucket.AssertExpectations(dts.T())
 	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
 	defer cancelFunc()
-	status, err := downloadBlock.AwaitReady(ctx)
+	status, err := downloadBlock.AwaitReady(ctx, 0)
 	assert.NoError(dts.T(), err)
-	assert.Equal(dts.T(), block.BlockStateDownloadFailed, status.State)
 	var fileClobberedError *gcsfuse_errors.FileClobberedError
 	assert.True(dts.T(), errors.As(status.Err, &fileClobberedError))
 }
