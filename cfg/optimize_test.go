@@ -136,68 +136,67 @@ func TestGetMachineType_FlagIsSet(t *testing.T) {
 	assert.Equal(t, "test-machine-type", machineType)
 }
 
-func TestGetMachineType_InputPrecedenceOrder1(t *testing.T) {
-	resetMetadataEndpoints(t)
-	// Create a test server that returns a machine type.
-	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "zones/us-central1-a/machineTypes/n1-standard-1")
-	})
-	defer closeTestServer(t, server)
-	// Override metadataEndpoints for testing.
-	metadataEndpoints = []string{server.URL}
-	// Create a mockIsValueSet where machine-type is set.
-	isSet := &mockIsValueSet{
-		setFlags:    map[string]bool{"machine-type": true},
-		stringFlags: map[string]string{"machine-type": "cli-machine-type"},
+func TestGetMachineType_InputPrecedenceOrder(t *testing.T) {
+	tests := []struct {
+		name                string
+		isSet               *mockIsValueSet
+		config              *Config
+		expectedMachineType string
+	}{
+		{
+			name: "CLI flag set",
+			isSet: &mockIsValueSet{
+				setFlags:    map[string]bool{"machine-type": true},
+				stringFlags: map[string]string{"machine-type": "cli-machine-type"},
+			},
+			config:              nil,
+			expectedMachineType: "cli-machine-type",
+		},
+		{
+			name:  "Config file set",
+			isSet: &mockIsValueSet{},
+			config: &Config{
+				MachineType: "config-file-machine-type",
+			},
+			expectedMachineType: "config-file-machine-type",
+		},
+		{
+			name: "CLI flag and Config file set (CLI priority)",
+			isSet: &mockIsValueSet{
+				setFlags:    map[string]bool{"machine-type": true},
+				stringFlags: map[string]string{"machine-type": "cli-machine-type"},
+			},
+			config: &Config{
+				MachineType: "config-file-machine-type",
+			},
+			expectedMachineType: "cli-machine-type",
+		},
 	}
 
-	machineType, err := getMachineType(isSet, nil)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			resetMetadataEndpoints(t)
+			// Create a test server that returns a machine type.
+			server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+				fmt.Fprint(w, "zones/us-central1-a/machineTypes/n1-standard-1")
+			})
+			defer closeTestServer(t, server)
+			// Override metadataEndpoints for testing.
+			metadataEndpoints = []string{server.URL}
 
-	require.NoError(t, err)
-	assert.Equal(t, "cli-machine-type", machineType)
-}
+			var testConfig *Config
+			if tc.config != nil {
+				c := defaultConfig()
+				c.MachineType = tc.config.MachineType
+				testConfig = &c
+			}
 
-func TestGetMachineType_InputPrecedenceOrder2(t *testing.T) {
-	resetMetadataEndpoints(t)
-	// Create a test server that returns a machine type.
-	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "zones/us-central1-a/machineTypes/n1-standard-1")
-	})
-	defer closeTestServer(t, server)
-	// Override metadataEndpoints for testing.
-	metadataEndpoints = []string{server.URL}
-	// Create a config where machine-type is set.
-	cfg := defaultConfig()
-	cfg.MachineType = "config-file-machine-type"
+			machineType, err := getMachineType(tc.isSet, testConfig)
 
-	machineType, err := getMachineType(&mockIsValueSet{}, &cfg)
-
-	require.NoError(t, err)
-	assert.Equal(t, "config-file-machine-type", machineType)
-}
-
-func TestGetMachineType_InputPrecedenceOrder3(t *testing.T) {
-	resetMetadataEndpoints(t)
-	// Create a test server that returns a machine type.
-	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "zones/us-central1-a/machineTypes/n1-standard-1")
-	})
-	defer closeTestServer(t, server)
-	// Override metadataEndpoints for testing.
-	metadataEndpoints = []string{server.URL}
-	// Create a mockIsValueSet where machine-type is set.
-	isSet := &mockIsValueSet{
-		setFlags:    map[string]bool{"machine-type": true},
-		stringFlags: map[string]string{"machine-type": "cli-machine-type"},
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedMachineType, machineType)
+		})
 	}
-	// Create a config where machine-type is set.
-	cfg := defaultConfig()
-	cfg.MachineType = "config-file-machine-type"
-
-	machineType, err := getMachineType(isSet, &cfg)
-
-	require.NoError(t, err)
-	assert.Equal(t, "cli-machine-type", machineType)
 }
 
 func TestGetMachineType_QuotaError(t *testing.T) {
