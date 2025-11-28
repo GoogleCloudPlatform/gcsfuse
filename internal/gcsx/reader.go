@@ -40,18 +40,11 @@ type ReadRequest struct {
 
 // GCSReaderRequest represents the request parameters needed to read a data from a GCS object.
 type GCSReaderRequest struct {
-	// Buffer is provided by jacobsa/fuse and should be filled with data from the object.
-	Buffer []byte
-
-	// Offset specifies the starting position in the object from where data should be read.
-	Offset int64
+	// ReadRequest encapsulates the parameters for a read operation.
+	ReadRequest
 
 	// This determines GCS range request.
 	EndOffset int64
-
-	// ReadType indicates the type of read operation (e.g., sequential, random).
-	// Pass the information to RangeReader to record the metrics.
-	ReadType int64
 
 	// This parameter specifies whether the reader needs to be discarded for a new reader.
 	ForceCreateReader bool
