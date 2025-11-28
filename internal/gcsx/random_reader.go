@@ -673,6 +673,7 @@ func (rr *randomReader) invalidateReaderIfMisalignedOrTooSmall(startOffset, endO
 	// We will also clean up the existing reader if it can't serve the entire request.
 	dataToRead := math.Min(float64(endOffset), float64(rr.object.Size))
 	if rr.reader != nil && (rr.start != startOffset || int64(dataToRead) > rr.limit) {
+		rr.maybeDrainReader()
 		rr.closeReader()
 		rr.reader = nil
 		rr.cancel = nil
@@ -769,6 +770,15 @@ func (rr *randomReader) readFromMultiRangeReader(ctx context.Context, p []byte, 
 	rr.totalReadBytes.Add(uint64(bytesRead))
 	rr.updateExpectedOffset(offset + int64(bytesRead))
 	return
+}
+
+func (rr *randomReader) maybeDrainReader() {
+	if rr.reader == nil {
+		return
+	}
+	if (rr.limit - rr.start) < 10*MiB {
+		io.Copy(io.Discard, rr.reader)
+	}
 }
 
 // closeReader fetches the readHandle before closing the reader instance.
