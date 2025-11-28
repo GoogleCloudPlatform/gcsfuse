@@ -99,7 +99,7 @@ func TestGetMachineType_Success(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 
-	machineType, err := getMachineType(&mockIsValueSet{})
+	machineType, err := getMachineType(&mockIsValueSet{}, nil)
 
 	require.NoError(t, err)
 	assert.Equal(t, "n1-standard-1", machineType)
@@ -115,7 +115,7 @@ func TestGetMachineType_Failure(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 
-	_, err := getMachineType(&mockIsValueSet{})
+	_, err := getMachineType(&mockIsValueSet{}, nil)
 
 	assert.Error(t, err)
 }
@@ -130,10 +130,74 @@ func TestGetMachineType_FlagIsSet(t *testing.T) {
 		stringFlags: map[string]string{"machine-type": "test-machine-type"},
 	}
 
-	machineType, err := getMachineType(isSet)
+	machineType, err := getMachineType(isSet, nil)
 
 	require.NoError(t, err)
 	assert.Equal(t, "test-machine-type", machineType)
+}
+
+func TestGetMachineType_InputPrecedenceOrder1(t *testing.T) {
+	resetMetadataEndpoints(t)
+	// Create a test server that returns a machine type.
+	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "zones/us-central1-a/machineTypes/n1-standard-1")
+	})
+	defer closeTestServer(t, server)
+	// Override metadataEndpoints for testing.
+	metadataEndpoints = []string{server.URL}
+	// Create a mockIsValueSet where machine-type is set.
+	isSet := &mockIsValueSet{
+		setFlags:    map[string]bool{"machine-type": true},
+		stringFlags: map[string]string{"machine-type": "cli-machine-type"},
+	}
+
+	machineType, err := getMachineType(isSet, nil)
+
+	require.NoError(t, err)
+	assert.Equal(t, "cli-machine-type", machineType)
+}
+
+func TestGetMachineType_InputPrecedenceOrder2(t *testing.T) {
+	resetMetadataEndpoints(t)
+	// Create a test server that returns a machine type.
+	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "zones/us-central1-a/machineTypes/n1-standard-1")
+	})
+	defer closeTestServer(t, server)
+	// Override metadataEndpoints for testing.
+	metadataEndpoints = []string{server.URL}
+	// Create a config where machine-type is set.
+	cfg := defaultConfig()
+	cfg.MachineType = "config-file-machine-type"
+
+	machineType, err := getMachineType(&mockIsValueSet{}, &cfg)
+
+	require.NoError(t, err)
+	assert.Equal(t, "config-file-machine-type", machineType)
+}
+
+func TestGetMachineType_InputPrecedenceOrder3(t *testing.T) {
+	resetMetadataEndpoints(t)
+	// Create a test server that returns a machine type.
+	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "zones/us-central1-a/machineTypes/n1-standard-1")
+	})
+	defer closeTestServer(t, server)
+	// Override metadataEndpoints for testing.
+	metadataEndpoints = []string{server.URL}
+	// Create a mockIsValueSet where machine-type is set.
+	isSet := &mockIsValueSet{
+		setFlags:    map[string]bool{"machine-type": true},
+		stringFlags: map[string]string{"machine-type": "cli-machine-type"},
+	}
+	// Create a config where machine-type is set.
+	cfg := defaultConfig()
+	cfg.MachineType = "config-file-machine-type"
+
+	machineType, err := getMachineType(isSet, &cfg)
+
+	require.NoError(t, err)
+	assert.Equal(t, "cli-machine-type", machineType)
 }
 
 func TestGetMachineType_QuotaError(t *testing.T) {
@@ -152,7 +216,7 @@ func TestGetMachineType_QuotaError(t *testing.T) {
 	// Override metadataEndpoints for testing.
 	metadataEndpoints = []string{server.URL}
 
-	machineType, err := getMachineType(&mockIsValueSet{})
+	machineType, err := getMachineType(&mockIsValueSet{}, nil)
 
 	require.NoError(t, err)
 	assert.Equal(t, "n1-standard-1", machineType)
