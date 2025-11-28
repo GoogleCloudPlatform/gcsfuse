@@ -16,26 +16,36 @@ package storage
 
 import (
 	"context"
+	"errors"
+	"io"
+	"time"
 
+	storagev2 "cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
+
+type dummyIOBucketParams struct {
+	readerLatency time.Duration
+}
 
 // dummyIOBucket is a wrapper over gcs.Bucket that implements gcs.Bucket interface.
 // It directly delegates all calls to the wrapped bucket, and performs dummy IO for
 // read and write operations.
 type dummyIOBucket struct {
-	wrapped gcs.Bucket
+	wrapped       gcs.Bucket
+	readerLatency time.Duration
 }
 
 // NewDummyIOBucket creates a new dummyIOBucket wrapping the given gcs.Bucket.
 // If the wrapped bucket is nil, it returns nil.
-func NewDummyIOBucket(wrapped gcs.Bucket) gcs.Bucket {
+func NewDummyIOBucket(wrapped gcs.Bucket, params dummyIOBucketParams) gcs.Bucket {
 	if wrapped == nil {
 		return nil
 	}
 
 	return &dummyIOBucket{
-		wrapped: wrapped,
+		wrapped:       wrapped,
+		readerLatency: params.readerLatency,
 	}
 }
 
@@ -50,11 +60,26 @@ func (d *dummyIOBucket) BucketType() gcs.BucketType {
 }
 
 // NewReaderWithReadHandle creates a reader for reading object contents.
-// TODO: Add custom logic for Read path if needed
+// Returns a dummy reader that serves zeros efficiently instead of reading from GCS.
 func (d *dummyIOBucket) NewReaderWithReadHandle(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (gcs.StorageReader, error) {
-	return d.wrapped.NewReaderWithReadHandle(ctx, req)
+
+	if req.Range == nil {
+		return nil, errors.New("range must be specified for dummy IO bucket")
+	}
+
+	rangeLen := int64(req.Range.Limit) - int64(req.Range.Start)
+	if rangeLen <= 0 {
+		return nil, errors.New("invalid range: limit is less than start")
+	}
+
+	// Simulate network latency if specified.
+	if d.readerLatency > 0 {
+		time.Sleep(d.readerLatency)
+	}
+
+	return newDummyReader(uint64(rangeLen)), nil
 }
 
 // NewMultiRangeDownloader creates a multi-range downloader for object contents.
@@ -194,4 +219,69 @@ func (d *dummyIOBucket) CreateFolder(ctx context.Context, folderName string) (*g
 // Directly delegates to wrapped bucket.
 func (d *dummyIOBucket) GCSName(object *gcs.MinObject) string {
 	return d.wrapped.GCSName(object)
+}
+
+////////////////////////////////////////////////////////////////////////
+// dummyReader
+////////////////////////////////////////////////////////////////////////
+
+// dummyReader is an efficient reader that serves dummy data.
+// It implements the StorageReader interface and returns zeros for all reads.
+// Reading beyond the specified length returns io.EOF.
+// Also, it always returns a non-nil read handle.
+type dummyReader struct {
+	totalLen   uint64 // Total length of data to serve
+	bytesRead  uint64 // Number of bytes already read
+	readHandle storagev2.ReadHandle
+}
+
+// newDummyReader creates a new dummyReader with the specified total length.
+func newDummyReader(totalLen uint64) *dummyReader {
+	return &dummyReader{
+		totalLen:   totalLen,
+		bytesRead:  0,
+		readHandle: []byte{}, // Always return a non-nil read handle
+	}
+}
+
+// Read reads up to len(p) bytes into p, filling it with zeros.
+// Returns io.EOF when the total length has been reached.
+func (dr *dummyReader) Read(p []byte) (n int, err error) {
+	// If we've already read all the data, return EOF
+	if dr.bytesRead >= dr.totalLen {
+		return 0, io.EOF
+	}
+
+	// Calculate how many bytes we can still read
+	remaining := dr.totalLen - dr.bytesRead
+
+	// Determine how many bytes to read in this call
+	toRead := uint64(len(p))
+	if toRead > remaining {
+		toRead = remaining
+	}
+
+	// Fill the buffer with zeros (dummy data).
+	for i := uint64(0); i < toRead; i++ {
+		p[i] = 0
+	}
+
+	dr.bytesRead += toRead
+
+	// If we've read all the data, return EOF along with the last bytes
+	if dr.bytesRead >= dr.totalLen {
+		return int(toRead), io.EOF
+	}
+
+	return int(toRead), nil
+}
+
+// Close closes the reader. For dummy reader, this is a no-op.
+func (dr *dummyReader) Close() error {
+	return nil
+}
+
+// ReadHandle returns the read handle. For dummy reader, this returns a nil handle.
+func (dr *dummyReader) ReadHandle() storagev2.ReadHandle {
+	return dr.readHandle
 }
