@@ -37,13 +37,8 @@ import (
 // ConfigureDialerWithLocalAddr resolves the provided socket address and returns a net.TCPAddr.
 // The port can be 0, in which case the OS will choose a local port.
 // The format of SocketAddress is expected to be IP address.
-func ConfigureDialerWithLocalAddr(dialer *net.Dialer, socketAddress string) error {
-	localAddr, err := net.ResolveTCPAddr("tcp", socketAddress+":0")
-	if err != nil {
-		return fmt.Errorf("failed to resolve socket address %q: %w", socketAddress, err)
-	}
-	dialer.LocalAddr = localAddr
-	return nil
+func ConfigureDialerWithLocalAddr(dialer *net.Dialer, socketAddress string) {
+	dialer.LocalAddr = &net.TCPAddr{IP: net.ParseIP(socketAddress), Port: 0}
 }
 
 const urlSchemeSeparator = "://"
@@ -90,9 +85,7 @@ type StorageClientConfig struct {
 func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.TokenSource) (httpClient *http.Client, err error) {
 	dialer := net.Dialer{}
 	if storageClientConfig.LocalSocketAddress != "" {
-		if err := ConfigureDialerWithLocalAddr(&dialer, storageClientConfig.LocalSocketAddress); err != nil {
-			return nil, fmt.Errorf("failed to configure dialer with local-socket-address %q: %w", storageClientConfig.LocalSocketAddress, err)
-		}
+		dialer.LocalAddr = &net.TCPAddr{IP: net.ParseIP(storageClientConfig.LocalSocketAddress), Port: 0}
 	}
 	if storageClientConfig.EnableHTTPDNSCache {
 		dialer.Resolver = dns.NewCachingResolver(nil, dns.MinCacheTTL(1*time.Minute))
