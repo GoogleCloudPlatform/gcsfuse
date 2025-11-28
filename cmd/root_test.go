@@ -924,6 +924,15 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 	expectedAIMLCheckpointingFileSystemConfig := expectedDefaultFileSystemConfig
 	expectedAIMLCheckpointingFileSystemConfig.RenameDirLimit = 200000
 	expectedAIMLTrainingFileSystemConfig := expectedDefaultFileSystemConfig
+	createTempConfigFile := func(t *testing.T, content string) string {
+		t.Helper()
+		f, err := os.CreateTemp(t.TempDir(), "config.yaml")
+		require.NoError(t, err)
+		_, err = f.WriteString(content)
+		require.NoError(t, err)
+		require.NoError(t, f.Close())
+		return f.Name()
+	}
 
 	hd, err := os.UserHomeDir()
 	require.NoError(t, err)
@@ -1153,6 +1162,24 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					MaxReadAheadKb:     0,
 				},
 			},
+		},
+		{
+			name: "cli_flag_overrides_config_file",
+			args: []string{"gcsfuse", "--config-file", createTempConfigFile(t, "machine-type: config-file-type"), "--machine-type=cli-type", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem:  expectedDefaultFileSystemConfig,
+				MachineType: "cli-type",
+			},
+			checkMachineType: true,
+		},
+		{
+			name: "config_file_overrides_metadata_server",
+			args: []string{"gcsfuse", "--config-file", createTempConfigFile(t, "machine-type: config-file-type"), "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem:  expectedDefaultFileSystemConfig,
+				MachineType: "config-file-type",
+			},
+			checkMachineType: true,
 		},
 	}
 
