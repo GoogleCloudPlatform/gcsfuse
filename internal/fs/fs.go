@@ -1648,7 +1648,6 @@ func (fs *fileSystem) invalidateCachedEntry(childID fuseops.InodeID) error {
 ////////////////////////////////////////////////////////////////////////
 
 func (fs *fileSystem) Destroy() {
-	logger.PrintAll()
 	fs.bucketManager.ShutDown()
 	if fs.fileCacheHandler != nil {
 		_ = fs.fileCacheHandler.Destroy()
@@ -1713,7 +1712,12 @@ func (fs *fileSystem) LookUpInode(
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
 	fs.mu.Unlock()
-
+	if op.Name == "print" {
+		logger.PrintAll()
+	}
+	if op.Name == "reset" {
+		logger.Reset()
+	}
 	// Find or create the child inode.
 	child, err := fs.lookUpOrCreateChildInode(ctx, parent, op.Name)
 	if err != nil {

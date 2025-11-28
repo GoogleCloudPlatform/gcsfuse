@@ -7,6 +7,16 @@ DETAIL_DIR="$HOME" # Here we create bucket mount point and gcsfuse.log
 
 mkdir -p "$DETAIL_DIR" || true
 
+print() {
+    sleep 3
+    cat "$MP/print" || true
+}
+
+reset() {
+    sleep 3
+    cat "$MP/reset" || true
+}
+
 MP="$DETAIL_DIR/b"
 LF="gcsfuse.log"
 fusermount -uz "$MP" || true
@@ -16,13 +26,13 @@ mkdir "$MP" || true
 echo "" > "$LF" 
 go run ./ \
     --implicit-dirs \
-    --log-severity=INFO \
+    --log-severity=info \
     --log-file="$LF" \
     --enable-buffered-read=true \
     --metadata-cache-negative-ttl-secs=-1 \
     "$BUCKET_NAME" "$MP"
 
-sleep 3
+sleep 6
 
 ls -R "$MP"
 
@@ -50,16 +60,24 @@ numjobs=${NUMJOBS}
 nrfiles=${NRFILES}
 EOF
 
-COUNT=1
-
-for ((i=1; i<=COUNT; i++)) 
-do
 # Fio config is exactly same as published benchmarks fo sequential reads.
 DIR="${MP}/" \
 NUMJOBS="1" \
 BS="1M" \
 FILESIZE="20G" \
 NRFILES="1" fio --group_reporting --output-format=normal seq.fio
-done
+
+reset
+
+# Fio config is exactly same as published benchmarks fo sequential reads.
+DIR="${MP}/" \
+NUMJOBS="1" \
+BS="1M" \
+FILESIZE="20G" \
+NRFILES="1" fio --group_reporting --output-format=normal seq.fio
+
+print
+reset
 
 fusermount -uz "$MP" || true
+

@@ -274,64 +274,58 @@ func (f *loggerFactory) handler(levelVar *slog.LevelVar, prefix string) slog.Han
 	return f.createJsonOrTextHandler(os.Stdout, levelVar, prefix)
 }
 
-// MetricType is a custom type to define our latency categories.
-type MetricType string
+// Define the MetricType as an integer type
+type MetricType int
 
 const (
-	READ_CALL_BLOCK_WAIT MetricType = "read_call_block_wait"
-	READ_CALL_LAT        MetricType = "read_call_latency"
-	BLOCK_DOWNLOAD_LAT   MetricType = "block_download_latency"
+	// READ_CALL_BLOCK_WAIT is the first named constant and initializes iota to 0.
+	READ_CALL_BLOCK_WAIT MetricType = iota // Value: 0
+	READ_CALL_LAT                          // Value: 1
+	BLOCK_DOWNLOAD_LAT                     // Value: 2
+	READER_CREATION_LAT                    // Value: 3
+	COPY_FROM_READER_LAT                   // value: 4
+
+	// MetricType_Size captures the final value of iota, which is the total count.
+	MetricType_Size // Value: 5
 )
 
-// metricData is an internal struct used only for passing data through the channel
-type metricData struct {
-	mType    MetricType
-	duration int64
+var metricTypeStrings = [...]string{
+	"READ_CALL_BLOCK_WAIT",
+	"READ_CALL_LAT",
+	"BLOCK_DOWNLOAD_LAT",
+	"READER_CREATION_LAT",
+	"COPY_FROM_READER_LAT",
 }
 
-var (
-	// 1. The Global Storage
-	// We need a RWMutex because you might want to READ this map
-	// while the background worker is writing to it.
-	latencies = make(map[MetricType][]int64)
-	mu        sync.RWMutex
-
-	// 2. The Global Channel (The Buffer)
-	// Buffer size 1000 means the first 1000 Add calls are instant/non-blocking
-	latencyCh = make(chan metricData, 1000000)
-)
-
-// --- Core Logic ---
-
-// init runs automatically when the program starts.
-// We use it to start the background consumer immediately.
-func init() {
-	go processLatencies()
-}
-
-// processLatencies is the "Consumer".
-// It runs in the background to drain the channel and update the map.
-func processLatencies() {
-	for data := range latencyCh {
-		// We lock here, in the background, so the main program flow isn't slowed down.
-		mu.Lock()
-		latencies[data.mType] = append(latencies[data.mType], data.duration)
-		mu.Unlock()
+// String returns a human-readable name for the MetricType.
+func (m MetricType) String() string {
+	if m < 0 || int(m) >= len(metricTypeStrings) {
+		return fmt.Sprintf("Unknown MetricType (%d)", m)
 	}
+	return metricTypeStrings[m]
 }
 
-// Add is the "Producer".
-// It is THREAD SAFE and NON-BLOCKING (unless buffer is full).
-func Add(metricType MetricType, dur time.Duration) {
-	// Create the data packet
-	data := metricData{
-		mType:    metricType,
-		duration: dur.Microseconds(),
-	}
+// The size is now directly available as a constant.
+const NumberOfMetrics = MetricType_Size
 
-	// Send to the global channel.
-	// This happens instantly; we do NOT wait for the lock here.
-	latencyCh <- data
+const innerDimension = 1000000
+
+var DataMetrics [NumberOfMetrics][innerDimension]int64
+var DataMetricsSize [NumberOfMetrics]int64
+
+func Add(metricType MetricType, dur time.Duration, idx int64) {
+	DataMetrics[metricType][idx] = dur.Microseconds()
+	DataMetricsSize[metricType] = max(DataMetricsSize[metricType], idx+1)
+}
+
+func Size(metricType MetricType) int64 {
+	return DataMetricsSize[metricType]
+}
+
+func Reset() {
+	for metricType := range MetricType_Size {
+		DataMetricsSize[metricType] = 0
+	}
 }
 
 var readFileTotal int64
@@ -346,27 +340,25 @@ const (
 // This is useful for analyzing performance during specific phases of a workload
 // (e.g., the initial 10% of operations vs. the final 10%).
 func GetDataPoints(metricType MetricType, percentage int, take_from_front bool) []int64 {
-	mu.RLock()
-	defer mu.RUnlock()
 
-	originalData, ok := latencies[metricType]
-	if !ok || len(originalData) == 0 {
+	count := Size(metricType)
+	if count == 0 {
 		Infof("Metric %q has no data to analyze.", metricType)
 		return nil
 	}
+	originalData := DataMetrics[metricType][:count]
 
 	if percentage < 0 || percentage > 100 {
 		Errorf("Percentage for GetDataPoints must be between 0 and 100, got %d.", percentage)
 		return nil
 	}
 
-	count := len(originalData)
-	numPointsToTake := (count * percentage) / 100
+	numPointsToTake := (int(count) * percentage) / 100
 
 	if take_from_front {
 		return slices.Clone(originalData[:numPointsToTake])
 	}
-	return slices.Clone(originalData[count-numPointsToTake:])
+	return slices.Clone(originalData[int(count)-numPointsToTake:])
 }
 
 func Print(metricType MetricType) {
@@ -377,7 +369,6 @@ func Print(metricType MetricType) {
 		Errorf("Metric %q has no data to print.", metricType)
 		return
 	}
-
 	count := len(data)
 
 	// 2. Calculate Sum/Min/Max using the original data (Order doesn't matter here)
@@ -434,23 +425,17 @@ func Print(metricType MetricType) {
 
 // PrintAll iterates over all stored MetricTypes and calls Print for each one.
 func PrintAll() {
-	Info("=== Printing All Performance Metrics ===")
-	if len(latencies) == 0 {
-		Info("No metrics have been recorded yet.")
-		return
-	}
-
 	// Iterate over the keys (MetricType) in the latencies map.
 	// The iteration order of Go maps is not guaranteed to be the same
 	// from one execution to the next.
-	for metricType := range latencies {
+	for metricType := range MetricType_Size {
 		Print(metricType)
 		dir, set := os.LookupEnv(util.GCSFUSE_PARENT_PROCESS_DIR)
 		if !set {
 			Errorf("Could not get current directory for plotting as I got empty")
 		} else {
 			Infof("Got dir for graph: %s", dir)
-			if metricType == BLOCK_DOWNLOAD_LAT {
+			if metricType == BLOCK_DOWNLOAD_LAT || metricType == READER_CREATION_LAT || metricType == COPY_FROM_READER_LAT {
 				PlotLatencies(metricType, dir, false, true)
 			} else {
 				PlotLatencies(metricType, dir, true, false)
@@ -542,18 +527,12 @@ func (customLinearTicker) Ticks(min, max float64) []plot.Tick {
 		return []plot.Tick{{Value: min, Label: fmt.Sprintf("%.0f", min)}}
 	}
 
-	const targetTicks = 20
-	span := max - min
-	rawStep := span / float64(targetTicks)
-
-	// Round up to the nearest multiple of 10
-	step := math.Ceil(rawStep/10.0) * 10.0
-	format := "%.0f"
+	step := 10.0
 
 	var ticks []plot.Tick
-	start := math.Ceil(min/step) * step
-	for val := start; val <= max+step*1e-6; val += step {
-		ticks = append(ticks, plot.Tick{Value: val, Label: fmt.Sprintf(format, val)})
+
+	for val := 10.0; val <= 200; val += step {
+		ticks = append(ticks, plot.Tick{Value: val, Label: fmt.Sprintf("%.0f", val)})
 	}
 	return ticks
 }
@@ -563,6 +542,14 @@ func PlotLatencies(metricType MetricType, dir string, useLogScale bool, useMilli
 	if data == nil {
 		Errorf("Metric %q has no data to plot.", metricType)
 		return
+	}
+	if useMilliseconds {
+		data[0] = 200000 // This line seems to be for testing purposes, setting the first data point to 200ms.
+		for i := range data {
+			if data[i] > data[0] {
+				data[i] = data[0]
+			}
+		}
 	}
 
 	// Define defaults if they aren't global
@@ -606,8 +593,8 @@ func PlotLatencies(metricType MetricType, dir string, useLogScale bool, useMilli
 	// 2. Create the Plot
 	p := plot.New()
 
-	p.Title.Text = fmt.Sprintf("Latency Over Time: %s", metricType)
-	p.X.Label.Text = "Measurement Index"
+	p.Title.Text = fmt.Sprintf("Latency (Reusing ReadHandle): %s", metricType)
+	p.X.Label.Text = "Block Index (20GiB Seq Read/ Zonal)"
 
 	// Y-axis Label updated to Microseconds or Milliseconds
 	if useLogScale {

@@ -78,11 +78,12 @@ type downloadTask struct {
 // - BlockStatusDownloadFailed: The download failed due to an error.
 func (p *downloadTask) Execute() {
 	s1 := time.Now()
-	defer func() {
-		logger.Add(logger.BLOCK_DOWNLOAD_LAT, time.Since(s1))
-	}()
+
 	startOff := p.block.AbsStartOff()
 	blockId := startOff / p.block.Cap()
+	defer func() {
+		logger.Add(logger.BLOCK_DOWNLOAD_LAT, time.Since(s1), blockId)
+	}()
 	logger.Tracef("Download: <- block (%s, %v).", p.object.Name, blockId)
 	stime := time.Now()
 	var err error
@@ -105,6 +106,7 @@ func (p *downloadTask) Execute() {
 	start := uint64(startOff)
 	end := min(start+uint64(p.block.Cap()), p.object.Size)
 	var newReader io.ReadCloser
+	s2 := time.Now()
 	if useDummyReaderForPerformanceTesting {
 		newReader = io.NopCloser(bytes.NewReader(dummyBufferForPerformanceTesting))
 	} else {
@@ -131,17 +133,15 @@ func (p *downloadTask) Execute() {
 		return
 	}
 	defer newReader.Close()
-
+	logger.Add(logger.READER_CREATION_LAT, time.Since(s2), blockId)
+	s2 = time.Now()
 	n, err = io.CopyN(p.block, newReader, int64(end-start))
 	if err != nil {
 		err = fmt.Errorf("DownloadTask.Execute: while data-copy: %w", err)
 		return
 	}
-	if !useDummyReaderForPerformanceTesting {
-		if r, ok := newReader.(interface{ ReadHandle() storage.ReadHandle }); ok {
-			if handle := r.ReadHandle(); len(handle) > 0 && p.updateReadHandle != nil {
-				p.updateReadHandle(handle)
-			}
-		}
+	logger.Add(logger.COPY_FROM_READER_LAT, time.Since(s2), blockId)
+	if r, ok := newReader.(interface{ ReadHandle() storage.ReadHandle }); ok {
+		p.updateReadHandle(r.ReadHandle())
 	}
 }
