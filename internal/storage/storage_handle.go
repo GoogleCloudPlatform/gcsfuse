@@ -124,8 +124,16 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 	}
 
 	if clientConfig.LocalSocketAddress != "" {
+		logger.Info("Trying to use local socket address: %s", clientConfig.LocalSocketAddress)
+		parsedIP := net.ParseIP(clientConfig.LocalSocketAddress)
+		if parsedIP == nil {
+			logger.Info("Parsed IP is nil")
+		} else {
+			logger.Info("Parsed IP is not nil")
+		}
+
 		dialer := &net.Dialer{
-			LocalAddr: &net.TCPAddr{IP: net.ParseIP(clientConfig.LocalSocketAddress)},
+			LocalAddr: &net.TCPAddr{IP: parsedIP, Port: 0},
 		}
 		// The port can be 0, in which case the OS will choose a local port.
 		// The format of SocketAddress is expected to be IP address.
